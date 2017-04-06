@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -279,7 +280,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 
 	for key, value := range sourceConfig {
 		if len(key) > 8 && key[0:8] == "volatile" && !shared.StringInSlice(key[9:], []string{"base_image", "last_state.idmap"}) {
-			shared.LogDebug("Skipping volatile key from copy source",
+			logger.Debug("Skipping volatile key from copy source",
 				log.Ctx{"key": key})
 			continue
 		}
@@ -345,7 +346,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 }
 
 func containersPost(d *Daemon, r *http.Request) Response {
-	shared.LogDebugf("Responding to container create")
+	logger.Debugf("Responding to container create")
 
 	req := api.ContainersPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -370,7 +371,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 				return InternalError(fmt.Errorf("couldn't generate a new unique name after 100 tries"))
 			}
 		}
-		shared.LogDebugf("No name provided, creating %s", req.Name)
+		logger.Debugf("No name provided, creating %s", req.Name)
 	}
 
 	if req.Devices == nil {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -183,7 +184,7 @@ func run() error {
 
 	handler := eventsHandler{}
 	var err error
-	shared.Log, err = logging.GetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
+	logger.Log, err = logging.GetLogger(syslog, *argLogfile, *argVerbose, *argDebug, handler)
 	if err != nil {
 		fmt.Printf("%s", err)
 		return nil

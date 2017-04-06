@@ -24,6 +24,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
@@ -137,8 +138,8 @@ func unpack(d *Daemon, file string, path string) error {
 		}
 
 		co := output
-		shared.LogDebugf("Unpacking failed")
-		shared.LogDebugf(co)
+		logger.Debugf("Unpacking failed")
+		logger.Debugf(co)
 
 		// Truncate the output to a single line for inclusion in the error
 		// message.  The first line isn't guaranteed to pinpoint the issue,
@@ -428,7 +429,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) (*api.Image, error) {
 	info := api.Image{}
 	var imageMeta *imageMetadata
-	logger := logging.AddContext(shared.Log, log.Ctx{"function": "getImgPostInfo"})
+	logger := logging.AddContext(logger.Log, log.Ctx{"function": "getImgPostInfo"})
 
 	public, _ := strconv.Atoi(r.Header.Get("X-LXD-public"))
 	info.Public = public == 1
@@ -636,7 +637,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		}
 
 		if err := os.RemoveAll(path); err != nil {
-			shared.LogDebugf("Error deleting temporary directory \"%s\": %s", path, err)
+			logger.Debugf("Error deleting temporary directory \"%s\": %s", path, err)
 		}
 	}
 
@@ -813,18 +814,18 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
 func autoUpdateImages(d *Daemon) {
-	shared.LogInfof("Updating images")
+	logger.Infof("Updating images")
 
 	images, err := dbImagesGet(d.db, false)
 	if err != nil {
-		shared.LogError("Unable to retrieve the list of images", log.Ctx{"err": err})
+		logger.Error("Unable to retrieve the list of images", log.Ctx{"err": err})
 		return
 	}
 
 	for _, fp := range images {
 		id, info, err := dbImageGet(d.db, fp, false, true)
 		if err != nil {
-			shared.LogError("Error loading image", log.Ctx{"err": err, "fp": fp})
+			logger.Error("Error loading image", log.Ctx{"err": err, "fp": fp})
 			continue
 		}
 
@@ -837,66 +838,66 @@ func autoUpdateImages(d *Daemon) {
 			continue
 		}
 
-		shared.LogDebug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+		logger.Debug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
 		newInfo, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true)
 		if err != nil {
-			shared.LogError("Failed to update the image", log.Ctx{"err": err, "fp": fp})
+			logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fp})
 			continue
 		}
 
 		hash := newInfo.Fingerprint
 		if hash == fp {
-			shared.LogDebug("Already up to date", log.Ctx{"fp": fp})
+			logger.Debug("Already up to date", log.Ctx{"fp": fp})
 			continue
 		}
 
 		newId, _, err := dbImageGet(d.db, hash, false, true)
 		if err != nil {
-			shared.LogError("Error loading image", log.Ctx{"err": err, "fp": hash})
+			logger.Error("Error loading image", log.Ctx{"err": err, "fp": hash})
 			continue
 		}
 
 		err = dbImageLastAccessUpdate(d.db, hash, info.LastUsedAt)
 		if err != nil {
-			shared.LogError("Error setting last use date", log.Ctx{"err": err, "fp": hash})
+			logger.Error("Error setting last use date", log.Ctx{"err": err, "fp": hash})
 			continue
 		}
 
 		err = dbImageAliasesMove(d.db, id, newId)
 		if err != nil {
-			shared.LogError("Error moving aliases", log.Ctx{"err": err, "fp": hash})
+			logger.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
 			continue
 		}
 
 		err = doDeleteImage(d, fp)
 		if err != nil {
-			shared.LogError("Error deleting image", log.Ctx{"err": err, "fp": fp})
+			logger.Error("Error deleting image", log.Ctx{"err": err, "fp": fp})
 		}
 	}
 
-	shared.LogInfof("Done updating images")
+	logger.Infof("Done updating images")
 }
 
 func pruneExpiredImages(d *Daemon) {
-	shared.LogInfof("Pruning expired images")
+	logger.Infof("Pruning expired images")
 
 	// Get the list of expires images
 	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
 	images, err := dbImagesGetExpired(d.db, expiry)
 	if err != nil {
-		shared.LogError("Unable to retrieve the list of expired images", log.Ctx{"err": err})
+		logger.Error("Unable to retrieve the list of expired images", log.Ctx{"err": err})
 		return
 	}
 
 	// Delete them
 	for _, fp := range images {
 		if err := doDeleteImage(d, fp); err != nil {
-			shared.LogError("Error deleting image", log.Ctx{"err": err, "fp": fp})
+			logger.Error("Error deleting image", log.Ctx{"err": err, "fp": fp})
 		}
 	}
 
-	shared.LogInfof("Done pruning expired images")
+	logger.Infof("Done pruning expired images")
 }
 
 func doDeleteImage(d *Daemon, fingerprint string) error {
@@ -909,11 +910,11 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	// look at the path
 	s, err := storageForImage(d, imgInfo)
 	if err != nil {
-		shared.LogError("error detecting image storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
+		logger.Error("error detecting image storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
 	} else {
 		// Remove the image from storage backend
 		if err = s.ImageDelete(imgInfo.Fingerprint); err != nil {
-			shared.LogError("error deleting the image from storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
+			logger.Error("error deleting the image from storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
 		}
 	}
 
@@ -922,7 +923,7 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
-			shared.LogDebugf("Error deleting image file %s: %s", fname, err)
+			logger.Debugf("Error deleting image file %s: %s", fname, err)
 		}
 	}
 
@@ -931,7 +932,7 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
-			shared.LogDebugf("Error deleting image file %s: %s", fname, err)
+			logger.Debugf("Error deleting image file %s: %s", fname, err)
 		}
 	}
 

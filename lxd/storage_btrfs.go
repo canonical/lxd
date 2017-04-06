@@ -16,6 +16,7 @@ import (
 	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -787,12 +788,12 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		shared.LogError("problem reading btrfs send stderr", log.Ctx{"err": err})
+		logger.Error("problem reading btrfs send stderr", log.Ctx{"err": err})
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.LogError("problem with btrfs send", log.Ctx{"output": string(output)})
+		logger.Error("problem with btrfs send", log.Ctx{"output": string(output)})
 	}
 
 	return err
@@ -942,7 +943,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		// Remove the existing pre-created subvolume
 		err := s.subvolsDelete(targetPath)
 		if err != nil {
-			shared.LogErrorf("Failed to delete pre-created BTRFS subvolume: %s.", btrfsPath)
+			logger.Errorf("Failed to delete pre-created BTRFS subvolume: %s.", btrfsPath)
 			return err
 		}
 
@@ -965,12 +966,12 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 		output, err := ioutil.ReadAll(stderr)
 		if err != nil {
-			shared.LogDebugf("problem reading btrfs receive stderr %s", err)
+			logger.Debugf("problem reading btrfs receive stderr %s", err)
 		}
 
 		err = cmd.Wait()
 		if err != nil {
-			shared.LogError("problem with btrfs receive", log.Ctx{"output": string(output)})
+			logger.Error("problem with btrfs receive", log.Ctx{"output": string(output)})
 			return err
 		}
 
@@ -979,13 +980,13 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 			err := s.subvolsSnapshot(cPath, targetPath, false)
 			if err != nil {
-				shared.LogError("problem with btrfs snapshot", log.Ctx{"err": err})
+				logger.Error("problem with btrfs snapshot", log.Ctx{"err": err})
 				return err
 			}
 
 			err = s.subvolsDelete(cPath)
 			if err != nil {
-				shared.LogError("problem with btrfs delete", log.Ctx{"err": err})
+				logger.Error("problem with btrfs delete", log.Ctx{"err": err})
 				return err
 			}
 		}

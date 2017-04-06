@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd"
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func (c *execCmd) getStdout() io.WriteCloser {
@@ -29,11 +29,11 @@ func (c *execCmd) controlSocketHandler(d *lxd.Client, control *websocket.Conn) {
 	for {
 		sig := <-ch
 
-		shared.LogDebugf("Received '%s signal', updating window geometry.", sig)
+		logger.Debugf("Received '%s signal', updating window geometry.", sig)
 
 		err := c.sendTermSize(control)
 		if err != nil {
-			shared.LogDebugf("error setting term size %s", err)
+			logger.Debugf("error setting term size %s", err)
 			break
 		}
 	}

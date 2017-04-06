@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/simplestreams"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -72,7 +73,7 @@ func ParseResponse(r *http.Response) (*api.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	shared.LogDebugf("Raw response: %s", string(s))
+	logger.Debugf("Raw response: %s", string(s))
 
 	if err := json.Unmarshal(s, &ret); err != nil {
 		return nil, err
@@ -368,7 +369,7 @@ func (c *Client) doUpdateMethod(method string, base string, args interface{}, rt
 		return nil, err
 	}
 
-	shared.LogDebugf("%s %s to %s", method, buf.String(), uri)
+	logger.Debugf("%s %s to %s", method, buf.String(), uri)
 
 	req, err := http.NewRequest(method, uri, &buf)
 	if err != nil {
@@ -517,7 +518,7 @@ func (c *Client) AmTrusted() bool {
 		return false
 	}
 
-	shared.LogDebugf("%s", resp)
+	logger.Debugf("%s", resp)
 
 	meta, err := resp.MetadataAsMap()
 	if err != nil {
@@ -538,7 +539,7 @@ func (c *Client) IsPublic() bool {
 		return false
 	}
 
-	shared.LogDebugf("%s", resp)
+	logger.Debugf("%s", resp)
 
 	meta, err := resp.MetadataAsMap()
 	if err != nil {
@@ -2128,7 +2129,7 @@ func (c *Client) SetProfileConfigItem(profile, key, value string) error {
 
 	st, err := c.ProfileConfig(profile)
 	if err != nil {
-		shared.LogDebugf("Error getting profile %s to update", profile)
+		logger.Debugf("Error getting profile %s to update", profile)
 		return err
 	}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -20,7 +21,7 @@ import (
 func storageLVMCheckVolumeGroup(vgName string) error {
 	output, err := shared.RunCommand("vgdisplay", "-s", vgName)
 	if err != nil {
-		shared.LogDebug("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
+		logger.Debug("vgdisplay failed to find vg", log.Ctx{"output": string(output)})
 		return fmt.Errorf("LVM volume group '%s' not found", vgName)
 	}
 
@@ -557,7 +558,7 @@ func (s *storageLvm) createSnapshotContainer(
 
 	srcName := containerNameToLVName(sourceContainer.Name())
 	destName := containerNameToLVName(snapshotContainer.Name())
-	shared.LogDebug(
+	logger.Debug(
 		"Creating snapshot",
 		log.Ctx{"srcName": srcName, "destName": destName})
 
@@ -649,7 +650,7 @@ func (s *storageLvm) ContainerSnapshotStart(container container) error {
 	srcName := containerNameToLVName(container.Name())
 	destName := containerNameToLVName(container.Name() + "/rw")
 
-	shared.LogDebug(
+	logger.Debug(
 		"Creating snapshot",
 		log.Ctx{"srcName": srcName, "destName": destName})
 
@@ -732,7 +733,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	fstype := daemonConfig["storage.lvm_fstype"].Get()
 	err = tryMount(lvpath, tempLVMountPoint, fstype, 0, "discard")
 	if err != nil {
-		shared.LogInfof("Error mounting image LV for unpacking: %v", err)
+		logger.Infof("Error mounting image LV for unpacking: %v", err)
 		return fmt.Errorf("Error mounting image LV: %v", err)
 	}
 

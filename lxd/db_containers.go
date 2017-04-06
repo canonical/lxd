@@ -7,6 +7,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -195,7 +196,7 @@ func dbContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error
 	for k, v := range config {
 		_, err := stmt.Exec(id, k, v)
 		if err != nil {
-			shared.LogDebugf("Error adding configuration item %s = %s to container %d",
+			logger.Debugf("Error adding configuration item %s = %s to container %d",
 				k, v, id)
 			return err
 		}
@@ -240,7 +241,7 @@ func dbContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 	for _, p := range profiles {
 		_, err = stmt.Exec(id, p, applyOrder)
 		if err != nil {
-			shared.LogDebugf("Error adding profile %s to container: %s",
+			logger.Debugf("Error adding profile %s to container: %s",
 				p, err)
 			return err
 		}
@@ -372,7 +373,7 @@ func dbContainerRename(db *sql.DB, oldName string, newName string) error {
 	}
 	defer stmt.Close()
 
-	shared.LogDebug(
+	logger.Debug(
 		"Calling SQL Query",
 		log.Ctx{
 			"query":   "UPDATE containers SET name = ? WHERE name = ?",

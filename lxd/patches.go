@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -36,7 +37,7 @@ type patch struct {
 }
 
 func (p *patch) apply(d *Daemon) error {
-	shared.LogDebugf("Applying patch: %s", p.name)
+	logger.Debugf("Applying patch: %s", p.name)
 
 	err := p.run(p.name, d)
 	if err != nil {
@@ -95,7 +96,7 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 
 	for _, profile := range profiles {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
-			shared.LogInfo("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
+			logger.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
 			err := dbProfileDelete(d.db, profile)
 			if err != nil {
 				return err

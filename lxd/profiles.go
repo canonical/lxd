@@ -11,6 +11,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -35,7 +36,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 		} else {
 			profile, err := doProfileGet(d, name)
 			if err != nil {
-				shared.LogError("Failed to get profile", log.Ctx{"profile": name})
+				logger.Error("Failed to get profile", log.Ctx{"profile": name})
 				continue
 			}
 			resultMap[i] = profile
@@ -126,7 +127,7 @@ func getContainersWithProfile(d *Daemon, profile string) []container {
 	for _, name := range output {
 		c, err := containerLoadByName(d, name)
 		if err != nil {
-			shared.LogError("Failed opening container", log.Ctx{"container": name})
+			logger.Error("Failed opening container", log.Ctx{"container": name})
 			continue
 		}
 		results = append(results, c)

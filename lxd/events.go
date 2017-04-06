@@ -13,6 +13,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type eventsHandler struct {
@@ -87,7 +88,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 	eventListeners[listener.id] = &listener
 	eventsLock.Unlock()
 
-	shared.LogDebugf("New events listener: %s", listener.id)
+	logger.Debugf("New events listener: %s", listener.id)
 
 	<-listener.active
 
@@ -96,7 +97,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 	eventsLock.Unlock()
 
 	listener.connection.Close()
-	shared.LogDebugf("Disconnected events listener: %s", listener.id)
+	logger.Debugf("Disconnected events listener: %s", listener.id)
 
 	return nil
 }

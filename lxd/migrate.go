@@ -21,6 +21,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type migrationFields struct {
@@ -135,7 +136,7 @@ func (c *migrationFields) controlChannel() <-chan MigrationControl {
 		msg := MigrationControl{}
 		err := c.recv(&msg)
 		if err != nil {
-			shared.LogDebugf("Got error reading migration control socket %s", err)
+			logger.Debugf("Got error reading migration control socket %s", err)
 			close(ch)
 			return
 		}
@@ -490,7 +491,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			/* the dump finished, let's continue on to the restore */
 			case <-dumpDone:
-				shared.LogDebugf("Dump finished, continuing with restore...")
+				logger.Debugf("Dump finished, continuing with restore...")
 			}
 		} else {
 			defer os.RemoveAll(checkpointDir)
@@ -531,7 +532,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		restoreSuccess <- *msg.Success
 		err := <-dumpSuccess
 		if err != nil {
-			shared.LogErrorf("dump failed after successful restore?: %q", err)
+			logger.Errorf("dump failed after successful restore?: %q", err)
 		}
 	}
 
@@ -774,7 +775,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				// The source can only tell us it failed (e.g. if
 				// checkpointing failed). We have to tell the source
 				// whether or not the restore was successful.
-				shared.LogDebugf("Unknown message %v from source", msg)
+				logger.Debugf("Unknown message %v from source", msg)
 				err = c.src.container.TemplateApply("copy")
 				if err != nil {
 					c.src.container.Delete()

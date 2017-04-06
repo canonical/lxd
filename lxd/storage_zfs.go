@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 
 	"github.com/pborman/uuid"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -1255,12 +1256,12 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		shared.LogError("problem reading zfs send stderr", log.Ctx{"err": err})
+		logger.Error("problem reading zfs send stderr", log.Ctx{"err": err})
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.LogError("problem with zfs send", log.Ctx{"output": string(output)})
+		logger.Error("problem with zfs send", log.Ctx{"output": string(output)})
 	}
 
 	return err
@@ -1402,12 +1403,12 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 
 		output, err := ioutil.ReadAll(stderr)
 		if err != nil {
-			shared.LogDebug("problem reading zfs recv stderr %s", log.Ctx{"err": err})
+			logger.Debug("problem reading zfs recv stderr %s", log.Ctx{"err": err})
 		}
 
 		err = cmd.Wait()
 		if err != nil {
-			shared.LogError("problem with zfs recv", log.Ctx{"output": string(output)})
+			logger.Error("problem with zfs recv", log.Ctx{"output": string(output)})
 		}
 		return err
 	}
@@ -1451,7 +1452,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 		/* clean up our migration-send snapshots that we got from recv. */
 		zfsSnapshots, err := s.zfsListSnapshots(fmt.Sprintf("containers/%s", container.Name()))
 		if err != nil {
-			shared.LogError("failed listing snapshots post migration", log.Ctx{"err": err})
+			logger.Error("failed listing snapshots post migration", log.Ctx{"err": err})
 			return
 		}
 

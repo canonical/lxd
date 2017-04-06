@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
@@ -168,7 +169,7 @@ func containersShutdown(d *Daemon) error {
 }
 
 func containerDeleteSnapshots(d *Daemon, cname string) error {
-	shared.LogDebug("containerDeleteSnapshots",
+	logger.Debug("containerDeleteSnapshots",
 		log.Ctx{"container": cname})
 
 	results, err := dbContainerGetSnapshots(d.db, cname)
@@ -179,7 +180,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 	for _, sname := range results {
 		sc, err := containerLoadByName(d, sname)
 		if err != nil {
-			shared.LogError(
+			logger.Error(
 				"containerDeleteSnapshots: Failed to load the snapshotcontainer",
 				log.Ctx{"container": cname, "snapshot": sname})
 
@@ -187,7 +188,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 		}
 
 		if err := sc.Delete(); err != nil {
-			shared.LogError(
+			logger.Error(
 				"containerDeleteSnapshots: Failed to delete a snapshotcontainer",
 				log.Ctx{"container": cname, "snapshot": sname, "err": err})
 		}

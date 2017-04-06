@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -54,7 +55,7 @@ func filesystemDetect(path string) (string, error) {
 	case filesystemSuperMagicNfs:
 		return "nfs", nil
 	default:
-		shared.LogDebugf("Unknown backing filesystem type: 0x%x", fs.Type)
+		logger.Debugf("Unknown backing filesystem type: 0x%x", fs.Type)
 		return string(fs.Type), nil
 	}
 }
@@ -289,12 +290,12 @@ type storageShared struct {
 	sTypeName    string
 	sTypeVersion string
 
-	log shared.Logger
+	log logger.Logger
 }
 
 func (ss *storageShared) initShared() error {
 	ss.log = logging.AddContext(
-		shared.Log,
+		logger.Log,
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", ss.sTypeName)},
 	)
 	return nil
@@ -316,7 +317,7 @@ func (ss *storageShared) shiftRootfs(c container) error {
 	dpath := c.Path()
 	rpath := c.RootfsPath()
 
-	shared.LogDebug("Shifting root filesystem",
+	logger.Debug("Shifting root filesystem",
 		log.Ctx{"container": c.Name(), "rootfs": rpath})
 
 	idmapset, err := c.IdmapSet()
@@ -330,7 +331,7 @@ func (ss *storageShared) shiftRootfs(c container) error {
 
 	err = idmapset.ShiftRootfs(rpath)
 	if err != nil {
-		shared.LogDebugf("Shift of rootfs %s failed: %s", rpath, err)
+		logger.Debugf("Shift of rootfs %s failed: %s", rpath, err)
 		return err
 	}
 
@@ -375,13 +376,13 @@ func (ss *storageShared) setUnprivUserAcl(c container, destPath string) error {
 
 type storageLogWrapper struct {
 	w   storage
-	log shared.Logger
+	log logger.Logger
 }
 
 func (lw *storageLogWrapper) Init(config map[string]interface{}) (storage, error) {
 	_, err := lw.w.Init(config)
 	lw.log = logging.AddContext(
-		shared.Log,
+		logger.Log,
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", lw.w.GetStorageTypeName())},
 	)
 

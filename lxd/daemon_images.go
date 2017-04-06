@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -153,7 +154,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 				entry = newEntry
 			} else if entry != nil {
 				// Failed to fetch entry but existing cache
-				shared.LogWarn("Unable to refresh cache, using stale entry", log.Ctx{"server": server})
+				logger.Warn("Unable to refresh cache, using stale entry", log.Ctx{"server": server})
 				entry.expiry = time.Now().Add(time.Hour)
 			} else {
 				// Failed to fetch entry and nothing in cache
@@ -162,7 +163,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			}
 		} else {
 			// use the existing entry
-			shared.LogDebug("Using SimpleStreams cache entry", log.Ctx{"server": server, "expiry": entry.expiry})
+			logger.Debug("Using SimpleStreams cache entry", log.Ctx{"server": server, "expiry": entry.expiry})
 			remote = entry.remote
 		}
 		imageStreamCacheLock.Unlock()
@@ -222,7 +223,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	// Check if the image already exists (partial hash match)
 	_, imgInfo, err := dbImageGet(d.db, fp, false, true)
 	if err == nil {
-		shared.LogDebug("Image already exists in the db", log.Ctx{"image": fp})
+		logger.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		info = imgInfo
 
 		return info, nil
@@ -234,7 +235,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		// We are already downloading the image
 		imagesDownloadingLock.Unlock()
 
-		shared.LogDebug(
+		logger.Debug(
 			"Already downloading the image, waiting for it to succeed",
 			log.Ctx{"image": fp})
 
@@ -245,7 +246,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		_, imgInfo, err := dbImageGet(d.db, fp, false, true)
 		if err != nil {
 			// Other download failed, lets try again
-			shared.LogError("Other image download didn't succeed", log.Ctx{"image": fp})
+			logger.Error("Other image download didn't succeed", log.Ctx{"image": fp})
 		} else {
 			// Other download succeeded, we're done
 			return imgInfo, nil
@@ -272,7 +273,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	} else {
 		ctxMap = log.Ctx{"trigger": op.url, "image": fp, "operation": op.id, "alias": alias, "server": server}
 	}
-	shared.LogInfo("Downloading image", ctxMap)
+	logger.Info("Downloading image", ctxMap)
 
 	// Cleanup any leftover from a past attempt
 	destDir := shared.VarPath("images")
@@ -463,6 +464,6 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 	}
 
-	shared.LogInfo("Image downloaded", ctxMap)
+	logger.Info("Image downloaded", ctxMap)
 	return info, nil
 }
