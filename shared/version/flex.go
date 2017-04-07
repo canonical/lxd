@@ -1,14 +1,10 @@
-/* This is a FLEXible file which can be used by both client and daemon.
- * Teehee.
- */
 package version
 
+// Version contains the LXD version number
 var Version = "2.0.9"
+
+// UserAgent contains a string suitable as a user-agent
 var UserAgent = "LXD " + Version
 
-/*
- * Please increment the api compat number every time you change the API.
- *
- * Version 1.0: ping
- */
+// APIVersion contains the API base version. Only bumped for backward incompatible changes.
 var APIVersion = "1.0"
