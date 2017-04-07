@@ -39,6 +39,7 @@ test_static_analysis() {
       golint -set_exit_status client/
       golint -set_exit_status lxc/config/
       golint -set_exit_status shared/api/
+      golint -set_exit_status shared/i18n/
     fi
 
     ## deadcode
