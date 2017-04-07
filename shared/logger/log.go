@@ -30,33 +30,33 @@ func init() {
 }
 
 // General wrappers around Logger interface functions.
-func Debug(msg string, ctx interface{}) {
+func Debug(msg string, ctx ...interface{}) {
 	if Log != nil {
-		Log.Debug(msg, ctx)
+		Log.Debug(msg, ctx...)
 	}
 }
 
-func Info(msg string, ctx interface{}) {
+func Info(msg string, ctx ...interface{}) {
 	if Log != nil {
-		Log.Info(msg, ctx)
+		Log.Info(msg, ctx...)
 	}
 }
 
-func Warn(msg string, ctx interface{}) {
+func Warn(msg string, ctx ...interface{}) {
 	if Log != nil {
-		Log.Warn(msg, ctx)
+		Log.Warn(msg, ctx...)
 	}
 }
 
-func Error(msg string, ctx interface{}) {
+func Error(msg string, ctx ...interface{}) {
 	if Log != nil {
-		Log.Error(msg, ctx)
+		Log.Error(msg, ctx...)
 	}
 }
 
-func Crit(msg string, ctx interface{}) {
+func Crit(msg string, ctx ...interface{}) {
 	if Log != nil {
-		Log.Crit(msg, ctx)
+		Log.Crit(msg, ctx...)
 	}
 }
 
