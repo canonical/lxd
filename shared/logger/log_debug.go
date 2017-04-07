@@ -30,43 +30,43 @@ func init() {
 }
 
 // General wrappers around Logger interface functions.
-func Debug(msg string, ctx interface{}) {
+func Debug(msg string, ctx ...interface{}) {
 	if Log != nil {
 		pc, fn, line, _ := runtime.Caller(1)
 		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
-		Log.Debug(msg, ctx)
+		Log.Debug(msg, ctx...)
 	}
 }
 
-func Info(msg string, ctx interface{}) {
+func Info(msg string, ctx ...interface{}) {
 	if Log != nil {
 		pc, fn, line, _ := runtime.Caller(1)
 		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
-		Log.Info(msg, ctx)
+		Log.Info(msg, ctx...)
 	}
 }
 
-func Warn(msg string, ctx interface{}) {
+func Warn(msg string, ctx ...interface{}) {
 	if Log != nil {
 		pc, fn, line, _ := runtime.Caller(1)
 		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
-		Log.Warn(msg, ctx)
+		Log.Warn(msg, ctx...)
 	}
 }
 
-func Error(msg string, ctx interface{}) {
+func Error(msg string, ctx ...interface{}) {
 	if Log != nil {
 		pc, fn, line, _ := runtime.Caller(1)
 		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
-		Log.Error(msg, ctx)
+		Log.Error(msg, ctx...)
 	}
 }
 
-func Crit(msg string, ctx interface{}) {
+func Crit(msg string, ctx ...interface{}) {
 	if Log != nil {
 		pc, fn, line, _ := runtime.Caller(1)
 		msg := fmt.Sprintf("%s: %d: %s: %s", fn, line, runtime.FuncForPC(pc).Name(), msg)
-		Log.Crit(msg, ctx)
+		Log.Crit(msg, ctx...)
 	}
 }
 
