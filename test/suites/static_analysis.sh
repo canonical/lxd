@@ -37,6 +37,7 @@ test_static_analysis() {
     ## golint
     if which golint >/dev/null 2>&1; then
       golint -set_exit_status shared/api/
+      golint -set_exit_status shared/i18n/
     fi
 
     ## deadcode
