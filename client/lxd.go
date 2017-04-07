@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // ProtocolLXD represents a LXD API server
@@ -51,6 +52,13 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 	var req *http.Request
 	var err error
 
+	// Log the request
+	logger.Info("Sending request to LXD",
+		"method", method,
+		"url", url,
+		"etag", ETag,
+	)
+
 	// Get a new HTTP request setup
 	if data != nil {
 		// Encode the provided data
@@ -68,6 +76,11 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 
 		// Set the encoding accordingly
 		req.Header.Set("Content-Type", "application/json")
+
+		// Log the data
+		if data != nil {
+			logger.Debugf(logger.Pretty(data))
+		}
 	} else {
 		// No data to be sent along with the request
 		req, err = http.NewRequest(method, url, nil)
@@ -136,6 +149,10 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data interface{}, 
 		return "", err
 	}
 
+	// Log the data
+	logger.Debugf("Got response struct from LXD")
+	logger.Debugf(logger.Pretty(target))
+
 	return etag, nil
 }
 
@@ -158,6 +175,10 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data interface{
 		r:         r,
 		chActive:  make(chan bool),
 	}
+
+	// Log the data
+	logger.Debugf("Got operation from LXD")
+	logger.Debugf(logger.Pretty(op.Operation))
 
 	return &op, etag, nil
 }
@@ -184,6 +205,9 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Log the data
+	logger.Debugf("Connected to the websocket")
 
 	return conn, err
 }
