@@ -41,6 +41,7 @@ test_static_analysis() {
       golint -set_exit_status shared/api/
       golint -set_exit_status shared/gnuflag/
       golint -set_exit_status shared/i18n/
+      golint -set_exit_status shared/ioprogress/
     fi
 
     ## deadcode
