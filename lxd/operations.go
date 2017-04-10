@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -118,7 +119,7 @@ func (op *operation) Run() (chan error, error) {
 				op.done()
 				chanRun <- err
 
-				shared.LogDebugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
+				logger.Debugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
 
 				_, md, _ := op.Render()
 				eventSend("operation", md)
@@ -132,7 +133,7 @@ func (op *operation) Run() (chan error, error) {
 			chanRun <- nil
 
 			op.lock.Lock()
-			shared.LogDebugf("Success for %s operation: %s", op.class.String(), op.id)
+			logger.Debugf("Success for %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
 			eventSend("operation", md)
 			op.lock.Unlock()
@@ -140,7 +141,7 @@ func (op *operation) Run() (chan error, error) {
 	}
 	op.lock.Unlock()
 
-	shared.LogDebugf("Started %s operation: %s", op.class.String(), op.id)
+	logger.Debugf("Started %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
 	eventSend("operation", md)
 
@@ -172,7 +173,7 @@ func (op *operation) Cancel() (chan error, error) {
 				op.lock.Unlock()
 				chanCancel <- err
 
-				shared.LogDebugf("Failed to cancel %s operation: %s: %s", op.class.String(), op.id, err)
+				logger.Debugf("Failed to cancel %s operation: %s: %s", op.class.String(), op.id, err)
 				_, md, _ := op.Render()
 				eventSend("operation", md)
 				return
@@ -184,13 +185,13 @@ func (op *operation) Cancel() (chan error, error) {
 			op.done()
 			chanCancel <- nil
 
-			shared.LogDebugf("Cancelled %s operation: %s", op.class.String(), op.id)
+			logger.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
 			eventSend("operation", md)
 		}(op, oldStatus, chanCancel)
 	}
 
-	shared.LogDebugf("Cancelling %s operation: %s", op.class.String(), op.id)
+	logger.Debugf("Cancelling %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
 	eventSend("operation", md)
 
@@ -202,7 +203,7 @@ func (op *operation) Cancel() (chan error, error) {
 		chanCancel <- nil
 	}
 
-	shared.LogDebugf("Cancelled %s operation: %s", op.class.String(), op.id)
+	logger.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 	_, md, _ = op.Render()
 	eventSend("operation", md)
 
@@ -227,17 +228,17 @@ func (op *operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 		if err != nil {
 			chanConnect <- err
 
-			shared.LogDebugf("Failed to handle %s operation: %s: %s", op.class.String(), op.id, err)
+			logger.Debugf("Failed to handle %s operation: %s: %s", op.class.String(), op.id, err)
 			return
 		}
 
 		chanConnect <- nil
 
-		shared.LogDebugf("Handled %s operation: %s", op.class.String(), op.id)
+		logger.Debugf("Handled %s operation: %s", op.class.String(), op.id)
 	}(op, chanConnect)
 	op.lock.Unlock()
 
-	shared.LogDebugf("Connected %s operation: %s", op.class.String(), op.id)
+	logger.Debugf("Connected %s operation: %s", op.class.String(), op.id)
 
 	return chanConnect, nil
 }
@@ -316,7 +317,7 @@ func (op *operation) UpdateResources(opResources map[string][]string) error {
 	op.resources = opResources
 	op.lock.Unlock()
 
-	shared.LogDebugf("Updated resources for %s operation: %s", op.class.String(), op.id)
+	logger.Debugf("Updated resources for %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
 	eventSend("operation", md)
 
@@ -342,7 +343,7 @@ func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 	op.metadata = newMetadata
 	op.lock.Unlock()
 
-	shared.LogDebugf("Updated metadata for %s operation: %s", op.class.String(), op.id)
+	logger.Debugf("Updated metadata for %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
 	eventSend("operation", md)
 
@@ -397,7 +398,7 @@ func operationCreate(opClass operationClass, opResources map[string][]string, op
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
-	shared.LogDebugf("New %s operation: %s", op.class.String(), op.id)
+	logger.Debugf("New %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
 	eventSend("operation", md)
 

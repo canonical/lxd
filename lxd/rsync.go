@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
@@ -115,7 +116,7 @@ func RsyncSend(path string, conn *websocket.Conn, readWrapper func(io.ReadCloser
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.LogErrorf("Rsync send failed: %s: %s: %s", path, err, string(output))
+		logger.Errorf("Rsync send failed: %s: %s: %s", path, err, string(output))
 	}
 
 	<-readDone
@@ -171,7 +172,7 @@ func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteClos
 
 	err = cmd.Wait()
 	if err != nil {
-		shared.LogErrorf("Rsync receive failed: %s: %s: %s", path, err, string(output))
+		logger.Errorf("Rsync receive failed: %s: %s: %s", path, err, string(output))
 	}
 
 	<-readDone

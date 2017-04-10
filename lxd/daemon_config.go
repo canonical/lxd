@@ -15,6 +15,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var daemonConfigLock sync.Mutex
@@ -209,7 +210,7 @@ func daemonConfigInit(db *sql.DB) error {
 	for k, v := range dbValues {
 		_, ok := daemonConfig[k]
 		if !ok {
-			shared.LogError("Found invalid configuration key in database", log.Ctx{"key": k})
+			logger.Error("Found invalid configuration key in database", log.Ctx{"key": k})
 		}
 
 		daemonConfig[k].currentValue = v

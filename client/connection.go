@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/simplestreams"
 )
 
@@ -38,6 +39,8 @@ type ConnectionArgs struct {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
+	logger.Infof("Connecting to a remote LXD over HTTPs")
+
 	// Use empty args if not specified
 	if args == nil {
 		args = &ConnectionArgs{}
@@ -71,6 +74,8 @@ func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 // If the path argument is empty, then $LXD_DIR/unix.socket will be used.
 // If that one isn't set either, then the path will default to /var/lib/lxd/unix.socket.
 func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) {
+	logger.Infof("Connecting to a local LXD over a Unix socket")
+
 	// Use empty args if not specified
 	if args == nil {
 		args = &ConnectionArgs{}
@@ -115,6 +120,8 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) 
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
+	logger.Infof("Connecting to a remote public LXD over HTTPs")
+
 	// Use empty args if not specified
 	if args == nil {
 		args = &ConnectionArgs{}
@@ -147,6 +154,8 @@ func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error) {
+	logger.Infof("Connecting to a remote simplestreams server")
+
 	// Use empty args if not specified
 	if args == nil {
 		args = &ConnectionArgs{}

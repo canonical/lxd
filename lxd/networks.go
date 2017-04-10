@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -411,7 +412,7 @@ func networkStartup(d *Daemon) error {
 		err = n.Start()
 		if err != nil {
 			// Don't cause LXD to fail to start entirely on network bring up failure
-			shared.LogError("Failed to bring up network", log.Ctx{"err": err, "name": name})
+			logger.Error("Failed to bring up network", log.Ctx{"err": err, "name": name})
 		}
 	}
 

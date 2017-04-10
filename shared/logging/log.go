@@ -5,14 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/lxc/lxd/shared"
+	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/inconshreveable/log15.v2/term"
 
-	log "gopkg.in/inconshreveable/log15.v2"
+	"github.com/lxc/lxd/shared/logger"
 )
 
-// GetLogger returns a logger suitable for using as shared.Log.
-func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHandler log.Handler) (shared.Logger, error) {
+// GetLogger returns a logger suitable for using as logger.Log.
+func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHandler log.Handler) (logger.Logger, error) {
 	Log := log.New()
 
 	var handlers []log.Handler
@@ -81,7 +81,7 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	return Log, nil
 }
 
-func AddContext(logger shared.Logger, ctx log.Ctx) shared.Logger {
+func AddContext(logger logger.Logger, ctx log.Ctx) logger.Logger {
 	log15logger, ok := logger.(log.Logger)
 	if !ok {
 		logger.Error("couldn't downcast logger to add context", log.Ctx{"logger": log15logger, "ctx": ctx})

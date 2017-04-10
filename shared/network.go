@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func RFC3493Dialer(network, address string) (net.Conn, error) {
@@ -163,14 +165,14 @@ func WebsocketSendStream(conn *websocket.Conn, r io.Reader, bufferSize int) chan
 
 			w, err := conn.NextWriter(websocket.BinaryMessage)
 			if err != nil {
-				LogDebugf("Got error getting next writer %s", err)
+				logger.Debugf("Got error getting next writer %s", err)
 				break
 			}
 
 			_, err = w.Write(buf)
 			w.Close()
 			if err != nil {
-				LogDebugf("Got err writing %s", err)
+				logger.Debugf("Got err writing %s", err)
 				break
 			}
 		}
@@ -188,23 +190,23 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 		for {
 			mt, r, err := conn.NextReader()
 			if mt == websocket.CloseMessage {
-				LogDebugf("Got close message for reader")
+				logger.Debugf("Got close message for reader")
 				break
 			}
 
 			if mt == websocket.TextMessage {
-				LogDebugf("got message barrier")
+				logger.Debugf("got message barrier")
 				break
 			}
 
 			if err != nil {
-				LogDebugf("Got error getting next reader %s, %s", err, w)
+				logger.Debugf("Got error getting next reader %s, %s", err, w)
 				break
 			}
 
 			buf, err := ioutil.ReadAll(r)
 			if err != nil {
-				LogDebugf("Got error writing to writer %s", err)
+				logger.Debugf("Got error writing to writer %s", err)
 				break
 			}
 
@@ -214,11 +216,11 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 
 			i, err := w.Write(buf)
 			if i != len(buf) {
-				LogDebugf("Didn't write all of buf")
+				logger.Debugf("Didn't write all of buf")
 				break
 			}
 			if err != nil {
-				LogDebugf("Error writing buf %s", err)
+				logger.Debugf("Error writing buf %s", err)
 				break
 			}
 		}
@@ -238,21 +240,21 @@ func defaultReader(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool) 
 		buf, ok := <-in
 		if !ok {
 			r.Close()
-			LogDebugf("sending write barrier")
+			logger.Debugf("sending write barrier")
 			conn.WriteMessage(websocket.TextMessage, []byte{})
 			readDone <- true
 			return
 		}
 		w, err := conn.NextWriter(websocket.BinaryMessage)
 		if err != nil {
-			LogDebugf("Got error getting next writer %s", err)
+			logger.Debugf("Got error getting next writer %s", err)
 			break
 		}
 
 		_, err = w.Write(buf)
 		w.Close()
 		if err != nil {
-			LogDebugf("Got err writing %s", err)
+			logger.Debugf("Got err writing %s", err)
 			break
 		}
 	}
@@ -266,32 +268,32 @@ func defaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 	for {
 		mt, r, err := conn.NextReader()
 		if err != nil {
-			LogDebugf("Got error getting next reader %s, %s", err, w)
+			logger.Debugf("Got error getting next reader %s, %s", err, w)
 			break
 		}
 
 		if mt == websocket.CloseMessage {
-			LogDebugf("Got close message for reader")
+			logger.Debugf("Got close message for reader")
 			break
 		}
 
 		if mt == websocket.TextMessage {
-			LogDebugf("Got message barrier, resetting stream")
+			logger.Debugf("Got message barrier, resetting stream")
 			break
 		}
 
 		buf, err := ioutil.ReadAll(r)
 		if err != nil {
-			LogDebugf("Got error writing to writer %s", err)
+			logger.Debugf("Got error writing to writer %s", err)
 			break
 		}
 		i, err := w.Write(buf)
 		if i != len(buf) {
-			LogDebugf("Didn't write all of buf")
+			logger.Debugf("Didn't write all of buf")
 			break
 		}
 		if err != nil {
-			LogDebugf("Error writing buf %s", err)
+			logger.Debugf("Error writing buf %s", err)
 			break
 		}
 	}

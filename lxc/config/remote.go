@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"github.com/lxc/lxd/client"
@@ -45,11 +46,14 @@ func (c *Config) GetContainerServer(name string) (lxd.ContainerServer, error) {
 	}
 
 	// Get connection arguments
-	args := c.getConnectionArgs(name)
+	args, err := c.getConnectionArgs(name)
+	if err != nil {
+		return nil, err
+	}
 
 	// Unix socket
 	if strings.HasPrefix(remote.Addr, "unix:") {
-		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(strings.TrimPrefix(remote.Addr, "unix:"), "//"), &args)
+		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(strings.TrimPrefix(remote.Addr, "unix:"), "//"), args)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +66,7 @@ func (c *Config) GetContainerServer(name string) (lxd.ContainerServer, error) {
 		return nil, fmt.Errorf("Missing TLS client certificate and key")
 	}
 
-	d, err := lxd.ConnectLXD(remote.Addr, &args)
+	d, err := lxd.ConnectLXD(remote.Addr, args)
 	if err != nil {
 		return nil, err
 	}
@@ -79,11 +83,14 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 	}
 
 	// Get connection arguments
-	args := c.getConnectionArgs(name)
+	args, err := c.getConnectionArgs(name)
+	if err != nil {
+		return nil, err
+	}
 
 	// Unix socket
 	if strings.HasPrefix(remote.Addr, "unix:") {
-		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(strings.TrimPrefix(remote.Addr, "unix:"), "//"), &args)
+		d, err := lxd.ConnectLXDUnix(strings.TrimPrefix(strings.TrimPrefix(remote.Addr, "unix:"), "//"), args)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +100,7 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 
 	// HTTPs (simplestreams)
 	if remote.Protocol == "simplestreams" {
-		d, err := lxd.ConnectSimpleStreams(remote.Addr, &args)
+		d, err := lxd.ConnectSimpleStreams(remote.Addr, args)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +109,7 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 	}
 
 	// HTTPs (LXD)
-	d, err := lxd.ConnectPublicLXD(remote.Addr, &args)
+	d, err := lxd.ConnectPublicLXD(remote.Addr, args)
 	if err != nil {
 		return nil, err
 	}
@@ -110,30 +117,50 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 	return d, nil
 }
 
-func (c *Config) getConnectionArgs(name string) lxd.ConnectionArgs {
+func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	args := lxd.ConnectionArgs{
 		UserAgent: c.UserAgent,
 	}
 
 	// Client certificate
-	if !shared.PathExists(c.ConfigPath("client.crt")) {
-		args.TLSClientCert = c.ConfigPath("client.crt")
+	if shared.PathExists(c.ConfigPath("client.crt")) {
+		content, err := ioutil.ReadFile(c.ConfigPath("client.crt"))
+		if err != nil {
+			return nil, err
+		}
+
+		args.TLSClientCert = string(content)
 	}
 
 	// Client key
-	if !shared.PathExists(c.ConfigPath("client.key")) {
-		args.TLSClientKey = c.ConfigPath("client.key")
+	if shared.PathExists(c.ConfigPath("client.key")) {
+		content, err := ioutil.ReadFile(c.ConfigPath("client.key"))
+		if err != nil {
+			return nil, err
+		}
+
+		args.TLSClientKey = string(content)
 	}
 
 	// Client CA
 	if shared.PathExists(c.ConfigPath("client.ca")) {
-		args.TLSCA = c.ConfigPath("client.ca")
+		content, err := ioutil.ReadFile(c.ConfigPath("client.ca"))
+		if err != nil {
+			return nil, err
+		}
+
+		args.TLSCA = string(content)
 	}
 
 	// Server certificate
 	if shared.PathExists(c.ServerCertPath(name)) {
-		args.TLSServerCert = c.ServerCertPath(name)
+		content, err := ioutil.ReadFile(c.ServerCertPath(name))
+		if err != nil {
+			return nil, err
+		}
+
+		args.TLSServerCert = string(content)
 	}
 
-	return args
+	return &args, nil
 }

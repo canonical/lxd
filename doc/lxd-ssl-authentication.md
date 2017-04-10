@@ -52,7 +52,6 @@ Those certificates and keys are manually put in place on the various
 machines, replacing the automatically generated ones.
 
 The CA certificate is also added to all machines.
-A CRL may also accompany the CA certificate.
 
 In that mode, any connection to a LXD daemon will be done using the
 preseeded CA certificate. If the server certificate isn't signed by the

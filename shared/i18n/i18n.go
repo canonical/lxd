@@ -2,10 +2,7 @@
 
 package i18n
 
+// G returns the translated string
 func G(msgid string) string {
-	return msgid
-}
-
-func NG(msgid string, msgidPlural string, n uint64) string {
 	return msgid
 }
