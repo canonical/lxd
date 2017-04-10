@@ -6,13 +6,13 @@ import (
 	"runtime/pprof"
 	"syscall"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func doMemDump(memProfile string) {
 	f, err := os.Create(memProfile)
 	if err != nil {
-		shared.LogDebugf("Error opening memory profile file '%s': %s", err)
+		logger.Debugf("Error opening memory profile file '%s': %s", err)
 		return
 	}
 	pprof.WriteHeapProfile(f)
@@ -24,7 +24,7 @@ func memProfiler(memProfile string) {
 	signal.Notify(ch, syscall.SIGUSR1)
 	for {
 		sig := <-ch
-		shared.LogDebugf("Received '%s signal', dumping memory.", sig)
+		logger.Debugf("Received '%s signal', dumping memory.", sig)
 		doMemDump(memProfile)
 	}
 }

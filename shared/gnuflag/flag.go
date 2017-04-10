@@ -3,27 +3,27 @@
 // license that can be found in the LICENSE file.
 
 /*
-	Package flag implements command-line flag parsing in the GNU style.
-	It is almost exactly the same as the standard flag package,
-	the only difference being the extra argument to Parse.
+Package gnuflag implements command-line flag parsing in the GNU style.
+It is almost exactly the same as the standard flag package,
+the only difference being the extra argument to Parse.
 
-	Command line flag syntax:
-		-f		// single letter flag
-		-fg		// two single letter flags together
-		--flag	// multiple letter flag
-		--flag x  // non-boolean flags only
-		-f x		// non-boolean flags only
-		-fx		// if f is a non-boolean flag, x is its argument.
+Command line flag syntax:
+	-f		// single letter flag
+	-fg		// two single letter flags together
+	--flag	// multiple letter flag
+	--flag x  // non-boolean flags only
+	-f x		// non-boolean flags only
+	-fx		// if f is a non-boolean flag, x is its argument.
 
-	The last three forms are not permitted for boolean flags because the
-	meaning of the command
-		cmd -f *
-	will change if there is a file called 0, false, etc.  There is currently
-	no way to turn off a boolean flag.
+The last three forms are not permitted for boolean flags because the
+meaning of the command
+	cmd -f *
+will change if there is a file called 0, false, etc.  There is currently
+no way to turn off a boolean flag.
 
-	Flag parsing stops after the terminator "--", or just before the first
-	non-flag argument ("-" is a non-flag argument) if the interspersed
-	argument to Parse is false.
+Flag parsing stops after the terminator "--", or just before the first
+non-flag argument ("-" is a non-flag argument) if the interspersed
+argument to Parse is false.
 */
 package gnuflag
 
@@ -181,8 +181,13 @@ type Value interface {
 type ErrorHandling int
 
 const (
+	// ContinueOnError will cause gnuflag to just return the error
 	ContinueOnError ErrorHandling = iota
+
+	// ExitOnError will cause gnuflag to exit with return code 2
 	ExitOnError
+
+	// PanicOnError will cause gnuflag to to call panic()
 	PanicOnError
 )
 

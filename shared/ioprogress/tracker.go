@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// ProgressTracker provides the stream information needed for tracking
 type ProgressTracker struct {
 	Length  int64
 	Handler func(int64, int64)
@@ -14,7 +15,7 @@ type ProgressTracker struct {
 	last       *time.Time
 }
 
-func (pt *ProgressTracker) Update(n int) {
+func (pt *ProgressTracker) update(n int) {
 	// Skip the rest if no handler attached
 	if pt.Handler == nil {
 		return

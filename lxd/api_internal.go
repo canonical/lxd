@@ -15,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -68,7 +69,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 
 	err = c.OnStart()
 	if err != nil {
-		shared.Log.Error("start hook failed", log.Ctx{"container": c.Name(), "err": err})
+		logger.Error("start hook failed", log.Ctx{"container": c.Name(), "err": err})
 		return SmartError(err)
 	}
 
@@ -93,7 +94,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 
 	err = c.OnStop(target)
 	if err != nil {
-		shared.Log.Error("stop hook failed", log.Ctx{"container": c.Name(), "err": err})
+		logger.Error("stop hook failed", log.Ctx{"container": c.Name(), "err": err})
 		return SmartError(err)
 	}
 
@@ -277,7 +278,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		// Kick out any snapshots that do not exist on-disk anymore.
 		_, ok := onDiskSnapshots[snap.Name]
 		if !ok {
-			shared.LogWarnf("The snapshot \"%s\" for container \"%s\" does not exist on disk anymore. Skipping...", snap.Name, req.Name)
+			logger.Warnf("The snapshot \"%s\" for container \"%s\" does not exist on disk anymore. Skipping...", snap.Name, req.Name)
 			continue
 		}
 
@@ -413,7 +414,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		// "backup.yaml" file. Recreate it by copying the parent
 		// container's settings.
 		if snap == nil {
-			shared.LogWarnf("The snapshot \"%s\" for the container \"%s\" exists on disk but not in the backup file. Restoring with parent container's settings.", snapName, req.Name)
+			logger.Warnf("The snapshot \"%s\" for the container \"%s\" exists on disk but not in the backup file. Restoring with parent container's settings.", snapName, req.Name)
 			snap = &api.ContainerSnapshot{}
 			snap.Config = backup.Container.Config
 			snap.CreationDate = backup.Container.CreatedAt

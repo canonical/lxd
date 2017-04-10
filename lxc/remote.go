@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type remoteCmd struct {
@@ -307,7 +308,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 
 func (c *remoteCmd) removeCertificate(config *lxd.Config, remote string) {
 	certf := config.ServerCertPath(remote)
-	shared.LogDebugf("Trying to remove %s", certf)
+	logger.Debugf("Trying to remove %s", certf)
 
 	os.Remove(certf)
 }

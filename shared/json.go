@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type Jmap map[string]interface{}
@@ -51,11 +53,11 @@ func (m Jmap) GetBool(key string) (bool, error) {
 func DebugJson(r *bytes.Buffer) {
 	pretty := &bytes.Buffer{}
 	if err := json.Indent(pretty, r.Bytes(), "\t", "\t"); err != nil {
-		LogDebugf("error indenting json: %s", err)
+		logger.Debugf("error indenting json: %s", err)
 		return
 	}
 
 	// Print the JSON without the last "\n"
 	str := pretty.String()
-	LogDebugf("\n\t%s", str[0:len(str)-1])
+	logger.Debugf("\n\t%s", str[0:len(str)-1])
 }

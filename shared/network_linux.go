@@ -6,6 +6,8 @@ import (
 	"io"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, exited chan bool, fd int) (chan bool, chan bool) {
@@ -20,21 +22,21 @@ func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser
 			buf, ok := <-in
 			if !ok {
 				r.Close()
-				LogDebugf("sending write barrier")
+				logger.Debugf("sending write barrier")
 				conn.WriteMessage(websocket.TextMessage, []byte{})
 				readDone <- true
 				return
 			}
 			w, err := conn.NextWriter(websocket.BinaryMessage)
 			if err != nil {
-				LogDebugf("Got error getting next writer %s", err)
+				logger.Debugf("Got error getting next writer %s", err)
 				break
 			}
 
 			_, err = w.Write(buf)
 			w.Close()
 			if err != nil {
-				LogDebugf("Got err writing %s", err)
+				logger.Debugf("Got err writing %s", err)
 				break
 			}
 		}

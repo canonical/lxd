@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -218,7 +219,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	case http.StateNew:
 		cred, err := getCred(unixConn)
 		if err != nil {
-			shared.LogDebugf("Error getting ucred for conn %s", err)
+			logger.Debugf("Error getting ucred for conn %s", err)
 		} else {
 			m.m[unixConn] = cred
 		}
@@ -239,7 +240,7 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	case http.StateClosed:
 		delete(m.m, unixConn)
 	default:
-		shared.LogDebugf("Unknown state for connection %s", state)
+		logger.Debugf("Unknown state for connection %s", state)
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -160,7 +161,7 @@ func (s *execWs) Do(op *operation) error {
 				}
 
 				if err != nil {
-					shared.LogDebugf("Got error getting next reader %s", err)
+					logger.Debugf("Got error getting next reader %s", err)
 					er, ok := err.(*websocket.CloseError)
 					if !ok {
 						break
@@ -173,50 +174,50 @@ func (s *execWs) Do(op *operation) error {
 					// If an abnormal closure occured, kill the attached process.
 					err := syscall.Kill(attachedChildPid, syscall.SIGKILL)
 					if err != nil {
-						shared.LogDebugf("Failed to send SIGKILL to pid %d.", attachedChildPid)
+						logger.Debugf("Failed to send SIGKILL to pid %d.", attachedChildPid)
 					} else {
-						shared.LogDebugf("Sent SIGKILL to pid %d.", attachedChildPid)
+						logger.Debugf("Sent SIGKILL to pid %d.", attachedChildPid)
 					}
 					return
 				}
 
 				buf, err := ioutil.ReadAll(r)
 				if err != nil {
-					shared.LogDebugf("Failed to read message %s", err)
+					logger.Debugf("Failed to read message %s", err)
 					break
 				}
 
 				command := api.ContainerExecControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
-					shared.LogDebugf("Failed to unmarshal control socket command: %s", err)
+					logger.Debugf("Failed to unmarshal control socket command: %s", err)
 					continue
 				}
 
 				if command.Command == "window-resize" {
 					winchWidth, err := strconv.Atoi(command.Args["width"])
 					if err != nil {
-						shared.LogDebugf("Unable to extract window width: %s", err)
+						logger.Debugf("Unable to extract window width: %s", err)
 						continue
 					}
 
 					winchHeight, err := strconv.Atoi(command.Args["height"])
 					if err != nil {
-						shared.LogDebugf("Unable to extract window height: %s", err)
+						logger.Debugf("Unable to extract window height: %s", err)
 						continue
 					}
 
 					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
-						shared.LogDebugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
+						logger.Debugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
 						continue
 					}
 				} else if command.Command == "signal" {
 					if err := syscall.Kill(attachedChildPid, syscall.Signal(command.Signal)); err != nil {
-						shared.LogDebugf("Failed forwarding signal '%s' to PID %d.", command.Signal, attachedChildPid)
+						logger.Debugf("Failed forwarding signal '%s' to PID %d.", command.Signal, attachedChildPid)
 						continue
 					}
-					shared.LogDebugf("Forwarded signal '%d' to PID %d.", command.Signal, attachedChildPid)
+					logger.Debugf("Forwarded signal '%d' to PID %d.", command.Signal, attachedChildPid)
 				}
 			}
 		}()
@@ -472,7 +473,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 		err = op.UpdateMetadata(metadata)
 		if err != nil {
-			shared.LogError("error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
+			logger.Error("error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
 		}
 
 		return cmdErr
