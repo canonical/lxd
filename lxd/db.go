@@ -265,6 +265,10 @@ func dbGetSchema(db *sql.DB) (v int) {
 }
 
 func dbGetLatestSchema() int {
+	if len(dbUpdates) == 0 {
+		return 0
+	}
+
 	return dbUpdates[len(dbUpdates)-1].version
 }
 
