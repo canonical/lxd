@@ -10,7 +10,11 @@ import (
 )
 
 var storagePoolConfigKeys = map[string]func(value string) error{
-	"source": shared.IsAny,
+	// valid drivers: lvm
+	"lvm.thinpool_name": shared.IsAny,
+	"lvm.vg_name":       shared.IsAny,
+
+	// valid drivers: btrfs, lvm, zfs
 	"size": func(value string) error {
 		if value == "" {
 			return nil
@@ -19,10 +23,17 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 		_, err := shared.ParseByteSizeString(value)
 		return err
 	},
-	"volume.block.mount_options": shared.IsAny,
+
+	// valid drivers: btrfs, dir, lvm, zfs
+	"source": shared.IsAny,
+
+	// valid drivers: lvm
 	"volume.block.filesystem": func(value string) error {
 		return shared.IsOneOf(value, []string{"ext4", "xfs"})
 	},
+	"volume.block.mount_options": shared.IsAny,
+
+	// valid drivers: lvm
 	"volume.size": func(value string) error {
 		if value == "" {
 			return nil
@@ -31,12 +42,14 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 		_, err := shared.ParseByteSizeString(value)
 		return err
 	},
-	"volume.zfs.use_refquota":     shared.IsBool,
+
+	// valid drivers: zfs
 	"volume.zfs.remove_snapshots": shared.IsBool,
-	"lvm.thinpool_name":           shared.IsAny,
-	"lvm.vg_name":                 shared.IsAny,
-	"zfs.pool_name":               shared.IsAny,
-	"zfs.clone_copy":              shared.IsBool,
+	"volume.zfs.use_refquota":     shared.IsBool,
+
+	// valid drivers: zfs
+	"zfs.clone_copy": shared.IsBool,
+	"zfs.pool_name":  shared.IsAny,
 }
 
 func storagePoolValidateConfig(name string, driver string, config map[string]string) error {
@@ -47,10 +60,31 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		return err
 	}
 
+	// Check whether the config properties for the driver container sane
+	// values.
 	for key, val := range config {
 		// User keys are not validated.
 		if strings.HasPrefix(key, "user.") {
 			continue
+		}
+
+		prfx := strings.HasPrefix
+		if driver != "zfs" {
+			if prfx(key, "volume.zfs.") || prfx(key, "zfs.") {
+				return fmt.Errorf("The key %s cannot be used with %s storage pools.", key, strings.ToUpper(driver))
+			}
+		}
+
+		if driver != "lvm" {
+			if prfx(key, "lvm.") || prfx(key, "volume.block.") || key == "volume.size" {
+				return fmt.Errorf("The key %s cannot be used with %s storage pools.", key, strings.ToUpper(driver))
+			}
+		}
+
+		if driver == "dir" {
+			if key == "size" {
+				return fmt.Errorf("The key %s cannot be used with %s storage pools.", key, strings.ToUpper(driver))
+			}
 		}
 
 		// Validate storage pool config keys.
@@ -62,42 +96,6 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		err := validator(val)
 		if err != nil {
 			return err
-		}
-
-		if driver != "zfs" || driver == "dir" {
-			if config["volume.zfs.use_refquota"] != "" {
-				return fmt.Errorf("The key volume.zfs.use_refquota cannot be used with non zfs storage pools.")
-			}
-
-			if config["volume.zfs.remove_snapshots"] != "" {
-				return fmt.Errorf("The key volume.zfs.remove_snapshots cannot be used with non zfs storage pools.")
-			}
-
-			if config["zfs.pool_name"] != "" {
-				return fmt.Errorf("The key zfs.pool_name cannot be used with non zfs storage pools.")
-			}
-
-			if config["zfs.clone_copy"] != "" {
-				return fmt.Errorf("The key zfs.clone_copy cannot be used with non zfs storage pools.")
-			}
-		}
-
-		if driver == "dir" {
-			if config["size"] != "" {
-				return fmt.Errorf("The key size cannot be used with dir storage pools.")
-			}
-
-			if config["volume.block.mount_options"] != "" {
-				return fmt.Errorf("The key volume.block.mount_options cannot be used with dir storage pools.")
-			}
-
-			if config["volume.block.filesystem"] != "" {
-				return fmt.Errorf("The key volume.block.filesystem cannot be used with dir storage pools.")
-			}
-
-			if config["volume.size"] != "" {
-				return fmt.Errorf("The key volume.size cannot be used with dir storage pools.")
-			}
 		}
 	}
 
