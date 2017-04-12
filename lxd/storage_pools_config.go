@@ -12,6 +12,7 @@ import (
 var storagePoolConfigKeys = map[string]func(value string) error{
 	// valid drivers: lvm
 	"lvm.thinpool_name": shared.IsAny,
+	"lvm.use_thinpool":  shared.IsBool,
 	"lvm.vg_name":       shared.IsAny,
 
 	// valid drivers: btrfs, lvm, zfs
@@ -58,6 +59,13 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 	}(driver)
 	if err != nil {
 		return err
+	}
+
+	if driver == "lvm" {
+		v, ok := config["lvm.use_thinpool"]
+		if ok && !shared.IsTrue(v) && config["lvm.thinpool_name"] != "" {
+			return fmt.Errorf("The key \"lvm.use_thinpool\" cannot be set to a false value when \"lvm.thinpool_name\" is set for LVM storage pools.")
+		}
 	}
 
 	// Check whether the config properties for the driver container sane
@@ -129,7 +137,13 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 	}
 
 	if driver == "lvm" {
-		if config["lvm.thinpool_name"] == "" {
+		// We use thin pools per default.
+		useThinpool := true
+		if config["lvm.use_thinpool"] != "" {
+			useThinpool = shared.IsTrue(config["lvm.use_thinpool"])
+		}
+
+		if useThinpool && config["lvm.thinpool_name"] == "" {
 			// Unchangeable pool property: Set unconditionally.
 			config["lvm.thinpool_name"] = "LXDThinpool"
 		}
