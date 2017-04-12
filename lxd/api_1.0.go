@@ -101,6 +101,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"container_only_migration",
 			"storage_zfs_clone_copy",
 			"unix_device_rename",
+			"storage_lvm_use_thinpool",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
