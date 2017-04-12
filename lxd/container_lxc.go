@@ -5350,7 +5350,8 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 
 	// Create the new entry
 	if !runningInUserns {
-		if err := syscall.Mknod(devPath, uint32(mode), minor|(major<<8)); err != nil {
+		encoded_device_number := (minor & 0xff) | (major << 8) | ((minor & ^0xff) << 12)
+		if err := syscall.Mknod(devPath, uint32(mode), encoded_device_number); err != nil {
 			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
 		}
 
