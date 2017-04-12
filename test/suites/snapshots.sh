@@ -1,6 +1,22 @@
 #!/bin/sh
 
 test_snapshots() {
+  snapshots
+
+  if [ "${LXD_BACKEND}" = "lvm" ]; then
+    # Test that non-thinpool lvm backends work fine with snaphots.
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots" lvm lvm.use_thinpool=false volume.size=25MB
+    lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots"
+
+    snapshots
+
+    lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")"
+
+    lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snapshots"
+  fi
+}
+
+snapshots() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
@@ -71,6 +87,22 @@ test_snapshots() {
 }
 
 test_snap_restore() {
+  snap_restore
+
+  if [ "${LXD_BACKEND}" = "lvm" ]; then
+    # Test that non-thinpool lvm backends work fine with snaphots.
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore" lvm lvm.use_thinpool=false volume.size=25MB
+    lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore"
+
+    snap_restore
+
+    lxc profile device set default root pool "lxdtest-$(basename "${LXD_DIR}")"
+
+    lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-snap-restore"
+  fi
+}
+
+snap_restore() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 

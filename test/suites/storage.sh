@@ -40,23 +40,24 @@ test_storage() {
 
       # Test that no invalid zfs storage pool configuration keys can be set.
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs lvm.thinpool_name=bla
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs lvm.use_thinpool=false
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs lvm.vg_name=bla
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs volume.block.filesystem=ext4
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs volume.block.mount_options=discard
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs volume.size=2GB
 
       # Test that all valid zfs storage pool configuration keys can be set.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs volume.zfs.remove_snapshots=true
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config" zfs volume.zfs.remove_snapshots=true
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs volume.zfs.use_refquota=true
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config" zfs volume.zfs.use_refquota=true
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs zfs.clone_copy=true
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config" zfs zfs.clone_copy=true
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config" zfs zfs.pool_name="lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config"
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-zfs-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config" zfs zfs.pool_name="lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config"
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config"
     fi
 
     if which btrfs >/dev/null 2>&1; then
@@ -73,6 +74,7 @@ test_storage() {
 
       # Test that no invalid btrfs storage pool configuration keys can be set.
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-btrfs-pool-config" btrfs lvm.thinpool_name=bla
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-btrfs-pool-config" btrfs lvm.use_thinpool=false
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-btrfs-pool-config" btrfs lvm.vg_name=bla
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-btrfs-pool-config" btrfs volume.block.filesystem=ext4
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-btrfs-pool-config" btrfs volume.block.mount_options=discard
@@ -96,6 +98,7 @@ test_storage() {
 
     # Test that no invalid dir storage pool configuration keys can be set.
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir lvm.thinpool_name=bla
+    ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir lvm.use_thinpool=false
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir lvm.vg_name=bla
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir size=10GB
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir volume.block.filesystem=ext4
@@ -145,31 +148,39 @@ test_storage() {
 
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm volume.size=25MB
 
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" lvm lvm.use_thinpool=false volume.size=25MB
+
       # Test that no invalid lvm storage pool configuration keys can be set.
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm volume.zfs.remove_snapshots=true
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm volume.zfs_use_refquota=true
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm zfs.clone_copy=true
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm zfs.pool_name=bla
+      ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm lvm.use_thinpool=false lvm.thinpool_name="lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config"
 
       # Test that all valid lvm storage pool configuration keys can be set.
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm lvm.thinpool_name="lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config"
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config" lvm lvm.thinpool_name="lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config"
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config" lvm lvm.vg_name="lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm size=10GB
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config" lvm size=10GB
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm volume.block.filesystem=ext4
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config" lvm volume.block.filesystem=ext4
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm volume.block.mount_options=discard
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config" lvm volume.block.mount_options=discard
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
 
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config" lvm volume.size=2GB
-      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-invalid-lvm-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config" lvm volume.size=2GB
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
 
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config" lvm lvm.use_thinpool=true
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
+
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config" lvm lvm.use_thinpool=true lvm.thinpool_name="lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
     fi
 
     # Set default storage pool for image import.
@@ -327,6 +338,12 @@ test_storage() {
       lxc launch testimage c12pool14 -s "lxdtest-$(basename "${LXD_DIR}")-pool14"
       lxc list -c b c12pool14 | grep "lxdtest-$(basename "${LXD_DIR}")-pool14"
 
+      lxc init testimage c10pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+      lxc list -c b c10pool15 | grep "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+
+      lxc launch testimage c12pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+      lxc list -c b c12pool15 | grep "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice2 /opt
@@ -406,6 +423,22 @@ test_storage() {
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" custom/c12pool14 c12pool14 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool14" custom/c12pool14 c12pool14 testDevice2 /opt
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14 c12pool14 testDevice
+
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15
+      lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 c10pool15 testDevice /opt
+      ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 c10pool15 testDevice2 /opt
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 c10pool15 testDevice
+      lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" custom/c10pool15 c10pool15 testDevice /opt
+      ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" custom/c10pool15 c10pool15 testDevice2 /opt
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15 c10pool15 testDevice
+
+      lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15
+      lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15 c12pool15 testDevice /opt
+      ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15 c12pool15 testDevice2 /opt
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15 c12pool15 testDevice
+      lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" custom/c12pool15 c12pool15 testDevice /opt
+      ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" custom/c12pool15 c12pool15 testDevice2 /opt
+      lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15 c12pool15 testDevice
     fi
 
     if which zfs >/dev/null 2>&1; then
@@ -515,6 +548,9 @@ test_storage() {
       lxc delete -f c10pool14
       lxc delete -f c12pool14
 
+      lxc delete -f c10pool15
+      lxc delete -f c12pool15
+
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool6"  c12pool6
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool11" c10pool11
@@ -525,6 +561,8 @@ test_storage() {
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool13" c12pool13
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool14" c10pool14
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool14" c12pool14
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c10pool15
+      lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15
     fi
 
     if which zfs >/dev/null 2>&1; then
@@ -600,10 +638,12 @@ test_storage() {
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_8}" "${loop_device_8}"
 
-      # lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool14" lvm volume.size=25MB
-
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool14"
       vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-pool14" || true
+      vgscan || true
+
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
+      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" || true
       vgscan || true
     fi
   )
