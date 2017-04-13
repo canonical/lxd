@@ -25,15 +25,8 @@ func storageVGActivate(lvmVolumePath string) error {
 	return nil
 }
 
-func storageLVActivate(lvmVolumePath string, readonly bool) error {
-	var output string
-	var err error
-	if readonly {
-		output, err = shared.TryRunCommand("lvchange", "-ay", "-pr", lvmVolumePath)
-	} else {
-		output, err = shared.TryRunCommand("lvchange", "-ay", lvmVolumePath)
-	}
-
+func storageLVActivate(lvmVolumePath string) error {
+	output, err := shared.TryRunCommand("lvchange", "-ay", lvmVolumePath)
 	if err != nil {
 		return fmt.Errorf("Could not activate logival volume \"%s\": %s.", lvmVolumePath, output)
 	}
@@ -303,10 +296,6 @@ func getLvmDevPath(lvmPool string, volumeType string, lvmVolume string) string {
 
 func getPrefixedLvName(volumeType string, lvmVolume string) string {
 	return fmt.Sprintf("%s_%s", volumeType, lvmVolume)
-}
-
-func getTmpSnapshotName(snap string) string {
-	return fmt.Sprintf("%s_tmp", snap)
 }
 
 // Only initialize the minimal information we need about a given storage type.
@@ -1559,9 +1548,6 @@ func (s *storageLvm) ContainerRestore(container container, sourceContainer conta
 
 	srcName := sourceContainer.Name()
 	srcLvName := containerNameToLVName(srcName)
-	if sourceContainer.IsSnapshot() {
-		srcLvName = getTmpSnapshotName(srcLvName)
-	}
 
 	destName := container.Name()
 	destLvName := containerNameToLVName(destName)
@@ -1622,7 +1608,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 	}
 	defer func() {
 		if tryUndo {
-			s.ContainerCreate(snapshotContainer)
+			s.ContainerDelete(snapshotContainer)
 		}
 	}()
 
@@ -1696,40 +1682,24 @@ func (s *storageLvm) ContainerSnapshotRename(snapshotContainer container, newCon
 func (s *storageLvm) ContainerSnapshotStart(container container) (bool, error) {
 	logger.Debugf("Initializing LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
-	tryUndo := true
-
 	sourceName := container.Name()
 	targetName := sourceName
 	sourceLvmName := containerNameToLVName(sourceName)
 	targetLvmName := containerNameToLVName(targetName)
 
-	tmpTargetLvmName := getTmpSnapshotName(targetLvmName)
-
 	logger.Debugf("Creating snapshot: %s -> %s.", sourceLvmName, targetLvmName)
 
 	poolName := s.getOnDiskPoolName()
-	lvpath, err := s.createSnapshotLV(poolName, sourceLvmName, storagePoolVolumeApiEndpointContainers, tmpTargetLvmName, storagePoolVolumeApiEndpointContainers, false)
+	output, err := shared.TryRunCommand("lvchange", "-prw", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeApiEndpointContainers, sourceLvmName))
 	if err != nil {
-		return false, fmt.Errorf("Error creating snapshot LV: %s", err)
+		logger.Errorf("Failed to make LVM snapshot \"%s\" read-write: %s.", targetLvmName, output)
+		return false, err
 	}
-	defer func() {
-		if tryUndo {
-			s.removeLV(poolName, storagePoolVolumeApiEndpointContainers, tmpTargetLvmName)
-		}
-	}()
 
 	lvFsType := s.getLvmFilesystem()
-	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, tmpTargetLvmName)
+	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeApiEndpointContainers, sourceLvmName)
 	mountOptions := s.getLvmBlockMountOptions()
 	containerMntPoint := getSnapshotMountPoint(s.pool.Name, sourceName)
-
-	// Generate a new xfs's UUID
-	if lvFsType == "xfs" {
-		err := xfsGenerateNewUUID(lvpath)
-		if err != nil {
-			return false, err
-		}
-	}
 
 	if !shared.IsMountPoint(containerMntPoint) {
 		err = tryMount(containerLvmPath, containerMntPoint, lvFsType, 0, mountOptions)
@@ -1737,8 +1707,6 @@ func (s *storageLvm) ContainerSnapshotStart(container container) (bool, error) {
 			return false, fmt.Errorf("Error mounting snapshot LV path='%s': %s", containerMntPoint, err)
 		}
 	}
-
-	tryUndo = false
 
 	logger.Debugf("Initialized LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return true, nil
@@ -1760,9 +1728,9 @@ func (s *storageLvm) ContainerSnapshotStop(container container) (bool, error) {
 		}
 	}
 
-	tmpLvName := getTmpSnapshotName(lvName)
-	err := s.removeLV(poolName, storagePoolVolumeApiEndpointContainers, tmpLvName)
+	output, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeApiEndpointContainers, lvName))
 	if err != nil {
+		logger.Errorf("Failed to make LVM snapshot read-only: %s.", output)
 		return false, err
 	}
 
@@ -2050,25 +2018,25 @@ func (s *storageLvm) createSnapshotLV(vgName string, origLvName string, origVolu
 
 	lvmPoolVolumeName := getPrefixedLvName(volumeType, lvName)
 	var output string
+	args := []string{"-n", lvmPoolVolumeName, "-s", sourceLvmVolumePath}
 	if isRecent {
-		output, err = shared.TryRunCommand(
-			"lvcreate",
-			"-kn",
-			"-n", lvmPoolVolumeName,
-			"-s", sourceLvmVolumePath)
-	} else {
-		output, err = shared.TryRunCommand(
-			"lvcreate",
-			"-n", lvmPoolVolumeName,
-			"-s", sourceLvmVolumePath)
+		args = append(args, "-kn")
 	}
+
+	if readonly {
+		args = append(args, "-pr")
+	} else {
+		args = append(args, "-prw")
+	}
+
+	output, err = shared.TryRunCommand("lvcreate", args...)
 	if err != nil {
 		logger.Errorf("Could not create LV snapshot: %s -> %s: %s.", origLvName, lvName, output)
 		return "", fmt.Errorf("Could not create snapshot LV named %s", lvName)
 	}
 
 	targetLvmVolumePath := getLvmDevPath(vgName, volumeType, lvName)
-	err = storageLVActivate(targetLvmVolumePath, readonly)
+	err = storageLVActivate(targetLvmVolumePath)
 	if err != nil {
 		return "", err
 	}
