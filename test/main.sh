@@ -7,17 +7,9 @@ export "LC_ALL=C"
 # Force UTC for consistency
 export "TZ=UTC"
 
-if [ -n "${LXD_VERBOSE:-}" ] || [ -n "${LXD_DEBUG:-}" ]; then
-  set -x
-fi
+set -x
 
-if [ -n "${LXD_VERBOSE:-}" ]; then
-  DEBUG="--verbose"
-fi
-
-if [ -n "${LXD_DEBUG:-}" ]; then
-  DEBUG="--debug"
-fi
+DEBUG="--debug"
 
 echo "==> Checking for dependencies"
 for dep in lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen pyflakes3 pep8 shellcheck; do
