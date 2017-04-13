@@ -1,8 +1,6 @@
 #!/bin/sh
 
 test_migration() {
-  ensure_import_testimage
-
   # workaround for kernel/criu
   umount /sys/kernel/debug >/dev/null 2>&1 || true
 
@@ -12,6 +10,29 @@ test_migration() {
   if ! lxc_remote remote list | grep -q l2; then
     lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
   fi
+
+  migration
+
+  if [ "${LXD_BACKEND}" = "lvm" ]; then
+    # Test that non-thinpool lvm backends work fine with migration.
+    lxc_remote storage create l1:"lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-migration" lvm lvm.use_thinpool=false volume.size=25MB
+    lxc_remote profile device set l1:default root pool "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-migration"
+
+    lxc_remote storage create l2:"lxdtest-$(basename "${LXD2_DIR}")-non-thinpool-lvm-migration" lvm lvm.use_thinpool=false volume.size=25MB
+    lxc_remote profile device set l2:default root pool "lxdtest-$(basename "${LXD2_DIR}")-non-thinpool-lvm-migration"
+
+    migration
+
+    lxc_remote profile device set l1:default root pool "lxdtest-$(basename "${LXD_DIR}")"
+    lxc_remote profile device set l2:default root pool "lxdtest-$(basename "${LXD2_DIR}")"
+
+    lxc_remote storage delete l1:"lxdtest-$(basename "${LXD_DIR}")-non-thinpool-lvm-migration"
+    lxc_remote storage delete l2:"lxdtest-$(basename "${LXD2_DIR}")-non-thinpool-lvm-migration"
+  fi
+}
+
+migration() {
+  ensure_import_testimage
 
   lxc_remote init testimage nonlive
   # test moving snapshots
