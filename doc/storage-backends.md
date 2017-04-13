@@ -115,6 +115,16 @@ lxc storage create pool1 btrfs source=/dev/sdX
 
  - Uses LVs for images, then LV snapshots for containers and container snapshots.
  - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
+ - By default, all LVM storage pools use an LVM thinpool in which logical
+   volumes for all LXD storage entities (images, containers, etc.) are created.
+   This behavior can be changed by setting "lvm.use_thinpool" to "false". In
+   this case, LXD will use normal logical volumes for all non-container
+   snapshot storage entities (images, containers etc.). This means most storage
+   operations will need to fallback to rsyncing since non-thinpool logical
+   volumes do not support snapshots of snapshots. Note that this entails
+   serious performance impacts for the LVM driver causing it to be close to the
+   fallback DIR driver both in speed and storage usage. This option should only
+   be chosen if the use-case renders it necessary.
 
 #### The following commands can be used to create LVM storage pools
 

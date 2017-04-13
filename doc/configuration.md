@@ -396,6 +396,7 @@ source                          | string    | -                                 
 volume.block.filesystem         | string    | block based driver (lvm)          | ext4              | Filesystem to use for new volumes
 volume.block.mount\_options     | string    | block based driver (lvm)          | discard           | Mount options for block devices
 lvm.thinpool\_name              | string    | lvm driver                        | LXDPool           | Thin pool where images and containers are created.
+lvm.use\_thinpool               | bool      | lvm driver                        | true              | Whether the storage pool uses a thinpool for logical volumes.
 lvm.vg\_name                    | string    | lvm driver                        | name of the pool  | Name of the volume group to create.
 volume.size                     | string    | appropriate driver                | 0                 | Default volume size
 volume.zfs.remove\_snapshots    | bool      | zfs driver                        | false             | Remove snapshots as needed
