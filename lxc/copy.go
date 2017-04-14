@@ -165,6 +165,18 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 	 * course, if all the errors are websocket errors, let's just
 	 * report that.
 	 */
+	waitchan := make(chan map[int]error, 2)
+	wait := func(cli *lxd.Client, op string, ch chan map[int]error, senderid int) {
+		msg := make(map[int]error, 1)
+		err := cli.WaitForSuccess(op)
+		if err != nil {
+			msg[senderid] = err
+			ch <- msg
+		}
+
+		msg[senderid] = nil
+		ch <- msg
+	}
 	for _, addr := range addresses {
 		var migration *api.Response
 
@@ -174,11 +186,22 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 			continue
 		}
 
-		if err = dest.WaitForSuccess(migration.Operation); err != nil {
+		destOpId := 0
+		go wait(dest, migration.Operation, waitchan, destOpId)
+		sourceOpId := 1
+		go wait(source, sourceWSResponse.Operation, waitchan, sourceOpId)
+
+		opStatus := make([]map[int]error, 2)
+		for i := 0; i < cap(waitchan); i++ {
+			opStatus[i] = <-waitchan
+		}
+
+		if opStatus[0][destOpId] != nil {
 			continue
 		}
 
-		if err = source.WaitForSuccess(sourceWSResponse.Operation); err != nil {
+		err = opStatus[1][sourceOpId]
+		if err != nil {
 			return err
 		}
 
