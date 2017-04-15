@@ -72,7 +72,8 @@ A regular expression matching a configuration item or its value. (e.g. volatile.
 
 *Columns*
 The -c option takes a comma separated list of arguments that control
-which container attributes to output when displaying in table format.
+which container attributes to output when displaying in table or csv
+format.
 
 Column arguments are either pre-defined shorthand chars (see below),
 or (extended) config keys.
@@ -129,7 +130,7 @@ lxc list -c ns,user.comment:comment
 func (c *listCmd) flags() {
 	gnuflag.StringVar(&c.columnsRaw, "c", "ns46tS", i18n.G("Columns"))
 	gnuflag.StringVar(&c.columnsRaw, "columns", "ns46tS", i18n.G("Columns"))
-	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (table|json)"))
+	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (table|json|csv)"))
 	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
 }
 
