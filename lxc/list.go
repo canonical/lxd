@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -31,6 +32,7 @@ type columnData func(api.Container, *api.ContainerState, []api.ContainerSnapshot
 const (
 	listFormatTable = "table"
 	listFormatJSON  = "json"
+	listFormatCSV   = "csv"
 )
 
 type listCmd struct {
@@ -45,7 +47,7 @@ func (c *listCmd) showByDefault() bool {
 
 func (c *listCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] [--fast]
+		`Usage: lxc list [<remote>:] [filters] [--format table|json|csv] [-c <columns>] [--fast]
 
 List the existing containers.
 
@@ -328,8 +330,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 	cStatesWg.Wait()
 	cSnapshotsWg.Wait()
 
-	switch c.format {
-	case listFormatTable:
+	tableData := func() [][]string {
 		data := [][]string{}
 		for _, cInfo := range cinfos {
 			if !c.shouldShow(filters, &cInfo) {
@@ -342,14 +343,23 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 			}
 			data = append(data, col)
 		}
+		return data
+	}
 
+	switch c.format {
+	case listFormatCSV:
+		w := csv.NewWriter(os.Stdout)
+		w.WriteAll(tableData())
+		if err := w.Error(); err != nil {
+			return err
+		}
+	case listFormatTable:
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
 		table.SetRowLine(true)
 		table.SetHeader(headers)
-		sort.Sort(byName(data))
-		table.AppendBulk(data)
+		table.AppendBulk(tableData())
 		table.Render()
 	case listFormatJSON:
 		data := make([]listContainerItem, len(cinfos))
