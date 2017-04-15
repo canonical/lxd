@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-04-17 19:28-0400\n"
+"POT-Creation-Date: 2017-04-18 01:16-0400\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -316,7 +316,7 @@ msgid "Force using the local unix socket"
 msgstr ""
 
 #: lxc/list.go:111
-msgid "Format"
+msgid "Format (table|json)"
 msgstr ""
 
 #: lxc/main.go:131
