@@ -127,7 +127,7 @@ lxc list -c ns,user.comment:comment
 func (c *listCmd) flags() {
 	gnuflag.StringVar(&c.columnsRaw, "c", "ns46tS", i18n.G("Columns"))
 	gnuflag.StringVar(&c.columnsRaw, "columns", "ns46tS", i18n.G("Columns"))
-	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format"))
+	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (table|json)"))
 	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
 }
 
