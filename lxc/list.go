@@ -309,8 +309,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 	cStatesWg.Wait()
 	cSnapshotsWg.Wait()
 
-	switch c.format {
-	case listFormatTable:
+	tableData := func() [][]string {
 		data := [][]string{}
 		for _, cInfo := range cinfos {
 			if !c.shouldShow(filters, &cInfo) {
@@ -323,14 +322,18 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 			}
 			data = append(data, col)
 		}
+		sort.Sort(byName(data))
+		return data
+	}
 
+	switch c.format {
+	case listFormatTable:
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
 		table.SetRowLine(true)
 		table.SetHeader(headers)
-		sort.Sort(byName(data))
-		table.AppendBulk(data)
+		table.AppendBulk(tableData())
 		table.Render()
 	case listFormatJSON:
 		data := make([]listContainerItem, len(cinfos))
