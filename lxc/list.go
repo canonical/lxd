@@ -100,22 +100,9 @@ Pre-defined column shorthand chars:
 
     t - Type (persistent or ephemeral)
 
-Custom columns are defined with "key[:name][:maxWidth]":
-
-    KEY: The (extended) config key to display
-
-    NAME: Name to display in the column header.
-    Defaults to the key if not specified or empty.
-
-    MAXWIDTH: Max width of the column (longer results are truncated).
-    Defaults to -1 (unlimited). Use 0 to limit to the column header size.
-
 *Examples*
-lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC
-    Shows a list of containers using the "NAME", "BASE IMAGE", "STATE", "IPV4",
-    "IPV6" and "MAC" columns.
-
-    "BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.`)
+lxc list -c ns46
+    Shows a list of containers using the "NAME", "STATE", "IPV4", "IPV6" columns.`)
 }
 
 func (c *listCmd) flags() {
