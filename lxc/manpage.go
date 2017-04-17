@@ -28,7 +28,7 @@ func (c *manpageCmd) run(_ *lxd.Config, args []string) error {
 	}
 
 	keys := []string{}
-	for k, _ := range commands {
+	for k := range commands {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
