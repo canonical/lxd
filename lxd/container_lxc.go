@@ -212,21 +212,6 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
-	// Validate expanded config
-	err = containerValidConfig(c.daemon, c.expandedConfig, false, true)
-	if err != nil {
-		c.Delete()
-		shared.LogError("Failed creating container", ctxMap)
-		return nil, err
-	}
-
-	err = containerValidDevices(c.expandedDevices, false, true)
-	if err != nil {
-		c.Delete()
-		shared.LogError("Failed creating container", ctxMap)
-		return nil, err
-	}
-
 	// Look for a rootfs entry
 	_, _, err = containerGetRootDiskDevice(c.expandedDevices)
 	if err != nil {
@@ -255,6 +240,21 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 			shared.LogError("Failed creating container", ctxMap)
 			return nil, err
 		}
+	}
+
+	// Validate expanded config
+	err = containerValidConfig(c.daemon, c.expandedConfig, false, true)
+	if err != nil {
+		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
+		return nil, err
+	}
+
+	err = containerValidDevices(c.expandedDevices, false, true)
+	if err != nil {
+		c.Delete()
+		shared.LogError("Failed creating container", ctxMap)
+		return nil, err
 	}
 
 	// Setup initial idmap config
