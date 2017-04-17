@@ -115,7 +115,7 @@ func run() error {
 		fmt.Printf("    --network-port PORT\n")
 		fmt.Printf("        Port to bind LXD to (default: 8443)\n")
 		fmt.Printf("    --storage-backend NAME\n")
-		fmt.Printf("        Storage backend to use (zfs or dir, default: dir)\n")
+		fmt.Printf("        Storage backend to use (btrfs, dir, lvm or zfs, default: dir)\n")
 		fmt.Printf("    --storage-create-device DEVICE\n")
 		fmt.Printf("        Setup device based storage using DEVICE\n")
 		fmt.Printf("    --storage-create-loop SIZE\n")
