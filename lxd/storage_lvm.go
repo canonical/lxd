@@ -496,35 +496,25 @@ func (s *storageLvm) StoragePoolCreate() error {
 		ok, err := storagePVExists(loopDevicePath)
 		if err == nil && !ok {
 			// Create a new lvm physical volume.
-			output, err := shared.RunCommand("pvcreate", loopDevicePath)
+			output, err := shared.TryRunCommand("pvcreate", loopDevicePath)
 			if err != nil {
 				return fmt.Errorf("Failed to create the physical volume for the lvm storage pool: %s.", output)
 			}
 			defer func() {
 				if tryUndo {
-					shared.RunCommand("pvremove", loopDevicePath)
+					shared.TryRunCommand("pvremove", loopDevicePath)
 				}
 			}()
-		}
-
-		msg, err := shared.TryRunCommand("pvscan", "--cache")
-		if err != nil {
-			logger.Warnf("Failed to run pvscan: %s.", msg)
 		}
 
 		// Check if the volume group already exists.
 		ok, err = storageVGExists(poolName)
 		if err == nil && !ok {
 			// Create a volume group on the physical volume.
-			output, err := shared.RunCommand("vgcreate", poolName, loopDevicePath)
+			output, err := shared.TryRunCommand("vgcreate", poolName, loopDevicePath)
 			if err != nil {
 				return fmt.Errorf("Failed to create the volume group for the lvm storage pool: %s.", output)
 			}
-		}
-
-		msg, err = shared.TryRunCommand("vgscan", "--cache")
-		if err != nil {
-			logger.Warnf("Failed to run vgscan: %s.", msg)
 		}
 	} else {
 		s.pool.Config["size"] = ""
@@ -544,35 +534,25 @@ func (s *storageLvm) StoragePoolCreate() error {
 			ok, err := storagePVExists(source)
 			if err == nil && !ok {
 				// Create a new lvm physical volume.
-				output, err := shared.RunCommand("pvcreate", source)
+				output, err := shared.TryRunCommand("pvcreate", source)
 				if err != nil {
 					return fmt.Errorf("Failed to create the physical volume for the lvm storage pool: %s.", output)
 				}
 				defer func() {
 					if tryUndo {
-						shared.RunCommand("pvremove", source)
+						shared.TryRunCommand("pvremove", source)
 					}
 				}()
-			}
-
-			msg, err := shared.TryRunCommand("pvscan")
-			if err != nil {
-				logger.Warnf("Failed to run pvscan: %s.", msg)
 			}
 
 			// Check if the volume group already exists.
 			ok, err = storageVGExists(poolName)
 			if err == nil && !ok {
 				// Create a volume group on the physical volume.
-				output, err := shared.RunCommand("vgcreate", poolName, source)
+				output, err := shared.TryRunCommand("vgcreate", poolName, source)
 				if err != nil {
 					return fmt.Errorf("Failed to create the volume group for the lvm storage pool: %s.", output)
 				}
-			}
-
-			msg, err = shared.TryRunCommand("vgscan")
-			if err != nil {
-				logger.Warnf("Failed to run vgscan: %s.", msg)
 			}
 		} else {
 			if s.pool.Config["lvm.vg_name"] != "" {
@@ -624,7 +604,7 @@ func (s *storageLvm) StoragePoolDelete() error {
 
 	poolName := s.getOnDiskPoolName()
 	// Remove the volume group.
-	output, err := shared.RunCommand("vgremove", "-f", poolName)
+	output, err := shared.TryRunCommand("vgremove", "-f", poolName)
 	if err != nil {
 		return fmt.Errorf("Failed to destroy the volume group for the lvm storage pool: %s.", output)
 	}
