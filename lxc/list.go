@@ -344,6 +344,8 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 			}
 			data = append(data, col)
 		}
+
+		sort.Sort(byName(data))
 		return data
 	}
 
