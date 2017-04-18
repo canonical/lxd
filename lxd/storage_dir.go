@@ -159,7 +159,11 @@ func (s *storageDir) GetContainerPoolInfo() (int64, string) {
 }
 
 func (s *storageDir) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	return fmt.Errorf("Dir storage properties cannot be changed.")
+	if shared.StringInSlice("rsync.bwlimit", changedConfig) {
+		return nil
+	}
+
+	return fmt.Errorf("Storage property cannot be changed.")
 }
 
 // Functions dealing with storage pools.
@@ -367,7 +371,8 @@ func (s *storageDir) copyContainer(target container, source container) error {
 		return err
 	}
 
-	output, err := storageRsyncCopy(sourceContainerMntPoint, targetContainerMntPoint)
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 	if err != nil {
 		return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
 	}
@@ -400,7 +405,8 @@ func (s *storageDir) copySnapshot(target container, source container) error {
 		return err
 	}
 
-	output, err := storageRsyncCopy(sourceContainerMntPoint, targetContainerMntPoint)
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 	if err != nil {
 		return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
 	}
@@ -533,7 +539,8 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 	sourcePath := sourceContainer.Path()
 
 	// Restore using rsync
-	output, err := storageRsyncCopy(sourcePath, targetPath)
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	output, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit)
 	if err != nil {
 		return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
 	}
@@ -566,8 +573,8 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 		return err
 	}
 
-	rsync := func(snapshotContainer container, oldPath string, newPath string) error {
-		output, err := storageRsyncCopy(oldPath, newPath)
+	rsync := func(snapshotContainer container, oldPath string, newPath string, bwlimit string) error {
+		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit)
 		if err != nil {
 			s.ContainerDelete(snapshotContainer)
 			return fmt.Errorf("Failed to rsync: %s: %s.", string(output), err)
@@ -586,7 +593,8 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerName := sourceContainer.Name()
 	sourceContainerMntPoint := getContainerMountPoint(sourcePool, sourceContainerName)
-	err = rsync(snapshotContainer, sourceContainerMntPoint, targetContainerMntPoint)
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	err = rsync(snapshotContainer, sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 	if err != nil {
 		return err
 	}
@@ -602,7 +610,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 			return nil
 		}
 
-		err = rsync(snapshotContainer, sourceContainerMntPoint, targetContainerMntPoint)
+		err = rsync(snapshotContainer, sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 		if err != nil {
 			return err
 		}

@@ -918,12 +918,12 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 	// "volume.block.mount_options" requires no on-disk modifications.
 	// "volume.block.filesystem" requires no on-disk modifications.
 	// "volume.size" requires no on-disk modifications.
+	// "rsync.bwlimit" requires no on-disk modifications.
 
 	// Given a set of changeable pool properties the change should be
 	// "transactional": either the whole update succeeds or none. So try to
 	// revert on error.
 	revert := true
-
 	if shared.StringInSlice("lvm.use_thinpool", changedConfig) {
 		return fmt.Errorf("The \"lvm.use_thinpool\" property cannot be changed.")
 	}
@@ -1370,7 +1370,9 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 		}
 		defer source.Unfreeze()
 	}
-	output, err := storageRsyncCopy(sourceContainerMntPoint, targetContainerMntPoint)
+
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 	if err != nil {
 		return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
 	}
@@ -1722,7 +1724,9 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 		if err != nil {
 		}
 		defer target.Unfreeze()
-		output, err := storageRsyncCopy(sourceContainerMntPoint, targetContainerMntPoint)
+
+		bwlimit := s.pool.Config["rsync.bwlimit"]
+		output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 		if err != nil {
 			return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
 		}

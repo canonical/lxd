@@ -58,6 +58,9 @@ test_storage() {
 
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config" zfs zfs.pool_name="lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config"
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config"
+
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config" zfs rsync.bwlimit=1024
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config"
     fi
 
     if which btrfs >/dev/null 2>&1; then
@@ -83,6 +86,9 @@ test_storage() {
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-btrfs-pool-config" btrfs volume.zfs.use_refquota=true
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-btrfs-pool-config" btrfs zfs.clone_copy=true
       ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-btrfs-pool-config" btrfs zfs.pool_name=bla
+
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config" btrfs rsync.bwlimit=1024
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-btrfs-pool-config"
     fi
 
     # Create dir pool.
@@ -108,6 +114,9 @@ test_storage() {
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir volume.zfs.use_refquota=true
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir zfs.clone_copy=true
     ! lxc storage create "lxdtest-$(basename "${LXD_DIR}")-invalid-dir-pool-config" dir zfs.pool_name=bla
+
+    lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-dir-pool-config" dir rsync.bwlimit=1024
+    lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-dir-pool-config"
 
     if which lvdisplay >/dev/null 2>&1; then
       # Create lvm pool.
@@ -162,6 +171,7 @@ test_storage() {
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool21" lvm volume.size=2GB
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool22" lvm lvm.use_thinpool=true
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool23" lvm lvm.use_thinpool=true lvm.thinpool_name="lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool24" lvm rsync.bwlimit=1024
     fi
 
     # Set default storage pool for image import.
@@ -641,6 +651,9 @@ test_storage() {
 
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool23"
       vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool23" || true
+
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool24"
+      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool24" || true
     fi
   )
 

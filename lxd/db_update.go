@@ -576,7 +576,7 @@ func dbUpdateFromV11(currentVersion int, version int, d *Daemon) error {
 			// containers/<container>/snapshots/<snap0>
 			// to
 			// snapshots/<container>/<snap0>
-			output, err := storageRsyncCopy(oldPath, newPath)
+			output, err := rsyncLocalCopy(oldPath, newPath, "")
 			if err != nil {
 				logger.Error(
 					"Failed rsync snapshot",
