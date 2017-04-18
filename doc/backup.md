@@ -5,6 +5,7 @@ To backup a LXD instance different strategies are available.
 ## Full backup
 This requires that the whole `/var/lib/lxd` folder will be backuped up.
 Additionally, it is necessary to backup all storage pools as well.
+
 In order to restore the LXD instance the old `/var/lib/lxd` folder needs to be
 removed and replaced with the `/var/lib/lxd` snapshot. All storage pools
 need to be restored as well.
