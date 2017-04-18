@@ -16,14 +16,14 @@ type MigrationStorageSourceDriver interface {
 	/* send any bits of the container/snapshots that are possible while the
 	 * container is still running.
 	 */
-	SendWhileRunning(conn *websocket.Conn, op *operation) error
+	SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error
 
 	/* send the final bits (e.g. a final delta snapshot for zfs, btrfs, or
 	 * do a final rsync) of the fs after the container has been
 	 * checkpointed. This will only be called when a container is actually
 	 * being live migrated.
 	 */
-	SendAfterCheckpoint(conn *websocket.Conn) error
+	SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error
 
 	/* Called after either success or failure of a migration, can be used
 	 * to clean up any temporary snapshots, etc.
@@ -40,7 +40,7 @@ func (s rsyncStorageSourceDriver) Snapshots() []container {
 	return s.snapshots
 }
 
-func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
+func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error {
 	for _, send := range s.snapshots {
 		ourStart, err := send.StorageStart()
 		if err != nil {
@@ -52,18 +52,19 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *ope
 
 		path := send.Path()
 		wrapper := StorageProgressReader(op, "fs_progress", send.Name())
-		if err := RsyncSend(shared.AddSlash(path), conn, wrapper); err != nil {
+		err = RsyncSend(shared.AddSlash(path), conn, wrapper, bwlimit)
+		if err != nil {
 			return err
 		}
 	}
 
 	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn, wrapper)
+	return RsyncSend(shared.AddSlash(s.container.Path()), conn, wrapper, bwlimit)
 }
 
-func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
+func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
 	// resync anything that changed between our first send and the checkpoint
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn, nil)
+	return RsyncSend(shared.AddSlash(s.container.Path()), conn, nil, bwlimit)
 }
 
 func (s rsyncStorageSourceDriver) Cleanup() {
