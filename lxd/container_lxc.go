@@ -303,6 +303,9 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		return nil, err
 	}
 
+	// Invalid idmap cache
+	c.idmapset = nil
+
 	// Set last_state to the map we have on disk
 	if c.localConfig["volatile.last_state.idmap"] == "" {
 		err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
@@ -2795,6 +2798,9 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 		c.localConfig["volatile.idmap.next"] = jsonIdmap
 		c.localConfig["volatile.idmap.base"] = fmt.Sprintf("%v", base)
+
+		// Invalid idmap cache
+		c.idmapset = nil
 	}
 
 	// Apply disk quota changes
