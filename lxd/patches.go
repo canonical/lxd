@@ -393,7 +393,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 					return err
 				}
 
-				output, err := storageRsyncCopy(oldContainerMntPoint, newContainerMntPoint)
+				output, err := rsyncLocalCopy(oldContainerMntPoint, newContainerMntPoint, "")
 				if err != nil {
 					logger.Errorf("Failed to rsync: %s: %s.", output, err)
 					return err
@@ -480,7 +480,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 						return err
 					}
 
-					output, err := storageRsyncCopy(oldSnapshotMntPoint, newSnapshotMntPoint)
+					output, err := rsyncLocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "")
 					if err != nil {
 						logger.Errorf("Failed to rsync: %s: %s.", output, err)
 						return err
@@ -684,7 +684,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
-				output, err := storageRsyncCopy(oldContainerMntPoint, newContainerMntPoint)
+				output, err := rsyncLocalCopy(oldContainerMntPoint, newContainerMntPoint, "")
 				if err != nil {
 					logger.Errorf("Failed to rsync: %s: %s.", output, err)
 					return err
@@ -731,7 +731,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 			if err != nil {
-				output, err := storageRsyncCopy(oldSnapshotMntPoint, newSnapshotMntPoint)
+				output, err := rsyncLocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "")
 				if err != nil {
 					logger.Errorf("Failed to rsync: %s: %s.", output, err)
 					return err
@@ -1057,7 +1057,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				}
 
 				// Use rsync to fill the empty volume.
-				output, err := storageRsyncCopy(oldContainerMntPoint, newContainerMntPoint)
+				output, err := rsyncLocalCopy(oldContainerMntPoint, newContainerMntPoint, "")
 				if err != nil {
 					ctStorage.ContainerDelete(ctStruct)
 					return fmt.Errorf("rsync failed: %s", string(output))
@@ -1211,7 +1211,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					}
 
 					// Use rsync to fill the empty volume.
-					output, err := storageRsyncCopy(oldSnapshotMntPoint, newSnapshotMntPoint)
+					output, err := rsyncLocalCopy(oldSnapshotMntPoint, newSnapshotMntPoint, "")
 					if err != nil {
 						csStorage.ContainerDelete(csStruct)
 						return fmt.Errorf("rsync failed: %s", string(output))

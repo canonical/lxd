@@ -380,6 +380,8 @@ func (s *storageZfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 		return fmt.Errorf("The \"zfs.pool_name\" property cannot be changed.")
 	}
 
+	// "rsync.bwlimit" requires no on-disk modifications.
+
 	logger.Infof("Updated ZFS storage pool \"%s\".", s.pool.Name)
 	return nil
 }
@@ -808,7 +810,8 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 			s.ContainerDelete(target)
 		}()
 
-		output, err := storageRsyncCopy(sourceContainerPath, targetContainerPath)
+		bwlimit := s.pool.Config["rsync.bwlimit"]
+		output, err := rsyncLocalCopy(sourceContainerPath, targetContainerPath, bwlimit)
 		if err != nil {
 			return fmt.Errorf("rsync failed: %s", string(output))
 		}
@@ -2421,7 +2424,7 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 	return err
 }
 
-func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
+func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error {
 	if s.container.IsSnapshot() {
 		fields := strings.SplitN(s.container.Name(), shared.SnapshotDelimiter, 2)
 		snapshotName := fmt.Sprintf("snapshot-%s", fields[1])
@@ -2458,7 +2461,7 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 	return nil
 }
 
-func (s *zfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
+func (s *zfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
 	s.stoppedSnapName = fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
 	if err := s.zfs.zfsPoolVolumeSnapshotCreate(fmt.Sprintf("containers/%s", s.container.Name()), s.stoppedSnapName); err != nil {
 		return err

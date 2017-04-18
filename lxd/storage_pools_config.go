@@ -51,6 +51,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	// valid drivers: zfs
 	"zfs.clone_copy": shared.IsBool,
 	"zfs.pool_name":  shared.IsAny,
+	"rsync.bwlimit":  shared.IsAny,
 }
 
 func storagePoolValidateConfig(name string, driver string, config map[string]string) error {
@@ -65,6 +66,14 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		v, ok := config["lvm.use_thinpool"]
 		if ok && !shared.IsTrue(v) && config["lvm.thinpool_name"] != "" {
 			return fmt.Errorf("The key \"lvm.use_thinpool\" cannot be set to a false value when \"lvm.thinpool_name\" is set for LVM storage pools.")
+		}
+	}
+
+	v, ok := config["rsync.bwlimit"]
+	if ok && v != "" {
+		_, err := shared.ParseByteSizeString(v)
+		if err != nil {
+			return err
 		}
 	}
 
