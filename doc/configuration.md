@@ -398,6 +398,7 @@ volume.block.mount\_options     | string    | block based driver (lvm)          
 lvm.thinpool\_name              | string    | lvm driver                        | LXDPool           | Thin pool where images and containers are created.
 lvm.use\_thinpool               | bool      | lvm driver                        | true              | Whether the storage pool uses a thinpool for logical volumes.
 lvm.vg\_name                    | string    | lvm driver                        | name of the pool  | Name of the volume group to create.
+rsync.bwlimit                   | string    | -                                 | 0 (no limit)      | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
 volume.size                     | string    | appropriate driver                | 0                 | Default volume size
 volume.zfs.remove\_snapshots    | bool      | zfs driver                        | false             | Remove snapshots as needed
 volume.zfs.use\_refquota        | bool      | zfs driver                        | false             | Use refquota instead of quota for space.

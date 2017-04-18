@@ -255,3 +255,7 @@ If "source" is set without a "path", we should assume that "path" will be the sa
 If "path" is set without "source" and "major/minor" isn't set,
 we should assume that "source" will be the same as "path".
 So at least one of them must be set.
+
+## rsync.bwlimit
+When rsync has to be invoked to transfer storage entities setting rsync.bwlimit
+places an upper limit on the amount of socket I/O allowed.

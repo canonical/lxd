@@ -374,11 +374,18 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		return err
 	}
 
+	bwlimit := ""
 	if *header.Fs != myType {
 		myType = MigrationFSType_RSYNC
 		header.Fs = &myType
 
 		driver, _ = rsyncMigrationSource(s.container, s.containerOnly)
+
+		// Check if this storage pool has a rate limit set for rsync.
+		poolwritable := s.container.Storage().GetStoragePoolWritable()
+		if poolwritable.Config != nil {
+			bwlimit = poolwritable.Config["rsync.bwlimit"]
+		}
 	}
 
 	// All failure paths need to do a few things to correctly handle errors before returning.
@@ -394,7 +401,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		return err
 	}
 
-	err = driver.SendWhileRunning(s.fsConn, migrateOp)
+	err = driver.SendWhileRunning(s.fsConn, migrateOp, bwlimit)
 	if err != nil {
 		return abort(err)
 	}
@@ -515,12 +522,12 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		 * no reason to do these in parallel. In the future when we're using
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
-		err = RsyncSend(shared.AddSlash(checkpointDir), s.criuConn, nil)
+		err = RsyncSend(shared.AddSlash(checkpointDir), s.criuConn, nil, bwlimit)
 		if err != nil {
 			return abort(err)
 		}
 
-		err = driver.SendAfterCheckpoint(s.fsConn)
+		err = driver.SendAfterCheckpoint(s.fsConn, bwlimit)
 		if err != nil {
 			return abort(err)
 		}

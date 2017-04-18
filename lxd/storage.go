@@ -112,33 +112,6 @@ func filesystemDetect(path string) (string, error) {
 	}
 }
 
-// storageRsyncCopy copies a directory using rsync (with the --devices option).
-func storageRsyncCopy(source string, dest string) (string, error) {
-	err := os.MkdirAll(dest, 0755)
-	if err != nil {
-		return "", err
-	}
-
-	rsyncVerbosity := "-q"
-	if debug {
-		rsyncVerbosity = "-vi"
-	}
-
-	output, err := shared.RunCommand(
-		"rsync",
-		"-a",
-		"-HAX",
-		"--devices",
-		"--delete",
-		"--checksum",
-		"--numeric-ids",
-		rsyncVerbosity,
-		shared.AddSlash(source),
-		dest)
-
-	return output, err
-}
-
 // storageType defines the type of a storage
 type storageType int
 

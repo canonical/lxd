@@ -14,7 +14,36 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
+// rsyncCopy copies a directory using rsync (with the --devices option).
+func rsyncLocalCopy(source string, dest string, bwlimit string) (string, error) {
+	err := os.MkdirAll(dest, 0755)
+	if err != nil {
+		return "", err
+	}
+
+	rsyncVerbosity := "-q"
+	if debug {
+		rsyncVerbosity = "-vi"
+	}
+
+	if bwlimit == "" {
+		bwlimit = "0"
+	}
+
+	return shared.RunCommand("rsync",
+		"-a",
+		"-HAX",
+		"--devices",
+		"--delete",
+		"--checksum",
+		"--numeric-ids",
+		"--bwlimit", bwlimit,
+		rsyncVerbosity,
+		shared.AddSlash(source),
+		dest)
+}
+
+func rsyncSendSetup(path string, bwlimit string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	/*
 	 * It's sort of unfortunate, but there's no library call to get a
 	 * temporary name, so we get the file and close it and use its name.
@@ -57,8 +86,11 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	 * hardcoding that at the other end, so we can just ignore it.
 	 */
 	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s\"", execPath, f.Name())
-	cmd := exec.Command(
-		"rsync",
+	if bwlimit == "" {
+		bwlimit = "0"
+	}
+
+	cmd := exec.Command("rsync",
 		"-arvP",
 		"--devices",
 		"--numeric-ids",
@@ -66,7 +98,9 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 		path,
 		"localhost:/tmp/foo",
 		"-e",
-		rsyncCmd)
+		rsyncCmd,
+		"--bwlimit",
+		bwlimit)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -90,8 +124,8 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 
 // RsyncSend sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func RsyncSend(path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser) error {
-	cmd, dataSocket, stderr, err := rsyncSendSetup(path)
+func RsyncSend(path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser, bwlimit string) error {
+	cmd, dataSocket, stderr, err := rsyncSendSetup(path, bwlimit)
 	if err != nil {
 		return err
 	}

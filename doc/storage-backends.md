@@ -44,6 +44,10 @@ When such capabilities aren't available, either because the storage driver doesn
 or because the storage backend of the source and target servers differ,  
 LXD will fallback to using rsync to transfer the individual files instead.
 
+When rsync has to be used LXD allows to specify an upper limit on the amount of
+socket I/O by setting the "rsync.bwlimit" storage pool property to a non-zero
+value.
+
 ## Default storage pool
 There is no concept of a default storage pool in LXD.  
 Instead, the pool to use for the container's root is treated as just another "disk" device in LXD.

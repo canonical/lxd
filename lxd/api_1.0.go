@@ -102,6 +102,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_zfs_clone_copy",
 			"unix_device_rename",
 			"storage_lvm_use_thinpool",
+			"storage_rsync_bwlimit",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

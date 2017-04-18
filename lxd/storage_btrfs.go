@@ -463,7 +463,11 @@ func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 }
 
 func (s *storageBtrfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	return fmt.Errorf("Btrfs storage properties cannot be changed.")
+	if shared.StringInSlice("rsync.bwlimit", changedConfig) {
+		return nil
+	}
+
+	return fmt.Errorf("Storage property cannot be changed.")
 }
 
 func (s *storageBtrfs) GetStoragePoolWritable() api.StoragePoolPut {
@@ -1005,7 +1009,8 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 		if err == nil {
 			// Use rsync to fill the empty volume.  Sync by using
 			// the subvolume name.
-			output, err := storageRsyncCopy(sourceContainerSubvolumeName, targetContainerSubvolumeName)
+			bwlimit := s.pool.Config["rsync.bwlimit"]
+			output, err := rsyncLocalCopy(sourceContainerSubvolumeName, targetContainerSubvolumeName, bwlimit)
 			if err != nil {
 				s.ContainerDelete(container)
 				logger.Errorf("ContainerRestore: rsync failed: %s.", string(output))
@@ -1743,7 +1748,7 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 	return err
 }
 
-func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation) error {
+func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error {
 	_, containerPool := s.container.Storage().GetContainerPoolInfo()
 	containerName := s.container.Name()
 	containersPath := getContainerMountPoint(containerPool, "")
@@ -1821,7 +1826,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 	return s.send(conn, migrationSendSnapshot, btrfsParent, wrapper)
 }
 
-func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
+func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
 	tmpPath := containerPath(fmt.Sprintf("%s/.migration-send", s.container.Name()), true)
 	err := os.MkdirAll(tmpPath, 0700)
 	if err != nil {
