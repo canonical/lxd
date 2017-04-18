@@ -1045,7 +1045,7 @@ func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 			logger.Debug("Found cert", log.Ctx{"k": k})
 			return true
 		}
-		logger.Log.Debug("Client cert != key", log.Ctx{"k": k})
+		logger.Debug("Client cert != key", log.Ctx{"k": k})
 	}
 	return false
 }
