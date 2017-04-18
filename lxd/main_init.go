@@ -334,23 +334,31 @@ func cmdInit() error {
 					}
 					storageDevice = askString("Path to the existing block device: ", "", deviceExists)
 				} else {
-					st := syscall.Statfs_t{}
-					err := syscall.Statfs(shared.VarPath(), &st)
-					if err != nil {
-						return fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
-					}
+					backingFs, err := filesystemDetect(shared.VarPath())
+					if err == nil && storageBackend == "btrfs" && backingFs == "btrfs" {
+						if askBool("Would you like to create a new subvolume for the BTRFS storage pool (yes/no) [default=yes]: ", "yes") {
+							storageDataset = shared.VarPath("storage-pools", storagePool)
+						}
+					} else {
 
-					/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
-					def := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-					if def > 100 {
-						def = 100
-					}
-					if def < 15 {
-						def = 15
-					}
+						st := syscall.Statfs_t{}
+						err := syscall.Statfs(shared.VarPath(), &st)
+						if err != nil {
+							return fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
+						}
 
-					q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", def)
-					storageLoopSize = askInt(q, 1, -1, fmt.Sprintf("%d", def))
+						/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
+						def := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
+						if def > 100 {
+							def = 100
+						}
+						if def < 15 {
+							def = 15
+						}
+
+						q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", def)
+						storageLoopSize = askInt(q, 1, -1, fmt.Sprintf("%d", def))
+					}
 				}
 			} else {
 				q := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(storageBackend))
