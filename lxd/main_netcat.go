@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"syscall"
 )
 
 // Netcat is called with:
@@ -34,7 +35,7 @@ func cmdNetcat(args []string) error {
 	wg.Add(1)
 
 	go func() {
-		io.Copy(os.Stdout, conn)
+		io.Copy(os.Stdout, hideAgainReader{conn})
 		conn.Close()
 		wg.Done()
 	}()
@@ -46,4 +47,20 @@ func cmdNetcat(args []string) error {
 	wg.Wait()
 
 	return nil
+}
+
+type retryOnEagainReader struct {
+	r io.Reader
+}
+
+func (hr retryOnEagainReader) Read(p []byte) (int, error) {
+	n, err := hr.r.Read(p)
+	if err != nil {
+		// golang's io.Copy doesn't understand EAGAIN, so let's mask it
+		if errno, ok := err.(syscall.Errno); ok && errno == syscall.EAGAIN {
+			return n, nil
+		}
+	}
+
+	return n, err
 }
