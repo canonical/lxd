@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-04-15 14:42+0200\n"
-"PO-Revision-Date: 2017-02-24 23:43+0000\n"
-"Last-Translator: Christophe CHAUVET <christophe.chauvet@gmail.com>\n"
+"POT-Creation-Date: 2017-04-19 16:40-0400\n"
+"PO-Revision-Date: 2017-03-30 21:35+0000\n"
+"Last-Translator: HazWard <starlysolon@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/fr/>\n"
 "Language: fr\n"
@@ -17,10 +17,9 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2.12-dev\n"
+"X-Generator: Weblate 2.13-dev\n"
 
 #: lxc/storage.go:30
-#, fuzzy
 msgid ""
 "### This is a yaml representation of a storage pool.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -36,23 +35,20 @@ msgid ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 msgstr ""
-"### Ceci est une représentation yaml du réseau.\n"
-"### Toute ligne commençant par un '# sera ignorée.\n"
+"### Ceci est un représentation yaml d'un ensemble de stockage.\n"
+"### Toute ligne commençant par un '#' sera ignorée.\n"
 "###\n"
-"### Un réseau est constitué d'un ensemble d'éléments de configuration.\n"
-"### A network consists of a set of configuration item<\n"
+"### L'ensemble de stockage est constituté d'un ensemble d'élements de "
+"configuration.\n"
 "###\n"
-"### Un exemple reseemblerait à :\n"
-"### name: lxdbr0\n"
+"### Un exemple ressemble à ceci:\n"
+"### name: default\n"
+"### driver: zfs\n"
+"### used_by: []\n"
 "### config:\n"
-"###   ipv4.address: 10.62.42.1/24\n"
-"###   ipv4.nat: true\n"
-"###   ipv6.address: fd00:56ad:9f7a:9800::1/64\n"
-"###   ipv6.nat: true\n"
-"### managed: true\n"
-"### type: bridge\n"
-"###\n"
-"### Notez que seule la configuration peut être modifiée."
+"###   size: \"61203283968\"\n"
+"###   source: /home/chb/mnt/lxd_test/default.img\n"
+"###   zfs.pool_name: default"
 
 #: lxc/storage.go:47
 #, fuzzy
@@ -224,7 +220,7 @@ msgstr "ALIAS"
 msgid "ARCH"
 msgstr "ARCH"
 
-#: lxc/list.go:444
+#: lxc/list.go:446
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
@@ -271,7 +267,7 @@ msgstr "CPU utilisé (en secondes)"
 msgid "CPU usage:"
 msgstr "CPU utilisé :"
 
-#: lxc/list.go:445
+#: lxc/list.go:447
 msgid "CREATED AT"
 msgstr "CRÉÉ À"
 
@@ -305,7 +301,7 @@ msgstr "Colonnes"
 
 #: lxc/help.go:53
 msgid "Commands:"
-msgstr ""
+msgstr "Commandes:"
 
 #: lxc/copy.go:33 lxc/copy.go:34 lxc/init.go:135 lxc/init.go:136
 msgid "Config key/value to apply to the new container"
@@ -400,18 +396,18 @@ msgstr "Périphérique %s retiré de %s"
 
 #: lxc/exec.go:64
 msgid "Disable pseudo-terminal allocation"
-msgstr ""
+msgstr "Désactiver l'allocation pseudo-terminal"
 
 #: lxc/exec.go:65
 msgid "Disable stdin (reads from /dev/null)"
-msgstr ""
+msgstr "Désactiver stdin (lecture à partir de /dev/null)"
 
 #: lxc/info.go:145
 #, fuzzy
 msgid "Disk usage:"
 msgstr "  Disque utilisé :"
 
-#: lxc/list.go:592
+#: lxc/list.go:594
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
@@ -459,12 +455,12 @@ msgstr "EMPREINTE"
 #: lxc/manpage.go:62
 #, c-format
 msgid "Failed to generate 'lxc.%s.1': %v"
-msgstr ""
+msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
 #: lxc/manpage.go:55
 #, c-format
 msgid "Failed to generate 'lxc.1': %v"
-msgstr ""
+msgstr "Échec lors de la génération de 'lxc.1': %v"
 
 #: lxc/list.go:134
 #, fuzzy
@@ -478,7 +474,7 @@ msgstr "Empreinte : %s"
 
 #: lxc/exec.go:63
 msgid "Force pseudo-terminal allocation"
-msgstr ""
+msgstr "Forcer l'allocation de pseudo-terminal "
 
 #: lxc/action.go:46 lxc/action.go:47
 msgid "Force the container to shutdown"
@@ -504,11 +500,11 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Génération d'un certificat client. Ceci peut prendre une minute…"
 
-#: lxc/list.go:442
+#: lxc/list.go:444
 msgid "IPV4"
 msgstr "IPv4"
 
-#: lxc/list.go:443
+#: lxc/list.go:445
 msgid "IPV6"
 msgstr "IPv6"
 
@@ -581,7 +577,7 @@ msgstr "IPs :"
 msgid "Keep the image up to date after initial copy"
 msgstr "Garder l'image à jour après la copie initiale"
 
-#: lxc/list.go:446
+#: lxc/list.go:448
 msgid "LAST USED AT"
 msgstr "DERNIÈRE UTILISATION À"
 
@@ -630,7 +626,7 @@ msgstr "  Mémoire utilisée :"
 #: lxc/copy.go:276
 #, c-format
 msgid "Migration failed on source host: %s"
-msgstr ""
+msgstr "Échec lors de la migration vers l'hôte source: %s"
 
 #: lxc/copy.go:280
 #, c-format
@@ -659,7 +655,7 @@ msgstr "Forcer le conteneur à s'arrêter"
 msgid "Must supply container name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/list.go:447 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395
+#: lxc/list.go:449 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395
 #: lxc/storage.go:607 lxc/storage.go:687
 msgid "NAME"
 msgstr "NOM"
@@ -715,7 +711,7 @@ msgstr "Aucune empreinte n'a été indiquée."
 
 #: lxc/storage.go:323 lxc/storage.go:407
 msgid "Only \"custom\" volumes can be attached to containers."
-msgstr "Seul les volumes \"custom\" peuvent être attaché aux conteneurs."
+msgstr "Seul les volumes \"personnalisés\" peuvent être attaché aux conteneurs"
 
 #: lxc/remote.go:135
 msgid "Only https URLs are supported for simplestreams"
@@ -742,15 +738,15 @@ msgstr "Le résultat est dans %s"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "Surcharger le mode terminal (auto, interactif ou non-interactif)"
 
-#: lxc/list.go:594
+#: lxc/list.go:596
 msgid "PERSISTENT"
 msgstr "PERSISTANT"
 
-#: lxc/list.go:448
+#: lxc/list.go:450
 msgid "PID"
 msgstr "PID"
 
-#: lxc/list.go:449
+#: lxc/list.go:451
 msgid "PROFILES"
 msgstr "PROFILS"
 
@@ -904,7 +900,7 @@ msgstr "Récupération de l'image : %s"
 msgid "SIZE"
 msgstr "TAILLE"
 
-#: lxc/list.go:450
+#: lxc/list.go:452
 msgid "SNAPSHOTS"
 msgstr "INSTANTANÉS"
 
@@ -912,7 +908,7 @@ msgstr "INSTANTANÉS"
 msgid "SOURCE"
 msgstr "SOURCE"
 
-#: lxc/list.go:451
+#: lxc/list.go:453
 msgid "STATE"
 msgstr "ÉTAT"
 
@@ -920,9 +916,9 @@ msgstr "ÉTAT"
 msgid "STATIC"
 msgstr "STATIQUE"
 
-#: lxc/list.go:453
+#: lxc/list.go:455
 msgid "STORAGE POOL"
-msgstr ""
+msgstr "ENSEMBLE DE STOCKAGE"
 
 #: lxc/remote.go:240
 msgid "Server certificate NACKed by user"
@@ -1023,7 +1019,7 @@ msgstr "Le réseau %s a été supprimé"
 
 #: lxc/init.go:143 lxc/init.go:144
 msgid "Storage pool name"
-msgstr ""
+msgstr "Nom de l'ensemble de stockage"
 
 #: lxc/storage.go:710
 #, fuzzy, c-format
@@ -1047,7 +1043,7 @@ msgstr "Swap (courant)"
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
 
-#: lxc/list.go:452 lxc/network.go:459 lxc/storage.go:686
+#: lxc/list.go:454 lxc/network.go:459 lxc/storage.go:686
 msgid "TYPE"
 msgstr "TYPE"
 
@@ -1103,6 +1099,12 @@ msgid ""
 "All of LXD's features can be driven through the various commands below.\n"
 "For help with any of those, simply call them with --help."
 msgstr ""
+"Ceci est le client en ligne de commande de LXD\n"
+"\n"
+"Toutes les fonctionnalités de LXD peuvent être utilisées à l'aide des "
+"commandes ci-dessous.\n"
+"Pour de l'aide avec l'une des commandes, simplement les utiliser avec --"
+"help.\n"
 
 #: lxc/action.go:45
 msgid "Time to wait for the container before killing it"
@@ -1157,7 +1159,7 @@ msgstr "UTILISÉ PAR"
 
 #: lxc/manpage.go:36
 msgid "Unable to find help2man."
-msgstr ""
+msgstr "Impossible de trouver help2man"
 
 #: lxc/remote.go:110
 msgid "Unable to read remote TLS certificate"
@@ -1422,6 +1424,9 @@ msgid ""
 "\n"
 "Check if the LXD server is alive."
 msgstr ""
+"Utilisation: lxc finger [<serveur distant>:]\n"
+"\n"
+"Vérifie si le serveur LXD est actif."
 
 #: lxc/help.go:22
 msgid ""
@@ -1429,6 +1434,9 @@ msgid ""
 "\n"
 "Help page for the LXD client."
 msgstr ""
+"Utilisation: lxc help [--all]\n"
+"\n"
+"Page d'aide pour le client LXD."
 
 #: lxc/image.go:62
 #, fuzzy
@@ -1594,6 +1602,15 @@ msgid ""
 "lxc info [<remote>:]\n"
 "    For LXD server information."
 msgstr ""
+"Utilisation: lxc info [<serveur distant>:][<conteneur>] [--show-log]\n"
+"\n"
+"Afficher l'information du conteneur ou du serveur.\n"
+"\n"
+"lxc info [<serveur distant>:]<conteneur> [--show-log]\n"
+"    Pour l'information du conteneur.\n"
+"\n"
+"lxc info [<serveur distant>:]\n"
+"    Pour l'information du serveur LXD."
 
 #: lxc/init.go:75
 #, fuzzy
@@ -1808,6 +1825,9 @@ msgid ""
 "\n"
 "Generate all the LXD manpages."
 msgstr ""
+"Utilisation: lxc manpage <dossier>\n"
+"\n"
+"Génère toutes les manpages LXD."
 
 #: lxc/monitor.go:41
 #, fuzzy
@@ -2336,7 +2356,7 @@ msgstr "OUI"
 
 #: lxc/exec.go:125
 msgid "You can't pass -t and -T at the same time"
-msgstr ""
+msgstr "Il est impossible de passer -t et -T simultanément"
 
 #: lxc/exec.go:129
 #, fuzzy
