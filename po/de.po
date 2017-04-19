@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-04-15 14:42+0200\n"
+"POT-Creation-Date: 2017-04-19 16:40-0400\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -230,7 +230,7 @@ msgstr ""
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:444
+#: lxc/list.go:446
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -279,7 +279,7 @@ msgstr ""
 msgid "CPU usage:"
 msgstr " Prozessorauslastung:"
 
-#: lxc/list.go:445
+#: lxc/list.go:447
 msgid "CREATED AT"
 msgstr ""
 
@@ -420,7 +420,7 @@ msgstr ""
 msgid "Disk usage:"
 msgstr " Prozessorauslastung:"
 
-#: lxc/list.go:592
+#: lxc/list.go:594
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -516,11 +516,11 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Generiere Nutzerzertifikat. Dies kann wenige Minuten dauern...\n"
 
-#: lxc/list.go:442
+#: lxc/list.go:444
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:443
+#: lxc/list.go:445
 msgid "IPV6"
 msgstr ""
 
@@ -592,7 +592,7 @@ msgstr ""
 msgid "Keep the image up to date after initial copy"
 msgstr ""
 
-#: lxc/list.go:446
+#: lxc/list.go:448
 msgid "LAST USED AT"
 msgstr ""
 
@@ -671,7 +671,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Must supply container name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/list.go:447 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395
+#: lxc/list.go:449 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395
 #: lxc/storage.go:607 lxc/storage.go:687
 msgid "NAME"
 msgstr ""
@@ -756,15 +756,15 @@ msgstr ""
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:594
+#: lxc/list.go:596
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:448
+#: lxc/list.go:450
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:449
+#: lxc/list.go:451
 msgid "PROFILES"
 msgstr ""
 
@@ -922,7 +922,7 @@ msgstr ""
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:450
+#: lxc/list.go:452
 msgid "SNAPSHOTS"
 msgstr ""
 
@@ -930,7 +930,7 @@ msgstr ""
 msgid "SOURCE"
 msgstr ""
 
-#: lxc/list.go:451
+#: lxc/list.go:453
 msgid "STATE"
 msgstr ""
 
@@ -938,7 +938,7 @@ msgstr ""
 msgid "STATIC"
 msgstr ""
 
-#: lxc/list.go:453
+#: lxc/list.go:455
 msgid "STORAGE POOL"
 msgstr ""
 
@@ -1067,7 +1067,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:452 lxc/network.go:459 lxc/storage.go:686
+#: lxc/list.go:454 lxc/network.go:459 lxc/storage.go:686
 msgid "TYPE"
 msgstr ""
 
