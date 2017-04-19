@@ -20,7 +20,8 @@ if [ -n "${LXD_DEBUG:-}" ]; then
 fi
 
 echo "==> Checking for dependencies"
-for dep in lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen pyflakes3 pep8 shellcheck; do
+deps="lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen"
+for dep in $deps; do
   which "${dep}" >/dev/null 2>&1 || (echo "Missing dependency: ${dep}" >&2 && exit 1)
 done
 

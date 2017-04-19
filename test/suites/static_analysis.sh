@@ -10,11 +10,18 @@ test_static_analysis() {
 
     cd ../
     # Python3 static analysis
-    pep8 test/deps/import-busybox scripts/lxd-setup-lvm-storage
-    pyflakes3 test/deps/import-busybox scripts/lxd-setup-lvm-storage
+    if which flake8 >/dev/null 2>&1; then
+      flake8 test/deps/import-busybox scripts/lxd-setup-lvm-storage
+    else
+      echo "flake8 not found, python static analysis disabled"
+    fi  
 
     # Shell static analysis
-    shellcheck lxd-bridge/lxd-bridge test/main.sh test/suites/* test/backends/*
+    if which shellcheck >/dev/null 2>&1; then
+      shellcheck test/main.sh test/suites/* test/backends/*
+    else
+      echo "shellcheck not found, shell static analysis disabled"
+    fi  
 
     # Go static analysis
     ## Functions starting by empty line
