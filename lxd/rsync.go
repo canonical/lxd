@@ -5,27 +5,16 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"os"
 	"os/exec"
 
 	"github.com/gorilla/websocket"
+	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
-	/*
-	 * It's sort of unfortunate, but there's no library call to get a
-	 * temporary name, so we get the file and close it and use its name.
-	 */
-	f, err := ioutil.TempFile("", "lxd_rsync_")
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	f.Close()
-	os.Remove(f.Name())
-
+func rsyncSendSetup(name string, path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -40,7 +29,14 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	 * stdin/stdout, but that also seemed messy. In any case, this seems to
 	 * work just fine.
 	 */
-	l, err := net.Listen("unix", f.Name())
+	auds := fmt.Sprintf("@lxd/%s", uuid.NewRandom().String())
+	// We simply copy a part of the uuid if it's longer than the allowed
+	// maximum. That should be safe enough for our purposes.
+	if len(auds) > shared.ABSTRACT_UNIX_SOCK_LEN-1 {
+		auds = auds[:shared.ABSTRACT_UNIX_SOCK_LEN-1]
+	}
+
+	l, err := net.Listen("unix", auds)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -56,7 +52,7 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	 * command (i.e. the command to run on --server). However, we're
 	 * hardcoding that at the other end, so we can just ignore it.
 	 */
-	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s\"", execPath, f.Name())
+	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s %s\"", execPath, auds, name)
 	cmd := exec.Command(
 		"rsync",
 		"-arvP",
@@ -90,8 +86,8 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 
 // RsyncSend sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func RsyncSend(path string, conn *websocket.Conn) error {
-	cmd, dataSocket, stderr, err := rsyncSendSetup(path)
+func RsyncSend(name string, path string, conn *websocket.Conn) error {
+	cmd, dataSocket, stderr, err := rsyncSendSetup(name, path)
 	if err != nil {
 		return err
 	}

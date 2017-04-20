@@ -508,7 +508,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		 * no reason to do these in parallel. In the future when we're using
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
-		err = RsyncSend(shared.AddSlash(checkpointDir), s.criuConn)
+		ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
+		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn)
 		if err != nil {
 			return abort(err)
 		}

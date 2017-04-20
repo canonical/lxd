@@ -627,6 +627,7 @@ func (s rsyncStorageSourceDriver) Snapshots() []container {
 }
 
 func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
+	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	for _, send := range s.snapshots {
 		if err := send.StorageStart(); err != nil {
 			return err
@@ -634,17 +635,19 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
 		defer send.StorageStop()
 
 		path := send.Path()
-		if err := RsyncSend(shared.AddSlash(path), conn); err != nil {
+		if err := RsyncSend(ctName, shared.AddSlash(path), conn); err != nil {
 			return err
 		}
 	}
 
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn)
+	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn)
 }
 
 func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
+	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
+
 	/* resync anything that changed between our first send and the checkpoint */
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn)
+	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn)
 }
 
 func (s rsyncStorageSourceDriver) Cleanup() {
