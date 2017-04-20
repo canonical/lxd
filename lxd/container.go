@@ -18,6 +18,18 @@ import (
 )
 
 // Helper functions
+
+// Returns the parent container name, snapshot name, and whether it actually was
+// a snapshot name.
+func containerGetParentAndSnapshotName(name string) (string, string, bool) {
+	fields := strings.SplitN(name, shared.SnapshotDelimiter, 2)
+	if len(fields) == 1 {
+		return name, "", false
+	}
+
+	return fields[0], fields[1], true
+}
+
 func containerPath(name string, isSnapshot bool) string {
 	if isSnapshot {
 		return shared.VarPath("snapshots", name)
