@@ -9,6 +9,7 @@ import (
 	"os/exec"
 
 	"github.com/gorilla/websocket"
+	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -43,18 +44,7 @@ func rsyncLocalCopy(source string, dest string, bwlimit string) (string, error) 
 		dest)
 }
 
-func rsyncSendSetup(path string, bwlimit string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
-	/*
-	 * It's sort of unfortunate, but there's no library call to get a
-	 * temporary name, so we get the file and close it and use its name.
-	 */
-	f, err := ioutil.TempFile("", "lxd_rsync_")
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	f.Close()
-	os.Remove(f.Name())
-
+func rsyncSendSetup(name string, path string, bwlimit string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -69,7 +59,13 @@ func rsyncSendSetup(path string, bwlimit string) (*exec.Cmd, net.Conn, io.ReadCl
 	 * stdin/stdout, but that also seemed messy. In any case, this seems to
 	 * work just fine.
 	 */
-	l, err := net.Listen("unix", f.Name())
+	auds := fmt.Sprintf("@lxd/%s", uuid.NewRandom().String())
+	// We simply copy a part of the uuid if it's longer than the allowed
+	// maximum. That should be safe enough for our purposes.
+	if len(auds) > shared.ABSTRACT_UNIX_SOCK_LEN-1 {
+		auds = auds[:shared.ABSTRACT_UNIX_SOCK_LEN-1]
+	}
+	l, err := net.Listen("unix", auds)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -85,7 +81,7 @@ func rsyncSendSetup(path string, bwlimit string) (*exec.Cmd, net.Conn, io.ReadCl
 	 * command (i.e. the command to run on --server). However, we're
 	 * hardcoding that at the other end, so we can just ignore it.
 	 */
-	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s\"", execPath, f.Name())
+	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s %s\"", execPath, auds, name)
 	if bwlimit == "" {
 		bwlimit = "0"
 	}
@@ -124,8 +120,8 @@ func rsyncSendSetup(path string, bwlimit string) (*exec.Cmd, net.Conn, io.ReadCl
 
 // RsyncSend sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func RsyncSend(path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser, bwlimit string) error {
-	cmd, dataSocket, stderr, err := rsyncSendSetup(path, bwlimit)
+func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser, bwlimit string) error {
+	cmd, dataSocket, stderr, err := rsyncSendSetup(name, path, bwlimit)
 	if err != nil {
 		return err
 	}
