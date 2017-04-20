@@ -40,10 +40,11 @@ import (
 )
 
 // AppArmor
-var aaAdmin = true
-var aaAvailable = true
+var aaAvailable = false
+var aaAdmin = false
 var aaConfined = false
 var aaStacking = false
+var aaStacked = false
 
 // CGroup
 var cgBlkioController = false
@@ -502,90 +503,91 @@ func (d *Daemon) Init() error {
 	/* Detect user namespaces */
 	runningInUserns = shared.RunningInUserNS()
 
-	/* Detect AppArmor support */
-	if aaAvailable && os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
-		aaAvailable = false
-		aaAdmin = false
-		logger.Warnf("AppArmor support has been manually disabled")
-	}
-
-	if aaAvailable && !shared.IsDir("/sys/kernel/security/apparmor") {
-		aaAvailable = false
-		aaAdmin = false
-		logger.Warnf("AppArmor support has been disabled because of lack of kernel support")
-	}
-
+	/* Detect AppArmor availability */
 	_, err = exec.LookPath("apparmor_parser")
-	if aaAvailable && err != nil {
-		aaAvailable = false
-		aaAdmin = false
+	if os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
+		logger.Warnf("AppArmor support has been manually disabled")
+	} else if !shared.IsDir("/sys/kernel/security/apparmor") {
+		logger.Warnf("AppArmor support has been disabled because of lack of kernel support")
+	} else if err != nil {
 		logger.Warnf("AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
+	} else {
+		aaAvailable = true
+	}
+
+	/* Detect AppArmor stacking support */
+	aaCanStack := func() bool {
+		contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/stack")
+		if err != nil {
+			return false
+		}
+
+		if string(contentBytes) != "yes\n" {
+			return false
+		}
+
+		contentBytes, err = ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/version")
+		if err != nil {
+			return false
+		}
+
+		content := string(contentBytes)
+
+		parts := strings.Split(strings.TrimSpace(content), ".")
+
+		if len(parts) == 0 {
+			logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
+			return false
+		}
+
+		major, err := strconv.Atoi(parts[0])
+		if err != nil {
+			logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
+			return false
+		}
+
+		minor := 0
+		if len(parts) == 2 {
+			minor, err = strconv.Atoi(parts[1])
+			if err != nil {
+				logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
+				return false
+			}
+		}
+
+		return major >= 1 && minor >= 2
+	}
+
+	aaStacking = aaCanStack()
+
+	/* Detect existing AppArmor stack */
+	if shared.PathExists("/sys/kernel/security/apparmor/.ns_stacked") {
+		contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/.ns_stacked")
+		if err == nil && string(contentBytes) == "yes\n" {
+			aaStacked = true
+		}
 	}
 
 	/* Detect AppArmor admin support */
-	if aaAdmin && !haveMacAdmin() {
-		aaAdmin = false
-		logger.Warnf("Per-container AppArmor profiles are disabled because the mac_admin capability is missing.")
-	}
-
-	if aaAdmin && runningInUserns {
-		aaAdmin = false
-		logger.Warnf("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container.")
+	if !haveMacAdmin() {
+		if aaAvailable {
+			logger.Warnf("Per-container AppArmor profiles are disabled because the mac_admin capability is missing.")
+		}
+	} else if runningInUserns && !aaStacked {
+		if aaAvailable {
+			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container without stacking.")
+		}
+	} else {
+		aaAdmin = true
 	}
 
 	/* Detect AppArmor confinment */
-	if !aaConfined {
-		profile := aaProfile()
-		if profile != "unconfined" && profile != "" {
-			aaConfined = true
+	profile := aaProfile()
+	if profile != "unconfined" && profile != "" {
+		if aaAvailable {
 			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
 		}
-	}
-
-	if aaAvailable {
-		canStack := func() bool {
-			contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/stack")
-			if err != nil {
-				return false
-			}
-
-			if string(contentBytes) != "yes\n" {
-				return false
-			}
-
-			contentBytes, err = ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/version")
-			if err != nil {
-				return false
-			}
-
-			content := string(contentBytes)
-
-			parts := strings.Split(strings.TrimSpace(content), ".")
-
-			if len(parts) == 0 {
-				logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
-				return false
-			}
-
-			major, err := strconv.Atoi(parts[0])
-			if err != nil {
-				logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
-				return false
-			}
-
-			minor := 0
-			if len(parts) == 2 {
-				minor, err = strconv.Atoi(parts[1])
-				if err != nil {
-					logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
-					return false
-				}
-			}
-
-			return major >= 1 && minor >= 2
-		}
-
-		aaStacking = canStack()
+		aaConfined = true
 	}
 
 	/* Detect CGroup support */

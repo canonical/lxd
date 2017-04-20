@@ -319,7 +319,7 @@ func getAAProfileContent(c container) string {
 		profile += "  mount fstype=cgroup -> /sys/fs/cgroup/**,\n"
 	}
 
-	if aaStacking {
+	if aaStacking && !aaStacked {
 		profile += "\n  ### Feature: apparmor stacking\n"
 		profile += `  ### Configuration: apparmor profile loading (in namespace)
   deny /sys/k[^e]*{,/**} wklx,
@@ -357,12 +357,12 @@ func getAAProfileContent(c container) string {
 		// Apply nesting bits
 		profile += "\n  ### Configuration: nesting\n"
 		profile += strings.TrimLeft(AA_PROFILE_NESTING, "\n")
-		if !aaStacking || c.IsPrivileged() {
+		if !aaStacking || aaStacked {
 			profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
 		}
 	}
 
-	if !c.IsPrivileged() {
+	if !c.IsPrivileged() || runningInUserns {
 		// Apply unprivileged bits
 		profile += "\n  ### Configuration: unprivileged containers\n"
 		profile += strings.TrimLeft(AA_PROFILE_UNPRIVILEGED, "\n")
@@ -404,7 +404,7 @@ func runApparmor(command string, c container) error {
 }
 
 func mkApparmorNamespace(namespace string) error {
-	if !aaStacking {
+	if !aaStacking || aaStacked {
 		return nil
 	}
 
@@ -470,7 +470,7 @@ func AADestroy(c container) error {
 		return nil
 	}
 
-	if aaStacking {
+	if aaStacking && !aaStacked {
 		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", AANamespace(c))
 		if err := os.Remove(p); err != nil {
 			logger.Error("error removing apparmor namespace", log.Ctx{"err": err, "ns": p})
@@ -508,6 +508,7 @@ func aaProfile() string {
 	if err == nil {
 		return strings.TrimSpace(string(contents))
 	}
+
 	return ""
 }
 
