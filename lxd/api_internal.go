@@ -249,19 +249,22 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	// Detect discrepancy between snapshots recorded in "backup.yaml" and
 	// those actually existing on disk.
+	snapshotNames := []string{}
 	snapshotsPath := getSnapshotMountPoint(containerPoolName, req.Name)
 	snapshotsDir, err := os.Open(snapshotsPath)
 	if err != nil {
-		return InternalError(err)
-	}
-
-	// Get a list of all snapshots that exist on disk.
-	snapshotNames, err := snapshotsDir.Readdirnames(-1)
-	if err != nil {
+		if !os.IsNotExist(err) {
+			return InternalError(err)
+		}
+	} else {
+		// Get a list of all snapshots that exist on disk.
+		snapshotNames, err = snapshotsDir.Readdirnames(-1)
+		if err != nil {
+			snapshotsDir.Close()
+			return InternalError(err)
+		}
 		snapshotsDir.Close()
-		return InternalError(err)
 	}
-	snapshotsDir.Close()
 
 	onDiskSnapshots := map[string]*api.ContainerSnapshot{}
 	for _, snapName := range snapshotNames {
