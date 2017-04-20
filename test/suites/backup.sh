@@ -8,6 +8,17 @@ test_container_import() {
   spawn_lxd "${LXD_IMPORT_DIR}" true
   (
     lxc init testimage ctImport
+    lxc start ctImport
+    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
+    ! lxd import ctImport
+    lxd import ctImport --force
+    kill -9 "${pid}"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
+    lxd import ctImport --force
+    lxc delete --force ctImport
+
+    lxc init testimage ctImport
     lxc snapshot ctImport
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
