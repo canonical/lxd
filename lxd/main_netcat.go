@@ -7,6 +7,8 @@ import (
 	"os"
 	"sync"
 	"syscall"
+
+	"github.com/lxc/lxd/shared"
 )
 
 // Netcat is called with:
@@ -17,17 +19,30 @@ import (
 // after the path to the unix socket are ignored, so that this can be passed
 // directly to rsync as the sync command.
 func cmdNetcat(args []string) error {
-	if len(args) < 2 {
+	if len(args) < 3 {
 		return fmt.Errorf("Bad arguments %q", args)
 	}
 
+	logPath := shared.LogPath(args[2], "netcat.log")
+	if shared.PathExists(logPath) {
+		os.Remove(logPath)
+	}
+
+	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer logFile.Close()
+
 	uAddr, err := net.ResolveUnixAddr("unix", args[1])
 	if err != nil {
+		logFile.WriteString(fmt.Sprintf("Could not resolve unix domain socket \"%s\": %s.\n", args[1], err))
 		return err
 	}
 
 	conn, err := net.DialUnix("unix", nil, uAddr)
 	if err != nil {
+		logFile.WriteString(fmt.Sprintf("Could not dial unix domain socket \"%s\": %s.\n", args[1], err))
 		return err
 	}
 
@@ -35,13 +50,19 @@ func cmdNetcat(args []string) error {
 	wg.Add(1)
 
 	go func() {
-		io.Copy(eagainWriter{os.Stdout}, eagainReader{conn})
+		_, err := io.Copy(eagainWriter{os.Stdout}, eagainReader{conn})
+		if err != nil {
+			logFile.WriteString(fmt.Sprintf("Error while copying from stdout to unix domain socket \"%s\": %s.\n", args[1], err))
+		}
 		conn.Close()
 		wg.Done()
 	}()
 
 	go func() {
-		io.Copy(eagainWriter{conn}, eagainReader{os.Stdin})
+		_, err := io.Copy(eagainWriter{conn}, eagainReader{os.Stdin})
+		if err != nil {
+			logFile.WriteString(fmt.Sprintf("Error while copying from unix domain socket \"%s\" to stdin: %s.\n", args[1], err))
+		}
 	}()
 
 	wg.Wait()
