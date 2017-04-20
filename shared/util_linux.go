@@ -778,3 +778,23 @@ func LookupBlockDevByUUID(uuid string) (string, error) {
 
 	return detectedPath, nil
 }
+
+// Detect whether err is an errno.
+func GetErrno(err error) (errno error, iserrno bool) {
+	sysErr, ok := err.(*os.SyscallError)
+	if ok {
+		return sysErr.Err, true
+	}
+
+	pathErr, ok := err.(*os.PathError)
+	if ok {
+		return pathErr.Err, true
+	}
+
+	tmpErrno, ok := err.(syscall.Errno)
+	if ok {
+		return tmpErrno, true
+	}
+
+	return nil, false
+}
