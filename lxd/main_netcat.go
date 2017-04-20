@@ -41,7 +41,7 @@ func cmdNetcat(args []string) error {
 	}()
 
 	go func() {
-		io.Copy(conn, os.Stdin)
+		io.Copy(eagainWriter{conn}, eagainReader{os.Stdin})
 	}()
 
 	wg.Wait()
@@ -54,27 +54,15 @@ type eagainReader struct {
 }
 
 func (er eagainReader) Read(p []byte) (int, error) {
-	// keep retrying on EAGAIN
 again:
 	n, err := er.r.Read(p)
 	if err == nil {
 		return n, nil
 	}
 
-	var errno error
-	// EAGAIN errors can hide in os.PathError. My best explanation for this
-	// weirdness is that os.Stdout refers to /dev/stdout which is a path.
-	sysErr, ok := err.(*os.PathError)
-	if ok {
-		errno = sysErr.Err
-	} else {
-		tmpErrno, ok := err.(syscall.Errno)
-		if ok {
-			errno = tmpErrno
-		}
-	}
-
-	if errno == syscall.EAGAIN {
+	// keep retrying on EAGAIN
+	errno, ok := shared.GetErrno(err)
+	if ok && errno == syscall.EAGAIN {
 		goto again
 	}
 
@@ -86,26 +74,15 @@ type eagainWriter struct {
 }
 
 func (ew eagainWriter) Write(p []byte) (int, error) {
-	// keep retrying on EAGAIN
 again:
 	n, err := ew.w.Write(p)
 	if err == nil {
 		return n, nil
 	}
 
-	var errno error
-	// EAGAIN errors can hide in os.PathError. My best explanation for this
-	// weirdness is that os.Stdout refers to /dev/stdout which is a path.
-	sysErr, ok := err.(*os.PathError)
-	if ok {
-		errno = sysErr.Err
-	} else {
-		tmpErrno, ok := err.(syscall.Errno)
-		if ok {
-			errno = tmpErrno
-		}
-	}
-	if errno == syscall.EAGAIN {
+	// keep retrying on EAGAIN
+	errno, ok := shared.GetErrno(err)
+	if ok && errno == syscall.EAGAIN {
 		goto again
 	}
 
