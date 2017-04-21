@@ -57,10 +57,10 @@ func (s *storageShared) shiftRootfs(c container) error {
 	/* Set an acl so the container root can descend the container dir */
 	// TODO: i changed this so it calls s.setUnprivUserAcl, which does
 	// the acl change only if the container is not privileged, think thats right.
-	return s.setUnprivUserAcl(c, dpath)
+	return s.setUnprivUserACL(c, dpath)
 }
 
-func (s *storageShared) setUnprivUserAcl(c container, destPath string) error {
+func (s *storageShared) setUnprivUserACL(c container, destPath string) error {
 	idmapset, err := c.IdmapSet()
 	if err != nil {
 		return err

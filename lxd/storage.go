@@ -139,7 +139,7 @@ func storageTypeToString(sType storageType) (string, error) {
 		return "dir", nil
 	}
 
-	return "", fmt.Errorf("Invalid storage type.")
+	return "", fmt.Errorf("invalid storage type")
 }
 
 func storageStringToType(sName string) (storageType, error) {
@@ -156,7 +156,7 @@ func storageStringToType(sName string) (storageType, error) {
 		return storageTypeDir, nil
 	}
 
-	return -1, fmt.Errorf("Invalid storage type name.")
+	return -1, fmt.Errorf("invalid storage type name")
 }
 
 // The storage interface defines the functions needed to implement a storage
@@ -292,7 +292,7 @@ func storageCoreInit(driver string) (storage, error) {
 		return &zfs, nil
 	}
 
-	return nil, fmt.Errorf("Invalid storage type.")
+	return nil, fmt.Errorf("invalid storage type")
 }
 
 func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
@@ -306,7 +306,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 	if driver == "" {
 		// This shouldn't actually be possible but better safe than
 		// sorry.
-		return nil, fmt.Errorf("No storage driver was provided.")
+		return nil, fmt.Errorf("no storage driver was provided")
 	}
 
 	// Load the storage volume.
@@ -381,7 +381,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		return &zfs, nil
 	}
 
-	return nil, fmt.Errorf("Invalid storage type.")
+	return nil, fmt.Errorf("invalid storage type")
 }
 
 func storagePoolInit(d *Daemon, poolName string) (storage, error) {
@@ -570,6 +570,8 @@ func deleteSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 	return nil
 }
 
+// ShiftIfNecessary sets the volatile.last_state.idmap key to the idmap last
+// used by the container.
 func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
 	dstIdmap, err := container.IdmapSet()
 	if err != nil {
@@ -657,6 +659,7 @@ func progressWrapperRender(op *operation, key string, description string, progre
 	}
 }
 
+// StorageProgressReader reports the read progress.
 func StorageProgressReader(op *operation, key string, description string) func(io.ReadCloser) io.ReadCloser {
 	return func(reader io.ReadCloser) io.ReadCloser {
 		if op == nil {
@@ -678,6 +681,7 @@ func StorageProgressReader(op *operation, key string, description string) func(i
 	}
 }
 
+// StorageProgressWriter reports the write progress.
 func StorageProgressWriter(op *operation, key string, description string) func(io.WriteCloser) io.WriteCloser {
 	return func(writer io.WriteCloser) io.WriteCloser {
 		if op == nil {

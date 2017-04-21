@@ -45,25 +45,25 @@ func storageVolumeValidateConfig(name string, config map[string]string, parentPo
 
 		if parentPool.Driver != "zfs" || parentPool.Driver == "dir" {
 			if config["zfs.use_refquota"] != "" {
-				return fmt.Errorf("The key volume.zfs.use_refquota cannot be used with non zfs storage volumes.")
+				return fmt.Errorf("the key volume.zfs.use_refquota cannot be used with non zfs storage volumes")
 			}
 
 			if config["zfs.remove_snapshots"] != "" {
-				return fmt.Errorf("The key volume.zfs.remove_snapshots cannot be used with non zfs storage volumes.")
+				return fmt.Errorf("the key volume.zfs.remove_snapshots cannot be used with non zfs storage volumes")
 			}
 		}
 
 		if parentPool.Driver == "dir" {
 			if config["block.mount_options"] != "" {
-				return fmt.Errorf("The key block.mount_options cannot be used with dir storage volumes.")
+				return fmt.Errorf("the key block.mount_options cannot be used with dir storage volumes")
 			}
 
 			if config["block.filesystem"] != "" {
-				return fmt.Errorf("The key block.filesystem cannot be used with dir storage volumes.")
+				return fmt.Errorf("the key block.filesystem cannot be used with dir storage volumes")
 			}
 
 			if config["size"] != "" {
-				return fmt.Errorf("The key size cannot be used with dir storage volumes.")
+				return fmt.Errorf("the key size cannot be used with dir storage volumes")
 			}
 		}
 	}

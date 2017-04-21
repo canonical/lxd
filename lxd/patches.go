@@ -985,8 +985,8 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// permissions and ownership.
 		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
 		ctLvName := containerNameToLVName(ct)
-		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, ctLvName)
-		containerLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, ctLvName)
+		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, ctLvName)
+		containerLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeAPIEndpointContainers, ctLvName)
 		if !shared.PathExists(containerLvDevPath) {
 			oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, ctLvName)
 			// If the old LVM device path for the logical volume
@@ -1141,8 +1141,8 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 			// Make sure we use a valid lv name.
 			csLvName := containerNameToLVName(cs)
-			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointContainers, csLvName)
-			snapshotLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointContainers, csLvName)
+			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, csLvName)
+			snapshotLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeAPIEndpointContainers, csLvName)
 			if !shared.PathExists(snapshotLvDevPath) {
 				oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, csLvName)
 				if shared.PathExists(oldLvDevPath) {
@@ -1321,8 +1321,8 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Rename the logical volume device.
-		newImageLvName := fmt.Sprintf("%s_%s", storagePoolVolumeApiEndpointImages, img)
-		imageLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeApiEndpointImages, img)
+		newImageLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointImages, img)
+		imageLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeAPIEndpointImages, img)
 		oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, img)
 		// Only create logical volumes for images that have a logical
 		// volume on the pre-storage-api LXD instance. If not, we don't
@@ -2207,7 +2207,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 
 			// It shouldn't be possible that false volume types
 			// exist in the db, so it's safe to ignore the error.
-			volumeTypeApiEndpoint, _ := storagePoolVolumeTypeNameToApiEndpoint(volume.Type)
+			volumeTypeApiEndpoint, _ := storagePoolVolumeTypeNameToAPIEndpoint(volume.Type)
 			lvmName := containerNameToLVName(volume.Name)
 			lvmLvDevPath := getLvmDevPath(poolName, volumeTypeApiEndpoint, lvmName)
 			size, err := lvmGetLVSize(lvmLvDevPath)
