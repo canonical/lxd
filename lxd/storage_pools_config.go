@@ -65,7 +65,7 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 	if driver == "lvm" {
 		v, ok := config["lvm.use_thinpool"]
 		if ok && !shared.IsTrue(v) && config["lvm.thinpool_name"] != "" {
-			return fmt.Errorf("The key \"lvm.use_thinpool\" cannot be set to a false value when \"lvm.thinpool_name\" is set for LVM storage pools.")
+			return fmt.Errorf("the key \"lvm.use_thinpool\" cannot be set to a false value when \"lvm.thinpool_name\" is set for LVM storage pools")
 		}
 	}
 
@@ -88,19 +88,19 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		prfx := strings.HasPrefix
 		if driver != "zfs" {
 			if prfx(key, "volume.zfs.") || prfx(key, "zfs.") {
-				return fmt.Errorf("The key %s cannot be used with %s storage pools.", key, strings.ToUpper(driver))
+				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
 		}
 
 		if driver != "lvm" {
 			if prfx(key, "lvm.") || prfx(key, "volume.block.") || key == "volume.size" {
-				return fmt.Errorf("The key %s cannot be used with %s storage pools.", key, strings.ToUpper(driver))
+				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
 		}
 
 		if driver == "dir" {
 			if key == "size" {
-				return fmt.Errorf("The key %s cannot be used with %s storage pools.", key, strings.ToUpper(driver))
+				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
 		}
 

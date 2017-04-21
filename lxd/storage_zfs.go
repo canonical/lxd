@@ -49,7 +49,7 @@ func zfsIsEnabled() bool {
 func zfsModuleVersionGet() (string, error) {
 	zfsVersion, err := ioutil.ReadFile("/sys/module/zfs/version")
 	if err != nil {
-		return "", fmt.Errorf("Could not determine ZFS module version.")
+		return "", fmt.Errorf("could not determine ZFS module version")
 	}
 
 	return strings.TrimSpace(string(zfsVersion)), nil
@@ -67,7 +67,7 @@ func (s *storageZfs) StorageCoreInit() error {
 	loadModule("zfs")
 
 	if !zfsIsEnabled() {
-		return fmt.Errorf("The \"zfs\" tool is not enabled.")
+		return fmt.Errorf("the \"zfs\" tool is not enabled")
 	}
 
 	s.sTypeVersion, err = zfsModuleVersionGet()
@@ -99,7 +99,7 @@ func (s *storageZfs) StoragePoolCheck() error {
 
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	poolName := s.getOnDiskPoolName()
@@ -115,7 +115,7 @@ func (s *storageZfs) StoragePoolCheck() error {
 			"import",
 			"-d", disksPath, poolName)
 		if err != nil {
-			return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s.", poolName, output)
+			return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s", poolName, output)
 		}
 
 		logger.Debugf("ZFS storage pool \"%s\" successfully imported.", poolName)
@@ -349,35 +349,35 @@ func (s *storageZfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 	logger.Infof("Updating ZFS storage pool \"%s\".", s.pool.Name)
 
 	if shared.StringInSlice("size", changedConfig) {
-		return fmt.Errorf("The \"size\" property cannot be changed.")
+		return fmt.Errorf("the \"size\" property cannot be changed")
 	}
 
 	if shared.StringInSlice("source", changedConfig) {
-		return fmt.Errorf("The \"source\" property cannot be changed.")
+		return fmt.Errorf("the \"source\" property cannot be changed")
 	}
 
 	if shared.StringInSlice("volume.size", changedConfig) {
-		return fmt.Errorf("The \"volume.size\" property cannot be changed.")
+		return fmt.Errorf("the \"volume.size\" property cannot be changed")
 	}
 
 	if shared.StringInSlice("volume.block.mount_options", changedConfig) {
-		return fmt.Errorf("The \"volume.block.mount_options\" property cannot be changed.")
+		return fmt.Errorf("the \"volume.block.mount_options\" property cannot be changed")
 	}
 
 	if shared.StringInSlice("volume.block.filesystem", changedConfig) {
-		return fmt.Errorf("The \"volume.block.filesystem\" property cannot be changed.")
+		return fmt.Errorf("the \"volume.block.filesystem\" property cannot be changed")
 	}
 
 	if shared.StringInSlice("lvm.thinpool_name", changedConfig) {
-		return fmt.Errorf("The \"lvm.thinpool_name\" property cannot be changed.")
+		return fmt.Errorf("the \"lvm.thinpool_name\" property cannot be changed")
 	}
 
 	if shared.StringInSlice("lvm.vg_name", changedConfig) {
-		return fmt.Errorf("The \"lvm.vg_name\" property cannot be changed.")
+		return fmt.Errorf("the \"lvm.vg_name\" property cannot be changed")
 	}
 
 	if shared.StringInSlice("zfs.pool_name", changedConfig) {
-		return fmt.Errorf("The \"zfs.pool_name\" property cannot be changed.")
+		return fmt.Errorf("the \"zfs.pool_name\" property cannot be changed")
 	}
 
 	// "rsync.bwlimit" requires no on-disk modifications.
@@ -390,15 +390,15 @@ func (s *storageZfs) StoragePoolVolumeUpdate(changedConfig []string) error {
 	logger.Infof("Updating ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	if shared.StringInSlice("block.mount_options", changedConfig) {
-		return fmt.Errorf("The \"block.mount_options\" property cannot be changed.")
+		return fmt.Errorf("the \"block.mount_options\" property cannot be changed")
 	}
 
 	if shared.StringInSlice("block.filesystem", changedConfig) {
-		return fmt.Errorf("The \"block.filesystem\" property cannot be changed.")
+		return fmt.Errorf("the \"block.filesystem\" property cannot be changed")
 	}
 
 	if shared.StringInSlice("size", changedConfig) {
-		return fmt.Errorf("The \"size\" property cannot be changed.")
+		return fmt.Errorf("the \"size\" property cannot be changed")
 	}
 
 	logger.Infof("Updated ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
@@ -630,7 +630,7 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 			zfsRemoveSnapshots = s.volume.Config["zfs.remove_snapshots"]
 		}
 		if !shared.IsTrue(zfsRemoveSnapshots) {
-			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead.")
+			return fmt.Errorf("ZFS can only restore from the latest snapshot. Delete newer snapshots or copy the snapshot into a new container instead")
 		}
 
 		return nil
@@ -975,7 +975,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 	_, sourcePool := source.Storage().GetContainerPoolInfo()
 	_, targetPool := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return fmt.Errorf("Copying containers between different storage pools is not implemented.")
+		return fmt.Errorf("copying containers between different storage pools is not implemented")
 	}
 
 	snapshots, err := source.Snapshots()
@@ -1726,7 +1726,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 
 		if filepath.IsAbs(vdev) {
 			if !shared.IsBlockdevPath(vdev) {
-				return fmt.Errorf("Custom loop file locations are not supported.")
+				return fmt.Errorf("custom loop file locations are not supported")
 			}
 
 			if s.pool.Config["zfs.pool_name"] == "" {
@@ -1750,7 +1750,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 			}
 		} else {
 			if s.pool.Config["zfs.pool_name"] != "" {
-				return fmt.Errorf("Invalid combination of \"source\" and \"zfs.pool_name\" property.")
+				return fmt.Errorf("invalid combination of \"source\" and \"zfs.pool_name\" property")
 			}
 			s.pool.Config["zfs.pool_name"] = vdev
 			s.dataset = vdev
@@ -2615,7 +2615,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 
 	// A little neuroticism.
 	if parentStoragePool == "" {
-		return fmt.Errorf("Detected that the container's root device is missing the pool property during BTRFS migration.")
+		return fmt.Errorf("detected that the container's root device is missing the pool property during BTRFS migration")
 	}
 
 	for _, snap := range snapshots {

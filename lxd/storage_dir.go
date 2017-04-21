@@ -103,7 +103,7 @@ func (s *storageDir) StoragePoolDelete() error {
 
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	if shared.PathExists(source) {
@@ -163,7 +163,7 @@ func (s *storageDir) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 		return nil
 	}
 
-	return fmt.Errorf("Storage property cannot be changed.")
+	return fmt.Errorf("storage property cannot be changed")
 }
 
 // Functions dealing with storage pools.
@@ -172,7 +172,7 @@ func (s *storageDir) StoragePoolVolumeCreate() error {
 
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	storageVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
@@ -190,7 +190,7 @@ func (s *storageDir) StoragePoolVolumeDelete() error {
 
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	storageVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
@@ -216,7 +216,7 @@ func (s *storageDir) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageDir) StoragePoolVolumeUpdate(changedConfig []string) error {
-	return fmt.Errorf("Dir storage properties cannot be changed.")
+	return fmt.Errorf("dir storage properties cannot be changed")
 }
 
 func (s *storageDir) ContainerStorageReady(name string) bool {
@@ -230,7 +230,7 @@ func (s *storageDir) ContainerCreate(container container) error {
 
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
@@ -262,7 +262,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	privileged := container.IsPrivileged()
@@ -313,7 +313,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	// Delete the container on its storage pool:
@@ -326,7 +326,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 			// RemovaAll fails on very long paths, so attempt an rm -Rf
 			output, err := shared.RunCommand("rm", "-Rf", containerMntPoint)
 			if err != nil {
-				return fmt.Errorf("Error removing %s: %s.", containerMntPoint, output)
+				return fmt.Errorf("error removing %s: %s", containerMntPoint, output)
 			}
 		}
 	}
@@ -374,10 +374,10 @@ func (s *storageDir) copyContainer(target container, source container) error {
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 	if err != nil {
-		return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
+		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
 	}
 
-	err = s.setUnprivUserAcl(source, targetContainerMntPoint)
+	err = s.setUnprivUserACL(source, targetContainerMntPoint)
 	if err != nil {
 		return err
 	}
@@ -408,7 +408,7 @@ func (s *storageDir) copySnapshot(target container, source container) error {
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 	if err != nil {
-		return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
+		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
 	}
 
 	return nil
@@ -428,7 +428,7 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 	_, sourcePool := source.Storage().GetContainerPoolInfo()
 	_, targetPool := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return fmt.Errorf("Copying containers between different storage pools is not implemented.")
+		return fmt.Errorf("copying containers between different storage pools is not implemented")
 	}
 
 	err = s.copyContainer(target, source)
@@ -487,7 +487,7 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	oldContainerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
@@ -542,11 +542,11 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	output, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit)
 	if err != nil {
-		return fmt.Errorf("Failed to rsync container: %s: %s.", string(output), err)
+		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
 	}
 
 	// Now allow unprivileged users to access its data.
-	if err := s.setUnprivUserAcl(sourceContainer, targetPath); err != nil {
+	if err := s.setUnprivUserACL(sourceContainer, targetPath); err != nil {
 		return err
 	}
 
@@ -555,11 +555,11 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 }
 
 func (s *storageDir) ContainerSetQuota(container container, size int64) error {
-	return fmt.Errorf("The directory container backend doesn't support quotas.")
+	return fmt.Errorf("the directory container backend doesn't support quotas")
 }
 
 func (s *storageDir) ContainerGetUsage(container container) (int64, error) {
-	return -1, fmt.Errorf("The directory container backend doesn't support quotas.")
+	return -1, fmt.Errorf("the directory container backend doesn't support quotas")
 }
 
 func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
@@ -577,7 +577,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit)
 		if err != nil {
 			s.ContainerDelete(snapshotContainer)
-			return fmt.Errorf("Failed to rsync: %s: %s.", string(output), err)
+			return fmt.Errorf("failed to rsync: %s: %s", string(output), err)
 		}
 		return nil
 	}
@@ -677,7 +677,7 @@ func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error 
 
 	source := s.pool.Config["source"]
 	if source == "" {
-		return fmt.Errorf("No \"source\" property found for the storage pool.")
+		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	// Delete the snapshot on its storage pool:

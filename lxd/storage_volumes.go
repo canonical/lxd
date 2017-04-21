@@ -39,7 +39,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 
 	resultString := []string{}
 	for _, volume := range volumes {
-		apiEndpoint, err := storagePoolVolumeTypeNameToApiEndpoint(volume.Type)
+		apiEndpoint, err := storagePoolVolumeTypeNameToAPIEndpoint(volume.Type)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -87,7 +87,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return BadRequest(fmt.Errorf("Invalid storage volume type %s.", volumeTypeName))
+		return BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool
@@ -108,7 +108,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 	resultMap := []*api.StorageVolume{}
 	for _, volume := range volumes {
 		if recursion == 0 {
-			apiEndpoint, err := storagePoolVolumeTypeToApiEndpoint(volumeType)
+			apiEndpoint, err := storagePoolVolumeTypeToAPIEndpoint(volumeType)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -155,7 +155,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 	// Check that the user gave use a storage volume type for the storage
 	// volume we are about to create.
 	if req.Type == "" {
-		return BadRequest(fmt.Errorf("You must provide a storage volume type of the storage volume."))
+		return BadRequest(fmt.Errorf("you must provide a storage volume type of the storage volume"))
 	}
 
 	// Check if the user gave us a valid pool name in which the new storage
@@ -167,7 +167,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	apiEndpoint, err := storagePoolVolumeTypeNameToApiEndpoint(req.Type)
+	apiEndpoint, err := storagePoolVolumeTypeNameToAPIEndpoint(req.Type)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -197,7 +197,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return BadRequest(fmt.Errorf("Invalid storage volume type %s.", volumeTypeName))
+		return BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
 	// Get the ID of the storage pool the storage volume is supposed to be
@@ -243,7 +243,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return BadRequest(fmt.Errorf("Invalid storage volume type %s.", volumeTypeName))
+		return BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
 	poolID, pool, err := dbStoragePoolGet(d.db, poolName)
@@ -303,7 +303,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return BadRequest(fmt.Errorf("Invalid storage volume type %s.", volumeTypeName))
+		return BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
 	// Get the ID of the storage pool the storage volume is supposed to be
@@ -376,7 +376,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 	}
 	// Check that the storage volume type is valid.
 	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return BadRequest(fmt.Errorf("Invalid storage volume type %s.", volumeTypeName))
+		return BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
 	volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volumeName, volumeTypeName)
@@ -385,7 +385,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	if len(volumeUsedBy) > 0 {
-		return BadRequest(fmt.Errorf("The storage volume is still in use by containers or profiles."))
+		return BadRequest(fmt.Errorf("the storage volume is still in use by containers or profiles"))
 	}
 
 	s, err := storagePoolVolumeInit(d, poolName, volumeName, volumeType)
