@@ -433,6 +433,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	// Override visiblity
 	info.Public = false
 
+	// Create storage entry
+	err = d.Storage.ImageCreate(info.Fingerprint)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the database entry
 	err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {

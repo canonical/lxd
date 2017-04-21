@@ -311,6 +311,12 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	info.Architecture, _ = osarch.ArchitectureName(c.Architecture())
 	info.Properties = req.Properties
 
+	// Create storage entry
+	err = d.Storage.ImageCreate(info.Fingerprint)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the database entry
 	err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
@@ -611,6 +617,12 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) 
 				info.Properties[pkey] = pval[0]
 			}
 		}
+	}
+
+	// Create storage entry
+	err = d.Storage.ImageCreate(info.Fingerprint)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create the database entry
