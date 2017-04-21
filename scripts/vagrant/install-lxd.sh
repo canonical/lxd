@@ -11,7 +11,7 @@ sudo apt-get -y install xz-utils tar acl curl gettext \
 sudo apt-get -y install lxc lxc-dev mercurial git pkg-config \
     protobuf-compiler golang-goprotobuf-dev squashfs-tools
 
-# setup env 
+# setup env
 [ -e uid_gid_setup ] || \
     echo "root:1000000:65536" | sudo tee -a /etc/subuid /etc/subgid && \
     touch uid_gid_setup

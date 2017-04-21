@@ -463,7 +463,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	// Create the database entry
 	err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
-		return nil, fmt.Errorf("here: %v: %s", err, info.Fingerprint)
+		return nil, err
 	}
 
 	// Image is in the DB now, don't wipe on-disk files on failure

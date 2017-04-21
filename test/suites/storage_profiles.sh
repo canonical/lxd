@@ -103,7 +103,7 @@ test_storage_profiles() {
     ! lxc launch testimage cConflictingProfiles --p dummy -p dummyDup -p dummyNoDup
 
     # And that even with a local disk, a container can't have multiple root devices
-    ! lxc launch testimage cConflictingProfiles -s "lxdtest-$(basename "${LXD_DIR}")-pool2" -p dummy -p dummyDup -p dummyNoDup 
+    ! lxc launch testimage cConflictingProfiles -s "lxdtest-$(basename "${LXD_DIR}")-pool2" -p dummy -p dummyDup -p dummyNoDup
 
     # Check that we cannot assign conflicting profiles to a container that
     # relies on another profiles root disk device.
