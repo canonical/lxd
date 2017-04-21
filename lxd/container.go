@@ -216,6 +216,10 @@ func containerValidConfigKey(key string, value string) error {
 		if strings.HasSuffix(key, ".name") {
 			return nil
 		}
+
+		if strings.HasSuffix(key, ".host_name") {
+			return nil
+		}
 	}
 
 	if strings.HasPrefix(key, "environment.") {
