@@ -101,7 +101,7 @@ lxc image export [<remote>:]<image> [target]
     split images) as found in the database will be used for the exported
     image.  If the target is a file (not a directory and not stdout), then
     the appropriate extension will be appended to the provided file name
-    based on the algorithm used to compress the image. 
+    based on the algorithm used to compress the image.
 
 lxc image info [<remote>:]<image>
     Print everything LXD knows about a given image.
