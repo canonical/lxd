@@ -14,14 +14,18 @@ test_static_analysis() {
       flake8 test/deps/import-busybox scripts/lxd-setup-lvm-storage
     else
       echo "flake8 not found, python static analysis disabled"
-    fi  
+    fi
 
     # Shell static analysis
     if which shellcheck >/dev/null 2>&1; then
       shellcheck test/main.sh test/suites/* test/backends/*
     else
       echo "shellcheck not found, shell static analysis disabled"
+<<<<<<< HEAD
     fi  
+=======
+    fi
+>>>>>>> 7050be73... tests: Trailing whitespaces
 
     # Go static analysis
     ## Functions starting by empty line
