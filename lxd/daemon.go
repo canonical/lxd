@@ -1120,6 +1120,11 @@ func (d *Daemon) Ready() error {
 
 // CheckTrustState returns True if the client is trusted else false.
 func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
+	// Extra validity check (should have been caught by TLS stack)
+	if time.Now().Before(cert.NotBefore) || time.Now().After(cert.NotAfter) {
+		return false
+	}
+
 	for k, v := range d.clientCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
 			logger.Debug("Found cert", log.Ctx{"k": k})
