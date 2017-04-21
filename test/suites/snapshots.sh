@@ -189,14 +189,14 @@ snap_restore() {
 
   # Test if container's with hyphen's in their names are treated correctly.
   if [ "${LXD_BACKEND}" = "lvm" ]; then
-	  lxc launch testimage a-b
-	  lxc snapshot a-b base
-	  lxc restore a-b base
+    lxc launch testimage a-b
+    lxc snapshot a-b base
+    lxc restore a-b base
 
-	  lxc snapshot a-b c-d
-	  lxc restore a-b c-d
+    lxc snapshot a-b c-d
+    lxc restore a-b c-d
 
-	  lxc delete -f a-b
+    lxc delete -f a-b
   fi
 }
 
