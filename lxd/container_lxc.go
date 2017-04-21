@@ -5832,7 +5832,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		newDevice["hwaddr"] = volatileHwaddr
 	}
 
-	// File in the name
+	// Fill in the name
 	if m["name"] == "" {
 		configKey := fmt.Sprintf("volatile.%s.name", name)
 		volatileName := c.localConfig[configKey]
@@ -5860,6 +5860,12 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			}
 		}
 		newDevice["name"] = volatileName
+	}
+
+	// Fill in the host name (but don't generate a static one ourselves)
+	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+		configKey := fmt.Sprintf("volatile.%s.host_name", name)
+		newDevice["host_name"] = c.localConfig[configKey]
 	}
 
 	return newDevice, nil
