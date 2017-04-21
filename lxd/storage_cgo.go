@@ -274,7 +274,9 @@ import (
 	"unsafe"
 )
 
-const LO_FLAGS_AUTOCLEAR int = C.LO_FLAGS_AUTOCLEAR
+// LoFlagsAutoclear determines whether the loop device will autodestruct on last
+// close.
+const LoFlagsAutoclear int = C.LO_FLAGS_AUTOCLEAR
 
 // prepareLoopDev() detects and sets up a loop device for source. It returns an
 // open file descriptor to the free loop device and the path of the free loop
@@ -282,7 +284,7 @@ const LO_FLAGS_AUTOCLEAR int = C.LO_FLAGS_AUTOCLEAR
 func prepareLoopDev(source string, flags int) (*os.File, error) {
 	cLoopDev := C.malloc(C.size_t(C.LO_NAME_SIZE))
 	if cLoopDev == nil {
-		return nil, fmt.Errorf("Failed to allocate memory in C.")
+		return nil, fmt.Errorf("failed to allocate memory in C")
 	}
 	defer C.free(cLoopDev)
 
@@ -296,9 +298,9 @@ func prepareLoopDev(source string, flags int) (*os.File, error) {
 	loopFd, err := C.prepare_loop_dev(cSource, (*C.char)(cLoopDev), C.int(flags))
 	if loopFd < 0 {
 		if err != nil {
-			return nil, fmt.Errorf("Failed to prepare loop device: %s.", err)
+			return nil, fmt.Errorf("failed to prepare loop device: %s", err)
 		}
-		return nil, fmt.Errorf("Failed to prepare loop device.")
+		return nil, fmt.Errorf("failed to prepare loop device")
 	}
 
 	return os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev))), nil
@@ -310,7 +312,7 @@ func setAutoclearOnLoopDev(loopFd int) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("Failed to set LO_FLAGS_AUTOCLEAR.")
+		return fmt.Errorf("failed to set LO_FLAGS_AUTOCLEAR")
 	}
 
 	return nil
@@ -322,7 +324,7 @@ func unsetAutoclearOnLoopDev(loopFd int) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("Failed to unset LO_FLAGS_AUTOCLEAR.")
+		return fmt.Errorf("failed to unset LO_FLAGS_AUTOCLEAR")
 	}
 
 	return nil
@@ -331,7 +333,7 @@ func unsetAutoclearOnLoopDev(loopFd int) error {
 func loopDeviceHasBackingFile(loopDevice string, loopFile string) (*os.File, error) {
 	lidx := strings.LastIndex(loopDevice, "/")
 	if lidx < 0 {
-		return nil, fmt.Errorf("Invalid loop device path: \"%s\".", loopDevice)
+		return nil, fmt.Errorf("invalid loop device path: \"%s\"", loopDevice)
 	}
 
 	loopName := loopDevice[(lidx + 1):]
@@ -343,7 +345,7 @@ func loopDeviceHasBackingFile(loopDevice string, loopFile string) (*os.File, err
 
 	cleanBackingFile := strings.TrimSpace(string(contents))
 	if cleanBackingFile != loopFile {
-		return nil, fmt.Errorf("Loop device has new backing file: \"%s\".", cleanBackingFile)
+		return nil, fmt.Errorf("loop device has new backing file: \"%s\"", cleanBackingFile)
 	}
 
 	return os.OpenFile(loopDevice, os.O_RDWR, 0660)

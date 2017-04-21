@@ -29,9 +29,9 @@ const (
 // typed string constant. Removing it causes go to treat these as untyped string
 // constants which is not what we want.
 const (
-	storagePoolVolumeApiEndpointContainers string = "containers"
-	storagePoolVolumeApiEndpointImages     string = "images"
-	storagePoolVolumeApiEndpointCustom     string = "custom"
+	storagePoolVolumeAPIEndpointContainers string = "containers"
+	storagePoolVolumeAPIEndpointImages     string = "images"
+	storagePoolVolumeAPIEndpointCustom     string = "custom"
 )
 
 var supportedVolumeTypes = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom}
@@ -46,20 +46,20 @@ func storagePoolVolumeTypeNameToType(volumeTypeName string) (int, error) {
 		return storagePoolVolumeTypeCustom, nil
 	}
 
-	return -1, fmt.Errorf("Invalid storage volume type name.")
+	return -1, fmt.Errorf("invalid storage volume type name")
 }
 
-func storagePoolVolumeTypeNameToApiEndpoint(volumeTypeName string) (string, error) {
+func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, error) {
 	switch volumeTypeName {
 	case storagePoolVolumeTypeNameContainer:
-		return storagePoolVolumeApiEndpointContainers, nil
+		return storagePoolVolumeAPIEndpointContainers, nil
 	case storagePoolVolumeTypeNameImage:
-		return storagePoolVolumeApiEndpointImages, nil
+		return storagePoolVolumeAPIEndpointImages, nil
 	case storagePoolVolumeTypeNameCustom:
-		return storagePoolVolumeApiEndpointCustom, nil
+		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 
-	return "", fmt.Errorf("Invalid storage volume type name.")
+	return "", fmt.Errorf("invalid storage volume type name")
 }
 
 func storagePoolVolumeTypeToName(volumeType int) (string, error) {
@@ -72,20 +72,20 @@ func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 		return storagePoolVolumeTypeNameCustom, nil
 	}
 
-	return "", fmt.Errorf("Invalid storage volume type.")
+	return "", fmt.Errorf("invalid storage volume type")
 }
 
-func storagePoolVolumeTypeToApiEndpoint(volumeType int) (string, error) {
+func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		return storagePoolVolumeApiEndpointContainers, nil
+		return storagePoolVolumeAPIEndpointContainers, nil
 	case storagePoolVolumeTypeImage:
-		return storagePoolVolumeApiEndpointImages, nil
+		return storagePoolVolumeAPIEndpointImages, nil
 	case storagePoolVolumeTypeCustom:
-		return storagePoolVolumeApiEndpointCustom, nil
+		return storagePoolVolumeAPIEndpointCustom, nil
 	}
 
-	return "", fmt.Errorf("Invalid storage volume type.")
+	return "", fmt.Errorf("invalid storage volume type")
 }
 
 func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volumeType int, newConfig map[string]string) error {
@@ -278,7 +278,7 @@ func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName string, vo
 	// storagePoolVolumeTypeCustom. So check, that nothing else was
 	// requested.
 	if volumeType != storagePoolVolumeTypeCustom {
-		return fmt.Errorf("Currently not allowed to create storage volumes of type %s.", volumeTypeName)
+		return fmt.Errorf("currently not allowed to create storage volumes of type %s", volumeTypeName)
 	}
 
 	// Load storage pool the volume will be attached to.
@@ -291,7 +291,7 @@ func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName string, vo
 	// already exist.
 	volumeID, _ := dbStoragePoolVolumeGetTypeID(d.db, volumeName, volumeType, poolID)
 	if volumeID > 0 {
-		return fmt.Errorf("A storage volume of type %s does already exist.", volumeTypeName)
+		return fmt.Errorf("a storage volume of type %s does already exist", volumeTypeName)
 	}
 
 	// Make sure that we don't pass a nil to the next function.

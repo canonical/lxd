@@ -190,7 +190,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 
 	err = storagePoolUpdate(d, poolName, req.Config)
 	if err != nil {
-		return InternalError(fmt.Errorf("Failed to update the storage pool configuration."))
+		return InternalError(fmt.Errorf("failed to update the storage pool configuration"))
 	}
 
 	return EmptySyncResponse
@@ -210,7 +210,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	// error out.
 	volumeCount, err := dbStoragePoolVolumesGetNames(d.db, poolID)
 	if volumeCount > 0 {
-		return BadRequest(fmt.Errorf("Storage pool \"%s\" has volumes attached to it.", poolName))
+		return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
 	}
 
 	// Check if the storage pool is still referenced in any profiles.

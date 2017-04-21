@@ -47,7 +47,7 @@ func storagePoolUpdate(d *Daemon, name string, newConfig map[string]string) erro
 	// Update the storage pool
 	if !userOnly {
 		if shared.StringInSlice("driver", changedConfig) {
-			return fmt.Errorf("The \"driver\" property of a storage pool cannot be changed.")
+			return fmt.Errorf("the \"driver\" property of a storage pool cannot be changed")
 		}
 
 		err = s.StoragePoolUpdate(&newWritable, changedConfig)
@@ -98,23 +98,23 @@ func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, 
 	// Save some allocation cycles by preallocating the correct len.
 	poolUsedBy := make([]string, slicelen)
 	for i := 0; i < len(volumes); i++ {
-		apiEndpoint, _ := storagePoolVolumeTypeNameToApiEndpoint(volumes[i].Type)
+		apiEndpoint, _ := storagePoolVolumeTypeNameToAPIEndpoint(volumes[i].Type)
 		switch apiEndpoint {
-		case storagePoolVolumeApiEndpointContainers:
+		case storagePoolVolumeAPIEndpointContainers:
 			if strings.Index(volumes[i].Name, shared.SnapshotDelimiter) > 0 {
 				fields := strings.SplitN(volumes[i].Name, shared.SnapshotDelimiter, 2)
 				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, fields[0], fields[1])
 			} else {
 				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s", version.APIVersion, volumes[i].Name)
 			}
-		case storagePoolVolumeApiEndpointImages:
+		case storagePoolVolumeAPIEndpointImages:
 			poolUsedBy[i] = fmt.Sprintf("/%s/images/%s", version.APIVersion, volumes[i].Name)
-		case storagePoolVolumeApiEndpointCustom:
+		case storagePoolVolumeAPIEndpointCustom:
 			// Bug
-			return []string{}, fmt.Errorf("Database function returned volume type \"%s\" although not queried for it.", volumes[i].Type)
+			return []string{}, fmt.Errorf("database function returned volume type \"%s\" although not queried for it", volumes[i].Type)
 		default:
 			// If that happens the db is busted, so report an error.
-			return []string{}, fmt.Errorf("Invalid storage type for storage volume \"%s\".", volumes[i].Name)
+			return []string{}, fmt.Errorf("invalid storage type for storage volume \"%s\"", volumes[i].Name)
 		}
 	}
 
