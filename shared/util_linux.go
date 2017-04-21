@@ -32,9 +32,10 @@ import (
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
+#include <sys/un.h>
 
 #ifndef AT_SYMLINK_FOLLOW
 #define AT_SYMLINK_FOLLOW    0x400
@@ -43,6 +44,8 @@ import (
 #ifndef AT_EMPTY_PATH
 #define AT_EMPTY_PATH       0x1000
 #endif
+
+#define ABSTRACT_UNIX_SOCK_LEN sizeof(((struct sockaddr_un *)0)->sun_path)
 
 // This is an adaption from https://codereview.appspot.com/4589049, to be
 // included in the stdlib with the stdlib's license.
@@ -212,6 +215,8 @@ again:
 }
 */
 import "C"
+
+const ABSTRACT_UNIX_SOCK_LEN int = C.ABSTRACT_UNIX_SOCK_LEN
 
 const POLLIN int = C.POLLIN
 const POLLPRI int = C.POLLPRI
@@ -777,4 +782,24 @@ func LookupBlockDevByUUID(uuid string) (string, error) {
 	}
 
 	return detectedPath, nil
+}
+
+// Detect whether err is an errno.
+func GetErrno(err error) (errno error, iserrno bool) {
+	sysErr, ok := err.(*os.SyscallError)
+	if ok {
+		return sysErr.Err, true
+	}
+
+	pathErr, ok := err.(*os.PathError)
+	if ok {
+		return pathErr.Err, true
+	}
+
+	tmpErrno, ok := err.(syscall.Errno)
+	if ok {
+		return tmpErrno, true
+	}
+
+	return nil, false
 }

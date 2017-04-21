@@ -41,6 +41,7 @@ func (s rsyncStorageSourceDriver) Snapshots() []container {
 }
 
 func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error {
+	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	for _, send := range s.snapshots {
 		ourStart, err := send.StorageStart()
 		if err != nil {
@@ -52,19 +53,20 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *ope
 
 		path := send.Path()
 		wrapper := StorageProgressReader(op, "fs_progress", send.Name())
-		err = RsyncSend(shared.AddSlash(path), conn, wrapper, bwlimit)
+		err = RsyncSend(ctName, shared.AddSlash(path), conn, wrapper, bwlimit)
 		if err != nil {
 			return err
 		}
 	}
 
 	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn, wrapper, bwlimit)
+	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, wrapper, bwlimit)
 }
 
 func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
+	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	// resync anything that changed between our first send and the checkpoint
-	return RsyncSend(shared.AddSlash(s.container.Path()), conn, nil, bwlimit)
+	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, nil, bwlimit)
 }
 
 func (s rsyncStorageSourceDriver) Cleanup() {
