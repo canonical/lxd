@@ -9,6 +9,8 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+// MigrationStorageSourceDriver defines the functions needed to implement a
+// migration source driver.
 type MigrationStorageSourceDriver interface {
 	/* snapshots for this container, if any */
 	Snapshots() []container
@@ -136,7 +138,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 
 	// A little neuroticism.
 	if parentStoragePool == "" {
-		return fmt.Errorf("The container's root device is missing the pool property.")
+		return fmt.Errorf("the container's root device is missing the pool property")
 	}
 
 	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
