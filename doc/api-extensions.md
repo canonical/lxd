@@ -256,6 +256,11 @@ If "path" is set without "source" and "major/minor" isn't set,
 we should assume that "source" will be the same as "path".
 So at least one of them must be set.
 
-## rsync.bwlimit
+## storage\_rsync\_bwlimit
 When rsync has to be invoked to transfer storage entities setting rsync.bwlimit
 places an upper limit on the amount of socket I/O allowed.
+
+## network\_vxlan\_interface
+This introduces a new tunnel.NAME.interface option for networks.
+
+This key control what host network interface is used for a VXLAN tunnel.

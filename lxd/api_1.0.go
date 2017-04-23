@@ -103,6 +103,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"unix_device_rename",
 			"storage_lvm_use_thinpool",
 			"storage_rsync_bwlimit",
+			"network_vxlan_interface",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
