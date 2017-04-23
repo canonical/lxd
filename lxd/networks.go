@@ -1068,6 +1068,7 @@ func (n *network) Start() error {
 			cmd = append(cmd, []string{"type", "gretap", "local", tunLocal, "remote", tunRemote}...)
 		} else if tunProtocol == "vxlan" {
 			tunGroup := getConfig("group")
+			tunInterface := getConfig("interface")
 
 			// Skip partial configs
 			if tunProtocol == "" {
@@ -1083,9 +1084,12 @@ func (n *network) Start() error {
 					tunGroup = "239.0.0.1"
 				}
 
-				_, devName, err := networkDefaultGatewaySubnetV4()
-				if err != nil {
-					return err
+				devName := tunInterface
+				if devName == "" {
+					_, devName, err = networkDefaultGatewaySubnetV4()
+					if err != nil {
+						return err
+					}
 				}
 
 				cmd = append(cmd, []string{"group", tunGroup, "dev", devName}...)
