@@ -62,8 +62,7 @@ func run() error {
 	}
 
 	if len(os.Args) >= 2 && (os.Args[1] == "--all") {
-		os.Args[1] = "help"
-		os.Args = append(os.Args, "--all")
+		os.Args = []string{os.Args[0], "help", "--all"}
 	}
 
 	if shared.StringInSlice("--version", os.Args) {
