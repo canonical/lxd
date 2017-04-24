@@ -4,6 +4,7 @@ test_server_config() {
   LXD_SERVERCONFIG_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD_SERVERCONFIG_DIR}" true
 
+  ensure_has_localhost_remote "${LXD_ADDR}"
   lxc config set core.trust_password 123456
 
   config=$(lxc config show)
