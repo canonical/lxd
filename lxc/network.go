@@ -178,27 +178,13 @@ func (c *networkCmd) doNetworkAttach(client lxd.ContainerServer, name string, ar
 		device["name"] = args[2]
 	}
 
-	// Get the container entry
-	ctn, ctnEtag, err := client.GetContainer(args[0])
-	if err != nil {
-		return err
-	}
-
-	// Check if the device already exists
-	_, ok := ctn.Devices[devName]
-	if ok {
-		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
-	}
-
 	// Add the device to the container
-	ctn.Devices[devName] = device
-
-	op, err := client.UpdateContainer(args[0], ctn.Writable(), ctnEtag)
+	err = containerDeviceAdd(client, args[0], devName, device)
 	if err != nil {
 		return err
 	}
 
-	return op.Wait()
+	return nil
 }
 
 func (c *networkCmd) doNetworkAttachProfile(client lxd.ContainerServer, name string, args []string) error {
@@ -233,22 +219,8 @@ func (c *networkCmd) doNetworkAttachProfile(client lxd.ContainerServer, name str
 		device["name"] = args[2]
 	}
 
-	// Get the profile entry
-	profile, profileEtag, err := client.GetProfile(args[0])
-	if err != nil {
-		return err
-	}
-
-	// Check if the device already exists
-	_, ok := profile.Devices[devName]
-	if ok {
-		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
-	}
-
-	// Add the device to the container
-	profile.Devices[devName] = device
-
-	err = client.UpdateProfile(args[0], profile.Writable(), profileEtag)
+	// Add the device to the profile
+	err = profileDeviceAdd(client, args[0], devName, device)
 	if err != nil {
 		return err
 	}

@@ -233,3 +233,52 @@ func getLocalErr(err error) error {
 
 	return nil
 }
+
+// Add a device to a container
+func containerDeviceAdd(client lxd.ContainerServer, name string, devName string, dev map[string]string) error {
+	// Get the container entry
+	container, etag, err := client.GetContainer(name)
+	if err != nil {
+		return err
+	}
+
+	// Check if the device already exists
+	_, ok := container.Devices[devName]
+	if ok {
+		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
+	}
+
+	container.Devices[devName] = dev
+
+	op, err := client.UpdateContainer(name, container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
+}
+
+// Add a device to a profile
+func profileDeviceAdd(client lxd.ContainerServer, name string, devName string, dev map[string]string) error {
+	// Get the profile entry
+	profile, profileEtag, err := client.GetProfile(name)
+	if err != nil {
+		return err
+	}
+
+	// Check if the device already exists
+	_, ok := profile.Devices[devName]
+	if ok {
+		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
+	}
+
+	// Add the device to the container
+	profile.Devices[devName] = dev
+
+	err = client.UpdateProfile(name, profile.Writable(), profileEtag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
