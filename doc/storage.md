@@ -135,7 +135,13 @@ lxc storage create pool2 dir source=/data/lxd
 ### Btrfs
 
  - Uses a subvolume per container, image and snapshot, creating btrfs snapshots when creating a new object.
- - btrfs can be used as a storage backend inside a container (nesting), so long as the parent container is itself on btrfs.
+ - btrfs can be used as a storage backend inside a container (nesting), so long as the parent container is itself on btrfs. (But see notes about btrfs quota via qgroups.)
+ - btrfs supports storage quotas via qgroups. While btrfs qgroups are
+   hierarchical, new subvolumes will not automatically be added to the qgroups
+   of their parent subvolumes. This means that users can trivially escape any
+   quotas that are set. If adherence to strict quotas is a necessity users
+   should be mindful of this and maybe consider using a zfs storage pool with
+   refquotas.
 
 #### The following commands can be used to create BTRFS storage pools
 
