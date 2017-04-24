@@ -4,8 +4,10 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -14,7 +16,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -286,12 +288,12 @@ func (c *imageCmd) doImageAlias(conf *config.Config, args []string) error {
 			}
 		}
 
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetImageServer(remote)
 		if err != nil {
 			return err
 		}
 
-		resp, err := d.ListAliases()
+		resp, err := d.GetImageAliases()
 		if err != nil {
 			return err
 		}
@@ -305,19 +307,21 @@ func (c *imageCmd) doImageAlias(conf *config.Config, args []string) error {
 			return errArgs
 		}
 
-		remote, alias, err := conf.ParseRemote(args[2])
+		remote, name, err := conf.ParseRemote(args[2])
 		if err != nil {
 			return err
 		}
 
-		target := args[3]
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetContainerServer(remote)
 		if err != nil {
 			return err
 		}
-		/* TODO - what about description? */
-		err = d.PostAlias(alias, alias, target)
-		return err
+
+		alias := api.ImageAliasesPost{}
+		alias.Name = name
+		alias.Target = args[3]
+
+		return d.CreateImageAlias(alias)
 	case "delete":
 		/* alias delete [<remote>:]<alias> */
 		if len(args) < 3 {
@@ -329,11 +333,12 @@ func (c *imageCmd) doImageAlias(conf *config.Config, args []string) error {
 			return err
 		}
 
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetContainerServer(remote)
 		if err != nil {
 			return err
 		}
-		err = d.DeleteAlias(alias)
+
+		err = d.DeleteImageAlias(alias)
 		return err
 	}
 	return errArgs
@@ -364,10 +369,6 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		if inName == "" {
-			inName = "default"
-		}
-
 		destRemote, outName, err := conf.ParseRemote(args[2])
 		if err != nil {
 			return err
@@ -377,24 +378,63 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return errArgs
 		}
 
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetImageServer(remote)
 		if err != nil {
 			return err
 		}
 
-		dest, err := lxd.NewClient(conf.Legacy(), destRemote)
+		dest, err := conf.GetContainerServer(destRemote)
 		if err != nil {
 			return err
 		}
 
+		// Check if an alias
+		fingerprint := c.dereferenceAlias(d, inName)
+
+		// Get the image
+		image, _, err := d.GetImage(fingerprint)
+		if err != nil {
+			return err
+		}
+
+		// Setup the copy arguments
+		aliases := []api.ImageAlias{}
+		for _, entry := range c.addAliases {
+			alias := api.ImageAlias{}
+			alias.Name = entry
+			aliases = append(aliases, alias)
+		}
+
+		args := lxd.ImageCopyArgs{
+			Aliases:     aliases,
+			AutoUpdate:  c.autoUpdate,
+			CopyAliases: c.copyAliases,
+			Public:      c.publicImage,
+		}
+
+		// Do the copy
+		op, err := dest.CopyImage(d, *image, &args)
+		if err != nil {
+			return err
+		}
+
+		// Register progress handler
 		progress := ProgressRenderer{Format: i18n.G("Copying the image: %s")}
-		err = d.CopyImage(inName, dest, c.copyAliases, c.addAliases, c.publicImage, c.autoUpdate, progress.Update)
-		if err == nil {
-			progress.Done(i18n.G("Image copied successfully!"))
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
 		}
-		progress.Done("")
 
-		return err
+		// Wait for operation to finish
+		err = op.Wait()
+		if err != nil {
+			progress.Done("")
+			return err
+		}
+
+		progress.Done(i18n.G("Image copied successfully!"))
+		return nil
 
 	case "delete":
 		/* delete [<remote>:]<image> [<remote>:][<image>...] */
@@ -409,17 +449,18 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 				return err
 			}
 
-			if inName == "" {
-				inName = "default"
-			}
-
-			d, err := lxd.NewClient(conf.Legacy(), remote)
+			d, err := conf.GetContainerServer(remote)
 			if err != nil {
 				return err
 			}
 
 			image := c.dereferenceAlias(d, inName)
-			err = d.DeleteImage(image)
+			op, err := d.DeleteImage(image)
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
 			if err != nil {
 				return err
 			}
@@ -434,21 +475,31 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 		}
 
 		for _, arg := range args[1:] {
-			remote, inName := config.ParseRemoteAndContainer(arg)
-			if inName == "" {
-				inName = "default"
+			remote, inName, err := conf.ParseRemote(arg)
+			if err != nil {
+				return err
 			}
 
-			d, err := lxd.NewClient(config, remote)
+			d, err := conf.GetContainerServer(remote)
 			if err != nil {
 				return err
 			}
 
 			image := c.dereferenceAlias(d, inName)
 			progress := ProgressRenderer{Format: i18n.G("Refreshing the image: %s")}
-			refreshed, err := d.RefreshImage(image, progress.Update)
+			op, err := d.RefreshImage(image)
 			if err != nil {
 				return err
+			}
+
+			// Register progress handler
+			_, err = op.AddHandler(progress.UpdateOp)
+
+			// Check if refreshed
+			refreshed := false
+			flag, ok := op.Metadata["refreshed"]
+			if ok {
+				refreshed = flag.(bool)
 			}
 
 			if refreshed {
@@ -470,17 +521,13 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		if inName == "" {
-			inName = "default"
-		}
-
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetImageServer(remote)
 		if err != nil {
 			return err
 		}
 
 		image := c.dereferenceAlias(d, inName)
-		info, err := d.GetImageInfo(image)
+		info, _, err := d.GetImage(image)
 		if err != nil {
 			return err
 		}
@@ -541,7 +588,6 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return errArgs
 		}
 
-		var fingerprint string
 		var imageFile string
 		var rootfsFile string
 		var properties []string
@@ -577,33 +623,101 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			properties = properties[1:]
 		}
 
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetContainerServer(remote)
 		if err != nil {
 			return err
 		}
 
-		if strings.HasPrefix(imageFile, "https://") {
-			progress := ProgressRenderer{Format: i18n.G("Importing the image: %s")}
-			fingerprint, err = d.PostImageURL(imageFile, properties, c.publicImage, c.addAliases, progress.Update)
-			if err == nil {
-				progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
-			}
-		} else if strings.HasPrefix(imageFile, "http://") {
+		if strings.HasPrefix(imageFile, "http://") {
 			return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
-		} else {
-			progress := ProgressRenderer{Format: i18n.G("Transferring image: %s")}
-			handler := func(percent int64, speed int64) {
-				progress.Update(fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2)))
-			}
-
-			fingerprint, err = d.PostImage(imageFile, rootfsFile, properties, c.publicImage, c.addAliases, handler)
-			if err == nil {
-				progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
-			}
 		}
 
+		var args *lxd.ImageCreateArgs
+		image := api.ImagesPost{}
+		image.Public = c.publicImage
+
+		// Handle aliases
+		aliases := []api.ImageAlias{}
+		for _, entry := range c.addAliases {
+			alias := api.ImageAlias{}
+			alias.Name = entry
+			aliases = append(aliases, alias)
+		}
+
+		// Handle properties
+		for _, entry := range properties {
+			fields := strings.SplitN(entry, "=", 2)
+			if len(fields) < 2 {
+				return fmt.Errorf(i18n.G("Bad property: %s"), entry)
+			}
+
+			image.Properties[strings.TrimSpace(fields[0])] = strings.TrimSpace(fields[1])
+		}
+
+		progress := ProgressRenderer{Format: i18n.G("Transferring image: %s")}
+		if strings.HasPrefix(imageFile, "https://") {
+			image.Source = &api.ImagesPostSource{}
+			image.Source.Type = "url"
+			image.Source.Mode = "pull"
+			image.Source.Protocol = "direct"
+			image.Source.URL = imageFile
+		} else {
+			var meta io.ReadCloser
+			var rootfs io.ReadCloser
+
+			// Open meta
+			meta, err = os.Open(imageFile)
+			if err != nil {
+				return err
+			}
+			defer meta.Close()
+
+			// Open rootfs
+			if rootfsFile != "" {
+				rootfs, err = os.Open(rootfsFile)
+				if err != nil {
+					return err
+				}
+				defer rootfs.Close()
+			}
+
+			args = &lxd.ImageCreateArgs{
+				MetaFile:        meta,
+				MetaName:        filepath.Base(imageFile),
+				RootfsFile:      rootfs,
+				RootfsName:      filepath.Base(rootfsFile),
+				ProgressHandler: progress.UpdateProgress,
+			}
+			image.Filename = args.MetaName
+		}
+
+		// Start the transfer
+		op, err := d.CreateImage(image, args)
 		if err != nil {
+			progress.Done("")
 			return err
+		}
+
+		err = op.Wait()
+		if err != nil {
+			progress.Done("")
+			return err
+		}
+
+		// Get the fingerprint
+		fingerprint := op.Metadata["fingerprint"].(string)
+		progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
+
+		// Add the aliases
+		for _, entry := range c.addAliases {
+			alias := api.ImageAliasesPost{}
+			alias.Name = entry
+			alias.Target = fingerprint
+
+			err = d.CreateImageAlias(alias)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -643,13 +757,13 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			}
 		}
 
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetImageServer(remote)
 		if err != nil {
 			return err
 		}
 
 		var images []api.Image
-		allImages, err := d.ListImages()
+		allImages, err := d.GetImages()
 		if err != nil {
 			return err
 		}
@@ -674,11 +788,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		if inName == "" {
-			inName = "default"
-		}
-
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetContainerServer(remote)
 		if err != nil {
 			return err
 		}
@@ -700,30 +810,92 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		if inName == "" {
-			inName = "default"
-		}
-
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetImageServer(remote)
 		if err != nil {
 			return err
 		}
 
-		image := c.dereferenceAlias(d, inName)
+		// Resolve aliases
+		fingerprint := c.dereferenceAlias(d, inName)
 
+		// Default target is current directory
 		target := "."
+		targetMeta := fingerprint
 		if len(args) > 2 {
 			target = args[2]
+			if shared.IsDir(args[2]) {
+				targetMeta = filepath.Join(args[2], targetMeta)
+			} else {
+				targetMeta = args[2]
+			}
 		}
+		targetRootfs := targetMeta + ".root"
 
-		outfile, err := d.ExportImage(image, target)
+		// Prepare the files
+		dest, err := os.Create(targetMeta)
 		if err != nil {
 			return err
 		}
+		defer dest.Close()
 
-		if target != "-" {
-			fmt.Printf(i18n.G("Output is in %s")+"\n", outfile)
+		destRootfs, err := os.Create(targetRootfs)
+		if err != nil {
+			return err
 		}
+		defer destRootfs.Close()
+
+		// Prepare the download request
+		progress := ProgressRenderer{Format: i18n.G("Exporting the image: %s")}
+		req := lxd.ImageFileRequest{
+			MetaFile:        io.WriteSeeker(dest),
+			RootfsFile:      io.WriteSeeker(destRootfs),
+			ProgressHandler: progress.UpdateProgress,
+		}
+
+		// Download the image
+		resp, err := d.GetImageFile(fingerprint, req)
+		if err != nil {
+			os.Remove(targetMeta)
+			os.Remove(targetRootfs)
+			progress.Done("")
+			return err
+		}
+
+		// Cleanup
+		if resp.RootfsSize == 0 {
+			err := os.Remove(targetRootfs)
+			if err != nil {
+				os.Remove(targetMeta)
+				os.Remove(targetRootfs)
+				progress.Done("")
+				return err
+			}
+		}
+
+		// Rename files
+		if shared.IsDir(target) {
+			if resp.MetaName != "" {
+				err := os.Rename(targetMeta, filepath.Join(target, resp.MetaName))
+				if err != nil {
+					os.Remove(targetMeta)
+					os.Remove(targetRootfs)
+					progress.Done("")
+					return err
+				}
+			}
+
+			if resp.RootfsSize > 0 && resp.RootfsName != "" {
+				err := os.Rename(targetRootfs, filepath.Join(target, resp.RootfsName))
+				if err != nil {
+					os.Remove(targetMeta)
+					os.Remove(targetRootfs)
+					progress.Done("")
+					return err
+				}
+			}
+		}
+
+		progress.Done(i18n.G("Image exported successfully!"))
 		return nil
 
 	case "show":
@@ -736,17 +908,13 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		if inName == "" {
-			inName = "default"
-		}
-
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetImageServer(remote)
 		if err != nil {
 			return err
 		}
 
 		image := c.dereferenceAlias(d, inName)
-		info, err := d.GetImageInfo(image)
+		info, _, err := d.GetImage(image)
 		if err != nil {
 			return err
 		}
@@ -762,12 +930,17 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 	}
 }
 
-func (c *imageCmd) dereferenceAlias(d *lxd.Client, inName string) string {
-	result := d.GetAlias(inName)
-	if result == "" {
+func (c *imageCmd) dereferenceAlias(d lxd.ImageServer, inName string) string {
+	if inName == "" {
+		inName = "default"
+	}
+
+	result, _, _ := d.GetImageAlias(inName)
+	if result == nil {
 		return inName
 	}
-	return result
+
+	return result.Target
 }
 
 func (c *imageCmd) shortestAlias(list []api.ImageAlias) string {
@@ -886,7 +1059,7 @@ func (c *imageCmd) showAliases(aliases []api.ImageAliasesEntry, filters []string
 	return nil
 }
 
-func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
+func (c *imageCmd) doImageEdit(client lxd.ContainerServer, image string) error {
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -899,11 +1072,12 @@ func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 		if err != nil {
 			return err
 		}
-		return client.PutImageInfo(image, newdata)
+
+		return client.UpdateImage(image, newdata, "")
 	}
 
 	// Extract the current value
-	imgInfo, err := client.GetImageInfo(image)
+	imgInfo, etag, err := client.GetImage(image)
 	if err != nil {
 		return err
 	}
@@ -925,7 +1099,7 @@ func (c *imageCmd) doImageEdit(client *lxd.Client, image string) error {
 		newdata := api.ImagePut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.PutImageInfo(image, newdata)
+			err = client.UpdateImage(image, newdata, etag)
 		}
 
 		// Respawn the editor
