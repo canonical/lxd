@@ -50,7 +50,7 @@ func (c *manpageCmd) run(_ *lxd.Config, args []string) error {
 	}
 
 	// Generate the main manpage
-	err = help2man(execName, "LXD - client", filepath.Join(args[0], fmt.Sprintf("lxc.1")))
+	err = help2man(fmt.Sprintf("%s --all", execName), "LXD - client", filepath.Join(args[0], fmt.Sprintf("lxc.1")))
 	if err != nil {
 		return fmt.Errorf(i18n.G("Failed to generate 'lxc.1': %v"), err)
 	}
