@@ -498,9 +498,9 @@ func dbUpdateFromV11(currentVersion int, version int, d *Daemon) error {
 	errors := 0
 
 	for _, cName := range cNames {
-		snappieces := strings.SplitN(cName, shared.SnapshotDelimiter, 2)
-		oldPath := shared.VarPath("containers", snappieces[0], "snapshots", snappieces[1])
-		newPath := shared.VarPath("snapshots", snappieces[0], snappieces[1])
+		snapParentName, snapOnlyName, _ := containerGetParentAndSnapshotName(cName)
+		oldPath := shared.VarPath("containers", snapParentName, "snapshots", snapOnlyName)
+		newPath := shared.VarPath("snapshots", snapParentName, snapOnlyName)
 		if shared.PathExists(oldPath) && !shared.PathExists(newPath) {
 			logger.Info(
 				"Moving snapshot",
