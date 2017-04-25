@@ -4000,7 +4000,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		// Get the container's architecture
 		var arch string
 		if c.IsSnapshot() {
-			parentName := strings.SplitN(c.name, shared.SnapshotDelimiter, 2)[0]
+			parentName, _, _ := containerGetParentAndSnapshotName(c.name)
 			parent, err := containerLoadByName(c.daemon, parentName)
 			if err != nil {
 				tw.Close()

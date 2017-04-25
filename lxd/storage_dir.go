@@ -396,10 +396,10 @@ func (s *storageDir) copySnapshot(target container, source container) error {
 	sourceContainerMntPoint := getSnapshotMountPoint(s.pool.Name, sourceName)
 	targetContainerMntPoint := getSnapshotMountPoint(s.pool.Name, targetName)
 
-	fields := strings.SplitN(target.Name(), shared.SnapshotDelimiter, 2)
-	containersPath := getSnapshotMountPoint(s.pool.Name, fields[0])
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", fields[0])
-	snapshotMntPointSymlink := shared.VarPath("snapshots", fields[0])
+	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
+	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", targetParentName)
+	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
@@ -457,8 +457,8 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 			return err
 		}
 
-		fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
-		newSnapName := fmt.Sprintf("%s/%s", target.Name(), fields[1])
+		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
 		targetSnapshot, err := containerLoadByName(s.d, newSnapName)
 		if err != nil {
 			return err
@@ -655,8 +655,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	// Check if the symlink
 	// ${LXD_DIR}/snapshots/<source_container_name> -> ${POOL_PATH}/snapshots/<source_container_name>
 	// exists and if not create it.
-	fields := strings.SplitN(targetContainerName, shared.SnapshotDelimiter, 2)
-	sourceContainerName := fields[0]
+	sourceContainerName, _, _ := containerGetParentAndSnapshotName(targetContainerName)
 	sourceContainerSymlink := shared.VarPath("snapshots", sourceContainerName)
 	sourceContainerSymlinkTarget := getSnapshotMountPoint(s.pool.Name, sourceContainerName)
 	if !shared.PathExists(sourceContainerSymlink) {
@@ -694,8 +693,7 @@ func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error 
 	// Check if we can remove the snapshot symlink:
 	// ${LXD_DIR}/snapshots/<container_name> -> ${POOL}/snapshots/<container_name>
 	// by checking if the directory is empty.
-	fields := strings.SplitN(snapshotContainerName, shared.SnapshotDelimiter, 2)
-	sourceContainerName := fields[0]
+	sourceContainerName, _, _ := containerGetParentAndSnapshotName(snapshotContainerName)
 	snapshotContainerPath := getSnapshotMountPoint(s.pool.Name, sourceContainerName)
 	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
 	if empty == true {
