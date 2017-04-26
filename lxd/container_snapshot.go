@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -36,7 +35,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	resultMap := []*api.ContainerSnapshot{}
 
 	for _, snap := range snaps {
-		snapName := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)[1]
+		_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
 		if recursion == 0 {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cname, snapName)
 			resultString = append(resultString, url)

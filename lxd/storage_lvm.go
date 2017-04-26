@@ -1060,8 +1060,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 
 	if container.IsSnapshot() {
 		containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
-		fields := strings.SplitN(containerName, shared.SnapshotDelimiter, 2)
-		sourceName := fields[0]
+		sourceName, _, _ := containerGetParentAndSnapshotName(containerName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err := os.MkdirAll(containerMntPoint, 0755)
@@ -1274,8 +1273,7 @@ func (s *storageLvm) ContainerDelete(container container) error {
 	}
 
 	if container.IsSnapshot() {
-		fields := strings.SplitN(containerName, shared.SnapshotDelimiter, 2)
-		sourceName := fields[0]
+		sourceName, _, _ := containerGetParentAndSnapshotName(containerName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = deleteSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -1400,10 +1398,10 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 }
 
 func (s *storageLvm) copySnapshot(target container, source container) error {
-	fields := strings.SplitN(target.Name(), shared.SnapshotDelimiter, 2)
-	containersPath := getSnapshotMountPoint(s.pool.Name, fields[0])
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", fields[0])
-	snapshotMntPointSymlink := shared.VarPath("snapshots", fields[0])
+	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
+	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", targetParentName)
+	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
@@ -1460,8 +1458,8 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 	}
 
 	for _, snap := range snapshots {
-		fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
-		newSnapName := fmt.Sprintf("%s/%s", target.Name(), fields[1])
+		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
 
 		logger.Debugf("Copying LVM container storage for snapshot %s -> %s.", snap.Name(), newSnapName)
 
@@ -1780,8 +1778,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 	targetIsSnapshot := snapshotContainer.IsSnapshot()
 	if targetIsSnapshot {
 		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetContainerName)
-		sourceFields := strings.SplitN(sourceContainerName, shared.SnapshotDelimiter, 2)
-		sourceName := sourceFields[0]
+		sourceName, _, _ := containerGetParentAndSnapshotName(sourceContainerName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", poolName, "snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
