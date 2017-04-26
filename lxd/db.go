@@ -128,6 +128,7 @@ CREATE TABLE IF NOT EXISTS images_source (
 CREATE TABLE IF NOT EXISTS networks (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
+    description TEXT,
     UNIQUE (name)
 );
 CREATE TABLE IF NOT EXISTS networks_config (

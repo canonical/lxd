@@ -69,6 +69,7 @@ var dbUpdates = []dbUpdate{
 	{version: 33, run: dbUpdateFromV32},
 	{version: 34, run: dbUpdateFromV33},
 	{version: 35, run: dbUpdateFromV34},
+	{version: 36, run: dbUpdateFromV35},
 }
 
 type dbUpdate struct {
@@ -125,6 +126,11 @@ func dbUpdatesApplyAll(d *Daemon) error {
 }
 
 // Schema updates begin here
+func dbUpdateFromV35(currentVersion int, version int, d *Daemon) error {
+	_, err := d.db.Exec("ALTER TABLE networks ADD COLUMN description TEXT;")
+	return err
+}
+
 func dbUpdateFromV34(currentVersion int, version int, d *Daemon) error {
 	stmt := `
 CREATE TABLE IF NOT EXISTS storage_pools (
