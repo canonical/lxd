@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2017-04-27 17:10-0400\n"
+        "POT-Creation-Date: 2017-05-04 15:44+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -185,7 +185,7 @@ msgstr  ""
 msgid   "CREATED AT"
 msgstr  ""
 
-#: lxc/config.go:150 lxc/network.go:495
+#: lxc/config.go:150 lxc/network.go:496
 #, c-format
 msgid   "Can't read from stdin: %s"
 msgstr  ""
@@ -220,7 +220,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:571 lxc/config.go:636 lxc/image.go:710 lxc/network.go:378 lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:840
+#: lxc/config.go:571 lxc/config.go:636 lxc/image.go:710 lxc/network.go:378 lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:848
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -278,7 +278,7 @@ msgstr  ""
 msgid   "Creating the container"
 msgstr  ""
 
-#: lxc/image.go:617 lxc/image.go:658
+#: lxc/image.go:617 lxc/image.go:658 lxc/network.go:461
 msgid   "DESCRIPTION"
 msgstr  ""
 
@@ -533,7 +533,7 @@ msgstr  ""
 msgid   "Migration failed on target host: %s"
 msgstr  ""
 
-#: lxc/utils.go:173
+#: lxc/utils.go:193
 msgid   "Missing summary."
 msgstr  ""
 
@@ -553,7 +553,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:449 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395 lxc/storage.go:607 lxc/storage.go:687
+#: lxc/list.go:449 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395 lxc/storage.go:607 lxc/storage.go:691
 msgid   "NAME"
 msgstr  ""
 
@@ -616,7 +616,7 @@ msgstr  ""
 msgid   "Only https:// is supported for remote image import."
 msgstr  ""
 
-#: lxc/network.go:354 lxc/network.go:481
+#: lxc/network.go:354 lxc/network.go:482
 msgid   "Only managed networks can be modified."
 msgstr  ""
 
@@ -682,7 +682,7 @@ msgstr  ""
 msgid   "Pid: %d"
 msgstr  ""
 
-#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:841
+#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:849
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -911,12 +911,12 @@ msgstr  ""
 msgid   "Storage pool name"
 msgstr  ""
 
-#: lxc/storage.go:710
+#: lxc/storage.go:714
 #, c-format
 msgid   "Storage volume %s created"
 msgstr  ""
 
-#: lxc/storage.go:720
+#: lxc/storage.go:724
 #, c-format
 msgid   "Storage volume %s deleted"
 msgstr  ""
@@ -933,7 +933,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:454 lxc/network.go:459 lxc/storage.go:686
+#: lxc/list.go:454 lxc/network.go:459 lxc/storage.go:690
 msgid   "TYPE"
 msgstr  ""
 
@@ -1027,7 +1027,7 @@ msgstr  ""
 msgid   "URL"
 msgstr  ""
 
-#: lxc/network.go:461 lxc/profile.go:500 lxc/storage.go:610 lxc/storage.go:688
+#: lxc/network.go:462 lxc/profile.go:500 lxc/storage.go:610 lxc/storage.go:692
 msgid   "USED BY"
 msgstr  ""
 

@@ -1562,6 +1562,7 @@ Input:
 
     {
         "name": "my-network",
+        "description": "My network",
         "config": {
             "ipv4.address": "none",
             "ipv6.address": "2001:470:b368:4242::1/64",

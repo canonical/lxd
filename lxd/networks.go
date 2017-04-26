@@ -126,7 +126,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Create the database entry
-	_, err = dbNetworkCreate(d.db, req.Name, req.Config)
+	_, err = dbNetworkCreate(d.db, req.Name, req.Description, req.Config)
 	if err != nil {
 		return InternalError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
@@ -157,7 +157,7 @@ func networkGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	etag := []interface{}{n.Name, n.Managed, n.Type, n.Config}
+	etag := []interface{}{n.Name, n.Description, n.Managed, n.Type, n.Config}
 
 	return SyncResponseETag(true, &n, etag)
 }
@@ -201,6 +201,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	} else if dbInfo != nil || shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
 		if dbInfo != nil {
 			n.Managed = true
+			n.Description = dbInfo.Description
 			n.Config = dbInfo.Config
 		}
 
@@ -301,7 +302,7 @@ func networkPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the ETag
-	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Config}
+	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Description, dbInfo.Config}
 
 	err = etagCheck(r, etag)
 	if err != nil {
@@ -313,7 +314,7 @@ func networkPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	return doNetworkUpdate(d, name, dbInfo.Config, req.Config)
+	return doNetworkUpdate(d, name, dbInfo.Config, req)
 }
 
 func networkPatch(d *Daemon, r *http.Request) Response {
@@ -326,7 +327,7 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the ETag
-	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Config}
+	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Description, dbInfo.Config}
 
 	err = etagCheck(r, etag)
 	if err != nil {
@@ -350,20 +351,20 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	return doNetworkUpdate(d, name, dbInfo.Config, req.Config)
+	return doNetworkUpdate(d, name, dbInfo.Config, req)
 }
 
-func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newConfig map[string]string) Response {
+func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req api.NetworkPut) Response {
 	// Validate the configuration
-	err := networkValidateConfig(name, newConfig)
+	err := networkValidateConfig(name, req.Config)
 	if err != nil {
 		return BadRequest(err)
 	}
 
 	// When switching to a fan bridge, auto-detect the underlay
-	if newConfig["bridge.mode"] == "fan" {
-		if newConfig["fan.underlay_subnet"] == "" {
-			newConfig["fan.underlay_subnet"] = "auto"
+	if req.Config["bridge.mode"] == "fan" {
+		if req.Config["fan.underlay_subnet"] == "" {
+			req.Config["fan.underlay_subnet"] = "auto"
 		}
 	}
 
@@ -373,7 +374,7 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, newCon
 		return NotFound
 	}
 
-	err = n.Update(api.NetworkPut{Config: newConfig})
+	err = n.Update(req)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -390,7 +391,7 @@ func networkLoadByName(d *Daemon, name string) (*network, error) {
 		return nil, err
 	}
 
-	n := network{daemon: d, id: id, name: name, config: dbInfo.Config}
+	n := network{daemon: d, id: id, name: name, description: dbInfo.Description, config: dbInfo.Config}
 
 	return &n, nil
 }
@@ -421,9 +422,10 @@ func networkStartup(d *Daemon) error {
 
 type network struct {
 	// Properties
-	daemon *Daemon
-	id     int64
-	name   string
+	daemon      *Daemon
+	id          int64
+	name        string
+	description string
 
 	// config
 	config map[string]string
@@ -1271,6 +1273,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 
 	// Backup the current state
 	oldConfig := map[string]string{}
+	oldDescription := n.description
 	err = shared.DeepCopy(&n.config, &oldConfig)
 	if err != nil {
 		return err
@@ -1284,6 +1287,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 	defer func() {
 		if undoChanges {
 			n.config = oldConfig
+			n.description = oldDescription
 		}
 	}()
 
@@ -1315,7 +1319,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 	}
 
 	// Skip on no change
-	if len(changedConfig) == 0 {
+	if len(changedConfig) == 0 && newNetwork.Description == n.description {
 		return nil
 	}
 
@@ -1351,11 +1355,12 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 		}
 	}
 
-	// Apply the new configuration
+	// Apply changes
 	n.config = newConfig
+	n.description = newNetwork.Description
 
 	// Update the database
-	err = dbNetworkUpdate(n.daemon.db, n.name, n.config)
+	err = dbNetworkUpdate(n.daemon.db, n.name, n.description, n.config)
 	if err != nil {
 		return err
 	}
