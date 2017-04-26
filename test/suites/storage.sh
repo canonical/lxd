@@ -12,7 +12,7 @@ test_storage() {
     LXD_DIR="${LXD_STORAGE_DIR}"
 
     # shellcheck disable=SC1009
-    if which zfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "zfs" ]; then
     # Create loop file zfs pool.
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool1" zfs
 
@@ -63,7 +63,7 @@ test_storage() {
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-zfs-pool-config"
     fi
 
-    if which btrfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "btrfs" ]; then
       # Create loop file btrfs pool.
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool3" btrfs
 
@@ -118,7 +118,7 @@ test_storage() {
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-dir-pool-config" dir rsync.bwlimit=1024
     lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-dir-pool-config"
 
-    if which lvdisplay >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "lvm" ]; then
       # Create lvm pool.
       configure_loop_device loop_file_3 loop_device_3
       # shellcheck disable=SC2154
@@ -181,7 +181,7 @@ test_storage() {
     ensure_import_testimage
 
     # Muck around with some containers on various pools.
-    if which zfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "zfs" ]; then
       lxc init testimage c1pool1 -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
       lxc list -c b c1pool1 | grep "lxdtest-$(basename "${LXD_DIR}")-pool1"
 
@@ -227,7 +227,7 @@ test_storage() {
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2 c4pool2
     fi
 
-    if which btrfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "btrfs" ]; then
       lxc init testimage c5pool3 -s "lxdtest-$(basename "${LXD_DIR}")-pool3"
       lxc list -c b c5pool3 | grep "lxdtest-$(basename "${LXD_DIR}")-pool3"
       lxc init testimage c6pool4 -s "lxdtest-$(basename "${LXD_DIR}")-pool4"
@@ -293,7 +293,7 @@ test_storage() {
     ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool5" custom/c11pool5 c11pool5 testDevice2 /opt
     lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5 c11pool5 testDevice
 
-    if which lvdisplay >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "lvm" ]; then
       lxc init testimage c10pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
       lxc list -c b c10pool6 | grep "lxdtest-$(basename "${LXD_DIR}")-pool6"
 
@@ -432,7 +432,7 @@ test_storage() {
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15 c12pool15 testDevice
     fi
 
-    if which zfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "zfs" ]; then
       lxc launch testimage c13pool7 -s "lxdtest-$(basename "${LXD_DIR}")-pool7"
       lxc launch testimage c14pool7 -s "lxdtest-$(basename "${LXD_DIR}")-pool7"
 
@@ -491,7 +491,7 @@ test_storage() {
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9 c18pool9 testDevice
     fi
 
-    if which zfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "zfs" ]; then
       lxc delete -f c1pool1
       lxc delete -f c3pool1
 
@@ -504,7 +504,7 @@ test_storage() {
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2
     fi
 
-    if which btrfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "btrfs" ]; then
       lxc delete -f c5pool3
       lxc delete -f c7pool3
 
@@ -523,7 +523,7 @@ test_storage() {
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5
 
-    if which lvdisplay >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "lvm" ]; then
       lxc delete -f c10pool6
       lxc delete -f c12pool6
 
@@ -556,7 +556,7 @@ test_storage() {
       lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15" c12pool15
     fi
 
-    if which zfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "zfs" ]; then
       lxc delete -f c13pool7
       lxc delete -f c14pool7
 
@@ -576,7 +576,7 @@ test_storage() {
 
     lxc image delete testimage
 
-    if which zfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "zfs" ]; then
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool7"
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool8"
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool9"
@@ -590,13 +590,13 @@ test_storage() {
       deconfigure_loop_device "${loop_file_1}" "${loop_device_1}"
     fi
 
-    if which btrfs >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "btrfs" ]; then
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool4"
       # shellcheck disable=SC2154
       deconfigure_loop_device "${loop_file_2}" "${loop_device_2}"
     fi
 
-    if which lvdisplay >/dev/null 2>&1; then
+    if [ "${LXD_BACKEND}" = "lvm" ]; then
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-pool6"
       # shellcheck disable=SC2154
       pvremove -ff "${loop_device_3}" || true
