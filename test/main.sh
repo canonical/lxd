@@ -49,14 +49,24 @@ local_tcp_port() {
 }
 
 # import all the backends
-for backend in backends/*.sh; do
+for backend_sh in backends/*.sh; do
   # shellcheck disable=SC1090
-  . "${backend}"
+  . "${backend_sh}"
 done
 
 if [ -z "${LXD_BACKEND:-}" ]; then
-  LXD_BACKEND=dir
+
+    # XXX The Jenkins lxd-github-pull-test job sets "backend" as environment
+    #     variable as opposed to LXD_BACKEND, so we want to honor that. This
+    #     should probably be fixed in the Jenkins configuration.
+    if [ -n "${JENKINS_URL:-}" ] && [ -n "${backend:-}" ]; then
+	LXD_BACKEND="${backend}"
+    else
+	LXD_BACKEND=dir
+    fi
 fi
+
+echo "==> Using storage backend ${LXD_BACKEND}"
 
 spawn_lxd() {
   set +x
