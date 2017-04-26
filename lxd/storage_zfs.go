@@ -428,22 +428,43 @@ func (s *storageZfs) ContainerMount(c container) (bool, error) {
 	lxdStorageOngoingOperationMap[containerMountLockID] = make(chan bool)
 	lxdStorageMapLock.Unlock()
 
-	var imgerr error
+	removeLockFromMap := func() {
+		lxdStorageMapLock.Lock()
+		if waitChannel, ok := lxdStorageOngoingOperationMap[containerMountLockID]; ok {
+			close(waitChannel)
+			delete(lxdStorageOngoingOperationMap, containerMountLockID)
+		}
+		lxdStorageMapLock.Unlock()
+	}
+
+	defer removeLockFromMap()
+
+	// Since we're using mount() directly zfs will not automatically create
+	// the mountpoint for us. So let's check and do it if needed.
+	if !shared.PathExists(containerPoolVolumeMntPoint) {
+		err := createContainerMountpoint(containerPoolVolumeMntPoint, c.Path(), c.IsPrivileged())
+		if err != nil {
+			return false, err
+		}
+	}
+
 	ourMount := false
 	if !shared.IsMountPoint(containerPoolVolumeMntPoint) {
-		imgerr = s.zfsPoolVolumeMount(fs)
+		source := fmt.Sprintf("%s/%s", s.getOnDiskPoolName(), fs)
+		zfsMountOptions := fmt.Sprintf("rw,zfsutil,mntpoint=%s", containerPoolVolumeMntPoint)
+		mounterr := syscall.Mount(source, containerPoolVolumeMntPoint, "zfs", 0, zfsMountOptions)
+		if mounterr != nil {
+			if mounterr != syscall.EBUSY {
+				logger.Errorf("Failed to mount ZFS dataset \"%s\" onto \"%s\".", source, containerPoolVolumeMntPoint)
+				return false, mounterr
+			}
+			// EBUSY error in zfs are related to a bug we're
+			// tracking. So ignore them for now, report back that
+			// the mount isn't ours and proceed.
+			logger.Warnf("ZFS returned EBUSY while \"%s\" is actually not a mountpoint.", containerPoolVolumeMntPoint)
+			return false, nil
+		}
 		ourMount = true
-	}
-
-	lxdStorageMapLock.Lock()
-	if waitChannel, ok := lxdStorageOngoingOperationMap[containerMountLockID]; ok {
-		close(waitChannel)
-		delete(lxdStorageOngoingOperationMap, containerMountLockID)
-	}
-	lxdStorageMapLock.Unlock()
-
-	if imgerr != nil {
-		return false, imgerr
 	}
 
 	logger.Debugf("Mounted ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
