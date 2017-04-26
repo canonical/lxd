@@ -474,7 +474,7 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 	return nil
 }
 
-func (s *storageDir) ContainerMount(name string, path string) (bool, error) {
+func (s *storageDir) ContainerMount(c container) (bool, error) {
 	return true, nil
 }
 

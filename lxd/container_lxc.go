@@ -5145,7 +5145,7 @@ func (c *containerLXC) StorageStart() (bool, error) {
 	if c.IsSnapshot() {
 		isOurOperation, err = c.storage.ContainerSnapshotStart(c)
 	} else {
-		isOurOperation, err = c.storage.ContainerMount(c.Name(), c.Path())
+		isOurOperation, err = c.storage.ContainerMount(c)
 	}
 
 	return isOurOperation, err
