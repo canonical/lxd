@@ -888,7 +888,7 @@ func (s *storageBtrfs) ContainerCopy(target container, source container, contain
 	return nil
 }
 
-func (s *storageBtrfs) ContainerMount(name string, path string) (bool, error) {
+func (s *storageBtrfs) ContainerMount(c container) (bool, error) {
 	logger.Debugf("Mounting BTRFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	// The storage pool must be mounted.

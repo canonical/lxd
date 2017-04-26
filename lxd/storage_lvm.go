@@ -1142,7 +1142,7 @@ func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
 
 	containerName := c.Name()
 	containerPath := c.Path()
-	_, err = s.ContainerMount(containerName, containerPath)
+	_, err = s.ContainerMount(c)
 	if err != nil {
 		return err
 	}
@@ -1205,7 +1205,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 		}
 	}
 
-	ourMount, err := s.ContainerMount(containerName, containerPath)
+	ourMount, err := s.ContainerMount(container)
 	if err != nil {
 		return err
 	}
@@ -1485,7 +1485,8 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 	return nil
 }
 
-func (s *storageLvm) ContainerMount(name string, path string) (bool, error) {
+func (s *storageLvm) ContainerMount(c container) (bool, error) {
+	name := c.Name()
 	logger.Debugf("Mounting LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	containerLvmName := containerNameToLVName(name)
@@ -1701,7 +1702,7 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 			return fmt.Errorf("Error creating snapshot LV: %v", err)
 		}
 	} else {
-		ourMount, err := target.Storage().ContainerMount(targetName, targetPath)
+		ourMount, err := target.Storage().ContainerMount(target)
 		if err != nil {
 			return err
 		}

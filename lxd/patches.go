@@ -1049,7 +1049,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				// In case the new LVM logical volume for the
 				// container is not mounted mount it.
 				if !shared.IsMountPoint(newContainerMntPoint) {
-					_, err = ctStorage.ContainerMount(ctStruct.Name(), ctStruct.Path())
+					_, err = ctStorage.ContainerMount(ctStruct)
 					if err != nil {
 						logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s.", ct, err)
 						return err
@@ -1203,7 +1203,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					// for the snapshot is not mounted mount
 					// it.
 					if !shared.IsMountPoint(newSnapshotMntPoint) {
-						_, err = csStorage.ContainerMount(csStruct.Name(), csStruct.Path())
+						_, err = csStorage.ContainerMount(csStruct)
 						if err != nil {
 							logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s.", cs, err)
 							return err
