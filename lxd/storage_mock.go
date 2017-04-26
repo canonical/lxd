@@ -130,7 +130,7 @@ func (s *storageMock) ContainerCopy(target container, source container, containe
 	return nil
 }
 
-func (s *storageMock) ContainerMount(name string, path string) (bool, error) {
+func (s *storageMock) ContainerMount(c container) (bool, error) {
 	return true, nil
 }
 

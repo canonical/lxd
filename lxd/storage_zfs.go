@@ -406,7 +406,8 @@ func (s *storageZfs) StoragePoolVolumeUpdate(changedConfig []string) error {
 }
 
 // Things we don't need to care about
-func (s *storageZfs) ContainerMount(name string, path string) (bool, error) {
+func (s *storageZfs) ContainerMount(c container) (bool, error) {
+	name := c.Name()
 	logger.Debugf("Mounting ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	fs := fmt.Sprintf("containers/%s", name)
@@ -779,7 +780,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 			s.zfsPoolVolumeDestroy(targetZfsDataset)
 		}()
 
-		ourMount, err := s.ContainerMount(targetContainerName, targetContainerPath)
+		ourMount, err := s.ContainerMount(target)
 		if err != nil {
 			return err
 		}
