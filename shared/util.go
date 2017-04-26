@@ -530,6 +530,7 @@ func ValidHostname(name string) bool {
 	return true
 }
 
+// Spawn the editor with a temporary YAML file for editing configs
 func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 	var f *os.File
 	var err error
@@ -569,7 +570,8 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 		f.Write(inContent)
 		f.Close()
 
-		path = f.Name()
+		path = fmt.Sprintf("%s.yaml", f.Name())
+		os.Rename(f.Name(), path)
 		defer os.Remove(path)
 	} else {
 		path = inPath
