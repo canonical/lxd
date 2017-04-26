@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-04-20 23:50-0400\n"
+"POT-Creation-Date: 2017-04-25 22:57-0400\n"
 "PO-Revision-Date: 2017-03-30 21:35+0000\n"
 "Last-Translator: HazWard <starlysolon@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -512,7 +512,7 @@ msgstr "IPv6"
 msgid "ISSUE DATE"
 msgstr "DATE D'ÉMISSION"
 
-#: lxc/main.go:140
+#: lxc/main.go:139
 #, fuzzy
 msgid "If this is your first time using LXD, you should also run: lxd init"
 msgstr ""
@@ -725,7 +725,7 @@ msgstr "Seul https:// est supporté par l'import d'images distantes."
 msgid "Only managed networks can be modified."
 msgstr "Seuls les réseaux gérés par LXD peuvent être modifiés."
 
-#: lxc/help.go:71 lxc/main.go:113 lxc/main.go:164
+#: lxc/help.go:71 lxc/main.go:112 lxc/main.go:163
 msgid "Options:"
 msgstr "Options :"
 
@@ -774,7 +774,7 @@ msgstr "Chemin vers un dossier de configuration client alternatif"
 msgid "Path to an alternate server directory"
 msgstr "Chemin vers un dossier de configuration serveur alternatif"
 
-#: lxc/main.go:203
+#: lxc/main.go:202
 #, fuzzy
 msgid "Pause containers."
 msgstr "Création du conteneur"
@@ -886,7 +886,7 @@ msgstr "Requérir une confirmation de l'utilisateur"
 msgid "Resources:"
 msgstr "Ressources :"
 
-#: lxc/main.go:211
+#: lxc/main.go:210
 #, fuzzy
 msgid "Restart containers."
 msgstr "Création du conteneur"
@@ -979,7 +979,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Source:"
 msgstr "Source :"
 
-#: lxc/main.go:221
+#: lxc/main.go:220
 #, fuzzy
 msgid "Start containers."
 msgstr "Création du conteneur"
@@ -994,7 +994,7 @@ msgstr "Démarrage de %s"
 msgid "Status: %s"
 msgstr "État : %s"
 
-#: lxc/main.go:227
+#: lxc/main.go:226
 #, fuzzy
 msgid "Stop containers."
 msgstr "L'arrêt du conteneur a échoué !"
@@ -1122,7 +1122,7 @@ msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
-#: lxc/main.go:141
+#: lxc/main.go:140
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
@@ -2410,12 +2410,12 @@ msgstr "désactivé"
 msgid "enabled"
 msgstr "activé"
 
-#: lxc/action.go:126 lxc/main.go:26 lxc/main.go:160
+#: lxc/action.go:126 lxc/main.go:26 lxc/main.go:159
 #, c-format
 msgid "error: %v"
 msgstr "erreur : %v"
 
-#: lxc/help.go:37 lxc/main.go:107
+#: lxc/help.go:37 lxc/main.go:106
 #, c-format
 msgid "error: unknown command: %s"
 msgstr "erreur : commande inconnue: %s"
@@ -2436,7 +2436,7 @@ msgstr "tous les profils de la source n'existent pas sur la cible"
 msgid "ok (y/n)?"
 msgstr "ok (y/n) ?"
 
-#: lxc/main.go:332 lxc/main.go:336
+#: lxc/main.go:331 lxc/main.go:335
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "l'analyse des alias a échoué %s\n"
@@ -2482,7 +2482,7 @@ msgstr "pris à %s"
 msgid "unreachable return reached"
 msgstr "Un retour impossible à été renvoyé"
 
-#: lxc/main.go:263
+#: lxc/main.go:262
 msgid "wrong number of subcommand arguments"
 msgstr "nombre d'arguments incorrect pour la sous-comande"
 

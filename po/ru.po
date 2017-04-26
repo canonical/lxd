@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-04-20 23:50-0400\n"
+"POT-Creation-Date: 2017-04-25 22:57-0400\n"
 "PO-Revision-Date: 2017-02-14 09:54+0000\n"
 "Last-Translator: Vyacheslav Razykov <v.razykov@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -501,7 +501,7 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:140
+#: lxc/main.go:139
 msgid "If this is your first time using LXD, you should also run: lxd init"
 msgstr ""
 
@@ -708,7 +708,7 @@ msgstr ""
 msgid "Only managed networks can be modified."
 msgstr ""
 
-#: lxc/help.go:71 lxc/main.go:113 lxc/main.go:164
+#: lxc/help.go:71 lxc/main.go:112 lxc/main.go:163
 msgid "Options:"
 msgstr ""
 
@@ -757,7 +757,7 @@ msgstr ""
 msgid "Path to an alternate server directory"
 msgstr ""
 
-#: lxc/main.go:203
+#: lxc/main.go:202
 msgid "Pause containers."
 msgstr ""
 
@@ -868,7 +868,7 @@ msgstr ""
 msgid "Resources:"
 msgstr ""
 
-#: lxc/main.go:211
+#: lxc/main.go:210
 msgid "Restart containers."
 msgstr ""
 
@@ -959,7 +959,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Source:"
 msgstr ""
 
-#: lxc/main.go:221
+#: lxc/main.go:220
 msgid "Start containers."
 msgstr ""
 
@@ -973,7 +973,7 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/main.go:227
+#: lxc/main.go:226
 msgid "Stop containers."
 msgstr ""
 
@@ -1089,7 +1089,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/main.go:141
+#: lxc/main.go:140
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
@@ -1927,12 +1927,12 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:126 lxc/main.go:26 lxc/main.go:160
+#: lxc/action.go:126 lxc/main.go:26 lxc/main.go:159
 #, c-format
 msgid "error: %v"
 msgstr ""
 
-#: lxc/help.go:37 lxc/main.go:107
+#: lxc/help.go:37 lxc/main.go:106
 #, c-format
 msgid "error: unknown command: %s"
 msgstr ""
@@ -1953,7 +1953,7 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr ""
 
-#: lxc/main.go:332 lxc/main.go:336
+#: lxc/main.go:331 lxc/main.go:335
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
@@ -1999,7 +1999,7 @@ msgstr ""
 msgid "unreachable return reached"
 msgstr ""
 
-#: lxc/main.go:263
+#: lxc/main.go:262
 msgid "wrong number of subcommand arguments"
 msgstr ""
 
