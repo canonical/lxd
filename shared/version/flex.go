@@ -1,7 +1,7 @@
 package version
 
 // Version contains the LXD version number
-var Version = "2.12"
+var Version = "2.13"
 
 // UserAgent contains a string suitable as a user-agent
 var UserAgent = "LXD " + Version
