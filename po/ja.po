@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-04-20 23:50-0400\n"
+"POT-Creation-Date: 2017-04-25 22:57-0400\n"
 "PO-Revision-Date: 2017-03-23 12:03+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -433,7 +433,7 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:140
+#: lxc/main.go:139
 msgid "If this is your first time using LXD, you should also run: lxd init"
 msgstr "初めて LXD を使う場合、lxd init と実行する必要があります"
 
@@ -641,7 +641,7 @@ msgstr "リモートイメージのインポートは https:// のみをサポ�
 msgid "Only managed networks can be modified."
 msgstr "管理対象のネットワークのみ変更できます。"
 
-#: lxc/help.go:71 lxc/main.go:113 lxc/main.go:164
+#: lxc/help.go:71 lxc/main.go:112 lxc/main.go:163
 msgid "Options:"
 msgstr "オプション:"
 
@@ -690,7 +690,7 @@ msgstr "別のクライアント用設定ディレクトリ"
 msgid "Path to an alternate server directory"
 msgstr "別のサーバ用設定ディレクトリ"
 
-#: lxc/main.go:203
+#: lxc/main.go:202
 msgid "Pause containers."
 msgstr "コンテナを一時停止します。"
 
@@ -801,7 +801,7 @@ msgstr "ユーザの確認を要求する"
 msgid "Resources:"
 msgstr "リソース:"
 
-#: lxc/main.go:211
+#: lxc/main.go:210
 msgid "Restart containers."
 msgstr "コンテナを再起動します。"
 
@@ -892,7 +892,7 @@ msgstr "一部のコンテナで %s が失敗しました"
 msgid "Source:"
 msgstr "取得元:"
 
-#: lxc/main.go:221
+#: lxc/main.go:220
 msgid "Start containers."
 msgstr "コンテナを起動します。"
 
@@ -906,7 +906,7 @@ msgstr "%s を起動中"
 msgid "Status: %s"
 msgstr "状態: %s"
 
-#: lxc/main.go:227
+#: lxc/main.go:226
 msgid "Stop containers."
 msgstr "コンテナを停止します。"
 
@@ -1033,7 +1033,7 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/main.go:141
+#: lxc/main.go:140
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
@@ -2474,12 +2474,12 @@ msgstr "無効"
 msgid "enabled"
 msgstr "有効"
 
-#: lxc/action.go:126 lxc/main.go:26 lxc/main.go:160
+#: lxc/action.go:126 lxc/main.go:26 lxc/main.go:159
 #, c-format
 msgid "error: %v"
 msgstr "エラー: %v"
 
-#: lxc/help.go:37 lxc/main.go:107
+#: lxc/help.go:37 lxc/main.go:106
 #, c-format
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s"
@@ -2500,7 +2500,7 @@ msgstr "コピー元の全てのプロファイルがターゲットに存在し
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:332 lxc/main.go:336
+#: lxc/main.go:331 lxc/main.go:335
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
@@ -2546,7 +2546,7 @@ msgstr "%s に取得しました"
 msgid "unreachable return reached"
 msgstr "到達しないはずのreturnに到達しました"
 
-#: lxc/main.go:263
+#: lxc/main.go:262
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
