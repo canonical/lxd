@@ -228,21 +228,20 @@ func (c *initCmd) run(config *lxd.Config, args []string) error {
 
 	if err != nil {
 		return err
-	} else {
-		op, err := resp.MetadataAsOperation()
-		if err != nil {
-			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
-		}
+	}
+	op, err := resp.MetadataAsOperation()
+	if err != nil {
+		return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+	}
 
-		containers, ok := op.Resources["containers"]
-		if !ok || len(containers) == 0 {
-			return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
-		}
+	containers, ok := op.Resources["containers"]
+	if !ok || len(containers) == 0 {
+		return fmt.Errorf(i18n.G("didn't get any affected image, container or snapshot from server"))
+	}
 
-		if len(containers) == 1 && name == "" {
-			fields := strings.Split(containers[0], "/")
-			fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
-		}
+	if len(containers) == 1 && name == "" {
+		fields := strings.Split(containers[0], "/")
+		fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
 	}
 
 	c.checkNetwork(d, name)
