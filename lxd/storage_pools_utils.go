@@ -102,8 +102,8 @@ func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, 
 		switch apiEndpoint {
 		case storagePoolVolumeAPIEndpointContainers:
 			if strings.Index(volumes[i].Name, shared.SnapshotDelimiter) > 0 {
-				fields := strings.SplitN(volumes[i].Name, shared.SnapshotDelimiter, 2)
-				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, fields[0], fields[1])
+				parentName, snapOnlyName, _ := containerGetParentAndSnapshotName(volumes[i].Name)
+				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, parentName, snapOnlyName)
 			} else {
 				poolUsedBy[i] = fmt.Sprintf("/%s/containers/%s", version.APIVersion, volumes[i].Name)
 			}
