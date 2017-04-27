@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-04-25 22:57-0400\n"
+"POT-Creation-Date: 2017-04-27 17:10-0400\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -361,12 +361,7 @@ msgstr ""
 msgid "Could not create server cert dir"
 msgstr "Kann Verzeichnis für Zertifikate auf dem Server nicht erstellen"
 
-#: lxc/file.go:92
-#, c-format
-msgid "Could not sanitize path %s"
-msgstr ""
-
-#: lxc/file.go:68 lxc/file.go:69
+#: lxc/file.go:67 lxc/file.go:68
 msgid "Create any directories necessary"
 msgstr ""
 
@@ -569,17 +564,17 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Invalid configuration key"
 msgstr ""
 
-#: lxc/file.go:360
+#: lxc/file.go:357
 #, fuzzy, c-format
 msgid "Invalid path %s"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/file.go:294
+#: lxc/file.go:291
 #, c-format
 msgid "Invalid source %s"
 msgstr "Ungültige Quelle %s"
 
-#: lxc/file.go:81
+#: lxc/file.go:80
 #, c-format
 msgid "Invalid target %s"
 msgstr "Ungültiges Ziel %s"
@@ -656,7 +651,7 @@ msgstr "Fehlende Zusammenfassung."
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
-#: lxc/file.go:282
+#: lxc/file.go:279
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
@@ -882,7 +877,7 @@ msgstr ""
 msgid "Public: %s"
 msgstr "Öffentlich: %s\n"
 
-#: lxc/file.go:66 lxc/file.go:67
+#: lxc/file.go:65 lxc/file.go:66
 msgid "Recursively push or pull files"
 msgstr ""
 
@@ -913,7 +908,7 @@ msgstr ""
 msgid "Restart containers."
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/init.go:254
+#: lxc/init.go:253
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -955,15 +950,15 @@ msgstr ""
 msgid "Server protocol (lxd or simplestreams)"
 msgstr ""
 
-#: lxc/file.go:64
+#: lxc/file.go:63
 msgid "Set the file's gid on push"
 msgstr "Setzt die gid der Datei beim Übertragen"
 
-#: lxc/file.go:65
+#: lxc/file.go:64
 msgid "Set the file's perms on push"
 msgstr "Setzt die Dateiberechtigungen beim Übertragen"
 
-#: lxc/file.go:63
+#: lxc/file.go:62
 msgid "Set the file's uid on push"
 msgstr "Setzt die uid der Datei beim Übertragen"
 
@@ -1081,7 +1076,7 @@ msgid ""
 "restarted."
 msgstr ""
 
-#: lxc/init.go:327
+#: lxc/init.go:326
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -1091,7 +1086,7 @@ msgstr ""
 msgid "The device doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/init.go:311
+#: lxc/init.go:310
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -1132,11 +1127,11 @@ msgstr "Wartezeit bevor der Container gestoppt wird."
 msgid "Timestamps:"
 msgstr "Zeitstempel:\n"
 
-#: lxc/init.go:329
+#: lxc/init.go:328
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:328
+#: lxc/init.go:327
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -1356,7 +1351,7 @@ msgstr ""
 "\n"
 "lxc exec <Container> [--env EDITOR=/usr/bin/vim]... <Befehl>\n"
 
-#: lxc/file.go:37
+#: lxc/file.go:36
 #, fuzzy
 msgid ""
 "Usage: lxc file <subcommand> [options]\n"
@@ -2104,7 +2099,7 @@ msgstr ""
 msgid "can't copy to the same container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:317
+#: lxc/file.go:314
 msgid "can't pull a directory without --recursive"
 msgstr ""
 
@@ -2112,7 +2107,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:128
+#: lxc/file.go:125
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -2165,7 +2160,7 @@ msgstr "OK (y/n)? "
 msgid "processing aliases failed %s\n"
 msgstr ""
 
-#: lxc/file.go:384
+#: lxc/file.go:381
 msgid "recursive edit doesn't make sense :("
 msgstr ""
 

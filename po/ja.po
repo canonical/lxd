@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-04-25 22:57-0400\n"
+"POT-Creation-Date: 2017-04-27 17:10-0400\n"
 "PO-Revision-Date: 2017-03-23 12:03+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -271,12 +271,7 @@ msgstr "イメージのコピー中: %s"
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
-#: lxc/file.go:92
-#, c-format
-msgid "Could not sanitize path %s"
-msgstr "パス %s をサニタイズできません"
-
-#: lxc/file.go:68 lxc/file.go:69
+#: lxc/file.go:67 lxc/file.go:68
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
@@ -472,17 +467,17 @@ msgstr "不正な証明書です"
 msgid "Invalid configuration key"
 msgstr "正しくない設定項目 (key) です"
 
-#: lxc/file.go:360
+#: lxc/file.go:357
 #, c-format
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
 
-#: lxc/file.go:294
+#: lxc/file.go:291
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:81
+#: lxc/file.go:80
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -558,7 +553,7 @@ msgstr "サマリーはありません。"
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
-#: lxc/file.go:282
+#: lxc/file.go:279
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -775,7 +770,7 @@ msgstr "Public なイメージサーバとして設定します"
 msgid "Public: %s"
 msgstr "パブリック: %s"
 
-#: lxc/file.go:66 lxc/file.go:67
+#: lxc/file.go:65 lxc/file.go:66
 msgid "Recursively push or pull files"
 msgstr "再帰的にファイルをpush/pullします"
 
@@ -805,7 +800,7 @@ msgstr "リソース:"
 msgid "Restart containers."
 msgstr "コンテナを再起動します。"
 
-#: lxc/init.go:254
+#: lxc/init.go:253
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
@@ -846,15 +841,15 @@ msgstr "サーバが我々の証明書を追加した後我々を信頼してい
 msgid "Server protocol (lxd or simplestreams)"
 msgstr "サーバのプロトコル (lxd or simplestreams)"
 
-#: lxc/file.go:64
+#: lxc/file.go:63
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:65
+#: lxc/file.go:64
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:63
+#: lxc/file.go:62
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -970,7 +965,7 @@ msgstr ""
 "コンテナは現在実行中です。停止して、再起動するために --force を使用してくだ\n"
 "さい。"
 
-#: lxc/init.go:327
+#: lxc/init.go:326
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr "起動しようとしたコンテナに接続されているネットワークがありません。"
 
@@ -979,7 +974,7 @@ msgstr "起動しようとしたコンテナに接続されているネットワ
 msgid "The device doesn't exist"
 msgstr "デバイスが存在しません"
 
-#: lxc/init.go:311
+#: lxc/init.go:310
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -1023,12 +1018,12 @@ msgstr "コンテナを強制停止するまでの時間"
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
-#: lxc/init.go:329
+#: lxc/init.go:328
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
 "コンテナにネットワークを接続するには、lxc network attach を使用してください"
 
-#: lxc/init.go:328
+#: lxc/init.go:327
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
@@ -1278,7 +1273,7 @@ msgstr ""
 "デフォルトのモードは non-interactive です。もし標準入出力が両方ともターミナル"
 "の場合は interactive モードが選択されます (標準エラー出力は無視されます)。"
 
-#: lxc/file.go:37
+#: lxc/file.go:36
 msgid ""
 "Usage: lxc file <subcommand> [options]\n"
 "\n"
@@ -2442,7 +2437,7 @@ msgstr "アクションからの結果タイプが不正です"
 msgid "can't copy to the same container name"
 msgstr "同じコンテナ名へはコピーできません"
 
-#: lxc/file.go:317
+#: lxc/file.go:314
 msgid "can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
@@ -2451,7 +2446,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/file.go:128
+#: lxc/file.go:125
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -2505,7 +2500,7 @@ msgstr "ok (y/n)?"
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
 
-#: lxc/file.go:384
+#: lxc/file.go:381
 msgid "recursive edit doesn't make sense :("
 msgstr "再帰的な edit は意味がありません :("
 
@@ -2557,6 +2552,9 @@ msgstr ""
 #: lxc/copy.go:47
 msgid "you must specify a source container name"
 msgstr "コピー元のコンテナ名を指定してください"
+
+#~ msgid "Could not sanitize path %s"
+#~ msgstr "パス %s をサニタイズできません"
 
 #~ msgid "Available commands:"
 #~ msgstr "使用可能なコマンド:"
