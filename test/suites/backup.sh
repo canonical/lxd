@@ -89,7 +89,7 @@ test_container_import() {
     # Test whether a snapshot that exists on disk but not in the "backup.yaml"
     # file is correctly restored. This can be done by not starting the parent
     # container which avoids that the backup file is written out.
-    if [ "${LXD_BACKEND}" = "dir" ]; then
+    if [ "$(storage_backend "$LXD_DIR")" = "dir" ]; then
       lxc init testimage ctImport
       lxc snapshot ctImport
       shutdown_lxd "${LXD_IMPORT_DIR}"

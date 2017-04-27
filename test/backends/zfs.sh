@@ -7,10 +7,6 @@ zfs_setup() {
   LXD_DIR=$1
 
   echo "==> Setting up ZFS backend in ${LXD_DIR}"
-
-  if ! which zfs >/dev/null 2>&1; then
-    echo "Couldn't find zfs binary"; false
-  fi
 }
 
 zfs_configure() {
