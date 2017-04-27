@@ -70,6 +70,7 @@ var dbUpdates = []dbUpdate{
 	{version: 34, run: dbUpdateFromV33},
 	{version: 35, run: dbUpdateFromV34},
 	{version: 36, run: dbUpdateFromV35},
+	{version: 37, run: dbUpdateFromV36},
 }
 
 type dbUpdate struct {
@@ -126,6 +127,26 @@ func dbUpdatesApplyAll(d *Daemon) error {
 }
 
 // Schema updates begin here
+func dbUpdateFromV36(currentVersion int, version int, d *Daemon) error {
+	stmt := `
+CREATE TABLE tmp (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    image_id INTEGER NOT NULL,
+    description TEXT,
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+    UNIQUE (name)
+);
+INSERT INTO tmp (id, name, image_id, description)
+    SELECT id, name image_id description
+    FROM image_aliases;
+DROP TABLE image_aliases;
+ALTER TABLE tmp RENAME TO image_aliases;
+`
+	_, err := d.db.Exec(stmt)
+	return err
+}
+
 func dbUpdateFromV35(currentVersion int, version int, d *Daemon) error {
 	_, err := d.db.Exec("ALTER TABLE networks ADD COLUMN description TEXT;")
 	return err

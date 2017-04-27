@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS images_aliases (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     image_id INTEGER NOT NULL,
-    description VARCHAR(255),
+    description TEXT,
     FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
     UNIQUE (name)
 );
