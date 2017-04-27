@@ -58,7 +58,7 @@ func (r *ProtocolLXD) GetCertificate(fingerprint string) (*api.Certificate, stri
 // CreateCertificate adds a new certificate to the LXD trust store
 func (r *ProtocolLXD) CreateCertificate(certificate api.CertificatesPost) error {
 	// Send the request
-	_, _, err := r.query("POST", "/certificates", certificate, "")
+	_, _, err := r.query("POST", "/certificates", certificate, "", nil)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (r *ProtocolLXD) UpdateCertificate(fingerprint string, certificate api.Cert
 	}
 
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/certificates/%s", fingerprint), certificate, ETag)
+	_, _, err := r.query("PUT", fmt.Sprintf("/certificates/%s", fingerprint), certificate, ETag, nil)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (r *ProtocolLXD) UpdateCertificate(fingerprint string, certificate api.Cert
 // DeleteCertificate removes a certificate from the LXD trust store
 func (r *ProtocolLXD) DeleteCertificate(fingerprint string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/certificates/%s", fingerprint), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/certificates/%s", fingerprint), nil, "", nil)
 	if err != nil {
 		return err
 	}
