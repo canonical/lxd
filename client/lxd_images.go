@@ -181,7 +181,7 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 
 		// Check the hash
 		hash := fmt.Sprintf("%x", sha256.Sum(nil))
-		if hash != fingerprint {
+		if !strings.HasPrefix(hash, fingerprint) {
 			return nil, fmt.Errorf("Image fingerprint doesn't match. Got %s expected %s", hash, fingerprint)
 		}
 
@@ -208,7 +208,7 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 
 	// Check the hash
 	hash := fmt.Sprintf("%x", sha256.Sum(nil))
-	if hash != fingerprint {
+	if !strings.HasPrefix(hash, fingerprint) {
 		return nil, fmt.Errorf("Image fingerprint doesn't match. Got %s expected %s", hash, fingerprint)
 	}
 
