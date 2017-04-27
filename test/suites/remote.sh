@@ -12,6 +12,7 @@ gen_second_cert() {
 }
 
 test_remote_url() {
+  # shellcheck disable=2153
   for url in "${LXD_ADDR}" "https://${LXD_ADDR}"; do
     lxc_remote remote add test "${url}" --accept-certificate --password foo
     lxc_remote finger test:
@@ -21,6 +22,7 @@ test_remote_url() {
     lxc_remote remote remove test
   done
 
+  # shellcheck disable=2153
   urls="${LXD_DIR}/unix.socket unix:${LXD_DIR}/unix.socket unix://${LXD_DIR}/unix.socket"
   if [ -z "${LXD_OFFLINE:-}" ]; then
     urls="images.linuxcontainers.org https://images.linuxcontainers.org ${urls}"
@@ -80,6 +82,13 @@ test_remote_admin() {
 }
 
 test_remote_usage() {
+  # shellcheck disable=2039
+  local LXD2_DIR LXD2_ADDR
+  LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD2_DIR}"
+  spawn_lxd "${LXD2_DIR}"
+  LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
+
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
@@ -141,4 +150,6 @@ test_remote_usage() {
   lxc_remote info lxd2:c1
   lxc_remote stop lxd2:c1 --force
   lxc_remote delete lxd2:c1
+
+  kill_lxd "$LXD2_DIR"
 }

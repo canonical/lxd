@@ -8,10 +8,6 @@ zfs_setup() {
 
   echo "==> Setting up ZFS backend in ${LXD_DIR}"
 
-  if ! which zfs >/dev/null 2>&1; then
-    echo "Couldn't find zfs binary"; false
-  fi
-
   truncate -s 100G "${LXD_DIR}/zfspool"
   # prefix lxdtest- here, as zfs pools must start with a letter, but tempdir
   # won't necessarily generate one that does.

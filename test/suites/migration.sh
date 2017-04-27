@@ -1,9 +1,25 @@
 #!/bin/sh
 
 test_migration() {
+  # setup a second LXD
+  # shellcheck disable=2039
+  local LXD2_DIR LXD2_ADDR lxd_backend
+
+  # shellcheck disable=2153
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD2_DIR}"
+  spawn_lxd "${LXD2_DIR}"
+  LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
+
+  # shellcheck disable=2153
+  lxd2_backend=$(storage_backend "$LXD2_DIR")
+
   ensure_import_testimage
 
   if ! lxc_remote remote list | grep -q l1; then
+    # shellcheck disable=2153
     lxc_remote remote add l1 "${LXD_ADDR}" --accept-certificate --password foo
   fi
   if ! lxc_remote remote list | grep -q l2; then
@@ -19,29 +35,29 @@ test_migration() {
   lxc_remote config show l2:nonlive/snap0 | grep user.tester | grep foo
 
   # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" != "lvm" ]; then
+  if [ "${lxd2_backend}" != "lvm" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive/rootfs" ]
   fi
   [ ! -d "${LXD_DIR}/containers/nonlive" ]
   # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" = "dir" ]; then
+  if [ "${lxd2_backend}" = "dir" ]; then
     [ -d "${LXD2_DIR}/snapshots/nonlive/snap0/rootfs/bin" ]
   fi
 
   lxc_remote copy l2:nonlive l1:nonlive2
   [ -d "${LXD_DIR}/containers/nonlive2" ]
   # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" != "lvm" ]; then
+  if [ "${lxd2_backend}" != "lvm" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive/rootfs/bin" ]
   fi
   # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" = "dir" ]; then
+  if [ "${lxd_backend}" = "dir" ]; then
     [ -d "${LXD_DIR}/snapshots/nonlive2/snap0/rootfs/bin" ]
   fi
 
   lxc_remote copy l1:nonlive2/snap0 l2:nonlive3
   # FIXME: make this backend agnostic
-  if [ "${LXD_BACKEND}" != "lvm" ]; then
+  if [ "${lxd2_backend}" != "lvm" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive3/rootfs/bin" ]
   fi
   lxc_remote delete l2:nonlive3 --force
@@ -65,6 +81,7 @@ test_migration() {
   lxc_remote delete l2:nonlive --force
 
   if ! which criu >/dev/null 2>&1; then
+    kill_lxd "$LXD2_DIR"
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return
   fi
@@ -77,4 +94,6 @@ test_migration() {
   lxc_remote stop --stateful l1:migratee
   lxc_remote start l1:migratee
   lxc_remote delete --force l1:migratee
+
+  kill_lxd "$LXD2_DIR"
 }

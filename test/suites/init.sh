@@ -8,7 +8,7 @@ test_lxd_autoinit() {
   # naming. This can cause naming conflicts when multiple test-suites are run on
   # a single runner.
 
-  if [ "${LXD_BACKEND}" = "zfs" ]; then
+  if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
     # lxd init --auto --storage-backend zfs --storage-pool <name>
     LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
     chmod +x "${LXD_INIT_DIR}"

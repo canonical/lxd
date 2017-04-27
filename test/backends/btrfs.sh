@@ -8,10 +8,6 @@ btrfs_setup() {
 
   echo "==> Setting up btrfs backend in ${LXD_DIR}"
 
-  if ! which btrfs >/dev/null 2>&1; then
-    echo "Couldn't find the btrfs binary"; false
-  fi
-
   truncate -s 100G "${TEST_DIR}/$(basename "${LXD_DIR}").btrfs"
   mkfs.btrfs "${TEST_DIR}/$(basename "${LXD_DIR}").btrfs"
 
