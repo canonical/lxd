@@ -1784,6 +1784,9 @@ func (c *containerLXC) startCommon() (string, error) {
 					if err != nil {
 						return "", err
 					}
+
+					// Attempt to disable IPv6 on the host side interface
+					networkSysctl(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", device), "1")
 				}
 			}
 		}
@@ -5678,6 +5681,9 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 				if err != nil {
 					return "", err
 				}
+
+				// Attempt to disable IPv6 on the host side interface
+				networkSysctl(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", device), "1")
 			}
 		}
 
