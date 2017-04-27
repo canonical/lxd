@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_filemanip() {
   # Workaround for shellcheck getting confused by "cd"
   set -e

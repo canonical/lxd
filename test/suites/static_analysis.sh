@@ -1,5 +1,3 @@
-#!/bin/sh
-
 safe_pot_hash() {
   sed -e "/Project-Id-Version/,/Content-Transfer-Encoding/d" -e "/^#/d" "po/lxd.pot" | md5sum | cut -f1 -d" "
 }
@@ -18,7 +16,7 @@ test_static_analysis() {
 
     # Shell static analysis
     if which shellcheck >/dev/null 2>&1; then
-      shellcheck test/main.sh test/suites/* test/backends/*
+      shellcheck --shell sh test/main.sh test/suites/* test/backends/*
     else
       echo "shellcheck not found, shell static analysis disabled"
     fi

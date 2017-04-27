@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_image_expiry() {
   # shellcheck disable=2039
   local LXD2_DIR LXD2_ADDR

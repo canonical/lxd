@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_lxd_autoinit() {
   # - lxd init --auto --storage-backend zfs
   # and

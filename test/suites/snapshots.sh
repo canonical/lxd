@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_snapshots() {
   snapshots
 

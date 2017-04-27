@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_storage_profiles() {
   # shellcheck disable=2039
 

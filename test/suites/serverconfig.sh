@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_server_config() {
   LXD_SERVERCONFIG_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   spawn_lxd "${LXD_SERVERCONFIG_DIR}" true
