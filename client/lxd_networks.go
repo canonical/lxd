@@ -60,7 +60,7 @@ func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) error {
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", "/networks", network, "")
+	_, _, err := r.query("POST", "/networks", network, "", nil)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) error {
 // UpdateNetwork updates the network to match the provided Network struct
 func (r *ProtocolLXD) UpdateNetwork(name string, network api.NetworkPut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/networks/%s", name), network, ETag)
+	_, _, err := r.query("PUT", fmt.Sprintf("/networks/%s", name), network, ETag, nil)
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (r *ProtocolLXD) UpdateNetwork(name string, network api.NetworkPut, ETag st
 // RenameNetwork renames an existing network entry
 func (r *ProtocolLXD) RenameNetwork(name string, network api.NetworkPost) error {
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/networks/%s", name), network, "")
+	_, _, err := r.query("POST", fmt.Sprintf("/networks/%s", name), network, "", nil)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (r *ProtocolLXD) RenameNetwork(name string, network api.NetworkPost) error 
 // DeleteNetwork deletes an existing network
 func (r *ProtocolLXD) DeleteNetwork(name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/networks/%s", name), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/networks/%s", name), nil, "", nil)
 	if err != nil {
 		return err
 	}
