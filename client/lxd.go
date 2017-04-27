@@ -78,9 +78,7 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 		req.Header.Set("Content-Type", "application/json")
 
 		// Log the data
-		if data != nil {
-			logger.Debugf(logger.Pretty(data))
-		}
+		logger.Debugf(logger.Pretty(data))
 	} else {
 		// No data to be sent along with the request
 		req, err = http.NewRequest(method, url, nil)
