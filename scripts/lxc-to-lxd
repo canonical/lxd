@@ -163,7 +163,7 @@ def config_parse(path):
             if key == "lxc.mount":
                 if not os.path.exists(value):
                     print("Container fstab file doesn't exist, skipping...")
-                    return False
+                    continue
 
                 with open(value, "r") as fd:
                     for line in fd:

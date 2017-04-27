@@ -58,7 +58,7 @@ func (r *ProtocolLXD) GetProfile(name string) (*api.Profile, string, error) {
 // CreateProfile defines a new container profile
 func (r *ProtocolLXD) CreateProfile(profile api.ProfilesPost) error {
 	// Send the request
-	_, _, err := r.query("POST", "/profiles", profile, "")
+	_, _, err := r.query("POST", "/profiles", profile, "", nil)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (r *ProtocolLXD) CreateProfile(profile api.ProfilesPost) error {
 // UpdateProfile updates the profile to match the provided Profile struct
 func (r *ProtocolLXD) UpdateProfile(name string, profile api.ProfilePut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/profiles/%s", name), profile, ETag)
+	_, _, err := r.query("PUT", fmt.Sprintf("/profiles/%s", name), profile, ETag, nil)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (r *ProtocolLXD) UpdateProfile(name string, profile api.ProfilePut, ETag st
 // RenameProfile renames an existing profile entry
 func (r *ProtocolLXD) RenameProfile(name string, profile api.ProfilePost) error {
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/profiles/%s", name), profile, "")
+	_, _, err := r.query("POST", fmt.Sprintf("/profiles/%s", name), profile, "", nil)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (r *ProtocolLXD) RenameProfile(name string, profile api.ProfilePost) error 
 // DeleteProfile deletes a profile
 func (r *ProtocolLXD) DeleteProfile(name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/profiles/%s", name), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/profiles/%s", name), nil, "", nil)
 	if err != nil {
 		return err
 	}

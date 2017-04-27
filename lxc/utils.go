@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
@@ -44,6 +46,24 @@ func (p *ProgressRenderer) Update(status string) {
 	}
 
 	fmt.Print(msg)
+}
+
+func (p *ProgressRenderer) UpdateProgress(progress lxd.ProgressData) {
+	p.Update(progress.Text)
+}
+
+func (p *ProgressRenderer) UpdateOp(op api.Operation) {
+	if op.Metadata == nil {
+		return
+	}
+
+	for _, key := range []string{"fs_progress", "download_progress"} {
+		value, ok := op.Metadata[key]
+		if ok {
+			p.Update(value.(string))
+			break
+		}
+	}
 }
 
 // Image fingerprint and alias sorting

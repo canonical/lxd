@@ -368,7 +368,7 @@ func (r *ProtocolLXD) DeleteContainerFile(containerName string, path string) err
 	}
 
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/files?path=%s", containerName, path), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/files?path=%s", containerName, path), nil, "", nil)
 	if err != nil {
 		return err
 	}
@@ -553,7 +553,7 @@ func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.Read
 // DeleteContainerLogfile deletes the requested logfile
 func (r *ProtocolLXD) DeleteContainerLogfile(name string, filename string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/logs/%s", name, filename), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/logs/%s", name, filename), nil, "", nil)
 	if err != nil {
 		return err
 	}
