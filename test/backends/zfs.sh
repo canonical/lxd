@@ -1,5 +1,3 @@
-#!/bin/sh
-
 zfs_setup() {
   # shellcheck disable=2039
   local LXD_DIR

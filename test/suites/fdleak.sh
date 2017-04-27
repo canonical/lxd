@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_fdleak() {
   LXD_FDLEAK_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_FDLEAK_DIR}"

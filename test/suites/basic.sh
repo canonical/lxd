@@ -1,5 +1,3 @@
-#!/bin/sh
-
 gen_third_cert() {
   [ -f "${LXD_CONF}/client3.crt" ] && return
   mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"

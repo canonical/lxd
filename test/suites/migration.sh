@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_migration() {
   # setup a second LXD
   # shellcheck disable=2039
