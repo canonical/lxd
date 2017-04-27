@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-04-25 22:57-0400\n"
+"POT-Creation-Date: 2017-04-27 17:10-0400\n"
 "PO-Revision-Date: 2017-03-30 21:35+0000\n"
 "Last-Translator: HazWard <starlysolon@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -349,12 +349,7 @@ msgstr "Copie de l'image : %s"
 msgid "Could not create server cert dir"
 msgstr "Impossible de créer le dossier de stockage des certificats serveurs"
 
-#: lxc/file.go:92
-#, c-format
-msgid "Could not sanitize path %s"
-msgstr "Impossible d'assainir le chemin %s"
-
-#: lxc/file.go:68 lxc/file.go:69
+#: lxc/file.go:67 lxc/file.go:68
 msgid "Create any directories necessary"
 msgstr "Créer tous répertoires nécessaires"
 
@@ -554,17 +549,17 @@ msgstr "Certificat invalide"
 msgid "Invalid configuration key"
 msgstr "Clé de configuration invalide"
 
-#: lxc/file.go:360
+#: lxc/file.go:357
 #, fuzzy, c-format
 msgid "Invalid path %s"
 msgstr "Cible invalide %s"
 
-#: lxc/file.go:294
+#: lxc/file.go:291
 #, c-format
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:81
+#: lxc/file.go:80
 #, c-format
 msgid "Invalid target %s"
 msgstr "Cible invalide %s"
@@ -641,7 +636,7 @@ msgstr "Résumé manquant."
 msgid "More than one device matches, specify the device name."
 msgstr "Plus d'un périphérique correspond, spécifier le nom du périphérique."
 
-#: lxc/file.go:282
+#: lxc/file.go:279
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger, mais la destination n'est pas un dossier"
@@ -860,7 +855,7 @@ msgstr "Serveur d'images public"
 msgid "Public: %s"
 msgstr "Public : %s"
 
-#: lxc/file.go:66 lxc/file.go:67
+#: lxc/file.go:65 lxc/file.go:66
 msgid "Recursively push or pull files"
 msgstr "Pousser ou récupérer des fichiers récursivement"
 
@@ -891,7 +886,7 @@ msgstr "Ressources :"
 msgid "Restart containers."
 msgstr "Création du conteneur"
 
-#: lxc/init.go:254
+#: lxc/init.go:253
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -933,15 +928,15 @@ msgstr ""
 msgid "Server protocol (lxd or simplestreams)"
 msgstr "Protocole du serveur (lxd ou simplestreams)"
 
-#: lxc/file.go:64
+#: lxc/file.go:63
 msgid "Set the file's gid on push"
 msgstr "Définir le gid du fichier lors de l'envoi"
 
-#: lxc/file.go:65
+#: lxc/file.go:64
 msgid "Set the file's perms on push"
 msgstr "Définir les permissions du fichier lors de l'envoi"
 
-#: lxc/file.go:63
+#: lxc/file.go:62
 msgid "Set the file's uid on push"
 msgstr "Définir l'uid du fichier lors de l'envoi"
 
@@ -1060,7 +1055,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:327
+#: lxc/init.go:326
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 "Le conteneur que vous démarrez n'est attaché à aucune interface réseau."
@@ -1070,7 +1065,7 @@ msgstr ""
 msgid "The device doesn't exist"
 msgstr "Le périphérique n'existe pas"
 
-#: lxc/init.go:311
+#: lxc/init.go:310
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
@@ -1114,11 +1109,11 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:329
+#: lxc/init.go:328
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:328
+#: lxc/init.go:327
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
@@ -1369,7 +1364,7 @@ msgstr ""
 "sélectionné si à la fois stdin et stdout sont des terminaux (stderr\n"
 "est ignoré)."
 
-#: lxc/file.go:37
+#: lxc/file.go:36
 #, fuzzy
 msgid ""
 "Usage: lxc file <subcommand> [options]\n"
@@ -2381,7 +2376,7 @@ msgstr "mauvais type de réponse renvoyé par l'action !"
 msgid "can't copy to the same container name"
 msgstr "impossible de copier vers le même nom de conteneur"
 
-#: lxc/file.go:317
+#: lxc/file.go:314
 msgid "can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
 
@@ -2389,7 +2384,7 @@ msgstr "impossible de récupérer un répertoire sans --recursive"
 msgid "can't remove the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/file.go:128
+#: lxc/file.go:125
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "impossible de spécifier uid/gid/mode en mode récursif"
 
@@ -2441,7 +2436,7 @@ msgstr "ok (y/n) ?"
 msgid "processing aliases failed %s\n"
 msgstr "l'analyse des alias a échoué %s\n"
 
-#: lxc/file.go:384
+#: lxc/file.go:381
 msgid "recursive edit doesn't make sense :("
 msgstr "l'édition récursive ne fait aucun sens :("
 
@@ -2493,6 +2488,9 @@ msgstr "oui"
 #: lxc/copy.go:47
 msgid "you must specify a source container name"
 msgstr "vous devez spécifier un nom de conteneur source"
+
+#~ msgid "Could not sanitize path %s"
+#~ msgstr "Impossible d'assainir le chemin %s"
 
 #~ msgid "Available commands:"
 #~ msgstr "Commandes disponibles :"
