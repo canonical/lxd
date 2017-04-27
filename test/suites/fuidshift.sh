@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_common_fuidshift() {
   # test some bad arguments
   fail=0

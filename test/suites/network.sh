@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_network() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"

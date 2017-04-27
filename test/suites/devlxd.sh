@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_devlxd() {
   ensure_import_testimage
 

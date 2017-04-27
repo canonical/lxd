@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_container_import() {
   ensure_import_testimage
 
