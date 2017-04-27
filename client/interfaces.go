@@ -79,7 +79,7 @@ type ContainerServer interface {
 
 	// Image functions
 	ImageServer
-	CreateImage(image api.ImagesPost) (op *Operation, err error)
+	CreateImage(image api.ImagesPost, args *ImageCreateArgs) (op *Operation, err error)
 	UpdateImage(fingerprint string, image api.ImagePut, ETag string) (err error)
 	DeleteImage(fingerprint string) (op *Operation, err error)
 	CreateImageSecret(fingerprint string) (op *Operation, err error)
@@ -145,6 +145,24 @@ type ProgressData struct {
 
 	// Total number of bytes (for files)
 	TotalBytes int64
+}
+
+// The ImageCreateArgs struct is used for direct image upload
+type ImageCreateArgs struct {
+	// Reader for the meta file
+	MetaFile io.Reader
+
+	// Filename for the meta file
+	MetaName string
+
+	// Reader for the rootfs file
+	RootfsFile io.Reader
+
+	// Filename for the rootfs file
+	RootfsName string
+
+	// Progress handler (called with upload progress)
+	ProgressHandler func(progress ProgressData)
 }
 
 // The ImageFileRequest struct is used for an image download request
