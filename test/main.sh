@@ -54,16 +54,9 @@ for backend_sh in backends/*.sh; do
   . "${backend_sh}"
 done
 
+# Set default backend to dir
 if [ -z "${LXD_BACKEND:-}" ]; then
-
-    # XXX The Jenkins lxd-github-pull-test job sets "backend" as environment
-    #     variable as opposed to LXD_BACKEND, so we want to honor that. This
-    #     should probably be fixed in the Jenkins configuration.
-    if [ -n "${JENKINS_URL:-}" ] && [ -n "${backend:-}" ]; then
-	LXD_BACKEND="${backend}"
-    else
-	LXD_BACKEND=dir
-    fi
+    LXD_BACKEND=dir
 fi
 
 echo "==> Using storage backend ${LXD_BACKEND}"
