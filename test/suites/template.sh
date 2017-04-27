@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_template() {
   # Import a template which only triggers on create
   deps/import-busybox --alias template-test --template create

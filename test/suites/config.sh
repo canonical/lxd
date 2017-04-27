@@ -1,4 +1,3 @@
-#!/bin/sh
 ensure_removed() {
   bad=0
   lxc exec foo -- stat /dev/ttyS0 && bad=1
