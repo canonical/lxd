@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_pki() {
   if [ ! -d "/usr/share/easy-rsa/" ]; then
     echo "==> SKIP: The pki test requires easy-rsa to be installed"

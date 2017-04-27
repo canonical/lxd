@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_idmap() {
   # Check that we have a big enough range for this test
   if [ ! -e /etc/subuid ] && [ ! -e /etc/subgid ]; then

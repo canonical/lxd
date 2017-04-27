@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_storage() {
   # shellcheck disable=2039
   local LXD_STORAGE_DIR lxd_backend  

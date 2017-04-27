@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_basic_usage() {
   # shellcheck disable=2039
   local lxd_backend

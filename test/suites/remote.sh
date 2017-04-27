@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_remote_url() {
   # shellcheck disable=2153
   for url in "${LXD_ADDR}" "https://${LXD_ADDR}"; do

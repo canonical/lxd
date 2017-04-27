@@ -1,5 +1,3 @@
-#!/bin/sh
-
 test_cpu_profiling() {
   LXD3_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD3_DIR}"
