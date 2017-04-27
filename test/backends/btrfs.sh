@@ -7,11 +7,6 @@ btrfs_setup() {
   LXD_DIR=$1
 
   echo "==> Setting up btrfs backend in ${LXD_DIR}"
-
-  if ! which btrfs >/dev/null 2>&1; then
-    echo "Couldn't find the btrfs binary"; false
-  fi
-
 }
 
 btrfs_configure() {

@@ -5,7 +5,7 @@ test_security() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # CVE-2016-1581
-  if [ "${LXD_BACKEND}" = "zfs" ]; then
+  if [ "$(storage_backend "$LXD_DIR")" = "zfs" ]; then
     LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
     chmod +x "${LXD_INIT_DIR}"
     spawn_lxd "${LXD_INIT_DIR}" false

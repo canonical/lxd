@@ -12,7 +12,7 @@ To run only the integration tests, run from the test directory:
 
 Name                            | Default                   | Description
 :--                             | :---                      | :----------
-LXD\_BACKEND                    | dir                       | What backend to test against (btrfs, dir, lvm or zfs)
+LXD\_BACKEND                    | dir                       | What backend to test against (btrfs, dir, lvm, zfs, or random)
 LXD\_CONCURRENT                 | 0                         | Run concurency tests, very CPU intensive
 LXD\_DEBUG                      | 0                         | Run lxd, lxc and the shell in debug mode (very verbose)
 LXD\_INSPECT                    | 0                         | Don't teardown the test environment on failure
