@@ -48,18 +48,64 @@ local_tcp_port() {
   done
 }
 
-# import all the backends
-for backend_sh in backends/*.sh; do
-  # shellcheck disable=SC1090
-  . "${backend_sh}"
-done
+# return a list of available storage backends
+available_storage_backends() {
+  # shellcheck disable=2039
+  local backend backends
 
-# Set default backend to dir
+  backends="dir"
+  for backend in btrfs lvm zfs; do
+    if which $backend >/dev/null 2>&1; then
+      backends="$backends $backend"
+    fi
+  done
+  echo "$backends"
+}
+
+# whether a storage backend is available
+storage_backend_available() {
+  # shellcheck disable=2039
+  local backends
+  backends="$(available_storage_backends)"
+  [ "${backends#*$1}" != "$backends" ]
+}
+
+# choose a random available backend, excluding LXD_BACKEND
+random_storage_backend() {
+    # shellcheck disable=2046
+    shuf -e $(available_storage_backends) | head -n 1
+}
+
+# return the storage backend being used by a LXD instance
+storage_backend() {
+    cat "$1/lxd.backend"
+}
+
+
 if [ -z "${LXD_BACKEND:-}" ]; then
-    LXD_BACKEND=dir
+    # XXX The Jenkins lxd-github-pull-test job sets "backend" as environment
+    #     variable as opposed to LXD_BACKEND, so we want to honor that. This
+    #     should probably be fixed in the Jenkins configuration.
+    if [ -n "${JENKINS_URL:-}" ] && [ -n "${backend:-}" ]; then
+      LXD_BACKEND="${backend}"
+    else
+      LXD_BACKEND=dir
+    fi
 fi
 
+echo "==> Available storage backends: $(available_storage_backends | sort)"
+if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
+  echo "Storage backage \"$LXD_BACKEND\" is not available"
+  exit 1
+fi
 echo "==> Using storage backend ${LXD_BACKEND}"
+
+# import storage backends
+for backend in $(available_storage_backends); do
+  # shellcheck disable=SC1090
+  . "backends/${backend}.sh"
+done
+
 
 spawn_lxd() {
   set +x
@@ -67,7 +113,7 @@ spawn_lxd() {
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
   # shellcheck disable=2039
-  local LXD_DIR
+  local LXD_DIR lxddir lxd_backend
 
   lxddir=${1}
   shift
@@ -75,12 +121,19 @@ spawn_lxd() {
   storage=${1}
   shift
 
+  if [ "$LXD_BACKEND" = "random" ]; then
+    lxd_backend="$(random_storage_backend)"
+  else
+    lxd_backend="$LXD_BACKEND"
+  fi
+
   # Copy pre generated Certs
   cp deps/server.crt "${lxddir}"
   cp deps/server.key "${lxddir}"
 
   # setup storage
-  "$LXD_BACKEND"_setup "${lxddir}"
+  "$lxd_backend"_setup "${lxddir}"
+  echo "$lxd_backend" > "${lxddir}/lxd.backend"
 
   echo "==> Spawning lxd in ${lxddir}"
   # shellcheck disable=SC2086
@@ -118,7 +171,7 @@ spawn_lxd() {
 
   if [ "${storage}" = true ]; then
     echo "==> Configuring storage backend"
-    "$LXD_BACKEND"_configure "${lxddir}"
+    "$lxd_backend"_configure "${lxddir}"
   fi
 }
 
@@ -245,12 +298,13 @@ kill_lxd() {
   # overwrites the environment and we would lose LXD_DIR's value otherwise.
 
   # shellcheck disable=2039
-  local LXD_DIR
+  local LXD_DIR daemon_dir daemon_pid check_leftovers lxd_backend
 
   daemon_dir=${1}
   LXD_DIR=${daemon_dir}
   daemon_pid=$(cat "${daemon_dir}/lxd.pid")
   check_leftovers="false"
+  lxd_backend=$(storage_backend "$daemon_dir")
   echo "==> Killing LXD at ${daemon_dir}"
 
   if [ -e "${daemon_dir}/unix.socket" ]; then
@@ -343,7 +397,7 @@ kill_lxd() {
   fi
 
   # teardown storage
-  "$LXD_BACKEND"_teardown "${daemon_dir}"
+  "$lxd_backend"_teardown "${daemon_dir}"
 
   # Wipe the daemon directory
   wipe "${daemon_dir}"
@@ -517,21 +571,12 @@ fi
 LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
 export LXD_CONF
 
-# Setup the first LXD
 LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
 export LXD_DIR
 chmod +x "${LXD_DIR}"
 spawn_lxd "${LXD_DIR}" true
 LXD_ADDR=$(cat "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
-
-# Setup the second LXD
-LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
-chmod +x "${LXD2_DIR}"
-spawn_lxd "${LXD2_DIR}" true
-LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
-export LXD2_ADDR
-
 
 run_test() {
   TEST_CURRENT=${1}
