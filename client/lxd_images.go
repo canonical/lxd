@@ -2,11 +2,15 @@ package lxd
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
@@ -262,14 +266,163 @@ func (r *ProtocolLXD) GetImageAlias(name string) (*api.ImageAliasesEntry, string
 }
 
 // CreateImage requests that LXD creates, copies or import a new image
-func (r *ProtocolLXD) CreateImage(image api.ImagesPost) (*Operation, error) {
-	// Send the request
-	op, _, err := r.queryOperation("POST", "/images", image, "")
+func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (*Operation, error) {
+	// Send the JSON based request
+	if args == nil {
+		op, _, err := r.queryOperation("POST", "/images", image, "")
+		if err != nil {
+			return nil, err
+		}
+
+		return op, nil
+	}
+
+	// Prepare an image upload
+	if args.MetaFile == nil {
+		return nil, fmt.Errorf("Metadata file is required")
+	}
+
+	// Prepare the body
+	var body io.Reader
+	var contentType string
+	if args.RootfsFile == nil {
+		// If unified image, just pass it through
+		body = args.MetaFile
+
+		contentType = "application/octet-stream"
+	} else {
+		// If split image, we need mime encoding
+		tmpfile, err := ioutil.TempFile("", "lxc_image_")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(tmpfile.Name())
+
+		// Setup the multipart writer
+		w := multipart.NewWriter(tmpfile)
+
+		// Metadata file
+		fw, err := w.CreateFormFile("metadata", args.MetaName)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = io.Copy(fw, args.MetaFile)
+		if err != nil {
+			return nil, err
+		}
+
+		// Rootfs file
+		fw, err = w.CreateFormFile("rootfs", args.RootfsName)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = io.Copy(fw, args.RootfsFile)
+		if err != nil {
+			return nil, err
+		}
+
+		// Done writing to multipart
+		w.Close()
+
+		// Figure out the size of the whole thing
+		size, err := tmpfile.Seek(0, 2)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = tmpfile.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		// Setup progress handler
+		body = &ioprogress.ProgressReader{
+			ReadCloser: tmpfile,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: size,
+				Handler: func(percent int64, speed int64) {
+					args.ProgressHandler(ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+				},
+			},
+		}
+
+		contentType = w.FormDataContentType()
+	}
+
+	// Prepare the HTTP request
+	reqURL := fmt.Sprintf("%s/1.0/images", r.httpHost)
+	req, err := http.NewRequest("POST", reqURL, body)
 	if err != nil {
 		return nil, err
 	}
 
-	return op, nil
+	// Setup the headers
+	req.Header.Set("Content-Type", contentType)
+	if image.Public {
+		req.Header.Set("X-LXD-public", "true")
+	}
+
+	if image.Filename != "" {
+		req.Header.Set("X-LXD-filename", image.Filename)
+	}
+
+	if len(image.Properties) > 0 {
+		imgProps := url.Values{}
+
+		for k, v := range image.Properties {
+			imgProps.Set(k, v)
+		}
+
+		req.Header.Set("X-LXD-properties", imgProps.Encode())
+	}
+
+	// Set the user agent
+	if r.httpUserAgent != "" {
+		req.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Send the request
+	resp, err := r.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Decode the response
+	decoder := json.NewDecoder(resp.Body)
+	response := api.Response{}
+
+	err = decoder.Decode(&response)
+	if err != nil {
+		// Check the return value for a cleaner error
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("Failed to fetch %s: %s", reqURL, resp.Status)
+		}
+
+		return nil, err
+	}
+
+	// Handle errors
+	if response.Type == api.ErrorResponse {
+		return nil, fmt.Errorf(response.Error)
+	}
+
+	// Get to the operation
+	respOperation, err := response.MetadataAsOperation()
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup an Operation wrapper
+	op := Operation{
+		Operation: *respOperation,
+		r:         r,
+		chActive:  make(chan bool),
+	}
+
+	return &op, nil
 }
 
 // CopyImage copies an existing image to a remote server. Additional options can be passed using ImageCopyArgs
@@ -304,7 +457,7 @@ func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *I
 		req.Public = args.Public
 	}
 
-	return target.CreateImage(req)
+	return target.CreateImage(req, nil)
 }
 
 // UpdateImage updates the image definition

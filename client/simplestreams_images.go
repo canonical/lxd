@@ -165,5 +165,5 @@ func (r *ProtocolSimpleStreams) CopyImage(image api.Image, target ContainerServe
 		req.Public = args.Public
 	}
 
-	return target.CreateImage(req)
+	return target.CreateImage(req, nil)
 }
