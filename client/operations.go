@@ -147,15 +147,20 @@ func (op *Operation) setupListener() error {
 			return
 		}
 
+		// We don't want concurency while processing events
+		op.listenerLock.Lock()
+		defer op.listenerLock.Unlock()
+
+		// Check if we're done already (because of another event)
+		if op.listener == nil {
+			return
+		}
+
 		// Update the struct
 		op.Operation = *newOp
 
 		// And check if we're done
 		if op.StatusCode.IsFinal() {
-			// Make sure we're not racing with ourselves
-			op.listenerLock.Lock()
-			defer op.listenerLock.Unlock()
-
 			op.listener.Disconnect()
 			op.listener = nil
 			close(op.chActive)

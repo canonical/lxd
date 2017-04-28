@@ -10,11 +10,6 @@ import (
 func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 	server := api.Server{}
 
-	// Return the cached entry if present
-	if r.server != nil {
-		return r.server, "", nil
-	}
-
 	// Fetch the raw value
 	etag, err := r.queryStruct("GET", "", nil, "", &server)
 	if err != nil {
@@ -30,7 +25,7 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 // UpdateServer updates the server status to match the provided Server struct
 func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", "", server, ETag, nil)
+	_, _, err := r.query("PUT", "", server, ETag)
 	if err != nil {
 		return err
 	}
