@@ -6,6 +6,17 @@ test_storage() {
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
   chmod +x "${LXD_STORAGE_DIR}"
   spawn_lxd "${LXD_STORAGE_DIR}" false
+
+  # edit storage description
+
+  # shellcheck disable=2039
+  local storage_pool
+  storage_pool="lxdtest-$(basename "${LXD_DIR}")-pool"
+  lxc storage create "$storage_pool" "$lxd_backend"
+  lxc storage show "$storage_pool" | sed 's/^description:.*/description: foo/' | lxc storage edit "$storage_pool"
+  lxc storage show "$storage_pool" | grep -q 'description: foo'
+  lxc storage delete "$storage_pool"
+
   (
     set -e
     # shellcheck disable=2030

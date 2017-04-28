@@ -25,6 +25,9 @@ type StoragePool struct {
 //
 // API extension: storage
 type StoragePoolPut struct {
+	// API extension: entity_description
+	Description string `json:"description" yaml:"description"`
+
 	Config map[string]string `json:"config" yaml:"config"`
 }
 

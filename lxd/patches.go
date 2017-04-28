@@ -310,12 +310,12 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		if pool.Config == nil {
 			pool.Config = poolConfig
 		}
-		err = dbStoragePoolUpdate(d.db, defaultPoolName, pool.Config)
+		err = dbStoragePoolUpdate(d.db, defaultPoolName, "", pool.Config)
 		if err != nil {
 			return err
 		}
 	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
-		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
+		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			return err
 		}
@@ -607,12 +607,12 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		if pool.Config == nil {
 			pool.Config = poolConfig
 		}
-		err = dbStoragePoolUpdate(d.db, defaultPoolName, pool.Config)
+		err = dbStoragePoolUpdate(d.db, defaultPoolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
 	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
-		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
+		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			return err
 		}
@@ -900,12 +900,12 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		if pool.Config == nil {
 			pool.Config = poolConfig
 		}
-		err = dbStoragePoolUpdate(d.db, defaultPoolName, pool.Config)
+		err = dbStoragePoolUpdate(d.db, defaultPoolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
 	} else if err == NoSuchObjectError { // Likely a pristine upgrade.
-		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, defaultStorageTypeName, poolConfig)
+		tmp, err := dbStoragePoolCreate(d.db, defaultPoolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			return err
 		}
@@ -1400,7 +1400,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		if pool.Config == nil {
 			pool.Config = poolConfig
 		}
-		err = dbStoragePoolUpdate(d.db, poolName, pool.Config)
+		err = dbStoragePoolUpdate(d.db, poolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -1432,7 +1432,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, err := dbStoragePoolCreate(d.db, poolName, defaultStorageTypeName, poolConfig)
+		tmp, err := dbStoragePoolCreate(d.db, poolName, defaultStorageTypeName, "", poolConfig)
 		if err != nil {
 			logger.Warnf("Storage pool already exists in the database. Proceeding...")
 		}
@@ -1929,7 +1929,7 @@ func patchStorageApiKeys(name string, d *Daemon) error {
 		}
 
 		// Update the config in the database.
-		err = dbStoragePoolUpdate(d.db, poolName, pool.Config)
+		err = dbStoragePoolUpdate(d.db, poolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -2017,7 +2017,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 		}
 
 		// Update the storage pool config.
-		err = dbStoragePoolUpdate(d.db, poolName, pool.Config)
+		err = dbStoragePoolUpdate(d.db, poolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
@@ -2134,7 +2134,7 @@ func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
 		pool.Config["source"] = getStoragePoolMountPoint(poolName)
 
 		// Update the storage pool config.
-		err = dbStoragePoolUpdate(d.db, poolName, pool.Config)
+		err = dbStoragePoolUpdate(d.db, poolName, pool.Description, pool.Config)
 		if err != nil {
 			return err
 		}
