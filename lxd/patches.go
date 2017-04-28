@@ -1789,7 +1789,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 
 		// Look for a local root device entry
 		localDevices := c.LocalDevices()
-		k, d, _ = containerGetRootDiskDevice(localDevices)
+		k, _, _ = containerGetRootDiskDevice(localDevices)
 		if k != "" {
 			localDevices[k]["pool"] = poolName
 			args.Devices = localDevices
