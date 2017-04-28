@@ -15,9 +15,9 @@ func getSystemHandler(syslog string, debug bool, format log.Format) log.Handler 
 				log.LvlInfo,
 				log.Must.SyslogHandler(syslog, format),
 			)
-		} else {
-			return log.Must.SyslogHandler(syslog, format)
 		}
+
+		return log.Must.SyslogHandler(syslog, format)
 	}
 
 	return nil

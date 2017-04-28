@@ -656,6 +656,10 @@ func (c *storageCmd) doStoragePoolShow(client *lxd.Client, name string) error {
 	sort.Strings(pool.UsedBy)
 
 	data, err := yaml.Marshal(&pool)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("%s", data)
 
 	return nil
@@ -786,6 +790,10 @@ func (c *storageCmd) doStoragePoolVolumeShow(client *lxd.Client, pool string, vo
 	sort.Strings(volumeStruct.UsedBy)
 
 	data, err := yaml.Marshal(&volumeStruct)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("%s", data)
 
 	return nil
