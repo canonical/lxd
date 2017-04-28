@@ -47,11 +47,11 @@ func (r *ProtocolLXD) GetStoragePoolVolumes(pool string) ([]api.StorageVolume, e
 }
 
 // GetStoragePoolVolume returns a StorageVolume entry for the provided pool and volume name
-func (r *ProtocolLXD) GetStoragePoolVolume(pool string, name string) (*api.StorageVolume, string, error) {
+func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name string) (*api.StorageVolume, string, error) {
 	volume := api.StorageVolume{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes/%s", pool, name), nil, "", &volume)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", pool, volType, name), nil, "", &volume)
 	if err != nil {
 		return nil, "", err
 	}
@@ -62,7 +62,7 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, name string) (*api.Stora
 // CreateStoragePoolVolume defines a new storage volume
 func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) error {
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes", pool), volume, "")
+	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s", pool, volume.Type), volume, "")
 	if err != nil {
 		return err
 	}
@@ -71,9 +71,9 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 }
 
 // UpdateStoragePoolVolume updates the volume to match the provided StoragePoolVolume struct
-func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, name string, volume api.StorageVolumePut, ETag string) error {
+func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s/volumes/%s", pool, name), volume, ETag)
+	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", pool, volType, name), volume, ETag)
 	if err != nil {
 		return err
 	}
@@ -82,9 +82,9 @@ func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, name string, volume a
 }
 
 // DeleteStoragePoolVolume deletes a storage pool
-func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, name string) error {
+func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s/volumes/%s", pool, name), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", pool, volType, name), nil, "")
 	if err != nil {
 		return err
 	}
