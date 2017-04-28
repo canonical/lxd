@@ -477,7 +477,7 @@ func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *I
 // UpdateImage updates the image definition
 func (r *ProtocolLXD) UpdateImage(fingerprint string, image api.ImagePut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/images/%s", fingerprint), image, ETag, nil)
+	_, _, err := r.query("PUT", fmt.Sprintf("/images/%s", fingerprint), image, ETag)
 	if err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func (r *ProtocolLXD) CreateImageSecret(fingerprint string) (*Operation, error) 
 // CreateImageAlias sets up a new image alias
 func (r *ProtocolLXD) CreateImageAlias(alias api.ImageAliasesPost) error {
 	// Send the request
-	_, _, err := r.query("POST", "/images/aliases", alias, "", nil)
+	_, _, err := r.query("POST", "/images/aliases", alias, "")
 	if err != nil {
 		return err
 	}
@@ -521,7 +521,7 @@ func (r *ProtocolLXD) CreateImageAlias(alias api.ImageAliasesPost) error {
 // UpdateImageAlias updates the image alias definition
 func (r *ProtocolLXD) UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/images/aliases/%s", name), alias, ETag, nil)
+	_, _, err := r.query("PUT", fmt.Sprintf("/images/aliases/%s", name), alias, ETag)
 	if err != nil {
 		return err
 	}
@@ -532,7 +532,7 @@ func (r *ProtocolLXD) UpdateImageAlias(name string, alias api.ImageAliasesEntryP
 // RenameImageAlias renames an existing image alias
 func (r *ProtocolLXD) RenameImageAlias(name string, alias api.ImageAliasesEntryPost) error {
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/images/aliases/%s", name), alias, "", nil)
+	_, _, err := r.query("POST", fmt.Sprintf("/images/aliases/%s", name), alias, "")
 	if err != nil {
 		return err
 	}
@@ -543,7 +543,7 @@ func (r *ProtocolLXD) RenameImageAlias(name string, alias api.ImageAliasesEntryP
 // DeleteImageAlias removes an alias from the LXD image store
 func (r *ProtocolLXD) DeleteImageAlias(name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/images/aliases/%s", name), nil, "", nil)
+	_, _, err := r.query("DELETE", fmt.Sprintf("/images/aliases/%s", name), nil, "")
 	if err != nil {
 		return err
 	}
