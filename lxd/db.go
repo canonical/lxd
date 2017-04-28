@@ -301,7 +301,7 @@ func dbBegin(db *sql.DB) (*sql.Tx, error) {
 	}
 
 	logger.Debugf("DbBegin: DB still locked")
-	logger.PrintStack()
+	logger.Debugf(logger.GetStack())
 	return nil, fmt.Errorf("DB is locked")
 }
 
@@ -319,7 +319,7 @@ func txCommit(tx *sql.Tx) error {
 	}
 
 	logger.Debugf("Txcommit: db still locked")
-	logger.PrintStack()
+	logger.Debugf(logger.GetStack())
 	return fmt.Errorf("DB is locked")
 }
 
@@ -339,7 +339,7 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 	}
 
 	logger.Debugf("DbQueryRowScan: query %q args %q, DB still locked", q, args)
-	logger.PrintStack()
+	logger.Debugf(logger.GetStack())
 	return fmt.Errorf("DB is locked")
 }
 
@@ -357,7 +357,7 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 	}
 
 	logger.Debugf("DbQuery: query %q args %q, DB still locked", q, args)
-	logger.PrintStack()
+	logger.Debugf(logger.GetStack())
 	return nil, fmt.Errorf("DB is locked")
 }
 
@@ -437,7 +437,7 @@ func dbQueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{
 	}
 
 	logger.Debugf("DbQueryscan: query %q inargs %q, DB still locked", q, inargs)
-	logger.PrintStack()
+	logger.Debugf(logger.GetStack())
 	return nil, fmt.Errorf("DB is locked")
 }
 
@@ -455,6 +455,6 @@ func dbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 	}
 
 	logger.Debugf("DbExec: query %q args %q, DB still locked", q, args)
-	logger.PrintStack()
+	logger.Debugf(logger.GetStack())
 	return nil, fmt.Errorf("DB is locked")
 }

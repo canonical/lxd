@@ -4,7 +4,6 @@ package logger
 
 import (
 	"fmt"
-	"runtime"
 )
 
 // Logger is the main logging interface
@@ -99,11 +98,4 @@ func Critf(format string, args ...interface{}) {
 	if Log != nil {
 		Log.Crit(fmt.Sprintf(format, args...))
 	}
-}
-
-// PrintStack logs the current Go stack at the ERROR log level
-func PrintStack() {
-	buf := make([]byte, 1<<16)
-	runtime.Stack(buf, true)
-	Errorf("%s", buf)
 }
