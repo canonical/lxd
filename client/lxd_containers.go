@@ -335,7 +335,7 @@ func (r *ProtocolLXD) GetContainerSnapshots(containerName string) ([]api.Contain
 	snapshots := []api.ContainerSnapshot{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/snapshots?recursion=1", containerName), nil, "", snapshots)
+	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/snapshots?recursion=1", containerName), nil, "", &snapshots)
 	if err != nil {
 		return nil, err
 	}
