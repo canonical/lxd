@@ -447,6 +447,16 @@ func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *I
 		},
 	}
 
+	// Generate secret token if needed
+	if !image.Public {
+		op, err := r.CreateImageSecret(image.Fingerprint)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Source.Secret = op.Metadata["secret"].(string)
+	}
+
 	// Process the arguments
 	if args != nil {
 		req.Aliases = args.Aliases
