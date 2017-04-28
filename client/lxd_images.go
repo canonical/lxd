@@ -224,7 +224,7 @@ func (r *ProtocolLXD) GetImageAliases() ([]api.ImageAliasesEntry, error) {
 	aliases := []api.ImageAliasesEntry{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/images/aliases?recursion=1", nil, "", aliases)
+	_, err := r.queryStruct("GET", "/images/aliases?recursion=1", nil, "", &aliases)
 	if err != nil {
 		return nil, err
 	}
