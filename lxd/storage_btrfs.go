@@ -286,7 +286,6 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 		msg := ""
 		if err == nil {
 			msg = fmt.Sprintf("Removing disk device %s with UUID: %s.", diskPath, source)
-			diskPath = fmt.Sprintf("/dev/%s", strings.Trim(diskPath, "../../"))
 		} else {
 			msg = fmt.Sprintf("Failed to lookup disk device with UUID: %s: %s.", source, err)
 		}
