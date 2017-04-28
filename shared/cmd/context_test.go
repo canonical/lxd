@@ -1,11 +1,11 @@
 package cmd_test
 
 import (
-	"bytes"
-	"strings"
+	"fmt"
 	"testing"
 
 	"github.com/lxc/lxd/shared/cmd"
+	"github.com/stretchr/testify/assert"
 )
 
 // AskBool returns a boolean result depending on the user input.
@@ -26,22 +26,123 @@ func TestAskBool(t *testing.T) {
 		{"Do you code?", "yes", "Do you code?Do you code?", "Invalid input, try again.\n\n", "foo\nyes\n", true},
 	}
 	for _, c := range cases {
-		stdin := strings.NewReader(c.input)
-		stdout := new(bytes.Buffer)
-		stderr := new(bytes.Buffer)
-		context := cmd.NewContext(stdin, stdout, stderr)
+		streams := cmd.NewMemoryStreams(c.input)
+		context := cmd.NewMemoryContext(streams)
 		result := context.AskBool(c.question, c.defaultAnswer)
 
-		if result != c.result {
-			t.Errorf("Expected '%v' result got '%v'", c.result, result)
-		}
+		assert.Equal(t, c.result, result, "Unexpected answer result")
+		streams.AssertOutEqual(t, c.output)
+		streams.AssertErrEqual(t, c.error)
+	}
+}
 
-		if output := stdout.String(); output != c.output {
-			t.Errorf("Expected '%s' output got '%s'", c.output, output)
-		}
+// AskChoice returns one of the given choices
+func TestAskChoice(t *testing.T) {
+	cases := []struct {
+		question      string
+		choices       []string
+		defaultAnswer string
+		output        string
+		error         string
+		input         string
+		result        string
+	}{
+		{"Best food?", []string{"pizza", "rice"}, "rice", "Best food?", "", "\n", "rice"},
+		{"Best food?", []string{"pizza", "rice"}, "rice", "Best food?", "", "pizza\n", "pizza"},
+		{"Best food?", []string{"pizza", "rice"}, "rice", "Best food?Best food?", "Invalid input, try again.\n\n", "foo\npizza\n", "pizza"},
+	}
+	for _, c := range cases {
+		streams := cmd.NewMemoryStreams(c.input)
+		context := cmd.NewMemoryContext(streams)
+		result := context.AskChoice(c.question, c.choices, c.defaultAnswer)
 
-		if error := stderr.String(); error != c.error {
-			t.Errorf("Expected '%s' error got '%s'", c.error, error)
-		}
+		assert.Equal(t, c.result, result, "Unexpected answer result")
+		streams.AssertOutEqual(t, c.output)
+		streams.AssertErrEqual(t, c.error)
+	}
+}
+
+// AskInt returns an integer within the given bounds
+func TestAskInt(t *testing.T) {
+	cases := []struct {
+		question      string
+		min           int64
+		max           int64
+		defaultAnswer string
+		output        string
+		error         string
+		input         string
+		result        int64
+	}{
+		{"Age?", 0, 100, "30", "Age?", "", "\n", 30},
+		{"Age?", 0, 100, "30", "Age?", "", "40\n", 40},
+		{"Age?", 0, 100, "30", "Age?Age?", "Invalid input, try again.\n\n", "foo\n40\n", 40},
+		{"Age?", 18, 65, "30", "Age?Age?", "Invalid input, try again.\n\n", "10\n30\n", 30},
+		{"Age?", 18, 65, "30", "Age?Age?", "Invalid input, try again.\n\n", "70\n30\n", 30},
+		{"Age?", 0, -1, "30", "Age?", "", "120\n", 120},
+	}
+	for _, c := range cases {
+		streams := cmd.NewMemoryStreams(c.input)
+		context := cmd.NewMemoryContext(streams)
+		result := context.AskInt(c.question, c.min, c.max, c.defaultAnswer)
+
+		assert.Equal(t, c.result, result, "Unexpected answer result")
+		streams.AssertOutEqual(t, c.output)
+		streams.AssertErrEqual(t, c.error)
+	}
+}
+
+// AskString returns a string conforming the validation function.
+func TestAskString(t *testing.T) {
+	cases := []struct {
+		question      string
+		defaultAnswer string
+		validate      func(string) error
+		output        string
+		error         string
+		input         string
+		result        string
+	}{
+		{"Name?", "Joe", nil, "Name?", "", "\n", "Joe"},
+		{"Name?", "Joe", nil, "Name?", "", "John\n", "John"},
+		{"Name?", "Joe", func(s string) error {
+			if s[0] != 'J' {
+				return fmt.Errorf("ugly name")
+			}
+			return nil
+		}, "Name?Name?", "Invalid input: ugly name\n\n", "Ted\nJohn", "John"},
+	}
+	for _, c := range cases {
+		streams := cmd.NewMemoryStreams(c.input)
+		context := cmd.NewMemoryContext(streams)
+		result := context.AskString(c.question, c.defaultAnswer, c.validate)
+
+		assert.Equal(t, c.result, result, "Unexpected answer result")
+		streams.AssertOutEqual(t, c.output)
+		streams.AssertErrEqual(t, c.error)
+	}
+}
+
+// AskPassword returns the password entered twice by the user.
+func TestAskPassword(t *testing.T) {
+	cases := []struct {
+		question string
+		reader   func(int) ([]byte, error)
+		output   string
+		error    string
+		result   string
+	}{
+		{"Pass?", func(int) ([]byte, error) {
+			return []byte("pwd"), nil
+		}, "Pass?\nAgain: \n", "", "pwd"},
+	}
+	for _, c := range cases {
+		streams := cmd.NewMemoryStreams("")
+		context := cmd.NewMemoryContext(streams)
+		result := context.AskPassword(c.question, c.reader)
+
+		assert.Equal(t, c.result, result, "Unexpected answer result")
+		streams.AssertOutEqual(t, c.output)
+		streams.AssertErrEqual(t, c.error)
 	}
 }
