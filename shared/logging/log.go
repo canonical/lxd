@@ -19,7 +19,7 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	var syshandler log.Handler
 
 	// Format handler
-	format := LogfmtFormat()
+	format := logfmtFormat()
 	if term.IsTty(os.Stderr.Fd()) {
 		format = TerminalFormat()
 	}
@@ -81,6 +81,7 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	return Log, nil
 }
 
+// AddContext will return a copy of the logger with extra context added
 func AddContext(logger logger.Logger, ctx log.Ctx) logger.Logger {
 	log15logger, ok := logger.(log.Logger)
 	if !ok {

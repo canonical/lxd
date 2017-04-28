@@ -757,8 +757,7 @@ func (s *storageBtrfs) copyContainer(target container, source container) error {
 	targetContainerSubvolumeName := getContainerMountPoint(s.pool.Name, target.Name())
 
 	containersPath := getContainerMountPoint(s.pool.Name, "")
-	// Ensure that the directories immediately preceeding the
-	// subvolume directory exist.
+	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if !shared.PathExists(containersPath) {
 		err := os.MkdirAll(containersPath, 0700)
 		if err != nil {
@@ -805,8 +804,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 		return err
 	}
 
-	// Ensure that the directories immediately preceeding the
-	// subvolume directory exist.
+	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if !shared.PathExists(containersPath) {
 		err := os.MkdirAll(containersPath, 0700)
 		if err != nil {
