@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 	"os"
@@ -14,10 +13,33 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func cmdInit() error {
+// CmdInitArgs holds command line arguments for the "lxd init" command.
+type CmdInitArgs struct {
+	Auto                bool
+	StorageBackend      string
+	StorageCreateDevice string
+	StorageCreateLoop   int64
+	StorageDataset      string
+	NetworkPort         int64
+	NetworkAddress      string
+	TrustPassword       string
+}
+
+// CmdInit implements the "lxd init" command line.
+type CmdInit struct {
+	Context         *cmd.Context
+	Args            *CmdInitArgs
+	RunningInUserns bool
+	SocketPath      string
+	PasswordReader  func(int) ([]byte, error)
+}
+
+// Run triggers the execution of the init command.
+func (cmd *CmdInit) Run() error {
 	var defaultPrivileged int // controls whether we set security.privileged=true
 	var storageSetup bool     // == supportedStoragePoolDrivers
 	var storageBackend string // == supportedStoragePoolDrivers
@@ -37,7 +59,7 @@ func cmdInit() error {
 
 	// Detect userns
 	defaultPrivileged = -1
-	runningInUserns = shared.RunningInUserNS()
+	runningInUserns = cmd.RunningInUserns
 	imagesAutoUpdate = true
 
 	backendsAvailable := []string{"dir"}
@@ -63,107 +85,8 @@ func cmdInit() error {
 		backendsAvailable = append(backendsAvailable, driver)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
-	askBool := func(question string, default_ string) bool {
-		for {
-			fmt.Printf(question)
-			input, _ := reader.ReadString('\n')
-			input = strings.TrimSuffix(input, "\n")
-			if input == "" {
-				input = default_
-			}
-			if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y"}) {
-				return true
-			} else if shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
-				return false
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
-	askChoice := func(question string, choices []string, default_ string) string {
-		for {
-			fmt.Printf(question)
-			input, _ := reader.ReadString('\n')
-			input = strings.TrimSuffix(input, "\n")
-			if input == "" {
-				input = default_
-			}
-			if shared.StringInSlice(input, choices) {
-				return input
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
-	askInt := func(question string, min int64, max int64, default_ string) int64 {
-		for {
-			fmt.Printf(question)
-			input, _ := reader.ReadString('\n')
-			input = strings.TrimSuffix(input, "\n")
-			if input == "" {
-				input = default_
-			}
-			intInput, err := strconv.ParseInt(input, 10, 64)
-
-			if err == nil && (min == -1 || intInput >= min) && (max == -1 || intInput <= max) {
-				return intInput
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
-	askString := func(question string, default_ string, validate func(string) error) string {
-		for {
-			fmt.Printf(question)
-			input, _ := reader.ReadString('\n')
-			input = strings.TrimSuffix(input, "\n")
-			if input == "" {
-				input = default_
-			}
-			if validate != nil {
-				result := validate(input)
-				if result != nil {
-					fmt.Printf("Invalid input: %s\n\n", result)
-					continue
-				}
-			}
-			if len(input) != 0 {
-				return input
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
-	askPassword := func(question string) string {
-		for {
-			fmt.Printf(question)
-			pwd, _ := terminal.ReadPassword(0)
-			fmt.Printf("\n")
-			inFirst := string(pwd)
-			inFirst = strings.TrimSuffix(inFirst, "\n")
-
-			fmt.Printf("Again: ")
-			pwd, _ = terminal.ReadPassword(0)
-			fmt.Printf("\n")
-			inSecond := string(pwd)
-			inSecond = strings.TrimSuffix(inSecond, "\n")
-
-			if inFirst == inSecond {
-				return inFirst
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
 	// Connect to LXD
-	c, err := lxd.ConnectLXDUnix("", nil)
+	c, err := lxd.ConnectLXDUnix(cmd.SocketPath, nil)
 	if err != nil {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
@@ -240,46 +163,46 @@ func cmdInit() error {
 		return err
 	}
 
-	if *argAuto {
-		if *argStorageBackend == "" {
-			*argStorageBackend = "dir"
+	if cmd.Args.Auto {
+		if cmd.Args.StorageBackend == "" {
+			cmd.Args.StorageBackend = "dir"
 		}
 
 		// Do a bunch of sanity checks
-		if !shared.StringInSlice(*argStorageBackend, supportedStoragePoolDrivers) {
-			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", *argStorageBackend)
+		if !shared.StringInSlice(cmd.Args.StorageBackend, supportedStoragePoolDrivers) {
+			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", cmd.Args.StorageBackend)
 		}
 
-		if !shared.StringInSlice(*argStorageBackend, backendsAvailable) {
-			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", *argStorageBackend)
+		if !shared.StringInSlice(cmd.Args.StorageBackend, backendsAvailable) {
+			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", cmd.Args.StorageBackend)
 		}
 
-		if *argStorageBackend == "dir" {
-			if *argStorageCreateLoop != -1 || *argStorageCreateDevice != "" || *argStorageDataset != "" {
+		if cmd.Args.StorageBackend == "dir" {
+			if cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageDataset != "" {
 				return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend.")
 			}
 		} else {
-			if *argStorageCreateLoop != -1 && *argStorageCreateDevice != "" {
+			if cmd.Args.StorageCreateLoop != -1 && cmd.Args.StorageCreateDevice != "" {
 				return fmt.Errorf("Only one of --storage-create-device or --storage-create-loop can be specified.")
 			}
 		}
 
-		if *argNetworkAddress == "" {
-			if *argNetworkPort != -1 {
+		if cmd.Args.NetworkAddress == "" {
+			if cmd.Args.NetworkPort != -1 {
 				return fmt.Errorf("--network-port cannot be used without --network-address.")
 			}
-			if *argTrustPassword != "" {
+			if cmd.Args.TrustPassword != "" {
 				return fmt.Errorf("--trust-password cannot be used without --network-address.")
 			}
 		}
 
-		storageBackend = *argStorageBackend
-		storageLoopSize = *argStorageCreateLoop
-		storageDevice = *argStorageCreateDevice
-		storageDataset = *argStorageDataset
-		networkAddress = *argNetworkAddress
-		networkPort = *argNetworkPort
-		trustPassword = *argTrustPassword
+		storageBackend = cmd.Args.StorageBackend
+		storageLoopSize = cmd.Args.StorageCreateLoop
+		storageDevice = cmd.Args.StorageCreateDevice
+		storageDataset = cmd.Args.StorageDataset
+		networkAddress = cmd.Args.NetworkAddress
+		networkPort = cmd.Args.NetworkPort
+		trustPassword = cmd.Args.TrustPassword
 		storagePool = "default"
 
 		// FIXME: Allow to configure multiple storage pools on auto init
@@ -288,7 +211,7 @@ func cmdInit() error {
 			storageSetup = true
 		}
 	} else {
-		if *argStorageBackend != "" || *argStorageCreateDevice != "" || *argStorageCreateLoop != -1 || *argStorageDataset != "" || *argNetworkAddress != "" || *argNetworkPort != -1 || *argTrustPassword != "" {
+		if cmd.Args.StorageBackend != "" || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageDataset != "" || cmd.Args.NetworkAddress != "" || cmd.Args.NetworkPort != -1 || cmd.Args.TrustPassword != "" {
 			return fmt.Errorf("Init configuration is only valid with --auto")
 		}
 
@@ -300,9 +223,9 @@ func cmdInit() error {
 		// User chose an already existing storage pool name. Ask him
 		// again if he still wants to create one.
 	askForStorageAgain:
-		storageSetup = askBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes")
+		storageSetup = cmd.Context.AskBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes")
 		if storageSetup {
-			storagePool = askString("Name of the new storage pool [default=default]: ", "default", nil)
+			storagePool = cmd.Context.AskString("Name of the new storage pool [default=default]: ", "default", nil)
 			if shared.StringInSlice(storagePool, pools) {
 				fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", storagePool)
 				// Ask the user again if hew wants to create a
@@ -310,7 +233,7 @@ func cmdInit() error {
 				goto askForStorageAgain
 			}
 
-			storageBackend = askChoice(fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(backendsAvailable, ", "), defaultStorage), supportedStoragePoolDrivers, defaultStorage)
+			storageBackend = cmd.Context.AskChoice(fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(backendsAvailable, ", "), defaultStorage), supportedStoragePoolDrivers, defaultStorage)
 
 			if !shared.StringInSlice(storageBackend, supportedStoragePoolDrivers) {
 				return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
@@ -324,19 +247,19 @@ func cmdInit() error {
 		if storageSetup && storageBackend != "dir" {
 			storageLoopSize = -1
 			q := fmt.Sprintf("Create a new %s pool (yes/no) [default=yes]? ", strings.ToUpper(storageBackend))
-			if askBool(q, "yes") {
-				if askBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
+			if cmd.Context.AskBool(q, "yes") {
+				if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
 					deviceExists := func(path string) error {
 						if !shared.IsBlockdevPath(path) {
 							return fmt.Errorf("'%s' is not a block device", path)
 						}
 						return nil
 					}
-					storageDevice = askString("Path to the existing block device: ", "", deviceExists)
+					storageDevice = cmd.Context.AskString("Path to the existing block device: ", "", deviceExists)
 				} else {
 					backingFs, err := filesystemDetect(shared.VarPath())
 					if err == nil && storageBackend == "btrfs" && backingFs == "btrfs" {
-						if askBool("Would you like to create a new subvolume for the BTRFS storage pool (yes/no) [default=yes]: ", "yes") {
+						if cmd.Context.AskBool("Would you like to create a new subvolume for the BTRFS storage pool (yes/no) [default=yes]: ", "yes") {
 							storageDataset = shared.VarPath("storage-pools", storagePool)
 						}
 					} else {
@@ -357,12 +280,12 @@ func cmdInit() error {
 						}
 
 						q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", def)
-						storageLoopSize = askInt(q, 1, -1, fmt.Sprintf("%d", def))
+						storageLoopSize = cmd.Context.AskInt(q, 1, -1, fmt.Sprintf("%d", def))
 					}
 				}
 			} else {
 				q := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(storageBackend))
-				storageDataset = askString(q, "", nil)
+				storageDataset = cmd.Context.AskString(q, "", nil)
 			}
 		}
 
@@ -385,14 +308,14 @@ in theory attack their parent container and gain more privileges than
 they otherwise would.
 
 `)
-			if askBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
+			if cmd.Context.AskBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
 				defaultPrivileged = 1
 			} else {
 				defaultPrivileged = 0
 			}
 		}
 
-		if askBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
+		if cmd.Context.AskBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
 			isIPAddress := func(s string) error {
 				if s != "all" && net.ParseIP(s) == nil {
 					return fmt.Errorf("'%s' is not an IP address", s)
@@ -400,7 +323,7 @@ they otherwise would.
 				return nil
 			}
 
-			networkAddress = askString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
+			networkAddress = cmd.Context.AskString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
 			if networkAddress == "all" {
 				networkAddress = "::"
 			}
@@ -408,18 +331,18 @@ they otherwise would.
 			if net.ParseIP(networkAddress).To4() == nil {
 				networkAddress = fmt.Sprintf("[%s]", networkAddress)
 			}
-			networkPort = askInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
-			trustPassword = askPassword("Trust password for new clients: ")
+			networkPort = cmd.Context.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
+			trustPassword = cmd.Context.AskPassword("Trust password for new clients: ", cmd.PasswordReader)
 		}
 
-		if !askBool("Would you like stale cached images to be updated automatically (yes/no) [default=yes]? ", "yes") {
+		if !cmd.Context.AskBool("Would you like stale cached images to be updated automatically (yes/no) [default=yes]? ", "yes") {
 			imagesAutoUpdate = false
 		}
 
 	askForNetworkAgain:
 		bridgeName = ""
-		if askBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
-			bridgeName = askString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
+		if cmd.Context.AskBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
+			bridgeName = cmd.Context.AskString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
 			_, _, err := c.GetNetwork(bridgeName)
 			if err == nil {
 				fmt.Printf("The requested network bridge \"%s\" already exists. Please choose another name.\n", bridgeName)
@@ -428,7 +351,7 @@ they otherwise would.
 				goto askForNetworkAgain
 			}
 
-			bridgeIPv4 = askString("What IPv4 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
+			bridgeIPv4 = cmd.Context.AskString("What IPv4 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
 				if shared.StringInSlice(value, []string{"auto", "none"}) {
 					return nil
 				}
@@ -436,10 +359,10 @@ they otherwise would.
 			})
 
 			if !shared.StringInSlice(bridgeIPv4, []string{"auto", "none"}) {
-				bridgeIPv4Nat = askBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]? ", "yes")
+				bridgeIPv4Nat = cmd.Context.AskBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]? ", "yes")
 			}
 
-			bridgeIPv6 = askString("What IPv6 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
+			bridgeIPv6 = cmd.Context.AskString("What IPv6 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
 				if shared.StringInSlice(value, []string{"auto", "none"}) {
 					return nil
 				}
@@ -447,7 +370,7 @@ they otherwise would.
 			})
 
 			if !shared.StringInSlice(bridgeIPv6, []string{"auto", "none"}) {
-				bridgeIPv6Nat = askBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]? ", "yes")
+				bridgeIPv6Nat = cmd.Context.AskBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]? ", "yes")
 			}
 		}
 	}
@@ -639,4 +562,26 @@ they otherwise would.
 
 	fmt.Printf("LXD has been successfully configured.\n")
 	return nil
+}
+
+func cmdInit() error {
+	context := cmd.NewContext(os.Stdin, os.Stdout, os.Stderr)
+	args := &CmdInitArgs{
+		Auto:                *argAuto,
+		StorageBackend:      *argStorageBackend,
+		StorageCreateDevice: *argStorageCreateDevice,
+		StorageCreateLoop:   *argStorageCreateLoop,
+		StorageDataset:      *argStorageDataset,
+		NetworkPort:         *argNetworkPort,
+		NetworkAddress:      *argNetworkAddress,
+		TrustPassword:       *argTrustPassword,
+	}
+	command := &CmdInit{
+		Context:         context,
+		Args:            args,
+		RunningInUserns: shared.RunningInUserNS(),
+		SocketPath:      "",
+		PasswordReader:  terminal.ReadPassword,
+	}
+	return command.Run()
 }

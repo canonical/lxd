@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -13,7 +14,8 @@ import (
 
 func mockStartDaemon() (*Daemon, error) {
 	d := &Daemon{
-		MockMode: true,
+		MockMode:  true,
+		tlsConfig: &tls.Config{},
 	}
 
 	if err := d.Init(); err != nil {
