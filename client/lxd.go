@@ -34,7 +34,7 @@ func (r *ProtocolLXD) RawQuery(method string, path string, data interface{}, ETa
 	// Generate the URL
 	url := fmt.Sprintf("%s%s", r.httpHost, path)
 
-	return r.rawQuery(method, url, data, ETag, nil)
+	return r.rawQuery(method, url, data, ETag)
 }
 
 // RawWebsocket allows directly connection to LXD API websockets
@@ -48,7 +48,7 @@ func (r *ProtocolLXD) RawWebsocket(path string) (*websocket.Conn, error) {
 }
 
 // Internal functions
-func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag string, headers map[string]string) (*api.Response, string, error) {
+func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag string) (*api.Response, string, error) {
 	var req *http.Request
 	var err error
 
@@ -97,13 +97,6 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 		req.Header.Set("If-Match", ETag)
 	}
 
-	// Set the custom headers
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
-	}
-
 	// Send the request
 	resp, err := r.http.Do(req)
 	if err != nil {
@@ -136,15 +129,15 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 	return &response, etag, nil
 }
 
-func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag string, headers map[string]string) (*api.Response, string, error) {
+func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag string) (*api.Response, string, error) {
 	// Generate the URL
 	url := fmt.Sprintf("%s/1.0%s", r.httpHost, path)
 
-	return r.rawQuery(method, url, data, ETag, headers)
+	return r.rawQuery(method, url, data, ETag)
 }
 
 func (r *ProtocolLXD) queryStruct(method string, path string, data interface{}, ETag string, target interface{}) (string, error) {
-	resp, etag, err := r.query(method, path, data, ETag, nil)
+	resp, etag, err := r.query(method, path, data, ETag)
 	if err != nil {
 		return "", err
 	}
@@ -161,9 +154,9 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data interface{}, 
 	return etag, nil
 }
 
-func (r *ProtocolLXD) queryOperationHeaders(method string, path string, data interface{}, ETag string, headers map[string]string) (*Operation, string, error) {
+func (r *ProtocolLXD) queryOperation(method string, path string, data interface{}, ETag string) (*Operation, string, error) {
 	// Send the query
-	resp, etag, err := r.query(method, path, data, ETag, headers)
+	resp, etag, err := r.query(method, path, data, ETag)
 	if err != nil {
 		return nil, "", err
 	}
@@ -186,10 +179,6 @@ func (r *ProtocolLXD) queryOperationHeaders(method string, path string, data int
 	logger.Debugf(logger.Pretty(op.Operation))
 
 	return &op, etag, nil
-}
-
-func (r *ProtocolLXD) queryOperation(method string, path string, data interface{}, ETag string) (*Operation, string, error) {
-	return r.queryOperationHeaders(method, path, data, ETag, nil)
 }
 
 func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {

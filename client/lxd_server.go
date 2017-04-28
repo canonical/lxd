@@ -25,7 +25,7 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 // UpdateServer updates the server status to match the provided Server struct
 func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", "", server, ETag, nil)
+	_, _, err := r.query("PUT", "", server, ETag)
 	if err != nil {
 		return err
 	}
