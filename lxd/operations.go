@@ -73,7 +73,9 @@ func (op *operation) done() {
 	close(op.chanDone)
 	op.lock.Unlock()
 
-	time.AfterFunc(time.Second*5, func() {
+	defaultTimeout := time.Duration(5)
+	time.AfterFunc(time.Second*defaultTimeout, func() {
+		logger.Errorf("Default timeout of %d seconds for %s operation elapsed: %s.", defaultTimeout, op.class.String(), op.id)
 		operationsLock.Lock()
 		_, ok := operations[op.id]
 		if !ok {
