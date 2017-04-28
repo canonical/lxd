@@ -596,7 +596,7 @@ func (c *storageCmd) doStoragePoolsList(config *lxd.Config, args []string) error
 	for _, pool := range pools {
 		usedby := strconv.Itoa(len(pool.UsedBy))
 
-		data = append(data, []string{pool.Name, pool.Driver, pool.Config["source"], usedby})
+		data = append(data, []string{pool.Name, pool.Description, pool.Driver, pool.Config["source"], usedby})
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -605,6 +605,7 @@ func (c *storageCmd) doStoragePoolsList(config *lxd.Config, args []string) error
 	table.SetRowLine(true)
 	table.SetHeader([]string{
 		i18n.G("NAME"),
+		i18n.G("DESCRIPTION"),
 		i18n.G("DRIVER"),
 		i18n.G("SOURCE"),
 		i18n.G("USED BY")})

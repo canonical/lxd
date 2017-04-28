@@ -220,7 +220,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:571 lxc/config.go:636 lxc/image.go:710 lxc/network.go:378 lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:848
+#: lxc/config.go:571 lxc/config.go:636 lxc/image.go:710 lxc/network.go:378 lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:849
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -278,11 +278,11 @@ msgstr  ""
 msgid   "Creating the container"
 msgstr  ""
 
-#: lxc/image.go:617 lxc/image.go:658 lxc/network.go:461
+#: lxc/image.go:617 lxc/image.go:658 lxc/network.go:461 lxc/storage.go:608
 msgid   "DESCRIPTION"
 msgstr  ""
 
-#: lxc/storage.go:608
+#: lxc/storage.go:609
 msgid   "DRIVER"
 msgstr  ""
 
@@ -553,7 +553,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:449 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395 lxc/storage.go:607 lxc/storage.go:691
+#: lxc/list.go:449 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395 lxc/storage.go:607 lxc/storage.go:692
 msgid   "NAME"
 msgstr  ""
 
@@ -682,7 +682,7 @@ msgstr  ""
 msgid   "Pid: %d"
 msgstr  ""
 
-#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:849
+#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:850
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -797,7 +797,7 @@ msgstr  ""
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/storage.go:609
+#: lxc/storage.go:610
 msgid   "SOURCE"
 msgstr  ""
 
@@ -911,12 +911,12 @@ msgstr  ""
 msgid   "Storage pool name"
 msgstr  ""
 
-#: lxc/storage.go:714
+#: lxc/storage.go:715
 #, c-format
 msgid   "Storage volume %s created"
 msgstr  ""
 
-#: lxc/storage.go:724
+#: lxc/storage.go:725
 #, c-format
 msgid   "Storage volume %s deleted"
 msgstr  ""
@@ -933,7 +933,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:454 lxc/network.go:459 lxc/storage.go:690
+#: lxc/list.go:454 lxc/network.go:459 lxc/storage.go:691
 msgid   "TYPE"
 msgstr  ""
 
@@ -1027,7 +1027,7 @@ msgstr  ""
 msgid   "URL"
 msgstr  ""
 
-#: lxc/network.go:462 lxc/profile.go:500 lxc/storage.go:610 lxc/storage.go:692
+#: lxc/network.go:462 lxc/profile.go:500 lxc/storage.go:611 lxc/storage.go:693
 msgid   "USED BY"
 msgstr  ""
 
