@@ -48,6 +48,7 @@ test_static_analysis() {
       golint -set_exit_status shared/gnuflag/
       golint -set_exit_status shared/i18n/
       golint -set_exit_status shared/ioprogress/
+      golint -set_exit_status shared/logger/
       golint -set_exit_status shared/logging/
       golint -set_exit_status shared/version/
     fi
