@@ -1,8 +1,9 @@
+package main
+
 /*
  * An example of how to use lxd's golang /dev/lxd client. This is intended to
  * be run from inside a container.
  */
-package main
 
 import (
 	"encoding/json"
@@ -13,11 +14,11 @@ import (
 	"os"
 )
 
-type DevLxdDialer struct {
+type devLxdDialer struct {
 	Path string
 }
 
-func (d DevLxdDialer) DevLxdDial(network, path string) (net.Conn, error) {
+func (d devLxdDialer) devLxdDial(network, path string) (net.Conn, error) {
 	addr, err := net.ResolveUnixAddr("unix", d.Path)
 	if err != nil {
 		return nil, err
@@ -31,12 +32,12 @@ func (d DevLxdDialer) DevLxdDial(network, path string) (net.Conn, error) {
 	return conn, err
 }
 
-var DevLxdTransport = &http.Transport{
-	Dial: DevLxdDialer{"/dev/lxd/sock"}.DevLxdDial,
+var devLxdTransport = &http.Transport{
+	Dial: devLxdDialer{"/dev/lxd/sock"}.devLxdDial,
 }
 
 func main() {
-	c := http.Client{Transport: DevLxdTransport}
+	c := http.Client{Transport: devLxdTransport}
 	raw, err := c.Get("http://meshuggah-rocks/")
 	if err != nil {
 		fmt.Println(err)
