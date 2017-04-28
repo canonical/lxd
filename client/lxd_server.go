@@ -10,11 +10,6 @@ import (
 func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 	server := api.Server{}
 
-	// Return the cached entry if present
-	if r.server != nil {
-		return r.server, "", nil
-	}
-
 	// Fetch the raw value
 	etag, err := r.queryStruct("GET", "", nil, "", &server)
 	if err != nil {
