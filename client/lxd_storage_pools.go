@@ -66,7 +66,7 @@ func (r *ProtocolLXD) CreateStoragePool(pool api.StoragePoolsPost) error {
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", "/storage-pools", pool, "", nil)
+	_, _, err := r.query("POST", "/storage-pools", pool, "")
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (r *ProtocolLXD) CreateStoragePool(pool api.StoragePoolsPost) error {
 // UpdateStoragePool updates the pool to match the provided StoragePool struct
 func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s", name), pool, ETag, nil)
+	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s", name), pool, ETag)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ET
 // DeleteStoragePool deletes a storage pool
 func (r *ProtocolLXD) DeleteStoragePool(name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s", name), nil, "", nil)
+	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s", name), nil, "")
 	if err != nil {
 		return err
 	}

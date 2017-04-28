@@ -223,7 +223,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	err = etagCheck(r, oldConfig)
+	err = etagCheck(r, daemonConfigRender())
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -242,7 +242,7 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	err = etagCheck(r, oldConfig)
+	err = etagCheck(r, daemonConfigRender())
 	if err != nil {
 		return PreconditionFailed(err)
 	}

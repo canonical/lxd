@@ -34,7 +34,7 @@ func (r *ProtocolLXD) GetOperationWebsocket(uuid string, secret string) (*websoc
 // DeleteOperation deletes (cancels) a running operation
 func (r *ProtocolLXD) DeleteOperation(uuid string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/operations/%s", uuid), nil, "", nil)
+	_, _, err := r.query("DELETE", fmt.Sprintf("/operations/%s", uuid), nil, "")
 	if err != nil {
 		return err
 	}
