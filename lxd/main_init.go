@@ -1,22 +1,42 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
-	"strconv"
-	"strings"
 	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/cmd"
 )
 
-func cmdInit() error {
+// CmdInitArgs holds command line arguments for the "lxd init" command.
+type CmdInitArgs struct {
+	Auto                bool
+	StorageBackend      string
+	StorageCreateDevice string
+	StorageCreateLoop   int64
+	StoragePool         string
+	NetworkPort         int64
+	NetworkAddress      string
+	TrustPassword       string
+}
+
+// CmdInit implements the "lxd init" command line.
+type CmdInit struct {
+	Context         *cmd.Context
+	Args            *CmdInitArgs
+	RunningInUserns bool
+	SocketPath      string
+	PasswordReader  func(int) ([]byte, error)
+}
+
+// Run triggers the execution of the init command.
+func (cmd *CmdInit) Run() error {
 	var defaultPrivileged int // controls whether we set security.privileged=true
 	var storageBackend string // dir or zfs
 	var storageMode string    // existing, loop or device
@@ -29,12 +49,7 @@ func cmdInit() error {
 
 	// Detect userns
 	defaultPrivileged = -1
-	runningInUserns = shared.RunningInUserNS()
-
-	// Only root should run this
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("This must be run as root")
-	}
+	runningInUserns = cmd.RunningInUserns
 
 	backendsAvailable := []string{"dir"}
 	backendsSupported := []string{"dir", "zfs"}
@@ -50,107 +65,8 @@ func cmdInit() error {
 		}
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
-	askBool := func(question string, default_ string) bool {
-		for {
-			fmt.Printf(question)
-			input, _ := reader.ReadString('\n')
-			input = strings.TrimSuffix(input, "\n")
-			if input == "" {
-				input = default_
-			}
-			if shared.StringInSlice(strings.ToLower(input), []string{"yes", "y"}) {
-				return true
-			} else if shared.StringInSlice(strings.ToLower(input), []string{"no", "n"}) {
-				return false
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
-	askChoice := func(question string, choices []string, default_ string) string {
-		for {
-			fmt.Printf(question)
-			input, _ := reader.ReadString('\n')
-			input = strings.TrimSuffix(input, "\n")
-			if input == "" {
-				input = default_
-			}
-			if shared.StringInSlice(input, choices) {
-				return input
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
-	askInt := func(question string, min int64, max int64, default_ string) int64 {
-		for {
-			fmt.Printf(question)
-			input, _ := reader.ReadString('\n')
-			input = strings.TrimSuffix(input, "\n")
-			if input == "" {
-				input = default_
-			}
-			intInput, err := strconv.ParseInt(input, 10, 64)
-
-			if err == nil && (min == -1 || intInput >= min) && (max == -1 || intInput <= max) {
-				return intInput
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
-	askString := func(question string, default_ string, validate func(string) error) string {
-		for {
-			fmt.Printf(question)
-			input, _ := reader.ReadString('\n')
-			input = strings.TrimSuffix(input, "\n")
-			if input == "" {
-				input = default_
-			}
-			if validate != nil {
-				result := validate(input)
-				if result != nil {
-					fmt.Printf("Invalid input: %s\n\n", result)
-					continue
-				}
-			}
-			if len(input) != 0 {
-				return input
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
-	askPassword := func(question string) string {
-		for {
-			fmt.Printf(question)
-			pwd, _ := terminal.ReadPassword(0)
-			fmt.Printf("\n")
-			inFirst := string(pwd)
-			inFirst = strings.TrimSuffix(inFirst, "\n")
-
-			fmt.Printf("Again: ")
-			pwd, _ = terminal.ReadPassword(0)
-			fmt.Printf("\n")
-			inSecond := string(pwd)
-			inSecond = strings.TrimSuffix(inSecond, "\n")
-
-			if inFirst == inSecond {
-				return inFirst
-			}
-
-			fmt.Printf("Invalid input, try again.\n\n")
-		}
-	}
-
 	// Connect to LXD
-	c, err := lxd.ConnectLXDUnix("", nil)
+	c, err := lxd.ConnectLXDUnix(cmd.SocketPath, nil)
 	if err != nil {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
@@ -210,63 +126,63 @@ func cmdInit() error {
 		return fmt.Errorf("You have existing containers or images. lxd init requires an empty LXD.")
 	}
 
-	if *argAuto {
-		if *argStorageBackend == "" {
-			*argStorageBackend = "dir"
+	if cmd.Args.Auto {
+		if cmd.Args.StorageBackend == "" {
+			cmd.Args.StorageBackend = "dir"
 		}
 
 		// Do a bunch of sanity checks
-		if !shared.StringInSlice(*argStorageBackend, backendsSupported) {
-			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", *argStorageBackend)
+		if !shared.StringInSlice(cmd.Args.StorageBackend, backendsSupported) {
+			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", cmd.Args.StorageBackend)
 		}
 
-		if !shared.StringInSlice(*argStorageBackend, backendsAvailable) {
-			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", *argStorageBackend)
+		if !shared.StringInSlice(cmd.Args.StorageBackend, backendsAvailable) {
+			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", cmd.Args.StorageBackend)
 		}
 
-		if *argStorageBackend == "dir" {
-			if *argStorageCreateLoop != -1 || *argStorageCreateDevice != "" || *argStoragePool != "" {
+		if cmd.Args.StorageBackend == "dir" {
+			if cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageCreateDevice != "" || cmd.Args.StoragePool != "" {
 				return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend.")
 			}
 		}
 
-		if *argStorageBackend == "zfs" {
-			if *argStorageCreateLoop != -1 && *argStorageCreateDevice != "" {
+		if cmd.Args.StorageBackend == "zfs" {
+			if cmd.Args.StorageCreateLoop != -1 && cmd.Args.StorageCreateDevice != "" {
 				return fmt.Errorf("Only one of --storage-create-device or --storage-create-loop can be specified with the 'zfs' backend.")
 			}
 
-			if *argStoragePool == "" {
+			if cmd.Args.StoragePool == "" {
 				return fmt.Errorf("--storage-pool must be specified with the 'zfs' backend.")
 			}
 		}
 
-		if *argNetworkAddress == "" {
-			if *argNetworkPort != -1 {
+		if cmd.Args.NetworkAddress == "" {
+			if cmd.Args.NetworkPort != -1 {
 				return fmt.Errorf("--network-port cannot be used without --network-address.")
 			}
-			if *argTrustPassword != "" {
+			if cmd.Args.TrustPassword != "" {
 				return fmt.Errorf("--trust-password cannot be used without --network-address.")
 			}
 		}
 
 		// Set the local variables
-		if *argStorageCreateDevice != "" {
+		if cmd.Args.StorageCreateDevice != "" {
 			storageMode = "device"
-		} else if *argStorageCreateLoop != -1 {
+		} else if cmd.Args.StorageCreateLoop != -1 {
 			storageMode = "loop"
 		} else {
 			storageMode = "existing"
 		}
 
-		storageBackend = *argStorageBackend
-		storageLoopSize = *argStorageCreateLoop
-		storageDevice = *argStorageCreateDevice
-		storagePool = *argStoragePool
-		networkAddress = *argNetworkAddress
-		networkPort = *argNetworkPort
-		trustPassword = *argTrustPassword
+		storageBackend = cmd.Args.StorageBackend
+		storageLoopSize = cmd.Args.StorageCreateLoop
+		storageDevice = cmd.Args.StorageCreateDevice
+		storagePool = cmd.Args.StoragePool
+		networkAddress = cmd.Args.NetworkAddress
+		networkPort = cmd.Args.NetworkPort
+		trustPassword = cmd.Args.TrustPassword
 	} else {
-		if *argStorageBackend != "" || *argStorageCreateDevice != "" || *argStorageCreateLoop != -1 || *argStoragePool != "" || *argNetworkAddress != "" || *argNetworkPort != -1 || *argTrustPassword != "" {
+		if cmd.Args.StorageBackend != "" || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageCreateLoop != -1 || cmd.Args.StoragePool != "" || cmd.Args.NetworkAddress != "" || cmd.Args.NetworkPort != -1 || cmd.Args.TrustPassword != "" {
 			return fmt.Errorf("Init configuration is only valid with --auto")
 		}
 
@@ -275,7 +191,7 @@ func cmdInit() error {
 			defaultStorage = "zfs"
 		}
 
-		storageBackend = askChoice(fmt.Sprintf("Name of the storage backend to use (dir or zfs) [default=%s]: ", defaultStorage), backendsSupported, defaultStorage)
+		storageBackend = cmd.Context.AskChoice(fmt.Sprintf("Name of the storage backend to use (dir or zfs) [default=%s]: ", defaultStorage), backendsSupported, defaultStorage)
 
 		if !shared.StringInSlice(storageBackend, backendsSupported) {
 			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
@@ -286,16 +202,16 @@ func cmdInit() error {
 		}
 
 		if storageBackend == "zfs" {
-			if askBool("Create a new ZFS pool (yes/no) [default=yes]? ", "yes") {
-				storagePool = askString("Name of the new ZFS pool [default=lxd]: ", "lxd", nil)
-				if askBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
+			if cmd.Context.AskBool("Create a new ZFS pool (yes/no) [default=yes]? ", "yes") {
+				storagePool = cmd.Context.AskString("Name of the new ZFS pool [default=lxd]: ", "lxd", nil)
+				if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
 					deviceExists := func(path string) error {
 						if !shared.IsBlockdevPath(path) {
 							return fmt.Errorf("'%s' is not a block device", path)
 						}
 						return nil
 					}
-					storageDevice = askString("Path to the existing block device: ", "", deviceExists)
+					storageDevice = cmd.Context.AskString("Path to the existing block device: ", "", deviceExists)
 					storageMode = "device"
 				} else {
 					st := syscall.Statfs_t{}
@@ -314,11 +230,11 @@ func cmdInit() error {
 					}
 
 					q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%d]: ", def)
-					storageLoopSize = askInt(q, 1, -1, fmt.Sprintf("%d", def))
+					storageLoopSize = cmd.Context.AskInt(q, 1, -1, fmt.Sprintf("%d", def))
 					storageMode = "loop"
 				}
 			} else {
-				storagePool = askString("Name of the existing ZFS pool or dataset: ", "", nil)
+				storagePool = cmd.Context.AskString("Name of the existing ZFS pool or dataset: ", "", nil)
 				storageMode = "existing"
 			}
 		}
@@ -342,14 +258,14 @@ in theory attack their parent container and gain more privileges than
 they otherwise would.
 
 `)
-			if askBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
+			if cmd.Context.AskBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
 				defaultPrivileged = 1
 			} else {
 				defaultPrivileged = 0
 			}
 		}
 
-		if askBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
+		if cmd.Context.AskBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
 			isIPAddress := func(s string) error {
 				if s != "all" && net.ParseIP(s) == nil {
 					return fmt.Errorf("'%s' is not an IP address", s)
@@ -357,7 +273,7 @@ they otherwise would.
 				return nil
 			}
 
-			networkAddress = askString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
+			networkAddress = cmd.Context.AskString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
 			if networkAddress == "all" {
 				networkAddress = "::"
 			}
@@ -365,8 +281,8 @@ they otherwise would.
 			if net.ParseIP(networkAddress).To4() == nil {
 				networkAddress = fmt.Sprintf("[%s]", networkAddress)
 			}
-			networkPort = askInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
-			trustPassword = askPassword("Trust password for new clients: ")
+			networkPort = cmd.Context.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
+			trustPassword = cmd.Context.AskPassword("Trust password for new clients: ", cmd.PasswordReader)
 		}
 	}
 
@@ -455,4 +371,26 @@ they otherwise would.
 
 	fmt.Printf("LXD has been successfully configured.\n")
 	return nil
+}
+
+func cmdInit() error {
+	context := cmd.NewContext(os.Stdin, os.Stdout, os.Stderr)
+	args := &CmdInitArgs{
+		Auto:                *argAuto,
+		StorageBackend:      *argStorageBackend,
+		StorageCreateDevice: *argStorageCreateDevice,
+		StorageCreateLoop:   *argStorageCreateLoop,
+		StoragePool:         *argStoragePool,
+		NetworkPort:         *argNetworkPort,
+		NetworkAddress:      *argNetworkAddress,
+		TrustPassword:       *argTrustPassword,
+	}
+	command := &CmdInit{
+		Context:         context,
+		Args:            args,
+		RunningInUserns: shared.RunningInUserNS(),
+		SocketPath:      "",
+		PasswordReader:  terminal.ReadPassword,
+	}
+	return command.Run()
 }
