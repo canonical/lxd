@@ -147,7 +147,7 @@ func (op *Operation) setupListener() error {
 			return
 		}
 
-		// We don't want concurency while processing events
+		// We don't want concurrency while processing events
 		op.listenerLock.Lock()
 		defer op.listenerLock.Unlock()
 
