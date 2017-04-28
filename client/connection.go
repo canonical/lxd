@@ -45,7 +45,7 @@ func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	server := ProtocolLXD{
 		httpHost:        url,
 		httpUserAgent:   args.UserAgent,
-		httpCertificate: args.TLSClientCert,
+		httpCertificate: args.TLSServerCert,
 	}
 
 	// Setup the HTTP client
@@ -126,7 +126,7 @@ func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 	server := ProtocolLXD{
 		httpHost:        url,
 		httpUserAgent:   args.UserAgent,
-		httpCertificate: args.TLSClientCert,
+		httpCertificate: args.TLSServerCert,
 	}
 
 	// Setup the HTTP client
@@ -160,7 +160,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	server := ProtocolSimpleStreams{
 		httpHost:        url,
 		httpUserAgent:   args.UserAgent,
-		httpCertificate: args.TLSClientCert,
+		httpCertificate: args.TLSServerCert,
 	}
 
 	// Setup the HTTP client
