@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
@@ -29,8 +30,7 @@ func NewContext(stdin io.Reader, stdout, stderr io.Writer) *Context {
 // AskBool asks a question an expect a yes/no answer.
 func (c *Context) AskBool(question string, defaultAnswer string) bool {
 	for {
-		fmt.Fprintf(c.stdout, question)
-		answer := c.readAnswer(defaultAnswer)
+		answer := c.askQuestion(question, defaultAnswer)
 
 		if shared.StringInSlice(strings.ToLower(answer), []string{"yes", "y"}) {
 			return true
@@ -38,8 +38,94 @@ func (c *Context) AskBool(question string, defaultAnswer string) bool {
 			return false
 		}
 
-		fmt.Fprintf(c.stderr, "Invalid input, try again.\n\n")
+		c.invalidInput()
 	}
+}
+
+// AskChoice asks the user to select between a set of choices
+func (c *Context) AskChoice(question string, choices []string, defaultAnswer string) string {
+	for {
+		answer := c.askQuestion(question, defaultAnswer)
+
+		if shared.StringInSlice(answer, choices) {
+			return answer
+		}
+
+		c.invalidInput()
+	}
+}
+
+// AskInt asks the user to enter an integer between a min and max value
+func (c *Context) AskInt(question string, min int64, max int64, defaultAnswer string) int64 {
+	for {
+		answer := c.askQuestion(question, defaultAnswer)
+
+		result, err := strconv.ParseInt(answer, 10, 64)
+
+		if err == nil && (min == -1 || result >= min) && (max == -1 || result <= max) {
+			return result
+		}
+
+		c.invalidInput()
+	}
+}
+
+// AskString asks the user to enter a string, which optionally
+// conforms to a validation function.
+func (c *Context) AskString(question string, defaultAnswer string, validate func(string) error) string {
+	for {
+		answer := c.askQuestion(question, defaultAnswer)
+
+		if validate != nil {
+			error := validate(answer)
+			if error != nil {
+				fmt.Fprintf(c.stderr, "Invalid input: %s\n\n", error)
+				continue
+			}
+		}
+		if len(answer) != 0 {
+			return answer
+		}
+
+		c.invalidInput()
+	}
+}
+
+// AskPassword asks the user to enter a password. The reader function used to
+// read the password without echoing characters must be passed (usually
+// terminal.ReadPassword from golang.org/x/crypto/ssh/terminal).
+func (c *Context) AskPassword(question string, reader func(int) ([]byte, error)) string {
+	for {
+		fmt.Fprintf(c.stdout, question)
+
+		pwd, _ := reader(0)
+		fmt.Fprintf(c.stdout, "\n")
+		inFirst := string(pwd)
+		inFirst = strings.TrimSuffix(inFirst, "\n")
+
+		fmt.Fprintf(c.stdout, "Again: ")
+		pwd, _ = reader(0)
+		fmt.Fprintf(c.stdout, "\n")
+		inSecond := string(pwd)
+		inSecond = strings.TrimSuffix(inSecond, "\n")
+
+		if inFirst == inSecond {
+			return inFirst
+		}
+
+		c.invalidInput()
+	}
+}
+
+// Ask a question on the output stream and read the answer from the input stream
+func (c *Context) askQuestion(question, defaultAnswer string) string {
+	fmt.Fprintf(c.stdout, question)
+	return c.readAnswer(defaultAnswer)
+}
+
+// Print an invalid input message on the error stream
+func (c *Context) invalidInput() {
+	fmt.Fprintf(c.stderr, "Invalid input, try again.\n\n")
 }
 
 // Read the user's answer from the input stream, trimming newline and providing a default.
