@@ -46,7 +46,7 @@ func cmdDaemon() error {
 		go func() {
 			for {
 				time.Sleep(time.Duration(*argPrintGoroutinesEvery) * time.Second)
-				logger.PrintStack()
+				logger.Debugf(logger.GetStack())
 			}
 		}()
 	}

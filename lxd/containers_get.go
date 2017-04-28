@@ -26,7 +26,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 	}
 
 	logger.Debugf("DBERR: containersGet, db is locked")
-	logger.PrintStack()
+	logger.Debugf(logger.GetStack())
 	return InternalError(fmt.Errorf("DB is locked"))
 }
 
