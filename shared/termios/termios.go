@@ -12,15 +12,18 @@ import (
 // #include <termios.h>
 import "C"
 
+// State contains the state of a terminal.
 type State struct {
 	Termios syscall.Termios
 }
 
+// IsTerminal returns true if the given file descriptor is a terminal.
 func IsTerminal(fd int) bool {
 	_, err := GetState(fd)
 	return err == nil
 }
 
+// GetState returns the current state of a terminal which may be useful to restore the terminal after a signal.
 func GetState(fd int) (*State, error) {
 	termios := syscall.Termios{}
 
@@ -35,6 +38,7 @@ func GetState(fd int) (*State, error) {
 	return &state, nil
 }
 
+// GetSize returns the dimensions of the given terminal.
 func GetSize(fd int) (int, int, error) {
 	var dimensions [4]uint16
 
@@ -45,6 +49,7 @@ func GetSize(fd int) (int, int, error) {
 	return int(dimensions[1]), int(dimensions[0]), nil
 }
 
+// MakeRaw put the terminal connected to the given file descriptor into raw mode and returns the previous state of the terminal so that it can be restored.
 func MakeRaw(fd int) (*State, error) {
 	var err error
 	var oldState, newState *State
@@ -69,6 +74,7 @@ func MakeRaw(fd int) (*State, error) {
 	return oldState, nil
 }
 
+// Restore restores the terminal connected to the given file descriptor to a previous state.
 func Restore(fd int, state *State) error {
 	ret, err := C.tcsetattr(C.int(fd), C.TCSANOW, (*C.struct_termios)(unsafe.Pointer(&state.Termios)))
 	if ret != 0 {
