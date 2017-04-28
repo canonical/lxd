@@ -171,7 +171,7 @@ func (s *execWs) Do(op *operation) error {
 						break
 					}
 
-					// If an abnormal closure occured, kill the attached process.
+					// If an abnormal closure occurred, kill the attached process.
 					err := syscall.Kill(attachedChildPid, syscall.SIGKILL)
 					if err != nil {
 						logger.Debugf("Failed to send SIGKILL to pid %d.", attachedChildPid)
