@@ -211,16 +211,7 @@ func (c *copyCmd) copyContainer(config *lxd.Config, sourceResource string, destR
 	 */
 	waitchan := make(chan map[int]error, 2)
 	wait := func(cli *lxd.Client, op string, ch chan map[int]error, senderid int) {
-		msg := make(map[int]error, 1)
-		err := cli.WaitForSuccess(op)
-		if err != nil {
-			msg[senderid] = err
-			ch <- msg
-			return
-		}
-
-		msg[senderid] = nil
-		ch <- msg
+		ch <- map[int]error{senderid: cli.WaitForSuccess(op)}
 	}
 
 	var migrationErrFromClient error
