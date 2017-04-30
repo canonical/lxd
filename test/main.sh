@@ -7,17 +7,11 @@ export "LC_ALL=C"
 # Force UTC for consistency
 export "TZ=UTC"
 
-if [ -n "${LXD_VERBOSE:-}" ] || [ -n "${LXD_DEBUG:-}" ]; then
-  set -x
-fi
+set -x
 
-if [ -n "${LXD_VERBOSE:-}" ]; then
-  DEBUG="--verbose"
-fi
+DEBUG="--verbose"
 
-if [ -n "${LXD_DEBUG:-}" ]; then
-  DEBUG="--debug"
-fi
+DEBUG="--debug"
 
 echo "==> Checking for dependencies"
 deps="lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen"
@@ -597,35 +591,6 @@ if [ "$#" -gt 0 ]; then
   exit
 fi
 
-run_test test_check_deps "checking dependencies"
-run_test test_static_analysis "static analysis"
-run_test test_database_update "database schema updates"
-run_test test_remote_url "remote url handling"
-run_test test_remote_admin "remote administration"
-run_test test_remote_usage "remote usage"
-run_test test_basic_usage "basic usage"
-run_test test_security "security features"
-run_test test_image_expiry "image expiry"
-run_test test_concurrent_exec "concurrent exec"
-run_test test_concurrent "concurrent startup"
-run_test test_snapshots "container snapshots"
-run_test test_snap_restore "snapshot restores"
-run_test test_config_profiles "profiles and configuration"
-run_test test_server_config "server configuration"
-run_test test_filemanip "file manipulations"
-run_test test_network "network management"
-run_test test_idmap "id mapping"
-run_test test_template "file templating"
-run_test test_pki "PKI mode"
-run_test test_devlxd "/dev/lxd"
-run_test test_fuidshift "fuidshift"
 run_test test_migration "migration"
-run_test test_fdleak "fd leak"
-run_test test_cpu_profiling "CPU profiling"
-run_test test_mem_profiling "memory profiling"
-run_test test_storage "storage"
-run_test test_lxd_autoinit "lxd init auto"
-run_test test_storage_profiles "storage profiles"
-run_test test_container_import "container import"
 
 TEST_RESULT=success
