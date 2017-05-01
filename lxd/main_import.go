@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"github.com/lxc/lxd/client"
 )
 
 func cmdImport(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("please specify a container to import")
+	}
 	name := args[1]
 	req := map[string]interface{}{
 		"name":  name,
