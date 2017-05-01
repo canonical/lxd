@@ -84,6 +84,9 @@ func dbStoragePoolGet(db *sql.DB, poolName string) (int64, *api.StoragePool, err
 
 	err := dbQueryRowScan(db, query, inargs, outargs)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, nil, NoSuchObjectError
+		}
 		return -1, nil, err
 	}
 
