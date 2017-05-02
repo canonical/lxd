@@ -101,6 +101,7 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 	// Update container configuration
 	args := containerArgs{
 		Architecture: architecture,
+		Description:  req.Description,
 		Config:       req.Config,
 		Devices:      req.Devices,
 		Ephemeral:    req.Ephemeral,

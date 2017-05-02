@@ -187,6 +187,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 		daemon:       d,
 		id:           args.Id,
 		name:         args.Name,
+		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
 		cType:        args.Ctype,
@@ -351,6 +352,7 @@ func containerLXCLoad(d *Daemon, args containerArgs) (container, error) {
 		daemon:       d,
 		id:           args.Id,
 		name:         args.Name,
+		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,
 		cType:        args.Ctype,
@@ -381,6 +383,7 @@ type containerLXC struct {
 	ephemeral    bool
 	id           int
 	name         string
+	description  string
 	stateful     bool
 
 	// Config
@@ -2512,6 +2515,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 			StatusCode:      statusCode,
 		}
 
+		ct.Description = c.Description()
 		ct.Architecture = architectureName
 		ct.Config = c.localConfig
 		ct.CreatedAt = c.creationDate
@@ -3124,6 +3128,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Get a copy of the old configuration
+	oldDescription := c.Description()
 	oldArchitecture := 0
 	err = shared.DeepCopy(&c.architecture, &oldArchitecture)
 	if err != nil {
@@ -3173,6 +3178,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	undoChanges := true
 	defer func() {
 		if undoChanges {
+			c.description = oldDescription
 			c.architecture = oldArchitecture
 			c.ephemeral = oldEphemeral
 			c.expandedConfig = oldExpandedConfig
@@ -3187,6 +3193,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}()
 
 	// Apply the various changes
+	c.description = args.Description
 	c.architecture = args.Architecture
 	c.ephemeral = args.Ephemeral
 	c.localConfig = args.Config
@@ -3887,7 +3894,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	err = dbContainerUpdate(tx, c.id, c.architecture, c.ephemeral)
+	err = dbContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -6743,6 +6750,10 @@ func (c *containerLXC) Daemon() *Daemon {
 
 func (c *containerLXC) Name() string {
 	return c.name
+}
+
+func (c *containerLXC) Description() string {
+	return c.description
 }
 
 func (c *containerLXC) Profiles() []string {
