@@ -264,3 +264,8 @@ places an upper limit on the amount of socket I/O allowed.
 This introduces a new tunnel.NAME.interface option for networks.
 
 This key control what host network interface is used for a VXLAN tunnel.
+
+## storage\_btrfs\_mount\_options
+This introduces the btrfs.mount\_options property for btrfs storage pools.
+
+This key controls what mount options will be used for the btrfs storage pool.

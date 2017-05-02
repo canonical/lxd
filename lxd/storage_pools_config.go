@@ -10,6 +10,13 @@ import (
 )
 
 var storagePoolConfigKeys = map[string]func(value string) error{
+	// valid drivers: btrfs
+	// (Note, that we can't be smart in detecting mount options since a lot
+	// of filesystems come with their own additional ones (e.g.
+	// "user_subvol_rm_allowed" for btrfs or "zfsutils" for zfs). So
+	// shared.IsAny() must do.)
+	"btrfs.mount_options": shared.IsAny,
+
 	// valid drivers: lvm
 	"lvm.thinpool_name": shared.IsAny,
 	"lvm.use_thinpool":  shared.IsBool,
@@ -86,8 +93,8 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		}
 
 		prfx := strings.HasPrefix
-		if driver != "zfs" {
-			if prfx(key, "volume.zfs.") || prfx(key, "zfs.") {
+		if driver == "dir" {
+			if key == "size" {
 				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
 		}
@@ -98,8 +105,8 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 			}
 		}
 
-		if driver == "dir" {
-			if key == "size" {
+		if driver != "zfs" {
+			if prfx(key, "volume.zfs.") || prfx(key, "zfs.") {
 				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
 		}
