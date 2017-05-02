@@ -264,3 +264,6 @@ places an upper limit on the amount of socket I/O allowed.
 This introduces a new tunnel.NAME.interface option for networks.
 
 This key control what host network interface is used for a VXLAN tunnel.
+
+## entity\_description
+This adds descriptions to entities like containers, snapshots, networks, storage pools and volumes.
