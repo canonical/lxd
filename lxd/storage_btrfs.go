@@ -20,10 +20,12 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-var btrfsMntOptions = "user_subvol_rm_allowed"
-
 type storageBtrfs struct {
 	storageShared
+}
+
+func (s *storageBtrfs) getBtrfsPoolMountOptions() string {
+	return "user_subvol_rm_allowed"
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/containers
@@ -201,7 +203,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		// cannot call StoragePoolMount() since it will try to do the
 		// reverse operation. So instead we shamelessly mount using the
 		// block device path at the time of pool creation.
-		err1 = syscall.Mount(source, poolMntPoint, "btrfs", 0, btrfsMntOptions)
+		err1 = syscall.Mount(source, poolMntPoint, "btrfs", 0, s.getBtrfsPoolMountOptions())
 	} else {
 		_, err1 = s.StoragePoolMount()
 	}
@@ -410,7 +412,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	}
 
 	// This is a block device.
-	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", mountFlags, btrfsMntOptions)
+	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", mountFlags, s.getBtrfsPoolMountOptions())
 	if err != nil {
 		return false, err
 	}
