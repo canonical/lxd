@@ -680,7 +680,7 @@ func (c *storageCmd) doStoragePoolVolumesList(config *lxd.Config, remote string,
 	data := [][]string{}
 	for _, volume := range volumes {
 		usedby := strconv.Itoa(len(volume.UsedBy))
-		data = append(data, []string{volume.Type, volume.Name, usedby})
+		data = append(data, []string{volume.Type, volume.Name, volume.Description, usedby})
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -690,6 +690,7 @@ func (c *storageCmd) doStoragePoolVolumesList(config *lxd.Config, remote string,
 	table.SetHeader([]string{
 		i18n.G("TYPE"),
 		i18n.G("NAME"),
+		i18n.G("DESCRIPTION"),
 		i18n.G("USED BY")})
 	sort.Sort(byNameAndType(data))
 	table.AppendBulk(data)
