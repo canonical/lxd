@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2017-05-04 15:44+0200\n"
+        "POT-Creation-Date: 2017-05-04 15:45+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -220,7 +220,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:571 lxc/config.go:636 lxc/image.go:710 lxc/network.go:378 lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:849
+#: lxc/config.go:571 lxc/config.go:636 lxc/image.go:710 lxc/network.go:378 lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:850
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -278,7 +278,7 @@ msgstr  ""
 msgid   "Creating the container"
 msgstr  ""
 
-#: lxc/image.go:617 lxc/image.go:658 lxc/network.go:461 lxc/storage.go:608
+#: lxc/image.go:617 lxc/image.go:658 lxc/network.go:461 lxc/storage.go:608 lxc/storage.go:693
 msgid   "DESCRIPTION"
 msgstr  ""
 
@@ -682,7 +682,7 @@ msgstr  ""
 msgid   "Pid: %d"
 msgstr  ""
 
-#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:850
+#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:851
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -911,12 +911,12 @@ msgstr  ""
 msgid   "Storage pool name"
 msgstr  ""
 
-#: lxc/storage.go:715
+#: lxc/storage.go:716
 #, c-format
 msgid   "Storage volume %s created"
 msgstr  ""
 
-#: lxc/storage.go:725
+#: lxc/storage.go:726
 #, c-format
 msgid   "Storage volume %s deleted"
 msgstr  ""
@@ -1027,7 +1027,7 @@ msgstr  ""
 msgid   "URL"
 msgstr  ""
 
-#: lxc/network.go:462 lxc/profile.go:500 lxc/storage.go:611 lxc/storage.go:693
+#: lxc/network.go:462 lxc/profile.go:500 lxc/storage.go:611 lxc/storage.go:694
 msgid   "USED BY"
 msgstr  ""
 

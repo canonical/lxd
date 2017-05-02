@@ -106,7 +106,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	}
 
 	// Create a db entry for the storage volume of the image.
-	_, err = dbStoragePoolVolumeCreate(s.d.db, fingerprint, storagePoolVolumeTypeImage, s.poolID, volumeConfig)
+	_, err = dbStoragePoolVolumeCreate(s.d.db, fingerprint, "", storagePoolVolumeTypeImage, s.poolID, volumeConfig)
 	if err != nil {
 		// Try to delete the db entry on error.
 		s.deleteImageDbPoolVolume(fingerprint)

@@ -349,6 +349,11 @@ func dbStoragePoolVolumeGetType(db *sql.DB, volumeName string, volumeType int, p
 		return -1, nil, err
 	}
 
+	volumeDescription, err := dbStorageVolumeDescriptionGet(db, volumeID)
+	if err != nil {
+		return -1, nil, err
+	}
+
 	volumeTypeName, err := storagePoolVolumeTypeToName(volumeType)
 	if err != nil {
 		return -1, nil, err
@@ -358,13 +363,14 @@ func dbStoragePoolVolumeGetType(db *sql.DB, volumeName string, volumeType int, p
 		Type: volumeTypeName,
 	}
 	storageVolume.Name = volumeName
+	storageVolume.Description = volumeDescription
 	storageVolume.Config = volumeConfig
 
 	return volumeID, &storageVolume, nil
 }
 
 // Update storage volume attached to a given storage pool.
-func dbStoragePoolVolumeUpdate(db *sql.DB, volumeName string, volumeType int, poolID int64, volumeConfig map[string]string) error {
+func dbStoragePoolVolumeUpdate(db *sql.DB, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
 	volumeID, _, err := dbStoragePoolVolumeGetType(db, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
@@ -382,6 +388,12 @@ func dbStoragePoolVolumeUpdate(db *sql.DB, volumeName string, volumeType int, po
 	}
 
 	err = dbStorageVolumeConfigAdd(tx, volumeID, volumeConfig)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = dbStorageVolumeDescriptionUpdate(tx, volumeID, volumeDescription)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -427,13 +439,14 @@ func dbStoragePoolVolumeRename(db *sql.DB, oldVolumeName string, newVolumeName s
 }
 
 // Create new storage volume attached to a given storage pool.
-func dbStoragePoolVolumeCreate(db *sql.DB, volumeName string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
+func dbStoragePoolVolumeCreate(db *sql.DB, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
 	tx, err := dbBegin(db)
 	if err != nil {
 		return -1, err
 	}
 
-	result, err := tx.Exec("INSERT INTO storage_volumes (storage_pool_id, type, name) VALUES (?, ?, ?)", poolID, volumeType, volumeName)
+	result, err := tx.Exec("INSERT INTO storage_volumes (storage_pool_id, type, name, description) VALUES (?, ?, ?, ?)",
+		poolID, volumeType, volumeName, volumeDescription)
 	if err != nil {
 		tx.Rollback()
 		return -1, err

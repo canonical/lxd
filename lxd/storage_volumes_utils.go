@@ -88,7 +88,7 @@ func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 	return "", fmt.Errorf("invalid storage volume type")
 }
 
-func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volumeType int, newConfig map[string]string) error {
+func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volumeType int, newDescription string, newConfig map[string]string) error {
 	s, err := storagePoolVolumeInit(d, poolName, volumeName, volumeType)
 	if err != nil {
 		return err
@@ -98,6 +98,7 @@ func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volu
 	newWritable := oldWritable
 
 	// Backup the current state
+	oldDescription := oldWritable.Description
 	oldConfig := map[string]string{}
 	err = shared.DeepCopy(&oldWritable.Config, &oldConfig)
 	if err != nil {
@@ -142,33 +143,34 @@ func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volu
 		}
 	}
 
-	// Skip on no change
-	if len(changedConfig) == 0 {
-		return nil
-	}
+	// Apply config changes if there are any
+	if len(changedConfig) != 0 {
 
-	// Update the storage pool
-	if !userOnly {
-		err = s.StoragePoolVolumeUpdate(changedConfig)
-		if err != nil {
-			return err
+		// Update the storage pool
+		if !userOnly {
+			err = s.StoragePoolVolumeUpdate(changedConfig)
+			if err != nil {
+				return err
+			}
 		}
+
+		newWritable.Config = newConfig
+
+		// Apply the new configuration
+		s.SetStoragePoolVolumeWritable(&newWritable)
 	}
-
-	newWritable.Config = newConfig
-
-	// Apply the new configuration
-	s.SetStoragePoolVolumeWritable(&newWritable)
 
 	poolID, err := dbStoragePoolGetID(d.db, poolName)
 	if err != nil {
 		return err
 	}
 
-	// Update the database
-	err = dbStoragePoolVolumeUpdate(d.db, volumeName, volumeType, poolID, newConfig)
-	if err != nil {
-		return err
+	// Update the database if something changed
+	if len(changedConfig) != 0 || newDescription != oldDescription {
+		err = dbStoragePoolVolumeUpdate(d.db, volumeName, volumeType, poolID, newDescription, newConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Success, update the closure to mark that the changes should be kept.
@@ -260,7 +262,7 @@ func profilesUsingPoolVolumeGetNames(db *sql.DB, volumeName string, volumeType s
 	return usedBy, nil
 }
 
-func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName string, volumeTypeName string, volumeConfig map[string]string) error {
+func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeConfig map[string]string) error {
 	// Check that the name of the new storage volume is valid. (For example.
 	// zfs pools cannot contain "/" in their names.)
 	err := storageValidName(volumeName)
@@ -311,7 +313,7 @@ func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName string, vo
 	}
 
 	// Create the database entry for the storage volume.
-	_, err = dbStoragePoolVolumeCreate(d.db, volumeName, volumeType, poolID, volumeConfig)
+	_, err = dbStoragePoolVolumeCreate(d.db, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
 	}
@@ -319,8 +321,8 @@ func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName string, vo
 	return nil
 }
 
-func storagePoolVolumeCreateInternal(d *Daemon, poolName string, volumeName string, volumeTypeName string, volumeConfig map[string]string) error {
-	err := storagePoolVolumeDBCreate(d, poolName, volumeName, volumeTypeName, volumeConfig)
+func storagePoolVolumeCreateInternal(d *Daemon, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeConfig map[string]string) error {
+	err := storagePoolVolumeDBCreate(d, poolName, volumeName, volumeDescription, volumeTypeName, volumeConfig)
 	if err != nil {
 		return err
 	}
