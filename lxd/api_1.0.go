@@ -104,6 +104,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_lvm_use_thinpool",
 			"storage_rsync_bwlimit",
 			"network_vxlan_interface",
+			"storage_btrfs_mount_options",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

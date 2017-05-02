@@ -21,11 +21,42 @@ import (
 )
 
 type storageBtrfs struct {
+	remount uintptr
 	storageShared
 }
 
-func (s *storageBtrfs) getBtrfsPoolMountOptions() string {
-	return "user_subvol_rm_allowed"
+func (s *storageBtrfs) getBtrfsPoolMountOptions() (uintptr, string) {
+	mountFlags := uintptr(0)
+	opts := s.pool.Config["btrfs.mount_options"]
+	if opts == "" {
+		return mountFlags, "user_subvol_rm_allowed"
+	}
+
+	tmp := strings.SplitN(opts, ",", -1)
+	for i := 0; i < len(tmp); i++ {
+		opt := tmp[i]
+		do, ok := MountOptions[opt]
+		if !ok {
+			continue
+		}
+
+		if do.unset {
+			mountFlags &= ^do.flag
+		} else {
+			mountFlags |= do.flag
+		}
+
+		copy(tmp[i:], tmp[i+1:])
+		tmp[len(tmp)-1] = ""
+		tmp = tmp[:len(tmp)-1]
+		i--
+	}
+
+	return mountFlags, strings.Join(tmp, ",")
+}
+
+func (s *storageBtrfs) setBtrfsPoolMountOptions(mountOptions string) {
+	s.pool.Config["btrfs.mount_options"] = mountOptions
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/containers
@@ -183,6 +214,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 
 	var err1 error
 	var devUUID string
+	mountFlags, mountOptions := s.getBtrfsPoolMountOptions()
 	if isBlockDev && filepath.IsAbs(source) {
 		devUUID, _ = shared.LookupUUIDByBlockDevPath(source)
 		// The symlink might not have been created even with the delay
@@ -203,7 +235,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		// cannot call StoragePoolMount() since it will try to do the
 		// reverse operation. So instead we shamelessly mount using the
 		// block device path at the time of pool creation.
-		err1 = syscall.Mount(source, poolMntPoint, "btrfs", 0, s.getBtrfsPoolMountOptions())
+		err1 = syscall.Mount(source, poolMntPoint, "btrfs", mountFlags, mountOptions)
 	} else {
 		_, err1 = s.StoragePoolMount()
 	}
@@ -361,7 +393,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		}
 	}
 
-	if shared.IsMountPoint(poolMntPoint) {
+	if shared.IsMountPoint(poolMntPoint) && (s.remount&syscall.MS_REMOUNT) == 0 {
 		return false, nil
 	}
 
@@ -411,9 +443,11 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 
 	}
 
-	// This is a block device.
-	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", mountFlags, s.getBtrfsPoolMountOptions())
+	mountFlags, mountOptions := s.getBtrfsPoolMountOptions()
+	mountFlags |= s.remount
+	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", mountFlags, mountOptions)
 	if err != nil {
+		logger.Errorf("failed to mount BTRFS storage pool \"%s\" onto \"%s\" with mountoptions \"%s\": %s", mountSource, poolMntPoint, mountOptions, err)
 		return false, err
 	}
 
@@ -464,11 +498,21 @@ func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 }
 
 func (s *storageBtrfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	if shared.StringInSlice("rsync.bwlimit", changedConfig) {
-		return nil
+	logger.Infof("Updating BTRFS storage pool \"%s\".", s.pool.Name)
+
+	// rsync.bwlimit does not require any on-disk changes
+
+	if shared.StringInSlice("btrfs.mount_options", changedConfig) {
+		s.setBtrfsPoolMountOptions(writable.Config["btrfs.mount_options"])
+		s.remount |= syscall.MS_REMOUNT
+		_, err := s.StoragePoolMount()
+		if err != nil {
+			return err
+		}
 	}
 
-	return fmt.Errorf("storage property cannot be changed")
+	logger.Infof("Updated BTRFS storage pool \"%s\".", s.pool.Name)
+	return nil
 }
 
 func (s *storageBtrfs) GetStoragePoolWritable() api.StoragePoolPut {
