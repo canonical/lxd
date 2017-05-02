@@ -60,13 +60,13 @@ A single keyword like "web" which will list any container with a name starting b
 A regular expression on the container name. (e.g. .*web.*01$).
 
 A key/value pair referring to a configuration item. For those, the namespace can be abbreviated to the smallest unambiguous identifier.
-    - "user.blah=abc" will list all containers with the "blah" user property set to "abc".
+	- "user.blah=abc" will list all containers with the "blah" user property set to "abc".
 
-    - "u.blah=abc" will do the same
+	- "u.blah=abc" will do the same
 
-    - "security.privileged=1" will list all privileged containers
+	- "security.privileged=1" will list all privileged containers
 
-    - "s.privileged=1" will do the same
+	- "s.privileged=1" will do the same
 
 A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*).
 
@@ -82,49 +82,51 @@ Commas between consecutive shorthand chars are optional.
 
 Pre-defined column shorthand chars:
 
-    4 - IPv4 address
+	4 - IPv4 address
 
-    6 - IPv6 address
+	6 - IPv6 address
 
-    a - Architecture
+	a - Architecture
 
-    b - Storage pool
+	b - Storage pool
 
-    c - Creation date
+	c - Creation date
 
-    l - Last used date
+	d - Description
 
-    n - Name
+	l - Last used date
 
-    p - PID of the container's init process
+	n - Name
 
-    P - Profiles
+	p - PID of the container's init process
 
-    s - State
+	P - Profiles
 
-    S - Number of snapshots
+	s - State
 
-    t - Type (persistent or ephemeral)
+	S - Number of snapshots
+
+	t - Type (persistent or ephemeral)
 
 Custom columns are defined with "key[:name][:maxWidth]":
 
-    KEY: The (extended) config key to display
+	KEY: The (extended) config key to display
 
-    NAME: Name to display in the column header.
-    Defaults to the key if not specified or empty.
+	NAME: Name to display in the column header.
+	Defaults to the key if not specified or empty.
 
-    MAXWIDTH: Max width of the column (longer results are truncated).
-    Defaults to -1 (unlimited). Use 0 to limit to the column header size.
+	MAXWIDTH: Max width of the column (longer results are truncated).
+	Defaults to -1 (unlimited). Use 0 to limit to the column header size.
 
 *Examples*
 lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC
-    Shows a list of containers using the "NAME", "BASE IMAGE", "STATE", "IPV4",
-    "IPV6" and "MAC" columns.
+	Shows a list of containers using the "NAME", "BASE IMAGE", "STATE", "IPV4",
+	"IPV6" and "MAC" columns.
 
-    "BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.
+	"BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.
 
 lxc list -c ns,user.comment:comment
-    List images with their running state and user comment. `)
+	List images with their running state and user comment. `)
 }
 
 func (c *listCmd) flags() {
@@ -445,6 +447,7 @@ func (c *listCmd) parseColumns() ([]column, error) {
 		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
 		'a': {i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
 		'c': {i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
+		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData, false, false},
 		'l': {i18n.G("LAST USED AT"), c.LastUsedColumnData, false, false},
 		'n': {i18n.G("NAME"), c.nameColumnData, false, false},
 		'p': {i18n.G("PID"), c.PIDColumnData, true, false},
@@ -533,6 +536,10 @@ func (c *listCmd) parseColumns() ([]column, error) {
 
 func (c *listCmd) nameColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	return cInfo.Name
+}
+
+func (c *listCmd) descriptionColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+	return cInfo.Description
 }
 
 func (c *listCmd) statusColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {

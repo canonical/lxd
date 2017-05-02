@@ -52,6 +52,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		do = func(op *operation) error {
 			args := containerArgs{
 				Architecture: architecture,
+				Description:  configRaw.Description,
 				Config:       configRaw.Config,
 				Devices:      configRaw.Devices,
 				Ephemeral:    configRaw.Ephemeral,
