@@ -19,7 +19,7 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	var syshandler log.Handler
 
 	// Format handler
-	format := logfmtFormat()
+	format := LogfmtFormat()
 	if term.IsTty(os.Stderr.Fd()) {
 		format = TerminalFormat()
 	}

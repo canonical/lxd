@@ -67,7 +67,8 @@ func TerminalFormat() log.Format {
 	})
 }
 
-func logfmtFormat() log.Format {
+// LogfmtFormat return a formatter for a text log file
+func LogfmtFormat() log.Format {
 	return log.FormatFunc(func(r *log.Record) []byte {
 		common := []interface{}{r.KeyNames.Time, r.Time, r.KeyNames.Lvl, r.Lvl, r.KeyNames.Msg, r.Msg}
 		buf := &bytes.Buffer{}
