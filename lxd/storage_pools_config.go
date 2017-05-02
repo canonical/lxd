@@ -10,6 +10,13 @@ import (
 )
 
 var storagePoolConfigKeys = map[string]func(value string) error{
+	// valid drivers: btrfs
+	// (Note, that we can't be smart in detecting mount options since a lot
+	// of filesystems come with their own additional ones (e.g.
+	// "user_subvol_rm_allowed" for btrfs or "zfsutils" for zfs). So
+	// shared.IsAny() must do.)
+	"btrfs.mount_options": shared.IsAny,
+
 	// valid drivers: lvm
 	"lvm.thinpool_name": shared.IsAny,
 	"lvm.use_thinpool":  shared.IsBool,
