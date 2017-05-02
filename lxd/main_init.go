@@ -91,71 +91,6 @@ func (cmd *CmdInit) Run() error {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
 
-	setServerConfig := func(key string, value string) error {
-		server, etag, err := c.GetServer()
-		if err != nil {
-			return err
-		}
-
-		if server.Config == nil {
-			server.Config = map[string]interface{}{}
-		}
-
-		server.Config[key] = value
-
-		err = c.UpdateServer(server.Writable(), etag)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	profileDeviceAdd := func(profileName string, deviceName string, deviceConfig map[string]string) error {
-		profile, etag, err := c.GetProfile(profileName)
-		if err != nil {
-			return err
-		}
-
-		if profile.Devices == nil {
-			profile.Devices = map[string]map[string]string{}
-		}
-
-		_, ok := profile.Devices[deviceName]
-		if ok {
-			return fmt.Errorf("Device already exists: %s", deviceName)
-		}
-
-		profile.Devices[deviceName] = deviceConfig
-
-		err = c.UpdateProfile(profileName, profile.Writable(), etag)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	setProfileConfigItem := func(profileName string, key string, value string) error {
-		profile, etag, err := c.GetProfile(profileName)
-		if err != nil {
-			return err
-		}
-
-		if profile.Config == nil {
-			profile.Config = map[string]string{}
-		}
-
-		profile.Config[key] = value
-
-		err = c.UpdateProfile(profileName, profile.Writable(), etag)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
 	pools, err := c.GetStoragePoolNames()
 	if err != nil {
 		// We should consider this fatal since this means
@@ -378,7 +313,7 @@ they otherwise would.
 	if storageSetup {
 		// Unset core.https_address and core.trust_password
 		for _, key := range []string{"core.https_address", "core.trust_password"} {
-			err = setServerConfig(key, "")
+			err = cmd.setServerConfig(c, key, "")
 			if err != nil {
 				return err
 			}
@@ -468,7 +403,7 @@ they otherwise would.
 					"pool": storagePool,
 				}
 
-				err = profileDeviceAdd("default", "root", props)
+				err = cmd.profileDeviceAdd(c, "default", "root", props)
 				if err != nil {
 					return err
 				}
@@ -483,12 +418,12 @@ they otherwise would.
 	}
 
 	if defaultPrivileged == 0 {
-		err = setProfileConfigItem("default", "security.privileged", "")
+		err = cmd.setProfileConfigItem(c, "default", "security.privileged", "")
 		if err != nil {
 			return err
 		}
 	} else if defaultPrivileged == 1 {
-		err = setProfileConfigItem("default", "security.privileged", "true")
+		err = cmd.setProfileConfigItem(c, "default", "security.privileged", "true")
 		if err != nil {
 		}
 	}
@@ -500,26 +435,26 @@ they otherwise would.
 		}
 
 		if val, ok := ss.Config["images.auto_update_interval"]; ok && val == "0" {
-			err = setServerConfig("images.auto_update_interval", "")
+			err = cmd.setServerConfig(c, "images.auto_update_interval", "")
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		err = setServerConfig("images.auto_update_interval", "0")
+		err = cmd.setServerConfig(c, "images.auto_update_interval", "0")
 		if err != nil {
 			return err
 		}
 	}
 
 	if networkAddress != "" {
-		err = setServerConfig("core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
+		err = cmd.setServerConfig(c, "core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
 		if err != nil {
 			return err
 		}
 
 		if trustPassword != "" {
-			err = setServerConfig("core.trust_password", trustPassword)
+			err = cmd.setServerConfig(c, "core.trust_password", trustPassword)
 			if err != nil {
 				return err
 			}
@@ -554,13 +489,78 @@ they otherwise would.
 			"parent":  bridgeName,
 		}
 
-		err = profileDeviceAdd("default", "eth0", props)
+		err = cmd.profileDeviceAdd(c, "default", "eth0", props)
 		if err != nil {
 			return err
 		}
 	}
 
 	fmt.Printf("LXD has been successfully configured.\n")
+	return nil
+}
+
+func (cmd *CmdInit) setServerConfig(c lxd.ContainerServer, key string, value string) error {
+	server, etag, err := c.GetServer()
+	if err != nil {
+		return err
+	}
+
+	if server.Config == nil {
+		server.Config = map[string]interface{}{}
+	}
+
+	server.Config[key] = value
+
+	err = c.UpdateServer(server.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cmd *CmdInit) profileDeviceAdd(c lxd.ContainerServer, profileName string, deviceName string, deviceConfig map[string]string) error {
+	profile, etag, err := c.GetProfile(profileName)
+	if err != nil {
+		return err
+	}
+
+	if profile.Devices == nil {
+		profile.Devices = map[string]map[string]string{}
+	}
+
+	_, ok := profile.Devices[deviceName]
+	if ok {
+		return fmt.Errorf("Device already exists: %s", deviceName)
+	}
+
+	profile.Devices[deviceName] = deviceConfig
+
+	err = c.UpdateProfile(profileName, profile.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cmd *CmdInit) setProfileConfigItem(c lxd.ContainerServer, profileName string, key string, value string) error {
+	profile, etag, err := c.GetProfile(profileName)
+	if err != nil {
+		return err
+	}
+
+	if profile.Config == nil {
+		profile.Config = map[string]string{}
+	}
+
+	profile.Config[key] = value
+
+	err = c.UpdateProfile(profileName, profile.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
