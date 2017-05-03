@@ -473,11 +473,6 @@ they otherwise would.
 		data.Config["images.auto_update_interval"] = "0"
 	}
 
-	err = cmd.run(c, data)
-	if err != nil {
-		return nil
-	}
-
 	if bridgeName != "" {
 		bridgeConfig := map[string]string{}
 		bridgeConfig["ipv4.address"] = bridgeIPv4
@@ -494,11 +489,15 @@ they otherwise would.
 		network := api.NetworksPost{
 			Name: bridgeName}
 		network.Config = bridgeConfig
+		data.Networks = []api.NetworksPost{network}
+	}
 
-		err = c.CreateNetwork(network)
-		if err != nil {
-			return err
-		}
+	err = cmd.run(c, data)
+	if err != nil {
+		return nil
+	}
+
+	if bridgeName != "" {
 
 		props := map[string]string{
 			"type":    "nic",
@@ -532,6 +531,12 @@ func (cmd *CmdInit) run(client lxd.ContainerServer, data *cmdInitData) error {
 	if err != nil {
 		return err
 	}
+
+	err = cmd.initNetworks(client, data.Networks)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -566,6 +571,22 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 		server.Config[key] = value
 	}
 	return client.UpdateServer(server.Writable(), etag)
+}
+
+// Create the given networks if they don't exist yet.
+func (cmd *CmdInit) initNetworks(client lxd.ContainerServer, networks []api.NetworksPost) error {
+	for _, network := range networks {
+		_, _, err := client.GetNetwork(network.Name)
+		if err == nil {
+			logger.Warnf("Network '%s' already exists, skipping.", network.Name)
+			continue
+		}
+		err = client.CreateNetwork(network)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Check that the arguments passed via command line are consistent,
@@ -647,6 +668,7 @@ func (cmd *CmdInit) setProfileConfigItem(c lxd.ContainerServer, profileName stri
 // the auto/interactive modes.
 type cmdInitData struct {
 	api.ServerPut `yaml:",inline"`
+	Networks      []api.NetworksPost
 }
 
 func cmdInit() error {

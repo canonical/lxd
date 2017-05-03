@@ -525,6 +525,11 @@ func (n *network) Rename(name string) error {
 }
 
 func (n *network) Start() error {
+	// If we are in mock mode, just no-op.
+	if n.daemon.MockMode {
+		return nil
+	}
+
 	// Create directory
 	if !shared.PathExists(shared.VarPath("networks", n.name)) {
 		err := os.MkdirAll(shared.VarPath("networks", n.name), 0711)
