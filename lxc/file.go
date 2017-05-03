@@ -331,7 +331,7 @@ func (c *fileCmd) pull(config *lxd.Config, args []string) error {
 			}
 			defer f.Close()
 
-			err = f.Chmod(os.FileMode(mode))
+			err = os.Chmod(targetPath, os.FileMode(mode))
 			if err != nil {
 				return err
 			}
