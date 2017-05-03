@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/cmd"
 	"github.com/stretchr/testify/suite"
 )
@@ -13,6 +14,7 @@ type cmdInitTestSuite struct {
 	context *cmd.Context
 	args    *CmdInitArgs
 	command *CmdInit
+	client  lxd.ContainerServer
 }
 
 func (suite *cmdInitTestSuite) SetupTest() {
@@ -29,6 +31,9 @@ func (suite *cmdInitTestSuite) SetupTest() {
 		RunningInUserns: false,
 		SocketPath:      suite.d.UnixSocket.Socket.Addr().String(),
 	}
+	client, err := lxd.ConnectLXDUnix(suite.command.SocketPath, nil)
+	suite.Req.Nil(err)
+	suite.client = client
 }
 
 // If any argument intended for --auto is passed in interactive mode, an
@@ -174,6 +179,47 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdatePreseed() {
 	suite.Req.Equal("15", key.Get())
 }
 
+// It's possible to configure a network bridge interactively.
+func (suite *cmdInitTestSuite) TestCmdInit_NetworkInteractive() {
+	answers := &cmdInitAnswers{
+		WantNetworkBridge: true,
+		BridgeName:        "foo",
+		BridgeIPv4:        "auto",
+		BridgeIPv6:        "auto",
+	}
+	answers.Render(suite.streams)
+
+	suite.Req.Nil(suite.command.Run())
+
+	network, _, err := suite.client.GetNetwork("foo")
+	suite.Req.Nil(err)
+	suite.Req.Equal("bridge", network.Type)
+	suite.Req.Nil(networkValidAddressCIDRV4(network.Config["ipv4.address"]))
+	suite.Req.Nil(networkValidAddressCIDRV6(network.Config["ipv6.address"]))
+}
+
+// Preseed a network of type bridge.
+func (suite *cmdInitTestSuite) TestCmdInit_NetworkPreseed() {
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`networks:
+- name: bar
+  type: bridge
+  config:
+    ipv4.address: 10.48.159.1/24
+    ipv4.nat: true
+    ipv6.address: none
+`)
+
+	suite.Req.Nil(suite.command.Run())
+
+	network, _, err := suite.client.GetNetwork("bar")
+	suite.Req.Nil(err)
+	suite.Req.Equal("bridge", network.Type)
+	suite.Req.Equal("10.48.159.1/24", network.Config["ipv4.address"])
+	suite.Req.Equal("true", network.Config["ipv4.nat"])
+	suite.Req.Equal("none", network.Config["ipv6.address"])
+}
+
 // Convenience for building the input text a user would enter for a certain
 // sequence of answers.
 type cmdInitAnswers struct {
@@ -183,6 +229,9 @@ type cmdInitAnswers struct {
 	BindToPort               string
 	WantImageAutoUpdate      bool
 	WantNetworkBridge        bool
+	BridgeName               string
+	BridgeIPv4               string
+	BridgeIPv6               string
 }
 
 // Render the input text the user would type for the desired answers, populating
@@ -196,6 +245,11 @@ func (answers *cmdInitAnswers) Render(streams *cmd.MemoryStreams) {
 	}
 	streams.InputAppendBoolAnswer(answers.WantImageAutoUpdate)
 	streams.InputAppendBoolAnswer(answers.WantNetworkBridge)
+	if answers.WantNetworkBridge {
+		streams.InputAppendLine(answers.BridgeName)
+		streams.InputAppendLine(answers.BridgeIPv4)
+		streams.InputAppendLine(answers.BridgeIPv6)
+	}
 }
 
 func TestCmdInitTestSuite(t *testing.T) {
