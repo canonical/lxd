@@ -21,11 +21,7 @@ test_static_analysis() {
       shellcheck test/main.sh test/suites/* test/backends/*
     else
       echo "shellcheck not found, shell static analysis disabled"
-<<<<<<< HEAD
-    fi  
-=======
     fi
->>>>>>> 7050be73... tests: Trailing whitespaces
 
     # Go static analysis
     ## Functions starting by empty line
