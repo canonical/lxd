@@ -20,6 +20,7 @@ import (
 // CmdInitArgs holds command line arguments for the "lxd init" command.
 type CmdInitArgs struct {
 	Auto                bool
+	Preseed             bool
 	StorageBackend      string
 	StorageCreateDevice string
 	StorageCreateLoop   int64
@@ -40,6 +41,40 @@ type CmdInit struct {
 
 // Run triggers the execution of the init command.
 func (cmd *CmdInit) Run() error {
+	// Check that command line arguments don't conflict with each other
+	err := cmd.validateArgs()
+	if err != nil {
+		return err
+	}
+
+	// Connect to LXD
+	client, err := lxd.ConnectLXDUnix(cmd.SocketPath, nil)
+	if err != nil {
+		return fmt.Errorf("Unable to talk to LXD: %s", err)
+	}
+
+	// Kick off the appropriate run mode (either preseed, auto or interactive).
+	if cmd.Args.Preseed {
+		err = cmd.runPreseed(client)
+	} else {
+		err = cmd.runAutoOrInteractive(client)
+	}
+
+	if err == nil {
+		cmd.Context.Output("LXD has been successfully configured.\n")
+	}
+
+	return err
+}
+
+// Run the logic for auto or interactive mode.
+//
+// XXX: this logic is going to be refactored into two separate runAuto
+// and runInteractive methods, sharing relevant logic with
+// runPreseed. The idea being that both runAuto and runInteractive
+// will end up populating the same low-level cmdInitData structure
+// passed to the common run() method.
+func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer) error {
 	var defaultPrivileged int // controls whether we set security.privileged=true
 	var storageSetup bool     // == supportedStoragePoolDrivers
 	var storageBackend string // == supportedStoragePoolDrivers
@@ -83,12 +118,6 @@ func (cmd *CmdInit) Run() error {
 		}
 
 		backendsAvailable = append(backendsAvailable, driver)
-	}
-
-	// Connect to LXD
-	c, err := lxd.ConnectLXDUnix(cmd.SocketPath, nil)
-	if err != nil {
-		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
 
 	pools, err := c.GetStoragePoolNames()
@@ -447,18 +476,19 @@ they otherwise would.
 		}
 	}
 
-	if networkAddress != "" {
-		err = cmd.setServerConfig(c, "core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
-		if err != nil {
-			return err
-		}
+	data := &cmdInitData{}
+	data.Config = map[string]interface{}{}
 
+	if networkAddress != "" {
+		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networkAddress, networkPort)
 		if trustPassword != "" {
-			err = cmd.setServerConfig(c, "core.trust_password", trustPassword)
-			if err != nil {
-				return err
-			}
+			data.Config["core.trust_password"] = trustPassword
 		}
+	}
+
+	err = cmd.run(c, data)
+	if err != nil {
+		return err
 	}
 
 	if bridgeName != "" {
@@ -494,8 +524,48 @@ they otherwise would.
 			return err
 		}
 	}
+	return nil
+}
 
-	fmt.Printf("LXD has been successfully configured.\n")
+// Run the logic for preseed mode
+func (cmd *CmdInit) runPreseed(client lxd.ContainerServer) error {
+	data := &cmdInitData{}
+
+	err := cmd.Context.InputYAML(data)
+	if err != nil {
+		return fmt.Errorf("Invalid preseed YAML content")
+	}
+
+	return cmd.run(client, data)
+}
+
+// Apply the configuration specified in the given init data.
+func (cmd *CmdInit) run(client lxd.ContainerServer, data *cmdInitData) error {
+	err := cmd.initConfig(client, data.Config)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Apply the server-level configuration in the given map.
+func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]interface{}) error {
+	server, etag, err := client.GetServer()
+	if err != nil {
+		return err
+	}
+
+	server.Config = config
+
+	return client.UpdateServer(server.Writable(), etag)
+}
+
+// Check that the arguments passed via command line are consistent,
+// and no invalid combination is provided.
+func (cmd *CmdInit) validateArgs() error {
+	if cmd.Args.Auto && cmd.Args.Preseed {
+		return fmt.Errorf("Non-interactive mode supported by only one of --auto or --preseed")
+	}
 	return nil
 }
 
@@ -564,10 +634,18 @@ func (cmd *CmdInit) setProfileConfigItem(c lxd.ContainerServer, profileName stri
 	return nil
 }
 
+// Defines the schema for all possible configuration knobs supported by the
+// lxd init command, either directly fed via --preseed or populated by
+// the auto/interactive modes.
+type cmdInitData struct {
+	api.ServerPut `yaml:",inline"`
+}
+
 func cmdInit() error {
 	context := cmd.NewContext(os.Stdin, os.Stdout, os.Stderr)
 	args := &CmdInitArgs{
 		Auto:                *argAuto,
+		Preseed:             *argPreseed,
 		StorageBackend:      *argStorageBackend,
 		StorageCreateDevice: *argStorageCreateDevice,
 		StorageCreateLoop:   *argStorageCreateLoop,
