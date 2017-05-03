@@ -13,9 +13,20 @@ import (
 )
 
 func mockStartDaemon() (*Daemon, error) {
+	certBytes, keyBytes, err := shared.GenerateMemCert(false)
+	if err != nil {
+		return nil, err
+	}
+	cert, err := tls.X509KeyPair(certBytes, keyBytes)
+	if err != nil {
+		return nil, err
+	}
+
 	d := &Daemon{
-		MockMode:  true,
-		tlsConfig: &tls.Config{},
+		MockMode: true,
+		tlsConfig: &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		},
 	}
 
 	if err := d.Init(); err != nil {

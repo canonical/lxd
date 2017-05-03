@@ -8,6 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Output prints the given message on standard output
+func TestOutput(t *testing.T) {
+	streams := cmd.NewMemoryStreams("")
+	context := cmd.NewMemoryContext(streams)
+	context.Output("Hello %s", "world")
+	streams.AssertOutEqual(t, "Hello world")
+}
+
 // AskBool returns a boolean result depending on the user input.
 func TestAskBool(t *testing.T) {
 	cases := []struct {
@@ -145,4 +153,18 @@ func TestAskPassword(t *testing.T) {
 		streams.AssertOutEqual(t, c.output)
 		streams.AssertErrEqual(t, c.error)
 	}
+}
+
+// InputYAML parses the YAML content passed via stdin.
+func TestInputYAML(t *testing.T) {
+	streams := cmd.NewMemoryStreams("field: foo")
+	context := cmd.NewMemoryContext(streams)
+
+	type Schema struct {
+		Field string
+	}
+	schema := Schema{}
+
+	assert.Nil(t, context.InputYAML(&schema))
+	assert.Equal(t, "foo", schema.Field, "Unexpected field value")
 }

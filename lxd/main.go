@@ -15,6 +15,7 @@ import (
 
 // Global arguments
 var argAuto = gnuflag.Bool("auto", false, "")
+var argPreseed = gnuflag.Bool("preseed", false, "")
 var argCPUProfile = gnuflag.String("cpuprofile", "", "")
 var argDebug = gnuflag.Bool("debug", false, "")
 var argGroup = gnuflag.String("group", "", "")
@@ -68,7 +69,7 @@ func run() error {
 		fmt.Printf("        Start the main LXD daemon\n")
 		fmt.Printf("    init [--auto] [--network-address=IP] [--network-port=8443] [--storage-backend=dir]\n")
 		fmt.Printf("         [--storage-create-device=DEVICE] [--storage-create-loop=SIZE] [--storage-pool=POOL]\n")
-		fmt.Printf("         [--trust-password=]\n")
+		fmt.Printf("         [--trust-password=] [--preseed]\n")
 		fmt.Printf("        Setup storage and networking\n")
 		fmt.Printf("    ready\n")
 		fmt.Printf("        Tells LXD that any setup-mode configuration has been done and that it can start containers.\n")
@@ -108,6 +109,8 @@ func run() error {
 		fmt.Printf("\nInit options:\n")
 		fmt.Printf("    --auto\n")
 		fmt.Printf("        Automatic (non-interactive) mode\n")
+		fmt.Printf("    --preseed\n")
+		fmt.Printf("        Pre-seed mode, expects YAML config from stdin\n")
 
 		fmt.Printf("\nInit options for non-interactive mode (--auto):\n")
 		fmt.Printf("    --network-address ADDRESS\n")

@@ -1,4 +1,4 @@
-test_lxd_autoinit() {
+test_init_auto() {
   # - lxd init --auto --storage-backend zfs
   # and
   # - lxd init --auto
