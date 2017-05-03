@@ -457,25 +457,6 @@ they otherwise would.
 		}
 	}
 
-	if imagesAutoUpdate {
-		ss, _, err := c.GetServer()
-		if err != nil {
-			return err
-		}
-
-		if val, ok := ss.Config["images.auto_update_interval"]; ok && val == "0" {
-			err = cmd.setServerConfig(c, "images.auto_update_interval", "")
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		err = cmd.setServerConfig(c, "images.auto_update_interval", "0")
-		if err != nil {
-			return err
-		}
-	}
-
 	data := &cmdInitData{}
 	data.Config = map[string]interface{}{}
 
@@ -486,9 +467,15 @@ they otherwise would.
 		}
 	}
 
+	if imagesAutoUpdate {
+		data.Config["images.auto_update_interval"] = ""
+	} else {
+		data.Config["images.auto_update_interval"] = "0"
+	}
+
 	err = cmd.run(c, data)
 	if err != nil {
-		return err
+		return nil
 	}
 
 	if bridgeName != "" {
@@ -555,8 +542,29 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 		return err
 	}
 
-	server.Config = config
+	// If the auto-update interval is already set to a non-zero
+	// value, and we're being requested to change it to a value
+	// other than zero, we don't want to overwrite it, so we'just
+	// delete it from the desired config.
+	if curVal, ok := server.Config["images.auto_update_interval"]; ok && curVal != "0" {
+		if newVal, ok := config["images.auto_update_interval"]; ok && newVal != "0" {
+			if newVal != curVal {
+				delete(config, "images.auto_update_interval")
+			}
+		}
+	}
 
+	// Update only the keys we've been requested to change. The rest won't be touched.
+	for key, value := range config {
+
+		// The underlying code expects all values to be string, even if when
+		// using preseed the yaml.v2 package unmarshals them as integers.
+		if number, ok := value.(int); ok {
+			value = strconv.Itoa(number)
+		}
+
+		server.Config[key] = value
+	}
 	return client.UpdateServer(server.Writable(), etag)
 }
 

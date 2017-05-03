@@ -102,6 +102,78 @@ func (suite *cmdInitTestSuite) TestCmdInit_AutoHTTPSAddressAndTrustPassword() {
 	suite.Req.Nil(suite.d.PasswordCheck("sekret"))
 }
 
+// The images auto-update interval can be interactively set by simply accepting
+// the answer "yes" to the relevant question.
+func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateAnswerYes() {
+	answers := &cmdInitAnswers{
+		WantImageAutoUpdate: true,
+	}
+	answers.Render(suite.streams)
+
+	suite.Req.Nil(suite.command.Run())
+
+	key, _ := daemonConfig["images.auto_update_interval"]
+	suite.Req.Equal("6", key.Get())
+}
+
+// If the images auto-update interval value is already set to non-zero, it
+// won't be overwritten.
+func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateNoOverwrite() {
+	key, _ := daemonConfig["images.auto_update_interval"]
+	err := key.Set(suite.d, "10")
+	suite.Req.Nil(err)
+
+	answers := &cmdInitAnswers{
+		WantImageAutoUpdate: true,
+	}
+	answers.Render(suite.streams)
+
+	suite.Req.Nil(suite.command.Run())
+
+	suite.Req.Equal("10", key.Get())
+}
+
+// If the user answers "no" to the images auto-update question, the value will
+// be set to 0.
+func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateAnswerNo() {
+	answers := &cmdInitAnswers{
+		WantImageAutoUpdate: false,
+	}
+	answers.Render(suite.streams)
+
+	suite.Req.Nil(suite.command.Run())
+
+	key, _ := daemonConfig["images.auto_update_interval"]
+	suite.Req.Equal("0", key.Get())
+}
+
+// If the user answers "no" to the images auto-update question, the value will
+// be set to 0, even it was already set to some value.
+func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateOverwriteIfZero() {
+	key, _ := daemonConfig["images.auto_update_interval"]
+	key.Set(suite.d, "10")
+
+	answers := &cmdInitAnswers{
+		WantImageAutoUpdate: false,
+	}
+	answers.Render(suite.streams)
+
+	suite.Req.Nil(suite.command.Run())
+	suite.Req.Equal("0", key.Get())
+}
+
+// Preseed the image auto-update interval.
+func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdatePreseed() {
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`config:
+  images.auto_update_interval: 15
+`)
+	suite.Req.Nil(suite.command.Run())
+
+	key, _ := daemonConfig["images.auto_update_interval"]
+	suite.Req.Equal("15", key.Get())
+}
+
 // Convenience for building the input text a user would enter for a certain
 // sequence of answers.
 type cmdInitAnswers struct {
