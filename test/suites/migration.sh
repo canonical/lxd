@@ -32,10 +32,15 @@ test_migration() {
   lxc_remote move l1:nonlive l2:
   lxc_remote config show l2:nonlive/snap0 | grep user.tester | grep foo
 
+  # This line exists so that the container's storage volume is mounted when we
+  # perform existence check for various files.
+  lxc_remote start l2:nonlive
   # FIXME: make this backend agnostic
   if [ "${lxd2_backend}" != "lvm" ]; then
     [ -d "${LXD2_DIR}/containers/nonlive/rootfs" ]
   fi
+  lxc_remote stop l2:nonlive
+
   [ ! -d "${LXD_DIR}/containers/nonlive" ]
   # FIXME: make this backend agnostic
   if [ "${lxd2_backend}" = "dir" ]; then
