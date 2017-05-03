@@ -561,7 +561,8 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 			return []byte{}, err
 		}
 
-		if err = f.Chmod(0600); err != nil {
+		err = os.Chmod(f.Name(), 0600)
+		if err != nil {
 			f.Close()
 			os.Remove(f.Name())
 			return []byte{}, err

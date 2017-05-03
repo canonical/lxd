@@ -1974,7 +1974,7 @@ func (c *Client) RecursivePullFile(container string, p string, targetDir string)
 		}
 		defer f.Close()
 
-		err = f.Chmod(os.FileMode(mode))
+		err = os.Chmod(target, os.FileMode(mode))
 		if err != nil {
 			return err
 		}
