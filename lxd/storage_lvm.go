@@ -228,7 +228,7 @@ type storageLvm struct {
 	storageShared
 }
 
-func (s *storageLvm) getLvmBlockMountOptions() string {
+func (s *storageLvm) getLvmMountOptions() string {
 	if s.volume.Config["block.mount_options"] != "" {
 		return s.volume.Config["block.mount_options"]
 	}
@@ -784,7 +784,6 @@ func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	poolName := s.getOnDiskPoolName()
-	mountOptions := s.getLvmBlockMountOptions()
 	lvFsType := s.getLvmFilesystem()
 	volumeType, err := storagePoolVolumeTypeNameToAPIEndpoint(s.volume.Type)
 	if err != nil {
@@ -810,7 +809,8 @@ func (s *storageLvm) StoragePoolVolumeMount() (bool, error) {
 	var customerr error
 	ourMount := false
 	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
-		customerr = tryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, 0, mountOptions)
+		mountFlags, mountOptions := lxdResolveMountoptions(s.getLvmMountOptions())
+		customerr = tryMount(lvmVolumePath, customPoolVolumeMntPoint, lvFsType, mountFlags, mountOptions)
 		ourMount = true
 	}
 
@@ -1493,8 +1493,6 @@ func (s *storageLvm) ContainerMount(c container) (bool, error) {
 	lvFsType := s.getLvmFilesystem()
 	poolName := s.getOnDiskPoolName()
 	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
-	mountOptions := s.getLvmBlockMountOptions()
-
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 	if shared.IsSnapshot(name) {
 		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
@@ -1518,7 +1516,8 @@ func (s *storageLvm) ContainerMount(c container) (bool, error) {
 	var mounterr error
 	ourMount := false
 	if !shared.IsMountPoint(containerMntPoint) {
-		mounterr = tryMount(containerLvmPath, containerMntPoint, lvFsType, 0, mountOptions)
+		mountFlags, mountOptions := lxdResolveMountoptions(s.getLvmMountOptions())
+		mounterr = tryMount(containerLvmPath, containerMntPoint, lvFsType, mountFlags, mountOptions)
 		ourMount = true
 	}
 
@@ -1862,11 +1861,10 @@ func (s *storageLvm) ContainerSnapshotStart(container container) (bool, error) {
 	}
 
 	lvFsType := s.getLvmFilesystem()
-	mountOptions := s.getLvmBlockMountOptions()
 	containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
-
 	if !shared.IsMountPoint(containerMntPoint) {
-		err = tryMount(containerLvmPath, containerMntPoint, lvFsType, 0, mountOptions)
+		mountFlags, mountOptions := lxdResolveMountoptions(s.getLvmMountOptions())
+		err = tryMount(containerLvmPath, containerMntPoint, lvFsType, mountFlags, mountOptions)
 		if err != nil {
 			return false, fmt.Errorf("Error mounting snapshot LV path='%s': %s", containerMntPoint, err)
 		}
@@ -2058,8 +2056,8 @@ func (s *storageLvm) ImageMount(fingerprint string) (bool, error) {
 
 	poolName := s.getOnDiskPoolName()
 	lvmVolumePath := getLvmDevPath(poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
-	lvmMountOptions := s.getLvmBlockMountOptions()
-	err := tryMount(lvmVolumePath, imageMntPoint, lvmFstype, 0, lvmMountOptions)
+	mountFlags, mountOptions := lxdResolveMountoptions(s.getLvmMountOptions())
+	err := tryMount(lvmVolumePath, imageMntPoint, lvmFstype, mountFlags, mountOptions)
 	if err != nil {
 		logger.Errorf(fmt.Sprintf("Error mounting image LV for unpacking: %s", err))
 		return false, fmt.Errorf("Error mounting image LV: %v", err)
