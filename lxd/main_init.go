@@ -293,14 +293,23 @@ they otherwise would.
 		}
 	}
 
+	server, _, err := c.GetServer()
+	if err != nil {
+		return err
+	}
+
+	data := &cmdInitData{}
+	data.ServerPut = server.Writable()
+
+	// If there's a default profile, and certain conditions are
+	// met we'll update its root disk device and/or eth0 network
+	// device, as well as its privileged mode (see below).
+	defaultProfile, _, getDefaultProfileErr := c.GetProfile("default")
+
 	if storageSetup {
 		// Unset core.https_address and core.trust_password
-		for _, key := range []string{"core.https_address", "core.trust_password"} {
-			err = cmd.setServerConfig(c, key, "")
-			if err != nil {
-				return err
-			}
-		}
+		data.Config["core.https_address"] = ""
+		data.Config["core.trust_password"] = ""
 
 		// Pool configuration
 		storagePoolConfig := map[string]string{}
@@ -329,31 +338,15 @@ they otherwise would.
 		}
 		storageStruct.Config = storagePoolConfig
 
-		err := c.CreateStoragePool(storageStruct)
-		if err != nil {
-			return err
-		}
+		data.Pools = []api.StoragePoolsPost{storageStruct}
 
 		// When lxd init is rerun and there are already storage pools
 		// configured, do not try to set a root disk device in the
 		// default profile again. Let the user figure this out.
 		if len(pools) == 0 {
-			// Check if there even is a default profile.
-			profiles, err := c.GetProfiles()
-			if err != nil {
-				return err
-			}
-
-			defaultProfileExists := false
-			for _, p := range profiles {
-				if p.Name != "default" {
-					continue
-				}
-
-				defaultProfileExists = true
-
+			if getDefaultProfileErr == nil {
 				foundRootDiskDevice := false
-				for k, v := range p.Devices {
+				for k, v := range defaultProfile.Devices {
 					if v["path"] == "/" && v["source"] == "" {
 						foundRootDiskDevice = true
 
@@ -362,62 +355,38 @@ they otherwise would.
 						// the default profile it must be empty otherwise it would
 						// not have been possible to delete the storage pool in
 						// the first place.
-						update := p.Writable()
-						update.Devices[k]["pool"] = storagePool
-
-						// Update profile devices.
-						err := c.UpdateProfile("default", update, "")
-						if err != nil {
-							return err
-						}
+						defaultProfile.Devices[k]["pool"] = storagePool
 						logger.Debugf("Set pool property of existing root disk device \"%s\" in profile \"default\" to \"%s\".", storagePool)
 
 						break
 					}
 				}
 
-				if foundRootDiskDevice {
-					break
+				if !foundRootDiskDevice {
+					err = cmd.profileDeviceAlreadyExists(defaultProfile, "root")
+					if err != nil {
+						return err
+					}
+
+					defaultProfile.Devices["root"] = map[string]string{
+						"type": "disk",
+						"path": "/",
+						"pool": storagePool,
+					}
 				}
-
-				props := map[string]string{
-					"type": "disk",
-					"path": "/",
-					"pool": storagePool,
-				}
-
-				err = cmd.profileDeviceAdd(c, "default", "root", props)
-				if err != nil {
-					return err
-				}
-
-				break
-			}
-
-			if !defaultProfileExists {
+			} else {
 				logger.Warnf("Did not find profile \"default\" so no default storage pool will be set. Manual intervention needed.")
 			}
 		}
 	}
 
-	if defaultPrivileged == 0 {
-		err = cmd.setProfileConfigItem(c, "default", "security.privileged", "")
-		if err != nil {
-			return err
-		}
+	if defaultPrivileged != -1 && getDefaultProfileErr != nil {
+		return getDefaultProfileErr
+	} else if defaultPrivileged == 0 {
+		defaultProfile.Config["security.privileged"] = ""
 	} else if defaultPrivileged == 1 {
-		err = cmd.setProfileConfigItem(c, "default", "security.privileged", "true")
-		if err != nil {
-		}
+		defaultProfile.Config["security.privileged"] = "true"
 	}
-
-	server, _, err := c.GetServer()
-	if err != nil {
-		return err
-	}
-
-	data := &cmdInitData{}
-	data.ServerPut = server.Writable()
 
 	if networkAddress != "" {
 		if networkPort == -1 {
@@ -455,6 +424,29 @@ they otherwise would.
 			Name: bridgeName}
 		network.Config = bridgeConfig
 		data.Networks = []api.NetworksPost{network}
+
+		if getDefaultProfileErr != nil {
+			return getDefaultProfileErr
+		}
+
+		err = cmd.profileDeviceAlreadyExists(defaultProfile, "eth0")
+		if err != nil {
+			return err
+		}
+
+		defaultProfile.Devices["eth0"] = map[string]string{
+			"type":    "nic",
+			"nictype": "bridged",
+			"parent":  bridgeName,
+		}
+
+	}
+
+	if getDefaultProfileErr == nil {
+		// Copy the default profile configuration (that we have
+		// possibly modified above).
+		data.Profiles = []api.ProfilesPost{{Name: "default"}}
+		data.Profiles[0].ProfilePut = defaultProfile.ProfilePut
 	}
 
 	err = cmd.run(c, data)
@@ -462,19 +454,6 @@ they otherwise would.
 		return nil
 	}
 
-	if bridgeName != "" {
-
-		props := map[string]string{
-			"type":    "nic",
-			"nictype": "bridged",
-			"parent":  bridgeName,
-		}
-
-		err = cmd.profileDeviceAdd(c, "default", "eth0", props)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -777,68 +756,13 @@ func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 	return drivers
 }
 
-func (cmd *CmdInit) setServerConfig(c lxd.ContainerServer, key string, value string) error {
-	server, etag, err := c.GetServer()
-	if err != nil {
-		return err
-	}
-
-	if server.Config == nil {
-		server.Config = map[string]interface{}{}
-	}
-
-	server.Config[key] = value
-
-	err = c.UpdateServer(server.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cmd *CmdInit) profileDeviceAdd(c lxd.ContainerServer, profileName string, deviceName string, deviceConfig map[string]string) error {
-	profile, etag, err := c.GetProfile(profileName)
-	if err != nil {
-		return err
-	}
-
-	if profile.Devices == nil {
-		profile.Devices = map[string]map[string]string{}
-	}
-
+// Return an error if the given profile has already a device with the
+// given name.
+func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.Profile, deviceName string) error {
 	_, ok := profile.Devices[deviceName]
 	if ok {
 		return fmt.Errorf("Device already exists: %s", deviceName)
 	}
-
-	profile.Devices[deviceName] = deviceConfig
-
-	err = c.UpdateProfile(profileName, profile.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cmd *CmdInit) setProfileConfigItem(c lxd.ContainerServer, profileName string, key string, value string) error {
-	profile, etag, err := c.GetProfile(profileName)
-	if err != nil {
-		return err
-	}
-
-	if profile.Config == nil {
-		profile.Config = map[string]string{}
-	}
-
-	profile.Config[key] = value
-
-	err = c.UpdateProfile(profileName, profile.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
