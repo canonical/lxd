@@ -5,13 +5,16 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // CmdInitArgs holds command line arguments for the "lxd init" command.
@@ -226,18 +229,23 @@ they otherwise would.
 		}
 	}
 
-	// Unset all storage keys, core.https_address and core.trust_password
-	for _, key := range []string{"storage.zfs_pool_name", "core.https_address", "core.trust_password"} {
-		err = cmd.setServerConfig(c, key, "")
-		if err != nil {
-			return err
-		}
-	}
-
 	// Destroy any existing loop device
 	for _, file := range []string{"zfs.img"} {
 		os.Remove(shared.VarPath(file))
 	}
+
+	server, _, err := c.GetServer()
+	if err != nil {
+		return err
+	}
+
+	data := &cmdInitData{}
+	data.ServerPut = server.Writable()
+
+	// If there's a default profile, and certain conditions are
+	// met we'll update its root disk device and/or eth0 network
+	// device, as well as its privileged mode (see below).
+	defaultProfile, _, getDefaultProfileErr := c.GetProfile("default")
 
 	if storageBackend == "zfs" {
 		if storageMode == "loop" {
@@ -273,22 +281,16 @@ they otherwise would.
 			}
 		}
 
-		// Configure LXD to use the pool
-		err = cmd.setServerConfig(c, "storage.zfs_pool_name", storagePool)
-		if err != nil {
-			return err
-		}
+		data.Config["storage.zfs_pool_name"] = storagePool
+
 	}
 
-	if defaultPrivileged == 0 {
-		err = cmd.setProfileConfigItem(c, "default", "security.privileged", "")
-		if err != nil {
-			return err
-		}
+	if defaultPrivileged != -1 && getDefaultProfileErr != nil {
+		return getDefaultProfileErr
+	} else if defaultPrivileged == 0 {
+		defaultProfile.Config["security.privileged"] = ""
 	} else if defaultPrivileged == 1 {
-		err = cmd.setProfileConfigItem(c, "default", "security.privileged", "true")
-		if err != nil {
-		}
+		defaultProfile.Config["security.privileged"] = "true"
 	}
 
 	if networkAddress != "" {
@@ -296,21 +298,145 @@ they otherwise would.
 			networkPort = 8443
 		}
 
-		err = cmd.setServerConfig(c, "core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
-		if err != nil {
-			return err
-		}
-
+		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networkAddress, networkPort)
 		if trustPassword != "" {
-			err = cmd.setServerConfig(c, "core.trust_password", trustPassword)
-			if err != nil {
-				return err
-			}
+			data.Config["core.trust_password"] = trustPassword
 		}
 	}
 
-	cmd.Context.Output("LXD has been successfully configured.\n")
+	if getDefaultProfileErr == nil {
+		// Copy the default profile configuration (that we have
+		// possibly modified above).
+		data.Profiles = []api.ProfilesPost{{Name: "default"}}
+		data.Profiles[0].ProfilePut = defaultProfile.ProfilePut
+	}
+
+	err = cmd.run(c, data)
+	if err != nil {
+		return nil
+	}
+
 	return nil
+}
+
+// Apply the configuration specified in the given init data.
+func (cmd *CmdInit) run(client lxd.ContainerServer, data *cmdInitData) error {
+	// Functions that should be invoked to revert back to initial
+	// state any change that was successfully applied, in case
+	// anything goes wrong after that change.
+	reverters := make([]reverter, 0)
+
+	// Functions to apply the desired changes.
+	changers := make([](func() (reverter, error)), 0)
+
+	// Server config changer
+	changers = append(changers, func() (reverter, error) {
+		return cmd.initConfig(client, data.Config)
+	})
+
+	// Profile changers
+	for i := range data.Profiles {
+		profile := data.Profiles[i] // Local variable for the closure
+		changers = append(changers, func() (reverter, error) {
+			return cmd.initProfile(client, profile)
+		})
+	}
+
+	// Apply all changes. If anything goes wrong at any iteration
+	// of the loop, we'll try to revert any change performed in
+	// earlier iterations.
+	for _, changer := range changers {
+		reverter, err := changer()
+		if err != nil {
+			cmd.revert(reverters)
+			return err
+		}
+		// Save the revert function for later.
+		reverters = append(reverters, reverter)
+	}
+
+	return nil
+}
+
+// Try to revert the state to what it was before running the "lxd init" command.
+func (cmd *CmdInit) revert(reverters []reverter) {
+	for _, reverter := range reverters {
+		err := reverter()
+		if err != nil {
+			logger.Warnf("Reverting to pre-init state failed: %s", err)
+			break
+		}
+	}
+}
+
+// Apply the server-level configuration in the given map.
+func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]interface{}) (reverter, error) {
+	server, etag, err := client.GetServer()
+	if err != nil {
+		return nil, err
+	}
+
+	// Build a function that can be used to revert the config to
+	// its original values.
+	reverter := func() error {
+		return client.UpdateServer(server.Writable(), "")
+	}
+
+	// The underlying code expects all values to be string, even if when
+	// using preseed the yaml.v2 package unmarshals them as integers.
+	for key, value := range config {
+		if number, ok := value.(int); ok {
+			value = strconv.Itoa(number)
+		}
+		config[key] = value
+	}
+
+	err = client.UpdateServer(api.ServerPut{Config: config}, etag)
+	if err != nil {
+		return nil, err
+	}
+
+	// Updating the server was sucessful, so return the reverter function
+	// in case it's needed later.
+	return reverter, nil
+}
+
+// Create or update a single profile, and return a revert function in case of success.
+func (cmd *CmdInit) initProfile(client lxd.ContainerServer, profile api.ProfilesPost) (reverter, error) {
+	var reverter func() error
+	currentProfile, _, err := client.GetProfile(profile.Name)
+	if err == nil {
+		reverter, err = cmd.initProfileUpdate(client, profile, currentProfile.Writable())
+	} else {
+		reverter, err = cmd.initProfileCreate(client, profile)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return reverter, nil
+}
+
+// Create a single new profile, and return a revert function to delete it.
+func (cmd *CmdInit) initProfileCreate(client lxd.ContainerServer, profile api.ProfilesPost) (reverter, error) {
+	reverter := func() error {
+		return client.DeleteProfile(profile.Name)
+	}
+	err := client.CreateProfile(profile)
+	return reverter, err
+}
+
+// Update a single profile, and return a function that can be used to
+// revert it to its original state.
+func (cmd *CmdInit) initProfileUpdate(client lxd.ContainerServer, profile api.ProfilesPost, currentProfile api.ProfilePut) (reverter, error) {
+	reverter := func() error {
+		return client.UpdateProfile(profile.Name, currentProfile, "")
+	}
+	err := client.UpdateProfile(profile.Name, api.ProfilePut{
+		Config:      profile.Config,
+		Description: profile.Description,
+		Devices:     profile.Devices,
+	}, "")
+	return reverter, err
 }
 
 // Check that the arguments passed via command line are consistent,
@@ -373,70 +499,27 @@ func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 	return drivers
 }
 
-func (cmd *CmdInit) setServerConfig(c lxd.ContainerServer, key string, value string) error {
-	server, etag, err := c.GetServer()
-	if err != nil {
-		return err
-	}
-
-	if server.Config == nil {
-		server.Config = map[string]interface{}{}
-	}
-
-	server.Config[key] = value
-
-	err = c.UpdateServer(server.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cmd *CmdInit) profileDeviceAdd(c lxd.ContainerServer, profileName string, deviceName string, deviceConfig map[string]string) error {
-	profile, etag, err := c.GetProfile(profileName)
-	if err != nil {
-		return err
-	}
-
-	if profile.Devices == nil {
-		profile.Devices = map[string]map[string]string{}
-	}
-
+// Return an error if the given profile has already a device with the
+// given name.
+func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.Profile, deviceName string) error {
 	_, ok := profile.Devices[deviceName]
 	if ok {
 		return fmt.Errorf("Device already exists: %s", deviceName)
 	}
-
-	profile.Devices[deviceName] = deviceConfig
-
-	err = c.UpdateProfile(profileName, profile.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (cmd *CmdInit) setProfileConfigItem(c lxd.ContainerServer, profileName string, key string, value string) error {
-	profile, etag, err := c.GetProfile(profileName)
-	if err != nil {
-		return err
-	}
-
-	if profile.Config == nil {
-		profile.Config = map[string]string{}
-	}
-
-	profile.Config[key] = value
-
-	err = c.UpdateProfile(profileName, profile.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
-	return nil
+// Defines the schema for all possible configuration knobs supported by the
+// lxd init command, either directly fed via --preseed or populated by
+// the auto/interactive modes.
+type cmdInitData struct {
+	api.ServerPut `yaml:",inline"`
+	Profiles      []api.ProfilesPost
 }
+
+// Shortcut for closure/anonymous functions that are meant to revert
+// some change, and that are passed around as parameters.
+type reverter func() error
 
 func cmdInit() error {
 	context := cmd.NewContext(os.Stdin, os.Stdout, os.Stderr)
