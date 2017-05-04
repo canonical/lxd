@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -41,6 +42,45 @@ var MountOptions = map[string]mountOptions{
 	"strictatime":   {false, syscall.MS_STRICTATIME},
 	"suid":          {true, syscall.MS_NOSUID},
 	"sync":          {false, syscall.MS_SYNCHRONOUS},
+}
+
+// Useful functions for unreliable backends
+func tryMount(src string, dst string, fs string, flags uintptr, options string) error {
+	var err error
+
+	for i := 0; i < 20; i++ {
+		err = syscall.Mount(src, dst, fs, flags, options)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func tryUnmount(path string, flags int) error {
+	var err error
+
+	for i := 0; i < 20; i++ {
+		err = syscall.Unmount(path, flags)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if err != nil && err == syscall.EBUSY {
+		return err
+	}
+
+	return nil
 }
 
 func storageValidName(value string) error {
