@@ -463,6 +463,41 @@ func Test_dbImageGet_for_missing_fingerprint(t *testing.T) {
 	}
 }
 
+func Test_dbImageExists_true(t *testing.T) {
+	var db *sql.DB
+	var err error
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	exists, err := dbImageExists(db, "fingerprint")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Fatal("Image not found by fingerprint")
+	}
+
+}
+
+func Test_dbImageExists_false(t *testing.T) {
+	var db *sql.DB
+	var err error
+
+	db = createTestDb(t)
+	defer db.Close()
+
+	exists, err := dbImageExists(db, "foobar")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Fatal("Image should not have been found")
+	}
+}
+
 func Test_dbImageAliasGet_alias_exists(t *testing.T) {
 	var db *sql.DB
 	var err error
