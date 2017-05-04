@@ -78,9 +78,11 @@ func dbStoragePoolGetID(db *sql.DB, poolName string) (int64, error) {
 func dbStoragePoolGet(db *sql.DB, poolName string) (int64, *api.StoragePool, error) {
 	var poolDriver string
 	poolID := int64(-1)
-	query := "SELECT id, driver FROM storage_pools WHERE name=?"
+	description := sql.NullString{}
+
+	query := "SELECT id, driver, description FROM storage_pools WHERE name=?"
 	inargs := []interface{}{poolName}
-	outargs := []interface{}{&poolID, &poolDriver}
+	outargs := []interface{}{&poolID, &poolDriver, &description}
 
 	err := dbQueryRowScan(db, query, inargs, outargs)
 	if err != nil {
@@ -99,6 +101,7 @@ func dbStoragePoolGet(db *sql.DB, poolName string) (int64, *api.StoragePool, err
 		Name:   poolName,
 		Driver: poolDriver,
 	}
+	storagePool.Description = description.String
 	storagePool.Config = config
 
 	return poolID, &storagePool, nil
@@ -129,13 +132,13 @@ func dbStoragePoolConfigGet(db *sql.DB, poolID int64) (map[string]string, error)
 }
 
 // Create new storage pool.
-func dbStoragePoolCreate(db *sql.DB, poolName string, poolDriver string, poolConfig map[string]string) (int64, error) {
+func dbStoragePoolCreate(db *sql.DB, poolName, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
 	tx, err := dbBegin(db)
 	if err != nil {
 		return -1, err
 	}
 
-	result, err := tx.Exec("INSERT INTO storage_pools (name, driver) VALUES (?, ?)", poolName, poolDriver)
+	result, err := tx.Exec("INSERT INTO storage_pools (name, description, driver) VALUES (?, ?, ?)", poolName, poolDescription, poolDriver)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -191,7 +194,7 @@ func dbStoragePoolConfigAdd(tx *sql.Tx, poolID int64, poolConfig map[string]stri
 }
 
 // Update storage pool.
-func dbStoragePoolUpdate(db *sql.DB, poolName string, poolConfig map[string]string) error {
+func dbStoragePoolUpdate(db *sql.DB, poolName, description string, poolConfig map[string]string) error {
 	poolID, _, err := dbStoragePoolGet(db, poolName)
 	if err != nil {
 		return err
@@ -199,6 +202,12 @@ func dbStoragePoolUpdate(db *sql.DB, poolName string, poolConfig map[string]stri
 
 	tx, err := dbBegin(db)
 	if err != nil {
+		return err
+	}
+
+	err = dbStoragePoolUpdateDescription(tx, poolID, description)
+	if err != nil {
+		tx.Rollback()
 		return err
 	}
 
@@ -215,6 +224,12 @@ func dbStoragePoolUpdate(db *sql.DB, poolName string, poolConfig map[string]stri
 	}
 
 	return txCommit(tx)
+}
+
+// Update the storage pool description.
+func dbStoragePoolUpdateDescription(tx *sql.Tx, id int64, description string) error {
+	_, err := tx.Exec("UPDATE storage_pools SET description=? WHERE id=?", description, id)
+	return err
 }
 
 // Delete storage pool config.
@@ -334,6 +349,11 @@ func dbStoragePoolVolumeGetType(db *sql.DB, volumeName string, volumeType int, p
 		return -1, nil, err
 	}
 
+	volumeDescription, err := dbStorageVolumeDescriptionGet(db, volumeID)
+	if err != nil {
+		return -1, nil, err
+	}
+
 	volumeTypeName, err := storagePoolVolumeTypeToName(volumeType)
 	if err != nil {
 		return -1, nil, err
@@ -343,13 +363,14 @@ func dbStoragePoolVolumeGetType(db *sql.DB, volumeName string, volumeType int, p
 		Type: volumeTypeName,
 	}
 	storageVolume.Name = volumeName
+	storageVolume.Description = volumeDescription
 	storageVolume.Config = volumeConfig
 
 	return volumeID, &storageVolume, nil
 }
 
 // Update storage volume attached to a given storage pool.
-func dbStoragePoolVolumeUpdate(db *sql.DB, volumeName string, volumeType int, poolID int64, volumeConfig map[string]string) error {
+func dbStoragePoolVolumeUpdate(db *sql.DB, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
 	volumeID, _, err := dbStoragePoolVolumeGetType(db, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
@@ -367,6 +388,12 @@ func dbStoragePoolVolumeUpdate(db *sql.DB, volumeName string, volumeType int, po
 	}
 
 	err = dbStorageVolumeConfigAdd(tx, volumeID, volumeConfig)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = dbStorageVolumeDescriptionUpdate(tx, volumeID, volumeDescription)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -412,13 +439,14 @@ func dbStoragePoolVolumeRename(db *sql.DB, oldVolumeName string, newVolumeName s
 }
 
 // Create new storage volume attached to a given storage pool.
-func dbStoragePoolVolumeCreate(db *sql.DB, volumeName string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
+func dbStoragePoolVolumeCreate(db *sql.DB, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
 	tx, err := dbBegin(db)
 	if err != nil {
 		return -1, err
 	}
 
-	result, err := tx.Exec("INSERT INTO storage_volumes (storage_pool_id, type, name) VALUES (?, ?, ?)", poolID, volumeType, volumeName)
+	result, err := tx.Exec("INSERT INTO storage_volumes (storage_pool_id, type, name, description) VALUES (?, ?, ?, ?)",
+		poolID, volumeType, volumeName, volumeDescription)
 	if err != nil {
 		tx.Rollback()
 		return -1, err

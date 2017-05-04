@@ -401,6 +401,7 @@ type containerArgs struct {
 	// Don't set manually
 	Id int
 
+	Description  string
 	Architecture int
 	BaseImage    string
 	Config       map[string]string
@@ -481,6 +482,7 @@ type container interface {
 	// Properties
 	Id() int
 	Name() string
+	Description() string
 	Architecture() int
 	CreationDate() time.Time
 	LastUsedDate() time.Time

@@ -29,6 +29,9 @@ type ContainerPost struct {
 
 // ContainerPut represents the modifiable fields of a LXD container
 type ContainerPut struct {
+	// API extension: entity_description
+	Description string `json:"description" yaml:"description"`
+
 	Architecture string                       `json:"architecture" yaml:"architecture"`
 	Config       map[string]string            `json:"config" yaml:"config"`
 	Devices      map[string]map[string]string `json:"devices" yaml:"devices"`
