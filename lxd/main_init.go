@@ -532,7 +532,17 @@ func (cmd *CmdInit) run(client lxd.ContainerServer, data *cmdInitData) error {
 		return err
 	}
 
+	err = cmd.initPools(client, data.Pools)
+	if err != nil {
+		return err
+	}
+
 	err = cmd.initNetworks(client, data.Networks)
+	if err != nil {
+		return err
+	}
+
+	err = cmd.initProfiles(client, data.Profiles)
 	if err != nil {
 		return err
 	}
@@ -573,15 +583,62 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 	return client.UpdateServer(server.Writable(), etag)
 }
 
+// Create the given pools if they don't exist yet.
+func (cmd *CmdInit) initPools(client lxd.ContainerServer, pools []api.StoragePoolsPost) error {
+	for _, pool := range pools {
+		_, _, err := client.GetStoragePool(pool.Name)
+		if err == nil {
+			err = client.UpdateStoragePool(pool.Name, api.StoragePoolPut{
+				Config: pool.Config,
+			}, "")
+		} else {
+			err = client.CreateStoragePool(pool)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Create the given networks if they don't exist yet.
 func (cmd *CmdInit) initNetworks(client lxd.ContainerServer, networks []api.NetworksPost) error {
 	for _, network := range networks {
 		_, _, err := client.GetNetwork(network.Name)
 		if err == nil {
-			logger.Warnf("Network '%s' already exists, skipping.", network.Name)
-			continue
+			// Sanity check, make sure the network type being updated
+			// is still "bridge", which is the only type the existing
+			// network can have.
+			if network.Type != "" && network.Type != "bridge" {
+				return fmt.Errorf("Only 'bridge' type networks are supported")
+			}
+
+			err = client.UpdateNetwork(network.Name, api.NetworkPut{
+				Config: network.Config,
+			}, "")
+		} else {
+			err = client.CreateNetwork(network)
 		}
-		err = client.CreateNetwork(network)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Create the given profiles if they don't exist yet.
+func (cmd *CmdInit) initProfiles(client lxd.ContainerServer, profiles []api.ProfilesPost) error {
+	for _, profile := range profiles {
+		_, _, err := client.GetProfile(profile.Name)
+		if err == nil {
+			err = client.UpdateProfile(profile.Name, api.ProfilePut{
+				Config:      profile.Config,
+				Description: profile.Description,
+				Devices:     profile.Devices,
+			}, "")
+		} else {
+			err = client.CreateProfile(profile)
+		}
 		if err != nil {
 			return err
 		}
@@ -668,7 +725,9 @@ func (cmd *CmdInit) setProfileConfigItem(c lxd.ContainerServer, profileName stri
 // the auto/interactive modes.
 type cmdInitData struct {
 	api.ServerPut `yaml:",inline"`
+	Pools         []api.StoragePoolsPost
 	Networks      []api.NetworksPost
+	Profiles      []api.ProfilesPost
 }
 
 func cmdInit() error {

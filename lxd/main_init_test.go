@@ -1,9 +1,11 @@
 package main
 
 import (
+	"path"
 	"testing"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
 	"github.com/stretchr/testify/suite"
 )
@@ -179,6 +181,49 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdatePreseed() {
 	suite.Req.Equal("15", key.Get())
 }
 
+// Preseed a new storage pool.
+func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolPreseed() {
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`pools:
+- name: foo
+  driver: dir
+  config:
+    source: ""
+`)
+
+	suite.Req.Nil(suite.command.Run())
+
+	pool, _, err := suite.client.GetStoragePool("foo")
+	suite.Req.Nil(err)
+	suite.Req.Equal("dir", pool.Driver)
+	suite.Req.Equal(path.Join(suite.tmpdir, "storage-pools", "foo"), pool.Config["source"])
+}
+
+// Updating a storage pool via preseed will fail, since it's not supported
+// by the API.
+func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolPreseedUpdate() {
+	post := api.StoragePoolsPost{
+		Name:   "egg",
+		Driver: "dir",
+	}
+	post.Config = map[string]string{
+		"source": "",
+	}
+	err := suite.client.CreateStoragePool(post)
+	suite.Req.Nil(err)
+
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`pools:
+- name: egg
+  driver: dir
+  config:
+    source: /egg
+`)
+
+	err = suite.command.Run()
+	suite.Req.Equal("storage property cannot be changed", err.Error())
+}
+
 // It's possible to configure a network bridge interactively.
 func (suite *cmdInitTestSuite) TestCmdInit_NetworkInteractive() {
 	answers := &cmdInitAnswers{
@@ -218,6 +263,136 @@ func (suite *cmdInitTestSuite) TestCmdInit_NetworkPreseed() {
 	suite.Req.Equal("10.48.159.1/24", network.Config["ipv4.address"])
 	suite.Req.Equal("true", network.Config["ipv4.nat"])
 	suite.Req.Equal("none", network.Config["ipv6.address"])
+}
+
+// Update a network via preseed.
+func (suite *cmdInitTestSuite) TestCmdInit_NetworkPreseedUpdate() {
+	post := api.NetworksPost{
+		Name: "egg",
+	}
+	post.Config = map[string]string{
+		"ipv4.address": "10.48.159.1/24",
+		"ipv4.nat":     "true",
+		"ipv6.address": "none",
+	}
+	err := suite.client.CreateNetwork(post)
+	suite.Req.Nil(err)
+
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`networks:
+- name: egg
+  type: bridge
+  config:
+    ipv4.address: none
+    ipv4.nat: false
+    ipv6.address: auto
+`)
+
+	suite.Req.Nil(suite.command.Run())
+
+	network, _, err := suite.client.GetNetwork("egg")
+	suite.Req.Nil(err)
+	suite.Req.Equal("bridge", network.Type)
+	suite.Req.Equal("none", network.Config["ipv4.address"])
+	suite.Req.Equal("false", network.Config["ipv4.nat"])
+	suite.Req.Nil(networkValidAddressCIDRV6(network.Config["ipv6.address"]))
+}
+
+// Updating a network via preseed and changing it's type to something else
+// than "bridge" results in an error.
+func (suite *cmdInitTestSuite) TestCmdInit_NetworkPreseedUpdateNonBridge() {
+	post := api.NetworksPost{
+		Name: "baz",
+	}
+	post.Config = map[string]string{
+		"ipv4.address": "10.48.159.1/24",
+		"ipv4.nat":     "true",
+		"ipv6.address": "none",
+	}
+	err := suite.client.CreateNetwork(post)
+	suite.Req.Nil(err)
+
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`networks:
+- name: baz
+  type: physical
+  config:
+    ipv4.address: 10.48.159.1/24
+    ipv4.nat: true
+    ipv6.address: none
+`)
+
+	err = suite.command.Run()
+	suite.Req.Equal("Only 'bridge' type networks are supported", err.Error())
+}
+
+// Preseed a new profile.
+func (suite *cmdInitTestSuite) TestCmdInit_ProfilesPreseed() {
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`profiles:
+- name: bar
+  description: "Bar profile"
+  config:
+    limits.memory: 2GB
+  devices:
+    data:
+      path: /srv/data/
+      source: /some/data
+      type: disk
+`)
+
+	suite.Req.Nil(suite.command.Run())
+
+	profile, _, err := suite.client.GetProfile("bar")
+	suite.Req.Nil(err)
+	suite.Req.Equal("Bar profile", profile.Description)
+	suite.Req.Equal("2GB", profile.Config["limits.memory"])
+	suite.Req.Equal("/srv/data/", profile.Devices["data"]["path"])
+	suite.Req.Equal("/some/data", profile.Devices["data"]["source"])
+	suite.Req.Equal("disk", profile.Devices["data"]["type"])
+}
+
+// Update a profile via preseed.
+func (suite *cmdInitTestSuite) TestCmdInit_ProfilesPreseedUpdate() {
+	post := api.ProfilesPost{
+		Name: "egg",
+	}
+	post.Description = "Egg profile"
+	post.Config = map[string]string{
+		"limits.memory": "2GB",
+	}
+	post.Devices = map[string]map[string]string{
+		"data": {
+			"path":   "/srv/data/",
+			"source": "/some/data",
+			"type":   "disk",
+		},
+	}
+	err := suite.client.CreateProfile(post)
+	suite.Req.Nil(err)
+
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`profiles:
+- name: egg
+  description: "Egg profile enhanced"
+  config:
+    limits.memory: 4GB
+  devices:
+    data:
+      path: /srv/more/data/
+      source: /some/data
+      type: disk
+`)
+
+	suite.Req.Nil(suite.command.Run())
+
+	profile, _, err := suite.client.GetProfile("egg")
+	suite.Req.Nil(err)
+	suite.Req.Equal("Egg profile enhanced", profile.Description)
+	suite.Req.Equal("4GB", profile.Config["limits.memory"])
+	suite.Req.Equal("/srv/more/data/", profile.Devices["data"]["path"])
+	suite.Req.Equal("/some/data", profile.Devices["data"]["source"])
+	suite.Req.Equal("disk", profile.Devices["data"]["type"])
 }
 
 // Convenience for building the input text a user would enter for a certain
