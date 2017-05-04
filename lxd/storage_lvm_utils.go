@@ -723,6 +723,7 @@ func lvmCreateLv(vgName string, thinPoolName string, lvName string, lvFsType str
 	}
 
 	fsPath := getLvmDevPath(vgName, volumeType, lvName)
+
 	switch lvFsType {
 	case "xfs":
 		output, err = shared.TryRunCommand("mkfs.xfs", fsPath)

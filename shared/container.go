@@ -190,6 +190,7 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"volatile.last_state.power": IsAny,
 	"volatile.idmap.next":       IsAny,
 	"volatile.idmap.base":       IsAny,
+	"volatile.apply_quota":      IsAny,
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
