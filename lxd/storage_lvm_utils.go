@@ -1,0 +1,849 @@
+package main
+
+import (
+	"fmt"
+	"os/exec"
+	"strconv"
+	"strings"
+	"syscall"
+
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
+)
+
+func (s *storageLvm) lvExtend(c container, lvPath string, lvSize int64, fsType string, fsMntPoint string) error {
+	lvSizeString := shared.GetByteSizeString(lvSize, 0)
+	msg, err := shared.TryRunCommand(
+		"lvextend",
+		"-L", lvSizeString,
+		"-f",
+		lvPath)
+	if err != nil {
+		logger.Errorf("could not extend LV \"%s\": %s", lvPath, msg)
+		return fmt.Errorf("could not extend LV \"%s\": %s", lvPath, msg)
+	}
+
+	ourMount, err := c.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer c.StorageStop()
+	}
+
+	switch fsType {
+	case "xfs":
+		msg, err = shared.TryRunCommand("xfs_growfs", fsMntPoint)
+	default:
+		// default = ext4
+		msg, err = shared.TryRunCommand("resize2fs", lvPath)
+	}
+	if err != nil {
+		logger.Errorf("could not extend underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
+		return fmt.Errorf("could not extend underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
+	}
+
+	logger.Debugf("extended underlying %s filesystem for LV \"%s\"", fsType, lvPath)
+	return nil
+}
+
+func (s *storageLvm) lvReduce(c container, lvPath string, lvSize int64, fsType string, fsMntPoint string) error {
+	var err error
+	var msg string
+
+	lvSizeString := strconv.FormatInt(lvSize, 10)
+	switch fsType {
+	case "xfs":
+		logger.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
+		return fmt.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
+	default:
+		// default = ext4
+		ourUmount, err := c.StorageStop()
+		if err != nil {
+			return err
+		}
+		if !ourUmount {
+			defer c.StorageStart()
+		}
+
+		msg, err = shared.TryRunCommand("e2fsck", "-f", "-y", lvPath)
+		if err != nil {
+			return err
+		}
+
+		// don't assume resize2fs semantics are sane (because they
+		// aren't)
+		kbSize := lvSize / 1024
+		ext4LvSizeString := strconv.FormatInt(kbSize, 10)
+		ext4LvSizeString += "K"
+		msg, err = shared.TryRunCommand("resize2fs", lvPath, ext4LvSizeString)
+	}
+	if err != nil {
+		logger.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
+		return fmt.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
+	}
+
+	msg, err = shared.TryRunCommand(
+		"lvreduce",
+		"-L", lvSizeString+"B",
+		"-f",
+		lvPath)
+	if err != nil {
+		logger.Errorf("could not reduce LV \"%s\": %s", lvPath, msg)
+		return fmt.Errorf("could not reduce LV \"%s\": %s", lvPath, msg)
+	}
+
+	logger.Debugf("reduce underlying %s filesystem for LV \"%s\"", fsType, lvPath)
+	return nil
+}
+
+func (s *storageLvm) getLvmMountOptions() string {
+	if s.volume.Config["block.mount_options"] != "" {
+		return s.volume.Config["block.mount_options"]
+	}
+
+	if s.pool.Config["volume.block.mount_options"] != "" {
+		return s.pool.Config["volume.block.mount_options"]
+	}
+
+	return "discard"
+}
+
+func (s *storageLvm) getLvmFilesystem() string {
+	if s.volume.Config["block.filesystem"] != "" {
+		return s.volume.Config["block.filesystem"]
+	}
+
+	if s.pool.Config["volume.block.filesystem"] != "" {
+		return s.pool.Config["volume.block.filesystem"]
+	}
+
+	return "ext4"
+}
+
+func (s *storageLvm) getLvmVolumeSize() (string, error) {
+	sz, err := shared.ParseByteSizeString(s.volume.Config["size"])
+	if err != nil {
+		return "", err
+	}
+
+	// Safety net: Set to default value.
+	if sz == 0 {
+		sz, _ = shared.ParseByteSizeString("10GB")
+	}
+
+	return fmt.Sprintf("%d", sz), nil
+}
+
+func (s *storageLvm) getLvmThinpoolName() string {
+	if s.pool.Config["lvm.thinpool_name"] != "" {
+		return s.pool.Config["lvm.thinpool_name"]
+	}
+
+	return "LXDThinpool"
+}
+
+func (s *storageLvm) usesThinpool() bool {
+	// Default is to use a thinpool.
+	if s.pool.Config["lvm.use_thinpool"] == "" {
+		return true
+	}
+
+	return shared.IsTrue(s.pool.Config["lvm.use_thinpool"])
+}
+
+func (s *storageLvm) setLvmThinpoolName(newThinpoolName string) {
+	s.pool.Config["lvm.thinpool_name"] = newThinpoolName
+}
+
+func (s *storageLvm) getOnDiskPoolName() string {
+	if s.vgName != "" {
+		return s.vgName
+	}
+
+	return s.pool.Name
+}
+
+func (s *storageLvm) setOnDiskPoolName(newName string) {
+	s.vgName = newName
+	s.pool.Config["source"] = newName
+}
+
+func (s *storageLvm) renameLVByPath(oldName string, newName string, volumeType string) error {
+	oldLvmName := getPrefixedLvName(volumeType, oldName)
+	newLvmName := getPrefixedLvName(volumeType, newName)
+	poolName := s.getOnDiskPoolName()
+	return lvmLVRename(poolName, oldLvmName, newLvmName)
+}
+
+func (s *storageLvm) removeLV(vgName string, volumeType string, lvName string) error {
+	lvmVolumePath := getLvmDevPath(vgName, volumeType, lvName)
+	output, err := shared.TryRunCommand("lvremove", "-f", lvmVolumePath)
+
+	if err != nil {
+		logger.Errorf("Could not remove LV \"%s\": %s.", lvName, output)
+		return fmt.Errorf("Could not remove LV named %s", lvName)
+	}
+
+	return nil
+}
+
+func (s *storageLvm) createSnapshotLV(vgName string, origLvName string, origVolumeType string, lvName string, volumeType string, readonly bool, makeThinLv bool) (string, error) {
+	sourceLvmVolumePath := getLvmDevPath(vgName, origVolumeType, origLvName)
+	logger.Debugf("in createSnapshotLV: %s.", sourceLvmVolumePath)
+	isRecent, err := lvmVersionIsAtLeast(s.sTypeVersion, "2.02.99")
+	if err != nil {
+		return "", fmt.Errorf("Error checking LVM version: %v", err)
+	}
+
+	lvmPoolVolumeName := getPrefixedLvName(volumeType, lvName)
+	var output string
+	args := []string{"-n", lvmPoolVolumeName, "-s", sourceLvmVolumePath}
+	if isRecent {
+		args = append(args, "-kn")
+	}
+
+	// If the source is not a thin volume the size needs to be specified.
+	// According to LVM tools 15-20% of the original volume should be
+	// sufficient. However, let's not be stingy at first otherwise we might
+	// force users to fiddle around with lvextend.
+	if !makeThinLv {
+		lvSize, err := s.getLvmVolumeSize()
+		if lvSize == "" {
+			return "", err
+		}
+		args = append(args, "--size", lvSize+"B")
+	}
+
+	if readonly {
+		args = append(args, "-pr")
+	} else {
+		args = append(args, "-prw")
+	}
+
+	output, err = shared.TryRunCommand("lvcreate", args...)
+	if err != nil {
+		logger.Errorf("Could not create LV snapshot: %s -> %s: %s.", origLvName, lvName, output)
+		return "", fmt.Errorf("Could not create snapshot LV named %s", lvName)
+	}
+
+	targetLvmVolumePath := getLvmDevPath(vgName, volumeType, lvName)
+	if makeThinLv {
+		// Snapshots of thin logical volumes can be directly activated.
+		// Normal snapshots will complain about changing the origin
+		// (Which they never do.), so skip the activation since the
+		// logical volume will be automatically activated anyway.
+		err := storageLVActivate(targetLvmVolumePath)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return targetLvmVolumePath, nil
+}
+
+func (s *storageLvm) createSnapshotContainer(snapshotContainer container, sourceContainer container, readonly bool) error {
+	tryUndo := true
+
+	sourceContainerName := sourceContainer.Name()
+	targetContainerName := snapshotContainer.Name()
+	sourceContainerLvmName := containerNameToLVName(sourceContainerName)
+	targetContainerLvmName := containerNameToLVName(targetContainerName)
+	logger.Debugf("Creating snapshot: %s -> %s.", sourceContainerName, targetContainerName)
+
+	poolName := s.getOnDiskPoolName()
+	_, err := s.createSnapshotLV(poolName, sourceContainerLvmName, storagePoolVolumeAPIEndpointContainers, targetContainerLvmName, storagePoolVolumeAPIEndpointContainers, readonly, s.useThinpool)
+	if err != nil {
+		return fmt.Errorf("Error creating snapshot LV: %s", err)
+	}
+	defer func() {
+		if tryUndo {
+			s.ContainerDelete(snapshotContainer)
+		}
+	}()
+
+	targetContainerMntPoint := ""
+	targetContainerPath := snapshotContainer.Path()
+	targetIsSnapshot := snapshotContainer.IsSnapshot()
+	if targetIsSnapshot {
+		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetContainerName)
+		sourceName, _, _ := containerGetParentAndSnapshotName(sourceContainerName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", poolName, "snapshots", sourceName)
+		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
+		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	} else {
+		targetContainerMntPoint = getContainerMountPoint(s.pool.Name, targetContainerName)
+		err = createContainerMountpoint(targetContainerMntPoint, targetContainerPath, snapshotContainer.IsPrivileged())
+	}
+	if err != nil {
+		return err
+	}
+
+	tryUndo = false
+
+	return nil
+}
+
+// Copy a container on a storage pool that does use a thinpool.
+func (s *storageLvm) copyContainerThinpool(target container, source container, readonly bool) error {
+	err := s.createSnapshotContainer(target, source, readonly)
+	if err != nil {
+		logger.Errorf("Error creating snapshot LV for copy: %s.", err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageLvm) copySnapshot(target container, source container) error {
+	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
+	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", targetParentName)
+	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
+	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		return err
+	}
+
+	if s.useThinpool {
+		err = s.copyContainerThinpool(target, source, true)
+	} else {
+		err = s.copyContainerLv(target, source, true)
+	}
+	if err != nil {
+		logger.Errorf("Error creating snapshot LV for copy: %s.", err)
+		return err
+	}
+
+	return nil
+}
+
+// Copy a container on a storage pool that does not use a thinpool.
+func (s *storageLvm) copyContainerLv(target container, source container, readonly bool) error {
+	err := s.ContainerCreate(target)
+	if err != nil {
+		return err
+	}
+
+	targetName := target.Name()
+	targetStart, err := target.StorageStart()
+	if err != nil {
+		return err
+	}
+	if targetStart {
+		defer target.StorageStop()
+	}
+
+	sourceName := source.Name()
+	sourceStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+	if sourceStart {
+		defer source.StorageStop()
+	}
+
+	poolName := s.getOnDiskPoolName()
+	sourceContainerMntPoint := getContainerMountPoint(poolName, sourceName)
+	if source.IsSnapshot() {
+		sourceContainerMntPoint = getSnapshotMountPoint(poolName, sourceName)
+	}
+	targetContainerMntPoint := getContainerMountPoint(poolName, targetName)
+	if target.IsSnapshot() {
+		targetContainerMntPoint = getSnapshotMountPoint(poolName, targetName)
+	}
+
+	if source.IsRunning() {
+		err = source.Freeze()
+		if err != nil {
+			return err
+		}
+		defer source.Unfreeze()
+	}
+
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	output, err := rsyncLocalCopy(sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
+	if err != nil {
+		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
+	}
+
+	if readonly {
+		targetLvmName := containerNameToLVName(targetName)
+		output, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointContainers, targetLvmName))
+		if err != nil {
+			logger.Errorf("Failed to make LVM snapshot \"%s\" read-write: %s.", targetName, output)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Copy an lvm container.
+func (s *storageLvm) copyContainer(target container, source container) error {
+	targetContainerMntPoint := getContainerMountPoint(s.pool.Name, target.Name())
+	err := createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	if s.useThinpool {
+		// If the storage pool uses a thinpool we can have snapshots of
+		// snapshots.
+		err = s.copyContainerThinpool(target, source, false)
+	} else {
+		// If the storage pools does not use a thinpool we need to
+		// perform full copies.
+		err = s.copyContainerLv(target, source, false)
+	}
+	if err != nil {
+		return err
+	}
+
+	err = s.setUnprivUserACL(source, targetContainerMntPoint)
+	if err != nil {
+		return err
+	}
+
+	err = target.TemplateApply("copy")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
+	err := s.ContainerCreate(c)
+	if err != nil {
+		return err
+	}
+
+	containerName := c.Name()
+	containerPath := c.Path()
+	_, err = s.ContainerMount(c)
+	if err != nil {
+		return err
+	}
+
+	imagePath := shared.VarPath("images", fp)
+	poolName := s.getOnDiskPoolName()
+	containerMntPoint := getContainerMountPoint(poolName, containerName)
+	err = unpackImage(s.d, imagePath, containerMntPoint, storageTypeLvm)
+	if err != nil {
+		return err
+	}
+
+	s.ContainerUmount(containerName, containerPath)
+
+	return nil
+}
+
+func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) error {
+	poolName := s.getOnDiskPoolName()
+	// Check if the image already exists.
+	imageLvmDevPath := getLvmDevPath(poolName, storagePoolVolumeAPIEndpointImages, fp)
+
+	imageStoragePoolLockID := getImageCreateLockID(poolName, fp)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			logger.Warnf("Received value over semaphore. This should not have happened.")
+		}
+	} else {
+		lxdStorageOngoingOperationMap[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageMapLock.Unlock()
+
+		var imgerr error
+		ok, _ := storageLVExists(imageLvmDevPath)
+		if !ok {
+			imgerr = s.ImageCreate(fp)
+		}
+
+		lxdStorageMapLock.Lock()
+		if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
+			close(waitChannel)
+			delete(lxdStorageOngoingOperationMap, imageStoragePoolLockID)
+		}
+		lxdStorageMapLock.Unlock()
+
+		if imgerr != nil {
+			return imgerr
+		}
+	}
+
+	containerName := c.Name()
+	containerLvmName := containerNameToLVName(containerName)
+	_, err := s.createSnapshotLV(poolName, fp, storagePoolVolumeAPIEndpointImages, containerLvmName, storagePoolVolumeAPIEndpointContainers, false, s.useThinpool)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func lvmLvIsWritable(lvName string) (bool, error) {
+	output, err := shared.TryRunCommand("lvs", "--noheadings", "-o", "lv_attr", lvName)
+	if err != nil {
+		return false, fmt.Errorf("Error retrieving attributes for logical volume \"%s\"", lvName)
+	}
+
+	output = strings.TrimSpace(output)
+	return rune(output[1]) == 'w', nil
+}
+
+func storageVGActivate(lvmVolumePath string) error {
+	output, err := shared.TryRunCommand("vgchange", "-ay", lvmVolumePath)
+	if err != nil {
+		return fmt.Errorf("could not activate volume group \"%s\": %s", lvmVolumePath, output)
+	}
+
+	return nil
+}
+
+func storageLVActivate(lvmVolumePath string) error {
+	output, err := shared.TryRunCommand("lvchange", "-ay", lvmVolumePath)
+	if err != nil {
+		return fmt.Errorf("could not activate logival volume \"%s\": %s", lvmVolumePath, output)
+	}
+
+	return nil
+}
+
+func storagePVExists(pvName string) (bool, error) {
+	err := exec.Command("pvs", "--noheadings", "-o", "lv_attr", pvName).Run()
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			if waitStatus.ExitStatus() == 5 {
+				// physical volume not found
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("error checking for physical volume \"%s\"", pvName)
+	}
+
+	return true, nil
+}
+
+func storageVGExists(vgName string) (bool, error) {
+	err := exec.Command("vgs", "--noheadings", "-o", "lv_attr", vgName).Run()
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			if waitStatus.ExitStatus() == 5 {
+				// volume group not found
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("error checking for volume group \"%s\"", vgName)
+	}
+
+	return true, nil
+}
+
+func storageLVExists(lvName string) (bool, error) {
+	err := exec.Command("lvs", "--noheadings", "-o", "lv_attr", lvName).Run()
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			if waitStatus.ExitStatus() == 5 {
+				// logical volume not found
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("error checking for logical volume \"%s\"", lvName)
+	}
+
+	return true, nil
+}
+
+func lvmGetLVSize(lvPath string) (string, error) {
+	msg, err := shared.TryRunCommand("lvs", "--noheadings", "-o", "size", "--nosuffix", "--units", "b", lvPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve size of logical volume: %s: %s", string(msg), err)
+	}
+
+	sizeString := string(msg)
+	sizeString = strings.TrimSpace(sizeString)
+	size, err := strconv.ParseInt(sizeString, 10, 64)
+	if err != nil {
+		return "", err
+	}
+
+	detectedSize := shared.GetByteSizeString(size, 0)
+
+	return detectedSize, nil
+}
+
+func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
+	output, err := exec.Command("vgs", "--noheadings", "-o", "lv_attr", fmt.Sprintf("%s/%s", vgName, poolName)).Output()
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			if waitStatus.ExitStatus() == 5 {
+				// pool LV was not found
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("error checking for pool \"%s\"", poolName)
+	}
+	// Found LV named poolname, check type:
+	attrs := strings.TrimSpace(string(output[:]))
+	if strings.HasPrefix(attrs, "t") {
+		return true, nil
+	}
+
+	return false, fmt.Errorf("pool named \"%s\" exists but is not a thin pool", poolName)
+}
+
+func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
+	results := []string{}
+
+	cNames, err := dbContainersList(d.db, cTypeRegular)
+	if err != nil {
+		return results, err
+	}
+
+	for _, cName := range cNames {
+		var lvLinkPath string
+		if strings.Contains(cName, shared.SnapshotDelimiter) {
+			lvLinkPath = shared.VarPath("snapshots", fmt.Sprintf("%s.lv", cName))
+		} else {
+			lvLinkPath = shared.VarPath("containers", fmt.Sprintf("%s.lv", cName))
+		}
+
+		if shared.PathExists(lvLinkPath) {
+			results = append(results, cName)
+		}
+	}
+
+	imageNames, err := dbImagesGet(d.db, false)
+	if err != nil {
+		return results, err
+	}
+
+	for _, imageName := range imageNames {
+		imageLinkPath := shared.VarPath("images", fmt.Sprintf("%s.lv", imageName))
+		if shared.PathExists(imageLinkPath) {
+			results = append(results, imageName)
+		}
+	}
+
+	return results, nil
+}
+
+func storageLVMValidateThinPoolName(d *Daemon, vgName string, value string) error {
+	users, err := storageLVMGetThinPoolUsers(d)
+	if err != nil {
+		return fmt.Errorf("error checking if a pool is already in use: %v", err)
+	}
+
+	if len(users) > 0 {
+		return fmt.Errorf("can not change LVM config. Images or containers are still using LVs: %v", users)
+	}
+
+	if value != "" {
+		if vgName == "" {
+			return fmt.Errorf("can not set lvm.thinpool_name without lvm.vg_name set")
+		}
+
+		poolExists, err := storageLVMThinpoolExists(vgName, value)
+		if err != nil {
+			return fmt.Errorf("error checking for thin pool \"%s\" in \"%s\": %v", value, vgName, err)
+		}
+
+		if !poolExists {
+			return fmt.Errorf("pool \"'%s\" does not exist in Volume Group \"%s\"", value, vgName)
+		}
+	}
+
+	return nil
+}
+
+func lvmVGRename(oldName string, newName string) error {
+	output, err := shared.TryRunCommand("vgrename", oldName, newName)
+	if err != nil {
+		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %s", oldName, newName, output)
+	}
+
+	return nil
+}
+
+func lvmLVRename(vgName string, oldName string, newName string) error {
+	output, err := shared.TryRunCommand("lvrename", vgName, oldName, newName)
+	if err != nil {
+		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %s", oldName, newName, output)
+	}
+
+	return nil
+}
+
+func xfsGenerateNewUUID(lvpath string) error {
+	output, err := shared.RunCommand(
+		"xfs_admin",
+		"-U", "generate",
+		lvpath)
+	if err != nil {
+		return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, output)
+	}
+
+	return nil
+}
+
+func containerNameToLVName(containerName string) string {
+	lvName := strings.Replace(containerName, "-", "--", -1)
+	return strings.Replace(lvName, shared.SnapshotDelimiter, "-", -1)
+}
+
+func getLvmDevPath(lvmPool string, volumeType string, lvmVolume string) string {
+	return fmt.Sprintf("/dev/%s/%s_%s", lvmPool, volumeType, lvmVolume)
+}
+
+func getPrefixedLvName(volumeType string, lvmVolume string) string {
+	return fmt.Sprintf("%s_%s", volumeType, lvmVolume)
+}
+
+func lvmCreateLv(vgName string, thinPoolName string, lvName string, lvFsType string, lvSize string, volumeType string, makeThinLv bool) error {
+	var output string
+	var err error
+
+	targetVg := vgName
+	lvmPoolVolumeName := getPrefixedLvName(volumeType, lvName)
+	if makeThinLv {
+		targetVg = fmt.Sprintf("%s/%s", vgName, thinPoolName)
+		output, err = shared.TryRunCommand("lvcreate", "--thin", "-n", lvmPoolVolumeName, "--virtualsize", lvSize+"B", targetVg)
+	} else {
+		output, err = shared.TryRunCommand("lvcreate", "-n", lvmPoolVolumeName, "--size", lvSize+"B", vgName)
+	}
+	if err != nil {
+		logger.Errorf("Could not create LV \"%s\": %s.", lvmPoolVolumeName, output)
+		return fmt.Errorf("Could not create thin LV named %s", lvmPoolVolumeName)
+	}
+
+	fsPath := getLvmDevPath(vgName, volumeType, lvName)
+	switch lvFsType {
+	case "xfs":
+		output, err = shared.TryRunCommand("mkfs.xfs", fsPath)
+	default:
+		// default = ext4
+		output, err = shared.TryRunCommand(
+			"mkfs.ext4",
+			"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
+			fsPath)
+	}
+
+	if err != nil {
+		logger.Errorf("Filesystem creation failed: %s.", output)
+		return fmt.Errorf("Error making filesystem on image LV: %v", err)
+	}
+
+	return nil
+}
+
+func lvmCreateThinpool(d *Daemon, sTypeVersion string, vgName string, thinPoolName string, lvFsType string) error {
+	exists, err := storageLVMThinpoolExists(vgName, thinPoolName)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		return nil
+	}
+
+	err = createDefaultThinPool(sTypeVersion, vgName, thinPoolName, lvFsType)
+	if err != nil {
+		return err
+	}
+
+	err = storageLVMValidateThinPoolName(d, vgName, thinPoolName)
+	if err != nil {
+		logger.Errorf("Setting thin pool name: %s.", err)
+		return fmt.Errorf("Error setting LVM thin pool config: %v", err)
+	}
+
+	return nil
+}
+
+func createDefaultThinPool(sTypeVersion string, vgName string, thinPoolName string, lvFsType string) error {
+	isRecent, err := lvmVersionIsAtLeast(sTypeVersion, "2.02.99")
+	if err != nil {
+		return fmt.Errorf("Error checking LVM version: %s", err)
+	}
+
+	// Create the thin pool
+	lvmThinPool := fmt.Sprintf("%s/%s", vgName, thinPoolName)
+	var output string
+	if isRecent {
+		output, err = shared.TryRunCommand(
+			"lvcreate",
+			"--poolmetadatasize", "1G",
+			"-l", "100%FREE",
+			"--thinpool", lvmThinPool)
+	} else {
+		output, err = shared.TryRunCommand(
+			"lvcreate",
+			"--poolmetadatasize", "1G",
+			"-L", "1G",
+			"--thinpool", lvmThinPool)
+	}
+
+	if err != nil {
+		logger.Errorf("Could not create thin pool \"%s\": %s.", thinPoolName, string(output))
+		return fmt.Errorf("Could not create LVM thin pool named %s", thinPoolName)
+	}
+
+	if !isRecent {
+		// Grow it to the maximum VG size (two step process required by old LVM)
+		output, err = shared.TryRunCommand("lvextend", "--alloc", "anywhere", "-l", "100%FREE", lvmThinPool)
+
+		if err != nil {
+			logger.Errorf("Could not grow thin pool: \"%s\": %s.", thinPoolName, string(output))
+			return fmt.Errorf("Could not grow LVM thin pool named %s", thinPoolName)
+		}
+	}
+
+	return nil
+}
+
+func versionSplit(versionString string) (int, int, int, error) {
+	fs := strings.Split(versionString, ".")
+	majs, mins, incs := fs[0], fs[1], fs[2]
+
+	maj, err := strconv.Atoi(majs)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	min, err := strconv.Atoi(mins)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	incs = strings.Split(incs, "(")[0]
+	inc, err := strconv.Atoi(incs)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return maj, min, inc, nil
+}
+
+func lvmVersionIsAtLeast(sTypeVersion string, versionString string) (bool, error) {
+	lvmVersion := strings.Split(sTypeVersion, "/")[0]
+
+	lvmMaj, lvmMin, lvmInc, err := versionSplit(lvmVersion)
+	if err != nil {
+		return false, err
+	}
+
+	inMaj, inMin, inInc, err := versionSplit(versionString)
+	if err != nil {
+		return false, err
+	}
+
+	if lvmMaj < inMaj || lvmMin < inMin || lvmInc < inInc {
+		return false, nil
+	}
+
+	return true, nil
+}
