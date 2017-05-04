@@ -41,6 +41,10 @@ type CmdInit struct {
 
 // Run triggers the execution of the init command.
 func (cmd *CmdInit) Run() error {
+	// Figure what storage drivers among the supported ones are actually
+	// available on this system.
+	availableStoragePoolsDrivers := cmd.availableStoragePoolsDrivers()
+
 	// Check that command line arguments don't conflict with each other
 	err := cmd.validateArgs()
 	if err != nil {
@@ -57,7 +61,7 @@ func (cmd *CmdInit) Run() error {
 	if cmd.Args.Preseed {
 		err = cmd.runPreseed(client)
 	} else {
-		err = cmd.runAutoOrInteractive(client)
+		err = cmd.runAutoOrInteractive(client, availableStoragePoolsDrivers)
 	}
 
 	if err == nil {
@@ -74,7 +78,7 @@ func (cmd *CmdInit) Run() error {
 // runPreseed. The idea being that both runAuto and runInteractive
 // will end up populating the same low-level cmdInitData structure
 // passed to the common run() method.
-func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer) error {
+func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer, backendsAvailable []string) error {
 	var defaultPrivileged int // controls whether we set security.privileged=true
 	var storageSetup bool     // == supportedStoragePoolDrivers
 	var storageBackend string // == supportedStoragePoolDrivers
@@ -97,29 +101,6 @@ func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer) error {
 	runningInUserns = cmd.RunningInUserns
 	imagesAutoUpdate = true
 
-	backendsAvailable := []string{"dir"}
-
-	// Check available backends
-	for _, driver := range supportedStoragePoolDrivers {
-		if driver == "dir" {
-			continue
-		}
-
-		// btrfs can work in user namespaces too. (If
-		// source=/some/path/on/btrfs is used.)
-		if runningInUserns && driver != "btrfs" {
-			continue
-		}
-
-		// Initialize a core storage interface for the given driver.
-		_, err := storageCoreInit(driver)
-		if err != nil {
-			continue
-		}
-
-		backendsAvailable = append(backendsAvailable, driver)
-	}
-
 	pools, err := c.GetStoragePoolNames()
 	if err != nil {
 		// We should consider this fatal since this means
@@ -132,32 +113,9 @@ func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer) error {
 			cmd.Args.StorageBackend = "dir"
 		}
 
-		// Do a bunch of sanity checks
-		if !shared.StringInSlice(cmd.Args.StorageBackend, supportedStoragePoolDrivers) {
-			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", cmd.Args.StorageBackend)
-		}
-
-		if !shared.StringInSlice(cmd.Args.StorageBackend, backendsAvailable) {
-			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", cmd.Args.StorageBackend)
-		}
-
-		if cmd.Args.StorageBackend == "dir" {
-			if cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageDataset != "" {
-				return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend.")
-			}
-		} else {
-			if cmd.Args.StorageCreateLoop != -1 && cmd.Args.StorageCreateDevice != "" {
-				return fmt.Errorf("Only one of --storage-create-device or --storage-create-loop can be specified.")
-			}
-		}
-
-		if cmd.Args.NetworkAddress == "" {
-			if cmd.Args.NetworkPort != -1 {
-				return fmt.Errorf("--network-port cannot be used without --network-address.")
-			}
-			if cmd.Args.TrustPassword != "" {
-				return fmt.Errorf("--trust-password cannot be used without --network-address.")
-			}
+		err = cmd.validateArgsAuto(backendsAvailable)
+		if err != nil {
+			return err
 		}
 
 		storageBackend = cmd.Args.StorageBackend
@@ -175,10 +133,6 @@ func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer) error {
 			storageSetup = true
 		}
 	} else {
-		if cmd.Args.StorageBackend != "" || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageDataset != "" || cmd.Args.NetworkAddress != "" || cmd.Args.NetworkPort != -1 || cmd.Args.TrustPassword != "" {
-			return fmt.Errorf("Init configuration is only valid with --auto")
-		}
-
 		defaultStorage := "dir"
 		if shared.StringInSlice("zfs", backendsAvailable) {
 			defaultStorage = "zfs"
@@ -756,7 +710,71 @@ func (cmd *CmdInit) validateArgs() error {
 	if cmd.Args.Auto && cmd.Args.Preseed {
 		return fmt.Errorf("Non-interactive mode supported by only one of --auto or --preseed")
 	}
+	if !cmd.Args.Auto {
+		if cmd.Args.StorageBackend != "" || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageDataset != "" || cmd.Args.NetworkAddress != "" || cmd.Args.NetworkPort != -1 || cmd.Args.TrustPassword != "" {
+			return fmt.Errorf("Init configuration is only valid with --auto")
+		}
+	}
 	return nil
+}
+
+// Check that the arguments passed along with --auto are valid and consistent.
+// and no invalid combination is provided.
+func (cmd *CmdInit) validateArgsAuto(availableStoragePoolsDrivers []string) error {
+	if !shared.StringInSlice(cmd.Args.StorageBackend, supportedStoragePoolDrivers) {
+		return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", cmd.Args.StorageBackend)
+	}
+	if !shared.StringInSlice(cmd.Args.StorageBackend, availableStoragePoolsDrivers) {
+		return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", cmd.Args.StorageBackend)
+	}
+
+	if cmd.Args.StorageBackend == "dir" {
+		if cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageDataset != "" {
+			return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend.")
+		}
+	} else {
+		if cmd.Args.StorageCreateLoop != -1 && cmd.Args.StorageCreateDevice != "" {
+			return fmt.Errorf("Only one of --storage-create-device or --storage-create-loop can be specified.")
+		}
+	}
+
+	if cmd.Args.NetworkAddress == "" {
+		if cmd.Args.NetworkPort != -1 {
+			return fmt.Errorf("--network-port cannot be used without --network-address.")
+		}
+		if cmd.Args.TrustPassword != "" {
+			return fmt.Errorf("--trust-password cannot be used without --network-address.")
+		}
+	}
+
+	return nil
+}
+
+// Return the available storage pools drivers (depending on installed tools).
+func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
+	drivers := []string{"dir"}
+
+	// Check available backends
+	for _, driver := range supportedStoragePoolDrivers {
+		if driver == "dir" {
+			continue
+		}
+
+		// btrfs can work in user namespaces too. (If
+		// source=/some/path/on/btrfs is used.)
+		if cmd.RunningInUserns && driver != "btrfs" {
+			continue
+		}
+
+		// Initialize a core storage interface for the given driver.
+		_, err := storageCoreInit(driver)
+		if err != nil {
+			continue
+		}
+
+		drivers = append(drivers, driver)
+	}
+	return drivers
 }
 
 func (cmd *CmdInit) setServerConfig(c lxd.ContainerServer, key string, value string) error {
