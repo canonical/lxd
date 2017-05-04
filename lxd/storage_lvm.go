@@ -688,6 +688,7 @@ func (s *storageLvm) StoragePoolMount() (bool, error) {
 			return false, loopErr
 		}
 		s.loopInfo = loopF
+		shared.LogInfof("Using loop device \"%s\" for storage pools \"%s\".", loopF.Name(), s.pool.Name)
 	}
 
 	return true, nil
