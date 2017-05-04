@@ -275,3 +275,7 @@ This adds descriptions to entities like containers, snapshots, networks, storage
 
 ## image\_force\_refresh
 This allows forcing a refresh for an existing image.
+
+## storage\_lvm\_lv\_resizing
+This introduces the ability to resize logical volumes by setting the "size"
+property in the containers root disk device.
