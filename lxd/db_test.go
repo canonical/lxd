@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/suite"
+
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -27,181 +29,139 @@ const DB_FIXTURES string = `
     INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (3, 'devicekey', 'devicevalue');
     `
 
-//  This Helper will initialize a test in-memory DB.
-func createTestDb(t *testing.T) (db *sql.DB) {
+type dbTestSuite struct {
+	suite.Suite
+
+	db *sql.DB
+}
+
+func (s *dbTestSuite) SetupTest() {
+	s.db = s.CreateTestDb()
+}
+
+func (s *dbTestSuite) TearDownTest() {
+	s.db.Close()
+}
+
+// Initialize a test in-memory DB.
+func (s *dbTestSuite) CreateTestDb() (db *sql.DB) {
 	// Setup logging if main() hasn't been called/when testing
 	if logger.Log == nil {
 		var err error
 		logger.Log, err = logging.GetLogger("", "", true, true, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		s.Nil(err)
 	}
 
 	var err error
 	d := &Daemon{MockMode: true}
 	err = initializeDbObject(d, ":memory:")
+	s.Nil(err)
 	db = d.db
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	_, err = db.Exec(DB_FIXTURES)
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.Nil(err)
 	return // db is a named output param
 }
 
-func Test_deleting_a_container_cascades_on_related_tables(t *testing.T) {
-	var db *sql.DB
+func TestDBTestSuite(t *testing.T) {
+	suite.Run(t, new(dbTestSuite))
+}
+
+func (s *dbTestSuite) Test_deleting_a_container_cascades_on_related_tables() {
 	var err error
 	var count int
 	var statements string
-
-	// Insert a container and a related profile.
-	db = createTestDb(t)
-	defer db.Close()
 
 	// Drop the container we just created.
 	statements = `DELETE FROM containers WHERE name = 'thename';`
 
-	_, err = db.Exec(statements)
-	if err != nil {
-		t.Errorf("Error deleting container! %s", err)
-	}
+	_, err = s.db.Exec(statements)
+	s.Nil(err, "Error deleting container!")
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles;`
-	err = db.QueryRow(statements).Scan(&count)
-
-	if count != 0 {
-		t.Errorf("Deleting a container didn't delete the profile association! There are %d left", count)
-	}
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting a container didn't delete the profile association!")
 
 	// Make sure there are 0 containers_config entries left.
 	statements = `SELECT count(*) FROM containers_config;`
-	err = db.QueryRow(statements).Scan(&count)
-
-	if count != 0 {
-		t.Errorf("Deleting a container didn't delete the associated container_config! There are %d left", count)
-	}
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting a container didn't delete the associated container_config!")
 
 	// Make sure there are 0 containers_devices entries left.
 	statements = `SELECT count(*) FROM containers_devices;`
-	err = db.QueryRow(statements).Scan(&count)
-
-	if count != 0 {
-		t.Errorf("Deleting a container didn't delete the associated container_devices! There are %d left", count)
-	}
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices!")
 
 	// Make sure there are 0 containers_devices_config entries left.
 	statements = `SELECT count(*) FROM containers_devices_config;`
-	err = db.QueryRow(statements).Scan(&count)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if count != 0 {
-		t.Errorf("Deleting a container didn't delete the associated container_devices_config! There are %d left", count)
-	}
-
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices_config!")
 }
 
-func Test_deleting_a_profile_cascades_on_related_tables(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	var err error
 	var count int
 	var statements string
-
-	// Insert a container and a related profile.
-	db = createTestDb(t)
-	defer db.Close()
 
 	// Drop the profile we just created.
 	statements = `DELETE FROM profiles WHERE name = 'theprofile';`
 
-	_, err = db.Exec(statements)
-	if err != nil {
-		t.Errorf("Error deleting profile! %s", err)
-	}
+	_, err = s.db.Exec(statements)
+	s.Nil(err)
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles WHERE profile_id = 3;`
-	err = db.QueryRow(statements).Scan(&count)
-
-	if count != 0 {
-		t.Errorf("Deleting a profile didn't delete the container association! There are %d left", count)
-	}
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Equal(count, 0, "Deleting a profile didn't delete the container association!")
 
 	// Make sure there are 0 profiles_devices entries left.
 	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id == 3;`
-	err = db.QueryRow(statements).Scan(&count)
-
-	if count != 0 {
-		t.Errorf("Deleting a profile didn't delete the related profiles_devices! There are %d left", count)
-	}
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices!")
 
 	// Make sure there are 0 profiles_config entries left.
 	statements = `SELECT count(*) FROM profiles_config WHERE profile_id == 3;`
-	err = db.QueryRow(statements).Scan(&count)
-
-	if count != 0 {
-		t.Errorf("Deleting a profile didn't delete the related profiles_config! There are %d left", count)
-	}
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_config! There are %d left")
 
 	// Make sure there are 0 profiles_devices_config entries left.
 	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 4;`
-	err = db.QueryRow(statements).Scan(&count)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if count != 0 {
-		t.Errorf("Deleting a profile didn't delete the related profiles_devices_config! There are %d left", count)
-	}
-
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices_config!")
 }
 
-func Test_deleting_an_image_cascades_on_related_tables(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 	var err error
 	var count int
 	var statements string
 
-	db = createTestDb(t)
-	defer db.Close()
-
 	// Drop the image we just created.
 	statements = `DELETE FROM images;`
 
-	_, err = db.Exec(statements)
-	if err != nil {
-		t.Errorf("Error deleting image! %s", err)
-	}
-
+	_, err = s.db.Exec(statements)
+	s.Nil(err)
 	// Make sure there are 0 images_aliases entries left.
 	statements = `SELECT count(*) FROM images_aliases;`
-	err = db.QueryRow(statements).Scan(&count)
-
-	if count != 0 {
-		t.Errorf("Deleting an image didn't delete the image alias association! There are %d left", count)
-	}
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting an image didn't delete the image alias association!")
 
 	// Make sure there are 0 images_properties entries left.
 	statements = `SELECT count(*) FROM images_properties;`
-	err = db.QueryRow(statements).Scan(&count)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if count != 0 {
-		t.Errorf("Deleting an image didn't delete the related images_properties! There are %d left", count)
-	}
+	err = s.db.QueryRow(statements).Scan(&count)
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting an image didn't delete the related images_properties!")
 }
 
-func Test_initializing_db_is_indempotent(t *testing.T) {
+func (s *dbTestSuite) Test_initializing_db_is_idempotent() {
 	var db *sql.DB
 	var err error
 
@@ -209,32 +169,24 @@ func Test_initializing_db_is_indempotent(t *testing.T) {
 	d := &Daemon{MockMode: true}
 	err = initializeDbObject(d, ":memory:")
 	db = d.db
-
 	defer db.Close()
 
 	// Let's call it a second time.
 	err = createDb(db)
-	if err != nil {
-		t.Errorf("The database schema is not indempotent, err='%s'", err)
-	}
+	s.Nil(err)
 }
 
-func Test_get_schema_returns_0_on_uninitialized_db(t *testing.T) {
+func (s *dbTestSuite) Test_get_schema_returns_0_on_uninitialized_db() {
 	var db *sql.DB
 	var err error
 
 	db, err = sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Error(err)
-	}
+	s.Nil(err)
 	result := dbGetSchema(db)
-
-	if result != 0 {
-		t.Error("getSchema should return 0 on uninitialized db!")
-	}
+	s.Equal(0, result, "getSchema should return 0 on uninitialized db!")
 }
 
-func Test_running_dbUpdateFromV6_adds_on_delete_cascade(t *testing.T) {
+func (s *dbTestSuite) Test_running_dbUpdateFromV6_adds_on_delete_cascade() {
 	// Upgrading the database schema with updateFromV6 adds ON DELETE CASCADE
 	// to sqlite tables that require it, and conserve the data.
 
@@ -268,42 +220,32 @@ INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
 INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
 
 	_, err = d.db.Exec(statements)
-	if err != nil {
-		t.Error(err)
-	}
+	s.Nil(err)
 
 	// Run the upgrade from V6 code
 	err = dbUpdateFromV6(5, 6, d)
+	s.Nil(err)
 
 	// Make sure the inserted data is still there.
 	statements = `SELECT count(*) FROM containers_config;`
 	err = d.db.QueryRow(statements).Scan(&count)
-
-	if count != 1 {
-		t.Fatalf("There should be exactly one entry in containers_config! There are %d.", count)
-	}
+	s.Nil(err)
+	s.Equal(count, 1, "There should be exactly one entry in containers_config!")
 
 	// Drop the container.
 	statements = `DELETE FROM containers WHERE name = 'thename';`
 
 	_, err = d.db.Exec(statements)
-	if err != nil {
-		t.Errorf("Error deleting container! %s", err)
-	}
+	s.Nil(err)
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles;`
 	err = d.db.QueryRow(statements).Scan(&count)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if count != 0 {
-		t.Errorf("Deleting a container didn't delete the profile association! There are %d left", count)
-	}
+	s.Nil(err)
+	s.Equal(count, 0, "Deleting a container didn't delete the profile association!")
 }
 
-func Test_run_database_upgrades_with_some_foreign_keys_inconsistencies(t *testing.T) {
+func (s *dbTestSuite) Test_run_database_upgrades_with_some_foreign_keys_inconsistencies() {
 	var db *sql.DB
 	var err error
 	var count int
@@ -311,10 +253,7 @@ func Test_run_database_upgrades_with_some_foreign_keys_inconsistencies(t *testin
 
 	db, err = sql.Open("sqlite3", ":memory:")
 	defer db.Close()
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.Nil(err)
 
 	// This schema is a part of schema rev 1.
 	statements = `
@@ -372,17 +311,13 @@ INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
 INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
 
 	_, err = db.Exec(statements)
-	if err != nil {
-		t.Fatal("Error creating schema!")
-	}
+	s.Nil(err)
 
 	// Now that we have a consistent schema, let's remove the container entry
 	// *without* the ON DELETE CASCADE in place.
 	statements = `DELETE FROM containers;`
 	_, err = db.Exec(statements)
-	if err != nil {
-		t.Fatal("Error truncating the container table!")
-	}
+	s.Nil(err)
 
 	// The "foreign key" on containers_config now points to nothing.
 	// Let's run the schema upgrades.
@@ -391,292 +326,165 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	daemonConfigInit(db)
 
 	err = dbUpdatesApplyAll(d)
-	if err != nil {
-		t.Error("Error upgrading database schema!")
-		t.Fatal(err)
-	}
+	s.Nil(err)
 
 	result := dbGetSchema(db)
-	if result != dbGetLatestSchema() {
-		t.Fatal(fmt.Sprintf("The schema is not at the latest version after update! Found: %d, should be: %d", result, dbGetLatestSchema()))
-	}
+	s.Equal(result, dbGetLatestSchema(), "The schema is not at the latest version after update!")
 
 	// Make sure there are 0 containers_config entries left.
 	statements = `SELECT count(*) FROM containers_config;`
 	err = db.QueryRow(statements).Scan(&count)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if count != 0 {
-		t.Fatal("updateDb did not delete orphaned child entries after adding ON DELETE CASCADE!")
-	}
-
+	s.Nil(err)
+	s.Equal(count, 0, "updateDb did not delete orphaned child entries after adding ON DELETE CASCADE!")
 }
 
-func Test_dbImageGet_finds_image_for_fingerprint(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbImageGet_finds_image_for_fingerprint() {
 	var err error
 	var result *api.Image
 
-	db = createTestDb(t)
-	defer db.Close()
-
-	_, result, err = dbImageGet(db, "fingerprint", false, false)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result == nil {
-		t.Fatal("No image returned!")
-	}
-
-	if result.Filename != "filename" {
-		t.Fatal("Filename should be set.")
-	}
-
-	if result.CreatedAt.UTC() != time.Unix(1431547174, 0).UTC() {
-		t.Fatal(fmt.Sprintf("%s != %s", result.CreatedAt, time.Unix(1431547174, 0)))
-	}
-
-	if result.ExpiresAt.UTC() != time.Unix(1431547175, 0).UTC() { // It was short lived
-		t.Fatal(fmt.Sprintf("%s != %s", result.ExpiresAt, time.Unix(1431547175, 0)))
-	}
-
-	if result.UploadedAt.UTC() != time.Unix(1431547176, 0).UTC() {
-		t.Fatal(fmt.Sprintf("%s != %s", result.UploadedAt, time.Unix(1431547176, 0)))
-	}
+	_, result, err = dbImageGet(s.db, "fingerprint", false, false)
+	s.Nil(err)
+	s.NotNil(result)
+	s.Equal(result.Filename, "filename")
+	s.Equal(result.CreatedAt.UTC(), time.Unix(1431547174, 0).UTC())
+	s.Equal(result.ExpiresAt.UTC(), time.Unix(1431547175, 0).UTC())
+	s.Equal(result.UploadedAt.UTC(), time.Unix(1431547176, 0).UTC())
 }
 
-func Test_dbImageGet_for_missing_fingerprint(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbImageGet_for_missing_fingerprint() {
 	var err error
 
-	db = createTestDb(t)
-	defer db.Close()
-
-	_, _, err = dbImageGet(db, "unknown", false, false)
-
-	if err != sql.ErrNoRows {
-		t.Fatal("Wrong err type returned")
-	}
+	_, _, err = dbImageGet(s.db, "unknown", false, false)
+	s.Equal(err, sql.ErrNoRows)
 }
 
-func Test_dbImageExists_true(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbImageExists_true() {
 	var err error
 
-	db = createTestDb(t)
-	defer db.Close()
-
-	exists, err := dbImageExists(db, "fingerprint")
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !exists {
-		t.Fatal("Image not found by fingerprint")
-	}
-
+	exists, err := dbImageExists(s.db, "fingerprint")
+	s.Nil(err)
+	s.True(exists)
 }
 
-func Test_dbImageExists_false(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbImageExists_false() {
 	var err error
 
-	db = createTestDb(t)
-	defer db.Close()
-
-	exists, err := dbImageExists(db, "foobar")
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	if exists {
-		t.Fatal("Image should not have been found")
-	}
+	exists, err := dbImageExists(s.db, "foobar")
+	s.Nil(err)
+	s.False(exists)
 }
 
-func Test_dbImageAliasGet_alias_exists(t *testing.T) {
-	var db *sql.DB
-	var err error
-	var result string
-
-	db = createTestDb(t)
-	defer db.Close()
-
-	_, alias, err := dbImageAliasGet(db, "somealias", true)
-	result = alias.Target
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result != "fingerprint" {
-		t.Fatal("Fingerprint is not the expected fingerprint!")
-	}
-
-}
-
-func Test_dbImageAliasGet_alias_does_not_exists(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbImageAliasGet_alias_exists() {
 	var err error
 
-	db = createTestDb(t)
-	defer db.Close()
-
-	_, _, err = dbImageAliasGet(db, "whatever", true)
-
-	if err != NoSuchObjectError {
-		t.Fatal("Error should be NoSuchObjectError")
-	}
+	_, alias, err := dbImageAliasGet(s.db, "somealias", true)
+	s.Nil(err)
+	s.Equal(alias.Target, "fingerprint")
 }
 
-func Test_dbImageAliasAdd(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbImageAliasGet_alias_does_not_exists() {
 	var err error
-	var result string
 
-	db = createTestDb(t)
-	defer db.Close()
-
-	err = dbImageAliasAdd(db, "Chaosphere", 1, "Someone will like the name")
-	if err != nil {
-		t.Fatal("Error inserting Image alias.")
-	}
-
-	_, alias, err := dbImageAliasGet(db, "Chaosphere", true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result = alias.Target
-
-	if result != "fingerprint" {
-		t.Fatal("Couldn't retrieve newly created alias.")
-	}
+	_, _, err = dbImageAliasGet(s.db, "whatever", true)
+	s.Equal(err, NoSuchObjectError)
 }
 
-func Test_dbContainerConfig(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbImageAliasAdd() {
+	var err error
+
+	err = dbImageAliasAdd(s.db, "Chaosphere", 1, "Someone will like the name")
+	s.Nil(err)
+
+	_, alias, err := dbImageAliasGet(s.db, "Chaosphere", true)
+	s.Nil(err)
+	s.Equal(alias.Target, "fingerprint")
+}
+
+func (s *dbTestSuite) Test_dbContainerConfig() {
 	var err error
 	var result map[string]string
 	var expected map[string]string
 
-	db = createTestDb(t)
-	defer db.Close()
+	_, err = s.db.Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
+	s.Nil(err)
 
-	_, err = db.Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
-
-	result, err = dbContainerConfig(db, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	result, err = dbContainerConfig(s.db, 1)
+	s.Nil(err)
 
 	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
 
 	for key, value := range expected {
-		if result[key] != value {
-			t.Errorf("Mismatching value for key %s: %s != %s", key, result[key], value)
-		}
+		s.Equal(result[key], value,
+			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
 	}
 }
 
-func Test_dbProfileConfig(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbProfileConfig() {
 	var err error
 	var result map[string]string
 	var expected map[string]string
 
-	db = createTestDb(t)
-	defer db.Close()
+	_, err = s.db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'something', 'something else');")
+	s.Nil(err)
 
-	_, err = db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'something', 'something else');")
-
-	result, err = dbProfileConfig(db, "theprofile")
-	if err != nil {
-		t.Fatal(err)
-	}
+	result, err = dbProfileConfig(s.db, "theprofile")
+	s.Nil(err)
 
 	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
 
 	for key, value := range expected {
-		if result[key] != value {
-			t.Errorf("Mismatching value for key %s: %s != %s", key, result[key], value)
-		}
+		s.Equal(result[key], value,
+			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
 	}
 }
 
-func Test_dbContainerProfiles(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbContainerProfiles() {
 	var err error
 	var result []string
 	var expected []string
 
-	db = createTestDb(t)
-	defer db.Close()
-
 	expected = []string{"theprofile"}
-	result, err = dbContainerProfiles(db, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	result, err = dbContainerProfiles(s.db, 1)
+	s.Nil(err)
 
 	for i := range expected {
-		if expected[i] != result[i] {
-			t.Fatal(fmt.Sprintf("Mismatching contents for profile list: %s != %s", result[i], expected[i]))
-		}
+		s.Equal(expected[i], result[i],
+			fmt.Sprintf("Mismatching contents for profile list: %s != %s", result[i], expected[i]))
 	}
 }
 
-func Test_dbDevices_profiles(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbDevices_profiles() {
 	var err error
 	var result types.Devices
 	var subresult types.Device
 	var expected types.Device
 
-	db = createTestDb(t)
-	defer db.Close()
-
-	result, err = dbDevices(db, "theprofile", true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	result, err = dbDevices(s.db, "theprofile", true)
+	s.Nil(err)
 
 	expected = types.Device{"type": "nic", "devicekey": "devicevalue"}
 	subresult = result["devicename"]
 
 	for key, value := range expected {
-		if subresult[key] != value {
-			t.Errorf("Mismatching value for key %s: %v != %v", key, subresult[key], value)
-		}
+		s.Equal(subresult[key], value,
+			fmt.Sprintf("Mismatching value for key %s: %v != %v", key, subresult[key], value))
 	}
-
 }
 
-func Test_dbDevices_containers(t *testing.T) {
-	var db *sql.DB
+func (s *dbTestSuite) Test_dbDevices_containers() {
 	var err error
 	var result types.Devices
 	var subresult types.Device
 	var expected types.Device
 
-	db = createTestDb(t)
-	defer db.Close()
-
-	result, err = dbDevices(db, "thename", false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	result, err = dbDevices(s.db, "thename", false)
+	s.Nil(err)
 
 	expected = types.Device{"type": "nic", "configkey": "configvalue"}
 	subresult = result["somename"]
 
 	for key, value := range expected {
-		if subresult[key] != value {
-			t.Errorf("Mismatching value for key %s: %s != %s", key, subresult[key], value)
-		}
+		s.Equal(subresult[key], value,
+			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, subresult[key], value))
 	}
-
 }
