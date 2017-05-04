@@ -100,6 +100,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			if ephemeral {
 				// Unset ephemeral flag
 				args := containerArgs{
+					Description:  c.Description(),
 					Architecture: c.Architecture(),
 					Config:       c.LocalConfig(),
 					Devices:      c.LocalDevices(),

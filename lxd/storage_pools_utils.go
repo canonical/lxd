@@ -9,7 +9,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-func storagePoolUpdate(d *Daemon, name string, newConfig map[string]string) error {
+func storagePoolUpdate(d *Daemon, name, newDescription string, newConfig map[string]string) error {
 	s, err := storagePoolInit(d, name)
 	if err != nil {
 		return err
@@ -19,6 +19,7 @@ func storagePoolUpdate(d *Daemon, name string, newConfig map[string]string) erro
 	newWritable := oldWritable
 
 	// Backup the current state
+	oldDescription := oldWritable.Description
 	oldConfig := map[string]string{}
 	err = shared.DeepCopy(&oldWritable.Config, &oldConfig)
 	if err != nil {
@@ -37,32 +38,33 @@ func storagePoolUpdate(d *Daemon, name string, newConfig map[string]string) erro
 	}()
 
 	changedConfig, userOnly := storageConfigDiff(oldConfig, newConfig)
-	// Skip on no change
-	if len(changedConfig) == 0 {
-		return nil
-	}
+	// Apply config changes if there are any
+	if len(changedConfig) != 0 {
+		newWritable.Description = newDescription
+		newWritable.Config = newConfig
 
-	newWritable.Config = newConfig
+		// Update the storage pool
+		if !userOnly {
+			if shared.StringInSlice("driver", changedConfig) {
+				return fmt.Errorf("the \"driver\" property of a storage pool cannot be changed")
+			}
 
-	// Update the storage pool
-	if !userOnly {
-		if shared.StringInSlice("driver", changedConfig) {
-			return fmt.Errorf("the \"driver\" property of a storage pool cannot be changed")
+			err = s.StoragePoolUpdate(&newWritable, changedConfig)
+			if err != nil {
+				return err
+			}
 		}
 
-		err = s.StoragePoolUpdate(&newWritable, changedConfig)
+		// Apply the new configuration
+		s.SetStoragePoolWritable(&newWritable)
+	}
+
+	// Update the database if something changed
+	if len(changedConfig) != 0 || newDescription != oldDescription {
+		err = dbStoragePoolUpdate(d.db, name, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
-	}
-
-	// Apply the new configuration
-	s.SetStoragePoolWritable(&newWritable)
-
-	// Update the database
-	err = dbStoragePoolUpdate(d.db, name, newConfig)
-	if err != nil {
-		return err
 	}
 
 	// Success, update the closure to mark that the changes should be kept.
@@ -153,7 +155,7 @@ func profilesUsingPoolGetNames(db *sql.DB, poolName string) ([]string, error) {
 	return usedBy, nil
 }
 
-func storagePoolDBCreate(d *Daemon, poolName string, driver string, config map[string]string) error {
+func storagePoolDBCreate(d *Daemon, poolName, poolDescription string, driver string, config map[string]string) error {
 	// Check if the storage pool name is valid.
 	err := storageValidName(poolName)
 	if err != nil {
@@ -184,7 +186,7 @@ func storagePoolDBCreate(d *Daemon, poolName string, driver string, config map[s
 	}
 
 	// Create the database entry for the storage pool.
-	_, err = dbStoragePoolCreate(d.db, poolName, driver, config)
+	_, err = dbStoragePoolCreate(d.db, poolName, poolDescription, driver, config)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 	}
@@ -192,8 +194,8 @@ func storagePoolDBCreate(d *Daemon, poolName string, driver string, config map[s
 	return nil
 }
 
-func storagePoolCreateInternal(d *Daemon, poolName string, driver string, config map[string]string) error {
-	err := storagePoolDBCreate(d, poolName, driver, config)
+func storagePoolCreateInternal(d *Daemon, poolName, poolDescription string, driver string, config map[string]string) error {
+	err := storagePoolDBCreate(d, poolName, poolDescription, driver, config)
 	if err != nil {
 		return err
 	}
@@ -235,7 +237,7 @@ func storagePoolCreateInternal(d *Daemon, poolName string, driver string, config
 	configDiff, _ := storageConfigDiff(config, postCreateConfig)
 	if len(configDiff) > 0 {
 		// Create the database entry for the storage pool.
-		err = dbStoragePoolUpdate(d.db, poolName, postCreateConfig)
+		err = dbStoragePoolUpdate(d.db, poolName, poolDescription, postCreateConfig)
 		if err != nil {
 			return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 		}

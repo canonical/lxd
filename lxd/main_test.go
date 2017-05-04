@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -61,7 +62,8 @@ func (suite *lxdTestSuite) SetupSuite() {
 
 	mockStorage, _ := storageTypeToString(storageTypeMock)
 	// Create the database entry for the storage pool.
-	_, err = dbStoragePoolCreate(suite.d.db, lxdTestSuiteDefaultStoragePool, mockStorage, poolConfig)
+	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
+	_, err = dbStoragePoolCreate(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
 		os.Exit(1)
 	}

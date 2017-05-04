@@ -225,3 +225,34 @@ test_config_profiles() {
   lxc stop foo --force
   lxc delete foo
 }
+
+
+test_config_edit() {
+    ensure_import_testimage
+
+    lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
+    lxc config show foo | sed 's/^description:.*/description: bar/' | lxc config edit foo
+    lxc config show foo | grep -q 'description: bar'
+    lxc delete foo
+}
+
+test_config_edit_container_snapshot_pool_config() {
+    # shellcheck disable=2034,2039,2155
+    local storage_pool="lxdtest-$(basename "${LXD_DIR}")"
+
+    ensure_import_testimage
+
+    lxc init testimage c1 -s "$storage_pool"
+    lxc snapshot c1 s1
+    # edit the container volume name
+    lxc storage volume show "$storage_pool" container/c1 | \
+        sed 's/^description:.*/description: bar/' | \
+        lxc storage volume edit "$storage_pool" container/c1
+    lxc storage volume show "$storage_pool" container/c1 | grep -q 'description: bar'
+    # edit the container snapshot volume name
+    lxc storage volume show "$storage_pool" container/c1/s1 | \
+        sed 's/^description:.*/description: baz/' | \
+        lxc storage volume edit "$storage_pool" container/c1/s1
+    lxc storage volume show "$storage_pool" container/c1/s1 | grep -q 'description: baz'
+    lxc delete c1
+}

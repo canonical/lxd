@@ -25,6 +25,9 @@ type StoragePool struct {
 //
 // API extension: storage
 type StoragePoolPut struct {
+	// API extension: entity_description
+	Description string `json:"description" yaml:"description"`
+
 	Config map[string]string `json:"config" yaml:"config"`
 }
 
@@ -43,16 +46,18 @@ type StorageVolumesPost struct {
 // API extension: storage
 type StorageVolume struct {
 	StorageVolumePut `yaml:",inline"`
-
-	Name   string   `json:"name" yaml:"name"`
-	Type   string   `json:"type" yaml:"type"`
-	UsedBy []string `json:"used_by" yaml:"used_by"`
+	Name             string   `json:"name" yaml:"name"`
+	Type             string   `json:"type" yaml:"type"`
+	UsedBy           []string `json:"used_by" yaml:"used_by"`
 }
 
 // StorageVolumePut represents the modifiable fields of a LXD storage volume.
 //
 // API extension: storage
 type StorageVolumePut struct {
+	// API extension: entity_description
+	Description string `json:"description" yaml:"description"`
+
 	Config map[string]string `json:"config" yaml:"config"`
 }
 

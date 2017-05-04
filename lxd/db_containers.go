@@ -53,19 +53,22 @@ func dbContainerId(db *sql.DB, name string) (int, error) {
 
 func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 	var used *time.Time // Hold the db-returned time
+	description := sql.NullString{}
 
 	args := containerArgs{}
 	args.Name = name
 
 	ephemInt := -1
 	statefulInt := -1
-	q := "SELECT id, architecture, type, ephemeral, stateful, creation_date, last_use_date FROM containers WHERE name=?"
+	q := "SELECT id, description, architecture, type, ephemeral, stateful, creation_date, last_use_date FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&args.Id, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate, &used}
+	arg2 := []interface{}{&args.Id, &description, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate, &used}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		return args, err
 	}
+
+	args.Description = description.String
 
 	if args.Id == -1 {
 		return args, fmt.Errorf("Unknown container")
@@ -396,8 +399,8 @@ func dbContainerRename(db *sql.DB, oldName string, newName string) error {
 	return txCommit(tx)
 }
 
-func dbContainerUpdate(tx *sql.Tx, id int, architecture int, ephemeral bool) error {
-	str := fmt.Sprintf("UPDATE containers SET architecture=?, ephemeral=? WHERE id=?")
+func dbContainerUpdate(tx *sql.Tx, id int, description string, architecture int, ephemeral bool) error {
+	str := fmt.Sprintf("UPDATE containers SET description=?, architecture=?, ephemeral=? WHERE id=?")
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		return err
@@ -409,7 +412,7 @@ func dbContainerUpdate(tx *sql.Tx, id int, architecture int, ephemeral bool) err
 		ephemeralInt = 1
 	}
 
-	if _, err := stmt.Exec(architecture, ephemeralInt, id); err != nil {
+	if _, err := stmt.Exec(description, architecture, ephemeralInt, id); err != nil {
 		return err
 	}
 

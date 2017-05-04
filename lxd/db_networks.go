@@ -29,11 +29,12 @@ func dbNetworks(db *sql.DB) ([]string, error) {
 }
 
 func dbNetworkGet(db *sql.DB, name string) (int64, *api.Network, error) {
+	description := sql.NullString{}
 	id := int64(-1)
 
-	q := "SELECT id FROM networks WHERE name=?"
+	q := "SELECT id, description FROM networks WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id}
+	arg2 := []interface{}{&id, &description}
 	err := dbQueryRowScan(db, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
@@ -49,6 +50,7 @@ func dbNetworkGet(db *sql.DB, name string) (int64, *api.Network, error) {
 		Managed: true,
 		Type:    "bridge",
 	}
+	network.Description = description.String
 	network.Config = config
 
 	return id, &network, nil
@@ -140,13 +142,13 @@ func dbNetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
 	return config, nil
 }
 
-func dbNetworkCreate(db *sql.DB, name string, config map[string]string) (int64, error) {
+func dbNetworkCreate(db *sql.DB, name, description string, config map[string]string) (int64, error) {
 	tx, err := dbBegin(db)
 	if err != nil {
 		return -1, err
 	}
 
-	result, err := tx.Exec("INSERT INTO networks (name) VALUES (?)", name)
+	result, err := tx.Exec("INSERT INTO networks (name, description) VALUES (?, ?)", name, description)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -172,7 +174,7 @@ func dbNetworkCreate(db *sql.DB, name string, config map[string]string) (int64, 
 	return id, nil
 }
 
-func dbNetworkUpdate(db *sql.DB, name string, config map[string]string) error {
+func dbNetworkUpdate(db *sql.DB, name, description string, config map[string]string) error {
 	id, _, err := dbNetworkGet(db, name)
 	if err != nil {
 		return err
@@ -180,6 +182,12 @@ func dbNetworkUpdate(db *sql.DB, name string, config map[string]string) error {
 
 	tx, err := dbBegin(db)
 	if err != nil {
+		return err
+	}
+
+	err = dbNetworkUpdateDescription(tx, id, description)
+	if err != nil {
+		tx.Rollback()
 		return err
 	}
 
@@ -196,6 +204,11 @@ func dbNetworkUpdate(db *sql.DB, name string, config map[string]string) error {
 	}
 
 	return txCommit(tx)
+}
+
+func dbNetworkUpdateDescription(tx *sql.Tx, id int64, description string) error {
+	_, err := tx.Exec("UPDATE networks SET description=? WHERE id=?", description, id)
+	return err
 }
 
 func dbNetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {

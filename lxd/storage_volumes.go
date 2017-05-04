@@ -162,7 +162,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 	// volume is supposed to be created.
 	poolName := mux.Vars(r)["name"]
 
-	err = storagePoolVolumeCreateInternal(d, poolName, req.Name, req.Type, req.Config)
+	err = storagePoolVolumeCreateInternal(d, poolName, req.Name, req.Description, req.Type, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -276,7 +276,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = storagePoolVolumeUpdate(d, poolName, req.Name, volumeType, req.Config)
+	err = storagePoolVolumeUpdate(d, poolName, req.Name, volumeType, req.Description, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -349,7 +349,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = storagePoolVolumeUpdate(d, poolName, req.Name, volumeType, req.Config)
+	err = storagePoolVolumeUpdate(d, poolName, req.Name, volumeType, req.Description, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
