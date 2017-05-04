@@ -23,6 +23,10 @@ package main
 #define LO_FLAGS_AUTOCLEAR 4
 #endif
 
+#ifndef MS_LAZYTIME
+#define MS_LAZYTIME (1<<25)
+#endif
+
 #define LXD_MAXPATH 4096
 #define LXD_NUMSTRLEN64 21
 #define LXD_MAX_LOOP_PATHLEN (2 * sizeof("loop/")) + LXD_NUMSTRLEN64 + sizeof("backing_file") + 1
@@ -277,6 +281,10 @@ import (
 // LoFlagsAutoclear determines whether the loop device will autodestruct on last
 // close.
 const LoFlagsAutoclear int = C.LO_FLAGS_AUTOCLEAR
+
+// MS_LAZYTIME retains inode timestamps in memory and updated them on-disk only
+// under certain conditions.
+const MS_LAZYTIME uintptr = C.MS_LAZYTIME
 
 // prepareLoopDev() detects and sets up a loop device for source. It returns an
 // open file descriptor to the free loop device and the path of the free loop
