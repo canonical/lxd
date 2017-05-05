@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
@@ -74,18 +75,10 @@ func (cmd *CmdInit) Run() error {
 // passed to the common run() method.
 func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer, backendsAvailable []string) error {
 	var defaultPrivileged int // controls whether we set security.privileged=true
-	var storageBackend string // dir or zfs
-	var storageMode string    // existing, loop or device
-	var storageLoopSize int64 // Size in GB
-	var storageDevice string  // Path
-	var storagePool string    // pool name
-	var networkAddress string // Address
-	var networkPort int64     // Port
-	var trustPassword string  // Trust password
+	var storage *cmdInitStorageParams
+	var networking *cmdInitNetworkingParams
 
-	// Detect userns
 	defaultPrivileged = -1
-	runningInUserns = cmd.RunningInUserns
 
 	// Check that we have no containers or images in the store
 	containers, err := c.GetContainerNames()
@@ -112,121 +105,38 @@ func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer, backendsAvailabl
 			return err
 		}
 
-		// Set the local variables
-		if cmd.Args.StorageCreateDevice != "" {
-			storageMode = "device"
-		} else if cmd.Args.StorageCreateLoop != -1 {
-			storageMode = "loop"
-		} else {
-			storageMode = "existing"
+		networking = &cmdInitNetworkingParams{
+			Address:       cmd.Args.NetworkAddress,
+			Port:          cmd.Args.NetworkPort,
+			TrustPassword: cmd.Args.TrustPassword,
 		}
 
-		storageBackend = cmd.Args.StorageBackend
-		storageLoopSize = cmd.Args.StorageCreateLoop
-		storageDevice = cmd.Args.StorageCreateDevice
-		storagePool = cmd.Args.StoragePool
-		networkAddress = cmd.Args.NetworkAddress
-		networkPort = cmd.Args.NetworkPort
-		trustPassword = cmd.Args.TrustPassword
+		if cmd.Args.StorageBackend == "zfs" {
+			storage = &cmdInitStorageParams{
+				Backend:  cmd.Args.StorageBackend,
+				LoopSize: cmd.Args.StorageCreateLoop,
+				Device:   cmd.Args.StorageCreateDevice,
+				Pool:     cmd.Args.StoragePool,
+			}
+
+			if cmd.Args.StorageCreateDevice != "" {
+				storage.Mode = "device"
+			} else if cmd.Args.StorageCreateLoop != -1 {
+				storage.Mode = "loop"
+			} else {
+				storage.Mode = "existing"
+			}
+		}
+
 	} else {
-		defaultStorage := "dir"
-		if shared.StringInSlice("zfs", backendsAvailable) {
-			defaultStorage = "zfs"
+		storage, err = cmd.askStorage(c, backendsAvailable)
+		if err != nil {
+			return err
 		}
 
-		storageBackend = cmd.Context.AskChoice(fmt.Sprintf("Name of the storage backend to use (dir or zfs) [default=%s]: ", defaultStorage), supportedStoragePoolDrivers, defaultStorage)
+		defaultPrivileged = cmd.askDefaultPrivileged()
+		networking = cmd.askNetworking()
 
-		if !shared.StringInSlice(storageBackend, supportedStoragePoolDrivers) {
-			return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
-		}
-
-		if !shared.StringInSlice(storageBackend, backendsAvailable) {
-			return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", storageBackend)
-		}
-
-		if storageBackend == "zfs" {
-			if cmd.Context.AskBool("Create a new ZFS pool (yes/no) [default=yes]? ", "yes") {
-				storagePool = cmd.Context.AskString("Name of the new ZFS pool [default=lxd]: ", "lxd", nil)
-				if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
-					deviceExists := func(path string) error {
-						if !shared.IsBlockdevPath(path) {
-							return fmt.Errorf("'%s' is not a block device", path)
-						}
-						return nil
-					}
-					storageDevice = cmd.Context.AskString("Path to the existing block device: ", "", deviceExists)
-					storageMode = "device"
-				} else {
-					st := syscall.Statfs_t{}
-					err := syscall.Statfs(shared.VarPath(), &st)
-					if err != nil {
-						return fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
-					}
-
-					/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
-					def := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-					if def > 100 {
-						def = 100
-					}
-					if def < 15 {
-						def = 15
-					}
-
-					q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%d]: ", def)
-					storageLoopSize = cmd.Context.AskInt(q, 1, -1, fmt.Sprintf("%d", def))
-					storageMode = "loop"
-				}
-			} else {
-				storagePool = cmd.Context.AskString("Name of the existing ZFS pool or dataset: ", "", nil)
-				storageMode = "existing"
-			}
-		}
-
-		// Detect lack of uid/gid
-		needPrivileged := false
-		idmapset, err := shared.DefaultIdmapSet()
-		if err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil {
-			needPrivileged = true
-		}
-
-		if runningInUserns && needPrivileged {
-			fmt.Printf(`
-We detected that you are running inside an unprivileged container.
-This means that unless you manually configured your host otherwise,
-you will not have enough uid and gid to allocate to your containers.
-
-LXD can re-use your container's own allocation to avoid the problem.
-Doing so makes your nested containers slightly less safe as they could
-in theory attack their parent container and gain more privileges than
-they otherwise would.
-
-`)
-			if cmd.Context.AskBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
-				defaultPrivileged = 1
-			} else {
-				defaultPrivileged = 0
-			}
-		}
-
-		if cmd.Context.AskBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
-			isIPAddress := func(s string) error {
-				if s != "all" && net.ParseIP(s) == nil {
-					return fmt.Errorf("'%s' is not an IP address", s)
-				}
-				return nil
-			}
-
-			networkAddress = cmd.Context.AskString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
-			if networkAddress == "all" {
-				networkAddress = "::"
-			}
-
-			if net.ParseIP(networkAddress).To4() == nil {
-				networkAddress = fmt.Sprintf("[%s]", networkAddress)
-			}
-			networkPort = cmd.Context.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
-			trustPassword = cmd.Context.AskPassword("Trust password for new clients: ", cmd.PasswordReader)
-		}
 	}
 
 	// Destroy any existing loop device
@@ -247,42 +157,41 @@ they otherwise would.
 	// device, as well as its privileged mode (see below).
 	defaultProfile, _, getDefaultProfileErr := c.GetProfile("default")
 
-	if storageBackend == "zfs" {
-		if storageMode == "loop" {
-			storageDevice = shared.VarPath("zfs.img")
-			f, err := os.Create(storageDevice)
+	if storage != nil {
+		if storage.Mode == "loop" {
+			storage.Device = shared.VarPath("zfs.img")
+			f, err := os.Create(storage.Device)
 			if err != nil {
-				return fmt.Errorf("Failed to open %s: %s", storageDevice, err)
+				return fmt.Errorf("Failed to open %s: %s", storage.Device, err)
 			}
 
 			err = f.Chmod(0600)
 			if err != nil {
-				return fmt.Errorf("Failed to chmod %s: %s", storageDevice, err)
+				return fmt.Errorf("Failed to chmod %s: %s", storage.Device, err)
 			}
 
-			err = f.Truncate(int64(storageLoopSize * 1024 * 1024 * 1024))
+			err = f.Truncate(int64(storage.LoopSize * 1024 * 1024 * 1024))
 			if err != nil {
-				return fmt.Errorf("Failed to create sparse file %s: %s", storageDevice, err)
+				return fmt.Errorf("Failed to create sparse file %s: %s", storage.Device, err)
 			}
 
 			err = f.Close()
 			if err != nil {
-				return fmt.Errorf("Failed to close %s: %s", storageDevice, err)
+				return fmt.Errorf("Failed to close %s: %s", storage.Device, err)
 			}
 		}
 
-		if shared.StringInSlice(storageMode, []string{"loop", "device"}) {
+		if shared.StringInSlice(storage.Mode, []string{"loop", "device"}) {
 			output, err := shared.RunCommand(
 				"zpool",
-				"create", storagePool, storageDevice,
+				"create", storage.Pool, storage.Device,
 				"-f", "-m", "none", "-O", "compression=on")
 			if err != nil {
 				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 			}
 		}
 
-		data.Config["storage.zfs_pool_name"] = storagePool
-
+		data.Config["storage.zfs_pool_name"] = storage.Pool
 	}
 
 	if defaultPrivileged != -1 && getDefaultProfileErr != nil {
@@ -293,14 +202,10 @@ they otherwise would.
 		defaultProfile.Config["security.privileged"] = "true"
 	}
 
-	if networkAddress != "" {
-		if networkPort == -1 {
-			networkPort = 8443
-		}
-
-		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networkAddress, networkPort)
-		if trustPassword != "" {
-			data.Config["core.trust_password"] = trustPassword
+	if networking != nil {
+		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networking.Address, networking.Port)
+		if networking.TrustPassword != "" {
+			data.Config["core.trust_password"] = networking.TrustPassword
 		}
 	}
 
@@ -509,12 +414,168 @@ func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.Profile, deviceName 
 	return nil
 }
 
+// Ask if the user wants to create a new storage pool, and return
+// the relevant parameters if so.
+func (cmd *CmdInit) askStorage(client lxd.ContainerServer, availableBackends []string) (*cmdInitStorageParams, error) {
+	if !cmd.Context.AskBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes") {
+		return nil, nil
+	}
+	storage := &cmdInitStorageParams{}
+	defaultStorage := "dir"
+	if shared.StringInSlice("zfs", availableBackends) {
+		defaultStorage = "zfs"
+	}
+	for {
+		storage.Backend = cmd.Context.AskChoice(fmt.Sprintf("Name of the storage backend to use (dir or zfs) [default=%s]: ", defaultStorage), availableBackends, defaultStorage)
+
+		// XXX The following to checks don't make much sense, since
+		// AskChoice will always re-ask the question if the answer
+		// is not among supportedStoragePoolDrivers. It seems legacy
+		// code that we should drop?
+		if !shared.StringInSlice(storage.Backend, supportedStoragePoolDrivers) {
+			return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storage.Backend)
+		}
+
+		// XXX Instead of manually checking if the provided choice is
+		// among availableBackends, we could just pass to askChoice the
+		// availableBackends list instead of supportedStoragePoolDrivers.
+		if !shared.StringInSlice(storage.Backend, availableBackends) {
+			return nil, fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", storage.Backend)
+		}
+
+		if storage.Backend == "dir" {
+			break
+		}
+
+		storage.LoopSize = -1
+		question := fmt.Sprintf("Create a new %s pool (yes/no) [default=yes]? ", strings.ToUpper(storage.Backend))
+		if cmd.Context.AskBool(question, "yes") {
+			if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
+				deviceExists := func(path string) error {
+					if !shared.IsBlockdevPath(path) {
+						return fmt.Errorf("'%s' is not a block device", path)
+					}
+					return nil
+				}
+				storage.Device = cmd.Context.AskString("Path to the existing block device: ", "", deviceExists)
+				storage.Mode = "device"
+			} else {
+				st := syscall.Statfs_t{}
+				err := syscall.Statfs(shared.VarPath(), &st)
+				if err != nil {
+					return nil, fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
+				}
+
+				/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
+				def := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
+				if def > 100 {
+					def = 100
+				}
+				if def < 15 {
+					def = 15
+				}
+
+				q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%d]: ", def)
+				storage.LoopSize = cmd.Context.AskInt(q, 1, -1, fmt.Sprintf("%d", def))
+				storage.Mode = "loop"
+			}
+		} else {
+			question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(storage.Backend))
+			storage.Pool = cmd.Context.AskString(question, "", nil)
+			storage.Mode = "existing"
+		}
+		break
+	}
+	return storage, nil
+}
+
+// If we detect that we are running inside an unprivileged container,
+// ask if the user wants to the default profile to be a privileged
+// one.
+func (cmd *CmdInit) askDefaultPrivileged() int {
+	// Detect lack of uid/gid
+	defaultPrivileged := -1
+	needPrivileged := false
+	idmapset, err := shared.DefaultIdmapSet()
+	if err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil {
+		needPrivileged = true
+	}
+
+	if cmd.RunningInUserns && needPrivileged {
+		fmt.Printf(`
+We detected that you are running inside an unprivileged container.
+This means that unless you manually configured your host otherwise,
+you will not have enough uid and gid to allocate to your containers.
+
+LXD can re-use your container's own allocation to avoid the problem.
+Doing so makes your nested containers slightly less safe as they could
+in theory attack their parent container and gain more privileges than
+they otherwise would.
+
+`)
+
+		if cmd.Context.AskBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
+			defaultPrivileged = 1
+		} else {
+			defaultPrivileged = 0
+		}
+	}
+	return defaultPrivileged
+}
+
+// Ask if the user wants to expose LXD over the network, and collect
+// the relevant parameters if so.
+func (cmd *CmdInit) askNetworking() *cmdInitNetworkingParams {
+	if !cmd.Context.AskBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
+		return nil
+	}
+	networking := &cmdInitNetworkingParams{}
+
+	isIPAddress := func(s string) error {
+		if s != "all" && net.ParseIP(s) == nil {
+			return fmt.Errorf("'%s' is not an IP address", s)
+		}
+		return nil
+	}
+
+	networking.Address = cmd.Context.AskString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
+	if networking.Address == "all" {
+		networking.Address = "::"
+	}
+
+	if net.ParseIP(networking.Address).To4() == nil {
+		networking.Address = fmt.Sprintf("[%s]", networking.Address)
+	}
+	networking.Port = cmd.Context.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
+	networking.TrustPassword = cmd.Context.AskPassword("Trust password for new clients: ", cmd.PasswordReader)
+
+	return networking
+}
+
 // Defines the schema for all possible configuration knobs supported by the
 // lxd init command, either directly fed via --preseed or populated by
 // the auto/interactive modes.
 type cmdInitData struct {
 	api.ServerPut `yaml:",inline"`
 	Profiles      []api.ProfilesPost
+}
+
+// Parameters needed when creating a storage pool in interactive or auto
+// mode.
+type cmdInitStorageParams struct {
+	Backend  string // == supportedStoragePoolDrivers
+	LoopSize int64  // Size in GB
+	Device   string // Path
+	Pool     string // pool name
+	Mode     string
+}
+
+// Parameters needed when configuring the LXD server networking options in interactive
+// mode or auto mode.
+type cmdInitNetworkingParams struct {
+	Address       string // Address
+	Port          int64  // Port
+	TrustPassword string // Trust password
 }
 
 // Shortcut for closure/anonymous functions that are meant to revert
