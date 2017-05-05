@@ -41,10 +41,6 @@ type CmdInit struct {
 
 // Run triggers the execution of the init command.
 func (cmd *CmdInit) Run() error {
-	// Figure what storage drivers among the supported ones are actually
-	// available on this system.
-	availableStoragePoolsDrivers := cmd.availableStoragePoolsDrivers()
-
 	// Check that command line arguments don't conflict with each other
 	err := cmd.validateArgs()
 	if err != nil {
@@ -57,36 +53,13 @@ func (cmd *CmdInit) Run() error {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
 
-	err = cmd.runAutoOrInteractive(client, availableStoragePoolsDrivers)
-
-	if err == nil {
-		cmd.Context.Output("LXD has been successfully configured.\n")
-	}
-
-	return err
-}
-
-// Run the logic for auto or interactive mode.
-//
-// XXX: this logic is going to be refactored into two separate runAuto
-// and runInteractive methods, sharing relevant logic with
-// runPreseed. The idea being that both runAuto and runInteractive
-// will end up populating the same low-level cmdInitData structure
-// passed to the common run() method.
-func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer, backendsAvailable []string) error {
-	var defaultPrivileged int // controls whether we set security.privileged=true
-	var storage *cmdInitStorageParams
-	var networking *cmdInitNetworkingParams
-
-	defaultPrivileged = -1
-
 	// Check that we have no containers or images in the store
-	containers, err := c.GetContainerNames()
+	containers, err := client.GetContainerNames()
 	if err != nil {
 		return fmt.Errorf("Unable to list the LXD containers: %s", err)
 	}
 
-	images, err := c.GetImageFingerprints()
+	images, err := client.GetImageFingerprints()
 	if err != nil {
 		return fmt.Errorf("Unable to list the LXD images: %s", err)
 	}
@@ -95,137 +68,215 @@ func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer, backendsAvailabl
 		return fmt.Errorf("You have existing containers or images. lxd init requires an empty LXD.")
 	}
 
+	data := &cmdInitData{}
+
+	// Copy the data from the current default profile, if it exists.
+	cmd.fillDataWithCurrentServerConfig(data, client)
+
+	// Copy the data from the current server config.
+	cmd.fillDataWithCurrentDefaultProfile(data, client)
+
+	// Figure what storage drivers among the supported ones are actually
+	// available on this system.
+	backendsAvailable := cmd.availableStoragePoolsDrivers()
+
 	if cmd.Args.Auto {
-		if cmd.Args.StorageBackend == "" {
-			cmd.Args.StorageBackend = "dir"
-		}
-
-		err = cmd.validateArgsAuto(backendsAvailable)
-		if err != nil {
-			return err
-		}
-
-		networking = &cmdInitNetworkingParams{
-			Address:       cmd.Args.NetworkAddress,
-			Port:          cmd.Args.NetworkPort,
-			TrustPassword: cmd.Args.TrustPassword,
-		}
-
-		if cmd.Args.StorageBackend == "zfs" {
-			storage = &cmdInitStorageParams{
-				Backend:  cmd.Args.StorageBackend,
-				LoopSize: cmd.Args.StorageCreateLoop,
-				Device:   cmd.Args.StorageCreateDevice,
-				Pool:     cmd.Args.StoragePool,
-			}
-
-			if cmd.Args.StorageCreateDevice != "" {
-				storage.Mode = "device"
-			} else if cmd.Args.StorageCreateLoop != -1 {
-				storage.Mode = "loop"
-			} else {
-				storage.Mode = "existing"
-			}
-		}
-
+		err = cmd.fillDataAuto(data, client, backendsAvailable)
 	} else {
-		storage, err = cmd.askStorage(c, backendsAvailable)
-		if err != nil {
-			return err
-		}
-
-		defaultPrivileged = cmd.askDefaultPrivileged()
-		networking = cmd.askNetworking()
-
+		err = cmd.fillDataInteractive(data, client, backendsAvailable)
 	}
 
-	// Destroy any existing loop device
-	for _, file := range []string{"zfs.img"} {
-		os.Remove(shared.VarPath(file))
-	}
-
-	server, _, err := c.GetServer()
 	if err != nil {
 		return err
 	}
 
-	data := &cmdInitData{}
+	// Apply the desired configuration.
+	err = cmd.apply(client, data)
+	if err != nil {
+		return err
+	}
+	cmd.Context.Output("LXD has been successfully configured.\n")
+
+	return nil
+}
+
+// Fill the given configuration data with parameters collected from
+// the --auto command line.
+func (cmd *CmdInit) fillDataAuto(data *cmdInitData, client lxd.ContainerServer, backendsAvailable []string) error {
+	if cmd.Args.StorageBackend == "" {
+		cmd.Args.StorageBackend = "dir"
+	}
+	err := cmd.validateArgsAuto(backendsAvailable)
+	if err != nil {
+		return err
+	}
+
+	if cmd.Args.NetworkAddress != "" {
+		// If no port was provided, use the default one
+		if cmd.Args.NetworkPort == -1 {
+			cmd.Args.NetworkPort = 8443
+		}
+		networking := &cmdInitNetworkingParams{
+			Address:       cmd.Args.NetworkAddress,
+			Port:          cmd.Args.NetworkPort,
+			TrustPassword: cmd.Args.TrustPassword,
+		}
+		cmd.fillDataWithNetworking(data, networking)
+	}
+
+	if cmd.Args.StorageBackend == "zfs" {
+		storage := &cmdInitStorageParams{
+			Backend:  cmd.Args.StorageBackend,
+			LoopSize: cmd.Args.StorageCreateLoop,
+			Device:   cmd.Args.StorageCreateDevice,
+			Pool:     cmd.Args.StoragePool,
+		}
+
+		if cmd.Args.StorageCreateDevice != "" {
+			storage.Mode = "device"
+		} else if cmd.Args.StorageCreateLoop != -1 {
+			storage.Mode = "loop"
+		} else {
+			storage.Mode = "existing"
+		}
+		err = cmd.fillDataWithStorage(data, storage)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Fill the given configuration data with parameters collected with
+// interactive questions.
+func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerServer, backendsAvailable []string) error {
+	storage, err := cmd.askStorage(client, backendsAvailable)
+	if err != nil {
+		return err
+	}
+	defaultPrivileged := cmd.askDefaultPrivileged()
+	networking := cmd.askNetworking()
+
+	err = cmd.fillDataWithStorage(data, storage)
+	if err != nil {
+		return err
+	}
+
+	err = cmd.fillDataWithDefaultPrivileged(data, defaultPrivileged)
+	if err != nil {
+		return err
+	}
+
+	cmd.fillDataWithNetworking(data, networking)
+
+	return nil
+}
+
+// Fill the given data with the current server configuration.
+func (cmd *CmdInit) fillDataWithCurrentServerConfig(data *cmdInitData, client lxd.ContainerServer) error {
+	server, _, err := client.GetServer()
+	if err != nil {
+		return err
+	}
 	data.ServerPut = server.Writable()
+	return nil
+}
 
-	// If there's a default profile, and certain conditions are
-	// met we'll update its root disk device and/or eth0 network
-	// device, as well as its privileged mode (see below).
-	defaultProfile, _, getDefaultProfileErr := c.GetProfile("default")
-
-	if storage != nil {
-		if storage.Mode == "loop" {
-			storage.Device = shared.VarPath("zfs.img")
-			f, err := os.Create(storage.Device)
-			if err != nil {
-				return fmt.Errorf("Failed to open %s: %s", storage.Device, err)
-			}
-
-			err = f.Chmod(0600)
-			if err != nil {
-				return fmt.Errorf("Failed to chmod %s: %s", storage.Device, err)
-			}
-
-			err = f.Truncate(int64(storage.LoopSize * 1024 * 1024 * 1024))
-			if err != nil {
-				return fmt.Errorf("Failed to create sparse file %s: %s", storage.Device, err)
-			}
-
-			err = f.Close()
-			if err != nil {
-				return fmt.Errorf("Failed to close %s: %s", storage.Device, err)
-			}
-		}
-
-		if shared.StringInSlice(storage.Mode, []string{"loop", "device"}) {
-			output, err := shared.RunCommand(
-				"zpool",
-				"create", storage.Pool, storage.Device,
-				"-f", "-m", "none", "-O", "compression=on")
-			if err != nil {
-				return fmt.Errorf("Failed to create the ZFS pool: %s", output)
-			}
-		}
-
-		data.Config["storage.zfs_pool_name"] = storage.Pool
-	}
-
-	if defaultPrivileged != -1 && getDefaultProfileErr != nil {
-		return getDefaultProfileErr
-	} else if defaultPrivileged == 0 {
-		defaultProfile.Config["security.privileged"] = ""
-	} else if defaultPrivileged == 1 {
-		defaultProfile.Config["security.privileged"] = "true"
-	}
-
-	if networking != nil {
-		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networking.Address, networking.Port)
-		if networking.TrustPassword != "" {
-			data.Config["core.trust_password"] = networking.TrustPassword
-		}
-	}
-
-	if getDefaultProfileErr == nil {
+// Fill the given data with the current default profile, if it exists.
+func (cmd *CmdInit) fillDataWithCurrentDefaultProfile(data *cmdInitData, client lxd.ContainerServer) {
+	defaultProfile, _, err := client.GetProfile("default")
+	if err == nil {
 		// Copy the default profile configuration (that we have
 		// possibly modified above).
 		data.Profiles = []api.ProfilesPost{{Name: "default"}}
 		data.Profiles[0].ProfilePut = defaultProfile.ProfilePut
 	}
+}
 
-	err = cmd.run(c, data)
-	if err != nil {
+// Fill the given init data with a new storage pool structure matching the
+// given storage parameters.
+func (cmd *CmdInit) fillDataWithStorage(data *cmdInitData, storage *cmdInitStorageParams) error {
+	// Destroy any existing loop device
+	for _, file := range []string{"zfs.img"} {
+		os.Remove(shared.VarPath(file))
+	}
+
+	if storage == nil {
 		return nil
 	}
+
+	if storage.Mode == "loop" {
+		storage.Device = shared.VarPath("zfs.img")
+		f, err := os.Create(storage.Device)
+		if err != nil {
+			return fmt.Errorf("Failed to open %s: %s", storage.Device, err)
+		}
+
+		err = f.Chmod(0600)
+		if err != nil {
+			return fmt.Errorf("Failed to chmod %s: %s", storage.Device, err)
+		}
+
+		err = f.Truncate(int64(storage.LoopSize * 1024 * 1024 * 1024))
+		if err != nil {
+			return fmt.Errorf("Failed to create sparse file %s: %s", storage.Device, err)
+		}
+
+		err = f.Close()
+		if err != nil {
+			return fmt.Errorf("Failed to close %s: %s", storage.Device, err)
+		}
+	}
+
+	if shared.StringInSlice(storage.Mode, []string{"loop", "device"}) {
+		output, err := shared.RunCommand(
+			"zpool",
+			"create", storage.Pool, storage.Device,
+			"-f", "-m", "none", "-O", "compression=on")
+		if err != nil {
+			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
+		}
+	} else {
+		logger.Warnf("Did not find profile \"default\" so no default storage pool will be set. Manual intervention needed.")
+	}
+
+	data.Config["storage.zfs_pool_name"] = storage.Pool
 
 	return nil
 }
 
+// Fill the default profile in the given init data with options about whether
+// to run in privileged mode.
+func (cmd *CmdInit) fillDataWithDefaultPrivileged(data *cmdInitData, defaultPrivileged int) error {
+	if defaultPrivileged == -1 {
+		return nil
+	}
+	if len(data.Profiles) == 0 {
+		return fmt.Errorf("error: profile 'default' profile not found")
+	}
+	defaultProfile := data.Profiles[0]
+	if defaultPrivileged == 0 {
+		defaultProfile.Config["security.privileged"] = ""
+	} else if defaultPrivileged == 1 {
+		defaultProfile.Config["security.privileged"] = "true"
+	}
+	return nil
+}
+
+// Fill the given init data with server config details matching the
+// given networking parameters.
+func (cmd *CmdInit) fillDataWithNetworking(data *cmdInitData, networking *cmdInitNetworkingParams) {
+	if networking == nil {
+		return
+	}
+	data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networking.Address, networking.Port)
+	if networking.TrustPassword != "" {
+		data.Config["core.trust_password"] = networking.TrustPassword
+	}
+}
+
 // Apply the configuration specified in the given init data.
-func (cmd *CmdInit) run(client lxd.ContainerServer, data *cmdInitData) error {
+func (cmd *CmdInit) apply(client lxd.ContainerServer, data *cmdInitData) error {
 	// Functions that should be invoked to revert back to initial
 	// state any change that was successfully applied, in case
 	// anything goes wrong after that change.
@@ -406,7 +457,7 @@ func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 
 // Return an error if the given profile has already a device with the
 // given name.
-func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.Profile, deviceName string) error {
+func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.ProfilesPost, deviceName string) error {
 	_, ok := profile.Devices[deviceName]
 	if ok {
 		return fmt.Errorf("Device already exists: %s", deviceName)
