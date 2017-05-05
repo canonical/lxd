@@ -91,6 +91,9 @@ lxc image copy [<remote>:]<image> <remote>: [--alias=ALIAS...] [--copy-aliases] 
 lxc image delete [<remote>:]<image> [[<remote>:]<image>...]
     Delete one or more images from the LXD image store.
 
+lxc image refresh [<remote>:]<image> [[<remote>:]<image>...]
+    Refresh one or more images from its parent remote.
+
 lxc image export [<remote>:]<image> [target]
     Export an image from the LXD image store into a distributable tarball.
 
@@ -274,6 +277,39 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			err = d.DeleteImage(image)
 			if err != nil {
 				return err
+			}
+		}
+
+		return nil
+
+	case "refresh":
+		/* refresh [<remote>:]<image> [<remote>:][<image>...] */
+		if len(args) < 2 {
+			return errArgs
+		}
+
+		for _, arg := range args[1:] {
+			remote, inName := config.ParseRemoteAndContainer(arg)
+			if inName == "" {
+				inName = "default"
+			}
+
+			d, err := lxd.NewClient(config, remote)
+			if err != nil {
+				return err
+			}
+
+			image := c.dereferenceAlias(d, inName)
+			progress := ProgressRenderer{Format: i18n.G("Refreshing the image: %s")}
+			refreshed, err := d.RefreshImage(image, progress.Update)
+			if err != nil {
+				return err
+			}
+
+			if refreshed {
+				progress.Done(i18n.G("Image refreshed successfully!"))
+			} else {
+				progress.Done(i18n.G("Image already up to date."))
 			}
 		}
 

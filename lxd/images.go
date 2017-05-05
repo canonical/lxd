@@ -891,14 +891,15 @@ func autoUpdateImages(d *Daemon) {
 			continue
 		}
 
-		autoUpdateImage(d, fingerprint, id, info)
+		autoUpdateImage(d, nil, fingerprint, id, info)
 	}
 
 	logger.Infof("Done updating images")
 }
 
-// Update a single image
-func autoUpdateImage(d *Daemon, fingerprint string, id int, info *api.Image) error {
+// Update a single image.  The operation can be nil, if no progress tracking is needed.
+// Returns whether the image has been updated.
+func autoUpdateImage(d *Daemon, op *operation, fingerprint string, id int, info *api.Image) error {
 	_, source, err := dbImageSourceGet(d.db, id)
 	if err != nil {
 		logger.Error("Error getting source image", log.Ctx{"err": err, "fp": fingerprint})
@@ -927,10 +928,20 @@ func autoUpdateImage(d *Daemon, fingerprint string, id int, info *api.Image) err
 
 	logger.Debug("Processing image", log.Ctx{"fp": fingerprint, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
+	// Set operation metadata to indicate whether a refresh happened
+	setRefreshResult := func(result bool) {
+		if op == nil {
+			return
+		}
+
+		metadata := map[string]interface{}{"refreshed": result}
+		op.UpdateMetadata(metadata)
+	}
+
 	// Update the image on each pool where it currently exists.
 	hash := fingerprint
 	for _, poolName := range poolNames {
-		newInfo, err := d.ImageDownload(nil, source.Server, source.Protocol, source.Certificate, "", source.Alias, false, true, poolName)
+		newInfo, err := d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, false, true, poolName)
 
 		if err != nil {
 			logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fingerprint})
@@ -969,6 +980,7 @@ func autoUpdateImage(d *Daemon, fingerprint string, id int, info *api.Image) err
 
 	// Image didn't change, nothing to do.
 	if hash == fingerprint {
+		setRefreshResult(false)
 		return nil
 	}
 
@@ -995,6 +1007,7 @@ func autoUpdateImage(d *Daemon, fingerprint string, id int, info *api.Image) err
 		logger.Debugf("Error deleting image from database %s: %s", fname, err)
 	}
 
+	setRefreshResult(true)
 	return nil
 }
 
@@ -1584,8 +1597,30 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
+func imageRefresh(d *Daemon, r *http.Request) Response {
+	fingerprint := mux.Vars(r)["fingerprint"]
+	imageId, imageInfo, err := dbImageGet(d.db, fingerprint, false, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Begin background operation
+	run := func(op *operation) error {
+		return autoUpdateImage(d, op, fingerprint, imageId, imageInfo)
+	}
+
+	op, err := operationCreate(operationClassTask, nil, nil, run, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
+
+}
+
 var imagesExportCmd = Command{name: "images/{fingerprint}/export", untrustedGet: true, get: imageExport}
 var imagesSecretCmd = Command{name: "images/{fingerprint}/secret", post: imageSecret}
+var imagesRefreshCmd = Command{name: "images/{fingerprint}/refresh", post: imageRefresh}
 
 var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
 

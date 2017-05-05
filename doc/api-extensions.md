@@ -272,3 +272,6 @@ This key controls what mount options will be used for the btrfs storage pool.
 
 ## entity\_description
 This adds descriptions to entities like containers, snapshots, networks, storage pools and volumes.
+
+## image\_force\_refresh
+This allows forcing a refresh for an existing image.
