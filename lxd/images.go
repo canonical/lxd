@@ -842,10 +842,10 @@ func autoUpdateImages(d *Daemon) {
 		return
 	}
 
-	for _, fp := range images {
-		id, info, err := dbImageGet(d.db, fp, false, true)
+	for _, fingerprint := range images {
+		id, info, err := dbImageGet(d.db, fingerprint, false, true)
 		if err != nil {
-			logger.Error("Error loading image", log.Ctx{"err": err, "fp": fp})
+			logger.Error("Error loading image", log.Ctx{"err": err, "fp": fingerprint})
 			continue
 		}
 
@@ -853,50 +853,71 @@ func autoUpdateImages(d *Daemon) {
 			continue
 		}
 
-		_, source, err := dbImageSourceGet(d.db, id)
-		if err != nil {
-			continue
-		}
-
-		logger.Debug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
-
-		newInfo, err := d.ImageDownload(nil, source.Server, source.Protocol, source.Certificate, "", source.Alias, false, true)
-		if err != nil {
-			logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fp})
-			continue
-		}
-
-		hash := newInfo.Fingerprint
-		if hash == fp {
-			logger.Debug("Already up to date", log.Ctx{"fp": fp})
-			continue
-		}
-
-		newId, _, err := dbImageGet(d.db, hash, false, true)
-		if err != nil {
-			logger.Error("Error loading image", log.Ctx{"err": err, "fp": hash})
-			continue
-		}
-
-		err = dbImageLastAccessUpdate(d.db, hash, info.LastUsedAt)
-		if err != nil {
-			logger.Error("Error setting last use date", log.Ctx{"err": err, "fp": hash})
-			continue
-		}
-
-		err = dbImageAliasesMove(d.db, id, newId)
-		if err != nil {
-			logger.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
-			continue
-		}
-
-		err = doDeleteImage(d, fp)
-		if err != nil {
-			logger.Error("Error deleting image", log.Ctx{"err": err, "fp": fp})
-		}
+		autoUpdateImage(d, nil, fingerprint, id, info)
 	}
 
 	logger.Infof("Done updating images")
+}
+
+// Update a single image.  The operation can be nil, if no progress tracking is needed.
+// Returns whether the image has been updated.
+func autoUpdateImage(d *Daemon, op *operation, fingerprint string, id int, info *api.Image) error {
+	_, source, err := dbImageSourceGet(d.db, id)
+	if err != nil {
+		logger.Error("Error getting source image", log.Ctx{"err": err, "fp": fingerprint})
+		return err
+	}
+
+	logger.Debug("Processing image", log.Ctx{"fp": fingerprint, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
+
+	// Set operation metadata to indicate whether a refresh happened
+	setRefreshResult := func(result bool) {
+		if op == nil {
+			return
+		}
+
+		metadata := map[string]interface{}{"refreshed": result}
+		op.UpdateMetadata(metadata)
+	}
+
+	newInfo, err := d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, false, true)
+	if err != nil {
+		logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fingerprint})
+		return err
+	}
+
+	// Image didn't change, nothing to do.
+	hash := newInfo.Fingerprint
+	if hash == fingerprint {
+		setRefreshResult(false)
+		return nil
+	}
+
+	newId, _, err := dbImageGet(d.db, hash, false, true)
+	if err != nil {
+		logger.Error("Error loading image", log.Ctx{"err": err, "fp": hash})
+		return err
+	}
+
+	err = dbImageLastAccessUpdate(d.db, hash, info.LastUsedAt)
+	if err != nil {
+		logger.Error("Error setting last use date", log.Ctx{"err": err, "fp": hash})
+		return err
+	}
+
+	err = dbImageAliasesMove(d.db, id, newId)
+	if err != nil {
+		logger.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
+		return err
+	}
+
+	err = doDeleteImage(d, fingerprint)
+	if err != nil {
+		logger.Error("Error deleting image", log.Ctx{"err": err, "fp": fingerprint})
+	}
+
+	setRefreshResult(true)
+	return nil
 }
 
 func pruneExpiredImages(d *Daemon) {
