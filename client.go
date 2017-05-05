@@ -633,38 +633,8 @@ func (c *Client) CopyImage(image string, dest *Client, copy_aliases bool, aliase
 	}
 
 	operation := ""
-	handler := func(msg interface{}) {
-		if msg == nil {
-			return
-		}
-
-		event := msg.(map[string]interface{})
-		if event["type"].(string) != "operation" {
-			return
-		}
-
-		if event["metadata"] == nil {
-			return
-		}
-
-		md := event["metadata"].(map[string]interface{})
-		if !strings.HasSuffix(operation, md["id"].(string)) {
-			return
-		}
-
-		if md["metadata"] == nil {
-			return
-		}
-
-		opMd := md["metadata"].(map[string]interface{})
-		_, ok := opMd["download_progress"]
-		if ok {
-			progressHandler(opMd["download_progress"].(string))
-		}
-	}
-
 	if progressHandler != nil {
-		go dest.Monitor([]string{"operation"}, handler, nil)
+		wireDownloadProgressHandler(dest, progressHandler, &operation)
 	}
 
 	fingerprint := info.Fingerprint
@@ -1160,6 +1130,35 @@ func (c *Client) DeleteImage(image string) error {
 	}
 
 	return c.WaitForSuccess(resp.Operation)
+}
+
+// Refresh an image. Return a bool indicating whether the image was actually refreshed.
+func (c *Client) RefreshImage(image string, progressHandler func(progress string)) (bool, error) {
+	if c.Remote.Public {
+		return false, fmt.Errorf("This function isn't supported by public remotes.")
+	}
+
+	operation := ""
+	if progressHandler != nil {
+		wireDownloadProgressHandler(c, progressHandler, &operation)
+	}
+
+	resp, err := c.post(fmt.Sprintf("images/%s/refresh", image), nil, api.AsyncResponse)
+	if err != nil {
+		return false, err
+	}
+	operation = resp.Operation
+	op, err := c.WaitForSuccessOp(operation)
+	if err != nil {
+		return false, err
+	}
+
+	flag, ok := op.Metadata["refreshed"]
+	if !ok {
+		return false, nil
+	}
+
+	return flag.(bool), nil
 }
 
 func (c *Client) PostAlias(alias string, desc string, target string) error {
@@ -2995,4 +2994,39 @@ func (c *Client) StoragePoolVolumeTypeDelete(pool string, volume string, volumeT
 
 	_, err := c.delete(fmt.Sprintf("storage-pools/%s/volumes/%s/%s", pool, volumeType, volume), nil, api.SyncResponse)
 	return err
+}
+
+// Helper to set up a progess handler for download operations
+func wireDownloadProgressHandler(c *Client, progressHandler func(progress string), operation *string) {
+	handler := func(msg interface{}) {
+		if msg == nil {
+			return
+		}
+
+		event := msg.(map[string]interface{})
+		if event["type"].(string) != "operation" {
+			return
+		}
+
+		if event["metadata"] == nil {
+			return
+		}
+
+		md := event["metadata"].(map[string]interface{})
+		if !strings.HasSuffix(*operation, md["id"].(string)) {
+			return
+		}
+
+		if md["metadata"] == nil {
+			return
+		}
+
+		opMd := md["metadata"].(map[string]interface{})
+		_, ok := opMd["download_progress"]
+		if ok {
+			progressHandler(opMd["download_progress"].(string))
+		}
+	}
+
+	go c.Monitor([]string{"operation"}, handler, nil)
 }

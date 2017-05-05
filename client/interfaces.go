@@ -82,6 +82,7 @@ type ContainerServer interface {
 	CreateImage(image api.ImagesPost, args *ImageCreateArgs) (op *Operation, err error)
 	UpdateImage(fingerprint string, image api.ImagePut, ETag string) (err error)
 	DeleteImage(fingerprint string) (op *Operation, err error)
+	RefreshImage(fingerprint string) (op *Operation, err error)
 	CreateImageSecret(fingerprint string) (op *Operation, err error)
 	CreateImageAlias(alias api.ImageAliasesPost) (err error)
 	UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) (err error)
