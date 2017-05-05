@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"path"
+	"strconv"
 	"testing"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
 	"github.com/stretchr/testify/suite"
@@ -71,15 +74,18 @@ func (suite *cmdInitTestSuite) TestCmdInit_PreseedInvalidYAML() {
 
 // Preseed the network address and the trust password.
 func (suite *cmdInitTestSuite) TestCmdInit_PreseedHTTPSAddressAndTrustPassword() {
+	port, err := shared.AllocatePort()
+	suite.Req.Nil(err)
+
 	suite.args.Preseed = true
-	suite.streams.InputAppend(`config:
-  core.https_address: 127.0.0.1:9999
+	suite.streams.InputAppend(fmt.Sprintf(`config:
+  core.https_address: 127.0.0.1:%d
   core.trust_password: sekret
-`)
+`, port))
 	suite.Req.Nil(suite.command.Run())
 
 	key, _ := daemonConfig["core.https_address"]
-	suite.Req.Equal("127.0.0.1:9999", key.Get())
+	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
 	suite.Req.Nil(suite.d.PasswordCheck("sekret"))
 }
 
@@ -88,31 +94,36 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveHTTPSAddressAndTrustPasswo
 	suite.command.PasswordReader = func(int) ([]byte, error) {
 		return []byte("sekret"), nil
 	}
+	port, err := shared.AllocatePort()
+	suite.Req.Nil(err)
 	answers := &cmdInitAnswers{
 		WantAvailableOverNetwork: true,
 		BindToAddress:            "127.0.0.1",
-		BindToPort:               "9999",
+		BindToPort:               strconv.Itoa(port),
 	}
 	answers.Render(suite.streams)
 
 	suite.Req.Nil(suite.command.Run())
 
 	key, _ := daemonConfig["core.https_address"]
-	suite.Req.Equal("127.0.0.1:9999", key.Get())
+	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
 	suite.Req.Nil(suite.d.PasswordCheck("sekret"))
 }
 
 // Pass network address and trust password via command line arguments.
 func (suite *cmdInitTestSuite) TestCmdInit_AutoHTTPSAddressAndTrustPassword() {
+	port, err := shared.AllocatePort()
+	suite.Req.Nil(err)
+
 	suite.args.Auto = true
 	suite.args.NetworkAddress = "127.0.0.1"
-	suite.args.NetworkPort = 9999
+	suite.args.NetworkPort = int64(port)
 	suite.args.TrustPassword = "sekret"
 
 	suite.Req.Nil(suite.command.Run())
 
 	key, _ := daemonConfig["core.https_address"]
-	suite.Req.Equal("127.0.0.1:9999", key.Get())
+	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
 	suite.Req.Nil(suite.d.PasswordCheck("sekret"))
 }
 
@@ -229,6 +240,27 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdatePreseed() {
 
 	key, _ := daemonConfig["images.auto_update_interval"]
 	suite.Req.Equal("15", key.Get())
+}
+
+// If --storage-backend is set to "dir" a storage pool is created.
+func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolAuto() {
+	// Clear the storage pool created by default by the test suite
+	profile, _, err := suite.client.GetProfile("default")
+	suite.Req.Nil(err)
+	profileData := profile.Writable()
+	delete(profileData.Devices, "root")
+	err = suite.client.UpdateProfile("default", profileData, "")
+	suite.Req.Nil(err)
+	suite.Req.Nil(suite.client.DeleteStoragePool(lxdTestSuiteDefaultStoragePool))
+
+	suite.args.Auto = true
+	suite.args.StorageBackend = "dir"
+
+	suite.Req.Nil(suite.command.Run())
+	pool, _, err := suite.client.GetStoragePool("default")
+	suite.Req.Nil(err)
+	suite.Req.Equal("dir", pool.Driver)
+	suite.Req.Equal(path.Join(suite.tmpdir, "storage-pools", "default"), pool.Config["source"])
 }
 
 // Preseed a new storage pool.

@@ -41,10 +41,6 @@ type CmdInit struct {
 
 // Run triggers the execution of the init command.
 func (cmd *CmdInit) Run() error {
-	// Figure what storage drivers among the supported ones are actually
-	// available on this system.
-	availableStoragePoolsDrivers := cmd.availableStoragePoolsDrivers()
-
 	// Check that command line arguments don't conflict with each other
 	err := cmd.validateArgs()
 	if err != nil {
@@ -57,184 +53,268 @@ func (cmd *CmdInit) Run() error {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
 
-	// Kick off the appropriate run mode (either preseed, auto or interactive).
-	if cmd.Args.Preseed {
-		err = cmd.runPreseed(client)
-	} else {
-		err = cmd.runAutoOrInteractive(client, availableStoragePoolsDrivers)
-	}
-
-	if err == nil {
-		cmd.Context.Output("LXD has been successfully configured.\n")
-	}
-
-	return err
-}
-
-// Run the logic for auto or interactive mode.
-//
-// XXX: this logic is going to be refactored into two separate runAuto
-// and runInteractive methods, sharing relevant logic with
-// runPreseed. The idea being that both runAuto and runInteractive
-// will end up populating the same low-level cmdInitData structure
-// passed to the common run() method.
-func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer, backendsAvailable []string) error {
-	var defaultPrivileged int // controls whether we set security.privileged=true
-	var storage *cmdInitStorageParams
-	var networking *cmdInitNetworkingParams
-	var imagesAutoUpdate bool // controls whether we set images.auto_update_interval to 0
-	var bridge *cmdInitBridgeParams
-
-	defaultPrivileged = -1
-	imagesAutoUpdate = true
-
-	pools, err := c.GetStoragePoolNames()
+	existingPools, err := client.GetStoragePoolNames()
 	if err != nil {
 		// We should consider this fatal since this means
 		// something's wrong with the daemon.
 		return err
 	}
 
-	if cmd.Args.Auto {
-		if cmd.Args.StorageBackend == "" {
-			cmd.Args.StorageBackend = "dir"
-		}
+	data := &cmdInitData{}
 
-		err = cmd.validateArgsAuto(backendsAvailable)
-		if err != nil {
-			return err
-		}
-
-		networking = &cmdInitNetworkingParams{
-			Address:       cmd.Args.NetworkAddress,
-			Port:          cmd.Args.NetworkPort,
-			TrustPassword: cmd.Args.TrustPassword,
-		}
-
-		// FIXME: Allow to configure multiple storage pools on auto init
-		// run if explicit arguments to do so are passed.
-		if len(pools) == 0 {
-			storage = &cmdInitStorageParams{
-				Backend:  cmd.Args.StorageBackend,
-				LoopSize: cmd.Args.StorageCreateLoop,
-				Device:   cmd.Args.StorageCreateDevice,
-				Dataset:  cmd.Args.StorageDataset,
-				Pool:     "default",
-			}
-		}
+	// Kick off the appropriate way to fill the data (either
+	// preseed, auto or interactive).
+	if cmd.Args.Preseed {
+		err = cmd.fillDataPreseed(data, client)
 	} else {
-		storage, err = cmd.askStorage(c, pools, backendsAvailable)
-		if err != nil {
-			return err
-		}
-		defaultPrivileged = cmd.askDefaultPrivileged()
-		networking = cmd.askNetworking()
-		imagesAutoUpdate = cmd.askImages()
-		bridge = cmd.askBridge(c)
-	}
+		// Copy the data from the current default profile, if it exists.
+		cmd.fillDataWithCurrentServerConfig(data, client)
 
-	server, _, err := c.GetServer()
+		// Copy the data from the current server config.
+		cmd.fillDataWithCurrentDefaultProfile(data, client)
+
+		// Figure what storage drivers among the supported ones are actually
+		// available on this system.
+		backendsAvailable := cmd.availableStoragePoolsDrivers()
+
+		if cmd.Args.Auto {
+			err = cmd.fillDataAuto(data, client, backendsAvailable, existingPools)
+		} else {
+			err = cmd.fillDataInteractive(data, client, backendsAvailable, existingPools)
+		}
+	}
 	if err != nil {
 		return err
 	}
 
-	data := &cmdInitData{}
+	// Apply the desired configuration.
+	err = cmd.apply(client, data)
+	if err != nil {
+		return err
+	}
+
+	cmd.Context.Output("LXD has been successfully configured.\n")
+
+	return nil
+}
+
+// Fill the given configuration data with parameters collected from
+// the --auto command line.
+func (cmd *CmdInit) fillDataAuto(data *cmdInitData, client lxd.ContainerServer, backendsAvailable []string, existingPools []string) error {
+	if cmd.Args.StorageBackend == "" {
+		cmd.Args.StorageBackend = "dir"
+	}
+	err := cmd.validateArgsAuto(backendsAvailable)
+	if err != nil {
+		return err
+	}
+
+	if cmd.Args.NetworkAddress != "" {
+		// If no port was provided, use the default one
+		if cmd.Args.NetworkPort == -1 {
+			cmd.Args.NetworkPort = 8443
+		}
+		networking := &cmdInitNetworkingParams{
+			Address:       cmd.Args.NetworkAddress,
+			Port:          cmd.Args.NetworkPort,
+			TrustPassword: cmd.Args.TrustPassword,
+		}
+		cmd.fillDataWithNetworking(data, networking)
+	}
+
+	if len(existingPools) == 0 {
+		storage := &cmdInitStorageParams{
+			Backend:  cmd.Args.StorageBackend,
+			LoopSize: cmd.Args.StorageCreateLoop,
+			Device:   cmd.Args.StorageCreateDevice,
+			Dataset:  cmd.Args.StorageDataset,
+			Pool:     "default",
+		}
+		err = cmd.fillDataWithStorage(data, storage, existingPools)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Fill the given configuration data with parameters collected with
+// interactive questions.
+func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerServer, backendsAvailable []string, existingPools []string) error {
+	storage, err := cmd.askStorage(client, existingPools, backendsAvailable)
+	if err != nil {
+		return err
+	}
+	defaultPrivileged := cmd.askDefaultPrivileged()
+	networking := cmd.askNetworking()
+	imagesAutoUpdate := cmd.askImages()
+	bridge := cmd.askBridge(client)
+
+	err = cmd.fillDataWithStorage(data, storage, existingPools)
+	if err != nil {
+		return err
+	}
+
+	err = cmd.fillDataWithDefaultPrivileged(data, defaultPrivileged)
+	if err != nil {
+		return err
+	}
+
+	cmd.fillDataWithNetworking(data, networking)
+
+	cmd.fillDataWithImages(data, imagesAutoUpdate)
+
+	err = cmd.fillDataWithBridge(data, bridge)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Fill the given configuration data from the preseed YAML text stream.
+func (cmd *CmdInit) fillDataPreseed(data *cmdInitData, client lxd.ContainerServer) error {
+	err := cmd.Context.InputYAML(data)
+	if err != nil {
+		return fmt.Errorf("Invalid preseed YAML content")
+	}
+
+	return nil
+}
+
+// Fill the given data with the current server configuration.
+func (cmd *CmdInit) fillDataWithCurrentServerConfig(data *cmdInitData, client lxd.ContainerServer) error {
+	server, _, err := client.GetServer()
+	if err != nil {
+		return err
+	}
 	data.ServerPut = server.Writable()
+	return nil
+}
 
-	// If there's a default profile, and certain conditions are
-	// met we'll update its root disk device and/or eth0 network
-	// device, as well as its privileged mode (see below).
-	defaultProfile, _, getDefaultProfileErr := c.GetProfile("default")
+// Fill the given data with the current default profile, if it exists.
+func (cmd *CmdInit) fillDataWithCurrentDefaultProfile(data *cmdInitData, client lxd.ContainerServer) {
+	defaultProfile, _, err := client.GetProfile("default")
+	if err == nil {
+		// Copy the default profile configuration (that we have
+		// possibly modified above).
+		data.Profiles = []api.ProfilesPost{{Name: "default"}}
+		data.Profiles[0].ProfilePut = defaultProfile.ProfilePut
+	}
+}
 
-	if storage != nil {
-		// Unset core.https_address and core.trust_password
-		data.Config["core.https_address"] = ""
-		data.Config["core.trust_password"] = ""
+// Fill the given init data with a new storage pool structure matching the
+// given storage parameters.
+func (cmd *CmdInit) fillDataWithStorage(data *cmdInitData, storage *cmdInitStorageParams, existingPools []string) error {
+	if storage == nil {
+		return nil
+	}
 
-		// Pool configuration
-		storagePoolConfig := map[string]string{}
+	// Pool configuration
+	storagePoolConfig := map[string]string{}
 
-		if storage.Device != "" {
-			storagePoolConfig["source"] = storage.Device
-			if storage.Dataset != "" {
-				storage.Pool = storage.Dataset
+	if storage.Device != "" {
+		storagePoolConfig["source"] = storage.Device
+		if storage.Dataset != "" {
+			storage.Pool = storage.Dataset
+		}
+	} else if storage.LoopSize != -1 {
+		if storage.Dataset != "" {
+			storage.Pool = storage.Dataset
+		}
+	} else {
+		storagePoolConfig["source"] = storage.Dataset
+	}
+
+	if storage.LoopSize > 0 {
+		storagePoolConfig["size"] = strconv.FormatInt(storage.LoopSize, 10) + "GB"
+	}
+
+	// Create the requested storage pool.
+	storageStruct := api.StoragePoolsPost{
+		Name:   storage.Pool,
+		Driver: storage.Backend,
+	}
+	storageStruct.Config = storagePoolConfig
+
+	data.Pools = []api.StoragePoolsPost{storageStruct}
+
+	// When lxd init is rerun and there are already storage pools
+	// configured, do not try to set a root disk device in the
+	// default profile again. Let the user figure this out.
+	if len(existingPools) == 0 {
+		if len(data.Profiles) != 0 {
+			defaultProfile := data.Profiles[0]
+			foundRootDiskDevice := false
+			for k, v := range defaultProfile.Devices {
+				if v["path"] == "/" && v["source"] == "" {
+					foundRootDiskDevice = true
+
+					// Unconditionally overwrite because if the user ends up
+					// with a clean LXD but with a pool property key existing in
+					// the default profile it must be empty otherwise it would
+					// not have been possible to delete the storage pool in
+					// the first place.
+					defaultProfile.Devices[k]["pool"] = storage.Pool
+					logger.Debugf("Set pool property of existing root disk device \"%s\" in profile \"default\" to \"%s\".", storage.Pool)
+
+					break
+				}
 			}
-		} else if storage.LoopSize != -1 {
-			if storage.Dataset != "" {
-				storage.Pool = storage.Dataset
+
+			if !foundRootDiskDevice {
+				err := cmd.profileDeviceAlreadyExists(&defaultProfile, "root")
+				if err != nil {
+					return err
+				}
+
+				defaultProfile.Devices["root"] = map[string]string{
+					"type": "disk",
+					"path": "/",
+					"pool": storage.Pool,
+				}
 			}
 		} else {
-			storagePoolConfig["source"] = storage.Dataset
-		}
-
-		if storage.LoopSize > 0 {
-			storagePoolConfig["size"] = strconv.FormatInt(storage.LoopSize, 10) + "GB"
-		}
-
-		// Create the requested storage pool.
-		storageStruct := api.StoragePoolsPost{
-			Name:   storage.Pool,
-			Driver: storage.Backend,
-		}
-		storageStruct.Config = storagePoolConfig
-
-		data.Pools = []api.StoragePoolsPost{storageStruct}
-
-		// When lxd init is rerun and there are already storage pools
-		// configured, do not try to set a root disk device in the
-		// default profile again. Let the user figure this out.
-		if len(pools) == 0 {
-			if getDefaultProfileErr == nil {
-				foundRootDiskDevice := false
-				for k, v := range defaultProfile.Devices {
-					if v["path"] == "/" && v["source"] == "" {
-						foundRootDiskDevice = true
-
-						// Unconditionally overwrite because if the user ends up
-						// with a clean LXD but with a pool property key existing in
-						// the default profile it must be empty otherwise it would
-						// not have been possible to delete the storage pool in
-						// the first place.
-						defaultProfile.Devices[k]["pool"] = storage.Pool
-						logger.Debugf("Set pool property of existing root disk device \"%s\" in profile \"default\" to \"%s\".", storage.Pool)
-
-						break
-					}
-				}
-
-				if !foundRootDiskDevice {
-					err = cmd.profileDeviceAlreadyExists(defaultProfile, "root")
-					if err != nil {
-						return err
-					}
-
-					defaultProfile.Devices["root"] = map[string]string{
-						"type": "disk",
-						"path": "/",
-						"pool": storage.Pool,
-					}
-				}
-			} else {
-				logger.Warnf("Did not find profile \"default\" so no default storage pool will be set. Manual intervention needed.")
-			}
+			logger.Warnf("Did not find profile \"default\" so no default storage pool will be set. Manual intervention needed.")
 		}
 	}
 
-	if defaultPrivileged != -1 && getDefaultProfileErr != nil {
-		return getDefaultProfileErr
-	} else if defaultPrivileged == 0 {
+	return nil
+}
+
+// Fill the default profile in the given init data with options about whether
+// to run in privileged mode.
+func (cmd *CmdInit) fillDataWithDefaultPrivileged(data *cmdInitData, defaultPrivileged int) error {
+	if defaultPrivileged == -1 {
+		return nil
+	}
+	if len(data.Profiles) == 0 {
+		return fmt.Errorf("error: profile 'default' profile not found")
+	}
+	defaultProfile := data.Profiles[0]
+	if defaultPrivileged == 0 {
 		defaultProfile.Config["security.privileged"] = ""
 	} else if defaultPrivileged == 1 {
 		defaultProfile.Config["security.privileged"] = "true"
 	}
+	return nil
+}
 
-	if networking != nil {
-		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networking.Address, networking.Port)
-		if networking.TrustPassword != "" {
-			data.Config["core.trust_password"] = networking.TrustPassword
-		}
+// Fill the given init data with server config details matching the
+// given networking parameters.
+func (cmd *CmdInit) fillDataWithNetworking(data *cmdInitData, networking *cmdInitNetworkingParams) {
+	if networking == nil {
+		return
 	}
+	data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networking.Address, networking.Port)
+	if networking.TrustPassword != "" {
+		data.Config["core.trust_password"] = networking.TrustPassword
+	}
+}
 
+// Fill the given init data with server config details matching the
+// given images auto update choice.
+func (cmd *CmdInit) fillDataWithImages(data *cmdInitData, imagesAutoUpdate bool) {
 	if imagesAutoUpdate {
 		if val, ok := data.Config["images.auto_update_interval"]; ok && val == "0" {
 			data.Config["images.auto_update_interval"] = ""
@@ -242,71 +322,55 @@ func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer, backendsAvailabl
 	} else {
 		data.Config["images.auto_update_interval"] = "0"
 	}
+}
 
-	if bridge != nil {
-		bridgeConfig := map[string]string{}
-		bridgeConfig["ipv4.address"] = bridge.IPv4
-		bridgeConfig["ipv6.address"] = bridge.IPv6
-
-		if bridge.IPv4Nat {
-			bridgeConfig["ipv4.nat"] = "true"
-		}
-
-		if bridge.IPv6Nat {
-			bridgeConfig["ipv6.nat"] = "true"
-		}
-
-		network := api.NetworksPost{
-			Name: bridge.Name}
-		network.Config = bridgeConfig
-		data.Networks = []api.NetworksPost{network}
-
-		if getDefaultProfileErr != nil {
-			return getDefaultProfileErr
-		}
-
-		err = cmd.profileDeviceAlreadyExists(defaultProfile, "eth0")
-		if err != nil {
-			return err
-		}
-
-		defaultProfile.Devices["eth0"] = map[string]string{
-			"type":    "nic",
-			"nictype": "bridged",
-			"parent":  bridge.Name,
-		}
-
-	}
-
-	if getDefaultProfileErr == nil {
-		// Copy the default profile configuration (that we have
-		// possibly modified above).
-		data.Profiles = []api.ProfilesPost{{Name: "default"}}
-		data.Profiles[0].ProfilePut = defaultProfile.ProfilePut
-	}
-
-	err = cmd.run(c, data)
-	if err != nil {
+// Fill the given init data with a new bridge network device structure
+// matching the given storage parameters.
+func (cmd *CmdInit) fillDataWithBridge(data *cmdInitData, bridge *cmdInitBridgeParams) error {
+	if bridge == nil {
 		return nil
 	}
 
-	return nil
-}
+	bridgeConfig := map[string]string{}
+	bridgeConfig["ipv4.address"] = bridge.IPv4
+	bridgeConfig["ipv6.address"] = bridge.IPv6
 
-// Run the logic for preseed mode
-func (cmd *CmdInit) runPreseed(client lxd.ContainerServer) error {
-	data := &cmdInitData{}
-
-	err := cmd.Context.InputYAML(data)
-	if err != nil {
-		return fmt.Errorf("Invalid preseed YAML content")
+	if bridge.IPv4Nat {
+		bridgeConfig["ipv4.nat"] = "true"
 	}
 
-	return cmd.run(client, data)
+	if bridge.IPv6Nat {
+		bridgeConfig["ipv6.nat"] = "true"
+	}
+
+	network := api.NetworksPost{
+		Name: bridge.Name}
+	network.Config = bridgeConfig
+	data.Networks = []api.NetworksPost{network}
+
+	if len(data.Profiles) == 0 {
+		return fmt.Errorf("error: profile 'default' profile not found")
+	}
+
+	// Attach the bridge as eth0 device of the default profile, if such
+	// device doesn't exists yet.
+	defaultProfile := data.Profiles[0]
+	err := cmd.profileDeviceAlreadyExists(&defaultProfile, "eth0")
+	if err != nil {
+		return err
+	}
+	defaultProfile.Devices["eth0"] = map[string]string{
+		"type":    "nic",
+		"nictype": "bridged",
+		"parent":  bridge.Name,
+	}
+
+	return nil
+
 }
 
 // Apply the configuration specified in the given init data.
-func (cmd *CmdInit) run(client lxd.ContainerServer, data *cmdInitData) error {
+func (cmd *CmdInit) apply(client lxd.ContainerServer, data *cmdInitData) error {
 	// Functions that should be invoked to revert back to initial
 	// state any change that was successfully applied, in case
 	// anything goes wrong after that change.
@@ -594,7 +658,7 @@ func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 
 // Return an error if the given profile has already a device with the
 // given name.
-func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.Profile, deviceName string) error {
+func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.ProfilesPost, deviceName string) error {
 	_, ok := profile.Devices[deviceName]
 	if ok {
 		return fmt.Errorf("Device already exists: %s", deviceName)
