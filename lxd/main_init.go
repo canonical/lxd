@@ -80,25 +80,12 @@ func (cmd *CmdInit) Run() error {
 // passed to the common run() method.
 func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer, backendsAvailable []string) error {
 	var defaultPrivileged int // controls whether we set security.privileged=true
-	var storageSetup bool     // == supportedStoragePoolDrivers
-	var storageBackend string // == supportedStoragePoolDrivers
-	var storageLoopSize int64 // Size in GB
-	var storageDevice string  // Path
-	var storagePool string    // pool name
-	var storageDataset string // existing ZFS pool name
-	var networkAddress string // Address
-	var networkPort int64     // Port
-	var trustPassword string  // Trust password
+	var storage *cmdInitStorageParams
+	var networking *cmdInitNetworkingParams
 	var imagesAutoUpdate bool // controls whether we set images.auto_update_interval to 0
-	var bridgeName string     // Bridge name
-	var bridgeIPv4 string     // IPv4 address
-	var bridgeIPv4Nat bool    // IPv4 address
-	var bridgeIPv6 string     // IPv6 address
-	var bridgeIPv6Nat bool    // IPv6 address
+	var bridge *cmdInitBridgeParams
 
-	// Detect userns
 	defaultPrivileged = -1
-	runningInUserns = cmd.RunningInUserns
 	imagesAutoUpdate = true
 
 	pools, err := c.GetStoragePoolNames()
@@ -118,179 +105,32 @@ func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer, backendsAvailabl
 			return err
 		}
 
-		storageBackend = cmd.Args.StorageBackend
-		storageLoopSize = cmd.Args.StorageCreateLoop
-		storageDevice = cmd.Args.StorageCreateDevice
-		storageDataset = cmd.Args.StorageDataset
-		networkAddress = cmd.Args.NetworkAddress
-		networkPort = cmd.Args.NetworkPort
-		trustPassword = cmd.Args.TrustPassword
-		storagePool = "default"
+		networking = &cmdInitNetworkingParams{
+			Address:       cmd.Args.NetworkAddress,
+			Port:          cmd.Args.NetworkPort,
+			TrustPassword: cmd.Args.TrustPassword,
+		}
 
 		// FIXME: Allow to configure multiple storage pools on auto init
 		// run if explicit arguments to do so are passed.
 		if len(pools) == 0 {
-			storageSetup = true
+			storage = &cmdInitStorageParams{
+				Backend:  cmd.Args.StorageBackend,
+				LoopSize: cmd.Args.StorageCreateLoop,
+				Device:   cmd.Args.StorageCreateDevice,
+				Dataset:  cmd.Args.StorageDataset,
+				Pool:     "default",
+			}
 		}
 	} else {
-		defaultStorage := "dir"
-		if shared.StringInSlice("zfs", backendsAvailable) {
-			defaultStorage = "zfs"
+		storage, err = cmd.askStorage(c, pools, backendsAvailable)
+		if err != nil {
+			return err
 		}
-
-		// User chose an already existing storage pool name. Ask him
-		// again if he still wants to create one.
-	askForStorageAgain:
-		storageSetup = cmd.Context.AskBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes")
-		if storageSetup {
-			storagePool = cmd.Context.AskString("Name of the new storage pool [default=default]: ", "default", nil)
-			if shared.StringInSlice(storagePool, pools) {
-				fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", storagePool)
-				// Ask the user again if hew wants to create a
-				// storage pool.
-				goto askForStorageAgain
-			}
-
-			storageBackend = cmd.Context.AskChoice(fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(backendsAvailable, ", "), defaultStorage), supportedStoragePoolDrivers, defaultStorage)
-
-			if !shared.StringInSlice(storageBackend, supportedStoragePoolDrivers) {
-				return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storageBackend)
-			}
-
-			if !shared.StringInSlice(storageBackend, backendsAvailable) {
-				return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", storageBackend)
-			}
-		}
-
-		if storageSetup && storageBackend != "dir" {
-			storageLoopSize = -1
-			q := fmt.Sprintf("Create a new %s pool (yes/no) [default=yes]? ", strings.ToUpper(storageBackend))
-			if cmd.Context.AskBool(q, "yes") {
-				if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
-					deviceExists := func(path string) error {
-						if !shared.IsBlockdevPath(path) {
-							return fmt.Errorf("'%s' is not a block device", path)
-						}
-						return nil
-					}
-					storageDevice = cmd.Context.AskString("Path to the existing block device: ", "", deviceExists)
-				} else {
-					backingFs, err := filesystemDetect(shared.VarPath())
-					if err == nil && storageBackend == "btrfs" && backingFs == "btrfs" {
-						if cmd.Context.AskBool("Would you like to create a new subvolume for the BTRFS storage pool (yes/no) [default=yes]: ", "yes") {
-							storageDataset = shared.VarPath("storage-pools", storagePool)
-						}
-					} else {
-
-						st := syscall.Statfs_t{}
-						err := syscall.Statfs(shared.VarPath(), &st)
-						if err != nil {
-							return fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
-						}
-
-						/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
-						def := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-						if def > 100 {
-							def = 100
-						}
-						if def < 15 {
-							def = 15
-						}
-
-						q := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", def)
-						storageLoopSize = cmd.Context.AskInt(q, 1, -1, fmt.Sprintf("%d", def))
-					}
-				}
-			} else {
-				q := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(storageBackend))
-				storageDataset = cmd.Context.AskString(q, "", nil)
-			}
-		}
-
-		// Detect lack of uid/gid
-		needPrivileged := false
-		idmapset, err := shared.DefaultIdmapSet()
-		if err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil {
-			needPrivileged = true
-		}
-
-		if runningInUserns && needPrivileged {
-			fmt.Printf(`
-We detected that you are running inside an unprivileged container.
-This means that unless you manually configured your host otherwise,
-you will not have enough uid and gid to allocate to your containers.
-
-LXD can re-use your container's own allocation to avoid the problem.
-Doing so makes your nested containers slightly less safe as they could
-in theory attack their parent container and gain more privileges than
-they otherwise would.
-
-`)
-			if cmd.Context.AskBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
-				defaultPrivileged = 1
-			} else {
-				defaultPrivileged = 0
-			}
-		}
-
-		if cmd.Context.AskBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
-			isIPAddress := func(s string) error {
-				if s != "all" && net.ParseIP(s) == nil {
-					return fmt.Errorf("'%s' is not an IP address", s)
-				}
-				return nil
-			}
-
-			networkAddress = cmd.Context.AskString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
-			if networkAddress == "all" {
-				networkAddress = "::"
-			}
-
-			if net.ParseIP(networkAddress).To4() == nil {
-				networkAddress = fmt.Sprintf("[%s]", networkAddress)
-			}
-			networkPort = cmd.Context.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
-			trustPassword = cmd.Context.AskPassword("Trust password for new clients: ", cmd.PasswordReader)
-		}
-
-		if !cmd.Context.AskBool("Would you like stale cached images to be updated automatically (yes/no) [default=yes]? ", "yes") {
-			imagesAutoUpdate = false
-		}
-
-	askForNetworkAgain:
-		bridgeName = ""
-		if cmd.Context.AskBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
-			bridgeName = cmd.Context.AskString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
-			_, _, err := c.GetNetwork(bridgeName)
-			if err == nil {
-				fmt.Printf("The requested network bridge \"%s\" already exists. Please choose another name.\n", bridgeName)
-				// Ask the user again if hew wants to create a
-				// storage pool.
-				goto askForNetworkAgain
-			}
-
-			bridgeIPv4 = cmd.Context.AskString("What IPv4 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
-				if shared.StringInSlice(value, []string{"auto", "none"}) {
-					return nil
-				}
-				return networkValidAddressCIDRV4(value)
-			})
-
-			if !shared.StringInSlice(bridgeIPv4, []string{"auto", "none"}) {
-				bridgeIPv4Nat = cmd.Context.AskBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]? ", "yes")
-			}
-
-			bridgeIPv6 = cmd.Context.AskString("What IPv6 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
-				if shared.StringInSlice(value, []string{"auto", "none"}) {
-					return nil
-				}
-				return networkValidAddressCIDRV6(value)
-			})
-
-			if !shared.StringInSlice(bridgeIPv6, []string{"auto", "none"}) {
-				bridgeIPv6Nat = cmd.Context.AskBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]? ", "yes")
-			}
-		}
+		defaultPrivileged = cmd.askDefaultPrivileged()
+		networking = cmd.askNetworking()
+		imagesAutoUpdate = cmd.askImages()
+		bridge = cmd.askBridge(c)
 	}
 
 	server, _, err := c.GetServer()
@@ -306,7 +146,7 @@ they otherwise would.
 	// device, as well as its privileged mode (see below).
 	defaultProfile, _, getDefaultProfileErr := c.GetProfile("default")
 
-	if storageSetup {
+	if storage != nil {
 		// Unset core.https_address and core.trust_password
 		data.Config["core.https_address"] = ""
 		data.Config["core.trust_password"] = ""
@@ -314,27 +154,27 @@ they otherwise would.
 		// Pool configuration
 		storagePoolConfig := map[string]string{}
 
-		if storageDevice != "" {
-			storagePoolConfig["source"] = storageDevice
-			if storageDataset != "" {
-				storagePool = storageDataset
+		if storage.Device != "" {
+			storagePoolConfig["source"] = storage.Device
+			if storage.Dataset != "" {
+				storage.Pool = storage.Dataset
 			}
-		} else if storageLoopSize != -1 {
-			if storageDataset != "" {
-				storagePool = storageDataset
+		} else if storage.LoopSize != -1 {
+			if storage.Dataset != "" {
+				storage.Pool = storage.Dataset
 			}
 		} else {
-			storagePoolConfig["source"] = storageDataset
+			storagePoolConfig["source"] = storage.Dataset
 		}
 
-		if storageLoopSize > 0 {
-			storagePoolConfig["size"] = strconv.FormatInt(storageLoopSize, 10) + "GB"
+		if storage.LoopSize > 0 {
+			storagePoolConfig["size"] = strconv.FormatInt(storage.LoopSize, 10) + "GB"
 		}
 
 		// Create the requested storage pool.
 		storageStruct := api.StoragePoolsPost{
-			Name:   storagePool,
-			Driver: storageBackend,
+			Name:   storage.Pool,
+			Driver: storage.Backend,
 		}
 		storageStruct.Config = storagePoolConfig
 
@@ -355,8 +195,8 @@ they otherwise would.
 						// the default profile it must be empty otherwise it would
 						// not have been possible to delete the storage pool in
 						// the first place.
-						defaultProfile.Devices[k]["pool"] = storagePool
-						logger.Debugf("Set pool property of existing root disk device \"%s\" in profile \"default\" to \"%s\".", storagePool)
+						defaultProfile.Devices[k]["pool"] = storage.Pool
+						logger.Debugf("Set pool property of existing root disk device \"%s\" in profile \"default\" to \"%s\".", storage.Pool)
 
 						break
 					}
@@ -371,7 +211,7 @@ they otherwise would.
 					defaultProfile.Devices["root"] = map[string]string{
 						"type": "disk",
 						"path": "/",
-						"pool": storagePool,
+						"pool": storage.Pool,
 					}
 				}
 			} else {
@@ -388,14 +228,10 @@ they otherwise would.
 		defaultProfile.Config["security.privileged"] = "true"
 	}
 
-	if networkAddress != "" {
-		if networkPort == -1 {
-			networkPort = 8443
-		}
-
-		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networkAddress, networkPort)
-		if trustPassword != "" {
-			data.Config["core.trust_password"] = trustPassword
+	if networking != nil {
+		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networking.Address, networking.Port)
+		if networking.TrustPassword != "" {
+			data.Config["core.trust_password"] = networking.TrustPassword
 		}
 	}
 
@@ -407,21 +243,21 @@ they otherwise would.
 		data.Config["images.auto_update_interval"] = "0"
 	}
 
-	if bridgeName != "" {
+	if bridge != nil {
 		bridgeConfig := map[string]string{}
-		bridgeConfig["ipv4.address"] = bridgeIPv4
-		bridgeConfig["ipv6.address"] = bridgeIPv6
+		bridgeConfig["ipv4.address"] = bridge.IPv4
+		bridgeConfig["ipv6.address"] = bridge.IPv6
 
-		if bridgeIPv4Nat {
+		if bridge.IPv4Nat {
 			bridgeConfig["ipv4.nat"] = "true"
 		}
 
-		if bridgeIPv6Nat {
+		if bridge.IPv6Nat {
 			bridgeConfig["ipv6.nat"] = "true"
 		}
 
 		network := api.NetworksPost{
-			Name: bridgeName}
+			Name: bridge.Name}
 		network.Config = bridgeConfig
 		data.Networks = []api.NetworksPost{network}
 
@@ -437,7 +273,7 @@ they otherwise would.
 		defaultProfile.Devices["eth0"] = map[string]string{
 			"type":    "nic",
 			"nictype": "bridged",
-			"parent":  bridgeName,
+			"parent":  bridge.Name,
 		}
 
 	}
@@ -766,6 +602,204 @@ func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.Profile, deviceName 
 	return nil
 }
 
+// Ask if the user wants to create a new storage pool, and return
+// the relevant parameters if so.
+func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []string, availableBackends []string) (*cmdInitStorageParams, error) {
+	if !cmd.Context.AskBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes") {
+		return nil, nil
+	}
+	storage := &cmdInitStorageParams{}
+	defaultStorage := "dir"
+	if shared.StringInSlice("zfs", availableBackends) {
+		defaultStorage = "zfs"
+	}
+	for {
+		storage.Pool = cmd.Context.AskString("Name of the new storage pool [default=default]: ", "default", nil)
+		if shared.StringInSlice(storage.Pool, existingPools) {
+			fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", storage.Pool)
+			// Ask the user again if hew wants to create a
+			// storage pool.
+			continue
+		}
+
+		storage.Backend = cmd.Context.AskChoice(fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultStorage), supportedStoragePoolDrivers, defaultStorage)
+
+		// XXX The following to checks don't make much sense, since
+		// AskChoice will always re-ask the question if the answer
+		// is not among supportedStoragePoolDrivers. It seems legacy
+		// code that we should drop?
+		if !shared.StringInSlice(storage.Backend, supportedStoragePoolDrivers) {
+			return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storage.Backend)
+		}
+
+		// XXX Instead of manually checking if the provided choice is
+		// among availableBackends, we could just pass to askChoice the
+		// availableBackends list instead of supportedStoragePoolDrivers.
+		if !shared.StringInSlice(storage.Backend, availableBackends) {
+			return nil, fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", storage.Backend)
+		}
+
+		if storage.Backend == "dir" {
+			break
+		}
+
+		storage.LoopSize = -1
+		question := fmt.Sprintf("Create a new %s pool (yes/no) [default=yes]? ", strings.ToUpper(storage.Backend))
+		if cmd.Context.AskBool(question, "yes") {
+			if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
+				deviceExists := func(path string) error {
+					if !shared.IsBlockdevPath(path) {
+						return fmt.Errorf("'%s' is not a block device", path)
+					}
+					return nil
+				}
+				storage.Device = cmd.Context.AskString("Path to the existing block device: ", "", deviceExists)
+			} else {
+				backingFs, err := filesystemDetect(shared.VarPath())
+				if err == nil && storage.Backend == "btrfs" && backingFs == "btrfs" {
+					if cmd.Context.AskBool("Would you like to create a new subvolume for the BTRFS storage pool (yes/no) [default=yes]: ", "yes") {
+						storage.Dataset = shared.VarPath("storage-pools", storage.Pool)
+					}
+				} else {
+
+					st := syscall.Statfs_t{}
+					err := syscall.Statfs(shared.VarPath(), &st)
+					if err != nil {
+						return nil, fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
+					}
+
+					/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
+					defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
+					if defaultSize > 100 {
+						defaultSize = 100
+					}
+					if defaultSize < 15 {
+						defaultSize = 15
+					}
+
+					question := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", defaultSize)
+					storage.LoopSize = cmd.Context.AskInt(question, 1, -1, fmt.Sprintf("%d", defaultSize))
+				}
+			}
+		} else {
+			question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(storage.Backend))
+			storage.Dataset = cmd.Context.AskString(question, "", nil)
+		}
+		break
+	}
+	return storage, nil
+}
+
+// If we detect that we are running inside an unprivileged container,
+// ask if the user wants to the default profile to be a privileged
+// one.
+func (cmd *CmdInit) askDefaultPrivileged() int {
+	// Detect lack of uid/gid
+	defaultPrivileged := -1
+	needPrivileged := false
+	idmapset, err := shared.DefaultIdmapSet()
+	if err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil {
+		needPrivileged = true
+	}
+
+	if cmd.RunningInUserns && needPrivileged {
+		fmt.Printf(`
+We detected that you are running inside an unprivileged container.
+This means that unless you manually configured your host otherwise,
+you will not have enough uid and gid to allocate to your containers.
+
+LXD can re-use your container's own allocation to avoid the problem.
+Doing so makes your nested containers slightly less safe as they could
+in theory attack their parent container and gain more privileges than
+they otherwise would.
+
+`)
+
+		if cmd.Context.AskBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
+			defaultPrivileged = 1
+		} else {
+			defaultPrivileged = 0
+		}
+	}
+	return defaultPrivileged
+}
+
+// Ask if the user wants to expose LXD over the network, and collect
+// the relevant parameters if so.
+func (cmd *CmdInit) askNetworking() *cmdInitNetworkingParams {
+	if !cmd.Context.AskBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
+		return nil
+	}
+	networking := &cmdInitNetworkingParams{}
+
+	isIPAddress := func(s string) error {
+		if s != "all" && net.ParseIP(s) == nil {
+			return fmt.Errorf("'%s' is not an IP address", s)
+		}
+		return nil
+	}
+
+	networking.Address = cmd.Context.AskString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
+	if networking.Address == "all" {
+		networking.Address = "::"
+	}
+
+	if net.ParseIP(networking.Address).To4() == nil {
+		networking.Address = fmt.Sprintf("[%s]", networking.Address)
+	}
+	networking.Port = cmd.Context.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
+	networking.TrustPassword = cmd.Context.AskPassword("Trust password for new clients: ", cmd.PasswordReader)
+
+	return networking
+}
+
+// Ask if the user wants images to be automatically refreshed.
+func (cmd *CmdInit) askImages() bool {
+	return cmd.Context.AskBool("Would you like stale cached images to be updated automatically (yes/no) [default=yes]? ", "yes")
+}
+
+// Ask if the user wants to create a new network bridge, and return
+// the relevant parameters if so.
+func (cmd *CmdInit) askBridge(client lxd.ContainerServer) *cmdInitBridgeParams {
+	if !cmd.Context.AskBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
+		return nil
+	}
+	bridge := &cmdInitBridgeParams{}
+	for {
+		bridge.Name = cmd.Context.AskString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
+		_, _, err := client.GetNetwork(bridge.Name)
+		if err == nil {
+			fmt.Printf("The requested network bridge \"%s\" already exists. Please choose another name.\n", bridge.Name)
+			// Ask the user again if hew wants to create a
+			// storage pool.
+			continue
+		}
+		bridge.IPv4 = cmd.Context.AskString("What IPv4 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
+			if shared.StringInSlice(value, []string{"auto", "none"}) {
+				return nil
+			}
+			return networkValidAddressCIDRV4(value)
+		})
+
+		if !shared.StringInSlice(bridge.IPv4, []string{"auto", "none"}) {
+			bridge.IPv4Nat = cmd.Context.AskBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]? ", "yes")
+		}
+
+		bridge.IPv6 = cmd.Context.AskString("What IPv6 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
+			if shared.StringInSlice(value, []string{"auto", "none"}) {
+				return nil
+			}
+			return networkValidAddressCIDRV6(value)
+		})
+
+		if !shared.StringInSlice(bridge.IPv6, []string{"auto", "none"}) {
+			bridge.IPv6Nat = cmd.Context.AskBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]? ", "yes")
+		}
+		break
+	}
+	return bridge
+}
+
 // Defines the schema for all possible configuration knobs supported by the
 // lxd init command, either directly fed via --preseed or populated by
 // the auto/interactive modes.
@@ -774,6 +808,34 @@ type cmdInitData struct {
 	Pools         []api.StoragePoolsPost `yaml:"storage_pools"`
 	Networks      []api.NetworksPost
 	Profiles      []api.ProfilesPost
+}
+
+// Parameters needed when creating a storage pool in interactive or auto
+// mode.
+type cmdInitStorageParams struct {
+	Backend  string // == supportedStoragePoolDrivers
+	LoopSize int64  // Size in GB
+	Device   string // Path
+	Pool     string // pool name
+	Dataset  string // existing ZFS pool name
+}
+
+// Parameters needed when configuring the LXD server networking options in interactive
+// mode or auto mode.
+type cmdInitNetworkingParams struct {
+	Address       string // Address
+	Port          int64  // Port
+	TrustPassword string // Trust password
+}
+
+// Parameters needed when creating a bridge network device in interactive
+// mode.
+type cmdInitBridgeParams struct {
+	Name    string // Bridge name
+	IPv4    string // IPv4 address
+	IPv4Nat bool   // IPv4 address
+	IPv6    string // IPv6 address
+	IPv6Nat bool   // IPv6 address
 }
 
 // Shortcut for closure/anonymous functions that are meant to revert
