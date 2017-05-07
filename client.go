@@ -1874,11 +1874,8 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	sourceDir := filepath.Dir(source)
+	sourceDir, _ := filepath.Split(source)
 	sourceLen := len(sourceDir)
-	if sourceDir == "." {
-		sourceLen--
-	}
 
 	sendFile := func(p string, fInfo os.FileInfo, err error) error {
 		if err != nil {
