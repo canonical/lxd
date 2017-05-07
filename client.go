@@ -1891,7 +1891,7 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 			appendLen--
 		}
 
-		targetPath := path.Join(target, p[appendLen:])
+		targetPath := path.Join(target, filepath.ToSlash(p[appendLen:]))
 		if fInfo.IsDir() {
 			mode, uid, gid := shared.GetOwnerMode(fInfo)
 			return c.Mkdir(container, targetPath, mode, uid, gid)
