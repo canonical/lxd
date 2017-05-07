@@ -1875,6 +1875,10 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 	}
 
 	sourceDir := filepath.Dir(source)
+	sourceLen := len(sourceDir)
+	if sourceDir == "." {
+		sourceLen--
+	}
 
 	sendFile := func(p string, fInfo os.FileInfo, err error) error {
 		if err != nil {
@@ -1886,12 +1890,7 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 			return fmt.Errorf("'%s' isn't a regular file or directory.", p)
 		}
 
-		appendLen := len(sourceDir)
-		if sourceDir == "." {
-			appendLen--
-		}
-
-		targetPath := path.Join(target, filepath.ToSlash(p[appendLen:]))
+		targetPath := path.Join(target, filepath.ToSlash(p[sourceLen:]))
 		if fInfo.IsDir() {
 			mode, uid, gid := shared.GetOwnerMode(fInfo)
 			return c.Mkdir(container, targetPath, mode, uid, gid)
