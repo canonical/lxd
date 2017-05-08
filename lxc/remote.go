@@ -229,7 +229,7 @@ func (c *remoteCmd) addServer(config *lxd.Config, server string, addr string, ac
 		if !acceptCert {
 			digest := shared.CertFingerprint(certificate)
 
-			fmt.Printf(i18n.G("Certificate fingerprint: %x")+"\n", digest)
+			fmt.Printf(i18n.G("Certificate fingerprint: %s")+"\n", digest)
 			fmt.Printf(i18n.G("ok (y/n)?") + " ")
 			line, err := shared.ReadStdin()
 			if err != nil {
