@@ -162,8 +162,13 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	}
 
 	var certificate string
+	var certificateFingerprint string
 	if len(d.tlsConfig.Certificates) != 0 {
 		certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: d.tlsConfig.Certificates[0].Certificate[0]}))
+		certificateFingerprint, err = shared.CertFingerprintStr(certificate)
+		if err != nil {
+			return InternalError(err)
+		}
 	}
 
 	architectures := []string{}
@@ -177,17 +182,18 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	}
 
 	env := api.ServerEnvironment{
-		Addresses:          addresses,
-		Architectures:      architectures,
-		Certificate:        certificate,
-		Driver:             "lxc",
-		DriverVersion:      lxc.Version(),
-		Kernel:             kernel,
-		KernelArchitecture: kernelArchitecture,
-		KernelVersion:      kernelVersion,
-		Server:             "lxd",
-		ServerPid:          os.Getpid(),
-		ServerVersion:      version.Version}
+		Addresses:              addresses,
+		Architectures:          architectures,
+		Certificate:            certificate,
+		CertificateFingerprint: certificateFingerprint,
+		Driver:                 "lxc",
+		DriverVersion:          lxc.Version(),
+		Kernel:                 kernel,
+		KernelArchitecture:     kernelArchitecture,
+		KernelVersion:          kernelVersion,
+		Server:                 "lxd",
+		ServerPid:              os.Getpid(),
+		ServerVersion:          version.Version}
 
 	drivers := readStoragePoolDriversCache()
 	for _, driver := range drivers {
