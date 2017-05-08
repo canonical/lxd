@@ -192,6 +192,8 @@ test_storage() {
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool22" lvm lvm.use_thinpool=true
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool23" lvm lvm.use_thinpool=true lvm.thinpool_name="lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config"
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool24" lvm rsync.bwlimit=1024
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool25" lvm volume.block.mount_options="rw,strictatime,discard"
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool25" volume.block.mount_options "rw,lazytime"
     fi
 
     # Set default storage pool for image import.
@@ -674,6 +676,9 @@ test_storage() {
 
       lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool24"
       vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool24" || true
+
+      lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-valid-lvm-pool-config-pool25"
+      vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool25" || true
     fi
   )
 

@@ -25,37 +25,15 @@ type storageBtrfs struct {
 	storageShared
 }
 
-func (s *storageBtrfs) getBtrfsPoolMountOptions() (uintptr, string) {
-	mountFlags := uintptr(0)
-	opts := s.pool.Config["btrfs.mount_options"]
-	if opts == "" {
-		return mountFlags, "user_subvol_rm_allowed"
+func (s *storageBtrfs) getBtrfsMountOptions() string {
+	if s.pool.Config["btrfs.mount_options"] != "" {
+		return s.pool.Config["btrfs.mount_options"]
 	}
 
-	tmp := strings.SplitN(opts, ",", -1)
-	for i := 0; i < len(tmp); i++ {
-		opt := tmp[i]
-		do, ok := MountOptions[opt]
-		if !ok {
-			continue
-		}
-
-		if do.unset {
-			mountFlags &= ^do.flag
-		} else {
-			mountFlags |= do.flag
-		}
-
-		copy(tmp[i:], tmp[i+1:])
-		tmp[len(tmp)-1] = ""
-		tmp = tmp[:len(tmp)-1]
-		i--
-	}
-
-	return mountFlags, strings.Join(tmp, ",")
+	return "user_subvol_rm_allowed"
 }
 
-func (s *storageBtrfs) setBtrfsPoolMountOptions(mountOptions string) {
+func (s *storageBtrfs) setBtrfsMountOptions(mountOptions string) {
 	s.pool.Config["btrfs.mount_options"] = mountOptions
 }
 
@@ -214,7 +192,8 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 
 	var err1 error
 	var devUUID string
-	mountFlags, mountOptions := s.getBtrfsPoolMountOptions()
+	mountFlags, mountOptions := lxdResolveMountoptions(s.getBtrfsMountOptions())
+	mountFlags |= s.remount
 	if isBlockDev && filepath.IsAbs(source) {
 		devUUID, _ = shared.LookupUUIDByBlockDevPath(source)
 		// The symlink might not have been created even with the delay
@@ -443,7 +422,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 
 	}
 
-	mountFlags, mountOptions := s.getBtrfsPoolMountOptions()
+	mountFlags, mountOptions := lxdResolveMountoptions(s.getBtrfsMountOptions())
 	mountFlags |= s.remount
 	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", mountFlags, mountOptions)
 	if err != nil {
@@ -503,7 +482,7 @@ func (s *storageBtrfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedCo
 	// rsync.bwlimit does not require any on-disk changes
 
 	if shared.StringInSlice("btrfs.mount_options", changedConfig) {
-		s.setBtrfsPoolMountOptions(writable.Config["btrfs.mount_options"])
+		s.setBtrfsMountOptions(writable.Config["btrfs.mount_options"])
 		s.remount |= syscall.MS_REMOUNT
 		_, err := s.StoragePoolMount()
 		if err != nil {
