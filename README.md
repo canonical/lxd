@@ -121,7 +121,7 @@ get the code, set up your go environment:
 
 And then download it as usual:
 
-    go get github.com/lxc/lxd
+    go get -u github.com/lxc/lxd
     cd $GOPATH/src/github.com/lxc/lxd
     make
 
