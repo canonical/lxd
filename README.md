@@ -283,17 +283,6 @@ Yes. The easiest way to do that is using a privileged container:
 
 #### How can I run docker inside a LXD container?
 
-To run docker inside a lxd container, you must be running a kernel with cgroup
-namespaces (Ubuntu 4.4 kernel or newer, or upstream 4.6 or newer), and must
-apply the docker profile to your container.
+In order to run Docker inside a LXD container the `security.nesting` property of the container should be set to `true`. No other changes should be necessary.
 
-    lxc launch ubuntu:xenial my-docker-host -p default -p docker
-
-Note that the docker profile does not provide a network interface, so the
-common case will want to compose the default and docker profiles.
-
-Also note that Docker coming from [upstream](https://apt.dockerproject.org/repo) doesn't currently run as is inside the lxd container. Look at issue [#2621](https://github.com/lxc/lxd/issues/2621) for more details. You need to download the docker coming from Ubuntu (docker.io package) to get this working. So once you are in the lxd container run
-
-    sudo apt-get install -y docker.io runc containerd
-
-The container must be using the Ubuntu 1.10.2-0ubuntu4 or newer docker package.
+    lxc config set <container> security.nesting true
