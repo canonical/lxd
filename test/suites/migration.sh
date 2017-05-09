@@ -208,4 +208,15 @@ migration() {
   lxc_remote stop --stateful l1:migratee
   lxc_remote start l1:migratee
   lxc_remote delete --force l1:migratee
+
+  lxc_remote init testimage l1:cccp
+  lxc_remote snapshot l1:cccp
+  lxc_remote snapshot l1:cccp
+
+  # Remote container with snapshots live migration.
+  lxc_remote start l1:cccp
+  lxc_remote move l1:cccp l2:udssr
+  ! lxc_remote info l1:cccp
+  [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 2 ]
+  lxc_remote delete l2:udssr
 }
