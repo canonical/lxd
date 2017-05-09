@@ -860,7 +860,7 @@ func autoUpdateImages(d *Daemon) {
 
 		logger.Debug("Processing image", log.Ctx{"fp": fp, "server": source.Server, "protocol": source.Protocol, "alias": source.Alias})
 
-		newInfo, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true)
+		newInfo, err := d.ImageDownload(nil, source.Server, source.Protocol, source.Certificate, "", source.Alias, false, true)
 		if err != nil {
 			logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fp})
 			continue

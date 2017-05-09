@@ -454,7 +454,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			return nil, err
 		}
 
-		err = dbImageSourceInsert(d.db, id, server, protocol, "", alias)
+		err = dbImageSourceInsert(d.db, id, server, protocol, certificate, alias)
 		if err != nil {
 			return nil, err
 		}
