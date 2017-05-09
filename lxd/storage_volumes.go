@@ -379,6 +379,10 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
+	if volumeType != storagePoolVolumeTypeCustom {
+		return BadRequest(fmt.Errorf("storage volumes of type \"%s\" cannot be deleted with the storage api", volumeTypeName))
+	}
+
 	volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volumeName, volumeTypeName)
 	if err != nil {
 		return InternalError(err)
