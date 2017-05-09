@@ -17,16 +17,16 @@ import (
 const DB_FIXTURES string = `
     INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
     INSERT INTO profiles (name) VALUES ('theprofile');
-    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 3);
+    INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
     INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
     INSERT INTO containers_devices (container_id, name, type) VALUES (1, 'somename', 1);
     INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);
     INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176);
     INSERT INTO images_aliases (name, image_id, description) VALUES ('somealias', 1, 'some description');
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
-    INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'thekey', 'thevalue');
-    INSERT INTO profiles_devices (profile_id, name, type) VALUES (3, 'devicename', 1);
-    INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (2, 'devicekey', 'devicevalue');
+    INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'thekey', 'thevalue');
+    INSERT INTO profiles_devices (profile_id, name, type) VALUES (2, 'devicename', 1);
+    INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (1, 'devicekey', 'devicevalue');
     `
 
 type dbTestSuite struct {
@@ -115,24 +115,24 @@ func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	s.Nil(err)
 
 	// Make sure there are 0 container_profiles entries left.
-	statements = `SELECT count(*) FROM containers_profiles WHERE profile_id = 3;`
+	statements = `SELECT count(*) FROM containers_profiles WHERE profile_id = 2;`
 	err = s.db.QueryRow(statements).Scan(&count)
 	s.Equal(count, 0, "Deleting a profile didn't delete the container association!")
 
 	// Make sure there are 0 profiles_devices entries left.
-	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id == 3;`
+	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id == 2;`
 	err = s.db.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices!")
 
 	// Make sure there are 0 profiles_config entries left.
-	statements = `SELECT count(*) FROM profiles_config WHERE profile_id == 3;`
+	statements = `SELECT count(*) FROM profiles_config WHERE profile_id == 2;`
 	err = s.db.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_config! There are %d left")
 
 	// Make sure there are 0 profiles_devices_config entries left.
-	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 4;`
+	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 3;`
 	err = s.db.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices_config!")
@@ -424,7 +424,7 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 	var result map[string]string
 	var expected map[string]string
 
-	_, err = s.db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'something', 'something else');")
+	_, err = s.db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'something', 'something else');")
 	s.Nil(err)
 
 	result, err = dbProfileConfig(s.db, "theprofile")

@@ -254,7 +254,7 @@ func createDb(db *sql.DB) (err error) {
 		return err
 	}
 
-	return dbProfileCreateDocker(db)
+	return nil
 }
 
 func dbGetSchema(db *sql.DB) (v int) {
