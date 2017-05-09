@@ -283,6 +283,6 @@ Yes. The easiest way to do that is using a privileged container:
 
 #### How can I run docker inside a LXD container?
 
-To run docker inside a lxd container, you must allow security nesting.
+In order to run Docker inside a LXD container the `security.nesting` property of the container should be set to `true`. No other changes should be necessary.
 
     lxc config set <container> security.nesting true
