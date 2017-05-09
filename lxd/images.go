@@ -930,7 +930,8 @@ func autoUpdateImage(d *Daemon, fingerprint string, id int, info *api.Image) err
 	// Update the image on each pool where it currently exists.
 	hash := fingerprint
 	for _, poolName := range poolNames {
-		newInfo, err := d.ImageDownload(nil, source.Server, source.Protocol, "", "", source.Alias, false, true, poolName)
+		newInfo, err := d.ImageDownload(nil, source.Server, source.Protocol, source.Certificate, "", source.Alias, false, true, poolName)
+
 		if err != nil {
 			logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fingerprint})
 			continue
