@@ -496,6 +496,21 @@ func (r *ProtocolLXD) DeleteImage(fingerprint string) (*Operation, error) {
 	return op, nil
 }
 
+// RefreshImage requests that LXD issues an image refresh
+func (r *ProtocolLXD) RefreshImage(fingerprint string) (*Operation, error) {
+	if !r.HasExtension("image_force_refresh") {
+		return nil, fmt.Errorf("The server is missing the required \"image_force_refresh\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/images/%s/refresh", fingerprint), nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // CreateImageSecret requests that LXD issues a temporary image secret
 func (r *ProtocolLXD) CreateImageSecret(fingerprint string) (*Operation, error) {
 	// Send the request
