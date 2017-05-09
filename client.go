@@ -2157,37 +2157,24 @@ func (c *Client) ListProfiles() ([]string, error) {
 		return nil, fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	resp, err := c.get("profiles")
+	resp, err := c.get("profiles?recursion=1")
 	if err != nil {
 		return nil, err
 	}
 
-	var result []string
-
-	if err := resp.MetadataAsStruct(&result); err != nil {
+	profiles := []api.Profile{}
+	if err := resp.MetadataAsStruct(&profiles); err != nil {
 		return nil, err
 	}
 
-	names := []string{}
+	if len(profiles) == 0 {
+		return nil, nil
+	}
 
-	for _, url := range result {
-		toScan := strings.Replace(url, "/", " ", -1)
-		urlVersion := ""
-		name := ""
-		count, err := fmt.Sscanf(toScan, " %s profiles %s", &urlVersion, &name)
-		if err != nil {
-			return nil, err
-		}
-
-		if count != 2 {
-			return nil, fmt.Errorf("bad profile url %s", url)
-		}
-
-		if urlVersion != version.APIVersion {
-			return nil, fmt.Errorf("bad version in profile url")
-		}
-
-		names = append(names, name)
+	// spare a few allocation cycles
+	names := make([]string, len(profiles))
+	for i := 0; i < len(profiles); i++ {
+		names[i] = profiles[i].Name
 	}
 
 	return names, nil
