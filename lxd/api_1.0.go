@@ -108,6 +108,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_btrfs_mount_options",
 			"entity_description",
 			"image_force_refresh",
+			"storage_lvm_lv_resizing",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

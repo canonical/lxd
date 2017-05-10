@@ -1552,6 +1552,34 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 	}
 
+	var ourStart bool
+	newSize, ok := c.LocalConfig()["volatile.apply_quota"]
+	if ok {
+		err := c.initStorage()
+		if err != nil {
+			return "", err
+		}
+
+		size, err := shared.ParseByteSizeString(newSize)
+		if err != nil {
+			return "", err
+		}
+		err = c.storage.ContainerSetQuota(c, size)
+		if err != nil {
+			return "", err
+		}
+
+		// Remove the volatile key from the DB
+		err = dbContainerConfigRemove(c.daemon.db, c.id, "volatile.apply_quota")
+		if err != nil {
+			return "", err
+		}
+
+		// Remove the volatile key from the in-memory configs
+		delete(c.localConfig, "volatile.apply_quota")
+		delete(c.expandedConfig, "volatile.apply_quota")
+	}
+
 	/* Deal with idmap changes */
 	idmap, err := c.IdmapSet()
 	if err != nil {
@@ -1577,7 +1605,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	if !reflect.DeepEqual(idmap, lastIdmap) {
 		logger.Debugf("Container idmap changed, remapping")
 
-		ourStart, err := c.StorageStart()
+		ourStart, err = c.StorageStart()
 		if err != nil {
 			return "", err
 		}
@@ -1875,7 +1903,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Storage is guaranteed to be mountable now.
-	ourStart, err := c.StorageStart()
+	ourStart, err = c.StorageStart()
 	if err != nil {
 		return "", err
 	}
@@ -3361,23 +3389,27 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	oldRootDiskDeviceSize := oldExpandedDevices[oldRootDiskDeviceKey]["size"]
 	newRootDiskDeviceSize := c.expandedDevices[newRootDiskDeviceKey]["size"]
 
+	isRunning := c.IsRunning()
 	// Apply disk quota changes
 	if newRootDiskDeviceSize != oldRootDiskDeviceSize {
-		size, err := shared.ParseByteSizeString(newRootDiskDeviceSize)
-		if err != nil {
-			return err
-		}
-
-		if c.storage.ContainerStorageReady(c.Name()) {
-			err = c.storage.ContainerSetQuota(c, size)
+		storageTypeName := c.storage.GetStorageTypeName()
+		storageIsReady := c.storage.ContainerStorageReady(c.Name())
+		if storageTypeName == "lvm" && isRunning || !storageIsReady {
+			err = c.ConfigKeySet("volatile.apply_quota", newRootDiskDeviceSize)
+		} else {
+			size, err := shared.ParseByteSizeString(newRootDiskDeviceSize)
 			if err != nil {
 				return err
 			}
+			err = c.storage.ContainerSetQuota(c, size)
+		}
+		if err != nil {
+			return err
 		}
 	}
 
 	// Apply the live changes
-	if c.IsRunning() {
+	if isRunning {
 		// Live update the container config
 		for _, key := range changedConfig {
 			value := c.expandedConfig[key]
