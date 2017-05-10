@@ -806,6 +806,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) erro
 		if err != nil {
 			return err
 		}
+		defer os.RemoveAll(tmpPath)
 
 		btrfsPath := fmt.Sprintf("%s/.root", tmpPath)
 		if err := s.btrfs.subvolsSnapshot(s.container.Path(), btrfsPath, true); err != nil {
@@ -836,11 +837,13 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn) erro
 	if err != nil {
 		return err
 	}
+	defer os.RemoveAll(tmpPath)
 
 	s.runningSnapName = fmt.Sprintf("%s/.root", tmpPath)
 	if err := s.btrfs.subvolsSnapshot(s.container.Path(), s.runningSnapName, true); err != nil {
 		return err
 	}
+	defer s.btrfs.subvolsDelete(s.runningSnapName)
 
 	btrfsParent := ""
 	if len(s.btrfsSnapshotNames) > 0 {
@@ -856,6 +859,7 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) e
 	if err != nil {
 		return err
 	}
+	defer os.RemoveAll(tmpPath)
 
 	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
 	err = s.btrfs.subvolsSnapshot(s.container.Path(), s.stoppedSnapName, true)
