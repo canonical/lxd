@@ -838,23 +838,29 @@ func containerConfigureInternal(c container) error {
 		return err
 	}
 
-	if rootDiskDevice["size"] != "" {
-		size, err := shared.ParseByteSizeString(rootDiskDevice["size"])
-		if err != nil {
-			return err
-		}
-
-		// Storage is guaranteed to be ready.
-		err = c.Storage().ContainerSetQuota(c, size)
-		if err != nil {
-			return err
-		}
-	}
-
 	ourStart, err := c.StorageStart()
 	if err != nil {
 		return err
 	}
+
+	// handle quota: at this point, storage is guaranteed to be ready
+	storage := c.Storage()
+	if rootDiskDevice["size"] != "" {
+		storageTypeName := storage.GetStorageTypeName()
+		if storageTypeName == "lvm" && c.IsRunning() {
+			err = c.ConfigKeySet("volatile.apply_quota", rootDiskDevice["size"])
+		} else {
+			size, err := shared.ParseByteSizeString(rootDiskDevice["size"])
+			if err != nil {
+				return err
+			}
+			err = storage.ContainerSetQuota(c, size)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
 	if ourStart {
 		defer c.StorageStop()
 	}

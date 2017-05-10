@@ -3395,7 +3395,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		storageTypeName := c.storage.GetStorageTypeName()
 		storageIsReady := c.storage.ContainerStorageReady(c.Name())
 		if storageTypeName == "lvm" && isRunning || !storageIsReady {
-			err = c.ConfigKeySet("volatile.apply_quota", newRootDiskDeviceSize)
+			c.localConfig["volatile.apply_quota"] = newRootDiskDeviceSize
 		} else {
 			size, err := shared.ParseByteSizeString(newRootDiskDeviceSize)
 			if err != nil {
