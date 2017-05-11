@@ -622,7 +622,7 @@ run_test test_cpu_profiling "CPU profiling"
 run_test test_mem_profiling "memory profiling"
 run_test test_storage "storage"
 run_test test_init_auto "lxd init auto"
-run_test test_init_preseed "lxd init auto"
+run_test test_init_preseed "lxd init preseed"
 run_test test_storage_profiles "storage profiles"
 run_test test_container_import "container import"
 
