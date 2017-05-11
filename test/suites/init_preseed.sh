@@ -3,8 +3,12 @@ test_init_preseed() {
   LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_INIT_DIR}"
   spawn_lxd "${LXD_INIT_DIR}" false
+  (
+    set -e
+    # shellcheck disable=SC2034
+    LXD_DIR=${LXD_INIT_DIR}
 
-  cat <<EOF | LXD_DIR=${LXD_INIT_DIR} lxd init --preseed
+    cat <<EOF | lxd init --preseed
 config:
   core.https_address: 127.0.0.1:9999
   images.auto_update_interval: 15
@@ -37,22 +41,20 @@ profiles:
       parent: lxdt$$
       type: nic
 EOF
-
-  LXD_DIR=${LXD_INIT_DIR} lxc info | grep -q 'core.https_address: 127.0.0.1:9999'
-  LXD_DIR=${LXD_INIT_DIR} lxc info | grep -q 'images.auto_update_interval: "15"'
-  LXD_DIR=${LXD_INIT_DIR} lxc network list | grep -q "lxdt$$"
-  LXD_DIR=${LXD_INIT_DIR} lxc storage list | grep -q "data"
-  LXD_DIR=${LXD_INIT_DIR} lxc profile list | grep -q "test-profile"
-  LXD_DIR=${LXD_INIT_DIR} lxc profile show default | grep -q "pool: data"
-  LXD_DIR=${LXD_INIT_DIR} lxc profile show test-profile | grep -q "limits.memory: 2GB"
-  LXD_DIR=${LXD_INIT_DIR} lxc profile show test-profile | grep -q "nictype: bridged"
-  LXD_DIR=${LXD_INIT_DIR} lxc profile show test-profile | grep -q "parent: lxdt$$"
-  LXD_DIR=${LXD_INIT_DIR} lxc profile delete default
-  LXD_DIR=${LXD_INIT_DIR} lxc profile delete test-profile
-  LXD_DIR=${LXD_INIT_DIR} lxc network delete lxdt$$
-  LXD_DIR=${LXD_INIT_DIR} lxc storage delete data
-
+  
+    lxc info | grep -q 'core.https_address: 127.0.0.1:9999'
+    lxc info | grep -q 'images.auto_update_interval: "15"'
+    lxc network list | grep -q "lxdt$$"
+    lxc storage list | grep -q "data"
+    lxc profile list | grep -q "test-profile"
+    lxc profile show default | grep -q "pool: data"
+    lxc profile show test-profile | grep -q "limits.memory: 2GB"
+    lxc profile show test-profile | grep -q "nictype: bridged"
+    lxc profile show test-profile | grep -q "parent: lxdt$$"
+    lxc profile delete default
+    lxc profile delete test-profile
+    lxc network delete lxdt$$
+    lxc storage delete data
+  )
   kill_lxd "${LXD_INIT_DIR}"
-
-  return
 }

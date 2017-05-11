@@ -199,6 +199,36 @@ func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolPreseed() {
 	suite.Req.Equal(path.Join(suite.tmpdir, "storage-pools", "foo"), pool.Config["source"])
 }
 
+// If an error occurs when creating a new storage pool, all new pools created
+// so far get deleted. Any server config that got applied, gets reset too.
+func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolCreateRevert() {
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`config:
+images.auto_update_interval: 15
+pools:
+- name: first
+  driver: dir
+  config:
+    source: ""
+- name: second
+  driver: dir
+  config:
+    boom: garbage
+`)
+
+	err := suite.command.Run()
+	suite.Req.Equal("Invalid storage pool configuration key: boom", err.Error())
+
+	_, _, err = suite.client.GetStoragePool("first")
+	suite.Req.Equal("not found", err.Error())
+
+	_, _, err = suite.client.GetStoragePool("second")
+	suite.Req.Equal("not found", err.Error())
+
+	key, _ := daemonConfig["images.auto_update_interval"]
+	suite.Req.NotEqual("15", key.Get())
+}
+
 // Updating a storage pool via preseed will fail, since it's not supported
 // by the API.
 func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolPreseedUpdate() {
@@ -326,6 +356,33 @@ func (suite *cmdInitTestSuite) TestCmdInit_NetworkPreseedUpdateNonBridge() {
 	suite.Req.Equal("Only 'bridge' type networks are supported", err.Error())
 }
 
+// If an error occurs when creating a new network, all new networks created
+// so far get deleted.
+func (suite *cmdInitTestSuite) TestCmdInit_NetworkCreateRevert() {
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`networks:
+- name: first
+  type: bridge
+  config:
+    ipv4.address: 10.48.159.1/24
+    ipv4.nat: true
+    ipv6.address: none
+- name: second
+  type: bridge
+  config:
+    boom: garbage
+`)
+
+	err := suite.command.Run()
+	suite.Req.Equal("Invalid network configuration key: boom", err.Error())
+
+	_, _, err = suite.client.GetNetwork("first")
+	suite.Req.Equal("not found", err.Error())
+
+	_, _, err = suite.client.GetNetwork("second")
+	suite.Req.Equal("not found", err.Error())
+}
+
 // Preseed a new profile.
 func (suite *cmdInitTestSuite) TestCmdInit_ProfilesPreseed() {
 	suite.args.Preseed = true
@@ -350,6 +407,94 @@ func (suite *cmdInitTestSuite) TestCmdInit_ProfilesPreseed() {
 	suite.Req.Equal("/srv/data/", profile.Devices["data"]["path"])
 	suite.Req.Equal("/some/data", profile.Devices["data"]["source"])
 	suite.Req.Equal("disk", profile.Devices["data"]["type"])
+}
+
+// If an error occurs while creating a new profile, all other profiles
+// created in by the preseeded YAML get deleted.
+func (suite *cmdInitTestSuite) TestCmdInit_ProfilesCreateRevert() {
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`profiles:
+- name: first
+  description: "First profile"
+  config:
+    limits.memory: 2GB
+  devices:
+    data:
+      path: /srv/data/
+      source: /some/data
+      type: disk
+- name: second
+  description: "Second profile"
+  config:
+    boom: garbage
+  devices:
+    data:
+      path: /srv/data/
+      source: /some/data
+      type: disk
+`)
+
+	err := suite.command.Run()
+	suite.Req.Equal("Bad key: boom", err.Error())
+	_, _, err = suite.client.GetProfile("first")
+	suite.Req.Equal("not found", err.Error())
+
+	_, _, err = suite.client.GetProfile("second")
+	suite.Req.Equal("not found", err.Error())
+}
+
+// If an error occurs while creating a new profile, all other profiles
+// that have been updated in by the preseeded YAML get reverted.
+func (suite *cmdInitTestSuite) TestCmdInit_ProfilesUpdateRevert() {
+	post := api.ProfilesPost{
+		Name: "first",
+	}
+	post.Description = "First profile profile"
+	post.Config = map[string]string{
+		"limits.memory": "2GB",
+	}
+	post.Devices = map[string]map[string]string{
+		"data": {
+			"path":   "/srv/data/",
+			"source": "/some/data",
+			"type":   "disk",
+		},
+	}
+	err := suite.client.CreateProfile(post)
+
+	suite.Req.Nil(err)
+
+	suite.args.Preseed = true
+	suite.streams.InputAppend(`profiles:
+- name: first
+  description: "First profile"
+  config:
+    limits.memory: 4GB
+  devices:
+    data:
+      path: /srv/data/
+      source: /some/data
+      type: disk
+- name: second
+  description: "Second profile"
+  config:
+    boom: garbage
+  devices:
+    data:
+      path: /srv/data/
+      source: /some/data
+      type: disk
+`)
+
+	err = suite.command.Run()
+	suite.Req.Equal("Bad key: boom", err.Error())
+
+	profile, _, err := suite.client.GetProfile("first")
+	suite.Req.Nil(err)
+	suite.Req.Equal("2GB", profile.Config["limits.memory"])
+
+	_, _, err = suite.client.GetProfile("second")
+	suite.Req.Equal("not found", err.Error())
 }
 
 // Update a profile via preseed.
