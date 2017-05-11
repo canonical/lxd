@@ -1,4 +1,6 @@
 test_storage() {
+  ensure_import_testimage
+
   # shellcheck disable=2039
   local LXD_STORAGE_DIR lxd_backend  
 
@@ -687,6 +689,41 @@ test_storage() {
       vgremove -ff "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool25" || true
     fi
   )
+
+  # Test applying quota
+  QUOTA1="10GB"
+  QUOTA2="11GB"
+  if [ "$lxd_backend" = "lvm" ]; then
+    QUOTA1="20MB"
+    QUOTA2="21MB"
+  fi
+
+  if [ "$lxd_backend" != "dir" ]; then
+    lxc launch testimage quota1
+    lxc profile device set default root size "${QUOTA1}"
+    lxc restart quota1
+
+    lxc launch testimage quota2
+    lxc restart quota2
+
+    lxc init testimage quota3
+    lxc start quota3
+
+    lxc profile device set default root size "${QUOTA2}"
+
+    lxc restart quota1
+    lxc restart quota2
+    lxc restart quota3
+
+    lxc profile device unset default root size
+    lxc restart quota1
+    lxc restart quota2
+    lxc restart quota3
+
+    lxc delete -f quota1
+    lxc delete -f quota2
+    lxc delete -f quota3
+  fi
 
   # shellcheck disable=SC2031
   LXD_DIR="${LXD_DIR}"
