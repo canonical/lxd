@@ -2,13 +2,19 @@ package main
 
 import (
 	"fmt"
+	"testing"
 
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/stretchr/testify/suite"
 )
 
-func (suite *lxdTestSuite) TestContainer_ProfilesDefault() {
+type containerTestSuite struct {
+	lxdTestSuite
+}
+
+func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
@@ -31,7 +37,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesDefault() {
 		"First profile should be the default profile.")
 }
 
-func (suite *lxdTestSuite) TestContainer_ProfilesMulti() {
+func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	// Create an unprivileged profile
 	_, err := dbProfileCreate(
 		suite.d.db,
@@ -67,7 +73,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesMulti() {
 		"The container is not privileged (didn't apply the unprivileged profile?).")
 }
 
-func (suite *lxdTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
+func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
@@ -97,7 +103,7 @@ func (suite *lxdTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 		"Container config doesn't overwrite profile config.")
 }
 
-func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
+func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
@@ -128,7 +134,7 @@ func (suite *lxdTestSuite) TestContainer_LoadFromDB() {
 		"The loaded container isn't excactly the same as the created one.")
 }
 
-func (suite *lxdTestSuite) TestContainer_Path_Regular() {
+func (suite *containerTestSuite) TestContainer_Path_Regular() {
 	// Regular
 	args := containerArgs{
 		Ctype:     cTypeRegular,
@@ -145,7 +151,7 @@ func (suite *lxdTestSuite) TestContainer_Path_Regular() {
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), containerPath("testFoo2", false))
 }
 
-func (suite *lxdTestSuite) TestContainer_Path_Snapshot() {
+func (suite *containerTestSuite) TestContainer_Path_Snapshot() {
 	// Snapshot
 	args := containerArgs{
 		Ctype:     cTypeSnapshot,
@@ -166,7 +172,7 @@ func (suite *lxdTestSuite) TestContainer_Path_Snapshot() {
 		containerPath("test/snap1", true))
 }
 
-func (suite *lxdTestSuite) TestContainer_LogPath() {
+func (suite *containerTestSuite) TestContainer_LogPath() {
 	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
@@ -180,7 +186,7 @@ func (suite *lxdTestSuite) TestContainer_LogPath() {
 	suite.Req.Equal(shared.VarPath("logs", "testFoo"), c.LogPath())
 }
 
-func (suite *lxdTestSuite) TestContainer_IsPrivileged_Privileged() {
+func (suite *containerTestSuite) TestContainer_IsPrivileged_Privileged() {
 	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
@@ -195,7 +201,7 @@ func (suite *lxdTestSuite) TestContainer_IsPrivileged_Privileged() {
 	suite.Req.Nil(c.Delete(), "Failed to delete the container.")
 }
 
-func (suite *lxdTestSuite) TestContainer_IsPrivileged_Unprivileged() {
+func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
@@ -210,7 +216,7 @@ func (suite *lxdTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 	suite.Req.Nil(c.Delete(), "Failed to delete the container.")
 }
 
-func (suite *lxdTestSuite) TestContainer_Rename() {
+func (suite *containerTestSuite) TestContainer_Rename() {
 	args := containerArgs{
 		Ctype:     cTypeRegular,
 		Ephemeral: false,
@@ -225,7 +231,7 @@ func (suite *lxdTestSuite) TestContainer_Rename() {
 	suite.Req.Equal(shared.VarPath("containers", "testFoo2"), c.Path())
 }
 
-func (suite *lxdTestSuite) TestContainer_findIdmap_isolated() {
+func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	c1, err := containerCreateInternal(suite.d, containerArgs{
 		Ctype: cTypeRegular,
 		Name:  "isol-1",
@@ -266,7 +272,7 @@ func (suite *lxdTestSuite) TestContainer_findIdmap_isolated() {
 	}
 }
 
-func (suite *lxdTestSuite) TestContainer_findIdmap_mixed() {
+func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	c1, err := containerCreateInternal(suite.d, containerArgs{
 		Ctype: cTypeRegular,
 		Name:  "isol-1",
@@ -307,7 +313,7 @@ func (suite *lxdTestSuite) TestContainer_findIdmap_mixed() {
 	}
 }
 
-func (suite *lxdTestSuite) TestContainer_findIdmap_raw() {
+func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 	c1, err := containerCreateInternal(suite.d, containerArgs{
 		Ctype: cTypeRegular,
 		Name:  "isol-1",
@@ -343,7 +349,7 @@ func (suite *lxdTestSuite) TestContainer_findIdmap_raw() {
 	}
 }
 
-func (suite *lxdTestSuite) TestContainer_findIdmap_maxed() {
+func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 	maps := []*shared.IdmapSet{}
 
 	for i := 0; i < 7; i++ {
@@ -382,4 +388,8 @@ func (suite *lxdTestSuite) TestContainer_findIdmap_maxed() {
 			}
 		}
 	}
+}
+
+func TestContainerTestSuite(t *testing.T) {
+	suite.Run(t, new(containerTestSuite))
 }
