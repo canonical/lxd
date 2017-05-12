@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -108,8 +107,4 @@ func (suite *lxdTestSuite) TearDownSuite() {
 
 func (suite *lxdTestSuite) SetupTest() {
 	suite.Req = require.New(suite.T())
-}
-
-func TestLxdTestSuite(t *testing.T) {
-	suite.Run(t, new(lxdTestSuite))
 }

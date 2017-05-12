@@ -1,6 +1,16 @@
 package main
 
-func (suite *lxdTestSuite) Test_config_value_set_empty_removes_val() {
+import (
+	"testing"
+
+	"github.com/stretchr/testify/suite"
+)
+
+type daemonTestSuite struct {
+	lxdTestSuite
+}
+
+func (suite *daemonTestSuite) Test_config_value_set_empty_removes_val() {
 	var err error
 	d := suite.d
 
@@ -24,4 +34,8 @@ func (suite *lxdTestSuite) Test_config_value_set_empty_removes_val() {
 	valMap = daemonConfigRender()
 	_, present = valMap["core.trust_password"]
 	suite.Req.False(present)
+}
+
+func TestDaemonTestSuite(t *testing.T) {
+	suite.Run(t, new(daemonTestSuite))
 }
