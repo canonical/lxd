@@ -400,6 +400,29 @@ func (s *dbTestSuite) Test_dbImageAliasAdd() {
 	s.Equal(alias.Target, "fingerprint")
 }
 
+func (s *dbTestSuite) Test_dbImageSourceGetCachedFingerprint() {
+	imageID, _, err := dbImageGet(s.db, "fingerprint", false, false)
+	s.Nil(err)
+
+	err = dbImageSourceInsert(s.db, imageID, "server.remote", "simplestreams", "", "test")
+	s.Nil(err)
+
+	fingerprint, err := dbImageSourceGetCachedFingerprint(s.db, "server.remote", "simplestreams", "test")
+	s.Nil(err)
+	s.Equal(fingerprint, "fingerprint")
+}
+
+func (s *dbTestSuite) Test_dbImageSourceGetCachedFingerprint_no_match() {
+	imageID, _, err := dbImageGet(s.db, "fingerprint", false, false)
+	s.Nil(err)
+
+	err = dbImageSourceInsert(s.db, imageID, "server.remote", "simplestreams", "", "test")
+	s.Nil(err)
+
+	_, err = dbImageSourceGetCachedFingerprint(s.db, "server.remote", "lxd", "test")
+	s.Equal(err, NoSuchObjectError)
+}
+
 func (s *dbTestSuite) Test_dbContainerConfig() {
 	var err error
 	var result map[string]string

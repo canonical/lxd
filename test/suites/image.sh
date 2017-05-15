@@ -30,7 +30,7 @@ test_image_expiry() {
 
   lxc_remote delete l2:c1
 
-  # rest the default expiry
+  # reset the default expiry
   lxc_remote remote set-default l2
   lxc_remote config set images.remote_cache_expiry 10
   lxc_remote remote set-default local
