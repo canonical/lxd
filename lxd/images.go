@@ -972,9 +972,13 @@ func autoUpdateImage(d *Daemon, op *operation, fingerprint string, id int, info 
 			continue
 		}
 
-		err = doDeleteImageFromPool(d, fingerprint, poolName)
-		if err != nil {
-			logger.Error("Error deleting image", log.Ctx{"err": err, "fp": fingerprint})
+		// If we do have optimized pools, make sure we remove
+		// the volumes associated with the image.
+		if poolName != "" {
+			err = doDeleteImageFromPool(d, fingerprint, poolName)
+			if err != nil {
+				logger.Error("Error deleting image from pool", log.Ctx{"err": err, "fp": fingerprint})
+			}
 		}
 	}
 
