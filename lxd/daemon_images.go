@@ -91,7 +91,7 @@ func imageLoadStreamCache(d *Daemon) error {
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
-func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool, storagePool string) (*api.Image, error) {
+func (d *Daemon) ImageDownload(op *operation, server string, protocol string, certificate string, secret string, alias string, forContainer bool, autoUpdate bool, storagePool string, preferCached bool) (*api.Image, error) {
 	var err error
 	var ctxMap log.Ctx
 
@@ -217,6 +217,19 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			}
 
 			fp = info.Fingerprint
+		}
+	}
+
+	// If auto-update is on and we're being given the image by
+	// alias, try to use a locally cached image matching the given
+	// server/protocol/alias, regardless of whether it's stale or
+	// not (we can assume that it will be not *too* stale since
+	// auto-update is on).
+	interval := daemonConfig["images.auto_update_interval"].GetInt64()
+	if preferCached && interval > 0 && alias != fp {
+		cachedFingerprint, err := dbImageSourceGetCachedFingerprint(d.db, server, protocol, alias)
+		if err == nil && cachedFingerprint != fp {
+			fp = cachedFingerprint
 		}
 	}
 
