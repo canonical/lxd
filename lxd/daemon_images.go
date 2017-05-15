@@ -442,6 +442,13 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		return nil, err
 	}
 
+	// We want to enable auto-update only if we were passed an
+	// alias name, so we can figure when the associated
+	// fingerprint changes in the remote.
+	if alias != fp {
+		info.AutoUpdate = autoUpdate
+	}
+
 	// Create the database entry
 	err = dbImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
@@ -461,8 +468,6 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		if err != nil {
 			return nil, err
 		}
-
-		info.AutoUpdate = autoUpdate
 	}
 
 	// Mark the image as "cached" if downloading for a container
