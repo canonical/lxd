@@ -1393,3 +1393,51 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// Call the original server
 	s.r.ServeHTTP(rw, req)
 }
+
+// Create a database connection and perform any updates needed.
+func initializeDbObject(d *Daemon, path string) error {
+	var openPath string
+	var err error
+
+	timeout := 5 // TODO - make this command-line configurable?
+
+	// These are used to tune the transaction BEGIN behavior instead of using the
+	// similar "locking_mode" pragma (locking for the whole database connection).
+	openPath = fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
+
+	// Open the database. If the file doesn't exist it is created.
+	d.db, err = sql.Open("sqlite3_with_fk", openPath)
+	if err != nil {
+		return err
+	}
+
+	// Create the DB if it doesn't exist.
+	err = createDb(d.db)
+	if err != nil {
+		return fmt.Errorf("Error creating database: %s", err)
+	}
+
+	// Detect LXD downgrades
+	if dbGetSchema(d.db) > dbGetLatestSchema() {
+		return fmt.Errorf("The database schema is more recent than LXD's schema.")
+	}
+
+	// Apply any database update.
+	//
+	// NOTE: we use the postApply parameter to run a couple of
+	// legacy non-db updates that were introduced before the
+	// patches mechanism was introduced in lxd/patches.go. The
+	// rest of non-db patches will be applied separately via
+	// patchesApplyAll. See PR #3322 for more details.
+	err = dbUpdatesApplyAll(d.db, true, func(version int) error {
+		if legacyPatch, ok := legacyPatches[version]; ok {
+			return legacyPatch(d)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
