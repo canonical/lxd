@@ -1971,6 +1971,10 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		}
 
 		receivedSnapshot := fmt.Sprintf("%s/.migration-send", btrfsPath)
+		// handle older lxd versions
+		if !shared.PathExists(receivedSnapshot) {
+			receivedSnapshot = fmt.Sprintf("%s/.root", btrfsPath)
+		}
 		if isSnapshot {
 			receivedSnapshot = fmt.Sprintf("%s/%s", btrfsPath, snapName)
 			err = s.btrfsPoolVolumesSnapshot(receivedSnapshot, targetPath, true)
