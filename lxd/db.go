@@ -228,42 +228,6 @@ func dbGetLatestSchema() int {
 	return dbUpdates[len(dbUpdates)-1].version
 }
 
-// Create a database connection object and return it.
-func initializeDbObject(d *Daemon, path string) (err error) {
-	var openPath string
-
-	timeout := 5 // TODO - make this command-line configurable?
-
-	// These are used to tune the transaction BEGIN behavior instead of using the
-	// similar "locking_mode" pragma (locking for the whole database connection).
-	openPath = fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
-
-	// Open the database. If the file doesn't exist it is created.
-	d.db, err = sql.Open("sqlite3_with_fk", openPath)
-	if err != nil {
-		return err
-	}
-
-	// Create the DB if it doesn't exist.
-	err = createDb(d.db)
-	if err != nil {
-		return fmt.Errorf("Error creating database: %s", err)
-	}
-
-	// Detect LXD downgrades
-	if dbGetSchema(d.db) > dbGetLatestSchema() {
-		return fmt.Errorf("The database schema is more recent than LXD's schema.")
-	}
-
-	// Apply any update
-	err = dbUpdatesApplyAll(d)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func isDbLockedError(err error) bool {
 	if err == nil {
 		return false
