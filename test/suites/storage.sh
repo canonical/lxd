@@ -701,24 +701,36 @@ test_storage() {
   if [ "$lxd_backend" != "dir" ]; then
     lxc launch testimage quota1
     lxc profile device set default root size "${QUOTA1}"
-    lxc restart quota1
+    lxc stop -f quota1
+    lxc start quota1
 
     lxc launch testimage quota2
-    lxc restart quota2
+    lxc stop -f quota2
+    lxc start quota2
 
     lxc init testimage quota3
     lxc start quota3
 
     lxc profile device set default root size "${QUOTA2}"
 
-    lxc restart quota1
-    lxc restart quota2
-    lxc restart quota3
+    lxc stop -f quota1
+    lxc start quota1
+
+    lxc stop -f quota2
+    lxc start quota2
+
+    lxc stop -f quota3
+    lxc start quota3
 
     lxc profile device unset default root size
-    lxc restart quota1
-    lxc restart quota2
-    lxc restart quota3
+    lxc stop -f quota1
+    lxc start quota1
+
+    lxc stop -f quota2
+    lxc start quota2
+
+    lxc stop -f quota3
+    lxc start quota3
 
     lxc delete -f quota1
     lxc delete -f quota2
