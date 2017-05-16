@@ -116,26 +116,29 @@ type storageType int
 
 const (
 	storageTypeBtrfs storageType = iota
-	storageTypeZfs
-	storageTypeLvm
+	storageTypeCeph
 	storageTypeDir
+	storageTypeLvm
 	storageTypeMock
+	storageTypeZfs
 )
 
-var supportedStoragePoolDrivers = []string{"btrfs", "dir", "lvm", "zfs"}
+var supportedStoragePoolDrivers = []string{"btrfs", "ceph", "dir", "lvm", "zfs"}
 
 func storageTypeToString(sType storageType) (string, error) {
 	switch sType {
 	case storageTypeBtrfs:
 		return "btrfs", nil
-	case storageTypeZfs:
-		return "zfs", nil
+	case storageTypeCeph:
+		return "ceph", nil
+	case storageTypeDir:
+		return "dir", nil
 	case storageTypeLvm:
 		return "lvm", nil
 	case storageTypeMock:
 		return "mock", nil
-	case storageTypeDir:
-		return "dir", nil
+	case storageTypeZfs:
+		return "zfs", nil
 	}
 
 	return "", fmt.Errorf("invalid storage type")
@@ -145,14 +148,16 @@ func storageStringToType(sName string) (storageType, error) {
 	switch sName {
 	case "btrfs":
 		return storageTypeBtrfs, nil
-	case "zfs":
-		return storageTypeZfs, nil
+	case "ceph":
+		return storageTypeCeph, nil
+	case "dir":
+		return storageTypeDir, nil
 	case "lvm":
 		return storageTypeLvm, nil
 	case "mock":
 		return storageTypeMock, nil
-	case "dir":
-		return storageTypeDir, nil
+	case "zfs":
+		return storageTypeZfs, nil
 	}
 
 	return -1, fmt.Errorf("invalid storage type name")
@@ -270,6 +275,13 @@ func storageCoreInit(driver string) (storage, error) {
 			return nil, err
 		}
 		return &dir, nil
+	case storageTypeCeph:
+		ceph := storageCeph{}
+		err = ceph.StorageCoreInit()
+		if err != nil {
+			return nil, err
+		}
+		return &ceph, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		err = lvm.StorageCoreInit()
@@ -347,6 +359,17 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 			return nil, err
 		}
 		return &dir, nil
+	case storageTypeCeph:
+		ceph := storageCeph{}
+		ceph.poolID = poolID
+		ceph.pool = pool
+		ceph.volume = volume
+		ceph.d = d
+		err = ceph.StoragePoolInit()
+		if err != nil {
+			return nil, err
+		}
+		return &ceph, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		lvm.poolID = poolID
