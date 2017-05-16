@@ -97,7 +97,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		if req.Source.Server != "" {
 			info, err = d.ImageDownload(
 				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret,
-				hash, true, daemonConfig["images.auto_update_cached"].GetBool(), "")
+				hash, true, daemonConfig["images.auto_update_cached"].GetBool(), "", true)
 			if err != nil {
 				return err
 			}
