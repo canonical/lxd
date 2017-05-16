@@ -54,6 +54,20 @@ func (suite *lxdTestSuite) SetupSuite() {
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+func (suite *lxdTestSuite) TearDownSuite() {
+	suite.d.Stop()
+
+	err := os.RemoveAll(suite.tmpdir)
+	if err != nil {
+		os.Exit(1)
+	}
+}
+
+func (suite *lxdTestSuite) SetupTest() {
+	initializeDbObject(suite.d, shared.VarPath("lxd.db"))
+	daemonConfigInit(suite.d.db)
 
 	// Create default storage pool. Make sure that we don't pass a nil to
 	// the next function.
@@ -62,7 +76,7 @@ func (suite *lxdTestSuite) SetupSuite() {
 	mockStorage, _ := storageTypeToString(storageTypeMock)
 	// Create the database entry for the storage pool.
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
-	_, err = dbStoragePoolCreate(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
+	_, err := dbStoragePoolCreate(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -94,17 +108,13 @@ func (suite *lxdTestSuite) SetupSuite() {
 	if err != nil {
 		os.Exit(1)
 	}
+	suite.Req = require.New(suite.T())
 }
 
-func (suite *lxdTestSuite) TearDownSuite() {
-	suite.d.Stop()
-
-	err := os.RemoveAll(suite.tmpdir)
+func (suite *lxdTestSuite) TearDownTest() {
+	suite.d.db.Close()
+	err := os.Remove(shared.VarPath("lxd.db"))
 	if err != nil {
 		os.Exit(1)
 	}
-}
-
-func (suite *lxdTestSuite) SetupTest() {
-	suite.Req = require.New(suite.T())
 }
