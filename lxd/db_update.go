@@ -224,10 +224,6 @@ CREATE TABLE IF NOT EXISTS patches (
 }
 
 func dbUpdateFromV30(currentVersion int, version int, d *Daemon) error {
-	if d.MockMode {
-		return nil
-	}
-
 	entries, err := ioutil.ReadDir(shared.VarPath("containers"))
 	if err != nil {
 		/* If the directory didn't exist before, the user had never
@@ -267,10 +263,6 @@ func dbUpdateFromV30(currentVersion int, version int, d *Daemon) error {
 }
 
 func dbUpdateFromV29(currentVersion int, version int, d *Daemon) error {
-	if d.MockMode {
-		return nil
-	}
-
 	if shared.PathExists(shared.VarPath("zfs.img")) {
 		err := os.Chmod(shared.VarPath("zfs.img"), 0600)
 		if err != nil {
@@ -573,12 +565,6 @@ ALTER TABLE images ADD COLUMN last_use_date DATETIME;`
 }
 
 func dbUpdateFromV11(currentVersion int, version int, d *Daemon) error {
-	if d.MockMode {
-		// No need to move snapshots no mock runs,
-		// dbUpdateFromV12 will then set the db version to 13
-		return nil
-	}
-
 	cNames, err := dbContainersList(d.db, cTypeSnapshot)
 	if err != nil {
 		return err
@@ -647,12 +633,6 @@ func dbUpdateFromV11(currentVersion int, version int, d *Daemon) error {
 }
 
 func dbUpdateFromV10(currentVersion int, version int, d *Daemon) error {
-	if d.MockMode {
-		// No need to move lxc to containers in mock runs,
-		// dbUpdateFromV12 will then set the db version to 13
-		return nil
-	}
-
 	if shared.PathExists(shared.VarPath("lxc")) {
 		err := os.Rename(shared.VarPath("lxc"), shared.VarPath("containers"))
 		if err != nil {
