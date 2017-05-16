@@ -105,6 +105,43 @@ func dbImageSourceGet(db *sql.DB, imageId int) (int, api.ImageSource, error) {
 
 }
 
+// Try to find a source entry of a locally cached image that matches
+// the given remote details (server, protocol and alias). Return the
+// fingerprint linked to the matching entry, if any.
+func dbImageSourceGetCachedFingerprint(db *sql.DB, server string, protocol string, alias string) (string, error) {
+	protocolInt := -1
+	for protoInt, protoString := range dbImageSourceProtocol {
+		if protoString == protocol {
+			protocolInt = protoInt
+		}
+	}
+
+	if protocolInt == -1 {
+		return "", fmt.Errorf("Invalid protocol: %s", protocol)
+	}
+
+	q := `SELECT images.fingerprint
+			FROM images_source
+			INNER JOIN images
+			ON images_source.image_id=images.id
+			WHERE server=? AND protocol=? AND alias=?`
+
+	fingerprint := ""
+
+	arg1 := []interface{}{server, protocolInt, alias}
+	arg2 := []interface{}{&fingerprint}
+	err := dbQueryRowScan(db, q, arg1, arg2)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", NoSuchObjectError
+		}
+
+		return "", err
+	}
+
+	return fingerprint, nil
+}
+
 // Whether an image with the given fingerprint exists.
 func dbImageExists(db *sql.DB, fingerprint string) (bool, error) {
 	var exists bool
