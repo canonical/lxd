@@ -1,12 +1,27 @@
 test_init_preseed() {
   # - lxd init --preseed
+  lxd_backend=$(storage_backend "$LXD_DIR")
   LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_INIT_DIR}"
   spawn_lxd "${LXD_INIT_DIR}" false
+
   (
     set -e
     # shellcheck disable=SC2034
     LXD_DIR=${LXD_INIT_DIR}
+
+    # In case we're running against the ZFS backend, let's test
+    # creating a zfs storage pool, otherwise just use dir.
+    if [ "$lxd_backend" = "zfs" ]; then
+	configure_loop_device loop_file_4 loop_device_4
+        # shellcheck disable=SC2154
+	zpool create "lxdtest-$(basename "${LXD_DIR}")-preseed-pool" "${loop_device_4}" -f -m none -O compression=on
+	driver="zfs"
+	source="lxdtest-$(basename "${LXD_DIR}")-preseed-pool"
+    else
+	driver="dir"
+	source=""
+    fi
 
     cat <<EOF | lxd init --preseed
 config:
@@ -14,9 +29,9 @@ config:
   images.auto_update_interval: 15
 pools:
 - name: data
-  driver: dir
+  driver: $driver
   config:
-    source: ""
+    source: $source
 networks:
 - name: lxdt$$
   type: bridge
@@ -46,6 +61,7 @@ EOF
     lxc info | grep -q 'images.auto_update_interval: "15"'
     lxc network list | grep -q "lxdt$$"
     lxc storage list | grep -q "data"
+    lxc storage show data | grep -q "$source"
     lxc profile list | grep -q "test-profile"
     lxc profile show default | grep -q "pool: data"
     lxc profile show test-profile | grep -q "limits.memory: 2GB"
@@ -55,6 +71,11 @@ EOF
     lxc profile delete test-profile
     lxc network delete lxdt$$
     lxc storage delete data
+
+    if [ "$lxd_backend" = "zfs" ]; then
+	# shellcheck disable=SC2154
+	deconfigure_loop_device "${loop_file_4}" "${loop_device_4}"
+    fi
   )
   kill_lxd "${LXD_INIT_DIR}"
 }

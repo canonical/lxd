@@ -633,9 +633,9 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 // Create or update a single pool, and return a revert function in case of success.
 func (cmd *CmdInit) initPool(client lxd.ContainerServer, pool api.StoragePoolsPost) (reverter, error) {
 	var reverter func() error
-	current, _, err := client.GetStoragePool(pool.Name)
+	currentPool, _, err := client.GetStoragePool(pool.Name)
 	if err == nil {
-		reverter, err = cmd.initPoolUpdate(client, pool, current.Writable())
+		reverter, err = cmd.initPoolUpdate(client, pool, currentPool.Writable())
 	} else {
 		reverter, err = cmd.initPoolCreate(client, pool)
 	}
@@ -656,9 +656,9 @@ func (cmd *CmdInit) initPoolCreate(client lxd.ContainerServer, pool api.StorageP
 
 // Update a single pool, and return a function that can be used to
 // revert it to its original state.
-func (cmd *CmdInit) initPoolUpdate(client lxd.ContainerServer, pool api.StoragePoolsPost, current api.StoragePoolPut) (reverter, error) {
+func (cmd *CmdInit) initPoolUpdate(client lxd.ContainerServer, pool api.StoragePoolsPost, currentPool api.StoragePoolPut) (reverter, error) {
 	reverter := func() error {
-		return client.UpdateStoragePool(pool.Name, current, "")
+		return client.UpdateStoragePool(pool.Name, currentPool, "")
 	}
 	err := client.UpdateStoragePool(pool.Name, api.StoragePoolPut{
 		Config: pool.Config,
@@ -669,7 +669,7 @@ func (cmd *CmdInit) initPoolUpdate(client lxd.ContainerServer, pool api.StorageP
 // Create or update a single network, and return a revert function in case of success.
 func (cmd *CmdInit) initNetwork(client lxd.ContainerServer, network api.NetworksPost) (reverter, error) {
 	var revert func() error
-	current, _, err := client.GetNetwork(network.Name)
+	currentNetwork, _, err := client.GetNetwork(network.Name)
 	if err == nil {
 		// Sanity check, make sure the network type being updated
 		// is still "bridge", which is the only type the existing
@@ -677,7 +677,7 @@ func (cmd *CmdInit) initNetwork(client lxd.ContainerServer, network api.Networks
 		if network.Type != "" && network.Type != "bridge" {
 			return nil, fmt.Errorf("Only 'bridge' type networks are supported")
 		}
-		revert, err = cmd.initNetworkUpdate(client, network, current.Writable())
+		revert, err = cmd.initNetworkUpdate(client, network, currentNetwork.Writable())
 	} else {
 		revert, err = cmd.initNetworkCreate(client, network)
 	}
@@ -698,9 +698,9 @@ func (cmd *CmdInit) initNetworkCreate(client lxd.ContainerServer, network api.Ne
 
 // Update a single network, and return a function that can be used to
 // revert it to its original state.
-func (cmd *CmdInit) initNetworkUpdate(client lxd.ContainerServer, network api.NetworksPost, current api.NetworkPut) (reverter, error) {
+func (cmd *CmdInit) initNetworkUpdate(client lxd.ContainerServer, network api.NetworksPost, currentNetwork api.NetworkPut) (reverter, error) {
 	reverter := func() error {
-		return client.UpdateNetwork(network.Name, current, "")
+		return client.UpdateNetwork(network.Name, currentNetwork, "")
 	}
 	err := client.UpdateNetwork(network.Name, api.NetworkPut{
 		Config: network.Config,
@@ -711,9 +711,9 @@ func (cmd *CmdInit) initNetworkUpdate(client lxd.ContainerServer, network api.Ne
 // Create or update a single profile, and return a revert function in case of success.
 func (cmd *CmdInit) initProfile(client lxd.ContainerServer, profile api.ProfilesPost) (reverter, error) {
 	var reverter func() error
-	current, _, err := client.GetProfile(profile.Name)
+	currentProfile, _, err := client.GetProfile(profile.Name)
 	if err == nil {
-		reverter, err = cmd.initProfileUpdate(client, profile, current.Writable())
+		reverter, err = cmd.initProfileUpdate(client, profile, currentProfile.Writable())
 	} else {
 		reverter, err = cmd.initProfileCreate(client, profile)
 	}
@@ -734,9 +734,9 @@ func (cmd *CmdInit) initProfileCreate(client lxd.ContainerServer, profile api.Pr
 
 // Update a single profile, and return a function that can be used to
 // revert it to its original state.
-func (cmd *CmdInit) initProfileUpdate(client lxd.ContainerServer, profile api.ProfilesPost, current api.ProfilePut) (reverter, error) {
+func (cmd *CmdInit) initProfileUpdate(client lxd.ContainerServer, profile api.ProfilesPost, currentProfile api.ProfilePut) (reverter, error) {
 	reverter := func() error {
-		return client.UpdateProfile(profile.Name, current, "")
+		return client.UpdateProfile(profile.Name, currentProfile, "")
 	}
 	err := client.UpdateProfile(profile.Name, api.ProfilePut{
 		Config:      profile.Config,
