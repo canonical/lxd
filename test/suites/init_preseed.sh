@@ -27,7 +27,7 @@ test_init_preseed() {
 config:
   core.https_address: 127.0.0.1:9999
   images.auto_update_interval: 15
-pools:
+storage_pools:
 - name: data
   driver: $driver
   config:

@@ -94,7 +94,7 @@ config:
   images.auto_update_interval: 6
 
 # Storage pools
-pools:
+storage_pools:
 - name: data
   driver: zfs
   config:     
