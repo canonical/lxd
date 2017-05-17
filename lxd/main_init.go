@@ -20,6 +20,7 @@ import (
 // CmdInitArgs holds command line arguments for the "lxd init" command.
 type CmdInitArgs struct {
 	Auto                bool
+	Preseed             bool
 	StorageBackend      string
 	StorageCreateDevice string
 	StorageCreateLoop   int64
@@ -40,6 +41,40 @@ type CmdInit struct {
 
 // Run triggers the execution of the init command.
 func (cmd *CmdInit) Run() error {
+	// Check that command line arguments don't conflict with each other
+	err := cmd.validateArgs()
+	if err != nil {
+		return err
+	}
+
+	// Connect to LXD
+	client, err := lxd.ConnectLXDUnix(cmd.SocketPath, nil)
+	if err != nil {
+		return fmt.Errorf("Unable to talk to LXD: %s", err)
+	}
+
+	// Kick off the appropriate run mode (either preseed, auto or interactive).
+	if cmd.Args.Preseed {
+		err = cmd.runPreseed(client)
+	} else {
+		err = cmd.runAutoOrInteractive(client)
+	}
+
+	if err == nil {
+		cmd.Context.Output("LXD has been successfully configured.\n")
+	}
+
+	return err
+}
+
+// Run the logic for auto or interactive mode.
+//
+// XXX: this logic is going to be refactored into two separate runAuto
+// and runInteractive methods, sharing relevant logic with
+// runPreseed. The idea being that both runAuto and runInteractive
+// will end up populating the same low-level cmdInitData structure
+// passed to the common run() method.
+func (cmd *CmdInit) runAutoOrInteractive(c lxd.ContainerServer) error {
 	var defaultPrivileged int // controls whether we set security.privileged=true
 	var storageSetup bool     // == supportedStoragePoolDrivers
 	var storageBackend string // == supportedStoragePoolDrivers
@@ -83,12 +118,6 @@ func (cmd *CmdInit) Run() error {
 		}
 
 		backendsAvailable = append(backendsAvailable, driver)
-	}
-
-	// Connect to LXD
-	c, err := lxd.ConnectLXDUnix(cmd.SocketPath, nil)
-	if err != nil {
-		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
 
 	pools, err := c.GetStoragePoolNames()
@@ -428,37 +457,27 @@ they otherwise would.
 		}
 	}
 
-	if imagesAutoUpdate {
-		ss, _, err := c.GetServer()
-		if err != nil {
-			return err
-		}
+	server, _, err := c.GetServer()
+	if err != nil {
+		return err
+	}
 
-		if val, ok := ss.Config["images.auto_update_interval"]; ok && val == "0" {
-			err = cmd.setServerConfig(c, "images.auto_update_interval", "")
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		err = cmd.setServerConfig(c, "images.auto_update_interval", "0")
-		if err != nil {
-			return err
+	data := &cmdInitData{}
+	data.ServerPut = server.Writable()
+
+	if networkAddress != "" {
+		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networkAddress, networkPort)
+		if trustPassword != "" {
+			data.Config["core.trust_password"] = trustPassword
 		}
 	}
 
-	if networkAddress != "" {
-		err = cmd.setServerConfig(c, "core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
-		if err != nil {
-			return err
+	if imagesAutoUpdate {
+		if val, ok := data.Config["images.auto_update_interval"]; ok && val == "0" {
+			data.Config["images.auto_update_interval"] = ""
 		}
-
-		if trustPassword != "" {
-			err = cmd.setServerConfig(c, "core.trust_password", trustPassword)
-			if err != nil {
-				return err
-			}
-		}
+	} else {
+		data.Config["images.auto_update_interval"] = "0"
 	}
 
 	if bridgeName != "" {
@@ -477,11 +496,15 @@ they otherwise would.
 		network := api.NetworksPost{
 			Name: bridgeName}
 		network.Config = bridgeConfig
+		data.Networks = []api.NetworksPost{network}
+	}
 
-		err = c.CreateNetwork(network)
-		if err != nil {
-			return err
-		}
+	err = cmd.run(c, data)
+	if err != nil {
+		return nil
+	}
+
+	if bridgeName != "" {
 
 		props := map[string]string{
 			"type":    "nic",
@@ -494,8 +517,241 @@ they otherwise would.
 			return err
 		}
 	}
+	return nil
+}
 
-	fmt.Printf("LXD has been successfully configured.\n")
+// Run the logic for preseed mode
+func (cmd *CmdInit) runPreseed(client lxd.ContainerServer) error {
+	data := &cmdInitData{}
+
+	err := cmd.Context.InputYAML(data)
+	if err != nil {
+		return fmt.Errorf("Invalid preseed YAML content")
+	}
+
+	return cmd.run(client, data)
+}
+
+// Apply the configuration specified in the given init data.
+func (cmd *CmdInit) run(client lxd.ContainerServer, data *cmdInitData) error {
+	// Functions that should be invoked to revert back to initial
+	// state any change that was successfully applied, in case
+	// anything goes wrong after that change.
+	reverters := make([]reverter, 0)
+
+	// Functions to apply the desired changes.
+	changers := make([](func() (reverter, error)), 0)
+
+	// Server config changer
+	changers = append(changers, func() (reverter, error) {
+		return cmd.initConfig(client, data.Config)
+	})
+
+	// Storage pool changers
+	for i := range data.Pools {
+		pool := data.Pools[i] // Local variable for the closure
+		changers = append(changers, func() (reverter, error) {
+			return cmd.initPool(client, pool)
+		})
+	}
+
+	// Network changers
+	for i := range data.Networks {
+		network := data.Networks[i] // Local variable for the closure
+		changers = append(changers, func() (reverter, error) {
+			return cmd.initNetwork(client, network)
+		})
+	}
+
+	// Profile changers
+	for i := range data.Profiles {
+		profile := data.Profiles[i] // Local variable for the closure
+		changers = append(changers, func() (reverter, error) {
+			return cmd.initProfile(client, profile)
+		})
+	}
+
+	// Apply all changes. If anything goes wrong at any iteration
+	// of the loop, we'll try to revert any change performed in
+	// earlier iterations.
+	for _, changer := range changers {
+		reverter, err := changer()
+		if err != nil {
+			cmd.revert(reverters)
+			return err
+		}
+		// Save the revert function for later.
+		reverters = append(reverters, reverter)
+	}
+
+	return nil
+}
+
+// Try to revert the state to what it was before running the "lxd init" command.
+func (cmd *CmdInit) revert(reverters []reverter) {
+	for _, reverter := range reverters {
+		err := reverter()
+		if err != nil {
+			logger.Warnf("Reverting to pre-init state failed: %s", err)
+			break
+		}
+	}
+}
+
+// Apply the server-level configuration in the given map.
+func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]interface{}) (reverter, error) {
+	server, etag, err := client.GetServer()
+	if err != nil {
+		return nil, err
+	}
+
+	// Build a function that can be used to revert the config to
+	// its original values.
+	reverter := func() error {
+		return client.UpdateServer(server.Writable(), "")
+	}
+
+	// The underlying code expects all values to be string, even if when
+	// using preseed the yaml.v2 package unmarshals them as integers.
+	for key, value := range config {
+		if number, ok := value.(int); ok {
+			value = strconv.Itoa(number)
+		}
+		config[key] = value
+	}
+
+	err = client.UpdateServer(api.ServerPut{Config: config}, etag)
+	if err != nil {
+		return nil, err
+	}
+
+	// Updating the server was sucessful, so return the reverter function
+	// in case it's needed later.
+	return reverter, nil
+}
+
+// Create or update a single pool, and return a revert function in case of success.
+func (cmd *CmdInit) initPool(client lxd.ContainerServer, pool api.StoragePoolsPost) (reverter, error) {
+	var reverter func() error
+	currentPool, _, err := client.GetStoragePool(pool.Name)
+	if err == nil {
+		reverter, err = cmd.initPoolUpdate(client, pool, currentPool.Writable())
+	} else {
+		reverter, err = cmd.initPoolCreate(client, pool)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return reverter, nil
+}
+
+// Create a single new pool, and return a revert function to delete it.
+func (cmd *CmdInit) initPoolCreate(client lxd.ContainerServer, pool api.StoragePoolsPost) (reverter, error) {
+	reverter := func() error {
+		return client.DeleteStoragePool(pool.Name)
+	}
+	err := client.CreateStoragePool(pool)
+	return reverter, err
+}
+
+// Update a single pool, and return a function that can be used to
+// revert it to its original state.
+func (cmd *CmdInit) initPoolUpdate(client lxd.ContainerServer, pool api.StoragePoolsPost, currentPool api.StoragePoolPut) (reverter, error) {
+	reverter := func() error {
+		return client.UpdateStoragePool(pool.Name, currentPool, "")
+	}
+	err := client.UpdateStoragePool(pool.Name, api.StoragePoolPut{
+		Config: pool.Config,
+	}, "")
+	return reverter, err
+}
+
+// Create or update a single network, and return a revert function in case of success.
+func (cmd *CmdInit) initNetwork(client lxd.ContainerServer, network api.NetworksPost) (reverter, error) {
+	var revert func() error
+	currentNetwork, _, err := client.GetNetwork(network.Name)
+	if err == nil {
+		// Sanity check, make sure the network type being updated
+		// is still "bridge", which is the only type the existing
+		// network can have.
+		if network.Type != "" && network.Type != "bridge" {
+			return nil, fmt.Errorf("Only 'bridge' type networks are supported")
+		}
+		revert, err = cmd.initNetworkUpdate(client, network, currentNetwork.Writable())
+	} else {
+		revert, err = cmd.initNetworkCreate(client, network)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return revert, nil
+}
+
+// Create a single new network, and return a revert function to delete it.
+func (cmd *CmdInit) initNetworkCreate(client lxd.ContainerServer, network api.NetworksPost) (reverter, error) {
+	reverter := func() error {
+		return client.DeleteNetwork(network.Name)
+	}
+	err := client.CreateNetwork(network)
+	return reverter, err
+}
+
+// Update a single network, and return a function that can be used to
+// revert it to its original state.
+func (cmd *CmdInit) initNetworkUpdate(client lxd.ContainerServer, network api.NetworksPost, currentNetwork api.NetworkPut) (reverter, error) {
+	reverter := func() error {
+		return client.UpdateNetwork(network.Name, currentNetwork, "")
+	}
+	err := client.UpdateNetwork(network.Name, api.NetworkPut{
+		Config: network.Config,
+	}, "")
+	return reverter, err
+}
+
+// Create or update a single profile, and return a revert function in case of success.
+func (cmd *CmdInit) initProfile(client lxd.ContainerServer, profile api.ProfilesPost) (reverter, error) {
+	var reverter func() error
+	currentProfile, _, err := client.GetProfile(profile.Name)
+	if err == nil {
+		reverter, err = cmd.initProfileUpdate(client, profile, currentProfile.Writable())
+	} else {
+		reverter, err = cmd.initProfileCreate(client, profile)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return reverter, nil
+}
+
+// Create a single new profile, and return a revert function to delete it.
+func (cmd *CmdInit) initProfileCreate(client lxd.ContainerServer, profile api.ProfilesPost) (reverter, error) {
+	reverter := func() error {
+		return client.DeleteProfile(profile.Name)
+	}
+	err := client.CreateProfile(profile)
+	return reverter, err
+}
+
+// Update a single profile, and return a function that can be used to
+// revert it to its original state.
+func (cmd *CmdInit) initProfileUpdate(client lxd.ContainerServer, profile api.ProfilesPost, currentProfile api.ProfilePut) (reverter, error) {
+	reverter := func() error {
+		return client.UpdateProfile(profile.Name, currentProfile, "")
+	}
+	err := client.UpdateProfile(profile.Name, api.ProfilePut{
+		Config:      profile.Config,
+		Description: profile.Description,
+		Devices:     profile.Devices,
+	}, "")
+	return reverter, err
+}
+
+// Check that the arguments passed via command line are consistent,
+// and no invalid combination is provided.
+func (cmd *CmdInit) validateArgs() error {
+	if cmd.Args.Auto && cmd.Args.Preseed {
+		return fmt.Errorf("Non-interactive mode supported by only one of --auto or --preseed")
+	}
 	return nil
 }
 
@@ -564,10 +820,25 @@ func (cmd *CmdInit) setProfileConfigItem(c lxd.ContainerServer, profileName stri
 	return nil
 }
 
+// Defines the schema for all possible configuration knobs supported by the
+// lxd init command, either directly fed via --preseed or populated by
+// the auto/interactive modes.
+type cmdInitData struct {
+	api.ServerPut `yaml:",inline"`
+	Pools         []api.StoragePoolsPost `yaml:"storage_pools"`
+	Networks      []api.NetworksPost
+	Profiles      []api.ProfilesPost
+}
+
+// Shortcut for closure/anonymous functions that are meant to revert
+// some change, and that are passed around as parameters.
+type reverter func() error
+
 func cmdInit() error {
 	context := cmd.NewContext(os.Stdin, os.Stdout, os.Stderr)
 	args := &CmdInitArgs{
 		Auto:                *argAuto,
+		Preseed:             *argPreseed,
 		StorageBackend:      *argStorageBackend,
 		StorageCreateDevice: *argStorageCreateDevice,
 		StorageCreateLoop:   *argStorageCreateLoop,
