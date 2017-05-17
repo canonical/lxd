@@ -825,7 +825,7 @@ func (cmd *CmdInit) setProfileConfigItem(c lxd.ContainerServer, profileName stri
 // the auto/interactive modes.
 type cmdInitData struct {
 	api.ServerPut `yaml:",inline"`
-	Pools         []api.StoragePoolsPost
+	Pools         []api.StoragePoolsPost `yaml:"storage_pools"`
 	Networks      []api.NetworksPost
 	Profiles      []api.ProfilesPost
 }

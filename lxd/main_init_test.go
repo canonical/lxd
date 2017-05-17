@@ -184,7 +184,7 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdatePreseed() {
 // Preseed a new storage pool.
 func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolPreseed() {
 	suite.args.Preseed = true
-	suite.streams.InputAppend(`pools:
+	suite.streams.InputAppend(`storage_pools:
 - name: foo
   driver: dir
   config:
@@ -205,7 +205,7 @@ func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolCreateRevert() {
 	suite.args.Preseed = true
 	suite.streams.InputAppend(`config:
 images.auto_update_interval: 15
-pools:
+storage_pools:
 - name: first
   driver: dir
   config:
@@ -243,7 +243,7 @@ func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolPreseedUpdate() {
 	suite.Req.Nil(err)
 
 	suite.args.Preseed = true
-	suite.streams.InputAppend(`pools:
+	suite.streams.InputAppend(`storage_pools:
 - name: egg
   driver: dir
   config:
