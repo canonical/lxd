@@ -11,6 +11,9 @@ import (
 )
 
 type storageCeph struct {
+	ClusterName string
+	OSDPoolName string
+	PGNum       string
 	storageShared
 }
 
@@ -22,14 +25,46 @@ func (s *storageCeph) StorageCoreInit() error {
 	}
 	s.sTypeName = typeName
 
+	_, err = shared.RunCommand("ceph", "version")
+	if err != nil {
+		return fmt.Errorf("Error getting CEPH version: %s", err)
+	}
+
 	logger.Debugf("Initializing a CEPH driver.")
 	return nil
 }
 
 func (s *storageCeph) StoragePoolInit() error {
-	err := s.StorageCoreInit()
+	var err error
+
+	err = s.StorageCoreInit()
 	if err != nil {
 		return err
+	}
+
+	// set cluster name
+	if s.pool.Config["ceph.cluster_name"] != "" {
+		s.ClusterName = s.pool.Config["ceph.cluster_name"]
+	} else {
+		s.ClusterName = "ceph"
+	}
+
+	// set osd pool name
+	if s.pool.Config["ceph.osd.pool_name"] != "" {
+		s.OSDPoolName = s.pool.Config["ceph.osd.pool_name"]
+	} else {
+		s.OSDPoolName = "lxd"
+	}
+
+	// set default placement group number
+	if s.pool.Config["ceph.osd.pg_num"] != "" {
+		_, err = shared.ParseByteSizeString(s.pool.Config["ceph.osd.pg_num"])
+		if err != nil {
+			return err
+		}
+		s.PGNum = s.pool.Config["ceph.osd.pg_num"]
+	} else {
+		s.PGNum = "32"
 	}
 
 	return nil
