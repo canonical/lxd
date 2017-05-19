@@ -53,7 +53,7 @@ func (s *storageCeph) StoragePoolInit() error {
 	if s.pool.Config["ceph.osd.pool_name"] != "" {
 		s.OSDPoolName = s.pool.Config["ceph.osd.pool_name"]
 	} else {
-		s.OSDPoolName = "lxd"
+		s.OSDPoolName = s.pool.Name
 	}
 
 	// set default placement group number
@@ -77,6 +77,36 @@ func (s *storageCeph) StoragePoolCheck() error {
 
 func (s *storageCeph) StoragePoolCreate() error {
 	logger.Infof("Creating CEPH storage pool \"%s\".", s.pool.Name)
+
+	// test if pool already exists
+	if cephOSDPoolExists(s.ClusterName, s.OSDPoolName) {
+		return fmt.Errorf("CEPH osd storage pool \"%s\" already exists in cluster \"%s\"", s.OSDPoolName, s.ClusterName)
+	}
+
+	msg, err := shared.TryRunCommand("ceph", "--cluster", s.ClusterName, "osd", "pool", "create", s.OSDPoolName, s.PGNum)
+	if err != nil {
+		return fmt.Errorf("failed to create CEPH osd storage pool \"%s\" in cluster \"%s\": %s", s.OSDPoolName, s.ClusterName, msg)
+	}
+
+	if s.pool.Config["source"] == "" {
+		s.pool.Config["source"] = s.OSDPoolName
+	}
+
+	// set immutable ceph.cluster_name property
+	if s.pool.Config["ceph.cluster_name"] == "" {
+		s.pool.Config["ceph.cluster_name"] = "ceph"
+	}
+
+	// set immutable ceph.osd.pool_name property
+	if s.pool.Config["ceph.osd.pool_name"] == "" {
+		s.pool.Config["ceph.osd.pool_name"] = s.pool.Name
+	}
+
+	if s.pool.Config["ceph.osd.pg_num"] == "" {
+		s.pool.Config["ceph.osd.pg_num"] = "32"
+	}
+
+	// cep osd pool create --cluster {cluster-name} {pool-name} {pg-num}
 	logger.Infof("Created CEPH storage pool \"%s\".", s.pool.Name)
 	return nil
 }
