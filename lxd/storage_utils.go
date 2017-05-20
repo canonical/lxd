@@ -153,7 +153,3 @@ const containersDirMode os.FileMode = 0755
 const customDirMode os.FileMode = 0755
 const imagesDirMode os.FileMode = 0700
 const snapshotsDirMode os.FileMode = 0700
-
-// Driver permissions for driver specific folders in ${LXD_DIR}
-// zfs
-const deletedDirMode os.FileMode = 0700
