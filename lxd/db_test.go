@@ -223,7 +223,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	s.Nil(err)
 
 	// Run the upgrade from V6 code
-	err = dbUpdateFromV6(5, 6, d)
+	err = dbUpdateFromV6(5, 6, d.db)
 	s.Nil(err)
 
 	// Make sure the inserted data is still there.
@@ -325,7 +325,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	d.db = db
 	daemonConfigInit(db)
 
-	err = dbUpdatesApplyAll(d)
+	err = dbUpdatesApplyAll(d.db, false, nil)
 	s.Nil(err)
 
 	result := dbGetSchema(db)
