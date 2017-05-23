@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"syscall"
 	"time"
@@ -146,3 +147,9 @@ func storageConfigDiff(oldConfig map[string]string, newConfig map[string]string)
 
 	return changedConfig, userOnly
 }
+
+// Default permissions for folders in ${LXD_DIR}
+const containersDirMode os.FileMode = 0755
+const customDirMode os.FileMode = 0755
+const imagesDirMode os.FileMode = 0700
+const snapshotsDirMode os.FileMode = 0700
