@@ -1806,6 +1806,12 @@ func (s *storageZfs) zfsPoolCreate() error {
 		return err
 	}
 
+	fixperms := shared.VarPath("storage-pools", s.pool.Name, "containers")
+	err = os.Chmod(fixperms, containersDirMode)
+	if err != nil {
+		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(containersDirMode), 8), err)
+	}
+
 	err = s.zfsPoolVolumeCreate("images")
 	if err != nil {
 		return err
@@ -1814,6 +1820,12 @@ func (s *storageZfs) zfsPoolCreate() error {
 	err = s.zfsPoolVolumeSet("images", "mountpoint", "none")
 	if err != nil {
 		return err
+	}
+
+	fixperms = shared.VarPath("storage-pools", s.pool.Name, "images")
+	err = os.Chmod(fixperms, imagesDirMode)
+	if err != nil {
+		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(imagesDirMode), 8), err)
 	}
 
 	err = s.zfsPoolVolumeCreate("custom")
@@ -1826,6 +1838,12 @@ func (s *storageZfs) zfsPoolCreate() error {
 		return err
 	}
 
+	fixperms = shared.VarPath("storage-pools", s.pool.Name, "custom")
+	err = os.Chmod(fixperms, customDirMode)
+	if err != nil {
+		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(customDirMode), 8), err)
+	}
+
 	err = s.zfsPoolVolumeCreate("deleted")
 	if err != nil {
 		return err
@@ -1834,6 +1852,22 @@ func (s *storageZfs) zfsPoolCreate() error {
 	err = s.zfsPoolVolumeSet("deleted", "mountpoint", "none")
 	if err != nil {
 		return err
+	}
+
+	err = s.zfsPoolVolumeCreate("snapshots")
+	if err != nil {
+		return err
+	}
+
+	err = s.zfsPoolVolumeSet("snapshots", "mountpoint", "none")
+	if err != nil {
+		return err
+	}
+
+	fixperms = shared.VarPath("storage-pools", s.pool.Name, "snapshots")
+	err = os.Chmod(fixperms, snapshotsDirMode)
+	if err != nil {
+		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(snapshotsDirMode), 8), err)
 	}
 
 	return nil
