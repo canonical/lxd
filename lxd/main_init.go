@@ -466,6 +466,10 @@ they otherwise would.
 	data.ServerPut = server.Writable()
 
 	if networkAddress != "" {
+		if networkPort == -1 {
+			networkPort = 8443
+		}
+
 		data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networkAddress, networkPort)
 		if trustPassword != "" {
 			data.Config["core.trust_password"] = trustPassword
