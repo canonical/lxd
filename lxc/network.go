@@ -504,6 +504,10 @@ func (c *networkCmd) doNetworkSet(client *lxd.Client, name string, args []string
 }
 
 func (c *networkCmd) doNetworkShow(client *lxd.Client, name string) error {
+	if name == "" {
+		return errArgs
+	}
+
 	network, err := client.NetworkGet(name)
 	if err != nil {
 		return err
