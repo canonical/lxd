@@ -5960,13 +5960,13 @@ func (c *containerLXC) removeNetworkFilter(hwaddr string, bridge string) error {
 
 func (c *containerLXC) removeNetworkFilters() error {
 	for k, m := range c.expandedDevices {
+		if m["type"] != "nic" || m["nictype"] != "bridged" {
+			continue
+		}
+
 		m, err := c.fillNetworkDevice(k, m)
 		if err != nil {
 			return err
-		}
-
-		if m["type"] != "nic" || m["nictype"] != "bridged" {
-			continue
 		}
 
 		err = c.removeNetworkFilter(m["hwaddr"], m["parent"])
