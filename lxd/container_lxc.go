@@ -1589,51 +1589,6 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
-	// Cleanup any leftover volatile entries
-	netNames := []string{}
-	for _, k := range c.expandedDevices.DeviceNames() {
-		v := c.expandedDevices[k]
-		if v["type"] == "nic" {
-			netNames = append(netNames, k)
-		}
-	}
-
-	for k := range c.localConfig {
-		// We only care about volatile
-		if !strings.HasPrefix(k, "volatile.") {
-			continue
-		}
-
-		// Confirm it's a key of format volatile.<device>.<key>
-		fields := strings.SplitN(k, ".", 3)
-		if len(fields) != 3 {
-			continue
-		}
-
-		// The only device keys we care about are name and hwaddr
-		if !shared.StringInSlice(fields[2], []string{"name", "hwaddr"}) {
-			continue
-		}
-
-		// Check if the device still exists
-		if shared.StringInSlice(fields[1], netNames) {
-			// Don't remove the volatile entry if the device doesn't have the matching field set
-			if c.expandedDevices[fields[1]][fields[2]] == "" {
-				continue
-			}
-		}
-
-		// Remove the volatile key from the DB
-		err := dbContainerConfigRemove(c.daemon.db, c.id, k)
-		if err != nil {
-			return "", err
-		}
-
-		// Remove the volatile key from the in-memory configs
-		delete(c.localConfig, k)
-		delete(c.expandedConfig, k)
-	}
-
 	// Rotate the log file
 	logfile := c.LogFilePath()
 	if shared.PathExists(logfile) {
@@ -3196,6 +3151,45 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 	}
 
+	// Cleanup any leftover volatile entries
+	netNames := []string{}
+	for _, k := range c.expandedDevices.DeviceNames() {
+		v := c.expandedDevices[k]
+		if v["type"] == "nic" {
+			netNames = append(netNames, k)
+		}
+	}
+
+	for k := range c.localConfig {
+		// We only care about volatile
+		if !strings.HasPrefix(k, "volatile.") {
+			continue
+		}
+
+		// Confirm it's a key of format volatile.<device>.<key>
+		fields := strings.SplitN(k, ".", 3)
+		if len(fields) != 3 {
+			continue
+		}
+
+		// The only device keys we care about are name and hwaddr
+		if !shared.StringInSlice(fields[2], []string{"name", "hwaddr", "host_name"}) {
+			continue
+		}
+
+		// Check if the device still exists
+		if shared.StringInSlice(fields[1], netNames) {
+			// Don't remove the volatile entry if the device doesn't have the matching field set
+			if c.expandedDevices[fields[1]][fields[2]] == "" {
+				continue
+			}
+		}
+
+		// Remove the volatile key from the in-memory configs
+		delete(c.localConfig, k)
+		delete(c.expandedConfig, k)
+	}
+
 	// Finally, apply the changes to the database
 	tx, err := dbBegin(c.daemon.db)
 	if err != nil {
@@ -3208,19 +3202,19 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		return err
 	}
 
-	err = dbContainerConfigInsert(tx, c.id, args.Config)
+	err = dbContainerConfigInsert(tx, c.id, c.localConfig)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = dbContainerProfilesInsert(tx, c.id, args.Profiles)
+	err = dbContainerProfilesInsert(tx, c.id, c.profiles)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = dbDevicesAdd(tx, "container", int64(c.id), args.Devices)
+	err = dbDevicesAdd(tx, "container", int64(c.id), c.localDevices)
 	if err != nil {
 		tx.Rollback()
 		return err
