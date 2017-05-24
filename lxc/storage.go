@@ -649,6 +649,10 @@ func (c *storageCmd) doStoragePoolSet(client *lxd.Client, name string, args []st
 }
 
 func (c *storageCmd) doStoragePoolShow(client *lxd.Client, name string) error {
+	if name == "" {
+		return errArgs
+	}
+
 	pool, err := client.StoragePoolGet(name)
 	if err != nil {
 		return err
