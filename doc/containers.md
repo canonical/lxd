@@ -59,7 +59,7 @@ Key                             | Type      | Default       | Description
 volatile.\<name\>.hwaddr        | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
 volatile.\<name\>.name          | string    | -             | Network device name (when no name propery is set on the device itself)
 volatile.\<name\>.host\_name    | string    | -             | Network device name on the host (for nictype=bridged or nictype=p2p)
-volatile.apply_quota            | string    | -             | Disk quota to be applied on next container start
+volatile.apply\_quota           | string    | -             | Disk quota to be applied on next container start
 volatile.apply\_template        | string    | -             | The name of a template hook which should be triggered upon next startup
 volatile.base\_image            | string    | -             | The hash of the image the container was created from, if any.
 volatile.idmap.base             | integer   | -             | The first id in the container's primary idmap range
