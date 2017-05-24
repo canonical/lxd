@@ -436,6 +436,10 @@ they otherwise would.
 	}
 
 	if networkAddress != "" {
+		if networkPort == -1 {
+			networkPort = 8443
+		}
+
 		err = setServerConfig("core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
 		if err != nil {
 			return err
