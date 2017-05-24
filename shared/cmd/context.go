@@ -3,7 +3,9 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
@@ -25,6 +27,11 @@ func NewContext(stdin io.Reader, stdout, stderr io.Writer) *Context {
 		stdout: stdout,
 		stderr: stderr,
 	}
+}
+
+// Output prints a message on standard output.
+func (c *Context) Output(format string, a ...interface{}) {
+	fmt.Fprintf(c.stdout, format, a...)
 }
 
 // AskBool asks a question an expect a yes/no answer.
@@ -115,6 +122,16 @@ func (c *Context) AskPassword(question string, reader func(int) ([]byte, error))
 
 		c.invalidInput()
 	}
+}
+
+// InputYAML treats stdin as YAML content and returns the unmarshalled
+// structure
+func (c *Context) InputYAML(out interface{}) error {
+	bytes, err := ioutil.ReadAll(c.stdin)
+	if err != nil {
+		return err
+	}
+	return yaml.Unmarshal(bytes, out)
 }
 
 // Ask a question on the output stream and read the answer from the input stream
