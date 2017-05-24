@@ -1868,8 +1868,8 @@ func (c *containerLXC) startCommon() (string, error) {
 			continue
 		}
 
-		// The only device keys we care about are name and hwaddr
-		if !shared.StringInSlice(fields[2], []string{"name", "hwaddr"}) {
+		// The only device keys we care about are name, hwaddr and host_name
+		if !shared.StringInSlice(fields[2], []string{"name", "hwaddr", "host_name"}) {
 			continue
 		}
 
