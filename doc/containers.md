@@ -160,6 +160,23 @@ hwaddr          | string    | randomly assigned | no        | all               
 mtu             | integer   | parent MTU        | no        | all                           | The MTU of the new interface
 parent          | string    | -                 | yes       | physical, bridged, macvlan    | The name of the host device or bridge
 
+#### bridged or macvlan for connection to physical network
+The "bridged" and "macvlan" interface types can both be used to connect
+to an existing physical network.
+
+macvlan effectively lets you fork your physical NIC, getting a second
+interface that's then used by the container. This saves you from
+creating a bridge device and veth pairs and usually offers better
+performance than a bridge.
+
+The downside to this is that macvlan devices while able to communicate
+between themselves and to the outside, aren't able to talk to their
+parent device. This means that you can't use macvlan if you ever need
+your containers to talk to the host itself.
+
+In such case, a bridge is preferable. A bridge will also let you use mac
+filtering and I/O limits which cannot be applied to a macvlan device.
+
 ### Type: disk
 Disk entries are essentially mountpoints inside the container. They can
 either be a bind-mount of an existing file or directory on the host, or
