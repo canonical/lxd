@@ -139,7 +139,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 // /1.0/storage-pools/{name}/volumes/{type}
 // Create a storage volume of a given volume type in a given storage pool.
 func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
-	req := api.StorageVolume{}
+	req := api.StorageVolumesPost{}
 
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -265,18 +265,18 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
 		return PreconditionFailed(err)
 	}
 
-	req := api.StorageVolume{}
+	req := api.StorageVolumePut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
 
 	// Validate the configuration
-	err = storageVolumeValidateConfig(req.Name, req.Config, pool)
+	err = storageVolumeValidateConfig(volumeName, req.Config, pool)
 	if err != nil {
 		return BadRequest(err)
 	}
 
-	err = storagePoolVolumeUpdate(d, poolName, req.Name, volumeType, req.Description, req.Config)
+	err = storagePoolVolumeUpdate(d, poolName, volumeName, volumeType, req.Description, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -327,7 +327,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 		return PreconditionFailed(err)
 	}
 
-	req := api.StorageVolume{}
+	req := api.StorageVolumePut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
@@ -349,7 +349,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = storagePoolVolumeUpdate(d, poolName, req.Name, volumeType, req.Description, req.Config)
+	err = storagePoolVolumeUpdate(d, poolName, volumeName, volumeType, req.Description, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
