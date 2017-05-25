@@ -58,7 +58,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 // /1.0/storage-pools
 // Create a storage pool.
 func storagePoolsPost(d *Daemon, r *http.Request) Response {
-	req := api.StoragePool{}
+	req := api.StoragePoolsPost{}
 
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -127,13 +127,13 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 		return PreconditionFailed(err)
 	}
 
-	req := api.StoragePool{}
+	req := api.StoragePoolPut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
 
 	// Validate the configuration
-	err = storagePoolValidateConfig(poolName, req.Driver, req.Config)
+	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -165,7 +165,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 		return PreconditionFailed(err)
 	}
 
-	req := api.StoragePool{}
+	req := api.StoragePoolPut{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
@@ -183,7 +183,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the configuration
-	err = storagePoolValidateConfig(poolName, req.Driver, req.Config)
+	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config)
 	if err != nil {
 		return BadRequest(err)
 	}
