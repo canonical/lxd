@@ -157,7 +157,7 @@ func networkGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	etag := []interface{}{n.Name, n.Description, n.Managed, n.Type, n.Config}
+	etag := []interface{}{n.Name, n.Managed, n.Type, n.Description, n.Config}
 
 	return SyncResponseETag(true, &n, etag)
 }
