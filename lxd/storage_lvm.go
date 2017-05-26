@@ -276,6 +276,18 @@ func (s *storageLvm) StoragePoolCreate() error {
 			logger.Errorf(msg)
 			return fmt.Errorf(msg)
 		}
+
+		// Check that we don't already use this volume group.
+		inUse, user, err := lxdUsesPool(s.d.db, poolName, s.pool.Driver, "lvm.vg_name")
+		if err != nil {
+			return err
+		}
+
+		if inUse {
+			msg := fmt.Sprintf("LXD already uses volume group \"%s\" for pool \"%s\"", poolName, user)
+			logger.Errorf(msg)
+			return fmt.Errorf(msg)
+		}
 	}
 
 	err = s.StoragePoolCheck()
