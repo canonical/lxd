@@ -22,9 +22,10 @@ type ProtocolLXD struct {
 	eventListenersLock sync.Mutex
 
 	http            *http.Client
-	httpHost        string
-	httpUserAgent   string
 	httpCertificate string
+	httpHost        string
+	httpProtocol    string
+	httpUserAgent   string
 }
 
 // RawQuery allows directly querying the LXD API
