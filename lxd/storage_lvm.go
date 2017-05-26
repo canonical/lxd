@@ -256,7 +256,22 @@ func (s *storageLvm) StoragePoolCreate() error {
 			logger.Errorf("failed to determine whether the volume group \"%s\" is empty", poolName)
 			return err
 		}
-		if count != 0 {
+
+		empty := true
+		if count > 1 || count == 1 && !s.useThinpool {
+			empty = false
+		}
+
+		if count == 1 && s.useThinpool {
+			ok, err := storageLVMThinpoolExists(poolName, s.thinPoolName)
+			if err != nil {
+				logger.Errorf("failed to determine whether thinpool \"%s\" exists in volume group \"%s\": %s", poolName, s.thinPoolName, err)
+				return err
+			}
+			empty = ok
+		}
+
+		if !empty {
 			msg := fmt.Sprintf("volume group \"%s\" is not empty", poolName)
 			logger.Errorf(msg)
 			return fmt.Errorf(msg)
