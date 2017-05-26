@@ -274,10 +274,38 @@ func (s *storageLvm) StoragePoolDelete() error {
 	}
 
 	poolName := s.getOnDiskPoolName()
-	// Remove the volume group.
-	output, err := shared.TryRunCommand("vgremove", "-f", poolName)
+	// Delete the thinpool.
+	if s.useThinpool {
+		// Check that the thinpool actually exists. For example, it
+		// won't when the user has never created a storage volume in the
+		// storage pool.
+		devPath := getLvmDevPath(poolName, "", s.thinPoolName)
+		ok, _ := storageLVExists(devPath)
+		if ok {
+			msg, err := shared.TryRunCommand("lvremove", "-f", devPath)
+			if err != nil {
+				logger.Errorf("failed to delete thinpool \"%s\" from volume group \"%s\": %s", s.thinPoolName, poolName, msg)
+				return err
+			}
+		}
+	}
+
+	// Check that the count in the volume group is zero. If not, we need to
+	// assume that other users are using the volume group, so don't remove
+	// it. This actually goes against policy since we explicitly state: our
+	// pool, and nothing but our pool but still, let's not hurt users.
+	count, err := lvmGetLVCount(poolName)
 	if err != nil {
-		return fmt.Errorf("failed to destroy the volume group for the lvm storage pool: %s", output)
+		return err
+	}
+
+	// Remove the volume group.
+	if count == 0 {
+		output, err := shared.TryRunCommand("vgremove", "-f", poolName)
+		if err != nil {
+			logger.Errorf("failed to destroy the volume group for the lvm storage pool: %s", output)
+			return err
+		}
 	}
 
 	if s.loopInfo != nil {
