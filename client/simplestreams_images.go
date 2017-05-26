@@ -144,7 +144,7 @@ func (r *ProtocolSimpleStreams) GetImageAlias(name string) (*api.ImageAliasesEnt
 }
 
 // CopyImage copies an existing image to a remote server. Additional options can be passed using ImageCopyArgs
-func (r *ProtocolSimpleStreams) CopyImage(image api.Image, target ContainerServer, args *ImageCopyArgs) (*Operation, error) {
+func (r *ProtocolSimpleStreams) CopyImage(image api.Image, target ContainerServer, args *ImageCopyArgs) (*RemoteOperation, error) {
 	// Prepare the copy request
 	req := api.ImagesPost{
 		Source: &api.ImagesPostSource{
@@ -165,5 +165,21 @@ func (r *ProtocolSimpleStreams) CopyImage(image api.Image, target ContainerServe
 		req.Public = args.Public
 	}
 
-	return target.CreateImage(req, nil)
+	op, err := target.CreateImage(req, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	rop := RemoteOperation{
+		targetOp: op,
+		chDone:   make(chan bool),
+	}
+
+	// Forward targetOp to remote op
+	go func() {
+		rop.err = rop.targetOp.Wait()
+		close(rop.chDone)
+	}()
+
+	return &rop, nil
 }

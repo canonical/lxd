@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -221,4 +222,25 @@ func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
 	}
 
 	return r.rawWebsocket(url)
+}
+
+// getServerUrls returns a prioritized list of potential URLs for the server
+func (r *ProtocolLXD) getServerUrls() ([]string, error) {
+	if len(r.server.Environment.Addresses) == 0 {
+		return nil, fmt.Errorf("Source server isn't reachable over the network")
+	}
+
+	urls := []string{}
+	if r.httpProtocol == "https" {
+		urls = append(urls, r.httpHost)
+	}
+
+	for _, addr := range r.server.Environment.Addresses {
+		url := fmt.Sprintf("https://%s", addr)
+		if !shared.StringInSlice(url, urls) {
+			urls = append(urls, url)
+		}
+	}
+
+	return urls, nil
 }
