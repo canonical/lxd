@@ -118,6 +118,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 	}()
 
+	vgExisted := false
 	poolName := s.getOnDiskPoolName()
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -187,6 +188,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 				return fmt.Errorf("failed to create the volume group for the lvm storage pool: %s", output)
 			}
 		}
+		vgExisted = ok
 	} else {
 		s.pool.Config["size"] = ""
 		if filepath.IsAbs(source) {
@@ -225,6 +227,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 					return fmt.Errorf("failed to create the volume group for the lvm storage pool: %s", output)
 				}
 			}
+			vgExisted = ok
 		} else {
 			if s.pool.Config["lvm.vg_name"] != "" {
 				// User gave us something weird.
@@ -241,6 +244,22 @@ func (s *storageLvm) StoragePoolCreate() error {
 				// Volume group does not exist.
 				return fmt.Errorf("the requested volume group \"%s\" does not exist", source)
 			}
+			vgExisted = ok
+		}
+	}
+
+	if vgExisted {
+		// Check that the volume group is empty.
+		// Otherwise we will refuse to use it.
+		count, err := lvmGetLVCount(poolName)
+		if err != nil {
+			logger.Errorf("failed to determine whether the volume group \"%s\" is empty", poolName)
+			return err
+		}
+		if count != 0 {
+			msg := fmt.Sprintf("volume group \"%s\" is not empty", poolName)
+			logger.Errorf(msg)
+			return fmt.Errorf(msg)
 		}
 	}
 
