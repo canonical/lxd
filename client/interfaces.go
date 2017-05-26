@@ -25,7 +25,7 @@ type ImageServer interface {
 
 	GetImageAlias(name string) (alias *api.ImageAliasesEntry, ETag string, err error)
 
-	CopyImage(image api.Image, target ContainerServer, args *ImageCopyArgs) (op *Operation, err error)
+	CopyImage(image api.Image, target ContainerServer, args *ImageCopyArgs) (op *RemoteOperation, err error)
 }
 
 // The ContainerServer type represents a full featured LXD server.

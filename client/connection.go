@@ -48,9 +48,10 @@ func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 
 	// Initialize the client struct
 	server := ProtocolLXD{
-		httpHost:        url,
-		httpUserAgent:   args.UserAgent,
 		httpCertificate: args.TLSServerCert,
+		httpHost:        url,
+		httpProtocol:    "https",
+		httpUserAgent:   args.UserAgent,
 	}
 
 	// Setup the HTTP client
@@ -84,6 +85,7 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) 
 	// Initialize the client struct
 	server := ProtocolLXD{
 		httpHost:      "http://unix.socket",
+		httpProtocol:  "unix",
 		httpUserAgent: args.UserAgent,
 	}
 
@@ -129,9 +131,10 @@ func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 
 	// Initialize the client struct
 	server := ProtocolLXD{
-		httpHost:        url,
-		httpUserAgent:   args.UserAgent,
 		httpCertificate: args.TLSServerCert,
+		httpHost:        url,
+		httpProtocol:    "https",
+		httpUserAgent:   args.UserAgent,
 	}
 
 	// Setup the HTTP client

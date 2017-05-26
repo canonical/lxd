@@ -224,3 +224,44 @@ func (op *Operation) extractOperation(data interface{}) *api.Operation {
 
 	return &newOp
 }
+
+// The RemoteOperation type represents an ongoing LXD operation between two servers
+type RemoteOperation struct {
+	targetOp *Operation
+
+	handlers []func(api.Operation)
+
+	chDone chan bool
+	err    error
+}
+
+// Wait lets you wait until the operation reaches a final state
+func (op *RemoteOperation) Wait() error {
+	<-op.chDone
+	return op.err
+}
+
+// AddHandler adds a function to be called whenever an event is received
+func (op *RemoteOperation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
+	var err error
+	var target *EventTarget
+
+	// Attach to the existing target operation
+	if op.targetOp != nil {
+		target, err = op.targetOp.AddHandler(function)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Generate a mock EventTarget
+		target = &EventTarget{
+			function: func(interface{}) { function(api.Operation{}) },
+			types:    []string{"operation"},
+		}
+	}
+
+	// Add the handler to our list
+	op.handlers = append(op.handlers, function)
+
+	return target, nil
+}
