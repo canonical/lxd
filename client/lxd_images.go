@@ -431,15 +431,70 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	return &op, nil
 }
 
+// tryCopyImage iterates through the source server URLs until one lets it download the image
+func (r *ProtocolLXD) tryCopyImage(target ContainerServer, req api.ImagesPost, urls []string) (*RemoteOperation, error) {
+	rop := RemoteOperation{
+		chDone: make(chan bool),
+	}
+
+	// Forward targetOp to remote op
+	go func() {
+		success := false
+		errors := []string{}
+		for _, serverURL := range urls {
+			req.Source.Server = serverURL
+
+			op, err := target.CreateImage(req, nil)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				continue
+			}
+
+			rop.targetOp = op
+
+			for _, handler := range rop.handlers {
+				rop.targetOp.AddHandler(handler)
+			}
+
+			err = rop.targetOp.Wait()
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				continue
+			}
+
+			success = true
+			break
+		}
+
+		if !success {
+			rop.err = fmt.Errorf("%s", strings.Join(errors, "\n"))
+		}
+
+		close(rop.chDone)
+	}()
+
+	return &rop, nil
+}
+
 // CopyImage copies an existing image to a remote server. Additional options can be passed using ImageCopyArgs
-func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *ImageCopyArgs) (*Operation, error) {
+func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *ImageCopyArgs) (*RemoteOperation, error) {
+	// Sanity checks
+	if r == target {
+		return nil, fmt.Errorf("The source and target servers must be different")
+	}
+
+	// Get a list of addresses for the source server
+	urls, err := r.getServerUrls()
+	if err != nil {
+		return nil, err
+	}
+
 	// Prepare the copy request
 	req := api.ImagesPost{
 		Source: &api.ImagesPostSource{
 			ImageSource: api.ImageSource{
 				Certificate: r.httpCertificate,
 				Protocol:    "lxd",
-				Server:      r.httpHost,
 			},
 			Fingerprint: image.Fingerprint,
 			Mode:        "pull",
@@ -471,7 +526,7 @@ func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *I
 		}
 	}
 
-	return target.CreateImage(req, nil)
+	return r.tryCopyImage(target, req, urls)
 }
 
 // UpdateImage updates the image definition
