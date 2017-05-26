@@ -35,6 +35,7 @@ func cephOSDPoolDestroy(clusterName string, poolName string) error {
 		"pool",
 		"delete",
 		poolName,
+		poolName,
 		"--yes-i-really-really-mean-it")
 	if err != nil {
 		return err

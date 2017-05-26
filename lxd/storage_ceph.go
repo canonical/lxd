@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/gorilla/websocket"
 
@@ -106,22 +107,54 @@ func (s *storageCeph) StoragePoolCreate() error {
 		s.pool.Config["ceph.osd.pg_num"] = "32"
 	}
 
-	// cep osd pool create --cluster {cluster-name} {pool-name} {pg-num}
+	// Create the mountpoint for the storage pool.
+	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	err = os.MkdirAll(poolMntPoint, 0711)
+	if err != nil {
+		// Destroy the pool.
+		warn := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName)
+		if warn != nil {
+			logger.Warnf("failed to destroy ceph storage pool \"%s\"", s.OSDPoolName)
+		}
+		return err
+	}
+
 	logger.Infof("Created CEPH storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
 func (s *storageCeph) StoragePoolDelete() error {
 	logger.Infof("Deleting CEPH storage pool \"%s\".", s.pool.Name)
+
+	// test if pool exists
+	if !cephOSDPoolExists(s.ClusterName, s.OSDPoolName) {
+		return fmt.Errorf("CEPH osd storage pool \"%s\" does not exist in cluster \"%s\"", s.OSDPoolName, s.ClusterName)
+	}
+
+	// Delete the osd pool.
+	err := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName)
+	if err != nil {
+		return err
+	}
+
+	// Delete the mountpoint for the storage pool.
+	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+	err = os.RemoveAll(poolMntPoint)
+	if err != nil {
+		return err
+	}
+
 	logger.Infof("Deleted CEPH storage pool \"%s\".", s.pool.Name)
 	return nil
 }
 
 func (s *storageCeph) StoragePoolMount() (bool, error) {
+	// Yay, osd pools are not mounted.
 	return true, nil
 }
 
 func (s *storageCeph) StoragePoolUmount() (bool, error) {
+	// Yay, osd pools are not mounted.
 	return true, nil
 }
 
