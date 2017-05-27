@@ -461,7 +461,7 @@ func (r *ProtocolLXD) tryCopyImage(target ContainerServer, req api.ImagesPost, u
 		}
 
 		if !success {
-			rop.err = fmt.Errorf("%s", strings.Join(errors, "\n"))
+			rop.err = fmt.Errorf("Failed remote image download:\n - %s", strings.Join(errors, "\n - "))
 		}
 
 		close(rop.chDone)
