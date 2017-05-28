@@ -88,6 +88,10 @@ lxc storage delete [<remote>:]<pool>
 lxc storage edit [<remote>:]<pool>
     Edit storage pool, either by launching external editor or reading STDIN.
 
+lxc storage <pool-name> btrfs.mount_options "<mount option>,<mount option>,<mount option>"
+    add btrfs mount options to btrfs storage pool
+    EXAMPLE: lxc storage <pool-name> btrfs.mount_options "rw,nospace_cache,lazytime,user_subvol_rm_allowed,autodefrag"
+
 *Storage volumes*
 lxc storage volume list [<remote>:]<pool>
     List available storage volumes on a storage pool.
