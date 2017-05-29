@@ -102,6 +102,11 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	return &resp, nil
 }
 
+// GetImageSecret isn't relevant for the simplestreams protocol
+func (r *ProtocolSimpleStreams) GetImageSecret(fingerprint string) (string, error) {
+	return "", fmt.Errorf("Private images aren't supported by the simplestreams protocol")
+}
+
 // GetPrivateImage isn't relevant for the simplestreams protocol
 func (r *ProtocolSimpleStreams) GetPrivateImage(fingerprint string, secret string) (*api.Image, string, error) {
 	return nil, "", fmt.Errorf("Private images aren't supported by the simplestreams protocol")
@@ -142,86 +147,4 @@ func (r *ProtocolSimpleStreams) GetImageAlias(name string) (*api.ImageAliasesEnt
 	}
 
 	return alias, "", err
-}
-
-// CopyImage copies an existing image to a remote server. Additional options can be passed using ImageCopyArgs
-func (r *ProtocolSimpleStreams) CopyImage(image api.Image, target ContainerServer, args *ImageCopyArgs) (*RemoteOperation, error) {
-	// Prepare the copy request
-	req := api.ImagesPost{
-		Source: &api.ImagesPostSource{
-			ImageSource: api.ImageSource{
-				Certificate: r.httpCertificate,
-				Protocol:    "simplestreams",
-				Server:      r.httpHost,
-			},
-			Fingerprint: image.Fingerprint,
-			Mode:        "pull",
-			Type:        "image",
-		},
-	}
-
-	// Process the arguments
-	if args != nil {
-		req.Aliases = args.Aliases
-		req.AutoUpdate = args.AutoUpdate
-		req.Public = args.Public
-
-		if args.CopyAliases {
-			req.Aliases = image.Aliases
-			if args.Aliases != nil {
-				req.Aliases = append(req.Aliases, args.Aliases...)
-			}
-		}
-	}
-
-	op, err := target.CreateImage(req, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	rop := RemoteOperation{
-		targetOp: op,
-		chDone:   make(chan bool),
-	}
-
-	// For older servers, apply the aliases after copy
-	if !target.HasExtension("image_create_aliases") && req.Aliases != nil {
-		rop.chPost = make(chan bool)
-
-		go func() {
-			defer close(rop.chPost)
-
-			// Wait for the main operation to finish
-			<-rop.chDone
-			if rop.err != nil {
-				return
-			}
-
-			// Get the operation data
-			op, err := rop.GetTarget()
-			if err != nil {
-				return
-			}
-
-			// Extract the fingerprint
-			fingerprint := op.Metadata["fingerprint"].(string)
-
-			// Add the aliases
-			for _, entry := range req.Aliases {
-				alias := api.ImageAliasesPost{}
-				alias.Name = entry.Name
-				alias.Target = fingerprint
-
-				target.CreateImageAlias(alias)
-			}
-		}()
-	}
-
-	// Forward targetOp to remote op
-	go func() {
-		rop.err = rop.targetOp.Wait()
-		close(rop.chDone)
-	}()
-
-	return &rop, nil
 }

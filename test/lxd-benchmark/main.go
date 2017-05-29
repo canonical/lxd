@@ -168,7 +168,7 @@ func spawnContainers(c lxd.ContainerServer, count int, image string, privileged 
 				return err
 			}
 
-			op, err := d.CopyImage(*image, c, nil)
+			op, err := c.CopyImage(d, *image, nil)
 			if err != nil {
 				logf(fmt.Sprintf("Failed to import image: %s", err))
 				return err
