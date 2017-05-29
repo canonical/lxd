@@ -62,6 +62,16 @@ func (r *ProtocolLXD) GetImageFile(fingerprint string, req ImageFileRequest) (*I
 	return r.GetPrivateImageFile(fingerprint, "", req)
 }
 
+// GetImageSecret is a helper around CreateImageSecret that returns a secret for the image
+func (r *ProtocolLXD) GetImageSecret(fingerprint string) (string, error) {
+	op, err := r.CreateImageSecret(fingerprint)
+	if err != nil {
+		return "", err
+	}
+
+	return op.Metadata["secret"].(string), nil
+}
+
 // GetPrivateImage is similar to GetImage but allows passing a secret download token
 func (r *ProtocolLXD) GetPrivateImage(fingerprint string, secret string) (*api.Image, string, error) {
 	image := api.Image{}
@@ -426,13 +436,13 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 }
 
 // tryCopyImage iterates through the source server URLs until one lets it download the image
-func (r *ProtocolLXD) tryCopyImage(target ContainerServer, req api.ImagesPost, urls []string) (*RemoteOperation, error) {
+func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (*RemoteOperation, error) {
 	rop := RemoteOperation{
 		chDone: make(chan bool),
 	}
 
 	// For older servers, apply the aliases after copy
-	if !target.HasExtension("image_create_aliases") && req.Aliases != nil {
+	if !r.HasExtension("image_create_aliases") && req.Aliases != nil {
 		rop.chPost = make(chan bool)
 
 		go func() {
@@ -459,7 +469,7 @@ func (r *ProtocolLXD) tryCopyImage(target ContainerServer, req api.ImagesPost, u
 				alias.Name = entry.Name
 				alias.Target = fingerprint
 
-				target.CreateImageAlias(alias)
+				r.CreateImageAlias(alias)
 			}
 		}()
 	}
@@ -471,7 +481,7 @@ func (r *ProtocolLXD) tryCopyImage(target ContainerServer, req api.ImagesPost, u
 		for _, serverURL := range urls {
 			req.Source.Server = serverURL
 
-			op, err := target.CreateImage(req, nil)
+			op, err := r.CreateImage(req, nil)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
 				continue
@@ -503,15 +513,15 @@ func (r *ProtocolLXD) tryCopyImage(target ContainerServer, req api.ImagesPost, u
 	return &rop, nil
 }
 
-// CopyImage copies an existing image to a remote server. Additional options can be passed using ImageCopyArgs
-func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *ImageCopyArgs) (*RemoteOperation, error) {
+// CopyImage copies an image from a remote server. Additional options can be passed using ImageCopyArgs
+func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (*RemoteOperation, error) {
 	// Sanity checks
-	if r == target {
+	if r == source {
 		return nil, fmt.Errorf("The source and target servers must be different")
 	}
 
 	// Get a list of addresses for the source server
-	urls, err := r.getServerUrls()
+	info, err := source.GetConnectionInfo()
 	if err != nil {
 		return nil, err
 	}
@@ -520,8 +530,8 @@ func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *I
 	req := api.ImagesPost{
 		Source: &api.ImagesPostSource{
 			ImageSource: api.ImageSource{
-				Certificate: r.httpCertificate,
-				Protocol:    "lxd",
+				Certificate: info.Certificate,
+				Protocol:    info.Protocol,
 			},
 			Fingerprint: image.Fingerprint,
 			Mode:        "pull",
@@ -531,12 +541,12 @@ func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *I
 
 	// Generate secret token if needed
 	if !image.Public {
-		op, err := r.CreateImageSecret(image.Fingerprint)
+		secret, err := source.GetImageSecret(image.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
 
-		req.Source.Secret = op.Metadata["secret"].(string)
+		req.Source.Secret = secret
 	}
 
 	// Process the arguments
@@ -545,7 +555,7 @@ func (r *ProtocolLXD) CopyImage(image api.Image, target ContainerServer, args *I
 		req.Public = args.Public
 	}
 
-	return r.tryCopyImage(target, req, urls)
+	return r.tryCopyImage(req, info.Addresses)
 }
 
 // UpdateImage updates the image definition

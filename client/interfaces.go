@@ -8,14 +8,22 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+// The Server type represents a generic read-only server.
+type Server interface {
+	GetConnectionInfo() (info *ConnectionInfo, err error)
+}
+
 // The ImageServer type represents a read-only image server.
 type ImageServer interface {
+	Server
+
 	// Image handling functions
 	GetImages() (images []api.Image, err error)
 	GetImageFingerprints() (fingerprints []string, err error)
 
 	GetImage(fingerprint string) (image *api.Image, ETag string, err error)
 	GetImageFile(fingerprint string, req ImageFileRequest) (resp *ImageFileResponse, err error)
+	GetImageSecret(fingerprint string) (secret string, err error)
 
 	GetPrivateImage(fingerprint string, secret string) (image *api.Image, ETag string, err error)
 	GetPrivateImageFile(fingerprint string, secret string, req ImageFileRequest) (resp *ImageFileResponse, err error)
@@ -24,12 +32,12 @@ type ImageServer interface {
 	GetImageAliasNames() (names []string, err error)
 
 	GetImageAlias(name string) (alias *api.ImageAliasesEntry, ETag string, err error)
-
-	CopyImage(image api.Image, target ContainerServer, args *ImageCopyArgs) (op *RemoteOperation, err error)
 }
 
 // The ContainerServer type represents a full featured LXD server.
 type ContainerServer interface {
+	ImageServer
+
 	// Server functions
 	GetServer() (server *api.Server, ETag string, err error)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
@@ -77,8 +85,8 @@ type ContainerServer interface {
 	GetEvents() (listener *EventListener, err error)
 
 	// Image functions
-	ImageServer
 	CreateImage(image api.ImagesPost, args *ImageCreateArgs) (op *Operation, err error)
+	CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (op *RemoteOperation, err error)
 	UpdateImage(fingerprint string, image api.ImagePut, ETag string) (err error)
 	DeleteImage(fingerprint string) (op *Operation, err error)
 	CreateImageSecret(fingerprint string) (op *Operation, err error)
@@ -109,6 +117,13 @@ type ContainerServer interface {
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
+}
+
+// The ConnectionInfo struct represents general information for a connection
+type ConnectionInfo struct {
+	Addresses   []string
+	Certificate string
+	Protocol    string
 }
 
 // The ProgressData struct represents new progress information on an operation
