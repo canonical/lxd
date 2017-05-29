@@ -2,8 +2,9 @@ package lxd
 
 import (
 	"fmt"
-	"github.com/lxc/lxd/shared/api"
 	"strings"
+
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Image handling functions
@@ -173,6 +174,39 @@ func (r *ProtocolSimpleStreams) CopyImage(image api.Image, target ContainerServe
 	rop := RemoteOperation{
 		targetOp: op,
 		chDone:   make(chan bool),
+	}
+
+	// For older servers, apply the aliases after copy
+	if !target.HasExtension("image_create_aliases") && req.Aliases != nil {
+		rop.chPost = make(chan bool)
+
+		go func() {
+			defer close(rop.chPost)
+
+			// Wait for the main operation to finish
+			<-rop.chDone
+			if rop.err != nil {
+				return
+			}
+
+			// Get the operation data
+			op, err := rop.GetTarget()
+			if err != nil {
+				return
+			}
+
+			// Extract the fingerprint
+			fingerprint := op.Metadata["fingerprint"].(string)
+
+			// Add the aliases
+			for _, entry := range req.Aliases {
+				alias := api.ImageAliasesPost{}
+				alias.Name = entry.Name
+				alias.Target = fingerprint
+
+				target.CreateImageAlias(alias)
+			}
+		}()
 	}
 
 	// Forward targetOp to remote op
