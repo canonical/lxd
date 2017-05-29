@@ -227,9 +227,15 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
    Copying the wanted snapshot into a new container and then deleting
    the old container does however work, at the cost of losing any other
    snapshot the container may have had.
- - Note that LXD will assume it has full control over the zfs pool or dataset.
+ - Note that LXD will assume it has full control over the ZFS pool or dataset.
    It is recommended to not maintain any non-LXD owned filesystem entities in
    a LXD zfs pool or dataset since LXD might delete them.
+ - When quotas are used on a ZFS dataset LXD will set the ZFS "quota" property.
+   In order to use have LXD set the ZFS "refquota" property, either set
+   "zfs.use_refquota" to "true" for the given dataset or set
+   "volume.zfs.use_refquota" to true on the storage pool. The former option
+   will make LXD use refquota only for the given storage volume the latter will
+   make LXD use refquota for all storage volumes in the storage pool.
 
 #### The following commands can be used to create ZFS storage pools
 
