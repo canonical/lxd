@@ -29,6 +29,30 @@ type ProtocolLXD struct {
 	httpUserAgent   string
 }
 
+// GetConnectionInfo returns the basic connection information used to interact with the server
+func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
+	info := ConnectionInfo{}
+	info.Certificate = r.httpCertificate
+	info.Protocol = "lxd"
+
+	urls := []string{}
+	if len(r.server.Environment.Addresses) > 0 {
+		if r.httpProtocol == "https" {
+			urls = append(urls, r.httpHost)
+		}
+
+		for _, addr := range r.server.Environment.Addresses {
+			url := fmt.Sprintf("https://%s", addr)
+			if !shared.StringInSlice(url, urls) {
+				urls = append(urls, url)
+			}
+		}
+	}
+	info.Addresses = urls
+
+	return &info, nil
+}
+
 // RawQuery allows directly querying the LXD API
 //
 // This should only be used by internal LXD tools.
@@ -222,25 +246,4 @@ func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
 	}
 
 	return r.rawWebsocket(url)
-}
-
-// getServerUrls returns a prioritized list of potential URLs for the server
-func (r *ProtocolLXD) getServerUrls() ([]string, error) {
-	if len(r.server.Environment.Addresses) == 0 {
-		return nil, fmt.Errorf("Source server isn't reachable over the network")
-	}
-
-	urls := []string{}
-	if r.httpProtocol == "https" {
-		urls = append(urls, r.httpHost)
-	}
-
-	for _, addr := range r.server.Environment.Addresses {
-		url := fmt.Sprintf("https://%s", addr)
-		if !shared.StringInSlice(url, urls) {
-			urls = append(urls, url)
-		}
-	}
-
-	return urls, nil
 }
