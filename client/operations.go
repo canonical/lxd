@@ -232,13 +232,8 @@ type RemoteOperation struct {
 	handlers []func(api.Operation)
 
 	chDone chan bool
+	chPost chan bool
 	err    error
-}
-
-// Wait lets you wait until the operation reaches a final state
-func (op *RemoteOperation) Wait() error {
-	<-op.chDone
-	return op.err
 }
 
 // AddHandler adds a function to be called whenever an event is received
@@ -264,4 +259,24 @@ func (op *RemoteOperation) AddHandler(function func(api.Operation)) (*EventTarge
 	op.handlers = append(op.handlers, function)
 
 	return target, nil
+}
+
+// GetTarget returns the target operation
+func (op *RemoteOperation) GetTarget() (*api.Operation, error) {
+	if op.targetOp == nil {
+		return nil, fmt.Errorf("No associated target operation")
+	}
+
+	return &op.targetOp.Operation, nil
+}
+
+// Wait lets you wait until the operation reaches a final state
+func (op *RemoteOperation) Wait() error {
+	<-op.chDone
+
+	if op.chPost != nil {
+		<-op.chPost
+	}
+
+	return op.err
 }
