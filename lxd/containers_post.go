@@ -32,7 +32,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		} else {
 			_, alias, err := dbImageAliasGet(d.db, req.Source.Alias, true)
 			if err != nil {
-				return InternalError(err)
+				return SmartError(err)
 			}
 
 			hash = alias.Target
@@ -44,7 +44,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 		hashes, err := dbImagesGet(d.db, false)
 		if err != nil {
-			return InternalError(err)
+			return SmartError(err)
 		}
 
 		var image *api.Image
@@ -213,7 +213,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		for _, pName := range req.Profiles {
 			_, p, err := dbProfileGet(d.db, pName)
 			if err != nil {
-				return InternalError(err)
+				return SmartError(err)
 			}
 
 			k, v, _ := containerGetRootDiskDevice(p.Devices)
@@ -233,7 +233,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 			if err == NoSuchObjectError {
 				return BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured."))
 			}
-			return InternalError(err)
+			return SmartError(err)
 		}
 
 		if len(pools) == 1 {
@@ -508,7 +508,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	if req.Name == "" {
 		cs, err := dbContainersList(d.db, cTypeRegular)
 		if err != nil {
-			return InternalError(err)
+			return SmartError(err)
 		}
 
 		i := 0

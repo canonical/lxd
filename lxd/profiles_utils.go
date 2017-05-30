@@ -43,7 +43,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 			for i := len(profiles) - 1; i >= 0; i-- {
 				_, profile, err := dbProfileGet(d.db, profiles[i])
 				if err != nil {
-					return InternalError(err)
+					return SmartError(err)
 				}
 
 				// Check if we find a match for the device
@@ -65,14 +65,14 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	// Update the database
 	tx, err := dbBegin(d.db)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	if profile.Description != req.Description {
 		err = dbProfileDescriptionUpdate(tx, id, req.Description)
 		if err != nil {
 			tx.Rollback()
-			return InternalError(err)
+			return SmartError(err)
 		}
 	}
 
@@ -80,7 +80,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	if reflect.DeepEqual(profile.Config, req.Config) && reflect.DeepEqual(profile.Devices, req.Devices) {
 		err = txCommit(tx)
 		if err != nil {
-			return InternalError(err)
+			return SmartError(err)
 		}
 
 		return EmptySyncResponse
@@ -89,7 +89,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	err = dbProfileConfigClear(tx, id)
 	if err != nil {
 		tx.Rollback()
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	err = dbProfileConfigAdd(tx, id, req.Config)
@@ -106,7 +106,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 
 	err = txCommit(tx)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	// Update all the containers using the profile. Must be done after txCommit due to DB lock.
@@ -129,7 +129,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		for cname, err := range failures {
 			msg += fmt.Sprintf(" - %s: %s\n", cname, err)
 		}
-		return InternalError(fmt.Errorf("%s", msg))
+		return SmartError(fmt.Errorf("%s", msg))
 	}
 
 	return EmptySyncResponse
