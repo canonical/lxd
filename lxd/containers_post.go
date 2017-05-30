@@ -32,7 +32,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		} else {
 			_, alias, err := dbImageAliasGet(d.db, req.Source.Alias, true)
 			if err != nil {
-				return InternalError(err)
+				return SmartError(err)
 			}
 
 			hash = alias.Target
@@ -44,7 +44,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 		hashes, err := dbImagesGet(d.db, false)
 		if err != nil {
-			return InternalError(err)
+			return SmartError(err)
 		}
 
 		var image *api.Image
@@ -356,7 +356,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	if req.Name == "" {
 		cs, err := dbContainersList(d.db, cTypeRegular)
 		if err != nil {
-			return InternalError(err)
+			return SmartError(err)
 		}
 
 		i := 0

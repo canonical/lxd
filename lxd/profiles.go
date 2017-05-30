@@ -88,7 +88,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	// Update DB entry
 	_, err = dbProfileCreate(d.db, req.Name, req.Description, req.Config, req.Devices)
 	if err != nil {
-		return InternalError(
+		return SmartError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
@@ -141,7 +141,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	id, profile, err := dbProfileGet(d.db, name)
 	if err != nil {
-		return InternalError(fmt.Errorf("Failed to retrieve profile='%s'", name))
+		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
 	}
 
 	req := api.ProfilePut{}
@@ -182,7 +182,7 @@ func profilePost(d *Daemon, r *http.Request) Response {
 
 	err := dbProfileUpdate(d.db, name, req.Name)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))

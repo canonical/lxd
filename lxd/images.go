@@ -1105,7 +1105,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 
 	err = dbImageAliasAdd(d.db, req.Name, id, req.Description)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, req.Name))

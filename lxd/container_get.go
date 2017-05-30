@@ -15,7 +15,7 @@ func containerGet(d *Daemon, r *http.Request) Response {
 
 	state, err := c.Render()
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return SyncResponse(true, state)

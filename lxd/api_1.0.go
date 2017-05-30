@@ -160,7 +160,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 func api10Put(d *Daemon, r *http.Request) Response {
 	oldConfig, err := dbConfigValuesGet(d.db)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	req := api.ServerPut{}
