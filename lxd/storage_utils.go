@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"os"
 	"strings"
 	"syscall"
@@ -153,3 +154,28 @@ const containersDirMode os.FileMode = 0755
 const customDirMode os.FileMode = 0755
 const imagesDirMode os.FileMode = 0700
 const snapshotsDirMode os.FileMode = 0700
+
+// Detect whether LXD already uses the given storage pool.
+func lxdUsesPool(db *sql.DB, onDiskPoolName string, driver string, onDiskProperty string) (bool, string, error) {
+	pools, err := dbStoragePools(db)
+	if err != nil && err != NoSuchObjectError {
+		return false, "", err
+	}
+
+	for _, pool := range pools {
+		_, pl, err := dbStoragePoolGet(db, pool)
+		if err != nil {
+			continue
+		}
+
+		if pl.Driver != driver {
+			continue
+		}
+
+		if pl.Config[onDiskProperty] == onDiskPoolName {
+			return true, pl.Name, nil
+		}
+	}
+
+	return false, "", nil
+}

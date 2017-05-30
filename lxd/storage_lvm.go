@@ -75,6 +75,7 @@ func (s *storageLvm) StoragePoolInit() error {
 			// Volume group does not exist.
 			return fmt.Errorf("the requested volume group \"%s\" does not exist", source)
 		}
+		s.vgName = source
 	}
 
 	return nil
@@ -104,7 +105,17 @@ func (s *storageLvm) StoragePoolCheck() error {
 
 func (s *storageLvm) StoragePoolCreate() error {
 	logger.Infof("Creating LVM storage pool \"%s\".", s.pool.Name)
+
+	var globalErr error
 	tryUndo := true
+	pvExisted := false
+	vgExisted := false
+	poolName := s.getOnDiskPoolName()
+	source := s.pool.Config["source"]
+	// must be initialized
+	vgName := ""
+	// not initialized in all cases
+	pvName := ""
 
 	// Create the mountpoint for the storage pool.
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
@@ -118,8 +129,6 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 	}()
 
-	poolName := s.getOnDiskPoolName()
-	source := s.pool.Config["source"]
 	if source == "" {
 		source = filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
 		s.pool.Config["source"] = source
@@ -163,34 +172,22 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 
 		// Check if the physical volume already exists.
-		loopDevicePath := s.loopInfo.Name()
-		ok, err := storagePVExists(loopDevicePath)
-		if err == nil && !ok {
-			// Create a new lvm physical volume.
-			output, err := shared.TryRunCommand("pvcreate", loopDevicePath)
-			if err != nil {
-				return fmt.Errorf("failed to create the physical volume for the lvm storage pool: %s", output)
-			}
-			defer func() {
-				if tryUndo {
-					shared.TryRunCommand("pvremove", loopDevicePath)
-				}
-			}()
+		pvName = s.loopInfo.Name()
+		pvExisted, globalErr = storagePVExists(pvName)
+		if globalErr != nil {
+			return globalErr
 		}
 
 		// Check if the volume group already exists.
-		ok, err = storageVGExists(poolName)
-		if err == nil && !ok {
-			// Create a volume group on the physical volume.
-			output, err := shared.TryRunCommand("vgcreate", poolName, loopDevicePath)
-			if err != nil {
-				return fmt.Errorf("failed to create the volume group for the lvm storage pool: %s", output)
-			}
+		vgExisted, globalErr = storageVGExists(poolName)
+		if globalErr != nil {
+			return globalErr
 		}
 	} else {
 		s.pool.Config["size"] = ""
 		if filepath.IsAbs(source) {
-			if !shared.IsBlockdevPath(source) {
+			pvName = source
+			if !shared.IsBlockdevPath(pvName) {
 				return fmt.Errorf("custom loop file locations are not supported")
 			}
 
@@ -202,45 +199,101 @@ func (s *storageLvm) StoragePoolCreate() error {
 			s.pool.Config["source"] = poolName
 
 			// Check if the physical volume already exists.
-			ok, err := storagePVExists(source)
-			if err == nil && !ok {
-				// Create a new lvm physical volume.
-				output, err := shared.TryRunCommand("pvcreate", source)
-				if err != nil {
-					return fmt.Errorf("failed to create the physical volume for the lvm storage pool: %s", output)
-				}
-				defer func() {
-					if tryUndo {
-						shared.TryRunCommand("pvremove", source)
-					}
-				}()
+			pvExisted, globalErr = storagePVExists(pvName)
+			if globalErr != nil {
+				return globalErr
 			}
 
 			// Check if the volume group already exists.
-			ok, err = storageVGExists(poolName)
-			if err == nil && !ok {
-				// Create a volume group on the physical volume.
-				output, err := shared.TryRunCommand("vgcreate", poolName, source)
-				if err != nil {
-					return fmt.Errorf("failed to create the volume group for the lvm storage pool: %s", output)
-				}
+			vgExisted, globalErr = storageVGExists(poolName)
+			if globalErr != nil {
+				return globalErr
 			}
 		} else {
+			// The physical volume must already consist
+			pvExisted = true
+			vgName = source
 			if s.pool.Config["lvm.vg_name"] != "" {
 				// User gave us something weird.
 				return fmt.Errorf("invalid combination of \"source\" and \"zfs.pool_name\" property")
 			}
-			s.pool.Config["lvm.vg_name"] = source
-			s.vgName = source
+			s.pool.Config["lvm.vg_name"] = vgName
+			s.vgName = vgName
 
-			ok, err := storageVGExists(source)
-			if err != nil {
-				// Internal error.
-				return err
-			} else if !ok {
-				// Volume group does not exist.
-				return fmt.Errorf("the requested volume group \"%s\" does not exist", source)
+			vgExisted, globalErr = storageVGExists(vgName)
+			if globalErr != nil {
+				return globalErr
 			}
+
+			// Volume group must exist but doesn't.
+			if !vgExisted {
+				return fmt.Errorf("the requested volume group \"%s\" does not exist", vgName)
+			}
+		}
+	}
+
+	if !pvExisted {
+		// This is an internal error condition which should never be
+		// hit.
+		if pvName == "" {
+			logger.Errorf("no name for physical volume detected")
+		}
+
+		output, err := shared.TryRunCommand("pvcreate", pvName)
+		if err != nil {
+			return fmt.Errorf("failed to create the physical volume for the lvm storage pool: %s", output)
+		}
+		defer func() {
+			if tryUndo {
+				shared.TryRunCommand("pvremove", pvName)
+			}
+		}()
+	}
+
+	if vgExisted {
+		// Check that the volume group is empty.
+		// Otherwise we will refuse to use it.
+		count, err := lvmGetLVCount(poolName)
+		if err != nil {
+			logger.Errorf("failed to determine whether the volume group \"%s\" is empty", poolName)
+			return err
+		}
+
+		empty := true
+		if count > 1 || count == 1 && !s.useThinpool {
+			empty = false
+		}
+
+		if count == 1 && s.useThinpool {
+			ok, err := storageLVMThinpoolExists(poolName, s.thinPoolName)
+			if err != nil {
+				logger.Errorf("failed to determine whether thinpool \"%s\" exists in volume group \"%s\": %s", poolName, s.thinPoolName, err)
+				return err
+			}
+			empty = ok
+		}
+
+		if !empty {
+			msg := fmt.Sprintf("volume group \"%s\" is not empty", poolName)
+			logger.Errorf(msg)
+			return fmt.Errorf(msg)
+		}
+
+		// Check that we don't already use this volume group.
+		inUse, user, err := lxdUsesPool(s.d.db, poolName, s.pool.Driver, "lvm.vg_name")
+		if err != nil {
+			return err
+		}
+
+		if inUse {
+			msg := fmt.Sprintf("LXD already uses volume group \"%s\" for pool \"%s\"", poolName, user)
+			logger.Errorf(msg)
+			return fmt.Errorf(msg)
+		}
+	} else {
+		output, err := shared.TryRunCommand("vgcreate", poolName, pvName)
+		if err != nil {
+			return fmt.Errorf("failed to create the volume group for the lvm storage pool: %s", output)
 		}
 	}
 
@@ -274,10 +327,38 @@ func (s *storageLvm) StoragePoolDelete() error {
 	}
 
 	poolName := s.getOnDiskPoolName()
-	// Remove the volume group.
-	output, err := shared.TryRunCommand("vgremove", "-f", poolName)
+	// Delete the thinpool.
+	if s.useThinpool {
+		// Check that the thinpool actually exists. For example, it
+		// won't when the user has never created a storage volume in the
+		// storage pool.
+		devPath := getLvmDevPath(poolName, "", s.thinPoolName)
+		ok, _ := storageLVExists(devPath)
+		if ok {
+			msg, err := shared.TryRunCommand("lvremove", "-f", devPath)
+			if err != nil {
+				logger.Errorf("failed to delete thinpool \"%s\" from volume group \"%s\": %s", s.thinPoolName, poolName, msg)
+				return err
+			}
+		}
+	}
+
+	// Check that the count in the volume group is zero. If not, we need to
+	// assume that other users are using the volume group, so don't remove
+	// it. This actually goes against policy since we explicitly state: our
+	// pool, and nothing but our pool but still, let's not hurt users.
+	count, err := lvmGetLVCount(poolName)
 	if err != nil {
-		return fmt.Errorf("failed to destroy the volume group for the lvm storage pool: %s", output)
+		return err
+	}
+
+	// Remove the volume group.
+	if count == 0 {
+		output, err := shared.TryRunCommand("vgremove", "-f", poolName)
+		if err != nil {
+			logger.Errorf("failed to destroy the volume group for the lvm storage pool: %s", output)
+			return err
+		}
 	}
 
 	if s.loopInfo != nil {

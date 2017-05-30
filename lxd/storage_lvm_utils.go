@@ -483,6 +483,16 @@ func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) erro
 	return nil
 }
 
+func lvmGetLVCount(vgName string) (int, error) {
+	output, err := shared.TryRunCommand("vgs", "--noheadings", "-o", "lv_count", vgName)
+	if err != nil {
+		return -1, err
+	}
+
+	output = strings.TrimSpace(output)
+	return strconv.Atoi(output)
+}
+
 func lvmLvIsWritable(lvName string) (bool, error) {
 	output, err := shared.TryRunCommand("lvs", "--noheadings", "-o", "lv_attr", lvName)
 	if err != nil {
@@ -698,6 +708,10 @@ func containerNameToLVName(containerName string) string {
 }
 
 func getLvmDevPath(lvmPool string, volumeType string, lvmVolume string) string {
+	if volumeType == "" {
+		return fmt.Sprintf("/dev/%s/%s", lvmPool, lvmVolume)
+	}
+
 	return fmt.Sprintf("/dev/%s/%s_%s", lvmPool, volumeType, lvmVolume)
 }
 
