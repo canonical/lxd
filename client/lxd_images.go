@@ -520,7 +520,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		return nil, fmt.Errorf("The source and target servers must be different")
 	}
 
-	// Get a list of addresses for the source server
+	// Get source server connection information
 	info, err := source.GetConnectionInfo()
 	if err != nil {
 		return nil, err
