@@ -78,6 +78,113 @@ func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (*Operation,
 	return op, nil
 }
 
+func (r *ProtocolLXD) tryCreateContainerFromImage(req api.ContainersPost, urls []string) (*RemoteOperation, error) {
+	rop := RemoteOperation{
+		chDone: make(chan bool),
+	}
+
+	// Forward targetOp to remote op
+	go func() {
+		success := false
+		errors := []string{}
+		for _, serverURL := range urls {
+			req.Source.Server = serverURL
+
+			op, err := r.CreateContainer(req)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				continue
+			}
+
+			rop.targetOp = op
+
+			for _, handler := range rop.handlers {
+				rop.targetOp.AddHandler(handler)
+			}
+
+			err = rop.targetOp.Wait()
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				continue
+			}
+
+			success = true
+			break
+		}
+
+		if !success {
+			rop.err = fmt.Errorf("Failed container creation:\n - %s", strings.Join(errors, "\n - "))
+		}
+
+		close(rop.chDone)
+	}()
+
+	return &rop, nil
+}
+
+// CreateContainerFromImage is a convenience function to make it easier to create a container from an existing image
+func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Image, req api.ContainersPost) (*RemoteOperation, error) {
+	// Set the minimal source fields
+	req.Source.Type = "image"
+
+	// Optimization for the local image case
+	if r == source {
+		// Always use fingerprints for local case
+		req.Source.Fingerprint = image.Fingerprint
+		req.Source.Alias = ""
+
+		op, err := r.CreateContainer(req)
+		if err != nil {
+			return nil, err
+		}
+
+		rop := RemoteOperation{
+			targetOp: op,
+			chDone:   make(chan bool),
+		}
+
+		// Forward targetOp to remote op
+		go func() {
+			rop.err = rop.targetOp.Wait()
+			close(rop.chDone)
+		}()
+
+		return &rop, nil
+	}
+
+	// Minimal source fields for remote image
+	req.Source.Mode = "pull"
+
+	// If we have an alias and the image is public, use that
+	if req.Source.Alias != "" && image.Public {
+		req.Source.Fingerprint = ""
+	} else {
+		req.Source.Fingerprint = image.Fingerprint
+		req.Source.Alias = ""
+	}
+
+	// Get source server connection information
+	info, err := source.GetConnectionInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	req.Source.Protocol = info.Protocol
+	req.Source.Certificate = info.Certificate
+
+	// Generate secret token if needed
+	if !image.Public {
+		secret, err := source.GetImageSecret(image.Fingerprint)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Source.Secret = secret
+	}
+
+	return r.tryCreateContainerFromImage(req, info.Addresses)
+}
+
 // UpdateContainer updates the container definition
 func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, ETag string) (*Operation, error) {
 	// Send the request

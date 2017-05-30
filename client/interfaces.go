@@ -56,6 +56,7 @@ type ContainerServer interface {
 	GetContainers() (containers []api.Container, err error)
 	GetContainer(name string) (container *api.Container, ETag string, err error)
 	CreateContainer(container api.ContainersPost) (op *Operation, err error)
+	CreateContainerFromImage(source ImageServer, image api.Image, imgcontainer api.ContainersPost) (op *RemoteOperation, err error)
 	UpdateContainer(name string, container api.ContainerPut, ETag string) (op *Operation, err error)
 	RenameContainer(name string, container api.ContainerPost) (op *Operation, err error)
 	MigrateContainer(name string, container api.ContainerPost) (op *Operation, err error)
