@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-05-10 00:30+0200\n"
+"POT-Creation-Date: 2017-05-30 14:59-0400\n"
 "PO-Revision-Date: 2017-03-30 21:35+0000\n"
 "Last-Translator: HazWard <starlysolon@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -308,7 +308,7 @@ msgid "Config key/value to apply to the new container"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
 #: lxc/config.go:571 lxc/config.go:636 lxc/image.go:746 lxc/network.go:378
-#: lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:850
+#: lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:854
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "Erreur lors de la lecture de la configuration : %s"
@@ -368,7 +368,7 @@ msgid "Creating the container"
 msgstr "Création du conteneur"
 
 #: lxc/image.go:653 lxc/image.go:694 lxc/list.go:450 lxc/network.go:461
-#: lxc/storage.go:608 lxc/storage.go:693
+#: lxc/storage.go:608 lxc/storage.go:697
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
 
@@ -661,7 +661,7 @@ msgid "Must supply container name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #: lxc/list.go:452 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395
-#: lxc/storage.go:607 lxc/storage.go:692
+#: lxc/storage.go:607 lxc/storage.go:696
 msgid "NAME"
 msgstr "NOM"
 
@@ -793,7 +793,7 @@ msgstr "Permission refusée, êtes-vous dans le groupe lxd ?"
 msgid "Pid: %d"
 msgstr "Pid : %d"
 
-#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:851
+#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:855
 msgid "Press enter to open the editor again"
 msgstr "Appuyer sur Entrée pour ouvrir à nouveau l'éditeur"
 
@@ -1031,12 +1031,12 @@ msgstr "Le réseau %s a été supprimé"
 msgid "Storage pool name"
 msgstr "Nom de l'ensemble de stockage"
 
-#: lxc/storage.go:716
+#: lxc/storage.go:720
 #, fuzzy, c-format
 msgid "Storage volume %s created"
 msgstr "Profil %s créé"
 
-#: lxc/storage.go:726
+#: lxc/storage.go:730
 #, fuzzy, c-format
 msgid "Storage volume %s deleted"
 msgstr "Profil %s supprimé"
@@ -1053,7 +1053,7 @@ msgstr "Swap (courant)"
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
 
-#: lxc/list.go:457 lxc/network.go:459 lxc/storage.go:691
+#: lxc/list.go:457 lxc/network.go:459 lxc/storage.go:695
 msgid "TYPE"
 msgstr "TYPE"
 
@@ -1163,7 +1163,7 @@ msgstr "DATE DE PUBLICATION"
 msgid "URL"
 msgstr "URL"
 
-#: lxc/network.go:462 lxc/profile.go:500 lxc/storage.go:611 lxc/storage.go:694
+#: lxc/network.go:462 lxc/profile.go:500 lxc/storage.go:611 lxc/storage.go:698
 msgid "USED BY"
 msgstr "UTILISÉ PAR"
 
