@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-05-10 00:30+0200\n"
+"POT-Creation-Date: 2017-05-30 14:59-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -227,7 +227,7 @@ msgid "Config key/value to apply to the new container"
 msgstr ""
 
 #: lxc/config.go:571 lxc/config.go:636 lxc/image.go:746 lxc/network.go:378
-#: lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:850
+#: lxc/profile.go:257 lxc/storage.go:535 lxc/storage.go:854
 #, c-format
 msgid "Config parsing error: %s"
 msgstr ""
@@ -286,7 +286,7 @@ msgid "Creating the container"
 msgstr ""
 
 #: lxc/image.go:653 lxc/image.go:694 lxc/list.go:450 lxc/network.go:461
-#: lxc/storage.go:608 lxc/storage.go:693
+#: lxc/storage.go:608 lxc/storage.go:697
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -570,7 +570,7 @@ msgid "Must supply container name for: "
 msgstr ""
 
 #: lxc/list.go:452 lxc/network.go:458 lxc/profile.go:499 lxc/remote.go:395
-#: lxc/storage.go:607 lxc/storage.go:692
+#: lxc/storage.go:607 lxc/storage.go:696
 msgid "NAME"
 msgstr ""
 
@@ -699,7 +699,7 @@ msgstr ""
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:851
+#: lxc/network.go:379 lxc/profile.go:258 lxc/storage.go:536 lxc/storage.go:855
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -933,12 +933,12 @@ msgstr ""
 msgid "Storage pool name"
 msgstr ""
 
-#: lxc/storage.go:716
+#: lxc/storage.go:720
 #, c-format
 msgid "Storage volume %s created"
 msgstr ""
 
-#: lxc/storage.go:726
+#: lxc/storage.go:730
 #, c-format
 msgid "Storage volume %s deleted"
 msgstr ""
@@ -955,7 +955,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:457 lxc/network.go:459 lxc/storage.go:691
+#: lxc/list.go:457 lxc/network.go:459 lxc/storage.go:695
 msgid "TYPE"
 msgstr ""
 
@@ -1053,7 +1053,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:462 lxc/profile.go:500 lxc/storage.go:611 lxc/storage.go:694
+#: lxc/network.go:462 lxc/profile.go:500 lxc/storage.go:611 lxc/storage.go:698
 msgid "USED BY"
 msgstr ""
 
