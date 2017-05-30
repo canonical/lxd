@@ -1552,8 +1552,11 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 	imagePath := shared.VarPath("images", fingerprint)
 
 	// Create a new storage volume on the storage pool for the image.
-	err = s.zfsPoolVolumeCreate(fs)
+	poolName := s.getOnDiskPoolName()
+	dataset := fmt.Sprintf("%s/%s", poolName, fs)
+	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
 	if err != nil {
+		logger.Errorf("failed to create ZFS dataset \"%s\" on storage pool \"%s\": %s", dataset, s.pool.Name, msg)
 		return err
 	}
 	subrevert = false
