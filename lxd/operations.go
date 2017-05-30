@@ -428,7 +428,7 @@ func operationAPIGet(d *Daemon, r *http.Request) Response {
 
 	_, body, err := op.Render()
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return SyncResponse(true, body)
@@ -511,7 +511,7 @@ func operationAPIWaitGet(d *Daemon, r *http.Request) Response {
 
 	_, body, err := op.Render()
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return SyncResponse(true, body)
