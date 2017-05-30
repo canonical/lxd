@@ -296,9 +296,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			// Other download succeeded, we're done
 			return imgInfo, nil
 		}
+	} else {
+		imagesDownloadingLock.Unlock()
 	}
 
 	// Add the download to the queue
+	imagesDownloadingLock.Lock()
 	imagesDownloading[fp] = make(chan bool)
 	imagesDownloadingLock.Unlock()
 
