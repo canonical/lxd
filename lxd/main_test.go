@@ -77,7 +77,7 @@ func (suite *lxdTestSuite) TearDownSuite() {
 }
 
 func (suite *lxdTestSuite) SetupTest() {
-	initializeDbObject(suite.d, shared.VarPath("lxd.db"))
+	initializeDbObject(suite.d, ":memory:")
 	daemonConfigInit(suite.d.db)
 
 	// Create default storage pool. Make sure that we don't pass a nil to
@@ -124,8 +124,4 @@ func (suite *lxdTestSuite) SetupTest() {
 
 func (suite *lxdTestSuite) TearDownTest() {
 	suite.d.db.Close()
-	err := os.Remove(shared.VarPath("lxd.db"))
-	if err != nil {
-		os.Exit(1)
-	}
 }
