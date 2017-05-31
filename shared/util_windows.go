@@ -7,5 +7,5 @@ import (
 )
 
 func GetOwnerMode(fInfo os.FileInfo) (os.FileMode, int, int) {
-	return os.FileMode(0), -1, -1
+	return fInfo.Mode(), -1, -1
 }
