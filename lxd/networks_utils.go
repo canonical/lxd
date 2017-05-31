@@ -850,7 +850,7 @@ func networkSysctl(path string, value string) error {
 	return ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/%s", path), []byte(value), 0)
 }
 
-func networkClearLease(d *Daemon, network string, hwaddr string) error {
+func networkClearLease(d *Daemon, network string, name string) error {
 	leaseFile := shared.VarPath("networks", network, "dnsmasq.leases")
 
 	// Check that we are in fact running a dnsmasq for the network
@@ -888,7 +888,7 @@ func networkClearLease(d *Daemon, network string, hwaddr string) error {
 		}
 
 		fields := strings.Fields(lease)
-		if len(fields) > 2 && strings.ToLower(fields[1]) == strings.ToLower(hwaddr) {
+		if len(fields) > 2 && strings.ToLower(fields[3]) == strings.ToLower(name) {
 			continue
 		}
 

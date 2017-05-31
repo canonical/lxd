@@ -2779,7 +2779,7 @@ func (c *containerLXC) Delete() error {
 			continue
 		}
 
-		networkClearLease(c.daemon, m["parent"], m["hwaddr"])
+		networkClearLease(c.daemon, m["parent"], c.Name())
 	}
 
 	logger.Info("Deleted container", ctxMap)
