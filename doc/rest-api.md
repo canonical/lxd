@@ -194,6 +194,7 @@ won't work and PUT needs to be used instead.
      * /1.0/images
        * /1.0/images/\<fingerprint\>
          * /1.0/images/\<fingerprint\>/export
+         * /1.0/images/\<fingerprint\>/refresh
        * /1.0/images/aliases
          * /1.0/images/aliases/\<name\>
      * /1.0/networks
@@ -1418,6 +1419,15 @@ Rather than require a trust relationship between the two LXDs, the
 client will POST to /1.0/images/\<fingerprint\>/export to get a secret
 token which it'll then pass to the target LXD. That target LXD will then
 GET the image as a guest, passing the secret token.
+
+## /1.0/images/\<fingerprint\>/refresh
+### POST
+ * Description: Refresh an image from its origin
+ * Authentication: trusted
+ * Operation: async
+ * Return: Background operation or standard error
+ 
+This creates an operation to refresh the specified image from its origin.
 
 ## /1.0/images/\<fingerprint\>/secret
 ### POST
