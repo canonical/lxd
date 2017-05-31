@@ -71,15 +71,11 @@ func (suite *lxdTestSuite) TearDownSuite() {
 }
 
 func (suite *lxdTestSuite) SetupTest() {
-	initializeDbObject(suite.d, shared.VarPath("lxd.db"))
+	initializeDbObject(suite.d, ":memory:")
 	daemonConfigInit(suite.d.db)
 	suite.Req = require.New(suite.T())
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
 	suite.d.db.Close()
-	err := os.Remove(shared.VarPath("lxd.db"))
-	if err != nil {
-		os.Exit(1)
-	}
 }
