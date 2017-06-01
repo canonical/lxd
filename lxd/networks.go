@@ -1156,14 +1156,12 @@ func (n *network) Start() error {
 			dnsmasqCmd = append(dnsmasqCmd, []string{"-s", dnsDomain, "-S", fmt.Sprintf("/%s/", dnsDomain)}...)
 		}
 
-		// Create raw config file
-		if n.config["raw.dnsmasq"] != "" {
-			err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(fmt.Sprintf("%s\n", n.config["raw.dnsmasq"])), 0)
-			if err != nil {
-				return err
-			}
-			dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--conf-file=%s", shared.VarPath("networks", n.name, "dnsmasq.raw")))
+		// Create a config file to contain additional config (and to prevent dnsmasq from reading /etc/dnsmasq.conf)
+		err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(fmt.Sprintf("%s\n", n.config["raw.dnsmasq"])), 0)
+		if err != nil {
+			return err
 		}
+		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--conf-file=%s", shared.VarPath("networks", n.name, "dnsmasq.raw")))
 
 		// Create DHCP hosts file
 		if !shared.PathExists(shared.VarPath("networks", n.name, "dnsmasq.hosts")) {
