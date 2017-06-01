@@ -850,6 +850,28 @@ func networkSysctl(path string, value string) error {
 	return ioutil.WriteFile(fmt.Sprintf("/proc/sys/net/%s", path), []byte(value), 0)
 }
 
+func networkGetMacSlice(hwaddr string) []string {
+	var buf []string
+
+	if !strings.Contains(hwaddr, ":") {
+		if s, err := strconv.ParseUint(hwaddr, 10, 64); err == nil {
+			hwaddr = fmt.Sprintln(fmt.Sprintf("%x", s))
+			var tuple string
+			for i, r := range hwaddr {
+				tuple = tuple + string(r)
+				if i > 0 && (i+1)%2 == 0 {
+					buf = append(buf, tuple)
+					tuple = ""
+				}
+			}
+		}
+	} else {
+		buf = strings.Split(strings.ToLower(hwaddr), ":")
+	}
+
+	return buf
+}
+
 func networkClearLease(d *Daemon, network string, hwaddr string) error {
 	leaseFile := shared.VarPath("networks", network, "dnsmasq.leases")
 
@@ -888,8 +910,15 @@ func networkClearLease(d *Daemon, network string, hwaddr string) error {
 		}
 
 		fields := strings.Fields(lease)
-		if len(fields) > 2 && strings.ToLower(fields[1]) == strings.ToLower(hwaddr) {
-			continue
+		if len(fields) > 2 {
+			leaseMac := networkGetMacSlice(fields[1])
+			leaseMacStr := strings.Join(leaseMac, ":")
+			knownMac := networkGetMacSlice(hwaddr)
+			knownMacStr := strings.Join(
+				knownMac[len(knownMac)-len(leaseMac):], ":")
+			if knownMacStr == leaseMacStr {
+				continue
+			}
 		}
 
 		_, err := fd.WriteString(fmt.Sprintf("%s\n", lease))
