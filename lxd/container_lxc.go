@@ -2182,6 +2182,12 @@ func (c *containerLXC) Stop(stateful bool) error {
 		return err
 	}
 
+	if !c.IsRunning() {
+		op.Done(nil)
+		shared.LogDebug("Not stopping container as it is not running.", ctxMap)
+		return nil
+	}
+
 	// Attempt to freeze the container first, helps massively with fork bombs
 	freezer := make(chan bool, 1)
 	go func() {
@@ -2383,6 +2389,11 @@ func (c *containerLXC) Freeze() error {
 		ctxMap["err"] = err
 		logger.Error("Failed freezing container", ctxMap)
 		return err
+	}
+
+	if !c.IsRunning() {
+		shared.LogDebug("Not freezing container as it is not running.", ctxMap)
+		return nil
 	}
 
 	err = c.c.Freeze()
