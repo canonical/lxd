@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-06-17 03:18+0000\n"
+"POT-Creation-Date: 2017-06-27 00:23-0400\n"
 "PO-Revision-Date: 2017-03-23 12:03+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -127,12 +127,12 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/file.go:183
+#: lxc/file.go:186
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/file.go:125
+#: lxc/file.go:128
 #, c-format
 msgid "'%s' isn't a regular file or directory."
 msgstr ""
@@ -213,7 +213,7 @@ msgstr "CPU使用量:"
 msgid "CREATED AT"
 msgstr ""
 
-#: lxc/file.go:470
+#: lxc/file.go:479
 #, fuzzy
 msgid "Can't pull a directory without --recursive"
 msgstr ""
@@ -424,7 +424,7 @@ msgstr "'lxc.1' の生成が失敗しました: %v"
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナに適用するプロファイル"
 
-#: lxc/file.go:120
+#: lxc/file.go:123
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -523,17 +523,17 @@ msgstr "不正な証明書です"
 msgid "Invalid configuration key"
 msgstr "正しくない設定項目 (key) です"
 
-#: lxc/file.go:513
+#: lxc/file.go:522
 #, c-format
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
 
-#: lxc/file.go:443
+#: lxc/file.go:451
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:221
+#: lxc/file.go:224
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -599,7 +599,7 @@ msgstr "サマリーはありません。"
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
-#: lxc/file.go:431
+#: lxc/file.go:438
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -1128,7 +1128,7 @@ msgstr "help2man が見つかりません。"
 msgid "Unable to read remote TLS certificate"
 msgstr "リモートの TLS 証明書を読めません"
 
-#: lxc/file.go:108
+#: lxc/file.go:111
 #, fuzzy, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知の設定コマンド %s"
@@ -2526,7 +2526,7 @@ msgstr "`lxc config profile` は廃止されました。`lxc profile` を使っ�
 msgid "can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/file.go:269
+#: lxc/file.go:272
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -2571,7 +2571,7 @@ msgstr "ok (y/n)?"
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
 
-#: lxc/file.go:541
+#: lxc/file.go:550
 msgid "recursive edit doesn't make sense :("
 msgstr "再帰的な edit は意味がありません :("
 
@@ -2622,12 +2622,6 @@ msgstr ""
 #~ msgid "Migration failed on target host: %s"
 #~ msgstr "コピー先のホストでマイグレーションが失敗しました: %s"
 
-#~ msgid "can't copy to the same container name"
-#~ msgstr "同じコンテナ名へはコピーできません"
-
-#~ msgid "not all the profiles from the source exist on the target"
-#~ msgstr "コピー元の全てのプロファイルがターゲットに存在しません"
-
 #~ msgid "Output is in %s"
 #~ msgstr "%s に出力されます"
 
@@ -2638,8 +2632,14 @@ msgstr ""
 #~ msgid "bad result type from action"
 #~ msgstr "アクションからの結果タイプが不正です"
 
+#~ msgid "can't copy to the same container name"
+#~ msgstr "同じコンテナ名へはコピーできません"
+
 #~ msgid "got bad version"
 #~ msgstr "不正なバージョンを得ました"
+
+#~ msgid "not all the profiles from the source exist on the target"
+#~ msgstr "コピー元の全てのプロファイルがターゲットに存在しません"
 
 #~ msgid "unreachable return reached"
 #~ msgstr "到達しないはずのreturnに到達しました"

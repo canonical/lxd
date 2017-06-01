@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-06-17 03:18+0000\n"
-"PO-Revision-Date: 2017-02-14 09:54+0000\n"
-"Last-Translator: Vyacheslav Razykov <v.razykov@gmail.com>\n"
+"POT-Creation-Date: 2017-06-27 00:23-0400\n"
+"PO-Revision-Date: 2017-06-06 13:55+0000\n"
+"Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/ru/>\n"
 "Language: ru\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
-"X-Generator: Weblate 2.12-dev\n"
+"X-Generator: Weblate 2.15-dev\n"
 
 #: lxc/storage.go:31
 #, fuzzy
@@ -195,12 +195,12 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/file.go:183
+#: lxc/file.go:186
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/file.go:125
+#: lxc/file.go:128
 #, c-format
 msgid "'%s' isn't a regular file or directory."
 msgstr ""
@@ -260,11 +260,11 @@ msgstr ""
 
 #: lxc/info.go:197
 msgid "Bytes received"
-msgstr ""
+msgstr "Получено байтов"
 
 #: lxc/info.go:198
 msgid "Bytes sent"
-msgstr ""
+msgstr "Отправлено байтов"
 
 #: lxc/config.go:349
 msgid "COMMON NAME"
@@ -283,7 +283,7 @@ msgstr " Использование ЦП:"
 msgid "CREATED AT"
 msgstr "СОЗДАН"
 
-#: lxc/file.go:470
+#: lxc/file.go:479
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
@@ -491,7 +491,7 @@ msgstr ""
 msgid "Failed to get the new container name"
 msgstr ""
 
-#: lxc/file.go:120
+#: lxc/file.go:123
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -587,17 +587,17 @@ msgstr ""
 msgid "Invalid configuration key"
 msgstr ""
 
-#: lxc/file.go:513
+#: lxc/file.go:522
 #, c-format
 msgid "Invalid path %s"
 msgstr ""
 
-#: lxc/file.go:443
+#: lxc/file.go:451
 #, c-format
 msgid "Invalid source %s"
 msgstr ""
 
-#: lxc/file.go:221
+#: lxc/file.go:224
 #, c-format
 msgid "Invalid target %s"
 msgstr ""
@@ -664,7 +664,7 @@ msgstr ""
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
-#: lxc/file.go:431
+#: lxc/file.go:438
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
@@ -1177,7 +1177,7 @@ msgstr ""
 msgid "Unable to read remote TLS certificate"
 msgstr ""
 
-#: lxc/file.go:108
+#: lxc/file.go:111
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -1977,7 +1977,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:269
+#: lxc/file.go:272
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -2020,7 +2020,7 @@ msgstr ""
 msgid "processing aliases failed %s\n"
 msgstr ""
 
-#: lxc/file.go:541
+#: lxc/file.go:550
 msgid "recursive edit doesn't make sense :("
 msgstr ""
 
@@ -2063,7 +2063,7 @@ msgstr ""
 
 #: lxc/delete.go:45 lxc/image.go:203 lxc/image.go:537
 msgid "yes"
-msgstr ""
+msgstr "да"
 
 #~ msgid "Could not sanitize path %s"
 #~ msgstr "Не удалось очистить путь %s"

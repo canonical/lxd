@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-06-17 03:18+0000\n"
-"PO-Revision-Date: 2017-05-09 20:42+0000\n"
+"POT-Creation-Date: 2017-06-27 00:23-0400\n"
+"PO-Revision-Date: 2017-06-15 22:46+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/it/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2.14-dev\n"
+"X-Generator: Weblate 2.15-dev\n"
 
 #: lxc/storage.go:31
 msgid ""
@@ -35,6 +35,20 @@ msgid ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 msgstr ""
+"### Questa è una rappresentazione yaml di un pool di storage.\n"
+"### Le linee che iniziano con '# saranno ignorate.\n"
+"###\n"
+"### Un pool di storage consiste di un insieme di elementi di\n"
+"### configurazione.\n"
+"###\n"
+"### Un esempio è il seguente:\n"
+"### name: default\n"
+"### driver: zfs\n"
+"### used_by: []\n"
+"### config:\n"
+"###   size: \"61203283968\"\n"
+"###   source: /home/chb/mnt/lxd_test/default.img\n"
+"###   zfs.pool_name: default"
 
 #: lxc/storage.go:48
 msgid ""
@@ -80,6 +94,13 @@ msgid ""
 "### An example would be:\n"
 "###  description: My custom image"
 msgstr ""
+"### Questa è una rappresentazione yaml delle proprietà di\n"
+"### un'immagine.\n"
+"### Le linee che iniziano con '# saranno ignorate.\n"
+"###\n"
+"### Ogni proprietà è rappresentata da una singola linea.\n"
+"### Un esempio è il seguente:\n"
+"###  description: My custom image"
 
 #: lxc/network.go:30
 msgid ""
@@ -127,12 +148,12 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (altri %d)"
 
-#: lxc/file.go:183
+#: lxc/file.go:186
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/file.go:125
+#: lxc/file.go:128
 #, c-format
 msgid "'%s' isn't a regular file or directory."
 msgstr ""
@@ -147,7 +168,7 @@ msgstr "(nessuno)"
 
 #: lxc/image.go:226 lxc/image.go:1052
 msgid "ALIAS"
-msgstr ""
+msgstr "ALIAS"
 
 #: lxc/image.go:227
 msgid "ALIASES"
@@ -163,26 +184,26 @@ msgstr "ARCHITETTURA"
 
 #: lxc/remote.go:67
 msgid "Accept certificate"
-msgstr ""
+msgstr "Accetta certificato"
 
 #: lxc/remote.go:281
 #, c-format
 msgid "Admin password for %s: "
-msgstr ""
+msgstr "Password amministratore per %s: "
 
 #: lxc/image.go:569
 msgid "Aliases:"
-msgstr ""
+msgstr "Alias:"
 
 #: lxc/image.go:547 lxc/info.go:104
 #, c-format
 msgid "Architecture: %s"
-msgstr ""
+msgstr "Architettura: %s"
 
 #: lxc/image.go:577
 #, c-format
 msgid "Auto update: %s"
-msgstr ""
+msgstr "Aggiornamento automatico: %s"
 
 #: lxc/image.go:651
 #, c-format
@@ -195,7 +216,7 @@ msgstr "Bytes ricevuti"
 
 #: lxc/info.go:198
 msgid "Bytes sent"
-msgstr ""
+msgstr "Byte inviati"
 
 #: lxc/config.go:349
 msgid "COMMON NAME"
@@ -203,17 +224,17 @@ msgstr ""
 
 #: lxc/info.go:161
 msgid "CPU usage (in seconds)"
-msgstr ""
+msgstr "Utilizzo CPU (in secondi)"
 
 #: lxc/info.go:165
 msgid "CPU usage:"
-msgstr ""
+msgstr "Utilizzo CPU:"
 
 #: lxc/list.go:462
 msgid "CREATED AT"
-msgstr ""
+msgstr "CREATO IL"
 
-#: lxc/file.go:470
+#: lxc/file.go:479
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
@@ -340,9 +361,9 @@ msgid "Device %s removed from %s"
 msgstr ""
 
 #: lxc/utils.go:248 lxc/utils.go:272
-#, c-format
+#, fuzzy, c-format
 msgid "Device already exists: %s"
-msgstr ""
+msgstr "il remote %s esiste già"
 
 #: lxc/exec.go:65
 msgid "Disable pseudo-terminal allocation"
@@ -420,7 +441,7 @@ msgstr ""
 msgid "Failed to get the new container name"
 msgstr ""
 
-#: lxc/file.go:120
+#: lxc/file.go:123
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -516,17 +537,17 @@ msgstr ""
 msgid "Invalid configuration key"
 msgstr ""
 
-#: lxc/file.go:513
+#: lxc/file.go:522
 #, c-format
 msgid "Invalid path %s"
 msgstr ""
 
-#: lxc/file.go:443
+#: lxc/file.go:451
 #, c-format
 msgid "Invalid source %s"
 msgstr ""
 
-#: lxc/file.go:221
+#: lxc/file.go:224
 #, c-format
 msgid "Invalid target %s"
 msgstr ""
@@ -592,7 +613,7 @@ msgstr ""
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
-#: lxc/file.go:431
+#: lxc/file.go:438
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
@@ -1009,8 +1030,9 @@ msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 
 #: lxc/config.go:770 lxc/config.go:787
+#, fuzzy
 msgid "The device already exists"
-msgstr ""
+msgstr "il remote %s esiste già"
 
 #: lxc/config.go:833 lxc/config.go:845 lxc/config.go:881 lxc/config.go:899
 #: lxc/config.go:945 lxc/config.go:962 lxc/config.go:1006 lxc/config.go:1022
@@ -1104,7 +1126,7 @@ msgstr ""
 msgid "Unable to read remote TLS certificate"
 msgstr ""
 
-#: lxc/file.go:108
+#: lxc/file.go:111
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -1885,8 +1907,9 @@ msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
 #: lxc/copy.go:57
+#, fuzzy
 msgid "You must specify a source container name"
-msgstr ""
+msgstr "occorre specificare un nome di container come origine"
 
 #: lxc/main.go:58
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
@@ -1896,7 +1919,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:269
+#: lxc/file.go:272
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -1928,40 +1951,40 @@ msgstr ""
 
 #: lxc/image.go:205 lxc/image.go:535
 msgid "no"
-msgstr ""
+msgstr "no"
 
 #: lxc/remote.go:229
 msgid "ok (y/n)?"
-msgstr ""
+msgstr "ok (y/n)?"
 
 #: lxc/main.go:345 lxc/main.go:349
 #, c-format
 msgid "processing aliases failed %s\n"
-msgstr ""
+msgstr "errore di processamento degli alias %s\n"
 
-#: lxc/file.go:541
+#: lxc/file.go:550
 msgid "recursive edit doesn't make sense :("
 msgstr ""
 
 #: lxc/remote.go:432
 #, c-format
 msgid "remote %s already exists"
-msgstr ""
+msgstr "il remote %s esiste già"
 
 #: lxc/remote.go:362 lxc/remote.go:424 lxc/remote.go:459 lxc/remote.go:475
 #, c-format
 msgid "remote %s doesn't exist"
-msgstr ""
+msgstr "il remote %s non esiste"
 
 #: lxc/remote.go:345
 #, c-format
 msgid "remote %s exists as <%s>"
-msgstr ""
+msgstr "il remote %s esiste come %s"
 
 #: lxc/remote.go:366 lxc/remote.go:428 lxc/remote.go:463
 #, c-format
 msgid "remote %s is static and cannot be modified"
-msgstr ""
+msgstr "il remote %s è statico e non può essere modificato"
 
 #: lxc/info.go:230
 msgid "stateful"
@@ -1969,17 +1992,20 @@ msgstr ""
 
 #: lxc/info.go:232
 msgid "stateless"
-msgstr ""
+msgstr "senza stato"
 
 #: lxc/info.go:226
 #, c-format
 msgid "taken at %s"
-msgstr ""
+msgstr "salvato alle %s"
 
 #: lxc/main.go:276
 msgid "wrong number of subcommand arguments"
-msgstr ""
+msgstr "numero errato di argomenti del sottocomando"
 
 #: lxc/delete.go:45 lxc/image.go:203 lxc/image.go:537
 msgid "yes"
-msgstr ""
+msgstr "si"
+
+#~ msgid "not all the profiles from the source exist on the target"
+#~ msgstr "non tutti i profili dell'origine esistono nella destinazione"
