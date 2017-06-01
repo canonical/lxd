@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-06-17 03:18+0000\n"
+"POT-Creation-Date: 2017-06-27 00:23-0400\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -213,12 +213,12 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/file.go:183
+#: lxc/file.go:186
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/file.go:125
+#: lxc/file.go:128
 #, c-format
 msgid "'%s' isn't a regular file or directory."
 msgstr ""
@@ -302,7 +302,7 @@ msgstr " Prozessorauslastung:"
 msgid "CREATED AT"
 msgstr "ERSTELLT AM"
 
-#: lxc/file.go:470
+#: lxc/file.go:479
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
@@ -516,7 +516,7 @@ msgstr ""
 msgid "Failed to get the new container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:120
+#: lxc/file.go:123
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -616,17 +616,17 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Invalid configuration key"
 msgstr ""
 
-#: lxc/file.go:513
+#: lxc/file.go:522
 #, fuzzy, c-format
 msgid "Invalid path %s"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/file.go:443
+#: lxc/file.go:451
 #, c-format
 msgid "Invalid source %s"
 msgstr "Ungültige Quelle %s"
 
-#: lxc/file.go:221
+#: lxc/file.go:224
 #, c-format
 msgid "Invalid target %s"
 msgstr "Ungültiges Ziel %s"
@@ -693,7 +693,7 @@ msgstr "Fehlende Zusammenfassung."
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
-#: lxc/file.go:431
+#: lxc/file.go:438
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
@@ -1229,7 +1229,7 @@ msgstr ""
 msgid "Unable to read remote TLS certificate"
 msgstr ""
 
-#: lxc/file.go:108
+#: lxc/file.go:111
 #, fuzzy, c-format
 msgid "Unknown file type '%s'"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -2184,7 +2184,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:269
+#: lxc/file.go:272
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -2228,7 +2228,7 @@ msgstr "OK (y/n)? "
 msgid "processing aliases failed %s\n"
 msgstr ""
 
-#: lxc/file.go:541
+#: lxc/file.go:550
 msgid "recursive edit doesn't make sense :("
 msgstr ""
 
@@ -2273,19 +2273,19 @@ msgstr "falsche Anzahl an Parametern für Unterbefehl"
 msgid "yes"
 msgstr ""
 
-#~ msgid "can't copy to the same container name"
-#~ msgstr "kann nicht zum selben Container Namen kopieren"
-
-#~ msgid "not all the profiles from the source exist on the target"
-#~ msgstr "nicht alle Profile der Quelle sind am Ziel vorhanden."
-
 #~ msgid "bad number of things scanned from image, container or snapshot"
 #~ msgstr ""
 #~ "Falsche Anzahl an Objekten im Abbild, Container oder Sicherungspunkt "
 #~ "gelesen."
 
+#~ msgid "can't copy to the same container name"
+#~ msgstr "kann nicht zum selben Container Namen kopieren"
+
 #~ msgid "got bad version"
 #~ msgstr "Versionskonflikt"
+
+#~ msgid "not all the profiles from the source exist on the target"
+#~ msgstr "nicht alle Profile der Quelle sind am Ziel vorhanden."
 
 #, fuzzy
 #~ msgid ""
