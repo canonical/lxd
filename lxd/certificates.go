@@ -247,7 +247,7 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 
 	err := dbCertUpdate(d.db, fingerprint, req.Name, 1)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return EmptySyncResponse

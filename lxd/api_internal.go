@@ -206,12 +206,12 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		// Create the storage pool db entry if it doesn't exist.
 		err := storagePoolDBCreate(d, containerPoolName, pool.Description, backup.Pool.Driver, backup.Pool.Config)
 		if err != nil {
-			return InternalError(err)
+			return SmartError(err)
 		}
 
 		poolID, err = dbStoragePoolGetID(d.db, containerPoolName)
 		if err != nil {
-			return InternalError(err)
+			return SmartError(err)
 		}
 	} else {
 		if backup.Pool.Name != containerPoolName {
@@ -227,7 +227,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	_, volume, ctVolErr := dbStoragePoolVolumeGetType(d.db, req.Name, storagePoolVolumeTypeContainer, poolID)
 	if ctVolErr != nil {
 		if ctVolErr != NoSuchObjectError {
-			return InternalError(ctVolErr)
+			return SmartError(ctVolErr)
 		}
 	}
 	// If a storage volume entry exists only proceed if force was specified.
@@ -239,7 +239,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	_, containerErr := dbContainerId(d.db, req.Name)
 	if containerErr != nil {
 		if containerErr != sql.ErrNoRows {
-			return InternalError(containerErr)
+			return SmartError(containerErr)
 		}
 	}
 	// If a db entry exists only proceed if force was specified.
@@ -291,7 +291,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		_, snapErr := dbContainerId(d.db, snap.Name)
 		if snapErr != nil {
 			if snapErr != sql.ErrNoRows {
-				return InternalError(snapErr)
+				return SmartError(snapErr)
 			}
 		}
 
@@ -304,7 +304,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		_, _, snapVolErr := dbStoragePoolVolumeGetType(d.db, snap.Name, storagePoolVolumeTypeContainer, poolID)
 		if snapVolErr != nil {
 			if snapVolErr != NoSuchObjectError {
-				return InternalError(snapVolErr)
+				return SmartError(snapVolErr)
 			}
 		}
 
@@ -340,7 +340,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		// force was specified.
 		err := dbContainerRemove(d.db, req.Name)
 		if err != nil {
-			return InternalError(err)
+			return SmartError(err)
 		}
 	}
 
@@ -377,7 +377,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		_, snapErr := dbContainerId(d.db, snapName)
 		if snapErr != nil {
 			if snapErr != sql.ErrNoRows {
-				return InternalError(snapErr)
+				return SmartError(snapErr)
 			}
 		}
 
@@ -390,7 +390,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		_, _, csVolErr := dbStoragePoolVolumeGetType(d.db, snapName, storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
 			if csVolErr != NoSuchObjectError {
-				return InternalError(csVolErr)
+				return SmartError(csVolErr)
 			}
 		}
 
@@ -402,7 +402,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		if snapErr == nil {
 			err := dbContainerRemove(d.db, snapName)
 			if err != nil {
-				return InternalError(err)
+				return SmartError(err)
 			}
 		}
 
