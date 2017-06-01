@@ -23,7 +23,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 
 	pools, err := dbStoragePools(d.db)
 	if err != nil && err != NoSuchObjectError {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	resultString := []string{}
@@ -216,7 +216,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	// Check if the storage pool is still referenced in any profiles.
 	profiles, err := profilesUsingPoolGetNames(d.db, poolName)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 	if len(profiles) > 0 {
 		return BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
@@ -234,7 +234,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 
 	err = dbStoragePoolDelete(d.db, poolName)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return EmptySyncResponse

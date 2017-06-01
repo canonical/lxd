@@ -101,7 +101,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 	// attached to the storage pool.
 	volumes, err := dbStoragePoolVolumesGetType(d.db, volumeType, poolID)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	resultString := []string{}
@@ -121,7 +121,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 
 			volumeUsedBy, err := storagePoolVolumeUsedByGet(d, vol.Name, vol.Type)
 			if err != nil {
-				return InternalError(err)
+				return SmartError(err)
 			}
 			vol.UsedBy = volumeUsedBy
 
@@ -204,7 +204,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 	// attached to.
 	poolID, err := dbStoragePoolGetID(d.db, poolName)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	// Get the storage volume.
@@ -215,7 +215,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 
 	volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volume.Name, volume.Type)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 	volume.UsedBy = volumeUsedBy
 
@@ -278,7 +278,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
 
 	err = storagePoolVolumeUpdate(d, poolName, volumeName, volumeType, req.Description, req.Config)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return EmptySyncResponse
@@ -351,7 +351,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 
 	err = storagePoolVolumeUpdate(d, poolName, volumeName, volumeType, req.Description, req.Config)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return EmptySyncResponse
@@ -385,7 +385,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 
 	volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volumeName, volumeTypeName)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	if len(volumeUsedBy) > 0 {
@@ -399,17 +399,17 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 
 	err = s.StoragePoolVolumeDelete()
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	poolID, err := dbStoragePoolGetID(d.db, poolName)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	err = dbStoragePoolVolumeDelete(d.db, volumeName, volumeType, poolID)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 
 	return EmptySyncResponse

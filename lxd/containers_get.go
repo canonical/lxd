@@ -18,7 +18,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 		}
 		if !isDbLockedError(err) {
 			logger.Debugf("DBERR: containersGet: error %q", err)
-			return InternalError(err)
+			return SmartError(err)
 		}
 		// 1 s may seem drastic, but we really don't want to thrash
 		// perhaps we should use a random amount
