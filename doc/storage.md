@@ -5,7 +5,6 @@ Volume keys apply to any volume created in the pool unless the value is
 overridden on a per-volume basis.
 
 ## Storage pool configuration
-
 Key                             | Type      | Condition                         | Default                 | Description
 :--                             | :--       | :--                               | :--                     | :--
 size                            | string    | appropriate driver and source     | 0                       | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
@@ -28,7 +27,6 @@ Storage pool configuration keys can be set using the lxc tool with:
     lxc storage set [<remote>:]<pool> <key> <value>
 
 ## Storage volume configuration
-
 Key                     | Type      | Condition                 | Default                               | Description
 :--                     | :--       | :--                       | :--                                   | :--
 size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
@@ -170,7 +168,7 @@ lxc storage create pool1 btrfs source=/dev/sdX
  - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
  - By default, all LVM storage pools use an LVM thinpool in which logical
    volumes for all LXD storage entities (images, containers, etc.) are created.
-   This behavior can be changed by setting "lvm.use_thinpool" to "false". In
+   This behavior can be changed by setting "lvm.use\_thinpool" to "false". In
    this case, LXD will use normal logical volumes for all non-container
    snapshot storage entities (images, containers etc.). This means most storage
    operations will need to fallback to rsyncing since non-thinpool logical
@@ -202,7 +200,7 @@ lxc storage create pool1 lvm source=/dev/sdX
  - Create a new pool called "pool1" using "/dev/sdX" with the LVM Volume Group called "my-pool".
 
 ```
-lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
+lxc storage create pool1 lvm source=/dev/sdX lvm.vg\_name=my-pool
 ```
 
 ### ZFS
@@ -232,8 +230,8 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
    a LXD zfs pool or dataset since LXD might delete them.
  - When quotas are used on a ZFS dataset LXD will set the ZFS "quota" property.
    In order to have LXD set the ZFS "refquota" property, either set
-   "zfs.use_refquota" to "true" for the given dataset or set
-   "volume.zfs.use_refquota" to true on the storage pool. The former option
+   "zfs.use\_refquota" to "true" for the given dataset or set
+   "volume.zfs.use\_refquota" to true on the storage pool. The former option
    will make LXD use refquota only for the given storage volume the latter will
    make LXD use refquota for all storage volumes in the storage pool.
 
