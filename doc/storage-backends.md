@@ -26,6 +26,22 @@ using the new backend and converting older images to the new backend as needed.
 When the filesystem on the source and target hosts differs or when there is no faster way,  
 rsync is used to transfer the container content across.
 
+## I/O limits
+I/O limits in IOp/s or MB/s can be set on storage devices when attached to a container (see containers.md).
+
+Those are applied through the Linux "blkio" cgroup controller which makes it possible  
+to restrict I/O at the disk level (but nothing finer grained than that).
+
+Because those apply to a whole physical disk rather than a partition or path, the following restrictions apply:
+ - Limits will not apply to filesystems that are backed by virtual devices (e.g. device mapper).
+ - If a fileystem is backed by multiple block devices, each device will get the same limit.
+ - If the container is passed two disk devices that are each backed by the same disk,  
+   the limits of the two devices will be averaged.
+
+It's also worth noting that all I/O limits only apply to actual block device access,  
+so you will need to consider the filesystem's own overhead when setting limits.  
+This also means that access to cached data will not be affected by the limit.
+
 ## Notes
 ### Directory
 
@@ -81,6 +97,10 @@ rsync is used to transfer the container content across.
  - Note that LXD will assume it has full control over the zfs pool or dataset.
    It is recommended to not maintain any non-LXD owned filesystem entities in
    a LXD zfs pool or dataset since LXD might delete them.
+ - I/O quotas (IOps/MBs) are unlikely to affect ZFS filesystems very
+   much. That's because of ZFS being a port of a Solaris module (using SPL)
+   and not a native Linux filesystem using the Linux VFS API which is where
+   I/O limits are applied.
 
 #### Growing a loop backed ZFS pool
 LXD doesn't let you directly grow a loop backed ZFS pool, but you can do so with:
