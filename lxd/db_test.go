@@ -21,7 +21,7 @@ const DB_FIXTURES string = `
     INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
     INSERT INTO containers_devices (container_id, name, type) VALUES (1, 'somename', 1);
     INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);
-    INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176);
+    INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date, auto_update) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176, 1);
     INSERT INTO images_aliases (name, image_id, description) VALUES ('somealias', 1, 'some description');
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
     INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'thekey', 'thevalue');
