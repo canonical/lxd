@@ -110,6 +110,22 @@ The same can be done manually against any profile using (for the "default" profi
 lxc profile device add default root disk path=/ pool=default
 ```
 
+## I/O limits
+I/O limits in IOp/s or MB/s can be set on storage devices when attached to a container (see containers.md).
+
+Those are applied through the Linux "blkio" cgroup controller which makes it possible  
+to restrict I/O at the disk level (but nothing finer grained than that).
+
+Because those apply to a whole physical disk rather than a partition or path, the following restrictions apply:
+ - Limits will not apply to filesystems that are backed by virtual devices (e.g. device mapper).
+ - If a fileystem is backed by multiple block devices, each device will get the same limit.
+ - If the container is passed two disk devices that are each backed by the same disk,  
+   the limits of the two devices will be averaged.
+
+It's also worth noting that all I/O limits only apply to actual block device access,  
+so you will need to consider the filesystem's own overhead when setting limits.  
+This also means that access to cached data will not be affected by the limit.
+
 ## Notes and examples
 ### Directory
 
@@ -234,6 +250,10 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg\_name=my-pool
    "volume.zfs.use\_refquota" to true on the storage pool. The former option
    will make LXD use refquota only for the given storage volume the latter will
    make LXD use refquota for all storage volumes in the storage pool.
+ - I/O quotas (IOps/MBs) are unlikely to affect ZFS filesystems very
+   much. That's because of ZFS being a port of a Solaris module (using SPL)
+   and not a native Linux filesystem using the Linux VFS API which is where
+   I/O limits are applied.
 
 #### The following commands can be used to create ZFS storage pools
 
