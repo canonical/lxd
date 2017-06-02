@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/olekukonko/tablewriter"
+	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd"
 	"github.com/lxc/lxd/shared"
@@ -29,12 +30,6 @@ type column struct {
 
 type columnData func(api.Container, *api.ContainerState, []api.ContainerSnapshot) string
 
-const (
-	listFormatTable = "table"
-	listFormatJSON  = "json"
-	listFormatCSV   = "csv"
-)
-
 type listCmd struct {
 	columnsRaw string
 	fast       bool
@@ -47,7 +42,7 @@ func (c *listCmd) showByDefault() bool {
 
 func (c *listCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc list [<remote>:] [filters] [--format table|json|csv] [-c <columns>] [--fast]
+		`Usage: lxc list [<remote>:] [filters] [--format csv|json|table|yaml] [-c <columns>] [--fast]
 
 List the existing containers.
 
@@ -132,7 +127,7 @@ lxc list -c ns,user.comment:comment
 func (c *listCmd) flags() {
 	gnuflag.StringVar(&c.columnsRaw, "c", "ns46tS", i18n.G("Columns"))
 	gnuflag.StringVar(&c.columnsRaw, "columns", "ns46tS", i18n.G("Columns"))
-	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (table|json|csv)"))
+	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (csv|json|table|yaml)"))
 	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
 }
 
@@ -378,6 +373,19 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 		if err != nil {
 			return err
 		}
+	case listFormatYAML:
+		data := make([]listContainerItem, len(cinfos))
+		for i := range cinfos {
+			data[i].Container = &cinfos[i]
+			data[i].State = cStates[cinfos[i].Name]
+			data[i].Snapshots = cSnapshots[cinfos[i].Name]
+		}
+
+		out, err := yaml.Marshal(data)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s", out)
 	default:
 		return fmt.Errorf("invalid format %q", c.format)
 	}

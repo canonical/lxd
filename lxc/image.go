@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -109,7 +110,7 @@ lxc image export [<remote>:]<image> [target]
 lxc image info [<remote>:]<image>
     Print everything LXD knows about a given image.
 
-lxc image list [<remote>:] [filter] [--format table|json]
+lxc image list [<remote>:] [filter] [--format csv|json|table|yaml]
     List images in the LXD image store. Filters may be of the
     <key>=<value> form for property based filtering, or part of the image
     hash or part of the image alias name.
@@ -137,7 +138,7 @@ func (c *imageCmd) flags() {
 	gnuflag.BoolVar(&c.copyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
 	gnuflag.BoolVar(&c.autoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
 	gnuflag.Var(&c.addAliases, "alias", i18n.G("New alias to define at target"))
-	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format"))
+	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (csv|json|table|yaml)"))
 }
 
 func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
@@ -616,8 +617,7 @@ func (c *imageCmd) findDescription(props map[string]string) string {
 }
 
 func (c *imageCmd) showImages(images []api.Image, filters []string) error {
-	switch c.format {
-	case listFormatTable:
+	tableData := func() [][]string {
 		data := [][]string{}
 		for _, image := range images {
 			if !c.imageShouldShow(filters, &image) {
@@ -642,6 +642,19 @@ func (c *imageCmd) showImages(images []api.Image, filters []string) error {
 			data = append(data, []string{shortest, fp, public, description, image.Architecture, size, uploaded})
 		}
 
+		sort.Sort(SortImage(data))
+		return data
+	}
+
+	switch c.format {
+	case listFormatCSV:
+		w := csv.NewWriter(os.Stdout)
+		w.WriteAll(tableData())
+		if err := w.Error(); err != nil {
+			return err
+		}
+	case listFormatTable:
+
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
@@ -654,8 +667,7 @@ func (c *imageCmd) showImages(images []api.Image, filters []string) error {
 			i18n.G("ARCH"),
 			i18n.G("SIZE"),
 			i18n.G("UPLOAD DATE")})
-		sort.Sort(SortImage(data))
-		table.AppendBulk(data)
+		table.AppendBulk(tableData())
 		table.Render()
 	case listFormatJSON:
 		data := make([]*api.Image, len(images))
@@ -667,6 +679,17 @@ func (c *imageCmd) showImages(images []api.Image, filters []string) error {
 		if err != nil {
 			return err
 		}
+	case listFormatYAML:
+		data := make([]*api.Image, len(images))
+		for i := range images {
+			data[i] = &images[i]
+		}
+
+		out, err := yaml.Marshal(data)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s", out)
 	default:
 		return fmt.Errorf("invalid format %q", c.format)
 	}

@@ -9,6 +9,14 @@ import (
 	"github.com/lxc/lxd/shared/i18n"
 )
 
+// Lists
+const (
+	listFormatCSV   = "csv"
+	listFormatJSON  = "json"
+	listFormatTable = "table"
+	listFormatYAML  = "yaml"
+)
+
 // Progress tracking
 type ProgressRenderer struct {
 	Format string
