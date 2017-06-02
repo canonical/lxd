@@ -25,10 +25,10 @@ type StoragePool struct {
 //
 // API extension: storage
 type StoragePoolPut struct {
+	Config map[string]string `json:"config" yaml:"config"`
+
 	// API extension: entity_description
 	Description string `json:"description" yaml:"description"`
-
-	Config map[string]string `json:"config" yaml:"config"`
 }
 
 // StorageVolumesPost represents the fields of a new LXD storage pool volume
@@ -55,10 +55,10 @@ type StorageVolume struct {
 //
 // API extension: storage
 type StorageVolumePut struct {
+	Config map[string]string `json:"config" yaml:"config"`
+
 	// API extension: entity_description
 	Description string `json:"description" yaml:"description"`
-
-	Config map[string]string `json:"config" yaml:"config"`
 }
 
 // Writable converts a full StoragePool struct into a StoragePoolPut struct

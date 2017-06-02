@@ -80,7 +80,7 @@ dist:
 	rm -Rf $(TMP)
 
 .PHONY: i18n update-po update-pot build-mo static-analysis
-i18n: update-po update-pot
+i18n: update-pot update-po
 
 po/%.mo: po/%.po
 	msgfmt --statistics -o $@ $<
