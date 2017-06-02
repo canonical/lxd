@@ -10,6 +10,12 @@ type ImagesPost struct {
 
 	Filename string            `json:"filename" yaml:"filename"`
 	Source   *ImagesPostSource `json:"source" yaml:"source"`
+
+	// API extension: image_compression_algorithm
+	CompressionAlgorithm string `json:"compression_algorithm" yaml:"compression_algorithm"`
+
+	// API extension: image_create_aliases
+	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`
 }
 
 // ImagesPostSource represents the source of a new LXD image

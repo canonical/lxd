@@ -24,6 +24,9 @@ type Profile struct {
 	ProfilePut `yaml:",inline"`
 
 	Name string `json:"name" yaml:"name"`
+
+	// API extension: profile_usedby
+	UsedBy []string `json:"used_by" yaml:"used_by"`
 }
 
 // Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields)

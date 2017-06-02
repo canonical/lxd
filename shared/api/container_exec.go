@@ -15,4 +15,7 @@ type ContainerExecPost struct {
 	Environment map[string]string `json:"environment" yaml:"environment"`
 	Width       int               `json:"width" yaml:"width"`
 	Height      int               `json:"height" yaml:"height"`
+
+	// API extension: container_exec_recording
+	RecordOutput bool `json:"record-output" yaml:"record-output"`
 }

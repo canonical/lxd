@@ -17,10 +17,20 @@ type ContainerState struct {
 	Network    map[string]ContainerStateNetwork `json:"network" yaml:"network"`
 	Pid        int64                            `json:"pid" yaml:"pid"`
 	Processes  int64                            `json:"processes" yaml:"processes"`
+
+	// API extension: container_cpu_time
+	CPU ContainerStateCPU `json:"cpu" yaml:"cpu"`
 }
 
 // ContainerStateDisk represents the disk information section of a LXD container's state
 type ContainerStateDisk struct {
+	Usage int64 `json:"usage" yaml:"usage"`
+}
+
+// ContainerStateCPU represents the cpu information section of a LXD container's state
+//
+// API extension: container_cpu_time
+type ContainerStateCPU struct {
 	Usage int64 `json:"usage" yaml:"usage"`
 }
 
