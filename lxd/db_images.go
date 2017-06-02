@@ -124,7 +124,8 @@ func dbImageSourceGetCachedFingerprint(db *sql.DB, server string, protocol strin
 			FROM images_source
 			INNER JOIN images
 			ON images_source.image_id=images.id
-			WHERE server=? AND protocol=? AND alias=?`
+			WHERE server=? AND protocol=? AND alias=? AND auto_update=1
+			ORDER BY creation_date DESC`
 
 	fingerprint := ""
 

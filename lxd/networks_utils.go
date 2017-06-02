@@ -366,7 +366,7 @@ func networkRandomSubnetV4() (string, error) {
 		return cidr, nil
 	}
 
-	return "", fmt.Errorf("Unable to find a free IPv4 subnet")
+	return "", fmt.Errorf("Failed to automatically find an unused IPv4 subnet, manual configuration required")
 }
 
 func networkRandomSubnetV6() (string, error) {
@@ -388,7 +388,7 @@ func networkRandomSubnetV6() (string, error) {
 		return cidr, nil
 	}
 
-	return "", fmt.Errorf("Unable to find a free IPv6 subnet")
+	return "", fmt.Errorf("Failed to automatically find an unused IPv6 subnet, manual configuration required")
 }
 
 func networkDefaultGatewaySubnetV4() (*net.IPNet, string, error) {
