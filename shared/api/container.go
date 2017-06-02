@@ -29,9 +29,6 @@ type ContainerPost struct {
 
 // ContainerPut represents the modifiable fields of a LXD container
 type ContainerPut struct {
-	// API extension: entity_description
-	Description string `json:"description" yaml:"description"`
-
 	Architecture string                       `json:"architecture" yaml:"architecture"`
 	Config       map[string]string            `json:"config" yaml:"config"`
 	Devices      map[string]map[string]string `json:"devices" yaml:"devices"`
@@ -41,6 +38,9 @@ type ContainerPut struct {
 	// For snapshot restore
 	Restore  string `json:"restore,omitempty" yaml:"restore,omitempty"`
 	Stateful bool   `json:"stateful" yaml:"stateful"`
+
+	// API extension: entity_description
+	Description string `json:"description" yaml:"description"`
 }
 
 // Container represents a LXD container
@@ -96,11 +96,11 @@ type ContainerSource struct {
 	Operation  string            `json:"operation,omitempty" yaml:"operation,omitempty"`
 	Websockets map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 
-	// API extension: container_push
-	Live bool `json:"live,omitempty" yaml:"live,omitempty"`
-
 	// For "copy" type
 	Source string `json:"source,omitempty" yaml:"source,omitempty"`
+
+	// API extension: container_push
+	Live bool `json:"live,omitempty" yaml:"live,omitempty"`
 
 	// API extension: container_only_migration
 	ContainerOnly bool `json:"container_only,omitempty" yaml:"container_only,omitempty"`
