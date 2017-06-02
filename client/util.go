@@ -12,9 +12,9 @@ import (
 	"github.com/lxc/lxd/shared/ioprogress"
 )
 
-func tlsHTTPClient(tlsClientCert string, tlsClientKey string, tlsServerCert string, proxy func(req *http.Request) (*url.URL, error)) (*http.Client, error) {
+func tlsHTTPClient(tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, proxy func(req *http.Request) (*url.URL, error)) (*http.Client, error) {
 	// Get the TLS configuration
-	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsServerCert)
+	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsCA, tlsServerCert)
 	if err != nil {
 		return nil, err
 	}

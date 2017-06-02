@@ -21,6 +21,9 @@ type ConnectionArgs struct {
 	// TLS key to use for client authentication.
 	TLSClientKey string
 
+	// TLS CA to validate against when in PKI mode.
+	TLSCA string
+
 	// User agent string
 	UserAgent string
 
@@ -31,6 +34,8 @@ type ConnectionArgs struct {
 // ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
 //
 // A client certificate (TLSClientCert) and key (TLSClientKey) must be provided.
+//
+// If connecting to a LXD daemon running in PKI mode, the PKI CA (TLSCA) must also be provided.
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
@@ -50,7 +55,7 @@ func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.TLSClientCert, args.TLSClientKey, args.TLSServerCert, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +138,7 @@ func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.TLSClientCert, args.TLSClientKey, args.TLSServerCert, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +172,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.TLSClientCert, args.TLSClientKey, args.TLSServerCert, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
 	if err != nil {
 		return nil, err
 	}

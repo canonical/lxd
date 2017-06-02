@@ -48,6 +48,7 @@ type ContainerServer interface {
 	GetCertificates() (certificates []api.Certificate, err error)
 	GetCertificate(fingerprint string) (certificate *api.Certificate, ETag string, err error)
 	CreateCertificate(certificate api.CertificatesPost) (err error)
+	UpdateCertificate(fingerprint string, certificate api.CertificatePut, ETag string) (err error)
 	DeleteCertificate(fingerprint string) (err error)
 
 	// Container functions
@@ -90,6 +91,7 @@ type ContainerServer interface {
 	CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (op *RemoteOperation, err error)
 	UpdateImage(fingerprint string, image api.ImagePut, ETag string) (err error)
 	DeleteImage(fingerprint string) (op *Operation, err error)
+	RefreshImage(fingerprint string) (op *Operation, err error)
 	CreateImageSecret(fingerprint string) (op *Operation, err error)
 	CreateImageAlias(alias api.ImageAliasesPost) (err error)
 	UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) (err error)
@@ -100,6 +102,10 @@ type ContainerServer interface {
 	GetNetworkNames() (names []string, err error)
 	GetNetworks() (networks []api.Network, err error)
 	GetNetwork(name string) (network *api.Network, ETag string, err error)
+	CreateNetwork(network api.NetworksPost) (err error)
+	UpdateNetwork(name string, network api.NetworkPut, ETag string) (err error)
+	RenameNetwork(name string, network api.NetworkPost) (err error)
+	DeleteNetwork(name string) (err error)
 
 	// Operation functions
 	GetOperation(uuid string) (op *api.Operation, ETag string, err error)
@@ -114,6 +120,22 @@ type ContainerServer interface {
 	UpdateProfile(name string, profile api.ProfilePut, ETag string) (err error)
 	RenameProfile(name string, profile api.ProfilePost) (err error)
 	DeleteProfile(name string) (err error)
+
+	// Storage pool functions ("storage" API extension)
+	GetStoragePoolNames() (names []string, err error)
+	GetStoragePools() (pools []api.StoragePool, err error)
+	GetStoragePool(name string) (pool *api.StoragePool, ETag string, err error)
+	CreateStoragePool(pool api.StoragePoolsPost) (err error)
+	UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) (err error)
+	DeleteStoragePool(name string) (err error)
+
+	// Storage volume functions ("storage" API extension)
+	GetStoragePoolVolumeNames(pool string) (names []string, err error)
+	GetStoragePoolVolumes(pool string) (volumes []api.StorageVolume, err error)
+	GetStoragePoolVolume(pool string, volType string, name string) (volume *api.StorageVolume, ETag string, err error)
+	CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) (err error)
+	UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) (err error)
+	DeleteStoragePoolVolume(pool string, volType string, name string) (err error)
 
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)
@@ -195,6 +217,9 @@ type ImageCopyArgs struct {
 	// Whether to have LXD keep this image up to date
 	AutoUpdate bool
 
+	// Whether to copy the source image aliases to the target
+	CopyAliases bool
+
 	// Whether this image is to be made available to unauthenticated users
 	Public bool
 }
@@ -227,6 +252,12 @@ type ContainerFileArgs struct {
 
 	// File permissions
 	Mode int
+
+	// File type (file or directory)
+	Type string
+
+	// File write mode (overwrite or append)
+	WriteMode string
 }
 
 // The ContainerFileResponse struct is used as part of the response for a container file download
@@ -239,4 +270,10 @@ type ContainerFileResponse struct {
 
 	// File permissions
 	Mode int
+
+	// File type (file or directory)
+	Type string
+
+	// If a directory, the list of files inside it
+	Entries []string
 }

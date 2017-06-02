@@ -66,6 +66,21 @@ func (r *ProtocolLXD) CreateCertificate(certificate api.CertificatesPost) error 
 	return nil
 }
 
+// UpdateCertificate updates the certificate definition
+func (r *ProtocolLXD) UpdateCertificate(fingerprint string, certificate api.CertificatePut, ETag string) error {
+	if !r.HasExtension("certificate_update") {
+		return fmt.Errorf("The server is missing the required \"certificate_update\" API extension")
+	}
+
+	// Send the request
+	_, _, err := r.query("PUT", fmt.Sprintf("/certificates/%s", fingerprint), certificate, ETag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // DeleteCertificate removes a certificate from the LXD trust store
 func (r *ProtocolLXD) DeleteCertificate(fingerprint string) error {
 	// Send the request

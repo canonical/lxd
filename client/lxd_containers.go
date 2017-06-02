@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -62,6 +63,12 @@ func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) 
 
 // CreateContainer requests that LXD creates a new container
 func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (*Operation, error) {
+	if container.Source.ContainerOnly {
+		if !r.HasExtension("container_only_migration") {
+			return nil, fmt.Errorf("The server is missing the required \"container_only_migration\" API extension")
+		}
+	}
+
 	// Send the request
 	op, _, err := r.queryOperation("POST", "/containers", container, "")
 	if err != nil {
@@ -207,6 +214,12 @@ func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) 
 
 // MigrateContainer requests that LXD prepares for a container migration
 func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost) (*Operation, error) {
+	if container.ContainerOnly {
+		if !r.HasExtension("container_only_migration") {
+			return nil, fmt.Errorf("The server is missing the required \"container_only_migration\" API extension")
+		}
+	}
+
 	// Sanity check
 	if !container.Migration {
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateContainer")
@@ -234,6 +247,12 @@ func (r *ProtocolLXD) DeleteContainer(name string) (*Operation, error) {
 
 // ExecContainer requests that LXD spawns a command inside the container
 func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (*Operation, error) {
+	if exec.RecordOutput {
+		if !r.HasExtension("container_exec_recording") {
+			return nil, fmt.Errorf("The server is missing the required \"container_exec_recording\" API extension")
+		}
+	}
+
 	// Send the request
 	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/exec", containerName), exec, "")
 	if err != nil {
@@ -363,11 +382,34 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 	}
 
 	// Parse the headers
-	uid, gid, mode := shared.ParseLXDFileHeaders(resp.Header)
+	uid, gid, mode, fileType, _ := shared.ParseLXDFileHeaders(resp.Header)
 	fileResp := ContainerFileResponse{
 		UID:  uid,
 		GID:  gid,
 		Mode: mode,
+		Type: fileType,
+	}
+
+	if fileResp.Type == "directory" {
+		// Decode the response
+		response := api.Response{}
+		decoder := json.NewDecoder(resp.Body)
+
+		err = decoder.Decode(&response)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Get the file list
+		entries := []string{}
+		err = response.MetadataAsStruct(&entries)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		fileResp.Entries = entries
+
+		return nil, &fileResp, err
 	}
 
 	return resp.Body, &fileResp, err
@@ -375,6 +417,18 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 
 // CreateContainerFile tells LXD to create a file in the container
 func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, args ContainerFileArgs) error {
+	if args.Type == "directory" {
+		if !r.HasExtension("directory_manipulation") {
+			return fmt.Errorf("The server is missing the required \"directory_manipulation\" API extension")
+		}
+	}
+
+	if args.WriteMode == "append" {
+		if !r.HasExtension("file_append") {
+			return fmt.Errorf("The server is missing the required \"file_append\" API extension")
+		}
+	}
+
 	// Prepare the HTTP request
 	url := fmt.Sprintf("%s/1.0/containers/%s/files?path=%s", r.httpHost, containerName, path)
 	req, err := http.NewRequest("POST", url, args.Content)
@@ -392,6 +446,14 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	req.Header.Set("X-LXD-gid", fmt.Sprintf("%d", args.GID))
 	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", args.Mode))
 
+	if args.Type != "" {
+		req.Header.Set("X-LXD-type", args.Type)
+	}
+
+	if args.WriteMode != "" {
+		req.Header.Set("X-LXD-write", args.WriteMode)
+	}
+
 	// Send the request
 	resp, err := r.http.Do(req)
 	if err != nil {
@@ -408,6 +470,10 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 
 // DeleteContainerFile deletes a file in the container
 func (r *ProtocolLXD) DeleteContainerFile(containerName string, path string) error {
+	if !r.HasExtension("file_delete") {
+		return fmt.Errorf("The server is missing the required \"file_delete\" API extension")
+	}
+
 	// Send the request
 	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/files?path=%s", containerName, path), nil, "")
 	if err != nil {

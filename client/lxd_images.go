@@ -277,6 +277,12 @@ func (r *ProtocolLXD) GetImageAlias(name string) (*api.ImageAliasesEntry, string
 
 // CreateImage requests that LXD creates, copies or import a new image
 func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (*Operation, error) {
+	if image.CompressionAlgorithm != "" {
+		if !r.HasExtension("image_compression_algorithm") {
+			return nil, fmt.Errorf("The server is missing the required \"image_compression_algorithm\" API extension")
+		}
+	}
+
 	// Send the JSON based request
 	if args == nil {
 		op, _, err := r.queryOperation("POST", "/images", image, "")
@@ -551,8 +557,16 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 
 	// Process the arguments
 	if args != nil {
+		req.Aliases = args.Aliases
 		req.AutoUpdate = args.AutoUpdate
 		req.Public = args.Public
+
+		if args.CopyAliases {
+			req.Aliases = image.Aliases
+			if args.Aliases != nil {
+				req.Aliases = append(req.Aliases, args.Aliases...)
+			}
+		}
 	}
 
 	return r.tryCopyImage(req, info.Addresses)
@@ -573,6 +587,21 @@ func (r *ProtocolLXD) UpdateImage(fingerprint string, image api.ImagePut, ETag s
 func (r *ProtocolLXD) DeleteImage(fingerprint string) (*Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/images/%s", fingerprint), nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// RefreshImage requests that LXD issues an image refresh
+func (r *ProtocolLXD) RefreshImage(fingerprint string) (*Operation, error) {
+	if !r.HasExtension("image_force_refresh") {
+		return nil, fmt.Errorf("The server is missing the required \"image_force_refresh\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/images/%s/refresh", fingerprint), nil, "")
 	if err != nil {
 		return nil, err
 	}
