@@ -22,10 +22,10 @@ type NetworkPost struct {
 //
 // API extension: network
 type NetworkPut struct {
+	Config map[string]string `json:"config" yaml:"config"`
+
 	// API extension: entity_description
 	Description string `json:"description" yaml:"description"`
-
-	Config map[string]string `json:"config" yaml:"config"`
 }
 
 // Network represents a LXD network
