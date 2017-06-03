@@ -1169,6 +1169,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup devices
+	networkidx := 0
 	for _, k := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[k]
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
@@ -1192,34 +1193,34 @@ func (c *containerLXC) initLXC() error {
 
 			// Interface type specific configuration
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-				err = lxcSetConfigItem(cc, "lxc.network.type", "veth")
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.type", networkidx), "veth")
 				if err != nil {
 					return err
 				}
 			} else if m["nictype"] == "physical" {
-				err = lxcSetConfigItem(cc, "lxc.network.type", "phys")
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.type", networkidx), "phys")
 				if err != nil {
 					return err
 				}
 			} else if m["nictype"] == "macvlan" {
-				err = lxcSetConfigItem(cc, "lxc.network.type", "macvlan")
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.type", networkidx), "macvlan")
 				if err != nil {
 					return err
 				}
 
-				err = lxcSetConfigItem(cc, "lxc.network.macvlan.mode", "bridge")
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.macvlan.mode", networkidx), "bridge")
 				if err != nil {
 					return err
 				}
 			}
 
-			err = lxcSetConfigItem(cc, "lxc.network.flags", "up")
+			err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.flags", networkidx), "up")
 			if err != nil {
 				return err
 			}
 
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "physical", "macvlan"}) {
-				err = lxcSetConfigItem(cc, "lxc.network.link", m["parent"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.link", networkidx), m["parent"])
 				if err != nil {
 					return err
 				}
@@ -1227,7 +1228,7 @@ func (c *containerLXC) initLXC() error {
 
 			// Host Virtual NIC name
 			if m["host_name"] != "" {
-				err = lxcSetConfigItem(cc, "lxc.network.veth.pair", m["host_name"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.veth.pair", networkidx), m["host_name"])
 				if err != nil {
 					return err
 				}
@@ -1235,7 +1236,7 @@ func (c *containerLXC) initLXC() error {
 
 			// MAC address
 			if m["hwaddr"] != "" {
-				err = lxcSetConfigItem(cc, "lxc.network.hwaddr", m["hwaddr"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.hwaddr", networkidx), m["hwaddr"])
 				if err != nil {
 					return err
 				}
@@ -1243,7 +1244,7 @@ func (c *containerLXC) initLXC() error {
 
 			// MTU
 			if m["mtu"] != "" {
-				err = lxcSetConfigItem(cc, "lxc.network.mtu", m["mtu"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.mtu", networkidx), m["mtu"])
 				if err != nil {
 					return err
 				}
@@ -1251,7 +1252,7 @@ func (c *containerLXC) initLXC() error {
 
 			// Name
 			if m["name"] != "" {
-				err = lxcSetConfigItem(cc, "lxc.network.name", m["name"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.name", networkidx), m["name"])
 				if err != nil {
 					return err
 				}
@@ -1320,6 +1321,8 @@ func (c *containerLXC) initLXC() error {
 				}
 			}
 		}
+		// bump network index
+		networkidx++
 	}
 
 	// Setup shmounts
