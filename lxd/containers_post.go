@@ -229,7 +229,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		}
 	}
 
-	config, err := shared.GetTLSConfig("", "", cert)
+	config, err := shared.GetTLSConfig("", "", "", cert)
 	if err != nil {
 		c.Delete()
 		return InternalError(err)

@@ -122,7 +122,7 @@ func (d *Daemon) httpClient(certificate string) (*http.Client, error) {
 		}
 	}
 
-	tlsConfig, err := shared.GetTLSConfig("", "", cert)
+	tlsConfig, err := shared.GetTLSConfig("", "", "", cert)
 	if err != nil {
 		return nil, err
 	}
