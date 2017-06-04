@@ -1786,7 +1786,7 @@ func (c *Client) PullFile(container string, p string) (int64, int64, int, io.Rea
 		return 0, 0, 0, nil, err
 	}
 
-	uid, gid, mode := shared.ParseLXDFileHeaders(r.Header)
+	uid, gid, mode, _, _ := shared.ParseLXDFileHeaders(r.Header)
 
 	return uid, gid, mode, r.Body, nil
 }

@@ -122,7 +122,7 @@ func LogPath(path ...string) string {
 	return filepath.Join(items...)
 }
 
-func ParseLXDFileHeaders(headers http.Header) (uid int64, gid int64, mode int) {
+func ParseLXDFileHeaders(headers http.Header) (uid int64, gid int64, mode int, type_ string, write string) {
 	uid, err := strconv.ParseInt(headers.Get("X-LXD-uid"), 10, 64)
 	if err != nil {
 		uid = -1
@@ -143,7 +143,23 @@ func ParseLXDFileHeaders(headers http.Header) (uid int64, gid int64, mode int) {
 		}
 	}
 
-	return uid, gid, mode
+	type_ = headers.Get("X-LXD-type")
+	/* backwards compat: before "type" was introduced, we could only
+	 * manipulate files
+	 */
+	if type_ == "" {
+		type_ = "file"
+	}
+
+	write = headers.Get("X-LXD-write")
+	/* backwards compat: before "write" was introduced, we could only
+	 * overwrite files
+	 */
+	if write == "" {
+		write = "overwrite"
+	}
+
+	return uid, gid, mode, type_, write
 }
 
 func ReadToJSON(r io.Reader, req interface{}) error {
