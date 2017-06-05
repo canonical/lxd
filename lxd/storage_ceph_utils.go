@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
+	"syscall"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -74,4 +76,33 @@ func cephRBDVolumeCreate(clusterName string, poolName string, volumeName string,
 		"create",
 		fmt.Sprintf("%s_%s", volumeType, volumeName))
 	return err
+}
+
+// cephRBDVolumeMap maps a given RBD storage volume
+// This will ensure that the RBD storage volume is accessible as a block device
+// in the /dev directory and is therefore necessary in order to mount it.
+func cephRBDVolumeMap(clusterName string, poolName string, volumeName string,
+	volumeType string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"map",
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		runError, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 22 {
+					// EINVAL (already mapped)
+					return nil
+				}
+			}
+		}
+		return err
+	}
+
+	return nil
 }
