@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/lxc/lxd/shared"
 )
 
@@ -53,4 +55,23 @@ func getRBDDevPath(poolName string, volumeType string, volumeName string) string
 	}
 
 	return fmt.Sprintf("/dev/rbd/%s/%s_%s", poolName, volumeType, volumeName)
+}
+
+// cephRBDVolumeCreate creates an RBD storage volume.
+// Note that the set of features is intentionally limited is intentionally
+// limited by passing --image-feature explicitly. This is done to ensure that
+// the chances of a conflict between the features supported by the userspace
+// library and the kernel module are minimized. Otherwise random panics might
+// occur.
+func cephRBDVolumeCreate(clusterName string, poolName string, volumeName string,
+	volumeType string, size string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--image-feature", "layering,",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"--size", size,
+		"create",
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	return err
 }
