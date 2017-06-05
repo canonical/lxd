@@ -155,3 +155,23 @@ func cephRBDSnapshotProtect(clusterName string, poolName string,
 
 	return nil
 }
+
+// cephRBDCloneCreate creates a clone from a protected RBD snapshot
+func cephRBDCloneCreate(sourceClusterName string, sourcePoolName string,
+	sourceVolumeName string, sourceVolumeType string,
+	sourceSnapshotName string, targetPoolName string,
+	targetVolumeName string, targetVolumeType string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", sourceClusterName,
+		"clone",
+		fmt.Sprintf("%s/%s_%s@%s", sourcePoolName, sourceVolumeType,
+			sourceVolumeName, sourceSnapshotName),
+		fmt.Sprintf("%s/%s_%s", targetPoolName, targetVolumeType,
+			targetVolumeName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
