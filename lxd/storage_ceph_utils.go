@@ -106,3 +106,22 @@ func cephRBDVolumeMap(clusterName string, poolName string, volumeName string,
 
 	return nil
 }
+
+// cephRBDSnapshotCreate creates a read-write snapshot of a given RBD storage
+// volume
+func cephRBDSnapshotCreate(clusterName string, poolName string,
+	volumeName string, volumeType string, snapshotName string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"snap",
+		"create",
+		"--snap", snapshotName,
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
