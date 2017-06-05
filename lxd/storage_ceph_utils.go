@@ -125,3 +125,33 @@ func cephRBDSnapshotCreate(clusterName string, poolName string,
 
 	return nil
 }
+
+// cephRBDSnapshotProtect protects a given snapshot from being deleted
+// This is a precondition to be able to create RBD clones from a given snapshot.
+func cephRBDSnapshotProtect(clusterName string, poolName string,
+	volumeName string, volumeType string, snapshotName string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"snap",
+		"protect",
+		"--snap", snapshotName,
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		runError, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 16 {
+					// EBUSY (snapshot already protected)
+					return nil
+				}
+			}
+		}
+		return err
+	}
+
+	return nil
+}
