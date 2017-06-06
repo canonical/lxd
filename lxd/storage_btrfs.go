@@ -222,16 +222,9 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		return err1
 	}
 
-	// Enable quotas
-	output, err := shared.RunCommand(
-		"btrfs", "quota", "enable", poolMntPoint)
-	if err != nil && !runningInUserns {
-		return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
-	}
-
 	// Create default subvolumes.
 	dummyDir := getContainerMountPoint(s.pool.Name, "")
-	err = btrfsSubVolumeCreate(dummyDir)
+	err := btrfsSubVolumeCreate(dummyDir)
 	if err != nil {
 		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
 	}
@@ -1070,7 +1063,17 @@ func (s *storageBtrfs) ContainerSetQuota(container container, size int64) error 
 
 	_, err := btrfsSubVolumeQGroup(subvol)
 	if err != nil {
-		return err
+		if err != NoSuchObjectError {
+			return err
+		}
+
+		// Enable quotas
+		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+		output, err := shared.RunCommand(
+			"btrfs", "quota", "enable", poolMntPoint)
+		if err != nil && !runningInUserns {
+			return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
+		}
 	}
 
 	output, err := shared.RunCommand(
@@ -1450,7 +1453,7 @@ func btrfsSubVolumeQGroup(subvol string) (string, error) {
 		"-f")
 
 	if err != nil {
-		return "", fmt.Errorf("BTRFS quotas not supported. Try enabling them with \"btrfs quota enable\"")
+		return "", NoSuchObjectError
 	}
 
 	var qgroup string
