@@ -23,7 +23,11 @@ test_migration() {
 
   migration "$LXD2_DIR"
 
-  if [ "${lxd_backend}" = "lvm" ]; then
+  # This should only run on lvm and when the backend is not random. Otherwise
+  # we might perform existence checks for files or dirs that won't be available
+  # since the logical volume is not mounted when the container is not running.
+  # shellcheck disable=2153
+  if [ "${LXD_BACKEND}" = "lvm" ]; then
     # Test that non-thinpool lvm backends work fine with migration.
 
     # shellcheck disable=2039
