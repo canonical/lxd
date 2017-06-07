@@ -1433,7 +1433,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// (Use a tmp variable as Go's scoping is freaking me out.)
-		tmp, err := dbStoragePoolCreate(d.db, poolName, defaultStorageTypeName, "", poolConfig)
+		tmp, err := dbStoragePoolCreate(d.db, poolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			logger.Warnf("Storage pool already exists in the database. Proceeding...")
 		}

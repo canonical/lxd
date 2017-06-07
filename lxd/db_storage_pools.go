@@ -132,7 +132,7 @@ func dbStoragePoolConfigGet(db *sql.DB, poolID int64) (map[string]string, error)
 }
 
 // Create new storage pool.
-func dbStoragePoolCreate(db *sql.DB, poolName, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
+func dbStoragePoolCreate(db *sql.DB, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
 	tx, err := dbBegin(db)
 	if err != nil {
 		return -1, err
