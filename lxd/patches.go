@@ -43,6 +43,7 @@ var patches = []patch{
 	{name: "storage_api_update_storage_configs", run: patchStorageApiUpdateStorageConfigs},
 	{name: "storage_api_lxd_on_btrfs", run: patchStorageApiLxdOnBtrfs},
 	{name: "storage_api_lvm_detect_lv_size", run: patchStorageApiDetectLVSize},
+	{name: "storage_api_insert_zfs_driver", run: patchStorageApiInsertZfsDriver},
 }
 
 type patch struct {
@@ -2232,6 +2233,15 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func patchStorageApiInsertZfsDriver(name string, d *Daemon) error {
+	_, err := dbExec(d.db, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
+	if err != nil {
+		return err
 	}
 
 	return nil
