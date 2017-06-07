@@ -1110,7 +1110,7 @@ msgstr ""
 "Toutes les fonctionnalités de LXD peuvent être utilisées à l'aide des "
 "commandes ci-dessous.\n"
 "Pour de l'aide avec l'une des commandes, simplement les utiliser avec --"
-"help.\n"
+"help."
 
 #: lxc/action.go:45
 msgid "Time to wait for the container before killing it"
