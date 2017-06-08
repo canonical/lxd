@@ -1770,7 +1770,7 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 	return err
 }
 
-func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error {
+func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
 	_, containerPool := s.container.Storage().GetContainerPoolInfo()
 	containerName := s.container.Name()
 	containersPath := getContainerMountPoint(containerPool, "")
@@ -1806,16 +1806,18 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 		return s.send(conn, migrationSendSnapshot, "", wrapper)
 	}
 
-	for i, snap := range s.snapshots {
-		prev := ""
-		if i > 0 {
-			prev = getSnapshotMountPoint(containerPool, s.snapshots[i-1].Name())
-		}
+	if !containerOnly {
+		for i, snap := range s.snapshots {
+			prev := ""
+			if i > 0 {
+				prev = getSnapshotMountPoint(containerPool, s.snapshots[i-1].Name())
+			}
 
-		snapMntPoint := getSnapshotMountPoint(containerPool, snap.Name())
-		wrapper := StorageProgressReader(op, "fs_progress", snap.Name())
-		if err := s.send(conn, snapMntPoint, prev, wrapper); err != nil {
-			return err
+			snapMntPoint := getSnapshotMountPoint(containerPool, snap.Name())
+			wrapper := StorageProgressReader(op, "fs_progress", snap.Name())
+			if err := s.send(conn, snapMntPoint, prev, wrapper); err != nil {
+				return err
+			}
 		}
 	}
 

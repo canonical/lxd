@@ -958,7 +958,7 @@ func (s *storageZfs) copyWithSnapshots(target container, source container, paren
 
 	zfsSendCmd := exec.Command("zfs", args...)
 	targetSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, targetParentName, targetSnapOnlyName)
-	zfsRecvCmd := exec.Command("zfs", "receive", targetSnapshotDataset)
+	zfsRecvCmd := exec.Command("zfs", "receive", "-F", targetSnapshotDataset)
 
 	zfsRecvCmd.Stdin, _ = zfsSendCmd.StdoutPipe()
 	zfsRecvCmd.Stdout = os.Stdout
@@ -1019,8 +1019,9 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 			return err
 		}
 
+		prev := ""
+		prevSnapOnlyName := ""
 		for i, snap := range snapshots {
-			prev := ""
 			if i > 0 {
 				prev = snapshots[i-1].Name()
 			}
@@ -1031,6 +1032,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 			}
 
 			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+			prevSnapOnlyName = snapOnlyName
 			newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
 			targetSnapshot, err := containerLoadByName(s.d, newSnapName)
 			if err != nil {
@@ -1042,6 +1044,47 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 				return err
 			}
 		}
+
+		// send actual container
+		tmpSnapshotName := fmt.Sprintf("copy-send-%s", uuid.NewRandom().String())
+		err = s.zfsPoolVolumeSnapshotCreate(fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
+		if err != nil {
+			return err
+		}
+
+		poolName := s.getOnDiskPoolName()
+		currentSnapshotDataset := fmt.Sprintf("%s/containers/%s@%s", poolName, source.Name(), tmpSnapshotName)
+		args := []string{"send", currentSnapshotDataset}
+		if prevSnapOnlyName != "" {
+			parentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, source.Name(), prevSnapOnlyName)
+			args = append(args, "-i", parentSnapshotDataset)
+		}
+
+		zfsSendCmd := exec.Command("zfs", args...)
+		targetSnapshotDataset := fmt.Sprintf("%s/containers/%s@%s", poolName, target.Name(), tmpSnapshotName)
+		zfsRecvCmd := exec.Command("zfs", "receive", "-F", targetSnapshotDataset)
+
+		zfsRecvCmd.Stdin, _ = zfsSendCmd.StdoutPipe()
+		zfsRecvCmd.Stdout = os.Stdout
+		zfsRecvCmd.Stderr = os.Stderr
+
+		err = zfsRecvCmd.Start()
+		if err != nil {
+			return err
+		}
+
+		err = zfsSendCmd.Run()
+		if err != nil {
+			return err
+		}
+
+		err = zfsRecvCmd.Wait()
+		if err != nil {
+			return err
+		}
+
+		s.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
+		s.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", target.Name()), tmpSnapshotName)
 
 		fs := fmt.Sprintf("containers/%s", target.Name())
 		err = s.zfsPoolVolumeSet(fs, "mountpoint", targetContainerMountPoint)
@@ -2467,7 +2510,7 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 	return err
 }
 
-func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error {
+func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
 	if s.container.IsSnapshot() {
 		_, snapOnlyName, _ := containerGetParentAndSnapshotName(s.container.Name())
 		snapshotName := fmt.Sprintf("snapshot-%s", snapOnlyName)
@@ -2476,18 +2519,19 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 	}
 
 	lastSnap := ""
+	if !containerOnly {
+		for i, snap := range s.zfsSnapshotNames {
+			prev := ""
+			if i > 0 {
+				prev = s.zfsSnapshotNames[i-1]
+			}
 
-	for i, snap := range s.zfsSnapshotNames {
-		prev := ""
-		if i > 0 {
-			prev = s.zfsSnapshotNames[i-1]
-		}
+			lastSnap = snap
 
-		lastSnap = snap
-
-		wrapper := StorageProgressReader(op, "fs_progress", snap)
-		if err := s.send(conn, snap, prev, wrapper); err != nil {
-			return err
+			wrapper := StorageProgressReader(op, "fs_progress", snap)
+			if err := s.send(conn, snap, prev, wrapper); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -2548,6 +2592,10 @@ func (s *storageZfs) MigrationSource(ct container, containerOnly bool) (Migratio
 		snapshots:        []container{},
 		zfsSnapshotNames: []string{},
 		zfs:              s,
+	}
+
+	if containerOnly {
+		return &driver, nil
 	}
 
 	/* List all the snapshots in order of reverse creation. The idea here
