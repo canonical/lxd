@@ -18,7 +18,7 @@ type MigrationStorageSourceDriver interface {
 	/* send any bits of the container/snapshots that are possible while the
 	 * container is still running.
 	 */
-	SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error
+	SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error
 
 	/* send the final bits (e.g. a final delta snapshot for zfs, btrfs, or
 	 * do a final rsync) of the fs after the container has been
@@ -42,22 +42,25 @@ func (s rsyncStorageSourceDriver) Snapshots() []container {
 	return s.snapshots
 }
 
-func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error {
+func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
 	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
-	for _, send := range s.snapshots {
-		ourStart, err := send.StorageStart()
-		if err != nil {
-			return err
-		}
-		if ourStart {
-			defer send.StorageStop()
-		}
 
-		path := send.Path()
-		wrapper := StorageProgressReader(op, "fs_progress", send.Name())
-		err = RsyncSend(ctName, shared.AddSlash(path), conn, wrapper, bwlimit)
-		if err != nil {
-			return err
+	if !containerOnly {
+		for _, send := range s.snapshots {
+			ourStart, err := send.StorageStart()
+			if err != nil {
+				return err
+			}
+			if ourStart {
+				defer send.StorageStop()
+			}
+
+			path := send.Path()
+			wrapper := StorageProgressReader(op, "fs_progress", send.Name())
+			err = RsyncSend(ctName, shared.AddSlash(path), conn, wrapper, bwlimit)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

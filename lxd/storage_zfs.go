@@ -2510,7 +2510,7 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 	return err
 }
 
-func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string) error {
+func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
 	if s.container.IsSnapshot() {
 		_, snapOnlyName, _ := containerGetParentAndSnapshotName(s.container.Name())
 		snapshotName := fmt.Sprintf("snapshot-%s", snapOnlyName)
@@ -2519,18 +2519,19 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 	}
 
 	lastSnap := ""
+	if !containerOnly {
+		for i, snap := range s.zfsSnapshotNames {
+			prev := ""
+			if i > 0 {
+				prev = s.zfsSnapshotNames[i-1]
+			}
 
-	for i, snap := range s.zfsSnapshotNames {
-		prev := ""
-		if i > 0 {
-			prev = s.zfsSnapshotNames[i-1]
-		}
+			lastSnap = snap
 
-		lastSnap = snap
-
-		wrapper := StorageProgressReader(op, "fs_progress", snap)
-		if err := s.send(conn, snap, prev, wrapper); err != nil {
-			return err
+			wrapper := StorageProgressReader(op, "fs_progress", snap)
+			if err := s.send(conn, snap, prev, wrapper); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -2591,6 +2592,10 @@ func (s *storageZfs) MigrationSource(ct container, containerOnly bool) (Migratio
 		snapshots:        []container{},
 		zfsSnapshotNames: []string{},
 		zfs:              s,
+	}
+
+	if containerOnly {
+		return &driver, nil
 	}
 
 	/* List all the snapshots in order of reverse creation. The idea here
