@@ -401,7 +401,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		return err
 	}
 
-	err = driver.SendWhileRunning(s.fsConn, migrateOp, bwlimit)
+	err = driver.SendWhileRunning(s.fsConn, migrateOp, bwlimit, s.containerOnly)
 	if err != nil {
 		return abort(err)
 	}
