@@ -128,27 +128,33 @@ migration() {
 
   # Test container only copies
   lxc init testimage cccp
+  echo "before" | lxc file push - cccp/blah
   lxc snapshot cccp
   lxc snapshot cccp
+  echo "after" | lxc file push - cccp/blah
 
   # Local container only copy.
   lxc copy cccp udssr --container-only
   [ "$(lxc info udssr | grep -c snap)" -eq 0 ]
+  [ "$(lxc file pull udssr/blah -)" = "after" ]
   lxc delete udssr
 
   # Local container with snapshots copy.
   lxc copy cccp udssr
   [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
+  [ "$(lxc file pull udssr/blah -)" = "after" ]
   lxc delete udssr
 
   # Remote container only copy.
   lxc_remote copy l1:cccp l2:udssr --container-only
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
+  [ "$(lxc_remote file pull l2:udssr/blah -)" = "after" ]
   lxc_remote delete l2:udssr
 
   # Remote container with snapshots copy.
   lxc_remote copy l1:cccp l2:udssr
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 2 ]
+  [ "$(lxc_remote file pull l2:udssr/blah -)" = "after" ]
   lxc_remote delete l2:udssr
 
   # Remote container only move.
