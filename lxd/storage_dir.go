@@ -229,12 +229,11 @@ func (s *storageDir) ContainerSnapshotCreate(
 			s.log.Warn("ContainerSnapshotCreate: trying to freeze and rsync again failed.")
 			return nil
 		}
+		defer sourceContainer.Unfreeze()
 
 		if err := rsync(snapshotContainer, oldPath, newPath); err != nil {
 			return err
 		}
-
-		defer sourceContainer.Unfreeze()
 	}
 
 	return nil
