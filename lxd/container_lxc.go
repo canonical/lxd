@@ -1296,6 +1296,8 @@ func (c *containerLXC) initLXC() error {
 					return err
 				}
 			}
+			// bump network index
+			networkidx++
 		} else if m["type"] == "disk" {
 			// Prepare all the paths
 			srcPath := m["source"]
@@ -1367,8 +1369,6 @@ func (c *containerLXC) initLXC() error {
 				}
 			}
 		}
-		// bump network index
-		networkidx++
 	}
 
 	// Setup shmounts
