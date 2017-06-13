@@ -34,6 +34,7 @@ func rsyncLocalCopy(source string, dest string, bwlimit string) (string, error) 
 	return shared.RunCommand("rsync",
 		"-a",
 		"-HAX",
+		"--sparse",
 		"--devices",
 		"--delete",
 		"--checksum",
@@ -91,6 +92,7 @@ func rsyncSendSetup(name string, path string, bwlimit string) (*exec.Cmd, net.Co
 		"--devices",
 		"--numeric-ids",
 		"--partial",
+		"--sparse",
 		path,
 		"localhost:/tmp/foo",
 		"-e",
@@ -165,6 +167,7 @@ func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteClos
 		"--numeric-ids",
 		"--devices",
 		"--partial",
+		"--sparse",
 		".",
 		path)
 
