@@ -354,7 +354,6 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		}
 		lxdStorageMapLock.Unlock()
 	}
-
 	defer removeLockFromMap()
 
 	// Check whether the mount poolMntPoint exits.
@@ -369,7 +368,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		return false, nil
 	}
 
-	mountFlags := uintptr(0)
+	mountFlags, mountOptions := lxdResolveMountoptions(s.getBtrfsMountOptions())
 	mountSource := source
 	isBlockDev := shared.IsBlockdevPath(source)
 	if filepath.IsAbs(source) {
@@ -391,7 +390,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 			defer loopF.Close()
 		} else if !isBlockDev && cleanSource != poolMntPoint {
 			mountSource = source
-			mountFlags = syscall.MS_BIND
+			mountFlags |= syscall.MS_BIND
 		} else if !isBlockDev && cleanSource == poolMntPoint && s.d.BackingFs == "btrfs" {
 			return false, nil
 		}
@@ -412,14 +411,12 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 			// detection task.
 			return false, nil
 		}
-
 	}
 
-	mountFlags, mountOptions := lxdResolveMountoptions(s.getBtrfsMountOptions())
 	mountFlags |= s.remount
 	err := syscall.Mount(mountSource, poolMntPoint, "btrfs", mountFlags, mountOptions)
 	if err != nil {
-		logger.Errorf("failed to mount BTRFS storage pool \"%s\" onto \"%s\" with mountoptions \"%s\": %s", mountSource, poolMntPoint, mountOptions, err)
+		logger.Errorf("Failed to mount BTRFS storage pool \"%s\" onto \"%s\" with mountoptions \"%s\": %s", mountSource, poolMntPoint, mountOptions, err)
 		return false, err
 	}
 
