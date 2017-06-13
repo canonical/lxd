@@ -37,12 +37,18 @@ func (f *aliasList) Set(value string) error {
 	return nil
 }
 
+type imageColumn struct {
+	Name string
+	Data func(api.Image) string
+}
+
 type imageCmd struct {
 	addAliases  aliasList
 	publicImage bool
 	copyAliases bool
 	autoUpdate  bool
 	format      string
+	columnsRaw  string
 }
 
 func (c *imageCmd) showByDefault() bool {
@@ -110,10 +116,34 @@ lxc image export [<remote>:]<image> [target]
 lxc image info [<remote>:]<image>
     Print everything LXD knows about a given image.
 
-lxc image list [<remote>:] [filter] [--format csv|json|table|yaml]
+lxc image list [<remote>:] [filter] [--format csv|json|table|yaml] [-c <columns>]
     List images in the LXD image store. Filters may be of the
     <key>=<value> form for property based filtering, or part of the image
     hash or part of the image alias name.
+
+    The -c option takes a (optionally comma-separated) list of arguments that
+    control which image attributes to output when displaying in table or csv
+    format.
+
+    Default column layout is: lfpdasu
+
+    Column shorthand chars:
+
+        l - Shortest image alias (and optionally number of other aliases)
+
+        L - Newline-separated list of all image aliases
+
+        f - Fingerprint
+
+        p - Whether image is public
+
+        d - Description
+
+        a - Architecture
+
+        s - Size
+
+        u - Upload date
 
 lxc image show [<remote>:]<image>
     Yaml output of the user modifiable properties of an image.
@@ -134,11 +164,90 @@ lxc image alias list [<remote>:] [filter]
 }
 
 func (c *imageCmd) flags() {
+	gnuflag.StringVar(&c.columnsRaw, "c", "lfpdasu", i18n.G("Columns"))
+	gnuflag.StringVar(&c.columnsRaw, "columns", "lfpdasu", i18n.G("Columns"))
 	gnuflag.BoolVar(&c.publicImage, "public", false, i18n.G("Make image public"))
 	gnuflag.BoolVar(&c.copyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
 	gnuflag.BoolVar(&c.autoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
 	gnuflag.Var(&c.addAliases, "alias", i18n.G("New alias to define at target"))
 	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (csv|json|table|yaml)"))
+}
+
+func (c *imageCmd) aliasColumnData(image api.Image) string {
+	shortest := c.shortestAlias(image.Aliases)
+	if len(image.Aliases) > 1 {
+		shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
+	}
+
+	return shortest
+}
+
+func (c *imageCmd) aliasesColumnData(image api.Image) string {
+	aliases := []string{}
+	for _, alias := range image.Aliases {
+		aliases = append(aliases, alias.Name)
+	}
+	sort.Strings(aliases)
+	return strings.Join(aliases, "\n")
+}
+
+func (c *imageCmd) fingerprintColumnData(image api.Image) string {
+	return image.Fingerprint[0:12]
+}
+
+func (c *imageCmd) publicColumnData(image api.Image) string {
+	if image.Public {
+		return i18n.G("yes")
+	}
+	return i18n.G("no")
+}
+
+func (c *imageCmd) descriptionColumnData(image api.Image) string {
+	return c.findDescription(image.Properties)
+}
+
+func (c *imageCmd) architectureColumnData(image api.Image) string {
+	return image.Architecture
+}
+
+func (c *imageCmd) sizeColumnData(image api.Image) string {
+	return fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
+}
+
+func (c *imageCmd) uploadDateColumnData(image api.Image) string {
+	return image.UploadedAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
+}
+
+func (c *imageCmd) parseColumns() ([]imageColumn, error) {
+	columnsShorthandMap := map[rune]imageColumn{
+		'l': {i18n.G("ALIAS"), c.aliasColumnData},
+		'L': {i18n.G("ALIASES"), c.aliasesColumnData},
+		'f': {i18n.G("FINGERPRINT"), c.fingerprintColumnData},
+		'p': {i18n.G("PUBLIC"), c.publicColumnData},
+		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData},
+		'a': {i18n.G("ARCH"), c.architectureColumnData},
+		's': {i18n.G("SIZE"), c.sizeColumnData},
+		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
+	}
+
+	columnList := strings.Split(c.columnsRaw, ",")
+
+	columns := []imageColumn{}
+	for _, columnEntry := range columnList {
+		if columnEntry == "" {
+			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in '%s'", c.columnsRaw)
+		}
+
+		for _, columnRune := range columnEntry {
+			if column, ok := columnsShorthandMap[columnRune]; ok {
+				columns = append(columns, column)
+			} else {
+				return nil, fmt.Errorf("Unknown column shorthand char '%c' in '%s'", columnRune, columnEntry)
+			}
+		}
+	}
+
+	return columns, nil
 }
 
 func (c *imageCmd) doImageAlias(config *lxd.Config, args []string) error {
@@ -457,8 +566,12 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 		return nil
 
 	case "list":
-		filters := []string{}
+		columns, err := c.parseColumns()
+		if err != nil {
+			return err
+		}
 
+		filters := []string{}
 		if len(args) > 1 {
 			result := strings.SplitN(args[1], ":", 2)
 			if len(result) == 1 {
@@ -496,7 +609,7 @@ func (c *imageCmd) run(config *lxd.Config, args []string) error {
 			images = append(images, image)
 		}
 
-		return c.showImages(images, filters)
+		return c.showImages(images, filters, columns)
 
 	case "edit":
 		if len(args) < 2 {
@@ -616,7 +729,7 @@ func (c *imageCmd) findDescription(props map[string]string) string {
 	return ""
 }
 
-func (c *imageCmd) showImages(images []api.Image, filters []string) error {
+func (c *imageCmd) showImages(images []api.Image, filters []string, columns []imageColumn) error {
 	tableData := func() [][]string {
 		data := [][]string{}
 		for _, image := range images {
@@ -624,22 +737,11 @@ func (c *imageCmd) showImages(images []api.Image, filters []string) error {
 				continue
 			}
 
-			shortest := c.shortestAlias(image.Aliases)
-			if len(image.Aliases) > 1 {
-				shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
+			row := []string{}
+			for _, column := range columns {
+				row = append(row, column.Data(image))
 			}
-			fp := image.Fingerprint[0:12]
-			public := i18n.G("no")
-			description := c.findDescription(image.Properties)
-
-			if image.Public {
-				public = i18n.G("yes")
-			}
-
-			const layout = "Jan 2, 2006 at 3:04pm (MST)"
-			uploaded := image.UploadedAt.UTC().Format(layout)
-			size := fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
-			data = append(data, []string{shortest, fp, public, description, image.Architecture, size, uploaded})
+			data = append(data, row)
 		}
 
 		sort.Sort(SortImage(data))
@@ -659,14 +761,11 @@ func (c *imageCmd) showImages(images []api.Image, filters []string) error {
 		table.SetAutoWrapText(false)
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
 		table.SetRowLine(true)
-		table.SetHeader([]string{
-			i18n.G("ALIAS"),
-			i18n.G("FINGERPRINT"),
-			i18n.G("PUBLIC"),
-			i18n.G("DESCRIPTION"),
-			i18n.G("ARCH"),
-			i18n.G("SIZE"),
-			i18n.G("UPLOAD DATE")})
+		headers := []string{}
+		for _, column := range columns {
+			headers = append(headers, column.Name)
+		}
+		table.SetHeader(headers)
 		table.AppendBulk(tableData())
 		table.Render()
 	case listFormatJSON:
