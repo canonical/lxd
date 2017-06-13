@@ -59,6 +59,7 @@ func rsyncSendSetup(name string, path string) (*exec.Cmd, net.Conn, io.ReadClose
 		"--devices",
 		"--numeric-ids",
 		"--partial",
+		"--sparse",
 		path,
 		"localhost:/tmp/foo",
 		"-e",
@@ -126,6 +127,7 @@ func RsyncRecv(path string, conn *websocket.Conn) error {
 		"--numeric-ids",
 		"--devices",
 		"--partial",
+		"--sparse",
 		".",
 		path)
 
