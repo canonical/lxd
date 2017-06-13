@@ -38,3 +38,15 @@ test_image_expiry() {
   lxc_remote remote remove l2
   kill_lxd "$LXD2_DIR"
 }
+
+test_image_list_all_aliases() {
+    ensure_import_testimage
+    # shellcheck disable=2039,2034,2155
+    local sum=$(lxc image info testimage | grep ^Fingerprint | cut -d' ' -f2)
+    lxc image alias create zzz "$sum"
+    lxc image list | grep -vq zzz
+    # both aliases are listed if the "aliases" column is included in output
+    lxc image list -c L | grep -q testimage
+    lxc image list -c L | grep -q zzz
+
+}
