@@ -609,13 +609,12 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 			logger.Errorf("Trying to freeze and rsync again failed.")
 			goto onSuccess
 		}
+		defer sourceContainer.Unfreeze()
 
 		err = rsync(snapshotContainer, sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 		if err != nil {
 			return err
 		}
-
-		defer sourceContainer.Unfreeze()
 	}
 
 onSuccess:
