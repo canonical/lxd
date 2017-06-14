@@ -1821,6 +1821,12 @@ func (s *storageZfs) zfsPoolCreate() error {
 						logger.Errorf("zfs create failed: %s.", output)
 						return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
 					}
+				} else {
+					msg, err := zfsPoolVolumeSet(vdev, "mountpoint", "none")
+					if err != nil {
+						logger.Errorf("zfs set failed to unset dataset mountpoint %s", msg)
+						return err
+					}
 				}
 			} else {
 				err := s.zfsPoolCheck(vdev)
@@ -1836,81 +1842,90 @@ func (s *storageZfs) zfsPoolCreate() error {
 				if len(subvols) > 0 {
 					return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
 				}
+
+				msg, err := zfsPoolVolumeSet(vdev, "mountpoint", "none")
+				if err != nil {
+					logger.Errorf("zfs set failed to unset dataset mountpoint %s", msg)
+					return err
+				}
 			}
 		}
 	}
 
 	// Create default dummy datasets to avoid zfs races during container
 	// creation.
-	err := s.zfsPoolVolumeCreate("containers")
+	poolName := s.getOnDiskPoolName()
+	dataset := fmt.Sprintf("%s/containers", poolName)
+	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
 	if err != nil {
-		return err
-	}
-
-	err = s.zfsPoolVolumeSet("containers", "mountpoint", "none")
-	if err != nil {
+		logger.Errorf("failed to create containers dataset: %s", msg)
 		return err
 	}
 
 	fixperms := shared.VarPath("storage-pools", s.pool.Name, "containers")
+	err = os.MkdirAll(fixperms, containersDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
 	err = os.Chmod(fixperms, containersDirMode)
 	if err != nil {
 		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(containersDirMode), 8), err)
 	}
 
-	err = s.zfsPoolVolumeCreate("images")
+	dataset = fmt.Sprintf("%s/images", poolName)
+	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
 	if err != nil {
-		return err
-	}
-
-	err = s.zfsPoolVolumeSet("images", "mountpoint", "none")
-	if err != nil {
+		logger.Errorf("failed to create images dataset: %s", msg)
 		return err
 	}
 
 	fixperms = shared.VarPath("storage-pools", s.pool.Name, "images")
+	err = os.MkdirAll(fixperms, imagesDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	err = os.Chmod(fixperms, imagesDirMode)
 	if err != nil {
 		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(imagesDirMode), 8), err)
 	}
 
-	err = s.zfsPoolVolumeCreate("custom")
+	dataset = fmt.Sprintf("%s/custom", poolName)
+	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
 	if err != nil {
-		return err
-	}
-
-	err = s.zfsPoolVolumeSet("custom", "mountpoint", "none")
-	if err != nil {
+		logger.Errorf("failed to create custom dataset: %s", msg)
 		return err
 	}
 
 	fixperms = shared.VarPath("storage-pools", s.pool.Name, "custom")
+	err = os.MkdirAll(fixperms, customDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	err = os.Chmod(fixperms, customDirMode)
 	if err != nil {
 		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(customDirMode), 8), err)
 	}
 
-	err = s.zfsPoolVolumeCreate("deleted")
+	dataset = fmt.Sprintf("%s/deleted", poolName)
+	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
 	if err != nil {
+		logger.Errorf("failed to create deleted dataset: %s", msg)
 		return err
 	}
 
-	err = s.zfsPoolVolumeSet("deleted", "mountpoint", "none")
+	dataset = fmt.Sprintf("%s/snapshots", poolName)
+	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
 	if err != nil {
-		return err
-	}
-
-	err = s.zfsPoolVolumeCreate("snapshots")
-	if err != nil {
-		return err
-	}
-
-	err = s.zfsPoolVolumeSet("snapshots", "mountpoint", "none")
-	if err != nil {
+		logger.Errorf("failed to create snapshots dataset: %s", msg)
 		return err
 	}
 
 	fixperms = shared.VarPath("storage-pools", s.pool.Name, "snapshots")
+	err = os.MkdirAll(fixperms, snapshotsDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	err = os.Chmod(fixperms, snapshotsDirMode)
 	if err != nil {
 		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(snapshotsDirMode), 8), err)
