@@ -744,7 +744,7 @@ func (c *imageCmd) showImages(images []api.Image, filters []string, columns []im
 			data = append(data, row)
 		}
 
-		sort.Sort(SortImage(data))
+		sort.Sort(StringList(data))
 		return data
 	}
 
@@ -814,7 +814,7 @@ func (c *imageCmd) showAliases(aliases []api.ImageAliasesEntry, filters []string
 		i18n.G("ALIAS"),
 		i18n.G("FINGERPRINT"),
 		i18n.G("DESCRIPTION")})
-	sort.Sort(SortImage(data))
+	sort.Sort(StringList(data))
 	table.AppendBulk(data)
 	table.Render()
 
