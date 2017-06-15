@@ -310,7 +310,7 @@ func (c *configCmd) run(config *lxd.Config, args []string) error {
 				i18n.G("COMMON NAME"),
 				i18n.G("ISSUE DATE"),
 				i18n.G("EXPIRY DATE")})
-			sort.Sort(SortImage(data))
+			sort.Sort(StringList(data))
 			table.AppendBulk(data)
 			table.Render()
 
