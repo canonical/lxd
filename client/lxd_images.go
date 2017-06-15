@@ -443,6 +443,10 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 
 // tryCopyImage iterates through the source server URLs until one lets it download the image
 func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (*RemoteOperation, error) {
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("The source server isn't listening on the network")
+	}
+
 	rop := RemoteOperation{
 		chDone: make(chan bool),
 	}
