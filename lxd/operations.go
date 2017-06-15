@@ -54,7 +54,8 @@ type operation struct {
 	onConnect func(*operation, *http.Request, http.ResponseWriter) error
 
 	// Channels used for error reporting and state tracking of background actions
-	chanDone chan error
+	chanDone   chan error
+	chanCancel chan error
 
 	// Locking for concurent access to the operation
 	lock sync.Mutex
@@ -153,17 +154,21 @@ func (op *operation) Cancel() (chan error, error) {
 		return nil, fmt.Errorf("Only running operations can be cancelled")
 	}
 
+	op.lock.Lock()
 	if !op.mayCancel() {
+		op.lock.Unlock()
 		return nil, fmt.Errorf("This operation can't be cancelled")
 	}
 
-	chanCancel := make(chan error, 1)
-
-	op.lock.Lock()
 	oldStatus := op.status
 	op.status = api.Cancelling
+	if op.chanCancel != nil {
+		// operationClassToken doesn't have the channel set
+		close(op.chanCancel)
+	}
 	op.lock.Unlock()
 
+	chanCancel := make(chan error, 1)
 	if op.onCancel != nil {
 		go func(op *operation, oldStatus api.StatusCode, chanCancel chan error) {
 			err := op.onCancel(op)
@@ -244,7 +249,20 @@ func (op *operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 }
 
 func (op *operation) mayCancel() bool {
-	return op.onCancel != nil || op.class == operationClassToken
+	return op.chanCancel != nil || op.class == operationClassToken
+}
+
+// Toggle whether the operation is cancellable. If `true` is passed, the
+// channel to cancel the operation is returned, otherwise nil.
+func (op *operation) Cancellable(flag bool) chan error {
+	var ch chan error
+	if flag {
+		ch = make(chan error)
+	}
+	op.lock.Lock()
+	op.chanCancel = ch
+	op.lock.Unlock()
+	return ch
 }
 
 func (op *operation) Render() (string, *api.Operation, error) {
