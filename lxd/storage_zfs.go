@@ -462,7 +462,7 @@ func (s *storageZfs) ContainerMount(c container) (bool, error) {
 			// tracking. So ignore them for now, report back that
 			// the mount isn't ours and proceed.
 			logger.Warnf("ZFS returned EBUSY while \"%s\" is actually not a mountpoint.", containerPoolVolumeMntPoint)
-			return false, nil
+			return false, mounterr
 		}
 		ourMount = true
 	}
