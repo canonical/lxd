@@ -74,39 +74,33 @@ func (p *ProgressRenderer) UpdateOp(op api.Operation) {
 	}
 }
 
-// Image fingerprint and alias sorting
-type SortImage [][]string
+type StringList [][]string
 
-func (a SortImage) Len() int {
+func (a StringList) Len() int {
 	return len(a)
 }
 
-func (a SortImage) Swap(i, j int) {
+func (a StringList) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-func (a SortImage) Less(i, j int) bool {
-	if a[i][0] == a[j][0] {
-		if a[i][3] == "" {
-			return false
+func (a StringList) Less(i, j int) bool {
+	x := 0
+	for x = range a[i] {
+		if a[i][x] != a[j][x] {
+			break
 		}
-
-		if a[j][3] == "" {
-			return true
-		}
-
-		return a[i][3] < a[j][3]
 	}
 
-	if a[i][0] == "" {
+	if a[i][x] == "" {
 		return false
 	}
 
-	if a[j][0] == "" {
+	if a[j][x] == "" {
 		return true
 	}
 
-	return a[i][0] < a[j][0]
+	return a[i][x] < a[j][x]
 }
 
 // Container name sorting
