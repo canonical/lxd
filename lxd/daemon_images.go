@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	cancellable_op "github.com/lxc/lxd/shared/operation"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -345,6 +346,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			MetaFile:        io.WriteSeeker(dest),
 			RootfsFile:      io.WriteSeeker(destRootfs),
 			ProgressHandler: progress,
+			Operation:       op,
 		}
 
 		if secret != "" {
@@ -378,7 +380,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		req.Header.Set("User-Agent", version.UserAgent)
 
 		// Make the request
-		raw, err := httpClient.Do(req)
+		raw, err, doneCh := cancellable_op.CancellableDownload(op, httpClient, req)
+		defer close(doneCh)
 		if err != nil {
 			return nil, err
 		}

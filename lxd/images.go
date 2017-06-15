@@ -695,6 +695,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	// Begin background operation
 	run := func(op *operation) error {
+		var err error
 		var info *api.Image
 
 		// Setup the cleanup function
