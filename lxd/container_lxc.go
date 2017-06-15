@@ -2029,7 +2029,7 @@ func (c *containerLXC) OnStart() error {
 	c.fromHook = true
 
 	// Start the storage for this container
-	ourStart, err := c.StorageStart()
+	ourStart, err := c.StorageStartSensitive()
 	if err != nil {
 		return err
 	}
@@ -5174,6 +5174,23 @@ func (c *containerLXC) Storage() storage {
 }
 
 func (c *containerLXC) StorageStart() (bool, error) {
+	// Initialize storage interface for the container.
+	err := c.initStorage()
+	if err != nil {
+		return false, err
+	}
+
+	isOurOperation, err := c.StorageStartSensitive()
+	// Remove this as soon as zfs is fixed
+	if c.storage.GetStorageType() == storageTypeZfs && err == syscall.EBUSY {
+		return isOurOperation, nil
+	}
+
+	return isOurOperation, err
+}
+
+// Kill this function as soon as zfs is fixed.
+func (c *containerLXC) StorageStartSensitive() (bool, error) {
 	// Initialize storage interface for the container.
 	err := c.initStorage()
 	if err != nil {
