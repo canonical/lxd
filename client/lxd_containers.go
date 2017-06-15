@@ -78,17 +78,27 @@ func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (*Operation,
 	return op, nil
 }
 
-func (r *ProtocolLXD) tryCreateContainerFromImage(req api.ContainersPost, urls []string) (*RemoteOperation, error) {
+func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) (*RemoteOperation, error) {
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("The source server isn't listening on the network")
+	}
+
 	rop := RemoteOperation{
 		chDone: make(chan bool),
 	}
+
+	operation := req.Source.Operation
 
 	// Forward targetOp to remote op
 	go func() {
 		success := false
 		errors := []string{}
 		for _, serverURL := range urls {
-			req.Source.Server = serverURL
+			if operation == "" {
+				req.Source.Server = serverURL
+			} else {
+				req.Source.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, operation)
+			}
 
 			op, err := r.CreateContainer(req)
 			if err != nil {
@@ -182,7 +192,92 @@ func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Ima
 		req.Source.Secret = secret
 	}
 
-	return r.tryCreateContainerFromImage(req, info.Addresses)
+	return r.tryCreateContainer(req, info.Addresses)
+}
+
+// CopyContainer copies a container from a remote server. Additional options can be passed using ContainerCopyArgs
+func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Container, args *ContainerCopyArgs) (*RemoteOperation, error) {
+	// Base request
+	req := api.ContainersPost{
+		Name:         container.Name,
+		ContainerPut: container.Writable(),
+	}
+	req.Source.BaseImage = container.Config["volatile.base_image"]
+	req.Source.Live = container.StatusCode == api.Running
+
+	// Process the copy arguments
+	if args != nil {
+		// Sanity checks
+		if args.ContainerOnly && !r.HasExtension("container_only_migration") {
+			return nil, fmt.Errorf("The server is missing the required \"container_only_migration\" API extension")
+		}
+
+		// Allow overriding the target name
+		if args.Name != "" {
+			req.Name = args.Name
+		}
+
+		req.Source.Live = args.Live
+		req.Source.ContainerOnly = args.ContainerOnly
+	}
+
+	// Optimization for the local copy case
+	if r == source {
+		// Local copy source fields
+		req.Source.Type = "copy"
+		req.Source.Source = container.Name
+
+		// Copy the container
+		op, err := r.CreateContainer(req)
+		if err != nil {
+			return nil, err
+		}
+
+		rop := RemoteOperation{
+			targetOp: op,
+			chDone:   make(chan bool),
+		}
+
+		// Forward targetOp to remote op
+		go func() {
+			rop.err = rop.targetOp.Wait()
+			close(rop.chDone)
+		}()
+
+		return &rop, nil
+	}
+
+	// Get source server connection information
+	info, err := source.GetConnectionInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a source operation
+	sourceReq := api.ContainerPost{
+		Migration:     true,
+		Live:          req.Source.Live,
+		ContainerOnly: req.Source.ContainerOnly,
+	}
+
+	op, err := source.MigrateContainer(container.Name, sourceReq)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceSecrets := map[string]string{}
+	for k, v := range op.Metadata {
+		sourceSecrets[k] = v.(string)
+	}
+
+	// Migration source fields
+	req.Source.Type = "migration"
+	req.Source.Mode = "pull"
+	req.Source.Operation = op.ID
+	req.Source.Websockets = sourceSecrets
+	req.Source.Certificate = info.Certificate
+
+	return r.tryCreateContainer(req, info.Addresses)
 }
 
 // UpdateContainer updates the container definition
@@ -538,6 +633,91 @@ func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api
 	}
 
 	return op, nil
+}
+
+// CopyContainerSnapshot copies a snapshot from a remote server into a new container. Additional options can be passed using ContainerCopyArgs
+func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (*RemoteOperation, error) {
+	// Base request
+	fields := strings.SplitN(snapshot.Name, shared.SnapshotDelimiter, 2)
+	cName := fields[0]
+	sName := fields[1]
+
+	req := api.ContainersPost{
+		Name: cName,
+		ContainerPut: api.ContainerPut{
+			Architecture: snapshot.Architecture,
+			Config:       snapshot.Config,
+			Devices:      snapshot.Devices,
+			Ephemeral:    snapshot.Ephemeral,
+			Profiles:     snapshot.Profiles,
+			Stateful:     snapshot.Stateful,
+		},
+	}
+	req.Source.BaseImage = snapshot.Config["volatile.base_image"]
+
+	// Process the copy arguments
+	if args != nil {
+		// Allow overriding the target name
+		if args.Name != "" {
+			req.Name = args.Name
+		}
+	}
+
+	// Optimization for the local copy case
+	if r == source {
+		// Local copy source fields
+		req.Source.Type = "copy"
+		req.Source.Source = snapshot.Name
+
+		// Copy the container
+		op, err := r.CreateContainer(req)
+		if err != nil {
+			return nil, err
+		}
+
+		rop := RemoteOperation{
+			targetOp: op,
+			chDone:   make(chan bool),
+		}
+
+		// Forward targetOp to remote op
+		go func() {
+			rop.err = rop.targetOp.Wait()
+			close(rop.chDone)
+		}()
+
+		return &rop, nil
+	}
+
+	// Get source server connection information
+	info, err := source.GetConnectionInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a source operation
+	sourceReq := api.ContainerSnapshotPost{
+		Migration: true,
+	}
+
+	op, err := source.MigrateContainerSnapshot(cName, sName, sourceReq)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceSecrets := map[string]string{}
+	for k, v := range op.Metadata {
+		sourceSecrets[k] = v.(string)
+	}
+
+	// Migration source fields
+	req.Source.Type = "migration"
+	req.Source.Mode = "pull"
+	req.Source.Operation = op.ID
+	req.Source.Websockets = sourceSecrets
+	req.Source.Certificate = info.Certificate
+
+	return r.tryCreateContainer(req, info.Addresses)
 }
 
 // RenameContainerSnapshot requests that LXD renames the snapshot
