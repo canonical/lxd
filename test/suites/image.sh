@@ -48,5 +48,29 @@ test_image_list_all_aliases() {
     # both aliases are listed if the "aliases" column is included in output
     lxc image list -c L | grep -q testimage
     lxc image list -c L | grep -q zzz
+}
 
+test_image_copy_cancel() {
+    # shellcheck disable=2039,2153,2155
+    local operation_id=$(
+        curl -s --unix-socket "${LXD_DIR}"/unix.socket lxd/1.0/images -d '
+             {
+                "auto_update": false,
+                "public": false,
+                "source": {
+                        "certificate": "",
+                        "fingerprint": "x",
+                        "mode": "pull",
+                        "protocol": "simplestreams",
+                        "server": "https://cloud-images.ubuntu.com/releases",
+                        "type": "image"
+                        }
+             }' | jq -r .metadata.id)
+    # while curl -s --unix-socket "${LXD_DIR}"/unix.socket "lxd/1.0/operations/$operation_id" | jq -r .metadata.may_cancel | grep -q false; do
+    #     sleep 0.1
+    # done
+    # cancel the operation and expect a success response
+    curl -s --unix-socket "${LXD_DIR}"/unix.socket -X DELETE \
+         "lxd/1.0/operations/$operation_id" | grep 200
+    test "$(lxc image list --format=csv)" = ""
 }
