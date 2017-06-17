@@ -537,9 +537,17 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Set the various headers
-	req.Header.Set("X-LXD-uid", fmt.Sprintf("%d", args.UID))
-	req.Header.Set("X-LXD-gid", fmt.Sprintf("%d", args.GID))
-	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", args.Mode))
+	if args.UID > -1 {
+		req.Header.Set("X-LXD-uid", fmt.Sprintf("%d", args.UID))
+	}
+
+	if args.GID > -1 {
+		req.Header.Set("X-LXD-gid", fmt.Sprintf("%d", args.GID))
+	}
+
+	if args.Mode > -1 {
+		req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", args.Mode))
+	}
 
 	if args.Type != "" {
 		req.Header.Set("X-LXD-type", args.Type)
