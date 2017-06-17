@@ -1,14 +1,5 @@
 // Package lxd implements a client for the LXD API
 //
-// Warning
-//
-// This API isn't considered STABLE yet!
-//
-// This client library is planned to become the new supported Go library
-// for LXD which will come with guaranteed API stability. New functions and
-// struct arguments may be added over time but no existing signature or
-// type will be changed and structs will only gain new members.
-//
 // Overview
 //
 // This package lets you connect to LXD daemons or SimpleStream image
