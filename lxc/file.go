@@ -6,11 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -69,6 +70,148 @@ func (c *fileCmd) flags() {
 	gnuflag.BoolVar(&c.mkdirs, "p", false, i18n.G("Create any directories necessary"))
 }
 
+func (c *fileCmd) recursivePullFile(d lxd.ContainerServer, container string, p string, targetDir string) error {
+	buf, resp, err := d.GetContainerFile(container, p)
+	if err != nil {
+		return err
+	}
+
+	target := filepath.Join(targetDir, filepath.Base(p))
+	if resp.Type == "directory" {
+		err := os.Mkdir(target, os.FileMode(resp.Mode))
+		if err != nil {
+			return err
+		}
+
+		for _, ent := range resp.Entries {
+			nextP := path.Join(p, ent)
+
+			err := c.recursivePullFile(d, container, nextP, target)
+			if err != nil {
+				return err
+			}
+		}
+	} else if resp.Type == "file" {
+		f, err := os.Create(target)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		err = os.Chmod(target, os.FileMode(resp.Mode))
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(f, buf)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf(i18n.G("Unknown file type '%s'"), resp.Type)
+	}
+
+	return nil
+}
+
+func (c *fileCmd) recursivePushFile(d lxd.ContainerServer, container string, source string, target string) error {
+	sourceDir, _ := filepath.Split(source)
+	sourceLen := len(sourceDir)
+
+	sendFile := func(p string, fInfo os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to walk path for %s: %s"), p, err)
+		}
+
+		// Detect symlinks
+		if !fInfo.Mode().IsRegular() && !fInfo.Mode().IsDir() {
+			return fmt.Errorf(i18n.G("'%s' isn't a regular file or directory."), p)
+		}
+
+		targetPath := path.Join(target, filepath.ToSlash(p[sourceLen:]))
+		if fInfo.IsDir() {
+			mode, uid, gid := shared.GetOwnerMode(fInfo)
+			args := lxd.ContainerFileArgs{
+				UID:  int64(uid),
+				GID:  int64(gid),
+				Mode: int(mode.Perm()),
+				Type: "directory",
+			}
+
+			return d.CreateContainerFile(container, targetPath, args)
+		}
+
+		f, err := os.Open(p)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		mode, uid, gid := shared.GetOwnerMode(fInfo)
+
+		args := lxd.ContainerFileArgs{
+			Content: f,
+			UID:     int64(uid),
+			GID:     int64(gid),
+			Mode:    int(mode.Perm()),
+			Type:    "file",
+		}
+
+		return d.CreateContainerFile(container, targetPath, args)
+	}
+
+	return filepath.Walk(source, sendFile)
+}
+
+func (c *fileCmd) recursiveMkdir(d lxd.ContainerServer, container string, p string, mode os.FileMode, uid int64, gid int64) error {
+	/* special case, every container has a /, we don't need to do anything */
+	if p == "/" {
+		return nil
+	}
+
+	// Remove trailing "/" e.g. /A/B/C/. Otherwise we will end up with an
+	// empty array entry "" which will confuse the Mkdir() loop below.
+	pclean := filepath.Clean(p)
+	parts := strings.Split(pclean, "/")
+	i := len(parts)
+
+	for ; i >= 1; i-- {
+		cur := filepath.Join(parts[:i]...)
+		_, resp, err := d.GetContainerFile(container, cur)
+		if err != nil {
+			continue
+		}
+
+		if resp.Type != "directory" {
+			return fmt.Errorf(i18n.G("%s is not a directory"), cur)
+		}
+
+		i++
+		break
+	}
+
+	for ; i <= len(parts); i++ {
+		cur := filepath.Join(parts[:i]...)
+		if cur == "" {
+			continue
+		}
+
+		args := lxd.ContainerFileArgs{
+			UID:  uid,
+			GID:  gid,
+			Mode: int(mode.Perm()),
+			Type: "directory",
+		}
+
+		err := d.CreateContainerFile(container, cur, args)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string) error {
 	if len(args) < 2 {
 		return errArgs
@@ -99,7 +242,7 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 
 	logger.Debugf("Pushing to: %s  (isdir: %t)", targetPath, targetIsDir)
 
-	d, err := lxd.NewClient(conf.Legacy(), remote)
+	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
@@ -141,13 +284,16 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 			}
 
 			mode, uid, gid := shared.GetOwnerMode(finfo)
-			if err := d.MkdirP(container, targetPath, mode, uid, gid); err != nil {
+
+			err = c.recursiveMkdir(d, container, targetPath, mode, int64(uid), int64(gid))
+			if err != nil {
 				return err
 			}
 		}
 
 		for _, fname := range sourcefilenames {
-			if err := d.RecursivePushFile(container, fname, targetPath); err != nil {
+			err := c.recursivePushFile(d, container, fname, targetPath)
+			if err != nil {
 				return err
 			}
 		}
@@ -214,9 +360,17 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 				}
 			}
 
-			if err := d.MkdirP(container, path.Dir(fpath), mode, uid, gid); err != nil {
+			err = c.recursiveMkdir(d, container, path.Dir(fpath), mode, int64(uid), int64(gid))
+			if err != nil {
 				return err
 			}
+		}
+
+		args := lxd.ContainerFileArgs{
+			Content: f,
+			UID:     -1,
+			GID:     -1,
+			Mode:    -1,
 		}
 
 		if send_file_perms {
@@ -244,11 +398,12 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 				}
 			}
 
-			err = d.PushFile(container, fpath, gid, uid, fmt.Sprintf("%04o", mode.Perm()), f)
-		} else {
-			err = d.PushFile(container, fpath, -1, -1, "", f)
+			args.UID = int64(uid)
+			args.GID = int64(gid)
+			args.Mode = int(mode.Perm())
 		}
 
+		err = d.CreateContainerFile(container, fpath, args)
 		if err != nil {
 			return err
 		}
@@ -283,7 +438,8 @@ func (c *fileCmd) pull(conf *config.Config, args []string) error {
 			return fmt.Errorf(i18n.G("More than one file to download, but target is not a directory"))
 		}
 	} else if strings.HasSuffix(target, string(os.PathSeparator)) || len(args)-1 > 1 || c.recursive {
-		if err := os.MkdirAll(target, 0755); err != nil {
+		err := os.MkdirAll(target, 0755)
+		if err != nil {
 			return err
 		}
 		targetIsDir = true
@@ -300,26 +456,27 @@ func (c *fileCmd) pull(conf *config.Config, args []string) error {
 			return err
 		}
 
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetContainerServer(remote)
 		if err != nil {
 			return err
 		}
 
 		if c.recursive {
-			if err := d.RecursivePullFile(container, pathSpec[1], target); err != nil {
+			err := c.recursivePullFile(d, container, pathSpec[1], target)
+			if err != nil {
 				return err
 			}
 
 			continue
 		}
 
-		_, _, mode, type_, buf, _, err := d.PullFile(container, pathSpec[1])
+		buf, resp, err := d.GetContainerFile(container, pathSpec[1])
 		if err != nil {
 			return err
 		}
 
-		if type_ == "directory" {
-			return fmt.Errorf(i18n.G("can't pull a directory without --recursive"))
+		if resp.Type == "directory" {
+			return fmt.Errorf(i18n.G("Can't pull a directory without --recursive"))
 		}
 
 		var targetPath string
@@ -339,7 +496,7 @@ func (c *fileCmd) pull(conf *config.Config, args []string) error {
 			}
 			defer f.Close()
 
-			err = os.Chmod(targetPath, os.FileMode(mode))
+			err = os.Chmod(targetPath, os.FileMode(resp.Mode))
 			if err != nil {
 				return err
 			}
@@ -370,12 +527,12 @@ func (c *fileCmd) delete(conf *config.Config, args []string) error {
 			return err
 		}
 
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetContainerServer(remote)
 		if err != nil {
 			return err
 		}
 
-		err = d.DeleteFile(container, pathSpec[1])
+		err = d.DeleteContainerFile(container, pathSpec[1])
 		if err != nil {
 			return err
 		}
