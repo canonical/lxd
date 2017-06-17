@@ -11,7 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -76,7 +76,7 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 		return err
 	}
 
-	d, err := lxd.NewClient(conf.Legacy(), remote)
+	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
@@ -141,6 +141,13 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 			fpath = path.Join(fpath, path.Base(f.Name()))
 		}
 
+		args := lxd.ContainerFileArgs{
+			Content: f,
+			UID:     -1,
+			GID:     -1,
+			Mode:    -1,
+		}
+
 		if send_file_perms {
 			if c.mode == "" || c.uid == -1 || c.gid == -1 {
 				fMode, fUid, fGid, err := c.getOwner(f)
@@ -161,11 +168,12 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 				}
 			}
 
-			err = d.PushFile(container, fpath, gid, uid, fmt.Sprintf("%04o", mode.Perm()), f)
-		} else {
-			err = d.PushFile(container, fpath, -1, -1, "", f)
+			args.UID = int64(uid)
+			args.GID = int64(gid)
+			args.Mode = int(mode.Perm())
 		}
 
+		err = d.CreateContainerFile(container, fpath, args)
 		if err != nil {
 			return err
 		}
@@ -216,12 +224,12 @@ func (c *fileCmd) pull(conf *config.Config, args []string) error {
 			return err
 		}
 
-		d, err := lxd.NewClient(conf.Legacy(), remote)
+		d, err := conf.GetContainerServer(remote)
 		if err != nil {
 			return err
 		}
 
-		_, _, _, buf, err := d.PullFile(container, pathSpec[1])
+		buf, _, err := d.GetContainerFile(container, pathSpec[1])
 		if err != nil {
 			return err
 		}
