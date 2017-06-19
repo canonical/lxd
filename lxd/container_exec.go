@@ -227,10 +227,12 @@ func (s *execWs) Do(op *operation) error {
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
+			logger.Debugf("Starting to mirror websocket")
 			readDone, writeDone := shared.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 
 			<-readDone
 			<-writeDone
+			logger.Debugf("Finished to mirror websocket")
 
 			conn.Close()
 			wgEOF.Done()
