@@ -570,12 +570,14 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 
 		atomic.StoreInt32(&attachedChildIsDead, 1)
 
-		ret, revents, err := GetPollRevents(fd, 0, (POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP))
+		ret, revents, err := GetPollRevents(fd, 0, (POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP | POLLNVAL))
 		if ret < 0 {
 			logger.Errorf("Failed to poll(POLLIN | POLLPRI | POLLHUP | POLLRDHUP) on file descriptor: %s.", err)
 		} else if ret > 0 {
 			if (revents & POLLERR) > 0 {
 				logger.Warnf("Detected poll(POLLERR) event.")
+			} else if (revents & POLLNVAL) > 0 {
+				logger.Warnf("Detected poll(POLLNVAL) event.")
 			}
 		} else if ret == 0 {
 			logger.Debugf("No data in stdout: exiting.")
@@ -595,7 +597,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 			nr := 0
 			var err error
 
-			ret, revents, err := GetPollRevents(fd, -1, (POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP))
+			ret, revents, err := GetPollRevents(fd, -1, (POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP | POLLNVAL))
 			if ret < 0 {
 				// This condition is only reached in cases where we are massively f*cked since we even handle
 				// EINTR in the underlying C wrapper around poll(). So let's exit here.
@@ -615,6 +617,9 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 
 			if (revents & POLLERR) > 0 {
 				logger.Warnf("Detected poll(POLLERR) event: exiting.")
+				return
+			} else if (revents & POLLNVAL) > 0 {
+				logger.Warnf("Detected poll(POLLNVAL) event: exiting.")
 				return
 			}
 
@@ -671,11 +676,11 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 					//   or (POLLHUP | POLLRDHUP). Both will trigger another codepath (See [2].)
 					//   that takes care that all data of the child that is buffered in
 					//   stdout is written out.
-					ret, revents, err := GetPollRevents(fd, 0, (POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP))
+					ret, revents, err := GetPollRevents(fd, 0, (POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP | POLLNVAL))
 					if ret < 0 {
 						logger.Errorf("Failed to poll(POLLIN | POLLPRI | POLLERR | POLLHUP | POLLRDHUP) on file descriptor: %s. Exiting.", err)
 						return
-					} else if (revents & (POLLHUP | POLLRDHUP)) == 0 {
+					} else if (revents & (POLLHUP | POLLRDHUP | POLLERR | POLLNVAL)) == 0 {
 						logger.Debugf("Exiting but background processes are still running.")
 						return
 					}
