@@ -466,6 +466,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			return nil, err
 		}
 
+		info = &api.Image{}
+		info.Fingerprint = fp
 		info.Size = size
 		info.Architecture = imageMeta.Architecture
 		info.CreatedAt = time.Unix(imageMeta.CreationDate, 0)
