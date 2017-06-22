@@ -149,7 +149,12 @@ func lxcValidConfig(rawLxc string) error {
 			return fmt.Errorf("Setting lxc.ephemeral is not allowed")
 		}
 
-		if strings.HasPrefix(key, "lxc.network.") {
+		networkKeyPrefix := "lxc.net."
+		if !lxc.VersionAtLeast(2, 1, 0) {
+			networkKeyPrefix = "lxc.network."
+		}
+
+		if strings.HasPrefix(key, networkKeyPrefix) {
 			fields := strings.Split(key, ".")
 			if len(fields) == 4 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) {
 				continue
@@ -159,7 +164,7 @@ func lxcValidConfig(rawLxc string) error {
 				continue
 			}
 
-			return fmt.Errorf("Only interface-specific ipv4/ipv6 lxc.network keys are allowed")
+			return fmt.Errorf("Only interface-specific ipv4/ipv6 %s keys are allowed", networkKeyPrefix)
 		}
 	}
 
@@ -1191,36 +1196,41 @@ func (c *containerLXC) initLXC() error {
 				return err
 			}
 
+			networkKeyPrefix := "lxc.net"
+			if !lxc.VersionAtLeast(2, 1, 0) {
+				networkKeyPrefix = "lxc.network"
+			}
+
 			// Interface type specific configuration
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.type", networkidx), "veth")
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx), "veth")
 				if err != nil {
 					return err
 				}
 			} else if m["nictype"] == "physical" {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.type", networkidx), "phys")
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx), "phys")
 				if err != nil {
 					return err
 				}
 			} else if m["nictype"] == "macvlan" {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.type", networkidx), "macvlan")
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx), "macvlan")
 				if err != nil {
 					return err
 				}
 
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.macvlan.mode", networkidx), "bridge")
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.macvlan.mode", networkKeyPrefix, networkidx), "bridge")
 				if err != nil {
 					return err
 				}
 			}
 
-			err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.flags", networkidx), "up")
+			err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.flags", networkKeyPrefix, networkidx), "up")
 			if err != nil {
 				return err
 			}
 
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "physical", "macvlan"}) {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.link", networkidx), m["parent"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), m["parent"])
 				if err != nil {
 					return err
 				}
@@ -1228,7 +1238,7 @@ func (c *containerLXC) initLXC() error {
 
 			// Host Virtual NIC name
 			if m["host_name"] != "" {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.veth.pair", networkidx), m["host_name"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.veth.pair", networkKeyPrefix, networkidx), m["host_name"])
 				if err != nil {
 					return err
 				}
@@ -1236,7 +1246,7 @@ func (c *containerLXC) initLXC() error {
 
 			// MAC address
 			if m["hwaddr"] != "" {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.hwaddr", networkidx), m["hwaddr"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.hwaddr", networkKeyPrefix, networkidx), m["hwaddr"])
 				if err != nil {
 					return err
 				}
@@ -1244,7 +1254,7 @@ func (c *containerLXC) initLXC() error {
 
 			// MTU
 			if m["mtu"] != "" {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.mtu", networkidx), m["mtu"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.mtu", networkKeyPrefix, networkidx), m["mtu"])
 				if err != nil {
 					return err
 				}
@@ -1252,7 +1262,7 @@ func (c *containerLXC) initLXC() error {
 
 			// Name
 			if m["name"] != "" {
-				err = lxcSetConfigItem(cc, fmt.Sprintf("lxc.network.%d.name", networkidx), m["name"])
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.name", networkKeyPrefix, networkidx), m["name"])
 				if err != nil {
 					return err
 				}
@@ -5557,13 +5567,18 @@ func (c *containerLXC) setNetworkPriority() error {
 
 func (c *containerLXC) getHostInterface(name string) string {
 	if c.IsRunning() {
-		for i := 0; i < len(c.c.ConfigItem("lxc.network")); i++ {
-			nicName := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.name", i))[0]
+		networkKeyPrefix := "lxc.net"
+		if !lxc.VersionAtLeast(2, 1, 0) {
+			networkKeyPrefix = "lxc.network"
+		}
+
+		for i := 0; i < len(c.c.ConfigItem(networkKeyPrefix)); i++ {
+			nicName := c.c.RunningConfigItem(fmt.Sprintf("%s.%d.name", networkKeyPrefix, i))[0]
 			if nicName != name {
 				continue
 			}
 
-			veth := c.c.RunningConfigItem(fmt.Sprintf("lxc.network.%d.veth.pair", i))[0]
+			veth := c.c.RunningConfigItem(fmt.Sprintf("%s.%d.veth.pair", networkKeyPrefix, i))[0]
 			if veth != "" {
 				return veth
 			}
