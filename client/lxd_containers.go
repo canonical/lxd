@@ -391,6 +391,10 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 					shared.WebsocketSendStream(conn, args.Stdin, -1)
 					<-shared.WebsocketRecvStream(args.Stdout, conn)
 					conn.Close()
+
+					if args.DataDone != nil {
+						close(args.DataDone)
+					}
 				}()
 			}
 		} else {
@@ -443,6 +447,10 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 
 				for _, conn := range conns {
 					conn.Close()
+				}
+
+				if args.DataDone != nil {
+					close(args.DataDone)
 				}
 			}()
 		}
