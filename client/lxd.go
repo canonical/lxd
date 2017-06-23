@@ -181,15 +181,29 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data interface{}, 
 }
 
 func (r *ProtocolLXD) queryOperation(method string, path string, data interface{}, ETag string) (*Operation, string, error) {
+	// Attempt to setup an early event listener
+	listener, err := r.GetEvents()
+	if err != nil {
+		listener = nil
+	}
+
 	// Send the query
 	resp, etag, err := r.query(method, path, data, ETag)
 	if err != nil {
+		if listener != nil {
+			listener.Disconnect()
+		}
+
 		return nil, "", err
 	}
 
 	// Get to the operation
 	respOperation, err := resp.MetadataAsOperation()
 	if err != nil {
+		if listener != nil {
+			listener.Disconnect()
+		}
+
 		return nil, "", err
 	}
 
@@ -197,6 +211,7 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data interface{
 	op := Operation{
 		Operation: *respOperation,
 		r:         r,
+		listener:  listener,
 		chActive:  make(chan bool),
 	}
 
