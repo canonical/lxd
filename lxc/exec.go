@@ -210,21 +210,27 @@ func (c *execCmd) run(conf *config.Config, args []string) error {
 	}
 
 	execArgs := lxd.ContainerExecArgs{
-		Stdin:   stdin,
-		Stdout:  stdout,
-		Stderr:  os.Stderr,
-		Control: handler,
+		Stdin:    stdin,
+		Stdout:   stdout,
+		Stderr:   os.Stderr,
+		Control:  handler,
+		DataDone: make(chan bool),
 	}
 
+	// Run the command in the container
 	op, err := d.ExecContainer(name, req, &execArgs)
 	if err != nil {
 		return err
 	}
 
+	// Wait for the operation to complete
 	err = op.Wait()
 	if err != nil {
 		return err
 	}
+
+	// Wait for any remaining I/O to be flushed
+	<-execArgs.DataDone
 
 	if oldttystate != nil {
 		/* A bit of a special case here: we want to exit with the same code as
