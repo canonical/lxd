@@ -257,6 +257,9 @@ type ContainerExecArgs struct {
 
 	// Control message handler (window resize, signals, ...)
 	Control func(conn *websocket.Conn)
+
+	// Channel that will be closed when all data operations are done
+	DataDone chan bool
 }
 
 // The ContainerFileArgs struct is used to pass the various options for a container file upload

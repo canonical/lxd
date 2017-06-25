@@ -5,7 +5,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -56,7 +56,8 @@ func (c *monitorCmd) flags() {
 	gnuflag.Var(&c.typeArgs, "type", i18n.G("Event type to listen for"))
 }
 
-func (c *monitorCmd) run(config *lxd.Config, args []string) error {
+func (c *monitorCmd) run(conf *config.Config, args []string) error {
+	var err error
 	var remote string
 
 	if len(args) > 1 {
@@ -64,12 +65,23 @@ func (c *monitorCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	if len(args) == 0 {
-		remote, _ = config.ParseRemoteAndContainer("")
+		remote, _, err = conf.ParseRemote("")
+		if err != nil {
+			return err
+		}
 	} else {
-		remote, _ = config.ParseRemoteAndContainer(args[0])
+		remote, _, err = conf.ParseRemote(args[0])
+		if err != nil {
+			return err
+		}
 	}
 
-	d, err := lxd.NewClient(config, remote)
+	d, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	listener, err := d.GetEvents()
 	if err != nil {
 		return err
 	}
@@ -84,5 +96,10 @@ func (c *monitorCmd) run(config *lxd.Config, args []string) error {
 		fmt.Printf("%s\n\n", render)
 	}
 
-	return d.Monitor(c.typeArgs, handler, nil)
+	_, err = listener.AddHandler(c.typeArgs, handler)
+	if err != nil {
+		return err
+	}
+
+	return listener.Wait()
 }

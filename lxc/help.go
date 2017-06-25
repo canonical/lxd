@@ -5,7 +5,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -29,7 +29,7 @@ func (c *helpCmd) flags() {
 	gnuflag.BoolVar(&c.showAll, "all", false, i18n.G("Show all commands (not just interesting ones)"))
 }
 
-func (c *helpCmd) run(config *lxd.Config, args []string) error {
+func (c *helpCmd) run(conf *config.Config, args []string) error {
 	if len(args) > 0 {
 		for _, name := range args {
 			cmd, ok := commands[name]

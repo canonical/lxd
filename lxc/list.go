@@ -14,7 +14,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -214,7 +214,7 @@ func (c *listCmd) shouldShow(filters []string, state *api.Container) bool {
 	return true
 }
 
-func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters []string, columns []column) error {
+func (c *listCmd) listContainers(conf *config.Config, remote string, cinfos []api.Container, filters []string, columns []column) error {
 	headers := []string{}
 	for _, column := range columns {
 		headers = append(headers, column.Name)
@@ -238,7 +238,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 	for i := 0; i < threads; i++ {
 		cStatesWg.Add(1)
 		go func() {
-			d, err := lxd.NewClient(&d.Config, d.Name)
+			d, err := conf.GetContainerServer(remote)
 			if err != nil {
 				cStatesWg.Done()
 				return
@@ -250,7 +250,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 					break
 				}
 
-				state, err := d.ContainerState(cName)
+				state, _, err := d.GetContainerState(cName)
 				if err != nil {
 					continue
 				}
@@ -264,7 +264,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 
 		cSnapshotsWg.Add(1)
 		go func() {
-			d, err := lxd.NewClient(&d.Config, d.Name)
+			d, err := conf.GetContainerServer(remote)
 			if err != nil {
 				cSnapshotsWg.Done()
 				return
@@ -276,7 +276,7 @@ func (c *listCmd) listContainers(d *lxd.Client, cinfos []api.Container, filters 
 					break
 				}
 
-				snaps, err := d.ListSnapshots(cName)
+				snaps, err := d.GetContainerSnapshots(cName)
 				if err != nil {
 					continue
 				}
@@ -400,7 +400,7 @@ type listContainerItem struct {
 	Snapshots []api.ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
 }
 
-func (c *listCmd) run(config *lxd.Config, args []string) error {
+func (c *listCmd) run(conf *config.Config, args []string) error {
 	var remote string
 	name := ""
 
@@ -409,26 +409,31 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 	if len(args) != 0 {
 		filters = args
 		if strings.Contains(args[0], ":") && !strings.Contains(args[0], "=") {
-			remote, name = config.ParseRemoteAndContainer(args[0])
+			var err error
+			remote, name, err = conf.ParseRemote(args[0])
+			if err != nil {
+				return err
+			}
+
 			filters = args[1:]
 		} else if !strings.Contains(args[0], "=") {
-			remote = config.DefaultRemote
+			remote = conf.DefaultRemote
 			name = args[0]
 		}
 	}
 	filters = append(filters, name)
 
 	if remote == "" {
-		remote = config.DefaultRemote
+		remote = conf.DefaultRemote
 	}
 
-	d, err := lxd.NewClient(config, remote)
+	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
 
 	var cts []api.Container
-	ctslist, err := d.ListContainers()
+	ctslist, err := d.GetContainers()
 	if err != nil {
 		return err
 	}
@@ -446,7 +451,7 @@ func (c *listCmd) run(config *lxd.Config, args []string) error {
 		return err
 	}
 
-	return c.listContainers(d, cts, filters, columns)
+	return c.listContainers(conf, remote, cts, filters, columns)
 }
 
 func (c *listCmd) parseColumns() ([]column, error) {

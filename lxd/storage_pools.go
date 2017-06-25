@@ -103,7 +103,7 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 	}
 	pool.UsedBy = poolUsedBy
 
-	etag := []interface{}{pool.Name, pool.UsedBy, pool.Config}
+	etag := []interface{}{pool.Name, pool.Driver, pool.Config}
 
 	return SyncResponseETag(true, &pool, etag)
 }
@@ -120,7 +120,7 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the ETag
-	etag := []interface{}{dbInfo.Name, dbInfo.UsedBy, dbInfo.Config}
+	etag := []interface{}{dbInfo.Name, dbInfo.Driver, dbInfo.Config}
 
 	err = etagCheck(r, etag)
 	if err != nil {
@@ -158,7 +158,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the ETag
-	etag := []interface{}{dbInfo.Name, dbInfo.UsedBy, dbInfo.Config}
+	etag := []interface{}{dbInfo.Name, dbInfo.Driver, dbInfo.Config}
 
 	err = etagCheck(r, etag)
 	if err != nil {

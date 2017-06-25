@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -50,7 +50,7 @@ func (c *actionCmd) flags() {
 	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only for start)"))
 }
 
-func (c *actionCmd) doAction(config *lxd.Config, nameArg string) error {
+func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
 	state := false
 
 	// Only store state if asked to
@@ -58,8 +58,12 @@ func (c *actionCmd) doAction(config *lxd.Config, nameArg string) error {
 		state = true
 	}
 
-	remote, name := config.ParseRemoteAndContainer(nameArg)
-	d, err := lxd.NewClient(config, remote)
+	remote, name, err := conf.ParseRemote(nameArg)
+	if err != nil {
+		return err
+	}
+
+	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
@@ -69,7 +73,7 @@ func (c *actionCmd) doAction(config *lxd.Config, nameArg string) error {
 	}
 
 	if c.action == shared.Start {
-		current, err := d.ContainerInfo(name)
+		current, _, err := d.GetContainer(name)
 		if err != nil {
 			return err
 		}
@@ -85,29 +89,33 @@ func (c *actionCmd) doAction(config *lxd.Config, nameArg string) error {
 		}
 	}
 
-	resp, err := d.Action(name, c.action, c.timeout, c.force, state)
+	req := api.ContainerStatePut{
+		Action:   string(c.action),
+		Timeout:  c.timeout,
+		Force:    c.force,
+		Stateful: state,
+	}
+
+	op, err := d.UpdateContainerState(name, req, "")
 	if err != nil {
 		return err
 	}
 
-	if resp.Type != api.AsyncResponse {
-		return fmt.Errorf(i18n.G("bad result type from action"))
-	}
-
-	if err := d.WaitForSuccess(resp.Operation); err != nil {
+	err = op.Wait()
+	if err != nil {
 		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, nameArg)
 	}
 
 	return nil
 }
 
-func (c *actionCmd) run(config *lxd.Config, args []string) error {
+func (c *actionCmd) run(conf *config.Config, args []string) error {
 	if len(args) == 0 {
 		return errArgs
 	}
 
 	// Run the action for every listed container
-	results := runBatch(args, func(name string) error { return c.doAction(config, name) })
+	results := runBatch(args, func(name string) error { return c.doAction(conf, name) })
 
 	// Single container is easy
 	if len(results) == 1 {
