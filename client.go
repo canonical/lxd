@@ -1873,9 +1873,6 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 		return fmt.Errorf("This function isn't supported by public remotes.")
 	}
 
-	sourceDir, _ := filepath.Split(source)
-	sourceLen := len(sourceDir)
-
 	sendFile := func(p string, fInfo os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("Failed to walk path for %s: %s", p, err)
@@ -1886,7 +1883,7 @@ func (c *Client) RecursivePushFile(container string, source string, target strin
 			return fmt.Errorf("'%s' isn't a regular file or directory.", p)
 		}
 
-		targetPath := path.Join(target, filepath.ToSlash(p[sourceLen:]))
+		targetPath := path.Join(target, filepath.ToSlash(p))
 		if fInfo.IsDir() {
 			mode, uid, gid := shared.GetOwnerMode(fInfo)
 			return c.Mkdir(container, targetPath, mode, uid, gid)
