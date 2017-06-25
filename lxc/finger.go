@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
@@ -20,25 +20,26 @@ Check if the LXD server is alive.`)
 
 func (c *fingerCmd) flags() {}
 
-func (c *fingerCmd) run(config *lxd.Config, args []string) error {
+func (c *fingerCmd) run(conf *config.Config, args []string) error {
 	if len(args) > 1 {
 		return errArgs
 	}
 
-	var remote string
-	if len(args) == 1 {
-		remote = config.ParseRemote(args[0])
-	} else {
-		remote = config.DefaultRemote
+	// Parse the remote
+	remote := conf.DefaultRemote
+	if len(args) > 0 {
+		var err error
+		remote, _, err = conf.ParseRemote(args[0])
+		if err != nil {
+			return err
+		}
 	}
 
-	// New client may or may not need to connect to the remote host, but
-	// client.ServerStatus will at least request the basic information from
-	// the server.
-	client, err := lxd.NewClient(config, remote)
+	// Attempt to connect
+	_, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
-	_, err = client.ServerStatus()
-	return err
+
+	return nil
 }

@@ -16,8 +16,10 @@ type Operation struct {
 
 	r            *ProtocolLXD
 	listener     *EventListener
-	listenerLock sync.Mutex
-	chActive     chan bool
+	handlerReady bool
+	handlerLock  sync.Mutex
+
+	chActive chan bool
 }
 
 // AddHandler adds a function to be called whenever an event is received
@@ -29,8 +31,8 @@ func (op *Operation) AddHandler(function func(api.Operation)) (*EventTarget, err
 	}
 
 	// Make sure we're not racing with ourselves
-	op.listenerLock.Lock()
-	defer op.listenerLock.Unlock()
+	op.handlerLock.Lock()
+	defer op.handlerLock.Unlock()
 
 	// If we're done already, just return
 	if op.StatusCode.IsFinal() {
@@ -63,8 +65,8 @@ func (op *Operation) GetWebsocket(secret string) (*websocket.Conn, error) {
 // RemoveHandler removes a function to be called whenever an event is received
 func (op *Operation) RemoveHandler(target *EventTarget) error {
 	// Make sure we're not racing with ourselves
-	op.listenerLock.Lock()
-	defer op.listenerLock.Unlock()
+	op.handlerLock.Lock()
+	defer op.handlerLock.Unlock()
 
 	// If the listener is gone, just return
 	if op.listener == nil {
@@ -77,7 +79,7 @@ func (op *Operation) RemoveHandler(target *EventTarget) error {
 // Refresh pulls the current version of the operation and updates the struct
 func (op *Operation) Refresh() error {
 	// Don't bother with a manual update if we are listening for events
-	if op.listener != nil {
+	if op.handlerReady {
 		return nil
 	}
 
@@ -122,23 +124,27 @@ func (op *Operation) Wait() error {
 
 func (op *Operation) setupListener() error {
 	// Make sure we're not racing with ourselves
-	op.listenerLock.Lock()
-	defer op.listenerLock.Unlock()
+	op.handlerLock.Lock()
+	defer op.handlerLock.Unlock()
 
 	// We already have a listener setup
-	if op.listener != nil {
+	if op.handlerReady {
 		return nil
 	}
 
 	// Get a new listener
-	listener, err := op.r.GetEvents()
-	if err != nil {
-		return err
+	if op.listener == nil {
+		listener, err := op.r.GetEvents()
+		if err != nil {
+			return err
+		}
+
+		op.listener = listener
 	}
 
 	// Setup the handler
 	chReady := make(chan bool)
-	_, err = listener.AddHandler([]string{"operation"}, func(data interface{}) {
+	_, err := op.listener.AddHandler([]string{"operation"}, func(data interface{}) {
 		<-chReady
 
 		// Get an operation struct out of this data
@@ -148,8 +154,8 @@ func (op *Operation) setupListener() error {
 		}
 
 		// We don't want concurrency while processing events
-		op.listenerLock.Lock()
-		defer op.listenerLock.Unlock()
+		op.handlerLock.Lock()
+		defer op.handlerLock.Unlock()
 
 		// Check if we're done already (because of another event)
 		if op.listener == nil {
@@ -168,20 +174,20 @@ func (op *Operation) setupListener() error {
 		}
 	})
 	if err != nil {
-		listener.Disconnect()
+		op.listener.Disconnect()
 		return err
 	}
 
 	// And do a manual refresh to avoid races
 	err = op.Refresh()
 	if err != nil {
-		listener.Disconnect()
+		op.listener.Disconnect()
 		return err
 	}
 
 	// Check if not done already
 	if op.StatusCode.IsFinal() {
-		listener.Disconnect()
+		op.listener.Disconnect()
 		close(op.chActive)
 
 		if op.Err != "" {
@@ -192,7 +198,7 @@ func (op *Operation) setupListener() error {
 	}
 
 	// Start processing background updates
-	op.listener = listener
+	op.handlerReady = true
 	close(chReady)
 
 	return nil

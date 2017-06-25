@@ -391,6 +391,10 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 					shared.WebsocketSendStream(conn, args.Stdin, -1)
 					<-shared.WebsocketRecvStream(args.Stdout, conn)
 					conn.Close()
+
+					if args.DataDone != nil {
+						close(args.DataDone)
+					}
 				}()
 			}
 		} else {
@@ -443,6 +447,10 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 
 				for _, conn := range conns {
 					conn.Close()
+				}
+
+				if args.DataDone != nil {
+					close(args.DataDone)
 				}
 			}()
 		}
@@ -537,9 +545,17 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Set the various headers
-	req.Header.Set("X-LXD-uid", fmt.Sprintf("%d", args.UID))
-	req.Header.Set("X-LXD-gid", fmt.Sprintf("%d", args.GID))
-	req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", args.Mode))
+	if args.UID > -1 {
+		req.Header.Set("X-LXD-uid", fmt.Sprintf("%d", args.UID))
+	}
+
+	if args.GID > -1 {
+		req.Header.Set("X-LXD-gid", fmt.Sprintf("%d", args.GID))
+	}
+
+	if args.Mode > -1 {
+		req.Header.Set("X-LXD-mode", fmt.Sprintf("%04o", args.Mode))
+	}
 
 	if args.Type != "" {
 		req.Header.Set("X-LXD-type", args.Type)

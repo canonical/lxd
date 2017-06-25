@@ -11,7 +11,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
@@ -94,21 +95,25 @@ cat network.yaml | lxc network edit <network>
 
 func (c *networkCmd) flags() {}
 
-func (c *networkCmd) run(config *lxd.Config, args []string) error {
+func (c *networkCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errUsage
 	}
 
 	if args[0] == "list" {
-		return c.doNetworkList(config, args)
+		return c.doNetworkList(conf, args)
 	}
 
 	if len(args) < 2 {
 		return errArgs
 	}
 
-	remote, network := config.ParseRemoteAndContainer(args[1])
-	client, err := lxd.NewClient(config, remote)
+	remote, network, err := conf.ParseRemote(args[1])
+	if err != nil {
+		return err
+	}
+
+	client, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
@@ -141,72 +146,92 @@ func (c *networkCmd) run(config *lxd.Config, args []string) error {
 	}
 }
 
-func (c *networkCmd) doNetworkAttach(client *lxd.Client, name string, args []string) error {
+func (c *networkCmd) doNetworkAttach(client lxd.ContainerServer, name string, args []string) error {
 	if len(args) < 1 || len(args) > 3 {
 		return errArgs
 	}
 
-	container := args[0]
+	// Default name is same as network
 	devName := name
 	if len(args) > 1 {
 		devName = args[1]
 	}
 
-	network, err := client.NetworkGet(name)
+	// Get the network entry
+	network, _, err := client.GetNetwork(name)
 	if err != nil {
 		return err
 	}
 
-	nicType := "macvlan"
+	// Prepare the container's device entry
+	device := map[string]string{
+		"type":    "nic",
+		"nictype": "macvlan",
+		"parent":  name,
+	}
+
 	if network.Type == "bridge" {
-		nicType = "bridged"
+		device["nictype"] = "bridged"
 	}
 
-	props := []string{fmt.Sprintf("nictype=%s", nicType), fmt.Sprintf("parent=%s", name)}
 	if len(args) > 2 {
-		props = append(props, fmt.Sprintf("name=%s", args[2]))
+		device["name"] = args[2]
 	}
 
-	resp, err := client.ContainerDeviceAdd(container, devName, "nic", props)
+	// Add the device to the container
+	err = containerDeviceAdd(client, args[0], devName, device)
 	if err != nil {
 		return err
 	}
 
-	return client.WaitForSuccess(resp.Operation)
+	return nil
 }
 
-func (c *networkCmd) doNetworkAttachProfile(client *lxd.Client, name string, args []string) error {
+func (c *networkCmd) doNetworkAttachProfile(client lxd.ContainerServer, name string, args []string) error {
 	if len(args) < 1 || len(args) > 3 {
 		return errArgs
 	}
 
-	profile := args[0]
+	// Default name is same as network
 	devName := name
 	if len(args) > 1 {
 		devName = args[1]
 	}
 
-	network, err := client.NetworkGet(name)
+	// Get the network entry
+	network, _, err := client.GetNetwork(name)
 	if err != nil {
 		return err
 	}
 
-	nicType := "macvlan"
+	// Prepare the profile's device entry
+	device := map[string]string{
+		"type":    "nic",
+		"nictype": "macvlan",
+		"parent":  name,
+	}
+
 	if network.Type == "bridge" {
-		nicType = "bridged"
+		device["nictype"] = "bridged"
 	}
 
-	props := []string{fmt.Sprintf("nictype=%s", nicType), fmt.Sprintf("parent=%s", name)}
 	if len(args) > 2 {
-		props = append(props, fmt.Sprintf("name=%s", args[2]))
+		device["name"] = args[2]
 	}
 
-	_, err = client.ProfileDeviceAdd(profile, devName, "nic", props)
-	return err
+	// Add the device to the profile
+	err = profileDeviceAdd(client, args[0], devName, device)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (c *networkCmd) doNetworkCreate(client *lxd.Client, name string, args []string) error {
-	config := map[string]string{}
+func (c *networkCmd) doNetworkCreate(client lxd.ContainerServer, name string, args []string) error {
+	network := api.NetworksPost{}
+	network.Name = name
+	network.Config = map[string]string{}
 
 	for i := 0; i < len(args); i++ {
 		entry := strings.SplitN(args[i], "=", 2)
@@ -214,33 +239,36 @@ func (c *networkCmd) doNetworkCreate(client *lxd.Client, name string, args []str
 			return errArgs
 		}
 
-		config[entry[0]] = entry[1]
+		network.Config[entry[0]] = entry[1]
 	}
 
-	err := client.NetworkCreate(name, config)
-	if err == nil {
-		fmt.Printf(i18n.G("Network %s created")+"\n", name)
+	err := client.CreateNetwork(network)
+	if err != nil {
+		return err
 	}
 
-	return err
+	fmt.Printf(i18n.G("Network %s created")+"\n", name)
+	return nil
 }
 
-func (c *networkCmd) doNetworkDetach(client *lxd.Client, name string, args []string) error {
+func (c *networkCmd) doNetworkDetach(client lxd.ContainerServer, name string, args []string) error {
 	if len(args) < 1 || len(args) > 2 {
 		return errArgs
 	}
 
-	containerName := args[0]
+	// Default name is same as network
 	devName := ""
 	if len(args) > 1 {
 		devName = args[1]
 	}
 
-	container, err := client.ContainerInfo(containerName)
+	// Get the container entry
+	container, etag, err := client.GetContainer(args[0])
 	if err != nil {
 		return err
 	}
 
+	// Find the device
 	if devName == "" {
 		for n, d := range container.Devices {
 			if d["type"] == "nic" && d["parent"] == name {
@@ -266,30 +294,34 @@ func (c *networkCmd) doNetworkDetach(client *lxd.Client, name string, args []str
 		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
 	}
 
-	resp, err := client.ContainerDeviceDelete(containerName, devName)
+	// Remove the device
+	delete(container.Devices, devName)
+	op, err := client.UpdateContainer(args[0], container.Writable(), etag)
 	if err != nil {
 		return err
 	}
 
-	return client.WaitForSuccess(resp.Operation)
+	return op.Wait()
 }
 
-func (c *networkCmd) doNetworkDetachProfile(client *lxd.Client, name string, args []string) error {
+func (c *networkCmd) doNetworkDetachProfile(client lxd.ContainerServer, name string, args []string) error {
 	if len(args) < 1 || len(args) > 2 {
 		return errArgs
 	}
 
-	profileName := args[0]
+	// Default name is same as network
 	devName := ""
 	if len(args) > 1 {
 		devName = args[1]
 	}
 
-	profile, err := client.ProfileConfig(profileName)
+	// Get the profile entry
+	profile, etag, err := client.GetProfile(args[0])
 	if err != nil {
 		return err
 	}
 
+	// Find the device
 	if devName == "" {
 		for n, d := range profile.Devices {
 			if d["type"] == "nic" && d["parent"] == name {
@@ -315,20 +347,27 @@ func (c *networkCmd) doNetworkDetachProfile(client *lxd.Client, name string, arg
 		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
 	}
 
-	_, err = client.ProfileDeviceDelete(profileName, devName)
-	return err
-}
-
-func (c *networkCmd) doNetworkDelete(client *lxd.Client, name string) error {
-	err := client.NetworkDelete(name)
-	if err == nil {
-		fmt.Printf(i18n.G("Network %s deleted")+"\n", name)
+	// Remove the device
+	delete(profile.Devices, devName)
+	err = client.UpdateProfile(args[0], profile.Writable(), etag)
+	if err != nil {
+		return err
 	}
 
-	return err
+	return nil
 }
 
-func (c *networkCmd) doNetworkEdit(client *lxd.Client, name string) error {
+func (c *networkCmd) doNetworkDelete(client lxd.ContainerServer, name string) error {
+	err := client.DeleteNetwork(name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Network %s deleted")+"\n", name)
+	return nil
+}
+
+func (c *networkCmd) doNetworkEdit(client lxd.ContainerServer, name string) error {
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -341,11 +380,12 @@ func (c *networkCmd) doNetworkEdit(client *lxd.Client, name string) error {
 		if err != nil {
 			return err
 		}
-		return client.NetworkPut(name, newdata)
+
+		return client.UpdateNetwork(name, newdata, "")
 	}
 
 	// Extract the current value
-	network, err := client.NetworkGet(name)
+	network, etag, err := client.GetNetwork(name)
 	if err != nil {
 		return err
 	}
@@ -370,7 +410,7 @@ func (c *networkCmd) doNetworkEdit(client *lxd.Client, name string) error {
 		newdata := api.NetworkPut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.NetworkPut(name, newdata)
+			err = client.UpdateNetwork(name, newdata, etag)
 		}
 
 		// Respawn the editor
@@ -394,13 +434,13 @@ func (c *networkCmd) doNetworkEdit(client *lxd.Client, name string) error {
 	return nil
 }
 
-func (c *networkCmd) doNetworkGet(client *lxd.Client, name string, args []string) error {
+func (c *networkCmd) doNetworkGet(client lxd.ContainerServer, name string, args []string) error {
 	// we shifted @args so so it should read "<key>"
 	if len(args) != 1 {
 		return errArgs
 	}
 
-	resp, err := client.NetworkGet(name)
+	resp, _, err := client.GetNetwork(name)
 	if err != nil {
 		return err
 	}
@@ -413,24 +453,30 @@ func (c *networkCmd) doNetworkGet(client *lxd.Client, name string, args []string
 	return nil
 }
 
-func (c *networkCmd) doNetworkList(config *lxd.Config, args []string) error {
+func (c *networkCmd) doNetworkList(conf *config.Config, args []string) error {
 	var remote string
+	var err error
+
 	if len(args) > 1 {
 		var name string
-		remote, name = config.ParseRemoteAndContainer(args[1])
+		remote, name, err = conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if name != "" {
 			return fmt.Errorf(i18n.G("Cannot provide container name to list"))
 		}
 	} else {
-		remote = config.DefaultRemote
+		remote = conf.DefaultRemote
 	}
 
-	client, err := lxd.NewClient(config, remote)
+	client, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
 
-	networks, err := client.ListNetworks()
+	networks, err := client.GetNetworks()
 	if err != nil {
 		return err
 	}
@@ -467,13 +513,13 @@ func (c *networkCmd) doNetworkList(config *lxd.Config, args []string) error {
 	return nil
 }
 
-func (c *networkCmd) doNetworkSet(client *lxd.Client, name string, args []string) error {
+func (c *networkCmd) doNetworkSet(client lxd.ContainerServer, name string, args []string) error {
 	// we shifted @args so so it should read "<key> [<value>]"
 	if len(args) < 1 {
 		return errArgs
 	}
 
-	network, err := client.NetworkGet(name)
+	network, etag, err := client.GetNetwork(name)
 	if err != nil {
 		return err
 	}
@@ -500,15 +546,15 @@ func (c *networkCmd) doNetworkSet(client *lxd.Client, name string, args []string
 
 	network.Config[key] = value
 
-	return client.NetworkPut(name, network.Writable())
+	return client.UpdateNetwork(name, network.Writable(), etag)
 }
 
-func (c *networkCmd) doNetworkShow(client *lxd.Client, name string) error {
+func (c *networkCmd) doNetworkShow(client lxd.ContainerServer, name string) error {
 	if name == "" {
 		return errArgs
 	}
 
-	network, err := client.NetworkGet(name)
+	network, _, err := client.GetNetwork(name)
 	if err != nil {
 		return err
 	}

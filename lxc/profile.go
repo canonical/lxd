@@ -5,12 +5,14 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
+	"strings"
 	"syscall"
 
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
@@ -127,21 +129,25 @@ lxc profile assign foo ''
 
 func (c *profileCmd) flags() {}
 
-func (c *profileCmd) run(config *lxd.Config, args []string) error {
+func (c *profileCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errUsage
 	}
 
 	if args[0] == "list" {
-		return c.doProfileList(config, args)
+		return c.doProfileList(conf, args)
 	}
 
 	if len(args) < 2 {
 		return errArgs
 	}
 
-	remote, profile := config.ParseRemoteAndContainer(args[1])
-	client, err := lxd.NewClient(config, remote)
+	remote, profile, err := conf.ParseRemote(args[1])
+	if err != nil {
+		return err
+	}
+
+	client, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
@@ -152,7 +158,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	case "delete":
 		return c.doProfileDelete(client, profile)
 	case "device":
-		return c.doProfileDevice(config, args)
+		return c.doProfileDevice(conf, args)
 	case "edit":
 		return c.doProfileEdit(client, profile)
 	case "apply", "assign":
@@ -195,7 +201,7 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	case "unset":
 		return c.doProfileUnset(client, profile, args[2:])
 	case "copy":
-		return c.doProfileCopy(config, client, profile, args[2:])
+		return c.doProfileCopy(conf, client, profile, args[2:])
 	case "show":
 		return c.doProfileShow(client, profile)
 	default:
@@ -203,15 +209,18 @@ func (c *profileCmd) run(config *lxd.Config, args []string) error {
 	}
 }
 
-func (c *profileCmd) doProfileCreate(client *lxd.Client, p string) error {
-	err := client.ProfileCreate(p)
+func (c *profileCmd) doProfileCreate(client lxd.ContainerServer, p string) error {
+	profile := api.ProfilesPost{}
+	profile.Name = p
+
+	err := client.CreateProfile(profile)
 	if err == nil {
 		fmt.Printf(i18n.G("Profile %s created")+"\n", p)
 	}
 	return err
 }
 
-func (c *profileCmd) doProfileEdit(client *lxd.Client, p string) error {
+func (c *profileCmd) doProfileEdit(client lxd.ContainerServer, p string) error {
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -224,11 +233,12 @@ func (c *profileCmd) doProfileEdit(client *lxd.Client, p string) error {
 		if err != nil {
 			return err
 		}
-		return client.PutProfile(p, newdata)
+
+		return client.UpdateProfile(p, newdata, "")
 	}
 
 	// Extract the current value
-	profile, err := client.ProfileConfig(p)
+	profile, etag, err := client.GetProfile(p)
 	if err != nil {
 		return err
 	}
@@ -249,7 +259,7 @@ func (c *profileCmd) doProfileEdit(client *lxd.Client, p string) error {
 		newdata := api.ProfilePut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.PutProfile(p, newdata)
+			err = client.UpdateProfile(p, newdata, etag)
 		}
 
 		// Respawn the editor
@@ -273,61 +283,80 @@ func (c *profileCmd) doProfileEdit(client *lxd.Client, p string) error {
 	return nil
 }
 
-func (c *profileCmd) doProfileDelete(client *lxd.Client, p string) error {
-	err := client.ProfileDelete(p)
-	if err == nil {
-		fmt.Printf(i18n.G("Profile %s deleted")+"\n", p)
-	}
-	return err
-}
-
-func (c *profileCmd) doProfileAssign(client *lxd.Client, d string, p string) error {
-	resp, err := client.AssignProfile(d, p)
+func (c *profileCmd) doProfileDelete(client lxd.ContainerServer, p string) error {
+	err := client.DeleteProfile(p)
 	if err != nil {
 		return err
 	}
 
-	err = client.WaitForSuccess(resp.Operation)
-	if err == nil {
-		if p == "" {
-			p = i18n.G("(none)")
-		}
-		fmt.Printf(i18n.G("Profiles %s applied to %s")+"\n", p, d)
-	}
-
-	return err
+	fmt.Printf(i18n.G("Profile %s deleted")+"\n", p)
+	return nil
 }
 
-func (c *profileCmd) doProfileAdd(client *lxd.Client, d string, p string) error {
-	ct, err := client.ContainerInfo(d)
+func (c *profileCmd) doProfileAssign(client lxd.ContainerServer, d string, p string) error {
+	container, etag, err := client.GetContainer(d)
 	if err != nil {
 		return err
 	}
 
-	ct.Profiles = append(ct.Profiles, p)
+	if p != "" {
+		container.Profiles = strings.Split(p, ",")
+	} else {
+		container.Profiles = nil
+	}
 
-	err = client.UpdateContainerConfig(d, ct.Writable())
+	op, err := client.UpdateContainer(d, container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	if p == "" {
+		p = i18n.G("(none)")
+	}
+	fmt.Printf(i18n.G("Profiles %s applied to %s")+"\n", p, d)
+
+	return nil
+}
+
+func (c *profileCmd) doProfileAdd(client lxd.ContainerServer, d string, p string) error {
+	container, etag, err := client.GetContainer(d)
+	if err != nil {
+		return err
+	}
+
+	container.Profiles = append(container.Profiles, p)
+
+	op, err := client.UpdateContainer(d, container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf(i18n.G("Profile %s added to %s")+"\n", p, d)
-
-	return err
+	return nil
 }
 
-func (c *profileCmd) doProfileRemove(client *lxd.Client, d string, p string) error {
-	ct, err := client.ContainerInfo(d)
+func (c *profileCmd) doProfileRemove(client lxd.ContainerServer, d string, p string) error {
+	container, etag, err := client.GetContainer(d)
 	if err != nil {
 		return err
 	}
 
-	if !shared.StringInSlice(p, ct.Profiles) {
+	if !shared.StringInSlice(p, container.Profiles) {
 		return fmt.Errorf("Profile %s isn't currently applied to %s", p, d)
 	}
 
 	profiles := []string{}
-	for _, profile := range ct.Profiles {
+	for _, profile := range container.Profiles {
 		if profile == p {
 			continue
 		}
@@ -335,20 +364,24 @@ func (c *profileCmd) doProfileRemove(client *lxd.Client, d string, p string) err
 		profiles = append(profiles, profile)
 	}
 
-	ct.Profiles = profiles
+	container.Profiles = profiles
 
-	err = client.UpdateContainerConfig(d, ct.Writable())
+	op, err := client.UpdateContainer(d, container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf(i18n.G("Profile %s removed from %s")+"\n", p, d)
-
-	return err
+	return nil
 }
 
-func (c *profileCmd) doProfileShow(client *lxd.Client, p string) error {
-	profile, err := client.ProfileConfig(p)
+func (c *profileCmd) doProfileShow(client lxd.ContainerServer, p string) error {
+	profile, _, err := client.GetProfile(p)
 	if err != nil {
 		return err
 	}
@@ -363,24 +396,39 @@ func (c *profileCmd) doProfileShow(client *lxd.Client, p string) error {
 	return nil
 }
 
-func (c *profileCmd) doProfileCopy(config *lxd.Config, client *lxd.Client, p string, args []string) error {
+func (c *profileCmd) doProfileCopy(conf *config.Config, client lxd.ContainerServer, p string, args []string) error {
 	if len(args) != 1 {
 		return errArgs
 	}
-	remote, newname := config.ParseRemoteAndContainer(args[0])
-	if newname == "" {
-		newname = p
-	}
 
-	dest, err := lxd.NewClient(config, remote)
+	remote, newname, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
 	}
 
-	return client.ProfileCopy(p, newname, dest)
+	if newname == "" {
+		newname = p
+	}
+
+	dest, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	profile, _, err := client.GetProfile(p)
+	if err != nil {
+		return err
+	}
+
+	newProfile := api.ProfilesPost{
+		ProfilePut: profile.Writable(),
+		Name:       newname,
+	}
+
+	return dest.CreateProfile(newProfile)
 }
 
-func (c *profileCmd) doProfileDevice(config *lxd.Config, args []string) error {
+func (c *profileCmd) doProfileDevice(conf *config.Config, args []string) error {
 	// device add b1 eth0 nic type=bridged
 	// device list b1
 	// device remove b1 eth0
@@ -392,43 +440,40 @@ func (c *profileCmd) doProfileDevice(config *lxd.Config, args []string) error {
 
 	switch args[1] {
 	case "add":
-		return cfg.deviceAdd(config, "profile", args)
+		return cfg.deviceAdd(conf, "profile", args)
 	case "remove":
-		return cfg.deviceRm(config, "profile", args)
+		return cfg.deviceRm(conf, "profile", args)
 	case "list":
-		return cfg.deviceList(config, "profile", args)
+		return cfg.deviceList(conf, "profile", args)
 	case "show":
-		return cfg.deviceShow(config, "profile", args)
+		return cfg.deviceShow(conf, "profile", args)
 	case "get":
-		return cfg.deviceGet(config, "profile", args)
+		return cfg.deviceGet(conf, "profile", args)
 	case "set":
-		return cfg.deviceSet(config, "profile", args)
+		return cfg.deviceSet(conf, "profile", args)
 	case "unset":
-		return cfg.deviceUnset(config, "profile", args)
+		return cfg.deviceUnset(conf, "profile", args)
 	default:
 		return errArgs
 	}
 }
 
-func (c *profileCmd) doProfileGet(client *lxd.Client, p string, args []string) error {
+func (c *profileCmd) doProfileGet(client lxd.ContainerServer, p string, args []string) error {
 	// we shifted @args so so it should read "<key>"
 	if len(args) != 1 {
 		return errArgs
 	}
 
-	resp, err := client.GetProfileConfig(p)
+	profile, _, err := client.GetProfile(p)
 	if err != nil {
 		return err
 	}
-	for k, v := range resp {
-		if k == args[0] {
-			fmt.Printf("%s\n", v)
-		}
-	}
+
+	fmt.Printf("%s\n", profile.Config[args[0]])
 	return nil
 }
 
-func (c *profileCmd) doProfileSet(client *lxd.Client, p string, args []string) error {
+func (c *profileCmd) doProfileSet(client lxd.ContainerServer, p string, args []string) error {
 	// we shifted @args so so it should read "<key> [<value>]"
 	if len(args) < 1 {
 		return errArgs
@@ -450,11 +495,17 @@ func (c *profileCmd) doProfileSet(client *lxd.Client, p string, args []string) e
 		value = string(buf[:])
 	}
 
-	err := client.SetProfileConfigItem(p, key, value)
-	return err
+	profile, etag, err := client.GetProfile(p)
+	if err != nil {
+		return err
+	}
+
+	profile.Config[key] = value
+
+	return client.UpdateProfile(p, profile.Writable(), etag)
 }
 
-func (c *profileCmd) doProfileUnset(client *lxd.Client, p string, args []string) error {
+func (c *profileCmd) doProfileUnset(client lxd.ContainerServer, p string, args []string) error {
 	// we shifted @args so so it should read "<key> [<value>]"
 	if len(args) != 1 {
 		return errArgs
@@ -463,24 +514,29 @@ func (c *profileCmd) doProfileUnset(client *lxd.Client, p string, args []string)
 	return c.doProfileSet(client, p, args)
 }
 
-func (c *profileCmd) doProfileList(config *lxd.Config, args []string) error {
+func (c *profileCmd) doProfileList(conf *config.Config, args []string) error {
 	var remote string
 	if len(args) > 1 {
 		var name string
-		remote, name = config.ParseRemoteAndContainer(args[1])
+		var err error
+		remote, name, err = conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
 		if name != "" {
 			return fmt.Errorf(i18n.G("Cannot provide container name to list"))
 		}
 	} else {
-		remote = config.DefaultRemote
+		remote = conf.DefaultRemote
 	}
 
-	client, err := lxd.NewClient(config, remote)
+	client, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
 
-	profiles, err := client.ListProfiles()
+	profiles, err := client.GetProfiles()
 	if err != nil {
 		return err
 	}

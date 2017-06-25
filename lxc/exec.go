@@ -13,7 +13,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -116,7 +117,7 @@ func (c *execCmd) forwardSignal(control *websocket.Conn, sig syscall.Signal) err
 	return err
 }
 
-func (c *execCmd) run(config *lxd.Config, args []string) error {
+func (c *execCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
@@ -129,8 +130,12 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		return fmt.Errorf(i18n.G("You can't pass -t or -T at the same time as --mode"))
 	}
 
-	remote, name := config.ParseRemoteAndContainer(args[0])
-	d, err := lxd.NewClient(config, remote)
+	remote, name, err := conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
@@ -194,10 +199,38 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 	}
 
 	stdout := c.getStdout()
-	ret, err := d.Exec(name, args[1:], env, stdin, stdout, os.Stderr, handler, width, height)
+
+	req := api.ContainerExecPost{
+		Command:     args[1:],
+		WaitForWS:   true,
+		Interactive: interactive,
+		Environment: env,
+		Width:       width,
+		Height:      height,
+	}
+
+	execArgs := lxd.ContainerExecArgs{
+		Stdin:    stdin,
+		Stdout:   stdout,
+		Stderr:   os.Stderr,
+		Control:  handler,
+		DataDone: make(chan bool),
+	}
+
+	// Run the command in the container
+	op, err := d.ExecContainer(name, req, &execArgs)
 	if err != nil {
 		return err
 	}
+
+	// Wait for the operation to complete
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	// Wait for any remaining I/O to be flushed
+	<-execArgs.DataDone
 
 	if oldttystate != nil {
 		/* A bit of a special case here: we want to exit with the same code as
@@ -210,6 +243,6 @@ func (c *execCmd) run(config *lxd.Config, args []string) error {
 		termios.Restore(cfd, oldttystate)
 	}
 
-	os.Exit(ret)
-	return fmt.Errorf(i18n.G("unreachable return reached"))
+	os.Exit(int(op.Metadata["return"].(float64)))
+	return nil
 }

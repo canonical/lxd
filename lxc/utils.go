@@ -2,7 +2,11 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"net/url"
+	"os"
 	"strings"
+	"syscall"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -193,4 +197,88 @@ func summaryLine(usage string) string {
 	}
 
 	return i18n.G("Missing summary.")
+}
+
+// Used to return a user friendly error
+func getLocalErr(err error) error {
+	t, ok := err.(*url.Error)
+	if !ok {
+		return nil
+	}
+
+	u, ok := t.Err.(*net.OpError)
+	if !ok {
+		return nil
+	}
+
+	if u.Op == "dial" && u.Net == "unix" {
+		var lxdErr error
+
+		sysErr, ok := u.Err.(*os.SyscallError)
+		if ok {
+			lxdErr = sysErr.Err
+		} else {
+			// syscall.Errno may be returned on some systems, e.g. CentOS
+			lxdErr, ok = u.Err.(syscall.Errno)
+			if !ok {
+				return nil
+			}
+		}
+
+		switch lxdErr {
+		case syscall.ENOENT, syscall.ECONNREFUSED, syscall.EACCES:
+			return lxdErr
+		}
+	}
+
+	return nil
+}
+
+// Add a device to a container
+func containerDeviceAdd(client lxd.ContainerServer, name string, devName string, dev map[string]string) error {
+	// Get the container entry
+	container, etag, err := client.GetContainer(name)
+	if err != nil {
+		return err
+	}
+
+	// Check if the device already exists
+	_, ok := container.Devices[devName]
+	if ok {
+		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
+	}
+
+	container.Devices[devName] = dev
+
+	op, err := client.UpdateContainer(name, container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
+}
+
+// Add a device to a profile
+func profileDeviceAdd(client lxd.ContainerServer, name string, devName string, dev map[string]string) error {
+	// Get the profile entry
+	profile, profileEtag, err := client.GetProfile(name)
+	if err != nil {
+		return err
+	}
+
+	// Check if the device already exists
+	_, ok := profile.Devices[devName]
+	if ok {
+		return fmt.Errorf(i18n.G("Device already exists: %s"), devName)
+	}
+
+	// Add the device to the container
+	profile.Devices[devName] = dev
+
+	err = client.UpdateProfile(name, profile.Writable(), profileEtag)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

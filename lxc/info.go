@@ -7,7 +7,8 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -38,16 +39,23 @@ func (c *infoCmd) flags() {
 	gnuflag.BoolVar(&c.showLog, "show-log", false, i18n.G("Show the container's last 100 log lines?"))
 }
 
-func (c *infoCmd) run(config *lxd.Config, args []string) error {
+func (c *infoCmd) run(conf *config.Config, args []string) error {
 	var remote string
 	var cName string
+	var err error
 	if len(args) == 1 {
-		remote, cName = config.ParseRemoteAndContainer(args[0])
+		remote, cName, err = conf.ParseRemote(args[0])
+		if err != nil {
+			return err
+		}
 	} else {
-		remote, cName = config.ParseRemoteAndContainer("")
+		remote, cName, err = conf.ParseRemote("")
+		if err != nil {
+			return err
+		}
 	}
 
-	d, err := lxd.NewClient(config, remote)
+	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
@@ -55,12 +63,12 @@ func (c *infoCmd) run(config *lxd.Config, args []string) error {
 	if cName == "" {
 		return c.remoteInfo(d)
 	} else {
-		return c.containerInfo(d, cName, c.showLog)
+		return c.containerInfo(d, conf.Remotes[remote], cName, c.showLog)
 	}
 }
 
-func (c *infoCmd) remoteInfo(d *lxd.Client) error {
-	serverStatus, err := d.ServerStatus()
+func (c *infoCmd) remoteInfo(d lxd.ContainerServer) error {
+	serverStatus, _, err := d.GetServer()
 	if err != nil {
 		return err
 	}
@@ -75,13 +83,13 @@ func (c *infoCmd) remoteInfo(d *lxd.Client) error {
 	return nil
 }
 
-func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error {
-	ct, err := d.ContainerInfo(name)
+func (c *infoCmd) containerInfo(d lxd.ContainerServer, remote config.Remote, name string, showLog bool) error {
+	ct, _, err := d.GetContainer(name)
 	if err != nil {
 		return err
 	}
 
-	cs, err := d.ContainerState(name)
+	cs, _, err := d.GetContainerState(name)
 	if err != nil {
 		return err
 	}
@@ -89,9 +97,10 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 	const layout = "2006/01/02 15:04 UTC"
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
-	if d.Remote != nil && d.Remote.Addr != "" {
-		fmt.Printf(i18n.G("Remote: %s")+"\n", d.Remote.Addr)
+	if remote.Addr != "" {
+		fmt.Printf(i18n.G("Remote: %s")+"\n", remote.Addr)
 	}
+
 	fmt.Printf(i18n.G("Architecture: %s")+"\n", ct.Architecture)
 	if shared.TimeIsSet(ct.CreatedAt) {
 		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.UTC().Format(layout))
@@ -200,7 +209,7 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 
 	// List snapshots
 	first_snapshot := true
-	snaps, err := d.ListSnapshots(name)
+	snaps, err := d.GetContainerSnapshots(name)
 	if err != nil {
 		return nil
 	}
@@ -228,7 +237,7 @@ func (c *infoCmd) containerInfo(d *lxd.Client, name string, showLog bool) error 
 	}
 
 	if showLog {
-		log, err := d.GetLog(name, "lxc.log")
+		log, err := d.GetContainerLogfile(name, "lxc.log")
 		if err != nil {
 			return err
 		}

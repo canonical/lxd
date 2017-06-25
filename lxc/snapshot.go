@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/lxc/lxd"
+	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -35,7 +36,7 @@ func (c *snapshotCmd) flags() {
 	gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Whether or not to snapshot the container's running state"))
 }
 
-func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
+func (c *snapshotCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
 		return errArgs
 	}
@@ -47,21 +48,30 @@ func (c *snapshotCmd) run(config *lxd.Config, args []string) error {
 		snapname = args[1]
 	}
 
-	remote, name := config.ParseRemoteAndContainer(args[0])
-	d, err := lxd.NewClient(config, remote)
-	if err != nil {
-		return err
-	}
-
 	// we don't allow '/' in snapshot names
 	if shared.IsSnapshot(snapname) {
 		return fmt.Errorf(i18n.G("'/' not allowed in snapshot name"))
 	}
 
-	resp, err := d.Snapshot(name, snapname, c.stateful)
+	remote, name, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
 	}
 
-	return d.WaitForSuccess(resp.Operation)
+	d, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	req := api.ContainerSnapshotsPost{
+		Name:     snapname,
+		Stateful: c.stateful,
+	}
+
+	op, err := d.CreateContainerSnapshot(name, req)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
 }
