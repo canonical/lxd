@@ -210,9 +210,92 @@ func (s *storageCeph) ContainerCreate(container container) error {
 	return nil
 }
 
-func (s *storageCeph) ContainerCreateFromImage(
-	container container, imageFingerprint string) error {
+func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint string) error {
+	logger.Debugf("Creating RBD storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	containerPath := container.Path()
+	containerName := container.Name()
+	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+
+	imageStoragePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			logger.Warnf("Received value over semaphore. This should not have happened.")
+		}
+	} else {
+		lxdStorageOngoingOperationMap[imageStoragePoolLockID] = make(chan bool)
+		lxdStorageMapLock.Unlock()
+
+		var imgerr error
+		if !cephRBDVolumeExists(s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage) {
+			imgerr = s.ImageCreate(fingerprint)
+		}
+
+		lxdStorageMapLock.Lock()
+		if waitChannel, ok := lxdStorageOngoingOperationMap[imageStoragePoolLockID]; ok {
+			close(waitChannel)
+			delete(lxdStorageOngoingOperationMap, imageStoragePoolLockID)
+		}
+		lxdStorageMapLock.Unlock()
+
+		if imgerr != nil {
+			return imgerr
+		}
+	}
+
+	err := cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, fingerprint,
+		storagePoolVolumeTypeNameImage, "readonly", s.OSDPoolName,
+		containerName, storagePoolVolumeTypeNameContainer)
+	if err != nil {
+		logger.Errorf("Failed to clone new RBD storage volume for container \"%s\"", containerName)
+		return err
+	}
+	revert := true
+	defer func() {
+		if !revert {
+			return
+		}
+		s.ContainerDelete(container)
+	}()
+
+	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, containerName, storagePoolVolumeTypeNameContainer)
+	if err != nil {
+		logger.Errorf("Failed to map RBD storage volume for container \"%s\"", containerName)
+		return err
+	}
+
+	privileged := container.IsPrivileged()
+	err = createContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
+	if err != nil {
+		logger.Errorf("Failed to create mountpoint for container \"%s\" for RBD storage volume", containerName)
+		return err
+	}
+
+	ourMount, err := s.ContainerMount(container)
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.ContainerUmount(containerName, containerPath)
+	}
+
+	if !privileged {
+		err = s.shiftRootfs(container)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = container.TemplateApply("create")
+	if err != nil {
+		return err
+	}
+
+	revert = false
+
+	logger.Debugf("Created RBD storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
