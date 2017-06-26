@@ -144,6 +144,34 @@ func cephRBDVolumeMap(clusterName string, poolName string, volumeName string,
 	return nil
 }
 
+// cephRBDVolumeUnmap unmaps a given RBD storage volume
+// This is a precondition in order to delete an RBD storage volume can.
+func cephRBDVolumeUnmap(clusterName string, poolName string, volumeName string,
+	volumeType string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"unmap",
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		runError, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 22 {
+					// EINVAL (already unmapped)
+					return nil
+				}
+			}
+		}
+		return err
+	}
+
+	return nil
+}
+
 // cephRBDSnapshotCreate creates a read-write snapshot of a given RBD storage
 // volume
 func cephRBDSnapshotCreate(clusterName string, poolName string,
