@@ -283,6 +283,106 @@ func (s *storageCeph) ContainerSnapshotCreateEmpty(snapshotContainer container) 
 }
 
 func (s *storageCeph) ImageCreate(fingerprint string) error {
+	logger.Debugf("Creating RBD storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
+
+	// create image mountpoint
+	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
+	if !shared.PathExists(imageMntPoint) {
+		err := os.MkdirAll(imageMntPoint, 0700)
+		if err != nil {
+			logger.Errorf("failed to create mountpoint RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			return err
+		}
+	}
+
+	prefixedType := fmt.Sprintf("zombie_%s", storagePoolVolumeTypeNameImage)
+	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, fingerprint, prefixedType)
+	if !ok {
+		logger.Debugf("RBD storage volume for image \"%s\" on storage pool \"%s\" does not exist", fingerprint, s.pool.Name)
+		// get size
+		RBDSize, err := s.getRBDSize()
+		if err != nil {
+			logger.Errorf("failed to retrieve size of RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			return err
+		}
+
+		// create volume
+		err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage, RBDSize)
+		if err != nil {
+			logger.Errorf("failed to create RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			return err
+		}
+
+		err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage)
+		if err != nil {
+			logger.Errorf("failed to map RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			return err
+		}
+
+		// get filesystem
+		RBDFilesystem := s.getRBDFilesystem()
+		// get rbd device path
+		RBDDevPath := getRBDDevPath(s.OSDPoolName, storagePoolVolumeTypeNameImage, fingerprint)
+		msg, err := makeFSType(RBDDevPath, RBDFilesystem)
+		if err != nil {
+			logger.Errorf("failed to create filesystem RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, msg)
+			return err
+		}
+
+		// mount image
+		_, err = s.ImageMount(fingerprint)
+		if err != nil {
+			return err
+		}
+
+		// rsync contents into image
+		imagePath := shared.VarPath("images", fingerprint)
+		err = unpackImage(s.d, imagePath, imageMntPoint, storageTypeCeph)
+		if err != nil {
+			logger.Errorf("failed to unpack image for RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			return err
+		}
+
+		// umount image
+		s.ImageUmount(fingerprint)
+
+		// unmap
+		err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage)
+		if err != nil {
+			logger.Errorf("Failed to unmap RBD storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
+			return err
+		}
+
+		// make snapshot of volume
+		err = cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage, "readonly")
+		if err != nil {
+			logger.Errorf("failed to create snapshot for RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			return err
+		}
+
+		// protect volume so we can create clones of it
+		err = cephRBDSnapshotProtect(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage, "readonly")
+		if err != nil {
+			logger.Errorf("failed to protect snapshot for RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			return err
+		}
+	} else {
+		logger.Debugf("RBD storage volume for image \"%s\" on storage pool \"%s\" does exist", fingerprint, s.pool.Name)
+		// unmark deleted
+		err := cephRBDVolumeUnmarkDeleted(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage)
+		if err != nil {
+			logger.Errorf("Failed to unmark RBD storage volume for image \"%s\" on storage pool \"%s\" as deleted", fingerprint, s.pool.Name)
+			return err
+		}
+	}
+
+	err := s.createImageDbPoolVolume(fingerprint)
+	if err != nil {
+		logger.Errorf("failed to create db entry for RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+		return err
+	}
+
+	logger.Debugf("Created RBD storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return nil
 }
 
