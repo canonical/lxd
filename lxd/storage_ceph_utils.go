@@ -78,6 +78,42 @@ func cephRBDVolumeCreate(clusterName string, poolName string, volumeName string,
 	return err
 }
 
+// cephRBDVolumeExists checks whether a given RBD storage volume exists.
+func cephRBDVolumeExists(clusterName string, poolName string, volumeName string,
+	volumeType string) bool {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"image-meta",
+		"list",
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+// cephRBDVolumeDelete deletes an RBD storage volume.
+// - In case the RBD storage volume that is supposed to be deleted does not
+//   exist this command will still exit 0. This means that if the caller wants
+//   to be sure that this call actually deleted an RBD storage volume it needs
+//   to check for the existence of the pool first.
+func cephRBDVolumeDelete(clusterName string, poolName string, volumeName string,
+	volumeType string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"rm",
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // cephRBDVolumeMap maps a given RBD storage volume
 // This will ensure that the RBD storage volume is accessible as a block device
 // in the /dev directory and is therefore necessary in order to mount it.
