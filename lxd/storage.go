@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // lxdStorageLockMap is a hashmap that allows functions to check whether the
@@ -385,6 +386,129 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 
 func storagePoolInit(d *Daemon, poolName string) (storage, error) {
 	return storageInit(d, poolName, "", -1)
+}
+
+func storagePoolVolumeAttachInit(d *Daemon, poolName string, volumeName string, volumeType int, c container) (storage, error) {
+	st, err := storageInit(d, poolName, volumeName, volumeType)
+	if err != nil {
+		return nil, err
+	}
+
+	poolVolumePut := st.GetStoragePoolVolumeWritable()
+
+	// get last idmapset
+	var lastIdmap *shared.IdmapSet
+	if poolVolumePut.Config["volatile.idmap.last"] != "" {
+		lastIdmap, err = idmapsetFromString(poolVolumePut.Config["volatile.idmap.last"])
+		if err != nil {
+			logger.Errorf("failed to unmarshal last idmapping: %s", poolVolumePut.Config["volatile.idmap.last"])
+			return nil, err
+		}
+	}
+
+	// get next idmapset
+	nextIdmap, err := c.IdmapSet()
+	if err != nil {
+		return nil, err
+	}
+
+	nextJsonMap := "[]"
+	if nextIdmap != nil {
+		nextJsonMap, err = idmapsetToJSON(nextIdmap)
+		if err != nil {
+			return nil, err
+		}
+	}
+	poolVolumePut.Config["volatile.idmap.next"] = nextJsonMap
+
+	// get mountpoint of storage volume
+	remapPath := getStoragePoolVolumeMountPoint(poolName, volumeName)
+
+	// Convert the volume type name to our internal integer representation.
+	volumeTypeName, err := storagePoolVolumeTypeToName(volumeType)
+	if err != nil {
+		return nil, err
+	}
+
+	if !reflect.DeepEqual(nextIdmap, lastIdmap) {
+		logger.Debugf("Shifting storage volume")
+		volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volumeName, volumeTypeName)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(volumeUsedBy) > 1 {
+			return nil, fmt.Errorf("idmaps of container and storage volume are not identical")
+		} else if len(volumeUsedBy) == 1 {
+			// If we're the only one who's attached that container
+			// we can shift the storage volume.
+			// I'm not sure if we want some locking here.
+			if volumeUsedBy[0] != fmt.Sprintf("/%s/containers/%s", version.APIVersion, c.Name()) {
+				return nil, fmt.Errorf("idmaps of container and storage volume are not identical")
+			}
+		}
+
+		// mount storage volume
+		ourMount, err := st.StoragePoolVolumeMount()
+		if err != nil {
+			return nil, err
+		}
+		if ourMount {
+			defer func() {
+				_, err := st.StoragePoolVolumeUmount()
+				if err != nil {
+					logger.Warnf("failed to unmount storage volume")
+				}
+			}()
+		}
+
+		// unshift rootfs
+		if lastIdmap != nil {
+			err := lastIdmap.UnshiftRootfs(remapPath)
+			if err != nil {
+				logger.Errorf("Failed to unshift \"%s\"", remapPath)
+				return nil, err
+			}
+			logger.Debugf("Unshifted \"%s\"", remapPath)
+		}
+
+		// shift rootfs
+		if nextIdmap != nil {
+			err := nextIdmap.ShiftRootfs(remapPath)
+			if err != nil {
+				logger.Errorf("Failed to shift \"%s\"", remapPath)
+				return nil, err
+			}
+			logger.Debugf("Shifted \"%s\"", remapPath)
+		}
+		logger.Debugf("Shifted storage volume")
+	}
+
+	jsonIdmap := "[]"
+	if nextIdmap != nil {
+		var err error
+		jsonIdmap, err = idmapsetToJSON(nextIdmap)
+		if err != nil {
+			logger.Errorf("Failed to marshal idmap")
+			return nil, err
+		}
+	}
+
+	// update last idmap
+	poolVolumePut.Config["volatile.idmap.last"] = jsonIdmap
+
+	st.SetStoragePoolVolumeWritable(&poolVolumePut)
+
+	poolID, err := dbStoragePoolGetID(d.db, poolName)
+	if err != nil {
+		return nil, err
+	}
+	err = dbStoragePoolVolumeUpdate(d.db, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	return st, nil
 }
 
 func storagePoolVolumeInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {

@@ -23,6 +23,8 @@ var storageVolumeConfigKeys = map[string]func(value string) error{
 	},
 	"zfs.use_refquota":     shared.IsBool,
 	"zfs.remove_snapshots": shared.IsBool,
+	"volatile.idmap.last":  shared.IsAny,
+	"volatile.idmap.next":  shared.IsAny,
 }
 
 func storageVolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {
