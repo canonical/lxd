@@ -291,6 +291,24 @@ func (s *storageCeph) ImageDelete(fingerprint string) error {
 }
 
 func (s *storageCeph) ImageMount(fingerprint string) (bool, error) {
+	logger.Debugf("Mounting RBD storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
+
+	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
+	if shared.IsMountPoint(imageMntPoint) {
+		return false, nil
+	}
+
+	RBDFilesystem := s.getRBDFilesystem()
+	RBDMountOptions := s.getRBDMountOptions()
+	mountFlags, mountOptions := lxdResolveMountoptions(RBDMountOptions)
+	RBDDevPath := getRBDDevPath(s.OSDPoolName, storagePoolVolumeTypeNameImage, fingerprint)
+	err := tryMount(RBDDevPath, imageMntPoint, RBDFilesystem, mountFlags, mountOptions)
+	if err != nil {
+		logger.Errorf("Failed to mount RBD device %s onto %s: %s", RBDDevPath, imageMntPoint, err)
+		return false, err
+	}
+
+	logger.Debugf("Mounted RBD storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return true, nil
 }
 
