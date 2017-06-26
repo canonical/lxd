@@ -6156,7 +6156,7 @@ func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, er
 		// Initialize a new storage interface and check if the
 		// pool/volume is mounted. If it is not, mount it.
 		volumeType, _ := storagePoolVolumeTypeNameToType(volumeTypeName)
-		s, err := storagePoolVolumeInit(c.daemon, m["pool"], volumeName, volumeType)
+		s, err := storagePoolVolumeAttachInit(c.daemon, m["pool"], volumeName, volumeType, c)
 		if err != nil && !isOptional {
 			return "", fmt.Errorf("Failed to initialize storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s.",
 				volumeName,
@@ -6780,17 +6780,7 @@ func (c *containerLXC) idmapsetFromConfig(k string) (*shared.IdmapSet, error) {
 		return c.IdmapSet()
 	}
 
-	lastIdmap := new(shared.IdmapSet)
-	err := json.Unmarshal([]byte(lastJsonIdmap), &lastIdmap.Idmap)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(lastIdmap.Idmap) == 0 {
-		return nil, nil
-	}
-
-	return lastIdmap, nil
+	return idmapsetFromString(lastJsonIdmap)
 }
 
 func (c *containerLXC) NextIdmapSet() (*shared.IdmapSet, error) {
