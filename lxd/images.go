@@ -1038,13 +1038,13 @@ func imageGet(d *Daemon, r *http.Request) Response {
 	public := !d.isTrustedClient(r)
 	secret := r.FormValue("secret")
 
-	if public == true && imageValidSecret(fingerprint, secret) == true {
-		public = false
-	}
-
-	info, response := doImageGet(d, fingerprint, public)
+	info, response := doImageGet(d, fingerprint, false)
 	if response != nil {
 		return response
+	}
+
+	if !info.Public && public && !imageValidSecret(info.Fingerprint, secret) {
+		return NotFound
 	}
 
 	return SyncResponse(true, info)
@@ -1226,13 +1226,13 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	public := !d.isTrustedClient(r)
 	secret := r.FormValue("secret")
 
-	if public == true && imageValidSecret(fingerprint, secret) == true {
-		public = false
-	}
-
-	_, imgInfo, err := dbImageGet(d.db, fingerprint, public, false)
+	_, imgInfo, err := dbImageGet(d.db, fingerprint, false, false)
 	if err != nil {
 		return SmartError(err)
+	}
+
+	if !imgInfo.Public && public && !imageValidSecret(imgInfo.Fingerprint, secret) {
+		return NotFound
 	}
 
 	imagePath := shared.VarPath("images", imgInfo.Fingerprint)
@@ -1276,7 +1276,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 func imageSecret(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	_, _, err := dbImageGet(d.db, fingerprint, false, false)
+	_, imgInfo, err := dbImageGet(d.db, fingerprint, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1291,7 +1291,7 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	meta["secret"] = secret
 
 	resources := map[string][]string{}
-	resources["images"] = []string{fingerprint}
+	resources["images"] = []string{imgInfo.Fingerprint}
 
 	op, err := operationCreate(operationClassToken, resources, meta, nil, nil, nil)
 	if err != nil {
