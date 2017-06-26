@@ -43,3 +43,14 @@ func cephOSDPoolDestroy(clusterName string, poolName string) error {
 
 	return nil
 }
+
+// getRBDDevPath constructs the path to a RBD block device.
+// Note that for this path to be valid the corresponding volume has to be mapped
+// first.
+func getRBDDevPath(poolName string, volumeType string, volumeName string) string {
+	if volumeType == "" {
+		return fmt.Sprintf("/dev/rbd/%s/%s", poolName, volumeName)
+	}
+
+	return fmt.Sprintf("/dev/rbd/%s/%s_%s", poolName, volumeType, volumeName)
+}
