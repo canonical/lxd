@@ -175,3 +175,50 @@ func cephRBDCloneCreate(sourceClusterName string, sourcePoolName string,
 
 	return nil
 }
+
+// getRBDSize returns the size the RBD storage volume is supposed to be created
+// with
+func (s *storageCeph) getRBDSize() (string, error) {
+	sz, err := shared.ParseByteSizeString(s.volume.Config["size"])
+	if err != nil {
+		return "", err
+	}
+
+	// Safety net: Set to default value.
+	if sz == 0 {
+		sz, _ = shared.ParseByteSizeString("10GB")
+	}
+
+	return fmt.Sprintf("%dB", sz), nil
+}
+
+// getRBDFilesystem returns the filesystem the RBD storage volume is supposed to
+// be created with
+func (s *storageCeph) getRBDFilesystem() string {
+	if s.volume.Config["block.filesystem"] != "" {
+		return s.volume.Config["block.filesystem"]
+	}
+
+	if s.pool.Config["volume.block.filesystem"] != "" {
+		return s.pool.Config["volume.block.filesystem"]
+	}
+
+	return "ext4"
+}
+
+// getRBDMountOptions returns the mount options the storage volume is supposed
+// to be mounted with
+// The option string that is returned needs to be passed to the approriate
+// helper (currently named "lxdResolveMountoptions") which will take on the job
+// of splitting it into appropriate flags and string options.
+func (s *storageCeph) getRBDMountOptions() string {
+	if s.volume.Config["block.mount_options"] != "" {
+		return s.volume.Config["block.mount_options"]
+	}
+
+	if s.pool.Config["volume.block.mount_options"] != "" {
+		return s.pool.Config["volume.block.mount_options"]
+	}
+
+	return "discard"
+}
