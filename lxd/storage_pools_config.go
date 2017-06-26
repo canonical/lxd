@@ -47,13 +47,13 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	// valid drivers: btrfs, dir, lvm, zfs
 	"source": shared.IsAny,
 
-	// valid drivers: lvm
+	// valid drivers: ceph, lvm
 	"volume.block.filesystem": func(value string) error {
 		return shared.IsOneOf(value, []string{"ext4", "xfs"})
 	},
 	"volume.block.mount_options": shared.IsAny,
 
-	// valid drivers: lvm
+	// valid drivers: ceph, lvm
 	"volume.size": func(value string) error {
 		if value == "" {
 			return nil
@@ -105,7 +105,7 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		}
 
 		prfx := strings.HasPrefix
-		if driver == "dir" {
+		if driver == "dir" || driver == "ceph" {
 			if key == "size" {
 				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
@@ -180,7 +180,9 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 			// Unchangeable pool property: Set unconditionally.
 			config["lvm.thinpool_name"] = "LXDThinpool"
 		}
+	}
 
+	if driver == "lvm" || driver == "ceph" {
 		if config["volume.size"] != "" {
 			_, err := shared.ParseByteSizeString(config["volume.size"])
 			if err != nil {
