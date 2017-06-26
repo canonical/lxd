@@ -139,7 +139,12 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 }
 
 func storagePoolFillDefault(name string, driver string, config map[string]string) error {
-	if driver != "dir" {
+	if driver == "dir" || driver == "ceph" {
+		if config["size"] != "" {
+			return fmt.Errorf("the \"size\" property does not apply to %s storage pools", driver)
+		}
+	}
+	if driver != "dir" && driver != "ceph" {
 		if config["size"] == "" {
 			st := syscall.Statfs_t{}
 			err := syscall.Statfs(shared.VarPath(), &st)
