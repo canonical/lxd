@@ -313,6 +313,19 @@ func (s *storageCeph) ImageMount(fingerprint string) (bool, error) {
 }
 
 func (s *storageCeph) ImageUmount(fingerprint string) (bool, error) {
+	logger.Debugf("Unmounting RBD storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
+
+	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
+	if !shared.IsMountPoint(imageMntPoint) {
+		return false, nil
+	}
+
+	err := tryUnmount(imageMntPoint, 0)
+	if err != nil {
+		return false, err
+	}
+
+	logger.Debugf("Unmounted RBD storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return true, nil
 }
 
