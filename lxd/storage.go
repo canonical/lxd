@@ -309,7 +309,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 	}
 
 	// Load the storage volume.
-	volume := &api.StorageVolume{}
+	var volume *api.StorageVolume
 	if volumeName != "" && volumeType >= 0 {
 		_, volume, err = dbStoragePoolVolumeGetType(d.db, volumeName, volumeType, poolID)
 		if err != nil {
