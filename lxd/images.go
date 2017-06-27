@@ -715,40 +715,31 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	// Begin background operation
 	run := func(op *operation) error {
+		var err error
 		var info *api.Image
 
 		// Setup the cleanup function
 		defer cleanup(builddir, post)
 
-		if !imageUpload {
+		if imageUpload {
+			/* Processing image upload */
+			info, err = getImgPostInfo(d, r, builddir, post)
+		} else {
 			if req.Source.Type == "image" {
 				/* Processing image copy from remote */
 				info, err = imgPostRemoteInfo(d, req, op)
-				if err != nil {
-					return err
-				}
 			} else if req.Source.Type == "url" {
 				/* Processing image copy from URL */
 				info, err = imgPostURLInfo(d, req, op)
-				if err != nil {
-					return err
-				}
 			} else {
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
 				info, err = imgPostContInfo(d, r, req, builddir)
-				if err != nil {
-					imagePublishLock.Unlock()
-					return err
-				}
 				imagePublishLock.Unlock()
 			}
-		} else {
-			/* Processing image upload */
-			info, err = getImgPostInfo(d, r, builddir, post)
-			if err != nil {
-				return err
-			}
+		}
+		if err != nil {
+			return err
 		}
 
 		// Apply any provided alias
