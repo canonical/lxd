@@ -371,11 +371,18 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		if info == nil {
 			if secret != "" {
 				info, _, err = remote.GetPrivateImage(fp, secret)
+				if err != nil {
+					return nil, err
+				}
+
+				// Expand the fingerprint now and mark alias string to match
+				fp = info.Fingerprint
+				alias = info.Fingerprint
 			} else {
 				info, _, err = remote.GetImage(fp)
-			}
-			if err != nil {
-				return nil, err
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
