@@ -17,7 +17,6 @@ test_remote_url() {
 
   for url in ${urls}; do
     lxc_remote remote add test "${url}"
-    lxc_remote finger test:
     lxc_remote remote remove test
   done
 }

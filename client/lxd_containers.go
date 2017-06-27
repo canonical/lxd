@@ -396,10 +396,14 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 						close(args.DataDone)
 					}
 				}()
+			} else {
+				if args.DataDone != nil {
+					close(args.DataDone)
+				}
 			}
 		} else {
 			// Handle non-interactive sessions
-			dones := []chan bool{}
+			dones := map[int]chan bool{}
 			conns := []*websocket.Conn{}
 
 			// Handle stdin
@@ -410,7 +414,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 				}
 
 				conns = append(conns, conn)
-				dones = append(dones, shared.WebsocketSendStream(conn, args.Stdin, -1))
+				dones[0] = shared.WebsocketSendStream(conn, args.Stdin, -1)
 			}
 
 			// Handle stdout
@@ -421,7 +425,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 				}
 
 				conns = append(conns, conn)
-				dones = append(dones, shared.WebsocketRecvStream(args.Stdout, conn))
+				dones[1] = shared.WebsocketRecvStream(args.Stdout, conn)
 			}
 
 			// Handle stderr
@@ -432,12 +436,17 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 				}
 
 				conns = append(conns, conn)
-				dones = append(dones, shared.WebsocketRecvStream(args.Stderr, conn))
+				dones[2] = shared.WebsocketRecvStream(args.Stderr, conn)
 			}
 
 			// Wait for everything to be done
 			go func() {
-				for _, chDone := range dones {
+				for i, chDone := range dones {
+					// Skip stdin, dealing with it separately below
+					if i == 0 {
+						continue
+					}
+
 					<-chDone
 				}
 

@@ -8,14 +8,6 @@ import (
 )
 
 func cmdShutdown() error {
-	var timeout int
-
-	if *argTimeout == -1 {
-		timeout = 60
-	} else {
-		timeout = *argTimeout
-	}
-
 	c, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return err
@@ -38,11 +30,15 @@ func cmdShutdown() error {
 		close(chMonitor)
 	}()
 
-	select {
-	case <-chMonitor:
-		break
-	case <-time.After(time.Second * time.Duration(timeout)):
-		return fmt.Errorf("LXD still running after %ds timeout.", timeout)
+	if *argTimeout > 0 {
+		select {
+		case <-chMonitor:
+			break
+		case <-time.After(time.Second * time.Duration(*argTimeout)):
+			return fmt.Errorf("LXD still running after %ds timeout.", *argTimeout)
+		}
+	} else {
+		<-chMonitor
 	}
 
 	return nil
