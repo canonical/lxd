@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 )
 
 // The Server type represents a generic read-only server.
@@ -194,6 +195,9 @@ type ImageFileRequest struct {
 
 	// Progress handler (called whenever some progress is made)
 	ProgressHandler func(progress ProgressData)
+
+	// A canceler that can be used to interrupt some part of the image download request
+	Canceler *cancel.Canceler
 }
 
 // The ImageFileResponse struct is used as the response for image downloads

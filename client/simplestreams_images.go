@@ -63,11 +63,11 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 		// Try over http
 		url := fmt.Sprintf("http://%s/%s", strings.TrimPrefix(r.httpHost, "https://"), meta.Path)
 
-		size, err := downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, "metadata", url, meta.Sha256, req.MetaFile)
+		size, err := downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, "metadata", url, meta.Sha256, req.MetaFile)
 		if err != nil {
 			// Try over https
 			url = fmt.Sprintf("%s/%s", r.httpHost, meta.Path)
-			size, err = downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, "metadata", url, meta.Sha256, req.MetaFile)
+			size, err = downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, "metadata", url, meta.Sha256, req.MetaFile)
 			if err != nil {
 				return nil, err
 			}
@@ -84,11 +84,11 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 		// Try over http
 		url := fmt.Sprintf("http://%s/%s", strings.TrimPrefix(r.httpHost, "https://"), rootfs.Path)
 
-		size, err := downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, "rootfs", url, rootfs.Sha256, req.RootfsFile)
+		size, err := downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, "rootfs", url, rootfs.Sha256, req.RootfsFile)
 		if err != nil {
 			// Try over https
 			url = fmt.Sprintf("%s/%s", r.httpHost, rootfs.Path)
-			size, err = downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, "rootfs", url, rootfs.Sha256, req.RootfsFile)
+			size, err = downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, "rootfs", url, rootfs.Sha256, req.RootfsFile)
 			if err != nil {
 				return nil, err
 			}
