@@ -115,6 +115,7 @@ func (c *fileCmd) recursivePullFile(d lxd.ContainerServer, container string, p s
 }
 
 func (c *fileCmd) recursivePushFile(d lxd.ContainerServer, container string, source string, target string) error {
+	source = filepath.Clean(source)
 	sourceDir, _ := filepath.Split(source)
 	sourceLen := len(sourceDir)
 
