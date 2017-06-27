@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -47,6 +48,7 @@ type operation struct {
 	metadata  map[string]interface{}
 	err       string
 	readonly  bool
+	canceler  *cancel.Canceler
 
 	// Those functions are called at various points in the operation lifecycle
 	onRun     func(*operation) error
@@ -195,6 +197,13 @@ func (op *operation) Cancel() (chan error, error) {
 	_, md, _ := op.Render()
 	eventSend("operation", md)
 
+	if op.canceler != nil {
+		err := op.canceler.Cancel()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if op.onCancel == nil {
 		op.lock.Lock()
 		op.status = api.Cancelled
@@ -244,7 +253,19 @@ func (op *operation) Connect(r *http.Request, w http.ResponseWriter) (chan error
 }
 
 func (op *operation) mayCancel() bool {
-	return op.onCancel != nil || op.class == operationClassToken
+	if op.class == operationClassToken {
+		return true
+	}
+
+	if op.onCancel != nil {
+		return true
+	}
+
+	if op.canceler != nil && op.canceler.Cancelable() {
+		return true
+	}
+
+	return false
 }
 
 func (op *operation) Render() (string, *api.Operation, error) {

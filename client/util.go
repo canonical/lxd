@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
 )
 
@@ -81,7 +82,7 @@ func unixHTTPClient(path string) (*http.Client, error) {
 	return &client, nil
 }
 
-func downloadFileSha256(httpClient *http.Client, useragent string, progress func(progress ProgressData), filename string, url string, hash string, target io.WriteSeeker) (int64, error) {
+func downloadFileSha256(httpClient *http.Client, useragent string, progress func(progress ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, target io.WriteSeeker) (int64, error) {
 	// Always seek to the beginning
 	target.Seek(0, 0)
 
@@ -95,12 +96,13 @@ func downloadFileSha256(httpClient *http.Client, useragent string, progress func
 		req.Header.Set("User-Agent", useragent)
 	}
 
-	// Start the request
-	r, err := httpClient.Do(req)
+	// Perform the request
+	r, err, doneCh := cancel.CancelableDownload(canceler, httpClient, req)
 	if err != nil {
 		return -1, err
 	}
 	defer r.Body.Close()
+	defer close(doneCh)
 
 	if r.StatusCode != http.StatusOK {
 		return -1, fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
