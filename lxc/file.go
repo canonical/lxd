@@ -250,6 +250,7 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 	var sourcefilenames []string
 	for _, fname := range args[:len(args)-1] {
 		if !strings.HasPrefix(fname, "--") {
+			fname = path.Clean(fname)
 			sourcefilenames = append(sourcefilenames, fname)
 		}
 	}
