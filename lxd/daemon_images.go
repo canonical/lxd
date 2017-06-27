@@ -17,9 +17,9 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
-	cancellable_op "github.com/lxc/lxd/shared/operation"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -314,6 +314,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 	}
 
+	var canceler *cancel.Canceler
+	if op != nil {
+		canceler = &cancel.Canceler{}
+		op.canceler = canceler
+	}
+
 	if protocol == "lxd" || protocol == "simplestreams" {
 		// Create the target files
 		dest, err := os.Create(destName)
@@ -346,7 +352,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			MetaFile:        io.WriteSeeker(dest),
 			RootfsFile:      io.WriteSeeker(destRootfs),
 			ProgressHandler: progress,
-			Operation:       op,
+			Canceler:        canceler,
 		}
 
 		if secret != "" {
@@ -380,7 +386,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		req.Header.Set("User-Agent", version.UserAgent)
 
 		// Make the request
-		raw, err, doneCh := cancellable_op.CancellableDownload(op, httpClient, req)
+		raw, err, doneCh := cancel.CancelableDownload(canceler, httpClient, req)
 		defer close(doneCh)
 		if err != nil {
 			return nil, err
