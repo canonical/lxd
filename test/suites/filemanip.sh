@@ -51,6 +51,13 @@ test_filemanip() {
   # created.
   cd source
 
+  lxc file push -r ./ filemanip/tmp/ptest
+
+  [ "$(lxc exec filemanip -- stat -c "%u" /tmp/ptest/another_level)" = "1000" ]
+  [ "$(lxc exec filemanip -- stat -c "%g" /tmp/ptest/another_level)" = "1000" ]
+
+  lxc exec filemanip -- rm -rf /tmp/ptest/*
+
   lxc file push -r ../source filemanip/tmp/ptest
 
   [ "$(lxc exec filemanip -- stat -c "%u" /tmp/ptest/source)" = "$(id -u)" ]
