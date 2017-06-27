@@ -627,5 +627,6 @@ run_test test_init_interactive "lxd init interactive"
 run_test test_init_preseed "lxd init preseed"
 run_test test_storage_profiles "storage profiles"
 run_test test_container_import "container import"
+run_test test_storage_volume_attach "attaching storage volumes"
 
 TEST_RESULT=success
