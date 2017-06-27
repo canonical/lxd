@@ -6299,6 +6299,11 @@ func (c *containerLXC) removeDiskDevice(name string, m types.Device) error {
 	devName := fmt.Sprintf("disk.%s", strings.Replace(tgtPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
+	// The dsk device doesn't exist and cannot be mounted.
+	if !shared.PathExists(devPath) {
+		return nil
+	}
+
 	// Remove the bind-mount from the container
 	if c.FileExists(tgtPath) == nil {
 		err := c.removeMount(m["path"])
