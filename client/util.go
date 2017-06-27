@@ -9,8 +9,8 @@ import (
 	"net/url"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/lxc/lxd/shared/operation"
 )
 
 func tlsHTTPClient(tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, proxy func(req *http.Request) (*url.URL, error)) (*http.Client, error) {
@@ -82,7 +82,7 @@ func unixHTTPClient(path string) (*http.Client, error) {
 	return &client, nil
 }
 
-func downloadFileSha256(op operation.CancellableOperation, httpClient *http.Client, useragent string, progress func(progress ProgressData), filename string, url string, hash string, target io.WriteSeeker) (int64, error) {
+func downloadFileSha256(httpClient *http.Client, useragent string, progress func(progress ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, target io.WriteSeeker) (int64, error) {
 	// Always seek to the beginning
 	target.Seek(0, 0)
 
@@ -97,7 +97,7 @@ func downloadFileSha256(op operation.CancellableOperation, httpClient *http.Clie
 	}
 
 	// Perform the request
-	r, err, doneCh := operation.CancellableDownload(op, httpClient, req)
+	r, err, doneCh := cancel.CancelableDownload(canceler, httpClient, req)
 	if err != nil {
 		return -1, err
 	}
