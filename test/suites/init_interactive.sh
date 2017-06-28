@@ -12,7 +12,7 @@ test_init_interactive() {
     # XXX We need to remove the eth0 device from the default profile, which
     #     is typically attached by spawn_lxd.
     if lxc profile show default | grep -q eth0; then
-      lxc network detach-profile lxdbr0 default eth0
+      lxc profile device remove default eth0
     fi
 
     cat <<EOF | lxd init
