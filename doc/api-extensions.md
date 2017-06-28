@@ -279,3 +279,8 @@ This allows forcing a refresh for an existing image.
 ## storage\_lvm\_lv\_resizing
 This introduces the ability to resize logical volumes by setting the "size"
 property in the containers root disk device.
+
+## id\_map\_base
+This introduces a new security.idmap.base allowing the user to skip the
+map auto-selection process for isolated containers and specify what host
+uid/gid to use as the base.
