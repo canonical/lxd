@@ -275,7 +275,8 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 
 	if len(containers) == 1 && name == "" {
 		fields := strings.Split(containers[0], "/")
-		fmt.Printf(i18n.G("Container name is: %s")+"\n", fields[len(fields)-1])
+		name = fields[len(fields)-1]
+		fmt.Printf(i18n.G("Container name is: %s")+"\n", name)
 	}
 
 	return d, name, nil
