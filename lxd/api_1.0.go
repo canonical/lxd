@@ -109,6 +109,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"entity_description",
 			"image_force_refresh",
 			"storage_lvm_lv_resizing",
+			"id_map_base",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
