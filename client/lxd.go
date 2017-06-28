@@ -36,11 +36,11 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	info.Protocol = "lxd"
 
 	urls := []string{}
-	if len(r.server.Environment.Addresses) > 0 {
-		if r.httpProtocol == "https" {
-			urls = append(urls, r.httpHost)
-		}
+	if r.httpProtocol == "https" {
+		urls = append(urls, r.httpHost)
+	}
 
+	if len(r.server.Environment.Addresses) > 0 {
 		for _, addr := range r.server.Environment.Addresses {
 			url := fmt.Sprintf("https://%s", addr)
 			if !shared.StringInSlice(url, urls) {
