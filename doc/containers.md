@@ -42,6 +42,7 @@ raw.apparmor                         | blob      | -             | yes          
 raw.lxc                              | blob      | -             | no            | -                                    | Raw LXC configuration to be appended to the generated one
 raw.seccomp                          | blob      | -             | no            | container\_syscall\_filtering        | Raw Seccomp configuration
 raw.idmap                            | blob      | -             | no            | id\_map                              | Raw idmap configuration (e.g. "both 1000 1000")
+security.idmap.base                  | integer   | -             | no            | id\_map\_base                        | The base host ID to use for the allocation (overrides auto-detection)
 security.idmap.isolated              | boolean   | false         | no            | id\_map                              | Use an idmap for this container that is unique among containers with isolated set.
 security.idmap.size                  | integer   | -             | no            | id\_map                              | The size of the idmap to use
 security.nesting                     | boolean   | false         | yes           | -                                    | Support running lxd (nested) inside the container
