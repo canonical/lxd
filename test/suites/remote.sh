@@ -117,7 +117,12 @@ test_remote_usage() {
   lxc_remote image show lxd2:bar | grep -q "public: true"
   ! lxc_remote image show bar
   lxc_remote delete pub
+
+  # test spawn from public server
+  lxc_remote remote add lxd2-public "${LXD2_ADDR}" --public --accept-certificate
+  lxc_remote init lxd2-public:bar pub
   lxc_remote image delete lxd2:bar
+  lxc_remote delete pub
 
   # Double launch to test if the image downloads only once.
   lxc_remote init localhost:testimage lxd2:c1 &
