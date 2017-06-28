@@ -271,6 +271,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 			d,
 			args.Name,
 			c.expandedConfig["security.idmap.isolated"],
+			c.expandedConfig["security.idmap.base"],
 			c.expandedConfig["security.idmap.size"],
 			c.expandedConfig["raw.idmap"],
 		)
@@ -559,7 +560,7 @@ func parseRawIdmap(value string) ([]shared.IdmapEntry, error) {
 	return ret.Idmap, nil
 }
 
-func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize string, rawIdmap string) (*shared.IdmapSet, int64, error) {
+func findIdmap(daemon *Daemon, cName string, isolatedStr string, configBase string, configSize string, rawIdmap string) (*shared.IdmapSet, int64, error) {
 	isolated := false
 	if shared.IsTrue(isolatedStr) {
 		isolated = true
@@ -581,6 +582,33 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 		return &newIdmapset, 0, nil
 	}
 
+	size, err := idmapSize(daemon, isolatedStr, configSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	mkIdmap := func(offset int64, size int64) *shared.IdmapSet {
+		set := &shared.IdmapSet{Idmap: []shared.IdmapEntry{
+			{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
+			{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
+		}}
+
+		for _, ent := range rawMaps {
+			set.AddSafe(ent)
+		}
+
+		return set
+	}
+
+	if configBase != "" {
+		offset, err := strconv.ParseInt(configBase, 10, 64)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		return mkIdmap(offset, size), offset, nil
+	}
+
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
@@ -590,10 +618,6 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 	}
 
 	offset := daemon.IdmapSet.Idmap[0].Hostid + 65536
-	size, err := idmapSize(daemon, isolatedStr, configSize)
-	if err != nil {
-		return nil, 0, err
-	}
 
 	mapentries := shared.ByHostid{}
 	for _, name := range cs {
@@ -632,19 +656,6 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configSize stri
 	}
 
 	sort.Sort(mapentries)
-
-	mkIdmap := func(offset int64, size int64) *shared.IdmapSet {
-		set := &shared.IdmapSet{Idmap: []shared.IdmapEntry{
-			{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
-			{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
-		}}
-
-		for _, ent := range rawMaps {
-			set.AddSafe(ent)
-		}
-
-		return set
-	}
 
 	for i := range mapentries {
 		if i == 0 {
@@ -2738,7 +2749,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 		}
 	}
 
-	if shared.StringInSlice("security.idmap.isolated", changedConfig) || shared.StringInSlice("security.idmap.size", changedConfig) || shared.StringInSlice("raw.idmap", changedConfig) || shared.StringInSlice("security.privileged", changedConfig) {
+	if shared.StringInSlice("security.idmap.isolated", changedConfig) || shared.StringInSlice("security.idmap.base", changedConfig) || shared.StringInSlice("security.idmap.size", changedConfig) || shared.StringInSlice("raw.idmap", changedConfig) || shared.StringInSlice("security.privileged", changedConfig) {
 		var idmap *shared.IdmapSet
 		base := int64(0)
 		if !c.IsPrivileged() {
@@ -2747,6 +2758,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				c.daemon,
 				c.Name(),
 				c.expandedConfig["security.idmap.isolated"],
+				c.expandedConfig["security.idmap.base"],
 				c.expandedConfig["security.idmap.size"],
 				c.expandedConfig["raw.idmap"],
 			)

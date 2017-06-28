@@ -39,6 +39,7 @@ linux.kernel\_modules       | string    | -             | yes           | Comma 
 raw.apparmor                | blob      | -             | yes           | Apparmor profile entries to be appended to the generated profile
 raw.lxc                     | blob      | -             | no            | Raw LXC configuration to be appended to the generated one
 raw.idmap                   | blob      | -             | no            | Raw idmap configuration (e.g. "both 1000 1000")
+security.idmap.base         | integer   | -             | no            | The base host ID to use for the allocation (overrides auto-detection)
 security.idmap.isolated     | boolean   | false         | no            | Use an idmap for this container that is unique among containers with isolated set.
 security.idmap.size         | integer   | -             | no            | The size of the idmap to use
 security.nesting            | boolean   | false         | yes           | Support running lxd (nested) inside the container

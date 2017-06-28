@@ -184,6 +184,8 @@ func containerValidConfigKey(key string, value string) error {
 		return isBool(key, value)
 	case "security.nesting":
 		return isBool(key, value)
+	case "security.idmap.base":
+		return isUint32(key, value)
 	case "security.idmap.size":
 		return isUint32(key, value)
 	case "security.idmap.isolated":

@@ -57,6 +57,10 @@ size. Isolated containers without this property set default to a id range of
 size 65536; this allows for POSIX compliance and a "nobody" user inside the
 container.
 
+To select a specific map, the `security.idmap.base` key will let you
+override the auto-detection mechanism and tell LXD what host uid/gid you
+want to use as the base for the container.
+
 These properties require a container reboot to take effect.
 
 # Custom idmaps
