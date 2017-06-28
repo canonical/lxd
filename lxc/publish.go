@@ -169,8 +169,6 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 		properties[entry[0]] = entry[1]
 	}
 
-	var fp string
-
 	// We should only set the properties field if there actually are any.
 	// Otherwise we will only delete any existing properties on publish.
 	// This is something which only direct callers of the API are allowed to
@@ -247,7 +245,7 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 		}
 	}
 
-	fmt.Printf(i18n.G("Container published with fingerprint: %s")+"\n", fp)
+	fmt.Printf(i18n.G("Container published with fingerprint: %s")+"\n", fingerprint)
 
 	return nil
 }
