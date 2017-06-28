@@ -201,9 +201,9 @@ test_basic_usage() {
   [ ! -d "${LXD_DIR}/snapshots/bar" ]
 
   # Test randomly named container creation
-  lxc init testimage
+  lxc launch testimage
   RDNAME=$(lxc list | tail -n2 | grep ^\| | awk '{print $2}')
-  lxc delete "${RDNAME}"
+  lxc delete -f "${RDNAME}"
 
   # Test "nonetype" container creation
   wait_for "${LXD_ADDR}" my_curl -X POST "https://${LXD_ADDR}/1.0/containers" \
