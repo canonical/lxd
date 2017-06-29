@@ -188,7 +188,8 @@ func (s *storageZfs) StoragePoolVolumeCreate() error {
 	logger.Infof("Creating ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	fs := fmt.Sprintf("custom/%s", s.volume.Name)
-	dataset := fmt.Sprintf("%s/custom/%s", s.pool.Name, s.volume.Name)
+	poolName := s.getOnDiskPoolName()
+	dataset := fmt.Sprintf("%s/%s", poolName, fs)
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
 	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
@@ -529,7 +530,8 @@ func (s *storageZfs) ContainerCreate(container container) error {
 	containerPath := container.Path()
 	containerName := container.Name()
 	fs := fmt.Sprintf("containers/%s", containerName)
-	dataset := fmt.Sprintf("%s/containers/%s", s.pool.Name, containerName)
+	poolName := s.getOnDiskPoolName()
+	dataset := fmt.Sprintf("%s/%s", poolName, fs)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 
 	// Create volume.
