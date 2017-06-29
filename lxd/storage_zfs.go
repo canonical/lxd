@@ -188,10 +188,12 @@ func (s *storageZfs) StoragePoolVolumeCreate() error {
 	logger.Infof("Creating ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	fs := fmt.Sprintf("custom/%s", s.volume.Name)
+	dataset := fmt.Sprintf("%s/custom/%s", s.pool.Name, s.volume.Name)
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
-	err := s.zfsPoolVolumeCreate(fs)
+	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
 	if err != nil {
+		logger.Errorf("failed to create ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
 		return err
 	}
 	revert := true
@@ -527,11 +529,13 @@ func (s *storageZfs) ContainerCreate(container container) error {
 	containerPath := container.Path()
 	containerName := container.Name()
 	fs := fmt.Sprintf("containers/%s", containerName)
+	dataset := fmt.Sprintf("%s/containers/%s", s.pool.Name, containerName)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 
 	// Create volume.
-	err := s.zfsPoolVolumeCreate(fs)
+	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
 	if err != nil {
+		logger.Errorf("failed to create ZFS storage volume for container \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
 		return err
 	}
 	revert := true
@@ -1977,21 +1981,6 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 			logger.Errorf("zfs clone failed: %s.", output)
 			return fmt.Errorf("Failed to clone the sub-volume: %s", output)
 		}
-	}
-
-	return nil
-}
-
-func (s *storageZfs) zfsPoolVolumeCreate(path string) error {
-	poolName := s.getOnDiskPoolName()
-	output, err := shared.RunCommand(
-		"zfs",
-		"create",
-		"-p",
-		fmt.Sprintf("%s/%s", poolName, path))
-	if err != nil {
-		logger.Errorf("zfs create failed: %s.", output)
-		return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
 	}
 
 	return nil
