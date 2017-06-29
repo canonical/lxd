@@ -34,7 +34,7 @@ func CancelableDownload(c *Canceler, client *http.Client, req *http.Request) (*h
 		}
 
 		select {
-		case <-c.chCancel:
+		case <-chCancel:
 			if transport, ok := client.Transport.(*http.Transport); ok {
 				transport.CancelRequest(req)
 			}
