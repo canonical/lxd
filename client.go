@@ -1,8 +1,7 @@
-package lxd
-
 // DEPRECATED: This package is now deprecated in favor of github.com/lxc/lxd/client
 //
 // This package will be entirely removed from the code tree with LXD 2.16
+package lxd
 
 import (
 	"bytes"
