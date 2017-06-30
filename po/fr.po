@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-06-27 00:23-0400\n"
+"POT-Creation-Date: 2017-06-30 17:03-0400\n"
 "PO-Revision-Date: 2017-06-07 15:24+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -204,12 +204,12 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (%d de plus)"
 
-#: lxc/file.go:186
+#: lxc/file.go:187
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/file.go:128
+#: lxc/file.go:129
 #, c-format
 msgid "'%s' isn't a regular file or directory."
 msgstr ""
@@ -291,7 +291,7 @@ msgstr "CPU utilisé :"
 msgid "CREATED AT"
 msgstr "CRÉÉ À"
 
-#: lxc/file.go:479
+#: lxc/file.go:480
 #, fuzzy
 msgid "Can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
@@ -352,12 +352,12 @@ msgstr "Connexion refusée ; LXD est-il actif ?"
 msgid "Container name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:210 lxc/init.go:313
+#: lxc/copy.go:210 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/publish.go:250
+#: lxc/publish.go:248
 #, c-format
 msgid "Container published with fingerprint: %s"
 msgstr "Conteneur publié avec l'empreinte : %s"
@@ -416,7 +416,7 @@ msgstr "Définir un algorithme de compression : pour image ou aucun"
 msgid "Device %s added to %s"
 msgstr "Périphérique %s ajouté à %s"
 
-#: lxc/config.go:1037
+#: lxc/config.go:1039
 #, c-format
 msgid "Device %s removed from %s"
 msgstr "Périphérique %s retiré de %s"
@@ -504,7 +504,7 @@ msgstr "Échec lors de la génération de 'lxc.1': %v"
 msgid "Failed to get the new container name"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/file.go:123
+#: lxc/file.go:124
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -606,17 +606,17 @@ msgstr "Certificat invalide"
 msgid "Invalid configuration key"
 msgstr "Clé de configuration invalide"
 
-#: lxc/file.go:522
+#: lxc/file.go:523
 #, fuzzy, c-format
 msgid "Invalid path %s"
 msgstr "Cible invalide %s"
 
-#: lxc/file.go:451
+#: lxc/file.go:452
 #, c-format
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:224
+#: lxc/file.go:225
 #, c-format
 msgid "Invalid target %s"
 msgstr "Cible invalide %s"
@@ -683,7 +683,7 @@ msgstr "Résumé manquant."
 msgid "More than one device matches, specify the device name."
 msgstr "Plus d'un périphérique correspond, spécifier le nom du périphérique."
 
-#: lxc/file.go:438
+#: lxc/file.go:439
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger, mais la destination n'est pas un dossier"
@@ -1107,7 +1107,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:358
+#: lxc/init.go:359
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 "Le conteneur que vous démarrez n'est attaché à aucune interface réseau."
@@ -1118,11 +1118,11 @@ msgid "The device already exists"
 msgstr "Le périphérique n'existe pas"
 
 #: lxc/config.go:833 lxc/config.go:845 lxc/config.go:881 lxc/config.go:899
-#: lxc/config.go:945 lxc/config.go:962 lxc/config.go:1006 lxc/config.go:1022
+#: lxc/config.go:945 lxc/config.go:962 lxc/config.go:1005 lxc/config.go:1023
 msgid "The device doesn't exist"
 msgstr "Le périphérique n'existe pas"
 
-#: lxc/init.go:342
+#: lxc/init.go:343
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
@@ -1165,11 +1165,11 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:360
+#: lxc/init.go:361
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:359
+#: lxc/init.go:360
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
@@ -1286,7 +1286,7 @@ msgid ""
 "lxc config device show [<remote>:]<container>\n"
 "    Show full device details for container.\n"
 "\n"
-"lxc config device remove [<remote>:]<container> <name>\n"
+"lxc config device remove [<remote>:]<container> <name>...\n"
 "    Remove device from container.\n"
 "\n"
 "*Client trust store management*\n"
@@ -2466,7 +2466,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/file.go:272
+#: lxc/file.go:273
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "impossible de spécifier uid/gid/mode en mode récursif"
 
@@ -2509,7 +2509,7 @@ msgstr "ok (y/n) ?"
 msgid "processing aliases failed %s\n"
 msgstr "l'analyse des alias a échoué %s\n"
 
-#: lxc/file.go:550
+#: lxc/file.go:551
 msgid "recursive edit doesn't make sense :("
 msgstr "l'édition récursive ne fait aucun sens :("
 
