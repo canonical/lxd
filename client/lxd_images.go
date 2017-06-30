@@ -2,7 +2,6 @@ package lxd
 
 import (
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -125,7 +124,10 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unable to fetch %s: %s", url, response.Status)
+		_, _, err := r.parseResponse(response)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	ctype, ctypeParams, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
@@ -406,23 +408,10 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	}
 	defer resp.Body.Close()
 
-	// Decode the response
-	decoder := json.NewDecoder(resp.Body)
-	response := api.Response{}
-
-	err = decoder.Decode(&response)
-	if err != nil {
-		// Check the return value for a cleaner error
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("Failed to fetch %s: %s", reqURL, resp.Status)
-		}
-
-		return nil, err
-	}
-
 	// Handle errors
-	if response.Type == api.ErrorResponse {
-		return nil, fmt.Errorf(response.Error)
+	response, _, err := r.parseResponse(resp)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get to the operation
