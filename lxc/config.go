@@ -99,7 +99,7 @@ lxc config device list [<remote>:]<container>
 lxc config device show [<remote>:]<container>
     Show full device details for container.
 
-lxc config device remove [<remote>:]<container> <name>
+lxc config device remove [<remote>:]<container> <name>...
     Remove device from container.
 
 *Client trust store management*
@@ -993,19 +993,19 @@ func (c *configCmd) deviceRm(conf *config.Config, which string, args []string) e
 		return err
 	}
 
-	devname := args[3]
-
 	if which == "profile" {
 		profile, etag, err := client.GetProfile(name)
 		if err != nil {
 			return err
 		}
 
-		_, ok := profile.Devices[devname]
-		if !ok {
-			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		for _, devname := range args[3:] {
+			_, ok := profile.Devices[devname]
+			if !ok {
+				return fmt.Errorf(i18n.G("The device doesn't exist"))
+			}
+			delete(profile.Devices, devname)
 		}
-		delete(profile.Devices, devname)
 
 		err = client.UpdateProfile(name, profile.Writable(), etag)
 		if err != nil {
@@ -1017,11 +1017,13 @@ func (c *configCmd) deviceRm(conf *config.Config, which string, args []string) e
 			return err
 		}
 
-		_, ok := container.Devices[devname]
-		if !ok {
-			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		for _, devname := range args[3:] {
+			_, ok := container.Devices[devname]
+			if !ok {
+				return fmt.Errorf(i18n.G("The device doesn't exist"))
+			}
+			delete(container.Devices, devname)
 		}
-		delete(container.Devices, devname)
 
 		op, err := client.UpdateContainer(name, container.Writable(), etag)
 		if err != nil {
@@ -1034,7 +1036,7 @@ func (c *configCmd) deviceRm(conf *config.Config, which string, args []string) e
 		}
 	}
 
-	fmt.Printf(i18n.G("Device %s removed from %s")+"\n", devname, name)
+	fmt.Printf(i18n.G("Device %s removed from %s")+"\n", strings.Join(args[3:], ", "), name)
 	return nil
 }
 
