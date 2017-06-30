@@ -34,6 +34,16 @@ test_filemanip() {
 
   lxc exec filemanip -- rm -rf /tmp/ptest/source
 
+  # Check that file permissions are not applied to intermediate directories
+
+  lxc file push -p --mode=400 "${TEST_DIR}"/source/foo \
+      filemanip/tmp/ptest/d1/d2/foo
+
+  [ "$(lxc exec filemanip -- stat -c "%a" /tmp/ptest/d1)" = "750" ]
+  [ "$(lxc exec filemanip -- stat -c "%a" /tmp/ptest/d1/d2)" = "750" ]
+
+  lxc exec filemanip -- rm -rf /tmp/ptest/d1
+
   # Special case where we are in the same directory as the one we are currently
   # created.
   oldcwd=$(pwd)
