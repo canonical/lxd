@@ -38,7 +38,7 @@ See [rest-api.md](rest-api.md) for available API.
 
 ### REST API through HTTPS
 
-[HTTPS connection to LXD](lxd-ssl-authentication.md) requires valid
+[HTTPS connection to LXD](security.md) requires valid
 client certificate, generated in `~/.config/lxc/client.crt` on
 first `lxc remote add`. This certificate should be passed to
 connection tools for authentication and encryption.
