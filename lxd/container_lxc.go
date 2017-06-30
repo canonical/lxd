@@ -4750,6 +4750,11 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 		}
 	}
 
+	defaultMode := 0640
+	if srcpath == "" {
+		defaultMode = 0750
+	}
+
 	// Push the file to the container
 	out, err := shared.RunCommand(
 		execPath,
@@ -4763,7 +4768,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 		fmt.Sprintf("%d", mode),
 		fmt.Sprintf("%d", rootUid),
 		fmt.Sprintf("%d", rootGid),
-		fmt.Sprintf("%d", int(os.FileMode(0640)&os.ModePerm)),
+		fmt.Sprintf("%d", int(os.FileMode(defaultMode)&os.ModePerm)),
 		write,
 	)
 
