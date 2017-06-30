@@ -74,6 +74,32 @@ func (r *ProtocolLXD) RawWebsocket(path string) (*websocket.Conn, error) {
 }
 
 // Internal functions
+func (r *ProtocolLXD) parseResponse(resp *http.Response) (*api.Response, string, error) {
+	// Get the ETag
+	etag := resp.Header.Get("ETag")
+
+	// Decode the response
+	decoder := json.NewDecoder(resp.Body)
+	response := api.Response{}
+
+	err := decoder.Decode(&response)
+	if err != nil {
+		// Check the return value for a cleaner error
+		if resp.StatusCode != http.StatusOK {
+			return nil, "", fmt.Errorf("Failed to fetch %s: %s", resp.Request.URL.String(), resp.Status)
+		}
+
+		return nil, "", err
+	}
+
+	// Handle errors
+	if response.Type == api.ErrorResponse {
+		return nil, "", fmt.Errorf(response.Error)
+	}
+
+	return &response, etag, nil
+}
+
 func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag string) (*api.Response, string, error) {
 	var req *http.Request
 	var err error
@@ -130,29 +156,7 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 	}
 	defer resp.Body.Close()
 
-	// Get the ETag
-	etag := resp.Header.Get("ETag")
-
-	// Decode the response
-	decoder := json.NewDecoder(resp.Body)
-	response := api.Response{}
-
-	err = decoder.Decode(&response)
-	if err != nil {
-		// Check the return value for a cleaner error
-		if resp.StatusCode != http.StatusOK {
-			return nil, "", fmt.Errorf("Failed to fetch %s: %s", url, resp.Status)
-		}
-
-		return nil, "", err
-	}
-
-	// Handle errors
-	if response.Type == api.ErrorResponse {
-		return nil, "", fmt.Errorf(response.Error)
-	}
-
-	return &response, etag, nil
+	return r.parseResponse(resp)
 }
 
 func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag string) (*api.Response, string, error) {
