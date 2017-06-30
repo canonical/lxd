@@ -198,7 +198,7 @@ func run() error {
 
 	// Process sub-commands
 	if len(os.Args) > 1 {
-		// "forkputfile", "forkgetfile", "forkmount" and "forkumount" are handled specially in nsexec.go
+		// "forkputfile", "forkgetfile", "forkmount" and "forkumount" are handled specially in main_nsexec.go
 		// "forkgetnet" is partially handled in nsexec.go (setns)
 		switch os.Args[1] {
 		// Main commands
