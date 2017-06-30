@@ -19,10 +19,13 @@ they're launched. The server will use that for all https connections to
 the LXD socket and the client will use its certificate as a client
 certificate for any client-server communication.
 
+To cause certificates to be regenerated, simply remove the old ones. On the
+next connection a new certificate will be generated.
+
 # Adding a remote with a default setup
-In the default setup, when the user adds a new server with "lxc remote
-add", the server will be contacted over HTTPs, its certificate
-downloaded and the fingerprint will be shown to the user.
+In the default setup, when the user adds a new server with `lxc remote add`,
+the server will be contacted over HTTPs, its certificate downloaded and the
+fingerprint will be shown to the user.
 
 The user will then be asked to confirm that this is indeed the server's
 fingerprint which they can manually check by connecting to or asking
@@ -43,29 +46,12 @@ a TXT record, then if the domain is signed by DNSSEC, the client will
 automatically accept the fingerprint if it matches that in the DNS
 record.
 
-# Adding a remote with a PKI based setup
-In the PKI setup, a system administrator is managing a central PKI, that
-PKI then issues client certificates for all the lxc clients and server
-certificates for all the LXD daemons.
+# Managing trusted clients
+The list of certificates trusted by a LXD server can be obtained with `lxc
+config trust list`.
 
-Those certificates and keys are manually put in place on the various
-machines, replacing the automatically generated ones.
-
-The CA certificate is also added to all machines.
-A CRL may also accompany the CA certificate.
-
-In that mode, any connection to a LXD daemon will be done using the
-preseeded CA certificate. If the server certificate isn't signed by the
-CA, or if it has been revoked, the connection will simply go through the
-normal authentication mechanism.
-
-If the server certificate is valid and signed by the CA, then the
-connection continues without prompting the user for the certificate.
-
-After that, the user must enter the trust password for that server, if
-it matches, the client certificate is added to the server's trust store
-and the client can now connect to the server without having to provide
-any additional credentials.
+To revoke trust to a client its certificate can be removed with `lxc config
+trust remove FINGERPRINT`.
 
 # Password prompt
 To establish a new trust relationship, a password must be set on the
@@ -73,7 +59,7 @@ server and send by the client when adding itself.
 
 A remote add operation should therefore go like this:
  1. Call GET /1.0
- 2. If we're not in a PKI setup ask the user to confirm the fingerprint.
+ 2. Ask the user to confirm the fingerprint.
  3. Look at the dict we received back from the server. If "auth" is
     "untrusted", ask the user for the server's password and do a POST to
     /1.0/certificates, then call /1.0 again to check that we're indeed
@@ -104,3 +90,14 @@ trusted.
 
 This happens if another trusted client or the local server administrator
 removed the trust entry on the server.
+
+
+# Production setup
+For production setup, it's recommended that `core.trust_password` is unset
+after all clients have been added.  This prevents brute-force attacks trying to
+guess the password.
+
+Furthermore, `core.https_address` should be set to the single address where the
+server should be available (rather than any address on the host), and firewall
+rules should be set to only allow access to the LXD port from authorized
+hosts/subnets.
