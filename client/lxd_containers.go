@@ -490,7 +490,10 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("Failed to fetch %s: %s", url, resp.Status)
+		_, _, err := r.parseResponse(resp)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// Parse the headers
@@ -581,8 +584,9 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Check the return value for a cleaner error
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Failed to upload to %s: %s", url, resp.Status)
+	_, _, err = r.parseResponse(resp)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -856,7 +860,10 @@ func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.Read
 
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Failed to fetch %s: %s", url, resp.Status)
+		_, _, err := r.parseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return resp.Body, err
