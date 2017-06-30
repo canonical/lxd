@@ -19,10 +19,13 @@ they're launched. The server will use that for all https connections to
 the LXD socket and the client will use its certificate as a client
 certificate for any client-server communication.
 
+To cause certificates to be regenerated, simply remove the old ones. On the
+next connection a new certificate will be generated.
+
 # Adding a remote with a default setup
-In the default setup, when the user adds a new server with "lxc remote
-add", the server will be contacted over HTTPs, its certificate
-downloaded and the fingerprint will be shown to the user.
+In the default setup, when the user adds a new server with `lxc remote add`,
+the server will be contacted over HTTPs, its certificate downloaded and the
+fingerprint will be shown to the user.
 
 The user will then be asked to confirm that this is indeed the server's
 fingerprint which they can manually check by connecting to or asking
@@ -75,6 +78,13 @@ pre-generated files.
 
 After this is done, restarting the server will have it run in PKI mode.
 
+# Managing trusted clients
+The list of certificates trusted by a LXD server can be obtained with `lxc
+config trust list`.
+
+To revoke trust to a client its certificate can be removed with `lxc config
+trust remove FINGERPRINT`.
+
 # Password prompt
 To establish a new trust relationship, a password must be set on the
 server and send by the client when adding itself.
@@ -112,3 +122,14 @@ trusted.
 
 This happens if another trusted client or the local server administrator
 removed the trust entry on the server.
+
+
+# Production setup
+For production setup, it's recommended that `core.trust_password` is unset
+after all clients have been added.  This prevents brute-force attacks trying to
+guess the password.
+
+Furthermore, `core.https_address` should be set to the single address where the
+server should be available (rather than any address on the host), and firewall
+rules should be set to only allow access to the LXD port from authorized
+hosts/subnets.

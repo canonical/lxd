@@ -37,7 +37,7 @@ This indicates support for PKI authentication mode.
 
 In this mode, the client and server both must use certificates issued by the same PKI.
 
-See lxd-ssl-authentication.md for details.
+See security.md for details.
 
 ## container\_last\_used\_at
 A last\_used\_at field was added to the /1.0/containers/\<name\> GET endpoint.
