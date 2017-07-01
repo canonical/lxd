@@ -427,7 +427,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 		}
 
 		// Wait for operation to finish
-		err = op.Wait()
+		err = cancelableWait(op, &progress)
 		if err != nil {
 			progress.Done("")
 			return err
