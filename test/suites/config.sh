@@ -136,6 +136,7 @@ test_config_profiles() {
 
   # test live-adding a nic
   lxc start foo
+  lxc exec foo -- cat /proc/self/mountinfo | grep -q "/mnt1.*ro,"
   ! lxc config show foo | grep -q "raw.lxc"
   lxc config show foo --expanded | grep -q "raw.lxc"
   ! lxc config show foo | grep -v "volatile.eth0" | grep -q "eth0"
@@ -150,6 +151,7 @@ test_config_profiles() {
   mkdir "${TEST_DIR}/mnt2"
   touch "${TEST_DIR}/mnt2/hosts"
   lxc config device add foo mnt2 disk source="${TEST_DIR}/mnt2" path=/mnt2 readonly=true
+  lxc exec foo -- cat /proc/self/mountinfo | grep -q "/mnt2.*ro,"
   lxc exec foo -- ls /mnt2/hosts
   lxc stop foo --force
   lxc start foo
