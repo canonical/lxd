@@ -393,7 +393,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		req.Header.Set("User-Agent", version.UserAgent)
 
 		// Make the request
-		raw, err, doneCh := cancel.CancelableDownload(canceler, httpClient, req)
+		raw, doneCh, err := cancel.CancelableDownload(canceler, httpClient, req)
 		defer close(doneCh)
 		if err != nil {
 			return nil, err
