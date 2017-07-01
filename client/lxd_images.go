@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
 )
 
@@ -117,11 +118,12 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 	}
 
 	// Start the request
-	response, err := r.http.Do(request)
+	response, doneCh, err := cancel.CancelableDownload(req.Canceler, r.http, request)
 	if err != nil {
 		return nil, err
 	}
 	defer response.Body.Close()
+	defer close(doneCh)
 
 	if response.StatusCode != http.StatusOK {
 		_, _, err := r.parseResponse(response)
