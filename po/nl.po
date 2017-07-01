@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-06-30 17:03-0400\n"
+"POT-Creation-Date: 2017-07-01 16:31-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -127,6 +127,11 @@ msgstr ""
 #: lxc/file.go:187
 #, c-format
 msgid "%s is not a directory"
+msgstr ""
+
+#: lxc/utils.go:337
+#, c-format
+msgid "%v (interrupt two more times to force)"
 msgstr ""
 
 #: lxc/file.go:129
@@ -336,7 +341,7 @@ msgstr ""
 msgid "Device %s removed from %s"
 msgstr ""
 
-#: lxc/utils.go:248 lxc/utils.go:272
+#: lxc/utils.go:269 lxc/utils.go:293
 #, c-format
 msgid "Device already exists: %s"
 msgstr ""
@@ -523,7 +528,7 @@ msgstr ""
 msgid "Invalid source %s"
 msgstr ""
 
-#: lxc/file.go:225
+#: lxc/file.go:229
 #, c-format
 msgid "Invalid target %s"
 msgstr ""
@@ -581,7 +586,7 @@ msgstr ""
 msgid "Memory usage:"
 msgstr ""
 
-#: lxc/utils.go:199
+#: lxc/utils.go:220
 msgid "Missing summary."
 msgstr ""
 
@@ -809,6 +814,10 @@ msgstr ""
 
 #: lxc/remote.go:68
 msgid "Remote admin password"
+msgstr ""
+
+#: lxc/utils.go:328
+msgid "Remote operation canceled by user"
 msgstr ""
 
 #: lxc/info.go:101
@@ -1859,6 +1868,12 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr ""
 
+#: lxc/utils.go:333
+msgid ""
+"User signaled us three times, exiting. The remote operation will keep "
+"running."
+msgstr ""
+
 #: lxc/restore.go:38
 msgid ""
 "Whether or not to restore the container's running state from snapshot (if "
@@ -1893,7 +1908,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:273
+#: lxc/file.go:277
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 

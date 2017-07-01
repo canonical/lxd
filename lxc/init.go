@@ -290,7 +290,7 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 		return nil, "", err
 	}
 
-	err = op.Wait()
+	err = cancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return nil, "", err

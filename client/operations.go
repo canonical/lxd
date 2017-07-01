@@ -267,6 +267,15 @@ func (op *RemoteOperation) AddHandler(function func(api.Operation)) (*EventTarge
 	return target, nil
 }
 
+// CancelTarget attempts to cancel the target operation
+func (op *RemoteOperation) CancelTarget() error {
+	if op.targetOp == nil {
+		return fmt.Errorf("No associated target operation")
+	}
+
+	return op.targetOp.Cancel()
+}
+
 // GetTarget returns the target operation
 func (op *RemoteOperation) GetTarget() (*api.Operation, error) {
 	if op.targetOp == nil {
