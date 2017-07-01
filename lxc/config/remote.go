@@ -21,11 +21,16 @@ type Remote struct {
 func (c *Config) ParseRemote(raw string) (string, string, error) {
 	result := strings.SplitN(raw, ":", 2)
 	if len(result) == 1 {
-		return c.DefaultRemote, result[0], nil
+		return c.DefaultRemote, raw, nil
 	}
 
 	_, ok := c.Remotes[result[0]]
 	if !ok {
+		// Attempt to play nice with snapshots containing ":"
+		if shared.IsSnapshot(raw) && strings.Contains(result[0], "/") {
+			return c.DefaultRemote, raw, nil
+		}
+
 		return "", "", fmt.Errorf("The remote \"%s\" doesn't exist", result[0])
 	}
 
