@@ -5,8 +5,10 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -26,6 +28,7 @@ type ProgressRenderer struct {
 	Format string
 
 	maxLength int
+	wait      time.Time
 }
 
 func (p *ProgressRenderer) Done(msg string) {
@@ -44,12 +47,30 @@ func (p *ProgressRenderer) Done(msg string) {
 }
 
 func (p *ProgressRenderer) Update(status string) {
+	timeout := p.wait.Sub(time.Now())
+	if timeout.Seconds() > 0 {
+		time.Sleep(timeout)
+	}
+
 	msg := "%s"
 	if p.Format != "" {
 		msg = p.Format
 	}
 
 	msg = fmt.Sprintf("\r"+msg, status)
+
+	if len(msg) > p.maxLength {
+		p.maxLength = len(msg)
+	} else {
+		fmt.Printf("\r%s", strings.Repeat(" ", p.maxLength))
+	}
+
+	fmt.Print(msg)
+}
+
+func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
+	p.wait = time.Now().Add(timeout)
+	msg := fmt.Sprintf("\r%s", status)
 
 	if len(msg) > p.maxLength {
 		p.maxLength = len(msg)
@@ -281,4 +302,41 @@ func profileDeviceAdd(client lxd.ContainerServer, name string, devName string, d
 	}
 
 	return nil
+}
+
+// Wait for an operation and cancel it on SIGINT/SIGTERM
+func cancelableWait(op *lxd.RemoteOperation, progress *ProgressRenderer) error {
+	// Signal handling
+	chSignal := make(chan os.Signal)
+	signal.Notify(chSignal, os.Interrupt)
+
+	// Operation handling
+	chOperation := make(chan error)
+	go func() {
+		chOperation <- op.Wait()
+		close(chOperation)
+	}()
+
+	count := 0
+	for {
+		select {
+		case err := <-chOperation:
+			return err
+		case <-chSignal:
+			err := op.CancelTarget()
+			if err == nil {
+				return fmt.Errorf(i18n.G("Remote operation canceled by user"))
+			} else {
+				count++
+
+				if count == 3 {
+					return fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running."))
+				}
+
+				if progress != nil {
+					progress.Warn(fmt.Sprintf(i18n.G("%v (interrupt two more times to force)"), err), time.Second*5)
+				}
+			}
+		}
+	}
 }
