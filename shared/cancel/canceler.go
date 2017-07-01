@@ -7,7 +7,7 @@ import (
 
 // A struct to track canceleation
 type Canceler struct {
-	chCancel chan bool
+	chCancel chan struct{}
 }
 
 func (c *Canceler) Cancelable() bool {
@@ -26,21 +26,14 @@ func (c *Canceler) Cancel() error {
 
 func CancelableDownload(c *Canceler, client *http.Client, req *http.Request) (*http.Response, chan bool, error) {
 	chDone := make(chan bool)
+	chCancel := make(chan struct{})
+	if c != nil {
+		c.chCancel = chCancel
+	}
+	req.Cancel = chCancel
 
 	go func() {
-		chCancel := make(chan bool)
-		if c != nil {
-			c.chCancel = chCancel
-		}
-
-		select {
-		case <-chCancel:
-			if transport, ok := client.Transport.(*http.Transport); ok {
-				transport.CancelRequest(req)
-			}
-		case <-chDone:
-		}
-
+		<-chDone
 		if c != nil {
 			c.chCancel = nil
 		}
