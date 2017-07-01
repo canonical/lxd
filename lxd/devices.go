@@ -909,6 +909,14 @@ func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bo
 		return fmt.Errorf("Unable to mount %s at %s: %s", srcPath, dstPath, err)
 	}
 
+	// Remount bind mounts in readonly mode if requested
+	if readonly == true && flags&syscall.MS_BIND == syscall.MS_BIND {
+		flags = syscall.MS_RDONLY | syscall.MS_BIND | syscall.MS_REMOUNT
+		if err = syscall.Mount("", dstPath, fstype, uintptr(flags), ""); err != nil {
+			return fmt.Errorf("Unable to mount %s in readonly mode: %s", dstPath, err)
+		}
+	}
+
 	flags = syscall.MS_REC | syscall.MS_SLAVE
 	if err = syscall.Mount("", dstPath, "", uintptr(flags), ""); err != nil {
 		return fmt.Errorf("unable to make mount %s private: %s", dstPath, err)
