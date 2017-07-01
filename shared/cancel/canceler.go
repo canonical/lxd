@@ -24,7 +24,7 @@ func (c *Canceler) Cancel() error {
 	return nil
 }
 
-func CancelableDownload(c *Canceler, client *http.Client, req *http.Request) (*http.Response, error, chan bool) {
+func CancelableDownload(c *Canceler, client *http.Client, req *http.Request) (*http.Response, chan bool, error) {
 	chDone := make(chan bool)
 
 	go func() {
@@ -47,5 +47,5 @@ func CancelableDownload(c *Canceler, client *http.Client, req *http.Request) (*h
 	}()
 
 	resp, err := client.Do(req)
-	return resp, err, chDone
+	return resp, chDone, err
 }
