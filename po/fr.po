@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-06-30 17:03-0400\n"
+"POT-Creation-Date: 2017-07-01 16:31-0400\n"
 "PO-Revision-Date: 2017-06-07 15:24+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -207,6 +207,11 @@ msgstr "%s (%d de plus)"
 #: lxc/file.go:187
 #, c-format
 msgid "%s is not a directory"
+msgstr ""
+
+#: lxc/utils.go:337
+#, c-format
+msgid "%v (interrupt two more times to force)"
 msgstr ""
 
 #: lxc/file.go:129
@@ -421,7 +426,7 @@ msgstr "Périphérique %s ajouté à %s"
 msgid "Device %s removed from %s"
 msgstr "Périphérique %s retiré de %s"
 
-#: lxc/utils.go:248 lxc/utils.go:272
+#: lxc/utils.go:269 lxc/utils.go:293
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "le serveur distant %s existe déjà"
@@ -616,7 +621,7 @@ msgstr "Cible invalide %s"
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:225
+#: lxc/file.go:229
 #, c-format
 msgid "Invalid target %s"
 msgstr "Cible invalide %s"
@@ -675,7 +680,7 @@ msgstr "Mémoire (pointe)"
 msgid "Memory usage:"
 msgstr "  Mémoire utilisée :"
 
-#: lxc/utils.go:199
+#: lxc/utils.go:220
 msgid "Missing summary."
 msgstr "Résumé manquant."
 
@@ -909,6 +914,11 @@ msgstr "Récupération de l'image : %s"
 #: lxc/remote.go:68
 msgid "Remote admin password"
 msgstr "Mot de passe de l'administrateur distant"
+
+#: lxc/utils.go:328
+#, fuzzy
+msgid "Remote operation canceled by user"
+msgstr "Certificat serveur rejeté par l'utilisateur"
 
 #: lxc/info.go:101
 #, c-format
@@ -2426,6 +2436,12 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr "L'utilisateur a annulé l'opération de suppression."
 
+#: lxc/utils.go:333
+msgid ""
+"User signaled us three times, exiting. The remote operation will keep "
+"running."
+msgstr ""
+
 #: lxc/restore.go:38
 msgid ""
 "Whether or not to restore the container's running state from snapshot (if "
@@ -2466,7 +2482,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/file.go:273
+#: lxc/file.go:277
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "impossible de spécifier uid/gid/mode en mode récursif"
 
