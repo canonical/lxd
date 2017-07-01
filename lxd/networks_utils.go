@@ -681,7 +681,7 @@ func networkKillDnsmasq(name string, reload bool) error {
 	// Check if it's dnsmasq
 	cmdPath, err := os.Readlink(fmt.Sprintf("/proc/%s/exe", pid))
 	if err != nil {
-		return err
+		cmdPath = ""
 	}
 
 	// Deal with deleted paths
