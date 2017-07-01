@@ -97,7 +97,7 @@ func downloadFileSha256(httpClient *http.Client, useragent string, progress func
 	}
 
 	// Perform the request
-	r, err, doneCh := cancel.CancelableDownload(canceler, httpClient, req)
+	r, doneCh, err := cancel.CancelableDownload(canceler, httpClient, req)
 	if err != nil {
 		return -1, err
 	}

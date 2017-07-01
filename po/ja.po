@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-06-30 17:03-0400\n"
+"POT-Creation-Date: 2017-07-01 16:31-0400\n"
 "PO-Revision-Date: 2017-03-23 12:03+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -130,6 +130,11 @@ msgstr ""
 #: lxc/file.go:187
 #, c-format
 msgid "%s is not a directory"
+msgstr ""
+
+#: lxc/utils.go:337
+#, c-format
+msgid "%v (interrupt two more times to force)"
 msgstr ""
 
 #: lxc/file.go:129
@@ -342,7 +347,7 @@ msgstr "デバイス %s が %s に追加されました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
-#: lxc/utils.go:248 lxc/utils.go:272
+#: lxc/utils.go:269 lxc/utils.go:293
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "リモート %s は既に存在します"
@@ -533,7 +538,7 @@ msgstr "不正なパス %s"
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:225
+#: lxc/file.go:229
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -591,7 +596,7 @@ msgstr "メモリ (ピーク)"
 msgid "Memory usage:"
 msgstr "メモリ消費量:"
 
-#: lxc/utils.go:199
+#: lxc/utils.go:220
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
@@ -823,6 +828,11 @@ msgstr "イメージの取得中: %s"
 #: lxc/remote.go:68
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
+
+#: lxc/utils.go:328
+#, fuzzy
+msgid "Remote operation canceled by user"
+msgstr "ユーザによりサーバ証明書が拒否されました"
 
 #: lxc/info.go:101
 #, c-format
@@ -2491,6 +2501,12 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr "ユーザが削除操作を中断しました。"
 
+#: lxc/utils.go:333
+msgid ""
+"User signaled us three times, exiting. The remote operation will keep "
+"running."
+msgstr ""
+
 #: lxc/restore.go:38
 msgid ""
 "Whether or not to restore the container's running state from snapshot (if "
@@ -2527,7 +2543,7 @@ msgstr "`lxc config profile` は廃止されました。`lxc profile` を使っ�
 msgid "can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/file.go:273
+#: lxc/file.go:277
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
