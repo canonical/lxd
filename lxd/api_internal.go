@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
@@ -183,7 +182,8 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Read in the backup.yaml file.
-	backup, err := slurpBackupFile(shared.VarPath("containers", req.Name, "backup.yaml"))
+	backupYamlPath := shared.VarPath("storage-pools", containerPoolName, "containers", req.Name, "backup.yaml")
+	backup, err := slurpBackupFile(backupYamlPath)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -345,11 +345,6 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	baseImage := backup.Container.Config["volatile.base_image"]
-	for k := range backup.Container.Config {
-		if strings.HasPrefix(k, "volatile") {
-			delete(backup.Container.Config, k)
-		}
-	}
 
 	arch, err := osarch.ArchitectureId(backup.Container.Architecture)
 	if err != nil {
@@ -430,11 +425,6 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		baseImage := snap.Config["volatile.base_image"]
-		for k := range snap.Config {
-			if strings.HasPrefix(k, "volatile") {
-				delete(snap.Config, k)
-			}
-		}
 
 		arch, err := osarch.ArchitectureId(snap.Architecture)
 		if err != nil {

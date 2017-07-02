@@ -84,6 +84,22 @@ test_container_import() {
     lxc info ctImport | grep snap0
     lxc delete --force ctImport
 
+    lxc init testimage ctImport
+    lxc snapshot ctImport
+    lxc start ctImport
+    rm "${LXD_DIR}/containers/ctImport"
+    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
+    shutdown_lxd "${LXD_IMPORT_DIR}"
+    kill -9 "${pid}"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
+    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
+    respawn_lxd "${LXD_IMPORT_DIR}"
+    ! lxd import ctImport
+    lxd import ctImport --force
+    lxc info ctImport | grep snap0
+    lxc delete --force ctImport
+
     # Test whether a snapshot that exists on disk but not in the "backup.yaml"
     # file is correctly restored. This can be done by not starting the parent
     # container which avoids that the backup file is written out.
