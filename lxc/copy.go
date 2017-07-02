@@ -151,11 +151,21 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, dest
 		}
 	}
 
+	// Watch the background operation
+	progress := ProgressRenderer{Format: i18n.G("Transfering container: %s")}
+	_, err = op.AddHandler(progress.UpdateOp)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
 	// Wait for the copy to complete
 	err = op.Wait()
 	if err != nil {
+		progress.Done("")
 		return err
 	}
+	progress.Done("")
 
 	// If choosing a random name, show it to the user
 	if destResource == "" {
