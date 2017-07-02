@@ -182,7 +182,8 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Read in the backup.yaml file.
-	backup, err := slurpBackupFile(shared.VarPath("containers", req.Name, "backup.yaml"))
+	backupYamlPath := shared.VarPath("storage-pools", containerPoolName, "containers", req.Name, "backup.yaml")
+	backup, err := slurpBackupFile(backupYamlPath)
 	if err != nil {
 		return SmartError(err)
 	}
