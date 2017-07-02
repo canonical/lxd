@@ -16,6 +16,7 @@ type copyCmd struct {
 	confArgs      configList
 	ephem         bool
 	containerOnly bool
+	mode          string
 }
 
 func (c *copyCmd) showByDefault() bool {
@@ -36,10 +37,11 @@ func (c *copyCmd) flags() {
 	gnuflag.Var(&c.profArgs, "p", i18n.G("Profile to apply to the new container"))
 	gnuflag.BoolVar(&c.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
 	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
+	gnuflag.StringVar(&c.mode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay."))
 	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Copy the container without its snapshots"))
 }
 
-func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool, containerOnly bool) error {
+func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool, containerOnly bool, mode string) error {
 	// Parse the source
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -86,6 +88,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, dest
 		// Prepare the container creation request
 		args := lxd.ContainerSnapshotCopyArgs{
 			Name: destName,
+			Mode: mode,
 		}
 
 		// Copy of a snapshot into a new container
@@ -138,6 +141,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, dest
 			Name:          destName,
 			Live:          stateful,
 			ContainerOnly: containerOnly,
+			Mode:          mode,
 		}
 
 		// Copy of a container into a new container
@@ -235,11 +239,17 @@ func (c *copyCmd) run(conf *config.Config, args []string) error {
 		ephem = 1
 	}
 
+	// Parse the mode
+	mode := "pull"
+	if c.mode != "" {
+		mode = c.mode
+	}
+
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
-		return c.copyContainer(conf, args[0], "", false, ephem, false, c.containerOnly)
+		return c.copyContainer(conf, args[0], "", false, ephem, false, c.containerOnly, mode)
 	}
 
 	// Normal copy with a pre-determined name
-	return c.copyContainer(conf, args[0], args[1], false, ephem, false, c.containerOnly)
+	return c.copyContainer(conf, args[0], args[1], false, ephem, false, c.containerOnly, mode)
 }
