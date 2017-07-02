@@ -4242,39 +4242,36 @@ func (c *containerLXC) memoryState() api.ContainerStateMemory {
 
 	// Memory in bytes
 	value, err := c.CGroupGet("memory.usage_in_bytes")
-	valueInt, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		valueInt = -1
+	valueInt, err1 := strconv.ParseInt(value, 10, 64)
+	if err == nil && err1 == nil {
+		memory.Usage = valueInt
 	}
-	memory.Usage = valueInt
 
 	// Memory peak in bytes
 	value, err = c.CGroupGet("memory.max_usage_in_bytes")
-	valueInt, err = strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		valueInt = -1
+	valueInt, err1 = strconv.ParseInt(value, 10, 64)
+	if err == nil && err1 == nil {
+		memory.UsagePeak = valueInt
 	}
-
-	memory.UsagePeak = valueInt
 
 	if cgSwapAccounting {
 		// Swap in bytes
-		value, err := c.CGroupGet("memory.memsw.usage_in_bytes")
-		valueInt, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			valueInt = -1
+		if memory.Usage > 0 {
+			value, err := c.CGroupGet("memory.memsw.usage_in_bytes")
+			valueInt, err1 := strconv.ParseInt(value, 10, 64)
+			if err == nil && err1 == nil {
+				memory.SwapUsage = valueInt - memory.Usage
+			}
 		}
-
-		memory.SwapUsage = valueInt - memory.Usage
 
 		// Swap peak in bytes
-		value, err = c.CGroupGet("memory.memsw.max_usage_in_bytes")
-		valueInt, err = strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			valueInt = -1
+		if memory.UsagePeak > 0 {
+			value, err = c.CGroupGet("memory.memsw.max_usage_in_bytes")
+			valueInt, err1 = strconv.ParseInt(value, 10, 64)
+			if err == nil && err1 == nil {
+				memory.SwapUsagePeak = valueInt - memory.UsagePeak
+			}
 		}
-
-		memory.SwapUsagePeak = valueInt - memory.UsagePeak
 	}
 
 	return memory
