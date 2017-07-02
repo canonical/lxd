@@ -180,15 +180,16 @@ void attach_userns(int pid) {
 	}
 }
 
-int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
+int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
 	int host_fd = -1, container_fd = -1;
 	int ret = -1;
 	int container_open_flags;
 	struct stat st;
 	int exists = 1;
-	bool is_dir_manip = !strcmp(host, "");
+	bool is_dir_manip = type != NULL && !strcmp(type, "directory");
+	bool is_symlink_manip = type != NULL && !strcmp(type, "symlink");
 
-	if (!is_dir_manip) {
+	if (!is_dir_manip && !is_symlink_manip) {
 		host_fd = open(host, O_RDWR);
 		if (host_fd < 0) {
 			error("error: open");
@@ -234,6 +235,32 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		}
 
 		if (chown(container, uid, gid) < 0) {
+			error("error: chown");
+			return -1;
+		}
+
+		return 0;
+	}
+
+	if (is_put && is_symlink_manip) {
+		if (mode == -1) {
+			mode = defaultMode;
+		}
+
+		if (uid == -1) {
+			uid = defaultUid;
+		}
+
+		if (gid == -1) {
+			gid = defaultGid;
+		}
+
+		if (symlink(host, container) < 0 && errno != EEXIST) {
+			error("error: symlink");
+			return -1;
+		}
+
+		if (fchownat(0, container, uid, gid, AT_SYMLINK_NOFOLLOW) < 0) {
 			error("error: chown");
 			return -1;
 		}
@@ -502,7 +529,7 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 	uid_t defaultUid = 0;
 	gid_t defaultGid = 0;
 	mode_t defaultMode = 0;
-	char *command = cur, *rootfs = NULL, *source = NULL, *target = NULL, *writeMode = NULL;
+	char *command = cur, *rootfs = NULL, *source = NULL, *target = NULL, *writeMode = NULL, *type = NULL;
 	pid_t pid;
 	bool append = false;
 
@@ -519,6 +546,9 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 	target = cur;
 
 	if (is_put) {
+		ADVANCE_ARG_REQUIRED();
+		type = cur;
+
 		ADVANCE_ARG_REQUIRED();
 		uid = atoi(cur);
 
@@ -543,7 +573,7 @@ void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
 		}
 	}
 
-	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
+	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
 }
 
 void forkcheckfile(char *buf, char *cur, bool is_put, ssize_t size) {
