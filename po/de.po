@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-01 16:31-0400\n"
+"POT-Creation-Date: 2017-07-02 01:58-0400\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -213,7 +213,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/file.go:187
+#: lxc/file.go:192
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
@@ -223,9 +223,9 @@ msgstr ""
 msgid "%v (interrupt two more times to force)"
 msgstr ""
 
-#: lxc/file.go:129
+#: lxc/file.go:130
 #, c-format
-msgid "'%s' isn't a regular file or directory."
+msgid "'%s' isn't a supported file type."
 msgstr ""
 
 #: lxc/snapshot.go:53
@@ -307,7 +307,7 @@ msgstr " Prozessorauslastung:"
 msgid "CREATED AT"
 msgstr "ERSTELLT AM"
 
-#: lxc/file.go:480
+#: lxc/file.go:485
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
@@ -366,7 +366,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:210 lxc/init.go:314
+#: lxc/copy.go:220 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
@@ -394,7 +394,7 @@ msgstr ""
 msgid "Could not create server cert dir"
 msgstr "Kann Verzeichnis für Zertifikate auf dem Server nicht erstellen"
 
-#: lxc/file.go:69 lxc/file.go:70
+#: lxc/file.go:70 lxc/file.go:71
 msgid "Create any directories necessary"
 msgstr ""
 
@@ -516,12 +516,12 @@ msgstr ""
 msgid "Failed to generate 'lxc.1': %v"
 msgstr ""
 
-#: lxc/copy.go:205
+#: lxc/copy.go:215
 #, fuzzy
 msgid "Failed to get the new container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:124
+#: lxc/file.go:125
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -621,17 +621,17 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Invalid configuration key"
 msgstr ""
 
-#: lxc/file.go:523
+#: lxc/file.go:528
 #, fuzzy, c-format
 msgid "Invalid path %s"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/file.go:452
+#: lxc/file.go:457
 #, c-format
 msgid "Invalid source %s"
 msgstr "Ungültige Quelle %s"
 
-#: lxc/file.go:229
+#: lxc/file.go:234
 #, c-format
 msgid "Invalid target %s"
 msgstr "Ungültiges Ziel %s"
@@ -698,7 +698,7 @@ msgstr "Fehlende Zusammenfassung."
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
-#: lxc/file.go:439
+#: lxc/file.go:444
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
@@ -919,7 +919,7 @@ msgstr ""
 msgid "Public: %s"
 msgstr "Öffentlich: %s\n"
 
-#: lxc/file.go:67 lxc/file.go:68
+#: lxc/file.go:68 lxc/file.go:69
 msgid "Recursively push or pull files"
 msgstr ""
 
@@ -1002,15 +1002,15 @@ msgstr ""
 msgid "Server protocol (lxd or simplestreams)"
 msgstr ""
 
-#: lxc/file.go:65
+#: lxc/file.go:66
 msgid "Set the file's gid on push"
 msgstr "Setzt die gid der Datei beim Übertragen"
 
-#: lxc/file.go:66
+#: lxc/file.go:67
 msgid "Set the file's perms on push"
 msgstr "Setzt die Dateiberechtigungen beim Übertragen"
 
-#: lxc/file.go:64
+#: lxc/file.go:65
 msgid "Set the file's uid on push"
 msgstr "Setzt die uid der Datei beim Übertragen"
 
@@ -1201,6 +1201,11 @@ msgstr ""
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
+#: lxc/copy.go:189
+#, fuzzy, c-format
+msgid "Transfering container: %s"
+msgstr "kann nicht zum selben Container Namen kopieren"
+
 #: lxc/image.go:657
 #, c-format
 msgid "Transferring image: %s"
@@ -1239,7 +1244,7 @@ msgstr ""
 msgid "Unable to read remote TLS certificate"
 msgstr ""
 
-#: lxc/file.go:111
+#: lxc/file.go:112
 #, fuzzy, c-format
 msgid "Unknown file type '%s'"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -1418,7 +1423,7 @@ msgstr ""
 "\n"
 "lxc exec <Container> [--env EDITOR=/usr/bin/vim]... <Befehl>\n"
 
-#: lxc/file.go:38
+#: lxc/file.go:39
 #, fuzzy
 msgid ""
 "Usage: lxc file <subcommand> [options]\n"
@@ -2200,7 +2205,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:277
+#: lxc/file.go:282
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -2244,7 +2249,7 @@ msgstr "OK (y/n)? "
 msgid "processing aliases failed %s\n"
 msgstr ""
 
-#: lxc/file.go:551
+#: lxc/file.go:556
 msgid "recursive edit doesn't make sense :("
 msgstr ""
 
