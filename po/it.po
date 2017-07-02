@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-01 16:31-0400\n"
+"POT-Creation-Date: 2017-07-02 01:58-0400\n"
 "PO-Revision-Date: 2017-06-15 22:46+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -148,7 +148,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (altri %d)"
 
-#: lxc/file.go:187
+#: lxc/file.go:192
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
@@ -158,9 +158,9 @@ msgstr ""
 msgid "%v (interrupt two more times to force)"
 msgstr ""
 
-#: lxc/file.go:129
+#: lxc/file.go:130
 #, c-format
-msgid "'%s' isn't a regular file or directory."
+msgid "'%s' isn't a supported file type."
 msgstr ""
 
 #: lxc/snapshot.go:53
@@ -239,7 +239,7 @@ msgstr "Utilizzo CPU:"
 msgid "CREATED AT"
 msgstr "CREATO IL"
 
-#: lxc/file.go:480
+#: lxc/file.go:485
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
@@ -297,7 +297,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:210 lxc/init.go:314
+#: lxc/copy.go:220 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
@@ -324,7 +324,7 @@ msgstr ""
 msgid "Could not create server cert dir"
 msgstr ""
 
-#: lxc/file.go:69 lxc/file.go:70
+#: lxc/file.go:70 lxc/file.go:71
 msgid "Create any directories necessary"
 msgstr ""
 
@@ -442,11 +442,11 @@ msgstr ""
 msgid "Failed to generate 'lxc.1': %v"
 msgstr ""
 
-#: lxc/copy.go:205
+#: lxc/copy.go:215
 msgid "Failed to get the new container name"
 msgstr ""
 
-#: lxc/file.go:124
+#: lxc/file.go:125
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -542,17 +542,17 @@ msgstr ""
 msgid "Invalid configuration key"
 msgstr ""
 
-#: lxc/file.go:523
+#: lxc/file.go:528
 #, c-format
 msgid "Invalid path %s"
 msgstr ""
 
-#: lxc/file.go:452
+#: lxc/file.go:457
 #, c-format
 msgid "Invalid source %s"
 msgstr ""
 
-#: lxc/file.go:229
+#: lxc/file.go:234
 #, c-format
 msgid "Invalid target %s"
 msgstr ""
@@ -618,7 +618,7 @@ msgstr ""
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
-#: lxc/file.go:439
+#: lxc/file.go:444
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
@@ -827,7 +827,7 @@ msgstr ""
 msgid "Public: %s"
 msgstr ""
 
-#: lxc/file.go:67 lxc/file.go:68
+#: lxc/file.go:68 lxc/file.go:69
 msgid "Recursively push or pull files"
 msgstr ""
 
@@ -907,15 +907,15 @@ msgstr ""
 msgid "Server protocol (lxd or simplestreams)"
 msgstr ""
 
-#: lxc/file.go:65
+#: lxc/file.go:66
 msgid "Set the file's gid on push"
 msgstr ""
 
-#: lxc/file.go:66
+#: lxc/file.go:67
 msgid "Set the file's perms on push"
 msgstr ""
 
-#: lxc/file.go:64
+#: lxc/file.go:65
 msgid "Set the file's uid on push"
 msgstr ""
 
@@ -1097,6 +1097,11 @@ msgstr ""
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
+#: lxc/copy.go:189
+#, c-format
+msgid "Transfering container: %s"
+msgstr ""
+
 #: lxc/image.go:657
 #, c-format
 msgid "Transferring image: %s"
@@ -1135,7 +1140,7 @@ msgstr ""
 msgid "Unable to read remote TLS certificate"
 msgstr ""
 
-#: lxc/file.go:111
+#: lxc/file.go:112
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -1262,7 +1267,7 @@ msgid ""
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
 
-#: lxc/file.go:38
+#: lxc/file.go:39
 msgid ""
 "Usage: lxc file <subcommand> [options]\n"
 "\n"
@@ -1934,7 +1939,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:277
+#: lxc/file.go:282
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -1977,7 +1982,7 @@ msgstr "ok (y/n)?"
 msgid "processing aliases failed %s\n"
 msgstr "errore di processamento degli alias %s\n"
 
-#: lxc/file.go:551
+#: lxc/file.go:556
 msgid "recursive edit doesn't make sense :("
 msgstr ""
 

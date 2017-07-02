@@ -284,3 +284,7 @@ property in the containers root disk device.
 This introduces a new security.idmap.base allowing the user to skip the
 map auto-selection process for isolated containers and specify what host
 uid/gid to use as the base.
+
+## file\_symlinks
+This adds support for transfering symlinks through the file API.
+X-LXD-type can now be "symlink" with the request content being the target path.

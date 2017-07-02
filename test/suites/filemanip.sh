@@ -23,6 +23,7 @@ test_filemanip() {
   chown 1000:1000 "${TEST_DIR}"/source/another_level
   echo "foo" > "${TEST_DIR}"/source/foo
   echo "bar" > "${TEST_DIR}"/source/bar
+  ln -s bar "${TEST_DIR}"/source/baz
 
   lxc file push -p -r "${TEST_DIR}"/source filemanip/tmp/ptest
 
@@ -31,6 +32,7 @@ test_filemanip() {
   [ "$(lxc exec filemanip -- stat -c "%u" /tmp/ptest/source/another_level)" = "1000" ]
   [ "$(lxc exec filemanip -- stat -c "%g" /tmp/ptest/source/another_level)" = "1000" ]
   [ "$(lxc exec filemanip -- stat -c "%a" /tmp/ptest/source)" = "755" ]
+  [ "$(lxc exec filemanip -- readlink /tmp/ptest/source/baz)" = "bar" ]
 
   lxc exec filemanip -- rm -rf /tmp/ptest/source
 
