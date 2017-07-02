@@ -175,6 +175,10 @@ func (op *Operation) setupListener() error {
 	})
 	if err != nil {
 		op.listener.Disconnect()
+		op.listener = nil
+		close(op.chActive)
+		close(chReady)
+
 		return err
 	}
 
@@ -182,13 +186,21 @@ func (op *Operation) setupListener() error {
 	err = op.Refresh()
 	if err != nil {
 		op.listener.Disconnect()
+		op.listener = nil
+		close(op.chActive)
+		close(chReady)
+
 		return err
 	}
 
 	// Check if not done already
 	if op.StatusCode.IsFinal() {
 		op.listener.Disconnect()
+		op.listener = nil
 		close(op.chActive)
+
+		op.handlerReady = true
+		close(chReady)
 
 		if op.Err != "" {
 			return fmt.Errorf(op.Err)

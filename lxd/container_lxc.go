@@ -4722,7 +4722,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	return uid, gid, os.FileMode(mode), type_, dirEnts, nil
 }
 
-func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
+func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
 	var rootUid int64
 	var rootGid int64
 	var errStr string
@@ -4751,7 +4751,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 	}
 
 	defaultMode := 0640
-	if srcpath == "" {
+	if type_ == "directory" {
 		defaultMode = 0750
 	}
 
@@ -4763,6 +4763,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 		fmt.Sprintf("%d", c.InitPID()),
 		srcpath,
 		dstpath,
+		type_,
 		fmt.Sprintf("%d", uid),
 		fmt.Sprintf("%d", gid),
 		fmt.Sprintf("%d", mode),

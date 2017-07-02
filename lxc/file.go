@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -124,38 +125,42 @@ func (c *fileCmd) recursivePushFile(d lxd.ContainerServer, container string, sou
 			return fmt.Errorf(i18n.G("Failed to walk path for %s: %s"), p, err)
 		}
 
-		// Detect symlinks
-		if !fInfo.Mode().IsRegular() && !fInfo.Mode().IsDir() {
-			return fmt.Errorf(i18n.G("'%s' isn't a regular file or directory."), p)
+		// Detect unsupported files
+		if !fInfo.Mode().IsRegular() && !fInfo.Mode().IsDir() && fInfo.Mode()&os.ModeSymlink != os.ModeSymlink {
+			return fmt.Errorf(i18n.G("'%s' isn't a supported file type."), p)
 		}
 
+		// Prepare for file transfer
 		targetPath := path.Join(target, filepath.ToSlash(p[sourceLen:]))
+		mode, uid, gid := shared.GetOwnerMode(fInfo)
+		args := lxd.ContainerFileArgs{
+			UID:  int64(uid),
+			GID:  int64(gid),
+			Mode: int(mode.Perm()),
+		}
+
 		if fInfo.IsDir() {
-			mode, uid, gid := shared.GetOwnerMode(fInfo)
-			args := lxd.ContainerFileArgs{
-				UID:  int64(uid),
-				GID:  int64(gid),
-				Mode: int(mode.Perm()),
-				Type: "directory",
+			// Directory handling
+			args.Type = "directory"
+		} else if fInfo.Mode()&os.ModeSymlink == os.ModeSymlink {
+			// Symlink handling
+			symlinkTarget, err := os.Readlink(p)
+			if err != nil {
+				return err
 			}
 
-			return d.CreateContainerFile(container, targetPath, args)
-		}
+			args.Type = "symlink"
+			args.Content = bytes.NewReader([]byte(symlinkTarget))
+		} else {
+			// File handling
+			f, err := os.Open(p)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
 
-		f, err := os.Open(p)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		mode, uid, gid := shared.GetOwnerMode(fInfo)
-
-		args := lxd.ContainerFileArgs{
-			Content: f,
-			UID:     int64(uid),
-			GID:     int64(gid),
-			Mode:    int(mode.Perm()),
-			Type:    "file",
+			args.Type = "file"
+			args.Content = f
 		}
 
 		return d.CreateContainerFile(container, targetPath, args)

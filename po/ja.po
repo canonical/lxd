@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-01 16:31-0400\n"
+"POT-Creation-Date: 2017-07-02 01:58-0400\n"
 "PO-Revision-Date: 2017-03-23 12:03+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -127,7 +127,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/file.go:187
+#: lxc/file.go:192
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
@@ -137,9 +137,9 @@ msgstr ""
 msgid "%v (interrupt two more times to force)"
 msgstr ""
 
-#: lxc/file.go:129
+#: lxc/file.go:130
 #, c-format
-msgid "'%s' isn't a regular file or directory."
+msgid "'%s' isn't a supported file type."
 msgstr ""
 
 #: lxc/snapshot.go:53
@@ -218,7 +218,7 @@ msgstr "CPU使用量:"
 msgid "CREATED AT"
 msgstr ""
 
-#: lxc/file.go:480
+#: lxc/file.go:485
 #, fuzzy
 msgid "Can't pull a directory without --recursive"
 msgstr ""
@@ -278,7 +278,7 @@ msgstr "接続が拒否されました。LXDが実行されていますか?"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:210 lxc/init.go:314
+#: lxc/copy.go:220 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -306,7 +306,7 @@ msgstr "イメージのコピー中: %s"
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
-#: lxc/file.go:69 lxc/file.go:70
+#: lxc/file.go:70 lxc/file.go:71
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
@@ -424,12 +424,12 @@ msgstr "'lxc.%s.1' の生成が失敗しました: %v"
 msgid "Failed to generate 'lxc.1': %v"
 msgstr "'lxc.1' の生成が失敗しました: %v"
 
-#: lxc/copy.go:205
+#: lxc/copy.go:215
 #, fuzzy
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナに適用するプロファイル"
 
-#: lxc/file.go:124
+#: lxc/file.go:125
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -528,17 +528,17 @@ msgstr "不正な証明書です"
 msgid "Invalid configuration key"
 msgstr "正しくない設定項目 (key) です"
 
-#: lxc/file.go:523
+#: lxc/file.go:528
 #, c-format
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
 
-#: lxc/file.go:452
+#: lxc/file.go:457
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:229
+#: lxc/file.go:234
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -604,7 +604,7 @@ msgstr "サマリーはありません。"
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
-#: lxc/file.go:439
+#: lxc/file.go:444
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -816,7 +816,7 @@ msgstr "Public なイメージサーバとして設定します"
 msgid "Public: %s"
 msgstr "パブリック: %s"
 
-#: lxc/file.go:67 lxc/file.go:68
+#: lxc/file.go:68 lxc/file.go:69
 msgid "Recursively push or pull files"
 msgstr "再帰的にファイルをpush/pullします"
 
@@ -897,15 +897,15 @@ msgstr "サーバが我々の証明書を追加した後我々を信頼してい
 msgid "Server protocol (lxd or simplestreams)"
 msgstr "サーバのプロトコル (lxd or simplestreams)"
 
-#: lxc/file.go:65
+#: lxc/file.go:66
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:66
+#: lxc/file.go:67
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:64
+#: lxc/file.go:65
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -1100,6 +1100,11 @@ msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
 "さい"
 
+#: lxc/copy.go:189
+#, fuzzy, c-format
+msgid "Transfering container: %s"
+msgstr "イメージを転送中: %s"
+
 #: lxc/image.go:657
 #, c-format
 msgid "Transferring image: %s"
@@ -1138,7 +1143,7 @@ msgstr "help2man が見つかりません。"
 msgid "Unable to read remote TLS certificate"
 msgstr "リモートの TLS 証明書を読めません"
 
-#: lxc/file.go:111
+#: lxc/file.go:112
 #, fuzzy, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知の設定コマンド %s"
@@ -1345,7 +1350,7 @@ msgstr ""
 "デフォルトのモードは non-interactive です。もし標準入出力が両方ともターミナル"
 "の場合は interactive モードが選択されます (標準エラー出力は無視されます)。"
 
-#: lxc/file.go:38
+#: lxc/file.go:39
 msgid ""
 "Usage: lxc file <subcommand> [options]\n"
 "\n"
@@ -2543,7 +2548,7 @@ msgstr "`lxc config profile` は廃止されました。`lxc profile` を使っ�
 msgid "can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/file.go:277
+#: lxc/file.go:282
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -2588,7 +2593,7 @@ msgstr "ok (y/n)?"
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
 
-#: lxc/file.go:551
+#: lxc/file.go:556
 msgid "recursive edit doesn't make sense :("
 msgstr "再帰的な edit は意味がありません :("
 

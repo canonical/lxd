@@ -107,14 +107,25 @@ func containerFilePut(c container, path string, r *http.Request) Response {
 		}
 
 		// Transfer the file into the container
-		err = c.FilePush(temp.Name(), path, uid, gid, mode, write)
+		err = c.FilePush("file", temp.Name(), path, uid, gid, mode, write)
 		if err != nil {
 			return InternalError(err)
 		}
 
 		return EmptySyncResponse
+	} else if type_ == "symlink" {
+		target, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		err = c.FilePush("symlink", string(target), path, uid, gid, mode, write)
+		if err != nil {
+			return InternalError(err)
+		}
+		return EmptySyncResponse
 	} else if type_ == "directory" {
-		err := c.FilePush("", path, uid, gid, mode, write)
+		err := c.FilePush("directory", "", path, uid, gid, mode, write)
 		if err != nil {
 			return InternalError(err)
 		}

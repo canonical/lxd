@@ -538,6 +538,12 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 		}
 	}
 
+	if args.Type == "symlink" {
+		if !r.HasExtension("file_symlinks") {
+			return fmt.Errorf("The server is missing the required \"file_symlinks\" API extension")
+		}
+	}
+
 	if args.WriteMode == "append" {
 		if !r.HasExtension("file_append") {
 			return fmt.Errorf("The server is missing the required \"file_append\" API extension")

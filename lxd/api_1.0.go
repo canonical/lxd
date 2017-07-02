@@ -110,6 +110,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"image_force_refresh",
 			"storage_lvm_lv_resizing",
 			"id_map_base",
+			"file_symlinks",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
