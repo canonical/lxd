@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -27,6 +28,21 @@ import (
 
 const SnapshotDelimiter = "/"
 const DefaultPort = "8443"
+
+// URLEncode encodes a path and query parameters to a URL.
+func URLEncode(path string, query map[string]string) (string, error) {
+	u, err := url.Parse(path)
+	if err != nil {
+		return "", err
+	}
+
+	params := url.Values{}
+	for key, value := range query {
+		params.Add(key, value)
+	}
+	u.RawQuery = params.Encode()
+	return u.String(), nil
+}
 
 // AddSlash adds a slash to the end of paths if they don't already have one.
 // This can be useful for rsyncing things, since rsync has behavior present on
