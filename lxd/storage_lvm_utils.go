@@ -62,6 +62,7 @@ func (s *storageLvm) lvReduce(c container, lvPath string, lvSize int64, fsType s
 		if err != nil {
 			return err
 		}
+
 		if !ourUmount {
 			defer c.StorageStart()
 		}
@@ -77,10 +78,10 @@ func (s *storageLvm) lvReduce(c container, lvPath string, lvSize int64, fsType s
 		ext4LvSizeString := strconv.FormatInt(kbSize, 10)
 		ext4LvSizeString += "K"
 		msg, err = shared.TryRunCommand("resize2fs", lvPath, ext4LvSizeString)
-	}
-	if err != nil {
-		logger.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
-		return fmt.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
+		if err != nil {
+			logger.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
+			return fmt.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
+		}
 	}
 
 	msg, err = shared.TryRunCommand(
