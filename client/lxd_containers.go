@@ -640,8 +640,14 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 // GetContainerFile retrieves the provided path from the container
 func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.ReadCloser, *ContainerFileResponse, error) {
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0/containers/%s/files?path=%s", r.httpHost, containerName, path)
-	req, err := http.NewRequest("GET", url, nil)
+	requestURL, err := shared.URLEncode(
+		fmt.Sprintf("%s/1.0/containers/%s/files", r.httpHost, containerName),
+		map[string]string{"path": path})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -714,8 +720,13 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0/containers/%s/files?path=%s", r.httpHost, containerName, path)
-	req, err := http.NewRequest("POST", url, args.Content)
+	requestURL, err := shared.URLEncode(
+		fmt.Sprintf("%s/1.0/containers/%s/files", r.httpHost, containerName),
+		map[string]string{"path": path})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", requestURL, args.Content)
 	if err != nil {
 		return err
 	}
