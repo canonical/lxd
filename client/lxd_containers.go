@@ -203,7 +203,6 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 		ContainerPut: container.Writable(),
 	}
 	req.Source.BaseImage = container.Config["volatile.base_image"]
-	req.Source.Live = container.StatusCode == api.Running
 
 	// Process the copy arguments
 	if args != nil {
@@ -219,6 +218,10 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 
 		req.Source.Live = args.Live
 		req.Source.ContainerOnly = args.ContainerOnly
+	}
+
+	if req.Source.Live {
+		req.Source.Live = container.StatusCode == api.Running
 	}
 
 	// Optimization for the local copy case
