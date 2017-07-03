@@ -422,7 +422,12 @@ func (c *listCmd) run(conf *config.Config, args []string) error {
 	}
 
 	if c.fast {
-		c.chosenColumnRunes = "nsacPt"
+		if c.chosenColumnRunes != "ns46tS" {
+			// --columns was specified too
+			return fmt.Errorf("Can't specify --fast with --columns")
+		} else {
+			c.chosenColumnRunes = "nsacPt"
+		}
 	}
 
 	columns := []column{}

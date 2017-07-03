@@ -96,6 +96,9 @@ test_basic_usage() {
   # Test list json format
   lxc list --format json | jq '.[]|select(.name="foo")' | grep '"name": "foo"'
 
+  # Test list with --columns and --fast
+  ! lxc list --columns=nsp --fast
+
   # Test container rename
   lxc move foo bar
   lxc list | grep -v foo
