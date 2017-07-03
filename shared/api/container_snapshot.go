@@ -12,8 +12,9 @@ type ContainerSnapshotsPost struct {
 
 // ContainerSnapshotPost represents the fields required to rename/move a LXD container snapshot
 type ContainerSnapshotPost struct {
-	Name      string `json:"name" yaml:"name"`
-	Migration bool   `json:"migration" yaml:"migration"`
+	Name      string               `json:"name" yaml:"name"`
+	Migration bool                 `json:"migration" yaml:"migration"`
+	Target    *ContainerPostTarget `json:"target" yaml:"target"`
 }
 
 // ContainerSnapshot represents a LXD conainer snapshot
