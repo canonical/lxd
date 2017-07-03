@@ -288,3 +288,7 @@ uid/gid to use as the base.
 ## file\_symlinks
 This adds support for transfering symlinks through the file API.
 X-LXD-type can now be "symlink" with the request content being the target path.
+
+## container\_push\_target
+This adds the "target" field to POST /1.0/containers/NAME which can be
+used to have the source LXD host connect to the target during migration.
