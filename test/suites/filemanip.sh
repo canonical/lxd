@@ -36,6 +36,17 @@ test_filemanip() {
 
   lxc exec filemanip -- rm -rf /tmp/ptest/source
 
+  # Test pushing/pulling a file with spaces
+  echo "foo" > "${TEST_DIR}/source/file with spaces"
+
+  lxc file push -p -r "${TEST_DIR}"/source filemanip/tmp/ptest
+  lxc exec filemanip -- find /tmp/ptest/source | grep -q "file with spaces"
+  rm -rf "${TEST_DIR}/source/file with spaces"
+
+  lxc file pull -p -r filemanip/tmp/ptest "${TEST_DIR}/dest"
+  find "${TEST_DIR}/dest/" | grep "file with spaces"
+  rm -rf "${TEST_DIR}/dest"
+
   # Check that file permissions are not applied to intermediate directories
 
   lxc file push -p --mode=400 "${TEST_DIR}"/source/foo \

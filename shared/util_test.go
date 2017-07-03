@@ -9,6 +9,16 @@ import (
 	"testing"
 )
 
+func TestURLEncode(t *testing.T) {
+	url, _ := URLEncode(
+		"/path/with spaces",
+		map[string]string{"param": "with spaces", "other": "without"})
+	expected := "/path/with%20spaces?other=without&param=with+spaces"
+	if url != expected {
+		t.Error(fmt.Errorf("'%s' != '%s'", url, expected))
+	}
+}
+
 func TestFileCopy(t *testing.T) {
 	helloWorld := []byte("hello world\n")
 	source, err := ioutil.TempFile("", "")
