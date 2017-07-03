@@ -219,12 +219,12 @@ Introduces the ability to rename a volume group by setting "storage.lvm.vg\_name
 Introduces the ability to rename a thinpool name by setting "storage.thinpool\_name".
 
 ## network\_vlan
-This adds a new "vlan" property to "macvlan" network devices.
+This adds a new "vlan" property to "macvlan" and "physical" network devices.
 
 When set, this will instruct LXD to attach to the specified VLAN. LXD
 will look for an existing interface for that VLAN on the host. If one
 can't be found it will create one itself and then use that as the
-macvlan parent.
+macvlan parent if "macvlan" nictype is selected or as it if "physical" nictype is selected.
 
 ## image\_create\_aliases
 Adds a new "aliases" field to POST /1.0/images allowing for aliases to
