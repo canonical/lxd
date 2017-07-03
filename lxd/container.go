@@ -849,15 +849,19 @@ func containerConfigureInternal(c container) error {
 		storageTypeName := storage.GetStorageTypeName()
 		if storageTypeName == "lvm" && c.IsRunning() {
 			err = c.ConfigKeySet("volatile.apply_quota", rootDiskDevice["size"])
+			if err != nil {
+				return err
+			}
 		} else {
 			size, err := shared.ParseByteSizeString(rootDiskDevice["size"])
 			if err != nil {
 				return err
 			}
+
 			err = storage.ContainerSetQuota(c, size)
-		}
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
 		}
 	}
 

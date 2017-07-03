@@ -190,7 +190,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, dest
 	}
 
 	// Watch the background operation
-	progress := ProgressRenderer{Format: i18n.G("Transfering container: %s")}
+	progress := ProgressRenderer{Format: i18n.G("Transferring container: %s")}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
@@ -207,7 +207,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, dest
 
 	// If choosing a random name, show it to the user
 	if destResource == "" {
-		// Get the succesful operation data
+		// Get the successful operation data
 		opInfo, err := op.GetTarget()
 		if err != nil {
 			return err
