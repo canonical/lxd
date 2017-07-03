@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-02 01:58-0400\n"
+"POT-Creation-Date: 2017-07-03 01:12-0400\n"
 "PO-Revision-Date: 2017-06-07 15:24+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -339,7 +339,7 @@ msgstr "Colonnes"
 msgid "Commands:"
 msgstr "Commandes:"
 
-#: lxc/copy.go:33 lxc/copy.go:34 lxc/init.go:136 lxc/init.go:137
+#: lxc/copy.go:34 lxc/copy.go:35 lxc/init.go:136 lxc/init.go:137
 msgid "Config key/value to apply to the new container"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
@@ -357,7 +357,7 @@ msgstr "Connexion refusée ; LXD est-il actif ?"
 msgid "Container name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:220 lxc/init.go:314
+#: lxc/copy.go:224 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -371,7 +371,7 @@ msgstr "Conteneur publié avec l'empreinte : %s"
 msgid "Copy aliases from source"
 msgstr "Copier les alias depuis la source"
 
-#: lxc/copy.go:39
+#: lxc/copy.go:41
 #, fuzzy
 msgid "Copy the container without its snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
@@ -468,7 +468,7 @@ msgstr "Variable d'environnement (de la forme HOME=/home/foo) à positionner"
 msgid "Environment:"
 msgstr "Environnement :"
 
-#: lxc/copy.go:37 lxc/copy.go:38 lxc/init.go:140 lxc/init.go:141
+#: lxc/copy.go:38 lxc/copy.go:39 lxc/init.go:140 lxc/init.go:141
 msgid "Ephemeral container"
 msgstr "Conteneur éphémère"
 
@@ -504,7 +504,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed to generate 'lxc.1': %v"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
 
-#: lxc/copy.go:215
+#: lxc/copy.go:219
 #, fuzzy
 msgid "Failed to get the new container name"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -693,7 +693,7 @@ msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger, mais la destination n'est pas un dossier"
 
-#: lxc/move.go:38
+#: lxc/move.go:39
 #, fuzzy
 msgid "Move the container without its snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
@@ -875,7 +875,7 @@ msgstr "Profil %s supprimé"
 msgid "Profile %s removed from %s"
 msgstr "Profil %s supprimé de %s"
 
-#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:138 lxc/init.go:139
+#: lxc/copy.go:36 lxc/copy.go:37 lxc/init.go:138 lxc/init.go:139
 msgid "Profile to apply to the new container"
 msgstr "Profil à appliquer au nouveau conteneur"
 
@@ -1188,7 +1188,11 @@ msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
 
-#: lxc/copy.go:189
+#: lxc/copy.go:40 lxc/move.go:40
+msgid "Transfer mode. One of pull (default), push or relay."
+msgstr ""
+
+#: lxc/copy.go:193
 #, fuzzy, c-format
 msgid "Transfering container: %s"
 msgstr "Transfert de l'image : %s"
@@ -1390,7 +1394,7 @@ msgstr ""
 "Pour positionner le mot de passe de confiance du serveur :\n"
 "    lxc config set core.trust_password blah"
 
-#: lxc/copy.go:26
+#: lxc/copy.go:27
 #, fuzzy
 msgid ""
 "Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] "
@@ -1959,7 +1963,7 @@ msgstr ""
 "Exemple :\n"
 "lxc monitor --type=logging"
 
-#: lxc/move.go:22
+#: lxc/move.go:23
 #, fuzzy
 msgid ""
 "Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
@@ -2472,7 +2476,7 @@ msgstr "Il est impossible de passer -t et -T simultanément"
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "impossible de copier vers le même nom de conteneur"
 
-#: lxc/copy.go:57
+#: lxc/copy.go:59
 #, fuzzy
 msgid "You must specify a source container name"
 msgstr "vous devez spécifier un nom de conteneur source"
