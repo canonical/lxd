@@ -25,6 +25,18 @@ type ContainerPost struct {
 
 	// API extension: container_only_migration
 	ContainerOnly bool `json:"container_only" yaml:"container_only"`
+
+	// API extension: container_push_target
+	Target *ContainerPostTarget `json:"target" yaml:"target"`
+}
+
+// ContainerPostTarget represents the migration target host and operation
+//
+// API extension: container_push_target
+type ContainerPostTarget struct {
+	Certificate string            `json:"certificate" yaml:"certificate"`
+	Operation   string            `json:"operation,omitempty" yaml:"operation,omitempty"`
+	Websockets  map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
 // ContainerPut represents the modifiable fields of a LXD container

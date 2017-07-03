@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-02 01:58-0400\n"
+"POT-Creation-Date: 2017-07-03 01:12-0400\n"
 "PO-Revision-Date: 2017-03-23 12:03+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -260,7 +260,7 @@ msgstr "カラムレイアウト"
 msgid "Commands:"
 msgstr "コマンド:"
 
-#: lxc/copy.go:33 lxc/copy.go:34 lxc/init.go:136 lxc/init.go:137
+#: lxc/copy.go:34 lxc/copy.go:35 lxc/init.go:136 lxc/init.go:137
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
@@ -278,7 +278,7 @@ msgstr "接続が拒否されました。LXDが実行されていますか?"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:220 lxc/init.go:314
+#: lxc/copy.go:224 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -292,7 +292,7 @@ msgstr "コンテナは以下のフィンガープリントで publish されま
 msgid "Copy aliases from source"
 msgstr "ソースからエイリアスをコピーしました"
 
-#: lxc/copy.go:39
+#: lxc/copy.go:41
 #, fuzzy
 msgid "Copy the container without its snapshots"
 msgstr "コンテナを強制シャットダウンします"
@@ -388,7 +388,7 @@ msgstr "環境変数を設定します (例: HOME=/home/foo)"
 msgid "Environment:"
 msgstr "環境変数:"
 
-#: lxc/copy.go:37 lxc/copy.go:38 lxc/init.go:140 lxc/init.go:141
+#: lxc/copy.go:38 lxc/copy.go:39 lxc/init.go:140 lxc/init.go:141
 msgid "Ephemeral container"
 msgstr "Ephemeral コンテナ"
 
@@ -424,7 +424,7 @@ msgstr "'lxc.%s.1' の生成が失敗しました: %v"
 msgid "Failed to generate 'lxc.1': %v"
 msgstr "'lxc.1' の生成が失敗しました: %v"
 
-#: lxc/copy.go:215
+#: lxc/copy.go:219
 #, fuzzy
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナに適用するプロファイル"
@@ -610,7 +610,7 @@ msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん"
 
-#: lxc/move.go:38
+#: lxc/move.go:39
 #, fuzzy
 msgid "Move the container without its snapshots"
 msgstr "コンテナを強制シャットダウンします"
@@ -789,7 +789,7 @@ msgstr "プロファイル %s を削除しました"
 msgid "Profile %s removed from %s"
 msgstr "プロファイル %s が %s から削除されました"
 
-#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:138 lxc/init.go:139
+#: lxc/copy.go:36 lxc/copy.go:37 lxc/init.go:138 lxc/init.go:139
 msgid "Profile to apply to the new container"
 msgstr "新しいコンテナに適用するプロファイル"
 
@@ -1100,7 +1100,11 @@ msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
 "さい"
 
-#: lxc/copy.go:189
+#: lxc/copy.go:40 lxc/move.go:40
+msgid "Transfer mode. One of pull (default), push or relay."
+msgstr ""
+
+#: lxc/copy.go:193
 #, fuzzy, c-format
 msgid "Transfering container: %s"
 msgstr "イメージを転送中: %s"
@@ -1307,7 +1311,7 @@ msgstr ""
 "lxc config set core.trust_password blah\n"
 "    サーバのパスワードを blah に設定する。"
 
-#: lxc/copy.go:26
+#: lxc/copy.go:27
 msgid ""
 "Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] "
 "[--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--"
@@ -1896,7 +1900,7 @@ msgstr ""
 "lxc monitor --type=logging\n"
 "    ログメッセージのみ表示します。"
 
-#: lxc/move.go:22
+#: lxc/move.go:23
 msgid ""
 "Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
 "<snapshot>]] [--container-only]\n"
@@ -2535,7 +2539,7 @@ msgstr "-t と -T は同時に指定できません"
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "--mode と同時に -t または -T は指定できません"
 
-#: lxc/copy.go:57
+#: lxc/copy.go:59
 #, fuzzy
 msgid "You must specify a source container name"
 msgstr "コピー元のコンテナ名を指定してください"

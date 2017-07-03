@@ -203,13 +203,32 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 		ContainerPut: container.Writable(),
 	}
 	req.Source.BaseImage = container.Config["volatile.base_image"]
-	req.Source.Live = container.StatusCode == api.Running
 
 	// Process the copy arguments
 	if args != nil {
 		// Sanity checks
-		if args.ContainerOnly && !r.HasExtension("container_only_migration") {
-			return nil, fmt.Errorf("The server is missing the required \"container_only_migration\" API extension")
+		if args.ContainerOnly {
+			if !r.HasExtension("container_only_migration") {
+				return nil, fmt.Errorf("The target server is missing the required \"container_only_migration\" API extension")
+			}
+
+			if !source.HasExtension("container_only_migration") {
+				return nil, fmt.Errorf("The source server is missing the required \"container_only_migration\" API extension")
+			}
+		}
+
+		if shared.StringInSlice(args.Mode, []string{"push", "relay"}) {
+			if !r.HasExtension("container_push") {
+				return nil, fmt.Errorf("The target server is missing the required \"container_push\" API extension")
+			}
+
+			if !source.HasExtension("container_push") {
+				return nil, fmt.Errorf("The source server is missing the required \"container_push\" API extension")
+			}
+		}
+
+		if args.Mode == "push" && !source.HasExtension("container_push_target") {
+			return nil, fmt.Errorf("The source server is missing the required \"container_push_target\" API extension")
 		}
 
 		// Allow overriding the target name
@@ -219,6 +238,10 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 
 		req.Source.Live = args.Live
 		req.Source.ContainerOnly = args.ContainerOnly
+	}
+
+	if req.Source.Live {
+		req.Source.Live = container.StatusCode == api.Running
 	}
 
 	// Optimization for the local copy case
@@ -247,17 +270,49 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 		return &rop, nil
 	}
 
-	// Get source server connection information
-	info, err := source.GetConnectionInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	// Get a source operation
+	// Source request
 	sourceReq := api.ContainerPost{
 		Migration:     true,
 		Live:          req.Source.Live,
 		ContainerOnly: req.Source.ContainerOnly,
+	}
+
+	// Push mode migration
+	if args != nil && args.Mode == "push" {
+		// Get target server connection information
+		info, err := r.GetConnectionInfo()
+		if err != nil {
+			return nil, err
+		}
+
+		// Create the container
+		req.Source.Type = "migration"
+		req.Source.Mode = "push"
+
+		op, err := r.CreateContainer(req)
+		if err != nil {
+			return nil, err
+		}
+
+		targetSecrets := map[string]string{}
+		for k, v := range op.Metadata {
+			targetSecrets[k] = v.(string)
+		}
+
+		// Prepare the source request
+		target := api.ContainerPostTarget{}
+		target.Operation = op.ID
+		target.Websockets = targetSecrets
+		target.Certificate = info.Certificate
+		sourceReq.Target = &target
+
+		return r.tryMigrateContainer(source, container.Name, sourceReq, info.Addresses)
+	}
+
+	// Get source server connection information
+	info, err := source.GetConnectionInfo()
+	if err != nil {
+		return nil, err
 	}
 
 	op, err := source.MigrateContainer(container.Name, sourceReq)
@@ -270,7 +325,71 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 		sourceSecrets[k] = v.(string)
 	}
 
-	// Migration source fields
+	// Relay mode migration
+	if args != nil && args.Mode == "relay" {
+		// Push copy source fields
+		req.Source.Type = "migration"
+		req.Source.Mode = "push"
+
+		// Start the process
+		targetOp, err := r.CreateContainer(req)
+		if err != nil {
+			return nil, err
+		}
+
+		// Extract the websockets
+		targetSecrets := map[string]string{}
+		for k, v := range targetOp.Metadata {
+			targetSecrets[k] = v.(string)
+		}
+
+		// Launch the relay
+		dones := []chan bool{}
+		conns := []*websocket.Conn{}
+
+		for name := range sourceSecrets {
+			sourceConn, err := source.GetOperationWebsocket(op.ID, sourceSecrets[name])
+			if err != nil {
+				return nil, err
+			}
+
+			targetConn, err := r.GetOperationWebsocket(targetOp.ID, targetSecrets[name])
+			if err != nil {
+				return nil, err
+			}
+
+			conns = append(conns, sourceConn)
+			conns = append(conns, targetConn)
+			dones = append(dones, shared.WebsocketProxy(sourceConn, targetConn))
+		}
+
+		// Wait for everything to be done
+		go func() {
+			for _, chDone := range dones {
+				<-chDone
+			}
+
+			for _, conn := range conns {
+				conn.Close()
+			}
+		}()
+
+		// Prepare a tracking operation
+		rop := RemoteOperation{
+			targetOp: targetOp,
+			chDone:   make(chan bool),
+		}
+
+		// Forward targetOp to remote op
+		go func() {
+			rop.err = rop.targetOp.Wait()
+			close(rop.chDone)
+		}()
+
+		return &rop, nil
+	}
+
+	// Pull mode migration
 	req.Source.Type = "migration"
 	req.Source.Mode = "pull"
 	req.Source.Operation = op.ID
@@ -305,6 +424,56 @@ func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) 
 	}
 
 	return op, nil
+}
+
+func (r *ProtocolLXD) tryMigrateContainer(source ContainerServer, name string, req api.ContainerPost, urls []string) (*RemoteOperation, error) {
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("The target server isn't listening on the network")
+	}
+
+	rop := RemoteOperation{
+		chDone: make(chan bool),
+	}
+
+	operation := req.Target.Operation
+
+	// Forward targetOp to remote op
+	go func() {
+		success := false
+		errors := []string{}
+		for _, serverURL := range urls {
+			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, operation)
+
+			op, err := source.MigrateContainer(name, req)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				continue
+			}
+
+			rop.targetOp = op
+
+			for _, handler := range rop.handlers {
+				rop.targetOp.AddHandler(handler)
+			}
+
+			err = rop.targetOp.Wait()
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				continue
+			}
+
+			success = true
+			break
+		}
+
+		if !success {
+			rop.err = fmt.Errorf("Failed container migration:\n - %s", strings.Join(errors, "\n - "))
+		}
+
+		close(rop.chDone)
+	}()
+
+	return &rop, nil
 }
 
 // MigrateContainer requests that LXD prepares for a container migration
@@ -692,6 +861,21 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 
 	// Process the copy arguments
 	if args != nil {
+		// Sanity checks
+		if shared.StringInSlice(args.Mode, []string{"push", "relay"}) {
+			if !r.HasExtension("container_push") {
+				return nil, fmt.Errorf("The target server is missing the required \"container_push\" API extension")
+			}
+
+			if !source.HasExtension("container_push") {
+				return nil, fmt.Errorf("The source server is missing the required \"container_push\" API extension")
+			}
+		}
+
+		if args.Mode == "push" && !source.HasExtension("container_push_target") {
+			return nil, fmt.Errorf("The source server is missing the required \"container_push_target\" API extension")
+		}
+
 		// Allow overriding the target name
 		if args.Name != "" {
 			req.Name = args.Name
@@ -724,15 +908,47 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 		return &rop, nil
 	}
 
+	// Source request
+	sourceReq := api.ContainerSnapshotPost{
+		Migration: true,
+	}
+
+	// Push mode migration
+	if args != nil && args.Mode == "push" {
+		// Get target server connection information
+		info, err := r.GetConnectionInfo()
+		if err != nil {
+			return nil, err
+		}
+
+		// Create the container
+		req.Source.Type = "migration"
+		req.Source.Mode = "push"
+
+		op, err := r.CreateContainer(req)
+		if err != nil {
+			return nil, err
+		}
+
+		targetSecrets := map[string]string{}
+		for k, v := range op.Metadata {
+			targetSecrets[k] = v.(string)
+		}
+
+		// Prepare the source request
+		target := api.ContainerPostTarget{}
+		target.Operation = op.ID
+		target.Websockets = targetSecrets
+		target.Certificate = info.Certificate
+		sourceReq.Target = &target
+
+		return r.tryMigrateContainerSnapshot(source, cName, sName, sourceReq, info.Addresses)
+	}
+
 	// Get source server connection information
 	info, err := source.GetConnectionInfo()
 	if err != nil {
 		return nil, err
-	}
-
-	// Get a source operation
-	sourceReq := api.ContainerSnapshotPost{
-		Migration: true,
 	}
 
 	op, err := source.MigrateContainerSnapshot(cName, sName, sourceReq)
@@ -745,7 +961,71 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 		sourceSecrets[k] = v.(string)
 	}
 
-	// Migration source fields
+	// Relay mode migration
+	if args != nil && args.Mode == "relay" {
+		// Push copy source fields
+		req.Source.Type = "migration"
+		req.Source.Mode = "push"
+
+		// Start the process
+		targetOp, err := r.CreateContainer(req)
+		if err != nil {
+			return nil, err
+		}
+
+		// Extract the websockets
+		targetSecrets := map[string]string{}
+		for k, v := range targetOp.Metadata {
+			targetSecrets[k] = v.(string)
+		}
+
+		// Launch the relay
+		dones := []chan bool{}
+		conns := []*websocket.Conn{}
+
+		for name := range sourceSecrets {
+			sourceConn, err := source.GetOperationWebsocket(op.ID, sourceSecrets[name])
+			if err != nil {
+				return nil, err
+			}
+
+			targetConn, err := r.GetOperationWebsocket(targetOp.ID, targetSecrets[name])
+			if err != nil {
+				return nil, err
+			}
+
+			conns = append(conns, sourceConn)
+			conns = append(conns, targetConn)
+			dones = append(dones, shared.WebsocketProxy(sourceConn, targetConn))
+		}
+
+		// Wait for everything to be done
+		go func() {
+			for _, chDone := range dones {
+				<-chDone
+			}
+
+			for _, conn := range conns {
+				conn.Close()
+			}
+		}()
+
+		// Prepare a tracking operation
+		rop := RemoteOperation{
+			targetOp: targetOp,
+			chDone:   make(chan bool),
+		}
+
+		// Forward targetOp to remote op
+		go func() {
+			rop.err = rop.targetOp.Wait()
+			close(rop.chDone)
+		}()
+
+		return &rop, nil
+	}
+
+	// Pull mode migration
 	req.Source.Type = "migration"
 	req.Source.Mode = "pull"
 	req.Source.Operation = op.ID
@@ -769,6 +1049,56 @@ func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string,
 	}
 
 	return op, nil
+}
+
+func (r *ProtocolLXD) tryMigrateContainerSnapshot(source ContainerServer, containerName string, name string, req api.ContainerSnapshotPost, urls []string) (*RemoteOperation, error) {
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("The target server isn't listening on the network")
+	}
+
+	rop := RemoteOperation{
+		chDone: make(chan bool),
+	}
+
+	operation := req.Target.Operation
+
+	// Forward targetOp to remote op
+	go func() {
+		success := false
+		errors := []string{}
+		for _, serverURL := range urls {
+			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, operation)
+
+			op, err := source.MigrateContainerSnapshot(containerName, name, req)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				continue
+			}
+
+			rop.targetOp = op
+
+			for _, handler := range rop.handlers {
+				rop.targetOp.AddHandler(handler)
+			}
+
+			err = rop.targetOp.Wait()
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				continue
+			}
+
+			success = true
+			break
+		}
+
+		if !success {
+			rop.err = fmt.Errorf("Failed container migration:\n - %s", strings.Join(errors, "\n - "))
+		}
+
+		close(rop.chDone)
+	}()
+
+	return &rop, nil
 }
 
 // MigrateContainerSnapshot requests that LXD prepares for a snapshot migration
