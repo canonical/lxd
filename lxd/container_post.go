@@ -55,6 +55,22 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		resources := map[string][]string{}
 		resources["containers"] = []string{name}
 
+		if req.Target != nil {
+			// Push mode
+			err := ws.ConnectTarget(*req.Target)
+			if err != nil {
+				return InternalError(err)
+			}
+
+			op, err := operationCreate(operationClassTask, resources, nil, ws.Do, nil, nil)
+			if err != nil {
+				return InternalError(err)
+			}
+
+			return OperationResponse(op)
+		}
+
+		// Pull mode
 		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)

@@ -240,12 +240,18 @@ type ContainerCopyArgs struct {
 
 	// If set, only the container will copied, its snapshots won't
 	ContainerOnly bool
+
+	// The transfer mode, can be "pull" (default), "push" or "relay"
+	Mode string
 }
 
 // The ContainerSnapshotCopyArgs struct is used to pass additional options during container copy
 type ContainerSnapshotCopyArgs struct {
 	// If set, the container will be renamed on copy
 	Name string
+
+	// The transfer mode, can be "pull" (default), "push" or "relay"
+	Mode string
 }
 
 // The ContainerExecArgs struct is used to pass additional options during container exec

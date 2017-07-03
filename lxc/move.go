@@ -12,6 +12,7 @@ import (
 
 type moveCmd struct {
 	containerOnly bool
+	mode          string
 }
 
 func (c *moveCmd) showByDefault() bool {
@@ -36,11 +37,18 @@ lxc move <container>/<old snapshot name> <container>/<new snapshot name>
 
 func (c *moveCmd) flags() {
 	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
+	gnuflag.StringVar(&c.mode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay."))
 }
 
 func (c *moveCmd) run(conf *config.Config, args []string) error {
 	if len(args) != 2 {
 		return errArgs
+	}
+
+	// Parse the mode
+	mode := "pull"
+	if c.mode != "" {
+		mode = c.mode
 	}
 
 	sourceRemote, sourceName, err := conf.ParseRemote(args[0])
@@ -90,7 +98,7 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the container.
-	err = cpy.copyContainer(conf, args[0], args[1], true, -1, true, c.containerOnly)
+	err = cpy.copyContainer(conf, args[0], args[1], true, -1, true, c.containerOnly, mode)
 	if err != nil {
 		return err
 	}
