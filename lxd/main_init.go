@@ -352,7 +352,7 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 		return nil, err
 	}
 
-	// Updating the server was sucessful, so return the reverter function
+	// Updating the server was successful, so return the reverter function
 	// in case it's needed later.
 	return reverter, nil
 }
