@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-02 01:58-0400\n"
+"POT-Creation-Date: 2017-07-03 01:12-0400\n"
 "PO-Revision-Date: 2017-06-06 13:55+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -328,7 +328,7 @@ msgstr "Столбцы"
 msgid "Commands:"
 msgstr ""
 
-#: lxc/copy.go:33 lxc/copy.go:34 lxc/init.go:136 lxc/init.go:137
+#: lxc/copy.go:34 lxc/copy.go:35 lxc/init.go:136 lxc/init.go:137
 msgid "Config key/value to apply to the new container"
 msgstr ""
 
@@ -346,7 +346,7 @@ msgstr "В соединении отказано; LXD запущен?"
 msgid "Container name is mandatory"
 msgstr "Имя контейнера является обязательным"
 
-#: lxc/copy.go:220 lxc/init.go:314
+#: lxc/copy.go:224 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr "Имя контейнера: %s"
@@ -360,7 +360,7 @@ msgstr ""
 msgid "Copy aliases from source"
 msgstr "Копировать псевдонимы из источника"
 
-#: lxc/copy.go:39
+#: lxc/copy.go:41
 msgid "Copy the container without its snapshots"
 msgstr ""
 
@@ -456,7 +456,7 @@ msgstr ""
 msgid "Environment:"
 msgstr ""
 
-#: lxc/copy.go:37 lxc/copy.go:38 lxc/init.go:140 lxc/init.go:141
+#: lxc/copy.go:38 lxc/copy.go:39 lxc/init.go:140 lxc/init.go:141
 msgid "Ephemeral container"
 msgstr ""
 
@@ -492,7 +492,7 @@ msgstr ""
 msgid "Failed to generate 'lxc.1': %v"
 msgstr ""
 
-#: lxc/copy.go:215
+#: lxc/copy.go:219
 msgid "Failed to get the new container name"
 msgstr ""
 
@@ -673,7 +673,7 @@ msgstr ""
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
-#: lxc/move.go:38
+#: lxc/move.go:39
 msgid "Move the container without its snapshots"
 msgstr ""
 
@@ -852,7 +852,7 @@ msgstr ""
 msgid "Profile %s removed from %s"
 msgstr ""
 
-#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:138 lxc/init.go:139
+#: lxc/copy.go:36 lxc/copy.go:37 lxc/init.go:138 lxc/init.go:139
 msgid "Profile to apply to the new container"
 msgstr ""
 
@@ -1148,7 +1148,11 @@ msgstr ""
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
-#: lxc/copy.go:189
+#: lxc/copy.go:40 lxc/move.go:40
+msgid "Transfer mode. One of pull (default), push or relay."
+msgstr ""
+
+#: lxc/copy.go:193
 #, c-format
 msgid "Transfering container: %s"
 msgstr ""
@@ -1293,7 +1297,7 @@ msgid ""
 "    Will set the server's trust password to blah."
 msgstr ""
 
-#: lxc/copy.go:26
+#: lxc/copy.go:27
 #, fuzzy
 msgid ""
 "Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] "
@@ -1632,7 +1636,7 @@ msgid ""
 "    Only show log message."
 msgstr ""
 
-#: lxc/move.go:22
+#: lxc/move.go:23
 msgid ""
 "Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
 "<snapshot>]] [--container-only]\n"
@@ -1985,7 +1989,7 @@ msgstr ""
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
-#: lxc/copy.go:57
+#: lxc/copy.go:59
 msgid "You must specify a source container name"
 msgstr ""
 
