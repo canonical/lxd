@@ -3386,10 +3386,11 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 			if err != nil {
 				return err
 			}
+
 			err = c.storage.ContainerSetQuota(c, size)
-		}
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
 		}
 	}
 
