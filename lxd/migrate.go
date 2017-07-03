@@ -6,6 +6,8 @@
 package main
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -21,6 +23,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -230,6 +233,64 @@ func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.Respo
 	if s.controlConn != nil && (!s.live || s.criuConn != nil) && s.fsConn != nil {
 		s.allConnected <- true
 	}
+
+	return nil
+}
+
+func (s *migrationSourceWs) ConnectTarget(target api.ContainerPostTarget) error {
+	var err error
+	var cert *x509.Certificate
+
+	if target.Certificate != "" {
+		certBlock, _ := pem.Decode([]byte(target.Certificate))
+		if certBlock == nil {
+			return fmt.Errorf("Invalid certificate")
+		}
+
+		cert, err = x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return err
+		}
+	}
+
+	config, err := shared.GetTLSConfig("", "", "", cert)
+	if err != nil {
+		return err
+	}
+
+	dialer := websocket.Dialer{
+		TLSClientConfig: config,
+		NetDial:         shared.RFC3493Dialer,
+	}
+
+	for name, secret := range target.Websockets {
+		var conn **websocket.Conn
+
+		switch name {
+		case "control":
+			conn = &s.controlConn
+		case "fs":
+			conn = &s.fsConn
+		case "criu":
+			conn = &s.criuConn
+		default:
+			return fmt.Errorf("Unknown secret provided: %s", name)
+		}
+
+		query := url.Values{"secret": []string{secret}}
+
+		// The URL is a https URL to the operation, mangle to be a wss URL to the secret
+		wsUrl := fmt.Sprintf("wss://%s/websocket?%s", strings.TrimPrefix(target.Operation, "https://"), query.Encode())
+
+		wsConn, _, err := dialer.Dial(wsUrl, http.Header{})
+		if err != nil {
+			return err
+		}
+
+		*conn = wsConn
+	}
+
+	s.allConnected <- true
 
 	return nil
 }

@@ -111,6 +111,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_lvm_lv_resizing",
 			"id_map_base",
 			"file_symlinks",
+			"container_push_target",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
