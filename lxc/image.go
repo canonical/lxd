@@ -494,6 +494,9 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 
 			// Register progress handler
 			_, err = op.AddHandler(progress.UpdateOp)
+			if err != nil {
+				return err
+			}
 
 			// Check if refreshed
 			refreshed := false
