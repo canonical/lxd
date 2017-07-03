@@ -472,7 +472,12 @@ func (c *listCmd) parseColumns() ([]column, error) {
 	}
 
 	if c.fast {
-		c.columnsRaw = "nsacPt"
+		if c.columnsRaw != "ns46tS" {
+			// --columns was specified too
+			return nil, fmt.Errorf("Can't specify --fast with --columns")
+		} else {
+			c.columnsRaw = "nsacPt"
+		}
 	}
 
 	columnList := strings.Split(c.columnsRaw, ",")
