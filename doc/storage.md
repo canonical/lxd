@@ -216,7 +216,7 @@ lxc storage create pool1 lvm source=/dev/sdX
  - Create a new pool called "pool1" using "/dev/sdX" with the LVM Volume Group called "my-pool".
 
 ```
-lxc storage create pool1 lvm source=/dev/sdX lvm.vg\_name=my-pool
+lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
 ```
 
 ### ZFS
