@@ -237,6 +237,29 @@ func cephRBDSnapshotListClones(clusterName string, poolName string,
 	return clones, nil
 }
 
+// cephRBDVolumeMarkDeleted marks an RBD storage volume as being in "zombie"
+// state
+// An RBD storage volume that is in zombie state is not tracked in LXD's
+// database anymore but still needs to be kept around for the sake of any
+// dependent storage entities in the storage pool. This usually happens when an
+// RBD storage volume has protected snapshots; a scenario most common when
+// creating a sparse copy of a container or when LXD updated an image and the
+// image still has dependent container clones.
+func cephRBDVolumeMarkDeleted(clusterName string, poolName string,
+	volumeName string, volumeType string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"mv",
+		fmt.Sprintf("%s/%s_%s", poolName, volumeType, volumeName),
+		fmt.Sprintf("%s/zombie_%s_%s", poolName, volumeType, volumeName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // getRBDSize returns the size the RBD storage volume is supposed to be created
 // with
 func (s *storageCeph) getRBDSize() (string, error) {
