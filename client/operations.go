@@ -190,7 +190,8 @@ func (op *Operation) setupListener() error {
 		op.handlerLock.Lock()
 
 		// Check if we're done already (because of another event)
-		if op.listener == nil {
+		listener := op.listener
+		if listener == nil {
 			op.handlerLock.Unlock()
 			return
 		}
@@ -198,10 +199,12 @@ func (op *Operation) setupListener() error {
 
 		// Wait for the listener or operation to be done
 		select {
-		case <-op.listener.chActive:
+		case <-listener.chActive:
 			op.handlerLock.Lock()
-			op.Err = fmt.Sprintf("%v", op.listener.err)
-			close(op.chActive)
+			if op.listener != nil {
+				op.Err = fmt.Sprintf("%v", listener.err)
+				close(op.chActive)
+			}
 			op.handlerLock.Unlock()
 		case <-op.chActive:
 			return
