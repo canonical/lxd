@@ -229,7 +229,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		lxdStorageMapLock.Unlock()
 
 		var imgerr error
-		if !cephRBDVolumeExists(s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage) {
+		if !cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage) {
 			imgerr = s.ImageCreate(fingerprint)
 		}
 
@@ -363,7 +363,50 @@ func (s *storageCeph) ContainerMount(c container) (bool, error) {
 }
 
 func (s *storageCeph) ContainerUmount(name string, path string) (bool, error) {
-	return true, nil
+	logger.Debugf("Unmounting RBD storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	if shared.IsSnapshot(name) {
+		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
+	}
+
+	containerUmountLockID := getContainerUmountLockID(s.pool.Name, name)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[containerUmountLockID]; ok {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			logger.Warnf("Received value over semaphore. This should not have happened.")
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in unmounting the storage volume.
+		logger.Debugf("RBD storage volume for container \"%s\" on storage pool \"%s\" appears to be already unmounted", s.volume.Name, s.pool.Name)
+		return false, nil
+	}
+
+	lxdStorageOngoingOperationMap[containerUmountLockID] = make(chan bool)
+	lxdStorageMapLock.Unlock()
+
+	var mounterr error
+	ourUmount := false
+	if shared.IsMountPoint(containerMntPoint) {
+		mounterr = tryUnmount(containerMntPoint, 0)
+		ourUmount = true
+	}
+
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[containerUmountLockID]; ok {
+		close(waitChannel)
+		delete(lxdStorageOngoingOperationMap, containerUmountLockID)
+	}
+	lxdStorageMapLock.Unlock()
+
+	if mounterr != nil {
+		logger.Errorf("Failed to unmount RBD storage volume for container \"%s\": %s", s.volume.Name, mounterr)
+		return false, mounterr
+	}
+
+	logger.Debugf("Unmounted RBD storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	return ourUmount, nil
 }
 
 func (s *storageCeph) ContainerRename(
