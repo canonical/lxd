@@ -304,6 +304,30 @@ func (s *storageCeph) ContainerCanRestore(container container, sourceContainer c
 }
 
 func (s *storageCeph) ContainerDelete(container container) error {
+	logger.Debugf("Deleting RBD storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	// umount
+	containerName := container.Name()
+	containerPath := container.Path()
+	_, err := s.ContainerUmount(containerName, containerPath)
+	if err != nil {
+		return err
+	}
+
+	ret := cephContainerDelete(s.ClusterName, s.OSDPoolName, containerName, storagePoolVolumeTypeNameContainer)
+	if ret < 0 {
+		logger.Errorf("Failed to delete container")
+		return err
+	}
+
+	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	err = deleteContainerMountpoint(containerMntPoint, containerPath, s.GetStorageTypeName())
+	if err != nil {
+		logger.Errorf("Failed to delete mountpoint for container \"%s\" for RBD storage volume", containerName)
+		return err
+	}
+
+	logger.Debugf("Deleted RBD storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
