@@ -182,6 +182,32 @@ func (op *Operation) setupListener() error {
 		return err
 	}
 
+	// Monitor event listener
+	go func() {
+		<-chReady
+
+		// We don't want concurrency while accessing the listener
+		op.handlerLock.Lock()
+
+		// Check if we're done already (because of another event)
+		if op.listener == nil {
+			op.handlerLock.Unlock()
+			return
+		}
+		op.handlerLock.Unlock()
+
+		// Wait for the listener or operation to be done
+		select {
+		case <-op.listener.chActive:
+			op.handlerLock.Lock()
+			op.Err = fmt.Sprintf("%v", op.listener.err)
+			close(op.chActive)
+			op.handlerLock.Unlock()
+		case <-op.chActive:
+			return
+		}
+	}()
+
 	// And do a manual refresh to avoid races
 	err = op.Refresh()
 	if err != nil {
