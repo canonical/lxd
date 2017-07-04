@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
@@ -210,6 +211,30 @@ func cephRBDCloneCreate(sourceClusterName string, sourcePoolName string,
 	}
 
 	return nil
+}
+
+// cephRBDSnapshotListClones list all clones of an RBD snapshot
+func cephRBDSnapshotListClones(clusterName string, poolName string,
+	volumeName string, volumeType string,
+	snapshotName string) ([]string, error) {
+	msg, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"children",
+		"--image", fmt.Sprintf("%s_%s", volumeType, volumeName),
+		"--snap", snapshotName)
+	if err != nil {
+		return nil, err
+	}
+
+	msg = strings.TrimSpace(msg)
+	clones := strings.Fields(msg)
+	if len(clones) == 0 {
+		return nil, NoSuchObjectError
+	}
+
+	return clones, nil
 }
 
 // getRBDSize returns the size the RBD storage volume is supposed to be created
