@@ -260,6 +260,31 @@ func cephRBDVolumeMarkDeleted(clusterName string, poolName string,
 	return nil
 }
 
+// cephRBDVolumeUnmarkDeleted unmarks an RBD storage volume as being in "zombie"
+// state
+// - An RBD storage volume that is in zombie is not tracked in LXD's database
+//   anymore but still needs to be kept around for the sake of any dependent
+//   storage entities in the storage pool.
+// - This function is mostly used when a user has deleted the storage volume of
+//   an image from the storage pool and then triggers a container creation. If
+//   LXD detects that the storage volume for the given hash already exists in
+//   the pool but is marked as "zombie" it will unmark it as a zombie instead of
+//   creating another storage volume for the image.
+func cephRBDVolumeUnmarkDeleted(clusterName string, poolName string,
+	volumeName string, volumeType string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"mv",
+		fmt.Sprintf("%s/zombie_%s_%s", poolName, volumeType, volumeName),
+		fmt.Sprintf("%s/%s_%s", poolName, volumeType, volumeName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // getRBDSize returns the size the RBD storage volume is supposed to be created
 // with
 func (s *storageCeph) getRBDSize() (string, error) {
