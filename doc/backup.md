@@ -16,15 +16,33 @@ instance that is to be backed up. Then, all containers can be copied to the
 secondary LXD instance for backup.
 
 ## Container backup and restore
-Additionally, LXD maintains a `backup.yaml` file in the containers storage
+Additionally, LXD maintains a `backup.yaml` file in each container's storage
 volume. This file contains all necessary information to recover a given
-container. The tool `lxd import` is designed to process this file and to
-restore containers from it.
-This recovery mechanism is mostly meant for emergency recoveries and will try
-to re-create container and storage database entries from a backup of the
-storage pool configuration. This requires that the corresponding storage volume
-for the container exists and is accessible. For example, if the container's
-storage volume got unmounted the user is required to remount it manually.
-Note that if any existing database entry is found then `lxd import` will refuse
-to restore the container unless the `--force` flag is passed which will cause
-LXD to delete and replace any currently existing db entries.
+container, such as container configuration, attached devices and storage.
+This file can be processed by the `lxd import` command.
+
+Running 
+
+```
+lxd import <container-name>
+```
+
+will restore the specified container from its `backup.yaml` file.  This
+recovery mechanism is mostly meant for emergency recoveries and will try to
+re-create container and storage database entries from a backup of the storage
+pool configuration.
+
+Note that the corresponding storage volume for the container must exist and be
+accessible before the container can be imported.  For example, if the
+container's storage volume got unmounted the user is required to remount it
+manually.
+
+If any matching database entry for resources declared in `backup.yaml` is found
+during import, the command will refuse to restore the container.  This can be
+overridden running 
+
+```
+lxd import --force <container-name>
+```
+
+which causes LXD to delete and replace any currently existing db entries.
