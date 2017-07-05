@@ -163,6 +163,24 @@ func cephRBDSnapshotCreate(clusterName string, poolName string,
 	return nil
 }
 
+// cephRBDSnapshotsPurge deletes all snapshot of a given RBD storage volume
+// Note that this will only succeed if none of the snapshots are protected.
+func cephRBDSnapshotsPurge(clusterName string, poolName string,
+	volumeName string, volumeType string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"snap",
+		"purge",
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // cephRBDSnapshotProtect protects a given snapshot from being deleted
 // This is a precondition to be able to create RBD clones from a given snapshot.
 func cephRBDSnapshotProtect(clusterName string, poolName string,
