@@ -211,6 +211,37 @@ func cephRBDSnapshotProtect(clusterName string, poolName string,
 	return nil
 }
 
+// cephRBDSnapshotUnprotect unprotects a given snapshot
+// - This is a precondition to be able to delete an RBD snapshot.
+// - This command will only succeed if the snapshot does not have any clones.
+func cephRBDSnapshotUnprotect(clusterName string, poolName string,
+	volumeName string, volumeType string, snapshotName string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"snap",
+		"unprotect",
+		"--snap", snapshotName,
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		runError, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 22 {
+					// EBUSY (snapshot already unprotected)
+					return nil
+				}
+			}
+		}
+		return err
+	}
+
+	return nil
+}
+
 // cephRBDCloneCreate creates a clone from a protected RBD snapshot
 func cephRBDCloneCreate(sourceClusterName string, sourcePoolName string,
 	sourceVolumeName string, sourceVolumeType string,
