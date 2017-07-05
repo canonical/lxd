@@ -6,8 +6,8 @@ It offers a user experience similar to virtual machines but using Linux containe
 It's image based with pre-made images available for a [wide number of Linux distributions](https://images.linuxcontainers.org)  
 and is built around a very powerful, yet pretty simple, REST API.
 
-To get a better idea of what LXD is and what it does, you can [try it online](/lxd/try-it/)!  
-Then if you want to run it locally, take a look at our [getting started guide](/lxd/getting-started-cli/).
+To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!  
+Then if you want to run it locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/).
 
 ## Status
 Type            | Service               | Status
