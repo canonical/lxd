@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // cephOSDPoolExists checks whether a given OSD pool exists.
@@ -510,4 +511,56 @@ func (s *storageCeph) getRBDMountOptions() string {
 	}
 
 	return "discard"
+}
+
+// copyWithoutSnapshotsFull creates a non-sparse copy of a container
+// This does not introduce a dependency relation between the source RBD storage
+// volume and the target RBD storage volume.
+func (s *storageCeph) copyWithoutSnapshotsFull(target container,
+	source container) error {
+	logger.Debugf("Creating full RBD copy \"%s\" -> \"%s\"", source.Name(),
+		target.Name())
+
+	sourceIsSnapshot := source.IsSnapshot()
+	sourceContainerName := source.Name()
+	targetContainerName := target.Name()
+	oldVolumeName := fmt.Sprintf("%s/container_%s", s.OSDPoolName,
+		sourceContainerName)
+	newVolumeName := fmt.Sprintf("%s/container_%s", s.OSDPoolName,
+		targetContainerName)
+	if sourceIsSnapshot {
+		sourceContainerOnlyName, sourceSnapshotOnlyName, _ :=
+			containerGetParentAndSnapshotName(sourceContainerName)
+		oldVolumeName = fmt.Sprintf("%s/container_%s@snapshot_%s",
+			s.OSDPoolName, sourceContainerOnlyName,
+			sourceSnapshotOnlyName)
+	}
+
+	err := cephRBDVolumeCopy(s.ClusterName, oldVolumeName, newVolumeName)
+	if err != nil {
+		logger.Debugf(`Failed to create full RBD copy "%s" -> `+
+			`"%s": %s`, source.Name(), target.Name(), err)
+		return err
+	}
+
+	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, targetContainerName,
+		storagePoolVolumeTypeNameContainer)
+	if err != nil {
+		logger.Errorf(`Failed to map RBD storage volume for image `+
+			`"%s" on storage pool "%s": %s`, targetContainerName,
+			s.pool.Name, err)
+		return err
+	}
+
+	targetContainerMountPoint := getContainerMountPoint(s.pool.Name,
+		target.Name())
+	err = createContainerMountpoint(targetContainerMountPoint, target.Path(),
+		target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Created full RBD copy \"%s\" -> \"%s\"", source.Name(),
+		target.Name())
+	return nil
 }
