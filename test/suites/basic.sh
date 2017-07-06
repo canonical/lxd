@@ -298,29 +298,33 @@ test_basic_usage() {
   # cleanup
   lxc delete foo -f
 
-  # check that an apparmor profile is created for this container, that it is
-  # unloaded on stop, and that it is deleted when the container is deleted
-  lxc launch testimage lxd-apparmor-test
+  if [ -e /sys/module/apparmor/ ]; then
+    # check that an apparmor profile is created for this container, that it is
+    # unloaded on stop, and that it is deleted when the container is deleted
+    lxc launch testimage lxd-apparmor-test
 
-  MAJOR=0
-  MINOR=0
-  if [ -f /sys/kernel/security/apparmor/features/domain/version ]; then
-    MAJOR=$(awk -F. '{print $1}' < /sys/kernel/security/apparmor/features/domain/version)
-    MINOR=$(awk -F. '{print $2}' < /sys/kernel/security/apparmor/features/domain/version)
-  fi
+    MAJOR=0
+    MINOR=0
+    if [ -f /sys/kernel/security/apparmor/features/domain/version ]; then
+      MAJOR=$(awk -F. '{print $1}' < /sys/kernel/security/apparmor/features/domain/version)
+      MINOR=$(awk -F. '{print $2}' < /sys/kernel/security/apparmor/features/domain/version)
+    fi
 
-  if [ "${MAJOR}" -gt "1" ] || ([ "${MAJOR}" = "1" ] && [ "${MINOR}" -ge "2" ]); then
-    aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
-    aa-status | grep ":${aa_namespace}://unconfined"
-    lxc stop lxd-apparmor-test --force
-    ! aa-status | grep -q ":${aa_namespace}:"
+    if [ "${MAJOR}" -gt "1" ] || ([ "${MAJOR}" = "1" ] && [ "${MINOR}" -ge "2" ]); then
+      aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
+      aa-status | grep ":${aa_namespace}://unconfined"
+      lxc stop lxd-apparmor-test --force
+      ! aa-status | grep -q ":${aa_namespace}:"
+    else
+      aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>"
+      lxc stop lxd-apparmor-test --force
+      ! aa-status | grep -q "lxd-lxd-apparmor-test_<${LXD_DIR}>"
+    fi
+    lxc delete lxd-apparmor-test
+    [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
   else
-    aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>"
-    lxc stop lxd-apparmor-test --force
-    ! aa-status | grep -q "lxd-lxd-apparmor-test_<${LXD_DIR}>"
+    echo "==> SKIP: apparmor tests (missing kernel support)"
   fi
-  lxc delete lxd-apparmor-test
-  [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
 
   # make sure that privileged containers are not world-readable
   lxc profile create unconfined
