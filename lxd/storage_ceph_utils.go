@@ -445,6 +445,26 @@ func cephRBDSnapshotDelete(clusterName string, poolName string,
 	return nil
 }
 
+// cephRBDVolumeCopy copies an RBD storage volume
+// This is a non-sparse copy which doesn't introduce any dependency relationship
+// between the source RBD storage volume and the target RBD storage volume. The
+// operations is similar to creating an empty RBD storage volume and rsyncing
+// the contents of the source RBD storage volume into it.
+func cephRBDVolumeCopy(clusterName string, oldVolumeName string,
+	newVolumeName string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"cp",
+		oldVolumeName,
+		newVolumeName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // getRBDSize returns the size the RBD storage volume is supposed to be created
 // with
 func (s *storageCeph) getRBDSize() (string, error) {
