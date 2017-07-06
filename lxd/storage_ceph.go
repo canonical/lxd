@@ -541,33 +541,19 @@ func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container, sourc
 func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer container) error {
 	logger.Debugf("Deleting RBD storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
-	sourceContainerName, sourceContainerSnapOnlyName, _ := containerGetParentAndSnapshotName(snapshotContainer.Name())
+	snapshotContainerName := snapshotContainer.Name()
+	sourceContainerName, sourceContainerSnapOnlyName, _ :=
+		containerGetParentAndSnapshotName(snapshotContainerName)
 	snapshotName := fmt.Sprintf("snapshot_%s", sourceContainerSnapOnlyName)
-
-	_, err := cephRBDSnapshotListClones(s.ClusterName, s.OSDPoolName, sourceContainerName, storagePoolVolumeTypeNameContainer, snapshotName)
-	if err != nil {
-		if err != NoSuchObjectError {
-			logger.Errorf("Failed to list clones of RBD storage volume for snapshot \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-			return err
-		}
-
-		// delete snapshot
-		err = cephRBDSnapshotDelete(s.ClusterName, s.OSDPoolName, sourceContainerName, storagePoolVolumeTypeNameContainer, snapshotName)
-		if err != nil {
-			logger.Errorf("failed to create snapshot for RBD storage volume for image \"%s\" on storage pool \"%s\": %s", sourceContainerName, s.pool.Name, err)
-			return err
-		}
-	} else {
-		deletedSnapshotName := fmt.Sprintf("zombie_%s", snapshotName)
-		// mark deleted
-		err := cephRBDVolumeSnapshotRename(s.ClusterName, s.OSDPoolName, sourceContainerName, storagePoolVolumeTypeNameContainer, snapshotName, deletedSnapshotName)
-		if err != nil {
-			logger.Errorf("Failed to mark RBD storage volume for image \"%s\" on storage pool \"%s\" deleted: %s -> %s", s.pool.Name, snapshotName, deletedSnapshotName)
-			return err
-		}
+	ret := cephContainerSnapshotDelete(s.ClusterName, s.OSDPoolName,
+		sourceContainerName, storagePoolVolumeTypeNameContainer,
+		snapshotName)
+	if ret < 0 {
+		msg := fmt.Sprintf("Failed to delete RBD storage volume for snapshot \"%s\" on storage pool \"%s\"", snapshotContainerName, s.pool.Name)
+		logger.Errorf(msg)
+		return fmt.Errorf(msg)
 	}
 
-	snapshotContainerName := snapshotContainer.Name()
 	snapshotContainerMntPoint := getSnapshotMountPoint(s.pool.Name, snapshotContainerName)
 	if shared.PathExists(snapshotContainerMntPoint) {
 		err := os.RemoveAll(snapshotContainerMntPoint)
