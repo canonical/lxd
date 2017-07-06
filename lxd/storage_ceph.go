@@ -332,6 +332,43 @@ func (s *storageCeph) ContainerDelete(container container) error {
 }
 
 func (s *storageCeph) ContainerCopy(target container, source container, containerOnly bool) error {
+	logger.Debugf("Copying RBD container storage %s -> %s", source.Name(), target.Name())
+
+	ourStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer source.StorageStop()
+	}
+
+	_, sourcePool := source.Storage().GetContainerPoolInfo()
+	_, targetPool := target.Storage().GetContainerPoolInfo()
+	if sourcePool != targetPool {
+		return fmt.Errorf("Copying containers between different storage pools is not implemented")
+	}
+
+	snapshots, err := source.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	if containerOnly || len(snapshots) == 0 {
+		if s.pool.Config["ceph.rbd.clone_copy"] != "" && !shared.IsTrue(s.pool.Config["ceph.rbd.clone_copy"]) {
+			err = s.copyWithoutSnapshotsFull(target, source)
+		} else {
+			err = s.copyWithoutSnapshotsSparse(target, source)
+		}
+		if err != nil {
+			logger.Errorf("Failed to copy RBD container storage %s -> %s", source.Name(), target.Name())
+			return err
+		}
+
+		logger.Debugf("Copied RBD container storage %s -> %s", source.Name(), target.Name())
+		return nil
+	}
+
+	logger.Debugf("Copied RBD container storage %s -> %s", source.Name(), target.Name())
 	return nil
 }
 
