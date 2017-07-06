@@ -344,35 +344,10 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 		}
 
 		// Launch the relay
-		dones := []chan bool{}
-		conns := []*websocket.Conn{}
-
-		for name := range sourceSecrets {
-			sourceConn, err := source.GetOperationWebsocket(op.ID, sourceSecrets[name])
-			if err != nil {
-				return nil, err
-			}
-
-			targetConn, err := r.GetOperationWebsocket(targetOp.ID, targetSecrets[name])
-			if err != nil {
-				return nil, err
-			}
-
-			conns = append(conns, sourceConn)
-			conns = append(conns, targetConn)
-			dones = append(dones, shared.WebsocketProxy(sourceConn, targetConn))
+		err = r.proxyMigration(targetOp, targetSecrets, source, op, sourceSecrets)
+		if err != nil {
+			return nil, err
 		}
-
-		// Wait for everything to be done
-		go func() {
-			for _, chDone := range dones {
-				<-chDone
-			}
-
-			for _, conn := range conns {
-				conn.Close()
-			}
-		}()
 
 		// Prepare a tracking operation
 		rop := RemoteOperation{
@@ -397,6 +372,91 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 	req.Source.Certificate = info.Certificate
 
 	return r.tryCreateContainer(req, info.Addresses)
+}
+
+func (r *ProtocolLXD) proxyMigration(targetOp *Operation, targetSecrets map[string]string, source ContainerServer, sourceOp *Operation, sourceSecrets map[string]string) error {
+	// Sanity checks
+	for n := range targetSecrets {
+		_, ok := sourceSecrets[n]
+		if !ok {
+			return fmt.Errorf("Migration target expects the \"%s\" socket but source isn't providing it", n)
+		}
+	}
+
+	if targetSecrets["control"] == "" {
+		return fmt.Errorf("Migration target didn't setup the required \"control\" socket")
+	}
+
+	// Struct used to hold everything together
+	type proxy struct {
+		done       chan bool
+		sourceConn *websocket.Conn
+		targetConn *websocket.Conn
+	}
+
+	proxies := map[string]*proxy{}
+
+	// Connect the control socket
+	sourceConn, err := source.GetOperationWebsocket(sourceOp.ID, sourceSecrets["control"])
+	if err != nil {
+		return err
+	}
+
+	targetConn, err := r.GetOperationWebsocket(targetOp.ID, targetSecrets["control"])
+	if err != nil {
+		return err
+	}
+
+	proxies["control"] = &proxy{
+		done:       shared.WebsocketProxy(sourceConn, targetConn),
+		sourceConn: sourceConn,
+		targetConn: targetConn,
+	}
+
+	// Connect the data sockets
+	for name := range sourceSecrets {
+		if name == "control" {
+			continue
+		}
+
+		// Handle resets (used for multiple objects)
+		sourceConn, err := source.GetOperationWebsocket(sourceOp.ID, sourceSecrets[name])
+		if err != nil {
+			break
+		}
+
+		targetConn, err := r.GetOperationWebsocket(targetOp.ID, targetSecrets[name])
+		if err != nil {
+			break
+		}
+
+		proxies[name] = &proxy{
+			sourceConn: sourceConn,
+			targetConn: targetConn,
+			done:       shared.WebsocketProxy(sourceConn, targetConn),
+		}
+	}
+
+	// Cleanup once everything is done
+	go func() {
+		// Wait for control socket
+		<-proxies["control"].done
+		proxies["control"].sourceConn.Close()
+		proxies["control"].targetConn.Close()
+
+		// Then deal with the others
+		for name, proxy := range proxies {
+			if name == "control" {
+				continue
+			}
+
+			<-proxy.done
+			proxy.sourceConn.Close()
+			proxy.targetConn.Close()
+		}
+	}()
+
+	return nil
 }
 
 // UpdateContainer updates the container definition
@@ -991,35 +1051,10 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 		}
 
 		// Launch the relay
-		dones := []chan bool{}
-		conns := []*websocket.Conn{}
-
-		for name := range sourceSecrets {
-			sourceConn, err := source.GetOperationWebsocket(op.ID, sourceSecrets[name])
-			if err != nil {
-				return nil, err
-			}
-
-			targetConn, err := r.GetOperationWebsocket(targetOp.ID, targetSecrets[name])
-			if err != nil {
-				return nil, err
-			}
-
-			conns = append(conns, sourceConn)
-			conns = append(conns, targetConn)
-			dones = append(dones, shared.WebsocketProxy(sourceConn, targetConn))
+		err = r.proxyMigration(targetOp, targetSecrets, source, op, sourceSecrets)
+		if err != nil {
+			return nil, err
 		}
-
-		// Wait for everything to be done
-		go func() {
-			for _, chDone := range dones {
-				<-chDone
-			}
-
-			for _, conn := range conns {
-				conn.Close()
-			}
-		}()
 
 		// Prepare a tracking operation
 		rop := RemoteOperation{
