@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -466,6 +467,54 @@ func cephRBDVolumeCopy(clusterName string, oldVolumeName string,
 	}
 
 	return nil
+}
+
+// cephRBDVolumeListSnapshots retrieves the snapshots of an RBD storage volume
+// The format of the snapshot names is simply the part after the @. So given a
+// valid RBD path relative to a pool
+// <osd-pool-name>/<rbd-storage-volume>@<rbd-snapshot-name>
+// this will only return
+// <rbd-snapshot-name>
+func cephRBDVolumeListSnapshots(clusterName string, poolName string,
+	volumeName string, volumeType string) ([]string, error) {
+	msg, err := shared.RunCommand(
+		"rbd",
+		"--format", "json",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"snap",
+		"ls", fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		return []string{}, err
+	}
+
+	var data []map[string]interface{}
+	err = json.Unmarshal([]byte(msg), &data)
+	if err != nil {
+		return []string{}, err
+	}
+
+	snapshots := []string{}
+	for _, v := range data {
+		_, ok := v["name"]
+		if !ok {
+			return []string{}, fmt.Errorf("No \"name\" property found")
+		}
+
+		name, ok := v["name"].(string)
+		if !ok {
+			return []string{}, fmt.Errorf("\"name\" property did not have string type")
+		}
+
+		name = strings.TrimSpace(name)
+		snapshots = append(snapshots, name)
+	}
+
+	if len(snapshots) == 0 {
+		return []string{}, NoSuchObjectError
+	}
+
+	return snapshots, nil
 }
 
 // getRBDSize returns the size the RBD storage volume is supposed to be created
