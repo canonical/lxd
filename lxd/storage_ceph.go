@@ -314,8 +314,8 @@ func (s *storageCeph) ContainerDelete(container container) error {
 		return err
 	}
 
-	ret := cephContainerDelete(s.ClusterName, s.OSDPoolName, containerName, storagePoolVolumeTypeNameContainer)
-	if ret < 0 {
+	err = cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName, containerName, storagePoolVolumeTypeNameContainer)
+	if err != nil {
 		logger.Errorf("Failed to delete container")
 		return err
 	}

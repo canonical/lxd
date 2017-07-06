@@ -401,6 +401,25 @@ func cephRBDVolumeGetParent(clusterName string, poolName string,
 	return msg, nil
 }
 
+// cephRBDSnapshotDelete deletes an RBD snapshot
+// This requires that the snapshot does not have any clones and is unmapped and
+// unprotected.
+func cephRBDSnapshotDelete(clusterName string, poolName string,
+	volumeName string, volumeType string, snapshotName string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"snap",
+		"rm",
+		fmt.Sprintf("%s_%s@%s", volumeType, volumeName, snapshotName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // getRBDSize returns the size the RBD storage volume is supposed to be created
 // with
 func (s *storageCeph) getRBDSize() (string, error) {
