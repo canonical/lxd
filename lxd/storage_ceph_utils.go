@@ -334,6 +334,45 @@ func cephRBDVolumeUnmarkDeleted(clusterName string, poolName string,
 	return nil
 }
 
+// cephRBDVolumeGetParent will return the snapshot the RBD clone was created
+// from
+// - If the RBD storage volume is not a clone then this function will return
+//   NoSuchObjectError.
+// - The snapshot will be returned as
+//   <osd-pool-name>/<rbd-volume-name>@<rbd-snapshot-name>
+//   The caller will usually want to parse this according to its needs. This
+//   helper library provides two small functions to do this but see below.
+func cephRBDVolumeGetParent(clusterName string, poolName string,
+	volumeName string, volumeType string) (string, error) {
+	msg, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"info",
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		return "", err
+	}
+
+	idx := strings.Index(msg, "parent: ")
+	if idx == -1 {
+		return "", NoSuchObjectError
+	}
+
+	msg = msg[(idx + len("parent: ")):]
+	msg = strings.TrimSpace(msg)
+
+	idx = strings.Index(msg, "\n")
+	if idx == -1 {
+		return "", fmt.Errorf("Unexpected parsing error")
+	}
+
+	msg = msg[:idx]
+	msg = strings.TrimSpace(msg)
+
+	return msg, nil
+}
+
 // getRBDSize returns the size the RBD storage volume is supposed to be created
 // with
 func (s *storageCeph) getRBDSize() (string, error) {
