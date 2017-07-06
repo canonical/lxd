@@ -763,10 +763,23 @@ func GetByteSizeString(input int64, precision uint) string {
 	return fmt.Sprintf("%.*fEB", precision, value)
 }
 
+type RunError struct {
+	msg string
+	Err error
+}
+
+func (e RunError) Error() string {
+	return e.msg
+}
+
 func RunCommand(name string, arg ...string) (string, error) {
 	output, err := exec.Command(name, arg...).CombinedOutput()
 	if err != nil {
-		return string(output), fmt.Errorf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(output)))
+		err := RunError{
+			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(output))),
+			Err: err,
+		}
+		return string(output), err
 	}
 
 	return string(output), nil
