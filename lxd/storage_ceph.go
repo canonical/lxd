@@ -489,9 +489,65 @@ func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container, sourc
 	return nil
 }
 
-func (s *storageCeph) ContainerSnapshotDelete(
-	snapshotContainer container) error {
+func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer container) error {
+	logger.Debugf("Deleting RBD storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
+	sourceContainerName, sourceContainerSnapOnlyName, _ := containerGetParentAndSnapshotName(snapshotContainer.Name())
+	snapshotName := fmt.Sprintf("snapshot_%s", sourceContainerSnapOnlyName)
+
+	_, err := cephRBDSnapshotListClones(s.ClusterName, s.OSDPoolName, sourceContainerName, storagePoolVolumeTypeNameContainer, snapshotName)
+	if err != nil {
+		if err != NoSuchObjectError {
+			logger.Errorf("Failed to list clones of RBD storage volume for snapshot \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+			return err
+		}
+
+		// delete snapshot
+		err = cephRBDSnapshotDelete(s.ClusterName, s.OSDPoolName, sourceContainerName, storagePoolVolumeTypeNameContainer, snapshotName)
+		if err != nil {
+			logger.Errorf("failed to create snapshot for RBD storage volume for image \"%s\" on storage pool \"%s\": %s", sourceContainerName, s.pool.Name, err)
+			return err
+		}
+	} else {
+		deletedSnapshotName := fmt.Sprintf("zombie_%s", snapshotName)
+		// mark deleted
+		err := cephRBDVolumeSnapshotRename(s.ClusterName, s.OSDPoolName, sourceContainerName, storagePoolVolumeTypeNameContainer, snapshotName, deletedSnapshotName)
+		if err != nil {
+			logger.Errorf("Failed to mark RBD storage volume for image \"%s\" on storage pool \"%s\" deleted: %s -> %s", s.pool.Name, snapshotName, deletedSnapshotName)
+			return err
+		}
+	}
+
+	snapshotContainerName := snapshotContainer.Name()
+	snapshotContainerMntPoint := getSnapshotMountPoint(s.pool.Name, snapshotContainerName)
+	if shared.PathExists(snapshotContainerMntPoint) {
+		err := os.RemoveAll(snapshotContainerMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	// check if snapshot directory is empty
+	snapshotContainerPath := getSnapshotMountPoint(s.pool.Name, sourceContainerName)
+	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
+	if empty == true {
+		// remove snapshot directory for container
+		err := os.Remove(snapshotContainerPath)
+		if err != nil {
+			return err
+		}
+
+		// remove the snapshot symlink if possible
+		snapshotSymlink := shared.VarPath("snapshots", sourceContainerName)
+		if shared.PathExists(snapshotSymlink) {
+			err := os.Remove(snapshotSymlink)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	logger.Debugf("Deleted RBD storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
