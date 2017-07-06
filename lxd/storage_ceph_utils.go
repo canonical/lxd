@@ -8,6 +8,8 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+
+	"github.com/pborman/uuid"
 )
 
 // cephOSDPoolExists checks whether a given OSD pool exists.
@@ -561,6 +563,82 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 	}
 
 	logger.Debugf("Created full RBD copy \"%s\" -> \"%s\"", source.Name(),
+		target.Name())
+	return nil
+}
+
+// copyWithoutSnapshotsFull creates a sparse copy of a container
+// This introduces a dependency relation between the source RBD storage volume
+// and the target RBD storage volume.
+func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
+	source container) error {
+	logger.Debugf(`Creating full RBD copy "%s" -> "%s"`, source.Name(),
+		target.Name())
+
+	sourceIsSnapshot := source.IsSnapshot()
+	sourceContainerName := source.Name()
+	targetContainerName := target.Name()
+	sourceContainerOnlyName := sourceContainerName
+	sourceSnapshotOnlyName := sourceContainerName
+	snapshotName := fmt.Sprintf("zombie_snapshot_%s",
+		uuid.NewRandom().String())
+	if sourceIsSnapshot {
+		sourceContainerOnlyName, sourceSnapshotOnlyName, _ =
+			containerGetParentAndSnapshotName(sourceContainerName)
+		snapshotName = fmt.Sprintf("snapshot_%s", sourceSnapshotOnlyName)
+	} else {
+		// create snapshot
+		err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName,
+			sourceContainerName, storagePoolVolumeTypeNameContainer,
+			snapshotName)
+		if err != nil {
+			logger.Errorf(`Failed to create snapshot for RBD `+
+				`storage volume for image "%s" on storage `+
+				`pool "%s": %s`, targetContainerName,
+				s.pool.Name, err)
+			return err
+		}
+	}
+
+	// protect volume so we can create clones of it
+	err := cephRBDSnapshotProtect(s.ClusterName, s.OSDPoolName,
+		sourceContainerOnlyName, storagePoolVolumeTypeNameContainer,
+		snapshotName)
+	if err != nil {
+		logger.Errorf(`Failed to protect snapshot for RBD storage `+
+			`volume for image "%s" on storage pool "%s": %s`,
+			snapshotName, s.pool.Name, err)
+		return err
+	}
+
+	err = cephRBDCloneCreate(s.ClusterName, s.OSDPoolName,
+		sourceContainerOnlyName, storagePoolVolumeTypeNameContainer,
+		snapshotName, s.OSDPoolName, targetContainerName,
+		storagePoolVolumeTypeNameContainer)
+	if err != nil {
+		logger.Errorf(`Failed to clone new RBD storage volume for `+
+			`container "%s": %s`, targetContainerName, err)
+		return err
+	}
+
+	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, targetContainerName,
+		storagePoolVolumeTypeNameContainer)
+	if err != nil {
+		logger.Errorf(`Failed to map RBD storage volume for image `+
+			`"%s" on storage pool "%s": %s`, targetContainerName,
+			s.pool.Name, err)
+		return err
+	}
+
+	targetContainerMountPoint := getContainerMountPoint(s.pool.Name,
+		target.Name())
+	err = createContainerMountpoint(targetContainerMountPoint,
+		target.Path(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf(`Created full RBD copy "%s" -> "%s"`, source.Name(),
 		target.Name())
 	return nil
 }
