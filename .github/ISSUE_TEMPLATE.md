@@ -23,8 +23,8 @@ A brief description of what failed or what could be improved.
 
 # Information to attach
 
- - [ ] any relevant kernel output (dmesg)
- - [ ] container log (lxc info NAME --show-log)
- - [ ] main daemon log (/var/log/lxd.log)
+ - [ ] any relevant kernel output (`dmesg`)
+ - [ ] container log (`lxc info NAME --show-log`)
+ - [ ] main daemon log (`cat /var/log/lxd/lxd.log`)
  - [ ] output of the client with --debug
  - [ ] output of the daemon with --debug
