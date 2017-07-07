@@ -488,7 +488,7 @@ Input (using a remote container, sent over the migration websocket):
                    "base-image": "<fingerprint>",                                       # Optional, the base image the container was created from
                    "secrets": {"control": "my-secret-string",                           # Secrets to use when talking to the migration source
                                "criu":    "my-other-secret",
-                               "fs":      "my third secret"},
+                               "fs":      "my third secret"}
     }
 
 Input (using a local container):
@@ -611,6 +611,7 @@ Input (simple rename):
     }
 
 Input (migration across lxd instances):
+
     {
         "migration": true
     }
