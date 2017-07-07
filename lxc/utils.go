@@ -21,9 +21,12 @@ type ProgressRenderer struct {
 
 	maxLength int
 	wait      time.Time
+	done      bool
 }
 
 func (p *ProgressRenderer) Done(msg string) {
+	p.done = true
+
 	if msg != "" {
 		msg += "\n"
 	}
@@ -39,6 +42,10 @@ func (p *ProgressRenderer) Done(msg string) {
 }
 
 func (p *ProgressRenderer) Update(status string) {
+	if p.done {
+		return
+	}
+
 	timeout := p.wait.Sub(time.Now())
 	if timeout.Seconds() > 0 {
 		time.Sleep(timeout)
