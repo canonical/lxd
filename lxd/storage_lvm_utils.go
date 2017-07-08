@@ -523,13 +523,17 @@ func storageLVActivate(lvmVolumePath string) error {
 }
 
 func storagePVExists(pvName string) (bool, error) {
-	err := exec.Command("pvs", "--noheadings", "-o", "lv_attr", pvName).Run()
+	_, err := shared.RunCommand("pvs", "--noheadings", "-o", "lv_attr", pvName)
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			waitStatus := exitError.Sys().(syscall.WaitStatus)
-			if waitStatus.ExitStatus() == 5 {
-				// physical volume not found
-				return false, nil
+		runErr, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runErr.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 5 {
+					// physical volume not found
+					return false, nil
+				}
 			}
 		}
 		return false, fmt.Errorf("error checking for physical volume \"%s\"", pvName)
@@ -539,15 +543,20 @@ func storagePVExists(pvName string) (bool, error) {
 }
 
 func storageVGExists(vgName string) (bool, error) {
-	err := exec.Command("vgs", "--noheadings", "-o", "lv_attr", vgName).Run()
+	_, err := shared.RunCommand("vgs", "--noheadings", "-o", "lv_attr", vgName)
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			waitStatus := exitError.Sys().(syscall.WaitStatus)
-			if waitStatus.ExitStatus() == 5 {
-				// volume group not found
-				return false, nil
+		runErr, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runErr.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 5 {
+					// volume group not found
+					return false, nil
+				}
 			}
 		}
+
 		return false, fmt.Errorf("error checking for volume group \"%s\"", vgName)
 	}
 
@@ -555,15 +564,20 @@ func storageVGExists(vgName string) (bool, error) {
 }
 
 func storageLVExists(lvName string) (bool, error) {
-	err := exec.Command("lvs", "--noheadings", "-o", "lv_attr", lvName).Run()
+	_, err := shared.RunCommand("lvs", "--noheadings", "-o", "lv_attr", lvName)
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			waitStatus := exitError.Sys().(syscall.WaitStatus)
-			if waitStatus.ExitStatus() == 5 {
-				// logical volume not found
-				return false, nil
+		runErr, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runErr.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 5 {
+					// logical volume not found
+					return false, nil
+				}
 			}
 		}
+
 		return false, fmt.Errorf("error checking for logical volume \"%s\"", lvName)
 	}
 
@@ -589,15 +603,20 @@ func lvmGetLVSize(lvPath string) (string, error) {
 }
 
 func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
-	output, err := exec.Command("vgs", "--noheadings", "-o", "lv_attr", fmt.Sprintf("%s/%s", vgName, poolName)).Output()
+	output, err := shared.RunCommand("vgs", "--noheadings", "-o", "lv_attr", fmt.Sprintf("%s/%s", vgName, poolName))
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			waitStatus := exitError.Sys().(syscall.WaitStatus)
-			if waitStatus.ExitStatus() == 5 {
-				// pool LV was not found
-				return false, nil
+		runErr, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runErr.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 5 {
+					// pool LV was not found
+					return false, nil
+				}
 			}
 		}
+
 		return false, fmt.Errorf("error checking for pool \"%s\"", poolName)
 	}
 	// Found LV named poolname, check type:

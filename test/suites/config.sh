@@ -221,7 +221,9 @@ test_config_profiles() {
   lxc profile assign foo onenic,unconfined
   lxc start foo
 
-  lxc exec foo -- cat /proc/self/attr/current | grep unconfined
+  if [ -e /sys/module/apparmor ]; then
+    lxc exec foo -- cat /proc/self/attr/current | grep unconfined
+  fi
   lxc exec foo -- ls /sys/class/net | grep eth0
 
   lxc stop foo --force
