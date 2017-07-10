@@ -180,7 +180,7 @@ func lxcValidConfig(rawLxc string) error {
 		key := strings.ToLower(strings.Trim(membs[0], " \t"))
 
 		// Blacklist some keys
-		if key == "lxc.logfile" {
+		if key == "lxc.logfile" || key == "lxc.log.file" {
 			return fmt.Errorf("Setting lxc.logfile is not allowed")
 		}
 
