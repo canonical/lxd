@@ -15,8 +15,15 @@ import (
 
 // zfsPoolVolumeCreate creates a ZFS dataset with a set of given properties.
 func zfsPoolVolumeCreate(dataset string, properties ...string) (string, error) {
-	p := strings.Join(properties, ",")
-	return shared.RunCommand("zfs", "create", "-o", p, "-p", dataset)
+	cmd := []string{"zfs", "create"}
+
+	for _, prop := range properties {
+		cmd = append(cmd, []string{"-o", prop}...)
+	}
+
+	cmd = append(cmd, []string{"-p", dataset}...)
+
+	return shared.RunCommand(cmd[0], cmd[1:]...)
 }
 
 func zfsPoolVolumeSet(dataset string, key string, value string) (string, error) {
@@ -248,6 +255,7 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 		"clone",
 		"-p",
 		"-o", fmt.Sprintf("mountpoint=%s", mountpoint),
+		"-o", "canmount=noauto",
 		fmt.Sprintf("%s/%s@%s", poolName, source, name),
 		fmt.Sprintf("%s/%s", poolName, dest))
 	if err != nil {
@@ -278,6 +286,7 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 			"clone",
 			"-p",
 			"-o", fmt.Sprintf("mountpoint=%s", snapshotMntPoint),
+			"-o", "canmount=noauto",
 			fmt.Sprintf("%s/%s@%s", poolName, sub, name),
 			fmt.Sprintf("%s/%s", poolName, destSubvol))
 		if err != nil {

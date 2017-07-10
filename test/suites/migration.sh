@@ -74,10 +74,10 @@ migration() {
   # perform existence check for various files.
   lxc_remote start l2:nonlive
   # FIXME: make this backend agnostic
-  if [ "$lxd2_backend" != "lvm" ]; then
+  if [ "$lxd2_backend" != "lvm" ] && [ "$lxd2_backend" != "zfs" ]; then
     [ -d "${lxd2_dir}/containers/nonlive/rootfs" ]
   fi
-  lxc_remote stop l2:nonlive
+  lxc_remote stop l2:nonlive --force
 
   [ ! -d "${LXD_DIR}/containers/nonlive" ]
   # FIXME: make this backend agnostic
@@ -91,7 +91,7 @@ migration() {
   lxc_remote start l2:nonlive
   [ -d "${LXD_DIR}/containers/nonlive2" ]
   # FIXME: make this backend agnostic
-  if [ "$lxd2_backend" != "lvm" ]; then
+  if [ "$lxd2_backend" != "lvm" ] && [ "$lxd2_backend" != "zfs" ]; then
     [ -d "${lxd2_dir}/containers/nonlive/rootfs/bin" ]
   fi
 
@@ -102,12 +102,12 @@ migration() {
 
   lxc_remote copy l1:nonlive2/snap0 l2:nonlive3 --mode=relay
   # FIXME: make this backend agnostic
-  if [ "$lxd2_backend" != "lvm" ]; then
+  if [ "$lxd2_backend" != "lvm" ] && [ "$lxd2_backend" != "zfs" ]; then
     [ -d "${lxd2_dir}/containers/nonlive3/rootfs/bin" ]
   fi
   lxc_remote delete l2:nonlive3 --force
 
-  lxc_remote stop l2:nonlive
+  lxc_remote stop l2:nonlive --force
   lxc_remote copy l2:nonlive l2:nonlive2 --mode=push
   # should have the same base image tag
   [ "$(lxc_remote config get l2:nonlive volatile.base_image)" = "$(lxc_remote config get l2:nonlive2 volatile.base_image)" ]

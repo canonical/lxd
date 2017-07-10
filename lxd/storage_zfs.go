@@ -191,7 +191,7 @@ func (s *storageZfs) StoragePoolVolumeCreate() error {
 	dataset := fmt.Sprintf("%s/%s", poolName, fs)
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
-	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none", "canmount=noauto")
 	if err != nil {
 		logger.Errorf("failed to create ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
 		return err
@@ -534,11 +534,12 @@ func (s *storageZfs) ContainerCreate(container container) error {
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 
 	// Create volume.
-	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none", "canmount=noauto")
 	if err != nil {
 		logger.Errorf("failed to create ZFS storage volume for container \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
 		return err
 	}
+
 	revert := true
 	defer func() {
 		if !revert {
@@ -551,6 +552,14 @@ func (s *storageZfs) ContainerCreate(container container) error {
 	err = s.zfsPoolVolumeSet(fs, "mountpoint", containerPoolVolumeMntPoint)
 	if err != nil {
 		return err
+	}
+
+	ourMount, err := s.ContainerMount(container)
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.ContainerUmount(containerName, containerPath)
 	}
 
 	err = createContainerMountpoint(containerPoolVolumeMntPoint, containerPath, container.IsPrivileged())
@@ -611,6 +620,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	if err != nil {
 		return err
 	}
+
 	revert := true
 	defer func() {
 		if !revert {
@@ -618,6 +628,14 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 		}
 		s.ContainerDelete(container)
 	}()
+
+	ourMount, err := s.ContainerMount(container)
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.ContainerUmount(containerName, containerPath)
+	}
 
 	privileged := container.IsPrivileged()
 	err = createContainerMountpoint(containerPoolVolumeMntPoint, containerPath, privileged)
@@ -921,6 +939,12 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 
 	targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetName)
 	targetfs := fmt.Sprintf("containers/%s", targetName)
+
+	err = s.zfsPoolVolumeSet(targetfs, "canmount", "noauto")
+	if err != nil {
+		return err
+	}
+
 	err = s.zfsPoolVolumeSet(targetfs, "mountpoint", targetContainerMountPoint)
 	if err != nil {
 		return err
@@ -929,6 +953,14 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 	err = s.zfsPoolVolumeSnapshotDestroy(targetfs, snapshotSuffix)
 	if err != nil {
 		return err
+	}
+
+	ourMount, err := s.ContainerMount(target)
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.ContainerUmount(targetName, targetContainerMountPoint)
 	}
 
 	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
@@ -1092,6 +1124,12 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 		s.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", target.Name()), tmpSnapshotName)
 
 		fs := fmt.Sprintf("containers/%s", target.Name())
+
+		err = s.zfsPoolVolumeSet(fs, "canmount", "noauto")
+		if err != nil {
+			return err
+		}
+
 		err = s.zfsPoolVolumeSet(fs, "mountpoint", targetContainerMountPoint)
 		if err != nil {
 			return err
@@ -1496,6 +1534,11 @@ func (s *storageZfs) ContainerSnapshotStart(container container) (bool, error) {
 
 	snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, container.Name())
 	err := s.zfsPoolVolumeClone(sourceFs, sourceSnap, destFs, snapshotMntPoint)
+	if err != nil {
+		return false, err
+	}
+
+	err = s.zfsPoolVolumeMount(destFs)
 	if err != nil {
 		return false, err
 	}
@@ -1948,9 +1991,11 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	 */
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
 	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
-	err := s.zfsPoolVolumeUmount(zfsName, containerMntPoint)
-	if err != nil {
-		return err
+	if shared.IsMountPoint(containerMntPoint) {
+		err := s.zfsPoolVolumeUmount(zfsName, containerMntPoint)
+		if err != nil {
+			return err
+		}
 	}
 
 	if len(snapshots) > 0 {
