@@ -199,11 +199,17 @@ func lxcValidConfig(rawLxc string) error {
 
 		if strings.HasPrefix(key, networkKeyPrefix) {
 			fields := strings.Split(key, ".")
-			if len(fields) == 4 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) {
+
+			allowedIPKeys := []string{"ipv4.address", "ipv6.address"}
+			if !lxc.VersionAtLeast(2, 1, 0) {
+				allowedIPKeys = []string{"ipv4", "ipv6"}
+			}
+
+			if len(fields) == 4 && shared.StringInSlice(fields[3], allowedIPKeys) {
 				continue
 			}
 
-			if len(fields) == 5 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
+			if len(fields) == 5 && shared.StringInSlice(fields[3], allowedIPKeys) && fields[4] == "gateway" {
 				continue
 			}
 
