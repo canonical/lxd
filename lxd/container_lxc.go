@@ -955,7 +955,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup the console
-	err = lxcSetConfigItem(cc, "lxc.tty", "0")
+	err = lxcSetConfigItem(cc, "lxc.tty.max", "0")
 	if err != nil {
 		return err
 	}
