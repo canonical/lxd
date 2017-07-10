@@ -807,7 +807,7 @@ func (c *containerLXC) initLXC() error {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.pts", "1024")
+	err = lxcSetConfigItem(cc, "lxc.pty.max", "1024")
 	if err != nil {
 		return err
 	}
