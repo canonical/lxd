@@ -773,3 +773,49 @@ func parseParent(parent string) (string, string, string, string, error) {
 
 	return poolName, volumeType, volumeName, snapshotName, nil
 }
+
+// parseClone splits a strings describing an RBD storage volume
+// For example a string like
+// <osd-pool-name>/<lxd-specific-prefix>_<rbd-storage-volume>
+// will be split into
+// <osd-pool-name>, <lxd-specific-prefix>, <rbd-storage-volume>
+func parseClone(clone string) (string, string, string, error) {
+	idx := strings.Index(clone, "/")
+	if idx == -1 {
+		return "", "", "", fmt.Errorf("Unexpected parsing error")
+	}
+	slider := clone[(idx + 1):]
+	poolName := clone[:idx]
+
+	volumeType := slider
+	idx = strings.Index(slider, "zombie_")
+	if idx == 0 {
+		idx += len("zombie_")
+		volumeType = slider
+		slider = slider[idx:]
+	}
+
+	idxType := strings.Index(slider, "_")
+	if idxType == -1 {
+		return "", "", "", fmt.Errorf("Unexpected parsing error")
+	}
+
+	if idx == len("zombie_") {
+		idxType += idx
+	}
+	volumeType = volumeType[:idxType]
+
+	idx = strings.Index(slider, "_")
+	if idx == -1 {
+		return "", "", "", fmt.Errorf("Unexpected parsing error")
+	}
+
+	volumeName := slider
+	idx = strings.Index(volumeName, "_")
+	if idx == -1 {
+		return "", "", "", fmt.Errorf("Unexpected parsing error")
+	}
+	volumeName = volumeName[(idx + 1):]
+
+	return poolName, volumeType, volumeName, nil
+}
