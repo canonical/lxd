@@ -44,6 +44,7 @@ var patches = []patch{
 	{name: "storage_api_lxd_on_btrfs", run: patchStorageApiLxdOnBtrfs},
 	{name: "storage_api_lvm_detect_lv_size", run: patchStorageApiDetectLVSize},
 	{name: "storage_api_insert_zfs_driver", run: patchStorageApiInsertZfsDriver},
+	{name: "storage_zfs_noauto", run: patchStorageZFSnoauto},
 }
 
 type patch struct {
@@ -2242,6 +2243,60 @@ func patchStorageApiInsertZfsDriver(name string, d *Daemon) error {
 	_, err := dbExec(d.db, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func patchStorageZFSnoauto(name string, d *Daemon) error {
+	pools, err := dbStoragePools(d.db)
+	if err != nil {
+		if err == NoSuchObjectError {
+			return nil
+		}
+		logger.Errorf("Failed to query database: %s", err)
+		return err
+	}
+
+	for _, poolName := range pools {
+		_, pool, err := dbStoragePoolGet(d.db, poolName)
+		if err != nil {
+			logger.Errorf("Failed to query database: %s", err)
+			return err
+		}
+
+		if pool.Driver != "zfs" {
+			continue
+		}
+
+		zpool := pool.Config["zfs.pool_name"]
+		if zpool == "" {
+			continue
+		}
+		paths := []string{fmt.Sprintf("%s/containers", zpool), fmt.Sprintf("%s/custom", zpool)}
+
+		args := []string{"list", "-t", "filesystem", "-o", "name", "-H", "-r"}
+		args = append(args, paths...)
+
+		output, err := shared.RunCommand("zfs", args...)
+		if err != nil {
+			return fmt.Errorf("Unable to list containers on zpool: %s", zpool)
+		}
+
+		for _, entry := range strings.Split(output, "\n") {
+			if entry == "" {
+				continue
+			}
+
+			if shared.StringInSlice(entry, paths) {
+				continue
+			}
+
+			_, err := shared.RunCommand("zfs", "set", "canmount=noauto", entry)
+			if err != nil {
+				return fmt.Errorf("Unable to set canmount=noauto on: %s", entry)
+			}
+		}
 	}
 
 	return nil
