@@ -978,7 +978,7 @@ func (c *containerLXC) initLXC() error {
 			// If confined but otherwise able to use AppArmor, use our own profile
 			curProfile := aaProfile()
 			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
-			err = lxcSetConfigItem(cc, "lxc.aa_profile", curProfile)
+			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", curProfile)
 			if err != nil {
 				return err
 			}
@@ -997,7 +997,7 @@ func (c *containerLXC) initLXC() error {
 				profile = fmt.Sprintf("%s//&:%s:", profile, AANamespace(c))
 			}
 
-			err := lxcSetConfigItem(cc, "lxc.aa_profile", profile)
+			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", profile)
 			if err != nil {
 				return err
 			}
