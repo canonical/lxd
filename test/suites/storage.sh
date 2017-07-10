@@ -330,10 +330,10 @@ test_storage() {
       lxc list -c b c12pool6 | grep "lxdtest-$(basename "${LXD_DIR}")-pool6"
       # grow lv
       lxc config device set c12pool6 root size 30MB
-      lxc restart c12pool6
+      lxc restart c12pool6 --force
       # shrink lv
       lxc config device set c12pool6 root size 25MB
-      lxc restart c12pool6
+      lxc restart c12pool6 --force
 
       lxc init testimage c10pool11 -s "lxdtest-$(basename "${LXD_DIR}")-pool11"
       lxc list -c b c10pool11 | grep "lxdtest-$(basename "${LXD_DIR}")-pool11"
