@@ -1022,7 +1022,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Setup Seccomp if necessary
 	if ContainerNeedsSeccomp(c) {
-		err = lxcSetConfigItem(cc, "lxc.seccomp", SeccompProfilePath(c))
+		err = lxcSetConfigItem(cc, "lxc.seccomp.profile", SeccompProfilePath(c))
 		if err != nil {
 			return err
 		}
