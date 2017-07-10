@@ -184,7 +184,7 @@ func lxcValidConfig(rawLxc string) error {
 			return fmt.Errorf("Setting lxc.logfile is not allowed")
 		}
 
-		if key == "lxc.syslog" {
+		if key == "lxc.syslog" || key == "lxc.log.syslog" {
 			return fmt.Errorf("Setting lxc.syslog is not allowed")
 		}
 
