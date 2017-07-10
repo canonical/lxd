@@ -1338,17 +1338,25 @@ func (c *containerLXC) initLXC() error {
 
 			// Deal with a rootfs
 			if tgtPath == "" {
-				// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
-				err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
-				if err == nil {
-					value := cc.ConfigItem("lxc.rootfs.backend")
-					if len(value) == 0 || value[0] != "dir" {
-						lxcSetConfigItem(cc, "lxc.rootfs.backend", "")
+				if !lxc.VersionAtLeast(2, 1, 0) {
+					// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
+					err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
+					if err == nil {
+						value := cc.ConfigItem("lxc.rootfs.backend")
+						if len(value) == 0 || value[0] != "dir" {
+							lxcSetConfigItem(cc, "lxc.rootfs.backend", "")
+						}
 					}
 				}
 
 				// Set the rootfs path
-				err = lxcSetConfigItem(cc, "lxc.rootfs", c.RootfsPath())
+				if lxc.VersionAtLeast(2, 1, 0) {
+					rootfsPath := fmt.Sprintf("dir:%s", c.RootfsPath())
+					err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
+				} else {
+					rootfsPath := c.RootfsPath()
+					err = lxcSetConfigItem(cc, "lxc.rootfs", rootfsPath)
+				}
 				if err != nil {
 					return err
 				}
