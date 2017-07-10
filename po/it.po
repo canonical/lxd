@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-03 14:21-0400\n"
+"POT-Creation-Date: 2017-07-10 20:31+0000\n"
 "PO-Revision-Date: 2017-06-15 22:46+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -153,7 +153,7 @@ msgstr "%s (altri %d)"
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/utils.go:337
+#: lxc/utils.go:344
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
@@ -365,7 +365,7 @@ msgstr ""
 msgid "Device %s removed from %s"
 msgstr ""
 
-#: lxc/utils.go:269 lxc/utils.go:293
+#: lxc/utils.go:276 lxc/utils.go:300
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "il remote %s esiste già"
@@ -382,7 +382,7 @@ msgstr ""
 msgid "Disk usage:"
 msgstr ""
 
-#: lxc/list.go:614
+#: lxc/list.go:619
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -610,7 +610,7 @@ msgstr ""
 msgid "Memory usage:"
 msgstr ""
 
-#: lxc/utils.go:220
+#: lxc/utils.go:227
 msgid "Missing summary."
 msgstr ""
 
@@ -706,7 +706,7 @@ msgstr ""
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:616
+#: lxc/list.go:621
 msgid "PERSISTENT"
 msgstr ""
 
@@ -840,7 +840,7 @@ msgstr ""
 msgid "Remote admin password"
 msgstr ""
 
-#: lxc/utils.go:328
+#: lxc/utils.go:335
 msgid "Remote operation canceled by user"
 msgstr ""
 
@@ -1486,9 +1486,9 @@ msgid ""
 "\n"
 "\t- \"u.blah=abc\" will do the same\n"
 "\n"
-"\t- \"security.privileged=1\" will list all privileged containers\n"
+"\t- \"security.privileged=true\" will list all privileged containers\n"
 "\n"
-"\t- \"s.privileged=1\" will do the same\n"
+"\t- \"s.privileged=true\" will do the same\n"
 "\n"
 "A regular expression matching a configuration item or its value. (e.g. "
 "volatile.eth0.hwaddr=00:16:3e:.*).\n"
@@ -1902,7 +1902,7 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr ""
 
-#: lxc/utils.go:333
+#: lxc/utils.go:340
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-03 14:21-0400\n"
+"POT-Creation-Date: 2017-07-10 20:31+0000\n"
 "PO-Revision-Date: 2017-03-23 12:03+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -132,7 +132,7 @@ msgstr ""
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/utils.go:337
+#: lxc/utils.go:344
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
@@ -347,7 +347,7 @@ msgstr "デバイス %s が %s に追加されました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
-#: lxc/utils.go:269 lxc/utils.go:293
+#: lxc/utils.go:276 lxc/utils.go:300
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "リモート %s は既に存在します"
@@ -364,7 +364,7 @@ msgstr "標準入力を無効にします (/dev/null から読み込みます)"
 msgid "Disk usage:"
 msgstr "ディスク使用量:"
 
-#: lxc/list.go:614
+#: lxc/list.go:619
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -596,7 +596,7 @@ msgstr "メモリ (ピーク)"
 msgid "Memory usage:"
 msgstr "メモリ消費量:"
 
-#: lxc/utils.go:220
+#: lxc/utils.go:227
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
@@ -695,7 +695,7 @@ msgstr "オプション:"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
-#: lxc/list.go:616
+#: lxc/list.go:621
 msgid "PERSISTENT"
 msgstr ""
 
@@ -829,7 +829,7 @@ msgstr "イメージの取得中: %s"
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
-#: lxc/utils.go:328
+#: lxc/utils.go:335
 #, fuzzy
 msgid "Remote operation canceled by user"
 msgstr "ユーザによりサーバ証明書が拒否されました"
@@ -1707,9 +1707,9 @@ msgid ""
 "\n"
 "\t- \"u.blah=abc\" will do the same\n"
 "\n"
-"\t- \"security.privileged=1\" will list all privileged containers\n"
+"\t- \"security.privileged=true\" will list all privileged containers\n"
 "\n"
-"\t- \"s.privileged=1\" will do the same\n"
+"\t- \"s.privileged=true\" will do the same\n"
 "\n"
 "A regular expression matching a configuration item or its value. (e.g. "
 "volatile.eth0.hwaddr=00:16:3e:.*).\n"
@@ -2510,7 +2510,7 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr "ユーザが削除操作を中断しました。"
 
-#: lxc/utils.go:333
+#: lxc/utils.go:340
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."
