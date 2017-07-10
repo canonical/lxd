@@ -961,7 +961,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup the hostname
-	err = lxcSetConfigItem(cc, "lxc.utsname", c.Name())
+	err = lxcSetConfigItem(cc, "lxc.uts.name", c.Name())
 	if err != nil {
 		return err
 	}
