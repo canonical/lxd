@@ -924,7 +924,7 @@ func (c *containerLXC) initLXC() error {
 		logLevel = "info"
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.loglevel", logLevel)
+	err = lxcSetConfigItem(cc, "lxc.log.level", logLevel)
 	if err != nil {
 		return err
 	}
