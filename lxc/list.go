@@ -61,9 +61,9 @@ A key/value pair referring to a configuration item. For those, the namespace can
 
     - "u.blah=abc" will do the same
 
-    - "security.privileged=1" will list all privileged containers
+    - "security.privileged=true" will list all privileged containers
 
-    - "s.privileged=1" will do the same
+    - "s.privileged=true" will do the same
 
 A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*).
 
