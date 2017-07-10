@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-03 14:21-0400\n"
+"POT-Creation-Date: 2017-07-10 20:31+0000\n"
 "PO-Revision-Date: 2017-06-07 15:24+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -209,7 +209,7 @@ msgstr "%s (%d de plus)"
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/utils.go:337
+#: lxc/utils.go:344
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
@@ -426,7 +426,7 @@ msgstr "Périphérique %s ajouté à %s"
 msgid "Device %s removed from %s"
 msgstr "Périphérique %s retiré de %s"
 
-#: lxc/utils.go:269 lxc/utils.go:293
+#: lxc/utils.go:276 lxc/utils.go:300
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "le serveur distant %s existe déjà"
@@ -444,7 +444,7 @@ msgstr "Désactiver stdin (lecture à partir de /dev/null)"
 msgid "Disk usage:"
 msgstr "  Disque utilisé :"
 
-#: lxc/list.go:614
+#: lxc/list.go:619
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
@@ -680,7 +680,7 @@ msgstr "Mémoire (pointe)"
 msgid "Memory usage:"
 msgstr "  Mémoire utilisée :"
 
-#: lxc/utils.go:220
+#: lxc/utils.go:227
 msgid "Missing summary."
 msgstr "Résumé manquant."
 
@@ -780,7 +780,7 @@ msgstr "Options :"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "Surcharger le mode terminal (auto, interactif ou non-interactif)"
 
-#: lxc/list.go:616
+#: lxc/list.go:621
 msgid "PERSISTENT"
 msgstr "PERSISTANT"
 
@@ -915,7 +915,7 @@ msgstr "Récupération de l'image : %s"
 msgid "Remote admin password"
 msgstr "Mot de passe de l'administrateur distant"
 
-#: lxc/utils.go:328
+#: lxc/utils.go:335
 #, fuzzy
 msgid "Remote operation canceled by user"
 msgstr "Certificat serveur rejeté par l'utilisateur"
@@ -1798,9 +1798,9 @@ msgid ""
 "\n"
 "\t- \"u.blah=abc\" will do the same\n"
 "\n"
-"\t- \"security.privileged=1\" will list all privileged containers\n"
+"\t- \"security.privileged=true\" will list all privileged containers\n"
 "\n"
-"\t- \"s.privileged=1\" will do the same\n"
+"\t- \"s.privileged=true\" will do the same\n"
 "\n"
 "A regular expression matching a configuration item or its value. (e.g. "
 "volatile.eth0.hwaddr=00:16:3e:.*).\n"
@@ -2445,7 +2445,7 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr "L'utilisateur a annulé l'opération de suppression."
 
-#: lxc/utils.go:333
+#: lxc/utils.go:340
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."
