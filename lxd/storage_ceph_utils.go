@@ -719,3 +719,57 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		target.Name())
 	return nil
 }
+
+// parseParent splits a string describing a RBD storage entity into its
+// components
+// This can be used on strings like
+// <osd-pool-name>/<lxd-specific-prefix>_<rbd-storage-volume>@<rbd-snapshot-name>
+// and will split it into
+// <osd-pool-name>, <rbd-storage-volume>, <lxd-specific-prefix>, <rbdd-snapshot-name>
+func parseParent(parent string) (string, string, string, string, error) {
+	idx := strings.Index(parent, "/")
+	if idx == -1 {
+		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
+	}
+	slider := parent[(idx + 1):]
+	poolName := parent[:idx]
+
+	volumeType := slider
+	idx = strings.Index(slider, "zombie_")
+	if idx == 0 {
+		idx += len("zombie_")
+		volumeType = slider
+		slider = slider[idx:]
+	}
+
+	idxType := strings.Index(slider, "_")
+	if idxType == -1 {
+		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
+	}
+
+	if idx == len("zombie_") {
+		idxType += idx
+	}
+	volumeType = volumeType[:idxType]
+
+	idx = strings.Index(slider, "_")
+	if idx == -1 {
+		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
+	}
+
+	volumeName := slider
+	idx = strings.Index(volumeName, "_")
+	if idx == -1 {
+		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
+	}
+	volumeName = volumeName[(idx + 1):]
+
+	idx = strings.Index(volumeName, "@")
+	if idx == -1 {
+		return "", "", "", "", fmt.Errorf("Unexpected parsing error")
+	}
+	snapshotName := volumeName[(idx + 1):]
+	volumeName = volumeName[:idx]
+
+	return poolName, volumeType, volumeName, snapshotName, nil
+}
