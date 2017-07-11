@@ -454,7 +454,7 @@ func (s *storageZfs) ContainerMount(c container) (bool, error) {
 	if !shared.IsMountPoint(containerPoolVolumeMntPoint) {
 		source := fmt.Sprintf("%s/%s", s.getOnDiskPoolName(), fs)
 		zfsMountOptions := fmt.Sprintf("rw,zfsutil,mntpoint=%s", containerPoolVolumeMntPoint)
-		mounterr := syscall.Mount(source, containerPoolVolumeMntPoint, "zfs", 0, zfsMountOptions)
+		mounterr := tryMount(source, containerPoolVolumeMntPoint, "zfs", 0, zfsMountOptions)
 		if mounterr != nil {
 			if mounterr != syscall.EBUSY {
 				logger.Errorf("Failed to mount ZFS dataset \"%s\" onto \"%s\".", source, containerPoolVolumeMntPoint)
