@@ -702,11 +702,10 @@ func (s *storageCeph) ContainerRestore(
 	return nil
 }
 
-func (s *storageCeph) ContainerGetUsage(
-	container container) (int64, error) {
-
-	return 0, nil
+func (s *storageCeph) ContainerGetUsage(container container) (int64, error) {
+	return -1, fmt.Errorf("RBD quotas are currently not supported")
 }
+
 func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
 	targetContainerName := snapshotContainer.Name()
 	logger.Debugf("Creating RBD storage volume for snapshot \"%s\" on storage pool \"%s\".", targetContainerName, s.pool.Name)
