@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 
@@ -916,7 +917,54 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 	return true, nil
 }
 
-func (s *storageCeph) ContainerSnapshotStop(container container) (bool, error) {
+func (s *storageCeph) ContainerSnapshotStop(c container) (bool, error) {
+	containerName := c.Name()
+	logger.Debugf(`Stopping RBD storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, containerName, s.pool.Name)
+
+	containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
+	err := tryUnmount(containerMntPoint, syscall.MNT_DETACH)
+	if err != nil {
+		logger.Errorf("Failed to unmount %s: %s", containerMntPoint,
+			err)
+		return false, err
+	}
+	logger.Debugf("Unmounted %s", containerMntPoint)
+
+	containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(containerName)
+	cloneName := fmt.Sprintf("%s_%s_start_clone", containerOnlyName, snapOnlyName)
+	// unmap
+	err = cephRBDVolumeUnmap(
+		s.ClusterName,
+		s.OSDPoolName,
+		cloneName,
+		"snapshots")
+	if err != nil {
+		logger.Errorf(`Failed to unmap RBD storage volume for `+
+			`container "%s" on storage pool "%s": %s`,
+			containerName, s.pool.Name, err)
+		return false, err
+	}
+	logger.Debugf(`Unmapped RBD storage volume for container "%s" on `+
+		`storage pool "%s"`, containerName, s.pool.Name)
+
+	// delete
+	err = cephRBDVolumeDelete(
+		s.ClusterName,
+		s.OSDPoolName,
+		cloneName,
+		"snapshots")
+	if err != nil {
+		logger.Errorf(`Failed to delete clone of RBD storage volume `+
+			`for container "%s" on storage pool "%s": %s`,
+			containerName, s.pool.Name, err)
+		return false, err
+	}
+	logger.Debugf(`Deleted clone of RBD storage volume for container "%s" `+
+		`on storage pool "%s"`, containerName, s.pool.Name)
+
+	logger.Debugf(`Stopped RBD storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, containerName, s.pool.Name)
 	return true, nil
 }
 
