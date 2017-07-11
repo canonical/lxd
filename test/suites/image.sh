@@ -50,3 +50,22 @@ test_image_list_all_aliases() {
     lxc image list -c L | grep -q zzz
 
 }
+
+test_image_import_dir() {
+    ensure_import_testimage
+    lxc image export testimage
+    # shellcheck disable=2039,2034,2155
+    local image=$(ls -1 -- *.tar.xz)
+    mkdir -p unpacked
+    tar -C unpacked -xf "$image"
+    # shellcheck disable=2039,2034,2155
+    local fingerprint=$(lxc image import unpacked | awk '{print $NF;}')
+    rm -rf "$image" unpacked
+
+    lxc image export "$fingerprint"
+    # shellcheck disable=2039,2034,2155
+    local exported="${fingerprint}.tar.xz"
+
+    tar tvf "$exported" | fgrep -q metadata.yaml
+    rm "$exported"
+}

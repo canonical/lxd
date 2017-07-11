@@ -89,8 +89,9 @@ Images can be referenced by their full hash, shortest unique partial
 hash or alias name (if one is set).
 
 
-lxc image import <tarball> [<rootfs tarball>|<URL>] [<remote>:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS...] [prop=value]
-    Import an image tarball (or tarballs) into the LXD image store.
+lxc image import <tarball>|<dir> [<rootfs tarball>|<URL>] [<remote>:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS...] [prop=value]
+    Import an image tarball (or tarballs) or an image directory into the LXD image store.
+    Directory import is only available on Linux and must be performed as root.
 
 lxc image copy [<remote>:]<image> <remote>: [--alias=ALIAS...] [--copy-aliases] [--public] [--auto-update]
     Copy an image from one LXD daemon to another over the network.
@@ -669,6 +670,15 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			var rootfs io.ReadCloser
 
 			// Open meta
+			if shared.IsDir(imageFile) {
+				imageFile, err = packImageDir(imageFile)
+				if err != nil {
+					return err
+				}
+				// remove temp file
+				defer os.Remove(imageFile)
+
+			}
 			meta, err = os.Open(imageFile)
 			if err != nil {
 				return err
@@ -1197,4 +1207,27 @@ func (c *imageCmd) aliasShouldShow(filters []string, state *api.ImageAliasesEntr
 	}
 
 	return false
+}
+
+// Package the image from the specified directory, if running as root.  Return
+// the image filename
+func packImageDir(path string) (string, error) {
+	switch os.Geteuid() {
+	case 0:
+	case -1:
+		return "", fmt.Errorf(
+			i18n.G("Directory import is not available on this platform"))
+	default:
+		return "", fmt.Errorf(i18n.G("Must run as root to import from directory"))
+	}
+
+	outFile, err := ioutil.TempFile("", "lxd_image_")
+	if err != nil {
+		return "", err
+	}
+	defer outFile.Close()
+	outFileName := outFile.Name()
+
+	shared.RunCommand("tar", "-C", path, "--numeric-owner", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
+	return outFileName, nil
 }
