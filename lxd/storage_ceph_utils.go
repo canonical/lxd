@@ -395,6 +395,26 @@ func cephRBDVolumeUnmarkDeleted(clusterName string, poolName string,
 }
 
 // cephRBDVolumeRename renames a given RBD storage volume
+// Note that this usually requires that the image be unmapped under its original
+// name, then renamed, and finally will be remapped again. If it is not unmapped
+// under its original name and the callers maps it under its new name the image
+// will be mapped twice. This will prevent it from being deleted.
+func cephRBDVolumeRename(clusterName string, poolName string, volumeType string,
+	oldVolumeName string, newVolumeName string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"mv",
+		fmt.Sprintf("%s/%s_%s", poolName, volumeType, oldVolumeName),
+		fmt.Sprintf("%s/%s_%s", poolName, volumeType, newVolumeName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// cephRBDVolumeRename renames a given RBD storage volume
 // Note that if the snapshot is mapped - which it usually shouldn't be - this
 // usually requires that the snapshot be unmapped under its original name, then
 // renamed, and finally will be remapped again. If it is not unmapped under its
