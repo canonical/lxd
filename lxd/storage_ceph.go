@@ -834,7 +834,85 @@ func (s *storageCeph) ContainerSnapshotRename(c container, newName string) error
 	return nil
 }
 
-func (s *storageCeph) ContainerSnapshotStart(container container) (bool, error) {
+func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
+	containerName := c.Name()
+	logger.Debugf(`Initializing RBD storage volume for snapshot "%s" `+
+		`on storage pool "%s"`, containerName, s.pool.Name)
+
+	containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(containerName)
+
+	// protect
+	prefixedSnapOnlyName := fmt.Sprintf("snapshot_%s", snapOnlyName)
+	err := cephRBDSnapshotProtect(
+		s.ClusterName,
+		s.OSDPoolName,
+		containerOnlyName,
+		storagePoolVolumeTypeNameContainer,
+		prefixedSnapOnlyName)
+	if err != nil {
+		logger.Errorf(`Failed to protect snapshot of RBD storage `+
+			`volume for container "%s" on storage pool "%s": %s`,
+			containerName, s.pool.Name, err)
+		return false, err
+	}
+	logger.Debugf(`Protected snapshot of RBD storage volume for container `+
+		`"%s" on storage pool "%s"`, containerName, s.pool.Name)
+
+	cloneName := fmt.Sprintf("%s_%s_start_clone", containerOnlyName, snapOnlyName)
+	// clone
+	err = cephRBDCloneCreate(
+		s.ClusterName,
+		s.OSDPoolName,
+		containerOnlyName,
+		storagePoolVolumeTypeNameContainer,
+		prefixedSnapOnlyName,
+		s.OSDPoolName,
+		cloneName,
+		"snapshots")
+	if err != nil {
+		logger.Errorf(`Failed to create clone of RBD storage volume `+
+			`for container "%s" on storage pool "%s": %s`,
+			containerName, s.pool.Name, err)
+		return false, err
+	}
+	logger.Debugf(`Created clone of RBD storage volume for container "%s" `+
+		`on storage pool "%s"`, containerName, s.pool.Name)
+
+	// map
+	err = cephRBDVolumeMap(
+		s.ClusterName,
+		s.OSDPoolName,
+		cloneName,
+		"snapshots")
+	if err != nil {
+		logger.Errorf(`Failed to map RBD storage volume for `+
+			`container "%s" on storage pool "%s": %s`,
+			containerName, s.pool.Name, err)
+		return false, err
+	}
+	logger.Debugf(`Mapped RBD storage volume for container "%s" on `+
+		`storage pool "%s"`, containerName, s.pool.Name)
+
+	containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
+	RBDFilesystem := s.getRBDFilesystem()
+	RBDDevPath := getRBDDevPath(s.OSDPoolName, "snapshots", cloneName)
+	mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
+	err = tryMount(
+		RBDDevPath,
+		containerMntPoint,
+		RBDFilesystem,
+		mountFlags,
+		mountOptions)
+	if err != nil {
+		logger.Errorf("Failed to mount RBD device %s onto %s: %s",
+			RBDDevPath, containerMntPoint, err)
+		return false, err
+	}
+	logger.Debugf("Mounted RBD device %s onto %s", RBDDevPath,
+		containerMntPoint)
+
+	logger.Debugf(`Initialized RBD storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, containerName, s.pool.Name)
 	return true, nil
 }
 
