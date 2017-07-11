@@ -793,9 +793,44 @@ func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer container) error
 	return nil
 }
 
-func (s *storageCeph) ContainerSnapshotRename(
-	snapshotContainer container, newName string) error {
+func (s *storageCeph) ContainerSnapshotRename(c container, newName string) error {
+	oldName := c.Name()
+	logger.Debugf(`Renaming RBD storage volume for snapshot "%s" from `+
+		`"%s" to "%s"`, oldName, oldName, newName)
 
+	containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(oldName)
+	oldSnapOnlyName := fmt.Sprintf("snapshot_%s", snapOnlyName)
+	_, newSnapOnlyName, _ := containerGetParentAndSnapshotName(newName)
+	newSnapOnlyName = fmt.Sprintf("snapshot_%s", newSnapOnlyName)
+	err := cephRBDVolumeSnapshotRename(
+		s.ClusterName,
+		s.OSDPoolName,
+		containerOnlyName,
+		storagePoolVolumeTypeNameContainer,
+		oldSnapOnlyName,
+		newSnapOnlyName)
+	if err != nil {
+		logger.Errorf(`Failed to rename RBD storage volume for `+
+			`snapshot "%s" from "%s" to "%s": %s`, oldName, oldName,
+			newName, err)
+		return err
+	}
+
+	oldSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, oldName)
+	newSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, newName)
+	err = os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
+	if err != nil {
+		logger.Errorf(`Failed to rename mountpoint for RBD storage `+
+			`volume for snapshot "%s" from "%s" to "%s": %s`,
+			oldName, oldSnapshotMntPoint, newSnapshotMntPoint, err)
+		return err
+	}
+	logger.Debugf(`Renamed mountpoint for RBD storage volume for `+
+		`snapshot "%s" from "%s" to "%s"`, oldName, oldSnapshotMntPoint,
+		newSnapshotMntPoint)
+
+	logger.Debugf(`Renamed RBD storage volume for snapshot "%s" from `+
+		`"%s" to "%s"`, oldName, oldName, newName)
 	return nil
 }
 
