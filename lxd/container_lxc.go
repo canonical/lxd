@@ -105,6 +105,49 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 		return fmt.Errorf("Uninitialized go-lxc struct")
 	}
 
+	if !lxc.VersionAtLeast(2, 1, 0) {
+		switch key {
+		case "lxc.uts.name":
+			key = "lxc.utsname"
+		case "lxc.pty.max":
+			key = "lxc.pts"
+		case "lxc.tty.dir":
+			key = "lxc.devttydir"
+		case "lxc.tty.max":
+			key = "lxc.tty"
+		case "lxc.apparmor.profile":
+			key = "lxc.aa_profile"
+		case "lxc.apparmor.allow_incomplete":
+			key = "lxc.aa_allow_incomplete"
+		case "lxc.selinux.context":
+			key = "lxc.se_context"
+		case "lxc.mount.fstab":
+			key = "lxc.mount"
+		case "lxc.console.path":
+			key = "lxc.console"
+		case "lxc.seccomp.profile":
+			key = "lxc.seccomp"
+		case "lxc.signal.halt":
+			key = "lxc.haltsignal"
+		case "lxc.signal.reboot":
+			key = "lxc.rebootsignal"
+		case "lxc.signal.stop":
+			key = "lxc.stopsignal"
+		case "lxc.log.syslog":
+			key = "lxc.syslog"
+		case "lxc.log.level":
+			key = "lxc.loglevel"
+		case "lxc.log.file":
+			key = "lxc.logfile"
+		case "lxc.init.cmd":
+			key = "lxc.init_cmd"
+		case "lxc.init.uid":
+			key = "lxc.init_uid"
+		case "lxc.init.gid":
+			key = "lxc.init_gid"
+		}
+	}
+
 	err := c.SetConfigItem(key, value)
 	if err != nil {
 		return fmt.Errorf("Failed to set LXC config: %s=%s", key, value)
