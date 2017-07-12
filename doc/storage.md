@@ -41,7 +41,7 @@ Storage volume configuration keys can be set using the lxc tool with:
 
 # Storage Backends and supported functions
 ## Feature comparison
-LXD supports using ZFS, btrfs, LVM or just plain directories for storage of images and containers.  
+LXD supports using ZFS, btrfs, LVM or just plain directories for storage of images and containers.
 Where possible, LXD tries to use the advanced features of each system to optimize operations.
 
 Feature                                     | Directory | Btrfs | LVM   | ZFS
@@ -59,30 +59,30 @@ Restore from older snapshots (not latest)   | yes       | yes   | yes   | no
 Storage quotas                              | no        | yes   | no    | yes
 
 ## Recommended setup
-The two best options for use with LXD are ZFS and btrfs.  
+The two best options for use with LXD are ZFS and btrfs.
 They have about similar functionalities but ZFS is more reliable if available on your particular platform.
 
-Whenever possible, you should dedicate a full disk or partition to your LXD storage pool.  
+Whenever possible, you should dedicate a full disk or partition to your LXD storage pool.
 While LXD will let you create loop based storage, this isn't a recommended for production use.
 
-Similarly, the directory backend is to be considered as a last resort option.  
-It does support all main LXD features, but is terribly slow and inefficient as it can't perform  
+Similarly, the directory backend is to be considered as a last resort option.
+It does support all main LXD features, but is terribly slow and inefficient as it can't perform
 instant copies or snapshots and so needs to copy the entirety of the container's filesystem every time.
 
 ## Optimized image storage
-All backends but the directory backend have some kind of optimized image storage format.  
-This is used by LXD to make container creation near instantaneous by simply cloning a pre-made  
+All backends but the directory backend have some kind of optimized image storage format.
+This is used by LXD to make container creation near instantaneous by simply cloning a pre-made
 image volume rather than unpack the image tarball from scratch.
 
-As it would be wasteful to prepare such a volume on a storage pool that may never be used with that image,  
+As it would be wasteful to prepare such a volume on a storage pool that may never be used with that image,
 the volume is generated on demand, causing the first container to take longer to create than subsequent ones.
 
 ## Optimized container transfer
-ZFS and btrfs both have an internal send/receive mechanism which allows for optimized volume transfer.  
+ZFS and btrfs both have an internal send/receive mechanism which allows for optimized volume transfer.
 LXD uses those features to transfer containers and snapshots between servers.
 
-When such capabilities aren't available, either because the storage driver doesn't support it  
-or because the storage backend of the source and target servers differ,  
+When such capabilities aren't available, either because the storage driver doesn't support it
+or because the storage backend of the source and target servers differ,
 LXD will fallback to using rsync to transfer the individual files instead.
 
 When rsync has to be used LXD allows to specify an upper limit on the amount of
@@ -90,7 +90,7 @@ socket I/O by setting the "rsync.bwlimit" storage pool property to a non-zero
 value.
 
 ## Default storage pool
-There is no concept of a default storage pool in LXD.  
+There is no concept of a default storage pool in LXD.
 Instead, the pool to use for the container's root is treated as just another "disk" device in LXD.
 
 The device entry looks like:
@@ -101,10 +101,10 @@ The device entry looks like:
     pool: default
 ```
 
-And it can be directly set on a container ("-s" option to "lxc launch" and "lxc init")  
+And it can be directly set on a container ("-s" option to "lxc launch" and "lxc init")
 or it can be set through LXD profiles.
 
-That latter option is what the default LXD setup (through "lxd init") will do for you.  
+That latter option is what the default LXD setup (through "lxd init") will do for you.
 The same can be done manually against any profile using (for the "default" profile):
 ```
 lxc profile device add default root disk path=/ pool=default
@@ -113,17 +113,17 @@ lxc profile device add default root disk path=/ pool=default
 ## I/O limits
 I/O limits in IOp/s or MB/s can be set on storage devices when attached to a container (see containers.md).
 
-Those are applied through the Linux "blkio" cgroup controller which makes it possible  
+Those are applied through the Linux "blkio" cgroup controller which makes it possible
 to restrict I/O at the disk level (but nothing finer grained than that).
 
 Because those apply to a whole physical disk rather than a partition or path, the following restrictions apply:
  - Limits will not apply to filesystems that are backed by virtual devices (e.g. device mapper).
  - If a fileystem is backed by multiple block devices, each device will get the same limit.
- - If the container is passed two disk devices that are each backed by the same disk,  
+ - If the container is passed two disk devices that are each backed by the same disk,
    the limits of the two devices will be averaged.
 
-It's also worth noting that all I/O limits only apply to actual block device access,  
-so you will need to consider the filesystem's own overhead when setting limits.  
+It's also worth noting that all I/O limits only apply to actual block device access,
+so you will need to consider the filesystem's own overhead when setting limits.
 This also means that access to cached data will not be affected by the limit.
 
 ## Notes and examples
