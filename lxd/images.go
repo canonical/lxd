@@ -1242,7 +1242,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		ext = ""
 	}
-	filename := fmt.Sprintf("%s%s", fingerprint, ext)
+	filename := fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
 
 	if shared.PathExists(rootfsPath) {
 		files := make([]fileResponseEntry, 2)
@@ -1257,7 +1257,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			ext = ""
 		}
-		filename = fmt.Sprintf("%s%s", fingerprint, ext)
+		filename = fmt.Sprintf("%s%s", imgInfo.Fingerprint, ext)
 
 		files[1].identifier = "rootfs"
 		files[1].path = rootfsPath
