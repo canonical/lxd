@@ -565,6 +565,25 @@ func cephRBDVolumeListSnapshots(clusterName string, poolName string,
 	return snapshots, nil
 }
 
+// cephRBDVolumeRestore restores an RBD storage volume to the state of one of
+// its snapshots
+func cephRBDVolumeRestore(clusterName string, poolName string, volumeName string,
+	volumeType string, snapshotName string) error {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"snap",
+		"rollback",
+		"--snap", snapshotName,
+		fmt.Sprintf("%s_%s", volumeType, volumeName))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // getRBDSize returns the size the RBD storage volume is supposed to be created
 // with
 func (s *storageCeph) getRBDSize() (string, error) {
