@@ -105,6 +105,49 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 		return fmt.Errorf("Uninitialized go-lxc struct")
 	}
 
+	if !lxc.VersionAtLeast(2, 1, 0) {
+		switch key {
+		case "lxc.uts.name":
+			key = "lxc.utsname"
+		case "lxc.pty.max":
+			key = "lxc.pts"
+		case "lxc.tty.dir":
+			key = "lxc.devttydir"
+		case "lxc.tty.max":
+			key = "lxc.tty"
+		case "lxc.apparmor.profile":
+			key = "lxc.aa_profile"
+		case "lxc.apparmor.allow_incomplete":
+			key = "lxc.aa_allow_incomplete"
+		case "lxc.selinux.context":
+			key = "lxc.se_context"
+		case "lxc.mount.fstab":
+			key = "lxc.mount"
+		case "lxc.console.path":
+			key = "lxc.console"
+		case "lxc.seccomp.profile":
+			key = "lxc.seccomp"
+		case "lxc.signal.halt":
+			key = "lxc.haltsignal"
+		case "lxc.signal.reboot":
+			key = "lxc.rebootsignal"
+		case "lxc.signal.stop":
+			key = "lxc.stopsignal"
+		case "lxc.log.syslog":
+			key = "lxc.syslog"
+		case "lxc.log.level":
+			key = "lxc.loglevel"
+		case "lxc.log.file":
+			key = "lxc.logfile"
+		case "lxc.init.cmd":
+			key = "lxc.init_cmd"
+		case "lxc.init.uid":
+			key = "lxc.init_uid"
+		case "lxc.init.gid":
+			key = "lxc.init_gid"
+		}
+	}
+
 	err := c.SetConfigItem(key, value)
 	if err != nil {
 		return fmt.Errorf("Failed to set LXC config: %s=%s", key, value)
@@ -137,11 +180,11 @@ func lxcValidConfig(rawLxc string) error {
 		key := strings.ToLower(strings.Trim(membs[0], " \t"))
 
 		// Blacklist some keys
-		if key == "lxc.logfile" {
+		if key == "lxc.logfile" || key == "lxc.log.file" {
 			return fmt.Errorf("Setting lxc.logfile is not allowed")
 		}
 
-		if key == "lxc.syslog" {
+		if key == "lxc.syslog" || key == "lxc.log.syslog" {
 			return fmt.Errorf("Setting lxc.syslog is not allowed")
 		}
 
@@ -156,11 +199,17 @@ func lxcValidConfig(rawLxc string) error {
 
 		if strings.HasPrefix(key, networkKeyPrefix) {
 			fields := strings.Split(key, ".")
-			if len(fields) == 4 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) {
+
+			allowedIPKeys := []string{"ipv4.address", "ipv6.address"}
+			if !lxc.VersionAtLeast(2, 1, 0) {
+				allowedIPKeys = []string{"ipv4", "ipv6"}
+			}
+
+			if len(fields) == 4 && shared.StringInSlice(fields[3], allowedIPKeys) {
 				continue
 			}
 
-			if len(fields) == 5 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
+			if len(fields) == 5 && shared.StringInSlice(fields[3], allowedIPKeys) && fields[4] == "gateway" {
 				continue
 			}
 
@@ -774,7 +823,7 @@ func (c *containerLXC) initLXC() error {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.pts", "1024")
+	err = lxcSetConfigItem(cc, "lxc.pty.max", "1024")
 	if err != nil {
 		return err
 	}
@@ -891,7 +940,7 @@ func (c *containerLXC) initLXC() error {
 		logLevel = "info"
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.loglevel", logLevel)
+	err = lxcSetConfigItem(cc, "lxc.log.level", logLevel)
 	if err != nil {
 		return err
 	}
@@ -922,13 +971,13 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup the console
-	err = lxcSetConfigItem(cc, "lxc.tty", "0")
+	err = lxcSetConfigItem(cc, "lxc.tty.max", "0")
 	if err != nil {
 		return err
 	}
 
 	// Setup the hostname
-	err = lxcSetConfigItem(cc, "lxc.utsname", c.Name())
+	err = lxcSetConfigItem(cc, "lxc.uts.name", c.Name())
 	if err != nil {
 		return err
 	}
@@ -945,7 +994,7 @@ func (c *containerLXC) initLXC() error {
 			// If confined but otherwise able to use AppArmor, use our own profile
 			curProfile := aaProfile()
 			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
-			err = lxcSetConfigItem(cc, "lxc.aa_profile", curProfile)
+			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", curProfile)
 			if err != nil {
 				return err
 			}
@@ -964,7 +1013,7 @@ func (c *containerLXC) initLXC() error {
 				profile = fmt.Sprintf("%s//&:%s:", profile, AANamespace(c))
 			}
 
-			err := lxcSetConfigItem(cc, "lxc.aa_profile", profile)
+			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", profile)
 			if err != nil {
 				return err
 			}
@@ -973,7 +1022,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Setup Seccomp if necessary
 	if ContainerNeedsSeccomp(c) {
-		err = lxcSetConfigItem(cc, "lxc.seccomp", SeccompProfilePath(c))
+		err = lxcSetConfigItem(cc, "lxc.seccomp.profile", SeccompProfilePath(c))
 		if err != nil {
 			return err
 		}
@@ -1341,17 +1390,25 @@ func (c *containerLXC) initLXC() error {
 
 			// Deal with a rootfs
 			if tgtPath == "" {
-				// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
-				err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
-				if err == nil {
-					value := cc.ConfigItem("lxc.rootfs.backend")
-					if len(value) == 0 || value[0] != "dir" {
-						lxcSetConfigItem(cc, "lxc.rootfs.backend", "")
+				if !lxc.VersionAtLeast(2, 1, 0) {
+					// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
+					err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
+					if err == nil {
+						value := cc.ConfigItem("lxc.rootfs.backend")
+						if len(value) == 0 || value[0] != "dir" {
+							lxcSetConfigItem(cc, "lxc.rootfs.backend", "")
+						}
 					}
 				}
 
 				// Set the rootfs path
-				err = lxcSetConfigItem(cc, "lxc.rootfs", c.RootfsPath())
+				if lxc.VersionAtLeast(2, 1, 0) {
+					rootfsPath := fmt.Sprintf("dir:%s", c.RootfsPath())
+					err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
+				} else {
+					rootfsPath := c.RootfsPath()
+					err = lxcSetConfigItem(cc, "lxc.rootfs", rootfsPath)
+				}
 				if err != nil {
 					return err
 				}
