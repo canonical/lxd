@@ -401,7 +401,57 @@ func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
 }
 
 func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
-	return true, nil
+	logger.Debugf(`Unmounting RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+
+	customMountLockID := getCustomUmountLockID(s.pool.Name, s.volume.Name)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[customMountLockID]; ok {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			logger.Warnf(`Received value over semaphore. This ` +
+				`should not have happened`)
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in unmounting the storage volume.
+		logger.Debugf(`RBD storage volume "%s" on storage pool "%s" `+
+			`appears to be already unmounted`, s.volume.Name,
+			s.pool.Name)
+		return false, nil
+	}
+
+	lxdStorageOngoingOperationMap[customMountLockID] = make(chan bool)
+	lxdStorageMapLock.Unlock()
+
+	var customerr error
+	ourUmount := false
+	if shared.IsMountPoint(volumeMntPoint) {
+		customerr = tryUnmount(volumeMntPoint, syscall.MNT_DETACH)
+		ourUmount = true
+		logger.Debugf(`Path "%s" is a mountpoint for RBD storage `+
+			`volume "%s" on storage pool "%s"`, volumeMntPoint,
+			s.volume.Name, s.pool.Name)
+	}
+
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[customMountLockID]; ok {
+		close(waitChannel)
+		delete(lxdStorageOngoingOperationMap, customMountLockID)
+	}
+	lxdStorageMapLock.Unlock()
+
+	if customerr != nil {
+		logger.Errorf(`Failed to unmount RBD storage volume "%s" on `+
+			`storage pool "%s": %s`, s.volume.Name, s.pool.Name,
+			customerr)
+		return false, customerr
+	}
+
+	logger.Debugf(`Unmounted RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+	return ourUmount, nil
 }
 
 func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
