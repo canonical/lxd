@@ -21,7 +21,7 @@ volume. This file contains all necessary information to recover a given
 container, such as container configuration, attached devices and storage.
 This file can be processed by the `lxd import` command.
 
-Running
+Running 
 
 ```
 lxd import <container-name>
@@ -39,7 +39,7 @@ manually.
 
 If any matching database entry for resources declared in `backup.yaml` is found
 during import, the command will refuse to restore the container.  This can be
-overridden running
+overridden running 
 
 ```
 lxd import --force <container-name>
