@@ -968,8 +968,11 @@ func (s *storageCeph) ContainerSnapshotStop(c container) (bool, error) {
 	return true, nil
 }
 
-func (s *storageCeph) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	return nil
+func (s *storageCeph) ContainerSnapshotCreateEmpty(c container) error {
+	logger.Debugf(`Creating empty RBD storage volume for snapshot "%s" `+
+		`on storage pool "%s"`, c.Name(), s.pool.Name)
+
+	return fmt.Errorf("Creating empty RBD snapshots is not supported")
 }
 
 func (s *storageCeph) ImageCreate(fingerprint string) error {
