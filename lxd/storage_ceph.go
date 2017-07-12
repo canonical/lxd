@@ -266,6 +266,75 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 }
 
 func (s *storageCeph) StoragePoolVolumeDelete() error {
+	logger.Debugf(`Deleting RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	if shared.IsMountPoint(volumeMntPoint) {
+		err := tryUnmount(volumeMntPoint, syscall.MNT_DETACH)
+		if err != nil {
+			logger.Errorf(`Failed to unmount RBD storage volume `+
+				`"%s" on storage pool "%s": %s`, s.volume.Name,
+				s.pool.Name, err)
+		}
+		logger.Debugf(`Unmounted RBD storage volume "%s" on storage `+
+			`pool "%s"`, s.volume.Name, s.pool.Name)
+	}
+
+	// unmap
+	err := cephRBDVolumeUnmap(
+		s.ClusterName,
+		s.OSDPoolName,
+		s.volume.Name,
+		storagePoolVolumeTypeNameCustom)
+	if err != nil {
+		logger.Errorf(`Failed to unmap RBD storage volume "%s" on `+
+			`storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Unmapped RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	// delete
+	err = cephRBDVolumeDelete(
+		s.ClusterName,
+		s.OSDPoolName,
+		s.volume.Name,
+		storagePoolVolumeTypeNameCustom)
+	if err != nil {
+		logger.Errorf(`Failed to delete RBD storage volume "%s" on `+
+			`storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Deleted RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	err = dbStoragePoolVolumeDelete(
+		s.d.db,
+		s.volume.Name,
+		storagePoolVolumeTypeCustom,
+		s.poolID)
+	if err != nil {
+		logger.Errorf(`Failed to delete database entry for RBD `+
+			`storage volume "%s" on storage pool "%s"`,
+			s.volume.Name, s.pool.Name)
+	}
+	logger.Debugf(`Deleted database entry for RBD storage volume "%s" on `+
+		`storage pool "%s"`, s.volume.Name, s.pool.Name)
+
+	err = os.Remove(volumeMntPoint)
+	if err != nil {
+		logger.Errorf(`Failed to delete mountpoint "%s" for RBD `+
+			`storage volume "%s" on storage pool "%s": %s"`,
+			volumeMntPoint, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Deleted mountpoint "%s" for RBD storage volume "%s" `+
+		`on storage pool "%s"`, volumeMntPoint, s.volume.Name,
+		s.pool.Name)
+
+	logger.Debugf(`Deleted RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
 	return nil
 }
 
