@@ -180,6 +180,22 @@ func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volu
 }
 
 func storagePoolVolumeUsedByGet(d *Daemon, volumeName string, volumeTypeName string) ([]string, error) {
+	// Handle container volumes
+	if volumeTypeName == "container" {
+		cName, sName, snap := containerGetParentAndSnapshotName(volumeName)
+
+		if snap {
+			return []string{fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cName, sName)}, nil
+		}
+
+		return []string{fmt.Sprintf("/%s/containers/%s", version.APIVersion, cName)}, nil
+	}
+
+	// Handle image volumes
+	if volumeTypeName == "image" {
+		return []string{fmt.Sprintf("/%s/images/%s", version.APIVersion, volumeName)}, nil
+	}
+
 	// Look for containers using the interface
 	cts, err := dbContainersList(d.db, cTypeRegular)
 	if err != nil {
