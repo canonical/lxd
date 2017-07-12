@@ -339,7 +339,65 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 }
 
 func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
-	return true, nil
+	logger.Debugf(`Mounting RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	RBDFilesystem := s.getRBDFilesystem()
+	RBDDevPath := getRBDDevPath(
+		s.OSDPoolName,
+		storagePoolVolumeTypeNameCustom,
+		s.volume.Name)
+	volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+
+	customMountLockID := getCustomMountLockID(s.pool.Name, s.volume.Name)
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[customMountLockID]; ok {
+		lxdStorageMapLock.Unlock()
+		if _, ok := <-waitChannel; ok {
+			logger.Warnf(`Received value over semaphore. This ` +
+				`should not have happened`)
+		}
+		// Give the benefit of the doubt and assume that the other
+		// thread actually succeeded in mounting the storage volume.
+		logger.Debugf(`RBD storage volume "%s" on storage pool "%s" `+
+			`appears to be already mounted`, s.volume.Name,
+			s.pool.Name)
+		return false, nil
+	}
+
+	lxdStorageOngoingOperationMap[customMountLockID] = make(chan bool)
+	lxdStorageMapLock.Unlock()
+
+	var customerr error
+	ourMount := false
+	if !shared.IsMountPoint(volumeMntPoint) {
+		mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
+		customerr = tryMount(
+			RBDDevPath,
+			volumeMntPoint,
+			RBDFilesystem,
+			mountFlags,
+			mountOptions)
+		ourMount = true
+	}
+
+	lxdStorageMapLock.Lock()
+	if waitChannel, ok := lxdStorageOngoingOperationMap[customMountLockID]; ok {
+		close(waitChannel)
+		delete(lxdStorageOngoingOperationMap, customMountLockID)
+	}
+	lxdStorageMapLock.Unlock()
+
+	if customerr != nil {
+		logger.Errorf(`Failed to mount RBD storage volume "%s" on `+
+			`storage pool "%s": %s`, s.volume.Name, s.pool.Name,
+			customerr)
+		return false, customerr
+	}
+
+	logger.Debugf(`Mounted RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+	return ourMount, nil
 }
 
 func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
