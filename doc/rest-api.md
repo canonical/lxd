@@ -1428,7 +1428,7 @@ GET the image as a guest, passing the secret token.
  * Authentication: trusted
  * Operation: async
  * Return: Background operation or standard error
-
+ 
 This creates an operation to refresh the specified image from its origin.
 
 ## /1.0/images/\<fingerprint\>/secret

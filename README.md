@@ -1,12 +1,12 @@
 [![LXD](https://linuxcontainers.org/static/img/containers.png)](https://linuxcontainers.org/lxd)
 # LXD
-LXD is a next generation system container manager.
+LXD is a next generation system container manager.  
 It offers a user experience similar to virtual machines but using Linux containers instead.
 
-It's image based with pre-made images available for a [wide number of Linux distributions](https://images.linuxcontainers.org)
+It's image based with pre-made images available for a [wide number of Linux distributions](https://images.linuxcontainers.org)  
 and is built around a very powerful, yet pretty simple, REST API.
 
-To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!
+To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!  
 Then if you want to run it locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/).
 
 ## Status
@@ -179,7 +179,7 @@ Yes. The easiest way to do that is using a privileged container to avoid file ow
     lxc config device add privilegedContainerName shareName disk source=/home/$USER path=/home/ubuntu
 
 #### How can I run docker inside a LXD container?
-In order to run Docker inside a LXD container the `security.nesting` property of the container should be set to `true`.
+In order to run Docker inside a LXD container the `security.nesting` property of the container should be set to `true`.  
 
     lxc config set <container> security.nesting true
 
