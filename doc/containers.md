@@ -136,13 +136,15 @@ or to a profile with:
 ## Device types
 LXD supports the following device types:
 
-ID (database)   | Name          | Description
-:--             | :--           | :--
-0               | none          | Inheritance blocker
-1               | nic           | Network interface
-2               | disk          | Mountpoint inside the container
-3               | unix-char     | Unix character device
-4               | unix-block    | Unix block device
+ID (database)   | Name                              | Description
+:--             | :--                               | :--
+0               | [none](#type-none)                | Inheritance blocker
+1               | [nic](#type-nic)                  | Network interface
+2               | [disk](#type-disk)                | Mountpoint inside the container
+3               | [unix-char](#type-unix-char)      | Unix character device
+4               | [unix-block](#type-unix-block)    | Unix block device
+5               | [usb](#type-usb)                  | USB device
+6               | [gpu](#type-gpu)                  | GPU device
 
 ### Type: none
 A none type device doesn't have any property and doesn't create anything inside the container.
