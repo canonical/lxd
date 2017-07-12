@@ -180,6 +180,88 @@ func (s *storageCeph) GetContainerPoolInfo() (int64, string) {
 }
 
 func (s *storageCeph) StoragePoolVolumeCreate() error {
+	logger.Debugf(`Creating RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	// get size
+	RBDSize, err := s.getRBDSize()
+	if err != nil {
+		logger.Errorf(`Failed to retrieve size of RBD storage volume `+
+			`"%s" on storage pool "%s": %s`, s.volume.Name,
+			s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Retrieved size "%s" of RBD storage volume "%s" on `+
+		`storage pool "%s"`, RBDSize, s.volume.Name, s.pool.Name)
+
+	// create volume
+	err = cephRBDVolumeCreate(
+		s.ClusterName,
+		s.OSDPoolName,
+		s.volume.Name,
+		storagePoolVolumeTypeNameCustom,
+		RBDSize)
+	if err != nil {
+		logger.Errorf(`Failed to create RBD storage volume "%s" on `+
+			`storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	err = cephRBDVolumeMap(
+		s.ClusterName,
+		s.OSDPoolName,
+		s.volume.Name,
+		storagePoolVolumeTypeNameCustom)
+	if err != nil {
+		logger.Errorf(`Failed to map RBD storage volume for "%s" on `+
+			`storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Mapped RBD storage volume for "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	// get filesystem
+	RBDFilesystem := s.getRBDFilesystem()
+	logger.Debugf(`Retrieved filesystem type "%s" of RBD storage volume `+
+		`"%s" on storage pool "%s"`, RBDFilesystem, s.volume.Name,
+		s.pool.Name)
+
+	// get rbd device path
+	RBDDevPath := getRBDDevPath(
+		s.OSDPoolName,
+		storagePoolVolumeTypeNameCustom,
+		s.volume.Name)
+	logger.Debugf(`Retrieved device path "%s" of RBD storage volume "%s" `+
+		`on storage pool "%s"`, RBDDevPath, s.volume.Name, s.pool.Name)
+
+	msg, err := makeFSType(RBDDevPath, RBDFilesystem)
+	if err != nil {
+		logger.Errorf(`Failed to create filesystem type "%s" on `+
+			`device path "%s" for RBD storage volume "%s" on `+
+			`storage pool "%s": %s`, RBDFilesystem, RBDDevPath,
+			s.volume.Name, s.pool.Name, msg)
+		return err
+	}
+	logger.Debugf(`Created filesystem type "%s" on device path "%s" for `+
+		`RBD storage volume "%s" on storage pool "%s"`, RBDFilesystem,
+		RBDDevPath, s.volume.Name, s.pool.Name)
+
+	volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	err = os.MkdirAll(volumeMntPoint, 0711)
+	if err != nil {
+		logger.Errorf(`Failed to create mountpoint "%s" for RBD `+
+			`storage volume "%s" on storage pool "%s": %s"`,
+			volumeMntPoint, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Created mountpoint "%s" for RBD storage volume "%s" `+
+		`on storage pool "%s"`, volumeMntPoint, s.volume.Name,
+		s.pool.Name)
+
+	logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
 	return nil
 }
 
