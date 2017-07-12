@@ -196,7 +196,7 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
-	return nil
+	return fmt.Errorf("RBD storage volume properties cannot be changed")
 }
 
 func (s *storageCeph) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
