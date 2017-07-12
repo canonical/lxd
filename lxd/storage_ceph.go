@@ -164,7 +164,7 @@ func (s *storageCeph) GetStoragePoolWritable() api.StoragePoolPut {
 }
 
 func (s *storageCeph) GetStoragePoolVolumeWritable() api.StorageVolumePut {
-	return api.StorageVolumePut{}
+	return s.volume.Writable()
 }
 
 func (s *storageCeph) SetStoragePoolWritable(writable *api.StoragePoolPut) {
