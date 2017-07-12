@@ -697,9 +697,48 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	return nil
 }
 
-func (s *storageCeph) ContainerRestore(
-	container container, sourceContainer container) error {
+func (s *storageCeph) ContainerRestore(target container, source container) error {
+	sourceName := source.Name()
+	targetName := target.Name()
 
+	logger.Debugf(`Restoring RBD storage volume for container "%s" from `+
+		`%s to %s`, targetName, sourceName, targetName)
+
+	// Start storage for source container
+	ourSourceStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourSourceStart {
+		defer source.StorageStop()
+	}
+
+	// Start storage for target container
+	ourTargetStart, err := target.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourTargetStart {
+		defer target.StorageStop()
+	}
+
+	sourceContainerOnlyName, sourceSnapshotOnlyName, _ := containerGetParentAndSnapshotName(sourceName)
+	prefixedSourceSnapOnlyName := fmt.Sprintf("snapshot_%s", sourceSnapshotOnlyName)
+	err = cephRBDVolumeRestore(
+		s.ClusterName,
+		s.OSDPoolName,
+		sourceContainerOnlyName,
+		storagePoolVolumeTypeNameContainer,
+		prefixedSourceSnapOnlyName)
+	if err != nil {
+		logger.Errorf(`Failed to restore RBD storage volume for `+
+			`container "%s" from "%s": %s`,
+			targetName, sourceName, err)
+		return err
+	}
+
+	logger.Debugf(`Restored RBD storage volume for container "%s" from `+
+		`%s to %s`, targetName, sourceName, targetName)
 	return nil
 }
 
