@@ -219,6 +219,7 @@ test_storage() {
       lxc list -c b c4pool2 | grep "lxdtest-$(basename "${LXD_DIR}")-pool2"
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1
+      lxc storage volume set "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 zfs.use_refquota true
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice2 /opt
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1
