@@ -779,5 +779,5 @@ func (s *storageDir) MigrationSink(live bool, container container, snapshots []*
 }
 
 func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
-	return nil
+	return fmt.Errorf("the directory container backend doesn't support quotas")
 }
