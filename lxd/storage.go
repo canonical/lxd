@@ -184,7 +184,7 @@ type storage interface {
 	StoragePoolVolumeDelete() error
 	StoragePoolVolumeMount() (bool, error)
 	StoragePoolVolumeUmount() (bool, error)
-	StoragePoolVolumeUpdate(changedConfig []string) error
+	StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error
 	GetStoragePoolVolumeWritable() api.StorageVolumePut
 	SetStoragePoolVolumeWritable(writable *api.StorageVolumePut)
 

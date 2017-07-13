@@ -388,7 +388,7 @@ func (s *storageZfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 	return nil
 }
 
-func (s *storageZfs) StoragePoolVolumeUpdate(changedConfig []string) error {
+func (s *storageZfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
 	logger.Infof("Updating ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	if shared.StringInSlice("block.mount_options", changedConfig) {

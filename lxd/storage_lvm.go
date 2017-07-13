@@ -758,7 +758,7 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 	return nil
 }
 
-func (s *storageLvm) StoragePoolVolumeUpdate(changedConfig []string) error {
+func (s *storageLvm) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
 	logger.Infof("Updating LVM storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	if shared.StringInSlice("block.mount_options", changedConfig) && len(changedConfig) == 1 {
