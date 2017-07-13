@@ -154,6 +154,32 @@ func (s *storageCeph) StoragePoolCreate() error {
 		return err
 	}
 
+	ok := cephRBDVolumeExists(
+		s.ClusterName,
+		s.OSDPoolName,
+		s.pool.Name,
+		"lxd")
+	s.pool.Config["volatile.pool.pristine"] = "false"
+	if !ok {
+		s.pool.Config["volatile.pool.pristine"] = "true"
+		// Create dummy storage volume. Other LXD instances will use
+		// this to detect whether this osd pool is already in use by
+		// another LXD instance.
+		err = cephRBDVolumeCreate(
+			s.ClusterName,
+			s.OSDPoolName,
+			s.pool.Name,
+			"lxd",
+			"0")
+		if err != nil {
+			logger.Errorf(`Failed to create RBD storage volume "%s" on `+
+				`storage pool "%s": %s`, s.pool.Name, s.pool.Name, err)
+			return err
+		}
+		logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
+			s.pool.Name, s.pool.Name)
+	}
+
 	logger.Infof("Created CEPH storage pool \"%s\".", s.pool.Name)
 	return nil
 }
@@ -166,15 +192,19 @@ func (s *storageCeph) StoragePoolDelete() error {
 		return fmt.Errorf("CEPH osd storage pool \"%s\" does not exist in cluster \"%s\"", s.OSDPoolName, s.ClusterName)
 	}
 
-	// Delete the osd pool.
-	err := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName)
-	if err != nil {
-		return err
+	// Check whether we own the pool and only remove in this case.
+	if s.pool.Config["volatile.pool.pristine"] != "" &&
+		shared.IsTrue(s.pool.Config["volatile.pool.pristine"]) {
+		// Delete the osd pool.
+		err := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete the mountpoint for the storage pool.
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
-	err = os.RemoveAll(poolMntPoint)
+	err := os.RemoveAll(poolMntPoint)
 	if err != nil {
 		return err
 	}
@@ -1537,6 +1567,7 @@ func (s *storageCeph) PreservesInodes() bool {
 func (s *storageCeph) MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error) {
 	return nil, fmt.Errorf("not implemented")
 }
+
 func (s *storageCeph) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
 	return nil
 }
