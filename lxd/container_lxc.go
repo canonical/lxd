@@ -4146,7 +4146,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		}
 
 		// Fill in the metadata
-		meta := imageMetadata{}
+		meta := api.ImageMetadata{}
 		meta.Architecture = arch
 		meta.CreationDate = time.Now().UTC().Unix()
 		meta.Properties = properties
@@ -4191,7 +4191,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 				return err
 			}
 
-			metadata := new(imageMetadata)
+			metadata := new(api.ImageMetadata)
 			err = yaml.Unmarshal(content, &metadata)
 			if err != nil {
 				tw.Close()
@@ -4486,7 +4486,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		return err
 	}
 
-	metadata := new(imageMetadata)
+	metadata := new(api.ImageMetadata)
 	err = yaml.Unmarshal(content, &metadata)
 
 	if err != nil {

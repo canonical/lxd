@@ -1261,3 +1261,35 @@ func (r *ProtocolLXD) DeleteContainerLogfile(name string, filename string) error
 
 	return nil
 }
+
+// GetContainerMetadata returns container metadata.
+func (r *ProtocolLXD) GetContainerMetadata(name string) (*api.ImageMetadata, string, error) {
+	if !r.HasExtension("container_edit_metadata") {
+		return nil, "", fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
+	}
+
+	metadata := api.ImageMetadata{}
+
+	url := fmt.Sprintf("/containers/%s/metadata", name)
+	etag, err := r.queryStruct("GET", url, nil, "", &metadata)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &metadata, etag, err
+}
+
+// SetContainerMetadata sets the content of the container metadata file.
+func (r *ProtocolLXD) SetContainerMetadata(name string, metadata api.ImageMetadata, ETag string) error {
+	if !r.HasExtension("container_edit_metadata") {
+		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
+	}
+
+	url := fmt.Sprintf("/containers/%s/metadata", name)
+	_, _, err := r.query("PUT", url, metadata, ETag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

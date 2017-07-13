@@ -304,3 +304,8 @@ Then, LXD will directly attach this interface to the container.
 ## storage\_images\_delete
 This enabled the storage API to delete storage volumes for images from
 a specific storage pool.
+
+## container\_edit\_metadata
+This adds support for editing a container metadata.yaml and related templates
+via API, by accessing urls under /1.0/containers/NAME/metadata. It can be used
+to edit a container before publishing an image from it.
