@@ -88,6 +88,9 @@ type ContainerServer interface {
 	GetContainerLogfile(name string, filename string) (content io.ReadCloser, err error)
 	DeleteContainerLogfile(name string, filename string) (err error)
 
+	GetContainerMetadata(name string) (*api.ImageMetadata, string, error)
+	SetContainerMetadata(name string, metadata api.ImageMetadata, ETag string) error
+
 	// Event handling functions
 	GetEvents() (listener *EventListener, err error)
 
