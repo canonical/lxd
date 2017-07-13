@@ -213,6 +213,19 @@ func (s *storageZfs) StoragePoolVolumeCreate() error {
 		s.zfsPoolVolumeMount(fs)
 	}
 
+	// apply quota
+	if s.volume.Config["size"] != "" {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	revert = false
 
 	logger.Infof("Created ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
@@ -400,7 +413,18 @@ func (s *storageZfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 	}
 
 	if shared.StringInSlice("size", changedConfig) {
-		return fmt.Errorf("the \"size\" property cannot be changed")
+		// apply quota
+		if s.volume.Config["size"] != writable.Config["size"] {
+			size, err := shared.ParseByteSizeString(writable.Config["size"])
+			if err != nil {
+				return err
+			}
+
+			err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	logger.Infof("Updated ZFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
@@ -2100,5 +2124,46 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 }
 
 func (s *storageZfs) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
+	logger.Debugf(`Setting ZFS quota for "%s"`, s.volume.Name)
+
+	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+		return fmt.Errorf("Invalid storage type")
+	}
+
+	var c container
+	var fs string
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c = data.(container)
+		fs = fmt.Sprintf("containers/%s", c.Name())
+	case storagePoolVolumeTypeCustom:
+		fs = fmt.Sprintf("custom/%s", s.volume.Name)
+	}
+
+	property := "quota"
+
+	if s.pool.Config["volume.zfs.use_refquota"] != "" {
+		zfsUseRefquota = s.pool.Config["volume.zfs.use_refquota"]
+	}
+	if s.volume.Config["zfs.use_refquota"] != "" {
+		zfsUseRefquota = s.volume.Config["zfs.use_refquota"]
+	}
+
+	if shared.IsTrue(zfsUseRefquota) {
+		property = "refquota"
+	}
+
+	var err error
+	if size > 0 {
+		err = s.zfsPoolVolumeSet(fs, property, fmt.Sprintf("%d", size))
+	} else {
+		err = s.zfsPoolVolumeSet(fs, property, "none")
+	}
+
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf(`Set ZFS quota for "%s"`, s.volume.Name)
 	return nil
 }
