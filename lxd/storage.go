@@ -197,9 +197,9 @@ type storage interface {
 	ContainerCreate(container container) error
 
 	// ContainerCreateFromImage creates a container from a image.
-	ContainerCreateFromImage(container container, imageFingerprint string) error
-	ContainerCanRestore(container container, sourceContainer container) error
-	ContainerDelete(container container) error
+	ContainerCreateFromImage(c container, fingerprint string) error
+	ContainerCanRestore(target container, source container) error
+	ContainerDelete(c container) error
 	ContainerCopy(target container, source container, containerOnly bool) error
 	ContainerMount(c container) (bool, error)
 	ContainerUmount(name string, path string) (bool, error)
@@ -209,14 +209,14 @@ type storage interface {
 	GetContainerPoolInfo() (int64, string)
 	ContainerStorageReady(name string) bool
 
-	ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error
-	ContainerSnapshotDelete(snapshotContainer container) error
-	ContainerSnapshotRename(snapshotContainer container, newName string) error
-	ContainerSnapshotStart(container container) (bool, error)
-	ContainerSnapshotStop(container container) (bool, error)
+	ContainerSnapshotCreate(target container, source container) error
+	ContainerSnapshotDelete(c container) error
+	ContainerSnapshotRename(c container, newName string) error
+	ContainerSnapshotStart(c container) (bool, error)
+	ContainerSnapshotStop(c container) (bool, error)
 
 	// For use in migrating snapshots.
-	ContainerSnapshotCreateEmpty(snapshotContainer container) error
+	ContainerSnapshotCreateEmpty(c container) error
 
 	// Functions dealing with image storage volumes.
 	ImageCreate(fingerprint string) error
@@ -250,8 +250,15 @@ type storage interface {
 	// We leave sending containers which are snapshots of other containers
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
-	MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error)
-	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error
+	MigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error)
+	MigrationSink(
+		live bool,
+		c container,
+		objects []*Snapshot,
+		conn *websocket.Conn,
+		srcIdmap *shared.IdmapSet,
+		op *operation,
+		containerOnly bool) error
 }
 
 func storageCoreInit(driver string) (storage, error) {
