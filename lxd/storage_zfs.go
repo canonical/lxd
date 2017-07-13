@@ -2098,3 +2098,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	s.zfsPoolVolumeMount(zfsName)
 	return nil
 }
+
+func (s *storageZfs) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
+	return nil
+}

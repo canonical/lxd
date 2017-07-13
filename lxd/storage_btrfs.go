@@ -2130,3 +2130,7 @@ func (s *storageBtrfs) btrfsLookupFsUUID(fs string) (string, error) {
 
 	return outputString, nil
 }
+
+func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
+	return nil
+}

@@ -221,6 +221,9 @@ type storage interface {
 	ImageMount(fingerprint string) (bool, error)
 	ImageUmount(fingerprint string) (bool, error)
 
+	// Storage type agnostic functions.
+	StorageEntitySetQuota(volumeType int, size int64, data interface{}) error
+
 	// Functions dealing with migration.
 	MigrationType() MigrationFSType
 	// Does this storage backend preserve inodes when it is moved across LXD
