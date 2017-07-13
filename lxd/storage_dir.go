@@ -554,10 +554,6 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 	return nil
 }
 
-func (s *storageDir) ContainerSetQuota(container container, size int64) error {
-	return fmt.Errorf("the directory container backend doesn't support quotas")
-}
-
 func (s *storageDir) ContainerGetUsage(container container) (int64, error) {
 	return -1, fmt.Errorf("the directory container backend doesn't support quotas")
 }

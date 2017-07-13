@@ -1298,40 +1298,6 @@ func (s *storageZfs) ContainerRestore(target container, source container) error 
 	return nil
 }
 
-func (s *storageZfs) ContainerSetQuota(container container, size int64) error {
-	logger.Debugf("Setting ZFS quota for container \"%s\".", container.Name())
-
-	var err error
-
-	fs := fmt.Sprintf("containers/%s", container.Name())
-
-	property := "quota"
-
-	if s.pool.Config["volume.zfs.use_refquota"] != "" {
-		zfsUseRefquota = s.pool.Config["volume.zfs.use_refquota"]
-	}
-	if s.volume.Config["zfs.use_refquota"] != "" {
-		zfsUseRefquota = s.volume.Config["zfs.use_refquota"]
-	}
-
-	if shared.IsTrue(zfsUseRefquota) {
-		property = "refquota"
-	}
-
-	if size > 0 {
-		err = s.zfsPoolVolumeSet(fs, property, fmt.Sprintf("%d", size))
-	} else {
-		err = s.zfsPoolVolumeSet(fs, property, "none")
-	}
-
-	if err != nil {
-		return err
-	}
-
-	logger.Debugf("Set ZFS quota for container \"%s\".", container.Name())
-	return nil
-}
-
 func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 	var err error
 
