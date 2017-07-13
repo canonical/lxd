@@ -215,7 +215,7 @@ func (s *storageDir) StoragePoolVolumeUmount() (bool, error) {
 	return true, nil
 }
 
-func (s *storageDir) StoragePoolVolumeUpdate(changedConfig []string) error {
+func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
 	return fmt.Errorf("dir storage properties cannot be changed")
 }
 
@@ -554,10 +554,6 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 	return nil
 }
 
-func (s *storageDir) ContainerSetQuota(container container, size int64) error {
-	return fmt.Errorf("the directory container backend doesn't support quotas")
-}
-
 func (s *storageDir) ContainerGetUsage(container container) (int64, error) {
 	return -1, fmt.Errorf("the directory container backend doesn't support quotas")
 }
@@ -776,4 +772,8 @@ func (s *storageDir) MigrationSource(container container, containerOnly bool) (M
 
 func (s *storageDir) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
 	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
+}
+
+func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
+	return fmt.Errorf("the directory container backend doesn't support quotas")
 }

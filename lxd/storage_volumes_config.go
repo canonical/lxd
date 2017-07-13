@@ -98,6 +98,7 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 			if err != nil {
 				return err
 			}
+		} else {
 			config["size"] = "10GB"
 		}
 

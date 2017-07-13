@@ -184,7 +184,7 @@ type storage interface {
 	StoragePoolVolumeDelete() error
 	StoragePoolVolumeMount() (bool, error)
 	StoragePoolVolumeUmount() (bool, error)
-	StoragePoolVolumeUpdate(changedConfig []string) error
+	StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error
 	GetStoragePoolVolumeWritable() api.StorageVolumePut
 	SetStoragePoolVolumeWritable(writable *api.StorageVolumePut)
 
@@ -201,7 +201,6 @@ type storage interface {
 	ContainerUmount(name string, path string) (bool, error)
 	ContainerRename(container container, newName string) error
 	ContainerRestore(container container, sourceContainer container) error
-	ContainerSetQuota(container container, size int64) error
 	ContainerGetUsage(container container) (int64, error)
 	GetContainerPoolInfo() (int64, string)
 	ContainerStorageReady(name string) bool
@@ -220,6 +219,9 @@ type storage interface {
 	ImageDelete(fingerprint string) error
 	ImageMount(fingerprint string) (bool, error)
 	ImageUmount(fingerprint string) (bool, error)
+
+	// Storage type agnostic functions.
+	StorageEntitySetQuota(volumeType int, size int64, data interface{}) error
 
 	// Functions dealing with migration.
 	MigrationType() MigrationFSType

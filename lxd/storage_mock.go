@@ -96,7 +96,7 @@ func (s *storageMock) StoragePoolVolumeUmount() (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) StoragePoolVolumeUpdate(changedConfig []string) error {
+func (s *storageMock) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
 	return nil
 }
 
@@ -147,10 +147,6 @@ func (s *storageMock) ContainerRename(
 func (s *storageMock) ContainerRestore(
 	container container, sourceContainer container) error {
 
-	return nil
-}
-
-func (s *storageMock) ContainerSetQuota(container container, size int64) error {
 	return nil
 }
 
@@ -216,5 +212,9 @@ func (s *storageMock) MigrationSource(container container, containerOnly bool) (
 	return nil, fmt.Errorf("not implemented")
 }
 func (s *storageMock) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
+	return nil
+}
+
+func (s *storageMock) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
 	return nil
 }
