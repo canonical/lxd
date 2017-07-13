@@ -190,6 +190,8 @@ won't work and PUT needs to be used instead.
          * /1.0/containers/\<name\>/state
          * /1.0/containers/\<name\>/logs
          * /1.0/containers/\<name\>/logs/\<logfile\>
+         * /1.0/containers/\<name\>/metadata
+         * /1.0/containers/\<name\>/metadata/templates
      * /1.0/events
      * /1.0/images
        * /1.0/images/\<fingerprint\>
@@ -1176,6 +1178,118 @@ Return:
 * Authentication: trusted
 * Operation: Sync
 * Return: empty response or standard error
+
+## /1.0/containers/\<name\>/metadata
+### GET
+* Description: Container metadata
+* Introduced: with API extension "container\_edit\_metadata"
+* Authentication: trusted
+* Operation: Sync
+* Return: dict representing container metadata
+
+Return:
+
+    {
+        "architecture": "x86_64",
+        "creation_date": 1477146654,
+        "expiry_date": 0,
+        "properties": {
+            "architecture": "x86_64",
+            "description": "Busybox x86_64",
+            "name": "busybox-x86_64",
+            "os": "Busybox"
+        },
+        "templates": {
+            "/template": {
+                "when": [
+                    ""
+                ],
+                "create_only": false,
+                "template": "template.tpl",
+                "properties": {}
+            }
+        }
+    }
+
+### PUT (ETag supported)
+* Description: Replaces container metadata
+* Introduced: with API extension "container\_edit\_metadata"
+* Authentication: trusted
+* Operation: sync
+* Return: standard return value or standard error
+
+Input:
+
+    {
+        "architecture": "x86_64",
+        "creation_date": 1477146654,
+        "expiry_date": 0,
+        "properties": {
+            "architecture": "x86_64",
+            "description": "Busybox x86_64",
+            "name": "busybox-x86_64",
+            "os": "Busybox"
+        },
+        "templates": {
+            "/template": {
+                "when": [
+                    ""
+                ],
+                "create_only": false,
+                "template": "template.tpl",
+                "properties": {}
+            }
+        }
+    }
+
+## /1.0/containers/\<name\>/metadata/templates
+### GET
+* Description: List container templates
+* Introduced: with API extension "container\_edit\_metadata"
+* Authentication: trusted
+* Operation: Sync
+* Return: a list with container template names
+
+Return:
+
+    [
+        "template.tpl",
+        "hosts.tpl"
+    ]
+
+### GET (?path=\<template\>)
+* Description: Content of a container template
+* Introduced: with API extension "container\_edit\_metadata"
+* Authentication: trusted
+* Operation: Sync
+* Return: the content of the template
+
+## POST (?path=\<template\>)
+* Description: Add a continer template
+* Introduced: with API extension "container\_edit\_metadata"
+* Authentication: trusted
+* Operation: Sync
+* Return: standard return value or standard error
+
+Input:
+ * Standard http file upload.
+
+### PUT (?path=\<template\>)
+* Description: Replace content of a template
+* Introduced: with API extension "container\_edit\_metadata"
+* Authentication: trusted
+* Operation: Sync
+* Return: standard return value or standard error
+
+Input:
+ * Standard http file upload.
+
+### DELETE (?path=\<template\>)
+* Description: Delete a container template
+* Introduced: with API extension "container\_edit\_metadata"
+* Authentication: trusted
+* Operation: Sync
+* Return: standard return value or standard error
 
 ## /1.0/events
 This URL isn't a real REST API endpoint, instead doing a GET query on it
