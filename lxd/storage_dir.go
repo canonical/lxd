@@ -777,3 +777,7 @@ func (s *storageDir) MigrationSource(container container, containerOnly bool) (M
 func (s *storageDir) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
 	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
 }
+
+func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
+	return nil
+}
