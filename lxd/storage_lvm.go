@@ -1315,52 +1315,6 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 	return nil
 }
 
-func (s *storageLvm) ContainerSetQuota(c container, size int64) error {
-	ctName := c.Name()
-	logger.Debugf("resizing LVM storage volume for container \"%s\"", ctName)
-
-	if c.IsRunning() {
-		logger.Errorf("cannot resize LVM storage volume for container \"%s\" when it is running", ctName)
-		return fmt.Errorf("cannot resize LVM storage volume for container \"%s\" when it is running", ctName)
-	}
-
-	oldSize, err := shared.ParseByteSizeString(s.volume.Config["size"])
-	if err != nil {
-		return err
-	}
-
-	// The right disjunct just means that someone unset the size property in
-	// the container's config. We obviously cannot resize to 0.
-	if oldSize == size || size == 0 {
-		return nil
-	}
-
-	poolName := s.getOnDiskPoolName()
-	ctLvmName := containerNameToLVName(ctName)
-	lvDevPath := getLvmDevPath(poolName, storagePoolVolumeAPIEndpointContainers, ctLvmName)
-	fsType := s.getLvmFilesystem()
-	ctMountpoint := getContainerMountPoint(s.pool.Name, ctName)
-	if size < oldSize {
-		err = s.lvReduce(lvDevPath, size, fsType, ctMountpoint, storagePoolVolumeTypeContainer, c)
-	} else if size > oldSize {
-		err = s.lvExtend(lvDevPath, size, fsType, ctMountpoint, storagePoolVolumeTypeContainer, c)
-	}
-	if err != nil {
-		logger.Errorf("failed to resize LVM storage volume for container \"%s\"", ctName)
-		return err
-	}
-
-	// Update the database
-	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
-	err = dbStoragePoolVolumeUpdate(s.d.db, ctName, storagePoolVolumeTypeContainer, s.poolID, s.volume.Description, s.volume.Config)
-	if err != nil {
-		return err
-	}
-
-	logger.Debugf("resized LVM storage volume for container \"%s\"", ctName)
-	return nil
-}
-
 func (s *storageLvm) ContainerGetUsage(container container) (int64, error) {
 	return -1, fmt.Errorf("the LVM container backend doesn't support quotas")
 }

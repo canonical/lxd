@@ -1089,41 +1089,6 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 	return failure
 }
 
-func (s *storageBtrfs) ContainerSetQuota(container container, size int64) error {
-	logger.Debugf("Setting BTRFS quota for container \"%s\".", container.Name())
-
-	subvol := container.Path()
-
-	_, err := btrfsSubVolumeQGroup(subvol)
-	if err != nil {
-		if err != NoSuchObjectError {
-			return err
-		}
-
-		// Enable quotas
-		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
-		output, err := shared.RunCommand(
-			"btrfs", "quota", "enable", poolMntPoint)
-		if err != nil && !runningInUserns {
-			return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
-		}
-	}
-
-	output, err := shared.RunCommand(
-		"btrfs",
-		"qgroup",
-		"limit",
-		"-e", fmt.Sprintf("%d", size),
-		subvol)
-
-	if err != nil {
-		return fmt.Errorf("Failed to set btrfs quota: %s", output)
-	}
-
-	logger.Debugf("Set BTRFS quota for container \"%s\".", container.Name())
-	return nil
-}
-
 func (s *storageBtrfs) ContainerGetUsage(container container) (int64, error) {
 	return s.btrfsPoolVolumeQGroupUsage(container.Path())
 }

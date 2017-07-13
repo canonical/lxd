@@ -150,10 +150,6 @@ func (s *storageMock) ContainerRestore(
 	return nil
 }
 
-func (s *storageMock) ContainerSetQuota(container container, size int64) error {
-	return nil
-}
-
 func (s *storageMock) ContainerGetUsage(
 	container container) (int64, error) {
 

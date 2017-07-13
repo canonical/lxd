@@ -201,7 +201,6 @@ type storage interface {
 	ContainerUmount(name string, path string) (bool, error)
 	ContainerRename(container container, newName string) error
 	ContainerRestore(container container, sourceContainer container) error
-	ContainerSetQuota(container container, size int64) error
 	ContainerGetUsage(container container) (int64, error)
 	GetContainerPoolInfo() (int64, string)
 	ContainerStorageReady(name string) bool
