@@ -858,7 +858,7 @@ func containerConfigureInternal(c container) error {
 				return err
 			}
 
-			err = storage.ContainerSetQuota(c, size)
+			err = storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, c)
 			if err != nil {
 				return err
 			}

@@ -1645,7 +1645,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		err = c.storage.ContainerSetQuota(c, size)
+		err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, c)
 		if err != nil {
 			return "", err
 		}
@@ -3444,7 +3444,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 				return err
 			}
 
-			err = c.storage.ContainerSetQuota(c, size)
+			err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, c)
 			if err != nil {
 				return err
 			}
