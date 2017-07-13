@@ -415,25 +415,43 @@ func (s *storageLvm) copyContainer(target container, source container) error {
 }
 
 func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
+	containerName := c.Name()
+
 	err := s.ContainerCreate(c)
 	if err != nil {
+		logger.Errorf(`Failed to create non-thinpool LVM storage `+
+			`volume for container "%s" on storage pool "%s": %s`,
+			containerName, s.pool.Name, err)
 		return err
 	}
+	logger.Debugf(`Created non-thinpool LVM storage volume for container `+
+		`"%s" on storage pool "%s"`, containerName, s.pool.Name)
 
-	containerName := c.Name()
 	containerPath := c.Path()
 	_, err = s.ContainerMount(c)
 	if err != nil {
+		logger.Errorf(`Failed to mount non-thinpool LVM storage `+
+			`volume for container "%s" on storage pool "%s": %s`,
+			containerName, s.pool.Name, err)
 		return err
 	}
+	logger.Debugf(`Mounted non-thinpool LVM storage volume for container `+
+		`"%s" on storage pool "%s"`, containerName, s.pool.Name)
 
 	imagePath := shared.VarPath("images", fp)
 	poolName := s.getOnDiskPoolName()
 	containerMntPoint := getContainerMountPoint(poolName, containerName)
 	err = unpackImage(s.d, imagePath, containerMntPoint, storageTypeLvm)
 	if err != nil {
+		logger.Errorf(`Failed to unpack image "%s" into non-thinpool `+
+			`LVM storage volume "%s" for container "%s" on `+
+			`storage pool "%s": %s`, imagePath, containerMntPoint,
+			containerName, s.pool.Name, err)
 		return err
 	}
+	logger.Debugf(`Unpacked image "%s" into non-thinpool LVM storage `+
+		`volume "%s" for container "%s" on storage pool "%s"`,
+		imagePath, containerMntPoint, containerName, s.pool.Name)
 
 	s.ContainerUmount(containerName, containerPath)
 
