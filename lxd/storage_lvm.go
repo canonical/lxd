@@ -858,8 +858,13 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 		err = s.containerCreateFromImageLv(container, fingerprint)
 	}
 	if err != nil {
+		logger.Errorf(`Failed to create LVM storage volume for `+
+		`container "%s" on storage pool "%s": %s`, containerName,
+			s.pool.Name, err)
 		return err
 	}
+	logger.Debugf(`Created LVM storage volume for container "%s" on `+
+		`storage pool "%s"`, containerName, s.pool.Name)
 	defer func() {
 		if tryUndo {
 			s.ContainerDelete(container)
