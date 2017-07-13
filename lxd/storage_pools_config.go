@@ -48,6 +48,13 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	// valid drivers: btrfs, dir, lvm, zfs
 	"source": shared.IsAny,
 
+	// Using it as an indicator whether we created the pool or are just
+	// re-using it. Note that the valid drivers only list ceph for now. This
+	// approach is however generalizable. It's just that we currently don't
+	// really need it for the other drivers.
+	// valid drivers: ceph
+	"volatile.pool.pristine": shared.IsAny,
+
 	// valid drivers: ceph, lvm
 	"volume.block.filesystem": func(value string) error {
 		return shared.IsOneOf(value, []string{"ext4", "xfs"})
