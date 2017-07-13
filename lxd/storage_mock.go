@@ -96,7 +96,7 @@ func (s *storageMock) StoragePoolVolumeUmount() (bool, error) {
 	return true, nil
 }
 
-func (s *storageMock) StoragePoolVolumeUpdate(changedConfig []string) error {
+func (s *storageMock) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
 	return nil
 }
 

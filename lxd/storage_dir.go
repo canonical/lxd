@@ -215,7 +215,7 @@ func (s *storageDir) StoragePoolVolumeUmount() (bool, error) {
 	return true, nil
 }
 
-func (s *storageDir) StoragePoolVolumeUpdate(changedConfig []string) error {
+func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
 	return fmt.Errorf("dir storage properties cannot be changed")
 }
 
