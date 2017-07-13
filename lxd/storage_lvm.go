@@ -490,6 +490,19 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 		return err
 	}
 
+	// apply quota
+	if s.volume.Config["size"] != "" {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	_, err = s.StoragePoolVolumeMount()
 	if err != nil {
 		return err
@@ -761,10 +774,25 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 func (s *storageLvm) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
 	logger.Infof("Updating LVM storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
-	if shared.StringInSlice("block.mount_options", changedConfig) && len(changedConfig) == 1 {
-		// noop
-	} else {
+	if !(shared.StringInSlice("block.mount_options", changedConfig) && len(changedConfig) == 1) &&
+		!(shared.StringInSlice("block.mount_options", changedConfig) && len(changedConfig) == 2 && shared.StringInSlice("size", changedConfig)) &&
+		!(shared.StringInSlice("size", changedConfig) && len(changedConfig) == 1) {
 		return fmt.Errorf("the properties \"%v\" cannot be changed", changedConfig)
+	}
+
+	if shared.StringInSlice("size", changedConfig) {
+		// apply quota
+		if s.volume.Config["size"] != writable.Config["size"] {
+			size, err := shared.ParseByteSizeString(writable.Config["size"])
+			if err != nil {
+				return err
+			}
+
+			err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	logger.Infof("Updated LVM storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
@@ -1313,9 +1341,9 @@ func (s *storageLvm) ContainerSetQuota(c container, size int64) error {
 	fsType := s.getLvmFilesystem()
 	ctMountpoint := getContainerMountPoint(s.pool.Name, ctName)
 	if size < oldSize {
-		err = s.lvReduce(c, lvDevPath, size, fsType, ctMountpoint)
+		err = s.lvReduce(lvDevPath, size, fsType, ctMountpoint, storagePoolVolumeTypeContainer, c)
 	} else if size > oldSize {
-		err = s.lvExtend(c, lvDevPath, size, fsType, ctMountpoint)
+		err = s.lvExtend(lvDevPath, size, fsType, ctMountpoint, storagePoolVolumeTypeContainer, c)
 	}
 	if err != nil {
 		logger.Errorf("failed to resize LVM storage volume for container \"%s\"", ctName)
@@ -1655,5 +1683,70 @@ func (s *storageLvm) MigrationSink(live bool, container container, snapshots []*
 }
 
 func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
+	logger.Debugf(`Setting LVM quota for "%s"`, s.volume.Name)
+
+	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+		return fmt.Errorf("Invalid storage type")
+	}
+
+	poolName := s.getOnDiskPoolName()
+	var c container
+	fsType := s.getLvmFilesystem()
+	lvDevPath := ""
+	mountpoint := ""
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c = data.(container)
+		ctName := c.Name()
+		if c.IsRunning() {
+			msg := fmt.Sprintf(`Cannot resize LVM storage volume `+
+				`for container \"%s\" when it is running`,
+				ctName)
+			logger.Errorf(msg)
+			return fmt.Errorf(msg)
+		}
+
+		ctLvmName := containerNameToLVName(ctName)
+		lvDevPath = getLvmDevPath(poolName, storagePoolVolumeAPIEndpointContainers, ctLvmName)
+		mountpoint = getContainerMountPoint(s.pool.Name, ctName)
+	default:
+		lvDevPath = getLvmDevPath(poolName, storagePoolVolumeAPIEndpointCustom, s.volume.Name)
+		mountpoint = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	}
+
+	oldSize, err := shared.ParseByteSizeString(s.volume.Config["size"])
+	if err != nil {
+		return err
+	}
+
+	// The right disjunct just means that someone unset the size property in
+	// the container's config. We obviously cannot resize to 0.
+	if oldSize == size || size == 0 {
+		return nil
+	}
+
+	if size < oldSize {
+		err = s.lvReduce(lvDevPath, size, fsType, mountpoint, volumeType, data)
+	} else if size > oldSize {
+		err = s.lvExtend(lvDevPath, size, fsType, mountpoint, volumeType, data)
+	}
+	if err != nil {
+		return err
+	}
+
+	// Update the database
+	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
+	err = dbStoragePoolVolumeUpdate(
+		s.d.db,
+		s.volume.Name,
+		volumeType,
+		s.poolID,
+		s.volume.Description,
+		s.volume.Config)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf(`Set LVM quota for "%s"`, s.volume.Name)
 	return nil
 }
