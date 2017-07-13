@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/gorilla/websocket"
@@ -80,14 +81,47 @@ func (s *storageCeph) StoragePoolCheck() error {
 func (s *storageCeph) StoragePoolCreate() error {
 	logger.Infof("Creating CEPH storage pool \"%s\".", s.pool.Name)
 
-	// test if pool already exists
-	if cephOSDPoolExists(s.ClusterName, s.OSDPoolName) {
-		return fmt.Errorf("CEPH osd storage pool \"%s\" already exists in cluster \"%s\"", s.OSDPoolName, s.ClusterName)
-	}
+	if !cephOSDPoolExists(s.ClusterName, s.OSDPoolName) {
+		// create new osd pool
+		msg, err := shared.TryRunCommand("ceph", "--cluster", s.ClusterName, "osd", "pool", "create", s.OSDPoolName, s.PGNum)
+		if err != nil {
+			return fmt.Errorf("failed to create CEPH osd storage pool \"%s\" in cluster \"%s\": %s", s.OSDPoolName, s.ClusterName, msg)
+		}
+	} else {
+		// use existing osd pool
+		msg, err := shared.RunCommand(
+			"ceph",
+			"--cluster", s.ClusterName,
+			"osd",
+			"pool",
+			"get", s.OSDPoolName,
+			"pg_num")
+		if err != nil {
+			logger.Errorf(`Failed to retrieve number of placement `+
+				`groups for CEPH osd storage pool "%s" in `+
+				`cluster "%s": %s`, s.OSDPoolName,
+				s.ClusterName, msg)
+			return err
+		}
+		logger.Debugf(`Retrieved number of placement groups or CEPH `+
+			`osd storage pool "%s" in cluster "%s"`, s.OSDPoolName,
+			s.ClusterName)
 
-	msg, err := shared.TryRunCommand("ceph", "--cluster", s.ClusterName, "osd", "pool", "create", s.OSDPoolName, s.PGNum)
-	if err != nil {
-		return fmt.Errorf("failed to create CEPH osd storage pool \"%s\" in cluster \"%s\": %s", s.OSDPoolName, s.ClusterName, msg)
+		idx := strings.Index(msg, "pg_num:")
+		if idx == -1 {
+			logger.Errorf(`Failed to parse number of placement `+
+				`groups for CEPH osd storage pool "%s" in `+
+				`cluster "%s": %s`, s.OSDPoolName,
+				s.ClusterName, msg)
+		}
+
+		msg = msg[(idx + len("pg_num:")):]
+		msg = strings.TrimSpace(msg)
+		// It is ok to update the pool configuration since storage pool
+		// creation via API is implemented such that the storage pool is
+		// checked for a changed config after this function returns and
+		// if so the db for it is updated.
+		s.pool.Config["ceph.osd.pg_num"] = msg
 	}
 
 	if s.pool.Config["source"] == "" {
@@ -110,7 +144,7 @@ func (s *storageCeph) StoragePoolCreate() error {
 
 	// Create the mountpoint for the storage pool.
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
-	err = os.MkdirAll(poolMntPoint, 0711)
+	err := os.MkdirAll(poolMntPoint, 0711)
 	if err != nil {
 		// Destroy the pool.
 		warn := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName)
