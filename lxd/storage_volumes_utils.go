@@ -145,16 +145,16 @@ func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volu
 
 	// Apply config changes if there are any
 	if len(changedConfig) != 0 {
+		newWritable.Description = newDescription
+		newWritable.Config = newConfig
 
 		// Update the storage pool
 		if !userOnly {
-			err = s.StoragePoolVolumeUpdate(changedConfig)
+			err = s.StoragePoolVolumeUpdate(&newWritable, changedConfig)
 			if err != nil {
 				return err
 			}
 		}
-
-		newWritable.Config = newConfig
 
 		// Apply the new configuration
 		s.SetStoragePoolVolumeWritable(&newWritable)

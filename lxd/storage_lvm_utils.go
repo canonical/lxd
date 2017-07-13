@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func (s *storageLvm) lvExtend(c container, lvPath string, lvSize int64, fsType string, fsMntPoint string) error {
+func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
 	lvSizeString := shared.GetByteSizeString(lvSize, 0)
 	msg, err := shared.TryRunCommand(
 		"lvextend",
@@ -23,12 +23,24 @@ func (s *storageLvm) lvExtend(c container, lvPath string, lvSize int64, fsType s
 		return fmt.Errorf("could not extend LV \"%s\": %s", lvPath, msg)
 	}
 
-	ourMount, err := c.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourMount {
-		defer c.StorageStop()
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c := data.(container)
+		ourMount, err := c.StorageStart()
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer c.StorageStop()
+		}
+	case storagePoolVolumeTypeCustom:
+		ourMount, err := s.StoragePoolVolumeMount()
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer s.StoragePoolVolumeUmount()
+		}
 	}
 
 	switch fsType {
@@ -47,7 +59,7 @@ func (s *storageLvm) lvExtend(c container, lvPath string, lvSize int64, fsType s
 	return nil
 }
 
-func (s *storageLvm) lvReduce(c container, lvPath string, lvSize int64, fsType string, fsMntPoint string) error {
+func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
 	var err error
 	var msg string
 
@@ -58,13 +70,24 @@ func (s *storageLvm) lvReduce(c container, lvPath string, lvSize int64, fsType s
 		return fmt.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
 	default:
 		// default = ext4
-		ourUmount, err := c.StorageStop()
-		if err != nil {
-			return err
-		}
-
-		if !ourUmount {
-			defer c.StorageStart()
+		switch volumeType {
+		case storagePoolVolumeTypeContainer:
+			c := data.(container)
+			ourMount, err := c.StorageStop()
+			if err != nil {
+				return err
+			}
+			if !ourMount {
+				defer c.StorageStart()
+			}
+		case storagePoolVolumeTypeCustom:
+			ourMount, err := s.StoragePoolVolumeUmount()
+			if err != nil {
+				return err
+			}
+			if !ourMount {
+				defer s.StoragePoolVolumeMount()
+			}
 		}
 
 		msg, err = shared.TryRunCommand("e2fsck", "-f", "-y", lvPath)

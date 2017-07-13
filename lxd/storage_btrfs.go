@@ -521,6 +521,19 @@ func (s *storageBtrfs) StoragePoolVolumeCreate() error {
 		return err
 	}
 
+	// apply quota
+	if s.volume.Config["size"] != "" {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	logger.Infof("Created BTRFS storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
@@ -569,7 +582,30 @@ func (s *storageBtrfs) StoragePoolVolumeUmount() (bool, error) {
 	return true, nil
 }
 
-func (s *storageBtrfs) StoragePoolVolumeUpdate(changedConfig []string) error {
+func (s *storageBtrfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
+	logger.Infof(`Updating BTRFS storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	if !(shared.StringInSlice("size", changedConfig) && len(changedConfig) == 1) {
+		return fmt.Errorf(`The "%v" properties cannot be changed`,
+			changedConfig)
+	}
+
+	// apply quota
+	if s.volume.Config["size"] != writable.Config["size"] {
+		size, err := shared.ParseByteSizeString(writable.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	logger.Infof(`Updated BTRFS storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
 	return fmt.Errorf("BTRFS storage properties cannot be changed")
 }
 
@@ -1051,41 +1087,6 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 
 	logger.Debugf("Restored BTRFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
 	return failure
-}
-
-func (s *storageBtrfs) ContainerSetQuota(container container, size int64) error {
-	logger.Debugf("Setting BTRFS quota for container \"%s\".", container.Name())
-
-	subvol := container.Path()
-
-	_, err := btrfsSubVolumeQGroup(subvol)
-	if err != nil {
-		if err != NoSuchObjectError {
-			return err
-		}
-
-		// Enable quotas
-		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
-		output, err := shared.RunCommand(
-			"btrfs", "quota", "enable", poolMntPoint)
-		if err != nil && !runningInUserns {
-			return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
-		}
-	}
-
-	output, err := shared.RunCommand(
-		"btrfs",
-		"qgroup",
-		"limit",
-		"-e", fmt.Sprintf("%d", size),
-		subvol)
-
-	if err != nil {
-		return fmt.Errorf("Failed to set btrfs quota: %s", output)
-	}
-
-	logger.Debugf("Set BTRFS quota for container \"%s\".", container.Name())
-	return nil
 }
 
 func (s *storageBtrfs) ContainerGetUsage(container container) (int64, error) {
@@ -2129,4 +2130,47 @@ func (s *storageBtrfs) btrfsLookupFsUUID(fs string) (string, error) {
 	outputString = strings.Trim(outputString, "\n")
 
 	return outputString, nil
+}
+
+func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
+	logger.Debugf(`Setting BTRFS quota for "%s"`, s.volume.Name)
+
+	var c container
+	var subvol string
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c = data.(container)
+		subvol = getContainerMountPoint(s.pool.Name, c.Name())
+	case storagePoolVolumeTypeCustom:
+		subvol = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	}
+
+	_, err := btrfsSubVolumeQGroup(subvol)
+	if err != nil {
+		if err != NoSuchObjectError {
+			return err
+		}
+
+		// Enable quotas
+		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+		output, err := shared.RunCommand(
+			"btrfs", "quota", "enable", poolMntPoint)
+		if err != nil && !runningInUserns {
+			return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
+		}
+	}
+
+	output, err := shared.RunCommand(
+		"btrfs",
+		"qgroup",
+		"limit",
+		"-e", fmt.Sprintf("%d", size),
+		subvol)
+
+	if err != nil {
+		return fmt.Errorf("Failed to set btrfs quota: %s", output)
+	}
+
+	logger.Debugf(`Set BTRFS quota for "%s"`, s.volume.Name)
+	return nil
 }
