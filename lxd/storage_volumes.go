@@ -401,13 +401,6 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-
-	poolID, err := dbStoragePoolGetID(d.db, poolName)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	err = dbStoragePoolVolumeDelete(d.db, volumeName, volumeType, poolID)
 	if err != nil {
 		return SmartError(err)
 	}
