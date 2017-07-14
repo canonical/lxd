@@ -300,3 +300,7 @@ When set, this will instruct LXD to attach to the specified VLAN on the "parent"
 LXD will look for an existing interface for that "parent" and VLAN on the host.
 If one can't be found it will create one itself.
 Then, LXD will directly attach this interface to the container.
+
+## storage\_images\_delete
+This enabled the storage API to delete storage volumes for images from
+a specific storage pool.
