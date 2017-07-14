@@ -606,7 +606,7 @@ func (s *storageBtrfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, c
 
 	logger.Infof(`Updated BTRFS storage volume "%s" on storage pool "%s"`,
 		s.volume.Name, s.pool.Name)
-	return fmt.Errorf("BTRFS storage properties cannot be changed")
+	return nil
 }
 
 func (s *storageBtrfs) GetStoragePoolVolumeWritable() api.StorageVolumePut {
