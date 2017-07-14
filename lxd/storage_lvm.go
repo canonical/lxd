@@ -541,6 +541,17 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 		}
 	}
 
+	err = dbStoragePoolVolumeDelete(
+		s.d.db,
+		s.volume.Name,
+		storagePoolVolumeTypeCustom,
+		s.poolID)
+	if err != nil {
+		logger.Errorf(`Failed to delete database entry for ZFS `+
+			`storage volume "%s" on storage pool "%s"`,
+			s.volume.Name, s.pool.Name)
+	}
+
 	logger.Infof("Deleted LVM storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
