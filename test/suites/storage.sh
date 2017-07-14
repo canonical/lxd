@@ -19,6 +19,12 @@ test_storage() {
   lxc storage show "$storage_pool" | grep -q 'description: foo'
 
   lxc storage volume create "$storage_pool" "$storage_volume"
+  if [ "$lxd_backend" != "dir" ]; then
+    # Test resizing/applying quota to a storage volume.
+    lxc storage volume set "$storage_pool" "$storage_volume" size 500MB
+    lxc storage volume unset "$storage_pool" "$storage_volume" size
+  fi
+  # Test setting description on a storage volume
   lxc storage volume show "$storage_pool" "$storage_volume" | sed 's/^description:.*/description: bar/' | lxc storage volume edit "$storage_pool" "$storage_volume"
   lxc storage volume show "$storage_pool" "$storage_volume" | grep -q 'description: bar'
   lxc storage volume delete "$storage_pool" "$storage_volume"
