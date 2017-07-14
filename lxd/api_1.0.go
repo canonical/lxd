@@ -113,6 +113,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"file_symlinks",
 			"container_push_target",
 			"network_vlan_physical",
+			"storage_images_delete",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
