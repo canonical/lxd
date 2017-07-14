@@ -112,6 +112,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"id_map_base",
 			"file_symlinks",
 			"container_push_target",
+			"network_vlan_physical",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

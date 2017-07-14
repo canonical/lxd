@@ -1315,12 +1315,12 @@ func (c *containerLXC) initLXC() error {
 				return err
 			}
 
-			if shared.StringInSlice(m["nictype"], []string{"bridged", "physical"}) {
+			if m["nictype"] == "bridged" {
 				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), m["parent"])
 				if err != nil {
 					return err
 				}
-			} else if m["nictype"] == "macvlan" {
+			} else if shared.StringInSlice(m["nictype"], []string{"macvlan", "physical"}) {
 				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), networkGetHostDevice(m["parent"], m["vlan"]))
 				if err != nil {
 					return err
@@ -1894,7 +1894,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 
 			// Create VLAN devices
-			if m["nictype"] == "macvlan" && m["vlan"] != "" {
+			if shared.StringInSlice(m["nictype"], []string{"macvlan", "physical"}) && m["vlan"] != "" {
 				device := networkGetHostDevice(m["parent"], m["vlan"])
 				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", device)) {
 					_, err := shared.RunCommand("ip", "link", "add", "link", m["parent"], "name", device, "up", "type", "vlan", "id", m["vlan"])
@@ -5806,13 +5806,8 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		dev = n2
 	}
 
-	// Handle physical
-	if m["nictype"] == "physical" {
-		dev = m["parent"]
-	}
-
-	// Handle macvlan
-	if m["nictype"] == "macvlan" {
+	// Handle physical and macvlan
+	if shared.StringInSlice(m["nictype"], []string{"physical", "macvlan"}) {
 		// Deal with VLAN
 		device := m["parent"]
 		if m["vlan"] != "" {
@@ -5828,12 +5823,20 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 			}
 		}
 
-		_, err := shared.RunCommand("ip", "link", "add", n1, "link", device, "type", "macvlan", "mode", "bridge")
-		if err != nil {
-			return "", fmt.Errorf("Failed to create the new macvlan interface: %s", err)
+		// Handle physical
+		if m["nictype"] == "physical" {
+			dev = device
 		}
 
-		dev = n1
+		// Handle macvlan
+		if m["nictype"] == "macvlan" {
+			_, err := shared.RunCommand("ip", "link", "add", n1, "link", device, "type", "macvlan", "mode", "bridge")
+			if err != nil {
+				return "", fmt.Errorf("Failed to create the new macvlan interface: %s", err)
+			}
+
+			dev = n1
+		}
 	}
 
 	// Set the MAC address

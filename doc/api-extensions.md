@@ -292,3 +292,11 @@ X-LXD-type can now be "symlink" with the request content being the target path.
 ## container\_push\_target
 This adds the "target" field to POST /1.0/containers/NAME which can be
 used to have the source LXD host connect to the target during migration.
+
+## network\_vlan\_physical
+Allows use of "vlan" property with "physical" network devices.
+
+When set, this will instruct LXD to attach to the specified VLAN on the "parent" interface.
+LXD will look for an existing interface for that "parent" and VLAN on the host.
+If one can't be found it will create one itself.
+Then, LXD will directly attach this interface to the container.
