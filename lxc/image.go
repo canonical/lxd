@@ -752,9 +752,14 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 					return err
 				}
 			} else {
-				remote, _, err = conf.ParseRemote(args[1])
+				var filter string
+				remote, filter, err = conf.ParseRemote(args[1])
 				if err != nil {
 					return err
+				}
+
+				if filter != "" {
+					filters = append(filters, filter)
 				}
 			}
 		} else {
