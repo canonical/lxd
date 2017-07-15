@@ -6,8 +6,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/gorilla/websocket"
-
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -1554,22 +1552,6 @@ func (s *storageCeph) ImageUmount(fingerprint string) (bool, error) {
 
 	logger.Debugf("Unmounted RBD storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 	return true, nil
-}
-
-func (s *storageCeph) MigrationType() MigrationFSType {
-	return MigrationFSType_RSYNC
-}
-
-func (s *storageCeph) PreservesInodes() bool {
-	return false
-}
-
-func (s *storageCeph) MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (s *storageCeph) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
-	return nil
 }
 
 func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
