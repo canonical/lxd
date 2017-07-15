@@ -31,17 +31,20 @@ const (
 	MigrationFSType_RSYNC MigrationFSType = 0
 	MigrationFSType_BTRFS MigrationFSType = 1
 	MigrationFSType_ZFS   MigrationFSType = 2
+	MigrationFSType_RBD   MigrationFSType = 3
 )
 
 var MigrationFSType_name = map[int32]string{
 	0: "RSYNC",
 	1: "BTRFS",
 	2: "ZFS",
+	3: "RBD",
 }
 var MigrationFSType_value = map[string]int32{
 	"RSYNC": 0,
 	"BTRFS": 1,
 	"ZFS":   2,
+	"RBD":   3,
 }
 
 func (x MigrationFSType) Enum() *MigrationFSType {

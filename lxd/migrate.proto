@@ -4,6 +4,7 @@ enum MigrationFSType {
 	RSYNC		= 0;
 	BTRFS		= 1;
 	ZFS		= 2;
+	RBD		= 3;
 }
 
 enum CRIUType {
