@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -756,6 +757,60 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 
 	logger.Debugf(`Created full RBD copy "%s" -> "%s"`, source.Name(),
 		target.Name())
+	return nil
+}
+
+// copyWithSnapshots creates a non-sparse copy of a container including its
+// snapshots
+// This does not introduce a dependency relation between the source RBD storage
+// volume and the target RBD storage volume.
+func (s *storageCeph) copyWithSnapshots(sourceVolumeName string,
+	targetVolumeName string, sourceParentSnapshot string) error {
+	logger.Debugf(`Creating full RBD copy including snapshots "%s" -> "%s"`,
+		sourceVolumeName, targetVolumeName)
+
+	args := []string{
+		"export-diff",
+		"--cluster", s.ClusterName,
+		sourceVolumeName,
+	}
+
+	if sourceParentSnapshot != "" {
+		args = append(args, "--from-snap", sourceParentSnapshot)
+	}
+
+	// redirect output to stdout
+	args = append(args, "-")
+
+	rbdSendCmd := exec.Command("rbd", args...)
+	rbdRecvCmd := exec.Command(
+		"rbd",
+		"import-diff",
+		"--cluster", s.ClusterName,
+		"-",
+		targetVolumeName)
+
+	rbdRecvCmd.Stdin, _ = rbdSendCmd.StdoutPipe()
+	rbdRecvCmd.Stdout = os.Stdout
+	rbdRecvCmd.Stderr = os.Stderr
+
+	err := rbdRecvCmd.Start()
+	if err != nil {
+		return err
+	}
+
+	err = rbdSendCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	err = rbdRecvCmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf(`Created full RBD copy including snapshots "%s" -> "%s"`,
+		sourceVolumeName, targetVolumeName)
 	return nil
 }
 
