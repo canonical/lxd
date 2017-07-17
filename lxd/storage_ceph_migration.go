@@ -31,6 +31,77 @@ func (s *rbdMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwl
 }
 
 func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
+	containerName := s.container.Name()
+	if s.container.IsSnapshot() {
+		// ContainerSnapshotStart() will create the clone that is
+		// referenced by sendName here.
+		containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(containerName)
+		sendName := fmt.Sprintf(
+			"%s/snapshots_%s_%s_start_clone",
+			s.ceph.OSDPoolName,
+			containerOnlyName,
+			snapOnlyName)
+		wrapper := StorageProgressReader(op, "fs_progress", containerName)
+
+		err := s.rbdSend(conn, sendName, "", wrapper)
+		if err != nil {
+			logger.Errorf(`Failed to send RBD storage volume "%s": %s`, sendName, err)
+			return err
+		}
+		logger.Debugf(`Sent RBD storage volume "%s"`, sendName)
+
+		return nil
+	}
+
+	lastSnap := ""
+	if !containerOnly {
+		for i, snap := range s.rbdSnapshotNames {
+			prev := ""
+			if i > 0 {
+				prev = s.rbdSnapshotNames[i-1]
+			}
+
+			lastSnap = snap
+
+			sendSnapName := fmt.Sprintf(
+				"%s/container_%s@%s",
+				s.ceph.OSDPoolName,
+				containerName,
+				snap)
+
+			wrapper := StorageProgressReader(op, "fs_progress", snap)
+
+			err := s.rbdSend(
+				conn,
+				sendSnapName,
+				prev,
+				wrapper)
+			if err != nil {
+				logger.Errorf(`Failed to send exported diff `+
+					`of RBD storage volume "%s" from `+
+					`snapshot "%s": %s`, sendSnapName,
+					prev, err)
+				return err
+			}
+			logger.Debugf(`Sent exported diff of RBD storage `+
+				`volume "%s" from snapshot "%s"`, sendSnapName,
+				prev)
+		}
+	}
+
+	sendName := fmt.Sprintf("%s/container_%s", s.ceph.OSDPoolName, containerName)
+	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
+
+	err := s.rbdSend(conn, sendName, lastSnap, wrapper)
+	if err != nil {
+		logger.Errorf(`Failed to send exported diff of RBD storage `+
+			`volume "%s" from snapshot "%s": %s`, sendName,
+			lastSnap, err)
+		return err
+	}
+	logger.Debugf(`Sent exported diff of RBD storage volume "%s" from `+
+		`snapshot "%s"`, sendName, lastSnap)
+
 	return nil
 }
 
