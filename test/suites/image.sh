@@ -69,3 +69,15 @@ test_image_import_dir() {
     tar tvf "$exported" | grep -Fq metadata.yaml
     rm "$exported"
 }
+
+test_image_import_existing_alias() {
+    ensure_import_testimage
+    lxc init testimage c
+    lxc publish c --alias newimage --alias image2
+    lxc delete c
+    lxc image export testimage testimage.file
+    lxc image delete testimage
+    # the image can be imported with an existing alias
+    lxc image import testimage.file --alias newimage
+    lxc image delete newimage image2
+}
