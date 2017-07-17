@@ -16,7 +16,7 @@ type rbdMigrationSourceDriver struct {
 }
 
 func (s *rbdMigrationSourceDriver) Snapshots() []container {
-	return []container{}
+	return s.snapshots
 }
 
 func (s *rbdMigrationSourceDriver) Cleanup() {
