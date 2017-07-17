@@ -809,6 +809,148 @@ func (s *storageCeph) ContainerCopy(target container, source container, containe
 
 		logger.Debugf("Copied RBD container storage %s -> %s", source.Name(), target.Name())
 		return nil
+	} else {
+		// create mountpoint for container
+		targetContainerName := target.Name()
+		targetContainerPath := target.Path()
+		targetContainerMountPoint := getContainerMountPoint(
+			s.pool.Name,
+			targetContainerName)
+		err = createContainerMountpoint(
+			targetContainerMountPoint,
+			targetContainerPath,
+			target.IsPrivileged())
+		if err != nil {
+			logger.Errorf(`Failed to create mountpoint "%s" for `+
+				`RBD storage volume "%s" on storage pool `+
+				`"%s": %s"`, targetContainerMountPoint,
+				s.volume.Name, s.pool.Name, err)
+			return err
+		}
+		logger.Debugf(`Created mountpoint "%s" for RBD storage `+
+			`volume "%s" on storage pool "%s"`,
+			targetContainerMountPoint, s.volume.Name, s.pool.Name)
+
+		// create empty dummy volume
+		err = cephRBDVolumeCreate(
+			s.ClusterName,
+			s.OSDPoolName,
+			targetContainerName,
+			storagePoolVolumeTypeNameContainer,
+			"0")
+		if err != nil {
+			logger.Errorf(`Failed to create RBD storage volume "%s" on `+
+				`storage pool "%s": %s`, targetContainerName,
+				s.pool.Name, err)
+			return err
+		}
+		logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
+			targetContainerName, s.pool.Name)
+
+		// receive over the dummy volume we created above
+		sourceContainerName := source.Name()
+		targetVolumeName := fmt.Sprintf(
+			"%s/container_%s",
+			s.OSDPoolName,
+			targetContainerName)
+
+		lastSnap := ""
+		for i, snap := range snapshots {
+			prev := ""
+			if i > 0 {
+				_, snapOnlyName, _ := containerGetParentAndSnapshotName(snapshots[i-1].Name())
+				prev = fmt.Sprintf("snapshot_%s", snapOnlyName)
+			}
+
+			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+			lastSnap = fmt.Sprintf("snapshot_%s", snapOnlyName)
+			sourceVolumeName := fmt.Sprintf(
+				"%s/container_%s@snapshot_%s",
+				s.OSDPoolName,
+				sourceContainerName,
+				snapOnlyName)
+
+			err = s.copyWithSnapshots(
+				sourceVolumeName,
+				targetVolumeName,
+				prev)
+			if err != nil {
+				logger.Errorf(`Failed to copy RBD container `+
+					`storage %s -> %s`, sourceVolumeName,
+					targetVolumeName)
+				return err
+			}
+			logger.Debugf(`Copied RBD container storage %s -> %s`,
+				sourceVolumeName, targetVolumeName)
+
+			// create snapshot mountpoint
+			newTargetName := fmt.Sprintf("%s/%s", targetContainerName, snapOnlyName)
+			containersPath := getSnapshotMountPoint(
+				s.pool.Name,
+				newTargetName)
+			snapshotMntPointSymlinkTarget := shared.VarPath(
+				"storage-pools",
+				s.pool.Name,
+				"snapshots",
+				targetContainerName)
+			snapshotMntPointSymlink := shared.VarPath(
+				"snapshots",
+				targetContainerName)
+			err := createSnapshotMountpoint(
+				containersPath,
+				snapshotMntPointSymlinkTarget,
+				snapshotMntPointSymlink)
+			if err != nil {
+				logger.Errorf(`Failed to create mountpoint `+
+					`"%s", snapshot symlink target "%s", `+
+					`snapshot mountpoint symlink"%s" for `+
+					`RBD storage volume "%s" on storage `+
+					`pool "%s": %s`, containersPath,
+					snapshotMntPointSymlinkTarget,
+					snapshotMntPointSymlink, s.volume.Name,
+					s.pool.Name, err)
+				return err
+			}
+			logger.Debugf(`Created mountpoint "%s", snapshot `+
+				`symlink target "%s", snapshot mountpoint `+
+				`symlink"%s" for RBD storage volume "%s" on `+
+				`storage pool "%s"`, containersPath,
+				snapshotMntPointSymlinkTarget,
+				snapshotMntPointSymlink, s.volume.Name,
+				s.pool.Name)
+		}
+
+		// copy snapshot
+		sourceVolumeName := fmt.Sprintf(
+			"%s/container_%s",
+			s.OSDPoolName,
+			sourceContainerName)
+		err = s.copyWithSnapshots(
+			sourceVolumeName,
+			targetVolumeName,
+			lastSnap)
+		if err != nil {
+			logger.Errorf(`Failed to copy RBD container storage `+
+				`%s -> %s`, sourceVolumeName, targetVolumeName)
+			return err
+		}
+		logger.Debugf(`Copied RBD container storage %s -> %s`,
+			sourceVolumeName, targetVolumeName)
+
+		// map the container's volume
+		err = cephRBDVolumeMap(
+			s.ClusterName,
+			s.OSDPoolName,
+			targetContainerName,
+			storagePoolVolumeTypeNameContainer)
+		if err != nil {
+			logger.Errorf(`Failed to map RBD storage volume for `+
+				`container "%s" on storage pool "%s": %s`,
+				targetContainerName, s.pool.Name, err)
+			return err
+		}
+		logger.Debugf(`Mapped RBD storage volume for container "%s" `+
+			`on storage pool "%s"`, targetContainerName, s.pool.Name)
 	}
 
 	logger.Debugf("Copied RBD container storage %s -> %s", source.Name(), target.Name())
