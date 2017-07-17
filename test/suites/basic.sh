@@ -120,6 +120,17 @@ test_basic_usage() {
   curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
   lxc image delete foo-image
 
+  # Test container publish with existing alias
+  lxc publish bar --alias=foo-image --alias=foo-image2
+  lxc launch testimage baz
+  # change the container filesystem so the resulting image is different
+  lxc exec baz touch /somefile
+  lxc stop baz
+  # publishing another image with same alias doesn't fail
+  lxc publish baz --alias=foo-image
+  lxc delete baz
+  lxc image delete foo-image foo-image2
+
   # Test privileged container publish
   lxc profile create priv
   lxc profile set priv security.privileged true

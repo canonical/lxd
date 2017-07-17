@@ -222,8 +222,7 @@ func (c *imageCmd) doImageAlias(conf *config.Config, args []string) error {
 			return err
 		}
 
-		err = d.DeleteImageAlias(alias)
-		return err
+		return d.DeleteImageAlias(alias)
 	}
 	return errArgs
 }
@@ -273,16 +272,10 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		// Optimisation for simplestreams
+		// Attempt to resolve an image alias
 		var imgInfo *api.Image
 		image := inName
-		if conf.Remotes[remote].Protocol == "simplestreams" {
-			imgInfo = &api.Image{}
-			imgInfo.Fingerprint = image
-			imgInfo.Public = true
-		} else {
-
-			// Attempt to resolve an image alias
+		if c.copyAliases {
 			alias, _, err := d.GetImageAlias(image)
 			if err == nil {
 				image = alias.Target
@@ -293,21 +286,17 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			if err != nil {
 				return err
 			}
-		}
-
-		// Setup the copy arguments
-		aliases := []api.ImageAlias{}
-		for _, entry := range c.addAliases {
-			alias := api.ImageAlias{}
-			alias.Name = entry
-			aliases = append(aliases, alias)
+		} else {
+			// Don't fetch full image info if we don't need aliases (since it's
+			// an expensive operation)
+			imgInfo = &api.Image{}
+			imgInfo.Fingerprint = image
+			imgInfo.Public = true
 		}
 
 		args := lxd.ImageCopyArgs{
-			Aliases:     aliases,
-			AutoUpdate:  c.autoUpdate,
-			CopyAliases: c.copyAliases,
-			Public:      c.publicImage,
+			AutoUpdate: c.autoUpdate,
+			Public:     c.publicImage,
 		}
 
 		// Do the copy
@@ -332,7 +321,20 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 		}
 
 		progress.Done(i18n.G("Image copied successfully!"))
-		return nil
+
+		// Ensure aliases
+		aliases := make([]api.ImageAlias, len(c.addAliases))
+		for i, entry := range c.addAliases {
+			aliases[i].Name = entry
+		}
+		if c.copyAliases {
+			// Also add the original aliases
+			for _, alias := range imgInfo.Aliases {
+				aliases = append(aliases, alias)
+			}
+		}
+		err = ensureImageAliases(dest, aliases, image)
+		return err
 
 	case "delete":
 		/* delete [<remote>:]<image> [<image>...] */
@@ -564,17 +566,16 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 		progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
 
 		// Add the aliases
-		for _, entry := range c.addAliases {
-			alias := api.ImageAliasesPost{}
-			alias.Name = entry
-			alias.Target = fingerprint
-
-			err = d.CreateImageAlias(alias)
+		if len(c.addAliases) > 0 {
+			aliases := make([]api.ImageAlias, len(c.addAliases))
+			for i, entry := range c.addAliases {
+				aliases[i].Name = entry
+			}
+			err = ensureImageAliases(d, aliases, fingerprint)
 			if err != nil {
 				return err
 			}
 		}
-
 		return nil
 
 	case "list":

@@ -197,7 +197,6 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 	}
 
 	if cRemote == iRemote {
-		req.Aliases = aliases
 		req.Public = c.makePublic
 	}
 
@@ -226,8 +225,7 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 
 		// Image copy arguments
 		args := lxd.ImageCopyArgs{
-			Aliases: aliases,
-			Public:  c.makePublic,
+			Public: c.makePublic,
 		}
 
 		// Copy the image to the destination host
@@ -242,6 +240,10 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 		}
 	}
 
+	err = ensureImageAliases(d, aliases, fingerprint)
+	if err != nil {
+		return err
+	}
 	fmt.Printf(i18n.G("Container published with fingerprint: %s")+"\n", fingerprint)
 
 	return nil
