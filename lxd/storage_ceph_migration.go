@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -177,6 +178,140 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 	return &driver, nil
 }
 
-func (s *storageCeph) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
+func (s *storageCeph) MigrationSink(live bool, c container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
+	// Check that we received a valid root disk device with a pool property
+	// set.
+	parentStoragePool := ""
+	parentExpandedDevices := c.ExpandedDevices()
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := containerGetRootDiskDevice(parentExpandedDevices)
+	if parentLocalRootDiskDeviceKey != "" {
+		parentStoragePool = parentLocalRootDiskDevice["pool"]
+	}
+
+	// A little neuroticism.
+	if parentStoragePool == "" {
+		return fmt.Errorf(`Detected that the container's root device ` +
+			`is missing the pool property during RBD migration`)
+	}
+	logger.Debugf(`Detected root disk device with pool property set to `+
+		`"%s" during RBD migration`, parentStoragePool)
+
+	// create empty volume for container
+	// TODO: The cluster name can be different between LXD instances. Find
+	// out what to do in this case. Maybe I'm overthinking this and if the
+	// pool exists and we were able to initialize a new storage interface on
+	// the receiving LXD instance it also means that s.ClusterName has been
+	// set to the correct cluster name for that LXD instance. Yeah, I think
+	// that's actually correct.
+	containerName := c.Name()
+	if !cephRBDVolumeExists(
+		s.ClusterName,
+		s.OSDPoolName,
+		containerName,
+		storagePoolVolumeTypeNameContainer) {
+
+		err := cephRBDVolumeCreate(
+			s.ClusterName,
+			s.OSDPoolName,
+			containerName,
+			storagePoolVolumeTypeNameContainer, "0")
+		if err != nil {
+			logger.Errorf(`Failed to create RBD storage volume "%s" for cluster "%s" in OSD pool "%s" on storage pool "%s": %s`, containerName, s.ClusterName, s.OSDPoolName, s.pool.Name, err)
+			return err
+		}
+		logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
+			containerName, s.pool.Name)
+	}
+
+	if len(snapshots) > 0 {
+		snapshotMntPointSymlinkTarget := shared.VarPath(
+			"storage-pools",
+			s.pool.Name,
+			"snapshots",
+			containerName)
+
+		snapshotMntPointSymlink := shared.VarPath(
+			"snapshots",
+			containerName)
+
+		if !shared.PathExists(snapshotMntPointSymlink) {
+			err := os.Symlink(
+				snapshotMntPointSymlinkTarget,
+				snapshotMntPointSymlink)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Now we're ready to receive the actual fs.
+	recvName := fmt.Sprintf("%s/container_%s", s.OSDPoolName, containerName)
+	for _, snap := range snapshots {
+		curSnapName := snap.GetName()
+		args := snapshotProtobufToContainerArgs(containerName, snap)
+
+		// Ensure that snapshot and parent container have the same
+		// storage pool in their local root disk device.  If the root
+		// disk device for the snapshot comes from a profile on the new
+		// instance as well we don't need to do anything.
+		if args.Devices != nil {
+			snapLocalRootDiskDeviceKey, _, _ := containerGetRootDiskDevice(args.Devices)
+			if snapLocalRootDiskDeviceKey != "" {
+				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+			}
+		}
+		_, err := containerCreateEmptySnapshot(c.Daemon(), args)
+		if err != nil {
+			logger.Errorf(`Failed to create empty RBD storage `+
+				`volume for container "%s" on storage pool "%s: %s`,
+				containerName, s.OSDPoolName, err)
+			return err
+		}
+		logger.Debugf(`Created empty RBD storage volume for `+
+			`container "%s" on storage pool "%s`, containerName,
+			s.OSDPoolName)
+
+		wrapper := StorageProgressWriter(op, "fs_progress", curSnapName)
+		err = s.rbdRecv(conn, recvName, wrapper)
+		if err != nil {
+			logger.Errorf(`Failed to receive RBD storage volume "%s": %s`, curSnapName, err)
+			return err
+		}
+		logger.Debugf(`Received RBD storage volume "%s"`, curSnapName)
+
+		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, fmt.Sprintf("%s/%s", containerName, *snap.Name))
+		if !shared.PathExists(snapshotMntPoint) {
+			err := os.MkdirAll(snapshotMntPoint, 0700)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// receive the container itself
+	wrapper := StorageProgressWriter(op, "fs_progress", containerName)
+	err := s.rbdRecv(conn, recvName, wrapper)
+	if err != nil {
+		logger.Errorf(`Failed to receive RBD storage volume "%s": %s`, recvName, err)
+		return err
+	}
+	logger.Debugf(`Received RBD storage volume "%s"`, recvName)
+
+	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	err = createContainerMountpoint(
+		containerMntPoint,
+		c.Path(),
+		c.IsPrivileged())
+	if err != nil {
+		logger.Errorf(`Failed to create mountpoint "%s" for RBD `+
+			`storage volume for container "%s" on storage pool `+
+			`"%s": %s"`, containerMntPoint, containerName,
+			s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Created mountpoint "%s" for RBD storage volume for `+
+		`container "%s" on storage pool "%s""`, containerMntPoint,
+		containerName, s.pool.Name)
+
 	return nil
 }
