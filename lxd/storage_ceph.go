@@ -187,31 +187,50 @@ func (s *storageCeph) StoragePoolCreate() error {
 }
 
 func (s *storageCeph) StoragePoolDelete() error {
-	logger.Infof("Deleting CEPH storage pool \"%s\".", s.pool.Name)
+	logger.Infof(`Deleting CEPH OSD storage pool "%s" in cluster "%s"`,
+		s.pool.Name, s.ClusterName)
 
 	// test if pool exists
 	if !cephOSDPoolExists(s.ClusterName, s.OSDPoolName) {
-		return fmt.Errorf("CEPH osd storage pool \"%s\" does not exist in cluster \"%s\"", s.OSDPoolName, s.ClusterName)
+		msg := fmt.Sprintf(`CEPH osd storage pool "%s" does not exist `+
+			`in cluster "%s"`, s.OSDPoolName, s.ClusterName)
+		logger.Errorf(msg)
+		return fmt.Errorf(msg)
 	}
 
 	// Check whether we own the pool and only remove in this case.
 	if s.pool.Config["volatile.pool.pristine"] != "" &&
 		shared.IsTrue(s.pool.Config["volatile.pool.pristine"]) {
+		logger.Debugf(`Detected that this LXD instance is the owner `+
+			`of the CEPH osd storage pool "%s" in cluster "%s"`,
+			s.OSDPoolName, s.ClusterName)
+
 		// Delete the osd pool.
 		err := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName)
 		if err != nil {
+			logger.Errorf(`Failed to delete CEPH OSD storage pool `+
+				`"%s" in cluster "%s": %s`, s.pool.Name,
+				s.ClusterName, err)
 			return err
 		}
+		logger.Debugf(`Deleted CEPH OSD storage pool "%s" in cluster "%s"`,
+			s.pool.Name, s.ClusterName)
 	}
 
 	// Delete the mountpoint for the storage pool.
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 	err := os.RemoveAll(poolMntPoint)
 	if err != nil {
+		logger.Errorf(`Failed to delete mountpoint "%s" for CEPH osd `+
+			`storage pool "%s" in cluster "%s": %s`, poolMntPoint,
+			s.OSDPoolName, s.ClusterName, err)
 		return err
 	}
+	logger.Debugf(`Deleted mountpoint "%s" for CEPH osd storage pool "%s" `+
+		`in cluster "%s"`, poolMntPoint, s.OSDPoolName, s.ClusterName)
 
-	logger.Infof("Deleted CEPH storage pool \"%s\".", s.pool.Name)
+	logger.Infof(`Deleted CEPH OSD storage pool "%s" in cluster "%s"`,
+		s.pool.Name, s.ClusterName)
 	return nil
 }
 
