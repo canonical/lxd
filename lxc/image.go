@@ -273,13 +273,26 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		// Check if an alias
-		fingerprint := c.dereferenceAlias(d, inName)
+		// Optimisation for simplestreams
+		var imgInfo *api.Image
+		image := inName
+		if conf.Remotes[remote].Protocol == "simplestreams" {
+			imgInfo = &api.Image{}
+			imgInfo.Fingerprint = image
+			imgInfo.Public = true
+		} else {
 
-		// Get the image
-		image, _, err := d.GetImage(fingerprint)
-		if err != nil {
-			return err
+			// Attempt to resolve an image alias
+			alias, _, err := d.GetImageAlias(image)
+			if err == nil {
+				image = alias.Target
+			}
+
+			// Get the image info
+			imgInfo, _, err = d.GetImage(image)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Setup the copy arguments
@@ -298,7 +311,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 		}
 
 		// Do the copy
-		op, err := dest.CopyImage(d, *image, &args)
+		op, err := dest.CopyImage(d, *imgInfo, &args)
 		if err != nil {
 			return err
 		}
