@@ -836,7 +836,7 @@ func autoUpdateImages(d *Daemon) {
 	for _, fingerprint := range images {
 		id, info, err := dbImageGet(d.db, fingerprint, false, true)
 		if err != nil {
-			logger.Error("Error loading image", log.Ctx{"err": err, "fp": fingerprint})
+			logger.Error("Error loading image", log.Ctx{"err": err, "fp": info.Fingerprint})
 			continue
 		}
 
@@ -844,7 +844,7 @@ func autoUpdateImages(d *Daemon) {
 			continue
 		}
 
-		autoUpdateImage(d, nil, fingerprint, id, info)
+		autoUpdateImage(d, nil, id, info)
 	}
 
 	logger.Infof("Done updating images")
@@ -852,7 +852,8 @@ func autoUpdateImages(d *Daemon) {
 
 // Update a single image.  The operation can be nil, if no progress tracking is needed.
 // Returns whether the image has been updated.
-func autoUpdateImage(d *Daemon, op *operation, fingerprint string, id int, info *api.Image) error {
+func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
+	fingerprint := info.Fingerprint
 	_, source, err := dbImageSourceGet(d.db, id)
 	if err != nil {
 		logger.Error("Error getting source image", log.Ctx{"err": err, "fp": fingerprint})
