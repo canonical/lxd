@@ -66,6 +66,6 @@ test_image_import_dir() {
     # shellcheck disable=2039,2034,2155
     local exported="${fingerprint}.tar.xz"
 
-    tar tvf "$exported" | fgrep -q metadata.yaml
+    tar tvf "$exported" | grep -Fq metadata.yaml
     rm "$exported"
 }
