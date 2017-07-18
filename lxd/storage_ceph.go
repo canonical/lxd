@@ -31,7 +31,7 @@ func (s *storageCeph) StorageCoreInit() error {
 		return fmt.Errorf("Error getting CEPH version: %s", err)
 	}
 
-	logger.Debugf("Initializing a CEPH driver.")
+	logger.Debugf("Initializing a CEPH driver")
 	return nil
 }
 
@@ -72,7 +72,8 @@ func (s *storageCeph) StoragePoolInit() error {
 }
 
 func (s *storageCeph) StoragePoolCheck() error {
-	logger.Debugf("Checking CEPH storage pool \"%s\".", s.pool.Name)
+	logger.Debugf(`Checking CEPH storage pool "%s" (noop)`, s.pool.Name)
+	logger.Debugf(`Checked CEPH storage pool "%s" (noop)`, s.pool.Name)
 	return nil
 }
 
