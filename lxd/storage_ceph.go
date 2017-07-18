@@ -78,22 +78,26 @@ func (s *storageCeph) StoragePoolCheck() error {
 }
 
 func (s *storageCeph) StoragePoolCreate() error {
-	logger.Infof("Creating CEPH storage pool \"%s\".", s.pool.Name)
+	logger.Infof(`Creating CEPH OSD storage pool "%s" in cluster "%s"`,
+		s.pool.Name, s.ClusterName)
 
 	if !cephOSDPoolExists(s.ClusterName, s.OSDPoolName) {
 		// create new osd pool
-		msg, err := shared.TryRunCommand("ceph", "--cluster", s.ClusterName, "osd", "pool", "create", s.OSDPoolName, s.PGNum)
+		msg, err := shared.TryRunCommand("ceph", "--cluster",
+			s.ClusterName, "osd", "pool", "create", s.OSDPoolName,
+			s.PGNum)
 		if err != nil {
-			return fmt.Errorf("failed to create CEPH osd storage pool \"%s\" in cluster \"%s\": %s", s.OSDPoolName, s.ClusterName, msg)
+			logger.Errorf(`Failed to create CEPH osd storage pool `+
+				`"%s" in cluster "%s": %s`, s.OSDPoolName,
+				s.ClusterName, msg)
+			return err
 		}
+		logger.Debugf(`Created CEPH osd storage pool "%s" in cluster `+
+			`"%s"`, s.OSDPoolName, s.ClusterName)
 	} else {
 		// use existing osd pool
-		msg, err := shared.RunCommand(
-			"ceph",
-			"--cluster", s.ClusterName,
-			"osd",
-			"pool",
-			"get", s.OSDPoolName,
+		msg, err := shared.RunCommand("ceph", "--cluster",
+			s.ClusterName, "osd", "pool", "get", s.OSDPoolName,
 			"pg_num")
 		if err != nil {
 			logger.Errorf(`Failed to retrieve number of placement `+
@@ -148,16 +152,13 @@ func (s *storageCeph) StoragePoolCreate() error {
 		// Destroy the pool.
 		warn := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName)
 		if warn != nil {
-			logger.Warnf("failed to destroy ceph storage pool \"%s\"", s.OSDPoolName)
+			logger.Warnf(`Failed to destroy ceph storage pool "%s"`,
+				s.OSDPoolName)
 		}
 		return err
 	}
 
-	ok := cephRBDVolumeExists(
-		s.ClusterName,
-		s.OSDPoolName,
-		s.pool.Name,
-		"lxd")
+	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, s.pool.Name, "lxd")
 	s.pool.Config["volatile.pool.pristine"] = "false"
 	if !ok {
 		s.pool.Config["volatile.pool.pristine"] = "true"
@@ -171,15 +172,17 @@ func (s *storageCeph) StoragePoolCreate() error {
 			"lxd",
 			"0")
 		if err != nil {
-			logger.Errorf(`Failed to create RBD storage volume "%s" on `+
-				`storage pool "%s": %s`, s.pool.Name, s.pool.Name, err)
+			logger.Errorf(`Failed to create RBD storage volume `+
+				`"%s" on storage pool "%s": %s`, s.pool.Name,
+				s.pool.Name, err)
 			return err
 		}
-		logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
-			s.pool.Name, s.pool.Name)
+		logger.Debugf(`Created RBD storage volume "%s" on storage `+
+			`pool "%s"`, s.pool.Name, s.pool.Name)
 	}
 
-	logger.Infof("Created CEPH storage pool \"%s\".", s.pool.Name)
+	logger.Infof(`Created CEPH OSD storage pool "%s" in cluster "%s"`,
+		s.pool.Name, s.ClusterName)
 	return nil
 }
 
