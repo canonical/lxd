@@ -717,7 +717,21 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 		storage.LoopSize = -1
 		question := fmt.Sprintf("Create a new %s pool (yes/no) [default=yes]? ", strings.ToUpper(storage.Backend))
 		if cmd.Context.AskBool(question, "yes") {
-			if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
+			if storage.Backend == "ceph" {
+				// Pool configuration
+				if storage.Config != nil {
+					storage.Config = map[string]string{}
+				}
+
+				// ask for the name of the cluster
+				storage.Config["ceph.cluster_name"] = cmd.Context.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
+
+				// ask for the name of the osd pool
+				storage.Config["ceph.osd.pool_name"] = cmd.Context.AskString("Name of the OSD storage pool [default=lxd]: ", "lxd", nil)
+
+				// ask for the number of placement groups
+				storage.Config["ceph.osd.pg_num"] = cmd.Context.AskString("Number of placement groups [default=32]: ", "32", nil)
+			} else if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
 				deviceExists := func(path string) error {
 					if !shared.IsBlockdevPath(path) {
 						return fmt.Errorf("'%s' is not a block device", path)
@@ -752,8 +766,21 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 				}
 			}
 		} else {
-			question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(storage.Backend))
-			storage.Dataset = cmd.Context.AskString(question, "", nil)
+			if storage.Backend == "ceph" {
+				// Pool configuration
+				if storage.Config != nil {
+					storage.Config = map[string]string{}
+				}
+
+				// ask for the name of the cluster
+				storage.Config["ceph.cluster_name"] = cmd.Context.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
+
+				// ask for the name of the existing pool
+				storage.Config["source"] = cmd.Context.AskString("Name of the existing OSD storage pool [default=lxd]: ", "lxd", nil)
+			} else {
+				question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(storage.Backend))
+				storage.Dataset = cmd.Context.AskString(question, "", nil)
+			}
 		}
 
 		if storage.Backend == "lvm" {
