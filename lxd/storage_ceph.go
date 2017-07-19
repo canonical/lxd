@@ -79,6 +79,8 @@ func (s *storageCeph) StoragePoolCreate() error {
 	logger.Infof(`Creating CEPH OSD storage pool "%s" in cluster "%s"`,
 		s.pool.Name, s.ClusterName)
 
+	revert := true
+
 	// sanity check
 	if s.pool.Config["source"] != "" &&
 		s.pool.Config["ceph.osd.pool_name"] != "" &&
@@ -116,6 +118,20 @@ func (s *storageCeph) StoragePoolCreate() error {
 		}
 		logger.Debugf(`Created CEPH osd storage pool "%s" in cluster `+
 			`"%s"`, s.OSDPoolName, s.ClusterName)
+
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName)
+			if err != nil {
+				logger.Warnf(`Failed to delete ceph storage `+
+					`pool "%s" in cluster "%s": %s`,
+					s.OSDPoolName, s.ClusterName, err)
+			}
+		}()
+
 	} else {
 		logger.Debugf(`CEPH OSD storage pool "%s" does exist`, s.OSDPoolName)
 
@@ -173,14 +189,26 @@ func (s *storageCeph) StoragePoolCreate() error {
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 	err := os.MkdirAll(poolMntPoint, 0711)
 	if err != nil {
-		// Destroy the pool.
-		warn := cephOSDPoolDestroy(s.ClusterName, s.OSDPoolName)
-		if warn != nil {
-			logger.Warnf(`Failed to destroy ceph storage pool "%s"`,
-				s.OSDPoolName)
-		}
+		logger.Errorf(`Failed to create mountpoint "%s" for ceph `+
+			`storage pool "%s" in cluster "%s": %s`, poolMntPoint,
+			s.OSDPoolName, s.ClusterName, err)
 		return err
 	}
+	logger.Debugf(`Created mountpoint "%s" for ceph storage pool "%s" in `+
+		`cluster "%s"`, poolMntPoint, s.OSDPoolName, s.ClusterName)
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := os.Remove(poolMntPoint)
+		if err != nil {
+			logger.Errorf(`Failed to delete mountpoint "%s" for `+
+				`ceph storage pool "%s" in cluster "%s": %s`,
+				poolMntPoint, s.OSDPoolName, s.ClusterName, err)
+		}
+	}()
 
 	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, s.pool.Name, "lxd")
 	s.pool.Config["volatile.pool.pristine"] = "false"
@@ -207,6 +235,9 @@ func (s *storageCeph) StoragePoolCreate() error {
 
 	logger.Infof(`Created CEPH OSD storage pool "%s" in cluster "%s"`,
 		s.pool.Name, s.ClusterName)
+
+	revert = false
+
 	return nil
 }
 
