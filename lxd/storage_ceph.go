@@ -323,6 +323,8 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 	logger.Debugf(`Creating RBD storage volume "%s" on storage pool "%s"`,
 		s.volume.Name, s.pool.Name)
 
+	revert := true
+
 	// get size
 	RBDSize, err := s.getRBDSize()
 	if err != nil {
@@ -349,6 +351,20 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 	logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
 		s.volume.Name, s.pool.Name)
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName,
+			s.volume.Name, storagePoolVolumeTypeNameCustom)
+		if err != nil {
+			logger.Warnf(`Failed to delete RBD storage volume `+
+				`"%s" on storage pool "%s": %s`, s.volume.Name,
+				s.pool.Name, err)
+		}
+	}()
+
 	err = cephRBDVolumeMap(
 		s.ClusterName,
 		s.OSDPoolName,
@@ -361,6 +377,20 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 	}
 	logger.Debugf(`Mapped RBD storage volume for "%s" on storage pool "%s"`,
 		s.volume.Name, s.pool.Name)
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
+			s.volume.Name, storagePoolVolumeTypeNameCustom)
+		if err != nil {
+			logger.Warnf(`Failed to unmap RBD storage volume `+
+				`"%s" on storage pool "%s": %s`, s.volume.Name,
+				s.pool.Name, err)
+		}
+	}()
 
 	// get filesystem
 	RBDFilesystem := s.getRBDFilesystem()
@@ -400,8 +430,24 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 		`on storage pool "%s"`, volumeMntPoint, s.volume.Name,
 		s.pool.Name)
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := os.Remove(volumeMntPoint)
+		if err != nil {
+			logger.Warnf(`Failed to delete mountpoint "%s" for RBD `+
+				`storage volume "%s" on storage pool "%s": %s"`,
+				volumeMntPoint, s.volume.Name, s.pool.Name, err)
+		}
+	}()
+
 	logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
 		s.volume.Name, s.pool.Name)
+
+	revert = false
+
 	return nil
 }
 
