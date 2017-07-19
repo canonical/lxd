@@ -777,6 +777,7 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 
 				// ask for the name of the existing pool
 				storage.Config["source"] = cmd.Context.AskString("Name of the existing OSD storage pool [default=lxd]: ", "lxd", nil)
+				storage.Config["ceph.osd.pool_name"] = storage.Config["source"]
 			} else {
 				question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(storage.Backend))
 				storage.Dataset = cmd.Context.AskString(question, "", nil)
