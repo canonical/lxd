@@ -836,7 +836,7 @@ func autoUpdateImages(d *Daemon) {
 	for _, fingerprint := range images {
 		id, info, err := dbImageGet(d.db, fingerprint, false, true)
 		if err != nil {
-			logger.Error("Error loading image", log.Ctx{"err": err, "fp": info.Fingerprint})
+			logger.Error("Error loading image", log.Ctx{"err": err, "fp": fingerprint})
 			continue
 		}
 
