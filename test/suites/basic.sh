@@ -286,6 +286,13 @@ test_basic_usage() {
     false
   fi
 
+  # Test instance types
+  lxc launch testimage test-limits -t c0.5-m0.2
+  [ "$(lxc config get test-limits limits.cpu)" = "1" ]
+  [ "$(lxc config get test-limits limits.cpu.allowance)" = "50%" ]
+  [ "$(lxc config get test-limits limits.memory)" = "204MB" ]
+  lxc delete -f test-limits
+
   # Test last_used_at field is working properly
   lxc init testimage last-used-at-test
   lxc list last-used-at-test  --format json | jq -r '.[].last_used_at' | grep '1970-01-01T00:00:00Z'

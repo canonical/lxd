@@ -120,6 +120,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"container_snapshot_stateful_migration",
 			"storage_driver_ceph",
 			"storage_ceph_user_name",
+			"resource_limits",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
