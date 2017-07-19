@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-12 00:41+0200\n"
+"POT-Creation-Date: 2017-07-18 14:38+0200\n"
 "PO-Revision-Date: 2017-06-15 22:46+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -171,7 +171,7 @@ msgstr "'/' non è permesso nel nome di uno snapshot"
 msgid "(none)"
 msgstr "(nessuno)"
 
-#: lxc/image.go:227 lxc/image.go:1065
+#: lxc/image.go:227 lxc/image.go:1072
 msgid "ALIAS"
 msgstr "ALIAS"
 
@@ -196,21 +196,21 @@ msgstr "Accetta certificato"
 msgid "Admin password for %s: "
 msgstr "Password amministratore per %s: "
 
-#: lxc/image.go:573
+#: lxc/image.go:576
 msgid "Aliases:"
 msgstr "Alias:"
 
-#: lxc/image.go:551 lxc/info.go:104
+#: lxc/image.go:554 lxc/info.go:104
 #, c-format
 msgid "Architecture: %s"
 msgstr "Architettura: %s"
 
-#: lxc/image.go:581
+#: lxc/image.go:584
 #, c-format
 msgid "Auto update: %s"
 msgstr "Aggiornamento automatico: %s"
 
-#: lxc/image.go:655
+#: lxc/image.go:658
 #, c-format
 msgid "Bad property: %s"
 msgstr ""
@@ -283,7 +283,7 @@ msgstr ""
 msgid "Config key/value to apply to the new container"
 msgstr ""
 
-#: lxc/config.go:647 lxc/config.go:712 lxc/image.go:1120 lxc/network.go:418
+#: lxc/config.go:647 lxc/config.go:712 lxc/image.go:1127 lxc/network.go:418
 #: lxc/profile.go:267 lxc/storage.go:576 lxc/storage.go:935
 #, c-format
 msgid "Config parsing error: %s"
@@ -302,7 +302,7 @@ msgstr ""
 msgid "Container name is: %s"
 msgstr ""
 
-#: lxc/publish.go:248
+#: lxc/publish.go:250
 #, c-format
 msgid "Container published with fingerprint: %s"
 msgstr ""
@@ -315,7 +315,7 @@ msgstr ""
 msgid "Copy the container without its snapshots"
 msgstr ""
 
-#: lxc/image.go:423
+#: lxc/image.go:413
 #, c-format
 msgid "Copying the image: %s"
 msgstr ""
@@ -328,7 +328,7 @@ msgstr ""
 msgid "Create any directories necessary"
 msgstr ""
 
-#: lxc/image.go:556 lxc/info.go:106
+#: lxc/image.go:559 lxc/info.go:106
 #, c-format
 msgid "Created: %s"
 msgstr ""
@@ -342,7 +342,7 @@ msgstr ""
 msgid "Creating the container"
 msgstr ""
 
-#: lxc/image.go:231 lxc/image.go:1067 lxc/list.go:463 lxc/network.go:507
+#: lxc/image.go:231 lxc/image.go:1074 lxc/list.go:463 lxc/network.go:507
 #: lxc/storage.go:654 lxc/storage.go:749
 msgid "DESCRIPTION"
 msgstr ""
@@ -370,7 +370,7 @@ msgstr ""
 msgid "Device already exists: %s"
 msgstr "il remote %s esiste già"
 
-#: lxc/image.go:1219
+#: lxc/image.go:1226
 msgid "Directory import is not available on this platform"
 msgstr ""
 
@@ -418,22 +418,27 @@ msgstr ""
 msgid "Event type to listen for"
 msgstr ""
 
-#: lxc/image.go:560
+#: lxc/image.go:563
 #, c-format
 msgid "Expires: %s"
 msgstr ""
 
-#: lxc/image.go:562
+#: lxc/image.go:565
 msgid "Expires: never"
 msgstr ""
 
-#: lxc/image.go:861
+#: lxc/image.go:868
 #, c-format
 msgid "Exporting the image: %s"
 msgstr ""
 
-#: lxc/config.go:348 lxc/image.go:229 lxc/image.go:1066
+#: lxc/config.go:348 lxc/image.go:229 lxc/image.go:1073
 msgid "FINGERPRINT"
+msgstr ""
+
+#: lxc/image.go:1273
+#, c-format
+msgid "Failed to create alias %s"
 msgstr ""
 
 #: lxc/manpage.go:62
@@ -450,6 +455,11 @@ msgstr ""
 msgid "Failed to get the new container name"
 msgstr ""
 
+#: lxc/image.go:1263
+#, c-format
+msgid "Failed to remove alias %s"
+msgstr ""
+
 #: lxc/file.go:125
 #, c-format
 msgid "Failed to walk path for %s: %s"
@@ -459,7 +469,7 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/image.go:549
+#: lxc/image.go:552
 #, c-format
 msgid "Fingerprint: %s"
 msgstr ""
@@ -512,24 +522,24 @@ msgstr ""
 msgid "Ignore the container state (only for start)"
 msgstr ""
 
-#: lxc/image.go:512
+#: lxc/image.go:515
 msgid "Image already up to date."
 msgstr ""
 
-#: lxc/image.go:437
+#: lxc/image.go:427
 msgid "Image copied successfully!"
 msgstr ""
 
-#: lxc/image.go:911
+#: lxc/image.go:918
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:722
+#: lxc/image.go:725
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr ""
 
-#: lxc/image.go:510
+#: lxc/image.go:513
 msgid "Image refreshed successfully!"
 msgstr ""
 
@@ -577,12 +587,12 @@ msgstr ""
 msgid "LXD socket not found; is LXD installed and running?"
 msgstr ""
 
-#: lxc/image.go:565
+#: lxc/image.go:568
 #, c-format
 msgid "Last used: %s"
 msgstr ""
 
-#: lxc/image.go:567
+#: lxc/image.go:570
 msgid "Last used: never"
 msgstr ""
 
@@ -630,7 +640,7 @@ msgstr ""
 msgid "Move the container without its snapshots"
 msgstr ""
 
-#: lxc/image.go:1221
+#: lxc/image.go:1228
 msgid "Must run as root to import from directory"
 msgstr ""
 
@@ -698,7 +708,7 @@ msgstr ""
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
-#: lxc/image.go:636
+#: lxc/image.go:639
 msgid "Only https:// is supported for remote image import."
 msgstr ""
 
@@ -767,7 +777,7 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:648 lxc/config.go:713 lxc/image.go:1121
+#: lxc/config.go:648 lxc/config.go:713 lxc/image.go:1128
 msgid "Press enter to start the editor again"
 msgstr ""
 
@@ -822,7 +832,7 @@ msgstr ""
 msgid "Profiles: %s"
 msgstr ""
 
-#: lxc/image.go:569
+#: lxc/image.go:572
 msgid "Properties:"
 msgstr ""
 
@@ -830,7 +840,7 @@ msgstr ""
 msgid "Public image server"
 msgstr ""
 
-#: lxc/image.go:552
+#: lxc/image.go:555
 #, c-format
 msgid "Public: %s"
 msgstr ""
@@ -839,7 +849,7 @@ msgstr ""
 msgid "Recursively push or pull files"
 msgstr ""
 
-#: lxc/image.go:490
+#: lxc/image.go:493
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr ""
@@ -943,7 +953,7 @@ msgstr ""
 msgid "Show the expanded configuration"
 msgstr ""
 
-#: lxc/image.go:550
+#: lxc/image.go:553
 #, c-format
 msgid "Size: %.2fMB"
 msgstr ""
@@ -957,7 +967,7 @@ msgstr ""
 msgid "Some containers failed to %s"
 msgstr ""
 
-#: lxc/image.go:583
+#: lxc/image.go:586
 msgid "Source:"
 msgstr ""
 
@@ -1089,7 +1099,7 @@ msgstr ""
 msgid "Time to wait for the container before killing it"
 msgstr ""
 
-#: lxc/image.go:553
+#: lxc/image.go:556
 msgid "Timestamps:"
 msgstr ""
 
@@ -1114,7 +1124,7 @@ msgstr ""
 msgid "Transferring container: %s"
 msgstr ""
 
-#: lxc/image.go:661
+#: lxc/image.go:664
 #, c-format
 msgid "Transferring image: %s"
 msgstr ""
@@ -1157,7 +1167,7 @@ msgstr ""
 msgid "Unknown file type '%s'"
 msgstr ""
 
-#: lxc/image.go:558
+#: lxc/image.go:561
 #, c-format
 msgid "Uploaded: %s"
 msgstr ""
@@ -1966,11 +1976,11 @@ msgstr ""
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
 
-#: lxc/image.go:544
+#: lxc/image.go:547
 msgid "disabled"
 msgstr ""
 
-#: lxc/image.go:546
+#: lxc/image.go:549
 msgid "enabled"
 msgstr ""
 
@@ -1984,7 +1994,7 @@ msgstr ""
 msgid "error: unknown command: %s"
 msgstr ""
 
-#: lxc/image.go:206 lxc/image.go:539
+#: lxc/image.go:206 lxc/image.go:542
 msgid "no"
 msgstr "no"
 
@@ -2038,7 +2048,7 @@ msgstr "salvato alle %s"
 msgid "wrong number of subcommand arguments"
 msgstr "numero errato di argomenti del sottocomando"
 
-#: lxc/delete.go:45 lxc/image.go:204 lxc/image.go:541
+#: lxc/delete.go:45 lxc/image.go:204 lxc/image.go:544
 msgid "yes"
 msgstr "si"
 
