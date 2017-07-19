@@ -189,6 +189,7 @@ func daemonConfigInit(db *sql.DB) error {
 		"core.proxy_https":               {valueType: "string", setter: daemonConfigSetProxy},
 		"core.proxy_ignore_hosts":        {valueType: "string", setter: daemonConfigSetProxy},
 		"core.trust_password":            {valueType: "string", hiddenValue: true, setter: daemonConfigSetPassword},
+		"core.macaroon.endpoint":         {valueType: "string", setter: daemonConfigSetMacaroonEndpoint},
 
 		"images.auto_update_cached":    {valueType: "bool", defaultValue: "true"},
 		"images.auto_update_interval":  {valueType: "int", defaultValue: "6", trigger: daemonConfigTriggerAutoUpdateInterval},
@@ -272,6 +273,15 @@ func daemonConfigSetPassword(d *Daemon, key string, value string) (string, error
 func daemonConfigSetAddress(d *Daemon, key string, value string) (string, error) {
 	// Update the current https address
 	err := d.UpdateHTTPsPort(value)
+	if err != nil {
+		return "", err
+	}
+
+	return value, nil
+}
+
+func daemonConfigSetMacaroonEndpoint(d *Daemon, key string, value string) (string, error) {
+	err := d.setupExternalAuthentication(value)
 	if err != nil {
 		return "", err
 	}

@@ -21,8 +21,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/juju/idmclient"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/syndtr/gocapability/capability"
+	"golang.org/x/net/context"
+	"gopkg.in/macaroon-bakery.v2-unstable/bakery"
+	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery"
 	"gopkg.in/tomb.v2"
 
 	"github.com/lxc/lxd/client"
@@ -87,6 +91,13 @@ type Daemon struct {
 	tlsConfig *tls.Config
 
 	proxy func(req *http.Request) (*url.URL, error)
+
+	externalAuth *externalAuth
+}
+
+type externalAuth struct {
+	endpoint string
+	bakery   *bakery.Bakery
 }
 
 // NewDaemon returns a new, un-initialized Daemon object.
@@ -117,6 +128,64 @@ func readMyCert() (string, string, error) {
 	return certf, keyf, err
 }
 
+// Check whether the request comes from a trusted client.
+func (d *Daemon) checkTrustedClient(r *http.Request) error {
+	if r.RemoteAddr == "@" {
+		// Unix socket
+		return nil
+	}
+
+	if r.TLS == nil {
+		return fmt.Errorf("no TLS")
+	}
+
+	if d.externalAuth != nil && r.Header.Get(httpbakery.BakeryProtocolHeader) != "" {
+		ctx := httpbakery.ContextWithRequest(context.TODO(), r)
+		authChecker := d.externalAuth.bakery.Checker.Auth(
+			httpbakery.RequestMacaroons(r)...)
+		ops := getBakeryOps(r)
+		_, err := authChecker.Allow(ctx, ops...)
+		return err
+	}
+
+	for i := range r.TLS.PeerCertificates {
+		if util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts) {
+			return nil
+		}
+	}
+	return fmt.Errorf("unauthorized")
+}
+
+// Return the bakery operations implied by the given HTTP request
+func getBakeryOps(r *http.Request) []bakery.Op {
+	return []bakery.Op{{
+		Entity: r.URL.Path,
+		Action: r.Method,
+	}}
+}
+
+func writeMacaroonsRequiredResponse(b *bakery.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError) {
+	ctx := httpbakery.ContextWithRequest(context.TODO(), r)
+	// Mint an appropriate macaroon and send it back to the client.
+	m, err := b.Oven.NewMacaroon(
+		ctx, httpbakery.RequestVersion(r), time.Now().Add(5*time.Minute), derr.Caveats, derr.Ops...)
+	if err != nil {
+		resp := errorResponse{http.StatusInternalServerError, err.Error()}
+		resp.Render(w)
+		return
+	}
+
+	herr := httpbakery.NewDischargeRequiredError(
+		httpbakery.DischargeRequiredErrorParams{
+			Macaroon:      m,
+			OriginalError: derr,
+			Request:       r,
+		})
+	herr.(*httpbakery.Error).Info.CookieNameSuffix = "auth"
+	httpbakery.WriteError(ctx, w, herr)
+	return
+}
+
 func isJSONRequest(r *http.Request) bool {
 	for k, vs := range r.Header {
 		if strings.ToLower(k) == "content-type" &&
@@ -144,18 +213,19 @@ func (d *Daemon) createCmd(version string, c Command) {
 	d.mux.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		if util.IsTrustedClient(r, d.clientCerts) {
+		untrustedOk := (r.Method == "GET" && c.untrustedGet) || (r.Method == "POST" && c.untrustedPost)
+		err := d.checkTrustedClient(r)
+		if err == nil {
 			logger.Debug(
 				"handling",
 				log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
-		} else if r.Method == "GET" && c.untrustedGet {
+		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug(
-				"allowing untrusted GET",
+				fmt.Sprintf("allowing untrusted %s", r.Method),
 				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
-		} else if r.Method == "POST" && c.untrustedPost {
-			logger.Debug(
-				"allowing untrusted POST",
-				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+		} else if derr, ok := err.(*bakery.DischargeRequiredError); ok {
+			writeMacaroonsRequiredResponse(d.externalAuth.bakery, r, w, derr)
+			return
 		} else {
 			logger.Warn(
 				"rejecting request from untrusted client",
@@ -668,28 +738,11 @@ func (d *Daemon) Init() error {
 		readSavedClientCAList(d)
 	}
 
-	/* Setup the web server */
-	d.mux = mux.NewRouter()
-	d.mux.StrictSlash(false)
-
-	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		SyncResponse(true, []string{"/1.0"}).Render(w)
-	})
-
-	for _, c := range api10 {
-		d.createCmd("1.0", c)
+	d.setupWebServer()
+	err = d.setupExternalAuthentication(daemonConfig["core.macaroon.endpoint"].Get())
+	if err != nil {
+		return err
 	}
-
-	for _, c := range apiInternal {
-		d.createCmd("internal", c)
-	}
-
-	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Info("Sending top level 404", log.Ctx{"url": r.URL})
-		w.Header().Set("Content-Type", "application/json")
-		NotFound.Render(w)
-	})
 
 	// Prepare the list of listeners
 	listeners := util.GetListeners()
@@ -947,6 +1000,73 @@ func (d *Daemon) Stop() error {
 	}
 
 	return err
+}
+
+// Setup the API web server
+func (d *Daemon) setupWebServer() {
+	/* Setup the web server */
+	d.mux = mux.NewRouter()
+	d.mux.StrictSlash(false)
+
+	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		SyncResponse(true, []string{"/1.0"}).Render(w)
+	})
+
+	for _, c := range api10 {
+		d.createCmd("1.0", c)
+	}
+
+	for _, c := range apiInternal {
+		d.createCmd("internal", c)
+	}
+
+	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Info("Sending top level 404", log.Ctx{"url": r.URL})
+		w.Header().Set("Content-Type", "application/json")
+		NotFound.Render(w)
+	})
+
+}
+
+// Setup external authentication
+func (d *Daemon) setupExternalAuthentication(authEndpoint string) error {
+	if authEndpoint == "" {
+		d.externalAuth = nil
+		return nil
+	}
+
+	idmClient, err := idmclient.New(idmclient.NewParams{
+		BaseURL: authEndpoint,
+	})
+	if err != nil {
+		return err
+	}
+	key, err := bakery.GenerateKey()
+	if err != nil {
+		return err
+	}
+	pkLocator := httpbakery.NewThirdPartyLocator(nil, nil)
+	if strings.HasPrefix(authEndpoint, "http://") {
+		pkLocator.AllowInsecure()
+	}
+	bakery := bakery.New(bakery.BakeryParams{
+		Key:            key,
+		Location:       authEndpoint,
+		Locator:        pkLocator,
+		Checker:        httpbakery.NewChecker(),
+		IdentityClient: idmClient,
+		Authorizer: bakery.ACLAuthorizer{
+			GetACL: func(ctx context.Context, op bakery.Op) ([]string, bool, error) {
+				return []string{bakery.Everyone}, false, nil
+			},
+		},
+	})
+	d.externalAuth = &externalAuth{
+		endpoint: authEndpoint,
+		bakery:   bakery,
+	}
+	return nil
 }
 
 type lxdHttpServer struct {
