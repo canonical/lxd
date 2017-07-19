@@ -53,8 +53,6 @@ func (s *storageCeph) StoragePoolInit() error {
 	// set osd pool name
 	if s.pool.Config["ceph.osd.pool_name"] != "" {
 		s.OSDPoolName = s.pool.Config["ceph.osd.pool_name"]
-	} else {
-		s.OSDPoolName = s.pool.Name
 	}
 
 	// set default placement group number
@@ -81,7 +79,31 @@ func (s *storageCeph) StoragePoolCreate() error {
 	logger.Infof(`Creating CEPH OSD storage pool "%s" in cluster "%s"`,
 		s.pool.Name, s.ClusterName)
 
+	// sanity check
+	if s.pool.Config["source"] != "" &&
+		s.pool.Config["ceph.osd.pool_name"] != "" &&
+		s.pool.Config["source"] != s.pool.Config["ceph.osd.pool_name"] {
+		msg := fmt.Sprintf(`The "source" and "ceph.osd.pool_name" ` +
+			`property must not differ for CEPH OSD storage pools`)
+		logger.Errorf(msg)
+		return fmt.Errorf(msg)
+	}
+
+	// use an existing OSD pool
+	if s.pool.Config["source"] != "" {
+		s.OSDPoolName = s.pool.Config["source"]
+		s.pool.Config["ceph.osd.pool_name"] = s.pool.Config["source"]
+	}
+
+	if s.pool.Config["ceph.osd.pool_name"] == "" {
+		s.pool.Config["ceph.osd.pool_name"] = s.pool.Name
+		s.pool.Config["source"] = s.pool.Name
+		s.OSDPoolName = s.pool.Name
+	}
+
 	if !cephOSDPoolExists(s.ClusterName, s.OSDPoolName) {
+		logger.Debugf(`CEPH OSD storage pool "%s" does not exist`, s.OSDPoolName)
+
 		// create new osd pool
 		msg, err := shared.TryRunCommand("ceph", "--cluster",
 			s.ClusterName, "osd", "pool", "create", s.OSDPoolName,
@@ -95,6 +117,8 @@ func (s *storageCeph) StoragePoolCreate() error {
 		logger.Debugf(`Created CEPH osd storage pool "%s" in cluster `+
 			`"%s"`, s.OSDPoolName, s.ClusterName)
 	} else {
+		logger.Debugf(`CEPH OSD storage pool "%s" does exist`, s.OSDPoolName)
+
 		// use existing osd pool
 		msg, err := shared.RunCommand("ceph", "--cluster",
 			s.ClusterName, "osd", "pool", "get", s.OSDPoolName,
