@@ -18,7 +18,7 @@ func (c *launchCmd) showByDefault() bool {
 
 func (c *launchCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
+		`Usage: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t <instance type>]
 
 Create and start containers from images.
 

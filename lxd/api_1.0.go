@@ -60,6 +60,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		APIExtensions: []string{
 			"id_map",
 			"id_map_base",
+			"resource_limits",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

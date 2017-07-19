@@ -258,6 +258,13 @@ test_basic_usage() {
     false
   fi
 
+  # Test instance types
+  lxc launch testimage test-limits -t c0.5-m0.2
+  [ "$(lxc config get test-limits limits.cpu)" = "1" ]
+  [ "$(lxc config get test-limits limits.cpu.allowance)" = "50%" ]
+  [ "$(lxc config get test-limits limits.memory)" = "204MB" ]
+  lxc delete -f test-limits
+
   # check that we can set the environment
   lxc exec foo pwd | grep /root
   lxc exec --env BEST_BAND=meshuggah foo env | grep meshuggah

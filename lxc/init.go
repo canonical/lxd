@@ -61,9 +61,10 @@ func (f *profileList) Set(value string) error {
 var initRequestedEmptyProfiles bool
 
 type initCmd struct {
-	profArgs profileList
-	confArgs configList
-	ephem    bool
+	profArgs     profileList
+	confArgs     configList
+	ephem        bool
+	instanceType string
 }
 
 func (c *initCmd) showByDefault() bool {
@@ -72,7 +73,7 @@ func (c *initCmd) showByDefault() bool {
 
 func (c *initCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...]
+		`Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t <instance type>]
 
 Create containers from images.
 
@@ -137,6 +138,7 @@ func (c *initCmd) flags() {
 	gnuflag.Var(&c.profArgs, "p", i18n.G("Profile to apply to the new container"))
 	gnuflag.BoolVar(&c.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
 	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
+	gnuflag.StringVar(&c.instanceType, "t", "", i18n.G("Instance type"))
 }
 
 func (c *initCmd) run(conf *config.Config, args []string) error {
@@ -210,7 +212,8 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 
 	// Setup container creation request
 	req := api.ContainersPost{
-		Name: name,
+		Name:         name,
+		InstanceType: c.instanceType,
 	}
 	req.Config = configMap
 	if !initRequestedEmptyProfiles && len(profiles) == 0 {

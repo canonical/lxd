@@ -14,3 +14,7 @@ Enables setting the `security.idmap.isolated` and `security.idmap.isolated`,
 This introduces a new security.idmap.base allowing the user to skip the
 map auto-selection process for isolated containers and specify what host
 uid/gid to use as the base.
+
+## instance\_types
+This adds the "instance\_type" field to the container creation request.
+Its value is expanded to LXD resource limits.

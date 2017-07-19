@@ -362,6 +362,7 @@ Input (container based on a local image with the "ubuntu/devel" alias):
                 "type": "unix-char"
             },
         },
+        "instance_type": "c2.micro",                                        # An optional instance type to use as basis for limits
         "source": {"type": "image",                                         # Can be: "image", "migration", "copy" or "none"
                    "alias": "ubuntu/devel"},                                # Name of the alias
     }
