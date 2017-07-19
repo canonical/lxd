@@ -816,6 +816,8 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 	logger.Debugf(`Creating RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, s.volume.Name, s.pool.Name)
 
+	revert := true
+
 	containerPath := container.Path()
 	containerName := container.Name()
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name,
@@ -862,12 +864,17 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 	logger.Debugf(`Cloned new RBD storage volume for container "%s"`,
 		containerName)
 
-	revert := true
 	defer func() {
 		if !revert {
 			return
 		}
-		s.ContainerDelete(container)
+
+		err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName,
+			containerName, storagePoolVolumeTypeNameContainer)
+		if err != nil {
+			logger.Warnf(`Failed to delete RBD storage volume `+
+				`for container "%s": %s`, containerName, err)
+		}
 	}()
 
 	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, containerName,
@@ -880,6 +887,19 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 	logger.Debugf(`Mapped RBD storage volume for container "%s"`,
 		containerName)
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
+			containerName, storagePoolVolumeTypeNameContainer)
+		if err != nil {
+			logger.Warnf(`Failed to unmap RBD storage volume `+
+				`for container "%s": %s`, containerName, err)
+		}
+	}()
+
 	privileged := container.IsPrivileged()
 	err = createContainerMountpoint(containerPoolVolumeMntPoint,
 		containerPath, privileged)
@@ -891,6 +911,19 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 	}
 	logger.Debugf(`Created mountpoint "%s" for container "%s" for RBD `+
 		`storage volume`, containerPoolVolumeMntPoint, containerName)
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := os.Remove(containerPoolVolumeMntPoint)
+		if err != nil {
+			logger.Warnf(`Failed to delete mountpoint "%s" for `+
+				`container "%s" for RBD storage volume: %s`,
+				containerPoolVolumeMntPoint, containerName, err)
+		}
+	}()
 
 	ourMount, err := s.ContainerMount(container)
 	if err != nil {
@@ -919,10 +952,11 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 	logger.Debugf(`Applied create template for container "%s"`,
 		containerName)
 
-	revert = false
-
 	logger.Debugf(`Created RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, s.volume.Name, s.pool.Name)
+
+	revert = false
+
 	return nil
 }
 
