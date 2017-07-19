@@ -674,6 +674,8 @@ func (s *storageCeph) ContainerCreate(container container) error {
 	logger.Debugf(`Creating RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, containerName, s.pool.Name)
 
+	revert := true
+
 	// get size
 	RBDSize, err := s.getRBDSize()
 	if err != nil {
@@ -702,6 +704,20 @@ func (s *storageCeph) ContainerCreate(container container) error {
 	logger.Debugf(`Created RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, containerName, s.pool.Name)
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName,
+			containerName, storagePoolVolumeTypeNameContainer)
+		if err != nil {
+			logger.Warnf(`Failed to delete RBD storage volume for `+
+				`container "%s" on storage pool "%s": %s`,
+				containerName, s.pool.Name, err)
+		}
+	}()
+
 	err = cephRBDVolumeMap(
 		s.ClusterName,
 		s.OSDPoolName,
@@ -715,6 +731,20 @@ func (s *storageCeph) ContainerCreate(container container) error {
 	}
 	logger.Debugf(`Mapped RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, containerName, s.pool.Name)
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
+			containerName, storagePoolVolumeTypeNameContainer)
+		if err != nil {
+			logger.Warnf(`Failed to unmap RBD storage volume `+
+				`for container "%s" on storage pool "%s": %s`,
+				containerName, s.pool.Name, err)
+		}
+	}()
 
 	// get filesystem
 	RBDFilesystem := s.getRBDFilesystem()
@@ -760,8 +790,25 @@ func (s *storageCeph) ContainerCreate(container container) error {
 		`container "%s" on storage pool "%s""`, containerMntPoint,
 		containerName, s.pool.Name)
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := os.Remove(containerMntPoint)
+		if err != nil {
+			logger.Warnf(`Failed to delete mountpoint "%s" for `+
+				`RBD storage volume for container "%s" on `+
+				`storage pool `+`"%s": %s"`, containerMntPoint,
+				containerName, s.pool.Name, err)
+		}
+	}()
+
 	logger.Debugf(`Created RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, containerName, s.pool.Name)
+
+	revert = false
+
 	return nil
 }
 
