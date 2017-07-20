@@ -1811,6 +1811,8 @@ func (s *storageCeph) ContainerSnapshotRename(c container, newName string) error
 	logger.Debugf(`Renaming RBD storage volume for snapshot "%s" from `+
 		`"%s" to "%s"`, oldName, oldName, newName)
 
+	revert := true
+
 	containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(oldName)
 	oldSnapOnlyName := fmt.Sprintf("snapshot_%s", snapOnlyName)
 	_, newSnapOnlyName, _ := containerGetParentAndSnapshotName(newName)
@@ -1829,6 +1831,22 @@ func (s *storageCeph) ContainerSnapshotRename(c container, newName string) error
 		return err
 	}
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDVolumeSnapshotRename(s.ClusterName, s.OSDPoolName,
+			containerOnlyName, storagePoolVolumeTypeNameContainer,
+			newSnapOnlyName, oldSnapOnlyName)
+		if err != nil {
+			logger.Warnf(`Failed to rename RBD storage `+
+				`volume for container "%s" on storage `+
+				`pool "%s": %s`, oldName, s.pool.Name,
+				err)
+		}
+	}()
+
 	oldSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, oldName)
 	newSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, newName)
 	err = os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
@@ -1844,6 +1862,9 @@ func (s *storageCeph) ContainerSnapshotRename(c container, newName string) error
 
 	logger.Debugf(`Renamed RBD storage volume for snapshot "%s" from `+
 		`"%s" to "%s"`, oldName, oldName, newName)
+
+	revert = false
+
 	return nil
 }
 
