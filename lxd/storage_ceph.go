@@ -1721,7 +1721,8 @@ func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container,
 }
 
 func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer container) error {
-	logger.Debugf("Deleting RBD storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	logger.Debugf(`Deleting RBD storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, s.volume.Name, s.pool.Name)
 
 	snapshotContainerName := snapshotContainer.Name()
 	sourceContainerName, sourceContainerSnapOnlyName, _ :=
@@ -1731,40 +1732,77 @@ func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer container) error
 		sourceContainerName, storagePoolVolumeTypeNameContainer,
 		snapshotName)
 	if ret < 0 {
-		msg := fmt.Sprintf("Failed to delete RBD storage volume for snapshot \"%s\" on storage pool \"%s\"", snapshotContainerName, s.pool.Name)
+		msg := fmt.Sprintf(`Failed to delete RBD storage volume for `+
+			`snapshot "%s" on storage pool "%s"`,
+			snapshotContainerName, s.pool.Name)
 		logger.Errorf(msg)
 		return fmt.Errorf(msg)
 	}
 
-	snapshotContainerMntPoint := getSnapshotMountPoint(s.pool.Name, snapshotContainerName)
+	snapshotContainerMntPoint := getSnapshotMountPoint(s.pool.Name,
+		snapshotContainerName)
 	if shared.PathExists(snapshotContainerMntPoint) {
 		err := os.RemoveAll(snapshotContainerMntPoint)
 		if err != nil {
+			logger.Errorf(`Failed to delete mountpoint "%s" of `+
+				`RBD snapshot "%s" of container "%s" on `+
+				`storage pool "%s": %s`,
+				snapshotContainerMntPoint,
+				sourceContainerSnapOnlyName,
+				sourceContainerName, s.OSDPoolName, err)
 			return err
 		}
+		logger.Debugf(`Deleted mountpoint "%s" of RBD snapshot "%s" `+
+			`of container "%s" on storage pool "%s"`,
+			snapshotContainerMntPoint, sourceContainerSnapOnlyName,
+			sourceContainerName, s.OSDPoolName)
 	}
 
 	// check if snapshot directory is empty
-	snapshotContainerPath := getSnapshotMountPoint(s.pool.Name, sourceContainerName)
+	snapshotContainerPath := getSnapshotMountPoint(s.pool.Name,
+		sourceContainerName)
 	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
 	if empty == true {
 		// remove snapshot directory for container
 		err := os.Remove(snapshotContainerPath)
 		if err != nil {
+			logger.Errorf(`Failed to delete snapshot directory  `+
+				`"%s" of RBD snapshot "%s" of container "%s" `+
+				`on storage pool "%s": %s`,
+				snapshotContainerPath,
+				sourceContainerSnapOnlyName,
+				sourceContainerName, s.OSDPoolName, err)
 			return err
 		}
+		logger.Debugf(`Deleted snapshot directory  "%s" of RBD `+
+			`snapshot "%s" of container "%s" on storage pool "%s"`,
+			snapshotContainerPath, sourceContainerSnapOnlyName,
+			sourceContainerName, s.OSDPoolName)
 
 		// remove the snapshot symlink if possible
-		snapshotSymlink := shared.VarPath("snapshots", sourceContainerName)
+		snapshotSymlink := shared.VarPath("snapshots",
+			sourceContainerName)
 		if shared.PathExists(snapshotSymlink) {
 			err := os.Remove(snapshotSymlink)
 			if err != nil {
+				logger.Errorf(`Failed to delete snapshot `+
+					`symlink "%s" of RBD snapshot "%s" of `+
+					`container "%s" on storage pool "%s": %s`,
+					snapshotSymlink,
+					sourceContainerSnapOnlyName,
+					sourceContainerName, s.OSDPoolName, err)
 				return err
 			}
+			logger.Debugf(`Deleted snapshot symlink "%s" of RBD `+
+				`snapshot "%s" of container "%s" on storage `+
+				`pool "%s"`, snapshotSymlink,
+				sourceContainerSnapOnlyName,
+				sourceContainerName, s.OSDPoolName)
 		}
 	}
 
-	logger.Debugf("Deleted RBD storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	logger.Debugf(`Deleted RBD storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, s.volume.Name, s.pool.Name)
 	return nil
 }
 
