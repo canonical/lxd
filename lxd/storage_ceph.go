@@ -2063,6 +2063,8 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 	logger.Debugf(`Creating RBD storage volume for image "%s" on storage `+
 		`pool "%s"`, fingerprint, s.pool.Name)
 
+	revert := true
+
 	// create image mountpoint
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	if !shared.PathExists(imageMntPoint) {
@@ -2078,6 +2080,20 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 			`for image "%s" on storage pool "%s"`, imageMntPoint,
 			fingerprint, s.pool.Name)
 	}
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := os.Remove(imageMntPoint)
+		if err != nil {
+			logger.Warnf(`Failed to delete mountpoint "%s" for RBD `+
+				`storage volume for image "%s" on storage `+
+				`pool "%s": %s`, imageMntPoint, fingerprint,
+				s.pool.Name, err)
+		}
+	}()
 
 	prefixedType := fmt.Sprintf("zombie_%s", storagePoolVolumeTypeNameImage)
 	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, fingerprint,
@@ -2110,6 +2126,22 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 		logger.Debugf(`Created RBD storage volume for image "%s" on `+
 			`storage pool "%s"`, fingerprint, s.pool.Name)
 
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName,
+				fingerprint, storagePoolVolumeTypeNameImage,
+				RBDSize)
+			if err != nil {
+				logger.Warnf(`Failed to delete RBD storage `+
+					`volume for image "%s" on storage `+
+					`pool "%s": %s`, fingerprint,
+					s.pool.Name, err)
+			}
+		}()
+
 		err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
 			fingerprint, storagePoolVolumeTypeNameImage)
 		if err != nil {
@@ -2120,6 +2152,21 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 		}
 		logger.Debugf(`Mapped RBD storage volume for image "%s" on `+
 			`storage pool "%s"`, fingerprint, s.pool.Name)
+
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
+				fingerprint, storagePoolVolumeTypeNameImage)
+			if err != nil {
+				logger.Warnf(`Failed to unmap RBD storage `+
+					`volume for image "%s" on storage `+
+					`pool "%s": %s`, fingerprint,
+					s.pool.Name, err)
+			}
+		}()
 
 		// get filesystem
 		RBDFilesystem := s.getRBDFilesystem()
@@ -2151,6 +2198,9 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 			logger.Errorf(`Failed to unpack image for RBD storage `+
 				`volume for image "%s" on storage pool "%s": %s`,
 				fingerprint, s.pool.Name, err)
+
+			// umount image
+			s.ImageUmount(fingerprint)
 			return err
 		}
 		logger.Debugf(`Unpacked image for RBD storage volume for `+
@@ -2185,19 +2235,51 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 			`image "%s" on storage pool "%s"`, fingerprint,
 			s.pool.Name)
 
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err := cephRBDSnapshotDelete(s.ClusterName,
+				s.OSDPoolName, fingerprint,
+				storagePoolVolumeTypeNameImage, "readonly")
+			if err != nil {
+				logger.Warnf(`Failed to delete snapshot for `+
+					`RBD storage volume for image "%s" on `+
+					`storage pool "%s": %s`, fingerprint,
+					s.pool.Name, err)
+			}
+		}()
+
 		// protect volume so we can create clones of it
 		err = cephRBDSnapshotProtect(s.ClusterName, s.OSDPoolName,
 			fingerprint, storagePoolVolumeTypeNameImage, "readonly")
 		if err != nil {
 			logger.Errorf(`Failed to protect snapshot for RBD `+
-				`storage volume for image \"%s\" on storage `+
-				`pool \"%s\": %s`, fingerprint, s.pool.Name,
+				`storage volume for image "%s" on storage `+
+				`pool "%s": %s`, fingerprint, s.pool.Name,
 				err)
 			return err
 		}
 		logger.Debugf(`Protected snapshot for RBD storage volume for `+
 			`image "%s" on storage pool "%s"`, fingerprint,
 			s.pool.Name)
+
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err := cephRBDSnapshotUnprotect(s.ClusterName,
+				s.OSDPoolName, fingerprint,
+				storagePoolVolumeTypeNameImage, "readonly")
+			if err != nil {
+				logger.Warnf(`Failed to unprotect snapshot for `+
+					`RBD storage volume for image "%s" on `+
+					`storage pool "%s": %s`, fingerprint,
+					s.pool.Name, err)
+			}
+		}()
 	} else {
 		logger.Debugf(`RBD storage volume for image "%s" on storage `+
 			`pool "%s" does exist`, fingerprint, s.pool.Name)
@@ -2213,6 +2295,22 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 		}
 		logger.Debugf(`Unmarked RBD storage volume for image "%s" on `+
 			`storage pool "%s" as zombie`, fingerprint, s.pool.Name)
+
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err := cephRBDVolumeMarkDeleted(s.ClusterName,
+				s.OSDPoolName, fingerprint,
+				storagePoolVolumeTypeNameImage)
+			if err != nil {
+				logger.Warnf(`Failed to mark RBD storage `+
+					`volume for image "%s" on storage `+
+					`pool "%s" as zombie: %s`, fingerprint,
+					s.pool.Name, err)
+			}
+		}()
 	}
 
 	err := s.createImageDbPoolVolume(fingerprint)
@@ -2227,6 +2325,9 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 
 	logger.Debugf(`Created RBD storage volume for image "%s" on storage `+
 		`pool "%s"`, fingerprint, s.pool.Name)
+
+	revert = false
+
 	return nil
 }
 
