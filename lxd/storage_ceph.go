@@ -1650,22 +1650,31 @@ func (s *storageCeph) ContainerGetUsage(container container) (int64, error) {
 	return -1, fmt.Errorf("RBD quotas are currently not supported")
 }
 
-func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
+func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container,
+	sourceContainer container) error {
 	targetContainerName := snapshotContainer.Name()
-	logger.Debugf("Creating RBD storage volume for snapshot \"%s\" on storage pool \"%s\".", targetContainerName, s.pool.Name)
+	logger.Debugf(`Creating RBD storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, targetContainerName, s.pool.Name)
 
 	sourceContainerName := sourceContainer.Name()
 	_, targetSnapshotOnlyName, _ := containerGetParentAndSnapshotName(targetContainerName)
 	targetSnapshotName := fmt.Sprintf("snapshot_%s", targetSnapshotOnlyName)
-	err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName, sourceContainerName, storagePoolVolumeTypeNameContainer, targetSnapshotName)
+	err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName,
+		sourceContainerName, storagePoolVolumeTypeNameContainer,
+		targetSnapshotName)
 	if err != nil {
-		logger.Errorf("Failed to create snapshot for RBD storage volume for image \"%s\" on storage pool \"%s\": %s", targetContainerName, s.pool.Name, err)
+		logger.Errorf(`Failed to create snapshot for RBD storage `+
+			`volume for image "%s" on storage pool "%s": %s`,
+			targetContainerName, s.pool.Name, err)
 		return err
 	}
+	logger.Debugf(`Created snapshot for RBD storage volume for image `+
+		`"%s" on storage pool "%s"`, targetContainerName, s.pool.Name)
 
 	targetContainerMntPoint := getSnapshotMountPoint(s.pool.Name, targetContainerName)
 	sourceName, _, _ := containerGetParentAndSnapshotName(sourceContainerName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
+		s.pool.Name, "snapshots", sourceName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 	err = createSnapshotMountpoint(
 		targetContainerMntPoint,
@@ -1685,7 +1694,8 @@ func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container, sourc
 		snapshotMntPointSymlinkTarget, snapshotMntPointSymlink,
 		s.volume.Name, s.pool.Name)
 
-	logger.Debugf("Created RBD storage volume for snapshot \"%s\" on storage pool \"%s\".", targetContainerName, s.pool.Name)
+	logger.Debugf(`Created RBD storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, targetContainerName, s.pool.Name)
 	return nil
 }
 
