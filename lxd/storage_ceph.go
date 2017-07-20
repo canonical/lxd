@@ -1656,6 +1656,8 @@ func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container,
 	logger.Debugf(`Creating RBD storage volume for snapshot "%s" on `+
 		`storage pool "%s"`, targetContainerName, s.pool.Name)
 
+	revert := true
+
 	sourceContainerName := sourceContainer.Name()
 	_, targetSnapshotOnlyName, _ := containerGetParentAndSnapshotName(targetContainerName)
 	targetSnapshotName := fmt.Sprintf("snapshot_%s", targetSnapshotOnlyName)
@@ -1670,6 +1672,22 @@ func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container,
 	}
 	logger.Debugf(`Created snapshot for RBD storage volume for image `+
 		`"%s" on storage pool "%s"`, targetContainerName, s.pool.Name)
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDSnapshotDelete(s.ClusterName, s.OSDPoolName,
+			sourceContainerName, storagePoolVolumeTypeNameContainer,
+			targetSnapshotName)
+		if err != nil {
+			logger.Warnf(`Failed to delete RBD `+
+				`container storage for `+
+				`snapshot "%s" of container "%s"`,
+				targetSnapshotOnlyName, sourceContainerName)
+		}
+	}()
 
 	targetContainerMntPoint := getSnapshotMountPoint(s.pool.Name, targetContainerName)
 	sourceName, _, _ := containerGetParentAndSnapshotName(sourceContainerName)
@@ -1696,6 +1714,9 @@ func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container,
 
 	logger.Debugf(`Created RBD storage volume for snapshot "%s" on `+
 		`storage pool "%s"`, targetContainerName, s.pool.Name)
+
+	revert = false
+
 	return nil
 }
 
