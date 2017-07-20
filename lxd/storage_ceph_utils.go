@@ -637,7 +637,8 @@ func (s *storageCeph) getRBDMountOptions() string {
 // volume and the target RBD storage volume.
 func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 	source container) error {
-	logger.Debugf("Creating full RBD copy \"%s\" -> \"%s\"", source.Name(),
+	logger.Debugf(`Creating non-sparse copy of RBD storage volume for `+
+		`container "%s" -> "%s" without snapshots`, source.Name(),
 		target.Name())
 
 	sourceIsSnapshot := source.IsSnapshot()
@@ -679,7 +680,8 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 		return err
 	}
 
-	logger.Debugf("Created full RBD copy \"%s\" -> \"%s\"", source.Name(),
+	logger.Debugf(`Created non-sparse copy of RBD storage volume for `+
+		`container "%s" -> "%s" without snapshots`, source.Name(),
 		target.Name())
 	return nil
 }
@@ -689,7 +691,8 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 // and the target RBD storage volume.
 func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 	source container) error {
-	logger.Debugf(`Creating full RBD copy "%s" -> "%s"`, source.Name(),
+	logger.Debugf(`Creating sparse copy of RBD storage volume for `+
+		`container "%s" -> "%s" without snapshots`, source.Name(),
 		target.Name())
 
 	sourceIsSnapshot := source.IsSnapshot()
@@ -755,7 +758,8 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		return err
 	}
 
-	logger.Debugf(`Created full RBD copy "%s" -> "%s"`, source.Name(),
+	logger.Debugf(`Created sparse copy of RBD storage volume for `+
+		`container "%s" -> "%s" without snapshots`, source.Name(),
 		target.Name())
 	return nil
 }
@@ -766,8 +770,8 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 // volume and the target RBD storage volume.
 func (s *storageCeph) copyWithSnapshots(sourceVolumeName string,
 	targetVolumeName string, sourceParentSnapshot string) error {
-	logger.Debugf(`Creating full RBD copy including snapshots "%s" -> "%s"`,
-		sourceVolumeName, targetVolumeName)
+	logger.Debugf(`Creating non-sparse copy of RBD storage volume `+
+		`"%s -> "%s"`, sourceVolumeName, targetVolumeName)
 
 	args := []string{
 		"export-diff",
@@ -809,8 +813,8 @@ func (s *storageCeph) copyWithSnapshots(sourceVolumeName string,
 		return err
 	}
 
-	logger.Debugf(`Created full RBD copy including snapshots "%s" -> "%s"`,
-		sourceVolumeName, targetVolumeName)
+	logger.Debugf(`Created non-sparse copy of RBD storage volume `+
+		`"%s -> "%s"`, sourceVolumeName, targetVolumeName)
 	return nil
 }
 

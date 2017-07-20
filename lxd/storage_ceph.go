@@ -1028,13 +1028,20 @@ func (s *storageCeph) ContainerDelete(container container) error {
 	return nil
 }
 
-func (s *storageCeph) ContainerCopy(target container, source container, containerOnly bool) error {
-	logger.Debugf("Copying RBD container storage %s -> %s", source.Name(), target.Name())
+func (s *storageCeph) ContainerCopy(target container, source container,
+	containerOnly bool) error {
+	sourceContainerName := source.Name()
+	logger.Debugf(`Copying RBD container storage %s -> %s`,
+		sourceContainerName, target.Name())
 
 	ourStart, err := source.StorageStart()
 	if err != nil {
+		logger.Errorf(`Failed to initialize storage for container `+
+			`"%s": %s`, sourceContainerName, err)
 		return err
 	}
+	logger.Debugf(`Initialized storage for container "%s"`,
+		sourceContainerName)
 	if ourStart {
 		defer source.StorageStop()
 	}
@@ -1042,30 +1049,42 @@ func (s *storageCeph) ContainerCopy(target container, source container, containe
 	_, sourcePool := source.Storage().GetContainerPoolInfo()
 	_, targetPool := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return fmt.Errorf("Copying containers between different storage pools is not implemented")
+		return fmt.Errorf(`Copying containers between different ` +
+			`storage pools is not implemented`)
 	}
 
 	snapshots, err := source.Snapshots()
 	if err != nil {
+		logger.Errorf(`Failed to retrieve snapshots of container `+
+			`"%s": %s`, sourceContainerName, err)
 		return err
 	}
+	logger.Debugf(`Retrieved snapshots of container "%s"`,
+		sourceContainerName)
 
 	if containerOnly || len(snapshots) == 0 {
-		if s.pool.Config["ceph.rbd.clone_copy"] != "" && !shared.IsTrue(s.pool.Config["ceph.rbd.clone_copy"]) {
+		if s.pool.Config["ceph.rbd.clone_copy"] != "" &&
+			!shared.IsTrue(s.pool.Config["ceph.rbd.clone_copy"]) {
 			err = s.copyWithoutSnapshotsFull(target, source)
 		} else {
 			err = s.copyWithoutSnapshotsSparse(target, source)
 		}
 		if err != nil {
-			logger.Errorf("Failed to copy RBD container storage %s -> %s", source.Name(), target.Name())
+			logger.Errorf(`Failed to copy RBD container storage `+
+				`%s -> %s`, sourceContainerName, target.Name())
 			return err
 		}
 
-		logger.Debugf("Copied RBD container storage %s -> %s", source.Name(), target.Name())
+		logger.Debugf(`Copied RBD container storage %s -> %s`,
+			sourceContainerName, target.Name())
 		return nil
 	} else {
-		// create mountpoint for container
 		targetContainerName := target.Name()
+		logger.Debugf(`Creating non-sparse copy of RBD storage volume `+
+			`for container "%s" -> "%s" including snapshots`,
+			sourceContainerName, targetContainerName)
+
+		// create mountpoint for container
 		targetContainerPath := target.Path()
 		targetContainerMountPoint := getContainerMountPoint(
 			s.pool.Name,
@@ -1102,7 +1121,6 @@ func (s *storageCeph) ContainerCopy(target container, source container, containe
 			targetContainerName, s.pool.Name)
 
 		// receive over the dummy volume we created above
-		sourceContainerName := source.Name()
 		targetVolumeName := fmt.Sprintf(
 			"%s/container_%s",
 			s.OSDPoolName,
@@ -1138,18 +1156,23 @@ func (s *storageCeph) ContainerCopy(target container, source container, containe
 				sourceVolumeName, targetVolumeName)
 
 			// create snapshot mountpoint
-			newTargetName := fmt.Sprintf("%s/%s", targetContainerName, snapOnlyName)
+			newTargetName := fmt.Sprintf("%s/%s",
+				targetContainerName, snapOnlyName)
+
 			containersPath := getSnapshotMountPoint(
 				s.pool.Name,
 				newTargetName)
+
 			snapshotMntPointSymlinkTarget := shared.VarPath(
 				"storage-pools",
 				s.pool.Name,
 				"snapshots",
 				targetContainerName)
+
 			snapshotMntPointSymlink := shared.VarPath(
 				"snapshots",
 				targetContainerName)
+
 			err := createSnapshotMountpoint(
 				containersPath,
 				snapshotMntPointSymlinkTarget,
@@ -1205,9 +1228,14 @@ func (s *storageCeph) ContainerCopy(target container, source container, containe
 		}
 		logger.Debugf(`Mapped RBD storage volume for container "%s" `+
 			`on storage pool "%s"`, targetContainerName, s.pool.Name)
+
+		logger.Debugf(`Created non-sparse copy of RBD storage volume `+
+			`for container "%s" -> "%s" including snapshots`,
+			sourceContainerName, targetContainerName)
 	}
 
-	logger.Debugf("Copied RBD container storage %s -> %s", source.Name(), target.Name())
+	logger.Debugf(`Copied RBD container storage %s -> %s`,
+		sourceContainerName, target.Name())
 	return nil
 }
 
