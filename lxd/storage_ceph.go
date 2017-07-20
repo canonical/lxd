@@ -2132,8 +2132,7 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 			}
 
 			err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName,
-				fingerprint, storagePoolVolumeTypeNameImage,
-				RBDSize)
+				fingerprint, storagePoolVolumeTypeNameImage)
 			if err != nil {
 				logger.Warnf(`Failed to delete RBD storage `+
 					`volume for image "%s" on storage `+
@@ -2332,78 +2331,128 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 }
 
 func (s *storageCeph) ImageDelete(fingerprint string) error {
-	logger.Debugf("Deleting RBD storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
+	logger.Debugf(`Deleting RBD storage volume for image "%s" on storage `+
+		`pool "%s"`, fingerprint, s.pool.Name)
 
 	// try to umount but don't fail
 	s.ImageUmount(fingerprint)
 
 	// check if image has dependent snapshots
-	_, err := cephRBDSnapshotListClones(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage, "readonly")
+	_, err := cephRBDSnapshotListClones(s.ClusterName, s.OSDPoolName,
+		fingerprint, storagePoolVolumeTypeNameImage, "readonly")
 	if err != nil {
 		if err != NoSuchObjectError {
-			logger.Errorf("Failed to list clones of RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			logger.Errorf(`Failed to list clones of RBD storage `+
+				`volume for image "%s" on storage pool "%s":
+				%s`, fingerprint, s.pool.Name, err)
 			return err
 		}
+		logger.Debugf(`Retrieved no clones of RBD storage volume for `+
+			`image "%s" on storage pool "%s"`, fingerprint,
+			s.pool.Name)
 
 		// unprotect snapshot
-		err = cephRBDSnapshotUnprotect(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage, "readonly")
+		err = cephRBDSnapshotUnprotect(s.ClusterName, s.OSDPoolName,
+			fingerprint, storagePoolVolumeTypeNameImage, "readonly")
 		if err != nil {
-			logger.Errorf("Failed to unprotect snapshot for RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			logger.Errorf(`Failed to unprotect snapshot for RBD `+
+				`storage volume for image "%s" on storage `+
+				`pool "%s": %s`, fingerprint, s.pool.Name, err)
 			return err
 		}
+		logger.Debugf(`Unprotected snapshot for RBD storage volume `+
+			`for image "%s" on storage pool "%s"`, fingerprint,
+			s.pool.Name)
 
 		// delete snapshots
-		err = cephRBDSnapshotsPurge(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage)
+		err = cephRBDSnapshotsPurge(s.ClusterName, s.OSDPoolName,
+			fingerprint, storagePoolVolumeTypeNameImage)
 		if err != nil {
-			logger.Errorf("Failed to delete snapshot for RBD storage volume for image \"%s\" on storage pool \"%s\": %s", fingerprint, s.pool.Name, err)
+			logger.Errorf(`Failed to delete snapshot for RBD `+
+				`storage volume for image "%s" on storage `+
+				`pool "%s": %s`, fingerprint, s.pool.Name, err)
 			return err
 		}
+		logger.Debugf(`Deleted snapshot for RBD storage volume for `+
+			`image "%s" on storage pool "%s"`, fingerprint,
+			s.pool.Name)
 
 		// unmap
-		err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage)
+		err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
+			fingerprint, storagePoolVolumeTypeNameImage)
 		if err != nil {
-			logger.Errorf("Failed to unmap RBD storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
+			logger.Errorf(`Failed to unmap RBD storage volume for `+
+				`image "%s" on storage pool "%s": %s`,
+				fingerprint, s.pool.Name, err)
 			return err
 		}
+		logger.Debugf(`Unmapped RBD storage volume for image "%s" on `+
+			`storage pool "%s"`, fingerprint, s.pool.Name)
 
 		// delete volume
-		err = cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage)
+		err = cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName,
+			fingerprint, storagePoolVolumeTypeNameImage)
 		if err != nil {
-			logger.Errorf("Failed to delete RBD storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
+			logger.Errorf(`Failed to delete RBD storage volume `+
+				`for image "%s" on storage pool "%s": %s`,
+				fingerprint, s.pool.Name, err)
 			return err
 		}
+		logger.Debugf(`Deleted RBD storage volume for image "%s" on `+
+			`storage pool "%s"`, fingerprint, s.pool.Name)
 	} else {
 		// unmap
-		err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage)
+		err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
+			fingerprint, storagePoolVolumeTypeNameImage)
 		if err != nil {
-			logger.Errorf("Failed to unmap RBD storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
+			logger.Errorf(`Failed to unmap RBD storage volume for `+
+				`image "%s" on storage pool "%s": %s`,
+				fingerprint, s.pool.Name, err)
 			return err
 		}
+		logger.Debugf(`Unmapped RBD storage volume for image "%s" on `+
+			`storage pool "%s"`, fingerprint, s.pool.Name)
 
 		// mark deleted
-		err := cephRBDVolumeMarkDeleted(s.ClusterName, s.OSDPoolName, fingerprint, storagePoolVolumeTypeNameImage)
+		err := cephRBDVolumeMarkDeleted(s.ClusterName, s.OSDPoolName,
+			fingerprint, storagePoolVolumeTypeNameImage)
 		if err != nil {
-			logger.Errorf("Failed to mark RBD storage volume for image \"%s\" on storage pool \"%s\" deleted", fingerprint, s.pool.Name)
+			logger.Errorf(`Failed to mark RBD storage volume for `+
+				`image "%s" on storage pool "%s" as zombie: %s`,
+				fingerprint, s.pool.Name, err)
 			return err
 		}
+		logger.Debugf(`Marked RBD storage volume for image "%s" on `+
+			`storage pool "%s" as zombie`, fingerprint, s.pool.Name)
 	}
 
 	err = s.deleteImageDbPoolVolume(fingerprint)
 	if err != nil {
-		logger.Errorf("Failed to delete db entry for RBD storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
+		logger.Errorf(`Failed to delete database entry for RBD `+
+			`storage volume for image "%s" on storage pool "%s":
+			%s`, fingerprint, s.pool.Name, err)
 		return err
 	}
+	logger.Debugf(`Deleted database entry for RBD storage volume for `+
+		`image "%s" on storage pool "%s"`, fingerprint, s.pool.Name)
 
 	imageMntPoint := getImageMountPoint(s.pool.Name, fingerprint)
 	if shared.PathExists(imageMntPoint) {
 		err := os.Remove(imageMntPoint)
 		if err != nil {
-			logger.Errorf("Failed to delete image mountpoint for RBD storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
+			logger.Errorf(`Failed to delete image mountpoint "%s" `+
+				`for RBD storage volume for image "%s" on `+
+				`storage pool "%s": %s`, imageMntPoint,
+				fingerprint, s.pool.Name, err)
 			return err
 		}
+		logger.Debugf(`Deleted image mountpoint "%s" for RBD storage `+
+			`volume for image "%s" on storage pool "%s"`,
+			imageMntPoint, fingerprint, s.pool.Name)
 	}
 
-	logger.Debugf("Deleted RBD storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
+	logger.Debugf(`Deleted RBD storage volume for image "%s" on storage `+
+		`pool "%s"`, fingerprint, s.pool.Name)
 	return nil
 }
 
