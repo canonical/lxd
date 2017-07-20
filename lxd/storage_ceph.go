@@ -1605,8 +1605,11 @@ func (s *storageCeph) ContainerRestore(target container, source container) error
 	// Start storage for source container
 	ourSourceStart, err := source.StorageStart()
 	if err != nil {
+		logger.Errorf(`Failed to initialize storage for container `+
+			`"%s": %s`, sourceName, err)
 		return err
 	}
+	logger.Debugf(`Initialized storage for container "%s"`, sourceName)
 	if ourSourceStart {
 		defer source.StorageStop()
 	}
@@ -1614,8 +1617,11 @@ func (s *storageCeph) ContainerRestore(target container, source container) error
 	// Start storage for target container
 	ourTargetStart, err := target.StorageStart()
 	if err != nil {
+		logger.Errorf(`Failed to initialize storage for container `+
+			`"%s": %s`, targetName, err)
 		return err
 	}
+	logger.Debugf(`Initialized storage for container "%s"`, targetName)
 	if ourTargetStart {
 		defer target.StorageStop()
 	}
