@@ -1873,6 +1873,8 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 	logger.Debugf(`Initializing RBD storage volume for snapshot "%s" `+
 		`on storage pool "%s"`, containerName, s.pool.Name)
 
+	revert := true
+
 	containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(containerName)
 
 	// protect
@@ -1891,6 +1893,21 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 	}
 	logger.Debugf(`Protected snapshot of RBD storage volume for container `+
 		`"%s" on storage pool "%s"`, containerName, s.pool.Name)
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDSnapshotUnprotect(s.ClusterName, s.OSDPoolName,
+			containerOnlyName, storagePoolVolumeTypeNameContainer,
+			prefixedSnapOnlyName)
+		if err != nil {
+			logger.Warnf(`Failed to unprotect snapshot of RBD `+
+				`storage volume for container "%s" on storage `+
+				`pool "%s": %s`, containerName, s.pool.Name, err)
+		}
+	}()
 
 	cloneName := fmt.Sprintf("%s_%s_start_clone", containerOnlyName, snapOnlyName)
 	// clone
@@ -1912,6 +1929,21 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 	logger.Debugf(`Created clone of RBD storage volume for container "%s" `+
 		`on storage pool "%s"`, containerName, s.pool.Name)
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		// delete
+		err = cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName,
+			cloneName, "snapshots")
+		if err != nil {
+			logger.Errorf(`Failed to delete clone of RBD storage `+
+				`volume for container "%s" on storage pool `+
+				`"%s": %s`, containerName, s.pool.Name, err)
+		}
+	}()
+
 	// map
 	err = cephRBDVolumeMap(
 		s.ClusterName,
@@ -1926,6 +1958,19 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 	}
 	logger.Debugf(`Mapped RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, containerName, s.pool.Name)
+
+	defer func() {
+		if !revert {
+		}
+
+		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
+			cloneName, "snapshots")
+		if err != nil {
+			logger.Warnf(`Failed to unmap RBD storage volume for `+
+				`container "%s" on storage pool "%s": %s`,
+				containerName, s.pool.Name, err)
+		}
+	}()
 
 	containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
 	RBDFilesystem := s.getRBDFilesystem()
@@ -1947,6 +1992,9 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 
 	logger.Debugf(`Initialized RBD storage volume for snapshot "%s" on `+
 		`storage pool "%s"`, containerName, s.pool.Name)
+
+	revert = false
+
 	return true, nil
 }
 
