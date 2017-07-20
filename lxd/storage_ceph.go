@@ -1423,6 +1423,8 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	oldName := c.Name()
 	containerPath := c.Path()
 
+	revert := true
+
 	logger.Debugf(`Renaming RBD storage volume for container "%s" from `+
 		`"%s" to "%s"`, oldName, oldName, newName)
 
@@ -1447,6 +1449,19 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	logger.Debugf(`Unmapped RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, oldName, s.pool.Name)
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, oldName,
+			storagePoolVolumeTypeNameContainer)
+		if err != nil {
+			logger.Warnf(`Failed to Map RBD storage volume `+
+				`for container "%s": %s`, oldName, err)
+		}
+	}()
+
 	err = cephRBDVolumeRename(
 		s.ClusterName,
 		s.OSDPoolName,
@@ -1461,6 +1476,20 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	}
 	logger.Debugf(`Renamed RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, oldName, s.pool.Name)
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err = cephRBDVolumeRename(s.ClusterName, s.OSDPoolName,
+			storagePoolVolumeTypeNameContainer, newName, oldName)
+		if err != nil {
+			logger.Warnf(`Failed to rename RBD storage volume for `+
+				`container "%s" on storage pool "%s": %s`,
+				newName, s.pool.Name, err)
+		}
+	}()
 
 	// map
 	err = cephRBDVolumeMap(
@@ -1477,6 +1506,19 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	logger.Debugf(`Mapped RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, newName, s.pool.Name)
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, newName,
+			storagePoolVolumeTypeNameContainer)
+		if err != nil {
+			logger.Warnf(`Failed to unmap RBD storage volume `+
+				`for container "%s": %s`, newName, err)
+		}
+	}()
+
 	// Create new mountpoint on the storage pool.
 	oldContainerMntPoint := getContainerMountPoint(s.pool.Name, oldName)
 	oldContainerMntPointSymlink := containerPath
@@ -1491,6 +1533,16 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 		return err
 	}
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		renameContainerMountpoint(newContainerMntPoint,
+			newContainerMntPointSymlink, oldContainerMntPoint,
+			oldContainerMntPointSymlink)
+	}()
+
 	// Rename the snapshot mountpoint on the storage pool.
 	oldSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, oldName)
 	newSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, newName)
@@ -1501,6 +1553,14 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 		}
 	}
 
+	defer func() {
+		if !revert {
+			return
+		}
+
+		os.Rename(newSnapshotMntPoint, oldSnapshotMntPoint)
+	}()
+
 	// Remove old symlink.
 	oldSnapshotPath := shared.VarPath("snapshots", oldName)
 	if shared.PathExists(oldSnapshotPath) {
@@ -1509,6 +1569,14 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 			return err
 		}
 	}
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		os.Symlink(oldSnapshotMntPoint, oldSnapshotPath)
+	}()
 
 	// Create new symlink.
 	newSnapshotPath := shared.VarPath("snapshots", newName)
@@ -1521,6 +1589,9 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 
 	logger.Debugf(`Renamed RBD storage volume for container "%s" from `+
 		`"%s" to "%s"`, oldName, oldName, newName)
+
+	revert = false
+
 	return nil
 }
 
