@@ -640,9 +640,6 @@ func createContainerMountpoint(mountPoint string, mountPointSymlink string, priv
 }
 
 func deleteContainerMountpoint(mountPoint string, mountPointSymlink string, storageTypeName string) error {
-	mntPointSuffix := storageTypeName
-	oldStyleMntPointSymlink := fmt.Sprintf("%s.%s", mountPointSymlink, mntPointSuffix)
-
 	if shared.PathExists(mountPointSymlink) {
 		err := os.Remove(mountPointSymlink)
 		if err != nil {
@@ -650,15 +647,22 @@ func deleteContainerMountpoint(mountPoint string, mountPointSymlink string, stor
 		}
 	}
 
-	if shared.PathExists(oldStyleMntPointSymlink) {
-		err := os.Remove(oldStyleMntPointSymlink)
+	if shared.PathExists(mountPoint) {
+		err := os.Remove(mountPoint)
 		if err != nil {
 			return err
 		}
 	}
 
-	if shared.PathExists(mountPoint) {
-		err := os.Remove(mountPoint)
+	if storageTypeName == "" {
+		return nil
+	}
+
+	mntPointSuffix := storageTypeName
+	oldStyleMntPointSymlink := fmt.Sprintf("%s.%s", mountPointSymlink,
+		mntPointSuffix)
+	if shared.PathExists(oldStyleMntPointSymlink) {
+		err := os.Remove(oldStyleMntPointSymlink)
 		if err != nil {
 			return err
 		}

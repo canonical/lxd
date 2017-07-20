@@ -1034,6 +1034,8 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 	logger.Debugf(`Copying RBD container storage %s -> %s`,
 		sourceContainerName, target.Name())
 
+	revert := true
+
 	ourStart, err := source.StorageStart()
 	if err != nil {
 		logger.Errorf(`Failed to initialize storage for container `+
@@ -1104,6 +1106,24 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			`volume "%s" on storage pool "%s"`,
 			targetContainerMountPoint, s.volume.Name, s.pool.Name)
 
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err = deleteContainerMountpoint(
+				targetContainerMountPoint,
+				targetContainerPath,
+				"")
+			if err != nil {
+				logger.Warnf(`Failed to delete mountpoint `+
+					`"%s" for RBD storage volume "%s" on `+
+					`storage pool "%s": %s"`,
+					targetContainerMountPoint,
+					s.volume.Name, s.pool.Name, err)
+			}
+		}()
+
 		// create empty dummy volume
 		err = cephRBDVolumeCreate(
 			s.ClusterName,
@@ -1119,6 +1139,21 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		}
 		logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
 			targetContainerName, s.pool.Name)
+
+		defer func() {
+			if !revert {
+				return
+			}
+
+			err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName,
+				targetContainerName,
+				storagePoolVolumeTypeNameContainer)
+			if err != nil {
+				logger.Warnf(`Failed to delete RBD storage `+
+					`volume "%s" on storage pool "%s": %s`,
+					targetContainerName, s.pool.Name, err)
+			}
+		}()
 
 		// receive over the dummy volume we created above
 		targetVolumeName := fmt.Sprintf(
@@ -1154,6 +1189,23 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			}
 			logger.Debugf(`Copied RBD container storage %s -> %s`,
 				sourceVolumeName, targetVolumeName)
+
+			defer func() {
+				if !revert {
+					return
+				}
+
+				err := cephRBDSnapshotDelete(s.ClusterName,
+					s.OSDPoolName, targetContainerName,
+					storagePoolVolumeTypeNameContainer,
+					snapOnlyName)
+				if err != nil {
+					logger.Warnf(`Failed to delete RBD `+
+						`container storage for `+
+						`snapshot "%s" of container "%s"`,
+						snapOnlyName, targetContainerName)
+				}
+			}()
 
 			// create snapshot mountpoint
 			newTargetName := fmt.Sprintf("%s/%s",
@@ -1195,6 +1247,29 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 				snapshotMntPointSymlinkTarget,
 				snapshotMntPointSymlink, s.volume.Name,
 				s.pool.Name)
+
+			defer func() {
+				if !revert {
+					return
+				}
+
+				err = deleteSnapshotMountpoint(
+					containersPath,
+					snapshotMntPointSymlinkTarget,
+					snapshotMntPointSymlink)
+				if err != nil {
+					logger.Warnf(`Failed to delete `+
+						`mountpoint "%s", snapshot `+
+						`symlink target "%s", `+
+						`snapshot mountpoint `+
+						`symlink "%s" for RBD storage `+
+						`volume "%s" on storage pool `+
+						`"%s": %s`, containersPath,
+						snapshotMntPointSymlinkTarget,
+						snapshotMntPointSymlink,
+						s.volume.Name, s.pool.Name, err)
+				}
+			}()
 		}
 
 		// copy snapshot
@@ -1213,6 +1288,10 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		}
 		logger.Debugf(`Copied RBD container storage %s -> %s`,
 			sourceVolumeName, targetVolumeName)
+
+		// Note, we don't need to register another cleanup function for
+		// the actual container's storage volume since we already
+		// registered one above for the dummy volume we created.
 
 		// map the container's volume
 		err = cephRBDVolumeMap(
@@ -1236,6 +1315,9 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 
 	logger.Debugf(`Copied RBD container storage %s -> %s`,
 		sourceContainerName, target.Name())
+
+	revert = false
+
 	return nil
 }
 
