@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strings"
@@ -48,9 +49,16 @@ func run() error {
 	forceLocal := gnuflag.Bool("force-local", false, i18n.G("Force using the local unix socket"))
 	noAlias := gnuflag.Bool("no-alias", false, i18n.G("Ignore aliases when determining what command to run"))
 
-	configDir := "$HOME/.config/lxc"
+	var configDir string
 	if os.Getenv("LXD_CONF") != "" {
 		configDir = os.Getenv("LXD_CONF")
+	} else {
+		user, err := user.Current()
+		if err != nil {
+			return err
+		}
+
+		configDir = path.Join(user.HomeDir, ".config", "lxc")
 	}
 	configPath = os.ExpandEnv(path.Join(configDir, "config.yml"))
 
