@@ -204,7 +204,6 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	}
 
 	rdr1 := ioutil.NopCloser(bytes.NewBuffer(body))
-	rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
 
 	raw := shared.Jmap{}
 	if err := json.NewDecoder(rdr1).Decode(&raw); err != nil {
@@ -213,13 +212,37 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 
 	migration, err := raw.GetBool("migration")
 	if err == nil && migration {
+		rdr2 := ioutil.NopCloser(bytes.NewBuffer(body))
+		rdr3 := ioutil.NopCloser(bytes.NewBuffer(body))
+
 		req := api.ContainerPost{}
 		err = json.NewDecoder(rdr2).Decode(&req)
 		if err != nil {
 			return BadRequest(err)
 		}
 
-		ws, err := NewMigrationSource(sc, false, true)
+		reqNew := api.ContainerSnapshotPost{}
+		err = json.NewDecoder(rdr3).Decode(&reqNew)
+		if err != nil {
+			return BadRequest(err)
+		}
+
+		if reqNew.Name == "" {
+			return BadRequest(fmt.Errorf(`A new name for the ` +
+				`container must be provided`))
+		}
+
+		if reqNew.Live {
+			sourceName, _, _ := containerGetParentAndSnapshotName(containerName)
+			if sourceName != reqNew.Name {
+				return BadRequest(fmt.Errorf(`Copying `+
+					`stateful containers requires that `+
+					`source "%s" and `+`target "%s" name `+
+					`be identical`, sourceName, reqNew.Name))
+			}
+		}
+
+		ws, err := NewMigrationSource(sc, reqNew.Live, true)
 		if err != nil {
 			return SmartError(err)
 		}

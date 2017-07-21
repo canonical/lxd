@@ -309,3 +309,6 @@ a specific storage pool.
 This adds support for editing a container metadata.yaml and related templates
 via API, by accessing urls under /1.0/containers/NAME/metadata. It can be used
 to edit a container before publishing an image from it.
+
+## container\_snapshot\_stateful\_migration
+This enables migrating stateful container snapshots to new containers.

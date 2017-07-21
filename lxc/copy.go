@@ -17,6 +17,7 @@ type copyCmd struct {
 	ephem         bool
 	containerOnly bool
 	mode          string
+	stateless     bool
 }
 
 func (c *copyCmd) showByDefault() bool {
@@ -39,9 +40,12 @@ func (c *copyCmd) flags() {
 	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
 	gnuflag.StringVar(&c.mode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay."))
 	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Copy the container without its snapshots"))
+	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
 }
 
-func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, destResource string, keepVolatile bool, ephemeral int, stateful bool, containerOnly bool, mode string) error {
+func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
+	destResource string, keepVolatile bool, ephemeral int, stateful bool,
+	containerOnly bool, mode string) error {
 	// Parse the source
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -89,6 +93,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, dest
 		args := lxd.ContainerSnapshotCopyArgs{
 			Name: destName,
 			Mode: mode,
+			Live: stateful,
 		}
 
 		// Copy of a snapshot into a new container
@@ -245,11 +250,15 @@ func (c *copyCmd) run(conf *config.Config, args []string) error {
 		mode = c.mode
 	}
 
+	stateful := !c.stateless
+
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
-		return c.copyContainer(conf, args[0], "", false, ephem, false, c.containerOnly, mode)
+		return c.copyContainer(conf, args[0], "", false, ephem,
+			stateful, c.containerOnly, mode)
 	}
 
 	// Normal copy with a pre-determined name
-	return c.copyContainer(conf, args[0], args[1], false, ephem, false, c.containerOnly, mode)
+	return c.copyContainer(conf, args[0], args[1], false, ephem,
+		stateful, c.containerOnly, mode)
 }

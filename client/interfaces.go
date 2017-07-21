@@ -255,6 +255,10 @@ type ContainerSnapshotCopyArgs struct {
 
 	// The transfer mode, can be "pull" (default), "push" or "relay"
 	Mode string
+
+	// API extension: container_snapshot_stateful_migration
+	// If set, the container running state will be transferred (live migration)
+	Live bool
 }
 
 // The ContainerExecArgs struct is used to pass additional options during container exec
