@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-21 11:08+0200\n"
-"PO-Revision-Date: 2017-03-23 12:03+0000\n"
+"POT-Creation-Date: 2017-07-21 14:25+0200\n"
+"PO-Revision-Date: 2017-07-20 00:30+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 2.12\n"
+"X-Generator: Weblate 2.16-dev\n"
 
 #: lxc/storage.go:31
 msgid ""
@@ -149,22 +149,23 @@ msgstr ""
 #: lxc/image.go:183
 #, c-format
 msgid "%s (%d more)"
-msgstr ""
+msgstr "%s (他%d個)"
 
 #: lxc/file.go:192
 #, c-format
 msgid "%s is not a directory"
-msgstr ""
+msgstr "%s はディレクトリではありません"
 
 #: lxc/utils.go:345
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
+"%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
 #: lxc/file.go:130
 #, c-format
 msgid "'%s' isn't a supported file type."
-msgstr ""
+msgstr "'%s' はサポートされないタイプのファイルです。"
 
 #: lxc/snapshot.go:53
 msgid "'/' not allowed in snapshot name"
@@ -214,9 +215,9 @@ msgid "Auto update: %s"
 msgstr "自動更新: %s"
 
 #: lxc/image.go:670
-#, fuzzy, c-format
+#, c-format
 msgid "Bad property: %s"
-msgstr "(不正なイメージプロパティ形式: %s\n"
+msgstr "不正なイメージプロパティ形式: %s"
 
 #: lxc/info.go:197
 msgid "Bytes received"
@@ -268,9 +269,9 @@ msgid "Cannot provide container name to list"
 msgstr "コンテナ名を取得できません"
 
 #: lxc/remote.go:228
-#, fuzzy, c-format
+#, c-format
 msgid "Certificate fingerprint: %s"
-msgstr "証明書のフィンガープリント: %x"
+msgstr "証明書のフィンガープリント: %s"
 
 #: lxc/remote.go:316
 msgid "Client certificate stored at server: "
@@ -317,9 +318,8 @@ msgid "Copy aliases from source"
 msgstr "ソースからエイリアスをコピーしました"
 
 #: lxc/copy.go:41
-#, fuzzy
 msgid "Copy the container without its snapshots"
-msgstr "コンテナを強制シャットダウンします"
+msgstr "コンテナをコピーします (スナップショットはコピーしません)"
 
 #: lxc/image.go:425
 #, c-format
@@ -372,13 +372,13 @@ msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
 #: lxc/utils.go:277 lxc/utils.go:301
-#, fuzzy, c-format
+#, c-format
 msgid "Device already exists: %s"
-msgstr "リモート %s は既に存在します"
+msgstr "デバイスは既に存在します: %s"
 
 #: lxc/image.go:1238
 msgid "Directory import is not available on this platform"
-msgstr ""
+msgstr "このプラットフォーム上ではディレクトリのインポートは利用できません"
 
 #: lxc/exec.go:65
 msgid "Disable pseudo-terminal allocation"
@@ -434,9 +434,9 @@ msgid "Expires: never"
 msgstr "失効日時: 失効しない"
 
 #: lxc/image.go:880
-#, fuzzy, c-format
+#, c-format
 msgid "Exporting the image: %s"
-msgstr "イメージのインポート中: %s"
+msgstr "イメージのエクスポート中: %s"
 
 #: lxc/config.go:380 lxc/image.go:229 lxc/image.go:1085
 msgid "FINGERPRINT"
@@ -458,19 +458,18 @@ msgid "Failed to generate 'lxc.1': %v"
 msgstr "'lxc.1' の生成が失敗しました: %v"
 
 #: lxc/copy.go:219
-#, fuzzy
 msgid "Failed to get the new container name"
-msgstr "新しいコンテナに適用するプロファイル"
+msgstr "新しいコンテナ名が取得できません"
 
 #: lxc/utils.go:373
-#, c-format
+#, fuzzy, c-format
 msgid "Failed to remove alias %s"
-msgstr ""
+msgstr "パス %s にアクセスできませんでした: %s"
 
 #: lxc/file.go:125
 #, c-format
 msgid "Failed to walk path for %s: %s"
-msgstr ""
+msgstr "パス %s にアクセスできませんでした: %s"
 
 #: lxc/list.go:131
 #, fuzzy
@@ -500,7 +499,7 @@ msgstr "強制的にローカルのUNIXソケットを使います"
 
 #: lxc/image.go:177 lxc/list.go:130
 msgid "Format (csv|json|table|yaml)"
-msgstr ""
+msgstr "フォーマット (csv|json|table|yaml)"
 
 #: lxc/remote.go:81
 msgid "Generating a client certificate. This may take a minute..."
@@ -532,16 +531,15 @@ msgstr "コンテナの状態を無視します (startのみ)"
 
 #: lxc/image.go:527
 msgid "Image already up to date."
-msgstr ""
+msgstr "イメージは更新済みです。"
 
 #: lxc/image.go:439
 msgid "Image copied successfully!"
 msgstr "イメージのコピーが成功しました!"
 
 #: lxc/image.go:930
-#, fuzzy
 msgid "Image exported successfully!"
-msgstr "イメージのコピーが成功しました!"
+msgstr "イメージのエクスポートが成功しました!"
 
 #: lxc/image.go:737
 #, c-format
@@ -549,9 +547,8 @@ msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
 
 #: lxc/image.go:525
-#, fuzzy
 msgid "Image refreshed successfully!"
-msgstr "イメージのコピーが成功しました!"
+msgstr "イメージの更新が成功しました!"
 
 #: lxc/remote.go:151
 #, c-format
@@ -649,13 +646,12 @@ msgstr ""
 "せん"
 
 #: lxc/move.go:39
-#, fuzzy
 msgid "Move the container without its snapshots"
-msgstr "コンテナを強制シャットダウンします"
+msgstr "コンテナを移動します (スナップショットは移動しません)"
 
 #: lxc/image.go:1240
 msgid "Must run as root to import from directory"
-msgstr ""
+msgstr "ディレクトリからのインポートは root で実行する必要があります"
 
 #: lxc/action.go:72
 msgid "Must supply container name for: "
@@ -863,18 +859,17 @@ msgid "Recursively push or pull files"
 msgstr "再帰的にファイルをpush/pullします"
 
 #: lxc/image.go:505
-#, fuzzy, c-format
+#, c-format
 msgid "Refreshing the image: %s"
-msgstr "イメージの取得中: %s"
+msgstr "イメージの更新中: %s"
 
 #: lxc/remote.go:68
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
 #: lxc/utils.go:336
-#, fuzzy
 msgid "Remote operation canceled by user"
-msgstr "ユーザによりサーバ証明書が拒否されました"
+msgstr "リモート操作がユーザによってキャンセルされました"
 
 #: lxc/info.go:101
 #, c-format
@@ -1012,9 +1007,9 @@ msgid "Stopping container failed!"
 msgstr "コンテナの停止に失敗しました！"
 
 #: lxc/delete.go:121
-#, fuzzy, c-format
+#, c-format
 msgid "Stopping the container failed: %s"
-msgstr "コンテナの停止に失敗しました！"
+msgstr "コンテナの停止に失敗しました: %s"
 
 #: lxc/storage.go:468
 #, c-format
@@ -1073,9 +1068,8 @@ msgid "The container you are starting doesn't have any network attached to it."
 msgstr "起動しようとしたコンテナに接続されているネットワークがありません。"
 
 #: lxc/config.go:837 lxc/config.go:854
-#, fuzzy
 msgid "The device already exists"
-msgstr "リモート %s は既に存在します"
+msgstr "デバイスはすでに存在します"
 
 #: lxc/config.go:900 lxc/config.go:912 lxc/config.go:948 lxc/config.go:966
 #: lxc/config.go:1012 lxc/config.go:1029 lxc/config.go:1072 lxc/config.go:1090
@@ -1144,12 +1138,12 @@ msgstr ""
 
 #: lxc/copy.go:40 lxc/move.go:40
 msgid "Transfer mode. One of pull (default), push or relay."
-msgstr ""
+msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
 #: lxc/copy.go:193
-#, fuzzy, c-format
+#, c-format
 msgid "Transferring container: %s"
-msgstr "イメージを転送中: %s"
+msgstr "コンテナを転送中: %s"
 
 #: lxc/image.go:676
 #, c-format
@@ -1190,9 +1184,9 @@ msgid "Unable to read remote TLS certificate"
 msgstr "リモートの TLS 証明書を読めません"
 
 #: lxc/file.go:112
-#, fuzzy, c-format
+#, c-format
 msgid "Unknown file type '%s'"
-msgstr "未知の設定コマンド %s"
+msgstr "未知のファイルタイプ '%s'"
 
 #: lxc/image.go:573
 #, c-format
@@ -1308,12 +1302,16 @@ msgstr ""
 "\n"
 "lxc config get [<remote>:][container] <key>\n"
 "    コンテナもしくはサーバの設定項目の値を取得します。\n"
+"\n"
 "lxc config set [<remote>:][container] <key> <value>\n"
 "    コンテナもしくはサーバの設定項目に値を設定します。\n"
+"\n"
 "lxc config unset [<remote>:][container] <key>\n"
 "    コンテナもしくはサーバの設定項目を削除します。\n"
+"\n"
 "lxc config show [<remote>:][container] [--expanded]\n"
 "    コンテナもしくはサーバの設定を表示します。\n"
+"\n"
 "lxc config edit [<remote>:][container]\n"
 "    外部エディタを起動するか、標準入力からの読み込むことにより、設定を編集し"
 "ます。\n"
@@ -1322,16 +1320,22 @@ msgstr ""
 "\n"
 "lxc config device add [<remote>:]<container> <device> <type> [key=value...]\n"
 "    コンテナにデバイスを追加します。\n"
+"\n"
 "lxc config device get [<remote>:]<container> <device> <key>\n"
 "    デバイスのプロパティを取得します。\n"
+"\n"
 "lxc config device set [<remote>:]<container> <device> <key> <value>\n"
 "    デバイスのプロパティを設定します。\n"
+"\n"
 "lxc config device unset [<remote>:]<container> <device> <key>\n"
 "    デバイスのプロパティを削除します。\n"
+"\n"
 "lxc config device list [<remote>:]<container>\n"
 "    コンテナのデバイスを一覧表示します。\n"
+"\n"
 "lxc config device show [<remote>:]<container>\n"
 "    全てのデバイスの詳細を表示します。\n"
+"\n"
 "lxc config device remove [<remote>:]<container> <name>\n"
 "    コンテナからデバイスを削除します。\n"
 "\n"
@@ -1339,8 +1343,10 @@ msgstr ""
 "\n"
 "lxc config trust list [<remote>:]\n"
 "    信頼する証明書を全て表示します。\n"
+"\n"
 "lxc config trust add [<remote>:] <certfile.crt>\n"
 "    certfile.crt を信頼するホストに追加します。\n"
+"\n"
 "lxc config trust remove [<remote>:] [hostname|fingerprint]\n"
 "    信頼するホストから証明書を消去します。\n"
 "\n"
@@ -1482,7 +1488,6 @@ msgstr ""
 "LXD クライアントのヘルプを表示します。"
 
 #: lxc/image.go:72
-#, fuzzy
 msgid ""
 "Usage: lxc image <subcommand> [options]\n"
 "\n"
@@ -1610,7 +1615,9 @@ msgstr ""
 "[--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] "
 "[--alias=ALIAS...] [prop=value]\n"
 "    イメージの tarball (複数も可能) を LXD のイメージストアにインポートしま\n"
-"    す。\n"
+"    す。ディレクトリのインポートは Linux 上でのみ可能で、root で実行する必"
+"要\n"
+"    があります。\n"
 "\n"
 "lxc image copy [<remote>:]<image> <remote>: [--alias=ALIAS...] [--copy-"
 "aliases] [--public] [--auto-update]\n"
@@ -1622,6 +1629,9 @@ msgstr ""
 "\n"
 "lxc image delete [<remote>:]<image> [[<remote>:]<image>...]\n"
 "    LXD のイメージストアからイメージを削除します。\n"
+"\n"
+"lxc image refresh [<remote>:]<image> [[<remote>:]<image>...]\n"
+"    ひとつ以上のイメージを取得元から更新します。\n"
 "\n"
 "lxc image export [<remote>:]<image> [target]\n"
 "    LXD のイメージストアから配布可能な tarball としてイメージをエクスポート\n"
@@ -1643,6 +1653,30 @@ msgstr ""
 "    LXD のイメージストア内のイメージを一覧表示します。プロパティでフィルタ\n"
 "    を行う場合は、フィルタは <key>=<value> の形になります。フィルタはイメー\n"
 "    ジハッシュの一部やイメージエイリアス名の一部も指定できます。\n"
+"\n"
+"    -c オプションは、表形式もしくは csv で出力する際のイメージ属性の出\n"
+"    力形式を制御します。引数のリスト (カンマ区切りも可能) を指定します。\n"
+"\n"
+"    デフォルトのカラムレイアウト: lfpdasu\n"
+"\n"
+"    カラムの指定文字:\n"
+"\n"
+"        l - もっとも短いイメージのエイリアス (他の指定されているエイリアスの"
+"数も表示します)\n"
+"\n"
+"        L - イメージのエイリアスすべて (改行区切り)\n"
+"\n"
+"        f - フィンガープリント\n"
+"\n"
+"        p - イメージがパブリックかどうか\n"
+"\n"
+"        d - 説明\n"
+"\n"
+"        a - アーキテクチャ\n"
+"\n"
+"        s - サイズ\n"
+"\n"
+"        u - アップロード日\n"
 "\n"
 "lxc image show [<remote>:]<image>\n"
 "    ユーザが変更できるプロパティの YAML 形式の出力を行います。\n"
@@ -1738,7 +1772,6 @@ msgstr ""
 "    lxc launch ubuntu:16.04 u1"
 
 #: lxc/list.go:44
-#, fuzzy
 msgid ""
 "Usage: lxc list [<remote>:] [filters] [--format csv|json|table|yaml] [-c "
 "<columns>] [--fast]\n"
@@ -1863,7 +1896,9 @@ msgstr ""
 "を指定するコンマ区切りのリストを指定します。\n"
 "\n"
 "カラムの指定は、定義済みの短縮形 (以下を参照) もしくは (拡張された)\n"
-"設定キーのどちらかを指定します。連続する短縮形の間のコンマは省略できます。\n"
+"設定キーのどちらかを指定します。\n"
+"\n"
+"連続する短縮形の間のコンマは省略できます。\n"
 "\n"
 "短縮形で指定できる文字:\n"
 "\n"
@@ -1893,17 +1928,15 @@ msgstr ""
 "\n"
 "設定キーの文法: key[:name][:maxWidth]\n"
 "\n"
-"    key      - 表示する (拡張された) 設定キー\n"
+"    KEY      - 表示する (拡張された) 設定キー\n"
 "\n"
-"    name     - カラムのヘッダに表示する名前。指定しない場合、もしくは空\n"
+"    NAME     - カラムのヘッダに表示する名前。指定しない場合、もしくは空\n"
 "               の場合のデフォルトはキー。\n"
 "               (名前を指定せずに maxWidth を指定できます。例: user.key::0)\n"
 "\n"
-"    maxWidth - カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
-"               -1 == 制限なし\n"
-"                0 == カラムヘッダの幅\n"
-"               >0 == 文字列の最大幅\n"
-"               デフォルトは -1 (制限なし)\n"
+"    MAXWIDTH - カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
+"               デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限しま"
+"す。\n"
 "\n"
 "*例*\n"
 "lxc list -c n,volatile.base_image:\"BASE IMAGE\":0,s46,volatile.eth0.hwaddr:"
@@ -2569,6 +2602,8 @@ msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."
 msgstr ""
+"ユーザからのシグナルを 3 度受信したので exit しました。リモート操作は実行し続"
+"けます。"
 
 #: lxc/restore.go:38
 msgid ""

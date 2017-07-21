@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-21 11:08+0200\n"
-"PO-Revision-Date: 2017-06-15 22:46+0000\n"
+"POT-Creation-Date: 2017-07-21 14:25+0200\n"
+"PO-Revision-Date: 2017-07-13 19:23+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/it/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2.15-dev\n"
+"X-Generator: Weblate 2.16-dev\n"
 
 #: lxc/storage.go:31
 msgid ""
@@ -180,12 +180,12 @@ msgstr ""
 #: lxc/utils.go:345
 #, c-format
 msgid "%v (interrupt two more times to force)"
-msgstr ""
+msgstr "%v (interrompi altre due volte per forzare)"
 
 #: lxc/file.go:130
 #, c-format
 msgid "'%s' isn't a supported file type."
-msgstr ""
+msgstr "'%s' non è un tipo di file supportato."
 
 #: lxc/snapshot.go:53
 msgid "'/' not allowed in snapshot name"
@@ -201,7 +201,7 @@ msgstr "ALIAS"
 
 #: lxc/image.go:228
 msgid "ALIASES"
-msgstr ""
+msgstr "ALIAS"
 
 #: lxc/image.go:232
 msgid "ARCH"
@@ -237,7 +237,7 @@ msgstr "Aggiornamento automatico: %s"
 #: lxc/image.go:670
 #, c-format
 msgid "Bad property: %s"
-msgstr ""
+msgstr "Proprietà errata: %s"
 
 #: lxc/info.go:197
 msgid "Bytes received"
@@ -249,7 +249,7 @@ msgstr "Byte inviati"
 
 #: lxc/config.go:381
 msgid "COMMON NAME"
-msgstr ""
+msgstr "NOME COMUNE"
 
 #: lxc/info.go:161
 msgid "CPU usage (in seconds)"
@@ -265,12 +265,12 @@ msgstr "CREATO IL"
 
 #: lxc/file.go:485
 msgid "Can't pull a directory without --recursive"
-msgstr ""
+msgstr "Impossibile effettuare il pull di una directory senza --recursive"
 
 #: lxc/config.go:188 lxc/network.go:542
 #, c-format
 msgid "Can't read from stdin: %s"
-msgstr ""
+msgstr "Impossible leggere da stdin: %s"
 
 #: lxc/config.go:201
 #, c-format
@@ -293,15 +293,15 @@ msgstr ""
 
 #: lxc/remote.go:316
 msgid "Client certificate stored at server: "
-msgstr ""
+msgstr "Certificato del client salvato dal server: "
 
 #: lxc/image.go:171 lxc/image.go:172 lxc/list.go:128 lxc/list.go:129
 msgid "Columns"
-msgstr ""
+msgstr "Colonne"
 
 #: lxc/help.go:53
 msgid "Commands:"
-msgstr ""
+msgstr "Comandi:"
 
 #: lxc/copy.go:34 lxc/copy.go:35 lxc/init.go:136 lxc/init.go:137
 msgid "Config key/value to apply to the new container"
@@ -324,7 +324,7 @@ msgstr ""
 #: lxc/copy.go:224 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
-msgstr ""
+msgstr "Il nome del container è: %s"
 
 #: lxc/publish.go:250
 #, c-format
@@ -360,20 +360,20 @@ msgstr ""
 #: lxc/init.go:194
 #, c-format
 msgid "Creating %s"
-msgstr ""
+msgstr "Creazione di %s in corso"
 
 #: lxc/init.go:192
 msgid "Creating the container"
-msgstr ""
+msgstr "Creazione del container in corso"
 
 #: lxc/image.go:231 lxc/image.go:1086 lxc/list.go:463 lxc/network.go:507
 #: lxc/storage.go:654 lxc/storage.go:749
 msgid "DESCRIPTION"
-msgstr ""
+msgstr "DESCRIZIONE"
 
 #: lxc/storage.go:655
 msgid "DRIVER"
-msgstr ""
+msgstr "DRIVER"
 
 #: lxc/publish.go:39
 msgid "Define a compression algorithm: for image or none"
@@ -390,13 +390,13 @@ msgid "Device %s removed from %s"
 msgstr ""
 
 #: lxc/utils.go:277 lxc/utils.go:301
-#, fuzzy, c-format
+#, c-format
 msgid "Device already exists: %s"
-msgstr "il remote %s esiste già"
+msgstr "La periferica esiste già: %s"
 
 #: lxc/image.go:1238
 msgid "Directory import is not available on this platform"
-msgstr ""
+msgstr "Import da directory non disponibile su questa piattaforma"
 
 #: lxc/exec.go:65
 msgid "Disable pseudo-terminal allocation"
@@ -408,7 +408,7 @@ msgstr ""
 
 #: lxc/info.go:154
 msgid "Disk usage:"
-msgstr ""
+msgstr "Utilizzo disco:"
 
 #: lxc/list.go:619
 msgid "EPHEMERAL"
@@ -416,7 +416,7 @@ msgstr ""
 
 #: lxc/config.go:383
 msgid "EXPIRY DATE"
-msgstr ""
+msgstr "DATA DI SCADENZA"
 
 #: lxc/main.go:47
 msgid "Enable debug mode"
@@ -424,7 +424,7 @@ msgstr ""
 
 #: lxc/main.go:46
 msgid "Enable verbose mode"
-msgstr ""
+msgstr "Abilita modalità verbosa"
 
 #: lxc/exec.go:62
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
@@ -1081,9 +1081,8 @@ msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 
 #: lxc/config.go:837 lxc/config.go:854
-#, fuzzy
 msgid "The device already exists"
-msgstr "il remote %s esiste già"
+msgstr "La periferica esiste già"
 
 #: lxc/config.go:900 lxc/config.go:912 lxc/config.go:948 lxc/config.go:966
 #: lxc/config.go:1012 lxc/config.go:1029 lxc/config.go:1072 lxc/config.go:1090
@@ -1985,9 +1984,8 @@ msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
 #: lxc/copy.go:59
-#, fuzzy
 msgid "You must specify a source container name"
-msgstr "occorre specificare un nome di container come origine"
+msgstr "Occorre specificare un nome di container come origine"
 
 #: lxc/main.go:58
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
