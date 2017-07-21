@@ -919,8 +919,15 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 			Devices:      snapshot.Devices,
 			Ephemeral:    snapshot.Ephemeral,
 			Profiles:     snapshot.Profiles,
-			Stateful:     snapshot.Stateful,
 		},
+	}
+
+	if snapshot.Stateful && args.Live {
+		if !r.HasExtension("container_snapshot_stateful_migration") {
+			return nil, fmt.Errorf("The server is missing the required \"container_snapshot_stateful_migration\" API extension")
+		}
+		req.ContainerPut.Stateful = snapshot.Stateful
+		req.Source.Live = args.Live
 	}
 	req.Source.BaseImage = snapshot.Config["volatile.base_image"]
 
@@ -976,6 +983,10 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 	// Source request
 	sourceReq := api.ContainerSnapshotPost{
 		Migration: true,
+		Name:      args.Name,
+	}
+	if snapshot.Stateful && args.Live {
+		sourceReq.Live = args.Live
 	}
 
 	// Push mode migration
