@@ -71,6 +71,14 @@ func (c *remoteCmd) flags() {
 }
 
 func (c *remoteCmd) generateClientCertificate(conf *config.Config) error {
+	// Create the config path if needed
+	if !shared.PathExists(conf.ConfigDir) {
+		err := os.MkdirAll(conf.ConfigDir, 0750)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Could not create config dir"))
+		}
+	}
+
 	// Generate a client certificate if necessary.  The default repositories are
 	// either local or public, neither of which requires a client certificate.
 	// Generation of the cert is delayed to avoid unnecessary overhead, e.g in
