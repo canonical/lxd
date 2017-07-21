@@ -13,6 +13,7 @@ import (
 type moveCmd struct {
 	containerOnly bool
 	mode          string
+	stateless     bool
 }
 
 func (c *moveCmd) showByDefault() bool {
@@ -38,6 +39,7 @@ lxc move <container>/<old snapshot name> <container>/<new snapshot name>
 func (c *moveCmd) flags() {
 	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
 	gnuflag.StringVar(&c.mode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay."))
+	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
 }
 
 func (c *moveCmd) run(conf *config.Config, args []string) error {

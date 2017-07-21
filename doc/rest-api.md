@@ -719,7 +719,9 @@ Input (simple rename):
 Input (migration across lxd instances):
 
     {
+        "name": "new-name"
         "migration": true
+        "live": "true"
     }
 
 The migration does not actually start until someone (i.e. another lxd instance)
@@ -958,7 +960,9 @@ Input (rename the snapshot):
 Input (setup the migration source):
 
     {
-        "migration": true,
+        "name": "new-name"
+        "migration": true
+        "live": "true"
     }
 
 Return (with migration=true):
