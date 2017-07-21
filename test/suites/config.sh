@@ -260,3 +260,31 @@ test_config_edit_container_snapshot_pool_config() {
     lxc storage volume show "$storage_pool" container/c1/s1 | grep -q 'description: baz'
     lxc delete c1
 }
+
+test_container_metadata() {
+    ensure_import_testimage
+    lxc init testimage c
+
+    # metadata for the container are printed
+    lxc config metadata show c | grep -q Busybox
+
+    # metadata can be edited
+    lxc config metadata show c | sed 's/Busybox/BB/' | lxc config metadata edit c
+    lxc config metadata show c | grep -q BB
+
+    # templates can be listed
+    curl -s --unix-socket "${LXD_DIR}/unix.socket" lxd/1.0/containers/c/metadata/templates | grep -q template.tpl
+
+    # template content can be returned
+    curl -s --unix-socket "${LXD_DIR}/unix.socket" "lxd/1.0/containers/c/metadata/templates?path=template.tpl" | grep -q "name:"
+
+    # templates can be added
+    curl -s --unix-socket "${LXD_DIR}/unix.socket" "lxd/1.0/containers/c/metadata/templates?path=my.tpl" -H 'Content-type: application/octet-stream' -d "some content"
+    curl -s --unix-socket "${LXD_DIR}/unix.socket" "lxd/1.0/containers/c/metadata/templates?path=my.tpl" | grep -q "some content"
+    
+    # templates can be removed
+    curl -s --unix-socket "${LXD_DIR}/unix.socket" "lxd/1.0/containers/c/metadata/templates?path=my.tpl" -X DELETE
+    ! (curl -s --unix-socket "${LXD_DIR}/unix.socket" lxd/1.0/containers/c/metadata/templates | grep -q my.tpl)
+
+    lxc delete c
+}

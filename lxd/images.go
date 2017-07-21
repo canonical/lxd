@@ -203,21 +203,6 @@ func compressFile(path string, compress string) (string, error) {
 	return outfile.Name(), nil
 }
 
-type templateEntry struct {
-	When       []string          `yaml:"when"`
-	CreateOnly bool              `yaml:"create_only"`
-	Template   string            `yaml:"template"`
-	Properties map[string]string `yaml:"properties"`
-}
-
-type imageMetadata struct {
-	Architecture string                    `yaml:"architecture"`
-	CreationDate int64                     `yaml:"creation_date"`
-	ExpiryDate   int64                     `yaml:"expiry_date"`
-	Properties   map[string]string         `yaml:"properties"`
-	Templates    map[string]*templateEntry `yaml:"templates"`
-}
-
 /*
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
@@ -435,7 +420,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 
 func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) (*api.Image, error) {
 	info := api.Image{}
-	var imageMeta *imageMetadata
+	var imageMeta *api.ImageMetadata
 	logger := logging.AddContext(logger.Log, log.Ctx{"function": "getImgPostInfo"})
 
 	public, _ := strconv.Atoi(r.Header.Get("X-LXD-public"))
@@ -776,7 +761,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func getImageMetadata(fname string) (*imageMetadata, error) {
+func getImageMetadata(fname string) (*api.ImageMetadata, error) {
 	metadataName := "metadata.yaml"
 
 	compressionArgs, _, err := detectCompression(fname)
@@ -800,7 +785,7 @@ func getImageMetadata(fname string) (*imageMetadata, error) {
 		return nil, fmt.Errorf("Could not extract image %s from tar: %v (%s)", metadataName, err, outputLines[0])
 	}
 
-	metadata := imageMetadata{}
+	metadata := api.ImageMetadata{}
 	err = yaml.Unmarshal([]byte(output), &metadata)
 
 	if err != nil {

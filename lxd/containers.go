@@ -58,6 +58,20 @@ var containerExecCmd = Command{
 	post: containerExecPost,
 }
 
+var containerMetadataCmd = Command{
+	name: "containers/{name}/metadata",
+	get:  containerMetadataGet,
+	put:  containerMetadataPut,
+}
+
+var containerMetadataTemplatesCmd = Command{
+	name:   "containers/{name}/metadata/templates",
+	get:    containerMetadataTemplatesGet,
+	post:   containerMetadataTemplatesPostPut,
+	put:    containerMetadataTemplatesPostPut,
+	delete: containerMetadataTemplatesDelete,
+}
+
 type containerAutostartList []container
 
 func (slice containerAutostartList) Len() int {

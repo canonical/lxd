@@ -56,6 +56,30 @@ func (c *configCmd) configEditHelp() string {
 ### Note that the name is shown but cannot be changed`)
 }
 
+func (c *configCmd) metadataEditHelp() string {
+	return i18n.G(
+		`### This is a yaml representation of the container metadata.
+### Any line starting with a '# will be ignored.
+###
+### A sample configuration looks like:
+###
+### architecture: x86_64
+### creation_date: 1477146654
+### expiry_date: 0
+### properties:
+###   architecture: x86_64
+###   description: Busybox x86_64
+###   name: busybox-x86_64
+###   os: Busybox
+### templates:
+###   /template:
+###     when:
+###     - ""
+###     create_only: false
+###     template: template.tpl
+###     properties: {}`)
+}
+
 func (c *configCmd) usage() string {
 	return i18n.G(
 		`Usage: lxc config <subcommand> [options]
@@ -78,6 +102,14 @@ lxc config show [<remote>:][container] [--expanded]
 
 lxc config edit [<remote>:][container]
     Edit configuration, either by launching external editor or reading STDIN.
+
+*Container metadata*
+
+lxc config metadata show [<remote>:][container]
+    Show the container metadata.yaml content.
+
+lxc config metadata edit [<remote>:][container]
+    Edit the container metadata.yaml, either by launching external editor or reading STDIN.
 
 *Device management*
 
@@ -582,6 +614,41 @@ func (c *configCmd) run(conf *config.Config, args []string) error {
 		}
 
 		return c.doContainerConfigEdit(d, container)
+
+	case "metadata":
+		if len(args) < 3 {
+			return errArgs
+		}
+
+		remote, container, err := conf.ParseRemote(args[2])
+		if err != nil {
+			return err
+		}
+
+		d, err := conf.GetContainerServer(remote)
+		if err != nil {
+			return err
+		}
+
+		switch args[1] {
+		case "show":
+			metadata, _, err := d.GetContainerMetadata(container)
+			if err != nil {
+				return err
+			}
+			content, err := yaml.Marshal(metadata)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s", content)
+			return nil
+
+		case "edit":
+			return c.doContainerMetadataEdit(d, container)
+
+		default:
+			return errArgs
+		}
 
 	default:
 		return errArgs
@@ -1118,5 +1185,64 @@ func (c *configCmd) deviceShow(conf *config.Config, which string, args []string)
 	}
 
 	fmt.Printf(string(data))
+	return nil
+}
+
+func (c *configCmd) doContainerMetadataEdit(client lxd.ContainerServer, name string) error {
+	if !termios.IsTerminal(int(syscall.Stdin)) {
+		metadata := api.ImageMetadata{}
+		content, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.Unmarshal(content, &metadata)
+		if err != nil {
+			return err
+		}
+		return client.SetContainerMetadata(name, metadata, "")
+	}
+
+	metadata, etag, err := client.GetContainerMetadata(name)
+	if err != nil {
+		return err
+	}
+	origContent, err := yaml.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor
+	content, err := shared.TextEditor("", []byte(c.metadataEditHelp()+"\n\n"+string(origContent)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		err = yaml.Unmarshal(content, &metadata)
+		if err == nil {
+			err = client.SetContainerMetadata(name, *metadata, etag)
+		}
+
+		// Respawn the editor
+		if err != nil {
+			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to start the editor again"))
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		break
+	}
+
 	return nil
 }
