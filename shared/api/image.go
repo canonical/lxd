@@ -102,3 +102,20 @@ type ImageAliasesEntry struct {
 
 	Name string `json:"name" yaml:"name"`
 }
+
+// ImageMetadata represents LXD image metadata
+type ImageMetadata struct {
+	Architecture string                            `json:"architecture" yaml:"architecture"`
+	CreationDate int64                             `json:"creation_date" yaml:"creation_date"`
+	ExpiryDate   int64                             `json:"expiry_date" yaml:"expiry_date"`
+	Properties   map[string]string                 `json:"properties" yaml:"properties"`
+	Templates    map[string]*ImageMetadataTemplate `json:"templates" yaml:"templates"`
+}
+
+// ImageMetadataTemplate represents a template entry in image metadata
+type ImageMetadataTemplate struct {
+	When       []string          `json:"when" yaml:"when"`
+	CreateOnly bool              `json:"create_only" yaml:"create_only"`
+	Template   string            `json:"template" yaml:"template"`
+	Properties map[string]string `json:"properties" yaml:"properties"`
+}
