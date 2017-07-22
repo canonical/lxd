@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-21 15:33+0200\n"
+"POT-Creation-Date: 2017-07-22 20:08+0200\n"
 "PO-Revision-Date: 2017-07-20 00:30+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -285,7 +285,7 @@ msgstr "カラムレイアウト"
 msgid "Commands:"
 msgstr "コマンド:"
 
-#: lxc/copy.go:34 lxc/copy.go:35 lxc/init.go:136 lxc/init.go:137
+#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:136 lxc/init.go:137
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
@@ -303,7 +303,7 @@ msgstr "接続が拒否されました。LXDが実行されていますか?"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:224 lxc/init.go:314
+#: lxc/copy.go:229 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -313,11 +313,15 @@ msgstr "コンテナ名: %s"
 msgid "Container published with fingerprint: %s"
 msgstr "コンテナは以下のフィンガープリントで publish されます: %s"
 
+#: lxc/copy.go:43 lxc/move.go:42
+msgid "Copy a stateful container stateless"
+msgstr ""
+
 #: lxc/image.go:174
 msgid "Copy aliases from source"
 msgstr "ソースからエイリアスをコピーしました"
 
-#: lxc/copy.go:41
+#: lxc/copy.go:42
 msgid "Copy the container without its snapshots"
 msgstr "コンテナをコピーします (スナップショットはコピーしません)"
 
@@ -421,7 +425,7 @@ msgstr "環境変数を設定します (例: HOME=/home/foo)"
 msgid "Environment:"
 msgstr "環境変数:"
 
-#: lxc/copy.go:38 lxc/copy.go:39 lxc/init.go:140 lxc/init.go:141
+#: lxc/copy.go:39 lxc/copy.go:40 lxc/init.go:140 lxc/init.go:141
 msgid "Ephemeral container"
 msgstr "Ephemeral コンテナ"
 
@@ -462,7 +466,7 @@ msgstr "'lxc.%s.1' の生成が失敗しました: %v"
 msgid "Failed to generate 'lxc.1': %v"
 msgstr "'lxc.1' の生成が失敗しました: %v"
 
-#: lxc/copy.go:219
+#: lxc/copy.go:224
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナ名が取得できません"
 
@@ -522,7 +526,7 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:161
+#: lxc/main.go:163
 msgid "If this is your first time using LXD, you should also run: lxd init"
 msgstr "初めて LXD を使う場合、lxd init と実行する必要があります"
 
@@ -650,7 +654,7 @@ msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん"
 
-#: lxc/move.go:39
+#: lxc/move.go:40
 msgid "Move the container without its snapshots"
 msgstr "コンテナを移動します (スナップショットは移動しません)"
 
@@ -730,7 +734,7 @@ msgstr "リモートイメージのインポートは https:// のみをサポ�
 msgid "Only managed networks can be modified."
 msgstr "管理対象のネットワークのみ変更できます。"
 
-#: lxc/help.go:71 lxc/main.go:128 lxc/main.go:185
+#: lxc/help.go:71 lxc/main.go:130 lxc/main.go:187
 msgid "Options:"
 msgstr "オプション:"
 
@@ -774,7 +778,7 @@ msgstr "別のクライアント用設定ディレクトリ"
 msgid "Path to an alternate server directory"
 msgstr "別のサーバ用設定ディレクトリ"
 
-#: lxc/main.go:224
+#: lxc/main.go:226
 msgid "Pause containers."
 msgstr "コンテナを一時停止します。"
 
@@ -832,7 +836,7 @@ msgstr "プロファイル %s を削除しました"
 msgid "Profile %s removed from %s"
 msgstr "プロファイル %s が %s から削除されました"
 
-#: lxc/copy.go:36 lxc/copy.go:37 lxc/init.go:138 lxc/init.go:139
+#: lxc/copy.go:37 lxc/copy.go:38 lxc/init.go:138 lxc/init.go:139
 msgid "Profile to apply to the new container"
 msgstr "新しいコンテナに適用するプロファイル"
 
@@ -894,7 +898,7 @@ msgstr "ユーザの確認を要求する"
 msgid "Resources:"
 msgstr "リソース:"
 
-#: lxc/main.go:232
+#: lxc/main.go:234
 msgid "Restart containers."
 msgstr "コンテナを再起動します。"
 
@@ -985,7 +989,7 @@ msgstr "一部のコンテナで %s が失敗しました"
 msgid "Source:"
 msgstr "取得元:"
 
-#: lxc/main.go:242
+#: lxc/main.go:244
 msgid "Start containers."
 msgstr "コンテナを起動します。"
 
@@ -999,7 +1003,7 @@ msgstr "%s を起動中"
 msgid "Status: %s"
 msgstr "状態: %s"
 
-#: lxc/main.go:248
+#: lxc/main.go:250
 msgid "Stop containers."
 msgstr "コンテナを停止します。"
 
@@ -1135,17 +1139,17 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/main.go:162
+#: lxc/main.go:164
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
 "さい"
 
-#: lxc/copy.go:40 lxc/move.go:40
+#: lxc/copy.go:41 lxc/move.go:41
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
-#: lxc/copy.go:193
+#: lxc/copy.go:198
 #, c-format
 msgid "Transferring container: %s"
 msgstr "コンテナを転送中: %s"
@@ -1373,7 +1377,7 @@ msgstr ""
 "lxc config set core.trust_password blah\n"
 "    サーバのパスワードを blah に設定する。"
 
-#: lxc/copy.go:27
+#: lxc/copy.go:28
 msgid ""
 "Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] "
 "[--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--"
@@ -1992,7 +1996,7 @@ msgstr ""
 "lxc monitor --type=logging\n"
 "    ログメッセージのみ表示します。"
 
-#: lxc/move.go:23
+#: lxc/move.go:24
 msgid ""
 "Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
 "<snapshot>]] [--container-only]\n"
@@ -2633,12 +2637,12 @@ msgstr "-t と -T は同時に指定できません"
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "--mode と同時に -t または -T は指定できません"
 
-#: lxc/copy.go:59
+#: lxc/copy.go:63
 #, fuzzy
 msgid "You must specify a source container name"
 msgstr "コピー元のコンテナ名を指定してください"
 
-#: lxc/main.go:66
+#: lxc/main.go:68
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr "`lxc config profile` は廃止されました。`lxc profile` を使ってください"
 
@@ -2668,12 +2672,12 @@ msgstr "無効"
 msgid "enabled"
 msgstr "有効"
 
-#: lxc/action.go:134 lxc/main.go:29 lxc/main.go:181
+#: lxc/action.go:134 lxc/main.go:29 lxc/main.go:183
 #, c-format
 msgid "error: %v"
 msgstr "エラー: %v"
 
-#: lxc/help.go:37 lxc/main.go:122
+#: lxc/help.go:37 lxc/main.go:124
 #, c-format
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s"
@@ -2686,7 +2690,7 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:353 lxc/main.go:357
+#: lxc/main.go:355 lxc/main.go:359
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
@@ -2728,7 +2732,7 @@ msgstr ""
 msgid "taken at %s"
 msgstr "%s に取得しました"
 
-#: lxc/main.go:284
+#: lxc/main.go:286
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-21 15:33+0200\n"
+"POT-Creation-Date: 2017-07-22 20:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -279,7 +279,7 @@ msgstr ""
 msgid "Commands:"
 msgstr ""
 
-#: lxc/copy.go:34 lxc/copy.go:35 lxc/init.go:136 lxc/init.go:137
+#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:136 lxc/init.go:137
 msgid "Config key/value to apply to the new container"
 msgstr ""
 
@@ -297,7 +297,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:224 lxc/init.go:314
+#: lxc/copy.go:229 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
@@ -307,11 +307,15 @@ msgstr ""
 msgid "Container published with fingerprint: %s"
 msgstr ""
 
+#: lxc/copy.go:43 lxc/move.go:42
+msgid "Copy a stateful container stateless"
+msgstr ""
+
 #: lxc/image.go:174
 msgid "Copy aliases from source"
 msgstr ""
 
-#: lxc/copy.go:41
+#: lxc/copy.go:42
 msgid "Copy the container without its snapshots"
 msgstr ""
 
@@ -414,7 +418,7 @@ msgstr ""
 msgid "Environment:"
 msgstr ""
 
-#: lxc/copy.go:38 lxc/copy.go:39 lxc/init.go:140 lxc/init.go:141
+#: lxc/copy.go:39 lxc/copy.go:40 lxc/init.go:140 lxc/init.go:141
 msgid "Ephemeral container"
 msgstr ""
 
@@ -455,7 +459,7 @@ msgstr ""
 msgid "Failed to generate 'lxc.1': %v"
 msgstr ""
 
-#: lxc/copy.go:219
+#: lxc/copy.go:224
 msgid "Failed to get the new container name"
 msgstr ""
 
@@ -514,7 +518,7 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:161
+#: lxc/main.go:163
 msgid "If this is your first time using LXD, you should also run: lxd init"
 msgstr ""
 
@@ -640,7 +644,7 @@ msgstr ""
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
-#: lxc/move.go:39
+#: lxc/move.go:40
 msgid "Move the container without its snapshots"
 msgstr ""
 
@@ -720,7 +724,7 @@ msgstr ""
 msgid "Only managed networks can be modified."
 msgstr ""
 
-#: lxc/help.go:71 lxc/main.go:128 lxc/main.go:185
+#: lxc/help.go:71 lxc/main.go:130 lxc/main.go:187
 msgid "Options:"
 msgstr ""
 
@@ -764,7 +768,7 @@ msgstr ""
 msgid "Path to an alternate server directory"
 msgstr ""
 
-#: lxc/main.go:224
+#: lxc/main.go:226
 msgid "Pause containers."
 msgstr ""
 
@@ -822,7 +826,7 @@ msgstr ""
 msgid "Profile %s removed from %s"
 msgstr ""
 
-#: lxc/copy.go:36 lxc/copy.go:37 lxc/init.go:138 lxc/init.go:139
+#: lxc/copy.go:37 lxc/copy.go:38 lxc/init.go:138 lxc/init.go:139
 msgid "Profile to apply to the new container"
 msgstr ""
 
@@ -884,7 +888,7 @@ msgstr ""
 msgid "Resources:"
 msgstr ""
 
-#: lxc/main.go:232
+#: lxc/main.go:234
 msgid "Restart containers."
 msgstr ""
 
@@ -975,7 +979,7 @@ msgstr ""
 msgid "Source:"
 msgstr ""
 
-#: lxc/main.go:242
+#: lxc/main.go:244
 msgid "Start containers."
 msgstr ""
 
@@ -989,7 +993,7 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/main.go:248
+#: lxc/main.go:250
 msgid "Stop containers."
 msgstr ""
 
@@ -1114,15 +1118,15 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/main.go:162
+#: lxc/main.go:164
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
-#: lxc/copy.go:40 lxc/move.go:40
+#: lxc/copy.go:41 lxc/move.go:41
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:193
+#: lxc/copy.go:198
 #, c-format
 msgid "Transferring container: %s"
 msgstr ""
@@ -1273,7 +1277,7 @@ msgid ""
 "    Will set the server's trust password to blah."
 msgstr ""
 
-#: lxc/copy.go:27
+#: lxc/copy.go:28
 msgid ""
 "Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] "
 "[--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--"
@@ -1610,7 +1614,7 @@ msgid ""
 "    Only show log message."
 msgstr ""
 
-#: lxc/move.go:23
+#: lxc/move.go:24
 msgid ""
 "Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
 "<snapshot>]] [--container-only]\n"
@@ -1963,11 +1967,11 @@ msgstr ""
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
-#: lxc/copy.go:59
+#: lxc/copy.go:63
 msgid "You must specify a source container name"
 msgstr ""
 
-#: lxc/main.go:66
+#: lxc/main.go:68
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
@@ -1995,12 +1999,12 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:134 lxc/main.go:29 lxc/main.go:181
+#: lxc/action.go:134 lxc/main.go:29 lxc/main.go:183
 #, c-format
 msgid "error: %v"
 msgstr ""
 
-#: lxc/help.go:37 lxc/main.go:122
+#: lxc/help.go:37 lxc/main.go:124
 #, c-format
 msgid "error: unknown command: %s"
 msgstr ""
@@ -2013,7 +2017,7 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr ""
 
-#: lxc/main.go:353 lxc/main.go:357
+#: lxc/main.go:355 lxc/main.go:359
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
@@ -2055,7 +2059,7 @@ msgstr ""
 msgid "taken at %s"
 msgstr ""
 
-#: lxc/main.go:284
+#: lxc/main.go:286
 msgid "wrong number of subcommand arguments"
 msgstr ""
 
