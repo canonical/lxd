@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-21 15:33+0200\n"
+"POT-Creation-Date: 2017-07-22 20:08+0200\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -389,7 +389,7 @@ msgstr ""
 msgid "Commands:"
 msgstr ""
 
-#: lxc/copy.go:34 lxc/copy.go:35 lxc/init.go:136 lxc/init.go:137
+#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:136 lxc/init.go:137
 #, fuzzy
 msgid "Config key/value to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -408,7 +408,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:224 lxc/init.go:314
+#: lxc/copy.go:229 lxc/init.go:314
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
@@ -418,11 +418,15 @@ msgstr ""
 msgid "Container published with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
 
+#: lxc/copy.go:43 lxc/move.go:42
+msgid "Copy a stateful container stateless"
+msgstr ""
+
 #: lxc/image.go:174
 msgid "Copy aliases from source"
 msgstr "Kopiere Aliasse von der Quelle"
 
-#: lxc/copy.go:41
+#: lxc/copy.go:42
 #, fuzzy
 msgid "Copy the container without its snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -531,7 +535,7 @@ msgstr ""
 msgid "Environment:"
 msgstr ""
 
-#: lxc/copy.go:38 lxc/copy.go:39 lxc/init.go:140 lxc/init.go:141
+#: lxc/copy.go:39 lxc/copy.go:40 lxc/init.go:140 lxc/init.go:141
 msgid "Ephemeral container"
 msgstr "Flüchtiger Container"
 
@@ -572,7 +576,7 @@ msgstr ""
 msgid "Failed to generate 'lxc.1': %v"
 msgstr ""
 
-#: lxc/copy.go:219
+#: lxc/copy.go:224
 #, fuzzy
 msgid "Failed to get the new container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -634,7 +638,7 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:161
+#: lxc/main.go:163
 msgid "If this is your first time using LXD, you should also run: lxd init"
 msgstr ""
 
@@ -764,7 +768,7 @@ msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
 
-#: lxc/move.go:39
+#: lxc/move.go:40
 #, fuzzy
 msgid "Move the container without its snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -850,7 +854,7 @@ msgstr ""
 msgid "Only managed networks can be modified."
 msgstr ""
 
-#: lxc/help.go:71 lxc/main.go:128 lxc/main.go:185
+#: lxc/help.go:71 lxc/main.go:130 lxc/main.go:187
 msgid "Options:"
 msgstr ""
 
@@ -896,7 +900,7 @@ msgstr "Alternatives config Verzeichnis."
 msgid "Path to an alternate server directory"
 msgstr "Alternatives config Verzeichnis."
 
-#: lxc/main.go:224
+#: lxc/main.go:226
 #, fuzzy
 msgid "Pause containers."
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -955,7 +959,7 @@ msgstr "Profil %s gelöscht\n"
 msgid "Profile %s removed from %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
-#: lxc/copy.go:36 lxc/copy.go:37 lxc/init.go:138 lxc/init.go:139
+#: lxc/copy.go:37 lxc/copy.go:38 lxc/init.go:138 lxc/init.go:139
 #, fuzzy
 msgid "Profile to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1020,7 +1024,7 @@ msgstr ""
 msgid "Resources:"
 msgstr ""
 
-#: lxc/main.go:232
+#: lxc/main.go:234
 #, fuzzy
 msgid "Restart containers."
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1113,7 +1117,7 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Source:"
 msgstr ""
 
-#: lxc/main.go:242
+#: lxc/main.go:244
 #, fuzzy
 msgid "Start containers."
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1128,7 +1132,7 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/main.go:248
+#: lxc/main.go:250
 #, fuzzy
 msgid "Stop containers."
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -1262,15 +1266,15 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/main.go:162
+#: lxc/main.go:164
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
-#: lxc/copy.go:40 lxc/move.go:40
+#: lxc/copy.go:41 lxc/move.go:41
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:193
+#: lxc/copy.go:198
 #, fuzzy, c-format
 msgid "Transferring container: %s"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1460,7 +1464,7 @@ msgstr ""
 "Um das Server Passwort zur authentifizierung zu setzen:\n"
 "\tlxc config set core.trust_password blah\n"
 
-#: lxc/copy.go:27
+#: lxc/copy.go:28
 #, fuzzy
 msgid ""
 "Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] "
@@ -1858,7 +1862,7 @@ msgid ""
 "    Only show log message."
 msgstr ""
 
-#: lxc/move.go:23
+#: lxc/move.go:24
 #, fuzzy
 msgid ""
 "Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
@@ -2273,12 +2277,12 @@ msgstr ""
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/copy.go:59
+#: lxc/copy.go:63
 #, fuzzy
 msgid "You must specify a source container name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/main.go:66
+#: lxc/main.go:68
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
@@ -2306,12 +2310,12 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:134 lxc/main.go:29 lxc/main.go:181
+#: lxc/action.go:134 lxc/main.go:29 lxc/main.go:183
 #, fuzzy, c-format
 msgid "error: %v"
 msgstr "Fehler: %v\n"
 
-#: lxc/help.go:37 lxc/main.go:122
+#: lxc/help.go:37 lxc/main.go:124
 #, fuzzy, c-format
 msgid "error: unknown command: %s"
 msgstr "Fehler: unbekannter Befehl: %s\n"
@@ -2325,7 +2329,7 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr "OK (y/n)? "
 
-#: lxc/main.go:353 lxc/main.go:357
+#: lxc/main.go:355 lxc/main.go:359
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
@@ -2367,7 +2371,7 @@ msgstr ""
 msgid "taken at %s"
 msgstr ""
 
-#: lxc/main.go:284
+#: lxc/main.go:286
 msgid "wrong number of subcommand arguments"
 msgstr "falsche Anzahl an Parametern für Unterbefehl"
 
