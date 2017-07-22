@@ -217,5 +217,13 @@ migration() {
 
   lxc_remote stop --stateful l1:migratee
   lxc_remote start l1:migratee
+  lxc_remote stop -f l1:migratee
+  lxc_remote snapshot --stateful l1:migratee
+  lxc_remote copy l1:migratee l2:
+  ! lxc_remote copy l1:migratee l2:migratee-new-name
+  ! lxc_remote copy --stateless l1:migratee l2:migratee-new-name
+
   lxc_remote delete --force l1:migratee
+  lxc_remote delete --force l2:migratee
+  lxc_remote delete --force l2:migratee-new-name
 }

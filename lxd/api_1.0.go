@@ -117,6 +117,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"network_vlan_physical",
 			"storage_images_delete",
 			"container_edit_metadata",
+			"container_snapshot_stateful_migration",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

@@ -186,6 +186,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
 		Profiles:     req.Profiles,
+		Stateful:     req.Stateful,
 	}
 
 	// Grab the container's root device if one is specified
@@ -461,6 +462,16 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 		req.Profiles = source.Profiles()
 	}
 
+	if req.Stateful {
+		sourceName, _, _ := containerGetParentAndSnapshotName(source.Name())
+		if sourceName != req.Name {
+			return BadRequest(fmt.Errorf(`Copying stateful `+
+				`containers requires that source "%s" and `+
+				`target "%s" name be identical`, sourceName,
+				req.Name))
+		}
+	}
+
 	args := containerArgs{
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
@@ -470,6 +481,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
 		Profiles:     req.Profiles,
+		Stateful:     req.Stateful,
 	}
 
 	run := func(op *operation) error {

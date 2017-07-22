@@ -1966,6 +1966,10 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
+	if !c.IsStateful() && shared.PathExists(c.StatePath()) {
+		os.RemoveAll(c.StatePath())
+	}
+
 	_, err = c.StorageStop()
 	if err != nil {
 		return "", err
@@ -2258,6 +2262,8 @@ func (c *containerLXC) Stop(stateful bool) error {
 		op.Done(nil)
 		logger.Info("Stopped container", ctxMap)
 		return nil
+	} else if shared.PathExists(c.StatePath()) {
+		os.RemoveAll(c.StatePath())
 	}
 
 	// Load the go-lxc struct
