@@ -52,6 +52,8 @@ func run() error {
 	var configDir string
 	if os.Getenv("LXD_CONF") != "" {
 		configDir = os.Getenv("LXD_CONF")
+	} else if os.Getenv("HOME") != "" {
+		configDir = path.Join(os.Getenv("HOME"), ".config", "lxc")
 	} else {
 		user, err := user.Current()
 		if err != nil {
