@@ -774,6 +774,22 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		return err
 	}
 
+	ourMount, err := s.ContainerMount(target)
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.ContainerUmount(target.Name(), targetContainerMountPoint)
+	}
+
+	err = target.TemplateApply("copy")
+	if err != nil {
+		logger.Errorf(`Failed to apply copy template for container `+
+			`"%s": %s`, target.Name(), err)
+		return err
+	}
+	logger.Debugf(`Applied copy template for container "%s"`, target.Name())
+
 	logger.Debugf(`Created sparse copy of RBD storage volume for `+
 		`container "%s" -> "%s" without snapshots`, source.Name(),
 		target.Name())
