@@ -1073,6 +1073,9 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 	logger.Debugf(`Retrieved snapshots of container "%s"`,
 		sourceContainerName)
 
+	targetContainerName := target.Name()
+	targetContainerMountPoint := getContainerMountPoint(s.pool.Name,
+		targetContainerName)
 	if containerOnly || len(snapshots) == 0 {
 		if s.pool.Config["ceph.rbd.clone_copy"] != "" &&
 			!shared.IsTrue(s.pool.Config["ceph.rbd.clone_copy"]) {
@@ -1090,7 +1093,6 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			sourceContainerName, target.Name())
 		return nil
 	} else {
-		targetContainerName := target.Name()
 		logger.Debugf(`Creating non-sparse copy of RBD storage volume `+
 			`for container "%s" -> "%s" including snapshots`,
 			sourceContainerName, targetContainerName)
@@ -1321,6 +1323,22 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 			`for container "%s" -> "%s" including snapshots`,
 			sourceContainerName, targetContainerName)
 	}
+
+	ourMount, err := s.ContainerMount(target)
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.ContainerUmount(target.Name(), targetContainerMountPoint)
+	}
+
+	err = target.TemplateApply("copy")
+	if err != nil {
+		logger.Errorf(`Failed to apply copy template for container `+
+			`"%s": %s`, target.Name(), err)
+		return err
+	}
+	logger.Debugf(`Applied copy template for container "%s"`, target.Name())
 
 	logger.Debugf(`Copied RBD container storage %s -> %s`,
 		sourceContainerName, target.Name())
