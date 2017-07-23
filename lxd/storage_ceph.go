@@ -1961,6 +1961,7 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 
 	defer func() {
 		if !revert {
+			return
 		}
 
 		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
