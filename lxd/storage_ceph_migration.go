@@ -28,6 +28,19 @@ func (s *rbdMigrationSourceDriver) Cleanup() {
 }
 
 func (s *rbdMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
+	containerName := s.container.Name()
+	sendName := fmt.Sprintf("%s/container_%s", s.ceph.OSDPoolName, containerName)
+
+	err := s.rbdSend(conn, sendName, s.runningSnapName, nil)
+	if err != nil {
+		logger.Errorf(`Failed to send exported diff of RBD storage `+
+			`volume "%s" from snapshot "%s": %s`, sendName,
+			s.runningSnapName, err)
+		return err
+	}
+	logger.Debugf(`Sent exported diff of RBD storage volume "%s" from `+
+		`snapshot "%s"`, sendName, s.runningSnapName)
+
 	return nil
 }
 
@@ -93,6 +106,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 	sendName := fmt.Sprintf("%s/container_%s", s.ceph.OSDPoolName, containerName)
 	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
 
+	s.runningSnapName = lastSnap
 	err := s.rbdSend(conn, sendName, lastSnap, wrapper)
 	if err != nil {
 		logger.Errorf(`Failed to send exported diff of RBD storage `+
