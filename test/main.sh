@@ -54,11 +54,18 @@ available_storage_backends() {
   local backend backends
 
   backends="dir"
+
+  storage_backends="btrfs lvm zfs"
+  if [ -n "${LXD_CEPH_CLUSTER:-}" ]; then
+    storage_backends="${storage_backends} ceph"
+  fi
+
   for backend in btrfs lvm zfs; do
     if which $backend >/dev/null 2>&1; then
       backends="$backends $backend"
     fi
   done
+
   echo "$backends"
 }
 
@@ -88,7 +95,11 @@ fi
 
 echo "==> Available storage backends: $(available_storage_backends | sort)"
 if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND"; then
-  echo "Storage backage \"$LXD_BACKEND\" is not available"
+  if [ "${LXD_BACKEND}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
+    echo "Ceph storage backend requires that \"LXD_CEPH_CLUSTER\" be set."
+    exit 1
+  fi
+  echo "Storage backend \"$LXD_BACKEND\" is not available"
   exit 1
 fi
 echo "==> Using storage backend ${LXD_BACKEND}"
@@ -118,6 +129,11 @@ spawn_lxd() {
     lxd_backend="$(random_storage_backend)"
   else
     lxd_backend="$LXD_BACKEND"
+  fi
+
+  if [ "${LXD_BACKEND}" = "ceph" ] && [ -z "${LXD_CEPH_CLUSTER:-}" ]; then
+    echo "A cluster name must be specified when using the CEPH driver." >&2
+    exit 1
   fi
 
   # Copy pre generated Certs
@@ -636,5 +652,6 @@ run_test test_init_preseed "lxd init preseed"
 run_test test_storage_profiles "storage profiles"
 run_test test_container_import "container import"
 run_test test_storage_volume_attach "attaching storage volumes"
+run_test test_storage_driver_ceph "ceph storage driver"
 
 TEST_RESULT=success
