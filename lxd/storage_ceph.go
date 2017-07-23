@@ -941,6 +941,30 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 			return err
 		}
 		logger.Debugf(`Shifted rootfs for container "%s"`, containerName)
+
+		err = os.Chmod(containerPoolVolumeMntPoint, 0755)
+		if err != nil {
+			logger.Errorf(`Failed change mountpoint "%s" `+
+				`permissions to 0755 for container "%s" for `+
+				`RBD storage volume: %s`,
+				containerPoolVolumeMntPoint, containerName, err)
+			return err
+		}
+		logger.Debugf(`Changed mountpoint "%s" permissions to 0755 for `+
+			`container "%s" for RBD storage volume`,
+			containerPoolVolumeMntPoint, containerName)
+	} else {
+		err := os.Chmod(containerPoolVolumeMntPoint, 0700)
+		if err != nil {
+			logger.Errorf(`Failed change mountpoint "%s" `+
+				`permissions to 0700 for container "%s" for `+
+				`RBD storage volume: %s`,
+				containerPoolVolumeMntPoint, containerName, err)
+			return err
+		}
+		logger.Debugf(`Changed mountpoint "%s" permissions to 0700 `+
+			`for container "%s" for RBD storage volume`,
+			containerPoolVolumeMntPoint, containerName)
 	}
 
 	err = container.TemplateApply("create")
