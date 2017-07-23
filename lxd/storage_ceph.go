@@ -804,6 +804,15 @@ func (s *storageCeph) ContainerCreate(container container) error {
 		}
 	}()
 
+	err = container.TemplateApply("create")
+	if err != nil {
+		logger.Errorf(`Failed to apply create template for container `+
+			`"%s": %s`, containerName, err)
+		return err
+	}
+	logger.Debugf(`Applied create template for container "%s"`,
+		containerName)
+
 	logger.Debugf(`Created RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, containerName, s.pool.Name)
 
