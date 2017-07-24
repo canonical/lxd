@@ -273,18 +273,22 @@ test_container_metadata() {
     lxc config metadata show c | grep -q BB
 
     # templates can be listed
-    curl -s --unix-socket "${LXD_DIR}/unix.socket" lxd/1.0/containers/c/metadata/templates | grep -q template.tpl
+    lxc config template list c | grep -q template.tpl
 
     # template content can be returned
-    curl -s --unix-socket "${LXD_DIR}/unix.socket" "lxd/1.0/containers/c/metadata/templates?path=template.tpl" | grep -q "name:"
+    lxc config template show c template.tpl | grep -q "name:"
 
     # templates can be added
-    curl -s --unix-socket "${LXD_DIR}/unix.socket" "lxd/1.0/containers/c/metadata/templates?path=my.tpl" -H 'Content-type: application/octet-stream' -d "some content"
-    curl -s --unix-socket "${LXD_DIR}/unix.socket" "lxd/1.0/containers/c/metadata/templates?path=my.tpl" | grep -q "some content"
+    lxc config template create c my.tpl
+    lxc config template list c | grep -q my.tpl
+
+    # template content can be updated
+    echo "some content" | lxc config template edit c my.tpl
+    lxc config template show c my.tpl | grep -q "some content"
     
     # templates can be removed
-    curl -s --unix-socket "${LXD_DIR}/unix.socket" "lxd/1.0/containers/c/metadata/templates?path=my.tpl" -X DELETE
-    ! (curl -s --unix-socket "${LXD_DIR}/unix.socket" lxd/1.0/containers/c/metadata/templates | grep -q my.tpl)
+    lxc config template delete c my.tpl
+    ! (lxc config template list c | grep -q my.tpl)
 
     lxc delete c
 }

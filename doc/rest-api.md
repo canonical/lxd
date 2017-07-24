@@ -1268,7 +1268,7 @@ Return:
 * Operation: Sync
 * Return: the content of the template
 
-## POST (?path=\<template\>)
+### POST (?path=\<template\>)
 * Description: Add a continer template
 * Introduced: with API extension "container\_edit\_metadata"
 * Authentication: trusted

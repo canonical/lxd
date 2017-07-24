@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -110,6 +111,24 @@ lxc config metadata show [<remote>:][container]
 
 lxc config metadata edit [<remote>:][container]
     Edit the container metadata.yaml, either by launching external editor or reading STDIN.
+
+*Container templates*
+
+lxc config template list [<remote>:][container]
+    List the names of template files for a container.
+
+lxc config template show [<remote>:][container] [template]
+    Show the content of a template file for a container.
+
+lxc config template create [<remote>:][container] [template]
+    Add an empty template file for a container.
+
+lxc config template edit [<remote>:][container] [template]
+    Edit the content of a template file for a container, either by launching external editor or reading STDIN.
+
+lxc config template delete [<remote>:][container] [template]
+    Delete a template file for a container.
+
 
 *Device management*
 
@@ -650,11 +669,94 @@ func (c *configCmd) run(conf *config.Config, args []string) error {
 			return errArgs
 		}
 
+	case "template":
+		if len(args) < 3 {
+			return errArgs
+		}
+
+		remote, container, err := conf.ParseRemote(args[2])
+		if err != nil {
+			return err
+		}
+
+		d, err := conf.GetContainerServer(remote)
+		if err != nil {
+			return err
+		}
+
+		switch args[1] {
+		case "list":
+			templates, err := d.GetContainerTemplateFiles(container)
+			if err != nil {
+				return err
+			}
+
+			c.listTemplateFiles(templates)
+			return nil
+
+		case "show":
+			if len(args) != 4 {
+				return errArgs
+			}
+			templateName := args[3]
+
+			template, err := d.GetContainerTemplateFile(container, templateName)
+			if err != nil {
+				return err
+			}
+			content, err := ioutil.ReadAll(template)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s", content)
+			return nil
+
+		case "create":
+			if len(args) != 4 {
+				return errArgs
+			}
+			templateName := args[3]
+			return c.doContainerTemplateFileCreate(d, container, templateName)
+
+		case "edit":
+			if len(args) != 4 {
+				return errArgs
+			}
+			templateName := args[3]
+			return c.doContainerTemplateFileEdit(d, container, templateName)
+
+		case "delete":
+			if len(args) != 4 {
+				return errArgs
+			}
+			templateName := args[3]
+			return d.DeleteContainerTemplateFile(container, templateName)
+
+		default:
+			return errArgs
+		}
+
 	default:
 		return errArgs
 	}
 
 	return errArgs
+}
+
+func (c *configCmd) listTemplateFiles(templates []string) {
+	data := [][]string{}
+	for _, template := range templates {
+		data = append(data, []string{template})
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetRowLine(true)
+	table.SetHeader([]string{i18n.G("FILENAME")})
+	sort.Sort(byName(data))
+	table.AppendBulk(data)
+	table.Render()
 }
 
 func (c *configCmd) doContainerConfigEdit(client lxd.ContainerServer, cont string) error {
@@ -1227,6 +1329,56 @@ func (c *configCmd) doContainerMetadataEdit(client lxd.ContainerServer, name str
 		// Respawn the editor
 		if err != nil {
 			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to start the editor again"))
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		break
+	}
+
+	return nil
+}
+
+func (c *configCmd) doContainerTemplateFileCreate(client lxd.ContainerServer, containerName string, templateName string) error {
+	return client.CreateContainerTemplateFile(containerName, templateName, nil)
+}
+
+func (c *configCmd) doContainerTemplateFileEdit(client lxd.ContainerServer, containerName string, templateName string) error {
+	if !termios.IsTerminal(int(syscall.Stdin)) {
+		return client.UpdateContainerTemplateFile(containerName, templateName, os.Stdin)
+	}
+
+	reader, err := client.GetContainerTemplateFile(containerName, templateName)
+	if err != nil {
+		return err
+	}
+	content, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor
+	content, err = shared.TextEditor("", content)
+	if err != nil {
+		return err
+	}
+
+	for {
+		reader := bytes.NewReader(content)
+		err := client.UpdateContainerTemplateFile(containerName, templateName, reader)
+		// Respawn the editor
+		if err != nil {
+			fmt.Fprintf(os.Stderr, i18n.G("Error updating template file: %s")+"\n", err)
 			fmt.Println(i18n.G("Press enter to start the editor again"))
 
 			_, err := os.Stdin.Read(make([]byte, 1))
