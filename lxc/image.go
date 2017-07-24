@@ -410,6 +410,11 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			imgInfo.Public = true
 		}
 
+		if imgInfo.Public && imgInfo.Fingerprint != inName && !strings.HasPrefix(imgInfo.Fingerprint, inName) {
+			// If dealing with an alias, set the imgInfo fingerprint to match
+			imgInfo.Fingerprint = inName
+		}
+
 		args := lxd.ImageCopyArgs{
 			AutoUpdate: c.autoUpdate,
 			Public:     c.publicImage,
