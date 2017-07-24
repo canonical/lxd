@@ -125,7 +125,7 @@ certificate from `.config/lxc/client.crt` to the server and adding it with:
 
 
 #### How do I configure LXD storage?
-LXD supports btrfs, directory, lvm and zfs based storage.
+LXD supports btrfs, ceph, directory, lvm and zfs based storage.
 
 First make sure you have the relevant tools for your filesystem of
 choice installed on the machine (btrfs-progs, lvm2 or zfsutils-linux).
@@ -141,7 +141,7 @@ If you want something else, you'll need to use the "lxc storage" command:
     lxc storage create default BACKEND [OPTIONS...]
     lxc profile device add default root disk path=/ pool=default
 
-BACKEND is one of "btrfs", "dir", "lvm" or "zfs".
+BACKEND is one of "btrfs", "ceph", "dir", "lvm" or "zfs".
 
 Unless specified otherwise, LXD will setup loop based storage with a sane default size.
 

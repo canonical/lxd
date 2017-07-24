@@ -116,26 +116,29 @@ type storageType int
 
 const (
 	storageTypeBtrfs storageType = iota
-	storageTypeZfs
-	storageTypeLvm
+	storageTypeCeph
 	storageTypeDir
+	storageTypeLvm
 	storageTypeMock
+	storageTypeZfs
 )
 
-var supportedStoragePoolDrivers = []string{"btrfs", "dir", "lvm", "zfs"}
+var supportedStoragePoolDrivers = []string{"btrfs", "ceph", "dir", "lvm", "zfs"}
 
 func storageTypeToString(sType storageType) (string, error) {
 	switch sType {
 	case storageTypeBtrfs:
 		return "btrfs", nil
-	case storageTypeZfs:
-		return "zfs", nil
+	case storageTypeCeph:
+		return "ceph", nil
+	case storageTypeDir:
+		return "dir", nil
 	case storageTypeLvm:
 		return "lvm", nil
 	case storageTypeMock:
 		return "mock", nil
-	case storageTypeDir:
-		return "dir", nil
+	case storageTypeZfs:
+		return "zfs", nil
 	}
 
 	return "", fmt.Errorf("invalid storage type")
@@ -145,14 +148,16 @@ func storageStringToType(sName string) (storageType, error) {
 	switch sName {
 	case "btrfs":
 		return storageTypeBtrfs, nil
-	case "zfs":
-		return storageTypeZfs, nil
+	case "ceph":
+		return storageTypeCeph, nil
+	case "dir":
+		return storageTypeDir, nil
 	case "lvm":
 		return storageTypeLvm, nil
 	case "mock":
 		return storageTypeMock, nil
-	case "dir":
-		return storageTypeDir, nil
+	case "zfs":
+		return storageTypeZfs, nil
 	}
 
 	return -1, fmt.Errorf("invalid storage type name")
@@ -192,9 +197,9 @@ type storage interface {
 	ContainerCreate(container container) error
 
 	// ContainerCreateFromImage creates a container from a image.
-	ContainerCreateFromImage(container container, imageFingerprint string) error
-	ContainerCanRestore(container container, sourceContainer container) error
-	ContainerDelete(container container) error
+	ContainerCreateFromImage(c container, fingerprint string) error
+	ContainerCanRestore(target container, source container) error
+	ContainerDelete(c container) error
 	ContainerCopy(target container, source container, containerOnly bool) error
 	ContainerMount(c container) (bool, error)
 	ContainerUmount(name string, path string) (bool, error)
@@ -204,14 +209,14 @@ type storage interface {
 	GetContainerPoolInfo() (int64, string)
 	ContainerStorageReady(name string) bool
 
-	ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error
-	ContainerSnapshotDelete(snapshotContainer container) error
-	ContainerSnapshotRename(snapshotContainer container, newName string) error
-	ContainerSnapshotStart(container container) (bool, error)
-	ContainerSnapshotStop(container container) (bool, error)
+	ContainerSnapshotCreate(target container, source container) error
+	ContainerSnapshotDelete(c container) error
+	ContainerSnapshotRename(c container, newName string) error
+	ContainerSnapshotStart(c container) (bool, error)
+	ContainerSnapshotStop(c container) (bool, error)
 
 	// For use in migrating snapshots.
-	ContainerSnapshotCreateEmpty(snapshotContainer container) error
+	ContainerSnapshotCreateEmpty(c container) error
 
 	// Functions dealing with image storage volumes.
 	ImageCreate(fingerprint string) error
@@ -245,8 +250,15 @@ type storage interface {
 	// We leave sending containers which are snapshots of other containers
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
-	MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error)
-	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error
+	MigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error)
+	MigrationSink(
+		live bool,
+		c container,
+		objects []*Snapshot,
+		conn *websocket.Conn,
+		srcIdmap *shared.IdmapSet,
+		op *operation,
+		containerOnly bool) error
 }
 
 func storageCoreInit(driver string) (storage, error) {
@@ -270,6 +282,13 @@ func storageCoreInit(driver string) (storage, error) {
 			return nil, err
 		}
 		return &dir, nil
+	case storageTypeCeph:
+		ceph := storageCeph{}
+		err = ceph.StorageCoreInit()
+		if err != nil {
+			return nil, err
+		}
+		return &ceph, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		err = lvm.StorageCoreInit()
@@ -347,6 +366,17 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 			return nil, err
 		}
 		return &dir, nil
+	case storageTypeCeph:
+		ceph := storageCeph{}
+		ceph.poolID = poolID
+		ceph.pool = pool
+		ceph.volume = volume
+		ceph.d = d
+		err = ceph.StoragePoolInit()
+		if err != nil {
+			return nil, err
+		}
+		return &ceph, nil
 	case storageTypeLvm:
 		lvm := storageLvm{}
 		lvm.poolID = poolID
@@ -610,9 +640,6 @@ func createContainerMountpoint(mountPoint string, mountPointSymlink string, priv
 }
 
 func deleteContainerMountpoint(mountPoint string, mountPointSymlink string, storageTypeName string) error {
-	mntPointSuffix := storageTypeName
-	oldStyleMntPointSymlink := fmt.Sprintf("%s.%s", mountPointSymlink, mntPointSuffix)
-
 	if shared.PathExists(mountPointSymlink) {
 		err := os.Remove(mountPointSymlink)
 		if err != nil {
@@ -620,15 +647,22 @@ func deleteContainerMountpoint(mountPoint string, mountPointSymlink string, stor
 		}
 	}
 
-	if shared.PathExists(oldStyleMntPointSymlink) {
-		err := os.Remove(oldStyleMntPointSymlink)
+	if shared.PathExists(mountPoint) {
+		err := os.Remove(mountPoint)
 		if err != nil {
 			return err
 		}
 	}
 
-	if shared.PathExists(mountPoint) {
-		err := os.Remove(mountPoint)
+	if storageTypeName == "" {
+		return nil
+	}
+
+	mntPointSuffix := storageTypeName
+	oldStyleMntPointSymlink := fmt.Sprintf("%s.%s", mountPointSymlink,
+		mntPointSuffix)
+	if shared.PathExists(oldStyleMntPointSymlink) {
+		err := os.Remove(oldStyleMntPointSymlink)
 		if err != nil {
 			return err
 		}

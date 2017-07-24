@@ -312,3 +312,6 @@ to edit a container before publishing an image from it.
 
 ## container\_snapshot\_stateful\_migration
 This enables migrating stateful container snapshots to new containers.
+
+## storage\_driver\_ceph
+This adds a ceph storage driver.
