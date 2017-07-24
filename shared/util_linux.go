@@ -292,6 +292,10 @@ func UserId(name string) (int, error) {
 	var result *C.struct_passwd
 
 	bufSize := C.size_t(C.sysconf(C._SC_GETPW_R_SIZE_MAX))
+	if bufSize < 0 {
+		bufSize = 4096
+	}
+
 	buf := C.malloc(bufSize)
 	if buf == nil {
 		return -1, fmt.Errorf("allocation failed")
@@ -301,13 +305,24 @@ func UserId(name string) (int, error) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 
-	rv := C.getpwnam_r(cname,
+again:
+	rv, errno := C.getpwnam_r(cname,
 		&pw,
 		(*C.char)(buf),
 		bufSize,
 		&result)
-
-	if rv != 0 {
+	if rv < 0 {
+		// OOM killer will take care of us if we end up doing this too
+		// often.
+		if errno == syscall.ERANGE {
+			bufSize *= 2
+			tmp := C.realloc(buf, bufSize)
+			if tmp == nil {
+				return -1, fmt.Errorf("allocation failed")
+			}
+			buf = tmp
+			goto again
+		}
 		return -1, fmt.Errorf("failed user lookup: %s", syscall.Errno(rv))
 	}
 
@@ -324,6 +339,10 @@ func GroupId(name string) (int, error) {
 	var result *C.struct_group
 
 	bufSize := C.size_t(C.sysconf(C._SC_GETGR_R_SIZE_MAX))
+	if bufSize < 0 {
+		bufSize = 4096
+	}
+
 	buf := C.malloc(bufSize)
 	if buf == nil {
 		return -1, fmt.Errorf("allocation failed")
@@ -333,13 +352,24 @@ func GroupId(name string) (int, error) {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 
-	rv := C.getgrnam_r(cname,
+again:
+	rv, errno := C.getgrnam_r(cname,
 		&grp,
 		(*C.char)(buf),
 		bufSize,
 		&result)
-
-	if rv != 0 {
+	if rv < 0 {
+		// OOM killer will take care of us if we end up doing this too
+		// often.
+		if errno == syscall.ERANGE {
+			bufSize *= 2
+			tmp := C.realloc(buf, bufSize)
+			if tmp == nil {
+				return -1, fmt.Errorf("allocation failed")
+			}
+			buf = tmp
+			goto again
+		}
 		return -1, fmt.Errorf("failed group lookup: %s", syscall.Errno(rv))
 	}
 
