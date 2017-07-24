@@ -1298,3 +1298,102 @@ func (r *ProtocolLXD) SetContainerMetadata(name string, metadata api.ImageMetada
 
 	return nil
 }
+
+// GetContainerTemplateFiles returns the list of names of template files for a container.
+func (r *ProtocolLXD) GetContainerTemplateFiles(containerName string) ([]string, error) {
+	if !r.HasExtension("container_edit_metadata") {
+		return nil, fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
+	}
+
+	templates := []string{}
+
+	url := fmt.Sprintf("/containers/%s/metadata/templates", containerName)
+	_, err := r.queryStruct("GET", url, nil, "", &templates)
+	if err != nil {
+		return nil, err
+	}
+
+	return templates, nil
+}
+
+// GetContainerTemplateFile returns the content of a template file for a container.
+func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateName string) (io.ReadCloser, error) {
+	if !r.HasExtension("container_edit_metadata") {
+		return nil, fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
+	}
+
+	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, containerName, templateName)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the user agent
+	if r.httpUserAgent != "" {
+		req.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Send the request
+	resp, err := r.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the return value for a cleaner error
+	if resp.StatusCode != http.StatusOK {
+		_, _, err := r.parseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return resp.Body, err
+}
+
+// CreateContainerTemplateFile creates an a template for a container.
+func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) error {
+	return r.setContainerTemplateFile(containerName, templateName, content, "POST")
+}
+
+// UpdateContainerTemplateFile updates the content for a container template file.
+func (r *ProtocolLXD) UpdateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) error {
+	return r.setContainerTemplateFile(containerName, templateName, content, "PUT")
+}
+
+func (r *ProtocolLXD) setContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker, httpMethod string) error {
+	if !r.HasExtension("container_edit_metadata") {
+		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
+	}
+
+	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, containerName, templateName)
+	req, err := http.NewRequest(httpMethod, url, content)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+
+	// Set the user agent
+	if r.httpUserAgent != "" {
+		req.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Send the request
+	resp, err := r.http.Do(req)
+	// Check the return value for a cleaner error
+	if resp.StatusCode != http.StatusOK {
+		_, _, err := r.parseResponse(resp)
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+// DeleteContainerTemplateFile deletes a template file for a container.
+func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName string) error {
+	if !r.HasExtension("container_edit_metadata") {
+		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
+	}
+	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/metadata/templates?path=%s", name, templateName), nil, "")
+	return err
+}
