@@ -19,7 +19,7 @@ test_storage() {
   lxc storage show "$storage_pool" | grep -q 'description: foo'
 
   lxc storage volume create "$storage_pool" "$storage_volume"
-  if [ "$lxd_backend" != "dir" ]; then
+  if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "ceph" ]; then
     # Test resizing/applying quota to a storage volume.
     lxc storage volume set "$storage_pool" "$storage_volume" size 500MB
     lxc storage volume unset "$storage_pool" "$storage_volume" size
@@ -705,7 +705,7 @@ test_storage() {
     QUOTA2="21MB"
   fi
 
-  if [ "$lxd_backend" != "dir" ]; then
+  if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "ceph" ]; then
     lxc launch testimage quota1
     lxc profile device set default root size "${QUOTA1}"
     lxc stop -f quota1

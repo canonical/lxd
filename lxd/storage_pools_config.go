@@ -17,6 +17,19 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	// shared.IsAny() must do.)
 	"btrfs.mount_options": shared.IsAny,
 
+	// valid drivers: ceph
+	"ceph.cluster_name":  shared.IsAny,
+	"ceph.osd.pool_name": shared.IsAny,
+	"ceph.osd.pg_num": func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		_, err := shared.ParseByteSizeString(value)
+		return err
+	},
+	"ceph.rbd.clone_copy": shared.IsBool,
+
 	// valid drivers: lvm
 	"lvm.thinpool_name": shared.IsAny,
 	"lvm.use_thinpool":  shared.IsBool,
@@ -35,13 +48,20 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	// valid drivers: btrfs, dir, lvm, zfs
 	"source": shared.IsAny,
 
-	// valid drivers: lvm
+	// Using it as an indicator whether we created the pool or are just
+	// re-using it. Note that the valid drivers only list ceph for now. This
+	// approach is however generalizable. It's just that we currently don't
+	// really need it for the other drivers.
+	// valid drivers: ceph
+	"volatile.pool.pristine": shared.IsAny,
+
+	// valid drivers: ceph, lvm
 	"volume.block.filesystem": func(value string) error {
 		return shared.IsOneOf(value, []string{"ext4", "xfs"})
 	},
 	"volume.block.mount_options": shared.IsAny,
 
-	// valid drivers: lvm
+	// valid drivers: ceph, lvm
 	"volume.size": func(value string) error {
 		if value == "" {
 			return nil
@@ -93,13 +113,13 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 		}
 
 		prfx := strings.HasPrefix
-		if driver == "dir" {
+		if driver == "dir" || driver == "ceph" {
 			if key == "size" {
 				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
 		}
 
-		if driver != "lvm" {
+		if driver != "lvm" && driver != "ceph" {
 			if prfx(key, "lvm.") || prfx(key, "volume.block.") || key == "volume.size" {
 				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
@@ -127,7 +147,12 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 }
 
 func storagePoolFillDefault(name string, driver string, config map[string]string) error {
-	if driver != "dir" {
+	if driver == "dir" || driver == "ceph" {
+		if config["size"] != "" {
+			return fmt.Errorf("the \"size\" property does not apply to %s storage pools", driver)
+		}
+	}
+	if driver != "dir" && driver != "ceph" {
 		if config["size"] == "" {
 			st := syscall.Statfs_t{}
 			err := syscall.Statfs(shared.VarPath(), &st)
@@ -163,7 +188,9 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 			// Unchangeable pool property: Set unconditionally.
 			config["lvm.thinpool_name"] = "LXDThinpool"
 		}
+	}
 
+	if driver == "lvm" || driver == "ceph" {
 		if config["volume.size"] != "" {
 			_, err := shared.ParseByteSizeString(config["volume.size"])
 			if err != nil {

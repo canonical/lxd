@@ -179,3 +179,23 @@ func lxdUsesPool(db *sql.DB, onDiskPoolName string, driver string, onDiskPropert
 
 	return false, "", nil
 }
+
+func makeFSType(path string, fsType string) (string, error) {
+	var err error
+	var msg string
+
+	switch fsType {
+	case "xfs":
+		msg, err = shared.TryRunCommand("mkfs.xfs", path)
+	default:
+		msg, err = shared.TryRunCommand(
+			"mkfs.ext4",
+			"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
+			path)
+	}
+	if err != nil {
+		return msg, err
+	}
+
+	return "", nil
+}

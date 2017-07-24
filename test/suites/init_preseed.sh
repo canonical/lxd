@@ -18,6 +18,9 @@ test_init_preseed() {
         zpool create "lxdtest-$(basename "${LXD_DIR}")-preseed-pool" "${loop_device_4}" -f -m none -O compression=on
         driver="zfs"
         source="lxdtest-$(basename "${LXD_DIR}")-preseed-pool"
+    elif [ "$lxd_backend" = "ceph" ]; then
+        driver="ceph"
+        source=""
     else
         driver="dir"
         source=""

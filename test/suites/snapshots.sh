@@ -44,7 +44,7 @@ snapshots() {
 
   lxc copy foo/tester foosnap1
   # FIXME: make this backend agnostic
-  if [ "$lxd_backend" != "lvm" ] && [ "${lxd_backend}" != "zfs" ]; then
+  if [ "$lxd_backend" != "lvm" ] && [ "${lxd_backend}" != "zfs" ] && [ "$lxd_backend" != "ceph" ]; then
     [ -d "${LXD_DIR}/containers/foosnap1/rootfs" ]
   fi
 

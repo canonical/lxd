@@ -118,6 +118,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_images_delete",
 			"container_edit_metadata",
 			"container_snapshot_stateful_migration",
+			"storage_driver_ceph",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

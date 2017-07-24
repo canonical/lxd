@@ -74,7 +74,7 @@ migration() {
   # perform existence check for various files.
   lxc_remote start l2:nonlive
   # FIXME: make this backend agnostic
-  if [ "$lxd2_backend" != "lvm" ] && [ "$lxd2_backend" != "zfs" ]; then
+  if [ "$lxd2_backend" != "lvm" ] && [ "$lxd2_backend" != "zfs" ] && [ "$lxd2_backend" != "ceph" ]; then
     [ -d "${lxd2_dir}/containers/nonlive/rootfs" ]
   fi
   lxc_remote stop l2:nonlive --force
@@ -91,7 +91,7 @@ migration() {
   lxc_remote start l2:nonlive
   [ -d "${LXD_DIR}/containers/nonlive2" ]
   # FIXME: make this backend agnostic
-  if [ "$lxd2_backend" != "lvm" ] && [ "$lxd2_backend" != "zfs" ]; then
+  if [ "$lxd2_backend" != "lvm" ] && [ "$lxd2_backend" != "zfs" ] && [ "$lxd2_backend" != "ceph" ]; then
     [ -d "${lxd2_dir}/containers/nonlive/rootfs/bin" ]
   fi
 
@@ -102,7 +102,7 @@ migration() {
 
   lxc_remote copy l1:nonlive2/snap0 l2:nonlive3 --mode=relay
   # FIXME: make this backend agnostic
-  if [ "$lxd2_backend" != "lvm" ] && [ "$lxd2_backend" != "zfs" ]; then
+  if [ "$lxd2_backend" != "lvm" ] && [ "$lxd2_backend" != "zfs" ] && [ "$lxd2_backend" != "ceph" ]; then
     [ -d "${lxd2_dir}/containers/nonlive3/rootfs/bin" ]
   fi
   lxc_remote delete l2:nonlive3 --force
@@ -217,11 +217,11 @@ migration() {
 
   lxc_remote stop --stateful l1:migratee
   lxc_remote start l1:migratee
-  lxc_remote stop -f l1:migratee
   lxc_remote snapshot --stateful l1:migratee
-  lxc_remote copy l1:migratee l2:
-  ! lxc_remote copy l1:migratee l2:migratee-new-name
-  ! lxc_remote copy --stateless l1:migratee l2:migratee-new-name
+  lxc_remote stop -f l1:migratee
+  lxc_remote copy l1:migratee/snap0 l2:migratee
+  ! lxc_remote copy l1:migratee/snap0 l2:migratee-new-name
+  lxc_remote copy --stateless l1:migratee/snap0 l2:migratee-new-name
 
   lxc_remote delete --force l1:migratee
   lxc_remote delete --force l2:migratee
