@@ -370,7 +370,7 @@ func ensureImageAliases(client lxd.ContainerServer, aliases []api.ImageAlias, fi
 	for _, alias := range GetExistingAliases(names, resp) {
 		err := client.DeleteImageAlias(alias.Name)
 		if err != nil {
-			fmt.Println(i18n.G("Failed to remove alias %s"), alias.Name)
+			fmt.Println(fmt.Sprintf(i18n.G("Failed to remove alias %s"), alias.Name))
 		}
 	}
 	// Create new aliases
@@ -380,7 +380,7 @@ func ensureImageAliases(client lxd.ContainerServer, aliases []api.ImageAlias, fi
 		aliasPost.Target = fingerprint
 		err := client.CreateImageAlias(aliasPost)
 		if err != nil {
-			fmt.Println(i18n.G("Failed to create alias %s"), alias.Name)
+			fmt.Println(fmt.Sprintf(i18n.G("Failed to create alias %s"), alias.Name))
 		}
 	}
 	return nil
