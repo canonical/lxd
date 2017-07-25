@@ -91,6 +91,12 @@ type ContainerServer interface {
 	GetContainerMetadata(name string) (*api.ImageMetadata, string, error)
 	SetContainerMetadata(name string, metadata api.ImageMetadata, ETag string) error
 
+	GetContainerTemplateFiles(containerName string) (templates []string, err error)
+	GetContainerTemplateFile(containerName string, templateName string) (content io.ReadCloser, err error)
+	CreateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) (err error)
+	UpdateContainerTemplateFile(containerName string, templateName string, content io.ReadSeeker) (err error)
+	DeleteContainerTemplateFile(name string, templateName string) (err error)
+
 	// Event handling functions
 	GetEvents() (listener *EventListener, err error)
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-22 20:08+0200\n"
+"POT-Creation-Date: 2017-07-25 09:22+0200\n"
 "PO-Revision-Date: 2017-06-06 13:55+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -68,7 +68,7 @@ msgid ""
 "###   size: \"61203283968\""
 msgstr ""
 
-#: lxc/config.go:39
+#: lxc/config.go:40
 msgid ""
 "### This is a yaml representation of the configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -106,7 +106,7 @@ msgstr ""
 "###\n"
 "### Обратите внимание, что имя отображается, но не может быть изменено"
 
-#: lxc/config.go:60
+#: lxc/config.go:61
 #, fuzzy
 msgid ""
 "### This is a yaml representation of the container metadata.\n"
@@ -260,7 +260,7 @@ msgstr "Нельзя использовать '/' в имени снимка"
 msgid "(none)"
 msgstr "(пусто)"
 
-#: lxc/image.go:227 lxc/image.go:1084
+#: lxc/image.go:227 lxc/image.go:1089
 msgid "ALIAS"
 msgstr "ПСЕВДОНИМ"
 
@@ -286,21 +286,21 @@ msgstr "Принять сертификат"
 msgid "Admin password for %s: "
 msgstr "Пароль администратора для %s: "
 
-#: lxc/image.go:588
+#: lxc/image.go:593
 msgid "Aliases:"
 msgstr "Псевдонимы:"
 
-#: lxc/image.go:566 lxc/info.go:104
+#: lxc/image.go:571 lxc/info.go:104
 #, c-format
 msgid "Architecture: %s"
 msgstr "Архитектура: %s"
 
-#: lxc/image.go:596
+#: lxc/image.go:601
 #, c-format
 msgid "Auto update: %s"
 msgstr "Авто-обновление: %s"
 
-#: lxc/image.go:670
+#: lxc/image.go:675
 #, c-format
 msgid "Bad property: %s"
 msgstr ""
@@ -313,7 +313,7 @@ msgstr "Получено байтов"
 msgid "Bytes sent"
 msgstr "Отправлено байтов"
 
-#: lxc/config.go:381
+#: lxc/config.go:400
 msgid "COMMON NAME"
 msgstr "ОБЩЕЕ ИМЯ"
 
@@ -334,17 +334,17 @@ msgstr "СОЗДАН"
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
-#: lxc/config.go:188 lxc/network.go:542
+#: lxc/config.go:207 lxc/network.go:542
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "Невозможно прочитать из стандартного ввода: %s"
 
-#: lxc/config.go:201
+#: lxc/config.go:220
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
 
-#: lxc/config.go:243 lxc/config.go:269
+#: lxc/config.go:262 lxc/config.go:288
 #, c-format
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
@@ -374,7 +374,7 @@ msgstr ""
 msgid "Config key/value to apply to the new container"
 msgstr ""
 
-#: lxc/config.go:714 lxc/config.go:779 lxc/config.go:1229 lxc/image.go:1139
+#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1144
 #: lxc/network.go:418 lxc/profile.go:267 lxc/storage.go:576 lxc/storage.go:935
 #, c-format
 msgid "Config parsing error: %s"
@@ -410,7 +410,7 @@ msgstr "Копировать псевдонимы из источника"
 msgid "Copy the container without its snapshots"
 msgstr ""
 
-#: lxc/image.go:425
+#: lxc/image.go:430
 #, c-format
 msgid "Copying the image: %s"
 msgstr "Копирование образа: %s"
@@ -428,7 +428,7 @@ msgstr "Не удалось создать каталог сертификата
 msgid "Create any directories necessary"
 msgstr ""
 
-#: lxc/image.go:571 lxc/info.go:106
+#: lxc/image.go:576 lxc/info.go:106
 #, c-format
 msgid "Created: %s"
 msgstr ""
@@ -442,7 +442,7 @@ msgstr ""
 msgid "Creating the container"
 msgstr ""
 
-#: lxc/image.go:231 lxc/image.go:1086 lxc/list.go:463 lxc/network.go:507
+#: lxc/image.go:231 lxc/image.go:1091 lxc/list.go:463 lxc/network.go:507
 #: lxc/storage.go:654 lxc/storage.go:749
 msgid "DESCRIPTION"
 msgstr ""
@@ -455,12 +455,12 @@ msgstr ""
 msgid "Define a compression algorithm: for image or none"
 msgstr ""
 
-#: lxc/config.go:870
+#: lxc/config.go:972
 #, c-format
 msgid "Device %s added to %s"
 msgstr ""
 
-#: lxc/config.go:1106
+#: lxc/config.go:1208
 #, c-format
 msgid "Device %s removed from %s"
 msgstr ""
@@ -470,7 +470,7 @@ msgstr ""
 msgid "Device already exists: %s"
 msgstr ""
 
-#: lxc/image.go:1238
+#: lxc/image.go:1243
 msgid "Directory import is not available on this platform"
 msgstr ""
 
@@ -491,7 +491,7 @@ msgstr " Использование диска:"
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/config.go:383
+#: lxc/config.go:402
 msgid "EXPIRY DATE"
 msgstr ""
 
@@ -515,25 +515,34 @@ msgstr ""
 msgid "Ephemeral container"
 msgstr ""
 
+#: lxc/config.go:1381
+#, fuzzy, c-format
+msgid "Error updating template file: %s"
+msgstr "Копирование образа: %s"
+
 #: lxc/monitor.go:56
 msgid "Event type to listen for"
 msgstr ""
 
-#: lxc/image.go:575
+#: lxc/image.go:580
 #, c-format
 msgid "Expires: %s"
 msgstr ""
 
-#: lxc/image.go:577
+#: lxc/image.go:582
 msgid "Expires: never"
 msgstr ""
 
-#: lxc/image.go:880
+#: lxc/image.go:885
 #, fuzzy, c-format
 msgid "Exporting the image: %s"
 msgstr "Копирование образа: %s"
 
-#: lxc/config.go:380 lxc/image.go:229 lxc/image.go:1085
+#: lxc/config.go:756
+msgid "FILENAME"
+msgstr ""
+
+#: lxc/config.go:399 lxc/image.go:229 lxc/image.go:1090
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -570,7 +579,7 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/image.go:564
+#: lxc/image.go:569
 #, c-format
 msgid "Fingerprint: %s"
 msgstr ""
@@ -607,7 +616,7 @@ msgstr ""
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config.go:382
+#: lxc/config.go:401
 msgid "ISSUE DATE"
 msgstr ""
 
@@ -623,24 +632,24 @@ msgstr ""
 msgid "Ignore the container state (only for start)"
 msgstr ""
 
-#: lxc/image.go:527
+#: lxc/image.go:532
 msgid "Image already up to date."
 msgstr ""
 
-#: lxc/image.go:439
+#: lxc/image.go:444
 msgid "Image copied successfully!"
 msgstr ""
 
-#: lxc/image.go:930
+#: lxc/image.go:935
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:737
+#: lxc/image.go:742
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr ""
 
-#: lxc/image.go:525
+#: lxc/image.go:530
 msgid "Image refreshed successfully!"
 msgstr ""
 
@@ -649,7 +658,7 @@ msgstr ""
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr ""
 
-#: lxc/config.go:361
+#: lxc/config.go:380
 msgid "Invalid certificate"
 msgstr ""
 
@@ -688,12 +697,12 @@ msgstr ""
 msgid "LXD socket not found; is LXD installed and running?"
 msgstr ""
 
-#: lxc/image.go:580
+#: lxc/image.go:585
 #, c-format
 msgid "Last used: %s"
 msgstr ""
 
-#: lxc/image.go:582
+#: lxc/image.go:587
 msgid "Last used: never"
 msgstr ""
 
@@ -742,7 +751,7 @@ msgstr ""
 msgid "Move the container without its snapshots"
 msgstr ""
 
-#: lxc/image.go:1240
+#: lxc/image.go:1245
 msgid "Must run as root to import from directory"
 msgstr ""
 
@@ -787,7 +796,7 @@ msgstr " Использование сети:"
 msgid "New alias to define at target"
 msgstr ""
 
-#: lxc/config.go:392
+#: lxc/config.go:411
 msgid "No certificate provided to add"
 msgstr ""
 
@@ -799,7 +808,7 @@ msgstr ""
 msgid "No device found for this storage volume."
 msgstr ""
 
-#: lxc/config.go:424
+#: lxc/config.go:443
 msgid "No fingerprint specified."
 msgstr ""
 
@@ -811,7 +820,7 @@ msgstr ""
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
-#: lxc/image.go:651
+#: lxc/image.go:656
 msgid "Only https:// is supported for remote image import."
 msgstr ""
 
@@ -880,7 +889,8 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:715 lxc/config.go:780 lxc/config.go:1230 lxc/image.go:1140
+#: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1332 lxc/config.go:1382
+#: lxc/image.go:1145
 msgid "Press enter to start the editor again"
 msgstr ""
 
@@ -935,7 +945,7 @@ msgstr ""
 msgid "Profiles: %s"
 msgstr ""
 
-#: lxc/image.go:584
+#: lxc/image.go:589
 msgid "Properties:"
 msgstr ""
 
@@ -943,7 +953,7 @@ msgstr ""
 msgid "Public image server"
 msgstr ""
 
-#: lxc/image.go:567
+#: lxc/image.go:572
 #, c-format
 msgid "Public: %s"
 msgstr ""
@@ -952,7 +962,7 @@ msgstr ""
 msgid "Recursively push or pull files"
 msgstr ""
 
-#: lxc/image.go:505
+#: lxc/image.go:510
 #, fuzzy, c-format
 msgid "Refreshing the image: %s"
 msgstr "Копирование образа: %s"
@@ -1052,11 +1062,11 @@ msgstr ""
 msgid "Show the container's last 100 log lines?"
 msgstr ""
 
-#: lxc/config.go:35
+#: lxc/config.go:36
 msgid "Show the expanded configuration"
 msgstr ""
 
-#: lxc/image.go:565
+#: lxc/image.go:570
 #, c-format
 msgid "Size: %.2fMB"
 msgstr ""
@@ -1070,7 +1080,7 @@ msgstr ""
 msgid "Some containers failed to %s"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/image.go:598
+#: lxc/image.go:603
 msgid "Source:"
 msgstr ""
 
@@ -1159,12 +1169,12 @@ msgstr ""
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 
-#: lxc/config.go:837 lxc/config.go:854
+#: lxc/config.go:939 lxc/config.go:956
 msgid "The device already exists"
 msgstr ""
 
-#: lxc/config.go:900 lxc/config.go:912 lxc/config.go:948 lxc/config.go:966
-#: lxc/config.go:1012 lxc/config.go:1029 lxc/config.go:1072 lxc/config.go:1090
+#: lxc/config.go:1002 lxc/config.go:1014 lxc/config.go:1050 lxc/config.go:1068
+#: lxc/config.go:1114 lxc/config.go:1131 lxc/config.go:1174 lxc/config.go:1192
 msgid "The device doesn't exist"
 msgstr ""
 
@@ -1201,7 +1211,7 @@ msgstr ""
 msgid "Time to wait for the container before killing it"
 msgstr ""
 
-#: lxc/image.go:568
+#: lxc/image.go:573
 msgid "Timestamps:"
 msgstr ""
 
@@ -1226,7 +1236,7 @@ msgstr ""
 msgid "Transferring container: %s"
 msgstr ""
 
-#: lxc/image.go:676
+#: lxc/image.go:681
 #, c-format
 msgid "Transferring image: %s"
 msgstr ""
@@ -1269,7 +1279,7 @@ msgstr ""
 msgid "Unknown file type '%s'"
 msgstr ""
 
-#: lxc/image.go:573
+#: lxc/image.go:578
 #, c-format
 msgid "Uploaded: %s"
 msgstr ""
@@ -1289,7 +1299,7 @@ msgstr ""
 msgid "Usage: lxc <command> [options]"
 msgstr ""
 
-#: lxc/config.go:84
+#: lxc/config.go:85
 msgid ""
 "Usage: lxc config <subcommand> [options]\n"
 "\n"
@@ -1321,6 +1331,25 @@ msgid ""
 "lxc config metadata edit [<remote>:][container]\n"
 "    Edit the container metadata.yaml, either by launching external editor or "
 "reading STDIN.\n"
+"\n"
+"*Container templates*\n"
+"\n"
+"lxc config template list [<remote>:][container]\n"
+"    List the names of template files for a container.\n"
+"\n"
+"lxc config template show [<remote>:][container] [template]\n"
+"    Show the content of a template file for a container.\n"
+"\n"
+"lxc config template create [<remote>:][container] [template]\n"
+"    Add an empty template file for a container.\n"
+"\n"
+"lxc config template edit [<remote>:][container] [template]\n"
+"    Edit the content of a template file for a container, either by launching "
+"external editor or reading STDIN.\n"
+"\n"
+"lxc config template delete [<remote>:][container] [template]\n"
+"    Delete a template file for a container.\n"
+"\n"
 "\n"
 "*Device management*\n"
 "\n"
@@ -2094,11 +2123,11 @@ msgstr ""
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
 
-#: lxc/image.go:559
+#: lxc/image.go:564
 msgid "disabled"
 msgstr ""
 
-#: lxc/image.go:561
+#: lxc/image.go:566
 msgid "enabled"
 msgstr ""
 
@@ -2112,7 +2141,7 @@ msgstr ""
 msgid "error: unknown command: %s"
 msgstr ""
 
-#: lxc/image.go:206 lxc/image.go:554
+#: lxc/image.go:206 lxc/image.go:559
 msgid "no"
 msgstr ""
 
@@ -2166,7 +2195,7 @@ msgstr ""
 msgid "wrong number of subcommand arguments"
 msgstr ""
 
-#: lxc/delete.go:45 lxc/image.go:204 lxc/image.go:556
+#: lxc/delete.go:45 lxc/image.go:204 lxc/image.go:561
 msgid "yes"
 msgstr "да"
 
