@@ -36,6 +36,15 @@ image is removed from the store.
 The user can also request a particular image be kept up to date when
 manually copying an image from a remote server.
 
+
+If a new upstream image update is published and the local LXD has the
+previous image in its cache when the user requests a new container to be
+created from it, LXD will use the previous version of the image rather
+than delay the container creation.
+
+This behavior only happens if the current image is scheduled to be
+auto-updated and can be disabled by setting images.auto\_update\_interval to 0.
+
 # Image format
 LXD currently supports two LXD-specific image formats.
 
