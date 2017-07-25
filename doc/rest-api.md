@@ -674,6 +674,20 @@ Depending on the state of the interactive flag, one or three different
 websocket/secret pairs will be returned, which are valid for connecting to this
 operations /websocket endpoint.
 
+
+The control websocket can be used to send out-of-band messages during an exec session.
+This is currently used for window size changes and for forwarding of signals.
+
+Control (window size change):
+
+    {
+        "command": "window-resize",
+        "args": {
+            "width": "80",
+            "height": "50"
+        }
+    }
+
 Return (with wait-for-websocket=true and interactive=false):
 
     {
