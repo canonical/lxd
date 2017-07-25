@@ -29,6 +29,9 @@ type ConnectionArgs struct {
 
 	// Custom proxy
 	Proxy func(*http.Request) (*url.URL, error)
+
+	// Custom HTTP Client (used as base for the connection)
+	HTTPClient *http.Client
 }
 
 // ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
@@ -55,7 +58,7 @@ func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +103,7 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) 
 	}
 
 	// Setup the HTTP client
-	httpClient, err := unixHTTPClient(path)
+	httpClient, err := unixHTTPClient(args.HTTPClient, path)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +141,7 @@ func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +175,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
 	if err != nil {
 		return nil, err
 	}
