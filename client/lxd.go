@@ -53,6 +53,15 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	return &info, nil
 }
 
+// GetHTTPClient returns the http client used for the connection. This can be used to set custom http options.
+func (r *ProtocolLXD) GetHTTPClient() (*http.Client, error) {
+	if r.http == nil {
+		return nil, fmt.Errorf("HTTP client isn't set, bad connection")
+	}
+
+	return r.http, nil
+}
+
 // RawQuery allows directly querying the LXD API
 //
 // This should only be used by internal LXD tools.

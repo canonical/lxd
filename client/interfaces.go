@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"io"
+	"net/http"
 
 	"github.com/gorilla/websocket"
 
@@ -12,6 +13,7 @@ import (
 // The Server type represents a generic read-only server.
 type Server interface {
 	GetConnectionInfo() (info *ConnectionInfo, err error)
+	GetHTTPClient() (client *http.Client, err error)
 }
 
 // The ImageServer type represents a read-only image server.
