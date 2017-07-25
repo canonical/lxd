@@ -13,7 +13,7 @@ import (
 	"github.com/lxc/lxd/shared/ioprogress"
 )
 
-func tlsHTTPClient(tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, proxy func(req *http.Request) (*url.URL, error)) (*http.Client, error) {
+func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey string, tlsCA string, tlsServerCert string, proxy func(req *http.Request) (*url.URL, error)) (*http.Client, error) {
 	// Get the TLS configuration
 	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsCA, tlsServerCert)
 	if err != nil {
@@ -34,9 +34,10 @@ func tlsHTTPClient(tlsClientCert string, tlsClientKey string, tlsCA string, tlsS
 	}
 
 	// Define the http client
-	client := http.Client{
-		Transport: transport,
+	if client == nil {
+		client = &http.Client{}
 	}
+	client.Transport = transport
 
 	// Setup redirect policy
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -46,10 +47,10 @@ func tlsHTTPClient(tlsClientCert string, tlsClientKey string, tlsCA string, tlsS
 		return nil
 	}
 
-	return &client, nil
+	return client, nil
 }
 
-func unixHTTPClient(path string) (*http.Client, error) {
+func unixHTTPClient(client *http.Client, path string) (*http.Client, error) {
 	// Setup a Unix socket dialer
 	unixDial := func(network, addr string) (net.Conn, error) {
 		raddr, err := net.ResolveUnixAddr("unix", path)
@@ -67,9 +68,10 @@ func unixHTTPClient(path string) (*http.Client, error) {
 	}
 
 	// Define the http client
-	client := http.Client{
-		Transport: transport,
+	if client == nil {
+		client = &http.Client{}
 	}
+	client.Transport = transport
 
 	// Setup redirect policy
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -79,7 +81,7 @@ func unixHTTPClient(path string) (*http.Client, error) {
 		return nil
 	}
 
-	return &client, nil
+	return client, nil
 }
 
 func downloadFileSha256(httpClient *http.Client, useragent string, progress func(progress ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, target io.WriteSeeker) (int64, error) {
