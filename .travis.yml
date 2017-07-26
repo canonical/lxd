@@ -19,7 +19,6 @@ install:
 
 script:
   - "make client"
-  - "go test ./"
   - "go test ./client"
   - "go test ./lxc"
   - "go test ./shared"
