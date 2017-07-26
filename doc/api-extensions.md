@@ -315,3 +315,6 @@ This enables migrating stateful container snapshots to new containers.
 
 ## storage\_driver\_ceph
 This adds a ceph storage driver.
+
+## storage\_ceph\_user\_name
+This adds the ability to specify the ceph user.

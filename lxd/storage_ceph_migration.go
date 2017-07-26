@@ -156,11 +156,9 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 	// List all the snapshots in order of reverse creation. The idea here is
 	// that we send the oldest to newest snapshot, hopefully saving on xfer
 	// costs. Then, after all that, we send the container itself.
-	snapshots, err := cephRBDVolumeListSnapshots(
-		s.ClusterName,
-		s.OSDPoolName,
-		containerName,
-		storagePoolVolumeTypeNameContainer)
+	snapshots, err := cephRBDVolumeListSnapshots(s.ClusterName,
+		s.OSDPoolName, containerName,
+		storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		if err != NoSuchObjectError {
 			logger.Errorf(`Failed to list snapshots for RBD storage volume "%s" on storage pool "%s": %s`, containerName, s.pool.Name, err)
@@ -218,17 +216,11 @@ func (s *storageCeph) MigrationSink(live bool, c container, snapshots []*Snapsho
 	// set to the correct cluster name for that LXD instance. Yeah, I think
 	// that's actually correct.
 	containerName := c.Name()
-	if !cephRBDVolumeExists(
-		s.ClusterName,
-		s.OSDPoolName,
-		containerName,
-		storagePoolVolumeTypeNameContainer) {
-
-		err := cephRBDVolumeCreate(
-			s.ClusterName,
-			s.OSDPoolName,
-			containerName,
-			storagePoolVolumeTypeNameContainer, "0")
+	if !cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, containerName,
+		storagePoolVolumeTypeNameContainer, s.UserName) {
+		err := cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName,
+			containerName, storagePoolVolumeTypeNameContainer, "0",
+			s.UserName)
 		if err != nil {
 			logger.Errorf(`Failed to create RBD storage volume "%s" for cluster "%s" in OSD pool "%s" on storage pool "%s": %s`, containerName, s.ClusterName, s.OSDPoolName, s.pool.Name, err)
 			return err
