@@ -2273,7 +2273,16 @@ func patchStorageZFSnoauto(name string, d *Daemon) error {
 		if zpool == "" {
 			continue
 		}
-		paths := []string{fmt.Sprintf("%s/containers", zpool), fmt.Sprintf("%s/custom", zpool)}
+
+		containersDatasetPath := fmt.Sprintf("%s/containers", zpool)
+		customDatasetPath := fmt.Sprintf("%s/custom", zpool)
+		paths := []string{}
+		for _, v := range []string{containersDatasetPath, customDatasetPath} {
+			_, err := shared.RunCommand("zfs", "get", "-H", "-p", "-o", "value", "name", v)
+			if err == nil {
+				paths = append(paths, v)
+			}
+		}
 
 		args := []string{"list", "-t", "filesystem", "-o", "name", "-H", "-r"}
 		args = append(args, paths...)
