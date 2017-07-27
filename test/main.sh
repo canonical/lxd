@@ -60,8 +60,8 @@ available_storage_backends() {
     storage_backends="${storage_backends} ceph"
   fi
 
-  for backend in btrfs lvm zfs; do
-    if which $backend >/dev/null 2>&1; then
+  for backend in $storage_backends; do
+    if which "$backend" >/dev/null 2>&1; then
       backends="$backends $backend"
     fi
   done
