@@ -10,6 +10,8 @@ type ContainersPost struct {
 
 	Name   string          `json:"name" yaml:"name"`
 	Source ContainerSource `json:"source" yaml:"source"`
+
+	InstanceType string `json:"instance_type" yaml:"instance_type"`
 }
 
 // ContainerPost represents the fields required to rename/move a LXD container

@@ -1107,6 +1107,9 @@ func (d *Daemon) Ready() error {
 		}
 	}()
 
+	/* Auto-update instance types */
+	go instanceRefreshTypes(d)
+
 	/* Restore containers */
 	containersRestart(d)
 

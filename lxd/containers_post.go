@@ -546,6 +546,19 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		req.Config = map[string]string{}
 	}
 
+	if req.InstanceType != "" {
+		conf, err := instanceParseType(req.InstanceType)
+		if err != nil {
+			return BadRequest(err)
+		}
+
+		for k, v := range conf {
+			if req.Config[k] == "" {
+				req.Config[k] = v
+			}
+		}
+	}
+
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
 		return BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
 	}
