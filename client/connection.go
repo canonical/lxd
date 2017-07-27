@@ -44,33 +44,7 @@ type ConnectionArgs struct {
 func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	logger.Infof("Connecting to a remote LXD over HTTPs")
 
-	// Use empty args if not specified
-	if args == nil {
-		args = &ConnectionArgs{}
-	}
-
-	// Initialize the client struct
-	server := ProtocolLXD{
-		httpCertificate: args.TLSServerCert,
-		httpHost:        url,
-		httpProtocol:    "https",
-		httpUserAgent:   args.UserAgent,
-	}
-
-	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
-	if err != nil {
-		return nil, err
-	}
-	server.http = httpClient
-
-	// Test the connection and seed the server information
-	_, _, err = server.GetServer()
-	if err != nil {
-		return nil, err
-	}
-
-	return &server, nil
+	return httpsLXD(url, args)
 }
 
 // ConnectLXDUnix lets you connect to a remote LXD daemon over a local unix socket.
@@ -127,33 +101,7 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) 
 func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 	logger.Infof("Connecting to a remote public LXD over HTTPs")
 
-	// Use empty args if not specified
-	if args == nil {
-		args = &ConnectionArgs{}
-	}
-
-	// Initialize the client struct
-	server := ProtocolLXD{
-		httpCertificate: args.TLSServerCert,
-		httpHost:        url,
-		httpProtocol:    "https",
-		httpUserAgent:   args.UserAgent,
-	}
-
-	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
-	if err != nil {
-		return nil, err
-	}
-	server.http = httpClient
-
-	// Test the connection and seed the server information
-	_, _, err = server.GetServer()
-	if err != nil {
-		return nil, err
-	}
-
-	return &server, nil
+	return httpsLXD(url, args)
 }
 
 // ConnectSimpleStreams lets you connect to a remote SimpleStreams image server over HTTPs.
@@ -184,6 +132,37 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	// Get simplestreams client
 	ssClient := simplestreams.NewClient(url, *httpClient, args.UserAgent)
 	server.ssClient = ssClient
+
+	return &server, nil
+}
+
+// Internal function called by ConnectLXD and ConnectPublicLXD
+func httpsLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
+	// Use empty args if not specified
+	if args == nil {
+		args = &ConnectionArgs{}
+	}
+
+	// Initialize the client struct
+	server := ProtocolLXD{
+		httpCertificate: args.TLSServerCert,
+		httpHost:        url,
+		httpProtocol:    "https",
+		httpUserAgent:   args.UserAgent,
+	}
+
+	// Setup the HTTP client
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
+	if err != nil {
+		return nil, err
+	}
+	server.http = httpClient
+
+	// Test the connection and seed the server information
+	_, _, err = server.GetServer()
+	if err != nil {
+		return nil, err
+	}
 
 	return &server, nil
 }
