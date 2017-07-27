@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2017-07-25 09:22+0200\n"
+        "POT-Creation-Date: 2017-07-27 18:42-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -272,7 +272,7 @@ msgstr  ""
 msgid   "Commands:"
 msgstr  ""
 
-#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:136 lxc/init.go:137
+#: lxc/copy.go:35 lxc/copy.go:36 lxc/init.go:137 lxc/init.go:138
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
@@ -289,7 +289,7 @@ msgstr  ""
 msgid   "Container name is mandatory"
 msgstr  ""
 
-#: lxc/copy.go:229 lxc/init.go:314
+#: lxc/copy.go:229 lxc/init.go:317
 #, c-format
 msgid   "Container name is: %s"
 msgstr  ""
@@ -333,12 +333,12 @@ msgstr  ""
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:194
+#: lxc/init.go:196
 #, c-format
 msgid   "Creating %s"
 msgstr  ""
 
-#: lxc/init.go:192
+#: lxc/init.go:194
 msgid   "Creating the container"
 msgstr  ""
 
@@ -409,7 +409,7 @@ msgstr  ""
 msgid   "Environment:"
 msgstr  ""
 
-#: lxc/copy.go:39 lxc/copy.go:40 lxc/init.go:140 lxc/init.go:141
+#: lxc/copy.go:39 lxc/copy.go:40 lxc/init.go:141 lxc/init.go:142
 msgid   "Ephemeral container"
 msgstr  ""
 
@@ -551,6 +551,10 @@ msgstr  ""
 msgid   "Image refreshed successfully!"
 msgstr  ""
 
+#: lxc/init.go:147
+msgid   "Instance type"
+msgstr  ""
+
 #: lxc/remote.go:159
 #, c-format
 msgid   "Invalid URL scheme \"%s\" in \"%s\""
@@ -679,7 +683,7 @@ msgstr  ""
 msgid   "Network %s deleted"
 msgstr  ""
 
-#: lxc/init.go:142 lxc/init.go:143
+#: lxc/init.go:143 lxc/init.go:144
 msgid   "Network name"
 msgstr  ""
 
@@ -825,7 +829,7 @@ msgstr  ""
 msgid   "Profile %s removed from %s"
 msgstr  ""
 
-#: lxc/copy.go:37 lxc/copy.go:38 lxc/init.go:138 lxc/init.go:139
+#: lxc/copy.go:37 lxc/copy.go:38 lxc/init.go:139 lxc/init.go:140
 msgid   "Profile to apply to the new container"
 msgstr  ""
 
@@ -891,7 +895,7 @@ msgstr  ""
 msgid   "Restart containers."
 msgstr  ""
 
-#: lxc/init.go:286
+#: lxc/init.go:289
 #, c-format
 msgid   "Retrieving image: %s"
 msgstr  ""
@@ -1019,7 +1023,7 @@ msgstr  ""
 msgid   "Storage pool %s deleted"
 msgstr  ""
 
-#: lxc/init.go:144 lxc/init.go:145
+#: lxc/init.go:145 lxc/init.go:146
 msgid   "Storage pool name"
 msgstr  ""
 
@@ -1057,7 +1061,7 @@ msgstr  ""
 msgid   "The container is currently running. Use --force to have it stopped and restarted."
 msgstr  ""
 
-#: lxc/init.go:359
+#: lxc/init.go:362
 msgid   "The container you are starting doesn't have any network attached to it."
 msgstr  ""
 
@@ -1069,7 +1073,7 @@ msgstr  ""
 msgid   "The device doesn't exist"
 msgstr  ""
 
-#: lxc/init.go:343
+#: lxc/init.go:346
 #, c-format
 msgid   "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr  ""
@@ -1105,11 +1109,11 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
-#: lxc/init.go:361
+#: lxc/init.go:364
 msgid   "To attach a network to a container, use: lxc network attach"
 msgstr  ""
 
-#: lxc/init.go:360
+#: lxc/init.go:363
 msgid   "To create a new network, use: lxc network create"
 msgstr  ""
 
@@ -1452,8 +1456,8 @@ msgid   "Usage: lxc info [<remote>:][<container>] [--show-log]\n"
         "    For LXD server information."
 msgstr  ""
 
-#: lxc/init.go:76
-msgid   "Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>]\n"
+#: lxc/init.go:77
+msgid   "Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>] [--type|-t <instance type>]\n"
         "\n"
         "Create containers from images.\n"
         "\n"
@@ -1465,7 +1469,7 @@ msgid   "Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e]
 msgstr  ""
 
 #: lxc/launch.go:20
-msgid   "Usage: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>]\n"
+msgid   "Usage: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>] [--type|-t <instance type>]\n"
         "\n"
         "Create and start containers from images.\n"
         "\n"
@@ -1917,7 +1921,7 @@ msgstr  ""
 msgid   "default"
 msgstr  ""
 
-#: lxc/init.go:308
+#: lxc/init.go:311
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
