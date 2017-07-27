@@ -119,6 +119,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"container_edit_metadata",
 			"container_snapshot_stateful_migration",
 			"storage_driver_ceph",
+			"storage_ceph_user_name",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
