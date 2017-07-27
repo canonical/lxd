@@ -318,3 +318,7 @@ This adds a ceph storage driver.
 
 ## storage\_ceph\_user\_name
 This adds the ability to specify the ceph user.
+
+## instance\_types
+This adds the "instance\_type" field to the container creation request.
+Its value is expanded to LXD resource limits.
