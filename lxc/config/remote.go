@@ -113,8 +113,18 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 		return d, nil
 	}
 
-	// HTTPs (LXD)
-	d, err := lxd.ConnectPublicLXD(remote.Addr, args)
+	// HTTPs (public LXD)
+	if remote.Public {
+		d, err := lxd.ConnectPublicLXD(remote.Addr, args)
+		if err != nil {
+			return nil, err
+		}
+
+		return d, nil
+	}
+
+	// HTTPs (private LXD)
+	d, err := lxd.ConnectLXD(remote.Addr, args)
 	if err != nil {
 		return nil, err
 	}
