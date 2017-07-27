@@ -29,6 +29,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 		return err
 	},
 	"ceph.rbd.clone_copy": shared.IsBool,
+	"ceph.user.name":      shared.IsAny,
 
 	// valid drivers: lvm
 	"lvm.thinpool_name": shared.IsAny,
