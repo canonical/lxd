@@ -1030,7 +1030,13 @@ func (d *Daemon) Ready() error {
 	}()
 
 	/* Auto-update instance types */
-	go instanceRefreshTypes(d)
+	go func() {
+		// Background update
+		for {
+			instanceRefreshTypes(d)
+			time.Sleep(24 * time.Hour)
+		}
+	}()
 
 	/* Restore containers */
 	containersRestart(d)
