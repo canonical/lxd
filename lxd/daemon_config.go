@@ -210,7 +210,8 @@ func daemonConfigInit(db *sql.DB) error {
 	for k, v := range dbValues {
 		_, ok := daemonConfig[k]
 		if !ok {
-			logger.Error("Found invalid configuration key in database", log.Ctx{"key": k})
+			logger.Error("Found unknown configuration key in database", log.Ctx{"key": k})
+			continue
 		}
 
 		daemonConfig[k].currentValue = v
