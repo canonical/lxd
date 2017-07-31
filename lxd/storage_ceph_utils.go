@@ -138,14 +138,17 @@ func cephRBDVolumeMap(clusterName string, poolName string, volumeName string,
 // cephRBDVolumeUnmap unmaps a given RBD storage volume
 // This is a precondition in order to delete an RBD storage volume can.
 func cephRBDVolumeUnmap(clusterName string, poolName string, volumeName string,
-	volumeType string, userName string) error {
+	volumeType string, userName string, unmapUntilEINVAL bool) error {
+	unmapImageName := fmt.Sprintf("%s_%s", volumeType, volumeName)
+
+again:
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", userName,
 		"--cluster", clusterName,
 		"--pool", poolName,
 		"unmap",
-		fmt.Sprintf("%s_%s", volumeType, volumeName))
+		unmapImageName)
 	if err != nil {
 		runError, ok := err.(shared.RunError)
 		if ok {
@@ -161,6 +164,10 @@ func cephRBDVolumeUnmap(clusterName string, poolName string, volumeName string,
 		return err
 	}
 
+	if unmapUntilEINVAL {
+		goto again
+	}
+
 	return nil
 }
 
@@ -168,14 +175,18 @@ func cephRBDVolumeUnmap(clusterName string, poolName string, volumeName string,
 // This is a precondition in order to delete an RBD snapshot can.
 func cephRBDVolumeSnapshotUnmap(clusterName string, poolName string,
 	volumeName string, volumeType string, snapshotName string,
-	userName string) error {
+	userName string, unmapUntilEINVAL bool) error {
+	unmapSnapshotName := fmt.Sprintf("%s_%s@%s", volumeType, volumeName,
+		snapshotName)
+
+again:
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", userName,
 		"--cluster", clusterName,
 		"--pool", poolName,
 		"unmap",
-		fmt.Sprintf("%s_%s@%s", volumeType, volumeName, snapshotName))
+		unmapSnapshotName)
 	if err != nil {
 		runError, ok := err.(shared.RunError)
 		if ok {
@@ -189,6 +200,10 @@ func cephRBDVolumeSnapshotUnmap(clusterName string, poolName string,
 			}
 		}
 		return err
+	}
+
+	if unmapUntilEINVAL {
+		goto again
 	}
 
 	return nil
@@ -914,7 +929,7 @@ func cephContainerDelete(clusterName string, poolName string, volumeName string,
 		if zombies > 0 {
 			// unmap
 			err = cephRBDVolumeUnmap(clusterName, poolName,
-				volumeName, volumeType, userName)
+				volumeName, volumeType, userName, true)
 			if err != nil {
 				logger.Errorf(`Failed to unmap RBD storage `+
 					`volume "%s": %s`, logEntry, err)
@@ -970,7 +985,7 @@ func cephContainerDelete(clusterName string, poolName string, volumeName string,
 
 			// unmap
 			err = cephRBDVolumeUnmap(clusterName, poolName,
-				volumeName, volumeType, userName)
+				volumeName, volumeType, userName, true)
 			if err != nil {
 				logger.Errorf(`Failed to unmap RBD storage `+
 					`volume "%s": %s`, logEntry, err)
@@ -1021,7 +1036,7 @@ func cephContainerDelete(clusterName string, poolName string, volumeName string,
 
 			// unmap
 			err = cephRBDVolumeUnmap(clusterName, poolName,
-				volumeName, volumeType, userName)
+				volumeName, volumeType, userName, true)
 			if err != nil {
 				logger.Errorf(`Failed to unmap RBD storage `+
 					`volume "%s": %s`, logEntry, err)
@@ -1097,7 +1112,7 @@ func cephContainerSnapshotDelete(clusterName string, poolName string,
 
 		// unmap
 		err = cephRBDVolumeSnapshotUnmap(clusterName, poolName,
-			volumeName, volumeType, snapshotName, userName)
+			volumeName, volumeType, snapshotName, userName, true)
 		if err != nil {
 			logger.Errorf(`Failed to unmap RBD snapshot "%s" of `+
 				`RBD storage volume "%s": %s`, logSnapshotEntry,
@@ -1194,7 +1209,8 @@ func cephContainerSnapshotDelete(clusterName string, poolName string,
 
 			// unmap
 			err = cephRBDVolumeSnapshotUnmap(clusterName, poolName,
-				volumeName, volumeType, snapshotName, userName)
+				volumeName, volumeType, snapshotName, userName,
+				true)
 			if err != nil {
 				logger.Errorf(`Failed to unmap RBD snapshot `+
 					`"%s" of RBD storage volume "%s": %s`,
@@ -1243,7 +1259,8 @@ func cephContainerSnapshotDelete(clusterName string, poolName string,
 			}
 
 			err := cephRBDVolumeSnapshotUnmap(clusterName, poolName,
-				volumeName, volumeType, snapshotName, userName)
+				volumeName, volumeType, snapshotName, userName,
+				true)
 			if err != nil {
 				logger.Errorf(`Failed to unmap RBD `+
 					`snapshot "%s" of RBD storage volume "%s": %s`,
