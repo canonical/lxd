@@ -112,9 +112,9 @@ This includes:
  * Addition of the "managed" property on /1.0/networks entries
  * All the network configuration options (see configuration.md for details)
  * POST /1.0/networks (see rest-api.md for details)
- * PUT /1.0/networks/<entry> (see rest-api.md for details)
- * PATCH /1.0/networks/<entry> (see rest-api.md for details)
- * DELETE /1.0/networks/<entry> (see rest-api.md for details)
+ * PUT /1.0/networks/\<entry\> (see rest-api.md for details)
+ * PATCH /1.0/networks/\<entry\> (see rest-api.md for details)
+ * DELETE /1.0/networks/\<entry\> (see rest-api.md for details)
  * ipv4.address property on "nic" type devices (when nictype is "bridged")
  * ipv6.address property on "nic" type devices (when nictype is "bridged")
  * security.mac\_filtering property on "nic" type devices (when nictype is "bridged")
@@ -130,7 +130,7 @@ server and operate in pull mode.
 
 ## container\_exec\_recording
 Introduces a new boolean "record-output", parameter to
-/1.0/containers/<name>/exec which when set to "true" and combined with
+/1.0/containers/\<name\>/exec which when set to "true" and combined with
 with "wait-for-websocket" set to false, will record stdout and stderr to
 disk and make them available through the logs interface.
 
@@ -146,7 +146,7 @@ Adds the following to the REST API:
  * PATCH of certificate entries
 
 ## container\_exec\_signal\_handling
-Adds support /1.0/containers/<name>/exec for forwarding signals sent to the
+Adds support /1.0/containers/\<name\>/exec for forwarding signals sent to the
 client to the processes executing in the container. Currently SIGTERM and
 SIGHUP are forwarded. Further signals that can be forwarded might be added
 later.
@@ -184,22 +184,22 @@ This includes:
 * GET /1.0/storage-pools
 * POST /1.0/storage-pools (see rest-api.md for details)
 
-* GET /1.0/storage-pools/<name> (see rest-api.md for details)
-* POST /1.0/storage-pools/<name> (see rest-api.md for details)
-* PUT /1.0/storage-pools/<name> (see rest-api.md for details)
-* PATCH /1.0/storage-pools/<name> (see rest-api.md for details)
-* DELETE /1.0/storage-pools/<name> (see rest-api.md for details)
+* GET /1.0/storage-pools/\<name\> (see rest-api.md for details)
+* POST /1.0/storage-pools/\<name\> (see rest-api.md for details)
+* PUT /1.0/storage-pools/\<name\> (see rest-api.md for details)
+* PATCH /1.0/storage-pools/\<name\> (see rest-api.md for details)
+* DELETE /1.0/storage-pools/\<name\> (see rest-api.md for details)
 
-* GET /1.0/storage-pools/<name>/volumes (see rest-api.md for details)
+* GET /1.0/storage-pools/\<name\>/volumes (see rest-api.md for details)
 
-* GET /1.0/storage-pools/<name>/volumes/<volume_type> (see rest-api.md for details)
-* POST /1.0/storage-pools/<name>/volumes/<volume_type> (see rest-api.md for details)
+* GET /1.0/storage-pools/\<name\>/volumes/\<volume_type\> (see rest-api.md for details)
+* POST /1.0/storage-pools/\<name\>/volumes/\<volume_type\> (see rest-api.md for details)
 
-* GET /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
-* POST /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
-* PUT /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
-* PATCH /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
-* DELETE /1.0/storage-pools/<pool>/volumes/<volume_type>/<name> (see rest-api.md for details)
+* GET /1.0/storage-pools/\<pool\>/volumes/\<volume_type\>/\<name\> (see rest-api.md for details)
+* POST /1.0/storage-pools/\<pool\>/volumes/\<volume_type\>/\<name\> (see rest-api.md for details)
+* PUT /1.0/storage-pools/\<pool\>/volumes/\<volume_type\>/\<name\> (see rest-api.md for details)
+* PATCH /1.0/storage-pools/\<pool\>/volumes/\<volume_type\>/\<name\> (see rest-api.md for details)
+* DELETE /1.0/storage-pools/\<pool\>/volumes/\<volume_type\>/\<name\> (see rest-api.md for details)
 
 - All storage configuration options (see configuration.md for details)
 
