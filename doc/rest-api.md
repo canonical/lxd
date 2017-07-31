@@ -2054,7 +2054,7 @@ Input:
         "name": "pool1"
     }
 
-## /1.0/storage-pools/<name>
+## /1.0/storage-pools/\<name\>
 ### GET
  * Description: information about a storage pool
  * Introduced: with API extension "storage"
@@ -2152,7 +2152,7 @@ Input (none at present):
     {
     }
 
-## /1.0/storage-pools/<name>/volumes
+## /1.0/storage-pools/\<name\>/volumes
 ### GET
  * Description: list of storage volumes
  * Introduced: with API extension "storage"
@@ -2184,7 +2184,7 @@ Input (none at present):
         "/1.0/storage-pools/default/volumes/images/62e850a334bb9d99cac00b2e618e0291e5e7bb7db56c4246ecaf8e46fa0631a6"
     ]
 
-## /1.0/storage-pools/<pool>/volumes
+## /1.0/storage-pools/\<pool\>/volumes
 ### GET
  * Description: list all storage volumes on a storage pool
  * Introduced: with API extension "storage"
@@ -2252,7 +2252,7 @@ Input:
     }
 
 
-## /1.0/storage-pools/<pool>/volumes/<type>/<name>
+## /1.0/storage-pools/\<pool\>/volumes/\<type\>/\<name\>
 ### GET
  * Description: information about a storage volume of a given type on a storage pool
  * Introduced: with API extension "storage"
