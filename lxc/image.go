@@ -359,7 +359,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 		return c.doImageAlias(conf, args)
 
 	case "copy":
-		/* copy [<remote>:]<image> [<rmeote>:]<image> */
+		/* copy [<remote>:]<image> [<remote>:]<image> */
 		if len(args) != 3 {
 			return errArgs
 		}
@@ -388,29 +388,13 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		// Attempt to resolve an image alias
-		var imgInfo *api.Image
-		image := inName
-		if c.copyAliases {
-			alias, _, err := d.GetImageAlias(image)
-			if err == nil {
-				image = alias.Target
-			}
-
-			// Get the image info
-			imgInfo, _, err = d.GetImage(image)
-			if err != nil {
-				return err
-			}
-		} else {
-			// Don't fetch full image info if we don't need aliases (since it's
-			// an expensive operation)
-			imgInfo = &api.Image{}
-			imgInfo.Fingerprint = image
-			imgInfo.Public = true
+		image := c.dereferenceAlias(d, inName)
+		imgInfo, _, err := d.GetImage(image)
+		if err != nil {
+			return err
 		}
 
-		if imgInfo.Public && imgInfo.Fingerprint != inName && !strings.HasPrefix(imgInfo.Fingerprint, inName) {
+		if imgInfo.Public && imgInfo.Fingerprint != inName && !strings.HasPrefix(imgInfo.Fingerprint, image) {
 			// If dealing with an alias, set the imgInfo fingerprint to match
 			imgInfo.Fingerprint = inName
 		}
@@ -454,7 +438,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 				aliases = append(aliases, alias)
 			}
 		}
-		err = ensureImageAliases(dest, aliases, image)
+		err = ensureImageAliases(dest, aliases, imgInfo.Fingerprint)
 		return err
 
 	case "delete":
