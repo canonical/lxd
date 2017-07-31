@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -54,17 +56,6 @@ func cephOSDPoolDestroy(clusterName string, poolName string, userName string) er
 	}
 
 	return nil
-}
-
-// getRBDDevPath constructs the path to a RBD block device.
-// Note that for this path to be valid the corresponding volume has to be mapped
-// first.
-func getRBDDevPath(poolName string, volumeType string, volumeName string) string {
-	if volumeType == "" {
-		return fmt.Sprintf("/dev/rbd/%s/%s", poolName, volumeName)
-	}
-
-	return fmt.Sprintf("/dev/rbd/%s/%s_%s", poolName, volumeType, volumeName)
 }
 
 // cephRBDVolumeCreate creates an RBD storage volume.
@@ -129,8 +120,8 @@ func cephRBDVolumeDelete(clusterName string, poolName string, volumeName string,
 // This will ensure that the RBD storage volume is accessible as a block device
 // in the /dev directory and is therefore necessary in order to mount it.
 func cephRBDVolumeMap(clusterName string, poolName string, volumeName string,
-	volumeType string, userName string) error {
-	_, err := shared.RunCommand(
+	volumeType string, userName string) (string, error) {
+	devPath, err := shared.RunCommand(
 		"rbd",
 		"--id", userName,
 		"--cluster", clusterName,
@@ -138,21 +129,10 @@ func cephRBDVolumeMap(clusterName string, poolName string, volumeName string,
 		"map",
 		fmt.Sprintf("%s_%s", volumeType, volumeName))
 	if err != nil {
-		runError, ok := err.(shared.RunError)
-		if ok {
-			exitError, ok := runError.Err.(*exec.ExitError)
-			if ok {
-				waitStatus := exitError.Sys().(syscall.WaitStatus)
-				if waitStatus.ExitStatus() == 22 {
-					// EINVAL (already mapped)
-					return nil
-				}
-			}
-		}
-		return err
+		return "", err
 	}
 
-	return nil
+	return strings.TrimSpace(devPath), nil
 }
 
 // cephRBDVolumeUnmap unmaps a given RBD storage volume
@@ -694,7 +674,7 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 		return err
 	}
 
-	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, targetContainerName,
+	_, err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, targetContainerName,
 		storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for image `+
@@ -788,8 +768,9 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		return err
 	}
 
-	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, targetContainerName,
-		storagePoolVolumeTypeNameContainer, s.UserName)
+	_, err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
+		targetContainerName, storagePoolVolumeTypeNameContainer,
+		s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for image `+
 			`"%s" on storage pool "%s": %s`, targetContainerName,
@@ -1393,4 +1374,96 @@ func parseClone(clone string) (string, string, string, error) {
 	volumeName = volumeName[(idx + 1):]
 
 	return poolName, volumeType, volumeName, nil
+}
+
+// getRBDMappedDevPath looks at sysfs to retrieve the device path
+// "/dev/rbd<idx>" for an RBD image. If it doesn't find it it will map it if
+// told to do so.
+func getRBDMappedDevPath(clusterName string, poolName string, volumeType string,
+	volumeName string, doMap bool, userName string) (string, int) {
+	files, err := ioutil.ReadDir("/sys/devices/rbd")
+	if err != nil {
+		if os.IsNotExist(err) {
+			if doMap {
+				goto mapImage
+			}
+
+			return "", 0
+		}
+
+		return "", -1
+	}
+
+	for _, f := range files {
+		if !f.IsDir() {
+			continue
+		}
+
+		fName := f.Name()
+		idx, err := strconv.ParseUint(fName, 10, 64)
+		if err != nil {
+			continue
+		}
+
+		tmp := fmt.Sprintf("/sys/devices/rbd/%s/pool", fName)
+		contents, err := ioutil.ReadFile(tmp)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return "", -1
+		}
+
+		detectedPoolName := strings.TrimSpace(string(contents))
+		if detectedPoolName != poolName {
+			continue
+		}
+
+		tmp = fmt.Sprintf("/sys/devices/rbd/%s/name", fName)
+		contents, err = ioutil.ReadFile(tmp)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return "", -1
+		}
+
+		typedVolumeName := fmt.Sprintf("%s_%s", volumeType, volumeName)
+		detectedVolumeName := strings.TrimSpace(string(contents))
+		if detectedVolumeName != typedVolumeName {
+			continue
+		}
+
+		tmp = fmt.Sprintf("/sys/devices/rbd/%s/snap", fName)
+		contents, err = ioutil.ReadFile(tmp)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Sprintf("/dev/rbd%d", idx), 1
+			}
+
+			return "", -1
+		}
+
+		detectedSnapName := strings.TrimSpace(string(contents))
+		if detectedSnapName != "-" {
+			continue
+		}
+
+		return fmt.Sprintf("/dev/rbd%d", idx), 1
+	}
+
+	if !doMap {
+		return "", 0
+	}
+
+mapImage:
+	devPath, err := cephRBDVolumeMap(clusterName, poolName,
+		volumeName, volumeType, userName)
+	if err != nil {
+		return "", -1
+	}
+
+	return strings.TrimSpace(devPath), 2
 }

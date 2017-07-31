@@ -371,8 +371,8 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 		}
 	}()
 
-	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, s.volume.Name,
-		storagePoolVolumeTypeNameCustom, s.UserName)
+	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
+		s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for "%s" on `+
 			`storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
@@ -400,14 +400,6 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 	logger.Debugf(`Retrieved filesystem type "%s" of RBD storage volume `+
 		`"%s" on storage pool "%s"`, RBDFilesystem, s.volume.Name,
 		s.pool.Name)
-
-	// get rbd device path
-	RBDDevPath := getRBDDevPath(
-		s.OSDPoolName,
-		storagePoolVolumeTypeNameCustom,
-		s.volume.Name)
-	logger.Debugf(`Retrieved device path "%s" of RBD storage volume "%s" `+
-		`on storage pool "%s"`, RBDDevPath, s.volume.Name, s.pool.Name)
 
 	msg, err := makeFSType(RBDDevPath, RBDFilesystem)
 	if err != nil {
@@ -526,10 +518,6 @@ func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
 		s.volume.Name, s.pool.Name)
 
 	RBDFilesystem := s.getRBDFilesystem()
-	RBDDevPath := getRBDDevPath(
-		s.OSDPoolName,
-		storagePoolVolumeTypeNameCustom,
-		s.volume.Name)
 	volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
 	customMountLockID := getCustomMountLockID(s.pool.Name, s.volume.Name)
@@ -551,9 +539,14 @@ func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
 	lxdStorageOngoingOperationMap[customMountLockID] = make(chan bool)
 	lxdStorageMapLock.Unlock()
 
+	var ret int
 	var customerr error
 	ourMount := false
+	RBDDevPath := ""
 	if !shared.IsMountPoint(volumeMntPoint) {
+		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
+			storagePoolVolumeTypeNameCustom, s.volume.Name, true,
+			s.UserName)
 		mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
 		customerr = tryMount(
 			RBDDevPath,
@@ -571,7 +564,7 @@ func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
 	}
 	lxdStorageMapLock.Unlock()
 
-	if customerr != nil {
+	if customerr != nil || ret < 0 {
 		logger.Errorf(`Failed to mount RBD storage volume "%s" on `+
 			`storage pool "%s": %s`, s.volume.Name, s.pool.Name,
 			customerr)
@@ -709,8 +702,8 @@ func (s *storageCeph) ContainerCreate(container container) error {
 		}
 	}()
 
-	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, containerName,
-		storagePoolVolumeTypeNameContainer, s.UserName)
+	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
+		containerName, storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for `+
 			`container "%s" on storage pool "%s": %s`,
@@ -739,15 +732,6 @@ func (s *storageCeph) ContainerCreate(container container) error {
 	RBDFilesystem := s.getRBDFilesystem()
 	logger.Debugf(`Retrieved filesystem type "%s" of RBD storage volume `+
 		`for container "%s" on storage pool "%s"`, RBDFilesystem,
-		containerName, s.pool.Name)
-
-	// get rbd device path
-	RBDDevPath := getRBDDevPath(
-		s.OSDPoolName,
-		storagePoolVolumeTypeNameContainer,
-		containerName)
-	logger.Debugf(`Retrieved device path "%s" of RBD storage volume `+
-		`for container "%s" on storage pool "%s"`, RBDDevPath,
 		containerName, s.pool.Name)
 
 	msg, err := makeFSType(RBDDevPath, RBDFilesystem)
@@ -876,7 +860,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		}
 	}()
 
-	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, containerName,
+	_, err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, containerName,
 		storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for container `+
@@ -1293,7 +1277,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		// registered one above for the dummy volume we created.
 
 		// map the container's volume
-		err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
+		_, err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
 			targetContainerName, storagePoolVolumeTypeNameContainer,
 			s.UserName)
 		if err != nil {
@@ -1339,7 +1323,6 @@ func (s *storageCeph) ContainerMount(c container) (bool, error) {
 	logger.Debugf("Mounting RBD storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	RBDFilesystem := s.getRBDFilesystem()
-	RBDDevPath := getRBDDevPath(s.OSDPoolName, storagePoolVolumeTypeNameContainer, name)
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 	if shared.IsSnapshot(name) {
 		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
@@ -1361,12 +1344,20 @@ func (s *storageCeph) ContainerMount(c container) (bool, error) {
 	lxdStorageOngoingOperationMap[containerMountLockID] = make(chan bool)
 	lxdStorageMapLock.Unlock()
 
+	var ret int
 	var mounterr error
 	ourMount := false
+	RBDDevPath := ""
 	if !shared.IsMountPoint(containerMntPoint) {
-		mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
-		mounterr = tryMount(RBDDevPath, containerMntPoint, RBDFilesystem, mountFlags, mountOptions)
-		ourMount = true
+		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName,
+			s.OSDPoolName, storagePoolVolumeTypeNameContainer,
+			name, true, s.UserName)
+		if ret >= 0 {
+			mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
+			mounterr = tryMount(RBDDevPath, containerMntPoint,
+				RBDFilesystem, mountFlags, mountOptions)
+			ourMount = true
+		}
 	}
 
 	lxdStorageMapLock.Lock()
@@ -1376,7 +1367,7 @@ func (s *storageCeph) ContainerMount(c container) (bool, error) {
 	}
 	lxdStorageMapLock.Unlock()
 
-	if mounterr != nil {
+	if mounterr != nil || ret < 0 {
 		logger.Errorf("Failed to mount RBD storage volume for container \"%s\": %s", s.volume.Name, mounterr)
 		return false, mounterr
 	}
@@ -1464,8 +1455,8 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 			return
 		}
 
-		err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, oldName,
-			storagePoolVolumeTypeNameContainer, s.UserName)
+		_, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
+			oldName, storagePoolVolumeTypeNameContainer, s.UserName)
 		if err != nil {
 			logger.Warnf(`Failed to Map RBD storage volume `+
 				`for container "%s": %s`, oldName, err)
@@ -1499,7 +1490,7 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	}()
 
 	// map
-	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, newName,
+	_, err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, newName,
 		storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for `+
@@ -1934,8 +1925,8 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 	}()
 
 	// map
-	err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, cloneName,
-		"snapshots", s.UserName)
+	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
+		cloneName, "snapshots", s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for `+
 			`container "%s" on storage pool "%s": %s`,
@@ -1961,7 +1952,6 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 
 	containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
 	RBDFilesystem := s.getRBDFilesystem()
-	RBDDevPath := getRBDDevPath(s.OSDPoolName, "snapshots", cloneName)
 	mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
 	err = tryMount(
 		RBDDevPath,
@@ -2123,8 +2113,9 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 			}
 		}()
 
-		err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
-			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
+		RBDDevPath, err := cephRBDVolumeMap(s.ClusterName,
+			s.OSDPoolName, fingerprint,
+			storagePoolVolumeTypeNameImage, s.UserName)
 		if err != nil {
 			logger.Errorf(`Failed to map RBD storage volume for `+
 				`image "%s" on storage pool "%s": %s`,
@@ -2152,9 +2143,6 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 
 		// get filesystem
 		RBDFilesystem := s.getRBDFilesystem()
-		// get rbd device path
-		RBDDevPath := getRBDDevPath(s.OSDPoolName,
-			storagePoolVolumeTypeNameImage, fingerprint)
 		msg, err := makeFSType(RBDDevPath, RBDFilesystem)
 		if err != nil {
 			logger.Errorf(`Failed to create filesystem "%s" for RBD `+
@@ -2456,10 +2444,18 @@ func (s *storageCeph) ImageMount(fingerprint string) (bool, error) {
 	RBDFilesystem := s.getRBDFilesystem()
 	RBDMountOptions := s.getRBDMountOptions()
 	mountFlags, mountOptions := lxdResolveMountoptions(RBDMountOptions)
-	RBDDevPath := getRBDDevPath(s.OSDPoolName, storagePoolVolumeTypeNameImage, fingerprint)
+	RBDDevPath, ret := getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
+		storagePoolVolumeTypeNameImage, fingerprint, true, s.UserName)
+	errMsg := fmt.Sprintf("Failed to mount RBD device %s onto %s",
+		RBDDevPath, imageMntPoint)
+	if ret < 0 {
+		logger.Errorf(errMsg)
+		return false, fmt.Errorf(errMsg)
+	}
+
 	err := tryMount(RBDDevPath, imageMntPoint, RBDFilesystem, mountFlags, mountOptions)
-	if err != nil {
-		logger.Errorf("Failed to mount RBD device %s onto %s: %s", RBDDevPath, imageMntPoint, err)
+	if err != nil || ret < 0 {
+		logger.Errorf("%s: %s", errMsg, err)
 		return false, err
 	}
 
