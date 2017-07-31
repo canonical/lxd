@@ -387,7 +387,8 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 		}
 
 		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
-			s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName)
+			s.volume.Name, storagePoolVolumeTypeNameCustom,
+			s.UserName, true)
 		if err != nil {
 			logger.Warnf(`Failed to unmap RBD storage volume `+
 				`"%s" on storage pool "%s": %s`, s.volume.Name,
@@ -464,7 +465,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 
 	// unmap
 	err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, s.volume.Name,
-		storagePoolVolumeTypeNameCustom, s.UserName)
+		storagePoolVolumeTypeNameCustom, s.UserName, true)
 	if err != nil {
 		logger.Errorf(`Failed to unmap RBD storage volume "%s" on `+
 			`storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
@@ -720,7 +721,7 @@ func (s *storageCeph) ContainerCreate(container container) error {
 
 		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
 			containerName, storagePoolVolumeTypeNameContainer,
-			s.UserName)
+			s.UserName, true)
 		if err != nil {
 			logger.Warnf(`Failed to unmap RBD storage volume `+
 				`for container "%s" on storage pool "%s": %s`,
@@ -877,7 +878,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 
 		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
 			containerName, storagePoolVolumeTypeNameContainer,
-			s.UserName)
+			s.UserName, true)
 		if err != nil {
 			logger.Warnf(`Failed to unmap RBD storage volume `+
 				`for container "%s": %s`, containerName, err)
@@ -1440,7 +1441,7 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 
 	// unmap
 	err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, oldName,
-		storagePoolVolumeTypeNameContainer, s.UserName)
+		storagePoolVolumeTypeNameContainer, s.UserName, true)
 	if err != nil {
 		logger.Errorf(`Failed to unmap RBD storage volume for `+
 			`container "%s" on storage pool "%s": %s`, oldName,
@@ -1507,7 +1508,7 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 		}
 
 		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, newName,
-			storagePoolVolumeTypeNameContainer, s.UserName)
+			storagePoolVolumeTypeNameContainer, s.UserName, true)
 		if err != nil {
 			logger.Warnf(`Failed to unmap RBD storage volume `+
 				`for container "%s": %s`, newName, err)
@@ -1942,7 +1943,7 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 		}
 
 		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
-			cloneName, "snapshots", s.UserName)
+			cloneName, "snapshots", s.UserName, true)
 		if err != nil {
 			logger.Warnf(`Failed to unmap RBD storage volume for `+
 				`container "%s" on storage pool "%s": %s`,
@@ -1993,7 +1994,7 @@ func (s *storageCeph) ContainerSnapshotStop(c container) (bool, error) {
 	cloneName := fmt.Sprintf("%s_%s_start_clone", containerOnlyName, snapOnlyName)
 	// unmap
 	err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, cloneName,
-		"snapshots", s.UserName)
+		"snapshots", s.UserName, true)
 	if err != nil {
 		logger.Errorf(`Failed to unmap RBD storage volume for `+
 			`container "%s" on storage pool "%s": %s`,
@@ -2132,7 +2133,7 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 
 			err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
 				fingerprint, storagePoolVolumeTypeNameImage,
-				s.UserName)
+				s.UserName, true)
 			if err != nil {
 				logger.Warnf(`Failed to unmap RBD storage `+
 					`volume for image "%s" on storage `+
@@ -2182,7 +2183,8 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 
 		// unmap
 		err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
-			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
+			fingerprint, storagePoolVolumeTypeNameImage, s.UserName,
+			true)
 		if err != nil {
 			logger.Errorf(`Failed to unmap RBD storage volume for `+
 				`image "%s" on storage pool "%s": %s`,
@@ -2356,7 +2358,8 @@ func (s *storageCeph) ImageDelete(fingerprint string) error {
 
 		// unmap
 		err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
-			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
+			fingerprint, storagePoolVolumeTypeNameImage, s.UserName,
+			true)
 		if err != nil {
 			logger.Errorf(`Failed to unmap RBD storage volume for `+
 				`image "%s" on storage pool "%s": %s`,
@@ -2380,7 +2383,8 @@ func (s *storageCeph) ImageDelete(fingerprint string) error {
 	} else {
 		// unmap
 		err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
-			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
+			fingerprint, storagePoolVolumeTypeNameImage, s.UserName,
+			true)
 		if err != nil {
 			logger.Errorf(`Failed to unmap RBD storage volume for `+
 				`image "%s" on storage pool "%s": %s`,
