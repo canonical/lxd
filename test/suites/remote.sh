@@ -147,9 +147,8 @@ test_remote_usage() {
   mv "${LXD_CONF}/client.crt" "${LXD_CONF}/client.crt.bak"
   mv "${LXD_CONF}/client.key" "${LXD_CONF}/client.key.bak"
 
-  # testimage should still exist on the local server.  Count the number of
-  # matches so the output isn't polluted with the results.
-  lxc_remote image list local: | grep -c testimage
+  # testimage should still exist on the local server.
+  lxc_remote image list local: | grep -q testimage
 
   # Skip the truly remote servers in offline mode.  There should always be
   # Ubuntu images in the results for the remote servers.
