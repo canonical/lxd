@@ -498,7 +498,7 @@ func deviceNextVeth() string {
 }
 
 func deviceRemoveInterface(nic string) error {
-	_, err := shared.RunCommand("ip", "link", "del", nic)
+	_, err := shared.RunCommand("ip", "link", "del", "dev", nic)
 	return err
 }
 

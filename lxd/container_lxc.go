@@ -4933,19 +4933,19 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 		n2 := deviceNextVeth()
 
-		_, err := shared.RunCommand("ip", "link", "add", n1, "type", "veth", "peer", "name", n2)
+		_, err := shared.RunCommand("ip", "link", "add", "dev", n1, "type", "veth", "peer", "name", n2)
 		if err != nil {
 			return "", fmt.Errorf("Failed to create the veth interface: %s", err)
 		}
 
-		_, err = shared.RunCommand("ip", "link", "set", n1, "up")
+		_, err = shared.RunCommand("ip", "link", "set", "dev", n1, "up")
 		if err != nil {
 			return "", fmt.Errorf("Failed to bring up the veth interface %s: %s", n1, err)
 		}
 
 		if m["nictype"] == "bridged" {
 			if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", m["parent"])) {
-				_, err = shared.RunCommand("ip", "link", "set", n1, "master", m["parent"])
+				_, err = shared.RunCommand("ip", "link", "set", "dev", n1, "master", m["parent"])
 				if err != nil {
 					deviceRemoveInterface(n2)
 					return "", fmt.Errorf("Failed to add interface to bridge: %s", err)
@@ -4975,7 +4975,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	// Handle macvlan
 	if m["nictype"] == "macvlan" {
 
-		_, err := shared.RunCommand("ip", "link", "add", n1, "link", m["parent"], "type", "macvlan", "mode", "bridge")
+		_, err := shared.RunCommand("ip", "link", "add", "dev", n1, "link", m["parent"], "type", "macvlan", "mode", "bridge")
 		if err != nil {
 			return "", fmt.Errorf("Failed to create the new macvlan interface: %s", err)
 		}
