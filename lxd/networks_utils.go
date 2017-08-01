@@ -34,7 +34,7 @@ func networkAutoAttach(d *Daemon, devName string) error {
 
 func networkAttachInterface(netName string, devName string) error {
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
-		_, err := shared.RunCommand("ip", "link", "set", devName, "master", netName)
+		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "master", netName)
 		if err != nil {
 			return err
 		}
@@ -53,7 +53,7 @@ func networkAttachInterface(netName string, devName string) error {
 
 func networkDetachInterface(netName string, devName string) error {
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", netName)) {
-		_, err := shared.RunCommand("ip", "link", "set", devName, "nomaster")
+		_, err := shared.RunCommand("ip", "link", "set", "dev", devName, "nomaster")
 		if err != nil {
 			return err
 		}
