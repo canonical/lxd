@@ -567,7 +567,7 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 		storagePoolVolumeTypeCustom,
 		s.poolID)
 	if err != nil {
-		logger.Errorf(`Failed to delete database entry for ZFS `+
+		logger.Errorf(`Failed to delete database entry for BTRFS `+
 			`storage volume "%s" on storage pool "%s"`,
 			s.volume.Name, s.pool.Name)
 	}
