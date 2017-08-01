@@ -5788,12 +5788,12 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 		n2 := deviceNextVeth()
 
-		_, err := shared.RunCommand("ip", "link", "add", n1, "type", "veth", "peer", "name", n2)
+		_, err := shared.RunCommand("ip", "link", "add", "dev", n1, "type", "veth", "peer", "name", n2)
 		if err != nil {
 			return "", fmt.Errorf("Failed to create the veth interface: %s", err)
 		}
 
-		_, err = shared.RunCommand("ip", "link", "set", n1, "up")
+		_, err = shared.RunCommand("ip", "link", "set", "dev", n1, "up")
 		if err != nil {
 			return "", fmt.Errorf("Failed to bring up the veth interface %s: %s", n1, err)
 		}
@@ -5836,7 +5836,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 
 		// Handle macvlan
 		if m["nictype"] == "macvlan" {
-			_, err := shared.RunCommand("ip", "link", "add", n1, "link", device, "type", "macvlan", "mode", "bridge")
+			_, err := shared.RunCommand("ip", "link", "add", "dev", n1, "link", device, "type", "macvlan", "mode", "bridge")
 			if err != nil {
 				return "", fmt.Errorf("Failed to create the new macvlan interface: %s", err)
 			}

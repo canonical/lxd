@@ -546,7 +546,7 @@ func (n *network) Start() error {
 				return err
 			}
 		} else {
-			_, err := shared.RunCommand("ip", "link", "add", n.name, "type", "bridge")
+			_, err := shared.RunCommand("ip", "link", "add", "dev", n.name, "type", "bridge")
 			if err != nil {
 				return err
 			}
@@ -578,7 +578,7 @@ func (n *network) Start() error {
 	// Cleanup any existing tunnel device
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			_, err = shared.RunCommand("ip", "link", "del", iface.Name)
+			_, err = shared.RunCommand("ip", "link", "del", "dev", iface.Name)
 			if err != nil {
 				return err
 			}
@@ -601,7 +601,7 @@ func (n *network) Start() error {
 
 	// Attempt to add a dummy device to the bridge to force the MTU
 	if mtu != "" && n.config["bridge.driver"] != "openvswitch" {
-		_, err = shared.RunCommand("ip", "link", "add", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu, "type", "dummy")
+		_, err = shared.RunCommand("ip", "link", "add", "dev", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu, "type", "dummy")
 		if err == nil {
 			networkAttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
 		}
@@ -612,13 +612,13 @@ func (n *network) Start() error {
 		mtu = "1500"
 	}
 
-	_, err = shared.RunCommand("ip", "link", "set", n.name, "mtu", mtu)
+	_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "mtu", mtu)
 	if err != nil {
 		return err
 	}
 
 	// Bring it up
-	_, err = shared.RunCommand("ip", "link", "set", n.name, "up")
+	_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "up")
 	if err != nil {
 		return err
 	}
@@ -1013,13 +1013,13 @@ func (n *network) Start() error {
 				return err
 			}
 
-			_, err = shared.RunCommand("ip", "link", "set", "tunl0", "up")
+			_, err = shared.RunCommand("ip", "link", "set", "dev", "tunl0", "up")
 			if err != nil {
 				return err
 			}
 
 			// Fails if the map is already set
-			shared.RunCommand("ip", "link", "change", "tunl0", "type", "ipip", "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
+			shared.RunCommand("ip", "link", "change", "dev", "tunl0", "type", "ipip", "fan-map", fmt.Sprintf("%s:%s", overlay, underlay))
 
 			_, err = shared.RunCommand("ip", "route", "add", overlay, "dev", "tunl0", "src", addr[0])
 			if err != nil {
@@ -1038,12 +1038,12 @@ func (n *network) Start() error {
 				return err
 			}
 
-			_, err = shared.RunCommand("ip", "link", "set", tunName, "mtu", mtu, "up")
+			_, err = shared.RunCommand("ip", "link", "set", "dev", tunName, "mtu", mtu, "up")
 			if err != nil {
 				return err
 			}
 
-			_, err = shared.RunCommand("ip", "link", "set", n.name, "up")
+			_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "up")
 			if err != nil {
 				return err
 			}
@@ -1068,7 +1068,7 @@ func (n *network) Start() error {
 		tunName := fmt.Sprintf("%s-%s", n.name, tunnel)
 
 		// Configure the tunnel
-		cmd := []string{"ip", "link", "add", tunName}
+		cmd := []string{"ip", "link", "add", "dev", tunName}
 		if tunProtocol == "gre" {
 			// Skip partial configs
 			if tunProtocol == "" || tunLocal == "" || tunRemote == "" {
@@ -1130,12 +1130,12 @@ func (n *network) Start() error {
 			return err
 		}
 
-		_, err = shared.RunCommand("ip", "link", "set", tunName, "mtu", mtu, "up")
+		_, err = shared.RunCommand("ip", "link", "set", "dev", tunName, "mtu", mtu, "up")
 		if err != nil {
 			return err
 		}
 
-		_, err = shared.RunCommand("ip", "link", "set", n.name, "up")
+		_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "up")
 		if err != nil {
 			return err
 		}
@@ -1213,7 +1213,7 @@ func (n *network) Stop() error {
 			return err
 		}
 	} else {
-		_, err := shared.RunCommand("ip", "link", "del", n.name)
+		_, err := shared.RunCommand("ip", "link", "del", "dev", n.name)
 		if err != nil {
 			return err
 		}
@@ -1260,7 +1260,7 @@ func (n *network) Stop() error {
 	// Cleanup any existing tunnel device
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface.Name, fmt.Sprintf("%s-", n.name)) {
-			_, err = shared.RunCommand("ip", "link", "del", iface.Name)
+			_, err = shared.RunCommand("ip", "link", "del", "dev", iface.Name)
 			if err != nil {
 				return err
 			}
