@@ -501,6 +501,11 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 			if err != nil {
 				return err
 			}
+			err = ShiftACL(
+				path, func(uid int64, gid int64) (int64, int64) { return set.doShiftIntoNs(uid, gid, how) })
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	}
