@@ -29,7 +29,7 @@ We recommend having the latest versions of liblxc (>= 2.0.0 required) and CRIU
 Golang 1.5 or later to work. On ubuntu, you can get those with:
 
     sudo apt update
-    sudo apt install acl dnsmasq-base git golang liblxc1 lxc-dev make pkg-config rsync squashfs-tools tar xz-utils
+    sudo apt install acl dnsmasq-base git golang liblxc1 lxc-dev libacl1-dev make pkg-config rsync squashfs-tools tar xz-utils
 
 There are a few storage backends for LXD besides the default "directory" backend.
 Installing these tools adds a bit to initramfs and may slow down your
