@@ -388,14 +388,25 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			return err
 		}
 
-		image := c.dereferenceAlias(d, inName)
-		imgInfo, _, err := d.GetImage(image)
-		if err != nil {
-			return err
+		var imgInfo *api.Image
+		if conf.Remotes[remote].Protocol == "simplestreams" && !c.copyAliases {
+			// All simplestreams images are always public, so unless we
+			// need the aliases list too, we can skip the otherwise very expensive
+			// alias resolution and image info retrieval step.
+			imgInfo = &api.Image{}
+			imgInfo.Fingerprint = inName
+			imgInfo.Public = true
+		} else {
+			// Resolve any alias and then grab the image information from the source
+			image := c.dereferenceAlias(d, inName)
+			imgInfo, _, err = d.GetImage(image)
+			if err != nil {
+				return err
+			}
 		}
 
-		if imgInfo.Public && imgInfo.Fingerprint != inName && !strings.HasPrefix(imgInfo.Fingerprint, image) {
-			// If dealing with an alias, set the imgInfo fingerprint to match
+		if imgInfo.Public && imgInfo.Fingerprint != inName && !strings.HasPrefix(imgInfo.Fingerprint, inName) {
+			// If dealing with an alias, set the imgInfo fingerprint to match the provided alias (needed for auto-update)
 			imgInfo.Fingerprint = inName
 		}
 
