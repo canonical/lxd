@@ -148,7 +148,7 @@ func (s *storageCeph) StoragePoolCreate() error {
 
 		// use existing osd pool
 		msg, err := shared.RunCommand("ceph", "--name",
-			fmt.Sprintf("client.%s", s.UserName), "--cluster",
+			fmt.Sprintf("client.%s", s.UserName),
 			"--cluster", s.ClusterName, "osd", "pool", "get",
 			s.OSDPoolName, "pg_num")
 		if err != nil {

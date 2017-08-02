@@ -389,9 +389,10 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 		}
 
 		var imgInfo *api.Image
-		if conf.Remotes[remote].Protocol == "simplestreams" && !c.copyAliases {
+		var fp string
+		if conf.Remotes[remote].Protocol == "simplestreams" && !c.copyAliases && len(c.addAliases) == 0 {
 			// All simplestreams images are always public, so unless we
-			// need the aliases list too, we can skip the otherwise very expensive
+			// need the aliases list too or the real fingerprint, we can skip the otherwise very expensive
 			// alias resolution and image info retrieval step.
 			imgInfo = &api.Image{}
 			imgInfo.Fingerprint = inName
@@ -403,6 +404,9 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			if err != nil {
 				return err
 			}
+
+			// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overriden)
+			fp = imgInfo.Fingerprint
 		}
 
 		if imgInfo.Public && imgInfo.Fingerprint != inName && !strings.HasPrefix(imgInfo.Fingerprint, inName) {
@@ -449,7 +453,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 				aliases = append(aliases, alias)
 			}
 		}
-		err = ensureImageAliases(dest, aliases, imgInfo.Fingerprint)
+		err = ensureImageAliases(dest, aliases, fp)
 		return err
 
 	case "delete":
