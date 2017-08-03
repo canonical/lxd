@@ -89,7 +89,7 @@ keys_to_check = [
     'lxc.mount.entry',
     'lxc.cap.drop'
     # 'lxc.cap.keep',
-    # 'lxc.seccomp',
+    'lxc.seccomp',
     # 'lxc.se_context',
     ]
 
@@ -218,7 +218,7 @@ def convert_container(lxd_socket, container_name, args):
     # Load the container
     try:
         container = lxc.Container(container_name, args.lxcpath)
-    except:
+    except Exception:
         print("Invalid container configuration, skipping...")
         return False
 
@@ -326,7 +326,7 @@ def convert_container(lxd_socket, container_name, args):
     print("Processing network configuration")
     try:
         count = len(container.get_config_item("lxc.network"))
-    except:
+    except Exception:
         count = 0
 
     for i in range(count):
@@ -457,7 +457,7 @@ def convert_container(lxd_socket, container_name, args):
     # Convert seccomp
     print("Processing container seccomp configuration")
     value = config_get(lxc_config, "lxc.seccomp")
-    if value:
+    if value and value != "/usr/share/lxc/config/common.seccomp":
         print("Custom seccomp profiles aren't supported, skipping...")
         return False
 
@@ -506,7 +506,7 @@ def convert_container(lxd_socket, container_name, args):
             new['architecture'] = arches[arch[0]]
         else:
             print("Unknown architecture, assuming native.")
-    except:
+    except Exception:
         print("Couldn't find container architecture, assuming native.")
 
     # Define the container in LXD
