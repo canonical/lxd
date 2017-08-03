@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -211,7 +212,12 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: protocol}
 
 	// Attempt to connect
-	d, err := conf.GetContainerServer(server)
+	var d interface{}
+	if public {
+		d, err = conf.GetImageServer(server)
+	} else {
+		d, err = conf.GetContainerServer(server)
+	}
 
 	// Handle Unix socket connections
 	if strings.HasPrefix(addr, "unix:") {
@@ -261,20 +267,31 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 		certOut.Close()
 
 		// Setup a new connection, this time with the remote certificate
-		d, err = conf.GetContainerServer(server)
+		if public {
+			d, err = conf.GetImageServer(server)
+		} else {
+			d, err = conf.GetContainerServer(server)
+		}
+
 		if err != nil {
 			return err
 		}
 	}
 
+	// Handle public remotes
+	if public {
+		conf.Remotes[server] = config.Remote{Addr: addr, Public: true}
+		return nil
+	}
+
 	// Get server information
-	srv, _, err := d.GetServer()
+	srv, _, err := d.(lxd.ContainerServer).GetServer()
 	if err != nil {
 		return err
 	}
 
-	// Detect a public remote
-	if srv.Public || public {
+	// Detect public remotes
+	if srv.Public {
 		conf.Remotes[server] = config.Remote{Addr: addr, Public: true}
 		return nil
 	}
@@ -306,13 +323,13 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 	}
 	req.Type = "client"
 
-	err = d.CreateCertificate(req)
+	err = d.(lxd.ContainerServer).CreateCertificate(req)
 	if err != nil {
 		return err
 	}
 
 	// And check if trusted now
-	srv, _, err = d.GetServer()
+	srv, _, err = d.(lxd.ContainerServer).GetServer()
 	if err != nil {
 		return err
 	}
