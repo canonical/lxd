@@ -420,6 +420,33 @@ func networkStartup(d *Daemon) error {
 	return nil
 }
 
+func networkShutdown(d *Daemon) error {
+	// Get a list of managed networks
+	networks, err := dbNetworks(d.db)
+	if err != nil {
+		return err
+	}
+
+	// Bring them all up
+	for _, name := range networks {
+		n, err := networkLoadByName(d, name)
+		if err != nil {
+			return err
+		}
+
+		if !n.IsRunning() {
+			continue
+		}
+
+		err = n.Stop()
+		if err != nil {
+			logger.Error("Failed to bring down network", log.Ctx{"err": err, "name": name})
+		}
+	}
+
+	return nil
+}
+
 type network struct {
 	// Properties
 	daemon      *Daemon
