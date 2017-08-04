@@ -87,7 +87,7 @@ keys_to_check = [
     'lxc.rebootsignal',
     'lxc.stopsignal',
     'lxc.mount.entry',
-    'lxc.cap.drop'
+    'lxc.cap.drop',
     # 'lxc.cap.keep',
     'lxc.seccomp',
     # 'lxc.se_context',
@@ -399,6 +399,10 @@ def convert_container(lxd_socket, container_name, args):
             print("Invalid mount configuration, skipping...")
             return False
 
+        # Ignore mounts that are present in LXD containers by default.
+        if mount[0] in ("proc", "sysfs"):
+            continue
+
         device = {'type': "disk"}
 
         # Deal with read-only mounts
@@ -472,8 +476,12 @@ def convert_container(lxd_socket, container_name, args):
     print("Processing container capabilities configuration")
     value = config_get(lxc_config, "lxc.cap.drop")
     if value:
-        print("Custom capabilities aren't supported, skipping...")
-        return False
+        for cap in value:
+            # Ignore capabilities that are dropped in LXD containers by default.
+            if cap in ("mac_admin", "mac_override", "sys_module", "sys_time"):
+                continue
+            print("Custom capabilities aren't supported, skipping...")
+            return False
 
     value = config_get(lxc_config, "lxc.cap.keep")
     if value:
