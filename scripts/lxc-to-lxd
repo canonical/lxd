@@ -399,6 +399,10 @@ def convert_container(lxd_socket, container_name, args):
             print("Invalid mount configuration, skipping...")
             return False
 
+        # Ignore mounts that are present in LXD containers by default.
+        if mount[0] in ("proc", "sysfs"):
+            continue
+
         device = {'type': "disk"}
 
         # Deal with read-only mounts
