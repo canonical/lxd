@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime/pprof"
-	"sync"
 	"syscall"
 	"time"
 
@@ -62,46 +61,26 @@ func cmdDaemon() error {
 		return err
 	}
 
-	var ret error
-	var wg sync.WaitGroup
-	wg.Add(1)
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGPWR)
+	signal.Notify(ch, syscall.SIGINT)
+	signal.Notify(ch, syscall.SIGQUIT)
+	signal.Notify(ch, syscall.SIGTERM)
 
-	go func() {
-		ch := make(chan os.Signal)
-		signal.Notify(ch, syscall.SIGPWR)
-		sig := <-ch
+	select {
+	case sig := <-ch:
 
-		logger.Infof("Received '%s signal', shutting down containers.", sig)
+		if sig == syscall.SIGPWR {
+			logger.Infof("Received '%s signal', shutting down containers.", sig)
+			containersShutdown(d)
+		} else {
+			logger.Infof("Received '%s signal', exiting.", sig)
+		}
 
-		containersShutdown(d)
-
-		ret = d.Stop()
-		wg.Done()
-	}()
-
-	go func() {
-		<-d.shutdownChan
-
+	case <-d.shutdownChan:
 		logger.Infof("Asked to shutdown by API, shutting down containers.")
-
 		containersShutdown(d)
+	}
 
-		ret = d.Stop()
-		wg.Done()
-	}()
-
-	go func() {
-		ch := make(chan os.Signal)
-		signal.Notify(ch, syscall.SIGINT)
-		signal.Notify(ch, syscall.SIGQUIT)
-		signal.Notify(ch, syscall.SIGTERM)
-		sig := <-ch
-
-		logger.Infof("Received '%s signal', exiting.", sig)
-		ret = d.Stop()
-		wg.Done()
-	}()
-
-	wg.Wait()
-	return ret
+	return d.Stop()
 }
