@@ -457,7 +457,7 @@ def convert_container(lxd_socket, container_name, args):
     # Convert seccomp
     print("Processing container seccomp configuration")
     value = config_get(lxc_config, "lxc.seccomp")
-    if value and value != "/usr/share/lxc/config/common.seccomp":
+    if value and value[0] != "/usr/share/lxc/config/common.seccomp":
         print("Custom seccomp profiles aren't supported, skipping...")
         return False
 
