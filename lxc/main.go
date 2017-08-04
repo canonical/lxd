@@ -211,6 +211,7 @@ var commands = map[string]command{
 	"exec":    &execCmd{},
 	"file":    &fileCmd{},
 	"finger":  &fingerCmd{},
+	"query":   &queryCmd{},
 	"help":    &helpCmd{},
 	"image":   &imageCmd{},
 	"info":    &infoCmd{},
