@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-07-27 18:42-0400\n"
+"POT-Creation-Date: 2017-08-03 23:42+0000\n"
 "PO-Revision-Date: 2017-07-20 00:30+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -175,7 +175,7 @@ msgstr "'/' はスナップショットの名前には使用できません"
 msgid "(none)"
 msgstr ""
 
-#: lxc/image.go:227 lxc/image.go:1089
+#: lxc/image.go:227 lxc/image.go:1088
 msgid "ALIAS"
 msgstr ""
 
@@ -191,30 +191,34 @@ msgstr ""
 msgid "ARCHITECTURE"
 msgstr ""
 
-#: lxc/remote.go:67
+#: lxc/remote.go:68
 msgid "Accept certificate"
 msgstr "証明書を受け入れます"
 
-#: lxc/remote.go:289
+#: lxc/query.go:38
+msgid "Action (defaults to GET)"
+msgstr ""
+
+#: lxc/remote.go:306
 #, c-format
 msgid "Admin password for %s: "
 msgstr "%s の管理者パスワード: "
 
-#: lxc/image.go:593
+#: lxc/image.go:592
 msgid "Aliases:"
 msgstr "エイリアス:"
 
-#: lxc/image.go:571 lxc/info.go:104
+#: lxc/image.go:570 lxc/info.go:104
 #, c-format
 msgid "Architecture: %s"
 msgstr "アーキテクチャ: %s"
 
-#: lxc/image.go:601
+#: lxc/image.go:600
 #, c-format
 msgid "Auto update: %s"
 msgstr "自動更新: %s"
 
-#: lxc/image.go:675
+#: lxc/image.go:674
 #, c-format
 msgid "Bad property: %s"
 msgstr "不正なイメージプロパティ形式: %s"
@@ -268,12 +272,12 @@ msgstr "キー '%s' が指定されていないので削除できません。"
 msgid "Cannot provide container name to list"
 msgstr "コンテナ名を取得できません"
 
-#: lxc/remote.go:236
+#: lxc/remote.go:242
 #, c-format
 msgid "Certificate fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
-#: lxc/remote.go:324
+#: lxc/remote.go:341
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
 
@@ -289,7 +293,7 @@ msgstr "コマンド:"
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
-#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1144
+#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1143
 #: lxc/network.go:418 lxc/profile.go:267 lxc/storage.go:576 lxc/storage.go:935
 #, c-format
 msgid "Config parsing error: %s"
@@ -325,17 +329,17 @@ msgstr "ソースからエイリアスをコピーしました"
 msgid "Copy the container without its snapshots"
 msgstr "コンテナをコピーします (スナップショットはコピーしません)"
 
-#: lxc/image.go:430
+#: lxc/image.go:429
 #, c-format
 msgid "Copying the image: %s"
 msgstr "イメージのコピー中: %s"
 
-#: lxc/remote.go:78
+#: lxc/remote.go:79
 #, fuzzy
 msgid "Could not create config dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
-#: lxc/remote.go:251
+#: lxc/remote.go:257
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
@@ -343,7 +347,7 @@ msgstr "サーバ証明書格納用のディレクトリを作成できません
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
-#: lxc/image.go:576 lxc/info.go:106
+#: lxc/image.go:575 lxc/info.go:106
 #, c-format
 msgid "Created: %s"
 msgstr "作成日時: %s"
@@ -357,7 +361,7 @@ msgstr "%s を作成中"
 msgid "Creating the container"
 msgstr "コンテナを作成中"
 
-#: lxc/image.go:231 lxc/image.go:1091 lxc/list.go:463 lxc/network.go:507
+#: lxc/image.go:231 lxc/image.go:1090 lxc/list.go:463 lxc/network.go:507
 #: lxc/storage.go:654 lxc/storage.go:749
 msgid "DESCRIPTION"
 msgstr ""
@@ -385,7 +389,7 @@ msgstr "デバイス %s が %s から削除されました"
 msgid "Device already exists: %s"
 msgstr "デバイスは既に存在します: %s"
 
-#: lxc/image.go:1243
+#: lxc/image.go:1242
 msgid "Directory import is not available on this platform"
 msgstr "このプラットフォーム上ではディレクトリのインポートは利用できません"
 
@@ -438,16 +442,16 @@ msgstr "イメージのエクスポート中: %s"
 msgid "Event type to listen for"
 msgstr "Listenするイベントタイプ"
 
-#: lxc/image.go:580
+#: lxc/image.go:579
 #, c-format
 msgid "Expires: %s"
 msgstr "失効日時: %s"
 
-#: lxc/image.go:582
+#: lxc/image.go:581
 msgid "Expires: never"
 msgstr "失効日時: 失効しない"
 
-#: lxc/image.go:885
+#: lxc/image.go:884
 #, c-format
 msgid "Exporting the image: %s"
 msgstr "イメージのエクスポート中: %s"
@@ -456,7 +460,7 @@ msgstr "イメージのエクスポート中: %s"
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config.go:399 lxc/image.go:229 lxc/image.go:1090
+#: lxc/config.go:399 lxc/image.go:229 lxc/image.go:1089
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -494,7 +498,7 @@ msgstr "パス %s にアクセスできませんでした: %s"
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Fast モード (--columns=nsacPt と同じ)"
 
-#: lxc/image.go:569
+#: lxc/image.go:568
 #, c-format
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
@@ -519,7 +523,7 @@ msgstr "強制的にローカルのUNIXソケットを使います"
 msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
-#: lxc/remote.go:89
+#: lxc/remote.go:90
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
@@ -547,32 +551,36 @@ msgstr "どのコマンドを実行するか決める際にエイリアスを無
 msgid "Ignore the container state (only for start)"
 msgstr "コンテナの状態を無視します (startのみ)"
 
-#: lxc/image.go:532
+#: lxc/image.go:531
 msgid "Image already up to date."
 msgstr "イメージは更新済みです。"
 
-#: lxc/image.go:444
+#: lxc/image.go:443
 msgid "Image copied successfully!"
 msgstr "イメージのコピーが成功しました!"
 
-#: lxc/image.go:935
+#: lxc/image.go:934
 msgid "Image exported successfully!"
 msgstr "イメージのエクスポートが成功しました!"
 
-#: lxc/image.go:742
+#: lxc/image.go:741
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
 
-#: lxc/image.go:530
+#: lxc/image.go:529
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
+
+#: lxc/query.go:39
+msgid "Input data"
+msgstr ""
 
 #: lxc/init.go:147
 msgid "Instance type"
 msgstr ""
 
-#: lxc/remote.go:159
+#: lxc/remote.go:160
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
@@ -616,12 +624,12 @@ msgstr ""
 msgid "LXD socket not found; is LXD installed and running?"
 msgstr "LXD のソケットが見つかりません。LXD が実行されていますか?"
 
-#: lxc/image.go:585
+#: lxc/image.go:584
 #, c-format
 msgid "Last used: %s"
 msgstr "最終使用: %s"
 
-#: lxc/image.go:587
+#: lxc/image.go:586
 msgid "Last used: never"
 msgstr "最終使用: 未使用"
 
@@ -671,7 +679,7 @@ msgstr ""
 msgid "Move the container without its snapshots"
 msgstr "コンテナを移動します (スナップショットは移動しません)"
 
-#: lxc/image.go:1245
+#: lxc/image.go:1244
 msgid "Must run as root to import from directory"
 msgstr "ディレクトリからのインポートは root で実行する必要があります"
 
@@ -679,12 +687,12 @@ msgstr "ディレクトリからのインポートは root で実行する必要
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
-#: lxc/list.go:465 lxc/network.go:504 lxc/profile.go:555 lxc/remote.go:414
+#: lxc/list.go:465 lxc/network.go:504 lxc/profile.go:555 lxc/remote.go:431
 #: lxc/storage.go:653 lxc/storage.go:748
 msgid "NAME"
 msgstr ""
 
-#: lxc/network.go:490 lxc/remote.go:388 lxc/remote.go:393
+#: lxc/network.go:490 lxc/remote.go:405 lxc/remote.go:410
 msgid "NO"
 msgstr ""
 
@@ -735,11 +743,11 @@ msgstr "フィンガープリントが指定されていません。"
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr "\"カスタム\" のボリュームのみがコンテナにアタッチできます。"
 
-#: lxc/remote.go:144
+#: lxc/remote.go:145
 msgid "Only https URLs are supported for simplestreams"
 msgstr "simplestreams は https の URL のみサポートします"
 
-#: lxc/image.go:656
+#: lxc/image.go:655
 msgid "Only https:// is supported for remote image import."
 msgstr "リモートイメージのインポートは https:// のみをサポートします。"
 
@@ -767,11 +775,11 @@ msgstr "PID"
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/remote.go:416
+#: lxc/remote.go:433
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:230 lxc/remote.go:417
+#: lxc/image.go:230 lxc/remote.go:434
 msgid "PUBLIC"
 msgstr ""
 
@@ -791,7 +799,7 @@ msgstr "別のクライアント用設定ディレクトリ"
 msgid "Path to an alternate server directory"
 msgstr "別のサーバ用設定ディレクトリ"
 
-#: lxc/main.go:226
+#: lxc/main.go:227
 msgid "Pause containers."
 msgstr "コンテナを一時停止します。"
 
@@ -809,7 +817,7 @@ msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
 #: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1332 lxc/config.go:1382
-#: lxc/image.go:1145
+#: lxc/image.go:1144
 msgid "Press enter to start the editor again"
 msgstr "再度エディタを起動するには Enter キーを押します"
 
@@ -820,6 +828,10 @@ msgstr "デバッグ情報を表示します"
 #: lxc/help.go:72
 msgid "Print less common commands"
 msgstr "全てのコマンドを表示します (主なコマンドだけではなく)"
+
+#: lxc/query.go:37
+msgid "Print the raw response"
+msgstr ""
 
 #: lxc/help.go:74
 msgid "Print verbose information"
@@ -864,15 +876,15 @@ msgstr "プロファイル %s が %s に追加されました"
 msgid "Profiles: %s"
 msgstr "プロファイル: %s"
 
-#: lxc/image.go:589
+#: lxc/image.go:588
 msgid "Properties:"
 msgstr "プロパティ:"
 
-#: lxc/remote.go:70
+#: lxc/remote.go:71
 msgid "Public image server"
 msgstr "Public なイメージサーバとして設定します"
 
-#: lxc/image.go:572
+#: lxc/image.go:571
 #, c-format
 msgid "Public: %s"
 msgstr "パブリック: %s"
@@ -881,12 +893,12 @@ msgstr "パブリック: %s"
 msgid "Recursively push or pull files"
 msgstr "再帰的にファイルをpush/pullします"
 
-#: lxc/image.go:510
+#: lxc/image.go:509
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
 
-#: lxc/remote.go:68
+#: lxc/remote.go:69
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
@@ -912,7 +924,7 @@ msgstr "ユーザの確認を要求する"
 msgid "Resources:"
 msgstr "リソース:"
 
-#: lxc/main.go:234
+#: lxc/main.go:235
 msgid "Restart containers."
 msgstr "コンテナを再起動します。"
 
@@ -937,7 +949,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:418
+#: lxc/remote.go:435
 msgid "STATIC"
 msgstr ""
 
@@ -945,15 +957,15 @@ msgstr ""
 msgid "STORAGE POOL"
 msgstr ""
 
-#: lxc/remote.go:244
+#: lxc/remote.go:250
 msgid "Server certificate NACKed by user"
 msgstr "ユーザによりサーバ証明書が拒否されました"
 
-#: lxc/remote.go:321
+#: lxc/remote.go:338
 msgid "Server doesn't trust us after adding our cert"
 msgstr "サーバが我々の証明書を追加した後我々を信頼していません"
 
-#: lxc/remote.go:69
+#: lxc/remote.go:70
 msgid "Server protocol (lxd or simplestreams)"
 msgstr "サーバのプロトコル (lxd or simplestreams)"
 
@@ -985,7 +997,7 @@ msgstr "コンテナログの最後の 100 行を表示しますか?"
 msgid "Show the expanded configuration"
 msgstr "拡張した設定を表示する"
 
-#: lxc/image.go:570
+#: lxc/image.go:569
 #, c-format
 msgid "Size: %.2fMB"
 msgstr "サイズ: %.2fMB"
@@ -999,11 +1011,11 @@ msgstr "スナップショット:"
 msgid "Some containers failed to %s"
 msgstr "一部のコンテナで %s が失敗しました"
 
-#: lxc/image.go:603
+#: lxc/image.go:602
 msgid "Source:"
 msgstr "取得元:"
 
-#: lxc/main.go:244
+#: lxc/main.go:245
 msgid "Start containers."
 msgstr "コンテナを起動します。"
 
@@ -1017,7 +1029,7 @@ msgstr "%s を起動中"
 msgid "Status: %s"
 msgstr "状態: %s"
 
-#: lxc/main.go:250
+#: lxc/main.go:251
 msgid "Stop containers."
 msgstr "コンテナを停止します。"
 
@@ -1139,7 +1151,7 @@ msgstr ""
 msgid "Time to wait for the container before killing it"
 msgstr "コンテナを強制停止するまでの時間"
 
-#: lxc/image.go:573
+#: lxc/image.go:572
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
@@ -1168,7 +1180,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transferring container: %s"
 msgstr "コンテナを転送中: %s"
 
-#: lxc/image.go:681
+#: lxc/image.go:680
 #, c-format
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
@@ -1190,7 +1202,7 @@ msgstr "タイプ: persistent"
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/remote.go:415
+#: lxc/remote.go:432
 msgid "URL"
 msgstr ""
 
@@ -1202,7 +1214,7 @@ msgstr ""
 msgid "Unable to find help2man."
 msgstr "help2man が見つかりません。"
 
-#: lxc/remote.go:119
+#: lxc/remote.go:120
 msgid "Unable to read remote TLS certificate"
 msgstr "リモートの TLS 証明書を読めません"
 
@@ -1211,7 +1223,7 @@ msgstr "リモートの TLS 証明書を読めません"
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
 
-#: lxc/image.go:578
+#: lxc/image.go:577
 #, c-format
 msgid "Uploaded: %s"
 msgstr "アップロード日時: %s"
@@ -2339,7 +2351,19 @@ msgstr ""
 "\n"
 "イメージとしてコンテナを publish します。"
 
-#: lxc/remote.go:39
+#: lxc/query.go:25
+msgid ""
+"Usage: lxc query [-X <action>] [-d <data>] [--wait] [--raw] [<remote>:]<API "
+"path>\n"
+"\n"
+"Send a raw query to LXD.\n"
+"\n"
+"*Examples*\n"
+"lxc query -X DELETE --wait /1.0/containers/c1\n"
+"    Delete local container \"c1\"."
+msgstr ""
+
+#: lxc/remote.go:40
 msgid ""
 "Usage: lxc remote <subcommand> [options]\n"
 "\n"
@@ -2649,6 +2673,10 @@ msgstr ""
 "ユーザからのシグナルを 3 度受信したので exit しました。リモート操作は実行し続"
 "けます。"
 
+#: lxc/query.go:36
+msgid "Wait for the operation to complete"
+msgstr ""
+
 #: lxc/restore.go:38
 msgid ""
 "Whether or not to restore the container's running state from snapshot (if "
@@ -2660,7 +2688,7 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
-#: lxc/network.go:492 lxc/remote.go:390 lxc/remote.go:395
+#: lxc/network.go:492 lxc/remote.go:407 lxc/remote.go:412
 msgid "YES"
 msgstr ""
 
@@ -2681,7 +2709,7 @@ msgstr "コピー元のコンテナ名を指定してください"
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr "`lxc config profile` は廃止されました。`lxc profile` を使ってください"
 
-#: lxc/remote.go:378
+#: lxc/remote.go:395
 msgid "can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
@@ -2689,7 +2717,7 @@ msgstr "デフォルトのリモートは削除できません"
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
-#: lxc/remote.go:404
+#: lxc/remote.go:421
 msgid "default"
 msgstr ""
 
@@ -2699,11 +2727,11 @@ msgstr ""
 "サーバから変更されたイメージ、コンテナ、スナップショットを取得できませんで\n"
 "した"
 
-#: lxc/image.go:564
+#: lxc/image.go:563
 msgid "disabled"
 msgstr "無効"
 
-#: lxc/image.go:566
+#: lxc/image.go:565
 msgid "enabled"
 msgstr "有効"
 
@@ -2717,15 +2745,15 @@ msgstr "エラー: %v"
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s"
 
-#: lxc/image.go:206 lxc/image.go:559
+#: lxc/image.go:206 lxc/image.go:558
 msgid "no"
 msgstr ""
 
-#: lxc/remote.go:237
+#: lxc/remote.go:243
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:355 lxc/main.go:359
+#: lxc/main.go:356 lxc/main.go:360
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
@@ -2734,22 +2762,22 @@ msgstr "エイリアスの処理が失敗しました %s\n"
 msgid "recursive edit doesn't make sense :("
 msgstr "再帰的な edit は意味がありません :("
 
-#: lxc/remote.go:440
+#: lxc/remote.go:457
 #, c-format
 msgid "remote %s already exists"
 msgstr "リモート %s は既に存在します"
 
-#: lxc/remote.go:370 lxc/remote.go:432 lxc/remote.go:467 lxc/remote.go:483
+#: lxc/remote.go:387 lxc/remote.go:449 lxc/remote.go:484 lxc/remote.go:500
 #, c-format
 msgid "remote %s doesn't exist"
 msgstr "リモート %s は存在しません"
 
-#: lxc/remote.go:353
+#: lxc/remote.go:370
 #, c-format
 msgid "remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
 
-#: lxc/remote.go:374 lxc/remote.go:436 lxc/remote.go:471
+#: lxc/remote.go:391 lxc/remote.go:453 lxc/remote.go:488
 #, c-format
 msgid "remote %s is static and cannot be modified"
 msgstr "リモート %s は static ですので変更できません"
@@ -2767,11 +2795,11 @@ msgstr ""
 msgid "taken at %s"
 msgstr "%s に取得しました"
 
-#: lxc/main.go:286
+#: lxc/main.go:287
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
-#: lxc/delete.go:45 lxc/image.go:204 lxc/image.go:561
+#: lxc/delete.go:45 lxc/image.go:204 lxc/image.go:560
 msgid "yes"
 msgstr ""
 
