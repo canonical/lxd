@@ -73,6 +73,7 @@ func cmdDaemon() error {
 		if sig == syscall.SIGPWR {
 			logger.Infof("Received '%s signal', shutting down containers.", sig)
 			containersShutdown(d)
+			networkShutdown(d)
 		} else {
 			logger.Infof("Received '%s signal', exiting.", sig)
 		}
@@ -80,6 +81,7 @@ func cmdDaemon() error {
 	case <-d.shutdownChan:
 		logger.Infof("Asked to shutdown by API, shutting down containers.")
 		containersShutdown(d)
+		networkShutdown(d)
 	}
 
 	return d.Stop()
