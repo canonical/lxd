@@ -709,41 +709,6 @@ func zfsPoolVolumeSnapshotRemovable(pool string, path string, name string) (bool
 	return false, nil
 }
 
-func (s *storageZfs) zfsPoolGetUsers() ([]string, error) {
-	poolName := s.getOnDiskPoolName()
-	subvols, err := zfsPoolListSubvolumes(poolName, poolName)
-	if err != nil {
-		return []string{}, err
-	}
-
-	exceptions := []string{
-		"containers",
-		"images",
-		"snapshots",
-		"deleted",
-		"deleted/containers",
-		"deleted/images"}
-
-	users := []string{}
-	for _, subvol := range subvols {
-		path := strings.Split(subvol, "/")
-
-		// Only care about plausible LXD paths
-		if !shared.StringInSlice(path[0], exceptions) {
-			continue
-		}
-
-		// Ignore empty paths
-		if shared.StringInSlice(subvol, exceptions) {
-			continue
-		}
-
-		users = append(users, subvol)
-	}
-
-	return users, nil
-}
-
 func zfsFilesystemEntityExists(zfsEntity string) bool {
 	output, err := shared.RunCommand(
 		"zfs",
