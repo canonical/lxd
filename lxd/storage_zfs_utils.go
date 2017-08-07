@@ -270,28 +270,27 @@ func (s *storageZfs) zfsPoolCreate() error {
 	return nil
 }
 
-func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string, mountpoint string) error {
-	poolName := s.getOnDiskPoolName()
+func zfsPoolVolumeClone(pool string, source string, name string, dest string, mountpoint string) error {
 	output, err := shared.RunCommand(
 		"zfs",
 		"clone",
 		"-p",
 		"-o", fmt.Sprintf("mountpoint=%s", mountpoint),
 		"-o", "canmount=noauto",
-		fmt.Sprintf("%s/%s@%s", poolName, source, name),
-		fmt.Sprintf("%s/%s", poolName, dest))
+		fmt.Sprintf("%s/%s@%s", pool, source, name),
+		fmt.Sprintf("%s/%s", pool, dest))
 	if err != nil {
 		logger.Errorf("zfs clone failed: %s.", output)
 		return fmt.Errorf("Failed to clone the filesystem: %s", output)
 	}
 
-	subvols, err := zfsPoolListSubvolumes(poolName, fmt.Sprintf("%s/%s", poolName, source))
+	subvols, err := zfsPoolListSubvolumes(pool, fmt.Sprintf("%s/%s", pool, source))
 	if err != nil {
 		return err
 	}
 
 	for _, sub := range subvols {
-		snaps, err := zfsPoolListSnapshots(poolName, sub)
+		snaps, err := zfsPoolListSnapshots(pool, sub)
 		if err != nil {
 			return err
 		}
@@ -301,7 +300,7 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 		}
 
 		destSubvol := dest + strings.TrimPrefix(sub, source)
-		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, destSubvol)
+		snapshotMntPoint := getSnapshotMountPoint(pool, destSubvol)
 
 		output, err := shared.RunCommand(
 			"zfs",
@@ -309,8 +308,8 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 			"-p",
 			"-o", fmt.Sprintf("mountpoint=%s", snapshotMntPoint),
 			"-o", "canmount=noauto",
-			fmt.Sprintf("%s/%s@%s", poolName, sub, name),
-			fmt.Sprintf("%s/%s", poolName, destSubvol))
+			fmt.Sprintf("%s/%s@%s", pool, sub, name),
+			fmt.Sprintf("%s/%s", pool, destSubvol))
 		if err != nil {
 			logger.Errorf("zfs clone failed: %s.", output)
 			return fmt.Errorf("Failed to clone the sub-volume: %s", output)
