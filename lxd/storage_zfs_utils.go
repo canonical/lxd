@@ -522,13 +522,12 @@ func (s *storageZfs) zfsPoolVolumeSet(path string, key string, value string) err
 	return nil
 }
 
-func (s *storageZfs) zfsPoolVolumeSnapshotCreate(path string, name string) error {
-	poolName := s.getOnDiskPoolName()
+func zfsPoolVolumeSnapshotCreate(pool string, path string, name string) error {
 	output, err := shared.RunCommand(
 		"zfs",
 		"snapshot",
 		"-r",
-		fmt.Sprintf("%s/%s@%s", poolName, path, name))
+		fmt.Sprintf("%s/%s@%s", pool, path, name))
 	if err != nil {
 		logger.Errorf("zfs snapshot failed: %s.", output)
 		return fmt.Errorf("Failed to create ZFS snapshot: %s", output)
