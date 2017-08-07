@@ -48,13 +48,6 @@ func zfsPoolVolumeCreate(dataset string, properties ...string) (string, error) {
 	return shared.RunCommand(cmd[0], cmd[1:]...)
 }
 
-func zfsPoolVolumeSet(dataset string, key string, value string) (string, error) {
-	return shared.RunCommand("zfs",
-		"set",
-		fmt.Sprintf("%s=%s", key, value),
-		dataset)
-}
-
 func zfsPoolCheck(pool string) error {
 	output, err := shared.RunCommand(
 		"zfs", "get", "type", "-H", "-o", "value", pool)
@@ -158,9 +151,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 						return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
 					}
 				} else {
-					msg, err := zfsPoolVolumeSet(vdev, "mountpoint", "none")
-					if err != nil {
-						logger.Errorf("zfs set failed to unset dataset mountpoint %s", msg)
+					if err := zfsPoolVolumeSet(vdev, "", "mountpoint", "none"); err != nil {
 						return err
 					}
 				}
@@ -179,9 +170,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 					return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
 				}
 
-				msg, err := zfsPoolVolumeSet(vdev, "mountpoint", "none")
-				if err != nil {
-					logger.Errorf("zfs set failed to unset dataset mountpoint %s", msg)
+				if err := zfsPoolVolumeSet(vdev, "", "mountpoint", "none"); err != nil {
 					return err
 				}
 			}
@@ -506,13 +495,16 @@ func (s *storageZfs) zfsPoolVolumeRename(source string, dest string) error {
 	return fmt.Errorf("Failed to rename ZFS filesystem: %s", output)
 }
 
-func (s *storageZfs) zfsPoolVolumeSet(path string, key string, value string) error {
-	poolName := s.getOnDiskPoolName()
+func zfsPoolVolumeSet(pool string, path string, key string, value string) error {
+	vdev := pool
+	if path != "" {
+		vdev = fmt.Sprintf("%s/%s", pool, path)
+	}
 	output, err := shared.RunCommand(
 		"zfs",
 		"set",
 		fmt.Sprintf("%s=%s", key, value),
-		fmt.Sprintf("%s/%s", poolName, path))
+		vdev)
 	if err != nil {
 		logger.Errorf("zfs set failed: %s.", output)
 		return fmt.Errorf("Failed to set ZFS config: %s", output)
