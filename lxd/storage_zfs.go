@@ -36,24 +36,6 @@ func (s *storageZfs) getOnDiskPoolName() string {
 	return s.pool.Name
 }
 
-func zfsIsEnabled() bool {
-	out, err := exec.LookPath("zfs")
-	if err != nil || len(out) == 0 {
-		return false
-	}
-
-	return true
-}
-
-func zfsModuleVersionGet() (string, error) {
-	zfsVersion, err := ioutil.ReadFile("/sys/module/zfs/version")
-	if err != nil {
-		return "", fmt.Errorf("could not determine ZFS module version")
-	}
-
-	return strings.TrimSpace(string(zfsVersion)), nil
-}
-
 // Only initialize the minimal information we need about a given storage type.
 func (s *storageZfs) StorageCoreInit() error {
 	s.sType = storageTypeZfs
