@@ -552,24 +552,23 @@ func (s *storageZfs) zfsPoolVolumeSnapshotDestroy(path string, name string) erro
 	return nil
 }
 
-func (s *storageZfs) zfsPoolVolumeSnapshotRestore(path string, name string) error {
-	poolName := s.getOnDiskPoolName()
+func zfsPoolVolumeSnapshotRestore(pool string, path string, name string) error {
 	output, err := shared.TryRunCommand(
 		"zfs",
 		"rollback",
-		fmt.Sprintf("%s/%s@%s", poolName, path, name))
+		fmt.Sprintf("%s/%s@%s", pool, path, name))
 	if err != nil {
 		logger.Errorf("zfs rollback failed: %s.", output)
 		return fmt.Errorf("Failed to restore ZFS snapshot: %s", output)
 	}
 
-	subvols, err := zfsPoolListSubvolumes(poolName, fmt.Sprintf("%s/%s", poolName, path))
+	subvols, err := zfsPoolListSubvolumes(pool, fmt.Sprintf("%s/%s", pool, path))
 	if err != nil {
 		return err
 	}
 
 	for _, sub := range subvols {
-		snaps, err := zfsPoolListSnapshots(poolName, sub)
+		snaps, err := zfsPoolListSnapshots(pool, sub)
 		if err != nil {
 			return err
 		}
@@ -581,7 +580,7 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRestore(path string, name string) erro
 		output, err := shared.TryRunCommand(
 			"zfs",
 			"rollback",
-			fmt.Sprintf("%s/%s@%s", poolName, sub, name))
+			fmt.Sprintf("%s/%s@%s", pool, sub, name))
 		if err != nil {
 			logger.Errorf("zfs rollback failed: %s.", output)
 			return fmt.Errorf("Failed to restore ZFS sub-volume snapshot: %s", output)
