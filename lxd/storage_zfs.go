@@ -85,7 +85,7 @@ func (s *storageZfs) StoragePoolCheck() error {
 
 	poolName := s.getOnDiskPoolName()
 	if filepath.IsAbs(source) {
-		if zfsFilesystemEntityExists(poolName) {
+		if zfsFilesystemEntityExists(poolName, "") {
 			return nil
 		}
 		logger.Debugf("ZFS storage pool \"%s\" does not exist. Trying to import it.", poolName)
@@ -535,9 +535,8 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 
 // Things we do have to care about
 func (s *storageZfs) ContainerStorageReady(name string) bool {
-	poolName := s.getOnDiskPoolName()
-	fs := fmt.Sprintf("%s/containers/%s", poolName, name)
-	return s.zfsFilesystemEntityExists(fs, false)
+	fs := fmt.Sprintf("containers/%s", name)
+	return zfsFilesystemEntityExists(s.getOnDiskPoolName(), fs)
 }
 
 func (s *storageZfs) ContainerCreate(container container) error {
@@ -618,7 +617,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 		lxdStorageMapLock.Unlock()
 
 		var imgerr error
-		if !s.zfsFilesystemEntityExists(fsImage, true) {
+		if !zfsFilesystemEntityExists(poolName, fsImage) {
 			imgerr = s.ImageCreate(fingerprint)
 		}
 
@@ -710,7 +709,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 	fs := fmt.Sprintf("containers/%s", containerName)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 
-	if s.zfsFilesystemEntityExists(fs, true) {
+	if zfsFilesystemEntityExists(poolName, fs) {
 		removable := true
 		snaps, err := zfsPoolListSnapshots(poolName, fs)
 		if err != nil {
@@ -812,7 +811,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 
 	revert := true
 	if sourceZfsDatasetSnapshot == "" {
-		if s.zfsFilesystemEntityExists(fmt.Sprintf("containers/%s", sourceName), true) {
+		if zfsFilesystemEntityExists(poolName, fmt.Sprintf("containers/%s", sourceName)) {
 			sourceZfsDatasetSnapshot = fmt.Sprintf("copy-%s", uuid.NewRandom().String())
 			sourceZfsDataset = fmt.Sprintf("containers/%s", sourceName)
 			err := zfsPoolVolumeSnapshotCreate(poolName, sourceZfsDataset, sourceZfsDatasetSnapshot)
@@ -827,7 +826,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 			}()
 		}
 	} else {
-		if s.zfsFilesystemEntityExists(fmt.Sprintf("containers/%s@snapshot-%s", sourceName, sourceZfsDatasetSnapshot), true) {
+		if zfsFilesystemEntityExists(poolName, fmt.Sprintf("containers/%s@snapshot-%s", sourceName, sourceZfsDatasetSnapshot)) {
 			sourceZfsDataset = fmt.Sprintf("containers/%s", sourceName)
 			sourceZfsDatasetSnapshot = fmt.Sprintf("snapshot-%s", sourceZfsDatasetSnapshot)
 		}
@@ -1380,7 +1379,7 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 	sourceContainerName, sourceContainerSnapOnlyName, _ := containerGetParentAndSnapshotName(snapshotContainer.Name())
 	snapName := fmt.Sprintf("snapshot-%s", sourceContainerSnapOnlyName)
 
-	if s.zfsFilesystemEntityExists(fmt.Sprintf("containers/%s@%s", sourceContainerName, snapName), true) {
+	if zfsFilesystemEntityExists(poolName, fmt.Sprintf("containers/%s@%s", sourceContainerName, snapName)) {
 		removable, err := zfsPoolVolumeSnapshotRemovable(s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", sourceContainerName), snapName)
 		if removable {
 			err = zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", sourceContainerName), snapName)
@@ -1588,7 +1587,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		s.deleteImageDbPoolVolume(fingerprint)
 	}()
 
-	if s.zfsFilesystemEntityExists(fmt.Sprintf("deleted/%s", fs), true) {
+	if zfsFilesystemEntityExists(poolName, fmt.Sprintf("deleted/%s", fs)) {
 		err := s.zfsPoolVolumeRename(fmt.Sprintf("deleted/%s", fs), fs)
 		if err != nil {
 			return err
@@ -1703,7 +1702,7 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 	poolName := s.getOnDiskPoolName()
 	fs := fmt.Sprintf("images/%s", fingerprint)
 
-	if s.zfsFilesystemEntityExists(fs, true) {
+	if zfsFilesystemEntityExists(poolName, fs) {
 		removable, err := zfsPoolVolumeSnapshotRemovable(poolName, fs, "readonly")
 		if err != nil {
 			return err

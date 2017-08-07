@@ -137,8 +137,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 			s.dataset = vdev
 
 			if strings.Contains(vdev, "/") {
-				ok := s.zfsFilesystemEntityExists(vdev, false)
-				if !ok {
+				if !zfsFilesystemEntityExists(vdev, "") {
 					output, err := shared.RunCommand(
 						"zfs",
 						"create",
@@ -424,23 +423,6 @@ func zfsPoolVolumeCleanup(pool string, path string) error {
 	return nil
 }
 
-func (s *storageZfs) zfsFilesystemEntityExists(path string, prefixPathWithPool bool) bool {
-	poolName := s.getOnDiskPoolName()
-	output, _ := zfsFilesystemEntityPropertyGet(poolName, path, "name", prefixPathWithPool)
-
-	// If prefixPathWithPool is false we assume that the path passed in
-	// already is a valid zfs entity we want to check for.
-	fsToCheck := path
-	if prefixPathWithPool {
-		fsToCheck = fmt.Sprintf("%s/%s", poolName, path)
-	}
-	if output == fsToCheck {
-		return true
-	}
-
-	return false
-}
-
 func zfsFilesystemEntityPropertyGet(pool string, path string, key string, prefixPathWithPool bool) (string, error) {
 	// If prefixPathWithPool is false we assume that the path passed in
 	// already is a valid zfs entity we want to check for.
@@ -483,7 +465,7 @@ func (s *storageZfs) zfsPoolVolumeRename(source string, dest string) error {
 		}
 
 		// zfs rename can fail because of descendants, yet still manage the rename
-		if !s.zfsFilesystemEntityExists(source, true) && s.zfsFilesystemEntityExists(dest, true) {
+		if !zfsFilesystemEntityExists(poolName, source) && zfsFilesystemEntityExists(poolName, dest) {
 			return nil
 		}
 
@@ -709,7 +691,11 @@ func zfsPoolVolumeSnapshotRemovable(pool string, path string, name string) (bool
 	return false, nil
 }
 
-func zfsFilesystemEntityExists(zfsEntity string) bool {
+func zfsFilesystemEntityExists(pool string, path string) bool {
+	vdev := pool
+	if path != "" {
+		vdev = fmt.Sprintf("%s/%s", pool, path)
+	}
 	output, err := shared.RunCommand(
 		"zfs",
 		"get",
@@ -717,15 +703,11 @@ func zfsFilesystemEntityExists(zfsEntity string) bool {
 		"-H",
 		"-o",
 		"name",
-		zfsEntity)
+		vdev)
 	if err != nil {
 		return false
 	}
 
 	detectedName := strings.TrimSpace(output)
-	if detectedName != zfsEntity {
-		return false
-	}
-
-	return true
+	return detectedName == vdev
 }
