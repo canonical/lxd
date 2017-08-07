@@ -343,7 +343,8 @@ func zfsFilesystemEntityDelete(vdev string, pool string) error {
 }
 
 func (s *storageZfs) zfsPoolVolumeDestroy(path string) error {
-	mountpoint, err := s.zfsFilesystemEntityPropertyGet(path, "mountpoint", true)
+	poolName := s.getOnDiskPoolName()
+	mountpoint, err := zfsFilesystemEntityPropertyGet(poolName, path, "mountpoint", true)
 	if err != nil {
 		return err
 	}
@@ -356,7 +357,6 @@ func (s *storageZfs) zfsPoolVolumeDestroy(path string) error {
 		}
 	}
 
-	poolName := s.getOnDiskPoolName()
 	// Due to open fds or kernel refs, this may fail for a bit, give it 10s
 	output, err := shared.TryRunCommand(
 		"zfs",
@@ -373,6 +373,8 @@ func (s *storageZfs) zfsPoolVolumeDestroy(path string) error {
 }
 
 func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
+	poolName := s.getOnDiskPoolName()
+
 	if strings.HasPrefix(path, "deleted/") {
 		// Cleanup of filesystems kept for refcount reason
 		removablePath, err := s.zfsPoolVolumeSnapshotRemovable(path, "")
@@ -391,7 +393,7 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 
 				// Check if the parent can now be deleted
 				subPath := strings.SplitN(path, "@", 2)[0]
-				snaps, err := zfsPoolListSnapshots(s.getOnDiskPoolName(), subPath)
+				snaps, err := zfsPoolListSnapshots(poolName, subPath)
 				if err != nil {
 					return err
 				}
@@ -404,7 +406,7 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 				}
 			} else {
 				// Cleanup filesystems
-				origin, err := s.zfsFilesystemEntityPropertyGet(path, "origin", true)
+				origin, err := zfsFilesystemEntityPropertyGet(poolName, path, "origin", true)
 				if err != nil {
 					return err
 				}
@@ -439,13 +441,14 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 }
 
 func (s *storageZfs) zfsFilesystemEntityExists(path string, prefixPathWithPool bool) bool {
-	output, _ := s.zfsFilesystemEntityPropertyGet(path, "name", prefixPathWithPool)
+	poolName := s.getOnDiskPoolName()
+	output, _ := zfsFilesystemEntityPropertyGet(poolName, path, "name", prefixPathWithPool)
 
 	// If prefixPathWithPool is false we assume that the path passed in
 	// already is a valid zfs entity we want to check for.
 	fsToCheck := path
 	if prefixPathWithPool {
-		fsToCheck = fmt.Sprintf("%s/%s", s.getOnDiskPoolName(), path)
+		fsToCheck = fmt.Sprintf("%s/%s", poolName, path)
 	}
 	if output == fsToCheck {
 		return true
@@ -454,12 +457,12 @@ func (s *storageZfs) zfsFilesystemEntityExists(path string, prefixPathWithPool b
 	return false
 }
 
-func (s *storageZfs) zfsFilesystemEntityPropertyGet(path string, key string, prefixPathWithPool bool) (string, error) {
+func zfsFilesystemEntityPropertyGet(pool string, path string, key string, prefixPathWithPool bool) (string, error) {
 	// If prefixPathWithPool is false we assume that the path passed in
 	// already is a valid zfs entity we want to check for.
 	fsToCheck := path
 	if prefixPathWithPool {
-		fsToCheck = fmt.Sprintf("%s/%s", s.getOnDiskPoolName(), path)
+		fsToCheck = fmt.Sprintf("%s/%s", pool, path)
 	}
 
 	output, err := shared.RunCommand(
@@ -592,14 +595,13 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRestore(path string, name string) erro
 	return nil
 }
 
-func (s *storageZfs) zfsPoolVolumeSnapshotRename(path string, oldName string, newName string) error {
-	poolName := s.getOnDiskPoolName()
+func zfsPoolVolumeSnapshotRename(pool string, path string, oldName string, newName string) error {
 	output, err := shared.RunCommand(
 		"zfs",
 		"rename",
 		"-r",
-		fmt.Sprintf("%s/%s@%s", poolName, path, oldName),
-		fmt.Sprintf("%s/%s@%s", poolName, path, newName))
+		fmt.Sprintf("%s/%s@%s", pool, path, oldName),
+		fmt.Sprintf("%s/%s@%s", pool, path, newName))
 	if err != nil {
 		logger.Errorf("zfs snapshot rename failed: %s.", output)
 		return fmt.Errorf("Failed to rename ZFS snapshot: %s", output)
@@ -711,7 +713,7 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRemovable(path string, name string) (b
 		snap = fmt.Sprintf("%s@%s", path, name)
 	}
 
-	clones, err := s.zfsFilesystemEntityPropertyGet(snap, "clones", true)
+	clones, err := zfsFilesystemEntityPropertyGet(s.getOnDiskPoolName(), snap, "clones", true)
 	if err != nil {
 		return false, err
 	}
