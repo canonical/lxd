@@ -704,13 +704,14 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 func (s *storageZfs) ContainerDelete(container container) error {
 	logger.Debugf("Deleting ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	poolName := s.getOnDiskPoolName()
 	containerName := container.Name()
 	fs := fmt.Sprintf("containers/%s", containerName)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 
 	if s.zfsFilesystemEntityExists(fs, true) {
 		removable := true
-		snaps, err := zfsPoolListSnapshots(s.getOnDiskPoolName(), fs)
+		snaps, err := zfsPoolListSnapshots(poolName, fs)
 		if err != nil {
 			return err
 		}
@@ -728,7 +729,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 		}
 
 		if removable {
-			origin, err := s.zfsFilesystemEntityPropertyGet(fs, "origin", true)
+			origin, err := zfsFilesystemEntityPropertyGet(poolName, fs, "origin", true)
 			if err != nil {
 				return err
 			}
@@ -1309,7 +1310,7 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 		property = "usedbydataset"
 	}
 
-	value, err := s.zfsFilesystemEntityPropertyGet(fs, property, true)
+	value, err := zfsFilesystemEntityPropertyGet(s.getOnDiskPoolName(), fs, property, true)
 	if err != nil {
 		return -1, err
 	}
@@ -1381,7 +1382,9 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 				return err
 			}
 		} else {
-			err = s.zfsPoolVolumeSnapshotRename(fmt.Sprintf("containers/%s", sourceContainerName), snapName, fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
+			err = zfsPoolVolumeSnapshotRename(
+				s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", sourceContainerName), snapName,
+				fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
 			if err != nil {
 				return err
 			}
@@ -1455,7 +1458,8 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 	newZfsDatasetName := fmt.Sprintf("snapshot-%s", newSnapOnlyName)
 
 	if oldZfsDatasetName != newZfsDatasetName {
-		err := s.zfsPoolVolumeSnapshotRename(fmt.Sprintf("containers/%s", oldcName), oldZfsDatasetName, newZfsDatasetName)
+		err := zfsPoolVolumeSnapshotRename(
+			s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", oldcName), oldZfsDatasetName, newZfsDatasetName)
 		if err != nil {
 			return err
 		}
