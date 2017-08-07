@@ -814,7 +814,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 		if s.zfsFilesystemEntityExists(fmt.Sprintf("containers/%s", sourceName), true) {
 			sourceZfsDatasetSnapshot = fmt.Sprintf("copy-%s", uuid.NewRandom().String())
 			sourceZfsDataset = fmt.Sprintf("containers/%s", sourceName)
-			err := s.zfsPoolVolumeSnapshotCreate(sourceZfsDataset, sourceZfsDatasetSnapshot)
+			err := zfsPoolVolumeSnapshotCreate(poolName, sourceZfsDataset, sourceZfsDatasetSnapshot)
 			if err != nil {
 				return err
 			}
@@ -916,7 +916,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 		targetSnapshotDataset = fmt.Sprintf("%s/containers/%s@%s", poolName, targetName, snapshotSuffix)
 
 		fs := fmt.Sprintf("containers/%s", sourceName)
-		err := s.zfsPoolVolumeSnapshotCreate(fs, snapshotSuffix)
+		err := zfsPoolVolumeSnapshotCreate(poolName, fs, snapshotSuffix)
 		if err != nil {
 			return err
 		}
@@ -1102,14 +1102,15 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 			}
 		}
 
+		poolName := s.getOnDiskPoolName()
+
 		// send actual container
 		tmpSnapshotName := fmt.Sprintf("copy-send-%s", uuid.NewRandom().String())
-		err = s.zfsPoolVolumeSnapshotCreate(fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
+		err = zfsPoolVolumeSnapshotCreate(poolName, fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
 		if err != nil {
 			return err
 		}
 
-		poolName := s.getOnDiskPoolName()
 		currentSnapshotDataset := fmt.Sprintf("%s/containers/%s@%s", poolName, source.Name(), tmpSnapshotName)
 		args := []string{"send", currentSnapshotDataset}
 		if prevSnapOnlyName != "" {
@@ -1335,7 +1336,7 @@ func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, source
 	snapName := fmt.Sprintf("snapshot-%s", snapshotSnapOnlyName)
 
 	sourceZfsDataset := fmt.Sprintf("containers/%s", cName)
-	err := s.zfsPoolVolumeSnapshotCreate(sourceZfsDataset, snapName)
+	err := zfsPoolVolumeSnapshotCreate(s.getOnDiskPoolName(), sourceZfsDataset, snapName)
 	if err != nil {
 		return err
 	}
@@ -1685,7 +1686,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 
 	// Create a snapshot of that image on the storage pool which we clone for
 	// container creation.
-	err = s.zfsPoolVolumeSnapshotCreate(fs, "readonly")
+	err = zfsPoolVolumeSnapshotCreate(poolName, fs, "readonly")
 	if err != nil {
 		return err
 	}
@@ -1841,7 +1842,7 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 	}
 
 	s.runningSnapName = fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
-	if err := s.zfs.zfsPoolVolumeSnapshotCreate(fmt.Sprintf("containers/%s", s.container.Name()), s.runningSnapName); err != nil {
+	if err := zfsPoolVolumeSnapshotCreate(s.zfs.getOnDiskPoolName(), fmt.Sprintf("containers/%s", s.container.Name()), s.runningSnapName); err != nil {
 		return err
 	}
 
@@ -1855,7 +1856,7 @@ func (s *zfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *op
 
 func (s *zfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
 	s.stoppedSnapName = fmt.Sprintf("migration-send-%s", uuid.NewRandom().String())
-	if err := s.zfs.zfsPoolVolumeSnapshotCreate(fmt.Sprintf("containers/%s", s.container.Name()), s.stoppedSnapName); err != nil {
+	if err := zfsPoolVolumeSnapshotCreate(s.zfs.getOnDiskPoolName(), fmt.Sprintf("containers/%s", s.container.Name()), s.stoppedSnapName); err != nil {
 		return err
 	}
 
