@@ -314,7 +314,7 @@ func (s *storageZfs) StoragePoolVolumeUmount() (bool, error) {
 	var customerr error
 	ourUmount := false
 	if shared.IsMountPoint(customPoolVolumeMntPoint) {
-		customerr = s.zfsPoolVolumeUmount(fs, customPoolVolumeMntPoint)
+		customerr = zfsUmount(s.getOnDiskPoolName(), fs, customPoolVolumeMntPoint)
 		ourUmount = true
 	}
 
@@ -514,7 +514,7 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 	var imgerr error
 	ourUmount := false
 	if shared.IsMountPoint(containerPoolVolumeMntPoint) {
-		imgerr = s.zfsPoolVolumeUmount(fs, containerPoolVolumeMntPoint)
+		imgerr = zfsUmount(s.getOnDiskPoolName(), fs, containerPoolVolumeMntPoint)
 		ourUmount = true
 	}
 
@@ -1672,7 +1672,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 
 	// Make sure that the image actually got unmounted.
 	if shared.IsMountPoint(tmpImageDir) {
-		s.zfsPoolVolumeUmount(fs, tmpImageDir)
+		zfsUmount(poolName, fs, tmpImageDir)
 	}
 
 	// Create a snapshot of that image on the storage pool which we clone for
@@ -1975,7 +1975,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
 	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
 	if shared.IsMountPoint(containerMntPoint) {
-		err := s.zfsPoolVolumeUmount(zfsName, containerMntPoint)
+		err := zfsUmount(poolName, zfsName, containerMntPoint)
 		if err != nil {
 			return err
 		}
