@@ -620,10 +620,6 @@ func zfsMount(poolName string, path string) error {
 	return nil
 }
 
-func (s *storageZfs) zfsPoolVolumeMount(path string) error {
-	return zfsMount(s.getOnDiskPoolName(), path)
-}
-
 func zfsUmount(poolName string, path string, mountpoint string) error {
 	output, err := shared.TryRunCommand(
 		"zfs",

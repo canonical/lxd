@@ -192,7 +192,7 @@ func (s *storageZfs) StoragePoolVolumeCreate() error {
 	}
 
 	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
-		s.zfsPoolVolumeMount(fs)
+		zfsMount(poolName, fs)
 	}
 
 	// apply quota
@@ -271,7 +271,7 @@ func (s *storageZfs) StoragePoolVolumeMount() (bool, error) {
 	var customerr error
 	ourMount := false
 	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
-		customerr = s.zfsPoolVolumeMount(fs)
+		customerr = zfsMount(s.getOnDiskPoolName(), fs)
 		ourMount = true
 	}
 
@@ -1521,7 +1521,7 @@ func (s *storageZfs) ContainerSnapshotStart(container container) (bool, error) {
 		return false, err
 	}
 
-	err = s.zfsPoolVolumeMount(destFs)
+	err = zfsMount(s.getOnDiskPoolName(), destFs)
 	if err != nil {
 		return false, err
 	}
@@ -1649,7 +1649,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 
 	// Make sure that the image actually got mounted.
 	if !shared.IsMountPoint(tmpImageDir) {
-		s.zfsPoolVolumeMount(fs)
+		zfsMount(poolName, fs)
 	}
 
 	// Unpack the image into the temporary mountpoint.
@@ -2078,7 +2078,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	 * but sometimes it doesn't. Let's try to mount, but not complain about
 	 * failure.
 	 */
-	s.zfsPoolVolumeMount(zfsName)
+	zfsMount(poolName, zfsName)
 	return nil
 }
 
