@@ -376,7 +376,7 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 
 	if strings.HasPrefix(path, "deleted/") {
 		// Cleanup of filesystems kept for refcount reason
-		removablePath, err := s.zfsPoolVolumeSnapshotRemovable(path, "")
+		removablePath, err := zfsPoolVolumeSnapshotRemovable(poolName, path, "")
 		if err != nil {
 			return err
 		}
@@ -703,7 +703,7 @@ func zfsPoolListSnapshots(pool string, path string) ([]string, error) {
 	return children, nil
 }
 
-func (s *storageZfs) zfsPoolVolumeSnapshotRemovable(path string, name string) (bool, error) {
+func zfsPoolVolumeSnapshotRemovable(pool string, path string, name string) (bool, error) {
 	var snap string
 	if name == "" {
 		snap = path
@@ -711,7 +711,7 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRemovable(path string, name string) (b
 		snap = fmt.Sprintf("%s@%s", path, name)
 	}
 
-	clones, err := zfsFilesystemEntityPropertyGet(s.getOnDiskPoolName(), snap, "clones", true)
+	clones, err := zfsFilesystemEntityPropertyGet(pool, snap, "clones", true)
 	if err != nil {
 		return false, err
 	}

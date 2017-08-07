@@ -718,7 +718,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 
 		for _, snap := range snaps {
 			var err error
-			removable, err = s.zfsPoolVolumeSnapshotRemovable(fs, snap)
+			removable, err = zfsPoolVolumeSnapshotRemovable(poolName, fs, snap)
 			if err != nil {
 				return err
 			}
@@ -1377,7 +1377,7 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 	snapName := fmt.Sprintf("snapshot-%s", sourceContainerSnapOnlyName)
 
 	if s.zfsFilesystemEntityExists(fmt.Sprintf("containers/%s@%s", sourceContainerName, snapName), true) {
-		removable, err := s.zfsPoolVolumeSnapshotRemovable(fmt.Sprintf("containers/%s", sourceContainerName), snapName)
+		removable, err := zfsPoolVolumeSnapshotRemovable(s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", sourceContainerName), snapName)
 		if removable {
 			err = s.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", sourceContainerName), snapName)
 			if err != nil {
@@ -1697,16 +1697,17 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 func (s *storageZfs) ImageDelete(fingerprint string) error {
 	logger.Debugf("Deleting ZFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
+	poolName := s.getOnDiskPoolName()
 	fs := fmt.Sprintf("images/%s", fingerprint)
 
 	if s.zfsFilesystemEntityExists(fs, true) {
-		removable, err := s.zfsPoolVolumeSnapshotRemovable(fs, "readonly")
+		removable, err := zfsPoolVolumeSnapshotRemovable(poolName, fs, "readonly")
 		if err != nil {
 			return err
 		}
 
 		if removable {
-			err := zfsPoolVolumeDestroy(s.getOnDiskPoolName(), fs)
+			err := zfsPoolVolumeDestroy(poolName, fs)
 			if err != nil {
 				return err
 			}
