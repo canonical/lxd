@@ -342,9 +342,8 @@ func zfsFilesystemEntityDelete(vdev string, pool string) error {
 	return nil
 }
 
-func (s *storageZfs) zfsPoolVolumeDestroy(path string) error {
-	poolName := s.getOnDiskPoolName()
-	mountpoint, err := zfsFilesystemEntityPropertyGet(poolName, path, "mountpoint", true)
+func zfsPoolVolumeDestroy(pool string, path string) error {
+	mountpoint, err := zfsFilesystemEntityPropertyGet(pool, path, "mountpoint", true)
 	if err != nil {
 		return err
 	}
@@ -362,7 +361,7 @@ func (s *storageZfs) zfsPoolVolumeDestroy(path string) error {
 		"zfs",
 		"destroy",
 		"-r",
-		fmt.Sprintf("%s/%s", poolName, path))
+		fmt.Sprintf("%s/%s", pool, path))
 
 	if err != nil {
 		logger.Errorf("zfs destroy failed: %s.", output)
@@ -386,7 +385,7 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 		if removablePath {
 			if strings.Contains(path, "@") {
 				// Cleanup snapshots
-				err = s.zfsPoolVolumeDestroy(path)
+				err = zfsPoolVolumeDestroy(poolName, path)
 				if err != nil {
 					return err
 				}
@@ -410,10 +409,9 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 				if err != nil {
 					return err
 				}
-				poolName := s.getOnDiskPoolName()
 				origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", poolName))
 
-				err = s.zfsPoolVolumeDestroy(path)
+				err = zfsPoolVolumeDestroy(poolName, path)
 				if err != nil {
 					return err
 				}
@@ -431,7 +429,7 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 		}
 	} else if strings.HasPrefix(path, "containers") && strings.Contains(path, "@copy-") {
 		// Just remove the copy- snapshot for copies of active containers
-		err := s.zfsPoolVolumeDestroy(path)
+		err := zfsPoolVolumeDestroy(poolName, path)
 		if err != nil {
 			return err
 		}
