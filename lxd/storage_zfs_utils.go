@@ -320,23 +320,21 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 	return nil
 }
 
-func (s *storageZfs) zfsFilesystemEntityDelete() error {
+func zfsFilesystemEntityDelete(vdev string, pool string) error {
 	var output string
 	var err error
-	poolName := s.getOnDiskPoolName()
-	if strings.Contains(poolName, "/") {
+	if strings.Contains(pool, "/") {
 		// Command to destroy a zfs dataset.
-		output, err = shared.RunCommand("zfs", "destroy", "-r", poolName)
+		output, err = shared.RunCommand("zfs", "destroy", "-r", pool)
 	} else {
 		// Command to destroy a zfs pool.
-		output, err = shared.RunCommand("zpool", "destroy", "-f", poolName)
+		output, err = shared.RunCommand("zpool", "destroy", "-f", pool)
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to delete the ZFS pool: %s", output)
 	}
 
 	// Cleanup storage
-	vdev := s.pool.Config["source"]
 	if filepath.IsAbs(vdev) && !shared.IsBlockdevPath(vdev) {
 		os.RemoveAll(vdev)
 	}
