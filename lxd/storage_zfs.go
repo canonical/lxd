@@ -741,7 +741,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 				return err
 			}
 
-			err = s.zfsPoolVolumeCleanup(origin)
+			err = zfsPoolVolumeCleanup(poolName, origin)
 			if err != nil {
 				return err
 			}

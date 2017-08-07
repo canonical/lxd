@@ -371,12 +371,10 @@ func zfsPoolVolumeDestroy(pool string, path string) error {
 	return nil
 }
 
-func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
-	poolName := s.getOnDiskPoolName()
-
+func zfsPoolVolumeCleanup(pool string, path string) error {
 	if strings.HasPrefix(path, "deleted/") {
 		// Cleanup of filesystems kept for refcount reason
-		removablePath, err := zfsPoolVolumeSnapshotRemovable(poolName, path, "")
+		removablePath, err := zfsPoolVolumeSnapshotRemovable(pool, path, "")
 		if err != nil {
 			return err
 		}
@@ -385,40 +383,40 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 		if removablePath {
 			if strings.Contains(path, "@") {
 				// Cleanup snapshots
-				err = zfsPoolVolumeDestroy(poolName, path)
+				err = zfsPoolVolumeDestroy(pool, path)
 				if err != nil {
 					return err
 				}
 
 				// Check if the parent can now be deleted
 				subPath := strings.SplitN(path, "@", 2)[0]
-				snaps, err := zfsPoolListSnapshots(poolName, subPath)
+				snaps, err := zfsPoolListSnapshots(pool, subPath)
 				if err != nil {
 					return err
 				}
 
 				if len(snaps) == 0 {
-					err := s.zfsPoolVolumeCleanup(subPath)
+					err := zfsPoolVolumeCleanup(pool, subPath)
 					if err != nil {
 						return err
 					}
 				}
 			} else {
 				// Cleanup filesystems
-				origin, err := zfsFilesystemEntityPropertyGet(poolName, path, "origin", true)
+				origin, err := zfsFilesystemEntityPropertyGet(pool, path, "origin", true)
 				if err != nil {
 					return err
 				}
-				origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", poolName))
+				origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", pool))
 
-				err = zfsPoolVolumeDestroy(poolName, path)
+				err = zfsPoolVolumeDestroy(pool, path)
 				if err != nil {
 					return err
 				}
 
 				// Attempt to remove its parent
 				if origin != "-" {
-					err := s.zfsPoolVolumeCleanup(origin)
+					err := zfsPoolVolumeCleanup(pool, origin)
 					if err != nil {
 						return err
 					}
@@ -429,7 +427,7 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 		}
 	} else if strings.HasPrefix(path, "containers") && strings.Contains(path, "@copy-") {
 		// Just remove the copy- snapshot for copies of active containers
-		err := zfsPoolVolumeDestroy(poolName, path)
+		err := zfsPoolVolumeDestroy(pool, path)
 		if err != nil {
 			return err
 		}
