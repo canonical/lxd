@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,6 +14,26 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+// zfsIsEnabled returns whether zfs backend is supported.
+func zfsIsEnabled() bool {
+	out, err := exec.LookPath("zfs")
+	if err != nil || len(out) == 0 {
+		return false
+	}
+
+	return true
+}
+
+// zfsModuleVersionGet returhs the ZFS module version
+func zfsModuleVersionGet() (string, error) {
+	zfsVersion, err := ioutil.ReadFile("/sys/module/zfs/version")
+	if err != nil {
+		return "", fmt.Errorf("could not determine ZFS module version")
+	}
+
+	return strings.TrimSpace(string(zfsVersion)), nil
+}
 
 // zfsPoolVolumeCreate creates a ZFS dataset with a set of given properties.
 func zfsPoolVolumeCreate(dataset string, properties ...string) (string, error) {
