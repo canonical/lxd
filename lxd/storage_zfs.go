@@ -822,7 +822,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 				if !revert {
 					return
 				}
-				s.zfsPoolVolumeSnapshotDestroy(sourceZfsDataset, sourceZfsDatasetSnapshot)
+				zfsPoolVolumeSnapshotDestroy(poolName, sourceZfsDataset, sourceZfsDatasetSnapshot)
 			}()
 		}
 	} else {
@@ -921,7 +921,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 			return err
 		}
 		defer func() {
-			err := s.zfsPoolVolumeSnapshotDestroy(fs, snapshotSuffix)
+			err := zfsPoolVolumeSnapshotDestroy(poolName, fs, snapshotSuffix)
 			if err != nil {
 				logger.Warnf("Failed to delete temporary ZFS snapshot \"%s\". Manual cleanup needed.", sourceDataset)
 			}
@@ -970,7 +970,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 		return err
 	}
 
-	err = s.zfsPoolVolumeSnapshotDestroy(targetfs, snapshotSuffix)
+	err = zfsPoolVolumeSnapshotDestroy(poolName, targetfs, snapshotSuffix)
 	if err != nil {
 		return err
 	}
@@ -1140,8 +1140,8 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 			return err
 		}
 
-		s.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
-		s.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", target.Name()), tmpSnapshotName)
+		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
+		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", target.Name()), tmpSnapshotName)
 
 		fs := fmt.Sprintf("containers/%s", target.Name())
 
@@ -1373,19 +1373,21 @@ func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, source
 func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error {
 	logger.Debugf("Deleting ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	poolName := s.getOnDiskPoolName()
+
 	sourceContainerName, sourceContainerSnapOnlyName, _ := containerGetParentAndSnapshotName(snapshotContainer.Name())
 	snapName := fmt.Sprintf("snapshot-%s", sourceContainerSnapOnlyName)
 
 	if s.zfsFilesystemEntityExists(fmt.Sprintf("containers/%s@%s", sourceContainerName, snapName), true) {
 		removable, err := zfsPoolVolumeSnapshotRemovable(s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", sourceContainerName), snapName)
 		if removable {
-			err = s.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", sourceContainerName), snapName)
+			err = zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", sourceContainerName), snapName)
 			if err != nil {
 				return err
 			}
 		} else {
 			err = zfsPoolVolumeSnapshotRename(
-				s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", sourceContainerName), snapName,
+				poolName, fmt.Sprintf("containers/%s", sourceContainerName), snapName,
 				fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
 			if err != nil {
 				return err
@@ -1865,12 +1867,12 @@ func (s *zfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwl
 }
 
 func (s *zfsMigrationSourceDriver) Cleanup() {
+	poolName := s.zfs.getOnDiskPoolName()
 	if s.stoppedSnapName != "" {
-		s.zfs.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", s.container.Name()), s.stoppedSnapName)
+		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", s.container.Name()), s.stoppedSnapName)
 	}
-
 	if s.runningSnapName != "" {
-		s.zfs.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", s.container.Name()), s.runningSnapName)
+		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", s.container.Name()), s.runningSnapName)
 	}
 }
 
@@ -2062,7 +2064,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 				continue
 			}
 
-			s.zfsPoolVolumeSnapshotDestroy(fmt.Sprintf("containers/%s", container.Name()), snap)
+			zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", container.Name()), snap)
 		}
 	}()
 
