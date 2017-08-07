@@ -603,6 +603,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	fs := fmt.Sprintf("containers/%s", containerName)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 
+	poolName := s.getOnDiskPoolName()
 	fsImage := fmt.Sprintf("images/%s", fingerprint)
 
 	imageStoragePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
@@ -633,7 +634,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 		}
 	}
 
-	err := s.zfsPoolVolumeClone(fsImage, "readonly", fs, containerPoolVolumeMntPoint)
+	err := zfsPoolVolumeClone(poolName, fsImage, "readonly", fs, containerPoolVolumeMntPoint)
 	if err != nil {
 		return err
 	}
@@ -833,7 +834,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 	}
 
 	if sourceZfsDataset != "" {
-		err := s.zfsPoolVolumeClone(sourceZfsDataset, sourceZfsDatasetSnapshot, targetZfsDataset, targetContainerMountPoint)
+		err := zfsPoolVolumeClone(poolName, sourceZfsDataset, sourceZfsDatasetSnapshot, targetZfsDataset, targetContainerMountPoint)
 		if err != nil {
 			return err
 		}
@@ -1524,13 +1525,14 @@ func (s *storageZfs) ContainerSnapshotStart(container container) (bool, error) {
 	sourceSnap := fmt.Sprintf("snapshot-%s", sName)
 	destFs := fmt.Sprintf("snapshots/%s/%s", cName, sName)
 
+	poolName := s.getOnDiskPoolName()
 	snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, container.Name())
-	err := s.zfsPoolVolumeClone(sourceFs, sourceSnap, destFs, snapshotMntPoint)
+	err := zfsPoolVolumeClone(poolName, sourceFs, sourceSnap, destFs, snapshotMntPoint)
 	if err != nil {
 		return false, err
 	}
 
-	err = zfsMount(s.getOnDiskPoolName(), destFs)
+	err = zfsMount(poolName, destFs)
 	if err != nil {
 		return false, err
 	}
