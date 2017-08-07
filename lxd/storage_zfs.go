@@ -140,7 +140,7 @@ func (s *storageZfs) StoragePoolCreate() error {
 func (s *storageZfs) StoragePoolDelete() error {
 	logger.Infof("Deleting ZFS storage pool \"%s\".", s.pool.Name)
 
-	err := s.zfsFilesystemEntityDelete()
+	err := zfsFilesystemEntityDelete(s.pool.Config["source"], s.getOnDiskPoolName())
 	if err != nil {
 		return err
 	}
