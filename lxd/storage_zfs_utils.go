@@ -170,7 +170,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 					return err
 				}
 
-				subvols, err := s.zfsPoolListSubvolumes(vdev)
+				subvols, err := zfsPoolListSubvolumes(zpoolName, vdev)
 				if err != nil {
 					return err
 				}
@@ -285,7 +285,7 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 		return fmt.Errorf("Failed to clone the filesystem: %s", output)
 	}
 
-	subvols, err := s.zfsPoolListSubvolumes(fmt.Sprintf("%s/%s", poolName, source))
+	subvols, err := zfsPoolListSubvolumes(poolName, fmt.Sprintf("%s/%s", poolName, source))
 	if err != nil {
 		return err
 	}
@@ -564,7 +564,7 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRestore(path string, name string) erro
 		return fmt.Errorf("Failed to restore ZFS snapshot: %s", output)
 	}
 
-	subvols, err := s.zfsPoolListSubvolumes(fmt.Sprintf("%s/%s", poolName, path))
+	subvols, err := zfsPoolListSubvolumes(poolName, fmt.Sprintf("%s/%s", poolName, path))
 	if err != nil {
 		return err
 	}
@@ -637,7 +637,7 @@ func zfsUmount(poolName string, path string, mountpoint string) error {
 	return nil
 }
 
-func (s *storageZfs) zfsPoolListSubvolumes(path string) ([]string, error) {
+func zfsPoolListSubvolumes(pool string, path string) ([]string, error) {
 	output, err := shared.RunCommand(
 		"zfs",
 		"list",
@@ -660,8 +660,7 @@ func (s *storageZfs) zfsPoolListSubvolumes(path string) ([]string, error) {
 			continue
 		}
 
-		poolName := s.getOnDiskPoolName()
-		children = append(children, strings.TrimPrefix(entry, fmt.Sprintf("%s/", poolName)))
+		children = append(children, strings.TrimPrefix(entry, fmt.Sprintf("%s/", pool)))
 	}
 
 	return children, nil
@@ -726,7 +725,7 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRemovable(path string, name string) (b
 
 func (s *storageZfs) zfsPoolGetUsers() ([]string, error) {
 	poolName := s.getOnDiskPoolName()
-	subvols, err := s.zfsPoolListSubvolumes(poolName)
+	subvols, err := zfsPoolListSubvolumes(poolName, poolName)
 	if err != nil {
 		return []string{}, err
 	}
