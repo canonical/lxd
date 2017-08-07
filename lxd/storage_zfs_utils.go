@@ -537,13 +537,12 @@ func (s *storageZfs) zfsPoolVolumeSnapshotCreate(path string, name string) error
 	return nil
 }
 
-func (s *storageZfs) zfsPoolVolumeSnapshotDestroy(path string, name string) error {
-	poolName := s.getOnDiskPoolName()
+func zfsPoolVolumeSnapshotDestroy(pool, path string, name string) error {
 	output, err := shared.RunCommand(
 		"zfs",
 		"destroy",
 		"-r",
-		fmt.Sprintf("%s/%s@%s", poolName, path, name))
+		fmt.Sprintf("%s/%s@%s", pool, path, name))
 	if err != nil {
 		logger.Errorf("zfs destroy failed: %s.", output)
 		return fmt.Errorf("Failed to destroy ZFS snapshot: %s", output)
