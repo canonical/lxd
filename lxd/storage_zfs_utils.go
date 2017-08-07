@@ -291,7 +291,7 @@ func (s *storageZfs) zfsPoolVolumeClone(source string, name string, dest string,
 	}
 
 	for _, sub := range subvols {
-		snaps, err := s.zfsPoolListSnapshots(sub)
+		snaps, err := zfsPoolListSnapshots(poolName, sub)
 		if err != nil {
 			return err
 		}
@@ -391,7 +391,7 @@ func (s *storageZfs) zfsPoolVolumeCleanup(path string) error {
 
 				// Check if the parent can now be deleted
 				subPath := strings.SplitN(path, "@", 2)[0]
-				snaps, err := s.zfsPoolListSnapshots(subPath)
+				snaps, err := zfsPoolListSnapshots(s.getOnDiskPoolName(), subPath)
 				if err != nil {
 					return err
 				}
@@ -570,7 +570,7 @@ func (s *storageZfs) zfsPoolVolumeSnapshotRestore(path string, name string) erro
 	}
 
 	for _, sub := range subvols {
-		snaps, err := s.zfsPoolListSnapshots(sub)
+		snaps, err := zfsPoolListSnapshots(poolName, sub)
 		if err != nil {
 			return err
 		}
@@ -667,12 +667,11 @@ func (s *storageZfs) zfsPoolListSubvolumes(path string) ([]string, error) {
 	return children, nil
 }
 
-func (s *storageZfs) zfsPoolListSnapshots(path string) ([]string, error) {
-	poolName := s.getOnDiskPoolName()
+func zfsPoolListSnapshots(pool string, path string) ([]string, error) {
 	path = strings.TrimRight(path, "/")
-	fullPath := poolName
+	fullPath := pool
 	if path != "" {
-		fullPath = fmt.Sprintf("%s/%s", poolName, path)
+		fullPath = fmt.Sprintf("%s/%s", pool, path)
 	}
 
 	output, err := shared.RunCommand(
