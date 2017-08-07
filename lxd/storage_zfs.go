@@ -710,7 +710,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 
 	if s.zfsFilesystemEntityExists(fs, true) {
 		removable := true
-		snaps, err := s.zfsPoolListSnapshots(fs)
+		snaps, err := zfsPoolListSnapshots(s.getOnDiskPoolName(), fs)
 		if err != nil {
 			return err
 		}
@@ -1898,7 +1898,7 @@ func (s *storageZfs) MigrationSource(ct container, containerOnly bool) (Migratio
 	* is that we send the oldest to newest snapshot, hopefully saving on
 	* xfer costs. Then, after all that, we send the container itself.
 	 */
-	snapshots, err := s.zfsPoolListSnapshots(fmt.Sprintf("containers/%s", ct.Name()))
+	snapshots, err := zfsPoolListSnapshots(s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", ct.Name()))
 	if err != nil {
 		return nil, err
 	}
@@ -2043,7 +2043,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 
 	defer func() {
 		/* clean up our migration-send snapshots that we got from recv. */
-		zfsSnapshots, err := s.zfsPoolListSnapshots(fmt.Sprintf("containers/%s", container.Name()))
+		zfsSnapshots, err := zfsPoolListSnapshots(poolName, fmt.Sprintf("containers/%s", container.Name()))
 		if err != nil {
 			logger.Errorf("failed listing snapshots post migration: %s.", err)
 			return
