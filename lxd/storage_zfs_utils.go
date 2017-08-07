@@ -55,7 +55,7 @@ func zfsPoolVolumeSet(dataset string, key string, value string) (string, error) 
 		dataset)
 }
 
-func (s *storageZfs) zfsPoolCheck(pool string) error {
+func zfsPoolCheck(pool string) error {
 	output, err := shared.RunCommand(
 		"zfs", "get", "type", "-H", "-o", "value", pool)
 	if err != nil {
@@ -165,7 +165,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 					}
 				}
 			} else {
-				err := s.zfsPoolCheck(vdev)
+				err := zfsPoolCheck(vdev)
 				if err != nil {
 					return err
 				}
