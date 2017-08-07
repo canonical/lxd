@@ -220,7 +220,7 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 	fs := fmt.Sprintf("custom/%s", s.volume.Name)
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
-	err := s.zfsPoolVolumeDestroy(fs)
+	err := zfsPoolVolumeDestroy(s.getOnDiskPoolName(), fs)
 	if err != nil {
 		return err
 	}
@@ -736,7 +736,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 			poolName := s.getOnDiskPoolName()
 			origin = strings.TrimPrefix(origin, fmt.Sprintf("%s/", poolName))
 
-			err = s.zfsPoolVolumeDestroy(fs)
+			err = zfsPoolVolumeDestroy(poolName, fs)
 			if err != nil {
 				return err
 			}
@@ -764,7 +764,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 	}
 
 	snapshotZfsDataset := fmt.Sprintf("snapshots/%s", containerName)
-	s.zfsPoolVolumeDestroy(snapshotZfsDataset)
+	zfsPoolVolumeDestroy(poolName, snapshotZfsDataset)
 
 	// Delete potential leftover snapshot mountpoints.
 	snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
@@ -790,6 +790,8 @@ func (s *storageZfs) ContainerDelete(container container) error {
 }
 
 func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source container) error {
+	poolName := s.getOnDiskPoolName()
+
 	sourceContainerName := source.Name()
 	sourceContainerPath := source.Path()
 
@@ -839,7 +841,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 			if !revert {
 				return
 			}
-			s.zfsPoolVolumeDestroy(targetZfsDataset)
+			zfsPoolVolumeDestroy(poolName, targetZfsDataset)
 		}()
 
 		ourMount, err := s.ContainerMount(target)
@@ -1540,7 +1542,7 @@ func (s *storageZfs) ContainerSnapshotStop(container container) (bool, error) {
 	cName, sName, _ := containerGetParentAndSnapshotName(container.Name())
 	destFs := fmt.Sprintf("snapshots/%s/%s", cName, sName)
 
-	err := s.zfsPoolVolumeDestroy(destFs)
+	err := zfsPoolVolumeDestroy(s.getOnDiskPoolName(), destFs)
 	if err != nil {
 		return false, err
 	}
@@ -1704,7 +1706,7 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 		}
 
 		if removable {
-			err := s.zfsPoolVolumeDestroy(fs)
+			err := zfsPoolVolumeDestroy(s.getOnDiskPoolName(), fs)
 			if err != nil {
 				return err
 			}
