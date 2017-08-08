@@ -513,6 +513,40 @@ func deviceTaskBalance(d *Daemon) {
 			return
 		}
 	}
+
+	effectiveCpusInt, err := parseCpuset(effectiveCpus)
+	if err != nil {
+		logger.Errorf("Error parsing effective CPU set")
+		return
+	}
+
+	isolatedCpusInt := effectiveCpusInt
+
+	if shared.PathExists("/sys/devices/system/cpu/isolated") {
+		isolatedCpus, err := ioutil.ReadFile("/sys/devices/system/cpu/isolated")
+		if err != nil {
+			logger.Errorf("Error reading host's isolated cpu")
+			return
+		}
+
+		isolatedCpusInt, err = parseCpuset(strings.TrimRight(string(isolatedCpus), "\n"))
+		if err != nil {
+			logger.Errorf("Error parsing isolated CPU set: %s", string(isolatedCpus))
+			return
+		}
+	}
+
+	effectiveCpusSlice := []string{}
+	for _, id := range effectiveCpusInt {
+		if shared.IntInSlice(id, isolatedCpusInt) {
+			continue
+		}
+
+		effectiveCpusSlice = append(effectiveCpusSlice, fmt.Sprintf("%d", id))
+	}
+
+	effectiveCpus = strings.Join(effectiveCpusSlice, ",")
+
 	err = cGroupSet("cpuset", "/lxc", "cpuset.cpus", effectiveCpus)
 	if err != nil && shared.PathExists("/sys/fs/cgroup/cpuset/lxc") {
 		logger.Warn("Error setting lxd's cpuset.cpus", log.Ctx{"err": err})
