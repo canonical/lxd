@@ -729,7 +729,7 @@ func (s *storageZfs) ContainerDelete(container container) error {
 		}
 
 		if removable {
-			origin, err := zfsFilesystemEntityPropertyGet(poolName, fs, "origin", true)
+			origin, err := zfsFilesystemEntityPropertyGet(poolName, fs, "origin")
 			if err != nil {
 				return err
 			}
@@ -1313,7 +1313,7 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 		property = "usedbydataset"
 	}
 
-	value, err := zfsFilesystemEntityPropertyGet(s.getOnDiskPoolName(), fs, property, true)
+	value, err := zfsFilesystemEntityPropertyGet(s.getOnDiskPoolName(), fs, property)
 	if err != nil {
 		return -1, err
 	}

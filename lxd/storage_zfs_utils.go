@@ -330,7 +330,7 @@ func zfsFilesystemEntityDelete(vdev string, pool string) error {
 }
 
 func zfsPoolVolumeDestroy(pool string, path string) error {
-	mountpoint, err := zfsFilesystemEntityPropertyGet(pool, path, "mountpoint", true)
+	mountpoint, err := zfsFilesystemEntityPropertyGet(pool, path, "mountpoint")
 	if err != nil {
 		return err
 	}
@@ -390,7 +390,7 @@ func zfsPoolVolumeCleanup(pool string, path string) error {
 				}
 			} else {
 				// Cleanup filesystems
-				origin, err := zfsFilesystemEntityPropertyGet(pool, path, "origin", true)
+				origin, err := zfsFilesystemEntityPropertyGet(pool, path, "origin")
 				if err != nil {
 					return err
 				}
@@ -423,14 +423,7 @@ func zfsPoolVolumeCleanup(pool string, path string) error {
 	return nil
 }
 
-func zfsFilesystemEntityPropertyGet(pool string, path string, key string, prefixPathWithPool bool) (string, error) {
-	// If prefixPathWithPool is false we assume that the path passed in
-	// already is a valid zfs entity we want to check for.
-	fsToCheck := path
-	if prefixPathWithPool {
-		fsToCheck = fmt.Sprintf("%s/%s", pool, path)
-	}
-
+func zfsFilesystemEntityPropertyGet(pool string, path string, key string) (string, error) {
 	output, err := shared.RunCommand(
 		"zfs",
 		"get",
@@ -438,7 +431,7 @@ func zfsFilesystemEntityPropertyGet(pool string, path string, key string, prefix
 		"-p",
 		"-o", "value",
 		key,
-		fsToCheck)
+		fmt.Sprintf("%s/%s", pool, path))
 	if err != nil {
 		return "", fmt.Errorf("Failed to get ZFS config: %s", output)
 	}
@@ -679,7 +672,7 @@ func zfsPoolVolumeSnapshotRemovable(pool string, path string, name string) (bool
 		snap = fmt.Sprintf("%s@%s", path, name)
 	}
 
-	clones, err := zfsFilesystemEntityPropertyGet(pool, snap, "clones", true)
+	clones, err := zfsFilesystemEntityPropertyGet(pool, snap, "clones")
 	if err != nil {
 		return false, err
 	}
