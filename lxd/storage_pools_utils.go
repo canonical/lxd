@@ -81,7 +81,7 @@ func storagePoolUpdate(d *Daemon, name, newDescription string, newConfig map[str
 // /1.0/profiles/default
 func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, error) {
 	// Retrieve all non-custom volumes that exist on this storage pool.
-	volumes, err := dbStoragePoolVolumesGet(db, poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage})
+	volumes, err := dbStoragePoolVolumesGet(db, poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom})
 	if err != nil && err != NoSuchObjectError {
 		return []string{}, err
 	}
@@ -112,8 +112,7 @@ func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, 
 		case storagePoolVolumeAPIEndpointImages:
 			poolUsedBy[i] = fmt.Sprintf("/%s/images/%s", version.APIVersion, volumes[i].Name)
 		case storagePoolVolumeAPIEndpointCustom:
-			// Bug
-			return []string{}, fmt.Errorf("database function returned volume type \"%s\" although not queried for it", volumes[i].Type)
+			poolUsedBy[i] = fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, volumes[i].Type, volumes[i].Name)
 		default:
 			// If that happens the db is busted, so report an error.
 			return []string{}, fmt.Errorf("invalid storage type for storage volume \"%s\"", volumes[i].Name)
