@@ -137,6 +137,185 @@ func (s *storageZfs) StoragePoolCreate() error {
 	return nil
 }
 
+func (s *storageZfs) zfsPoolCreate() error {
+	zpoolName := s.getOnDiskPoolName()
+	vdev := s.pool.Config["source"]
+	if vdev == "" {
+		vdev = filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
+		s.pool.Config["source"] = vdev
+
+		if s.pool.Config["zfs.pool_name"] == "" {
+			s.pool.Config["zfs.pool_name"] = zpoolName
+		}
+
+		f, err := os.Create(vdev)
+		if err != nil {
+			return fmt.Errorf("Failed to open %s: %s", vdev, err)
+		}
+		defer f.Close()
+
+		err = f.Chmod(0600)
+		if err != nil {
+			return fmt.Errorf("Failed to chmod %s: %s", vdev, err)
+		}
+
+		size, err := shared.ParseByteSizeString(s.pool.Config["size"])
+		if err != nil {
+			return err
+		}
+		err = f.Truncate(size)
+		if err != nil {
+			return fmt.Errorf("Failed to create sparse file %s: %s", vdev, err)
+		}
+
+		if err := zfsPoolCreate(zpoolName, vdev); err != nil {
+			return err
+		}
+	} else {
+		// Unset size property since it doesn't make sense.
+		s.pool.Config["size"] = ""
+
+		if filepath.IsAbs(vdev) {
+			if !shared.IsBlockdevPath(vdev) {
+				return fmt.Errorf("custom loop file locations are not supported")
+			}
+
+			if s.pool.Config["zfs.pool_name"] == "" {
+				s.pool.Config["zfs.pool_name"] = zpoolName
+			}
+
+			// This is a block device. Note, that we do not store the
+			// block device path or UUID or PARTUUID or similar in
+			// the database. All of those might change or might be
+			// used in a special way (For example, zfs uses a single
+			// UUID in a multi-device pool for all devices.). The
+			// safest way is to just store the name of the zfs pool
+			// we create.
+			s.pool.Config["source"] = zpoolName
+			if err := zfsPoolCreate(zpoolName, vdev); err != nil {
+				return err
+			}
+		} else {
+			if s.pool.Config["zfs.pool_name"] != "" {
+				return fmt.Errorf("invalid combination of \"source\" and \"zfs.pool_name\" property")
+			}
+			s.pool.Config["zfs.pool_name"] = vdev
+			s.dataset = vdev
+
+			if strings.Contains(vdev, "/") {
+				if !zfsFilesystemEntityExists(vdev, "") {
+					if err := zfsPoolCreate("", vdev); err != nil {
+						return err
+					}
+				} else {
+					if err := zfsPoolVolumeSet(vdev, "", "mountpoint", "none"); err != nil {
+						return err
+					}
+				}
+			} else {
+				err := zfsPoolCheck(vdev)
+				if err != nil {
+					return err
+				}
+
+				subvols, err := zfsPoolListSubvolumes(zpoolName, vdev)
+				if err != nil {
+					return err
+				}
+
+				if len(subvols) > 0 {
+					return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
+				}
+
+				if err := zfsPoolVolumeSet(vdev, "", "mountpoint", "none"); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Create default dummy datasets to avoid zfs races during container
+	// creation.
+	poolName := s.getOnDiskPoolName()
+	dataset := fmt.Sprintf("%s/containers", poolName)
+	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	if err != nil {
+		logger.Errorf("failed to create containers dataset: %s", msg)
+		return err
+	}
+
+	fixperms := shared.VarPath("storage-pools", s.pool.Name, "containers")
+	err = os.MkdirAll(fixperms, containersDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	err = os.Chmod(fixperms, containersDirMode)
+	if err != nil {
+		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(containersDirMode), 8), err)
+	}
+
+	dataset = fmt.Sprintf("%s/images", poolName)
+	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	if err != nil {
+		logger.Errorf("failed to create images dataset: %s", msg)
+		return err
+	}
+
+	fixperms = shared.VarPath("storage-pools", s.pool.Name, "images")
+	err = os.MkdirAll(fixperms, imagesDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	err = os.Chmod(fixperms, imagesDirMode)
+	if err != nil {
+		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(imagesDirMode), 8), err)
+	}
+
+	dataset = fmt.Sprintf("%s/custom", poolName)
+	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	if err != nil {
+		logger.Errorf("failed to create custom dataset: %s", msg)
+		return err
+	}
+
+	fixperms = shared.VarPath("storage-pools", s.pool.Name, "custom")
+	err = os.MkdirAll(fixperms, customDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	err = os.Chmod(fixperms, customDirMode)
+	if err != nil {
+		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(customDirMode), 8), err)
+	}
+
+	dataset = fmt.Sprintf("%s/deleted", poolName)
+	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	if err != nil {
+		logger.Errorf("failed to create deleted dataset: %s", msg)
+		return err
+	}
+
+	dataset = fmt.Sprintf("%s/snapshots", poolName)
+	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	if err != nil {
+		logger.Errorf("failed to create snapshots dataset: %s", msg)
+		return err
+	}
+
+	fixperms = shared.VarPath("storage-pools", s.pool.Name, "snapshots")
+	err = os.MkdirAll(fixperms, snapshotsDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	err = os.Chmod(fixperms, snapshotsDirMode)
+	if err != nil {
+		logger.Warnf("failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(snapshotsDirMode), 8), err)
+	}
+
+	return nil
+}
+
 func (s *storageZfs) StoragePoolDelete() error {
 	logger.Infof("Deleting ZFS storage pool \"%s\".", s.pool.Name)
 
