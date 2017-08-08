@@ -439,18 +439,17 @@ func zfsFilesystemEntityPropertyGet(pool string, path string, key string) (strin
 	return strings.TrimRight(output, "\n"), nil
 }
 
-func (s *storageZfs) zfsPoolVolumeRename(source string, dest string) error {
+func zfsPoolVolumeRename(pool string, source string, dest string) error {
 	var err error
 	var output string
 
-	poolName := s.getOnDiskPoolName()
 	for i := 0; i < 20; i++ {
 		output, err = shared.RunCommand(
 			"zfs",
 			"rename",
 			"-p",
-			fmt.Sprintf("%s/%s", poolName, source),
-			fmt.Sprintf("%s/%s", poolName, dest))
+			fmt.Sprintf("%s/%s", pool, source),
+			fmt.Sprintf("%s/%s", pool, dest))
 
 		// Success
 		if err == nil {
@@ -458,7 +457,7 @@ func (s *storageZfs) zfsPoolVolumeRename(source string, dest string) error {
 		}
 
 		// zfs rename can fail because of descendants, yet still manage the rename
-		if !zfsFilesystemEntityExists(poolName, source) && zfsFilesystemEntityExists(poolName, dest) {
+		if !zfsFilesystemEntityExists(pool, source) && zfsFilesystemEntityExists(pool, dest) {
 			return nil
 		}
 
