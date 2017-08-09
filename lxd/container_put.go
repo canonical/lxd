@@ -10,10 +10,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
-
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 /*
@@ -69,7 +66,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	} else {
 		// Snapshot Restore
 		do = func(op *operation) error {
-			return containerSnapRestore(d, name, configRaw.Restore)
+			return containerSnapRestore(d, name, configRaw.Restore, configRaw.Stateful)
 		}
 	}
 
@@ -84,25 +81,14 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func containerSnapRestore(d *Daemon, name string, snap string) error {
+func containerSnapRestore(d *Daemon, name string, snap string, stateful bool) error {
 	// normalize snapshot name
 	if !shared.IsSnapshot(snap) {
 		snap = name + shared.SnapshotDelimiter + snap
 	}
 
-	logger.Info(
-		"RESTORE => Restoring snapshot",
-		log.Ctx{
-			"snapshot":  snap,
-			"container": name})
-
 	c, err := containerLoadByName(d, name)
 	if err != nil {
-		logger.Error(
-			"RESTORE => loadcontainerLXD() failed",
-			log.Ctx{
-				"container": name,
-				"err":       err})
 		return err
 	}
 
@@ -116,7 +102,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 		}
 	}
 
-	err = c.Restore(source)
+	err = c.Restore(source, stateful)
 	if err != nil {
 		return err
 	}

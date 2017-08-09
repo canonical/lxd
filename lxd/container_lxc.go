@@ -2655,7 +2655,7 @@ func (c *containerLXC) Snapshots() ([]container, error) {
 	return containers, nil
 }
 
-func (c *containerLXC) Restore(sourceContainer container) error {
+func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Initialize storage interface for the container.
@@ -2749,8 +2749,13 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 
 	// If the container wasn't running but was stateful, should we restore
 	// it as running?
-	if shared.PathExists(c.StatePath()) {
+	if stateful == true {
+		if !shared.PathExists(c.StatePath()) {
+			return fmt.Errorf("Stateful snapshot restore requested by snapshot is stateless")
+		}
+
 		logger.Debug("Performing stateful restore", ctxMap)
+		c.stateful = true
 		err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false, false)
 		if err != nil {
 			return err

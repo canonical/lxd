@@ -425,7 +425,7 @@ type container interface {
 	Unfreeze() error
 
 	// Snapshots & migration
-	Restore(sourceContainer container) error
+	Restore(sourceContainer container, stateful bool) error
 	/* actionScript here is a script called action.sh in the stateDir, to
 	 * be passed to CRIU as --action-script
 	 */
