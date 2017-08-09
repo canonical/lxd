@@ -199,8 +199,7 @@ func deviceTaskBalance(d *Daemon) {
 		return
 	}
 
-	isolatedCpusInt := effectiveCpusInt
-
+	isolatedCpusInt := []int{}
 	if shared.PathExists("/sys/devices/system/cpu/isolated") {
 		buf, err := ioutil.ReadFile("/sys/devices/system/cpu/isolated")
 		if err != nil {
