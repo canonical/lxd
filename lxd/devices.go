@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"path"
@@ -201,16 +202,20 @@ func deviceTaskBalance(d *Daemon) {
 	isolatedCpusInt := effectiveCpusInt
 
 	if shared.PathExists("/sys/devices/system/cpu/isolated") {
-		isolatedCpus, err := ioutil.ReadFile("/sys/devices/system/cpu/isolated")
+		buf, err := ioutil.ReadFile("/sys/devices/system/cpu/isolated")
 		if err != nil {
 			logger.Errorf("Error reading host's isolated cpu")
 			return
 		}
 
-		isolatedCpusInt, err = parseCpuset(strings.TrimRight(string(isolatedCpus), "\n"))
-		if err != nil {
-			logger.Errorf("Error parsing isolated CPU set: %s", string(isolatedCpus))
-			return
+		// File might exist even though there are no isolated cpus.
+		isolatedCpus := strings.TrimSpace(string(buf))
+		if isolatedCpus != "" {
+			isolatedCpusInt, err = parseCpuset(isolatedCpus)
+			if err != nil {
+				logger.Errorf("Error parsing isolated CPU set: %s", string(isolatedCpus))
+				return
+			}
 		}
 	}
 
