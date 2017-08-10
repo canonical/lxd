@@ -5,7 +5,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -69,58 +68,6 @@ func (c *remoteCmd) flags() {
 	gnuflag.StringVar(&c.password, "password", "", i18n.G("Remote admin password"))
 	gnuflag.StringVar(&c.protocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)"))
 	gnuflag.BoolVar(&c.public, "public", false, i18n.G("Public image server"))
-}
-
-func (c *remoteCmd) generateClientCertificate(conf *config.Config) error {
-	// Create the config path if needed
-	if !shared.PathExists(conf.ConfigDir) {
-		err := os.MkdirAll(conf.ConfigDir, 0750)
-		if err != nil {
-			return fmt.Errorf(i18n.G("Could not create config dir"))
-		}
-	}
-
-	// Generate a client certificate if necessary.  The default repositories are
-	// either local or public, neither of which requires a client certificate.
-	// Generation of the cert is delayed to avoid unnecessary overhead, e.g in
-	// testing scenarios where only the default repositories are used.
-	certf := conf.ConfigPath("client.crt")
-	keyf := conf.ConfigPath("client.key")
-	if !shared.PathExists(certf) || !shared.PathExists(keyf) {
-		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
-
-		return shared.FindOrGenCert(certf, keyf, true)
-	}
-	return nil
-}
-
-func (c *remoteCmd) getRemoteCertificate(address string) (*x509.Certificate, error) {
-	// Setup a permissive TLS config
-	tlsConfig, err := shared.GetTLSConfig("", "", "", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	tlsConfig.InsecureSkipVerify = true
-	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
-		Dial:            shared.RFC3493Dialer,
-		Proxy:           shared.ProxyFromEnvironment,
-	}
-
-	// Connect
-	client := &http.Client{Transport: tr}
-	resp, err := client.Get(address)
-	if err != nil {
-		return nil, err
-	}
-
-	// Retrieve the certificate
-	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
-		return nil, fmt.Errorf(i18n.G("Unable to read remote TLS certificate"))
-	}
-
-	return resp.TLS.PeerCertificates[0], nil
 }
 
 func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, acceptCert bool, password string, public bool, protocol string) error {
@@ -204,9 +151,12 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 	// HTTPS server then we need to ensure we have a client certificate before
 	// adding the remote server.
 	if rScheme != "unix" && !public {
-		err = c.generateClientCertificate(conf)
-		if err != nil {
-			return err
+		if !conf.HasClientCertificate() {
+			fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
+			err = conf.GenerateClientCertificate()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: protocol}
@@ -228,7 +178,7 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 	var certificate *x509.Certificate
 	if err != nil {
 		// Failed to connect using the system CA, so retrieve the remote certificate
-		certificate, err = c.getRemoteCertificate(addr)
+		certificate, err = shared.GetRemoteCertificate(addr)
 		if err != nil {
 			return err
 		}

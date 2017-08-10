@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-08-03 23:42+0000\n"
+"POT-Creation-Date: 2017-08-10 18:03-0400\n"
 "PO-Revision-Date: 2017-06-07 15:24+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -286,7 +286,7 @@ msgstr "ARCH"
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
-#: lxc/remote.go:68
+#: lxc/remote.go:67
 msgid "Accept certificate"
 msgstr "Accepter le certificat"
 
@@ -294,7 +294,7 @@ msgstr "Accepter le certificat"
 msgid "Action (defaults to GET)"
 msgstr ""
 
-#: lxc/remote.go:306
+#: lxc/remote.go:256
 #, c-format
 msgid "Admin password for %s: "
 msgstr "Mot de passe administrateur pour %s : "
@@ -368,12 +368,12 @@ msgstr ""
 msgid "Cannot provide container name to list"
 msgstr "Impossible de fournir le nom du conteneur à lister"
 
-#: lxc/remote.go:242
+#: lxc/remote.go:192
 #, fuzzy, c-format
 msgid "Certificate fingerprint: %s"
 msgstr "Empreinte du certificat : %x"
 
-#: lxc/remote.go:341
+#: lxc/remote.go:291
 msgid "Client certificate stored at server: "
 msgstr "Certificat client enregistré sur le serveur : "
 
@@ -431,12 +431,7 @@ msgstr "Forcer le conteneur à s'arrêter"
 msgid "Copying the image: %s"
 msgstr "Copie de l'image : %s"
 
-#: lxc/remote.go:79
-#, fuzzy
-msgid "Could not create config dir"
-msgstr "Impossible de créer le dossier de stockage des certificats serveurs"
-
-#: lxc/remote.go:257
+#: lxc/remote.go:207
 msgid "Could not create server cert dir"
 msgstr "Impossible de créer le dossier de stockage des certificats serveurs"
 
@@ -623,7 +618,7 @@ msgstr "Forcer l'utilisation de la socket unix locale"
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
-#: lxc/remote.go:90
+#: lxc/remote.go:155
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Génération d'un certificat client. Ceci peut prendre une minute…"
 
@@ -685,7 +680,7 @@ msgstr ""
 msgid "Instance type"
 msgstr ""
 
-#: lxc/remote.go:160
+#: lxc/remote.go:107
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "Schème d'URL invalide \"%s\" in \"%s\""
@@ -793,12 +788,12 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/list.go:465 lxc/network.go:504 lxc/profile.go:555 lxc/remote.go:431
+#: lxc/list.go:465 lxc/network.go:504 lxc/profile.go:555 lxc/remote.go:381
 #: lxc/storage.go:653 lxc/storage.go:748
 msgid "NAME"
 msgstr "NOM"
 
-#: lxc/network.go:490 lxc/remote.go:405 lxc/remote.go:410
+#: lxc/network.go:490 lxc/remote.go:355 lxc/remote.go:360
 msgid "NO"
 msgstr "NON"
 
@@ -851,7 +846,7 @@ msgstr "Aucune empreinte n'a été indiquée."
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr "Seul les volumes \"personnalisés\" peuvent être attaché aux conteneurs"
 
-#: lxc/remote.go:145
+#: lxc/remote.go:92
 msgid "Only https URLs are supported for simplestreams"
 msgstr "Seules les URLs https sont supportées par simplestreams"
 
@@ -883,11 +878,11 @@ msgstr "PID"
 msgid "PROFILES"
 msgstr "PROFILS"
 
-#: lxc/remote.go:433
+#: lxc/remote.go:383
 msgid "PROTOCOL"
 msgstr "PROTOCOLE"
 
-#: lxc/image.go:230 lxc/remote.go:434
+#: lxc/image.go:230 lxc/remote.go:384
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
@@ -989,7 +984,7 @@ msgstr "Profils : %s"
 msgid "Properties:"
 msgstr "Propriétés :"
 
-#: lxc/remote.go:71
+#: lxc/remote.go:70
 msgid "Public image server"
 msgstr "Serveur d'images public"
 
@@ -1007,7 +1002,7 @@ msgstr "Pousser ou récupérer des fichiers récursivement"
 msgid "Refreshing the image: %s"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/remote.go:69
+#: lxc/remote.go:68
 msgid "Remote admin password"
 msgstr "Mot de passe de l'administrateur distant"
 
@@ -1060,7 +1055,7 @@ msgstr "SOURCE"
 msgid "STATE"
 msgstr "ÉTAT"
 
-#: lxc/remote.go:435
+#: lxc/remote.go:385
 msgid "STATIC"
 msgstr "STATIQUE"
 
@@ -1068,16 +1063,16 @@ msgstr "STATIQUE"
 msgid "STORAGE POOL"
 msgstr "ENSEMBLE DE STOCKAGE"
 
-#: lxc/remote.go:250
+#: lxc/remote.go:200
 msgid "Server certificate NACKed by user"
 msgstr "Certificat serveur rejeté par l'utilisateur"
 
-#: lxc/remote.go:338
+#: lxc/remote.go:288
 msgid "Server doesn't trust us after adding our cert"
 msgstr ""
 "Le serveur ne nous fait pas confiance après l'ajout de notre certificat"
 
-#: lxc/remote.go:70
+#: lxc/remote.go:69
 msgid "Server protocol (lxd or simplestreams)"
 msgstr "Protocole du serveur (lxd ou simplestreams)"
 
@@ -1315,7 +1310,7 @@ msgstr "Type : persistant"
 msgid "UPLOAD DATE"
 msgstr "DATE DE PUBLICATION"
 
-#: lxc/remote.go:432
+#: lxc/remote.go:382
 msgid "URL"
 msgstr "URL"
 
@@ -1326,10 +1321,6 @@ msgstr "UTILISÉ PAR"
 #: lxc/manpage.go:36
 msgid "Unable to find help2man."
 msgstr "Impossible de trouver help2man"
-
-#: lxc/remote.go:120
-msgid "Unable to read remote TLS certificate"
-msgstr "Impossible de lire le certificat TLS distant"
 
 #: lxc/file.go:112
 #, c-format
@@ -2368,7 +2359,7 @@ msgid ""
 "    Delete local container \"c1\"."
 msgstr ""
 
-#: lxc/remote.go:40
+#: lxc/remote.go:39
 #, fuzzy
 msgid ""
 "Usage: lxc remote <subcommand> [options]\n"
@@ -2606,7 +2597,7 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
 
-#: lxc/network.go:492 lxc/remote.go:407 lxc/remote.go:412
+#: lxc/network.go:492 lxc/remote.go:357 lxc/remote.go:362
 msgid "YES"
 msgstr "OUI"
 
@@ -2630,7 +2621,7 @@ msgstr ""
 "La commande `lxc config profile` est dépréciée, merci d'utiliser `lxc "
 "profile`"
 
-#: lxc/remote.go:395
+#: lxc/remote.go:345
 msgid "can't remove the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
@@ -2638,7 +2629,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "impossible de spécifier uid/gid/mode en mode récursif"
 
-#: lxc/remote.go:421
+#: lxc/remote.go:371
 msgid "default"
 msgstr "par défaut"
 
@@ -2668,7 +2659,7 @@ msgstr "erreur : commande inconnue: %s"
 msgid "no"
 msgstr "non"
 
-#: lxc/remote.go:243
+#: lxc/remote.go:193
 msgid "ok (y/n)?"
 msgstr "ok (y/n) ?"
 
@@ -2681,22 +2672,22 @@ msgstr "l'analyse des alias a échoué %s\n"
 msgid "recursive edit doesn't make sense :("
 msgstr "l'édition récursive ne fait aucun sens :("
 
-#: lxc/remote.go:457
+#: lxc/remote.go:407
 #, c-format
 msgid "remote %s already exists"
 msgstr "le serveur distant %s existe déjà"
 
-#: lxc/remote.go:387 lxc/remote.go:449 lxc/remote.go:484 lxc/remote.go:500
+#: lxc/remote.go:337 lxc/remote.go:399 lxc/remote.go:434 lxc/remote.go:450
 #, c-format
 msgid "remote %s doesn't exist"
 msgstr "le serveur distant %s n'existe pas"
 
-#: lxc/remote.go:370
+#: lxc/remote.go:320
 #, c-format
 msgid "remote %s exists as <%s>"
 msgstr "le serveur distant %s existe en tant que <%s>"
 
-#: lxc/remote.go:391 lxc/remote.go:453 lxc/remote.go:488
+#: lxc/remote.go:341 lxc/remote.go:403 lxc/remote.go:438
 #, c-format
 msgid "remote %s is static and cannot be modified"
 msgstr "le serveur distant %s est statique et ne peut être modifié"
@@ -2721,6 +2712,13 @@ msgstr "nombre d'arguments incorrect pour la sous-comande"
 #: lxc/delete.go:45 lxc/image.go:204 lxc/image.go:560
 msgid "yes"
 msgstr "oui"
+
+#, fuzzy
+#~ msgid "Could not create config dir"
+#~ msgstr "Impossible de créer le dossier de stockage des certificats serveurs"
+
+#~ msgid "Unable to read remote TLS certificate"
+#~ msgstr "Impossible de lire le certificat TLS distant"
 
 #~ msgid "Migration failed on source host: %s"
 #~ msgstr "Échec lors de la migration vers l'hôte source: %s"

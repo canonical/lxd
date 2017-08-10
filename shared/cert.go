@@ -17,6 +17,7 @@ import (
 	"log"
 	"math/big"
 	"net"
+	"net/http"
 	"os"
 	"os/user"
 	"path"
@@ -221,4 +222,33 @@ func CertFingerprintStr(c string) (string, error) {
 	}
 
 	return CertFingerprint(cert), nil
+}
+
+func GetRemoteCertificate(address string) (*x509.Certificate, error) {
+	// Setup a permissive TLS config
+	tlsConfig, err := GetTLSConfig("", "", "", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig.InsecureSkipVerify = true
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		Dial:            RFC3493Dialer,
+		Proxy:           ProxyFromEnvironment,
+	}
+
+	// Connect
+	client := &http.Client{Transport: tr}
+	resp, err := client.Get(address)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve the certificate
+	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
+		return nil, fmt.Errorf("Unable to read remote TLS certificate")
+	}
+
+	return resp.TLS.PeerCertificates[0], nil
 }
