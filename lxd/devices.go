@@ -205,11 +205,39 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 				if !isNvidia {
 					isNvidia = true
 				}
-				nvidiaPath := "/dev/nvidia" + strconv.Itoa(tmpGpu.minor)
-				stat := syscall.Stat_t{}
-				err := syscall.Stat(nvidiaPath, &stat)
+
+				nvidiaPath := fmt.Sprintf("/proc/driver/nvidia/gpus/%s/information", tmpGpu.pci)
+				buf, err := ioutil.ReadFile(nvidiaPath)
 				if err != nil {
-					continue
+					return nil, nil, err
+				}
+				strBuf := strings.TrimSpace(string(buf))
+				idx := strings.Index(strBuf, "Device Minor:")
+				idx += len("Device Minor:")
+				strBuf = strBuf[idx:]
+				strBuf = strings.TrimSpace(strBuf)
+				idx = strings.Index(strBuf, " ")
+				if idx == -1 {
+					idx = strings.Index(strBuf, "\t")
+				}
+				if idx >= 1 {
+					strBuf = strBuf[:idx]
+				}
+
+				if strBuf == "" {
+					return nil, nil, fmt.Errorf("No device minor index detected")
+				}
+
+				_, err = strconv.Atoi(strBuf)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				nvidiaPath = "/dev/nvidia" + strBuf
+				stat := syscall.Stat_t{}
+				err = syscall.Stat(nvidiaPath, &stat)
+				if err != nil {
+					return nil, nil, err
 				}
 				tmpGpu.nvidia.path = nvidiaPath
 				tmpGpu.nvidia.major = int(stat.Rdev / 256)
