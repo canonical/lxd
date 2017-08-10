@@ -38,6 +38,14 @@ func LoadConfig(path string) (*Config, error) {
 		c.Remotes[k] = v
 	}
 
+	// NOTE: Remove this once we only see a small fraction of non-simplestreams users
+	// Upgrade users to the "simplestreams" protocol
+	images, ok := c.Remotes["images"]
+	if ok && images.Protocol != ImagesRemote.Protocol && images.Addr == ImagesRemote.Addr {
+		c.Remotes["images"] = ImagesRemote
+		c.SaveConfig(path)
+	}
+
 	return &c, nil
 }
 
