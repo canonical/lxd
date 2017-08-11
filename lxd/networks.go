@@ -1187,7 +1187,7 @@ func (n *network) Start() error {
 		}
 
 		// Create a config file to contain additional config (and to prevent dnsmasq from reading /etc/dnsmasq.conf)
-		err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(fmt.Sprintf("%s\n", n.config["raw.dnsmasq"])), 0)
+		err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.raw"), []byte(fmt.Sprintf("%s\n", n.config["raw.dnsmasq"])), 0644)
 		if err != nil {
 			return err
 		}
