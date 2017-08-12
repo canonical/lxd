@@ -1402,8 +1402,8 @@ In the source image case, the following dict must be used:
         },
         "aliases": [                            # Set initial aliases ("image_create_aliases" API extension)
             {"name": "my-alias",
-             "description: "A description"
-        },
+             "description": "A description"}
+        ],
         "source": {
             "type": "image",
             "mode": "pull",                     # Only pull is supported for now
@@ -1427,8 +1427,8 @@ In the source container case, the following dict must be used:
         },
         "aliases": [                    # Set initial aliases ("image_create_aliases" API extension)
             {"name": "my-alias",
-             "description: "A description"
-        },
+             "description": "A description"}
+        ],
         "source": {
             "type": "container",        # One of "container" or "snapshot"
             "name": "abc"
@@ -1445,8 +1445,8 @@ In the remote image URL case, the following dict must be used:
         },
         "aliases": [                                    # Set initial aliases ("image_create_aliases" API extension)
             {"name": "my-alias",
-             "description: "A description"
-        },
+             "description": "A description"}
+        ],
         "source": {
             "type": "url",
             "url": "https://www.some-server.com/image"  # URL for the image
