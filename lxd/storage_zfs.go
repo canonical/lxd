@@ -207,29 +207,25 @@ func (s *storageZfs) zfsPoolCreate() error {
 					if err := zfsPoolCreate("", vdev); err != nil {
 						return err
 					}
-				} else {
-					if err := zfsPoolVolumeSet(vdev, "", "mountpoint", "none"); err != nil {
-						return err
-					}
 				}
 			} else {
 				err := zfsPoolCheck(vdev)
 				if err != nil {
 					return err
 				}
+			}
 
-				subvols, err := zfsPoolListSubvolumes(zpoolName, vdev)
-				if err != nil {
-					return err
-				}
+			subvols, err := zfsPoolListSubvolumes(zpoolName, vdev)
+			if err != nil {
+				return err
+			}
 
-				if len(subvols) > 0 {
-					return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
-				}
+			if len(subvols) > 0 {
+				return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
+			}
 
-				if err := zfsPoolVolumeSet(vdev, "", "mountpoint", "none"); err != nil {
-					return err
-				}
+			if err := zfsPoolVolumeSet(vdev, "", "mountpoint", "none"); err != nil {
+				return err
 			}
 		}
 	}
