@@ -50,6 +50,8 @@ func (s *storageDir) StoragePoolCheck() error {
 func (s *storageDir) StoragePoolCreate() error {
 	logger.Infof("Creating DIR storage pool \"%s\".", s.pool.Name)
 
+	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
+
 	source := s.pool.Config["source"]
 	if source == "" {
 		source = filepath.Join(shared.VarPath("storage-pools"), s.pool.Name)

@@ -138,6 +138,8 @@ func (s *storageZfs) StoragePoolCreate() error {
 }
 
 func (s *storageZfs) zfsPoolCreate() error {
+	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
+
 	zpoolName := s.getOnDiskPoolName()
 	vdev := s.pool.Config["source"]
 	if vdev == "" {

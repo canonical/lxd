@@ -102,6 +102,7 @@ func (s *storageBtrfs) StoragePoolCheck() error {
 
 func (s *storageBtrfs) StoragePoolCreate() error {
 	logger.Infof("Creating BTRFS storage pool \"%s\".", s.pool.Name)
+	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
 
 	isBlockDev := false
 	source := s.pool.Config["source"]
