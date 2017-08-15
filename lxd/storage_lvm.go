@@ -106,6 +106,8 @@ func (s *storageLvm) StoragePoolCheck() error {
 func (s *storageLvm) StoragePoolCreate() error {
 	logger.Infof("Creating LVM storage pool \"%s\".", s.pool.Name)
 
+	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
+
 	var globalErr error
 	tryUndo := true
 	pvExisted := false

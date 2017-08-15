@@ -322,3 +322,6 @@ This adds the ability to specify the ceph user.
 ## instance\_types
 This adds the "instance\_type" field to the container creation request.
 Its value is expanded to LXD resource limits.
+
+## storage\_volatile\_initial\_source
+This records the actual source passed to LXD during storage pool creation.
