@@ -54,7 +54,8 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	// approach is however generalizable. It's just that we currently don't
 	// really need it for the other drivers.
 	// valid drivers: ceph
-	"volatile.pool.pristine": shared.IsAny,
+	"volatile.pool.pristine":  shared.IsAny,
+	"volatile.initial_source": shared.IsAny,
 
 	// valid drivers: ceph, lvm
 	"volume.block.filesystem": func(value string) error {

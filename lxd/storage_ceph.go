@@ -90,6 +90,8 @@ func (s *storageCeph) StoragePoolCreate() error {
 
 	revert := true
 
+	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
+
 	// sanity check
 	if s.pool.Config["source"] != "" &&
 		s.pool.Config["ceph.osd.pool_name"] != "" &&

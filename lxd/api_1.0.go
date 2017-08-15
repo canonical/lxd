@@ -121,6 +121,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_driver_ceph",
 			"storage_ceph_user_name",
 			"resource_limits",
+			"storage_volatile_initial_source",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,
