@@ -19,6 +19,7 @@ lvm.thinpool\_name              | string    | lvm driver                        
 lvm.use\_thinpool               | bool      | lvm driver                        | true                       | storage\_lvm\_use\_thinpool    | Whether the storage pool uses a thinpool for logical volumes.
 lvm.vg\_name                    | string    | lvm driver                        | name of the pool           | storage                        | Name of the volume group to create.
 rsync.bwlimit                   | string    | -                                 | 0 (no limit)               | storage\_rsync\_bwlimit        | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
+volatile.pool.pristine          | string    | -                                 | true                       | storage\_driver\_ceph          | Whether the pool has been empty on creation time.
 volume.block.filesystem         | string    | block based driver (lvm)          | ext4                       | storage                        | Filesystem to use for new volumes
 volume.block.mount\_options     | string    | block based driver (lvm)          | discard                    | storage                        | Mount options for block devices
 volume.size                     | string    | appropriate driver                | 0                          | storage                        | Default volume size
