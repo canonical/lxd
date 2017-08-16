@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -51,7 +51,7 @@ func dbDeviceTypeToInt(t string) (int, error) {
 	}
 }
 
-func dbDevicesAdd(tx *sql.Tx, w string, cID int64, devices types.Devices) error {
+func DevicesAdd(tx *sql.Tx, w string, cID int64, devices types.Devices) error {
 	// Prepare the devices entry SQL
 	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
 	stmt1, err := tx.Prepare(str1)
@@ -115,7 +115,7 @@ func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (types.Device, error) {
 		query = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
 	}
 
-	results, err := dbQueryScan(db, query, inargs, outfmt)
+	results, err := QueryScan(db, query, inargs, outfmt)
 
 	if err != nil {
 		return newdev, err
@@ -130,7 +130,7 @@ func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (types.Device, error) {
 	return newdev, nil
 }
 
-func dbDevices(db *sql.DB, qName string, isprofile bool) (types.Devices, error) {
+func Devices(db *sql.DB, qName string, isprofile bool) (types.Devices, error) {
 	var q string
 	if isprofile {
 		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
@@ -147,7 +147,7 @@ func dbDevices(db *sql.DB, qName string, isprofile bool) (types.Devices, error) 
 	var name, stype string
 	inargs := []interface{}{qName}
 	outfmt := []interface{}{id, name, dtype}
-	results, err := dbQueryScan(db, q, inargs, outfmt)
+	results, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -61,7 +62,7 @@ func storagePoolUpdate(d *Daemon, name, newDescription string, newConfig map[str
 
 	// Update the database if something changed
 	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = dbStoragePoolUpdate(d.db, name, newDescription, newConfig)
+		err = db.StoragePoolUpdate(d.db, name, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
@@ -79,15 +80,16 @@ func storagePoolUpdate(d *Daemon, name, newDescription string, newConfig map[str
 // /1.0/containers/alp1/snapshots/snap0
 // /1.0/images/cedce20b5b236f1071134beba7a5fd2aa923fda49eea4c66454dd559a5d6e906
 // /1.0/profiles/default
-func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, error) {
+func storagePoolUsedByGet(dbOb *sql.DB, poolID int64, poolName string) ([]string, error) {
 	// Retrieve all non-custom volumes that exist on this storage pool.
-	volumes, err := dbStoragePoolVolumesGet(db, poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom})
-	if err != nil && err != NoSuchObjectError {
+	volumes, err := db.StoragePoolVolumesGet(dbOb, poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom})
+	if err != nil && err != db.NoSuchObjectError {
 		return []string{}, err
 	}
 
 	// Retrieve all profiles that exist on this storage pool.
-	profiles, err := profilesUsingPoolGetNames(db, poolName)
+	profiles, err := profilesUsingPoolGetNames(dbOb, poolName)
+
 	if err != nil {
 		return []string{}, err
 	}
@@ -126,16 +128,16 @@ func storagePoolUsedByGet(db *sql.DB, poolID int64, poolName string) ([]string, 
 	return poolUsedBy, err
 }
 
-func profilesUsingPoolGetNames(db *sql.DB, poolName string) ([]string, error) {
+func profilesUsingPoolGetNames(dbOb *sql.DB, poolName string) ([]string, error) {
 	usedBy := []string{}
 
-	profiles, err := dbProfiles(db)
+	profiles, err := db.Profiles(dbOb)
 	if err != nil {
 		return usedBy, err
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := dbProfileGet(db, pName)
+		_, profile, err := db.ProfileGet(dbOb, pName)
 		if err != nil {
 			return usedBy, err
 		}
@@ -162,7 +164,7 @@ func storagePoolDBCreate(d *Daemon, poolName, poolDescription string, driver str
 	}
 
 	// Check that the storage pool does not already exist.
-	_, err = dbStoragePoolGetID(d.db, poolName)
+	_, err = db.StoragePoolGetID(d.db, poolName)
 	if err == nil {
 		return fmt.Errorf("The storage pool already exists")
 	}
@@ -185,7 +187,7 @@ func storagePoolDBCreate(d *Daemon, poolName, poolDescription string, driver str
 	}
 
 	// Create the database entry for the storage pool.
-	_, err = dbStoragePoolCreate(d.db, poolName, poolDescription, driver, config)
+	_, err = dbStoragePoolCreateAndUpdateCache(d.db, poolName, poolDescription, driver, config)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 	}
@@ -207,7 +209,7 @@ func storagePoolCreateInternal(d *Daemon, poolName, poolDescription string, driv
 		if !tryUndo {
 			return
 		}
-		dbStoragePoolDelete(d.db, poolName)
+		dbStoragePoolDeleteAndUpdateCache(d.db, poolName)
 	}()
 
 	s, err := storagePoolInit(d, poolName)
@@ -236,7 +238,7 @@ func storagePoolCreateInternal(d *Daemon, poolName, poolDescription string, driv
 	configDiff, _ := storageConfigDiff(config, postCreateConfig)
 	if len(configDiff) > 0 {
 		// Create the database entry for the storage pool.
-		err = dbStoragePoolUpdate(d.db, poolName, poolDescription, postCreateConfig)
+		err = db.StoragePoolUpdate(d.db, poolName, poolDescription, postCreateConfig)
 		if err != nil {
 			return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 		}
@@ -246,4 +248,49 @@ func storagePoolCreateInternal(d *Daemon, poolName, poolDescription string, driv
 	tryUndo = false
 
 	return nil
+}
+
+// Helper around the low-level DB API, which also updates the driver names
+// cache.
+func dbStoragePoolCreateAndUpdateCache(dbObj *sql.DB, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
+	id, err := db.StoragePoolCreate(dbObj, poolName, poolDescription, poolDriver, poolConfig)
+	if err != nil {
+		return id, err
+	}
+
+	// Update the storage drivers cache in api_1.0.go.
+	storagePoolDriversCacheLock.Lock()
+	drivers := readStoragePoolDriversCache()
+	if !shared.StringInSlice(poolDriver, drivers) {
+		drivers = append(drivers, poolDriver)
+	}
+	storagePoolDriversCacheVal.Store(drivers)
+	storagePoolDriversCacheLock.Unlock()
+
+	return id, nil
+}
+
+// Helper around the low-level DB API, which also updates the driver names
+// cache.
+func dbStoragePoolDeleteAndUpdateCache(dbObj *sql.DB, poolName string) error {
+	pool, err := db.StoragePoolDelete(dbObj, poolName)
+	if err != nil {
+		return err
+	}
+
+	// Update the storage drivers cache in api_1.0.go.
+	storagePoolDriversCacheLock.Lock()
+	drivers := readStoragePoolDriversCache()
+	for i := 0; i < len(drivers); i++ {
+		if drivers[i] == pool.Driver {
+			drivers[i] = drivers[len(drivers)-1]
+			drivers[len(drivers)-1] = ""
+			drivers = drivers[:len(drivers)-1]
+			break
+		}
+	}
+	storagePoolDriversCacheVal.Store(drivers)
+	storagePoolDriversCacheLock.Unlock()
+
+	return err
 }

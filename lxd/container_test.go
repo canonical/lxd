@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -15,8 +16,8 @@ type containerTestSuite struct {
 }
 
 func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
-	args := containerArgs{
-		Ctype:     cTypeRegular,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Name:      "testFoo",
 	}
@@ -39,7 +40,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 
 func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	// Create an unprivileged profile
-	_, err := dbProfileCreate(
+	_, err := db.ProfileCreate(
 		suite.d.db,
 		"unprivileged",
 		"unprivileged",
@@ -48,11 +49,11 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
-		dbProfileDelete(suite.d.db, "unprivileged")
+		db.ProfileDelete(suite.d.db, "unprivileged")
 	}()
 
-	args := containerArgs{
-		Ctype:     cTypeRegular,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Profiles:  []string{"default", "unprivileged"},
 		Name:      "testFoo",
@@ -74,8 +75,8 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 }
 
 func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
-	args := containerArgs{
-		Ctype:     cTypeRegular,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
 		Devices: types.Devices{
@@ -104,8 +105,8 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 }
 
 func (suite *containerTestSuite) TestContainer_LoadFromDB() {
-	args := containerArgs{
-		Ctype:     cTypeRegular,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
 		Devices: types.Devices{
@@ -136,8 +137,8 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 
 func (suite *containerTestSuite) TestContainer_Path_Regular() {
 	// Regular
-	args := containerArgs{
-		Ctype:     cTypeRegular,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Name:      "testFoo",
 	}
@@ -153,8 +154,8 @@ func (suite *containerTestSuite) TestContainer_Path_Regular() {
 
 func (suite *containerTestSuite) TestContainer_Path_Snapshot() {
 	// Snapshot
-	args := containerArgs{
-		Ctype:     cTypeSnapshot,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeSnapshot,
 		Ephemeral: false,
 		Name:      "test/snap0",
 	}
@@ -173,8 +174,8 @@ func (suite *containerTestSuite) TestContainer_Path_Snapshot() {
 }
 
 func (suite *containerTestSuite) TestContainer_LogPath() {
-	args := containerArgs{
-		Ctype:     cTypeRegular,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Name:      "testFoo",
 	}
@@ -187,8 +188,8 @@ func (suite *containerTestSuite) TestContainer_LogPath() {
 }
 
 func (suite *containerTestSuite) TestContainer_IsPrivileged_Privileged() {
-	args := containerArgs{
-		Ctype:     cTypeRegular,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "true"},
 		Name:      "testFoo",
@@ -202,8 +203,8 @@ func (suite *containerTestSuite) TestContainer_IsPrivileged_Privileged() {
 }
 
 func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
-	args := containerArgs{
-		Ctype:     cTypeRegular,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Config:    map[string]string{"security.privileged": "false"},
 		Name:      "testFoo",
@@ -217,8 +218,8 @@ func (suite *containerTestSuite) TestContainer_IsPrivileged_Unprivileged() {
 }
 
 func (suite *containerTestSuite) TestContainer_Rename() {
-	args := containerArgs{
-		Ctype:     cTypeRegular,
+	args := db.ContainerArgs{
+		Ctype:     db.CTypeRegular,
 		Ephemeral: false,
 		Name:      "testFoo",
 	}
@@ -232,8 +233,8 @@ func (suite *containerTestSuite) TestContainer_Rename() {
 }
 
 func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
-	c1, err := containerCreateInternal(suite.d, containerArgs{
-		Ctype: cTypeRegular,
+	c1, err := containerCreateInternal(suite.d, db.ContainerArgs{
+		Ctype: db.CTypeRegular,
 		Name:  "isol-1",
 		Config: map[string]string{
 			"security.idmap.isolated": "true",
@@ -242,8 +243,8 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	suite.Req.Nil(err)
 	defer c1.Delete()
 
-	c2, err := containerCreateInternal(suite.d, containerArgs{
-		Ctype: cTypeRegular,
+	c2, err := containerCreateInternal(suite.d, db.ContainerArgs{
+		Ctype: db.CTypeRegular,
 		Name:  "isol-2",
 		Config: map[string]string{
 			"security.idmap.isolated": "true",
@@ -273,8 +274,8 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 }
 
 func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
-	c1, err := containerCreateInternal(suite.d, containerArgs{
-		Ctype: cTypeRegular,
+	c1, err := containerCreateInternal(suite.d, db.ContainerArgs{
+		Ctype: db.CTypeRegular,
 		Name:  "isol-1",
 		Config: map[string]string{
 			"security.idmap.isolated": "false",
@@ -283,8 +284,8 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	suite.Req.Nil(err)
 	defer c1.Delete()
 
-	c2, err := containerCreateInternal(suite.d, containerArgs{
-		Ctype: cTypeRegular,
+	c2, err := containerCreateInternal(suite.d, db.ContainerArgs{
+		Ctype: db.CTypeRegular,
 		Name:  "isol-2",
 		Config: map[string]string{
 			"security.idmap.isolated": "true",
@@ -314,8 +315,8 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 }
 
 func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
-	c1, err := containerCreateInternal(suite.d, containerArgs{
-		Ctype: cTypeRegular,
+	c1, err := containerCreateInternal(suite.d, db.ContainerArgs{
+		Ctype: db.CTypeRegular,
 		Name:  "isol-1",
 		Config: map[string]string{
 			"security.idmap.isolated": "false",
@@ -353,8 +354,8 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 	maps := []*shared.IdmapSet{}
 
 	for i := 0; i < 7; i++ {
-		c, err := containerCreateInternal(suite.d, containerArgs{
-			Ctype: cTypeRegular,
+		c, err := containerCreateInternal(suite.d, db.ContainerArgs{
+			Ctype: db.CTypeRegular,
 			Name:  fmt.Sprintf("isol-%d", i),
 			Config: map[string]string{
 				"security.idmap.isolated": "true",

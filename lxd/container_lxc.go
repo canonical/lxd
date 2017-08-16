@@ -24,6 +24,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -235,7 +236,7 @@ func lxcStatusCode(state lxc.State) api.StatusCode {
 }
 
 // Loader functions
-func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
+func containerLXCCreate(d *Daemon, args db.ContainerArgs) (container, error) {
 	// Create the container struct
 	c := &containerLXC{
 		daemon:       d,
@@ -296,7 +297,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, pool, err := dbStoragePoolGet(d.db, storagePool)
+	poolID, pool, err := db.StoragePoolGet(d.db, storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -310,7 +311,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Create a new database entry for the container's storage volume
-	_, err = dbStoragePoolVolumeCreate(d.db, args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
+	_, err = db.StoragePoolVolumeCreate(d.db, args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -401,7 +402,7 @@ func containerLXCCreate(d *Daemon, args containerArgs) (container, error) {
 	return c, nil
 }
 
-func containerLXCLoad(d *Daemon, args containerArgs) (container, error) {
+func containerLXCLoad(d *Daemon, args db.ContainerArgs) (container, error) {
 	// Create the container struct
 	c := &containerLXC{
 		daemon:       d,
@@ -432,7 +433,7 @@ func containerLXCLoad(d *Daemon, args containerArgs) (container, error) {
 type containerLXC struct {
 	// Properties
 	architecture int
-	cType        containerType
+	cType        db.ContainerType
 	creationDate time.Time
 	lastUsedDate time.Time
 	ephemeral    bool
@@ -677,7 +678,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configBase stri
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
-	cs, err := dbContainersList(daemon.db, cTypeRegular)
+	cs, err := db.ContainersList(daemon.db, db.CTypeRegular)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1501,7 +1502,7 @@ func (c *containerLXC) expandConfig() error {
 
 	// Apply all the profiles
 	for _, name := range c.profiles {
-		profileConfig, err := dbProfileConfig(c.daemon.db, name)
+		profileConfig, err := db.ProfileConfig(c.daemon.db, name)
 		if err != nil {
 			return err
 		}
@@ -1525,7 +1526,7 @@ func (c *containerLXC) expandDevices() error {
 
 	// Apply all the profiles
 	for _, p := range c.profiles {
-		profileDevices, err := dbDevices(c.daemon.db, p, true)
+		profileDevices, err := db.Devices(c.daemon.db, p, true)
 		if err != nil {
 			return err
 		}
@@ -1651,7 +1652,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 
 		// Remove the volatile key from the DB
-		err = dbContainerConfigRemove(c.daemon.db, c.id, "volatile.apply_quota")
+		err = db.ContainerConfigRemove(c.daemon.db, c.id, "volatile.apply_quota")
 		if err != nil {
 			return "", err
 		}
@@ -1985,7 +1986,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Update time container was last started
-	err = dbContainerLastUsedUpdate(c.daemon.db, c.id, time.Now().UTC())
+	err = db.ContainerLastUsedUpdate(c.daemon.db, c.id, time.Now().UTC())
 	if err != nil {
 		return "", fmt.Errorf("Error updating last used: %v", err)
 	}
@@ -2043,7 +2044,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		os.RemoveAll(c.StatePath())
 		c.stateful = false
 
-		err = dbContainerSetStateful(c.daemon.db, c.id, false)
+		err = db.ContainerSetStateful(c.daemon.db, c.id, false)
 		if err != nil {
 			logger.Error("Failed starting container", ctxMap)
 			return err
@@ -2060,7 +2061,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 
 		c.stateful = false
-		err = dbContainerSetStateful(c.daemon.db, c.id, false)
+		err = db.ContainerSetStateful(c.daemon.db, c.id, false)
 		if err != nil {
 			return err
 		}
@@ -2153,7 +2154,7 @@ func (c *containerLXC) OnStart() error {
 		}
 
 		// Remove the volatile key from the DB
-		err := dbContainerConfigRemove(c.daemon.db, c.id, key)
+		err := db.ContainerConfigRemove(c.daemon.db, c.id, key)
 		if err != nil {
 			AADestroy(c)
 			if ourStart {
@@ -2207,7 +2208,7 @@ func (c *containerLXC) OnStart() error {
 	}
 
 	// Record current state
-	err = dbContainerSetState(c.daemon.db, c.id, "RUNNING")
+	err = db.ContainerSetState(c.daemon.db, c.id, "RUNNING")
 	if err != nil {
 		return err
 	}
@@ -2261,7 +2262,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		}
 
 		c.stateful = true
-		err = dbContainerSetStateful(c.daemon.db, c.id, true)
+		err = db.ContainerSetStateful(c.daemon.db, c.id, true)
 		if err != nil {
 			op.Done(err)
 			logger.Error("Failed stopping container", ctxMap)
@@ -2445,7 +2446,7 @@ func (c *containerLXC) OnStop(target string) error {
 		deviceTaskSchedulerTrigger("container", c.name, "stopped")
 
 		// Record current state
-		err = dbContainerSetState(c.daemon.db, c.id, "STOPPED")
+		err = db.ContainerSetState(c.daemon.db, c.id, "STOPPED")
 		if err != nil {
 			logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 		}
@@ -2645,7 +2646,7 @@ func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 
 func (c *containerLXC) Snapshots() ([]container, error) {
 	// Get all the snapshots
-	snaps, err := dbContainerGetSnapshots(c.daemon.db, c.name)
+	snaps, err := db.ContainerGetSnapshots(c.daemon.db, c.name)
 	if err != nil {
 		return nil, err
 	}
@@ -2734,7 +2735,7 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 	}
 
 	// Restore the configuration
-	args := containerArgs{
+	args := db.ContainerArgs{
 		Architecture: sourceContainer.Architecture(),
 		Config:       sourceContainer.LocalConfig(),
 		Devices:      sourceContainer.LocalDevices(),
@@ -2854,7 +2855,7 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Remove the database record
-	if err := dbContainerRemove(c.daemon.db, c.Name()); err != nil {
+	if err := db.ContainerRemove(c.daemon.db, c.Name()); err != nil {
 		logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
 		return err
 	}
@@ -2867,7 +2868,7 @@ func (c *containerLXC) Delete() error {
 		poolID, _ := c.storage.GetContainerPoolInfo()
 
 		// Remove volume from storage pool.
-		err := dbStoragePoolVolumeDelete(c.daemon.db, c.Name(), storagePoolVolumeTypeContainer, poolID)
+		err := db.StoragePoolVolumeDelete(c.daemon.db, c.Name(), storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return err
 		}
@@ -2947,7 +2948,7 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	// Rename the database entry
-	err = dbContainerRename(c.daemon.db, oldName, newName)
+	err = db.ContainerRename(c.daemon.db, oldName, newName)
 	if err != nil {
 		logger.Error("Failed renaming container", ctxMap)
 		return err
@@ -2955,7 +2956,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Rename storage volume for the container.
 	poolID, _ := c.storage.GetContainerPoolInfo()
-	err = dbStoragePoolVolumeRename(c.daemon.db, oldName, newName, storagePoolVolumeTypeContainer, poolID)
+	err = db.StoragePoolVolumeRename(c.daemon.db, oldName, newName, storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		logger.Error("Failed renaming storage volume", ctxMap)
 		return err
@@ -2963,7 +2964,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	if !c.IsSnapshot() {
 		// Rename all the snapshots
-		results, err := dbContainerGetSnapshots(c.daemon.db, oldName)
+		results, err := db.ContainerGetSnapshots(c.daemon.db, oldName)
 		if err != nil {
 			logger.Error("Failed renaming container", ctxMap)
 			return err
@@ -2973,14 +2974,14 @@ func (c *containerLXC) Rename(newName string) error {
 			// Rename the snapshot
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
-			err := dbContainerRename(c.daemon.db, sname, newSnapshotName)
+			err := db.ContainerRename(c.daemon.db, sname, newSnapshotName)
 			if err != nil {
 				logger.Error("Failed renaming container", ctxMap)
 				return err
 			}
 
 			// Rename storage volume for the snapshot.
-			err = dbStoragePoolVolumeRename(c.daemon.db, sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
+			err = db.StoragePoolVolumeRename(c.daemon.db, sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				logger.Error("Failed renaming storage volume", ctxMap)
 				return err
@@ -3042,7 +3043,7 @@ func (c *containerLXC) CGroupSet(key string, value string) error {
 func (c *containerLXC) ConfigKeySet(key string, value string) error {
 	c.localConfig[key] = value
 
-	args := containerArgs{
+	args := db.ContainerArgs{
 		Architecture: c.architecture,
 		Config:       c.localConfig,
 		Devices:      c.localDevices,
@@ -3103,13 +3104,13 @@ func writeBackupFile(c container) error {
 		return err
 	}
 
-	db := c.Daemon().db
-	poolID, pool, err := dbStoragePoolGet(c.Daemon().db, poolName)
+	d := c.Daemon()
+	poolID, pool, err := db.StoragePoolGet(d.db, poolName)
 	if err != nil {
 		return err
 	}
 
-	_, volume, err := dbStoragePoolVolumeGetType(db, c.Name(), storagePoolVolumeTypeContainer, poolID)
+	_, volume, err := db.StoragePoolVolumeGetType(d.db, c.Name(), storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		return err
 	}
@@ -3143,7 +3144,7 @@ func writeBackupFile(c container) error {
 	return nil
 }
 
-func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
+func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Set sane defaults for unset keys
 	if args.Architecture == 0 {
 		args.Architecture = c.architecture
@@ -3174,7 +3175,7 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Validate the new profiles
-	profiles, err := dbProfiles(c.daemon.db)
+	profiles, err := db.Profiles(c.daemon.db)
 	if err != nil {
 		return err
 	}
@@ -4008,42 +4009,42 @@ func (c *containerLXC) Update(args containerArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database
-	tx, err := dbBegin(c.daemon.db)
+	tx, err := db.Begin(c.daemon.db)
 	if err != nil {
 		return err
 	}
 
-	err = dbContainerConfigClear(tx, c.id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = dbContainerConfigInsert(tx, c.id, c.localConfig)
+	err = db.ContainerConfigClear(tx, c.id)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = dbContainerProfilesInsert(tx, c.id, c.profiles)
+	err = db.ContainerConfigInsert(tx, c.id, c.localConfig)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = dbDevicesAdd(tx, "container", int64(c.id), c.localDevices)
+	err = db.ContainerProfilesInsert(tx, c.id, c.profiles)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = dbContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral)
+	err = db.DevicesAdd(tx, "container", int64(c.id), c.localDevices)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	if err := txCommit(tx); err != nil {
+	err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := db.TxCommit(tx); err != nil {
 		return err
 	}
 
@@ -5960,18 +5961,18 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	updateKey := func(key string, value string) error {
-		tx, err := dbBegin(c.daemon.db)
+		tx, err := db.Begin(c.daemon.db)
 		if err != nil {
 			return err
 		}
 
-		err = dbContainerConfigInsert(tx, c.id, map[string]string{key: value})
+		err = db.ContainerConfigInsert(tx, c.id, map[string]string{key: value})
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
 
-		err = txCommit(tx)
+		err = db.TxCommit(tx)
 		if err != nil {
 			return err
 		}
@@ -5994,7 +5995,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			err = updateKey(configKey, volatileHwaddr)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := dbContainerConfigGet(c.daemon.db, c.id, configKey)
+				value, err1 := db.ContainerConfigGet(c.daemon.db, c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
@@ -6024,7 +6025,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			err = updateKey(configKey, volatileName)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := dbContainerConfigGet(c.daemon.db, c.id, configKey)
+				value, err1 := db.ContainerConfigGet(c.daemon.db, c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
@@ -6820,7 +6821,7 @@ func (c *containerLXC) IsRunning() bool {
 }
 
 func (c *containerLXC) IsSnapshot() bool {
-	return c.cType == cTypeSnapshot
+	return c.cType == db.CTypeSnapshot
 }
 
 // Various property query functions
@@ -6978,7 +6979,7 @@ func (c *containerLXC) StatePath() string {
 }
 
 func (c *containerLXC) StoragePool() (string, error) {
-	poolName, err := dbContainerPool(c.daemon.db, c.Name())
+	poolName, err := db.ContainerPool(c.daemon.db, c.Name())
 	if err != nil {
 		return "", err
 	}

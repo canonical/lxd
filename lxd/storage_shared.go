@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -106,7 +107,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	}
 
 	// Create a db entry for the storage volume of the image.
-	_, err = dbStoragePoolVolumeCreate(s.d.db, fingerprint, "", storagePoolVolumeTypeImage, s.poolID, volumeConfig)
+	_, err = db.StoragePoolVolumeCreate(s.d.db, fingerprint, "", storagePoolVolumeTypeImage, s.poolID, volumeConfig)
 	if err != nil {
 		// Try to delete the db entry on error.
 		s.deleteImageDbPoolVolume(fingerprint)
@@ -117,7 +118,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 }
 
 func (s *storageShared) deleteImageDbPoolVolume(fingerprint string) error {
-	err := dbStoragePoolVolumeDelete(s.d.db, fingerprint, storagePoolVolumeTypeImage, s.poolID)
+	err := db.StoragePoolVolumeDelete(s.d.db, fingerprint, storagePoolVolumeTypeImage, s.poolID)
 	if err != nil {
 		return err
 	}

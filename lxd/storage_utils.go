@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -156,14 +157,14 @@ const imagesDirMode os.FileMode = 0700
 const snapshotsDirMode os.FileMode = 0700
 
 // Detect whether LXD already uses the given storage pool.
-func lxdUsesPool(db *sql.DB, onDiskPoolName string, driver string, onDiskProperty string) (bool, string, error) {
-	pools, err := dbStoragePools(db)
-	if err != nil && err != NoSuchObjectError {
+func lxdUsesPool(dbObj *sql.DB, onDiskPoolName string, driver string, onDiskProperty string) (bool, string, error) {
+	pools, err := db.StoragePools(dbObj)
+	if err != nil && err != db.NoSuchObjectError {
 		return false, "", err
 	}
 
 	for _, pool := range pools {
-		_, pl, err := dbStoragePoolGet(db, pool)
+		_, pl, err := db.StoragePoolGet(dbObj, pool)
 		if err != nil {
 			continue
 		}

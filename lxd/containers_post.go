@@ -11,6 +11,7 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -30,7 +31,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		if req.Source.Server != "" {
 			hash = req.Source.Alias
 		} else {
-			_, alias, err := dbImageAliasGet(d.db, req.Source.Alias, true)
+			_, alias, err := db.ImageAliasGet(d.db, req.Source.Alias, true)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -42,7 +43,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
-		hashes, err := dbImagesGet(d.db, false)
+		hashes, err := db.ImagesGet(d.db, false)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -50,7 +51,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		var image *api.Image
 
 		for _, imageHash := range hashes {
-			_, img, err := dbImageGet(d.db, imageHash, false, true)
+			_, img, err := db.ImageGet(d.db, imageHash, false, true)
 			if err != nil {
 				continue
 			}
@@ -84,9 +85,9 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	run := func(op *operation) error {
-		args := containerArgs{
+		args := db.ContainerArgs{
 			Config:    req.Config,
-			Ctype:     cTypeRegular,
+			Ctype:     db.CTypeRegular,
 			Devices:   req.Devices,
 			Ephemeral: req.Ephemeral,
 			Name:      req.Name,
@@ -102,7 +103,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 				return err
 			}
 		} else {
-			_, info, err = dbImageGet(d.db, hash, false, false)
+			_, info, err = db.ImageGet(d.db, hash, false, false)
 			if err != nil {
 				return err
 			}
@@ -129,9 +130,9 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 }
 
 func createFromNone(d *Daemon, req *api.ContainersPost) Response {
-	args := containerArgs{
+	args := db.ContainerArgs{
 		Config:    req.Config,
-		Ctype:     cTypeRegular,
+		Ctype:     db.CTypeRegular,
 		Devices:   req.Devices,
 		Ephemeral: req.Ephemeral,
 		Name:      req.Name,
@@ -177,11 +178,11 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	// Prepare the container creation request
-	args := containerArgs{
+	args := db.ContainerArgs{
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Ctype:        cTypeRegular,
+		Ctype:        db.CTypeRegular,
 		Devices:      req.Devices,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
@@ -200,8 +201,8 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 	// Handle copying/moving between two storage-api LXD instances.
 	if storagePool != "" {
-		_, err := dbStoragePoolGetID(d.db, storagePool)
-		if err == NoSuchObjectError {
+		_, err := db.StoragePoolGetID(d.db, storagePool)
+		if err == db.NoSuchObjectError {
 			storagePool = ""
 			// Unset the local root disk device storage pool if not
 			// found.
@@ -212,7 +213,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
 		for _, pName := range req.Profiles {
-			_, p, err := dbProfileGet(d.db, pName)
+			_, p, err := db.ProfileGet(d.db, pName)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -229,9 +230,9 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	logger.Debugf("No valid storage pool in the container's local root disk device and profiles found.")
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
-		pools, err := dbStoragePools(d.db)
+		pools, err := db.StoragePools(d.db)
 		if err != nil {
-			if err == NoSuchObjectError {
+			if err == db.NoSuchObjectError {
 				return BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured."))
 			}
 			return SmartError(err)
@@ -286,7 +287,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
-	_, _, err = dbImageGet(d.db, req.Source.BaseImage, false, true)
+	_, _, err = db.ImageGet(d.db, req.Source.BaseImage, false, true)
 	if err != nil {
 		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
@@ -472,11 +473,11 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 		}
 	}
 
-	args := containerArgs{
+	args := db.ContainerArgs{
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Ctype:        cTypeRegular,
+		Ctype:        db.CTypeRegular,
 		Devices:      req.Devices,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
@@ -512,13 +513,13 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// If no storage pool is found, error out.
-	pools, err := dbStoragePools(d.db)
+	pools, err := db.StoragePools(d.db)
 	if err != nil || len(pools) == 0 {
 		return BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool."))
 	}
 
 	if req.Name == "" {
-		cs, err := dbContainersList(d.db, cTypeRegular)
+		cs, err := db.ContainersList(d.db, db.CTypeRegular)
 		if err != nil {
 			return SmartError(err)
 		}

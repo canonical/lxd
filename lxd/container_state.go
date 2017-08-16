@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -99,7 +100,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 
 			if ephemeral {
 				// Unset ephemeral flag
-				args := containerArgs{
+				args := db.ContainerArgs{
 					Description:  c.Description(),
 					Architecture: c.Architecture(),
 					Config:       c.LocalConfig(),

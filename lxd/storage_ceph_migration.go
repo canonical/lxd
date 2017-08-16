@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -160,7 +161,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 		s.OSDPoolName, containerName,
 		storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
-		if err != NoSuchObjectError {
+		if err != db.NoSuchObjectError {
 			logger.Errorf(`Failed to list snapshots for RBD storage volume "%s" on storage pool "%s": %s`, containerName, s.pool.Name, err)
 			return nil, err
 		}

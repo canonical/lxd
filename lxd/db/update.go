@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -98,8 +98,8 @@ func (u *dbUpdate) apply(currentVersion int, db *sql.DB) error {
 // of now "postApply" is only used by the daemon as a mean to apply
 // the legacy V10 and V15 non-db updates during the database upgrade
 // sequence to, avoid changing semantics see PR #3322).
-func dbUpdatesApplyAll(db *sql.DB, doBackup bool, postApply func(int) error) error {
-	currentVersion := dbGetSchema(db)
+func UpdatesApplyAll(db *sql.DB, doBackup bool, postApply func(int) error) error {
+	currentVersion := GetSchema(db)
 
 	backup := false
 	for _, update := range dbUpdates {
@@ -344,7 +344,7 @@ func dbUpdateFromV18(currentVersion int, version int, db *sql.DB) error {
 	var value string
 
 	// Update container config
-	rows, err := dbQueryScan(db, "SELECT id, value FROM containers_config WHERE key='limits.memory'", nil, []interface{}{id, value})
+	rows, err := QueryScan(db, "SELECT id, value FROM containers_config WHERE key='limits.memory'", nil, []interface{}{id, value})
 	if err != nil {
 		return err
 	}
@@ -381,7 +381,7 @@ func dbUpdateFromV18(currentVersion int, version int, db *sql.DB) error {
 	}
 
 	// Update profiles config
-	rows, err = dbQueryScan(db, "SELECT id, value FROM profiles_config WHERE key='limits.memory'", nil, []interface{}{id, value})
+	rows, err = QueryScan(db, "SELECT id, value FROM profiles_config WHERE key='limits.memory'", nil, []interface{}{id, value})
 	if err != nil {
 		return err
 	}
