@@ -1405,17 +1405,10 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 // Create a database connection and perform any updates needed.
 func initializeDbObject(d *Daemon, path string) error {
-	var openPath string
 	var err error
 
-	timeout := 5 // TODO - make this command-line configurable?
-
-	// These are used to tune the transaction BEGIN behavior instead of using the
-	// similar "locking_mode" pragma (locking for the whole database connection).
-	openPath = fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
-
 	// Open the database. If the file doesn't exist it is created.
-	d.db, err = sql.Open("sqlite3_with_fk", openPath)
+	d.db, err = openDb(path)
 	if err != nil {
 		return err
 	}
