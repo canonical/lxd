@@ -7,6 +7,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -671,7 +672,7 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 	results := []string{}
 
-	cNames, err := dbContainersList(d.db, cTypeRegular)
+	cNames, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return results, err
 	}
@@ -689,7 +690,7 @@ func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 		}
 	}
 
-	imageNames, err := dbImagesGet(d.db, false)
+	imageNames, err := db.ImagesGet(d.db, false)
 	if err != nil {
 		return results, err
 	}

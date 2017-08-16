@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -562,7 +563,7 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 		}
 	}
 
-	err = dbStoragePoolVolumeDelete(
+	err = db.StoragePoolVolumeDelete(
 		s.d.db,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
@@ -1463,7 +1464,7 @@ func btrfsSubVolumeQGroup(subvol string) (string, error) {
 		"-f")
 
 	if err != nil {
-		return "", NoSuchObjectError
+		return "", db.NoSuchObjectError
 	}
 
 	var qgroup string
@@ -2159,7 +2160,7 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 
 	_, err := btrfsSubVolumeQGroup(subvol)
 	if err != nil {
-		if err != NoSuchObjectError {
+		if err != db.NoSuchObjectError {
 			return err
 		}
 

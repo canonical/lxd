@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -6,7 +6,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func dbConfigValuesGet(db *sql.DB) (map[string]string, error) {
+func ConfigValuesGet(db *sql.DB) (map[string]string, error) {
 	q := "SELECT key, value FROM config"
 	rows, err := dbQuery(db, q)
 	if err != nil {
@@ -25,8 +25,8 @@ func dbConfigValuesGet(db *sql.DB) (map[string]string, error) {
 	return results, nil
 }
 
-func dbConfigValueSet(db *sql.DB, key string, value string) error {
-	tx, err := dbBegin(db)
+func ConfigValueSet(db *sql.DB, key string, value string) error {
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func dbConfigValueSet(db *sql.DB, key string, value string) error {
 		}
 	}
 
-	err = txCommit(tx)
+	err = TxCommit(tx)
 	if err != nil {
 		return err
 	}

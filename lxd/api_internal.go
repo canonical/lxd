@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -190,9 +191,9 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	// Try to retrieve the storage pool the container supposedly lives on.
 	var poolErr error
-	poolID, pool, poolErr := dbStoragePoolGet(d.db, containerPoolName)
+	poolID, pool, poolErr := db.StoragePoolGet(d.db, containerPoolName)
 	if poolErr != nil {
-		if poolErr != NoSuchObjectError {
+		if poolErr != db.NoSuchObjectError {
 			return SmartError(poolErr)
 		}
 	}
@@ -202,14 +203,14 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No storage pool struct in the backup file found. The storage pool needs to be recovered manually."))
 	}
 
-	if poolErr == NoSuchObjectError {
+	if poolErr == db.NoSuchObjectError {
 		// Create the storage pool db entry if it doesn't exist.
 		err := storagePoolDBCreate(d, containerPoolName, "", backup.Pool.Driver, backup.Pool.Config)
 		if err != nil {
 			return SmartError(err)
 		}
 
-		poolID, err = dbStoragePoolGetID(d.db, containerPoolName)
+		poolID, err = db.StoragePoolGetID(d.db, containerPoolName)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -224,9 +225,9 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if a storage volume entry for the container already exists.
-	_, volume, ctVolErr := dbStoragePoolVolumeGetType(d.db, req.Name, storagePoolVolumeTypeContainer, poolID)
+	_, volume, ctVolErr := db.StoragePoolVolumeGetType(d.db, req.Name, storagePoolVolumeTypeContainer, poolID)
 	if ctVolErr != nil {
-		if ctVolErr != NoSuchObjectError {
+		if ctVolErr != db.NoSuchObjectError {
 			return SmartError(ctVolErr)
 		}
 	}
@@ -236,7 +237,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if an entry for the container already exists in the db.
-	_, containerErr := dbContainerId(d.db, req.Name)
+	_, containerErr := db.ContainerId(d.db, req.Name)
 	if containerErr != nil {
 		if containerErr != sql.ErrNoRows {
 			return SmartError(containerErr)
@@ -288,7 +289,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		onDiskSnapshots[snap.Name] = snap
 
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := dbContainerId(d.db, snap.Name)
+		_, snapErr := db.ContainerId(d.db, snap.Name)
 		if snapErr != nil {
 			if snapErr != sql.ErrNoRows {
 				return SmartError(snapErr)
@@ -301,9 +302,9 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, snapVolErr := dbStoragePoolVolumeGetType(d.db, snap.Name, storagePoolVolumeTypeContainer, poolID)
+		_, _, snapVolErr := db.StoragePoolVolumeGetType(d.db, snap.Name, storagePoolVolumeTypeContainer, poolID)
 		if snapVolErr != nil {
-			if snapVolErr != NoSuchObjectError {
+			if snapVolErr != db.NoSuchObjectError {
 				return SmartError(snapVolErr)
 			}
 		}
@@ -329,7 +330,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := dbStoragePoolVolumeDelete(d.db, req.Name, storagePoolVolumeTypeContainer, poolID)
+		err := db.StoragePoolVolumeDelete(d.db, req.Name, storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -338,7 +339,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if containerErr == nil {
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := dbContainerRemove(d.db, req.Name)
+		err := db.ContainerRemove(d.db, req.Name)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -350,13 +351,13 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	_, err = containerCreateInternal(d, containerArgs{
+	_, err = containerCreateInternal(d, db.ContainerArgs{
 		Architecture: arch,
 		BaseImage:    baseImage,
 		Config:       backup.Container.Config,
 		CreationDate: backup.Container.CreatedAt,
 		LastUsedDate: backup.Container.LastUsedAt,
-		Ctype:        cTypeRegular,
+		Ctype:        db.CTypeRegular,
 		Devices:      backup.Container.Devices,
 		Ephemeral:    backup.Container.Ephemeral,
 		Name:         backup.Container.Name,
@@ -369,7 +370,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	for snapName, snap := range onDiskSnapshots {
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := dbContainerId(d.db, snapName)
+		_, snapErr := db.ContainerId(d.db, snapName)
 		if snapErr != nil {
 			if snapErr != sql.ErrNoRows {
 				return SmartError(snapErr)
@@ -382,9 +383,9 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := dbStoragePoolVolumeGetType(d.db, snapName, storagePoolVolumeTypeContainer, poolID)
+		_, _, csVolErr := db.StoragePoolVolumeGetType(d.db, snapName, storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
-			if csVolErr != NoSuchObjectError {
+			if csVolErr != db.NoSuchObjectError {
 				return SmartError(csVolErr)
 			}
 		}
@@ -395,14 +396,14 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		if snapErr == nil {
-			err := dbContainerRemove(d.db, snapName)
+			err := db.ContainerRemove(d.db, snapName)
 			if err != nil {
 				return SmartError(err)
 			}
 		}
 
 		if csVolErr == nil {
-			err := dbStoragePoolVolumeDelete(d.db, snapName, storagePoolVolumeTypeContainer, poolID)
+			err := db.StoragePoolVolumeDelete(d.db, snapName, storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -431,13 +432,13 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
-		_, err = containerCreateInternal(d, containerArgs{
+		_, err = containerCreateInternal(d, db.ContainerArgs{
 			Architecture: arch,
 			BaseImage:    baseImage,
 			Config:       snap.Config,
 			CreationDate: snap.CreationDate,
 			LastUsedDate: snap.LastUsedDate,
-			Ctype:        cTypeSnapshot,
+			Ctype:        db.CTypeSnapshot,
 			Devices:      snap.Devices,
 			Ephemeral:    snap.Ephemeral,
 			Name:         snapName,

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -487,7 +488,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 	logger.Debugf(`Deleted RBD storage volume "%s" on storage pool "%s"`,
 		s.volume.Name, s.pool.Name)
 
-	err = dbStoragePoolVolumeDelete(
+	err = db.StoragePoolVolumeDelete(
 		s.d.db,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
@@ -2321,7 +2322,7 @@ func (s *storageCeph) ImageDelete(fingerprint string) error {
 		fingerprint, storagePoolVolumeTypeNameImage, "readonly",
 		s.UserName)
 	if err != nil {
-		if err != NoSuchObjectError {
+		if err != db.NoSuchObjectError {
 			logger.Errorf(`Failed to list clones of RBD storage `+
 				`volume for image "%s" on storage pool "%s":
 				%s`, fingerprint, s.pool.Name, err)

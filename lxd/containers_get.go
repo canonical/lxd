@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
@@ -16,7 +17,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 		if err == nil {
 			return SyncResponse(true, result)
 		}
-		if !isDbLockedError(err) {
+		if !db.IsDbLockedError(err) {
 			logger.Debugf("DBERR: containersGet: error %q", err)
 			return SmartError(err)
 		}
@@ -31,7 +32,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 }
 
 func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
-	result, err := dbContainersList(d.db, cTypeRegular)
+	result, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return nil, err
 	}

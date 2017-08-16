@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -87,7 +88,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	mockStorage, _ := storageTypeToString(storageTypeMock)
 	// Create the database entry for the storage pool.
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
-	_, err := dbStoragePoolCreate(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
+	_, err := dbStoragePoolCreateAndUpdateCache(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -99,17 +100,17 @@ func (suite *lxdTestSuite) SetupTest() {
 	devicesMap := map[string]map[string]string{}
 	devicesMap["root"] = rootDev
 
-	defaultID, _, err := dbProfileGet(suite.d.db, "default")
+	defaultID, _, err := db.ProfileGet(suite.d.db, "default")
 	if err != nil {
 		os.Exit(1)
 	}
 
-	tx, err := dbBegin(suite.d.db)
+	tx, err := db.Begin(suite.d.db)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	err = dbDevicesAdd(tx, "profile", defaultID, devicesMap)
+	err = db.DevicesAdd(tx, "profile", defaultID, devicesMap)
 	if err != nil {
 		tx.Rollback()
 		os.Exit(1)

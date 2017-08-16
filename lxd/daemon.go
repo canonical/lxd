@@ -30,6 +30,7 @@ import (
 	"gopkg.in/tomb.v2"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -293,9 +294,9 @@ func (d *Daemon) createCmd(version string, c Command) {
 }
 
 func (d *Daemon) SetupStorageDriver(forceCheck bool) error {
-	pools, err := dbStoragePools(d.db)
+	pools, err := db.StoragePools(d.db)
 	if err != nil {
-		if err == NoSuchObjectError {
+		if err == db.NoSuchObjectError {
 			logger.Debugf("No existing storage pools detected.")
 			return nil
 		}
@@ -310,7 +311,7 @@ func (d *Daemon) SetupStorageDriver(forceCheck bool) error {
 	// but the upgrade somehow got messed up then there will be no
 	// "storage_api" entry in the db.
 	if len(pools) > 0 && !forceCheck {
-		appliedPatches, err := dbPatches(d.db)
+		appliedPatches, err := db.Patches(d.db)
 		if err != nil {
 			return err
 		}
@@ -346,8 +347,8 @@ func (d *Daemon) SetupStorageDriver(forceCheck bool) error {
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
 	if !storagePoolDriversCacheInitialized {
-		tmp, err := dbStoragePoolsGetDrivers(d.db)
-		if err != nil && err != NoSuchObjectError {
+		tmp, err := db.StoragePoolsGetDrivers(d.db)
+		if err != nil && err != db.NoSuchObjectError {
 			return nil
 		}
 
@@ -1145,7 +1146,7 @@ func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := dbContainersList(d.db, cTypeRegular)
+	results, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return 0, err
 	}
@@ -1254,7 +1255,7 @@ func (d *Daemon) ExpireLogs() error {
 		return err
 	}
 
-	result, err := dbContainersList(d.db, cTypeRegular)
+	result, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -1408,19 +1409,19 @@ func initializeDbObject(d *Daemon, path string) error {
 	var err error
 
 	// Open the database. If the file doesn't exist it is created.
-	d.db, err = openDb(path)
+	d.db, err = db.OpenDb(path)
 	if err != nil {
 		return err
 	}
 
 	// Create the DB if it doesn't exist.
-	err = createDb(d.db)
+	err = db.CreateDb(d.db, patchesGetNames())
 	if err != nil {
 		return fmt.Errorf("Error creating database: %s", err)
 	}
 
 	// Detect LXD downgrades
-	if dbGetSchema(d.db) > dbGetLatestSchema() {
+	if db.GetSchema(d.db) > db.GetLatestSchema() {
 		return fmt.Errorf("The database schema is more recent than LXD's schema.")
 	}
 
@@ -1431,7 +1432,7 @@ func initializeDbObject(d *Daemon, path string) error {
 	// patches mechanism was introduced in lxd/patches.go. The
 	// rest of non-db patches will be applied separately via
 	// patchesApplyAll. See PR #3322 for more details.
-	err = dbUpdatesApplyAll(d.db, true, func(version int) error {
+	err = db.UpdatesApplyAll(d.db, true, func(version int) error {
 		if legacyPatch, ok := legacyPatches[version]; ok {
 			return legacyPatch(d)
 		}

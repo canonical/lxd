@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -10,12 +10,12 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func dbNetworks(db *sql.DB) ([]string, error) {
+func Networks(db *sql.DB) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM networks")
 	inargs := []interface{}{}
 	var name string
 	outfmt := []interface{}{name}
-	result, err := dbQueryScan(db, q, inargs, outfmt)
+	result, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -28,7 +28,7 @@ func dbNetworks(db *sql.DB) ([]string, error) {
 	return response, nil
 }
 
-func dbNetworkGet(db *sql.DB, name string) (int64, *api.Network, error) {
+func NetworkGet(db *sql.DB, name string) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
 
@@ -40,7 +40,7 @@ func dbNetworkGet(db *sql.DB, name string) (int64, *api.Network, error) {
 		return -1, nil, err
 	}
 
-	config, err := dbNetworkConfigGet(db, id)
+	config, err := NetworkConfigGet(db, id)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -56,7 +56,7 @@ func dbNetworkGet(db *sql.DB, name string) (int64, *api.Network, error) {
 	return id, &network, nil
 }
 
-func dbNetworkGetInterface(db *sql.DB, devName string) (int64, *api.Network, error) {
+func NetworkGetInterface(db *sql.DB, devName string) (int64, *api.Network, error) {
 	id := int64(-1)
 	name := ""
 	value := ""
@@ -64,7 +64,7 @@ func dbNetworkGetInterface(db *sql.DB, devName string) (int64, *api.Network, err
 	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\""
 	arg1 := []interface{}{}
 	arg2 := []interface{}{id, name, value}
-	result, err := dbQueryScan(db, q, arg1, arg2)
+	result, err := QueryScan(db, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -84,7 +84,7 @@ func dbNetworkGetInterface(db *sql.DB, devName string) (int64, *api.Network, err
 		return -1, nil, fmt.Errorf("No network found for interface: %s", devName)
 	}
 
-	config, err := dbNetworkConfigGet(db, id)
+	config, err := NetworkConfigGet(db, id)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -99,7 +99,7 @@ func dbNetworkGetInterface(db *sql.DB, devName string) (int64, *api.Network, err
 	return id, &network, nil
 }
 
-func dbNetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
+func NetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT
@@ -108,7 +108,7 @@ func dbNetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
 		WHERE network_id=?`
 	inargs := []interface{}{id}
 	outfmt := []interface{}{key, value}
-	results, err := dbQueryScan(db, query, inargs, outfmt)
+	results, err := QueryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get network '%d'", id)
 	}
@@ -120,7 +120,7 @@ func dbNetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
 		 */
 		query := "SELECT id FROM networks WHERE id=?"
 		var r int
-		results, err := dbQueryScan(db, query, []interface{}{id}, []interface{}{r})
+		results, err := QueryScan(db, query, []interface{}{id}, []interface{}{r})
 		if err != nil {
 			return nil, err
 		}
@@ -142,8 +142,8 @@ func dbNetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
 	return config, nil
 }
 
-func dbNetworkCreate(db *sql.DB, name, description string, config map[string]string) (int64, error) {
-	tx, err := dbBegin(db)
+func NetworkCreate(db *sql.DB, name, description string, config map[string]string) (int64, error) {
+	tx, err := Begin(db)
 	if err != nil {
 		return -1, err
 	}
@@ -160,13 +160,13 @@ func dbNetworkCreate(db *sql.DB, name, description string, config map[string]str
 		return -1, err
 	}
 
-	err = dbNetworkConfigAdd(tx, id, config)
+	err = NetworkConfigAdd(tx, id, config)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
 	}
 
-	err = txCommit(tx)
+	err = TxCommit(tx)
 	if err != nil {
 		return -1, err
 	}
@@ -174,44 +174,44 @@ func dbNetworkCreate(db *sql.DB, name, description string, config map[string]str
 	return id, nil
 }
 
-func dbNetworkUpdate(db *sql.DB, name, description string, config map[string]string) error {
-	id, _, err := dbNetworkGet(db, name)
+func NetworkUpdate(db *sql.DB, name, description string, config map[string]string) error {
+	id, _, err := NetworkGet(db, name)
 	if err != nil {
 		return err
 	}
 
-	tx, err := dbBegin(db)
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
 
-	err = dbNetworkUpdateDescription(tx, id, description)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = dbNetworkConfigClear(tx, id)
+	err = NetworkUpdateDescription(tx, id, description)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = dbNetworkConfigAdd(tx, id, config)
+	err = NetworkConfigClear(tx, id)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	return txCommit(tx)
+	err = NetworkConfigAdd(tx, id, config)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return TxCommit(tx)
 }
 
-func dbNetworkUpdateDescription(tx *sql.Tx, id int64, description string) error {
+func NetworkUpdateDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE networks SET description=? WHERE id=?", description, id)
 	return err
 }
 
-func dbNetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
+func NetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO networks_config (network_id, key, value) VALUES(?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
@@ -230,7 +230,7 @@ func dbNetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	return nil
 }
 
-func dbNetworkConfigClear(tx *sql.Tx, id int64) error {
+func NetworkConfigClear(tx *sql.Tx, id int64) error {
 	_, err := tx.Exec("DELETE FROM networks_config WHERE network_id=?", id)
 	if err != nil {
 		return err
@@ -239,13 +239,13 @@ func dbNetworkConfigClear(tx *sql.Tx, id int64) error {
 	return nil
 }
 
-func dbNetworkDelete(db *sql.DB, name string) error {
-	id, _, err := dbNetworkGet(db, name)
+func NetworkDelete(db *sql.DB, name string) error {
+	id, _, err := NetworkGet(db, name)
 	if err != nil {
 		return err
 	}
 
-	_, err = dbExec(db, "DELETE FROM networks WHERE id=?", id)
+	_, err = Exec(db, "DELETE FROM networks WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -253,13 +253,13 @@ func dbNetworkDelete(db *sql.DB, name string) error {
 	return nil
 }
 
-func dbNetworkRename(db *sql.DB, oldName string, newName string) error {
-	id, _, err := dbNetworkGet(db, oldName)
+func NetworkRename(db *sql.DB, oldName string, newName string) error {
+	id, _, err := NetworkGet(db, oldName)
 	if err != nil {
 		return err
 	}
 
-	tx, err := dbBegin(db)
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -270,5 +270,5 @@ func dbNetworkRename(db *sql.DB, oldName string, newName string) error {
 		return err
 	}
 
-	return txCommit(tx)
+	return TxCommit(tx)
 }

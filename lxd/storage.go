@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -317,7 +318,7 @@ func storageCoreInit(driver string) (storage, error) {
 
 func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
-	poolID, pool, err := dbStoragePoolGet(d.db, poolName)
+	poolID, pool, err := db.StoragePoolGet(d.db, poolName)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +333,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
 	if volumeName != "" && volumeType >= 0 {
-		_, volume, err = dbStoragePoolVolumeGetType(d.db, volumeName, volumeType, poolID)
+		_, volume, err = db.StoragePoolVolumeGetType(d.db, volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -545,11 +546,11 @@ func storagePoolVolumeAttachInit(d *Daemon, poolName string, volumeName string, 
 
 	st.SetStoragePoolVolumeWritable(&poolVolumePut)
 
-	poolID, err := dbStoragePoolGetID(d.db, poolName)
+	poolID, err := db.StoragePoolGetID(d.db, poolName)
 	if err != nil {
 		return nil, err
 	}
-	err = dbStoragePoolVolumeUpdate(d.db, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = db.StoragePoolVolumeUpdate(d.db, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -572,7 +573,7 @@ func storagePoolVolumeContainerCreateInit(d *Daemon, poolName string, containerN
 
 func storagePoolVolumeContainerLoadInit(d *Daemon, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
-	poolName, err := dbContainerPool(d.db, containerName)
+	poolName, err := db.ContainerPool(d.db, containerName)
 	if err != nil {
 		return nil, err
 	}

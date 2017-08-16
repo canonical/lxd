@@ -1,22 +1,22 @@
-package main
+package db
 
 import (
 	"database/sql"
+	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
 // Get all storage pools.
-func dbStoragePools(db *sql.DB) ([]string, error) {
+func StoragePools(db *sql.DB) ([]string, error) {
 	var name string
 	query := "SELECT name FROM storage_pools"
 	inargs := []interface{}{}
 	outargs := []interface{}{name}
 
-	result, err := dbQueryScan(db, query, inargs, outargs)
+	result, err := QueryScan(db, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -34,13 +34,13 @@ func dbStoragePools(db *sql.DB) ([]string, error) {
 }
 
 // Get the names of all storage volumes attached to a given storage pool.
-func dbStoragePoolsGetDrivers(db *sql.DB) ([]string, error) {
+func StoragePoolsGetDrivers(db *sql.DB) ([]string, error) {
 	var poolDriver string
 	query := "SELECT DISTINCT driver FROM storage_pools"
 	inargs := []interface{}{}
 	outargs := []interface{}{poolDriver}
 
-	result, err := dbQueryScan(db, query, inargs, outargs)
+	result, err := QueryScan(db, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -58,7 +58,7 @@ func dbStoragePoolsGetDrivers(db *sql.DB) ([]string, error) {
 }
 
 // Get id of a single storage pool.
-func dbStoragePoolGetID(db *sql.DB, poolName string) (int64, error) {
+func StoragePoolGetID(db *sql.DB, poolName string) (int64, error) {
 	poolID := int64(-1)
 	query := "SELECT id FROM storage_pools WHERE name=?"
 	inargs := []interface{}{poolName}
@@ -75,7 +75,7 @@ func dbStoragePoolGetID(db *sql.DB, poolName string) (int64, error) {
 }
 
 // Get a single storage pool.
-func dbStoragePoolGet(db *sql.DB, poolName string) (int64, *api.StoragePool, error) {
+func StoragePoolGet(db *sql.DB, poolName string) (int64, *api.StoragePool, error) {
 	var poolDriver string
 	poolID := int64(-1)
 	description := sql.NullString{}
@@ -92,7 +92,7 @@ func dbStoragePoolGet(db *sql.DB, poolName string) (int64, *api.StoragePool, err
 		return -1, nil, err
 	}
 
-	config, err := dbStoragePoolConfigGet(db, poolID)
+	config, err := StoragePoolConfigGet(db, poolID)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -108,13 +108,13 @@ func dbStoragePoolGet(db *sql.DB, poolName string) (int64, *api.StoragePool, err
 }
 
 // Get config of a storage pool.
-func dbStoragePoolConfigGet(db *sql.DB, poolID int64) (map[string]string, error) {
+func StoragePoolConfigGet(db *sql.DB, poolID int64) (map[string]string, error) {
 	var key, value string
 	query := "SELECT key, value FROM storage_pools_config WHERE storage_pool_id=?"
 	inargs := []interface{}{poolID}
 	outargs := []interface{}{key, value}
 
-	results, err := dbQueryScan(db, query, inargs, outargs)
+	results, err := QueryScan(db, query, inargs, outargs)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +132,8 @@ func dbStoragePoolConfigGet(db *sql.DB, poolID int64) (map[string]string, error)
 }
 
 // Create new storage pool.
-func dbStoragePoolCreate(db *sql.DB, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
-	tx, err := dbBegin(db)
+func StoragePoolCreate(db *sql.DB, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
+	tx, err := Begin(db)
 	if err != nil {
 		return -1, err
 	}
@@ -150,31 +150,22 @@ func dbStoragePoolCreate(db *sql.DB, poolName string, poolDescription string, po
 		return -1, err
 	}
 
-	err = dbStoragePoolConfigAdd(tx, id, poolConfig)
+	err = StoragePoolConfigAdd(tx, id, poolConfig)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
 	}
 
-	err = txCommit(tx)
+	err = TxCommit(tx)
 	if err != nil {
 		return -1, err
 	}
-
-	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheLock.Lock()
-	drivers := readStoragePoolDriversCache()
-	if !shared.StringInSlice(poolDriver, drivers) {
-		drivers = append(drivers, poolDriver)
-	}
-	storagePoolDriversCacheVal.Store(drivers)
-	storagePoolDriversCacheLock.Unlock()
 
 	return id, nil
 }
 
 // Add new storage pool config.
-func dbStoragePoolConfigAdd(tx *sql.Tx, poolID int64, poolConfig map[string]string) error {
+func StoragePoolConfigAdd(tx *sql.Tx, poolID int64, poolConfig map[string]string) error {
 	str := "INSERT INTO storage_pools_config (storage_pool_id, key, value) VALUES(?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
@@ -194,46 +185,46 @@ func dbStoragePoolConfigAdd(tx *sql.Tx, poolID int64, poolConfig map[string]stri
 }
 
 // Update storage pool.
-func dbStoragePoolUpdate(db *sql.DB, poolName, description string, poolConfig map[string]string) error {
-	poolID, _, err := dbStoragePoolGet(db, poolName)
+func StoragePoolUpdate(db *sql.DB, poolName, description string, poolConfig map[string]string) error {
+	poolID, _, err := StoragePoolGet(db, poolName)
 	if err != nil {
 		return err
 	}
 
-	tx, err := dbBegin(db)
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
 
-	err = dbStoragePoolUpdateDescription(tx, poolID, description)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = dbStoragePoolConfigClear(tx, poolID)
+	err = StoragePoolUpdateDescription(tx, poolID, description)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = dbStoragePoolConfigAdd(tx, poolID, poolConfig)
+	err = StoragePoolConfigClear(tx, poolID)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	return txCommit(tx)
+	err = StoragePoolConfigAdd(tx, poolID, poolConfig)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return TxCommit(tx)
 }
 
 // Update the storage pool description.
-func dbStoragePoolUpdateDescription(tx *sql.Tx, id int64, description string) error {
+func StoragePoolUpdateDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE storage_pools SET description=? WHERE id=?", description, id)
 	return err
 }
 
 // Delete storage pool config.
-func dbStoragePoolConfigClear(tx *sql.Tx, poolID int64) error {
+func StoragePoolConfigClear(tx *sql.Tx, poolID int64) error {
 	_, err := tx.Exec("DELETE FROM storage_pools_config WHERE storage_pool_id=?", poolID)
 	if err != nil {
 		return err
@@ -243,42 +234,28 @@ func dbStoragePoolConfigClear(tx *sql.Tx, poolID int64) error {
 }
 
 // Delete storage pool.
-func dbStoragePoolDelete(db *sql.DB, poolName string) error {
-	poolID, pool, err := dbStoragePoolGet(db, poolName)
+func StoragePoolDelete(db *sql.DB, poolName string) (*api.StoragePool, error) {
+	poolID, pool, err := StoragePoolGet(db, poolName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = dbExec(db, "DELETE FROM storage_pools WHERE id=?", poolID)
+	_, err = Exec(db, "DELETE FROM storage_pools WHERE id=?", poolID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheLock.Lock()
-	drivers := readStoragePoolDriversCache()
-	for i := 0; i < len(drivers); i++ {
-		if drivers[i] == pool.Driver {
-			drivers[i] = drivers[len(drivers)-1]
-			drivers[len(drivers)-1] = ""
-			drivers = drivers[:len(drivers)-1]
-			break
-		}
-	}
-	storagePoolDriversCacheVal.Store(drivers)
-	storagePoolDriversCacheLock.Unlock()
-
-	return nil
+	return pool, nil
 }
 
 // Get the names of all storage volumes attached to a given storage pool.
-func dbStoragePoolVolumesGetNames(db *sql.DB, poolID int64) (int, error) {
+func StoragePoolVolumesGetNames(db *sql.DB, poolID int64) (int, error) {
 	var volumeName string
 	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=?"
 	inargs := []interface{}{poolID}
 	outargs := []interface{}{volumeName}
 
-	result, err := dbQueryScan(db, query, inargs, outargs)
+	result, err := QueryScan(db, query, inargs, outargs)
 	if err != nil {
 		return -1, err
 	}
@@ -291,17 +268,17 @@ func dbStoragePoolVolumesGetNames(db *sql.DB, poolID int64) (int, error) {
 }
 
 // Get all storage volumes attached to a given storage pool.
-func dbStoragePoolVolumesGet(db *sql.DB, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
+func StoragePoolVolumesGet(db *sql.DB, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	// Get all storage volumes of all types attached to a given storage
 	// pool.
 	result := []*api.StorageVolume{}
 	for _, volumeType := range volumeTypes {
-		volumeNames, err := dbStoragePoolVolumesGetType(db, volumeType, poolID)
+		volumeNames, err := StoragePoolVolumesGetType(db, volumeType, poolID)
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err
 		}
 		for _, volumeName := range volumeNames {
-			_, volume, err := dbStoragePoolVolumeGetType(db, volumeName, volumeType, poolID)
+			_, volume, err := StoragePoolVolumeGetType(db, volumeName, volumeType, poolID)
 			if err != nil {
 				return nil, err
 			}
@@ -318,13 +295,13 @@ func dbStoragePoolVolumesGet(db *sql.DB, poolID int64, volumeTypes []int) ([]*ap
 
 // Get all storage volumes attached to a given storage pool of a given volume
 // type.
-func dbStoragePoolVolumesGetType(db *sql.DB, volumeType int, poolID int64) ([]string, error) {
+func StoragePoolVolumesGetType(db *sql.DB, volumeType int, poolID int64) ([]string, error) {
 	var poolName string
 	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND type=?"
 	inargs := []interface{}{poolID, volumeType}
 	outargs := []interface{}{poolName}
 
-	result, err := dbQueryScan(db, query, inargs, outargs)
+	result, err := QueryScan(db, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -338,23 +315,23 @@ func dbStoragePoolVolumesGetType(db *sql.DB, volumeType int, poolID int64) ([]st
 }
 
 // Get a single storage volume attached to a given storage pool of a given type.
-func dbStoragePoolVolumeGetType(db *sql.DB, volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
-	volumeID, err := dbStoragePoolVolumeGetTypeID(db, volumeName, volumeType, poolID)
+func StoragePoolVolumeGetType(db *sql.DB, volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
+	volumeID, err := StoragePoolVolumeGetTypeID(db, volumeName, volumeType, poolID)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	volumeConfig, err := dbStorageVolumeConfigGet(db, volumeID)
+	volumeConfig, err := StorageVolumeConfigGet(db, volumeID)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	volumeDescription, err := dbStorageVolumeDescriptionGet(db, volumeID)
+	volumeDescription, err := StorageVolumeDescriptionGet(db, volumeID)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	volumeTypeName, err := storagePoolVolumeTypeToName(volumeType)
+	volumeTypeName, err := StoragePoolVolumeTypeToName(volumeType)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -370,46 +347,46 @@ func dbStoragePoolVolumeGetType(db *sql.DB, volumeName string, volumeType int, p
 }
 
 // Update storage volume attached to a given storage pool.
-func dbStoragePoolVolumeUpdate(db *sql.DB, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
-	volumeID, _, err := dbStoragePoolVolumeGetType(db, volumeName, volumeType, poolID)
+func StoragePoolVolumeUpdate(db *sql.DB, volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
+	volumeID, _, err := StoragePoolVolumeGetType(db, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
 
-	tx, err := dbBegin(db)
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
 
-	err = dbStorageVolumeConfigClear(tx, volumeID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = dbStorageVolumeConfigAdd(tx, volumeID, volumeConfig)
+	err = StorageVolumeConfigClear(tx, volumeID)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = dbStorageVolumeDescriptionUpdate(tx, volumeID, volumeDescription)
+	err = StorageVolumeConfigAdd(tx, volumeID, volumeConfig)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	return txCommit(tx)
+	err = StorageVolumeDescriptionUpdate(tx, volumeID, volumeDescription)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return TxCommit(tx)
 }
 
 // Delete storage volume attached to a given storage pool.
-func dbStoragePoolVolumeDelete(db *sql.DB, volumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := dbStoragePoolVolumeGetType(db, volumeName, volumeType, poolID)
+func StoragePoolVolumeDelete(db *sql.DB, volumeName string, volumeType int, poolID int64) error {
+	volumeID, _, err := StoragePoolVolumeGetType(db, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
 
-	_, err = dbExec(db, "DELETE FROM storage_volumes WHERE id=?", volumeID)
+	_, err = Exec(db, "DELETE FROM storage_volumes WHERE id=?", volumeID)
 	if err != nil {
 		return err
 	}
@@ -418,13 +395,13 @@ func dbStoragePoolVolumeDelete(db *sql.DB, volumeName string, volumeType int, po
 }
 
 // Rename storage volume attached to a given storage pool.
-func dbStoragePoolVolumeRename(db *sql.DB, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := dbStoragePoolVolumeGetType(db, oldVolumeName, volumeType, poolID)
+func StoragePoolVolumeRename(db *sql.DB, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
+	volumeID, _, err := StoragePoolVolumeGetType(db, oldVolumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
 
-	tx, err := dbBegin(db)
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -435,12 +412,12 @@ func dbStoragePoolVolumeRename(db *sql.DB, oldVolumeName string, newVolumeName s
 		return err
 	}
 
-	return txCommit(tx)
+	return TxCommit(tx)
 }
 
 // Create new storage volume attached to a given storage pool.
-func dbStoragePoolVolumeCreate(db *sql.DB, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
-	tx, err := dbBegin(db)
+func StoragePoolVolumeCreate(db *sql.DB, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
+	tx, err := Begin(db)
 	if err != nil {
 		return -1, err
 	}
@@ -458,13 +435,13 @@ func dbStoragePoolVolumeCreate(db *sql.DB, volumeName, volumeDescription string,
 		return -1, err
 	}
 
-	err = dbStorageVolumeConfigAdd(tx, volumeID, volumeConfig)
+	err = StorageVolumeConfigAdd(tx, volumeID, volumeConfig)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
 	}
 
-	err = txCommit(tx)
+	err = TxCommit(tx)
 	if err != nil {
 		return -1, err
 	}
@@ -474,7 +451,7 @@ func dbStoragePoolVolumeCreate(db *sql.DB, volumeName, volumeDescription string,
 
 // Get ID of a storage volume on a given storage pool of a given storage volume
 // type.
-func dbStoragePoolVolumeGetTypeID(db *sql.DB, volumeName string, volumeType int, poolID int64) (int64, error) {
+func StoragePoolVolumeGetTypeID(db *sql.DB, volumeName string, volumeType int, poolID int64) (int64, error) {
 	volumeID := int64(-1)
 	query := `SELECT storage_volumes.id
 FROM storage_volumes
@@ -491,4 +468,36 @@ AND storage_volumes.name=? AND storage_volumes.type=?`
 	}
 
 	return volumeID, nil
+}
+
+// XXX: this was extracted from lxd/storage_volume_utils.go, we find a way to
+//      factor it independently from both the db and main packages.
+const (
+	StoragePoolVolumeTypeContainer = iota
+	StoragePoolVolumeTypeImage
+	StoragePoolVolumeTypeCustom
+)
+
+// Leave the string type in here! This guarantees that go treats this is as a
+// typed string constant. Removing it causes go to treat these as untyped string
+// constants which is not what we want.
+const (
+	StoragePoolVolumeTypeNameContainer string = "container"
+	StoragePoolVolumeTypeNameImage     string = "image"
+	StoragePoolVolumeTypeNameCustom    string = "custom"
+)
+
+// StoragePoolVolumeTypeToName converts a volume integer type code to its
+// human-readable name.
+func StoragePoolVolumeTypeToName(volumeType int) (string, error) {
+	switch volumeType {
+	case StoragePoolVolumeTypeContainer:
+		return StoragePoolVolumeTypeNameContainer, nil
+	case StoragePoolVolumeTypeImage:
+		return StoragePoolVolumeTypeNameImage, nil
+	case StoragePoolVolumeTypeCustom:
+		return StoragePoolVolumeTypeNameCustom, nil
+	}
+
+	return "", fmt.Errorf("invalid storage volume type")
 }
