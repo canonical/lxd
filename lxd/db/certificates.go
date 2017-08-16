@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -6,9 +6,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// dbCertInfo is here to pass the certificates content
+// CertInfo is here to pass the certificates content
 // from the database around
-type dbCertInfo struct {
+type CertInfo struct {
 	ID          int
 	Fingerprint string
 	Type        int
@@ -16,8 +16,8 @@ type dbCertInfo struct {
 	Certificate string
 }
 
-// dbCertsGet returns all certificates from the DB as CertBaseInfo objects.
-func dbCertsGet(db *sql.DB) (certs []*dbCertInfo, err error) {
+// CertsGet returns all certificates from the DB as CertBaseInfo objects.
+func CertsGet(db *sql.DB) (certs []*CertInfo, err error) {
 	rows, err := dbQuery(
 		db,
 		"SELECT id, fingerprint, type, name, certificate FROM certificates",
@@ -29,7 +29,7 @@ func dbCertsGet(db *sql.DB) (certs []*dbCertInfo, err error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		cert := new(dbCertInfo)
+		cert := new(CertInfo)
 		rows.Scan(
 			&cert.ID,
 			&cert.Fingerprint,
@@ -43,13 +43,13 @@ func dbCertsGet(db *sql.DB) (certs []*dbCertInfo, err error) {
 	return certs, nil
 }
 
-// dbCertGet gets an CertBaseInfo object from the database.
+// CertGet gets an CertBaseInfo object from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func dbCertGet(db *sql.DB, fingerprint string) (cert *dbCertInfo, err error) {
-	cert = new(dbCertInfo)
+func CertGet(db *sql.DB, fingerprint string) (cert *CertInfo, err error) {
+	cert = new(CertInfo)
 
 	inargs := []interface{}{fingerprint + "%"}
 	outfmt := []interface{}{
@@ -74,10 +74,10 @@ func dbCertGet(db *sql.DB, fingerprint string) (cert *dbCertInfo, err error) {
 	return cert, err
 }
 
-// dbCertSave stores a CertBaseInfo object in the db,
-// it will ignore the ID field from the dbCertInfo.
-func dbCertSave(db *sql.DB, cert *dbCertInfo) error {
-	tx, err := dbBegin(db)
+// CertSave stores a CertBaseInfo object in the db,
+// it will ignore the ID field from the CertInfo.
+func CertSave(db *sql.DB, cert *CertInfo) error {
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -105,12 +105,12 @@ func dbCertSave(db *sql.DB, cert *dbCertInfo) error {
 		return err
 	}
 
-	return txCommit(tx)
+	return TxCommit(tx)
 }
 
-// dbCertDelete deletes a certificate from the db.
-func dbCertDelete(db *sql.DB, fingerprint string) error {
-	_, err := dbExec(db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
+// CertDelete deletes a certificate from the db.
+func CertDelete(db *sql.DB, fingerprint string) error {
+	_, err := Exec(db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
 	if err != nil {
 		return err
 	}
@@ -118,8 +118,8 @@ func dbCertDelete(db *sql.DB, fingerprint string) error {
 	return nil
 }
 
-func dbCertUpdate(db *sql.DB, fingerprint string, certName string, certType int) error {
-	tx, err := dbBegin(db)
+func CertUpdate(db *sql.DB, fingerprint string, certName string, certType int) error {
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func dbCertUpdate(db *sql.DB, fingerprint string, certName string, certType int)
 		return err
 	}
 
-	err = txCommit(tx)
+	err = TxCommit(tx)
 
 	return err
 }

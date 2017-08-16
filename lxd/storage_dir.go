@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -205,7 +206,7 @@ func (s *storageDir) StoragePoolVolumeDelete() error {
 		return err
 	}
 
-	err = dbStoragePoolVolumeDelete(
+	err = db.StoragePoolVolumeDelete(
 		s.d.db,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,

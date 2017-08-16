@@ -6,23 +6,23 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 )
 
+// XXX: backward compatible declarations, introduced when the db code was
+//      extracted to its own package. We should eventually clean this up.
 const (
-	storagePoolVolumeTypeContainer = iota
-	storagePoolVolumeTypeImage
-	storagePoolVolumeTypeCustom
+	storagePoolVolumeTypeContainer = db.StoragePoolVolumeTypeContainer
+	storagePoolVolumeTypeImage     = db.StoragePoolVolumeTypeImage
+	storagePoolVolumeTypeCustom    = db.StoragePoolVolumeTypeCustom
 )
 
-// Leave the string type in here! This guarantees that go treats this is as a
-// typed string constant. Removing it causes go to treat these as untyped string
-// constants which is not what we want.
 const (
-	storagePoolVolumeTypeNameContainer string = "container"
-	storagePoolVolumeTypeNameImage     string = "image"
-	storagePoolVolumeTypeNameCustom    string = "custom"
+	storagePoolVolumeTypeNameContainer = db.StoragePoolVolumeTypeNameContainer
+	storagePoolVolumeTypeNameImage     = db.StoragePoolVolumeTypeNameImage
+	storagePoolVolumeTypeNameCustom    = db.StoragePoolVolumeTypeNameCustom
 )
 
 // Leave the string type in here! This guarantees that go treats this is as a
@@ -63,16 +63,7 @@ func storagePoolVolumeTypeNameToAPIEndpoint(volumeTypeName string) (string, erro
 }
 
 func storagePoolVolumeTypeToName(volumeType int) (string, error) {
-	switch volumeType {
-	case storagePoolVolumeTypeContainer:
-		return storagePoolVolumeTypeNameContainer, nil
-	case storagePoolVolumeTypeImage:
-		return storagePoolVolumeTypeNameImage, nil
-	case storagePoolVolumeTypeCustom:
-		return storagePoolVolumeTypeNameCustom, nil
-	}
-
-	return "", fmt.Errorf("invalid storage volume type")
+	return db.StoragePoolVolumeTypeToName(volumeType)
 }
 
 func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
@@ -160,14 +151,14 @@ func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volu
 		s.SetStoragePoolVolumeWritable(&newWritable)
 	}
 
-	poolID, err := dbStoragePoolGetID(d.db, poolName)
+	poolID, err := db.StoragePoolGetID(d.db, poolName)
 	if err != nil {
 		return err
 	}
 
 	// Update the database if something changed
 	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = dbStoragePoolVolumeUpdate(d.db, volumeName, volumeType, poolID, newDescription, newConfig)
+		err = db.StoragePoolVolumeUpdate(d.db, volumeName, volumeType, poolID, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
@@ -181,7 +172,7 @@ func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volu
 
 func storagePoolVolumeUsedByContainersGet(d *Daemon, volumeName string,
 	volumeTypeName string) ([]string, error) {
-	cts, err := dbContainersList(d.db, cTypeRegular)
+	cts, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return []string{}, err
 	}
@@ -258,16 +249,16 @@ func storagePoolVolumeUsedByGet(d *Daemon, volumeName string, volumeTypeName str
 	return volumeUsedBy, nil
 }
 
-func profilesUsingPoolVolumeGetNames(db *sql.DB, volumeName string, volumeType string) ([]string, error) {
+func profilesUsingPoolVolumeGetNames(dbObj *sql.DB, volumeName string, volumeType string) ([]string, error) {
 	usedBy := []string{}
 
-	profiles, err := dbProfiles(db)
+	profiles, err := db.Profiles(dbObj)
 	if err != nil {
 		return usedBy, err
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := dbProfileGet(db, pName)
+		_, profile, err := db.ProfileGet(dbObj, pName)
 		if err != nil {
 			return usedBy, err
 		}
@@ -318,14 +309,14 @@ func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName, volumeDes
 	}
 
 	// Load storage pool the volume will be attached to.
-	poolID, poolStruct, err := dbStoragePoolGet(d.db, poolName)
+	poolID, poolStruct, err := db.StoragePoolGet(d.db, poolName)
 	if err != nil {
 		return err
 	}
 
 	// Check that a storage volume of the same storage volume type does not
 	// already exist.
-	volumeID, _ := dbStoragePoolVolumeGetTypeID(d.db, volumeName, volumeType, poolID)
+	volumeID, _ := db.StoragePoolVolumeGetTypeID(d.db, volumeName, volumeType, poolID)
 	if volumeID > 0 {
 		return fmt.Errorf("a storage volume of type %s does already exist", volumeTypeName)
 	}
@@ -347,7 +338,7 @@ func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName, volumeDes
 	}
 
 	// Create the database entry for the storage volume.
-	_, err = dbStoragePoolVolumeCreate(d.db, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
+	_, err = db.StoragePoolVolumeCreate(d.db, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
 	}
@@ -377,7 +368,7 @@ func storagePoolVolumeCreateInternal(d *Daemon, poolName string, volumeName, vol
 	// Create storage volume.
 	err = s.StoragePoolVolumeCreate()
 	if err != nil {
-		dbStoragePoolVolumeDelete(d.db, volumeName, volumeType, poolID)
+		db.StoragePoolVolumeDelete(d.db, volumeName, volumeType, poolID)
 		return err
 	}
 

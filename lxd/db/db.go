@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -224,8 +224,8 @@ func init() {
 	sql.Register("sqlite3_with_fk", &sqlite3.SQLiteDriver{ConnectHook: enableForeignKeys})
 }
 
-// Open the database with the correct parameters for LXD.
-func openDb(path string) (*sql.DB, error) {
+// OpenDb opens the database with the correct parameters for LXD.
+func OpenDb(path string) (*sql.DB, error) {
 	timeout := 5 // TODO - make this command-line configurable?
 
 	// These are used to tune the transaction BEGIN behavior instead of using the
@@ -237,8 +237,8 @@ func openDb(path string) (*sql.DB, error) {
 }
 
 // Create the initial (current) schema for a given SQLite DB connection.
-func createDb(db *sql.DB) (err error) {
-	latestVersion := dbGetSchema(db)
+func CreateDb(db *sql.DB, patchNames []string) (err error) {
+	latestVersion := GetSchema(db)
 
 	if latestVersion != 0 {
 		return nil
@@ -251,17 +251,17 @@ func createDb(db *sql.DB) (err error) {
 
 	// There isn't an entry for schema version, let's put it in.
 	insertStmt := `INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
-	_, err = db.Exec(insertStmt, dbGetLatestSchema())
+	_, err = db.Exec(insertStmt, GetLatestSchema())
 	if err != nil {
 		return err
 	}
 
 	// Mark all existing patches as applied
-	for _, p := range patches {
-		dbPatchesMarkApplied(db, p.name)
+	for _, patchName := range patchNames {
+		PatchesMarkApplied(db, patchName)
 	}
 
-	err = dbProfileCreateDefault(db)
+	err = ProfileCreateDefault(db)
 	if err != nil {
 		return err
 	}
@@ -269,7 +269,7 @@ func createDb(db *sql.DB) (err error) {
 	return nil
 }
 
-func dbGetSchema(db *sql.DB) (v int) {
+func GetSchema(db *sql.DB) (v int) {
 	arg1 := []interface{}{}
 	arg2 := []interface{}{&v}
 	q := "SELECT max(version) FROM schema"
@@ -280,7 +280,7 @@ func dbGetSchema(db *sql.DB) (v int) {
 	return v
 }
 
-func dbGetLatestSchema() int {
+func GetLatestSchema() int {
 	if len(dbUpdates) == 0 {
 		return 0
 	}
@@ -288,7 +288,7 @@ func dbGetLatestSchema() int {
 	return dbUpdates[len(dbUpdates)-1].version
 }
 
-func isDbLockedError(err error) bool {
+func IsDbLockedError(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -311,13 +311,13 @@ func isNoMatchError(err error) bool {
 	return false
 }
 
-func dbBegin(db *sql.DB) (*sql.Tx, error) {
+func Begin(db *sql.DB) (*sql.Tx, error) {
 	for i := 0; i < 1000; i++ {
 		tx, err := db.Begin()
 		if err == nil {
 			return tx, nil
 		}
-		if !isDbLockedError(err) {
+		if !IsDbLockedError(err) {
 			logger.Debugf("DbBegin: error %q", err)
 			return nil, err
 		}
@@ -329,13 +329,13 @@ func dbBegin(db *sql.DB) (*sql.Tx, error) {
 	return nil, fmt.Errorf("DB is locked")
 }
 
-func txCommit(tx *sql.Tx) error {
+func TxCommit(tx *sql.Tx) error {
 	for i := 0; i < 1000; i++ {
 		err := tx.Commit()
 		if err == nil {
 			return nil
 		}
-		if !isDbLockedError(err) {
+		if !IsDbLockedError(err) {
 			logger.Debugf("Txcommit: error %q", err)
 			return err
 		}
@@ -356,7 +356,7 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 		if isNoMatchError(err) {
 			return err
 		}
-		if !isDbLockedError(err) {
+		if !IsDbLockedError(err) {
 			return err
 		}
 		time.Sleep(30 * time.Millisecond)
@@ -373,7 +373,7 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 		if err == nil {
 			return result, nil
 		}
-		if !isDbLockedError(err) {
+		if !IsDbLockedError(err) {
 			logger.Debugf("DbQuery: query %q error %q", q, err)
 			return nil, err
 		}
@@ -447,13 +447,13 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
  * The result will be an array (one per output row) of arrays (one per output argument)
  * of interfaces, containing pointers to the actual output arguments.
  */
-func dbQueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
+func QueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
 	for i := 0; i < 1000; i++ {
 		result, err := doDbQueryScan(db, q, inargs, outfmt)
 		if err == nil {
 			return result, nil
 		}
-		if !isDbLockedError(err) {
+		if !IsDbLockedError(err) {
 			logger.Debugf("DbQuery: query %q error %q", q, err)
 			return nil, err
 		}
@@ -465,13 +465,13 @@ func dbQueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{
 	return nil, fmt.Errorf("DB is locked")
 }
 
-func dbExec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
+func Exec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 	for i := 0; i < 1000; i++ {
 		result, err := db.Exec(q, args...)
 		if err == nil {
 			return result, nil
 		}
-		if !isDbLockedError(err) {
+		if !IsDbLockedError(err) {
 			logger.Debugf("DbExec: query %q error %q", q, err)
 			return nil, err
 		}
