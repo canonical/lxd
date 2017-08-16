@@ -37,6 +37,8 @@ type dbTestSuite struct {
 
 func (s *dbTestSuite) SetupTest() {
 	s.db = s.CreateTestDb()
+	_, err := s.db.Exec(DB_FIXTURES)
+	s.Nil(err)
 }
 
 func (s *dbTestSuite) TearDownTest() {
@@ -44,7 +46,7 @@ func (s *dbTestSuite) TearDownTest() {
 }
 
 // Initialize a test in-memory DB.
-func (s *dbTestSuite) CreateTestDb() (db *sql.DB) {
+func (s *dbTestSuite) CreateTestDb() *sql.DB {
 	// Setup logging if main() hasn't been called/when testing
 	if logger.Log == nil {
 		var err error
@@ -52,15 +54,12 @@ func (s *dbTestSuite) CreateTestDb() (db *sql.DB) {
 		s.Nil(err)
 	}
 
-	var err error
-	d := &Daemon{MockMode: true}
-	err = initializeDbObject(d, ":memory:")
+	db, err := openDb(":memory:")
 	s.Nil(err)
-	db = d.db
+	s.Nil(createDb(db))
+	s.Nil(dbUpdatesApplyAll(db, false, nil))
+	return db
 
-	_, err = db.Exec(DB_FIXTURES)
-	s.Nil(err)
-	return // db is a named output param
 }
 
 func TestDBTestSuite(t *testing.T) {
@@ -162,18 +161,12 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 }
 
 func (s *dbTestSuite) Test_initializing_db_is_idempotent() {
-	var db *sql.DB
-	var err error
-
 	// This calls "createDb" once already.
-	d := &Daemon{MockMode: true}
-	err = initializeDbObject(d, ":memory:")
-	db = d.db
+	db := s.CreateTestDb()
 	defer db.Close()
 
 	// Let's call it a second time.
-	err = createDb(db)
-	s.Nil(err)
+	s.Nil(createDb(db))
 }
 
 func (s *dbTestSuite) Test_get_schema_returns_0_on_uninitialized_db() {
@@ -193,9 +186,8 @@ func (s *dbTestSuite) Test_running_dbUpdateFromV6_adds_on_delete_cascade() {
 	var err error
 	var count int
 
-	d := &Daemon{MockMode: true}
-	err = initializeDbObject(d, ":memory:")
-	defer d.db.Close()
+	db := s.CreateTestDb()
+	defer db.Close()
 
 	statements := `
 CREATE TABLE IF NOT EXISTS containers (
@@ -219,28 +211,28 @@ CREATE TABLE IF NOT EXISTS containers_config (
 INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
 INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
 
-	_, err = d.db.Exec(statements)
+	_, err = db.Exec(statements)
 	s.Nil(err)
 
 	// Run the upgrade from V6 code
-	err = dbUpdateFromV6(5, 6, d.db)
+	err = dbUpdateFromV6(5, 6, db)
 	s.Nil(err)
 
 	// Make sure the inserted data is still there.
 	statements = `SELECT count(*) FROM containers_config;`
-	err = d.db.QueryRow(statements).Scan(&count)
+	err = db.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 1, "There should be exactly one entry in containers_config!")
 
 	// Drop the container.
 	statements = `DELETE FROM containers WHERE name = 'thename';`
 
-	_, err = d.db.Exec(statements)
+	_, err = db.Exec(statements)
 	s.Nil(err)
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles;`
-	err = d.db.QueryRow(statements).Scan(&count)
+	err = db.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the profile association!")
 }
@@ -321,11 +313,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 
 	// The "foreign key" on containers_config now points to nothing.
 	// Let's run the schema upgrades.
-	d := &Daemon{MockMode: true}
-	d.db = db
-	daemonConfigInit(db)
-
-	err = dbUpdatesApplyAll(d.db, false, nil)
+	err = dbUpdatesApplyAll(db, false, nil)
 	s.Nil(err)
 
 	result := dbGetSchema(db)
