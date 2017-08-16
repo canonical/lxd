@@ -19,11 +19,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 )
 
 func networkAutoAttach(d *Daemon, devName string) error {
-	_, dbInfo, err := dbNetworkGetInterface(d.db, devName)
+	_, dbInfo, err := db.NetworkGetInterface(d.db, devName)
 	if err != nil {
 		// No match found, move on
 		return nil
@@ -71,7 +72,7 @@ func networkDetachInterface(netName string, devName string) error {
 }
 
 func networkGetInterfaces(d *Daemon) ([]string, error) {
-	networks, err := dbNetworks(d.db)
+	networks, err := db.Networks(d.db)
 	if err != nil {
 		return nil, err
 	}
@@ -723,7 +724,7 @@ func networkKillDnsmasq(name string, reload bool) error {
 
 func networkUpdateStatic(d *Daemon, name string) error {
 	// Get all the containers
-	containers, err := dbContainersList(d.db, cTypeRegular)
+	containers, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -731,7 +732,7 @@ func networkUpdateStatic(d *Daemon, name string) error {
 	networks := []string{}
 	if name == "" {
 		// Get all the networks
-		networks, err = dbNetworks(d.db)
+		networks, err = db.Networks(d.db)
 		if err != nil {
 			return err
 		}

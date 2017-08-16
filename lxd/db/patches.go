@@ -1,16 +1,16 @@
-package main
+package db
 
 import (
 	"database/sql"
 	"fmt"
 )
 
-func dbPatches(db *sql.DB) ([]string, error) {
+func Patches(db *sql.DB) ([]string, error) {
 	inargs := []interface{}{}
 	outfmt := []interface{}{""}
 
 	query := fmt.Sprintf("SELECT name FROM patches")
-	result, err := dbQueryScan(db, query, inargs, outfmt)
+	result, err := QueryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -23,7 +23,7 @@ func dbPatches(db *sql.DB) ([]string, error) {
 	return response, nil
 }
 
-func dbPatchesMarkApplied(db *sql.DB, patch string) error {
+func PatchesMarkApplied(db *sql.DB, patch string) error {
 	stmt := `INSERT INTO patches (name, applied_at) VALUES (?, strftime("%s"));`
 	_, err := db.Exec(stmt, patch)
 	return err

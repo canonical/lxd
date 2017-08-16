@@ -19,6 +19,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -589,7 +590,7 @@ func deviceTaskBalance(d *Daemon) {
 	}
 
 	// Iterate through the containers
-	containers, err := dbContainersList(d.db, cTypeRegular)
+	containers, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -715,7 +716,7 @@ func deviceNetworkPriority(d *Daemon, netif string) {
 		return
 	}
 
-	containers, err := dbContainersList(d.db, cTypeRegular)
+	containers, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return
 	}
@@ -746,7 +747,7 @@ func deviceNetworkPriority(d *Daemon, netif string) {
 }
 
 func deviceUSBEvent(d *Daemon, usb usbDevice) {
-	containers, err := dbContainersList(d.db, cTypeRegular)
+	containers, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return

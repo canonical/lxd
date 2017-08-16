@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -356,7 +357,7 @@ func cephRBDSnapshotListClones(clusterName string, poolName string,
 	msg = strings.TrimSpace(msg)
 	clones := strings.Fields(msg)
 	if len(clones) == 0 {
-		return nil, NoSuchObjectError
+		return nil, db.NoSuchObjectError
 	}
 
 	return clones, nil
@@ -462,7 +463,7 @@ func cephRBDVolumeSnapshotRename(clusterName string, poolName string,
 // cephRBDVolumeGetParent will return the snapshot the RBD clone was created
 // from
 // - If the RBD storage volume is not a clone then this function will return
-//   NoSuchObjectError.
+//   db.NoSuchObjectError.
 // - The snapshot will be returned as
 //   <osd-pool-name>/<rbd-volume-name>@<rbd-snapshot-name>
 //   The caller will usually want to parse this according to its needs. This
@@ -482,7 +483,7 @@ func cephRBDVolumeGetParent(clusterName string, poolName string,
 
 	idx := strings.Index(msg, "parent: ")
 	if idx == -1 {
-		return "", NoSuchObjectError
+		return "", db.NoSuchObjectError
 	}
 
 	msg = msg[(idx + len("parent: ")):]
@@ -585,7 +586,7 @@ func cephRBDVolumeListSnapshots(clusterName string, poolName string,
 	}
 
 	if len(snapshots) == 0 {
-		return []string{}, NoSuchObjectError
+		return []string{}, db.NoSuchObjectError
 	}
 
 	return snapshots, nil
@@ -958,7 +959,7 @@ func cephContainerDelete(clusterName string, poolName string, volumeName string,
 			return 1
 		}
 	} else {
-		if err != NoSuchObjectError {
+		if err != db.NoSuchObjectError {
 			logger.Errorf(`Failed to retrieve snapshots of RBD `+
 				`storage volume: %s`, err)
 			return -1
@@ -1026,7 +1027,7 @@ func cephContainerDelete(clusterName string, poolName string, volumeName string,
 
 			return 0
 		} else {
-			if err != NoSuchObjectError {
+			if err != db.NoSuchObjectError {
 				logger.Errorf(`Failed to retrieve parent of `+
 					`RBD storage volume "%s"`, logEntry)
 				return -1
@@ -1088,7 +1089,7 @@ func cephContainerSnapshotDelete(clusterName string, poolName string,
 	clones, err := cephRBDSnapshotListClones(clusterName, poolName,
 		volumeName, volumeType, snapshotName, userName)
 	if err != nil {
-		if err != NoSuchObjectError {
+		if err != db.NoSuchObjectError {
 			logger.Errorf(`Failed to list clones of RBD `+
 				`snapshot "%s" of RBD storage volume "%s": %s`,
 				logSnapshotEntry, logImageEntry, err)

@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -11,13 +11,13 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
-var dbImageSourceProtocol = map[int]string{
+var ImageSourceProtocol = map[int]string{
 	0: "lxd",
 	1: "direct",
 	2: "simplestreams",
 }
 
-func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
+func ImagesGet(db *sql.DB, public bool) ([]string, error) {
 	q := "SELECT fingerprint FROM images"
 	if public == true {
 		q = "SELECT fingerprint FROM images WHERE public=1"
@@ -26,7 +26,7 @@ func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 	var fp string
 	inargs := []interface{}{}
 	outfmt := []interface{}{fp}
-	dbResults, err := dbQueryScan(db, q, inargs, outfmt)
+	dbResults, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -39,13 +39,13 @@ func dbImagesGet(db *sql.DB, public bool) ([]string, error) {
 	return results, nil
 }
 
-func dbImagesGetExpired(db *sql.DB, expiry int64) ([]string, error) {
+func ImagesGetExpired(db *sql.DB, expiry int64) ([]string, error) {
 	q := `SELECT fingerprint FROM images WHERE cached=1 AND creation_date<=strftime('%s', date('now', '-` + fmt.Sprintf("%d", expiry) + ` day'))`
 
 	var fp string
 	inargs := []interface{}{}
 	outfmt := []interface{}{fp}
-	dbResults, err := dbQueryScan(db, q, inargs, outfmt)
+	dbResults, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -58,11 +58,11 @@ func dbImagesGetExpired(db *sql.DB, expiry int64) ([]string, error) {
 	return results, nil
 }
 
-func dbImageSourceInsert(db *sql.DB, imageId int, server string, protocol string, certificate string, alias string) error {
+func ImageSourceInsert(db *sql.DB, imageId int, server string, protocol string, certificate string, alias string) error {
 	stmt := `INSERT INTO images_source (image_id, server, protocol, certificate, alias) values (?, ?, ?, ?, ?)`
 
 	protocolInt := -1
-	for protoInt, protoString := range dbImageSourceProtocol {
+	for protoInt, protoString := range ImageSourceProtocol {
 		if protoString == protocol {
 			protocolInt = protoInt
 		}
@@ -72,11 +72,11 @@ func dbImageSourceInsert(db *sql.DB, imageId int, server string, protocol string
 		return fmt.Errorf("Invalid protocol: %s", protocol)
 	}
 
-	_, err := dbExec(db, stmt, imageId, server, protocolInt, certificate, alias)
+	_, err := Exec(db, stmt, imageId, server, protocolInt, certificate, alias)
 	return err
 }
 
-func dbImageSourceGet(db *sql.DB, imageId int) (int, api.ImageSource, error) {
+func ImageSourceGet(db *sql.DB, imageId int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
 
 	id := 0
@@ -94,7 +94,7 @@ func dbImageSourceGet(db *sql.DB, imageId int) (int, api.ImageSource, error) {
 		return -1, api.ImageSource{}, err
 	}
 
-	protocol, found := dbImageSourceProtocol[protocolInt]
+	protocol, found := ImageSourceProtocol[protocolInt]
 	if !found {
 		return -1, api.ImageSource{}, fmt.Errorf("Invalid protocol: %d", protocolInt)
 	}
@@ -108,9 +108,9 @@ func dbImageSourceGet(db *sql.DB, imageId int) (int, api.ImageSource, error) {
 // Try to find a source entry of a locally cached image that matches
 // the given remote details (server, protocol and alias). Return the
 // fingerprint linked to the matching entry, if any.
-func dbImageSourceGetCachedFingerprint(db *sql.DB, server string, protocol string, alias string) (string, error) {
+func ImageSourceGetCachedFingerprint(db *sql.DB, server string, protocol string, alias string) (string, error) {
 	protocolInt := -1
-	for protoInt, protoString := range dbImageSourceProtocol {
+	for protoInt, protoString := range ImageSourceProtocol {
 		if protoString == protocol {
 			protocolInt = protoInt
 		}
@@ -144,7 +144,7 @@ func dbImageSourceGetCachedFingerprint(db *sql.DB, server string, protocol strin
 }
 
 // Whether an image with the given fingerprint exists.
-func dbImageExists(db *sql.DB, fingerprint string) (bool, error) {
+func ImageExists(db *sql.DB, fingerprint string) (bool, error) {
 	var exists bool
 	var err error
 	query := "SELECT COUNT(*) > 0 FROM images WHERE fingerprint=?"
@@ -154,12 +154,12 @@ func dbImageExists(db *sql.DB, fingerprint string) (bool, error) {
 	return exists, err
 }
 
-// dbImageGet gets an Image object from the database.
+// ImageGet gets an Image object from the database.
 // If strictMatching is false, The fingerprint argument will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
+func ImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
 	var err error
 	var create, expire, used, upload *time.Time // These hold the db-returned times
 
@@ -241,7 +241,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 	var key, value, name, desc string
 	inargs = []interface{}{id}
 	outfmt = []interface{}{key, value}
-	results, err := dbQueryScan(db, q, inargs, outfmt)
+	results, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -259,7 +259,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 	q = "SELECT name, description FROM images_aliases WHERE image_id=?"
 	inargs = []interface{}{id}
 	outfmt = []interface{}{name, desc}
-	results, err = dbQueryScan(db, q, inargs, outfmt)
+	results, err = QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -274,7 +274,7 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 
 	image.Aliases = aliases
 
-	_, source, err := dbImageSourceGet(db, id)
+	_, source, err := ImageSourceGet(db, id)
 	if err == nil {
 		image.UpdateSource = &source
 	}
@@ -282,8 +282,8 @@ func dbImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool
 	return id, &image, nil
 }
 
-func dbImageDelete(db *sql.DB, id int) error {
-	_, err := dbExec(db, "DELETE FROM images WHERE id=?", id)
+func ImageDelete(db *sql.DB, id int) error {
+	_, err := Exec(db, "DELETE FROM images WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -291,7 +291,7 @@ func dbImageDelete(db *sql.DB, id int) error {
 	return nil
 }
 
-func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+func ImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
@@ -323,53 +323,53 @@ func dbImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, api.Im
 	return id, entry, nil
 }
 
-func dbImageAliasRename(db *sql.DB, id int, name string) error {
-	_, err := dbExec(db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
+func ImageAliasRename(db *sql.DB, id int, name string) error {
+	_, err := Exec(db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
 	return err
 }
 
-func dbImageAliasDelete(db *sql.DB, name string) error {
-	_, err := dbExec(db, "DELETE FROM images_aliases WHERE name=?", name)
+func ImageAliasDelete(db *sql.DB, name string) error {
+	_, err := Exec(db, "DELETE FROM images_aliases WHERE name=?", name)
 	return err
 }
 
-func dbImageAliasesMove(db *sql.DB, source int, destination int) error {
-	_, err := dbExec(db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
+func ImageAliasesMove(db *sql.DB, source int, destination int) error {
+	_, err := Exec(db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
 	return err
 }
 
 // Insert an alias ento the database.
-func dbImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
+func ImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
 	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
-	_, err := dbExec(db, stmt, name, imageID, desc)
+	_, err := Exec(db, stmt, name, imageID, desc)
 	return err
 }
 
-func dbImageAliasUpdate(db *sql.DB, id int, imageID int, desc string) error {
+func ImageAliasUpdate(db *sql.DB, id int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
-	_, err := dbExec(db, stmt, imageID, desc, id)
+	_, err := Exec(db, stmt, imageID, desc, id)
 	return err
 }
 
-func dbImageLastAccessUpdate(db *sql.DB, fingerprint string, date time.Time) error {
+func ImageLastAccessUpdate(db *sql.DB, fingerprint string, date time.Time) error {
 	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
-	_, err := dbExec(db, stmt, date, fingerprint)
+	_, err := Exec(db, stmt, date, fingerprint)
 	return err
 }
 
-func dbImageLastAccessInit(db *sql.DB, fingerprint string) error {
+func ImageLastAccessInit(db *sql.DB, fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
-	_, err := dbExec(db, stmt, fingerprint)
+	_, err := Exec(db, stmt, fingerprint)
 	return err
 }
 
-func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
+func ImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
 	}
 
-	tx, err := dbBegin(db)
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -413,20 +413,20 @@ func dbImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, auto
 		}
 	}
 
-	if err := txCommit(tx); err != nil {
+	if err := TxCommit(tx); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
+func ImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
 	}
 
-	tx, err := dbBegin(db)
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -482,7 +482,7 @@ func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, a
 
 	}
 
-	if err := txCommit(tx); err != nil {
+	if err := TxCommit(tx); err != nil {
 		return err
 	}
 
@@ -490,13 +490,13 @@ func dbImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, a
 }
 
 // Get the names of all storage pools on which a given image exists.
-func dbImageGetPools(db *sql.DB, imageFingerprint string) ([]int64, error) {
+func ImageGetPools(db *sql.DB, imageFingerprint string) ([]int64, error) {
 	poolID := int64(-1)
 	query := "SELECT storage_pool_id FROM storage_volumes WHERE name=? AND type=?"
-	inargs := []interface{}{imageFingerprint, storagePoolVolumeTypeImage}
+	inargs := []interface{}{imageFingerprint, StoragePoolVolumeTypeImage}
 	outargs := []interface{}{poolID}
 
-	result, err := dbQueryScan(db, query, inargs, outargs)
+	result, err := QueryScan(db, query, inargs, outargs)
 	if err != nil {
 		return []int64{}, err
 	}
@@ -510,7 +510,7 @@ func dbImageGetPools(db *sql.DB, imageFingerprint string) ([]int64, error) {
 }
 
 // Get the names of all storage pools on which a given image exists.
-func dbImageGetPoolNamesFromIDs(db *sql.DB, poolIDs []int64) ([]string, error) {
+func ImageGetPoolNamesFromIDs(db *sql.DB, poolIDs []int64) ([]string, error) {
 	var poolName string
 	query := "SELECT name FROM storage_pools WHERE id=?"
 
@@ -519,7 +519,7 @@ func dbImageGetPoolNamesFromIDs(db *sql.DB, poolIDs []int64) ([]string, error) {
 		inargs := []interface{}{poolID}
 		outargs := []interface{}{poolName}
 
-		result, err := dbQueryScan(db, query, inargs, outargs)
+		result, err := QueryScan(db, query, inargs, outargs)
 		if err != nil {
 			return []string{}, err
 		}

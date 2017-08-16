@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -409,7 +410,7 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 		}
 	}
 
-	err = dbStoragePoolVolumeDelete(
+	err = db.StoragePoolVolumeDelete(
 		s.d.db,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,

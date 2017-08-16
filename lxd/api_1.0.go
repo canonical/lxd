@@ -10,6 +10,7 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
@@ -242,7 +243,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 }
 
 func api10Put(d *Daemon, r *http.Request) Response {
-	oldConfig, err := dbConfigValuesGet(d.db)
+	oldConfig, err := db.ConfigValuesGet(d.db)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -261,7 +262,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 }
 
 func api10Patch(d *Daemon, r *http.Request) Response {
-	oldConfig, err := dbConfigValuesGet(d.db)
+	oldConfig, err := db.ConfigValuesGet(d.db)
 	if err != nil {
 		return SmartError(err)
 	}

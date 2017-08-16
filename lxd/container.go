@@ -11,6 +11,7 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -338,7 +339,7 @@ func containerValidDevices(d *Daemon, devices types.Devices, profile bool, expan
 					return fmt.Errorf("Storage volumes cannot be specified as absolute paths.")
 				}
 
-				_, err := dbStoragePoolGetID(d.db, m["pool"])
+				_, err := db.StoragePoolGetID(d.db, m["pool"])
 				if err != nil {
 					return fmt.Errorf("The \"%s\" storage pool doesn't exist.", m["pool"])
 				}
@@ -396,25 +397,6 @@ func containerValidDevices(d *Daemon, devices types.Devices, profile bool, expan
 	return nil
 }
 
-// The container arguments
-type containerArgs struct {
-	// Don't set manually
-	Id int
-
-	Description  string
-	Architecture int
-	BaseImage    string
-	Config       map[string]string
-	CreationDate time.Time
-	LastUsedDate time.Time
-	Ctype        containerType
-	Devices      types.Devices
-	Ephemeral    bool
-	Name         string
-	Profiles     []string
-	Stateful     bool
-}
-
 // The container interface
 type container interface {
 	// Container actions
@@ -434,7 +416,7 @@ type container interface {
 
 	// Config handling
 	Rename(newName string) error
-	Update(newConfig containerArgs, userRequested bool) error
+	Update(newConfig db.ContainerArgs, userRequested bool) error
 
 	Delete() error
 	Export(w io.Writer, properties map[string]string) error
@@ -516,7 +498,7 @@ type container interface {
 }
 
 // Loader functions
-func containerCreateAsEmpty(d *Daemon, args containerArgs) (container, error) {
+func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error) {
 	// Create the container
 	c, err := containerCreateInternal(d, args)
 	if err != nil {
@@ -539,7 +521,7 @@ func containerCreateAsEmpty(d *Daemon, args containerArgs) (container, error) {
 	return c, nil
 }
 
-func containerCreateEmptySnapshot(d *Daemon, args containerArgs) (container, error) {
+func containerCreateEmptySnapshot(d *Daemon, args db.ContainerArgs) (container, error) {
 	// Create the snapshot
 	c, err := containerCreateInternal(d, args)
 	if err != nil {
@@ -555,9 +537,9 @@ func containerCreateEmptySnapshot(d *Daemon, args containerArgs) (container, err
 	return c, nil
 }
 
-func containerCreateFromImage(d *Daemon, args containerArgs, hash string) (container, error) {
+func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (container, error) {
 	// Get the image properties
-	_, img, err := dbImageGet(d.db, hash, false, false)
+	_, img, err := db.ImageGet(d.db, hash, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -578,7 +560,7 @@ func containerCreateFromImage(d *Daemon, args containerArgs, hash string) (conta
 		return nil, err
 	}
 
-	if err := dbImageLastAccessUpdate(d.db, hash, time.Now().UTC()); err != nil {
+	if err := db.ImageLastAccessUpdate(d.db, hash, time.Now().UTC()); err != nil {
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
@@ -598,7 +580,7 @@ func containerCreateFromImage(d *Daemon, args containerArgs, hash string) (conta
 	return c, nil
 }
 
-func containerCreateAsCopy(d *Daemon, args containerArgs, sourceContainer container, containerOnly bool) (container, error) {
+func containerCreateAsCopy(d *Daemon, args db.ContainerArgs, sourceContainer container, containerOnly bool) (container, error) {
 	// Create the container.
 	ct, err := containerCreateInternal(d, args)
 	if err != nil {
@@ -616,10 +598,10 @@ func containerCreateAsCopy(d *Daemon, args containerArgs, sourceContainer contai
 		for i, snap := range snapshots {
 			fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
 			newSnapName := fmt.Sprintf("%s/%s", ct.Name(), fields[1])
-			csArgs := containerArgs{
+			csArgs := db.ContainerArgs{
 				Architecture: snap.Architecture(),
 				Config:       snap.LocalConfig(),
-				Ctype:        cTypeSnapshot,
+				Ctype:        db.CTypeSnapshot,
 				Devices:      snap.LocalDevices(),
 				Ephemeral:    snap.IsEphemeral(),
 				Name:         newSnapName,
@@ -663,7 +645,7 @@ func containerCreateAsCopy(d *Daemon, args containerArgs, sourceContainer contai
 	return ct, nil
 }
 
-func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer container) (container, error) {
+func containerCreateAsSnapshot(d *Daemon, args db.ContainerArgs, sourceContainer container) (container, error) {
 	// Deal with state
 	if args.Stateful {
 		if !sourceContainer.IsRunning() {
@@ -732,7 +714,7 @@ func containerCreateAsSnapshot(d *Daemon, args containerArgs, sourceContainer co
 	return c, nil
 }
 
-func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
+func containerCreateInternal(d *Daemon, args db.ContainerArgs) (container, error) {
 	// Set default values
 	if args.Profiles == nil {
 		args.Profiles = []string{"default"}
@@ -755,7 +737,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Validate container name
-	if args.Ctype == cTypeRegular {
+	if args.Ctype == db.CTypeRegular {
 		err := containerValidName(args.Name)
 		if err != nil {
 			return nil, err
@@ -785,7 +767,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Validate profiles
-	profiles, err := dbProfiles(d.db)
+	profiles, err := db.Profiles(d.db)
 	if err != nil {
 		return nil, err
 	}
@@ -797,9 +779,9 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	}
 
 	// Create the container entry
-	id, err := dbContainerCreate(d.db, args)
+	id, err := db.ContainerCreate(d.db, args)
 	if err != nil {
-		if err == DbErrAlreadyDefined {
+		if err == db.DbErrAlreadyDefined {
 			thing := "Container"
 			if shared.IsSnapshot(args.Name) {
 				thing = "Snapshot"
@@ -815,7 +797,7 @@ func containerCreateInternal(d *Daemon, args containerArgs) (container, error) {
 	args.Id = id
 
 	// Read the timestamp from the database
-	dbArgs, err := dbContainerGet(d.db, args.Name)
+	dbArgs, err := db.ContainerGet(d.db, args.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -879,7 +861,7 @@ func containerConfigureInternal(c container) error {
 
 func containerLoadById(d *Daemon, id int) (container, error) {
 	// Get the DB record
-	name, err := dbContainerName(d.db, id)
+	name, err := db.ContainerName(d.db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -889,7 +871,7 @@ func containerLoadById(d *Daemon, id int) (container, error) {
 
 func containerLoadByName(d *Daemon, name string) (container, error) {
 	// Get the DB record
-	args, err := dbContainerGet(d.db, name)
+	args, err := db.ContainerGet(d.db, name)
 	if err != nil {
 		return nil, err
 	}

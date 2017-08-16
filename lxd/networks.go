@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -126,7 +127,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Create the database entry
-	_, err = dbNetworkCreate(d.db, req.Name, req.Description, req.Config)
+	_, err = db.NetworkCreate(d.db, req.Name, req.Description, req.Config)
 	if err != nil {
 		return InternalError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
@@ -165,7 +166,7 @@ func networkGet(d *Daemon, r *http.Request) Response {
 func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	// Get some information
 	osInfo, _ := net.InterfaceByName(name)
-	_, dbInfo, _ := dbNetworkGet(d.db, name)
+	_, dbInfo, _ := db.NetworkGet(d.db, name)
 
 	// Sanity check
 	if osInfo == nil && dbInfo == nil {
@@ -179,7 +180,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	n.Config = map[string]string{}
 
 	// Look for containers using the interface
-	cts, err := dbContainersList(d.db, cTypeRegular)
+	cts, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return api.Network{}, err
 	}
@@ -296,7 +297,7 @@ func networkPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := dbNetworkGet(d.db, name)
+	_, dbInfo, err := db.NetworkGet(d.db, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -321,7 +322,7 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := dbNetworkGet(d.db, name)
+	_, dbInfo, err := db.NetworkGet(d.db, name)
 	if dbInfo != nil {
 		return SmartError(err)
 	}
@@ -386,7 +387,7 @@ var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: netwo
 
 // The network structs and functions
 func networkLoadByName(d *Daemon, name string) (*network, error) {
-	id, dbInfo, err := dbNetworkGet(d.db, name)
+	id, dbInfo, err := db.NetworkGet(d.db, name)
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +399,7 @@ func networkLoadByName(d *Daemon, name string) (*network, error) {
 
 func networkStartup(d *Daemon) error {
 	// Get a list of managed networks
-	networks, err := dbNetworks(d.db)
+	networks, err := db.Networks(d.db)
 	if err != nil {
 		return err
 	}
@@ -422,7 +423,7 @@ func networkStartup(d *Daemon) error {
 
 func networkShutdown(d *Daemon) error {
 	// Get a list of managed networks
-	networks, err := dbNetworks(d.db)
+	networks, err := db.Networks(d.db)
 	if err != nil {
 		return err
 	}
@@ -468,7 +469,7 @@ func (n *network) IsRunning() bool {
 
 func (n *network) IsUsed() bool {
 	// Look for containers using the interface
-	cts, err := dbContainersList(n.daemon.db, cTypeRegular)
+	cts, err := db.ContainersList(n.daemon.db, db.CTypeRegular)
 	if err != nil {
 		return true
 	}
@@ -502,7 +503,7 @@ func (n *network) Delete() error {
 	}
 
 	// Remove the network from the database
-	err := dbNetworkDelete(n.daemon.db, n.name)
+	err := db.NetworkDelete(n.daemon.db, n.name)
 	if err != nil {
 		return err
 	}
@@ -537,7 +538,7 @@ func (n *network) Rename(name string) error {
 	}
 
 	// Rename the database entry
-	err := dbNetworkRename(n.daemon.db, n.name, name)
+	err := db.NetworkRename(n.daemon.db, n.name, name)
 	if err != nil {
 		return err
 	}
@@ -1393,7 +1394,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 	n.description = newNetwork.Description
 
 	// Update the database
-	err = dbNetworkUpdate(n.daemon.db, n.name, n.description, n.config)
+	err = db.NetworkUpdate(n.daemon.db, n.name, n.description, n.config)
 	if err != nil {
 		return err
 	}

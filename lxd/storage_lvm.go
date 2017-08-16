@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -543,7 +544,7 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 		}
 	}
 
-	err = dbStoragePoolVolumeDelete(
+	err = db.StoragePoolVolumeDelete(
 		s.d.db,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
@@ -1708,7 +1709,7 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 
 	// Update the database
 	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
-	err = dbStoragePoolVolumeUpdate(
+	err = db.StoragePoolVolumeUpdate(
 		s.d.db,
 		s.volume.Name,
 		volumeType,

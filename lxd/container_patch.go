@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
@@ -99,7 +100,7 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update container configuration
-	args := containerArgs{
+	args := db.ContainerArgs{
 		Architecture: architecture,
 		Description:  req.Description,
 		Config:       req.Config,
