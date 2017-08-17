@@ -527,7 +527,7 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Detect the filesystem */
-	d.BackingFs, err = filesystemDetect(d.lxcpath)
+	d.BackingFs, err = util.FilesystemDetect(d.lxcpath)
 	if err != nil {
 		logger.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}

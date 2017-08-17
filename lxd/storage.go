@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"sync"
 	"sync/atomic"
-	"syscall"
 
 	"github.com/gorilla/websocket"
 
@@ -73,43 +72,6 @@ func readStoragePoolDriversCache() []string {
 	}
 
 	return drivers.([]string)
-}
-
-// Filesystem magic numbers
-const (
-	filesystemSuperMagicTmpfs = 0x01021994
-	filesystemSuperMagicExt4  = 0xEF53
-	filesystemSuperMagicXfs   = 0x58465342
-	filesystemSuperMagicNfs   = 0x6969
-	filesystemSuperMagicZfs   = 0x2fc12fc1
-)
-
-// filesystemDetect returns the filesystem on which the passed-in path sits.
-func filesystemDetect(path string) (string, error) {
-	fs := syscall.Statfs_t{}
-
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return "", err
-	}
-
-	switch fs.Type {
-	case filesystemSuperMagicBtrfs:
-		return "btrfs", nil
-	case filesystemSuperMagicZfs:
-		return "zfs", nil
-	case filesystemSuperMagicTmpfs:
-		return "tmpfs", nil
-	case filesystemSuperMagicExt4:
-		return "ext4", nil
-	case filesystemSuperMagicXfs:
-		return "xfs", nil
-	case filesystemSuperMagicNfs:
-		return "nfs", nil
-	default:
-		logger.Debugf("Unknown backing filesystem type: 0x%x", fs.Type)
-		return string(fs.Type), nil
-	}
 }
 
 // storageType defines the type of a storage
