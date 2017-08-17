@@ -30,6 +30,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -115,25 +116,6 @@ func readMyCert() (string, string, error) {
 	return certf, keyf, err
 }
 
-func (d *Daemon) isTrustedClient(r *http.Request) bool {
-	if r.RemoteAddr == "@" {
-		// Unix socket
-		return true
-	}
-
-	if r.TLS == nil {
-		return false
-	}
-
-	for i := range r.TLS.PeerCertificates {
-		if d.CheckTrustState(*r.TLS.PeerCertificates[i]) {
-			return true
-		}
-	}
-
-	return false
-}
-
 func isJSONRequest(r *http.Request) bool {
 	for k, vs := range r.Header {
 		if strings.ToLower(k) == "content-type" &&
@@ -167,7 +149,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 	d.mux.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		if d.isTrustedClient(r) {
+		if util.IsTrustedClient(r, d.clientCerts) {
 			logger.Debug(
 				"handling",
 				log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
@@ -1082,23 +1064,6 @@ func (d *Daemon) Ready() error {
 	close(d.readyChan)
 
 	return nil
-}
-
-// CheckTrustState returns True if the client is trusted else false.
-func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
-	// Extra validity check (should have been caught by TLS stack)
-	if time.Now().Before(cert.NotBefore) || time.Now().After(cert.NotAfter) {
-		return false
-	}
-
-	for k, v := range d.clientCerts {
-		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			logger.Debug("Found cert", log.Ctx{"k": k})
-			return true
-		}
-	}
-
-	return false
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
