@@ -179,7 +179,7 @@ func patchStorageApi(name string, d *Daemon) error {
 	} else if zfsPoolName != "" {
 		preStorageApiStorageType = storageTypeZfs
 		defaultPoolName = zfsPoolName
-	} else if d.BackingFs == "btrfs" {
+	} else if d.os.BackingFS == "btrfs" {
 		preStorageApiStorageType = storageTypeBtrfs
 	} else {
 		// Dir storage pool.
@@ -2129,7 +2129,7 @@ func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
 			}
 		}
 
-		if d.BackingFs != "btrfs" {
+		if d.os.BackingFS != "btrfs" {
 			continue
 		}
 

@@ -65,7 +65,6 @@ type Socket struct {
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	BackingFs           string
 	clientCerts         []x509.Certificate
 	os                  *sys.OS
 	db                  *sql.DB
@@ -520,12 +519,6 @@ func (d *Daemon) Init() error {
 	}
 	if err := os.MkdirAll(shared.VarPath("storage-pools"), 0711); err != nil {
 		return err
-	}
-
-	/* Detect the filesystem */
-	d.BackingFs, err = util.FilesystemDetect(d.os.LxcPath)
-	if err != nil {
-		logger.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
 
 	/* Read the uid/gid allocation */

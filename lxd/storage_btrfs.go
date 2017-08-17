@@ -169,7 +169,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 					} else if strings.HasPrefix(cleanSource, lxdDir) {
 						if cleanSource != poolMntPoint {
 							return fmt.Errorf("BTRFS subvolumes requests in LXD directory \"%s\" are only valid under \"%s\"\n(e.g. source=%s)", shared.VarPath(), shared.VarPath("storage-pools"), poolMntPoint)
-						} else if s.d.BackingFs != "btrfs" {
+						} else if s.d.os.BackingFS != "btrfs" {
 							return fmt.Errorf("creation of BTRFS subvolume requested but \"%s\" does not reside on BTRFS filesystem", source)
 						}
 					}
@@ -394,7 +394,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		} else if !isBlockDev && cleanSource != poolMntPoint {
 			mountSource = source
 			mountFlags |= syscall.MS_BIND
-		} else if !isBlockDev && cleanSource == poolMntPoint && s.d.BackingFs == "btrfs" {
+		} else if !isBlockDev && cleanSource == poolMntPoint && s.d.os.BackingFS == "btrfs" {
 			return false, nil
 		}
 		// User is using block device path.
