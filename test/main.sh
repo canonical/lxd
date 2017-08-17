@@ -19,11 +19,24 @@ if [ -n "${LXD_DEBUG:-}" ]; then
   DEBUG="--debug"
 fi
 
+if [ -z "${LXD_BACKEND:-}" ]; then
+    LXD_BACKEND="dir"
+fi
+
+import_subdir_files() {
+    test "$1"
+    # shellcheck disable=SC2039
+    local file
+    for file in "$1"/*.sh; do
+        # shellcheck disable=SC1090
+        . "$file"
+    done
+}
+
+import_subdir_files includes
+
 echo "==> Checking for dependencies"
-deps="lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen"
-for dep in $deps; do
-  which "${dep}" >/dev/null 2>&1 || (echo "Missing dependency: ${dep}" >&2 && exit 1)
-done
+check_dependencies lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
@@ -33,16 +46,6 @@ fi
 if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
   echo "Your LXD_LOGS path doesn't exist: ${LXD_LOGS}"
   exit 1
-fi
-
-# Helper functions
-for include in includes/*.sh; do
-    # shellcheck disable=SC1090
-    . "$include"
-done
-
-if [ -z "${LXD_BACKEND:-}" ]; then
-    LXD_BACKEND=dir
 fi
 
 echo "==> Available storage backends: $(available_storage_backends | sort)"
@@ -57,49 +60,6 @@ for backend in $(available_storage_backends); do
   # shellcheck disable=SC1090
   . "backends/${backend}.sh"
 done
-
-ensure_has_localhost_remote() {
-  addr=${1}
-  if ! lxc remote list | grep -q "localhost"; then
-    lxc remote add localhost "https://${addr}" --accept-certificate --password foo
-  fi
-}
-
-ensure_import_testimage() {
-  if ! lxc image alias list | grep -q "^| testimage\s*|.*$"; then
-    if [ -e "${LXD_TEST_IMAGE:-}" ]; then
-      lxc image import "${LXD_TEST_IMAGE}" --alias testimage
-    else
-      if [ ! -e "/bin/busybox" ]; then
-        echo "Please install busybox (busybox-static) or set LXD_TEST_IMAGE"
-        exit 1
-      fi
-
-      if ldd /bin/busybox >/dev/null 2>&1; then
-        echo "The testsuite requires /bin/busybox to be a static binary"
-        exit 1
-      fi
-
-      deps/import-busybox --alias testimage
-    fi
-  fi
-}
-
-check_empty() {
-  if [ "$(find "${1}" 2> /dev/null | wc -l)" -gt "1" ]; then
-    echo "${1} is not empty, content:"
-    find "${1}"
-    false
-  fi
-}
-
-check_empty_table() {
-  if [ -n "$(sqlite3 "${1}" "SELECT * FROM ${2};")" ]; then
-    echo "DB table ${2} is not empty, content:"
-    sqlite3 "${1}" "SELECT * FROM ${2};"
-    false
-  fi
-}
 
 cleanup() {
   # Allow for failures and stop tracing everything
@@ -146,10 +106,7 @@ TEST_RESULT=failure
 trap cleanup EXIT HUP INT TERM
 
 # Import all the testsuites
-for suite in suites/*.sh; do
-  # shellcheck disable=SC1090
- . "${suite}"
-done
+import_subdir_files suites
 
 # Setup test directory
 TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
