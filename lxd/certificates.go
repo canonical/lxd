@@ -20,7 +20,7 @@ import (
 )
 
 func certificatesGet(d *Daemon, r *http.Request) Response {
-	recursion := d.isRecursionRequest(r)
+	recursion := util.IsRecursionRequest(r)
 
 	if recursion {
 		certResponses := []api.Certificate{}

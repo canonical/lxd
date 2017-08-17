@@ -28,7 +28,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	recursion := d.isRecursionRequest(r)
+	recursion := util.IsRecursionRequest(r)
 
 	resultString := make([]string, len(results))
 	resultMap := make([]*api.Profile, len(results))
