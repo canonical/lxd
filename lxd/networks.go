@@ -556,7 +556,7 @@ func (n *network) Rename(name string) error {
 
 func (n *network) Start() error {
 	// If we are in mock mode, just no-op.
-	if n.daemon.MockMode {
+	if n.daemon.os.MockMode {
 		return nil
 	}
 

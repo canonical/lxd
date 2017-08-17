@@ -23,11 +23,10 @@ func mockStartDaemon() (*Daemon, error) {
 		return nil, err
 	}
 
-	d := &Daemon{
-		MockMode: true,
-		tlsConfig: &tls.Config{
-			Certificates: []tls.Certificate{cert},
-		},
+	d := NewDaemon()
+	d.os.MockMode = true
+	d.tlsConfig = &tls.Config{
+		Certificates: []tls.Certificate{cert},
 	}
 
 	if err := d.Init(); err != nil {

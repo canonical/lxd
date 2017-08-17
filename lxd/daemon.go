@@ -81,12 +81,18 @@ type Daemon struct {
 
 	devlxd *net.UnixListener
 
-	MockMode  bool
 	SetupMode bool
 
 	tlsConfig *tls.Config
 
 	proxy func(req *http.Request) (*url.URL, error)
+}
+
+// NewDaemon returns a new, un-initialized Daemon object.
+func NewDaemon() *Daemon {
+	return &Daemon{
+		os: sys.NewOS(),
+	}
 }
 
 // Command is the basic structure for every API call.
@@ -325,7 +331,7 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Print welcome message */
-	if d.MockMode {
+	if d.os.MockMode {
 		logger.Info(fmt.Sprintf("LXD %s is starting in mock mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
 	} else if d.SetupMode {
@@ -473,7 +479,6 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Initialize the operating system facade */
-	d.os = sys.NewOS()
 	err = d.os.Init()
 	if err != nil {
 		return err
@@ -532,7 +537,7 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
-	if !d.MockMode {
+	if !d.os.MockMode {
 		/* Read the storage pools */
 		err = SetupStorageDriver(d, false)
 		if err != nil {
@@ -582,7 +587,7 @@ func (d *Daemon) Init() error {
 	)
 
 	/* Setup some mounts (nice to have) */
-	if !d.MockMode {
+	if !d.os.MockMode {
 		// Attempt to mount the shmounts tmpfs
 		setupSharedMounts()
 
@@ -604,7 +609,7 @@ func (d *Daemon) Init() error {
 		return server.Serve(d.devlxd)
 	})
 
-	if !d.MockMode {
+	if !d.os.MockMode {
 		/* Start the scheduler */
 		go deviceEventListener(d)
 
@@ -772,7 +777,7 @@ func (d *Daemon) Init() error {
 	}
 
 	// Run the post initialization actions
-	if !d.MockMode && !d.SetupMode {
+	if !d.os.MockMode && !d.SetupMode {
 		err := d.Ready()
 		if err != nil {
 			return err
@@ -918,7 +923,7 @@ func (d *Daemon) Stop() error {
 	imageSaveStreamCache()
 	logger.Infof("Saved simplestreams cache")
 
-	if d.MockMode || forceStop {
+	if d.os.MockMode || forceStop {
 		return nil
 	}
 
