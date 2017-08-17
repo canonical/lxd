@@ -269,14 +269,14 @@ func containerLXCCreate(d *Daemon, args db.ContainerArgs) (container, error) {
 	}
 
 	// Validate expanded config
-	err = containerValidConfig(d, c.expandedConfig, false, true)
+	err = containerValidConfig(d.os, c.expandedConfig, false, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
 		return nil, err
 	}
 
-	err = containerValidDevices(d, c.expandedDevices, false, true)
+	err = containerValidDevices(d.db, c.expandedDevices, false, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -3164,13 +3164,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err := containerValidConfig(c.daemon, args.Config, false, false)
+	err := containerValidConfig(c.daemon.os, args.Config, false, false)
 	if err != nil {
 		return err
 	}
 
 	// Validate the new devices
-	err = containerValidDevices(c.daemon, args.Devices, false, false)
+	err = containerValidDevices(c.daemon.db, args.Devices, false, false)
 	if err != nil {
 		return err
 	}
@@ -3324,13 +3324,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	removeDevices, addDevices, updateDevices := oldExpandedDevices.Update(c.expandedDevices)
 
 	// Do some validation of the config diff
-	err = containerValidConfig(c.daemon, c.expandedConfig, false, true)
+	err = containerValidConfig(c.daemon.os, c.expandedConfig, false, true)
 	if err != nil {
 		return err
 	}
 
 	// Do some validation of the devices diff
-	err = containerValidDevices(c.daemon, c.expandedDevices, false, true)
+	err = containerValidDevices(c.daemon.db, c.expandedDevices, false, true)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -83,7 +84,7 @@ func detectCompression(fname string) ([]string, string, error) {
 
 }
 
-func unpack(d *Daemon, file string, path string, sType storageType) error {
+func unpack(file string, path string, sType storageType) error {
 	extractArgs, extension, err := detectCompression(file)
 	if err != nil {
 		return err
@@ -152,8 +153,8 @@ func unpack(d *Daemon, file string, path string, sType storageType) error {
 	return nil
 }
 
-func unpackImage(d *Daemon, imagefname string, destpath string, sType storageType) error {
-	err := unpack(d, imagefname, destpath, sType)
+func unpackImage(imagefname string, destpath string, sType storageType) error {
+	err := unpack(imagefname, destpath, sType)
 	if err != nil {
 		return err
 	}
@@ -165,7 +166,7 @@ func unpackImage(d *Daemon, imagefname string, destpath string, sType storageTyp
 			return fmt.Errorf("Error creating rootfs directory")
 		}
 
-		err = unpack(d, imagefname+".rootfs", rootfsPath, sType)
+		err = unpack(imagefname+".rootfs", rootfsPath, sType)
 		if err != nil {
 			return err
 		}
@@ -820,7 +821,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 			url := fmt.Sprintf("/%s/images/%s", version.APIVersion, name)
 			resultString[i] = url
 		} else {
-			image, response := doImageGet(d, name, public)
+			image, response := doImageGet(d.db, name, public)
 			if response != nil {
 				continue
 			}
@@ -1141,8 +1142,8 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func doImageGet(d *Daemon, fingerprint string, public bool) (*api.Image, Response) {
-	_, imgInfo, err := db.ImageGet(d.db, fingerprint, public, false)
+func doImageGet(dbObj *sql.DB, fingerprint string, public bool) (*api.Image, Response) {
+	_, imgInfo, err := db.ImageGet(dbObj, fingerprint, public, false)
 	if err != nil {
 		return nil, SmartError(err)
 	}
@@ -1185,7 +1186,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 	public := !util.IsTrustedClient(r, d.clientCerts)
 	secret := r.FormValue("secret")
 
-	info, response := doImageGet(d, fingerprint, false)
+	info, response := doImageGet(d.db, fingerprint, false)
 	if response != nil {
 		return response
 	}

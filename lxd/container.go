@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -53,7 +55,7 @@ func containerValidName(name string) error {
 	return nil
 }
 
-func containerValidConfigKey(d *Daemon, key string, value string) error {
+func containerValidConfigKey(os *sys.OS, key string, value string) error {
 	f, err := shared.ConfigKeyChecker(key)
 	if err != nil {
 		return err
@@ -65,7 +67,7 @@ func containerValidConfigKey(d *Daemon, key string, value string) error {
 		return lxcValidConfig(value)
 	}
 	if key == "security.syscalls.blacklist_compat" {
-		for _, arch := range d.os.Architectures {
+		for _, arch := range os.Architectures {
 			if arch == osarch.ARCH_64BIT_INTEL_X86 ||
 				arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN ||
 				arch == osarch.ARCH_64BIT_POWERPC_BIG_ENDIAN {
@@ -201,7 +203,7 @@ func containerValidDeviceConfigKey(t, k string) bool {
 	}
 }
 
-func containerValidConfig(d *Daemon, config map[string]string, profile bool, expanded bool) error {
+func containerValidConfig(os *sys.OS, config map[string]string, profile bool, expanded bool) error {
 	if config == nil {
 		return nil
 	}
@@ -215,7 +217,7 @@ func containerValidConfig(d *Daemon, config map[string]string, profile bool, exp
 			return fmt.Errorf("Image keys can only be set on containers.")
 		}
 
-		err := containerValidConfigKey(d, k, v)
+		err := containerValidConfigKey(os, k, v)
 		if err != nil {
 			return err
 		}
@@ -235,7 +237,7 @@ func containerValidConfig(d *Daemon, config map[string]string, profile bool, exp
 		return fmt.Errorf("security.syscalls.whitelist is mutually exclusive with security.syscalls.blacklist*")
 	}
 
-	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && d.os.IdmapSet == nil {
+	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && os.IdmapSet == nil {
 		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
 	}
 
@@ -272,7 +274,7 @@ func containerGetRootDiskDevice(devices types.Devices) (string, types.Device, er
 	return "", types.Device{}, fmt.Errorf("No root device could be found.")
 }
 
-func containerValidDevices(d *Daemon, devices types.Devices, profile bool, expanded bool) error {
+func containerValidDevices(dbObj *sql.DB, devices types.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -339,7 +341,7 @@ func containerValidDevices(d *Daemon, devices types.Devices, profile bool, expan
 					return fmt.Errorf("Storage volumes cannot be specified as absolute paths.")
 				}
 
-				_, err := db.StoragePoolGetID(d.db, m["pool"])
+				_, err := db.StoragePoolGetID(dbObj, m["pool"])
 				if err != nil {
 					return fmt.Errorf("The \"%s\" storage pool doesn't exist.", m["pool"])
 				}
@@ -745,13 +747,13 @@ func containerCreateInternal(d *Daemon, args db.ContainerArgs) (container, error
 	}
 
 	// Validate container config
-	err := containerValidConfig(d, args.Config, false, false)
+	err := containerValidConfig(d.os, args.Config, false, false)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate container devices
-	err = containerValidDevices(d, args.Devices, false, false)
+	err = containerValidDevices(d.db, args.Devices, false, false)
 	if err != nil {
 		return nil, err
 	}

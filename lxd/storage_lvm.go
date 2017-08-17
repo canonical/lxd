@@ -1548,7 +1548,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		}
 
 		imagePath := shared.VarPath("images", fingerprint)
-		err = unpackImage(s.d, imagePath, imageMntPoint, storageTypeLvm)
+		err = unpackImage(imagePath, imageMntPoint, storageTypeLvm)
 		if err != nil {
 			return err
 		}

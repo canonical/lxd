@@ -1352,7 +1352,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 
 	// Unpack the image in imageMntPoint.
 	imagePath := shared.VarPath("images", fingerprint)
-	err = unpackImage(s.d, imagePath, tmpImageSubvolumeName, storageTypeBtrfs)
+	err = unpackImage(imagePath, tmpImageSubvolumeName, storageTypeBtrfs)
 	if err != nil {
 		return err
 	}
