@@ -11,6 +11,7 @@ spawn_lxd() {
     lxddir=${1}
     shift
 
+    # shellcheck disable=SC2153
     if [ "$LXD_BACKEND" = "random" ]; then
         lxd_backend="$(random_storage_backend)"
     else
@@ -182,6 +183,7 @@ shutdown_lxd() {
     local LXD_DIR
 
     daemon_dir=${1}
+    # shellcheck disable=2034
     LXD_DIR=${daemon_dir}
     daemon_pid=$(cat "${daemon_dir}/lxd.pid")
     echo "==> Killing LXD at ${daemon_dir}"
