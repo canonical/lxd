@@ -240,7 +240,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 		info.Public = false
 	}
 
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -278,9 +279,9 @@ func storageCoreInit(driver string) (storage, error) {
 	return nil, fmt.Errorf("invalid storage type")
 }
 
-func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
+func storageInit(s *state.State, poolName string, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
-	poolID, pool, err := db.StoragePoolGet(d.db, poolName)
+	poolID, pool, err := db.StoragePoolGet(s.DB, poolName)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +296,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
 	if volumeName != "" && volumeType >= 0 {
-		_, volume, err = db.StoragePoolVolumeGetType(d.db, volumeName, volumeType, poolID)
+		_, volume, err = db.StoragePoolVolumeGetType(s.DB, volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +313,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		btrfs.poolID = poolID
 		btrfs.pool = pool
 		btrfs.volume = volume
-		btrfs.d = d
+		btrfs.s = s
 		err = btrfs.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -323,7 +324,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		dir.poolID = poolID
 		dir.pool = pool
 		dir.volume = volume
-		dir.d = d
+		dir.s = s
 		err = dir.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -334,7 +335,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		ceph.poolID = poolID
 		ceph.pool = pool
 		ceph.volume = volume
-		ceph.d = d
+		ceph.s = s
 		err = ceph.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -345,7 +346,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		lvm.poolID = poolID
 		lvm.pool = pool
 		lvm.volume = volume
-		lvm.d = d
+		lvm.s = s
 		err = lvm.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -356,7 +357,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		mock.poolID = poolID
 		mock.pool = pool
 		mock.volume = volume
-		mock.d = d
+		mock.s = s
 		err = mock.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -367,7 +368,7 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 		zfs.poolID = poolID
 		zfs.pool = pool
 		zfs.volume = volume
-		zfs.d = d
+		zfs.s = s
 		err = zfs.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -379,11 +380,11 @@ func storageInit(d *Daemon, poolName string, volumeName string, volumeType int) 
 }
 
 func storagePoolInit(d *Daemon, poolName string) (storage, error) {
-	return storageInit(d, poolName, "", -1)
+	return storageInit(d.State(), poolName, "", -1)
 }
 
-func storagePoolVolumeAttachInit(d *Daemon, poolName string, volumeName string, volumeType int, c container) (storage, error) {
-	st, err := storageInit(d, poolName, volumeName, volumeType)
+func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, c container) (storage, error) {
+	st, err := storageInit(s, poolName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +427,7 @@ func storagePoolVolumeAttachInit(d *Daemon, poolName string, volumeName string, 
 
 	if !reflect.DeepEqual(nextIdmap, lastIdmap) {
 		logger.Debugf("Shifting storage volume")
-		volumeUsedBy, err := storagePoolVolumeUsedByContainersGet(d,
+		volumeUsedBy, err := storagePoolVolumeUsedByContainersGet(s,
 			volumeName, volumeTypeName)
 		if err != nil {
 			return nil, err
@@ -434,7 +435,7 @@ func storagePoolVolumeAttachInit(d *Daemon, poolName string, volumeName string, 
 
 		if len(volumeUsedBy) > 1 {
 			for _, ctName := range volumeUsedBy {
-				ct, err := containerLoadByName(d, ctName)
+				ct, err := containerLoadByName(s, ctName)
 				if err != nil {
 					continue
 				}
@@ -508,11 +509,11 @@ func storagePoolVolumeAttachInit(d *Daemon, poolName string, volumeName string, 
 
 	st.SetStoragePoolVolumeWritable(&poolVolumePut)
 
-	poolID, err := db.StoragePoolGetID(d.db, poolName)
+	poolID, err := db.StoragePoolGetID(s.DB, poolName)
 	if err != nil {
 		return nil, err
 	}
-	err = db.StoragePoolVolumeUpdate(d.db, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = db.StoragePoolVolumeUpdate(s.DB, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -520,27 +521,27 @@ func storagePoolVolumeAttachInit(d *Daemon, poolName string, volumeName string, 
 	return st, nil
 }
 
-func storagePoolVolumeInit(d *Daemon, poolName string, volumeName string, volumeType int) (storage, error) {
+func storagePoolVolumeInit(s *state.State, poolName string, volumeName string, volumeType int) (storage, error) {
 	// No need to detect storage here, its a new container.
-	return storageInit(d, poolName, volumeName, volumeType)
+	return storageInit(s, poolName, volumeName, volumeType)
 }
 
 func storagePoolVolumeImageInit(d *Daemon, poolName string, imageFingerprint string) (storage, error) {
-	return storagePoolVolumeInit(d, poolName, imageFingerprint, storagePoolVolumeTypeImage)
+	return storagePoolVolumeInit(d.State(), poolName, imageFingerprint, storagePoolVolumeTypeImage)
 }
 
-func storagePoolVolumeContainerCreateInit(d *Daemon, poolName string, containerName string) (storage, error) {
-	return storagePoolVolumeInit(d, poolName, containerName, storagePoolVolumeTypeContainer)
+func storagePoolVolumeContainerCreateInit(s *state.State, poolName string, containerName string) (storage, error) {
+	return storagePoolVolumeInit(s, poolName, containerName, storagePoolVolumeTypeContainer)
 }
 
-func storagePoolVolumeContainerLoadInit(d *Daemon, containerName string) (storage, error) {
+func storagePoolVolumeContainerLoadInit(s *state.State, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
-	poolName, err := db.ContainerPool(d.db, containerName)
+	poolName, err := db.ContainerPool(s.DB, containerName)
 	if err != nil {
 		return nil, err
 	}
 
-	return storagePoolVolumeInit(d, poolName, containerName, storagePoolVolumeTypeContainer)
+	return storagePoolVolumeInit(s, poolName, containerName, storagePoolVolumeTypeContainer)
 }
 
 // {LXD_DIR}/storage-pools/<pool>

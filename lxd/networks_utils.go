@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -723,9 +724,9 @@ func networkKillDnsmasq(name string, reload bool) error {
 	return nil
 }
 
-func networkUpdateStatic(d *Daemon, name string) error {
+func networkUpdateStatic(s *state.State, name string) error {
 	// Get all the containers
-	containers, err := db.ContainersList(d.db, db.CTypeRegular)
+	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -733,7 +734,7 @@ func networkUpdateStatic(d *Daemon, name string) error {
 	networks := []string{}
 	if name == "" {
 		// Get all the networks
-		networks, err = db.Networks(d.db)
+		networks, err = db.Networks(s.DB)
 		if err != nil {
 			return err
 		}
@@ -745,7 +746,7 @@ func networkUpdateStatic(d *Daemon, name string) error {
 	entries := map[string][][]string{}
 	for _, cName := range containers {
 		// Load the container
-		c, err := containerLoadByName(d, cName)
+		c, err := containerLoadByName(s, cName)
 		if err != nil {
 			continue
 		}
@@ -782,7 +783,7 @@ func networkUpdateStatic(d *Daemon, name string) error {
 			continue
 		}
 
-		n, err := networkLoadByName(d, network)
+		n, err := networkLoadByName(s, network)
 		if err != nil {
 			return err
 		}
@@ -874,7 +875,7 @@ func networkGetMacSlice(hwaddr string) []string {
 	return buf
 }
 
-func networkClearLease(d *Daemon, network string, hwaddr string) error {
+func networkClearLease(s *state.State, network string, hwaddr string) error {
 	leaseFile := shared.VarPath("networks", network, "dnsmasq.leases")
 
 	// Check that we are in fact running a dnsmasq for the network
@@ -883,7 +884,7 @@ func networkClearLease(d *Daemon, network string, hwaddr string) error {
 	}
 
 	// Restart the network when we're done here
-	n, err := networkLoadByName(d, network)
+	n, err := networkLoadByName(s, network)
 	if err != nil {
 		return err
 	}

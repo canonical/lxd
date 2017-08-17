@@ -415,7 +415,7 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 	}
 
 	err = db.StoragePoolVolumeDelete(
-		s.d.db,
+		s.s.DB,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -1265,7 +1265,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 				prev = snapshots[i-1].Name()
 			}
 
-			sourceSnapshot, err := containerLoadByName(s.d, snap.Name())
+			sourceSnapshot, err := containerLoadByName(s.s, snap.Name())
 			if err != nil {
 				return err
 			}
@@ -1273,7 +1273,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
 			prevSnapOnlyName = snapOnlyName
 			newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-			targetSnapshot, err := containerLoadByName(s.d, newSnapName)
+			targetSnapshot, err := containerLoadByName(s.s, newSnapName)
 			if err != nil {
 				return err
 			}
@@ -2102,7 +2102,7 @@ func (s *storageZfs) MigrationSource(ct container, containerOnly bool) (Migratio
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", ct.Name(), shared.SnapshotDelimiter, snap[len("snapshot-"):])
-		snapshot, err := containerLoadByName(s.d, lxdName)
+		snapshot, err := containerLoadByName(s.s, lxdName)
 		if err != nil {
 			return nil, err
 		}
@@ -2209,7 +2209,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 			}
 		}
-		_, err := containerCreateEmptySnapshot(container.Daemon(), args)
+		_, err := containerCreateEmptySnapshot(container.StateObject(), args)
 		if err != nil {
 			return err
 		}

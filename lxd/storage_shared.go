@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -14,7 +15,7 @@ type storageShared struct {
 	sTypeName    string
 	sTypeVersion string
 
-	d *Daemon
+	s *state.State
 
 	poolID int64
 	pool   *api.StoragePool
@@ -107,7 +108,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	}
 
 	// Create a db entry for the storage volume of the image.
-	_, err = db.StoragePoolVolumeCreate(s.d.db, fingerprint, "", storagePoolVolumeTypeImage, s.poolID, volumeConfig)
+	_, err = db.StoragePoolVolumeCreate(s.s.DB, fingerprint, "", storagePoolVolumeTypeImage, s.poolID, volumeConfig)
 	if err != nil {
 		// Try to delete the db entry on error.
 		s.deleteImageDbPoolVolume(fingerprint)
@@ -118,7 +119,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 }
 
 func (s *storageShared) deleteImageDbPoolVolume(fingerprint string) error {
-	err := db.StoragePoolVolumeDelete(s.d.db, fingerprint, storagePoolVolumeTypeImage, s.poolID)
+	err := db.StoragePoolVolumeDelete(s.s.DB, fingerprint, storagePoolVolumeTypeImage, s.poolID)
 	if err != nil {
 		return err
 	}

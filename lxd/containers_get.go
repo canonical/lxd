@@ -68,7 +68,7 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 }
 
 func doContainerGet(d *Daemon, cname string) (*api.Container, error) {
-	c, err := containerLoadByName(d, cname)
+	c, err := containerLoadByName(d.State(), cname)
 	if err != nil {
 		return nil, err
 	}

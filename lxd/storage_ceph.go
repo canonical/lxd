@@ -489,7 +489,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 		s.volume.Name, s.pool.Name)
 
 	err = db.StoragePoolVolumeDelete(
-		s.d.db,
+		s.s.DB,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
