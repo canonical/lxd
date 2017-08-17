@@ -31,7 +31,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 		recursion = 0
 	}
 
-	ifs, err := networkGetInterfaces(d)
+	ifs, err := networkGetInterfaces(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -80,7 +80,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Only 'bridge' type networks can be created"))
 	}
 
-	networks, err := networkGetInterfaces(d)
+	networks, err := networkGetInterfaces(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -277,7 +277,7 @@ func networkPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	networks, err := networkGetInterfaces(d)
+	networks, err := networkGetInterfaces(d.db)
 	if err != nil {
 		return InternalError(err)
 	}

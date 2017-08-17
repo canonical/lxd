@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -23,8 +24,8 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func networkAutoAttach(d *Daemon, devName string) error {
-	_, dbInfo, err := db.NetworkGetInterface(d.db, devName)
+func networkAutoAttach(dbObj *sql.DB, devName string) error {
+	_, dbInfo, err := db.NetworkGetInterface(dbObj, devName)
 	if err != nil {
 		// No match found, move on
 		return nil
@@ -71,8 +72,8 @@ func networkDetachInterface(netName string, devName string) error {
 	return nil
 }
 
-func networkGetInterfaces(d *Daemon) ([]string, error) {
-	networks, err := db.Networks(d.db)
+func networkGetInterfaces(dbObj *sql.DB) ([]string, error) {
+	networks, err := db.Networks(dbObj)
 	if err != nil {
 		return nil, err
 	}
