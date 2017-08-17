@@ -282,7 +282,7 @@ func patchStorageApi(name string, d *Daemon) error {
 	daemonConfig["storage.zfs_remove_snapshots"].Set(d, "")
 	daemonConfig["storage.zfs_use_refquota"].Set(d, "")
 
-	return d.SetupStorageDriver(true)
+	return SetupStorageDriver(d, true)
 }
 
 func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string, defaultStorageTypeName string, cRegular []string, cSnapshots []string, imgPublic []string, imgPrivate []string) error {
