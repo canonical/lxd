@@ -65,7 +65,7 @@ func containerValidConfigKey(d *Daemon, key string, value string) error {
 		return lxcValidConfig(value)
 	}
 	if key == "security.syscalls.blacklist_compat" {
-		for _, arch := range d.architectures {
+		for _, arch := range d.os.Architectures {
 			if arch == osarch.ARCH_64BIT_INTEL_X86 ||
 				arch == osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN ||
 				arch == osarch.ARCH_64BIT_POWERPC_BIG_ENDIAN {
@@ -733,7 +733,7 @@ func containerCreateInternal(d *Daemon, args db.ContainerArgs) (container, error
 	}
 
 	if args.Architecture == 0 {
-		args.Architecture = d.architectures[0]
+		args.Architecture = d.os.Architectures[0]
 	}
 
 	// Validate container name
@@ -762,7 +762,7 @@ func containerCreateInternal(d *Daemon, args db.ContainerArgs) (container, error
 		return nil, err
 	}
 
-	if !shared.IntInSlice(args.Architecture, d.architectures) {
+	if !shared.IntInSlice(args.Architecture, d.os.Architectures) {
 		return nil, fmt.Errorf("Requested architecture isn't supported by this host")
 	}
 
