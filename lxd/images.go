@@ -840,7 +840,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 func imagesGet(d *Daemon, r *http.Request) Response {
 	public := !util.IsTrustedClient(r, d.clientCerts)
 
-	result, err := doImagesGet(d, d.isRecursionRequest(r), public)
+	result, err := doImagesGet(d, util.IsRecursionRequest(r), public)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1324,7 +1324,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 }
 
 func aliasesGet(d *Daemon, r *http.Request) Response {
-	recursion := d.isRecursionRequest(r)
+	recursion := util.IsRecursionRequest(r)
 
 	q := "SELECT name FROM images_aliases"
 	var name string
