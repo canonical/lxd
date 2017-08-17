@@ -359,7 +359,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 		return nil, fmt.Errorf("Missing URL")
 	}
 
-	myhttp, err := d.httpClient("")
+	myhttp, err := util.HTTPClient("", d.proxy)
 	if err != nil {
 		return nil, err
 	}
