@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
@@ -261,7 +262,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
 	// Validate the ETag
 	etag := []interface{}{volume.Name, volume.Type, volume.Config}
 
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -323,7 +324,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 	// Validate the ETag
 	etag := []interface{}{volume.Name, volume.Type, volume.Config}
 
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}

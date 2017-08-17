@@ -12,6 +12,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -165,7 +166,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 
 	// Validate the ETag
 	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -188,7 +189,7 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 
 	// Validate the ETag
 	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}

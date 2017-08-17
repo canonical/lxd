@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -193,7 +194,7 @@ func certificateFingerprintPut(d *Daemon, r *http.Request) Response {
 	}
 	fingerprint = oldEntry.Fingerprint
 
-	err = etagCheck(r, oldEntry)
+	err = util.EtagCheck(r, oldEntry)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -215,7 +216,7 @@ func certificateFingerprintPatch(d *Daemon, r *http.Request) Response {
 	}
 	fingerprint = oldEntry.Fingerprint
 
-	err = etagCheck(r, oldEntry)
+	err = util.EtagCheck(r, oldEntry)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
