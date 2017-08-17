@@ -17,6 +17,8 @@ type OS struct {
 	LxcPath       string // Path to the $LXD_DIR/containers directory
 	BackingFS     string // Backing filesystem of $LXD_DIR/containers
 	IdmapSet      *shared.IdmapSet
+
+	MockMode bool // If true some APIs will be mocked (for testing)
 }
 
 // NewOS returns a fresh uninitialized OS instance.
