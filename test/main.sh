@@ -2,15 +2,16 @@
 [ -n "${GOPATH:-}" ] && export "PATH=${GOPATH}/bin:${PATH}"
 
 # Don't translate lxc output for parsing in it in tests.
-export "LC_ALL=C"
+export LC_ALL="C"
 
 # Force UTC for consistency
-export "TZ=UTC"
+export TZ="UTC"
 
 if [ -n "${LXD_VERBOSE:-}" ] || [ -n "${LXD_DEBUG:-}" ]; then
   set -x
 fi
 
+export DEBUG=""
 if [ -n "${LXD_VERBOSE:-}" ]; then
   DEBUG="--verbose"
 fi
@@ -114,6 +115,7 @@ cleanup() {
 
 # Must be set before cleanup()
 TEST_CURRENT=setup
+# shellcheck disable=SC2034
 TEST_RESULT=failure
 
 trap cleanup EXIT HUP INT TERM
@@ -154,6 +156,7 @@ run_test() {
 # allow for running a specific set of tests
 if [ "$#" -gt 0 ]; then
   run_test "test_${1}"
+  # shellcheck disable=SC2034
   TEST_RESULT=success
   exit
 fi
@@ -200,4 +203,5 @@ run_test test_container_import "container import"
 run_test test_storage_volume_attach "attaching storage volumes"
 run_test test_storage_driver_ceph "ceph storage driver"
 
+# shellcheck disable=SC2034
 TEST_RESULT=success
