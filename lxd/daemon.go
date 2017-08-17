@@ -71,7 +71,6 @@ type Daemon struct {
 	db                  *sql.DB
 	group               string
 	IdmapSet            *shared.IdmapSet
-	lxcpath             string
 	mux                 *mux.Router
 	tomb                tomb.Tomb
 	readyChan           chan bool
@@ -476,14 +475,11 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Initialize the operating system facade */
-	d.os = &sys.OS{}
+	d.os = sys.NewOS()
 	err = d.os.Init()
 	if err != nil {
 		return err
 	}
-
-	/* Set container path */
-	d.lxcpath = shared.VarPath("containers")
 
 	/* Make sure all our directories are available */
 	if err := os.MkdirAll(shared.VarPath(), 0711); err != nil {
@@ -527,7 +523,7 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Detect the filesystem */
-	d.BackingFs, err = util.FilesystemDetect(d.lxcpath)
+	d.BackingFs, err = util.FilesystemDetect(d.os.LxcPath)
 	if err != nil {
 		logger.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
