@@ -371,7 +371,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 	}
 
 	architecturesStr := []string{}
-	for _, arch := range d.architectures {
+	for _, arch := range d.os.Architectures {
 		architecturesStr = append(architecturesStr, fmt.Sprintf("%d", arch))
 	}
 

@@ -191,7 +191,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 	architectures := []string{}
 
-	for _, architecture := range d.architectures {
+	for _, architecture := range d.os.Architectures {
 		architectureName, err := osarch.ArchitectureName(architecture)
 		if err != nil {
 			return InternalError(err)

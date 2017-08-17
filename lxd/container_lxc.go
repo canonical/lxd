@@ -950,7 +950,7 @@ func (c *containerLXC) initLXC() error {
 	// Setup architecture
 	personality, err := osarch.ArchitecturePersonality(c.architecture)
 	if err != nil {
-		personality, err = osarch.ArchitecturePersonality(c.daemon.architectures[0])
+		personality, err = osarch.ArchitecturePersonality(c.daemon.os.Architectures[0])
 		if err != nil {
 			return err
 		}
@@ -4169,7 +4169,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		}
 
 		if arch == "" {
-			arch, err = osarch.ArchitectureName(c.daemon.architectures[0])
+			arch, err = osarch.ArchitectureName(c.daemon.os.Architectures[0])
 			if err != nil {
 				logger.Error("Failed exporting container", ctxMap)
 				return err
@@ -4599,7 +4599,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		// Figure out the architecture
 		arch, err := osarch.ArchitectureName(c.architecture)
 		if err != nil {
-			arch, err = osarch.ArchitectureName(c.daemon.architectures[0])
+			arch, err = osarch.ArchitectureName(c.daemon.os.Architectures[0])
 			if err != nil {
 				return err
 			}
