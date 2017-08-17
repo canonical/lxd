@@ -745,7 +745,7 @@ func (d *Daemon) Init() error {
 	})
 
 	// Prepare the list of listeners
-	listeners := d.GetListeners()
+	listeners := util.GetListeners()
 	if len(listeners) > 0 {
 		logger.Infof("LXD is socket activated")
 
@@ -998,43 +998,6 @@ func (d *Daemon) Stop() error {
 	}
 
 	return err
-}
-
-func (d *Daemon) GetListeners() []net.Listener {
-	defer func() {
-		os.Unsetenv("LISTEN_PID")
-		os.Unsetenv("LISTEN_FDS")
-	}()
-
-	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
-	if err != nil {
-		return nil
-	}
-
-	if pid != os.Getpid() {
-		return nil
-	}
-
-	fds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
-	if err != nil {
-		return nil
-	}
-
-	listeners := []net.Listener{}
-
-	for i := 3; i < 3+fds; i++ {
-		syscall.CloseOnExec(i)
-
-		file := os.NewFile(uintptr(i), fmt.Sprintf("inherited-fd%d", i))
-		listener, err := net.FileListener(file)
-		if err != nil {
-			continue
-		}
-
-		listeners = append(listeners, listener)
-	}
-
-	return listeners
 }
 
 type lxdHttpServer struct {
