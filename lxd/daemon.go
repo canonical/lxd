@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/hex"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -105,49 +104,6 @@ type Command struct {
 	post          func(d *Daemon, r *http.Request) Response
 	delete        func(d *Daemon, r *http.Request) Response
 	patch         func(d *Daemon, r *http.Request) Response
-}
-
-func (d *Daemon) httpClient(certificate string) (*http.Client, error) {
-	var err error
-	var cert *x509.Certificate
-
-	if certificate != "" {
-		certBlock, _ := pem.Decode([]byte(certificate))
-		if certBlock == nil {
-			return nil, fmt.Errorf("Invalid certificate")
-		}
-
-		cert, err = x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	tlsConfig, err := shared.GetTLSConfig("", "", "", cert)
-	if err != nil {
-		return nil, err
-	}
-
-	tr := &http.Transport{
-		TLSClientConfig:   tlsConfig,
-		Dial:              shared.RFC3493Dialer,
-		Proxy:             d.proxy,
-		DisableKeepAlives: true,
-	}
-
-	myhttp := http.Client{
-		Transport: tr,
-	}
-
-	// Setup redirect policy
-	myhttp.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		// Replicate the headers
-		req.Header = via[len(via)-1].Header
-
-		return nil
-	}
-
-	return &myhttp, nil
 }
 
 func readMyCert() (string, string, error) {
