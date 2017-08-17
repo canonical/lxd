@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
@@ -86,7 +87,8 @@ func (suite *cmdInitTestSuite) TestCmdInit_PreseedHTTPSAddressAndTrustPassword()
 
 	key, _ := daemonConfig["core.https_address"]
 	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
-	suite.Req.Nil(suite.d.PasswordCheck("sekret"))
+	secret := daemonConfig["core.trust_password"].Get()
+	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
 }
 
 // Input network address and trust password interactively.
@@ -107,7 +109,8 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveHTTPSAddressAndTrustPasswo
 
 	key, _ := daemonConfig["core.https_address"]
 	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
-	suite.Req.Nil(suite.d.PasswordCheck("sekret"))
+	secret := daemonConfig["core.trust_password"].Get()
+	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
 }
 
 // Pass network address and trust password via command line arguments.
@@ -124,7 +127,8 @@ func (suite *cmdInitTestSuite) TestCmdInit_AutoHTTPSAddressAndTrustPassword() {
 
 	key, _ := daemonConfig["core.https_address"]
 	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
-	suite.Req.Nil(suite.d.PasswordCheck("sekret"))
+	secret := daemonConfig["core.trust_password"].Get()
+	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
 }
 
 // The images auto-update interval can be interactively set by simply accepting
