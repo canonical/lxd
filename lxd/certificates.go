@@ -97,7 +97,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Access check
-	if !d.isTrustedClient(r) && d.PasswordCheck(req.Password) != nil {
+	if !util.IsTrustedClient(r, d.clientCerts) && d.PasswordCheck(req.Password) != nil {
 		return Forbidden
 	}
 
