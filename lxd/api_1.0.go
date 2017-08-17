@@ -174,7 +174,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		kernelArchitecture += string(byte(c))
 	}
 
-	addresses, err := d.ListenAddresses()
+	addresses, err := util.ListenAddresses(daemonConfig["core.https_address"].Get())
 	if err != nil {
 		return InternalError(err)
 	}
