@@ -69,7 +69,6 @@ type Daemon struct {
 	os                  *sys.OS
 	db                  *sql.DB
 	group               string
-	IdmapSet            *shared.IdmapSet
 	mux                 *mux.Router
 	tomb                tomb.Tomb
 	readyChan           chan bool
@@ -519,48 +518,6 @@ func (d *Daemon) Init() error {
 	}
 	if err := os.MkdirAll(shared.VarPath("storage-pools"), 0711); err != nil {
 		return err
-	}
-
-	/* Read the uid/gid allocation */
-	d.IdmapSet, err = shared.DefaultIdmapSet()
-	if err != nil {
-		logger.Warn("Error reading default uid/gid map", log.Ctx{"err": err.Error()})
-		logger.Warnf("Only privileged containers will be able to run")
-		d.IdmapSet = nil
-	} else {
-		kernelIdmapSet, err := shared.CurrentIdmapSet()
-		if err == nil {
-			logger.Infof("Kernel uid/gid map:")
-			for _, lxcmap := range kernelIdmapSet.ToLxcString() {
-				logger.Infof(strings.TrimRight(" - "+lxcmap, "\n"))
-			}
-		}
-
-		if len(d.IdmapSet.Idmap) == 0 {
-			logger.Warnf("No available uid/gid map could be found")
-			logger.Warnf("Only privileged containers will be able to run")
-			d.IdmapSet = nil
-		} else {
-			logger.Infof("Configured LXD uid/gid map:")
-			for _, lxcmap := range d.IdmapSet.Idmap {
-				suffix := ""
-
-				if lxcmap.Usable() != nil {
-					suffix = " (unusable)"
-				}
-
-				for _, lxcEntry := range lxcmap.ToLxcString() {
-					logger.Infof(" - %s%s", strings.TrimRight(lxcEntry, "\n"), suffix)
-				}
-			}
-
-			err = d.IdmapSet.Usable()
-			if err != nil {
-				logger.Warnf("One or more uid/gid map entry isn't usable (typically due to nesting)")
-				logger.Warnf("Only privileged containers will be able to run")
-				d.IdmapSet = nil
-			}
-		}
 	}
 
 	/* Initialize the database */

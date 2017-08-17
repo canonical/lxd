@@ -16,6 +16,7 @@ type OS struct {
 	Architectures []int  // Cache of detected system architectures
 	LxcPath       string // Path to the $LXD_DIR/containers directory
 	BackingFS     string // Backing filesystem of $LXD_DIR/containers
+	IdmapSet      *shared.IdmapSet
 }
 
 // NewOS returns a fresh uninitialized OS instance.
@@ -38,6 +39,8 @@ func (s *OS) Init() error {
 	if err != nil {
 		logger.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
+
+	s.IdmapSet = util.GetIdmapSet()
 
 	return nil
 }
