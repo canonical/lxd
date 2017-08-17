@@ -295,7 +295,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		}
 	} else {
 		// Retrieve the future storage pool
-		cM, err := containerLXCLoad(d, args)
+		cM, err := containerLXCLoad(d.State(), args)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -415,7 +415,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 		return BadRequest(fmt.Errorf("must specify a source container"))
 	}
 
-	source, err := containerLoadByName(d, req.Source.Source)
+	source, err := containerLoadByName(d.State(), req.Source.Source)
 	if err != nil {
 		return SmartError(err)
 	}

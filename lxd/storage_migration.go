@@ -163,7 +163,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 					}
 				}
 
-				s, err := containerCreateEmptySnapshot(container.Daemon(), args)
+				s, err := containerCreateEmptySnapshot(container.StateObject(), args)
 				if err != nil {
 					return err
 				}
@@ -213,7 +213,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 					return err
 				}
 
-				_, err = containerCreateAsSnapshot(container.Daemon(), args, container)
+				_, err = containerCreateAsSnapshot(container.StateObject(), args, container)
 				if err != nil {
 					return err
 				}

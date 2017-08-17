@@ -1039,14 +1039,14 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 				// Initialize storage interface for the new
 				// container.
-				ctStorage, err := storagePoolVolumeContainerLoadInit(d, ct)
+				ctStorage, err := storagePoolVolumeContainerLoadInit(d.State(), ct)
 				if err != nil {
 					logger.Errorf("Failed to initialize new storage interface for LVM container %s: %s.", ct, err)
 					return err
 				}
 
 				// Load the container from the database.
-				ctStruct, err := containerLoadByName(d, ct)
+				ctStruct, err := containerLoadByName(d.State(), ct)
 				if err != nil {
 					logger.Errorf("Failed to load LVM container %s: %s.", ct, err)
 					return err
@@ -1192,14 +1192,14 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 					// Initialize storage interface for the new
 					// snapshot.
-					csStorage, err := storagePoolVolumeContainerLoadInit(d, cs)
+					csStorage, err := storagePoolVolumeContainerLoadInit(d.State(), cs)
 					if err != nil {
 						logger.Errorf("Failed to initialize new storage interface for LVM container %s: %s.", cs, err)
 						return err
 					}
 
 					// Load the snapshot from the database.
-					csStruct, err := containerLoadByName(d, cs)
+					csStruct, err := containerLoadByName(d.State(), cs)
 					if err != nil {
 						logger.Errorf("Failed to load LVM container %s: %s.", cs, err)
 						return err
@@ -1773,7 +1773,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 
 	// Make sure all containers and snapshots have a valid disk configuration
 	for _, ct := range allcontainers {
-		c, err := containerLoadByName(d, ct)
+		c, err := containerLoadByName(d.State(), ct)
 		if err != nil {
 			continue
 		}

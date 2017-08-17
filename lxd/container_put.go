@@ -22,7 +22,7 @@ import (
 func containerPut(d *Daemon, r *http.Request) Response {
 	// Get the container
 	name := mux.Vars(r)["name"]
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return NotFound
 	}
@@ -89,12 +89,12 @@ func containerSnapRestore(d *Daemon, name string, snap string, stateful bool) er
 		snap = name + shared.SnapshotDelimiter + snap
 	}
 
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return err
 	}
 
-	source, err := containerLoadByName(d, snap)
+	source, err := containerLoadByName(d.State(), snap)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
