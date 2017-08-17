@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -1683,7 +1684,7 @@ func isOnBtrfs(path string) bool {
 		return false
 	}
 
-	if fs.Type != filesystemSuperMagicBtrfs {
+	if fs.Type != util.FilesystemSuperMagicBtrfs {
 		return false
 	}
 
