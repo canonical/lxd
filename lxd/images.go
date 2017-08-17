@@ -23,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -1207,7 +1208,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 
 	// Validate ETag
 	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -1235,7 +1236,7 @@ func imagePatch(d *Daemon, r *http.Request) Response {
 
 	// Validate ETag
 	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -1392,7 +1393,7 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate ETag
-	err = etagCheck(r, alias)
+	err = util.EtagCheck(r, alias)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -1428,7 +1429,7 @@ func aliasPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate ETag
-	err = etagCheck(r, alias)
+	err = util.EtagCheck(r, alias)
 	if err != nil {
 		return PreconditionFailed(err)
 	}

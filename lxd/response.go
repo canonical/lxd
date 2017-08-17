@@ -14,6 +14,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -35,7 +36,7 @@ type syncResponse struct {
 func (r *syncResponse) Render(w http.ResponseWriter) error {
 	// Set an appropriate ETag header
 	if r.etag != nil {
-		etag, err := etagHash(r.etag)
+		etag, err := util.EtagHash(r.etag)
 		if err == nil {
 			w.Header().Set("ETag", etag)
 		}
@@ -66,7 +67,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		Metadata: r.metadata,
 	}
 
-	return WriteJSON(w, resp)
+	return util.WriteJSON(w, resp, debug)
 }
 
 func (r *syncResponse) String() string {
@@ -237,7 +238,7 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 	w.Header().Set("Location", url)
 	w.WriteHeader(202)
 
-	return WriteJSON(w, body)
+	return util.WriteJSON(w, body, debug)
 }
 
 func (r *operationResponse) String() string {

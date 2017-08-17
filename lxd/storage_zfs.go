@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -46,7 +47,7 @@ func (s *storageZfs) StorageCoreInit() error {
 	}
 	s.sTypeName = typeName
 
-	loadModule("zfs")
+	util.LoadModule("zfs")
 
 	if !zfsIsEnabled() {
 		return fmt.Errorf("the \"zfs\" tool is not enabled")

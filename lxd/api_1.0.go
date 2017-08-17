@@ -11,6 +11,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
@@ -248,7 +249,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = etagCheck(r, daemonConfigRender())
+	err = util.EtagCheck(r, daemonConfigRender())
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -267,7 +268,7 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = etagCheck(r, daemonConfigRender())
+	err = util.EtagCheck(r, daemonConfigRender())
 	if err != nil {
 		return PreconditionFailed(err)
 	}
