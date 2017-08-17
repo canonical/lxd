@@ -36,6 +36,11 @@ if [ -n "${LXD_LOGS:-}" ] && [ ! -d "${LXD_LOGS}" ]; then
 fi
 
 # Helper functions
+for include in includes/*.sh; do
+    # shellcheck disable=SC1090
+    . "$include"
+done
+
 local_tcp_port() {
   while :; do
     port=$(shuf -i 10000-32768 -n 1)
@@ -46,39 +51,6 @@ local_tcp_port() {
     echo "${port}"
     return
   done
-}
-
-# return a list of available storage backends
-available_storage_backends() {
-  # shellcheck disable=2039
-  local backend backends
-
-  backends="dir"
-  for backend in btrfs lvm zfs; do
-    if which $backend >/dev/null 2>&1; then
-      backends="$backends $backend"
-    fi
-  done
-  echo "$backends"
-}
-
-# whether a storage backend is available
-storage_backend_available() {
-  # shellcheck disable=2039
-  local backends
-  backends="$(available_storage_backends)"
-  [ "${backends#*$1}" != "$backends" ]
-}
-
-# choose a random available backend, excluding LXD_BACKEND
-random_storage_backend() {
-    # shellcheck disable=2046
-    shuf -e $(available_storage_backends) | head -n 1
-}
-
-# return the storage backend being used by a LXD instance
-storage_backend() {
-    cat "$1/lxd.backend"
 }
 
 # Set default backend to dir
@@ -440,60 +412,6 @@ wipe() {
   fi
 
   rm -Rf "${1}"
-}
-
-configure_loop_device() {
-  lv_loop_file=$(mktemp -p "${TEST_DIR}" XXXX.img)
-  truncate -s 10G "${lv_loop_file}"
-  pvloopdev=$(losetup --show -f "${lv_loop_file}")
-  if [ ! -e "${pvloopdev}" ]; then
-    echo "failed to setup loop"
-    false
-  fi
-  echo "${pvloopdev}" >> "${TEST_DIR}/loops"
-
-  # The following code enables to return a value from a shell function by
-  # calling the function as: fun VAR1
-
-  # shellcheck disable=2039
-  local  __tmp1="${1}"
-  # shellcheck disable=2039
-  local  res1="${lv_loop_file}"
-  if [ "${__tmp1}" ]; then
-      eval "${__tmp1}='${res1}'"
-  fi
-
-  # shellcheck disable=2039
-  local  __tmp2="${2}"
-  # shellcheck disable=2039
-  local  res2="${pvloopdev}"
-  if [ "${__tmp2}" ]; then
-      eval "${__tmp2}='${res2}'"
-  fi
-}
-
-deconfigure_loop_device() {
-  lv_loop_file="${1}"
-  loopdev="${2}"
-
-  SUCCESS=0
-  # shellcheck disable=SC2034
-  for i in $(seq 10); do
-    if losetup -d "${loopdev}"; then
-      SUCCESS=1
-      break
-    fi
-
-    sleep 0.5
-  done
-
-  if [ "${SUCCESS}" = "0" ]; then
-    echo "Failed to tear down loop device"
-    false
-  fi
-
-  rm -f "${lv_loop_file}"
-  sed -i "\|^${loopdev}|d" "${TEST_DIR}/loops"
 }
 
 # Must be set before cleanup()
