@@ -220,75 +220,6 @@ func (d *Daemon) createCmd(version string, c Command) {
 	})
 }
 
-func (d *Daemon) SetupStorageDriver(forceCheck bool) error {
-	pools, err := db.StoragePools(d.db)
-	if err != nil {
-		if err == db.NoSuchObjectError {
-			logger.Debugf("No existing storage pools detected.")
-			return nil
-		}
-		logger.Debugf("Failed to retrieve existing storage pools.")
-		return err
-	}
-
-	// In case the daemon got killed during upgrade we will already have a
-	// valid storage pool entry but it might have gotten messed up and so we
-	// cannot perform StoragePoolCheck(). This case can be detected by
-	// looking at the patches db: If we already have a storage pool defined
-	// but the upgrade somehow got messed up then there will be no
-	// "storage_api" entry in the db.
-	if len(pools) > 0 && !forceCheck {
-		appliedPatches, err := db.Patches(d.db)
-		if err != nil {
-			return err
-		}
-
-		if !shared.StringInSlice("storage_api", appliedPatches) {
-			logger.Warnf("Incorrectly applied \"storage_api\" patch. Skipping storage pool initialization as it might be corrupt.")
-			return nil
-		}
-
-	}
-
-	for _, pool := range pools {
-		logger.Debugf("Initializing and checking storage pool \"%s\".", pool)
-		s, err := storagePoolInit(d, pool)
-		if err != nil {
-			logger.Errorf("Error initializing storage pool \"%s\": %s. Correct functionality of the storage pool cannot be guaranteed.", pool, err)
-			continue
-		}
-
-		err = s.StoragePoolCheck()
-		if err != nil {
-			return err
-		}
-	}
-
-	// Get a list of all storage drivers currently in use
-	// on this LXD instance. Only do this when we do not already have done
-	// this once to avoid unnecessarily querying the db. All subsequent
-	// updates of the cache will be done when we create or delete storage
-	// pools in the db. Since this is a rare event, this cache
-	// implementation is a classic frequent-read, rare-update case so
-	// copy-on-write semantics without locking in the read case seems
-	// appropriate. (Should be cheaper then querying the db all the time,
-	// especially if we keep adding more storage drivers.)
-	if !storagePoolDriversCacheInitialized {
-		tmp, err := db.StoragePoolsGetDrivers(d.db)
-		if err != nil && err != db.NoSuchObjectError {
-			return nil
-		}
-
-		storagePoolDriversCacheLock.Lock()
-		storagePoolDriversCacheVal.Store(tmp)
-		storagePoolDriversCacheLock.Unlock()
-
-		storagePoolDriversCacheInitialized = true
-	}
-
-	return nil
-}
-
 // have we setup shared mounts?
 var sharedMounted bool
 var sharedMountsLock sync.Mutex
@@ -736,7 +667,7 @@ func (d *Daemon) Init() error {
 
 	if !d.MockMode {
 		/* Read the storage pools */
-		err = d.SetupStorageDriver(false)
+		err = SetupStorageDriver(d, false)
 		if err != nil {
 			return err
 		}
