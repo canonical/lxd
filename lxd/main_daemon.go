@@ -67,21 +67,22 @@ func cmdDaemon() error {
 	signal.Notify(ch, syscall.SIGQUIT)
 	signal.Notify(ch, syscall.SIGTERM)
 
+	s := d.State()
 	select {
 	case sig := <-ch:
 
 		if sig == syscall.SIGPWR {
 			logger.Infof("Received '%s signal', shutting down containers.", sig)
-			containersShutdown(d)
-			networkShutdown(d)
+			containersShutdown(s)
+			networkShutdown(s)
 		} else {
 			logger.Infof("Received '%s signal', exiting.", sig)
 		}
 
 	case <-d.shutdownChan:
 		logger.Infof("Asked to shutdown by API, shutting down containers.")
-		containersShutdown(d)
-		networkShutdown(d)
+		containersShutdown(s)
+		networkShutdown(s)
 	}
 
 	return d.Stop()

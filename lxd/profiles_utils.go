@@ -20,7 +20,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		return BadRequest(err)
 	}
 
-	containers := getContainersWithProfile(d, name)
+	containers := getContainersWithProfile(d.State(), name)
 
 	// Check if the root device is supposed to be changed or removed.
 	oldProfileRootDiskDeviceKey, oldProfileRootDiskDevice, _ := containerGetRootDiskDevice(profile.Devices)

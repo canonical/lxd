@@ -12,6 +12,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -38,7 +39,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 			url := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, name)
 			resultString[i] = url
 		} else {
-			profile, err := doProfileGet(d, name)
+			profile, err := doProfileGet(d.State(), name)
 			if err != nil {
 				logger.Error("Failed to get profile", log.Ctx{"profile": name})
 				continue
@@ -104,13 +105,13 @@ var profilesCmd = Command{
 	get:  profilesGet,
 	post: profilesPost}
 
-func doProfileGet(d *Daemon, name string) (*api.Profile, error) {
-	_, profile, err := db.ProfileGet(d.db, name)
+func doProfileGet(s *state.State, name string) (*api.Profile, error) {
+	_, profile, err := db.ProfileGet(s.DB, name)
 	if err != nil {
 		return nil, err
 	}
 
-	cts, err := db.ProfileContainersGet(d.db, name)
+	cts, err := db.ProfileContainersGet(s.DB, name)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func doProfileGet(d *Daemon, name string) (*api.Profile, error) {
 func profileGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	resp, err := doProfileGet(d, name)
+	resp, err := doProfileGet(d.State(), name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -136,16 +137,16 @@ func profileGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, resp, etag)
 }
 
-func getContainersWithProfile(d *Daemon, profile string) []container {
+func getContainersWithProfile(s *state.State, profile string) []container {
 	results := []container{}
 
-	output, err := db.ProfileContainersGet(d.db, profile)
+	output, err := db.ProfileContainersGet(s.DB, profile)
 	if err != nil {
 		return results
 	}
 
 	for _, name := range output {
-		c, err := containerLoadByName(d.State(), name)
+		c, err := containerLoadByName(s, name)
 		if err != nil {
 			logger.Error("Failed opening container", log.Ctx{"container": name})
 			continue
@@ -285,12 +286,12 @@ func profilePost(d *Daemon, r *http.Request) Response {
 func profileDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	_, err := doProfileGet(d, name)
+	_, err := doProfileGet(d.State(), name)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	clist := getContainersWithProfile(d, name)
+	clist := getContainersWithProfile(d.State(), name)
 	if len(clist) != 0 {
 		return BadRequest(fmt.Errorf("Profile is currently in use"))
 	}

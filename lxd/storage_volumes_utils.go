@@ -80,8 +80,8 @@ func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 	return "", fmt.Errorf("invalid storage volume type")
 }
 
-func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volumeType int, newDescription string, newConfig map[string]string) error {
-	s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, volumeType)
+func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName string, volumeType int, newDescription string, newConfig map[string]string) error {
+	s, err := storagePoolVolumeInit(state, poolName, volumeName, volumeType)
 	if err != nil {
 		return err
 	}
@@ -152,14 +152,14 @@ func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volu
 		s.SetStoragePoolVolumeWritable(&newWritable)
 	}
 
-	poolID, err := db.StoragePoolGetID(d.db, poolName)
+	poolID, err := db.StoragePoolGetID(state.DB, poolName)
 	if err != nil {
 		return err
 	}
 
 	// Update the database if something changed
 	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = db.StoragePoolVolumeUpdate(d.db, volumeName, volumeType, poolID, newDescription, newConfig)
+		err = db.StoragePoolVolumeUpdate(state.DB, volumeName, volumeType, poolID, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
@@ -204,7 +204,7 @@ func storagePoolVolumeUsedByContainersGet(s *state.State, volumeName string,
 }
 
 // volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
-func storagePoolVolumeUsedByGet(d *Daemon, volumeName string, volumeTypeName string) ([]string, error) {
+func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeName string) ([]string, error) {
 	// Handle container volumes
 	if volumeTypeName == "container" {
 		cName, sName, snap := containerGetParentAndSnapshotName(volumeName)
@@ -222,7 +222,7 @@ func storagePoolVolumeUsedByGet(d *Daemon, volumeName string, volumeTypeName str
 	}
 
 	// Look for containers using this volume
-	ctsUsingVolume, err := storagePoolVolumeUsedByContainersGet(d.State(),
+	ctsUsingVolume, err := storagePoolVolumeUsedByContainersGet(s,
 		volumeName, volumeTypeName)
 	if err != nil {
 		return []string{}, err
@@ -234,7 +234,7 @@ func storagePoolVolumeUsedByGet(d *Daemon, volumeName string, volumeTypeName str
 			fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
 	}
 
-	profiles, err := profilesUsingPoolVolumeGetNames(d.db, volumeName, volumeTypeName)
+	profiles, err := profilesUsingPoolVolumeGetNames(s.DB, volumeName, volumeTypeName)
 	if err != nil {
 		return []string{}, err
 	}
@@ -288,7 +288,7 @@ func profilesUsingPoolVolumeGetNames(dbObj *sql.DB, volumeName string, volumeTyp
 	return usedBy, nil
 }
 
-func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeConfig map[string]string) error {
+func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeConfig map[string]string) error {
 	// Check that the name of the new storage volume is valid. (For example.
 	// zfs pools cannot contain "/" in their names.)
 	err := storageValidName(volumeName)
@@ -310,14 +310,14 @@ func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName, volumeDes
 	}
 
 	// Load storage pool the volume will be attached to.
-	poolID, poolStruct, err := db.StoragePoolGet(d.db, poolName)
+	poolID, poolStruct, err := db.StoragePoolGet(s.DB, poolName)
 	if err != nil {
 		return err
 	}
 
 	// Check that a storage volume of the same storage volume type does not
 	// already exist.
-	volumeID, _ := db.StoragePoolVolumeGetTypeID(d.db, volumeName, volumeType, poolID)
+	volumeID, _ := db.StoragePoolVolumeGetTypeID(s.DB, volumeName, volumeType, poolID)
 	if volumeID > 0 {
 		return fmt.Errorf("a storage volume of type %s does already exist", volumeTypeName)
 	}
@@ -339,7 +339,7 @@ func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName, volumeDes
 	}
 
 	// Create the database entry for the storage volume.
-	_, err = db.StoragePoolVolumeCreate(d.db, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
+	_, err = db.StoragePoolVolumeCreate(s.DB, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
 	}
@@ -347,8 +347,8 @@ func storagePoolVolumeDBCreate(d *Daemon, poolName string, volumeName, volumeDes
 	return nil
 }
 
-func storagePoolVolumeCreateInternal(d *Daemon, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeConfig map[string]string) error {
-	err := storagePoolVolumeDBCreate(d, poolName, volumeName, volumeDescription, volumeTypeName, volumeConfig)
+func storagePoolVolumeCreateInternal(state *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeConfig map[string]string) error {
+	err := storagePoolVolumeDBCreate(state, poolName, volumeName, volumeDescription, volumeTypeName, volumeConfig)
 	if err != nil {
 		return err
 	}
@@ -359,7 +359,7 @@ func storagePoolVolumeCreateInternal(d *Daemon, poolName string, volumeName, vol
 		return err
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, volumeType)
+	s, err := storagePoolVolumeInit(state, poolName, volumeName, volumeType)
 	if err != nil {
 		return err
 	}
@@ -369,7 +369,7 @@ func storagePoolVolumeCreateInternal(d *Daemon, poolName string, volumeName, vol
 	// Create storage volume.
 	err = s.StoragePoolVolumeCreate()
 	if err != nil {
-		db.StoragePoolVolumeDelete(d.db, volumeName, volumeType, poolID)
+		db.StoragePoolVolumeDelete(state.DB, volumeName, volumeType, poolID)
 		return err
 	}
 

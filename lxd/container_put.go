@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -68,7 +69,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	} else {
 		// Snapshot Restore
 		do = func(op *operation) error {
-			return containerSnapRestore(d, name, configRaw.Restore, configRaw.Stateful)
+			return containerSnapRestore(d.State(), name, configRaw.Restore, configRaw.Stateful)
 		}
 	}
 
@@ -83,18 +84,18 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func containerSnapRestore(d *Daemon, name string, snap string, stateful bool) error {
+func containerSnapRestore(s *state.State, name string, snap string, stateful bool) error {
 	// normalize snapshot name
 	if !shared.IsSnapshot(snap) {
 		snap = name + shared.SnapshotDelimiter + snap
 	}
 
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByName(s, name)
 	if err != nil {
 		return err
 	}
 
-	source, err := containerLoadByName(d.State(), snap)
+	source, err := containerLoadByName(s, snap)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:

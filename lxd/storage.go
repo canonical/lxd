@@ -379,8 +379,8 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 	return nil, fmt.Errorf("invalid storage type")
 }
 
-func storagePoolInit(d *Daemon, poolName string) (storage, error) {
-	return storageInit(d.State(), poolName, "", -1)
+func storagePoolInit(s *state.State, poolName string) (storage, error) {
+	return storageInit(s, poolName, "", -1)
 }
 
 func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, c container) (storage, error) {
@@ -526,8 +526,8 @@ func storagePoolVolumeInit(s *state.State, poolName string, volumeName string, v
 	return storageInit(s, poolName, volumeName, volumeType)
 }
 
-func storagePoolVolumeImageInit(d *Daemon, poolName string, imageFingerprint string) (storage, error) {
-	return storagePoolVolumeInit(d.State(), poolName, imageFingerprint, storagePoolVolumeTypeImage)
+func storagePoolVolumeImageInit(s *state.State, poolName string, imageFingerprint string) (storage, error) {
+	return storagePoolVolumeInit(s, poolName, imageFingerprint, storagePoolVolumeTypeImage)
 }
 
 func storagePoolVolumeContainerCreateInit(s *state.State, poolName string, containerName string) (storage, error) {
@@ -801,8 +801,8 @@ func StorageProgressWriter(op *operation, key string, description string) func(i
 	}
 }
 
-func SetupStorageDriver(d *Daemon, forceCheck bool) error {
-	pools, err := db.StoragePools(d.db)
+func SetupStorageDriver(s *state.State, forceCheck bool) error {
+	pools, err := db.StoragePools(s.DB)
 	if err != nil {
 		if err == db.NoSuchObjectError {
 			logger.Debugf("No existing storage pools detected.")
@@ -819,7 +819,7 @@ func SetupStorageDriver(d *Daemon, forceCheck bool) error {
 	// but the upgrade somehow got messed up then there will be no
 	// "storage_api" entry in the db.
 	if len(pools) > 0 && !forceCheck {
-		appliedPatches, err := db.Patches(d.db)
+		appliedPatches, err := db.Patches(s.DB)
 		if err != nil {
 			return err
 		}
@@ -833,7 +833,7 @@ func SetupStorageDriver(d *Daemon, forceCheck bool) error {
 
 	for _, pool := range pools {
 		logger.Debugf("Initializing and checking storage pool \"%s\".", pool)
-		s, err := storagePoolInit(d, pool)
+		s, err := storagePoolInit(s, pool)
 		if err != nil {
 			logger.Errorf("Error initializing storage pool \"%s\": %s. Correct functionality of the storage pool cannot be guaranteed.", pool, err)
 			continue
@@ -855,7 +855,7 @@ func SetupStorageDriver(d *Daemon, forceCheck bool) error {
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
 	if !storagePoolDriversCacheInitialized {
-		tmp, err := db.StoragePoolsGetDrivers(d.db)
+		tmp, err := db.StoragePoolsGetDrivers(s.DB)
 		if err != nil && err != db.NoSuchObjectError {
 			return nil
 		}
