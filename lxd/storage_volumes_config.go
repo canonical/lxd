@@ -74,7 +74,7 @@ func storageVolumeValidateConfig(name string, config map[string]string, parentPo
 }
 
 func storageVolumeFillDefault(name string, config map[string]string, parentPool *api.StoragePool) error {
-	if parentPool.Driver == "dir" || parentPool.Driver == "ceph" {
+	if parentPool.Driver == "dir" {
 		config["size"] = ""
 	} else if parentPool.Driver == "lvm" || parentPool.Driver == "ceph" {
 		if config["block.filesystem"] == "" {
@@ -106,10 +106,7 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 			if err != nil {
 				return err
 			}
-		} else {
-			config["size"] = "10GB"
 		}
-
 	}
 
 	return nil
