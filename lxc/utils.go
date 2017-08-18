@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"sort"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -31,11 +32,23 @@ type ProgressRenderer struct {
 	maxLength int
 	wait      time.Time
 	done      bool
+	lock      sync.Mutex
 }
 
 func (p *ProgressRenderer) Done(msg string) {
+	// Acquire rendering lock
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	// Check if we're already done
+	if p.done {
+		return
+	}
+
+	// Mark this renderer as done
 	p.done = true
 
+	// Print the new message
 	if msg != "" {
 		msg += "\n"
 	}
@@ -51,15 +64,22 @@ func (p *ProgressRenderer) Done(msg string) {
 }
 
 func (p *ProgressRenderer) Update(status string) {
-	if p.done {
-		return
-	}
-
+	// Wait if needed
 	timeout := p.wait.Sub(time.Now())
 	if timeout.Seconds() > 0 {
 		time.Sleep(timeout)
 	}
 
+	// Acquire rendering lock
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	// Check if we're already done
+	if p.done {
+		return
+	}
+
+	// Print the new message
 	msg := "%s"
 	if p.Format != "" {
 		msg = p.Format
@@ -77,6 +97,16 @@ func (p *ProgressRenderer) Update(status string) {
 }
 
 func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
+	// Acquire rendering lock
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	// Check if we're already done
+	if p.done {
+		return
+	}
+
+	// Render the new message
 	p.wait = time.Now().Add(timeout)
 	msg := fmt.Sprintf("\r%s", status)
 
