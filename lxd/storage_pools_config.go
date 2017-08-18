@@ -151,14 +151,14 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 func storagePoolFillDefault(name string, driver string, config map[string]string) error {
 	if driver == "dir" {
 		if config["size"] != "" {
-			return fmt.Errorf("the \"size\" property does not apply to %s storage pools", driver)
+			return fmt.Errorf("The \"size\" property does not apply to %s storage pools", driver)
 		}
 	} else {
 		if config["size"] == "" {
 			st := syscall.Statfs_t{}
 			err := syscall.Statfs(shared.VarPath(), &st)
 			if err != nil {
-				return fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
+				return fmt.Errorf("Couldn't statfs %s: %s", shared.VarPath(), err)
 			}
 
 			/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
