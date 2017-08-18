@@ -115,8 +115,14 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 			var meta SimpleStreamsManifestProductVersionItem
 			var rootTar SimpleStreamsManifestProductVersionItem
 			var rootSquash SimpleStreamsManifestProductVersionItem
+			deltas := []SimpleStreamsManifestProductVersionItem{}
 
 			for _, item := range version.Items {
+				// Identify deltas
+				if item.FileType == "squashfs.vcdiff" {
+					deltas = append(deltas, item)
+				}
+
 				// Skip the files we don't care about
 				if !shared.StringInSlice(item.FileType, []string{"root.tar.xz", "lxd.tar.xz", "squashfs"}) {
 					continue
@@ -223,9 +229,39 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 				}
 			}
 
-			downloads[fingerprint] = [][]string{
+			imgDownloads := [][]string{
 				{metaPath, metaHash, "meta", fmt.Sprintf("%d", metaSize)},
 				{rootfsPath, rootfsHash, "root", fmt.Sprintf("%d", rootfsSize)}}
+
+			// Add the deltas
+			for _, delta := range deltas {
+				srcImage, ok := product.Versions[delta.DeltaBase]
+				if !ok {
+					continue
+				}
+
+				var srcFingerprint string
+				for _, item := range srcImage.Items {
+					if item.FileType != "lxd.tar.xz" {
+						continue
+					}
+
+					srcFingerprint = item.LXDHashSha256SquashFs
+					break
+				}
+
+				if srcFingerprint == "" {
+					continue
+				}
+
+				imgDownloads = append(imgDownloads, []string{
+					delta.Path,
+					delta.HashSha256,
+					fmt.Sprintf("root.delta-%s", srcFingerprint),
+					fmt.Sprintf("%d", delta.Size)})
+			}
+
+			downloads[fingerprint] = imgDownloads
 			images = append(images, image)
 		}
 	}
@@ -261,6 +297,7 @@ type SimpleStreamsManifestProductVersionItem struct {
 	LXDHashSha256RootXz   string `json:"combined_rootxz_sha256"`
 	LXDHashSha256SquashFs string `json:"combined_squashfs_sha256"`
 	Size                  int64  `json:"size"`
+	DeltaBase             string `json:"delta_base"`
 }
 
 type SimpleStreamsIndex struct {
