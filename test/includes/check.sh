@@ -1,0 +1,34 @@
+# Miscellanous test checks.
+
+check_dependencies() {
+    # shellcheck disable=SC2039
+    local dep missing
+    missing=""
+
+    for dep in "$@"; do
+        if ! which "$dep" >/dev/null 2>&1; then
+            [ "$missing" ] && missing="$missing $dep" || missing="$dep"
+        fi
+    done
+
+    if [ "$missing" ]; then
+       echo "Missing dependencies: $missing" >&2
+       exit 1
+    fi
+}
+
+check_empty() {
+    if [ "$(find "${1}" 2> /dev/null | wc -l)" -gt "1" ]; then
+        echo "${1} is not empty, content:"
+        find "${1}"
+        false
+    fi
+}
+
+check_empty_table() {
+    if [ -n "$(sqlite3 "${1}" "SELECT * FROM ${2};")" ]; then
+        echo "DB table ${2} is not empty, content:"
+        sqlite3 "${1}" "SELECT * FROM ${2};"
+        false
+    fi
+}
