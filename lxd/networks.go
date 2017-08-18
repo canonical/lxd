@@ -402,16 +402,16 @@ func networkLoadByName(s *state.State, name string) (*network, error) {
 	return &n, nil
 }
 
-func networkStartup(d *Daemon) error {
+func networkStartup(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := db.Networks(d.db)
+	networks, err := db.Networks(s.DB)
 	if err != nil {
 		return err
 	}
 
 	// Bring them all up
 	for _, name := range networks {
-		n, err := networkLoadByName(d.State(), name)
+		n, err := networkLoadByName(s, name)
 		if err != nil {
 			return err
 		}
@@ -426,16 +426,16 @@ func networkStartup(d *Daemon) error {
 	return nil
 }
 
-func networkShutdown(d *Daemon) error {
+func networkShutdown(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := db.Networks(d.db)
+	networks, err := db.Networks(s.DB)
 	if err != nil {
 		return err
 	}
 
 	// Bring them all up
 	for _, name := range networks {
-		n, err := networkLoadByName(d.State(), name)
+		n, err := networkLoadByName(s, name)
 		if err != nil {
 			return err
 		}

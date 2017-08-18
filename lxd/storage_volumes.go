@@ -49,7 +49,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 		if recursion == 0 {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume.Name))
 		} else {
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volume.Name, volume.Type)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), volume.Name, volume.Type)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -121,7 +121,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 				continue
 			}
 
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d, vol.Name, vol.Type)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), vol.Name, vol.Type)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -164,7 +164,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 	// volume is supposed to be created.
 	poolName := mux.Vars(r)["name"]
 
-	err = storagePoolVolumeCreateInternal(d, poolName, req.Name, req.Description, req.Type, req.Config)
+	err = storagePoolVolumeCreateInternal(d.State(), poolName, req.Name, req.Description, req.Type, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -215,7 +215,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volume.Name, volume.Type)
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), volume.Name, volume.Type)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -278,7 +278,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = storagePoolVolumeUpdate(d, poolName, volumeName, volumeType, req.Description, req.Config)
+	err = storagePoolVolumeUpdate(d.State(), poolName, volumeName, volumeType, req.Description, req.Config)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -351,7 +351,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = storagePoolVolumeUpdate(d, poolName, volumeName, volumeType, req.Description, req.Config)
+	err = storagePoolVolumeUpdate(d.State(), poolName, volumeName, volumeType, req.Description, req.Config)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -390,7 +390,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("storage volumes of type \"%s\" cannot be deleted with the storage api", volumeTypeName))
 	}
 
-	volumeUsedBy, err := storagePoolVolumeUsedByGet(d, volumeName, volumeTypeName)
+	volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), volumeName, volumeTypeName)
 	if err != nil {
 		return SmartError(err)
 	}

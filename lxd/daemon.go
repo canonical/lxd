@@ -545,7 +545,7 @@ func (d *Daemon) Init() error {
 
 	if !d.os.MockMode {
 		/* Read the storage pools */
-		err = SetupStorageDriver(d, false)
+		err = SetupStorageDriver(d.State(), false)
 		if err != nil {
 			return err
 		}
@@ -557,7 +557,7 @@ func (d *Daemon) Init() error {
 		}
 
 		/* Setup the networks */
-		err = networkStartup(d)
+		err = networkStartup(d.State())
 		if err != nil {
 			return err
 		}
@@ -617,7 +617,7 @@ func (d *Daemon) Init() error {
 
 	if !d.os.MockMode {
 		/* Start the scheduler */
-		go deviceEventListener(d)
+		go deviceEventListener(d.State())
 
 		/* Setup the TLS authentication */
 		certf, keyf, err := readMyCert()
@@ -853,11 +853,13 @@ func (d *Daemon) Ready() error {
 		}
 	}()
 
+	s := d.State()
+
 	/* Restore containers */
-	containersRestart(d)
+	containersRestart(s)
 
 	/* Re-balance in case things changed while LXD was down */
-	deviceTaskBalance(d)
+	deviceTaskBalance(s)
 
 	close(d.readyChan)
 
