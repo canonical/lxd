@@ -60,11 +60,7 @@ if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND";
 fi
 echo "==> Using storage backend ${LXD_BACKEND}"
 
-# import storage backends
-for backend in $(available_storage_backends); do
-  # shellcheck disable=SC1090
-  . "backends/${backend}.sh"
-done
+import_storage_backends
 
 cleanup() {
   # Allow for failures and stop tracing everything
@@ -88,22 +84,8 @@ cleanup() {
 
   echo "==> Cleaning up"
 
-  # Kill all the LXD instances
-  while read -r daemon_dir; do
-    kill_lxd "${daemon_dir}"
-  done < "${TEST_DIR}/daemons"
+  cleanup_lxds "$TEST_DIR"
 
-  # Cleanup leftover networks
-  # shellcheck disable=SC2009
-  ps aux | grep "interface=lxdt$$ " | grep -v grep | awk '{print $2}' | while read -r line; do
-    kill -9 "${line}"
-  done
-  if [ -e "/sys/class/net/lxdt$$" ]; then
-    ip link del lxdt$$
-  fi
-
-  # Wipe the test environment
-  wipe "${TEST_DIR}"
 
   echo ""
   echo ""
