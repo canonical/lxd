@@ -40,10 +40,20 @@ available_storage_backends() {
     echo "$backends"
 }
 
+import_storage_backends() {
+    # shellcheck disable=SC2039
+    local backend
+    for backend in $(available_storage_backends); do
+        # shellcheck disable=SC1090
+        . "backends/${backend}.sh"
+    done
+}
+
 configure_loop_device() {
     # shellcheck disable=SC2039
     local lv_loop_file pvloopdev
 
+    # shellcheck disable=SC2153
     lv_loop_file=$(mktemp -p "${TEST_DIR}" XXXX.img)
     truncate -s 10G "${lv_loop_file}"
     pvloopdev=$(losetup --show -f "${lv_loop_file}")
@@ -51,6 +61,7 @@ configure_loop_device() {
         echo "failed to setup loop"
         false
     fi
+    # shellcheck disable=SC2153
     echo "${pvloopdev}" >> "${TEST_DIR}/loops"
 
     # The following code enables to return a value from a shell function by
@@ -96,4 +107,16 @@ deconfigure_loop_device() {
 
     rm -f "${lv_loop_file}"
     sed -i "\|^${loopdev}|d" "${TEST_DIR}/loops"
+}
+
+umount_loops() {
+    # shellcheck disable=SC2039
+    local line test_dir
+    test_dir="$1"
+
+    if [ -f "${test_dir}/loops" ]; then
+        while read -r line; do
+            losetup -d "${line}" || true
+        done < "${test_dir}/loops"
+    fi
 }
