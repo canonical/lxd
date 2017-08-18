@@ -362,6 +362,14 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			RootfsFile:      io.WriteSeeker(destRootfs),
 			ProgressHandler: progress,
 			Canceler:        canceler,
+			DeltaSourceRetriever: func(fingerprint string, file string) string {
+				path := shared.VarPath("images", fmt.Sprintf("%s.%s", fingerprint, file))
+				if shared.PathExists(path) {
+					return path
+				}
+
+				return ""
+			},
 		}
 
 		if secret != "" {
