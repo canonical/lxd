@@ -191,7 +191,7 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 		}
 	}
 
-	if driver == "lvm" || driver == "ceph" {
+	if driver == "btrfs" || driver == "ceph" || driver == "lvm" || driver == "zfs" {
 		if config["volume.size"] != "" {
 			_, err := shared.ParseByteSizeString(config["volume.size"])
 			if err != nil {
