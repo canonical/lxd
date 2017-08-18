@@ -79,14 +79,7 @@ cleanup() {
   fi
 
   echo "==> Cleaning up"
-
-  # Kill all the LXD instances
-  while read -r daemon_dir; do
-    kill_lxd "${daemon_dir}"
-  done < "${TEST_DIR}/daemons"
-
-  # Wipe the test environment
-  wipe "${TEST_DIR}"
+  cleanup_lxds "$TEST_DIR"
 
   echo ""
   echo ""

@@ -31,6 +31,7 @@ spawn_lxd() {
     LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" ${DEBUG-} "$@" 2>&1 &
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
+    # shellcheck disable=SC2153
     echo "${lxddir}" >> "${TEST_DIR}/daemons"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
@@ -217,14 +218,26 @@ wipe() {
         kill -9 "${pid}" || true
     done
 
-    if [ -f "${TEST_DIR}/loops" ]; then
-        while read -r line; do
-            losetup -d "${line}" || true
-        done < "${TEST_DIR}/loops"
-    fi
     if mountpoint -q "${1}"; then
         umount "${1}"
     fi
 
     rm -Rf "${1}"
+}
+
+# Kill and cleanup LXD instances and related resources
+cleanup_lxds() {
+    # shellcheck disable=SC2039
+    local test_dir daemon_dir
+    test_dir="$1"
+
+    # Kill all LXD instances
+    while read -r daemon_dir; do
+        kill_lxd "${daemon_dir}"
+    done < "${test_dir}/daemons"
+
+    # Wipe the test environment
+    wipe "$test_dir"
+
+    umount_loops "$test_dir"
 }
