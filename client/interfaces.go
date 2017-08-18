@@ -209,6 +209,10 @@ type ImageFileRequest struct {
 
 	// A canceler that can be used to interrupt some part of the image download request
 	Canceler *cancel.Canceler
+
+	// Path retriever for image delta downloads
+	// If set, it must return the path to the image file or an empty string if not available
+	DeltaSourceRetriever func(fingerprint string, file string) string
 }
 
 // The ImageFileResponse struct is used as the response for image downloads

@@ -3,8 +3,12 @@ package lxd
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"strings"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -92,14 +96,74 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	// Download the rootfs
 	rootfs, ok := files["root"]
 	if ok && req.RootfsFile != nil {
-		size, err := download(rootfs.Path, "rootfs", rootfs.Sha256, req.RootfsFile)
-		if err != nil {
-			return nil, err
+		// Look for deltas (requires xdelta3)
+		downloaded := false
+		_, err := exec.LookPath("xdelta3")
+		if err == nil && req.DeltaSourceRetriever != nil {
+			for filename, file := range files {
+				if !strings.HasPrefix(filename, "root.delta-") {
+					continue
+				}
+
+				// Check if we have the source file for the delta
+				srcFingerprint := strings.Split(filename, "root.delta-")[1]
+				srcPath := req.DeltaSourceRetriever(srcFingerprint, "rootfs")
+				if srcPath == "" {
+					continue
+				}
+
+				// Create temporary file for the delta
+				deltaFile, err := ioutil.TempFile("", "lxc_image_")
+				if err != nil {
+					return nil, err
+				}
+				defer deltaFile.Close()
+				defer os.Remove(deltaFile.Name())
+
+				// Download the delta
+				_, err = download(file.Path, "rootfs delta", file.Sha256, deltaFile)
+				if err != nil {
+					return nil, err
+				}
+
+				// Create temporary file for the delta
+				patchedFile, err := ioutil.TempFile("", "lxc_image_")
+				if err != nil {
+					return nil, err
+				}
+				defer patchedFile.Close()
+				defer os.Remove(patchedFile.Name())
+
+				// Apply it
+				_, err = shared.RunCommand("xdelta3", "-f", "-d", "-s", srcPath, deltaFile.Name(), patchedFile.Name())
+				if err != nil {
+					return nil, err
+				}
+
+				// Copy to the target
+				size, err := io.Copy(req.RootfsFile, patchedFile)
+				if err != nil {
+					return nil, err
+				}
+
+				parts := strings.Split(rootfs.Path, "/")
+				resp.RootfsName = parts[len(parts)-1]
+				resp.RootfsSize = size
+				downloaded = true
+			}
 		}
 
-		parts := strings.Split(rootfs.Path, "/")
-		resp.RootfsName = parts[len(parts)-1]
-		resp.RootfsSize = size
+		// Download the whole file
+		if !downloaded {
+			size, err := download(rootfs.Path, "rootfs", rootfs.Sha256, req.RootfsFile)
+			if err != nil {
+				return nil, err
+			}
+
+			parts := strings.Split(rootfs.Path, "/")
+			resp.RootfsName = parts[len(parts)-1]
+			resp.RootfsSize = size
+		}
 	}
 
 	return &resp, nil
