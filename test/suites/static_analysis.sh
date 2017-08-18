@@ -16,7 +16,7 @@ test_static_analysis() {
 
     # Shell static analysis
     if which shellcheck >/dev/null 2>&1; then
-      shellcheck --shell sh test/main.sh test/suites/* test/backends/*
+      shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh
     else
       echo "shellcheck not found, shell static analysis disabled"
     fi
