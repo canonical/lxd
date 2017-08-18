@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -1211,6 +1212,12 @@ func (n *network) Start() error {
 
 			dnsmasqCmd = append(dnsmasqCmd, []string{"-u", user}...)
 			break
+		}
+
+		// Check for dnsmasq
+		_, err := exec.LookPath("dnsmasq")
+		if err != nil {
+			return fmt.Errorf("dnsmasq is required for LXD managed bridges.")
 		}
 
 		// Start dnsmasq (occasionally races, try a few times)
