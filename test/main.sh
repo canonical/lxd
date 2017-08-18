@@ -41,19 +41,6 @@ for include in includes/*.sh; do
     . "$include"
 done
 
-local_tcp_port() {
-  while :; do
-    port=$(shuf -i 10000-32768 -n 1)
-    nc -l 127.0.0.1 "${port}" >/dev/null 2>&1 &
-    pid=$!
-    kill "${pid}" >/dev/null 2>&1 || continue
-    wait "${pid}" || true
-    echo "${port}"
-    return
-  done
-}
-
-
 if [ -z "${LXD_BACKEND:-}" ]; then
   LXD_BACKEND=dir
 fi
@@ -74,10 +61,6 @@ for backend in $(available_storage_backends); do
   # shellcheck disable=SC1090
   . "backends/${backend}.sh"
 done
-
-my_curl() {
-  curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" "$@"
-}
 
 ensure_has_localhost_remote() {
   addr=${1}
