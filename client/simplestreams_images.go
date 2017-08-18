@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/lxc/lxd/shared/api"
@@ -57,20 +58,30 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	// Prepare the response
 	resp := ImageFileResponse{}
 
+	// Download function
+	download := func(path string, filename string, sha256 string, target io.WriteSeeker) (int64, error) {
+		// Try over http
+		url := fmt.Sprintf("http://%s/%s", strings.TrimPrefix(r.httpHost, "https://"), path)
+
+		size, err := downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)
+		if err != nil {
+			// Try over https
+			url = fmt.Sprintf("%s/%s", r.httpHost, path)
+			size, err = downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)
+			if err != nil {
+				return -1, err
+			}
+		}
+
+		return size, nil
+	}
+
 	// Download the LXD image file
 	meta, ok := files["meta"]
 	if ok && req.MetaFile != nil {
-		// Try over http
-		url := fmt.Sprintf("http://%s/%s", strings.TrimPrefix(r.httpHost, "https://"), meta.Path)
-
-		size, err := downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, "metadata", url, meta.Sha256, req.MetaFile)
+		size, err := download(meta.Path, "metadata", meta.Sha256, req.MetaFile)
 		if err != nil {
-			// Try over https
-			url = fmt.Sprintf("%s/%s", r.httpHost, meta.Path)
-			size, err = downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, "metadata", url, meta.Sha256, req.MetaFile)
-			if err != nil {
-				return nil, err
-			}
+			return nil, err
 		}
 
 		parts := strings.Split(meta.Path, "/")
@@ -81,17 +92,9 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	// Download the rootfs
 	rootfs, ok := files["root"]
 	if ok && req.RootfsFile != nil {
-		// Try over http
-		url := fmt.Sprintf("http://%s/%s", strings.TrimPrefix(r.httpHost, "https://"), rootfs.Path)
-
-		size, err := downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, "rootfs", url, rootfs.Sha256, req.RootfsFile)
+		size, err := download(rootfs.Path, "rootfs", rootfs.Sha256, req.RootfsFile)
 		if err != nil {
-			// Try over https
-			url = fmt.Sprintf("%s/%s", r.httpHost, rootfs.Path)
-			size, err = downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, "rootfs", url, rootfs.Sha256, req.RootfsFile)
-			if err != nil {
-				return nil, err
-			}
+			return nil, err
 		}
 
 		parts := strings.Split(rootfs.Path, "/")
