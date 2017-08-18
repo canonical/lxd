@@ -40,6 +40,15 @@ available_storage_backends() {
     echo "$backends"
 }
 
+import_storage_backends() {
+    # shellcheck disable=SC2039
+    local backend
+    for backend in $(available_storage_backends); do
+        # shellcheck disable=SC1090
+        . "backends/${backend}.sh"
+    done
+}
+
 configure_loop_device() {
     # shellcheck disable=SC2039
     local lv_loop_file pvloopdev

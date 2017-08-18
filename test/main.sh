@@ -60,11 +60,7 @@ if [ "$LXD_BACKEND" != "random" ] && ! storage_backend_available "$LXD_BACKEND";
 fi
 echo "==> Using storage backend ${LXD_BACKEND}"
 
-# import storage backends
-for backend in $(available_storage_backends); do
-  # shellcheck disable=SC1090
-  . "backends/${backend}.sh"
-done
+import_storage_backends
 
 cleanup() {
   # Allow for failures and stop tracing everything
