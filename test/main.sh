@@ -37,7 +37,7 @@ import_subdir_files() {
 import_subdir_files includes
 
 echo "==> Checking for dependencies"
-check_dependencies lxd lxc curl jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen
+check_dependencies lxd lxc curl dnsmasq jq git xgettext sqlite3 msgmerge msgfmt shuf setfacl uuidgen
 
 if [ "${USER:-'root'}" != "root" ]; then
   echo "The testsuite must be run as root." >&2
