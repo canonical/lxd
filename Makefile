@@ -3,6 +3,7 @@ POFILES=$(wildcard po/*.po)
 MOFILES=$(patsubst %.po,%.mo,$(POFILES))
 LINGUAS=$(basename $(POFILES))
 POTFILE=po/$(DOMAIN).pot
+GO_SERVER=./lxd/.go-wrapper
 
 # dist is primarily for use when packaging; for development we still manage
 # dependencies via `go get` explicitly.
@@ -13,8 +14,8 @@ TAGS=$(shell printf "\#include <sqlite3.h>\nvoid main(){}" | $(CC) -o /dev/null 
 
 .PHONY: default
 default:
-	go get -t -v -d ./...
-	go install -v $(TAGS) $(DEBUG) ./...
+	$(GO_SERVER) get -t -v -d ./...
+	$(GO_SERVER) install -v $(TAGS) $(DEBUG) ./...
 	@echo "LXD built successfully"
 
 .PHONY: client
@@ -104,6 +105,14 @@ update-pot:
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxc-devel@lists.linuxcontainers.org --keyword=i18n.G --keyword-plural=i18n.NG shared/*.go lxc/*.go lxd/*.go
 
 build-mo: $(MOFILES)
+
+.PHONY: build-sqlite
+build-sqlite:
+	cd lxd/sqlite && \
+	    git log -1 --format=format:%ci%n | sed -e 's/ [-+].*//;s/ /T/;s/^/D /' > manifest && \
+	    echo $(shell git log -1 --format=format:%H) > manifest.uuid && \
+	    ./configure && \
+	    make
 
 static-analysis:
 	(cd test;  /bin/sh -x -c ". suites/static_analysis.sh; test_static_analysis")
