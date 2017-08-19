@@ -151,6 +151,11 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 	imagesAutoUpdate := cmd.askImages()
 	bridge := cmd.askBridge(client)
 
+	_, err = exec.LookPath("dnsmasq")
+	if err != nil && bridge != nil {
+		return fmt.Errorf("LXD managed bridges require \"dnsmasq\". Install it and try again.")
+	}
+
 	err = cmd.fillDataWithStorage(data, storage, existingPools)
 	if err != nil {
 		return err
@@ -884,6 +889,7 @@ func (cmd *CmdInit) askBridge(client lxd.ContainerServer) *cmdInitBridgeParams {
 	if !cmd.Context.AskBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
 		return nil
 	}
+
 	bridge := &cmdInitBridgeParams{}
 	for {
 		bridge.Name = cmd.Context.AskString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
