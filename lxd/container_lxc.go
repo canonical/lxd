@@ -6731,7 +6731,7 @@ func (c *containerLXC) setNetworkLimits(name string, m types.Device) error {
 	veth := c.getHostInterface(m["name"])
 
 	if veth == "" {
-		return fmt.Errorf("LXC doesn't now about this device and the host_name property isn't set, can't find host side veth name")
+		return fmt.Errorf("LXC doesn't know about this device and the host_name property isn't set, can't find host side veth name")
 	}
 
 	// Apply max limit
