@@ -19,16 +19,16 @@ import (
  * want to fork for the same reasons we do forkstart (i.e. reduced memory
  * footprint when we fork tasks that will never free golang's memory, etc.)
  */
-func cmdForkMigrate(args []string) error {
-	if len(args) != 6 {
-		return fmt.Errorf("Bad arguments %q", args)
+func cmdForkMigrate(args *Args) error {
+	if len(args.Params) != 5 {
+		return fmt.Errorf("Bad arguments %q", args.Params)
 	}
 
-	name := args[1]
-	lxcpath := args[2]
-	configPath := args[3]
-	imagesDir := args[4]
-	preservesInodes, err := strconv.ParseBool(args[5])
+	name := args.Params[0]
+	lxcpath := args.Params[1]
+	configPath := args.Params[2]
+	imagesDir := args.Params[3]
+	preservesInodes, err := strconv.ParseBool(args.Params[4])
 
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {

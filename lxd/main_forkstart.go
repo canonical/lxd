@@ -15,14 +15,14 @@ import (
  * 'forkstart' is used instead of just 'start' in the hopes that people
  * do not accidentally type 'lxd start' instead of 'lxc start'
  */
-func cmdForkStart(args []string) error {
-	if len(args) != 4 {
-		return fmt.Errorf("Bad arguments: %q", args)
+func cmdForkStart(args *Args) error {
+	if len(args.Params) != 3 {
+		return fmt.Errorf("Bad arguments: %q", args.Params)
 	}
 
-	name := args[1]
-	lxcpath := args[2]
-	configPath := args[3]
+	name := args.Params[0]
+	lxcpath := args.Params[1]
+	configPath := args.Params[2]
 
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
