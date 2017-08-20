@@ -13,14 +13,14 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func cmdDaemon() error {
+func cmdDaemon(args *Args) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")
 	}
 
-	if *argCPUProfile != "" {
-		f, err := os.Create(*argCPUProfile)
+	if args.CPUProfile != "" {
+		f, err := os.Create(args.CPUProfile)
 		if err != nil {
 			fmt.Printf("Error opening cpu profile file: %s\n", err)
 			return nil
@@ -29,8 +29,8 @@ func cmdDaemon() error {
 		defer pprof.StopCPUProfile()
 	}
 
-	if *argMemProfile != "" {
-		go memProfiler(*argMemProfile)
+	if args.MemProfile != "" {
+		go memProfiler(args.MemProfile)
 	}
 
 	neededPrograms := []string{"setfacl", "rsync", "tar", "unsquashfs", "xz"}
@@ -41,17 +41,17 @@ func cmdDaemon() error {
 		}
 	}
 
-	if *argPrintGoroutinesEvery > 0 {
+	if args.PrintGoroutinesEvery > 0 {
 		go func() {
 			for {
-				time.Sleep(time.Duration(*argPrintGoroutinesEvery) * time.Second)
+				time.Sleep(time.Duration(args.PrintGoroutinesEvery) * time.Second)
 				logger.Debugf(logger.GetStack())
 			}
 		}()
 	}
 
 	d := NewDaemon()
-	d.group = *argGroup
+	d.group = args.Group
 	d.SetupMode = shared.PathExists(shared.VarPath(".setup_mode"))
 	err := d.Init()
 	if err != nil {

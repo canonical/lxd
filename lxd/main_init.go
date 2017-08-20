@@ -13,29 +13,17 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/util"
+
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// CmdInitArgs holds command line arguments for the "lxd init" command.
-type CmdInitArgs struct {
-	Auto                bool
-	Preseed             bool
-	StorageBackend      string
-	StorageCreateDevice string
-	StorageCreateLoop   int64
-	StorageDataset      string
-	NetworkPort         int64
-	NetworkAddress      string
-	TrustPassword       string
-}
-
 // CmdInit implements the "lxd init" command line.
 type CmdInit struct {
 	Context         *cmd.Context
-	Args            *CmdInitArgs
+	Args            *Args
 	RunningInUserns bool
 	SocketPath      string
 	PasswordReader  func(int) ([]byte, error)
@@ -970,19 +958,8 @@ type cmdInitBridgeParams struct {
 // some change, and that are passed around as parameters.
 type reverter func() error
 
-func cmdInit() error {
+func cmdInit(args *Args) error {
 	context := cmd.NewContext(os.Stdin, os.Stdout, os.Stderr)
-	args := &CmdInitArgs{
-		Auto:                *argAuto,
-		Preseed:             *argPreseed,
-		StorageBackend:      *argStorageBackend,
-		StorageCreateDevice: *argStorageCreateDevice,
-		StorageCreateLoop:   *argStorageCreateLoop,
-		StorageDataset:      *argStorageDataset,
-		NetworkPort:         *argNetworkPort,
-		NetworkAddress:      *argNetworkAddress,
-		TrustPassword:       *argTrustPassword,
-	}
 	command := &CmdInit{
 		Context:         context,
 		Args:            args,

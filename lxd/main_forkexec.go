@@ -15,14 +15,17 @@ import (
 /*
  * This is called by lxd when called as "lxd forkexec <container>"
  */
-func cmdForkExec(args []string) (int, error) {
-	if len(args) < 6 {
-		return -1, fmt.Errorf("Bad arguments: %q", args)
+func cmdForkExec(args *Args) (int, error) {
+	if len(args.Params) < 3 {
+		return -1, fmt.Errorf("Bad params: %q", args.Params)
+	}
+	if len(args.Extra) < 1 {
+		return -1, fmt.Errorf("Bad extra: %q", args.Extra)
 	}
 
-	name := args[1]
-	lxcpath := args[2]
-	configPath := args[3]
+	name := args.Params[0]
+	lxcpath := args.Params[1]
+	configPath := args.Params[2]
 
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
@@ -63,7 +66,7 @@ func cmdForkExec(args []string) (int, error) {
 	cmd := []string{}
 
 	section := ""
-	for _, arg := range args[5:] {
+	for _, arg := range args.Extra {
 		// The "cmd" section must come last as it may contain a --
 		if arg == "--" && section != "cmd" {
 			section = ""

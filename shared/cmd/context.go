@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,12 @@ type Context struct {
 	stdin  *bufio.Reader
 	stdout io.Writer
 	stderr io.Writer
+}
+
+// DefaultContext returns a new Context connected the stdin, stdout and stderr
+// streams.
+func DefaultContext() *Context {
+	return NewContext(os.Stdin, os.Stderr, os.Stdout)
 }
 
 // NewContext creates a new command context with the given parameters.
