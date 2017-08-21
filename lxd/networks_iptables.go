@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
@@ -13,16 +14,22 @@ func networkIptablesPrepend(protocol string, netName string, table string, chain
 		cmd = "ip6tables"
 	}
 
-	baseArgs := []string{"-w"}
-	if table != "" {
-		baseArgs = append(baseArgs, []string{"-t", table}...)
+	_, err := exec.LookPath(cmd)
+	if err != nil {
+		return fmt.Errorf("Asked to setup %s firewalling but %s can't be found", protocol, cmd)
 	}
+
+	baseArgs := []string{"-w"}
+	if table == "" {
+		table = "filter"
+	}
+	baseArgs = append(baseArgs, []string{"-t", table}...)
 
 	// Check for an existing entry
 	args := append(baseArgs, []string{"-C", chain}...)
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for LXD network %s", netName))
-	_, err := shared.RunCommand(cmd, args...)
+	_, err = shared.RunCommand(cmd, args...)
 	if err == nil {
 		return nil
 	}
@@ -51,10 +58,16 @@ func networkIptablesClear(protocol string, netName string, table string) error {
 		cmd = "ip6tables"
 	}
 
-	baseArgs := []string{"-w"}
-	if table != "" {
-		baseArgs = append(baseArgs, []string{"-t", table}...)
+	_, err := exec.LookPath(cmd)
+	if err != nil {
+		return nil
 	}
+
+	baseArgs := []string{"-w"}
+	if table == "" {
+		table = "filter"
+	}
+	baseArgs = append(baseArgs, []string{"-t", table}...)
 
 	// List the rules
 	args := append(baseArgs, "-S")
