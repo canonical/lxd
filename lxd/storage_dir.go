@@ -78,6 +78,15 @@ func (s *storageDir) StoragePoolCreate() error {
 			}
 			os.Remove(source)
 		}()
+	} else {
+		empty, err := shared.PathIsEmpty(source)
+		if err != nil {
+			return err
+		}
+
+		if !empty {
+			return fmt.Errorf("The provided directory is not empty")
+		}
 	}
 
 	prefix := shared.VarPath("storage-pools")
