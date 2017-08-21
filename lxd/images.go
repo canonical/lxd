@@ -938,6 +938,14 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 			continue
 		}
 
+		if info.Cached {
+			err = db.ImageLastAccessInit(d.db, hash)
+			if err != nil {
+				logger.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
+				continue
+			}
+		}
+
 		err = db.ImageLastAccessUpdate(d.db, hash, info.LastUsedAt)
 		if err != nil {
 			logger.Error("Error setting last use date", log.Ctx{"err": err, "fp": hash})
