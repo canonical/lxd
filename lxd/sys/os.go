@@ -13,10 +13,11 @@ import (
 // level functionality that LXD uses.
 type OS struct {
 	// Caches of system characteristics detected at Init() time.
-	Architectures []int  // Cache of detected system architectures
-	LxcPath       string // Path to the $LXD_DIR/containers directory
-	BackingFS     string // Backing filesystem of $LXD_DIR/containers
-	IdmapSet      *idmap.IdmapSet
+	Architectures []int           // Cache of detected system architectures
+	LxcPath       string          // Path to the $LXD_DIR/containers directory
+	BackingFS     string          // Backing filesystem of $LXD_DIR/containers
+	IdmapSet      *idmap.IdmapSet // Information about user/group ID mapping
+	ExecPath      string          // Absolute path to the LXD executable
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
@@ -43,6 +44,7 @@ func (s *OS) Init() error {
 	}
 
 	s.IdmapSet = util.GetIdmapSet()
+	s.ExecPath = util.GetExecPath()
 
 	return nil
 }
