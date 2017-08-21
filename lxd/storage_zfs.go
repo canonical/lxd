@@ -171,7 +171,8 @@ func (s *storageZfs) zfsPoolCreate() error {
 			return fmt.Errorf("Failed to create sparse file %s: %s", vdev, err)
 		}
 
-		if err := zfsPoolCreate(zpoolName, vdev); err != nil {
+		err = zfsPoolCreate(zpoolName, vdev)
+		if err != nil {
 			return err
 		}
 	} else {
@@ -195,7 +196,8 @@ func (s *storageZfs) zfsPoolCreate() error {
 			// safest way is to just store the name of the zfs pool
 			// we create.
 			s.pool.Config["source"] = zpoolName
-			if err := zfsPoolCreate(zpoolName, vdev); err != nil {
+			err := zfsPoolCreate(zpoolName, vdev)
+			if err != nil {
 				return err
 			}
 		} else {
@@ -207,7 +209,8 @@ func (s *storageZfs) zfsPoolCreate() error {
 
 			if strings.Contains(vdev, "/") {
 				if !zfsFilesystemEntityExists(vdev, "") {
-					if err := zfsPoolCreate("", vdev); err != nil {
+					err := zfsPoolCreate("", vdev)
+					if err != nil {
 						return err
 					}
 				}

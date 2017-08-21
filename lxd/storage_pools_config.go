@@ -149,17 +149,16 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 }
 
 func storagePoolFillDefault(name string, driver string, config map[string]string) error {
-	if driver == "dir" || driver == "ceph" {
+	if driver == "dir" {
 		if config["size"] != "" {
-			return fmt.Errorf("the \"size\" property does not apply to %s storage pools", driver)
+			return fmt.Errorf("The \"size\" property does not apply to %s storage pools", driver)
 		}
-	}
-	if driver != "dir" && driver != "ceph" {
+	} else {
 		if config["size"] == "" {
 			st := syscall.Statfs_t{}
 			err := syscall.Statfs(shared.VarPath(), &st)
 			if err != nil {
-				return fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
+				return fmt.Errorf("Couldn't statfs %s: %s", shared.VarPath(), err)
 			}
 
 			/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
@@ -192,7 +191,7 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 		}
 	}
 
-	if driver == "lvm" || driver == "ceph" {
+	if driver == "btrfs" || driver == "ceph" || driver == "lvm" || driver == "zfs" {
 		if config["volume.size"] != "" {
 			_, err := shared.ParseByteSizeString(config["volume.size"])
 			if err != nil {
