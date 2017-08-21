@@ -518,6 +518,12 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 				return err
 			}
 
+			// Wait for the refresh to happen
+			err = op.Wait()
+			if err != nil {
+				return err
+			}
+
 			// Check if refreshed
 			refreshed := false
 			flag, ok := op.Metadata["refreshed"]
