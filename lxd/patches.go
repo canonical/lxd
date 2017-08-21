@@ -46,6 +46,7 @@ var patches = []patch{
 	{name: "storage_api_lvm_detect_lv_size", run: patchStorageApiDetectLVSize},
 	{name: "storage_api_insert_zfs_driver", run: patchStorageApiInsertZfsDriver},
 	{name: "storage_zfs_noauto", run: patchStorageZFSnoauto},
+	{name: "storage_zfs_volume_size", run: patchStorageZFSVolumeSize},
 }
 
 type patch struct {
@@ -2316,6 +2317,72 @@ func patchStorageZFSnoauto(name string, d *Daemon) error {
 				return fmt.Errorf("Unable to set canmount=noauto on: %s", entry)
 			}
 		}
+	}
+
+	return nil
+}
+
+func patchStorageZFSVolumeSize(name string, d *Daemon) error {
+	pools, err := db.StoragePools(d.db)
+	if err != nil && err == db.NoSuchObjectError {
+		// No pool was configured in the previous update. So we're on a
+		// pristine LXD instance.
+		return nil
+	} else if err != nil {
+		// Database is screwed.
+		logger.Errorf("Failed to query database: %s", err)
+		return err
+	}
+
+	for _, poolName := range pools {
+		poolID, pool, err := db.StoragePoolGet(d.db, poolName)
+		if err != nil {
+			logger.Errorf("Failed to query database: %s", err)
+			return err
+		}
+
+		// We only care about zfs
+		if pool.Driver != "zfs" {
+			continue
+		}
+
+		// Get all storage volumes on the storage pool.
+		volumes, err := db.StoragePoolVolumesGet(d.db, poolID, supportedVolumeTypes)
+		if err != nil {
+			if err == db.NoSuchObjectError {
+				continue
+			}
+			return err
+		}
+
+		for _, volume := range volumes {
+			if volume.Type != "container" && volume.Type != "image" {
+				continue
+			}
+
+			// ZFS storage volumes for containers and images should
+			// never have a size property set directly on the
+			// storage volume itself. For containers the size
+			// property is regulated either via a profiles root disk
+			// device size property or via the containers local
+			// root disk device size property. So unset it here
+			// unconditionally.
+			if volume.Config["size"] != "" {
+				volume.Config["size"] = ""
+			}
+
+			// It shouldn't be possible that false volume types
+			// exist in the db, so it's safe to ignore the error.
+			volumeType, _ := storagePoolVolumeTypeNameToType(volume.Type)
+			// Update the volume config.
+			err = db.StoragePoolVolumeUpdate(d.db, volume.Name,
+				volumeType, poolID, volume.Description,
+				volume.Config)
+			if err != nil {
+				return err
+			}
+		}
+
 	}
 
 	return nil
