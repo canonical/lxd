@@ -566,6 +566,11 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			public = i18n.G("yes")
 		}
 
+		cached := i18n.G("no")
+		if info.Cached {
+			cached = i18n.G("yes")
+		}
+
 		autoUpdate := i18n.G("disabled")
 		if info.AutoUpdate {
 			autoUpdate = i18n.G("enabled")
@@ -603,6 +608,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 				fmt.Printf("    - %s\n", alias.Name)
 			}
 		}
+		fmt.Printf(i18n.G("Cached: %s")+"\n", cached)
 		fmt.Printf(i18n.G("Auto update: %s")+"\n", autoUpdate)
 		if info.UpdateSource != nil {
 			fmt.Println(i18n.G("Source:"))
