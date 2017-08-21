@@ -41,6 +41,11 @@ func (c *Context) Output(format string, a ...interface{}) {
 	fmt.Fprintf(c.stdout, format, a...)
 }
 
+// Error prints a message on standard error.
+func (c *Context) Error(format string, a ...interface{}) {
+	fmt.Fprintf(c.stderr, format, a...)
+}
+
 // AskBool asks a question an expect a yes/no answer.
 func (c *Context) AskBool(question string, defaultAnswer string) bool {
 	for {
