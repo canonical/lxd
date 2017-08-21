@@ -26,6 +26,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -447,6 +448,11 @@ type containerLXC struct {
 	state    *state.State
 	idmapset *idmap.IdmapSet
 	storage  storage
+}
+
+// OS returns the sys.OS facade instance used by this container.
+func (c *containerLXC) OS() *sys.OS {
+	return c.state.OS
 }
 
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
@@ -977,12 +983,12 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup the hooks
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", execPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", c.OS().ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", execPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", c.OS().ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
@@ -1792,7 +1798,7 @@ func (c *containerLXC) Start(stateful bool) error {
 
 	// Start the LXC container
 	out, err := shared.RunCommand(
-		execPath,
+		c.OS().ExecPath,
 		"forkstart",
 		c.name,
 		c.state.OS.LxcPath,
@@ -3701,7 +3707,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 
 		var out string
 		out, migrateErr = shared.RunCommand(
-			execPath,
+			c.OS().ExecPath,
 			"forkmigrate",
 			c.name,
 			c.state.OS.LxcPath,
@@ -3943,7 +3949,7 @@ func (c *containerLXC) FileExists(path string) error {
 
 	// Check if the file exists in the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.OS().ExecPath,
 		"forkcheckfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -3992,7 +3998,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 
 	// Get the file from the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.OS().ExecPath,
 		"forkgetfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4120,7 +4126,7 @@ func (c *containerLXC) FilePush(srcpath string, dstpath string, uid int64, gid i
 
 	// Push the file to the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.OS().ExecPath,
 		"forkputfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4196,7 +4202,7 @@ func (c *containerLXC) FileRemove(path string) error {
 
 	// Remove the file from the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.OS().ExecPath,
 		"forkremovefile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4252,7 +4258,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	args := []string{execPath, "forkexec", c.name, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
+	args := []string{c.OS().ExecPath, "forkexec", c.name, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
 	args = append(args, "env")
@@ -4263,7 +4269,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	args = append(args, command...)
 
 	cmd := exec.Cmd{}
-	cmd.Path = execPath
+	cmd.Path = c.OS().ExecPath
 	cmd.Args = args
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
@@ -4394,7 +4400,7 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 
 	// Get the network state from the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.OS().ExecPath,
 		"forkgetnet",
 		fmt.Sprintf("%d", pid))
 
@@ -4610,7 +4616,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	out, err := shared.RunCommand(execPath, "forkmount", pidStr, mntsrc, target)
+	out, err := shared.RunCommand(c.OS().ExecPath, "forkmount", pidStr, mntsrc, target)
 
 	if string(out) != "" {
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
@@ -4640,7 +4646,7 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	// Remove the mount from the container
 	pidStr := fmt.Sprintf("%d", pid)
-	out, err := shared.RunCommand(execPath, "forkumount", pidStr, mount)
+	out, err := shared.RunCommand(c.OS().ExecPath, "forkumount", pidStr, mount)
 
 	if string(out) != "" {
 		for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {

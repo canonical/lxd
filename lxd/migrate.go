@@ -233,7 +233,7 @@ func (s *migrationSourceWs) Connect(op *operation, r *http.Request, w http.Respo
 	return nil
 }
 
-func writeActionScript(directory string, operation string, secret string) error {
+func writeActionScript(directory string, operation string, secret string, execPath string) error {
 	script := fmt.Sprintf(`#!/bin/sh -e
 if [ "$CRTOOLS_SCRIPT_ACTION" = "post-dump" ]; then
 	%s migratedumpsuccess %s %s
@@ -470,7 +470,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
-			err = writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret)
+			state := s.container.StateObject()
+			err = writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret, state.OS.ExecPath)
 			if err != nil {
 				os.RemoveAll(checkpointDir)
 				return abort(err)
@@ -511,7 +512,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
 		ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
-		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn)
+		state := s.container.StateObject()
+		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
 		}

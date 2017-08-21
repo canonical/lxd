@@ -622,19 +622,22 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
 		defer send.StorageStop()
 
 		path := send.Path()
-		if err := RsyncSend(ctName, shared.AddSlash(path), conn); err != nil {
+		state := s.container.StateObject()
+		if err := RsyncSend(ctName, shared.AddSlash(path), conn, state.OS.ExecPath); err != nil {
 			return err
 		}
 	}
 
-	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn)
+	state := s.container.StateObject()
+	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, state.OS.ExecPath)
 }
 
 func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) error {
 	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 
 	/* resync anything that changed between our first send and the checkpoint */
-	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn)
+	state := s.container.StateObject()
+	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, state.OS.ExecPath)
 }
 
 func (s rsyncStorageSourceDriver) Cleanup() {

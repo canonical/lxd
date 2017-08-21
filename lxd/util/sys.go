@@ -1,6 +1,7 @@
 package util
 
 import (
+	"os"
 	"strconv"
 	"strings"
 
@@ -148,4 +149,12 @@ func RuntimeLiblxcVersionAtLeast(major int, minor int, micro int) bool {
 	}
 
 	return true
+}
+
+func GetExecPath() string {
+	execPath, err := os.Readlink("/proc/self/exe")
+	if err != nil {
+		execPath = "bad-exec-path"
+	}
+	return execPath
 }

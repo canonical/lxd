@@ -14,7 +14,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func rsyncSendSetup(name string, path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
+func rsyncSendSetup(name string, path string, execPath string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -87,8 +87,8 @@ func rsyncSendSetup(name string, path string) (*exec.Cmd, net.Conn, io.ReadClose
 
 // RsyncSend sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func RsyncSend(name string, path string, conn *websocket.Conn) error {
-	cmd, dataSocket, stderr, err := rsyncSendSetup(name, path)
+func RsyncSend(name string, path string, conn *websocket.Conn, execPath string) error {
+	cmd, dataSocket, stderr, err := rsyncSendSetup(name, path, execPath)
 	if err != nil {
 		return err
 	}
