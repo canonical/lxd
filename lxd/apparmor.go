@@ -317,7 +317,8 @@ func getAAProfileContent(c container) string {
 		profile += "  mount fstype=cgroup -> /sys/fs/cgroup/**,\n"
 	}
 
-	if aaStacking && !aaStacked {
+	state := c.StateObject()
+	if state.OS.AppArmorStacking && !aaStacked {
 		profile += "\n  ### Feature: apparmor stacking\n"
 		profile += `  ### Configuration: apparmor profile loading (in namespace)
   deny /sys/k[^e]*{,/**} wklx,
@@ -356,7 +357,7 @@ func getAAProfileContent(c container) string {
 		// Apply nesting bits
 		profile += "\n  ### Configuration: nesting\n"
 		profile += strings.TrimLeft(AA_PROFILE_NESTING, "\n")
-		if !aaStacking || aaStacked {
+		if !state.OS.AppArmorStacking || aaStacked {
 			profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
 		}
 	}
@@ -403,8 +404,9 @@ func runApparmor(command string, c container) error {
 	return err
 }
 
-func mkApparmorNamespace(namespace string) error {
-	if !aaStacking || aaStacked {
+func mkApparmorNamespace(c container, namespace string) error {
+	state := c.StateObject()
+	if !state.OS.AppArmorStacking || aaStacked {
 		return nil
 	}
 
@@ -423,7 +425,7 @@ func AALoadProfile(c container) error {
 		return nil
 	}
 
-	if err := mkApparmorNamespace(AANamespace(c)); err != nil {
+	if err := mkApparmorNamespace(c, AANamespace(c)); err != nil {
 		return err
 	}
 
@@ -470,7 +472,8 @@ func AADestroy(c container) error {
 		return nil
 	}
 
-	if aaStacking && !aaStacked {
+	state := c.StateObject()
+	if state.OS.AppArmorStacking && !aaStacked {
 		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", AANamespace(c))
 		if err := os.Remove(p); err != nil {
 			logger.Error("error removing apparmor namespace", log.Ctx{"err": err, "ns": p})

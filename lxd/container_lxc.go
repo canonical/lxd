@@ -841,7 +841,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Base config
 	toDrop := "sys_time sys_module sys_rawio"
-	if !aaStacking || aaStacked {
+	if !c.OS().AppArmorStacking || aaStacked {
 		toDrop = toDrop + " mac_admin mac_override"
 	}
 
@@ -1060,7 +1060,7 @@ func (c *containerLXC) initLXC() error {
 			 * the old way of nesting, i.e. using the parent's
 			 * profile.
 			 */
-			if aaStacking && !aaStacked {
+			if c.OS().AppArmorStacking && !aaStacked {
 				profile = fmt.Sprintf("%s//&:%s:", profile, AANamespace(c))
 			}
 
