@@ -23,6 +23,7 @@ type OS struct {
 	AppArmorStacking  bool
 	AppArmorStacked   bool
 	AppArmorAdmin     bool
+	AppArmorConfined  bool
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
