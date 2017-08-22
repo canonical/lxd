@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -38,7 +37,6 @@ import (
 )
 
 // AppArmor
-var aaAvailable = false
 var aaAdmin = false
 var aaConfined = false
 var aaStacking = false
@@ -338,18 +336,6 @@ func (d *Daemon) Init() error {
 	/* Detect user namespaces */
 	runningInUserns = shared.RunningInUserNS()
 
-	/* Detect AppArmor availability */
-	_, err = exec.LookPath("apparmor_parser")
-	if os.Getenv("LXD_SECURITY_APPARMOR") == "false" {
-		logger.Warnf("AppArmor support has been manually disabled")
-	} else if !shared.IsDir("/sys/kernel/security/apparmor") {
-		logger.Warnf("AppArmor support has been disabled because of lack of kernel support")
-	} else if err != nil {
-		logger.Warnf("AppArmor support has been disabled because 'apparmor_parser' couldn't be found")
-	} else {
-		aaAvailable = true
-	}
-
 	/* Detect AppArmor stacking support */
 	aaCanStack := func() bool {
 		contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/stack")
@@ -405,11 +391,11 @@ func (d *Daemon) Init() error {
 
 	/* Detect AppArmor admin support */
 	if !haveMacAdmin() {
-		if aaAvailable {
+		if d.os.AppArmorAvailable {
 			logger.Warnf("Per-container AppArmor profiles are disabled because the mac_admin capability is missing.")
 		}
 	} else if runningInUserns && !aaStacked {
-		if aaAvailable {
+		if d.os.AppArmorAvailable {
 			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container without stacking.")
 		}
 	} else {
@@ -419,7 +405,7 @@ func (d *Daemon) Init() error {
 	/* Detect AppArmor confinment */
 	profile := aaProfile()
 	if profile != "unconfined" && profile != "" {
-		if aaAvailable {
+		if d.os.AppArmorAvailable {
 			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
 		}
 		aaConfined = true
