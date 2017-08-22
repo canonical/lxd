@@ -33,10 +33,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-// AppArmor
-var aaConfined = false
-var aaStacked = false
-
 // CGroup
 var cgBlkioController = false
 var cgCpuController = false
@@ -312,15 +308,6 @@ func (d *Daemon) Init() error {
 	} else {
 		logger.Info(fmt.Sprintf("LXD %s is starting in normal mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
-	}
-
-	/* Detect AppArmor confinment */
-	profile := aaProfile()
-	if profile != "unconfined" && profile != "" {
-		if d.os.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
-		}
-		aaConfined = true
 	}
 
 	/* Detect CGroup support */

@@ -813,7 +813,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Base config
 	toDrop := "sys_time sys_module sys_rawio"
-	if !c.OS().AppArmorStacking || aaStacked {
+	if !c.OS().AppArmorStacking || c.OS().AppArmorStacked {
 		toDrop = toDrop + " mac_admin mac_override"
 	}
 
@@ -1013,9 +1013,9 @@ func (c *containerLXC) initLXC() error {
 
 	// Setup AppArmor
 	if c.OS().AppArmorAvailable {
-		if aaConfined || !c.OS().AppArmorAdmin {
+		if c.OS().AppArmorConfined || !c.OS().AppArmorAdmin {
 			// If confined but otherwise able to use AppArmor, use our own profile
-			curProfile := aaProfile()
+			curProfile := util.AppArmorProfile()
 			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
 			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", curProfile)
 			if err != nil {
@@ -1032,7 +1032,7 @@ func (c *containerLXC) initLXC() error {
 			 * the old way of nesting, i.e. using the parent's
 			 * profile.
 			 */
-			if c.OS().AppArmorStacking && !aaStacked {
+			if c.OS().AppArmorStacking && !c.OS().AppArmorStacked {
 				profile = fmt.Sprintf("%s//&:%s:", profile, AANamespace(c))
 			}
 
