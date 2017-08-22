@@ -384,7 +384,8 @@ profile "%s" flags=(attach_disconnected,mediate_deleted) {
 }
 
 func runApparmor(command string, c container) error {
-	if !aaAvailable {
+	state := c.StateObject()
+	if !state.OS.AppArmorAvailable {
 		return nil
 	}
 
@@ -481,7 +482,8 @@ func AADestroy(c container) error {
 
 // Parse the profile without loading it into the kernel.
 func AAParseProfile(c container) error {
-	if !aaAvailable {
+	state := c.StateObject()
+	if !state.OS.AppArmorAvailable {
 		return nil
 	}
 
