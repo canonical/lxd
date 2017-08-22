@@ -33,14 +33,6 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-// CGroup
-var cgCpusetController = false
-var cgDevicesController = false
-var cgMemoryController = false
-var cgNetPrioController = false
-var cgPidsController = false
-var cgSwapAccounting = false
-
 type Socket struct {
 	Socket      net.Listener
 	CloseOnExit bool
@@ -306,37 +298,6 @@ func (d *Daemon) Init() error {
 	} else {
 		logger.Info(fmt.Sprintf("LXD %s is starting in normal mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
-	}
-
-	/* Detect CGroup support */
-	cgCpusetController = shared.PathExists("/sys/fs/cgroup/cpuset/")
-	if !cgCpusetController {
-		logger.Warnf("Couldn't find the CGroup CPUset controller, CPU pinning will be ignored.")
-	}
-
-	cgDevicesController = shared.PathExists("/sys/fs/cgroup/devices/")
-	if !cgDevicesController {
-		logger.Warnf("Couldn't find the CGroup devices controller, device access control won't work.")
-	}
-
-	cgMemoryController = shared.PathExists("/sys/fs/cgroup/memory/")
-	if !cgMemoryController {
-		logger.Warnf("Couldn't find the CGroup memory controller, memory limits will be ignored.")
-	}
-
-	cgNetPrioController = shared.PathExists("/sys/fs/cgroup/net_prio/")
-	if !cgNetPrioController {
-		logger.Warnf("Couldn't find the CGroup network class controller, network limits will be ignored.")
-	}
-
-	cgPidsController = shared.PathExists("/sys/fs/cgroup/pids/")
-	if !cgPidsController {
-		logger.Warnf("Couldn't find the CGroup pids controller, process limits will be ignored.")
-	}
-
-	cgSwapAccounting = shared.PathExists("/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes")
-	if !cgSwapAccounting {
-		logger.Warnf("CGroup memory swap accounting is disabled, swap limits will be ignored.")
 	}
 
 	/* Make sure all our directories are available */

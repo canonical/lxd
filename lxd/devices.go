@@ -181,7 +181,7 @@ func deviceTaskBalance(s *state.State, storage storage) {
 	}
 
 	// Don't bother running when CGroup support isn't there
-	if !cgCpusetController {
+	if !s.OS.CGroupCPUsetController {
 		return
 	}
 
@@ -365,7 +365,7 @@ func deviceTaskBalance(s *state.State, storage storage) {
 
 func deviceNetworkPriority(s *state.State, storage storage, netif string) {
 	// Don't bother running when CGroup support isn't there
-	if !cgNetPrioController {
+	if !s.OS.CGroupNetPrioController {
 		return
 	}
 
@@ -414,7 +414,7 @@ func deviceEventListener(s *state.State, storage storage) {
 				continue
 			}
 
-			if !cgCpusetController {
+			if !s.OS.CGroupCPUsetController {
 				continue
 			}
 
@@ -426,7 +426,7 @@ func deviceEventListener(s *state.State, storage storage) {
 				continue
 			}
 
-			if !cgNetPrioController {
+			if !s.OS.CGroupNetPrioController {
 				continue
 			}
 
@@ -438,7 +438,7 @@ func deviceEventListener(s *state.State, storage storage) {
 				continue
 			}
 
-			if !cgCpusetController {
+			if !s.OS.CGroupCPUsetController {
 				continue
 			}
 
