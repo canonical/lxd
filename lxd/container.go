@@ -489,8 +489,6 @@ type container interface {
 
 	StoragePool() (string, error)
 
-	// FIXME: Those should be internal functions
-	// Needed for migration for now.
 	StorageStart() (bool, error)
 	StorageStop() (bool, error)
 	Storage() storage

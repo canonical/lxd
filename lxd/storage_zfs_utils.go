@@ -529,3 +529,43 @@ func zfsFilesystemEntityExists(pool string, path string) bool {
 	detectedName := strings.TrimSpace(output)
 	return detectedName == vdev
 }
+
+func storageEntitySetQuota(poolName string, volumeType int, volumeName string,
+	refquota bool, size int64, data interface{}) error {
+	logger.Debugf(`Setting ZFS quota for "%s"`, volumeName)
+
+	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+		return fmt.Errorf("Invalid storage type")
+	}
+
+	var c container
+	var fs string
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c = data.(container)
+		fs = fmt.Sprintf("containers/%s", c.Name())
+	case storagePoolVolumeTypeCustom:
+		fs = fmt.Sprintf("custom/%s", volumeName)
+	case storagePoolVolumeTypeImage:
+		fs = fmt.Sprintf("images/%s", volumeName)
+	}
+
+	property := "quota"
+	if refquota {
+		property = "refquota"
+	}
+
+	var err error
+	if size > 0 {
+		err = zfsPoolVolumeSet(poolName, fs, property, fmt.Sprintf("%d", size))
+	} else {
+		err = zfsPoolVolumeSet(poolName, fs, property, "none")
+	}
+
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf(`Set ZFS quota for "%s"`, volumeName)
+	return nil
+}

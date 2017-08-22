@@ -35,6 +35,10 @@ const (
 	storagePoolVolumeAPIEndpointCustom     string = "custom"
 )
 
+// If new storage volume types are added please git grep through the source code
+// and ensure that all operations performed based on the "supportedVolumeTypes"
+// variable make sense for the new storage volume type as well! We don't want
+// any suprises.
 var supportedVolumeTypes = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom}
 
 func storagePoolVolumeTypeNameToType(volumeTypeName string) (int, error) {

@@ -5303,7 +5303,7 @@ func (c *containerLXC) StorageStart() (bool, error) {
 	}
 
 	isOurOperation, err := c.StorageStartSensitive()
-	// Remove this as soon as zfs is fixed
+	// Remove this as soon as the zfs EBUSY bug is fixed.
 	if c.storage.GetStorageType() == storageTypeZfs && err == syscall.EBUSY {
 		return isOurOperation, nil
 	}
@@ -5311,7 +5311,7 @@ func (c *containerLXC) StorageStart() (bool, error) {
 	return isOurOperation, err
 }
 
-// Kill this function as soon as zfs is fixed.
+// Kill this function as soon as the zfs EBUSY bug is fixed.
 func (c *containerLXC) StorageStartSensitive() (bool, error) {
 	// Initialize storage interface for the container.
 	err := c.initStorage()
