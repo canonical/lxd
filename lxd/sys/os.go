@@ -19,6 +19,7 @@ type OS struct {
 	IdmapSet          *idmap.IdmapSet // Information about user/group ID mapping
 	ExecPath          string          // Absolute path to the LXD executable
 	AppArmorAvailable bool
+	AppArmorStacking  bool
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
