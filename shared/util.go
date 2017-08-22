@@ -100,6 +100,31 @@ func IsUnixSocket(path string) bool {
 	return (stat.Mode() & os.ModeSocket) == os.ModeSocket
 }
 
+// HostPath returns the host path for the provided path
+// On a normal system, this does nothing
+// When inside of a snap environment, returns the real path
+func HostPath(path string) string {
+	// Ignore relative paths
+	if len(path) == 0 || path[1] != os.PathSeparator {
+		return path
+	}
+
+	// Check if we're running in a snap package
+	snap := os.Getenv("SNAP")
+	if snap == "" {
+		return path
+	}
+
+	// Check if the path is already snap-aware
+	for _, prefix := range []string{"/snap", "/var/snap", "/var/lib/snapd"} {
+		if strings.HasPrefix(path, prefix) {
+			return path
+		}
+	}
+
+	return fmt.Sprintf("/var/lib/snapd/hostfs%s", path)
+}
+
 // VarPath returns the provided path elements joined by a slash and
 // appended to the end of $LXD_DIR, which defaults to /var/lib/lxd.
 func VarPath(path ...string) string {
