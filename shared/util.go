@@ -105,7 +105,7 @@ func IsUnixSocket(path string) bool {
 // When inside of a snap environment, returns the real path
 func HostPath(path string) string {
 	// Ignore relative paths
-	if len(path) == 0 || path[1] != os.PathSeparator {
+	if len(path) == 0 || path[0] != os.PathSeparator {
 		return path
 	}
 
