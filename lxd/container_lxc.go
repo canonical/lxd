@@ -1215,7 +1215,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Disk limits
-	if cgBlkioController {
+	if c.OS().CGroupBlkioController {
 		diskPriority := c.expandedConfig["limits.disk.priority"]
 		if diskPriority != "" {
 			priorityInt, err := strconv.Atoi(diskPriority)
@@ -3602,7 +3602,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 			} else if key == "limits.disk.priority" {
-				if !cgBlkioController {
+				if !c.OS().CGroupBlkioController {
 					continue
 				}
 
@@ -4058,7 +4058,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		}
 
 		// Disk limits parse all devices, so just apply them once
-		if updateDiskLimit && cgBlkioController {
+		if updateDiskLimit && c.OS().CGroupBlkioController {
 			diskLimits, err := c.getDiskLimits()
 			if err != nil {
 				return err
