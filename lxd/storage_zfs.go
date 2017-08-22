@@ -760,6 +760,19 @@ func (s *storageZfs) ContainerCreate(container container) error {
 		defer s.ContainerUmount(containerName, containerPath)
 	}
 
+	// apply quota
+	if s.volume.Config["size"] != "" {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, container)
+		if err != nil {
+			return err
+		}
+	}
+
 	err = createContainerMountpoint(containerPoolVolumeMntPoint, containerPath, container.IsPrivileged())
 	if err != nil {
 		return err
@@ -834,6 +847,19 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	}
 	if ourMount {
 		defer s.ContainerUmount(containerName, containerPath)
+	}
+
+	// apply quota
+	if s.volume.Config["size"] != "" {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, container)
+		if err != nil {
+			return err
+		}
 	}
 
 	privileged := container.IsPrivileged()
