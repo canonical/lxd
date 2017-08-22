@@ -1013,7 +1013,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Setup AppArmor
 	if c.OS().AppArmorAvailable {
-		if aaConfined || !aaAdmin {
+		if aaConfined || !c.OS().AppArmorAdmin {
 			// If confined but otherwise able to use AppArmor, use our own profile
 			curProfile := aaProfile()
 			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
