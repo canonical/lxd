@@ -407,7 +407,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	s, err := storagePoolVolumeInit(d, poolName, volumeName, volumeType)
+	s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, volumeType)
 	if err != nil {
 		return NotFound
 	}

@@ -283,7 +283,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 
 		// Check that we don't already use this volume group.
-		inUse, user, err := lxdUsesPool(s.d.db, poolName, s.pool.Driver, "lvm.vg_name")
+		inUse, user, err := lxdUsesPool(s.s.DB, poolName, s.pool.Driver, "lvm.vg_name")
 		if err != nil {
 			return err
 		}
@@ -471,7 +471,7 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 	}
 
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.d, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
 		if err != nil {
 			return err
 		}
@@ -545,7 +545,7 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 	}
 
 	err = db.StoragePoolVolumeDelete(
-		s.d.db,
+		s.s.DB,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -837,7 +837,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 
 	poolName := s.getOnDiskPoolName()
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.d, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
 		if err != nil {
 			return err
 		}
@@ -1064,12 +1064,12 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 
 		logger.Debugf("Copying LVM container storage for snapshot %s -> %s.", snap.Name(), newSnapName)
 
-		sourceSnapshot, err := containerLoadByName(s.d, snap.Name())
+		sourceSnapshot, err := containerLoadByName(s.s, snap.Name())
 		if err != nil {
 			return err
 		}
 
-		targetSnapshot, err := containerLoadByName(s.d, newSnapName)
+		targetSnapshot, err := containerLoadByName(s.s, newSnapName)
 		if err != nil {
 			return err
 		}
@@ -1514,7 +1514,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 	}()
 
 	if s.useThinpool {
-		err = lvmCreateThinpool(s.d, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
 		if err != nil {
 			return err
 		}
@@ -1710,7 +1710,7 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 	// Update the database
 	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
 	err = db.StoragePoolVolumeUpdate(
-		s.d.db,
+		s.s.DB,
 		s.volume.Name,
 		volumeType,
 		s.poolID,

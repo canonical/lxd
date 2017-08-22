@@ -62,7 +62,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	c, err := containerLoadById(d, id)
+	c, err := containerLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -87,7 +87,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 		target = "unknown"
 	}
 
-	c, err := containerLoadById(d, id)
+	c, err := containerLoadById(d.State(), id)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -351,7 +351,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	_, err = containerCreateInternal(d, db.ContainerArgs{
+	_, err = containerCreateInternal(d.State(), db.ContainerArgs{
 		Architecture: arch,
 		BaseImage:    baseImage,
 		Config:       backup.Container.Config,
@@ -432,7 +432,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
-		_, err = containerCreateInternal(d, db.ContainerArgs{
+		_, err = containerCreateInternal(d.State(), db.ContainerArgs{
 			Architecture: arch,
 			BaseImage:    baseImage,
 			Config:       snap.Config,

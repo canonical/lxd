@@ -24,7 +24,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	cname := mux.Vars(r)["name"]
-	c, err := containerLoadByName(d, cname)
+	c, err := containerLoadByName(d.State(), cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -104,7 +104,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -145,7 +145,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			Stateful:     req.Stateful,
 		}
 
-		_, err := containerCreateAsSnapshot(d, args, c)
+		_, err := containerCreateAsSnapshot(d.State(), args, c)
 		if err != nil {
 			return err
 		}
@@ -169,7 +169,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	sc, err := containerLoadByName(
-		d,
+		d.State(),
 		containerName+
 			shared.SnapshotDelimiter+
 			snapshotName)

@@ -16,6 +16,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -136,7 +137,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Start the network
-	n, err := networkLoadByName(d, req.Name)
+	n, err := networkLoadByName(d.State(), req.Name)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -188,7 +189,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	}
 
 	for _, ct := range cts {
-		c, err := containerLoadByName(d, ct)
+		c, err := containerLoadByName(d.State(), ct)
 		if err != nil {
 			return api.Network{}, err
 		}
@@ -229,9 +230,10 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 func networkDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+	state := d.State()
 
 	// Get the existing network
-	n, err := networkLoadByName(d, name)
+	n, err := networkLoadByName(state, name)
 	if err != nil {
 		return NotFound
 	}
@@ -253,6 +255,7 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 func networkPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	req := api.NetworkPost{}
+	state := d.State()
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -261,7 +264,7 @@ func networkPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Get the existing network
-	n, err := networkLoadByName(d, name)
+	n, err := networkLoadByName(state, name)
 	if err != nil {
 		return NotFound
 	}
@@ -372,7 +375,7 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 	}
 
 	// Load the network
-	n, err := networkLoadByName(d, name)
+	n, err := networkLoadByName(d.State(), name)
 	if err != nil {
 		return NotFound
 	}
@@ -388,13 +391,13 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete, post: networkPost, put: networkPut, patch: networkPatch}
 
 // The network structs and functions
-func networkLoadByName(d *Daemon, name string) (*network, error) {
-	id, dbInfo, err := db.NetworkGet(d.db, name)
+func networkLoadByName(s *state.State, name string) (*network, error) {
+	id, dbInfo, err := db.NetworkGet(s.DB, name)
 	if err != nil {
 		return nil, err
 	}
 
-	n := network{daemon: d, id: id, name: name, description: dbInfo.Description, config: dbInfo.Config}
+	n := network{state: s, id: id, name: name, description: dbInfo.Description, config: dbInfo.Config}
 
 	return &n, nil
 }
@@ -408,7 +411,7 @@ func networkStartup(d *Daemon) error {
 
 	// Bring them all up
 	for _, name := range networks {
-		n, err := networkLoadByName(d, name)
+		n, err := networkLoadByName(d.State(), name)
 		if err != nil {
 			return err
 		}
@@ -432,7 +435,7 @@ func networkShutdown(d *Daemon) error {
 
 	// Bring them all up
 	for _, name := range networks {
-		n, err := networkLoadByName(d, name)
+		n, err := networkLoadByName(d.State(), name)
 		if err != nil {
 			return err
 		}
@@ -452,7 +455,7 @@ func networkShutdown(d *Daemon) error {
 
 type network struct {
 	// Properties
-	daemon      *Daemon
+	state       *state.State
 	id          int64
 	name        string
 	description string
@@ -471,13 +474,13 @@ func (n *network) IsRunning() bool {
 
 func (n *network) IsUsed() bool {
 	// Look for containers using the interface
-	cts, err := db.ContainersList(n.daemon.db, db.CTypeRegular)
+	cts, err := db.ContainersList(n.state.DB, db.CTypeRegular)
 	if err != nil {
 		return true
 	}
 
 	for _, ct := range cts {
-		c, err := containerLoadByName(n.daemon, ct)
+		c, err := containerLoadByName(n.state, ct)
 		if err != nil {
 			return true
 		}
@@ -505,7 +508,7 @@ func (n *network) Delete() error {
 	}
 
 	// Remove the network from the database
-	err := db.NetworkDelete(n.daemon.db, n.name)
+	err := db.NetworkDelete(n.state.DB, n.name)
 	if err != nil {
 		return err
 	}
@@ -540,7 +543,7 @@ func (n *network) Rename(name string) error {
 	}
 
 	// Rename the database entry
-	err := db.NetworkRename(n.daemon.db, n.name, name)
+	err := db.NetworkRename(n.state.DB, n.name, name)
 	if err != nil {
 		return err
 	}
@@ -556,7 +559,7 @@ func (n *network) Rename(name string) error {
 
 func (n *network) Start() error {
 	// If we are in mock mode, just no-op.
-	if n.daemon.os.MockMode {
+	if n.state.OS.MockMode {
 		return nil
 	}
 
@@ -1228,7 +1231,7 @@ func (n *network) Start() error {
 		}
 
 		// Update the static leases
-		err = networkUpdateStatic(n.daemon, n.name)
+		err = networkUpdateStatic(n.state, n.name)
 		if err != nil {
 			return err
 		}
@@ -1402,7 +1405,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 	n.description = newNetwork.Description
 
 	// Update the database
-	err = db.NetworkUpdate(n.daemon.db, n.name, n.description, n.config)
+	err = db.NetworkUpdate(n.state.DB, n.name, n.description, n.config)
 	if err != nil {
 		return err
 	}

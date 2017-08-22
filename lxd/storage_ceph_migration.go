@@ -178,7 +178,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", containerName, shared.SnapshotDelimiter, snap[len("snapshot_"):])
-		snapshot, err := containerLoadByName(s.d, lxdName)
+		snapshot, err := containerLoadByName(s.s, lxdName)
 		if err != nil {
 			logger.Errorf(`Failed to load snapshot "%s" for RBD storage volume "%s" on storage pool "%s": %s`, lxdName, containerName, s.pool.Name, err)
 			return nil, err
@@ -267,7 +267,7 @@ func (s *storageCeph) MigrationSink(live bool, c container, snapshots []*Snapsho
 				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 			}
 		}
-		_, err := containerCreateEmptySnapshot(c.Daemon(), args)
+		_, err := containerCreateEmptySnapshot(c.StateObject(), args)
 		if err != nil {
 			logger.Errorf(`Failed to create empty RBD storage `+
 				`volume for container "%s" on storage pool "%s: %s`,
