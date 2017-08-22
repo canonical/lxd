@@ -930,7 +930,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Configure devices cgroup
-	if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
 		err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "a")
 		if err != nil {
 			return err
@@ -1106,7 +1106,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Memory limits
-	if cgMemoryController {
+	if c.OS().CGroupMemoryController {
 		memory := c.expandedConfig["limits.memory"]
 		memoryEnforce := c.expandedConfig["limits.memory.enforce"]
 		memorySwap := c.expandedConfig["limits.memory.swap"]
@@ -1140,7 +1140,7 @@ func (c *containerLXC) initLXC() error {
 					return err
 				}
 			} else {
-				if cgSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+				if c.OS().CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 					err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", fmt.Sprintf("%d", valueInt))
 					if err != nil {
 						return err
@@ -1287,7 +1287,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Processes
-	if cgPidsController {
+	if c.OS().CGroupPidsController {
 		processes := c.expandedConfig["limits.processes"]
 		if processes != "" {
 			valueInt, err := strconv.ParseInt(processes, 10, 64)
@@ -1615,7 +1615,7 @@ func (c *containerLXC) expandDevices() error {
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
 // liblxc configuration items.
 func (c *containerLXC) setupUnixDevice(devType string, dev types.Device, major int, minor int, path string, createMustSucceed bool) error {
-	if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
 		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
 		if err != nil {
 			return err
@@ -1840,7 +1840,7 @@ func (c *containerLXC) startCommon() (string, error) {
 				return "", err
 			}
 			devPath := paths[0]
-			if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
+			if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
 				// Add the new device cgroup rule
 				dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
 				if err != nil {
@@ -3627,7 +3627,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if key == "limits.memory" || strings.HasPrefix(key, "limits.memory.") {
 				// Skip if no memory CGroup
-				if !cgMemoryController {
+				if !c.OS().CGroupMemoryController {
 					continue
 				}
 
@@ -3661,7 +3661,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 				// Store the old values for revert
 				oldMemswLimit := ""
-				if cgSwapAccounting {
+				if c.OS().CGroupSwapAccounting {
 					oldMemswLimit, err = c.CGroupGet("memory.memsw.limit_in_bytes")
 					if err != nil {
 						oldMemswLimit = ""
@@ -3693,7 +3693,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 
 				// Reset everything
-				if cgSwapAccounting {
+				if c.OS().CGroupSwapAccounting {
 					err = c.CGroupSet("memory.memsw.limit_in_bytes", "-1")
 					if err != nil {
 						revertMemory()
@@ -3722,7 +3722,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 				} else {
-					if cgSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+					if c.OS().CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 						err = c.CGroupSet("memory.limit_in_bytes", memory)
 						if err != nil {
 							revertMemory()
@@ -3815,7 +3815,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					return err
 				}
 			} else if key == "limits.processes" {
-				if !cgPidsController {
+				if !c.OS().CGroupPidsController {
 					continue
 				}
 
@@ -4545,7 +4545,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			c.OS().ExecPath,
 			"forkmigrate",
 			c.name,
-			c.state.OS.LxcPath,
+			c.OS().LxcPath,
 			configPath,
 			stateDir,
 			fmt.Sprintf("%v", preservesInodes))
@@ -5083,7 +5083,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	args := []string{c.OS().ExecPath, "forkexec", c.name, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
+	args := []string{c.OS().ExecPath, "forkexec", c.name, c.OS().LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
 	args = append(args, "env")
@@ -5150,7 +5150,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 func (c *containerLXC) cpuState() api.ContainerStateCPU {
 	cpu := api.ContainerStateCPU{}
 
-	if !cgCpuacctController {
+	if !c.OS().CGroupCPUacctController {
 		return cpu
 	}
 
@@ -5199,7 +5199,7 @@ func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 func (c *containerLXC) memoryState() api.ContainerStateMemory {
 	memory := api.ContainerStateMemory{}
 
-	if !cgMemoryController {
+	if !c.OS().CGroupMemoryController {
 		return memory
 	}
 
@@ -5217,7 +5217,7 @@ func (c *containerLXC) memoryState() api.ContainerStateMemory {
 		memory.UsagePeak = valueInt
 	}
 
-	if cgSwapAccounting {
+	if c.OS().CGroupSwapAccounting {
 		// Swap in bytes
 		if memory.Usage > 0 {
 			value, err := c.CGroupGet("memory.memsw.usage_in_bytes")
@@ -5284,7 +5284,7 @@ func (c *containerLXC) processesState() int64 {
 		return 0
 	}
 
-	if cgPidsController {
+	if c.OS().CGroupPidsController {
 		value, err := c.CGroupGet("pids.current")
 		valueInt, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
@@ -5748,7 +5748,7 @@ func (c *containerLXC) insertUnixDevice(m types.Device) error {
 		}
 	}
 
-	if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
 		// Add the new device cgroup rule
 		if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
 			return fmt.Errorf("Failed to add cgroup rule for device")
@@ -5820,7 +5820,7 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 		}
 	}
 
-	if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
 		// Remove the device cgroup rule
 		err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
 		if err != nil {
@@ -6186,7 +6186,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		}
 
 		// Attempt to include all existing interfaces
-		cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
+		cc, err := lxc.NewContainer(c.Name(), c.OS().LxcPath)
 		if err == nil {
 			interfaces, err := cc.Interfaces()
 			if err == nil {
@@ -6437,7 +6437,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct
-	cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
+	cc, err := lxc.NewContainer(c.Name(), c.OS().LxcPath)
 	if err != nil {
 		return err
 	}
@@ -6883,7 +6883,7 @@ func (c *containerLXC) setNetworkPriority() error {
 	}
 
 	// Don't bother if the cgroup controller doesn't exist
-	if !cgNetPrioController {
+	if !c.OS().CGroupNetPrioController {
 		return nil
 	}
 
@@ -7158,8 +7158,8 @@ func (c *containerLXC) NextIdmapSet() (*idmap.IdmapSet, error) {
 		return c.idmapsetFromConfig("volatile.idmap.next")
 	} else if c.IsPrivileged() {
 		return nil, nil
-	} else if c.state.OS.IdmapSet != nil {
-		return c.state.OS.IdmapSet, nil
+	} else if c.OS().IdmapSet != nil {
+		return c.OS().IdmapSet, nil
 	}
 
 	return nil, fmt.Errorf("Unable to determine the idmap")

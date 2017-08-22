@@ -13,19 +13,26 @@ import (
 // level functionality that LXD uses.
 type OS struct {
 	// Caches of system characteristics detected at Init() time.
-	Architectures         []int           // Cache of detected system architectures
-	LxcPath               string          // Path to the $LXD_DIR/containers directory
-	BackingFS             string          // Backing filesystem of $LXD_DIR/containers
-	IdmapSet              *idmap.IdmapSet // Information about user/group ID mapping
-	ExecPath              string          // Absolute path to the LXD executable
-	RunningInUserNS       bool
-	AppArmorAvailable     bool
-	AppArmorStacking      bool
-	AppArmorStacked       bool
-	AppArmorAdmin         bool
-	AppArmorConfined      bool
-	CGroupBlkioController bool
-	CGroupCPUController   bool
+	Architectures           []int           // Cache of detected system architectures
+	LxcPath                 string          // Path to the $LXD_DIR/containers directory
+	BackingFS               string          // Backing filesystem of $LXD_DIR/containers
+	IdmapSet                *idmap.IdmapSet // Information about user/group ID mapping
+	ExecPath                string          // Absolute path to the LXD executable
+	RunningInUserNS         bool
+	AppArmorAvailable       bool
+	AppArmorStacking        bool
+	AppArmorStacked         bool
+	AppArmorAdmin           bool
+	AppArmorConfined        bool
+	CGroupBlkioController   bool
+	CGroupCPUController     bool
+	CGroupCPUacctController bool
+	CGroupCPUsetController  bool
+	CGroupDevicesController bool
+	CGroupMemoryController  bool
+	CGroupNetPrioController bool
+	CGroupPidsController    bool
+	CGroupSwapAccounting    bool
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
