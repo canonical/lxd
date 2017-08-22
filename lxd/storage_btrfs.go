@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -168,7 +169,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 					} else if strings.HasPrefix(cleanSource, lxdDir) {
 						if cleanSource != poolMntPoint {
 							return fmt.Errorf("BTRFS subvolumes requests in LXD directory \"%s\" are only valid under \"%s\"\n(e.g. source=%s)", shared.VarPath(), shared.VarPath("storage-pools"), poolMntPoint)
-						} else if s.d.BackingFs != "btrfs" {
+						} else if s.d.os.BackingFS != "btrfs" {
 							return fmt.Errorf("creation of BTRFS subvolume requested but \"%s\" does not reside on BTRFS filesystem", source)
 						}
 					}
@@ -393,7 +394,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		} else if !isBlockDev && cleanSource != poolMntPoint {
 			mountSource = source
 			mountFlags |= syscall.MS_BIND
-		} else if !isBlockDev && cleanSource == poolMntPoint && s.d.BackingFs == "btrfs" {
+		} else if !isBlockDev && cleanSource == poolMntPoint && s.d.os.BackingFS == "btrfs" {
 			return false, nil
 		}
 		// User is using block device path.
@@ -1351,7 +1352,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 
 	// Unpack the image in imageMntPoint.
 	imagePath := shared.VarPath("images", fingerprint)
-	err = unpackImage(s.d, imagePath, tmpImageSubvolumeName, storageTypeBtrfs)
+	err = unpackImage(imagePath, tmpImageSubvolumeName, storageTypeBtrfs)
 	if err != nil {
 		return err
 	}
@@ -1683,7 +1684,7 @@ func isOnBtrfs(path string) bool {
 		return false
 	}
 
-	if fs.Type != filesystemSuperMagicBtrfs {
+	if fs.Type != util.FilesystemSuperMagicBtrfs {
 		return false
 	}
 

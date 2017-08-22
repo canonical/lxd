@@ -12,6 +12,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -27,7 +28,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	recursion := d.isRecursionRequest(r)
+	recursion := util.IsRecursionRequest(r)
 
 	resultString := make([]string, len(results))
 	resultMap := make([]*api.Profile, len(results))
@@ -78,12 +79,12 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
-	err := containerValidConfig(d, req.Config, true, false)
+	err := containerValidConfig(d.os, req.Config, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
 
-	err = containerValidDevices(d, req.Devices, true, false)
+	err = containerValidDevices(d.db, req.Devices, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -165,7 +166,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 
 	// Validate the ETag
 	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -188,7 +189,7 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 
 	// Validate the ETag
 	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
