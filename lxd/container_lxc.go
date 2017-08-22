@@ -1373,7 +1373,7 @@ func (c *containerLXC) initLXC() error {
 			networkidx++
 		} else if m["type"] == "disk" {
 			// Prepare all the paths
-			srcPath := m["source"]
+			srcPath := shared.HostPath(m["source"])
 			tgtPath := strings.TrimPrefix(m["path"], "/")
 			devName := fmt.Sprintf("disk.%s", strings.Replace(tgtPath, "/", "-", -1))
 			devPath := filepath.Join(c.DevicesPath(), devName)
@@ -1606,7 +1606,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			// the storage volume, not the path where it is mounted.
 			// So do only check for the existence of m["source"]
 			// when m["pool"] is empty.
-			if m["pool"] == "" && m["source"] != "" && !shared.PathExists(m["source"]) {
+			if m["pool"] == "" && m["source"] != "" && !shared.PathExists(shared.HostPath(m["source"])) {
 				return "", fmt.Errorf("Missing source '%s' for disk '%s'", m["source"], name)
 			}
 		case "nic":
@@ -6209,7 +6209,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 // Disk device handling
 func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, error) {
 	// Prepare all the paths
-	srcPath := m["source"]
+	srcPath := shared.HostPath(m["source"])
 	tgtPath := strings.TrimPrefix(m["path"], "/")
 	devName := fmt.Sprintf("disk.%s", strings.Replace(tgtPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
@@ -6519,7 +6519,7 @@ func (c *containerLXC) getDiskLimits() (map[string]deviceBlockLimit, error) {
 		}
 
 		// Set the source path
-		source := m["source"]
+		source := shared.HostPath(m["source"])
 		if source == "" {
 			source = c.RootfsPath()
 		}
