@@ -27,6 +27,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -125,6 +126,11 @@ func isJSONRequest(r *http.Request) bool {
 	}
 
 	return false
+}
+
+// State creates a new State instance liked to our internal db and os.
+func (d *Daemon) State() *state.State {
+	return state.NewState(d.db, d.os)
 }
 
 func (d *Daemon) createCmd(version string, c Command) {
@@ -866,7 +872,7 @@ func (d *Daemon) numRunningContainers() (int, error) {
 
 	count := 0
 	for _, r := range results {
-		container, err := containerLoadByName(d, r)
+		container, err := containerLoadByName(d.State(), r)
 		if err != nil {
 			continue
 		}

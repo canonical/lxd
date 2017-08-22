@@ -169,7 +169,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 					} else if strings.HasPrefix(cleanSource, lxdDir) {
 						if cleanSource != poolMntPoint {
 							return fmt.Errorf("BTRFS subvolumes requests in LXD directory \"%s\" are only valid under \"%s\"\n(e.g. source=%s)", shared.VarPath(), shared.VarPath("storage-pools"), poolMntPoint)
-						} else if s.d.os.BackingFS != "btrfs" {
+						} else if s.s.OS.BackingFS != "btrfs" {
 							return fmt.Errorf("creation of BTRFS subvolume requested but \"%s\" does not reside on BTRFS filesystem", source)
 						}
 					}
@@ -394,7 +394,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 		} else if !isBlockDev && cleanSource != poolMntPoint {
 			mountSource = source
 			mountFlags |= syscall.MS_BIND
-		} else if !isBlockDev && cleanSource == poolMntPoint && s.d.os.BackingFS == "btrfs" {
+		} else if !isBlockDev && cleanSource == poolMntPoint && s.s.OS.BackingFS == "btrfs" {
 			return false, nil
 		}
 		// User is using block device path.
@@ -565,7 +565,7 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 	}
 
 	err = db.StoragePoolVolumeDelete(
-		s.d.db,
+		s.s.DB,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -928,14 +928,14 @@ func (s *storageBtrfs) ContainerCopy(target container, source container, contain
 	}
 
 	for _, snap := range snapshots {
-		sourceSnapshot, err := containerLoadByName(s.d, snap.Name())
+		sourceSnapshot, err := containerLoadByName(s.s, snap.Name())
 		if err != nil {
 			return err
 		}
 
 		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-		targetSnapshot, err := containerLoadByName(s.d, newSnapName)
+		targetSnapshot, err := containerLoadByName(s.s, newSnapName)
 		if err != nil {
 			return err
 		}
@@ -2065,7 +2065,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			}
 
 			snapshotMntPoint := getSnapshotMountPoint(containerPool, args.Name)
-			_, err := containerCreateEmptySnapshot(container.Daemon(), args)
+			_, err := containerCreateEmptySnapshot(container.StateObject(), args)
 			if err != nil {
 				return err
 			}

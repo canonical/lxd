@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -80,7 +81,7 @@ func storagePoolVolumeTypeToAPIEndpoint(volumeType int) (string, error) {
 }
 
 func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volumeType int, newDescription string, newConfig map[string]string) error {
-	s, err := storagePoolVolumeInit(d, poolName, volumeName, volumeType)
+	s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, volumeType)
 	if err != nil {
 		return err
 	}
@@ -170,9 +171,9 @@ func storagePoolVolumeUpdate(d *Daemon, poolName string, volumeName string, volu
 	return nil
 }
 
-func storagePoolVolumeUsedByContainersGet(d *Daemon, volumeName string,
+func storagePoolVolumeUsedByContainersGet(s *state.State, volumeName string,
 	volumeTypeName string) ([]string, error) {
-	cts, err := db.ContainersList(d.db, db.CTypeRegular)
+	cts, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		return []string{}, err
 	}
@@ -180,7 +181,7 @@ func storagePoolVolumeUsedByContainersGet(d *Daemon, volumeName string,
 	ctsUsingVolume := []string{}
 	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
 	for _, ct := range cts {
-		c, err := containerLoadByName(d, ct)
+		c, err := containerLoadByName(s, ct)
 		if err != nil {
 			continue
 		}
@@ -221,7 +222,7 @@ func storagePoolVolumeUsedByGet(d *Daemon, volumeName string, volumeTypeName str
 	}
 
 	// Look for containers using this volume
-	ctsUsingVolume, err := storagePoolVolumeUsedByContainersGet(d,
+	ctsUsingVolume, err := storagePoolVolumeUsedByContainersGet(d.State(),
 		volumeName, volumeTypeName)
 	if err != nil {
 		return []string{}, err
@@ -358,7 +359,7 @@ func storagePoolVolumeCreateInternal(d *Daemon, poolName string, volumeName, vol
 		return err
 	}
 
-	s, err := storagePoolVolumeInit(d, poolName, volumeName, volumeType)
+	s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, volumeType)
 	if err != nil {
 		return err
 	}

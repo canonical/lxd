@@ -216,7 +216,7 @@ func (s *storageDir) StoragePoolVolumeDelete() error {
 	}
 
 	err = db.StoragePoolVolumeDelete(
-		s.d.db,
+		s.s.DB,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -475,14 +475,14 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 	}
 
 	for _, snap := range snapshots {
-		sourceSnapshot, err := containerLoadByName(s.d, snap.Name())
+		sourceSnapshot, err := containerLoadByName(s.s, snap.Name())
 		if err != nil {
 			return err
 		}
 
 		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-		targetSnapshot, err := containerLoadByName(s.d, newSnapName)
+		targetSnapshot, err := containerLoadByName(s.s, newSnapName)
 		if err != nil {
 			return err
 		}

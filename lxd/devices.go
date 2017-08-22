@@ -599,7 +599,7 @@ func deviceTaskBalance(d *Daemon) {
 	fixedContainers := map[int][]container{}
 	balancedContainers := map[container]int{}
 	for _, name := range containers {
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(d.State(), name)
 		if err != nil {
 			continue
 		}
@@ -724,7 +724,7 @@ func deviceNetworkPriority(d *Daemon, netif string) {
 
 	for _, name := range containers {
 		// Get the container struct
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(d.State(), name)
 		if err != nil {
 			continue
 		}
@@ -755,7 +755,7 @@ func deviceUSBEvent(d *Daemon, usb usbDevice) {
 	}
 
 	for _, name := range containers {
-		containerIf, err := containerLoadByName(d, name)
+		containerIf, err := containerLoadByName(d.State(), name)
 		if err != nil {
 			continue
 		}
