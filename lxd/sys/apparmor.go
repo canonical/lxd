@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -21,4 +22,7 @@ func (s *OS) initAppArmor() {
 	} else {
 		s.AppArmorAvailable = true
 	}
+
+	/* Detect AppArmor stacking support */
+	s.AppArmorStacking = util.AppArmorCanStack()
 }
