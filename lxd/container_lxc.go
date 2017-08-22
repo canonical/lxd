@@ -145,6 +145,8 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 			key = "lxc.init_uid"
 		case "lxc.init.gid":
 			key = "lxc.init_gid"
+		case "lxc.idmap":
+			key = "lxc.id_map"
 		}
 	}
 
@@ -1019,7 +1021,7 @@ func (c *containerLXC) initLXC() error {
 	if idmapset != nil {
 		lines := idmapset.ToLxcString()
 		for _, line := range lines {
-			err := lxcSetConfigItem(cc, "lxc.id_map", strings.TrimSuffix(line, "\n"))
+			err := lxcSetConfigItem(cc, "lxc.idmap", strings.TrimSuffix(line, "\n"))
 			if err != nil {
 				return err
 			}
