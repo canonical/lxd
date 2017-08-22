@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -286,6 +287,11 @@ func (ss *storageShared) initShared() error {
 		log.Ctx{"driver": fmt.Sprintf("storage/%s", ss.sTypeName)},
 	)
 	return nil
+}
+
+// OS returns the sys.OS facade instance used by this storage.
+func (ss *storageShared) OS() *sys.OS {
+	return ss.s.OS
 }
 
 func (ss *storageShared) GetStorageType() storageType {

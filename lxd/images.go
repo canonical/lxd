@@ -84,7 +84,7 @@ func detectCompression(fname string) ([]string, string, error) {
 
 }
 
-func unpack(file string, path string, sType storageType) error {
+func unpack(file string, path string, sType storageType, runningInUserns bool) error {
 	extractArgs, extension, err := detectCompression(file)
 	if err != nil {
 		return err
@@ -153,8 +153,8 @@ func unpack(file string, path string, sType storageType) error {
 	return nil
 }
 
-func unpackImage(imagefname string, destpath string, sType storageType) error {
-	err := unpack(imagefname, destpath, sType)
+func unpackImage(imagefname string, destpath string, sType storageType, runningInUserns bool) error {
+	err := unpack(imagefname, destpath, sType, runningInUserns)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func unpackImage(imagefname string, destpath string, sType storageType) error {
 			return fmt.Errorf("Error creating rootfs directory")
 		}
 
-		err = unpack(imagefname+".rootfs", rootfsPath, sType)
+		err = unpack(imagefname+".rootfs", rootfsPath, sType, runningInUserns)
 		if err != nil {
 			return err
 		}

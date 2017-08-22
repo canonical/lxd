@@ -50,9 +50,6 @@ var cgNetPrioController = false
 var cgPidsController = false
 var cgSwapAccounting = false
 
-// UserNS
-var runningInUserns = false
-
 type Socket struct {
 	Socket      net.Listener
 	CloseOnExit bool
@@ -331,9 +328,6 @@ func (d *Daemon) Init() error {
 			log.Ctx{"path": shared.VarPath("")})
 	}
 
-	/* Detect user namespaces */
-	runningInUserns = shared.RunningInUserNS()
-
 	/* Detect existing AppArmor stack */
 	if shared.PathExists("/sys/kernel/security/apparmor/.ns_stacked") {
 		contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/.ns_stacked")
@@ -347,7 +341,7 @@ func (d *Daemon) Init() error {
 		if d.os.AppArmorAvailable {
 			logger.Warnf("Per-container AppArmor profiles are disabled because the mac_admin capability is missing.")
 		}
-	} else if runningInUserns && !aaStacked {
+	} else if d.os.RunningInUserNS && !aaStacked {
 		if d.os.AppArmorAvailable {
 			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container without stacking.")
 		}

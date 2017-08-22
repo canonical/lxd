@@ -414,7 +414,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
-	if err := unpackImage(imagePath, subvol, s.storage.GetStorageType()); err != nil {
+	if err := unpackImage(imagePath, subvol, s.storage.GetStorageType(), s.OS().RunningInUserNS); err != nil {
 		s.subvolsDelete(subvol)
 		return err
 	}
@@ -877,7 +877,7 @@ func (s *btrfsMigrationSourceDriver) Cleanup() {
 }
 
 func (s *storageBtrfs) MigrationType() MigrationFSType {
-	if runningInUserns {
+	if s.OS().RunningInUserNS {
 		return MigrationFSType_RSYNC
 	}
 
@@ -885,7 +885,7 @@ func (s *storageBtrfs) MigrationType() MigrationFSType {
 }
 
 func (s *storageBtrfs) PreservesInodes() bool {
-	if runningInUserns {
+	if s.OS().RunningInUserNS {
 		return false
 	} else {
 		return true
@@ -893,7 +893,7 @@ func (s *storageBtrfs) PreservesInodes() bool {
 }
 
 func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDriver, error) {
-	if runningInUserns {
+	if s.OS().RunningInUserNS {
 		return rsyncMigrationSource(c)
 	}
 
@@ -922,7 +922,7 @@ func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDrive
 }
 
 func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
-	if runningInUserns {
+	if s.OS().RunningInUserNS {
 		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap)
 	}
 
