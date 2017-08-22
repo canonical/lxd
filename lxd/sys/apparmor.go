@@ -48,6 +48,15 @@ func (s *OS) initAppArmor() {
 	} else {
 		s.AppArmorAdmin = true
 	}
+
+	/* Detect AppArmor confinment */
+	profile := util.AppArmorProfile()
+	if profile != "unconfined" && profile != "" {
+		if s.AppArmorAvailable {
+			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
+		}
+		s.AppArmorConfined = true
+	}
 }
 
 func haveMacAdmin() bool {
