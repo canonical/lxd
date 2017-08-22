@@ -21,6 +21,8 @@ type OS struct {
 	RunningInUserNS   bool
 	AppArmorAvailable bool
 	AppArmorStacking  bool
+	AppArmorStacked   bool
+	AppArmorAdmin     bool
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }

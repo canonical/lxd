@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -21,7 +20,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/juju/idmclient"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/net/context"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
@@ -43,7 +41,6 @@ import (
 )
 
 // AppArmor
-var aaAdmin = false
 var aaConfined = false
 var aaStacked = false
 
@@ -372,17 +369,6 @@ func (d *Daemon) UpdateHTTPsPort(newAddress string) error {
 	return nil
 }
 
-func haveMacAdmin() bool {
-	c, err := capability.NewPid(0)
-	if err != nil {
-		return false
-	}
-	if c.Get(capability.EFFECTIVE, capability.CAP_MAC_ADMIN) {
-		return true
-	}
-	return false
-}
-
 func (d *Daemon) Init() error {
 	/* Initialize some variables */
 	d.readyChan = make(chan bool)
@@ -413,27 +399,6 @@ func (d *Daemon) Init() error {
 	} else {
 		logger.Info(fmt.Sprintf("LXD %s is starting in normal mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
-	}
-
-	/* Detect existing AppArmor stack */
-	if shared.PathExists("/sys/kernel/security/apparmor/.ns_stacked") {
-		contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/.ns_stacked")
-		if err == nil && string(contentBytes) == "yes\n" {
-			aaStacked = true
-		}
-	}
-
-	/* Detect AppArmor admin support */
-	if !haveMacAdmin() {
-		if d.os.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because the mac_admin capability is missing.")
-		}
-	} else if d.os.RunningInUserNS && !aaStacked {
-		if d.os.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container without stacking.")
-		}
-	} else {
-		aaAdmin = true
 	}
 
 	/* Detect AppArmor confinment */

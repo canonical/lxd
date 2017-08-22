@@ -421,7 +421,8 @@ func mkApparmorNamespace(c container, namespace string) error {
 // Ensure that the container's policy is loaded into the kernel so the
 // container can boot.
 func AALoadProfile(c container) error {
-	if !aaAdmin {
+	state := c.StateObject()
+	if !state.OS.AppArmorAdmin {
 		return nil
 	}
 
@@ -468,11 +469,11 @@ func AALoadProfile(c container) error {
 // Ensure that the container's policy namespace is unloaded to free kernel
 // memory. This does not delete the policy from disk or cache.
 func AADestroy(c container) error {
-	if !aaAdmin {
+	state := c.StateObject()
+	if !state.OS.AppArmorAdmin {
 		return nil
 	}
 
-	state := c.StateObject()
 	if state.OS.AppArmorStacking && !aaStacked {
 		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", AANamespace(c))
 		if err := os.Remove(p); err != nil {
@@ -495,7 +496,8 @@ func AAParseProfile(c container) error {
 
 // Delete the policy from cache/disk.
 func AADeleteProfile(c container) {
-	if !aaAdmin {
+	state := c.StateObject()
+	if !state.OS.AppArmorAdmin {
 		return
 	}
 
