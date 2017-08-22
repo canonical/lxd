@@ -1891,7 +1891,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 	}
 
 	// Unpack the image into the temporary mountpoint.
-	err = unpackImage(imagePath, tmpImageDir, storageTypeZfs)
+	err = unpackImage(imagePath, tmpImageDir, storageTypeZfs, s.OS().RunningInUserNS)
 	if err != nil {
 		return err
 	}

@@ -852,7 +852,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Set an appropriate /proc, /sys/ and /sys/fs/cgroup
 	mounts := []string{}
-	if c.IsPrivileged() && !runningInUserns {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS {
 		mounts = append(mounts, "proc:mixed")
 		mounts = append(mounts, "sys:mixed")
 	} else {
@@ -889,7 +889,7 @@ func (c *containerLXC) initLXC() error {
 		"/sys/kernel/debug",
 		"/sys/kernel/security"}
 
-	if c.IsPrivileged() && !runningInUserns {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", "mqueue dev/mqueue mqueue rw,relatime,create=dir,optional")
 		if err != nil {
 			return err
@@ -930,7 +930,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Configure devices cgroup
-	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
 		err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "a")
 		if err != nil {
 			return err
@@ -1615,7 +1615,7 @@ func (c *containerLXC) expandDevices() error {
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
 // liblxc configuration items.
 func (c *containerLXC) setupUnixDevice(devType string, dev types.Device, major int, minor int, path string, createMustSucceed bool) error {
-	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
 		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
 		if err != nil {
 			return err
@@ -1840,8 +1840,7 @@ func (c *containerLXC) startCommon() (string, error) {
 				return "", err
 			}
 			devPath := paths[0]
-
-			if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+			if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
 				// Add the new device cgroup rule
 				dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
 				if err != nil {
@@ -5565,7 +5564,7 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// Extra checks for nesting
-	if runningInUserns {
+	if c.OS().RunningInUserNS {
 		for key, value := range m {
 			if shared.StringInSlice(key, []string{"major", "minor", "mode", "uid", "gid"}) && value != "" {
 				return nil, fmt.Errorf("The \"%s\" property may not be set when adding a device to a nested container", key)
@@ -5638,7 +5637,7 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 
 	// Clean any existing entry
 	if shared.PathExists(devPath) {
-		if runningInUserns {
+		if c.OS().RunningInUserNS {
 			syscall.Unmount(devPath, syscall.MNT_DETACH)
 		}
 
@@ -5649,7 +5648,7 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	}
 
 	// Create the new entry
-	if !runningInUserns {
+	if !c.OS().RunningInUserNS {
 		encoded_device_number := (minor & 0xff) | (major << 8) | ((minor & ^0xff) << 12)
 		if err := syscall.Mknod(devPath, uint32(mode), encoded_device_number); err != nil {
 			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
@@ -5749,7 +5748,7 @@ func (c *containerLXC) insertUnixDevice(m types.Device) error {
 		}
 	}
 
-	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
 		// Add the new device cgroup rule
 		if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
 			return fmt.Errorf("Failed to add cgroup rule for device")
@@ -5821,7 +5820,7 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 		}
 	}
 
-	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+	if c.IsPrivileged() && !c.OS().RunningInUserNS && cgDevicesController {
 		// Remove the device cgroup rule
 		err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
 		if err != nil {
@@ -5848,7 +5847,7 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 	}
 
 	// Remove the host side
-	if runningInUserns {
+	if c.OS().RunningInUserNS {
 		syscall.Unmount(devPath, syscall.MNT_DETACH)
 	}
 

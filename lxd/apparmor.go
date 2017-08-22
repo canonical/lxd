@@ -362,7 +362,7 @@ func getAAProfileContent(c container) string {
 		}
 	}
 
-	if !c.IsPrivileged() || runningInUserns {
+	if !c.IsPrivileged() || state.OS.RunningInUserNS {
 		// Apply unprivileged bits
 		profile += "\n  ### Configuration: unprivileged containers\n"
 		profile += strings.TrimLeft(AA_PROFILE_UNPRIVILEGED, "\n")

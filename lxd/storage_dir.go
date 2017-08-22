@@ -511,7 +511,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 	}()
 
 	imagePath := shared.VarPath("images", imageFingerprint)
-	err = unpackImage(imagePath, containerMntPoint, storageTypeDir)
+	err = unpackImage(imagePath, containerMntPoint, storageTypeDir, s.OS().RunningInUserNS)
 	if err != nil {
 		return err
 	}

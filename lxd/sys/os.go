@@ -18,6 +18,7 @@ type OS struct {
 	BackingFS         string          // Backing filesystem of $LXD_DIR/containers
 	IdmapSet          *idmap.IdmapSet // Information about user/group ID mapping
 	ExecPath          string          // Absolute path to the LXD executable
+	RunningInUserNS   bool
 	AppArmorAvailable bool
 	AppArmorStacking  bool
 
@@ -47,6 +48,7 @@ func (s *OS) Init() error {
 
 	s.IdmapSet = util.GetIdmapSet()
 	s.ExecPath = util.GetExecPath()
+	s.RunningInUserNS = shared.RunningInUserNS()
 
 	s.initAppArmor()
 
