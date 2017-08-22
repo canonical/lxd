@@ -132,14 +132,19 @@ func (devices sortableDevices) Less(i, j int) bool {
 	a := devices[i]
 	b := devices[j]
 
-	if a.device["type"] == "disk" && b.device["type"] == "disk" {
-		if a.device["path"] == b.device["path"] {
-			return a.name < b.name
-		}
-
-		return a.device["path"] < b.device["path"]
+	// First sort by types
+	if a.device["type"] != b.device["type"] {
+		return a.device["type"] < b.device["type"]
 	}
 
+	// Special case disk paths
+	if a.device["type"] == "disk" && b.device["type"] == "disk" {
+		if a.device["path"] != b.device["path"] {
+			return a.device["path"] < b.device["path"]
+		}
+	}
+
+	// Fallback to sorting by names
 	return a.name < b.name
 }
 
