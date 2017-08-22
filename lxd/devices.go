@@ -20,6 +20,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -833,7 +834,7 @@ func deviceEventListener(d *Daemon) {
 
 			logger.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
 			deviceNetworkPriority(d, e[0])
-			networkAutoAttach(d, e[0])
+			networkAutoAttach(d.db, e[0])
 		case e := <-chUSB:
 			deviceUSBEvent(d, e)
 		case e := <-deviceSchedRebalance:
@@ -1140,7 +1141,7 @@ func deviceGetParentBlocks(path string) ([]string, error) {
 
 	// Deal with per-filesystem oddities. We don't care about failures here
 	// because any non-special filesystem => directory backend.
-	fs, _ := filesystemDetect(expPath)
+	fs, _ := util.FilesystemDetect(expPath)
 
 	if fs == "zfs" && shared.PathExists("/dev/zfs") {
 		// Accessible zfs filesystems

@@ -17,9 +17,8 @@ func cmdActivateIfNeeded() error {
 	}
 
 	// Don't start a full daemon, we just need DB access
-	d := &Daemon{
-		lxcpath: shared.VarPath("containers"),
-	}
+	d := NewDaemon()
+	d.os.LxcPath = shared.VarPath("containers")
 
 	if !shared.PathExists(shared.VarPath("lxd.db")) {
 		logger.Debugf("No DB, so no need to start the daemon now.")
@@ -46,7 +45,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	// Load the idmap for unprivileged containers
-	d.IdmapSet, err = shared.DefaultIdmapSet()
+	d.os.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
 		return err
 	}

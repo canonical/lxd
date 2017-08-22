@@ -11,7 +11,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	var db *sql.DB
 	var err error
 
-	d := &Daemon{}
+	d := NewDaemon()
 	err = initializeDbObject(d, ":memory:")
 	db = d.db
 

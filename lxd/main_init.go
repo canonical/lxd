@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
@@ -745,7 +746,7 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 				}
 				storage.Device = cmd.Context.AskString("Path to the existing block device: ", "", deviceExists)
 			} else {
-				backingFs, err := filesystemDetect(shared.VarPath())
+				backingFs, err := util.FilesystemDetect(shared.VarPath())
 				if err == nil && storage.Backend == "btrfs" && backingFs == "btrfs" {
 					if cmd.Context.AskBool("Would you like to create a new subvolume for the BTRFS storage pool (yes/no) [default=yes]: ", "yes") {
 						storage.Dataset = shared.VarPath("storage-pools", storage.Pool)

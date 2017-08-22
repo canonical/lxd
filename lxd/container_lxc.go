@@ -26,6 +26,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -270,14 +271,14 @@ func containerLXCCreate(d *Daemon, args db.ContainerArgs) (container, error) {
 	}
 
 	// Validate expanded config
-	err = containerValidConfig(d, c.expandedConfig, false, true)
+	err = containerValidConfig(d.os, c.expandedConfig, false, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
 		return nil, err
 	}
 
-	err = containerValidDevices(d, c.expandedDevices, false, true)
+	err = containerValidDevices(d.db, c.expandedDevices, false, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -522,11 +523,11 @@ func idmapSize(daemon *Daemon, isolatedStr string, size string) (int64, error) {
 		if isolated {
 			idMapSize = 65536
 		} else {
-			if len(daemon.IdmapSet.Idmap) != 2 {
-				return 0, fmt.Errorf("bad initial idmap: %v", daemon.IdmapSet)
+			if len(daemon.os.IdmapSet.Idmap) != 2 {
+				return 0, fmt.Errorf("bad initial idmap: %v", daemon.os.IdmapSet)
 			}
 
-			idMapSize = daemon.IdmapSet.Idmap[0].Maprange
+			idMapSize = daemon.os.IdmapSet.Idmap[0].Maprange
 		}
 	} else {
 		size, err := strconv.ParseInt(size, 10, 64)
@@ -640,8 +641,8 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configBase stri
 	}
 
 	if !isolated {
-		newIdmapset := shared.IdmapSet{Idmap: make([]shared.IdmapEntry, len(daemon.IdmapSet.Idmap))}
-		copy(newIdmapset.Idmap, daemon.IdmapSet.Idmap)
+		newIdmapset := shared.IdmapSet{Idmap: make([]shared.IdmapEntry, len(daemon.os.IdmapSet.Idmap))}
+		copy(newIdmapset.Idmap, daemon.os.IdmapSet.Idmap)
 
 		for _, ent := range rawMaps {
 			newIdmapset.AddSafe(ent)
@@ -685,7 +686,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configBase stri
 		return nil, 0, err
 	}
 
-	offset := daemon.IdmapSet.Idmap[0].Hostid + 65536
+	offset := daemon.os.IdmapSet.Idmap[0].Hostid + 65536
 
 	mapentries := shared.ByHostid{}
 	for _, name := range cs {
@@ -747,7 +748,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configBase stri
 		offset = mapentries[i].Hostid + mapentries[i].Maprange
 	}
 
-	if offset+size < daemon.IdmapSet.Idmap[0].Hostid+daemon.IdmapSet.Idmap[0].Maprange {
+	if offset+size < daemon.os.IdmapSet.Idmap[0].Hostid+daemon.os.IdmapSet.Idmap[0].Maprange {
 		return mkIdmap(offset, size), offset, nil
 	}
 
@@ -786,7 +787,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Load the go-lxc struct
-	cc, err := lxc.NewContainer(c.Name(), c.daemon.lxcpath)
+	cc, err := lxc.NewContainer(c.Name(), c.daemon.os.LxcPath)
 	if err != nil {
 		return err
 	}
@@ -951,7 +952,7 @@ func (c *containerLXC) initLXC() error {
 	// Setup architecture
 	personality, err := osarch.ArchitecturePersonality(c.architecture)
 	if err != nil {
-		personality, err = osarch.ArchitecturePersonality(c.daemon.architectures[0])
+		personality, err = osarch.ArchitecturePersonality(c.daemon.os.Architectures[0])
 		if err != nil {
 			return err
 		}
@@ -1629,7 +1630,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	if kernelModules != "" {
 		for _, module := range strings.Split(kernelModules, ",") {
 			module = strings.TrimPrefix(module, " ")
-			err := loadModule(module)
+			err := util.LoadModule(module)
 			if err != nil {
 				return "", fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
 			}
@@ -2074,7 +2075,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		execPath,
 		"forkstart",
 		c.name,
-		c.daemon.lxcpath,
+		c.daemon.os.LxcPath,
 		configPath)
 
 	// Capture debug output
@@ -3165,13 +3166,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Validate the new config
-	err := containerValidConfig(c.daemon, args.Config, false, false)
+	err := containerValidConfig(c.daemon.os, args.Config, false, false)
 	if err != nil {
 		return err
 	}
 
 	// Validate the new devices
-	err = containerValidDevices(c.daemon, args.Devices, false, false)
+	err = containerValidDevices(c.daemon.db, args.Devices, false, false)
 	if err != nil {
 		return err
 	}
@@ -3325,13 +3326,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	removeDevices, addDevices, updateDevices := oldExpandedDevices.Update(c.expandedDevices)
 
 	// Do some validation of the config diff
-	err = containerValidConfig(c.daemon, c.expandedConfig, false, true)
+	err = containerValidConfig(c.daemon.os, c.expandedConfig, false, true)
 	if err != nil {
 		return err
 	}
 
 	// Do some validation of the devices diff
-	err = containerValidDevices(c.daemon, c.expandedDevices, false, true)
+	err = containerValidDevices(c.daemon.db, c.expandedDevices, false, true)
 	if err != nil {
 		return err
 	}
@@ -3489,7 +3490,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			} else if key == "linux.kernel_modules" && value != "" {
 				for _, module := range strings.Split(value, ",") {
 					module = strings.TrimPrefix(module, " ")
-					err := loadModule(module)
+					err := util.LoadModule(module)
 					if err != nil {
 						return fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
 					}
@@ -4170,7 +4171,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		}
 
 		if arch == "" {
-			arch, err = osarch.ArchitectureName(c.daemon.architectures[0])
+			arch, err = osarch.ArchitectureName(c.daemon.os.Architectures[0])
 			if err != nil {
 				logger.Error("Failed exporting container", ctxMap)
 				return err
@@ -4428,7 +4429,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			execPath,
 			"forkmigrate",
 			c.name,
-			c.daemon.lxcpath,
+			c.daemon.os.LxcPath,
 			configPath,
 			stateDir,
 			fmt.Sprintf("%v", preservesInodes))
@@ -4600,7 +4601,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		// Figure out the architecture
 		arch, err := osarch.ArchitectureName(c.architecture)
 		if err != nil {
-			arch, err = osarch.ArchitectureName(c.daemon.architectures[0])
+			arch, err = osarch.ArchitectureName(c.daemon.os.Architectures[0])
 			if err != nil {
 				return err
 			}
@@ -4966,7 +4967,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	args := []string{execPath, "forkexec", c.name, c.daemon.lxcpath, filepath.Join(c.LogPath(), "lxc.conf")}
+	args := []string{execPath, "forkexec", c.name, c.daemon.os.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
 	args = append(args, "env")
@@ -5936,7 +5937,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		}
 
 		// Attempt to include all existing interfaces
-		cc, err := lxc.NewContainer(c.Name(), c.daemon.lxcpath)
+		cc, err := lxc.NewContainer(c.Name(), c.daemon.os.LxcPath)
 		if err == nil {
 			interfaces, err := cc.Interfaces()
 			if err == nil {
@@ -6179,7 +6180,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct
-	cc, err := lxc.NewContainer(c.Name(), c.daemon.lxcpath)
+	cc, err := lxc.NewContainer(c.Name(), c.daemon.os.LxcPath)
 	if err != nil {
 		return err
 	}
@@ -6901,8 +6902,8 @@ func (c *containerLXC) NextIdmapSet() (*shared.IdmapSet, error) {
 		return c.idmapsetFromConfig("volatile.idmap.next")
 	} else if c.IsPrivileged() {
 		return nil, nil
-	} else if c.daemon.IdmapSet != nil {
-		return c.daemon.IdmapSet, nil
+	} else if c.daemon.os.IdmapSet != nil {
+		return c.daemon.os.IdmapSet, nil
 	}
 
 	return nil, fmt.Errorf("Unable to determine the idmap")

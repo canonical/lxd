@@ -23,18 +23,17 @@ func mockStartDaemon() (*Daemon, error) {
 		return nil, err
 	}
 
-	d := &Daemon{
-		MockMode: true,
-		tlsConfig: &tls.Config{
-			Certificates: []tls.Certificate{cert},
-		},
+	d := NewDaemon()
+	d.os.MockMode = true
+	d.tlsConfig = &tls.Config{
+		Certificates: []tls.Certificate{cert},
 	}
 
 	if err := d.Init(); err != nil {
 		return nil, err
 	}
 
-	d.IdmapSet = &shared.IdmapSet{Idmap: []shared.IdmapEntry{
+	d.os.IdmapSet = &shared.IdmapSet{Idmap: []shared.IdmapEntry{
 		{Isuid: true, Hostid: 100000, Nsid: 0, Maprange: 500000},
 		{Isgid: true, Hostid: 100000, Nsid: 0, Maprange: 500000},
 	}}

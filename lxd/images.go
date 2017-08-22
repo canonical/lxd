@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -82,7 +84,7 @@ func detectCompression(fname string) ([]string, string, error) {
 
 }
 
-func unpack(d *Daemon, file string, path string, sType storageType) error {
+func unpack(file string, path string, sType storageType) error {
 	extractArgs, extension, err := detectCompression(file)
 	if err != nil {
 		return err
@@ -151,8 +153,8 @@ func unpack(d *Daemon, file string, path string, sType storageType) error {
 	return nil
 }
 
-func unpackImage(d *Daemon, imagefname string, destpath string, sType storageType) error {
-	err := unpack(d, imagefname, destpath, sType)
+func unpackImage(imagefname string, destpath string, sType storageType) error {
+	err := unpack(imagefname, destpath, sType)
 	if err != nil {
 		return err
 	}
@@ -164,7 +166,7 @@ func unpackImage(d *Daemon, imagefname string, destpath string, sType storageTyp
 			return fmt.Errorf("Error creating rootfs directory")
 		}
 
-		err = unpack(d, imagefname+".rootfs", rootfsPath, sType)
+		err = unpack(imagefname+".rootfs", rootfsPath, sType)
 		if err != nil {
 			return err
 		}
@@ -358,7 +360,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 		return nil, fmt.Errorf("Missing URL")
 	}
 
-	myhttp, err := d.httpClient("")
+	myhttp, err := util.HTTPClient("", d.proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +372,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 	}
 
 	architecturesStr := []string{}
-	for _, arch := range d.architectures {
+	for _, arch := range d.os.Architectures {
 		architecturesStr = append(architecturesStr, fmt.Sprintf("%d", arch))
 	}
 
@@ -819,7 +821,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 			url := fmt.Sprintf("/%s/images/%s", version.APIVersion, name)
 			resultString[i] = url
 		} else {
-			image, response := doImageGet(d, name, public)
+			image, response := doImageGet(d.db, name, public)
 			if response != nil {
 				continue
 			}
@@ -837,9 +839,9 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 }
 
 func imagesGet(d *Daemon, r *http.Request) Response {
-	public := !d.isTrustedClient(r)
+	public := !util.IsTrustedClient(r, d.clientCerts)
 
-	result, err := doImagesGet(d, d.isRecursionRequest(r), public)
+	result, err := doImagesGet(d, util.IsRecursionRequest(r), public)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1148,8 +1150,8 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func doImageGet(d *Daemon, fingerprint string, public bool) (*api.Image, Response) {
-	_, imgInfo, err := db.ImageGet(d.db, fingerprint, public, false)
+func doImageGet(dbObj *sql.DB, fingerprint string, public bool) (*api.Image, Response) {
+	_, imgInfo, err := db.ImageGet(dbObj, fingerprint, public, false)
 	if err != nil {
 		return nil, SmartError(err)
 	}
@@ -1189,10 +1191,10 @@ func imageValidSecret(fingerprint string, secret string) bool {
 
 func imageGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	public := !d.isTrustedClient(r)
+	public := !util.IsTrustedClient(r, d.clientCerts)
 	secret := r.FormValue("secret")
 
-	info, response := doImageGet(d, fingerprint, false)
+	info, response := doImageGet(d.db, fingerprint, false)
 	if response != nil {
 		return response
 	}
@@ -1215,7 +1217,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 
 	// Validate ETag
 	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -1243,7 +1245,7 @@ func imagePatch(d *Daemon, r *http.Request) Response {
 
 	// Validate ETag
 	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -1331,7 +1333,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 }
 
 func aliasesGet(d *Daemon, r *http.Request) Response {
-	recursion := d.isRecursionRequest(r)
+	recursion := util.IsRecursionRequest(r)
 
 	q := "SELECT name FROM images_aliases"
 	var name string
@@ -1350,7 +1352,8 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 			responseStr = append(responseStr, url)
 
 		} else {
-			_, alias, err := db.ImageAliasGet(d.db, name, d.isTrustedClient(r))
+			isTrustedClient := util.IsTrustedClient(r, d.clientCerts)
+			_, alias, err := db.ImageAliasGet(d.db, name, isTrustedClient)
 			if err != nil {
 				continue
 			}
@@ -1368,7 +1371,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 func aliasGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	_, alias, err := db.ImageAliasGet(d.db, name, d.isTrustedClient(r))
+	_, alias, err := db.ImageAliasGet(d.db, name, util.IsTrustedClient(r, d.clientCerts))
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1400,7 +1403,7 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate ETag
-	err = etagCheck(r, alias)
+	err = util.EtagCheck(r, alias)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -1436,7 +1439,7 @@ func aliasPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate ETag
-	err = etagCheck(r, alias)
+	err = util.EtagCheck(r, alias)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -1509,7 +1512,7 @@ func aliasPost(d *Daemon, r *http.Request) Response {
 func imageExport(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	public := !d.isTrustedClient(r)
+	public := !util.IsTrustedClient(r, d.clientCerts)
 	secret := r.FormValue("secret")
 
 	_, imgInfo, err := db.ImageGet(d.db, fingerprint, false, false)

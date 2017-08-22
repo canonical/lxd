@@ -16,6 +16,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -30,7 +31,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 		recursion = 0
 	}
 
-	ifs, err := networkGetInterfaces(d)
+	ifs, err := networkGetInterfaces(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -79,7 +80,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Only 'bridge' type networks can be created"))
 	}
 
-	networks, err := networkGetInterfaces(d)
+	networks, err := networkGetInterfaces(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -276,7 +277,7 @@ func networkPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	networks, err := networkGetInterfaces(d)
+	networks, err := networkGetInterfaces(d.db)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -306,7 +307,7 @@ func networkPut(d *Daemon, r *http.Request) Response {
 	// Validate the ETag
 	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Description, dbInfo.Config}
 
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -331,7 +332,7 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 	// Validate the ETag
 	etag := []interface{}{dbInfo.Name, dbInfo.Managed, dbInfo.Type, dbInfo.Description, dbInfo.Config}
 
-	err = etagCheck(r, etag)
+	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -555,7 +556,7 @@ func (n *network) Rename(name string) error {
 
 func (n *network) Start() error {
 	// If we are in mock mode, just no-op.
-	if n.daemon.MockMode {
+	if n.daemon.os.MockMode {
 		return nil
 	}
 
