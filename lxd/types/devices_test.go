@@ -13,7 +13,7 @@ func TestSortableDevices(t *testing.T) {
 		"2": Device{"type": "nic"},
 	}
 
-	expected := []string{"1", "2", "4", "3"}
+	expected := []string{"4", "3", "1", "2"}
 
 	result := devices.DeviceNames()
 	if !reflect.DeepEqual(result, expected) {
