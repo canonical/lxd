@@ -34,7 +34,6 @@ import (
 )
 
 // CGroup
-var cgCpuController = false
 var cgCpusetController = false
 var cgDevicesController = false
 var cgMemoryController = false
@@ -310,11 +309,6 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Detect CGroup support */
-	cgCpuController = shared.PathExists("/sys/fs/cgroup/cpu/")
-	if !cgCpuController {
-		logger.Warnf("Couldn't find the CGroup CPU controller, CPU time limits will be ignored.")
-	}
-
 	cgCpusetController = shared.PathExists("/sys/fs/cgroup/cpuset/")
 	if !cgCpusetController {
 		logger.Warnf("Couldn't find the CGroup CPUset controller, CPU pinning will be ignored.")

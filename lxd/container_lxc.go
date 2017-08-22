@@ -1156,7 +1156,7 @@ func (c *containerLXC) initLXC() error {
 	cpuPriority := c.expandedConfig["limits.cpu.priority"]
 	cpuAllowance := c.expandedConfig["limits.cpu.allowance"]
 
-	if (cpuPriority != "" || cpuAllowance != "") && cgCpuController {
+	if (cpuPriority != "" || cpuAllowance != "") && c.OS().CGroupCPUController {
 		cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(cpuAllowance, cpuPriority)
 		if err != nil {
 			return err
@@ -3144,7 +3144,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				deviceTaskSchedulerTrigger("container", c.name, "changed")
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
 				// Skip if no cpu CGroup
-				if !cgCpuController {
+				if !c.OS().CGroupCPUController {
 					continue
 				}
 
