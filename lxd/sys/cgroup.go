@@ -11,6 +11,7 @@ import (
 func (s *OS) initCGroup() {
 	flags := []*bool{
 		&s.CGroupBlkioController,
+		&s.CGroupCPUController,
 	}
 	for i, flag := range flags {
 		*flag = shared.PathExists("/sys/fs/cgroup/" + cGroups[i].path)
@@ -29,4 +30,5 @@ var cGroups = []struct {
 	warn string
 }{
 	{"blkio/", cGroupMissing("blkio", "I/O limits will be ignored")},
+	{"cpu/", cGroupMissing("CPU controller", "CPU time limits will be ignored")},
 }

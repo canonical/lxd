@@ -25,6 +25,7 @@ type OS struct {
 	AppArmorAdmin         bool
 	AppArmorConfined      bool
 	CGroupBlkioController bool
+	CGroupCPUController   bool
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
