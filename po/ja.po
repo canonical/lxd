@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-08-21 16:04-0400\n"
-"PO-Revision-Date: 2017-07-20 00:30+0000\n"
+"POT-Creation-Date: 2017-08-22 00:35-0400\n"
+"PO-Revision-Date: 2017-08-03 05:16+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -264,9 +264,9 @@ msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
 
 #: lxc/config.go:220
-#, fuzzy, c-format
+#, c-format
 msgid "Can't unset key '%s', it's not currently set"
-msgstr "キー '%s' が指定されていないので削除できません。"
+msgstr "キー '%s' が設定されていないので削除できません"
 
 #: lxc/config.go:262 lxc/config.go:288
 #, c-format
@@ -324,7 +324,7 @@ msgstr "コンテナは以下のフィンガープリントで publish されま
 
 #: lxc/copy.go:43 lxc/move.go:42
 msgid "Copy a stateful container stateless"
-msgstr ""
+msgstr "ステートフルなコンテナをステートレスにコピーします"
 
 #: lxc/image.go:174
 msgid "Copy aliases from source"
@@ -434,9 +434,9 @@ msgid "Ephemeral container"
 msgstr "Ephemeral コンテナ"
 
 #: lxc/config.go:1381
-#, fuzzy, c-format
+#, c-format
 msgid "Error updating template file: %s"
-msgstr "イメージのエクスポート中: %s"
+msgstr "テンプレートファイル更新のエラー: %s"
 
 #: lxc/monitor.go:56
 msgid "Event type to listen for"
@@ -465,9 +465,9 @@ msgid "FINGERPRINT"
 msgstr ""
 
 #: lxc/utils.go:413
-#, fuzzy, c-format
+#, c-format
 msgid "Failed to create alias %s"
-msgstr "'lxc.%s.1' の生成が失敗しました: %v"
+msgstr "エイリアス %s の作成に失敗しました"
 
 #: lxc/manpage.go:62
 #, c-format
@@ -484,9 +484,9 @@ msgid "Failed to get the new container name"
 msgstr "新しいコンテナ名が取得できません"
 
 #: lxc/utils.go:403
-#, fuzzy, c-format
+#, c-format
 msgid "Failed to remove alias %s"
-msgstr "パス %s にアクセスできませんでした: %s"
+msgstr "エイリアス %s の削除に失敗しました"
 
 #: lxc/file.go:125
 #, c-format
@@ -578,7 +578,7 @@ msgstr ""
 
 #: lxc/init.go:147
 msgid "Instance type"
-msgstr ""
+msgstr "インスタンスタイプ"
 
 #: lxc/remote.go:107
 #, c-format
@@ -1240,7 +1240,6 @@ msgid "Usage: lxc <command> [options]"
 msgstr "使い方: lxc <コマンド> [オプション]"
 
 #: lxc/config.go:85
-#, fuzzy
 msgid ""
 "Usage: lxc config <subcommand> [options]\n"
 "\n"
@@ -1363,8 +1362,38 @@ msgstr ""
 "    コンテナもしくはサーバの設定を表示します。\n"
 "\n"
 "lxc config edit [<remote>:][container]\n"
-"    外部エディタを起動するか、標準入力からの読み込むことにより、設定を編集し"
-"ます。\n"
+"    外部エディタを起動するか、標準入力から読み込むことにより、設定を編集しま"
+"す。\n"
+"\n"
+"*コンテナのメタデータ*\n"
+"\n"
+"lxc config metadata show [<remote>:][container]\n"
+"    コンテナの metadata.yaml の内容を表示します。\n"
+"\n"
+"lxc config metadata edit [<remote>:][container]\n"
+"    外部エディアを起動するか、標準入力から読み込むことにより、コンテナの "
+"metadata.yaml を編集します。\n"
+"\n"
+"*コンテナテンプレート*\n"
+"\n"
+"lxc config template list [<remote>:][container]\n"
+"    コンテナのテンプレートファイルの名前をリスト表示します。\n"
+"\n"
+"lxc config template show [<remote>:][container] [template]\n"
+"    Show the content of a template file for a container.\n"
+"    コンテナのテンプレートファイルの内容を表示します。\n"
+"\n"
+"lxc config template create [<remote>:][container] [template]\n"
+"    Add an empty template file for a container.\n"
+"    コンテナに空のテンプレートファイルを追加します。\n"
+"\n"
+"lxc config template edit [<remote>:][container] [template]\n"
+"    外部エディタを起動するか、標準入力から読み込むことにより、コンテナのテン"
+"プレートファイルの内容を編集します。\n"
+"\n"
+"lxc config template delete [<remote>:][container] [template]\n"
+"    コンテナのテンプレートファイルを削除します。\n"
+"\n"
 "\n"
 "*デバイスの管理*\n"
 "\n"
@@ -1770,7 +1799,6 @@ msgstr ""
 "    LXD サーバの情報を表示します。"
 
 #: lxc/init.go:77
-#, fuzzy
 msgid ""
 "Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--"
 "profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n "
@@ -1786,7 +1814,7 @@ msgid ""
 msgstr ""
 "使い方: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--"
 "profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n "
-"<network>] [--storage|-s <pool>]\n"
+"<network>] [--storage|-s <pool>] [--type|-t <instance type>]\n"
 "\n"
 "指定したイメージからコンテナを初期化します。\n"
 "\n"
@@ -1797,7 +1825,6 @@ msgstr ""
 "    lxc init ubuntu:16.04 u1"
 
 #: lxc/launch.go:20
-#, fuzzy
 msgid ""
 "Usage: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--"
 "profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n "
@@ -1813,7 +1840,7 @@ msgid ""
 msgstr ""
 "使い方: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] "
 "[--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n "
-"<network>] [--storage|-s <pool>]\n"
+"<network>] [--storage|-s <pool>] [--type|-t <instance type>]\n"
 "\n"
 "指定したイメージからコンテナを起動します。\n"
 "\n"
@@ -2780,11 +2807,11 @@ msgstr "リモート %s は static ですので変更できません"
 
 #: lxc/info.go:230
 msgid "stateful"
-msgstr ""
+msgstr "ステートフル"
 
 #: lxc/info.go:232
 msgid "stateless"
-msgstr ""
+msgstr "ステートレス"
 
 #: lxc/info.go:226
 #, c-format

@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-08-21 16:04-0400\n"
-"PO-Revision-Date: 2017-07-13 19:23+0000\n"
+"POT-Creation-Date: 2017-08-22 00:35-0400\n"
+"PO-Revision-Date: 2017-08-18 14:22+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/it/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2.16-dev\n"
+"X-Generator: Weblate 2.17-dev\n"
 
 #: lxc/storage.go:31
 msgid ""
@@ -217,7 +217,7 @@ msgstr "Accetta certificato"
 
 #: lxc/query.go:38
 msgid "Action (defaults to GET)"
-msgstr ""
+msgstr "Azione (default a GET)"
 
 #: lxc/remote.go:256
 #, c-format
