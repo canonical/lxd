@@ -281,11 +281,7 @@ func GetSchema(db *sql.DB) (v int) {
 }
 
 func GetLatestSchema() int {
-	if len(dbUpdates) == 0 {
-		return 0
-	}
-
-	return dbUpdates[len(dbUpdates)-1].version
+	return len(updates)
 }
 
 func IsDbLockedError(err error) bool {
@@ -385,8 +381,8 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 	return nil, fmt.Errorf("DB is locked")
 }
 
-func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
-	rows, err := db.Query(q, args...)
+func doDbQueryScan(qi queryer, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
+	rows, err := qi.Query(q, args...)
 	if err != nil {
 		return [][]interface{}{}, err
 	}
@@ -435,7 +431,12 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
 	return result, nil
 }
 
+type queryer interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+}
+
 /*
+ * . qi anything implementing the querier interface (i.e. either sql.DB or sql.Tx)
  * . q is the database query
  * . inargs is an array of interfaces containing the query arguments
  * . outfmt is an array of interfaces containing the right types of output
@@ -447,9 +448,9 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
  * The result will be an array (one per output row) of arrays (one per output argument)
  * of interfaces, containing pointers to the actual output arguments.
  */
-func QueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
+func QueryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
 	for i := 0; i < 1000; i++ {
-		result, err := doDbQueryScan(db, q, inargs, outfmt)
+		result, err := doDbQueryScan(qi, q, inargs, outfmt)
 		if err == nil {
 			return result, nil
 		}
