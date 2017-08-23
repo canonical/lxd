@@ -77,7 +77,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No driver provided"))
 	}
 
-	err = storagePoolCreateInternal(d, req.Name, req.Description, req.Driver, req.Config)
+	err = storagePoolCreateInternal(d.State(), req.Name, req.Description, req.Driver, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -140,7 +140,7 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = storagePoolUpdate(d, poolName, req.Description, req.Config)
+	err = storagePoolUpdate(d.State(), poolName, req.Description, req.Config)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -190,7 +190,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = storagePoolUpdate(d, poolName, req.Description, req.Config)
+	err = storagePoolUpdate(d.State(), poolName, req.Description, req.Config)
 	if err != nil {
 		return InternalError(fmt.Errorf("failed to update the storage pool configuration"))
 	}
@@ -224,7 +224,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
 	}
 
-	s, err := storagePoolInit(d, poolName)
+	s, err := storagePoolInit(d.State(), poolName)
 	if err != nil {
 		return InternalError(err)
 	}

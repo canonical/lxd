@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 )
 
-func storagePoolUpdate(d *Daemon, name, newDescription string, newConfig map[string]string) error {
-	s, err := storagePoolInit(d, name)
+func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string) error {
+	s, err := storagePoolInit(state, name)
 	if err != nil {
 		return err
 	}
@@ -62,7 +63,7 @@ func storagePoolUpdate(d *Daemon, name, newDescription string, newConfig map[str
 
 	// Update the database if something changed
 	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = db.StoragePoolUpdate(d.db, name, newDescription, newConfig)
+		err = db.StoragePoolUpdate(state.DB, name, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
@@ -156,7 +157,7 @@ func profilesUsingPoolGetNames(dbOb *sql.DB, poolName string) ([]string, error) 
 	return usedBy, nil
 }
 
-func storagePoolDBCreate(d *Daemon, poolName, poolDescription string, driver string, config map[string]string) error {
+func storagePoolDBCreate(s *state.State, poolName, poolDescription string, driver string, config map[string]string) error {
 	// Check if the storage pool name is valid.
 	err := storageValidName(poolName)
 	if err != nil {
@@ -164,7 +165,7 @@ func storagePoolDBCreate(d *Daemon, poolName, poolDescription string, driver str
 	}
 
 	// Check that the storage pool does not already exist.
-	_, err = db.StoragePoolGetID(d.db, poolName)
+	_, err = db.StoragePoolGetID(s.DB, poolName)
 	if err == nil {
 		return fmt.Errorf("The storage pool already exists")
 	}
@@ -187,7 +188,7 @@ func storagePoolDBCreate(d *Daemon, poolName, poolDescription string, driver str
 	}
 
 	// Create the database entry for the storage pool.
-	_, err = dbStoragePoolCreateAndUpdateCache(d.db, poolName, poolDescription, driver, config)
+	_, err = dbStoragePoolCreateAndUpdateCache(s.DB, poolName, poolDescription, driver, config)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 	}
@@ -195,8 +196,8 @@ func storagePoolDBCreate(d *Daemon, poolName, poolDescription string, driver str
 	return nil
 }
 
-func storagePoolCreateInternal(d *Daemon, poolName, poolDescription string, driver string, config map[string]string) error {
-	err := storagePoolDBCreate(d, poolName, poolDescription, driver, config)
+func storagePoolCreateInternal(state *state.State, poolName, poolDescription string, driver string, config map[string]string) error {
+	err := storagePoolDBCreate(state, poolName, poolDescription, driver, config)
 	if err != nil {
 		return err
 	}
@@ -209,10 +210,10 @@ func storagePoolCreateInternal(d *Daemon, poolName, poolDescription string, driv
 		if !tryUndo {
 			return
 		}
-		dbStoragePoolDeleteAndUpdateCache(d.db, poolName)
+		dbStoragePoolDeleteAndUpdateCache(state.DB, poolName)
 	}()
 
-	s, err := storagePoolInit(d, poolName)
+	s, err := storagePoolInit(state, poolName)
 	if err != nil {
 		return err
 	}
@@ -238,7 +239,7 @@ func storagePoolCreateInternal(d *Daemon, poolName, poolDescription string, driv
 	configDiff, _ := storageConfigDiff(config, postCreateConfig)
 	if len(configDiff) > 0 {
 		// Create the database entry for the storage pool.
-		err = db.StoragePoolUpdate(d.db, poolName, poolDescription, postCreateConfig)
+		err = db.StoragePoolUpdate(state.DB, poolName, poolDescription, postCreateConfig)
 		if err != nil {
 			return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 		}

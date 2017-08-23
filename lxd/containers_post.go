@@ -114,7 +114,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return err
 		}
 
-		_, err = containerCreateFromImage(d, args, info.Fingerprint)
+		_, err = containerCreateFromImage(d.State(), args, info.Fingerprint)
 		return err
 	}
 
@@ -311,13 +311,13 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 		storagePool = rootDiskDevice["pool"]
 
-		ps, err := storagePoolInit(d, storagePool)
+		ps, err := storagePoolInit(d.State(), storagePool)
 		if err != nil {
 			return InternalError(err)
 		}
 
 		if ps.MigrationType() == MigrationFSType_RSYNC {
-			c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
+			c, err = containerCreateFromImage(d.State(), args, req.Source.BaseImage)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -486,7 +486,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	run := func(op *operation) error {
-		_, err := containerCreateAsCopy(d, args, source, req.Source.ContainerOnly)
+		_, err := containerCreateAsCopy(d.State(), args, source, req.Source.ContainerOnly)
 		if err != nil {
 			return err
 		}

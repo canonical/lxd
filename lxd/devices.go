@@ -20,6 +20,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -520,7 +521,7 @@ func parseCpuset(cpu string) ([]int, error) {
 	return cpus, nil
 }
 
-func deviceTaskBalance(d *Daemon) {
+func deviceTaskBalance(s *state.State) {
 	min := func(x, y int) int {
 		if x < y {
 			return x
@@ -591,7 +592,7 @@ func deviceTaskBalance(d *Daemon) {
 	}
 
 	// Iterate through the containers
-	containers, err := db.ContainersList(d.db, db.CTypeRegular)
+	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -599,7 +600,7 @@ func deviceTaskBalance(d *Daemon) {
 	fixedContainers := map[int][]container{}
 	balancedContainers := map[container]int{}
 	for _, name := range containers {
-		c, err := containerLoadByName(d.State(), name)
+		c, err := containerLoadByName(s, name)
 		if err != nil {
 			continue
 		}
@@ -711,20 +712,20 @@ func deviceTaskBalance(d *Daemon) {
 	}
 }
 
-func deviceNetworkPriority(d *Daemon, netif string) {
+func deviceNetworkPriority(s *state.State, netif string) {
 	// Don't bother running when CGroup support isn't there
 	if !cgNetPrioController {
 		return
 	}
 
-	containers, err := db.ContainersList(d.db, db.CTypeRegular)
+	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		return
 	}
 
 	for _, name := range containers {
 		// Get the container struct
-		c, err := containerLoadByName(d.State(), name)
+		c, err := containerLoadByName(s, name)
 		if err != nil {
 			continue
 		}
@@ -747,15 +748,15 @@ func deviceNetworkPriority(d *Daemon, netif string) {
 	return
 }
 
-func deviceUSBEvent(d *Daemon, usb usbDevice) {
-	containers, err := db.ContainersList(d.db, db.CTypeRegular)
+func deviceUSBEvent(s *state.State, usb usbDevice) {
+	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
 	}
 
 	for _, name := range containers {
-		containerIf, err := containerLoadByName(d.State(), name)
+		containerIf, err := containerLoadByName(s, name)
 		if err != nil {
 			continue
 		}
@@ -801,7 +802,7 @@ func deviceUSBEvent(d *Daemon, usb usbDevice) {
 	}
 }
 
-func deviceEventListener(d *Daemon) {
+func deviceEventListener(s *state.State) {
 	chNetlinkCPU, chNetlinkNetwork, chUSB, err := deviceNetlinkListener()
 	if err != nil {
 		logger.Errorf("scheduler: couldn't setup netlink listener")
@@ -821,7 +822,7 @@ func deviceEventListener(d *Daemon) {
 			}
 
 			logger.Debugf("Scheduler: cpu: %s is now %s: re-balancing", e[0], e[1])
-			deviceTaskBalance(d)
+			deviceTaskBalance(s)
 		case e := <-chNetlinkNetwork:
 			if len(e) != 2 {
 				logger.Errorf("Scheduler: received an invalid network hotplug event")
@@ -833,10 +834,10 @@ func deviceEventListener(d *Daemon) {
 			}
 
 			logger.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
-			deviceNetworkPriority(d, e[0])
-			networkAutoAttach(d.db, e[0])
+			deviceNetworkPriority(s, e[0])
+			networkAutoAttach(s.DB, e[0])
 		case e := <-chUSB:
-			deviceUSBEvent(d, e)
+			deviceUSBEvent(s, e)
 		case e := <-deviceSchedRebalance:
 			if len(e) != 3 {
 				logger.Errorf("Scheduler: received an invalid rebalance event")
@@ -848,7 +849,7 @@ func deviceEventListener(d *Daemon) {
 			}
 
 			logger.Debugf("Scheduler: %s %s %s: re-balancing", e[0], e[1], e[2])
-			deviceTaskBalance(d)
+			deviceTaskBalance(s)
 		}
 	}
 }
