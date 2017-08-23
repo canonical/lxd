@@ -97,9 +97,9 @@ func (slice containerAutostartList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-func containersRestart(d *Daemon) error {
+func containersRestart(s *state.State) error {
 	// Get all the containers
-	result, err := db.ContainersList(d.db, db.CTypeRegular)
+	result, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func containersRestart(d *Daemon) error {
 	containers := []container{}
 
 	for _, name := range result {
-		c, err := containerLoadByName(d.State(), name)
+		c, err := containerLoadByName(s, name)
 		if err != nil {
 			return err
 		}
@@ -142,24 +142,24 @@ func containersRestart(d *Daemon) error {
 	return nil
 }
 
-func containersShutdown(d *Daemon) error {
+func containersShutdown(s *state.State) error {
 	var wg sync.WaitGroup
 
 	// Get all the containers
-	results, err := db.ContainersList(d.db, db.CTypeRegular)
+	results, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Reset all container states
-	_, err = db.Exec(d.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	_, err = db.Exec(s.DB, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
 	if err != nil {
 		return err
 	}
 
 	for _, r := range results {
 		// Load the container
-		c, err := containerLoadByName(d.State(), r)
+		c, err := containerLoadByName(s, r)
 		if err != nil {
 			return err
 		}

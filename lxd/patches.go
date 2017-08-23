@@ -283,7 +283,7 @@ func patchStorageApi(name string, d *Daemon) error {
 	daemonConfig["storage.zfs_remove_snapshots"].Set(d, "")
 	daemonConfig["storage.zfs_use_refquota"].Set(d, "")
 
-	return SetupStorageDriver(d, true)
+	return SetupStorageDriver(d.State(), true)
 }
 
 func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string, defaultStorageTypeName string, cRegular []string, cSnapshots []string, imgPublic []string, imgPrivate []string) error {
@@ -335,7 +335,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		}
 		poolID = tmp
 
-		s, err := storagePoolInit(d, defaultPoolName)
+		s, err := storagePoolInit(d.State(), defaultPoolName)
 		if err != nil {
 			return err
 		}
@@ -632,7 +632,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		}
 		poolID = tmp
 
-		s, err := storagePoolInit(d, defaultPoolName)
+		s, err := storagePoolInit(d.State(), defaultPoolName)
 		if err != nil {
 			return err
 		}
@@ -2416,8 +2416,9 @@ func patchUpdateFromV10(d *Daemon) error {
 		}
 
 		logger.Debugf("Restarting all the containers following directory rename")
-		containersShutdown(d)
-		containersRestart(d)
+		s := d.State()
+		containersShutdown(s)
+		containersRestart(s)
 	}
 
 	return nil

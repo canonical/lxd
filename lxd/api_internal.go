@@ -205,7 +205,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	if poolErr == db.NoSuchObjectError {
 		// Create the storage pool db entry if it doesn't exist.
-		err := storagePoolDBCreate(d, containerPoolName, "", backup.Pool.Driver, backup.Pool.Config)
+		err := storagePoolDBCreate(d.State(), containerPoolName, "", backup.Pool.Driver, backup.Pool.Config)
 		if err != nil {
 			return SmartError(err)
 		}
