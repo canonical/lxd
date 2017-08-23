@@ -9,6 +9,9 @@ and is built around a very powerful, yet pretty simple, REST API.
 To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!  
 Then if you want to run it locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/).
 
+Release announcements can be found here: https://linuxcontainers.org/lxd/news/  
+And the release tarballs here: https://linuxcontainers.org/lxd/downloads/
+
 ## Status
 Type            | Service               | Status
 ---             | ---                   | ---
