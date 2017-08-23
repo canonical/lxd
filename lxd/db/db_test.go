@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -215,7 +216,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	s.Nil(err)
 
 	// Run the upgrade from V6 code
-	err = dbUpdateFromV6(5, 6, db)
+	err = query.Transaction(db, updateFromV6)
 	s.Nil(err)
 
 	// Make sure the inserted data is still there.
