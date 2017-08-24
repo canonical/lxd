@@ -410,7 +410,6 @@ func GroupId(name string) (int, error) {
 	if buf == nil {
 		return -1, fmt.Errorf("allocation failed")
 	}
-	defer C.free(buf)
 
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
@@ -421,7 +420,7 @@ again:
 		(*C.char)(buf),
 		bufSize,
 		&result)
-	if rv < 0 {
+	if rv != 0 {
 		// OOM killer will take care of us if we end up doing this too
 		// often.
 		if errno == syscall.ERANGE {
@@ -433,8 +432,11 @@ again:
 			buf = tmp
 			goto again
 		}
+
+		C.free(buf)
 		return -1, fmt.Errorf("failed group lookup: %s", syscall.Errno(rv))
 	}
+	C.free(buf)
 
 	if result == nil {
 		return -1, fmt.Errorf("unknown group %s", name)
