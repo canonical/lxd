@@ -30,8 +30,8 @@ test_network() {
   v6_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)00"
   lxc config device set nettest eth0 ipv4.address "${v4_addr}"
   lxc config device set nettest eth0 ipv6.address "${v6_addr}"
-  grep -q "${v4_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts"
-  grep -q "${v6_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts"
+  grep -q "${v4_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts/nettest"
+  grep -q "${v6_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts/nettest"
   lxc start nettest
 
   SUCCESS=0

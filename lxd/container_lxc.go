@@ -399,7 +399,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	}
 
 	// Update lease files
-	networkUpdateStatic(s, "")
+	networkUpdateStatic(s, "", c.name)
 
 	logger.Info("Created container", ctxMap)
 
@@ -2879,7 +2879,7 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Update network files
-	networkUpdateStatic(c.state, "")
+	networkUpdateStatic(c.state, "", c.name)
 	for k, m := range c.expandedDevices {
 		if m["type"] != "nic" || m["nictype"] != "bridged" || (m["ipv4.address"] == "" && m["ipv6.address"] == "") {
 			continue
@@ -4073,7 +4073,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	if needsUpdate {
-		networkUpdateStatic(c.state, "")
+		networkUpdateStatic(c.state, "", c.name)
 	}
 
 	// Success, update the closure to mark that the changes should be kept.
