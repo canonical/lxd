@@ -769,6 +769,10 @@ func (n *network) Start() error {
 		"--except-interface=lo",
 		fmt.Sprintf("--interface=%s", n.name)}
 
+	if !debug {
+		dnsmasqCmd = append(dnsmasqCmd, []string{"--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra"}...)
+	}
+
 	// Configure IPv4
 	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
 		// Parse the subnet
