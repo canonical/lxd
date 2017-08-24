@@ -724,22 +724,29 @@ func networkKillDnsmasq(name string, reload bool) error {
 	return nil
 }
 
-func networkUpdateStatic(s *state.State, name string) error {
+func networkUpdateStatic(s *state.State, networkName string, containerName string) error {
 	// Get all the containers
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
-	if err != nil {
-		return err
+	containers := []string{}
+	if containerName == "" {
+		var err error
+		containers, err = db.ContainersList(s.DB, db.CTypeRegular)
+		if err != nil {
+			return err
+		}
+	} else {
+		containers = []string{containerName}
 	}
 
+	// Get all the networks
 	networks := []string{}
-	if name == "" {
-		// Get all the networks
+	if networkName == "" {
+		var err error
 		networks, err = db.Networks(s.DB)
 		if err != nil {
 			return err
 		}
 	} else {
-		networks = []string{name}
+		networks = []string{networkName}
 	}
 
 	// Build a list of dhcp host entries
@@ -779,7 +786,7 @@ func networkUpdateStatic(s *state.State, name string) error {
 		entries, _ := entries[network]
 
 		// Skip networks we don't manage (or don't have DHCP enabled)
-		if !shared.PathExists(shared.VarPath("networks", network, "dnsmasq.hosts")) {
+		if !shared.PathExists(shared.VarPath("networks", network, "dnsmasq.pid")) {
 			continue
 		}
 
@@ -789,14 +796,32 @@ func networkUpdateStatic(s *state.State, name string) error {
 		}
 		config := n.Config()
 
-		// Update the file
-		if entries == nil {
-			err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts"), []byte(""), 0)
+		// Clean everything up on resets
+		if containerName == "" {
+			// Wipe everything clean
+			entries, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
 			if err != nil {
 				return err
 			}
+
+			for _, entry := range entries {
+				err = os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", entry.Name()))
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		if containerName != "" && len(entries) == 0 {
+			// Wipe the one container clean
+			if shared.PathExists(shared.VarPath("networks", network, "dnsmasq.hosts", containerName)) {
+				err = os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", containerName))
+				if err != nil {
+					return err
+				}
+			}
 		} else {
-			lines := []string{}
+			// Apply the changes
 			for _, entry := range entries {
 				hwaddr := entry[0]
 				cName := entry[1]
@@ -806,7 +831,7 @@ func networkUpdateStatic(s *state.State, name string) error {
 				line := hwaddr
 
 				if ipv4Address != "" {
-					line += fmt.Sprintf(",id:*,%s", ipv4Address)
+					line += fmt.Sprintf(",%s", ipv4Address)
 				}
 
 				if ipv6Address != "" {
@@ -821,12 +846,10 @@ func networkUpdateStatic(s *state.State, name string) error {
 					continue
 				}
 
-				lines = append(lines, line)
-			}
-
-			err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts"), []byte(strings.Join(lines, "\n")+"\n"), 0)
-			if err != nil {
-				return err
+				err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", cName), []byte(line+"\n"), 0644)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

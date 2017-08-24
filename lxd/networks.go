@@ -769,6 +769,10 @@ func (n *network) Start() error {
 		"--except-interface=lo",
 		fmt.Sprintf("--interface=%s", n.name)}
 
+	if !debug {
+		dnsmasqCmd = append(dnsmasqCmd, []string{"--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra"}...)
+	}
+
 	// Configure IPv4
 	if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
 		// Parse the subnet
@@ -1199,14 +1203,6 @@ func (n *network) Start() error {
 		}
 		dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--conf-file=%s", shared.VarPath("networks", n.name, "dnsmasq.raw")))
 
-		// Create DHCP hosts file
-		if !shared.PathExists(shared.VarPath("networks", n.name, "dnsmasq.hosts")) {
-			err = ioutil.WriteFile(shared.VarPath("networks", n.name, "dnsmasq.hosts"), []byte(""), 0644)
-			if err != nil {
-				return err
-			}
-		}
-
 		// Attempt to drop privileges
 		for _, user := range []string{"lxd", "nobody"} {
 			_, err := shared.UserId(user)
@@ -1216,6 +1212,14 @@ func (n *network) Start() error {
 
 			dnsmasqCmd = append(dnsmasqCmd, []string{"-u", user}...)
 			break
+		}
+
+		// Create DHCP hosts directory
+		if !shared.PathExists(shared.VarPath("networks", n.name, "dnsmasq.hosts")) {
+			err = os.MkdirAll(shared.VarPath("networks", n.name, "dnsmasq.hosts"), 0755)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Check for dnsmasq
@@ -1231,7 +1235,7 @@ func (n *network) Start() error {
 		}
 
 		// Update the static leases
-		err = networkUpdateStatic(n.state, n.name)
+		err = networkUpdateStatic(n.state, n.name, "")
 		if err != nil {
 			return err
 		}
