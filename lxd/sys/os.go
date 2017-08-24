@@ -43,7 +43,10 @@ func NewOS() *OS {
 
 // Init our internal data structures.
 func (s *OS) Init() error {
-	var err error
+	err := s.initDirs()
+	if err != nil {
+		return err
+	}
 
 	s.Architectures, err = util.GetArchitectures()
 	if err != nil {
