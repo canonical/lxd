@@ -186,6 +186,16 @@ In order to run Docker inside a LXD container the `security.nesting` property of
 
     lxc config set <container> security.nesting true
 
+Note that LXD containers cannot load kernel modules, so depending on your Docker configuration  
+you may need to have the needed extra kernel modules loaded by the host.
+
+You can do so by setting a comma seperate list of kernel modules that your container needs with:
+
+    lxc config set <container> linux.kernel_modules <modules>
+
+We have also received some reports that creating a "/.dockerenv" file in your container  
+can help Docker ignore some errors it's getting due to running in a nested environment.
+
 ## Hacking on LXD
 ### Directly using the REST API
 The LXD REST API can be used locally via unauthenticated Unix socket or remotely via SSL encapsulated TCP.
