@@ -47,6 +47,7 @@ var patches = []patch{
 	{name: "storage_api_insert_zfs_driver", run: patchStorageApiInsertZfsDriver},
 	{name: "storage_zfs_noauto", run: patchStorageZFSnoauto},
 	{name: "storage_zfs_volume_size", run: patchStorageZFSVolumeSize},
+	{name: "network_dnsmasq_hosts", run: patchNetworkDnsmasqHosts},
 }
 
 type patch struct {
@@ -2588,6 +2589,26 @@ func patchUpdateFromV30(d *Daemon) error {
 			}
 
 			err = os.Chown(shared.VarPath("containers", entry.Name()), 0, 0)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func patchNetworkDnsmasqHosts(name string, d *Daemon) error {
+	// Get the list of networks
+	networks, err := db.Networks(d.db)
+	if err != nil {
+		return err
+	}
+
+	for _, network := range networks {
+		// Remove the old dhcp-hosts file (will be re-generated on startup)
+		if shared.PathExists(shared.VarPath("networks", network, "dnsmasq.hosts")) {
+			err = os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts"))
 			if err != nil {
 				return err
 			}
