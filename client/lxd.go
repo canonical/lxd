@@ -76,10 +76,7 @@ func (r *ProtocolLXD) RawQuery(method string, path string, data interface{}, ETa
 //
 // This should only be used by internal LXD tools.
 func (r *ProtocolLXD) RawWebsocket(path string) (*websocket.Conn, error) {
-	// Generate the URL
-	url := fmt.Sprintf("%s%s", r.httpHost, path)
-
-	return r.rawWebsocket(url)
+	return r.websocket(path)
 }
 
 // Internal functions

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"net/url"
+	"strings"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -18,13 +18,14 @@ func cmdMigrateDumpSuccess(args []string) error {
 		return err
 	}
 
-	conn, err := c.RawWebsocket(fmt.Sprintf("/1.0/operations/%s/websocket?%s", args[1], url.Values{"secret": []string{args[2]}}))
+	url := fmt.Sprintf("%s/websocket?secret=%s", strings.TrimPrefix(args[1], "/1.0"), args[2])
+	conn, err := c.RawWebsocket(url)
 	if err != nil {
 		return err
 	}
 	conn.Close()
 
-	resp, _, err := c.RawQuery("GET", fmt.Sprintf("/1.0/operations/%s/wait", args[1]), nil, "")
+	resp, _, err := c.RawQuery("GET", fmt.Sprintf("%s/wait", args[1]), nil, "")
 	if err != nil {
 		return err
 	}
