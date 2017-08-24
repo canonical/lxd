@@ -32,7 +32,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -322,14 +321,6 @@ func (d *Daemon) Init() error {
 	err := os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
 	if err != nil {
 		return err
-	}
-
-	/* Setup logging if that wasn't done before */
-	if logger.Log == nil {
-		logger.Log, err = logging.GetLogger("", "", true, true, nil)
-		if err != nil {
-			return err
-		}
 	}
 
 	/* Print welcome message */
