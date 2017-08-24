@@ -377,47 +377,6 @@ func (d *Daemon) Init() error {
 			log.Ctx{"path": shared.VarPath("")})
 	}
 
-	/* Make sure all our directories are available */
-	if err := os.MkdirAll(shared.VarPath(), 0711); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.CachePath(), 0700); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("containers"), 0711); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("devices"), 0711); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("devlxd"), 0755); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("images"), 0700); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.LogPath(), 0700); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("security"), 0700); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("shmounts"), 0711); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("snapshots"), 0700); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("networks"), 0711); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("disks"), 0700); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(shared.VarPath("storage-pools"), 0711); err != nil {
-		return err
-	}
-
 	/* Initialize the operating system facade */
 	err = d.os.Init()
 	if err != nil {
