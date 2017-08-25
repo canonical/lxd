@@ -12,6 +12,27 @@ import (
 	"github.com/lxc/lxd/lxd/db/schema"
 )
 
+// Create a new Schema by specifying an explicit map from versions to Update
+// functions.
+func TestNewFromMap(t *testing.T) {
+	db := newDB(t)
+	schema := schema.NewFromMap(map[int]schema.Update{
+		1: updateCreateTable,
+		2: updateInsertValue,
+	})
+	assert.NoError(t, schema.Ensure(db))
+}
+
+// Panic if there are missing versions in the map.
+func TestNewFromMap_MissingVersions(t *testing.T) {
+	assert.Panics(t, func() {
+		schema.NewFromMap(map[int]schema.Update{
+			1: updateCreateTable,
+			3: updateInsertValue,
+		})
+	}, "updates map misses version 2")
+}
+
 // If the database schema version is more recent than our update series, an
 // error is returned.
 func TestSchemaEnsure_VersionMoreRecentThanExpected(t *testing.T) {
