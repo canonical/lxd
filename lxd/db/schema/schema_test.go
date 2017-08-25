@@ -159,6 +159,46 @@ func TestSchemaEnsure_FailingHook(t *testing.T) {
 	assert.NotContains(t, tables, "test")
 }
 
+// The SQL text returns by Dump() can be used to create the schema from
+// scratch, without applying each individual update.
+func TestSchemaDump(t *testing.T) {
+	schema, db := newSchemaAndDB(t)
+	schema.Add(updateCreateTable)
+	schema.Add(updateAddColumn)
+	assert.NoError(t, schema.Ensure(db))
+
+	dump, err := schema.Dump(db)
+	assert.NoError(t, err)
+
+	_, db = newSchemaAndDB(t)
+	_, err = db.Exec(dump)
+	assert.NoError(t, err)
+
+	tx, err := db.Begin()
+	assert.NoError(t, err)
+
+	// All update versions are in place.
+	versions, err := query.SelectIntegers(tx, "SELECT version FROM schema")
+	assert.NoError(t, err)
+	assert.Equal(t, []int{2}, versions)
+
+	// Both the table added by the first update and the extra column added
+	// by the second update are there.
+	_, err = tx.Exec("SELECT id, name FROM test")
+	assert.NoError(t, err)
+}
+
+// If not all updates are applied, Dump() returns an error.
+func TestSchemaDump_MissingUpdatees(t *testing.T) {
+	schema, db := newSchemaAndDB(t)
+	schema.Add(updateCreateTable)
+	assert.NoError(t, schema.Ensure(db))
+	schema.Add(updateAddColumn)
+
+	_, err := schema.Dump(db)
+	assert.EqualError(t, err, "update level is 1, expected 2")
+}
+
 // Return a new in-memory SQLite database.
 func newDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite3", ":memory:")
@@ -185,6 +225,12 @@ func updateCreateTable(tx *sql.Tx) error {
 // An update that inserts a value into the test table.
 func updateInsertValue(tx *sql.Tx) error {
 	_, err := tx.Exec("INSERT INTO test VALUES (1)")
+	return err
+}
+
+// An update that adds a column to the test tabble.
+func updateAddColumn(tx *sql.Tx) error {
+	_, err := tx.Exec("ALTER TABLE test ADD COLUMN name TEXT")
 	return err
 }
 
