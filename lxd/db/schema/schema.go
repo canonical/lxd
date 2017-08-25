@@ -3,6 +3,7 @@ package schema
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 
 	"github.com/pkg/errors"
 
@@ -25,6 +26,41 @@ type Hook func(int, *sql.Tx) error
 
 // New creates a new schema Schema with the given updates.
 func New(updates []Update) *Schema {
+	return &Schema{
+		updates: updates,
+	}
+}
+
+// NewFromMap creates a new schema Schema with the updates specified in the
+// given map. The keys of the map are schema versions that when upgraded will
+// trigger the associated Update value. It's required that the minimum key in
+// the map is 1, and if key N is present then N-1 is present too, with N>1
+// (i.e. there are no missing versions).
+//
+// NOTE: the regular New() constructor would be formally enough, but for extra
+//       clarity we also support a map that indicates the version explicitely,
+//       see also PR #3704.
+func NewFromMap(versionsToUpdates map[int]Update) *Schema {
+	// Collect all version keys.
+	versions := []int{}
+	for version := range versionsToUpdates {
+		versions = append(versions, version)
+	}
+
+	// Sort the versions,
+	sort.Sort(sort.IntSlice(versions))
+
+	// Build the updates slice.
+	updates := []Update{}
+	for i, version := range versions {
+		// Assert that we start from 1 and there are no gaps.
+		if version != i+1 {
+			panic(fmt.Sprintf("updates map misses version %d", i+1))
+		}
+
+		updates = append(updates, versionsToUpdates[version])
+	}
+
 	return &Schema{
 		updates: updates,
 	}
