@@ -347,6 +347,7 @@ func getAAProfileContent(c container) string {
   deny /sys/kernel/security?*{,/**} wklx,
   deny /sys/kernel?*{,/**} wklx,
 `
+		profile += fmt.Sprintf("  change_profile -> \":%s:*\",\n", AANamespace(c))
 		profile += fmt.Sprintf("  change_profile -> \":%s://*\",\n", AANamespace(c))
 	} else {
 		profile += "\n  ### Feature: apparmor stacking (not present)\n"

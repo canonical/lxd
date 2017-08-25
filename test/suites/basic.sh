@@ -365,7 +365,7 @@ test_basic_usage() {
 
     if [ "${MAJOR}" -gt "1" ] || ([ "${MAJOR}" = "1" ] && [ "${MINOR}" -ge "2" ]); then
       aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
-      aa-status | grep ":${aa_namespace}://unconfined"
+      aa-status | grep -q ":${aa_namespace}:unconfined" || aa-status | grep -q ":${aa_namespace}://unconfined"
       lxc stop lxd-apparmor-test --force
       ! aa-status | grep -q ":${aa_namespace}:"
     else
