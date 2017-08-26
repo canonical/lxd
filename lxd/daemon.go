@@ -281,7 +281,6 @@ func (d *Daemon) Init() error {
 	d.readyChan = make(chan bool)
 	d.shutdownChan = make(chan bool)
 
-	/* Set the executable path */
 	/* Set the LVM environment */
 	err := os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
 	if err != nil {
@@ -318,24 +317,22 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
-	if !d.os.MockMode {
-		/* Setup the storage driver */
-		err = SetupStorageDriver(d)
-		if err != nil {
-			return fmt.Errorf("Failed to setup storage: %s", err)
-		}
+	/* Setup the storage driver */
+	err = SetupStorageDriver(d)
+	if err != nil {
+		return fmt.Errorf("Failed to setup storage: %s", err)
+	}
 
-		/* Apply all patches */
-		err = patchesApplyAll(d)
-		if err != nil {
-			return err
-		}
+	/* Apply all patches */
+	err = patchesApplyAll(d)
+	if err != nil {
+		return err
+	}
 
-		/* Restore simplestreams cache */
-		err = imageLoadStreamCache(d)
-		if err != nil {
-			return err
-		}
+	/* Restore simplestreams cache */
+	err = imageLoadStreamCache(d) // No-op if no simplestreams.yaml metadata file exists.
+	if err != nil {
+		return err
 	}
 
 	/* Log expiry */
