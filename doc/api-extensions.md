@@ -325,3 +325,8 @@ Its value is expanded to LXD resource limits.
 
 ## storage\_volatile\_initial\_source
 This records the actual source passed to LXD during storage pool creation.
+
+## storage\_ceph\_force\_osd\_reuse
+This introduces the "ceph.osd.force_reuse" property for the ceph storage
+driver. When set to "true" LXD will reuse a osd storage pool that is already in
+use by another LXD instance.
