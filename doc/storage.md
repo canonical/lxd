@@ -11,6 +11,7 @@ size                            | string    | appropriate driver and source     
 source                          | string    | -                                 | -                          | storage                            | Path to block device or loop file or filesystem entry
 btrfs.mount\_options            | string    | btrfs driver                      | user\_subvol\_rm\_allowed  | storage\_btrfs\_mount\_options     | Mount options for block devices
 ceph.cluster\_name              | string    | ceph driver                       | ceph                       | storage\_driver\_ceph              | Name of the ceph cluster in which to create new storage pools.
+ceph.osd.force\_reuse           | bool      | ceph driver                       | false                      | storage\_ceph\_force\_osd\_reuse   | Force using an osd storage pool that is already in use by another LXD instance.
 ceph.osd.pool\_name             | string    | ceph driver                       | name of the pool           | storage\_driver\_ceph              | Name of the osd storage pool.
 ceph.osd.pg\_num                | string    | ceph driver                       | 32                         | storage\_driver\_ceph              | Number of placement groups for the osd storage pool.
 ceph.rbd.clone\_copy            | string    | ceph driver                       | true                       | storage\_driver\_ceph              | Whether to use RBD lightweight clones rather than full dataset copies.
@@ -168,7 +169,9 @@ lxc storage create pool2 dir source=/data/lxd
 - Note that sharing the same osd storage pool between multiple LXD instances is
   not supported. LXD only allows sharing of an OSD storage pool between
   multiple LXD instances only for backup purposes of existing containers via
-  `lxd import`.
+  `lxd import`. In line with this, LXD requires the "ceph.osd.force_reuse"
+  property to be set to true. If not set, LXD will refuse to reuse an osd
+  storage pool it detected as being in use by another LXD instance.
 
 #### The following commands can be used to create ZFS storage pools
 
