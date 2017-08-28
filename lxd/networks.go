@@ -1235,7 +1235,7 @@ func (n *network) Start() error {
 		}
 
 		// Update the static leases
-		err = networkUpdateStatic(n.state, n.name, "")
+		err = networkUpdateStatic(n.state, n.name)
 		if err != nil {
 			return err
 		}
