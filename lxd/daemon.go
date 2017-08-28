@@ -1002,17 +1002,23 @@ func initializeDbObject(d *Daemon, path string) error {
 
 	// Apply any database update.
 	//
-	// NOTE: we use the postApply parameter to run a couple of
-	// legacy non-db updates that were introduced before the
+	// NOTE: we use the legacyPatches parameter to run a few
+	// legacy non-db updates that were in place before the
 	// patches mechanism was introduced in lxd/patches.go. The
 	// rest of non-db patches will be applied separately via
 	// patchesApplyAll. See PR #3322 for more details.
-	err = db.UpdatesApplyAll(d.db, true, func(version int) error {
-		if legacyPatch, ok := legacyPatches[version]; ok {
-			return legacyPatch(d)
+	legacy := map[int]*db.LegacyPatch{}
+	for i, patch := range legacyPatches {
+		legacy[i] = &db.LegacyPatch{
+			Hook: func() error {
+				return patch(d)
+			},
 		}
-		return nil
-	})
+	}
+	for _, i := range legacyPatchesNeedingDB {
+		legacy[i].NeedsDB = true
+	}
+	err = db.UpdatesApplyAll(d.db, true, legacy)
 	if err != nil {
 		return err
 	}
