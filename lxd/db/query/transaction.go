@@ -3,15 +3,13 @@ package query
 import (
 	"database/sql"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // Transaction executes the given function within a database transaction.
 func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
 	tx, err := db.Begin()
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 
 	err = f(tx)
@@ -28,9 +26,7 @@ func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
 func rollback(tx *sql.Tx, reason error) error {
 	err := tx.Rollback()
 	if err != nil {
-		return errors.Wrap(
-			reason,
-			fmt.Sprintf("failed to rollback transaction after error (%v)", reason))
+		return fmt.Errorf("failed to rollback transaction after error (%v)", reason)
 	}
 
 	return reason

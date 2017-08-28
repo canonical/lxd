@@ -6,8 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db/query"
 )
 
@@ -148,12 +146,12 @@ INSERT INTO schema (version, updated_at) VALUES (%d, strftime("%%s"))
 func ensureSchemaTableExists(tx *sql.Tx) error {
 	exists, err := doesSchemaTableExist(tx)
 	if err != nil {
-		return errors.Wrap(err, "failed to check if schema table is there")
+		return fmt.Errorf("failed to check if schema table is there: %v", err)
 	}
 	if !exists {
 		err := createSchemaTable(tx)
 		if err != nil {
-			return errors.Wrap(err, "failed to create schema table")
+			return fmt.Errorf("failed to create schema table: %v", err)
 		}
 	}
 	return nil
@@ -165,7 +163,7 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch update versions")
+		return fmt.Errorf("failed to fetch update versions: %v", err)
 	}
 	if len(versions) > 1 {
 		return fmt.Errorf(
@@ -179,9 +177,7 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 	if len(versions) == 0 {
 		err := insertSchemaVersion(tx, len(updates))
 		if err != nil {
-			return errors.Wrap(
-				err,
-				fmt.Sprintf("failed to insert version %d", len(updates)))
+			return fmt.Errorf("failed to insert version %d: %v", len(updates), err)
 		}
 	} else {
 		current = versions[0]
@@ -192,9 +188,7 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 		}
 		err := updateSchemaVersion(tx, current, len(updates))
 		if err != nil {
-			return errors.Wrap(
-				err,
-				fmt.Sprintf("failed to update version %d", current))
+			return fmt.Errorf("failed to update version %d: %v", current, err)
 		}
 	}
 
@@ -208,16 +202,12 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 		if hook != nil {
 			err := hook(current, tx)
 			if err != nil {
-				return errors.Wrap(
-					err,
-					fmt.Sprintf("failed to execute hook (version %d)", current))
+				return fmt.Errorf("failed to execute hook (version %d): %v", current, err)
 			}
 		}
 		err := update(tx)
 		if err != nil {
-			return errors.Wrap(
-				err,
-				fmt.Sprintf("failed to apply update %d", current))
+			return fmt.Errorf("failed to apply update %d: %v", current, err)
 		}
 		current++
 	}
@@ -229,7 +219,7 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 func checkAllUpdatesAreApplied(tx *sql.Tx, updates []Update) error {
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch update versions")
+		return fmt.Errorf("failed to fetch update versions: %v", err)
 	}
 	if len(versions) != 1 {
 		return fmt.Errorf("schema table contains %d rows, expected 1", len(versions))
