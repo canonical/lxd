@@ -159,37 +159,23 @@ func ensureSchemaTableExists(tx *sql.Tx) error {
 
 // Apply any pending update that was not yet applied.
 func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
-	current := 0 // Current update level in the database
-
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch update versions: %v", err)
 	}
-	if len(versions) > 1 {
-		return fmt.Errorf(
-			"schema table contains %d rows, expected at most one", len(versions))
-	}
 
-	// If this is a fresh database insert a row with this schema's update
-	// level, otherwise update the existing row (it's okay to do this
-	// before actually running the updates since the transaction will be
-	// rolled back in case of errors).
-	if len(versions) == 0 {
-		err := insertSchemaVersion(tx, len(updates))
+	current := 0
+	if len(versions) > 0 {
+		err = checkSchemaVersionsHaveNoHoles(versions)
 		if err != nil {
-			return fmt.Errorf("failed to insert version %d: %v", len(updates), err)
+			return err
 		}
-	} else {
-		current = versions[0]
-		if current > len(updates) {
-			return fmt.Errorf(
-				"schema version '%d' is more recent than expected '%d'",
-				current, len(updates))
-		}
-		err := updateSchemaVersion(tx, current, len(updates))
-		if err != nil {
-			return fmt.Errorf("failed to update version %d: %v", current, err)
-		}
+		current = versions[len(versions)-1] // Highest recorded version
+	}
+	if current > len(updates) {
+		return fmt.Errorf(
+			"schema version '%d' is more recent than expected '%d'",
+			current, len(updates))
 	}
 
 	// If there are no updates, there's nothing to do.
@@ -210,8 +196,27 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 			return fmt.Errorf("failed to apply update %d: %v", current, err)
 		}
 		current++
+
+		err = insertSchemaVersion(tx, current)
+		if err != nil {
+			return fmt.Errorf("failed to insert version %d", current)
+		}
 	}
 
+	return nil
+}
+
+// Check that the given list of update version numbers doesn't have "holes",
+// that is each version equal the preceeding version plus 1.
+func checkSchemaVersionsHaveNoHoles(versions []int) error {
+	// Sanity check that there are no "holes" in the recorded
+	// versions.
+	for i := range versions[:len(versions)-1] {
+		if versions[i+1] != versions[i]+1 {
+			return fmt.Errorf(
+				"missing updates: %d -> %d", versions[i], versions[i+1])
+		}
+	}
 	return nil
 }
 
@@ -221,11 +226,19 @@ func checkAllUpdatesAreApplied(tx *sql.Tx, updates []Update) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch update versions: %v", err)
 	}
-	if len(versions) != 1 {
-		return fmt.Errorf("schema table contains %d rows, expected 1", len(versions))
+
+	if len(versions) == 0 {
+		return fmt.Errorf("expected schema table to contain at least one row")
 	}
-	if versions[0] != len(updates) {
-		return fmt.Errorf("update level is %d, expected %d", versions[0], len(updates))
+
+	err = checkSchemaVersionsHaveNoHoles(versions)
+	if err != nil {
+		return err
+	}
+
+	current := versions[len(versions)-1]
+	if current != len(updates) {
+		return fmt.Errorf("update level is %d, expected %d", current, len(updates))
 	}
 	return nil
 }
