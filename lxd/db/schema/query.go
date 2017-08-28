@@ -68,12 +68,3 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"))
 	_, err := tx.Exec(statement, new)
 	return err
 }
-
-// Update a version in the schema table.
-func updateSchemaVersion(tx *sql.Tx, old, new int) error {
-	statement := `
-UPDATE schema SET version=?, updated_at=strftime("%s") WHERE version=?
-`
-	_, err := tx.Exec(statement, new, old)
-	return err
-}
