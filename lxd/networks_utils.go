@@ -23,7 +23,10 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
+
+var networkStaticLock sync.Mutex
 
 func networkAutoAttach(dbObj *sql.DB, devName string) error {
 	_, dbInfo, err := db.NetworkGetInterface(dbObj, devName)
@@ -724,17 +727,15 @@ func networkKillDnsmasq(name string, reload bool) error {
 	return nil
 }
 
-func networkUpdateStatic(s *state.State, networkName string, containerName string) error {
+func networkUpdateStatic(s *state.State, networkName string) error {
+	// We don't want to race with ourselves here
+	networkStaticLock.Lock()
+	defer networkStaticLock.Unlock()
+
 	// Get all the containers
-	containers := []string{}
-	if containerName == "" {
-		var err error
-		containers, err = db.ContainersList(s.DB, db.CTypeRegular)
-		if err != nil {
-			return err
-		}
-	} else {
-		containers = []string{containerName}
+	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	if err != nil {
+		return err
 	}
 
 	// Get all the networks
@@ -796,60 +797,80 @@ func networkUpdateStatic(s *state.State, networkName string, containerName strin
 		}
 		config := n.Config()
 
-		// Clean everything up on resets
-		if containerName == "" {
-			// Wipe everything clean
-			entries, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
+		// Wipe everything clean
+		files, err := ioutil.ReadDir(shared.VarPath("networks", network, "dnsmasq.hosts"))
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range files {
+			err = os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", entry.Name()))
 			if err != nil {
 				return err
 			}
-
-			for _, entry := range entries {
-				err = os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", entry.Name()))
-				if err != nil {
-					return err
-				}
-			}
 		}
 
-		if containerName != "" && len(entries) == 0 {
-			// Wipe the one container clean
-			if shared.PathExists(shared.VarPath("networks", network, "dnsmasq.hosts", containerName)) {
-				err = os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", containerName))
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			// Apply the changes
-			for _, entry := range entries {
-				hwaddr := entry[0]
-				cName := entry[1]
-				ipv4Address := entry[2]
-				ipv6Address := entry[3]
+		// Apply the changes
+		for entryIdx, entry := range entries {
+			hwaddr := entry[0]
+			cName := entry[1]
+			ipv4Address := entry[2]
+			ipv6Address := entry[3]
+			line := hwaddr
 
-				line := hwaddr
-
-				if ipv4Address != "" {
-					line += fmt.Sprintf(",%s", ipv4Address)
-				}
-
-				if ipv6Address != "" {
-					line += fmt.Sprintf(",[%s]", ipv6Address)
-				}
-
-				if config["dns.mode"] == "" || config["dns.mode"] == "managed" {
-					line += fmt.Sprintf(",%s", cName)
-				}
-
-				if line == hwaddr {
+			// Look for duplicates
+			duplicate := false
+			for iIdx, i := range entries {
+				if entry[1] == i[1] {
+					// Skip ourselves
 					continue
 				}
 
-				err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", cName), []byte(line+"\n"), 0644)
-				if err != nil {
-					return err
+				if entry[0] == i[0] {
+					// Find broken configurations
+					logger.Errorf("Duplicate MAC detected: %s and %s", entry[1], i[1])
 				}
+
+				if i[2] == "" && i[3] == "" {
+					// Skip unconfigured
+					continue
+				}
+
+				if entry[2] == i[2] && entry[3] == i[3] {
+					// Find identical containers (copies with static configuration)
+					if entryIdx > iIdx {
+						duplicate = true
+					} else {
+						line = fmt.Sprintf("%s,%s", line, i[0])
+						logger.Debugf("Found containers with duplicate IPv4/IPv6: %s and %s", entry[1], i[1])
+					}
+				}
+			}
+
+			if duplicate {
+				continue
+			}
+
+			// Generate the dhcp-host line
+			if ipv4Address != "" {
+				line += fmt.Sprintf(",%s", ipv4Address)
+			}
+
+			if ipv6Address != "" {
+				line += fmt.Sprintf(",[%s]", ipv6Address)
+			}
+
+			if config["dns.mode"] == "" || config["dns.mode"] == "managed" {
+				line += fmt.Sprintf(",%s", cName)
+			}
+
+			if line == hwaddr {
+				continue
+			}
+
+			err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", cName), []byte(line+"\n"), 0644)
+			if err != nil {
+				return err
 			}
 		}
 

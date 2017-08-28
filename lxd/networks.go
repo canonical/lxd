@@ -665,8 +665,19 @@ func (n *network) Start() error {
 				continue
 			}
 
+			unused := true
 			addrs, err := iface.Addrs()
-			if err == nil && len(addrs) != 0 {
+			if err == nil {
+				for _, addr := range addrs {
+					ip, _, err := net.ParseCIDR(addr.String())
+					if ip != nil && err == nil && ip.IsGlobalUnicast() {
+						unused = false
+						break
+					}
+				}
+			}
+
+			if !unused {
 				return fmt.Errorf("Only unconfigured network interfaces can be bridged")
 			}
 
@@ -1235,7 +1246,7 @@ func (n *network) Start() error {
 		}
 
 		// Update the static leases
-		err = networkUpdateStatic(n.state, n.name, "")
+		err = networkUpdateStatic(n.state, n.name)
 		if err != nil {
 			return err
 		}
