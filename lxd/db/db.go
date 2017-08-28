@@ -25,196 +25,6 @@ var (
 	NoSuchObjectError = fmt.Errorf("No such object")
 )
 
-// CURRENT_SCHEMA contains the current SQLite SQL Schema.
-const CURRENT_SCHEMA string = `
-CREATE TABLE IF NOT EXISTS certificates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    fingerprint VARCHAR(255) NOT NULL,
-    type INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    certificate TEXT NOT NULL,
-    UNIQUE (fingerprint)
-);
-CREATE TABLE IF NOT EXISTS config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    UNIQUE (key)
-);
-CREATE TABLE IF NOT EXISTS containers (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    architecture INTEGER NOT NULL,
-    type INTEGER NOT NULL,
-    ephemeral INTEGER NOT NULL DEFAULT 0,
-    stateful INTEGER NOT NULL DEFAULT 0,
-    creation_date DATETIME,
-    last_use_date DATETIME,
-    UNIQUE (name)
-);
-CREATE TABLE IF NOT EXISTS containers_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
-    UNIQUE (container_id, key)
-);
-CREATE TABLE IF NOT EXISTS containers_devices (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    type INTEGER NOT NULL default 0,
-    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
-    UNIQUE (container_id, name)
-);
-CREATE TABLE IF NOT EXISTS containers_devices_config (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    container_device_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id) ON DELETE CASCADE,
-    UNIQUE (container_device_id, key)
-);
-CREATE TABLE IF NOT EXISTS containers_profiles (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    profile_id INTEGER NOT NULL,
-    apply_order INTEGER NOT NULL default 0,
-    UNIQUE (container_id, profile_id),
-    FOREIGN KEY (container_id) REFERENCES containers(id) ON DELETE CASCADE,
-    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    cached INTEGER NOT NULL DEFAULT 0,
-    fingerprint VARCHAR(255) NOT NULL,
-    filename VARCHAR(255) NOT NULL,
-    size INTEGER NOT NULL,
-    public INTEGER NOT NULL DEFAULT 0,
-    auto_update INTEGER NOT NULL DEFAULT 0,
-    architecture INTEGER NOT NULL,
-    creation_date DATETIME,
-    expiry_date DATETIME,
-    upload_date DATETIME NOT NULL,
-    last_use_date DATETIME,
-    UNIQUE (fingerprint)
-);
-CREATE TABLE IF NOT EXISTS images_aliases (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    image_id INTEGER NOT NULL,
-    description TEXT,
-    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
-    UNIQUE (name)
-);
-CREATE TABLE IF NOT EXISTS images_properties (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    image_id INTEGER NOT NULL,
-    type INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS images_source (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    image_id INTEGER NOT NULL,
-    server TEXT NOT NULL,
-    protocol INTEGER NOT NULL,
-    certificate TEXT NOT NULL,
-    alias VARCHAR(255) NOT NULL,
-    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS networks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    UNIQUE (name)
-);
-CREATE TABLE IF NOT EXISTS networks_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    network_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    UNIQUE (network_id, key),
-    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS patches (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    applied_at DATETIME NOT NULL,
-    UNIQUE (name)
-);
-CREATE TABLE IF NOT EXISTS profiles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    UNIQUE (name)
-);
-CREATE TABLE IF NOT EXISTS profiles_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    profile_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value VARCHAR(255),
-    UNIQUE (profile_id, key),
-    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS profiles_devices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    profile_id INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    type INTEGER NOT NULL default 0,
-    UNIQUE (profile_id, name),
-    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS profiles_devices_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    profile_device_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    UNIQUE (profile_device_id, key),
-    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS schema (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    version INTEGER NOT NULL,
-    updated_at DATETIME NOT NULL,
-    UNIQUE (version)
-);
-CREATE TABLE IF NOT EXISTS storage_pools (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    driver VARCHAR(255) NOT NULL,
-    UNIQUE (name)
-);
-CREATE TABLE IF NOT EXISTS storage_pools_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    storage_pool_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    UNIQUE (storage_pool_id, key),
-    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS storage_volumes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    storage_pool_id INTEGER NOT NULL,
-    type INTEGER NOT NULL,
-    UNIQUE (storage_pool_id, name, type),
-    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS storage_volumes_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    storage_volume_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    UNIQUE (storage_volume_id, key),
-    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
-);`
-
 func enableForeignKeys(conn *sqlite3.SQLiteConn) error {
 	_, err := conn.Exec("PRAGMA foreign_keys=ON;", nil)
 	return err
@@ -249,13 +59,6 @@ func CreateDb(db *sql.DB, patchNames []string) (err error) {
 		return err
 	}
 
-	// There isn't an entry for schema version, let's put it in.
-	insertStmt := `INSERT INTO schema (version, updated_at) values (?, strftime("%s"));`
-	_, err = db.Exec(insertStmt, GetLatestSchema())
-	if err != nil {
-		return err
-	}
-
 	// Mark all existing patches as applied
 	for _, patchName := range patchNames {
 		PatchesMarkApplied(db, patchName)
@@ -281,11 +84,7 @@ func GetSchema(db *sql.DB) (v int) {
 }
 
 func GetLatestSchema() int {
-	if len(dbUpdates) == 0 {
-		return 0
-	}
-
-	return dbUpdates[len(dbUpdates)-1].version
+	return len(updates)
 }
 
 func IsDbLockedError(err error) bool {
@@ -385,8 +184,8 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 	return nil, fmt.Errorf("DB is locked")
 }
 
-func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
-	rows, err := db.Query(q, args...)
+func doDbQueryScan(qi queryer, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
+	rows, err := qi.Query(q, args...)
 	if err != nil {
 		return [][]interface{}{}, err
 	}
@@ -435,7 +234,12 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
 	return result, nil
 }
 
+type queryer interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+}
+
 /*
+ * . qi anything implementing the querier interface (i.e. either sql.DB or sql.Tx)
  * . q is the database query
  * . inargs is an array of interfaces containing the query arguments
  * . outfmt is an array of interfaces containing the right types of output
@@ -447,9 +251,9 @@ func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface
  * The result will be an array (one per output row) of arrays (one per output argument)
  * of interfaces, containing pointers to the actual output arguments.
  */
-func QueryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
+func QueryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
 	for i := 0; i < 1000; i++ {
-		result, err := doDbQueryScan(db, q, inargs, outfmt)
+		result, err := doDbQueryScan(qi, q, inargs, outfmt)
 		if err == nil {
 			return result, nil
 		}
