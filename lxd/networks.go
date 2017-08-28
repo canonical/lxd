@@ -666,7 +666,7 @@ func (n *network) Start() error {
 			}
 
 			addrs, err := iface.Addrs()
-			if err == nil && len(addrs) != 0 {
+			if err == nil && len(addrs) > 1 {
 				return fmt.Errorf("Only unconfigured network interfaces can be bridged")
 			}
 
