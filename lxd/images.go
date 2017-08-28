@@ -179,11 +179,12 @@ func unpackImage(d *Daemon, imagefname string, destpath string) error {
 func compressFile(path string, compress string) (string, error) {
 	reproducible := []string{"gzip"}
 
-	args := []string{path, "-c"}
+	args := []string{"-c"}
 	if shared.StringInSlice(compress, reproducible) {
 		args = append(args, "-n")
 	}
 
+	args = append(args, path)
 	cmd := exec.Command(compress, args...)
 
 	outfile, err := os.Create(path + ".compressed")
