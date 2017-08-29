@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -959,9 +958,8 @@ type cmdInitBridgeParams struct {
 type reverter func() error
 
 func cmdInit(args *Args) error {
-	context := cmd.NewContext(os.Stdin, os.Stdout, os.Stderr)
 	command := &CmdInit{
-		Context:         context,
+		Context:         cmd.DefaultContext(),
 		Args:            args,
 		RunningInUserns: shared.RunningInUserNS(),
 		SocketPath:      "",
