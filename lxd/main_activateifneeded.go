@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func cmdActivateIfNeeded() error {
+func cmdActivateIfNeeded(args *Args) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")

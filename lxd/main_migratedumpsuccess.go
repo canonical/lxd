@@ -8,9 +8,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func cmdMigrateDumpSuccess(args []string) error {
-	if len(args) != 3 {
-		return fmt.Errorf("bad migrate dump success args %s", args)
+func cmdMigrateDumpSuccess(args *Args) error {
+	if len(args.Params) != 2 {
+		return fmt.Errorf("bad migrate dump success args %s", args.Params)
 	}
 
 	c, err := lxd.ConnectLXDUnix("", nil)
@@ -18,14 +18,14 @@ func cmdMigrateDumpSuccess(args []string) error {
 		return err
 	}
 
-	url := fmt.Sprintf("%s/websocket?secret=%s", strings.TrimPrefix(args[1], "/1.0"), args[2])
+	url := fmt.Sprintf("%s/websocket?secret=%s", strings.TrimPrefix(args.Params[0], "/1.0"), args.Params[1])
 	conn, err := c.RawWebsocket(url)
 	if err != nil {
 		return err
 	}
 	conn.Close()
 
-	resp, _, err := c.RawQuery("GET", fmt.Sprintf("%s/wait", args[1]), nil, "")
+	resp, _, err := c.RawQuery("GET", fmt.Sprintf("%s/wait", args.Params[0]), nil, "")
 	if err != nil {
 		return err
 	}
