@@ -524,7 +524,7 @@ func (d *Daemon) Init() error {
 	}
 
 	// Prepare the list of listeners
-	listeners := util.GetListeners()
+	listeners := util.GetListeners(util.SystemdListenFDsStart)
 	if len(listeners) > 0 {
 		logger.Infof("LXD is socket activated")
 
