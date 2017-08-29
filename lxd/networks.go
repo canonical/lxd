@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"ipaddress"
 
 	"github.com/gorilla/mux"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -668,6 +669,10 @@ func (n *network) Start() error {
 			addrs, err := iface.Addrs()
 			if err == nil && len(addrs) > 1 {
 				return fmt.Errorf("Only unconfigured network interfaces can be bridged")
+			}
+
+			if ipaddress.ip_address(addrs[0]).is_link_local is false {
+				return fmt.Errorf("Only interfaces with just one link-local address can  be bridged")
 			}
 
 			err = networkAttachInterface(n.name, entry)
