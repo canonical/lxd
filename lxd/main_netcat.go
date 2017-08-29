@@ -18,12 +18,12 @@ import (
 // and does unbuffered netcatting of to socket to stdin/stdout. Any arguments
 // after the path to the unix socket are ignored, so that this can be passed
 // directly to rsync as the sync command.
-func cmdNetcat(args []string) error {
-	if len(args) < 3 {
-		return fmt.Errorf("Bad arguments %q", args)
+func cmdNetcat(args *Args) error {
+	if len(args.Params) < 2 {
+		return fmt.Errorf("Bad arguments %q", args.Params)
 	}
 
-	logPath := shared.LogPath(args[2], "netcat.log")
+	logPath := shared.LogPath(args.Params[1], "netcat.log")
 	if shared.PathExists(logPath) {
 		os.Remove(logPath)
 	}
@@ -34,15 +34,15 @@ func cmdNetcat(args []string) error {
 	}
 	defer logFile.Close()
 
-	uAddr, err := net.ResolveUnixAddr("unix", args[1])
+	uAddr, err := net.ResolveUnixAddr("unix", args.Params[0])
 	if err != nil {
-		logFile.WriteString(fmt.Sprintf("Could not resolve unix domain socket \"%s\": %s.\n", args[1], err))
+		logFile.WriteString(fmt.Sprintf("Could not resolve unix domain socket \"%s\": %s.\n", args.Params[0], err))
 		return err
 	}
 
 	conn, err := net.DialUnix("unix", nil, uAddr)
 	if err != nil {
-		logFile.WriteString(fmt.Sprintf("Could not dial unix domain socket \"%s\": %s.\n", args[1], err))
+		logFile.WriteString(fmt.Sprintf("Could not dial unix domain socket \"%s\": %s.\n", args.Params[0], err))
 		return err
 	}
 
@@ -52,7 +52,7 @@ func cmdNetcat(args []string) error {
 	go func() {
 		_, err := io.Copy(eagainWriter{os.Stdout}, eagainReader{conn})
 		if err != nil {
-			logFile.WriteString(fmt.Sprintf("Error while copying from stdout to unix domain socket \"%s\": %s.\n", args[1], err))
+			logFile.WriteString(fmt.Sprintf("Error while copying from stdout to unix domain socket \"%s\": %s.\n", args.Params[0], err))
 		}
 		conn.Close()
 		wg.Done()
@@ -61,7 +61,7 @@ func cmdNetcat(args []string) error {
 	go func() {
 		_, err := io.Copy(eagainWriter{conn}, eagainReader{os.Stdin})
 		if err != nil {
-			logFile.WriteString(fmt.Sprintf("Error while copying from unix domain socket \"%s\" to stdin: %s.\n", args[1], err))
+			logFile.WriteString(fmt.Sprintf("Error while copying from unix domain socket \"%s\" to stdin: %s.\n", args.Params[0], err))
 		}
 	}()
 

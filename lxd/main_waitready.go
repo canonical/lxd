@@ -7,13 +7,13 @@ import (
 	"github.com/lxc/lxd/client"
 )
 
-func cmdWaitReady() error {
+func cmdWaitReady(args *Args) error {
 	var timeout int
 
-	if *argTimeout == -1 {
+	if args.Timeout == -1 {
 		timeout = 15
 	} else {
-		timeout = *argTimeout
+		timeout = args.Timeout
 	}
 
 	finger := make(chan error, 1)

@@ -4,7 +4,7 @@ import (
 	"github.com/lxc/lxd/client"
 )
 
-func cmdReady() error {
+func cmdReady(args *Args) error {
 	c, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return err
