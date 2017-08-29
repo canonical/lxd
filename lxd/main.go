@@ -1,16 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"os"
 	"time"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/cmd"
-	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
-	"github.com/lxc/lxd/shared/version"
 )
 
 // Global variables
@@ -28,13 +23,6 @@ func init() {
 }
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func run() error {
 	// Pupulate a new Args instance by parsing the command line arguments
 	// passed.
 	context := cmd.DefaultContext()
@@ -46,80 +34,40 @@ func run() error {
 	debug = args.Debug
 	verbose = args.Verbose
 
-	if args.Help {
-		context.Output(usage)
-		return nil
-	}
-
-	// Deal with --version right here
-	if args.Version {
-		fmt.Println(version.Version)
-		return nil
-	}
-
-	if len(shared.VarPath("unix.sock")) > 107 {
-		return fmt.Errorf("LXD_DIR is too long, must be < %d", 107-len("unix.sock"))
-	}
-
-	// Configure logging
-	syslog := ""
-	if args.Syslog {
-		syslog = "lxd"
-	}
-
-	handler := eventsHandler{}
-	var err error
-	logger.Log, err = logging.GetLogger(syslog, args.Logfile, args.Verbose, args.Debug, handler)
-	if err != nil {
-		fmt.Printf("%s", err)
-		return nil
-	}
-
 	// Process sub-commands
+	subcommand := cmdDaemon // default sub-command if none is specified
 	if args.Subcommand != "" {
-		// "forkputfile", "forkgetfile", "forkmount" and "forkumount" are handled specially in main_nsexec.go
-		// "forkgetnet" is partially handled in nsexec.go (setns)
-		switch args.Subcommand {
-		// Main commands
-		case "activateifneeded":
-			return cmdActivateIfNeeded()
-		case "daemon":
-			return cmdDaemon(args)
-		case "callhook":
-			return cmdCallHook(args)
-		case "init":
-			return cmdInit(args)
-		case "ready":
-			return cmdReady()
-		case "shutdown":
-			return cmdShutdown(args)
-		case "waitready":
-			return cmdWaitReady(args)
-		case "import":
-			return cmdImport(args)
-
-		// Internal commands
-		case "forkgetnet":
-			return cmdForkGetNet()
-		case "forkmigrate":
-			return cmdForkMigrate(args)
-		case "forkstart":
-			return cmdForkStart(args)
-		case "forkexec":
-			ret, err := cmdForkExec(args)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			}
-			os.Exit(ret)
-		case "netcat":
-			return cmdNetcat(args)
-		case "migratedumpsuccess":
-			return cmdMigrateDumpSuccess(args)
-		}
-	} else {
-		return cmdDaemon(args) // Default subcommand
+		subcommand, _ = subcommands[args.Subcommand]
+	}
+	if subcommand == nil {
+		context.Output(usage)
+		context.Error("error: Unknown arguments\n")
+		os.Exit(1)
 	}
 
-	context.Output(usage)
-	return fmt.Errorf("Unknown arguments")
+	os.Exit(RunSubCommand(subcommand, context, args, eventsHandler{}))
+}
+
+// Index of SubCommand functions by command line name
+//
+// "forkputfile", "forkgetfile", "forkmount" and "forkumount" are handled specially in main_nsexec.go
+// "forkgetnet" is partially handled in nsexec.go (setns)
+var subcommands = map[string]SubCommand{
+	// Main commands
+	"activateifneeded": cmdActivateIfNeeded,
+	"daemon":           cmdDaemon,
+	"callhook":         cmdCallHook,
+	"init":             cmdInit,
+	"ready":            cmdReady,
+	"shutdown":         cmdShutdown,
+	"waitready":        cmdWaitReady,
+	"import":           cmdImport,
+
+	// Internal commands
+	"forkgetnet":         cmdForkGetNet,
+	"forkmigrate":        cmdForkMigrate,
+	"forkstart":          cmdForkStart,
+	"forkexec":           cmdForkExec,
+	"netcat":             cmdNetcat,
+	"migratedumpsuccess": cmdMigrateDumpSuccess,
 }

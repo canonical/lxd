@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func cmdForkGetNet() error {
+func cmdForkGetNet(args *Args) error {
 	networks := map[string]api.ContainerStateNetwork{}
 
 	interfaces, err := net.Interfaces()
