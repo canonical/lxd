@@ -448,6 +448,14 @@ again:
 
 // --- pure Go functions ---
 
+func Major(dev uint64) int {
+	return int(((dev >> 8) & 0xfff) | ((dev >> 32) & (0xfffff000)))
+}
+
+func Minor(dev uint64) int {
+	return int((dev & 0xff) | ((dev >> 12) & (0xffffff00)))
+}
+
 func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	inode uint64, nlink int, err error) {
 	var stat syscall.Stat_t
@@ -462,8 +470,8 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	major = -1
 	minor = -1
 	if stat.Mode&syscall.S_IFBLK != 0 || stat.Mode&syscall.S_IFCHR != 0 {
-		major = int(stat.Rdev / 256)
-		minor = int(stat.Rdev % 256)
+		major = Major(stat.Rdev)
+		minor = Minor(stat.Rdev)
 	}
 
 	return

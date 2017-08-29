@@ -243,8 +243,8 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 					return nil, nil, err
 				}
 				tmpGpu.nvidia.path = nvidiaPath
-				tmpGpu.nvidia.major = int(stat.Rdev / 256)
-				tmpGpu.nvidia.minor = int(stat.Rdev % 256)
+				tmpGpu.nvidia.major = shared.Major(stat.Rdev)
+				tmpGpu.nvidia.minor = shared.Minor(stat.Rdev)
 				tmpGpu.nvidia.id = strconv.Itoa(tmpGpu.nvidia.minor)
 			}
 			gpus = append(gpus, tmpGpu)
@@ -276,8 +276,8 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 			}
 			tmpNividiaGpu := nvidiaGpuDevices{
 				path:  nvidiaPath,
-				major: int(stat.Rdev / 256),
-				minor: int(stat.Rdev % 256),
+				major: shared.Major(stat.Rdev),
+				minor: shared.Minor(stat.Rdev),
 			}
 			nvidiaDevices = append(nvidiaDevices, tmpNividiaGpu)
 		}
@@ -914,8 +914,8 @@ func deviceGetAttributes(path string) (string, int, int, error) {
 	}
 
 	// Return the device information
-	major := int(stat.Rdev / 256)
-	minor := int(stat.Rdev % 256)
+	major := shared.Major(stat.Rdev)
+	minor := shared.Minor(stat.Rdev)
 	return dType, major, minor, nil
 }
 
