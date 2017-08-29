@@ -452,7 +452,7 @@ func Major(dev uint64) int {
 }
 
 func Minor(dev uint64) int {
-	return int((dev & 0xff) | ((dev >> 12) & (0xfff00)))
+	return int((dev & 0xff) | ((dev >> 12) & (0xffffff00)))
 }
 
 func GetFileStat(p string) (uid int, gid int, major int, minor int,
