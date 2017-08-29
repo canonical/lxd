@@ -505,8 +505,8 @@ func deviceGetAttributes(path string) (string, int, int, error) {
 	}
 
 	// Return the device information
-	major := int(stat.Rdev / 256)
-	minor := int(stat.Rdev % 256)
+	major := shared.Major(stat.Rdev)
+	minor := shared.Minor(stat.Rdev)
 	return dType, major, minor, nil
 }
 
