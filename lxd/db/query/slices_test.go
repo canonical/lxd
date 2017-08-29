@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared/subtest"
 )
 
 // Exercise possible failure modes.

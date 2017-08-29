@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/subtest"
 )
 
 // Sample command line arguments specification.
