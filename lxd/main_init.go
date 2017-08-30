@@ -71,46 +71,6 @@ func (cmd *CmdInit) Run() error {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
 
-	setServerConfig := func(key string, value string) error {
-		server, etag, err := c.GetServer()
-		if err != nil {
-			return err
-		}
-
-		if server.Config == nil {
-			server.Config = map[string]interface{}{}
-		}
-
-		server.Config[key] = value
-
-		err = c.UpdateServer(server.Writable(), etag)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	setProfileConfigItem := func(profileName string, key string, value string) error {
-		profile, etag, err := c.GetProfile(profileName)
-		if err != nil {
-			return err
-		}
-
-		if profile.Config == nil {
-			profile.Config = map[string]string{}
-		}
-
-		profile.Config[key] = value
-
-		err = c.UpdateProfile(profileName, profile.Writable(), etag)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
 	// Check that we have no containers or images in the store
 	containers, err := c.GetContainerNames()
 	if err != nil {
@@ -288,7 +248,7 @@ they otherwise would.
 
 	// Unset all storage keys, core.https_address and core.trust_password
 	for _, key := range []string{"storage.zfs_pool_name", "core.https_address", "core.trust_password"} {
-		err = setServerConfig(key, "")
+		err = cmd.setServerConfig(c, key, "")
 		if err != nil {
 			return err
 		}
@@ -334,19 +294,19 @@ they otherwise would.
 		}
 
 		// Configure LXD to use the pool
-		err = setServerConfig("storage.zfs_pool_name", storagePool)
+		err = cmd.setServerConfig(c, "storage.zfs_pool_name", storagePool)
 		if err != nil {
 			return err
 		}
 	}
 
 	if defaultPrivileged == 0 {
-		err = setProfileConfigItem("default", "security.privileged", "")
+		err = cmd.setProfileConfigItem(c, "default", "security.privileged", "")
 		if err != nil {
 			return err
 		}
 	} else if defaultPrivileged == 1 {
-		err = setProfileConfigItem("default", "security.privileged", "true")
+		err = cmd.setProfileConfigItem(c, "default", "security.privileged", "true")
 		if err != nil {
 		}
 	}
@@ -356,13 +316,13 @@ they otherwise would.
 			networkPort = 8443
 		}
 
-		err = setServerConfig("core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
+		err = cmd.setServerConfig(c, "core.https_address", fmt.Sprintf("%s:%d", networkAddress, networkPort))
 		if err != nil {
 			return err
 		}
 
 		if trustPassword != "" {
-			err = setServerConfig("core.trust_password", trustPassword)
+			err = cmd.setServerConfig(c, "core.trust_password", trustPassword)
 			if err != nil {
 				return err
 			}
@@ -370,6 +330,71 @@ they otherwise would.
 	}
 
 	fmt.Printf("LXD has been successfully configured.\n")
+	return nil
+}
+
+func (cmd *CmdInit) setServerConfig(c lxd.ContainerServer, key string, value string) error {
+	server, etag, err := c.GetServer()
+	if err != nil {
+		return err
+	}
+
+	if server.Config == nil {
+		server.Config = map[string]interface{}{}
+	}
+
+	server.Config[key] = value
+
+	err = c.UpdateServer(server.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cmd *CmdInit) profileDeviceAdd(c lxd.ContainerServer, profileName string, deviceName string, deviceConfig map[string]string) error {
+	profile, etag, err := c.GetProfile(profileName)
+	if err != nil {
+		return err
+	}
+
+	if profile.Devices == nil {
+		profile.Devices = map[string]map[string]string{}
+	}
+
+	_, ok := profile.Devices[deviceName]
+	if ok {
+		return fmt.Errorf("Device already exists: %s", deviceName)
+	}
+
+	profile.Devices[deviceName] = deviceConfig
+
+	err = c.UpdateProfile(profileName, profile.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cmd *CmdInit) setProfileConfigItem(c lxd.ContainerServer, profileName string, key string, value string) error {
+	profile, etag, err := c.GetProfile(profileName)
+	if err != nil {
+		return err
+	}
+
+	if profile.Config == nil {
+		profile.Config = map[string]string{}
+	}
+
+	profile.Config[key] = value
+
+	err = c.UpdateProfile(profileName, profile.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
