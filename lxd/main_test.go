@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"io/ioutil"
 	"os"
 
@@ -12,7 +13,8 @@ import (
 
 func mockStartDaemon() (*Daemon, error) {
 	d := &Daemon{
-		MockMode: true,
+		MockMode:  true,
+		tlsConfig: &tls.Config{},
 	}
 
 	if err := d.Init(); err != nil {
@@ -71,6 +73,7 @@ func (suite *lxdTestSuite) TearDownSuite() {
 func (suite *lxdTestSuite) SetupTest() {
 	initializeDbObject(suite.d, shared.VarPath("lxd.db"))
 	daemonConfigInit(suite.d.db)
+	suite.Req = require.New(suite.T())
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
