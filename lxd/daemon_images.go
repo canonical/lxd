@@ -522,6 +522,23 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	// Image is in the DB now, don't wipe on-disk files on failure
 	failure = false
 
+	// Check if the image path changed (private images)
+	newDestName := filepath.Join(destDir, fp)
+	if newDestName != destName {
+		err = shared.FileMove(destName, newDestName)
+		if err != nil {
+			return nil, err
+		}
+
+		if shared.PathExists(destName + ".rootfs") {
+			err = shared.FileMove(destName+".rootfs", newDestName+".rootfs")
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Record the image source
 	if alias != fp {
 		id, _, err := db.ImageGet(d.db, fp, false, true)
 		if err != nil {
