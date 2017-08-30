@@ -15,7 +15,7 @@ test_image_auto_update() {
   local LXD2_DIR LXD2_ADDR
   LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD2_DIR}"
-  spawn_lxd "${LXD2_DIR}" true
+  spawn_lxd "${LXD2_DIR}"
   LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
 
   (LXD_DIR=${LXD2_DIR} deps/import-busybox --alias testimage --public)
