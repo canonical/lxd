@@ -68,10 +68,11 @@ func run() error {
 	}
 
 	handler := eventsHandler{}
+
 	var err error
 	logger.Log, err = logging.GetLogger(syslog, args.Logfile, args.Verbose, args.Debug, handler)
 	if err != nil {
-		fmt.Printf("%s", err)
+		fmt.Printf("%s\n", err)
 		return nil
 	}
 
