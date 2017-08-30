@@ -91,10 +91,11 @@ func setupSubCommand(context *cmd.Context, args *Args, handler log.Handler) erro
 	if args.Syslog {
 		syslog = "lxd"
 	}
+
 	var err error
 	logger.Log, err = logging.GetLogger(syslog, args.Logfile, args.Verbose, args.Debug, handler)
 	if err != nil {
-		context.Output("%s", err)
+		context.Output("%v\n", err)
 		return err
 	}
 
