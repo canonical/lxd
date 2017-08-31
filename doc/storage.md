@@ -172,6 +172,11 @@ lxc storage create pool2 dir source=/data/lxd
   `lxd import`. In line with this, LXD requires the "ceph.osd.force_reuse"
   property to be set to true. If not set, LXD will refuse to reuse an osd
   storage pool it detected as being in use by another LXD instance.
+* When setting up a ceph cluster that LXD is going to use we recommend using
+  `xfs` as the underlying filesystem for the storage entities that are used to
+  hold OSD storage pools. Using `ext4` as the underlying filesystem for the
+  storage entities is not recommended by Ceph upstream. You may see unexpected
+  and erratic failures which are unrelated to LXD itself.
 
 #### The following commands can be used to create ZFS storage pools
 
