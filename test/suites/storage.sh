@@ -21,7 +21,7 @@ test_storage() {
   lxc storage volume create "$storage_pool" "$storage_volume"
   if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "ceph" ]; then
     # Test resizing/applying quota to a storage volume.
-    lxc storage volume set "$storage_pool" "$storage_volume" size 500MB
+    lxc storage volume set "$storage_pool" "$storage_volume" size 200MB
     lxc storage volume unset "$storage_pool" "$storage_volume" size
   fi
   # Test setting description on a storage volume
