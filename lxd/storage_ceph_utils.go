@@ -133,6 +133,12 @@ func cephRBDVolumeMap(clusterName string, poolName string, volumeName string,
 		return "", err
 	}
 
+	idx := strings.Index(devPath, "/dev/rbd")
+	if idx < 0 {
+		return "", fmt.Errorf("Failed to detect mapped device path")
+	}
+
+	devPath = devPath[idx:]
 	return strings.TrimSpace(devPath), nil
 }
 
