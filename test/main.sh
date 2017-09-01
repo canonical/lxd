@@ -560,6 +560,7 @@ run_test test_migration "migration"
 run_test test_fdleak "fd leak"
 run_test test_cpu_profiling "CPU profiling"
 run_test test_mem_profiling "memory profiling"
-run_test test_lxd_autoinit "lxd init auto"
+run_test test_init_auto "lxd init auto"
+run_test test_init_interactive "lxd init interactive"
 
 TEST_RESULT=success
