@@ -50,9 +50,11 @@ func cmdDaemon(args *Args) error {
 		}()
 	}
 
-	d := NewDaemon()
-	d.group = args.Group
-	d.SetupMode = shared.PathExists(shared.VarPath(".setup_mode"))
+	c := &DaemonConfig{
+		Group:     args.Group,
+		SetupMode: shared.PathExists(shared.VarPath(".setup_mode")),
+	}
+	d := NewDaemon(c)
 	err := d.Init()
 	if err != nil {
 		if d != nil && d.db != nil {

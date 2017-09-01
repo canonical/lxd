@@ -18,7 +18,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	// Don't start a full daemon, we just need DB access
-	d := NewDaemon()
+	d := DefaultDaemon()
 	d.os.LxcPath = shared.VarPath("containers")
 
 	if !shared.PathExists(shared.VarPath("lxd.db")) {

@@ -35,7 +35,6 @@ type Daemon struct {
 	clientCerts         []x509.Certificate
 	os                  *sys.OS
 	db                  *sql.DB
-	group               string
 	readyChan           chan bool
 	pruneChan           chan bool
 	shutdownChan        chan bool
@@ -43,18 +42,30 @@ type Daemon struct {
 
 	Storage storage
 
-	SetupMode bool
-
+	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
 
 	proxy func(req *http.Request) (*url.URL, error)
 }
 
-// NewDaemon returns a new, un-initialized Daemon object.
-func NewDaemon() *Daemon {
+// DaemonConfig holds configuration values for Daemon.
+type DaemonConfig struct {
+	Group     string // Group name the local unix socket should be chown'ed to
+	SetupMode bool   // Legacy option for running the daemon in "setup mode"
+}
+
+// NewDaemon returns a new Daemon object with the given configuration.
+func NewDaemon(config *DaemonConfig) *Daemon {
 	return &Daemon{
-		os: sys.NewOS(),
+		config: config,
+		os:     sys.NewOS(),
 	}
+}
+
+// DefaultDaemon returns a new, un-initialized Daemon object with default values.
+func DefaultDaemon() *Daemon {
+	config := &DaemonConfig{}
+	return NewDaemon(config)
 }
 
 // Command is the basic structure for every API call.
@@ -224,7 +235,7 @@ func (d *Daemon) Init() error {
 	if d.os.MockMode {
 		logger.Info(fmt.Sprintf("LXD %s is starting in mock mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
-	} else if d.SetupMode {
+	} else if d.config.SetupMode {
 		logger.Info(fmt.Sprintf("LXD %s is starting in setup mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
 	} else {
@@ -342,7 +353,7 @@ func (d *Daemon) Init() error {
 		Cert:                 certInfo,
 		RestServer:           &http.Server{Handler: &lxdHttpServer{r: restAPI, d: d}},
 		DevLxdServer:         &http.Server{Handler: devLxdAPI(d), ConnState: pidMapper.ConnStateHandler},
-		LocalUnixSocketGroup: d.group,
+		LocalUnixSocketGroup: d.config.Group,
 		NetworkAddress:       daemonConfig["core.https_address"].Get(),
 	}
 	d.endpoints, err = endpoints.Up(config)
@@ -351,7 +362,7 @@ func (d *Daemon) Init() error {
 	}
 
 	// Run the post initialization actions
-	if !d.os.MockMode && !d.SetupMode {
+	if !d.os.MockMode && !d.config.SetupMode {
 		err := d.Ready()
 		if err != nil {
 			return err
