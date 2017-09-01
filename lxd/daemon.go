@@ -362,7 +362,7 @@ func (d *Daemon) Init() error {
 	}
 
 	// Run the post initialization actions
-	if !d.os.MockMode && !d.config.SetupMode {
+	if !d.config.SetupMode {
 		err := d.Ready()
 		if err != nil {
 			return err
