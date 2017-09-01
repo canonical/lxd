@@ -130,7 +130,7 @@ func TestHttpRequest(t *testing.T) {
 	}
 	defer os.RemoveAll(testDir)
 
-	d := NewDaemon()
+	d := DefaultDaemon()
 	err := d.Init()
 	if err != nil {
 		t.Fatal(err)
