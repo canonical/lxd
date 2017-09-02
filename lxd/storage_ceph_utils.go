@@ -791,7 +791,7 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		return err
 	}
 
-	_, err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
+	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
 		targetContainerName, storagePoolVolumeTypeNameContainer,
 		s.UserName)
 	if err != nil {
@@ -799,6 +799,19 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 			`"%s" on storage pool "%s": %s`, targetContainerName,
 			s.pool.Name, err)
 		return err
+	}
+
+	// Generate a new xfs's UUID
+	RBDFilesystem := s.getRBDFilesystem()
+	if RBDFilesystem == "xfs" {
+		msg, err := xfsGenerateNewUUID(RBDDevPath)
+		if err != nil {
+			logger.Errorf(`Failed to generate new xfs UUID for `+
+				`RBD storage volume for container "%s" on `+
+				`storage pool "%s": %s`, targetContainerName,
+				s.pool.Name, msg)
+			return err
+		}
 	}
 
 	targetContainerMountPoint := getContainerMountPoint(s.pool.Name,
