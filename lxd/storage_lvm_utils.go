@@ -318,6 +318,23 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 		return err
 	}
 
+	// Generate a new xfs's UUID
+	LVFilesystem := s.getLvmFilesystem()
+	poolName := s.getOnDiskPoolName()
+	containerName := target.Name()
+	containerLvmName := containerNameToLVName(containerName)
+	containerLvDevPath := getLvmDevPath(poolName,
+		storagePoolVolumeAPIEndpointContainers, containerLvmName)
+	if LVFilesystem == "xfs" {
+		msg, err := xfsGenerateNewUUID(containerLvDevPath)
+		if err != nil {
+			logger.Errorf(`Failed to create new xfs UUID for `+
+				`container "%s" on storage pool "%s": %s`,
+				containerName, s.pool.Name, msg)
+			return err
+		}
+	}
+
 	return nil
 }
 
