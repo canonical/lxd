@@ -318,6 +318,23 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 		return err
 	}
 
+	// Generate a new xfs's UUID
+	LVFilesystem := s.getLvmFilesystem()
+	poolName := s.getOnDiskPoolName()
+	containerName := target.Name()
+	containerLvmName := containerNameToLVName(containerName)
+	containerLvDevPath := getLvmDevPath(poolName,
+		storagePoolVolumeAPIEndpointContainers, containerLvmName)
+	if LVFilesystem == "xfs" {
+		msg, err := xfsGenerateNewUUID(containerLvDevPath)
+		if err != nil {
+			logger.Errorf(`Failed to create new xfs UUID for `+
+				`container "%s" on storage pool "%s": %s`,
+				containerName, s.pool.Name, msg)
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -747,18 +764,6 @@ func lvmLVRename(vgName string, oldName string, newName string) error {
 	output, err := shared.TryRunCommand("lvrename", vgName, oldName, newName)
 	if err != nil {
 		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %s", oldName, newName, output)
-	}
-
-	return nil
-}
-
-func xfsGenerateNewUUID(lvpath string) error {
-	output, err := shared.RunCommand(
-		"xfs_admin",
-		"-U", "generate",
-		lvpath)
-	if err != nil {
-		return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, output)
 	}
 
 	return nil
