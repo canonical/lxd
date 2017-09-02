@@ -200,3 +200,15 @@ func makeFSType(path string, fsType string) (string, error) {
 
 	return "", nil
 }
+
+func xfsGenerateNewUUID(lvpath string) (string, error) {
+	msg, err := shared.RunCommand(
+		"xfs_admin",
+		"-U", "generate",
+		lvpath)
+	if err != nil {
+		return msg, err
+	}
+
+	return "", nil
+}

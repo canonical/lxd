@@ -929,7 +929,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	// Generate a new xfs's UUID
 	lvFsType := s.getLvmFilesystem()
 	if lvFsType == "xfs" {
-		err := xfsGenerateNewUUID(containerLvDevPath)
+		_, err := xfsGenerateNewUUID(containerLvDevPath)
 		if err != nil {
 			return err
 		}
