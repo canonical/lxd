@@ -752,18 +752,6 @@ func lvmLVRename(vgName string, oldName string, newName string) error {
 	return nil
 }
 
-func xfsGenerateNewUUID(lvpath string) error {
-	output, err := shared.RunCommand(
-		"xfs_admin",
-		"-U", "generate",
-		lvpath)
-	if err != nil {
-		return fmt.Errorf("Error generating new UUID: %v\noutput:'%s'", err, output)
-	}
-
-	return nil
-}
-
 func containerNameToLVName(containerName string) string {
 	lvName := strings.Replace(containerName, "-", "--", -1)
 	return strings.Replace(lvName, shared.SnapshotDelimiter, "-", -1)

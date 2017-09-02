@@ -876,8 +876,8 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		}
 	}()
 
-	_, err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, containerName,
-		storagePoolVolumeTypeNameContainer, s.UserName)
+	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
+		containerName, storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for container `+
 			`"%s"`, containerName)
@@ -899,6 +899,18 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 				`for container "%s": %s`, containerName, err)
 		}
 	}()
+
+	// Generate a new xfs's UUID
+	RBDFilesystem := s.getRBDFilesystem()
+	if RBDFilesystem == "xfs" {
+		msg, err := xfsGenerateNewUUID(RBDDevPath)
+		if err != nil {
+			logger.Errorf(`Failed to generate new xfs UUID for `+
+				`RBD storage volume for container "%s": %s`,
+				containerName, msg)
+			return err
+		}
+	}
 
 	privileged := container.IsPrivileged()
 	err = createContainerMountpoint(containerPoolVolumeMntPoint,
