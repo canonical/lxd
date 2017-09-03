@@ -45,9 +45,6 @@ func cmdDaemon(args *Args) error {
 	d := NewDaemon(c)
 	err = d.Init()
 	if err != nil {
-		if d != nil && d.db != nil {
-			d.db.Close()
-		}
 		return err
 	}
 
