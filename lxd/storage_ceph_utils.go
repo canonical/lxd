@@ -1492,3 +1492,160 @@ mapImage:
 
 	return strings.TrimSpace(devPath), 2
 }
+
+func (s *storageCeph) rbdShrink(path string, size int64, fsType string,
+	fsMntPoint string, volumeType int, volumeName string,
+	data interface{}) error {
+	var err error
+	var msg string
+
+	if (size / 1024) == 0 {
+		// Everything under a 1MB doesn't make sense. Even if rbd won't
+		// freak out xfs or ext4 will.
+		return fmt.Errorf(`The size of the storage pool would be ` +
+			`less than 1MB`)
+	}
+
+	volumeTypeName := ""
+	switch fsType {
+	case "xfs":
+		logger.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
+		return fmt.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
+	default:
+		// default = ext4
+		switch volumeType {
+		case storagePoolVolumeTypeContainer:
+			c := data.(container)
+			ourMount, err := c.StorageStop()
+			if err != nil {
+				return err
+			}
+			if !ourMount {
+				defer c.StorageStart()
+			}
+			volumeTypeName = storagePoolVolumeTypeNameContainer
+		case storagePoolVolumeTypeCustom:
+			ourMount, err := s.StoragePoolVolumeUmount()
+			if err != nil {
+				return err
+			}
+			if !ourMount {
+				defer s.StoragePoolVolumeMount()
+			}
+			volumeTypeName = storagePoolVolumeTypeNameCustom
+		default:
+			return fmt.Errorf(`Resizing not implemented for `+
+				`storage volume type %d`, volumeType)
+		}
+
+		msg, err = shared.TryRunCommand("e2fsck", "-f", "-y", path)
+		if err != nil {
+			return err
+		}
+
+		// don't assume resize2fs semantics are sane (because they
+		// aren't)
+		kbSize := size / 1024
+		ext4SizeString := strconv.FormatInt(kbSize, 10)
+		ext4SizeString += "K"
+		msg, err = shared.TryRunCommand("resize2fs", path, ext4SizeString)
+		if err != nil {
+			logger.Errorf(`Could not reduce underlying %s `+
+				`filesystem for RBD storage volume "%s": %s`,
+				fsType, path, msg)
+			return fmt.Errorf(`Could not reduce underlying %s `+
+				`filesystem for RBD storage volume "%s": %s`,
+				fsType, path, msg)
+		}
+	}
+
+	msg, err = shared.TryRunCommand(
+		"rbd",
+		"resize",
+		"--allow-shrink",
+		"--id", s.UserName,
+		"--cluster", s.ClusterName,
+		"--pool", s.OSDPoolName,
+		"--size", fmt.Sprintf("%dM", (size/1024)),
+		fmt.Sprintf("%s_%s", volumeTypeName, volumeName))
+	if err != nil {
+		logger.Errorf(`Could not shrink RBD storage volume "%s": %s`,
+			path, msg)
+		return fmt.Errorf(`Could not shrink RBD storage volume "%s":
+			%s`, path, msg)
+	}
+
+	logger.Debugf("reduce underlying %s filesystem for LV \"%s\"", fsType, path)
+	return nil
+}
+
+func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
+	fsMntPoint string, volumeType int, volumeName string,
+	data interface{}) error {
+
+	volumeTypeName := ""
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c := data.(container)
+		ourMount, err := c.StorageStart()
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer c.StorageStop()
+		}
+		volumeTypeName = storagePoolVolumeTypeNameContainer
+	case storagePoolVolumeTypeCustom:
+		ourMount, err := s.StoragePoolVolumeMount()
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer s.StoragePoolVolumeUmount()
+		}
+		volumeTypeName = storagePoolVolumeTypeNameCustom
+	default:
+		return fmt.Errorf(`Resizing not implemented for storage `+
+			`volume type %d`, volumeType)
+	}
+
+	if (size / 1024) == 0 {
+		// Everything under a 1MB doesn't make sense. Even if rbd won't
+		// freak out xfs or ext4 will.
+		return fmt.Errorf(`The size of the storage pool would be ` +
+			`less than 1MB`)
+	}
+	msg, err := shared.TryRunCommand(
+		"rbd",
+		"resize",
+		"--id", s.UserName,
+		"--cluster", s.ClusterName,
+		"--pool", s.OSDPoolName,
+		"--size", fmt.Sprintf("%dM", (size/1024)),
+		fmt.Sprintf("%s_%s", volumeTypeName, volumeName))
+	if err != nil {
+		logger.Errorf(`Could not extend RBD storage volume "%s": %s`,
+			path, msg)
+		return fmt.Errorf(`Could not extend RBD storage volume "%s":
+			%s`, path, msg)
+	}
+
+	switch fsType {
+	case "xfs":
+		msg, err = shared.TryRunCommand("xfs_growfs", fsMntPoint)
+	default:
+		// default = ext4
+		msg, err = shared.TryRunCommand("resize2fs", path)
+	}
+	if err != nil {
+		logger.Errorf(`Could not extend underlying %s `+
+			`filesystem for RBD storage volume "%s": %s`,
+			fsType, path, msg)
+		return fmt.Errorf(`Could not extend underlying %s `+
+			`filesystem for RBD storage volume "%s": %s`,
+			fsType, path, msg)
+	}
+
+	logger.Debugf("extended underlying %s filesystem for LV \"%s\"", fsType, path)
+	return nil
+}

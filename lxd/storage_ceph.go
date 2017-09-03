@@ -454,6 +454,19 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 		}
 	}()
 
+	// apply quota
+	if s.volume.Config["size"] != "" {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
 		s.volume.Name, s.pool.Name)
 
@@ -647,7 +660,38 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
-	return fmt.Errorf("RBD storage volume properties cannot be changed")
+	logger.Infof(`Updating RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	if !(shared.StringInSlice("block.mount_options", changedConfig) &&
+		len(changedConfig) == 1) &&
+		!(shared.StringInSlice("block.mount_options", changedConfig) &&
+			len(changedConfig) == 2 &&
+			shared.StringInSlice("size", changedConfig)) &&
+		!(shared.StringInSlice("size", changedConfig) &&
+			len(changedConfig) == 1) {
+		return fmt.Errorf("The properties \"%v\" cannot be changed",
+			changedConfig)
+	}
+
+	if shared.StringInSlice("size", changedConfig) {
+		// apply quota
+		if s.volume.Config["size"] != writable.Config["size"] {
+			size, err := shared.ParseByteSizeString(writable.Config["size"])
+			if err != nil {
+				return err
+			}
+
+			err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	logger.Infof(`Updated RBD storage volume "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+	return nil
 }
 
 func (s *storageCeph) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
@@ -2500,5 +2544,82 @@ func (s *storageCeph) ImageUmount(fingerprint string) (bool, error) {
 }
 
 func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
-	return fmt.Errorf("RBD storage volume quota are not supported")
+	logger.Debugf(`Setting RBD quota for "%s"`, s.volume.Name)
+
+	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+		return fmt.Errorf("Invalid storage type")
+	}
+
+	var ret int
+	var c container
+	fsType := s.getRBDFilesystem()
+	mountpoint := ""
+	RBDDevPath := ""
+	volumeName := ""
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c = data.(container)
+		ctName := c.Name()
+		if c.IsRunning() {
+			msg := fmt.Sprintf(`Cannot resize RBD storage volume `+
+				`for container \"%s\" when it is running`,
+				ctName)
+			logger.Errorf(msg)
+			return fmt.Errorf(msg)
+		}
+
+		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName,
+			s.OSDPoolName, storagePoolVolumeTypeNameContainer,
+			s.volume.Name, true, s.UserName)
+		mountpoint = getContainerMountPoint(s.pool.Name, ctName)
+		volumeName = ctName
+	default:
+		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName,
+			s.OSDPoolName, storagePoolVolumeTypeNameCustom,
+			s.volume.Name, true, s.UserName)
+		mountpoint = getStoragePoolVolumeMountPoint(s.pool.Name,
+			s.volume.Name)
+		volumeName = s.volume.Name
+	}
+	if ret < 0 {
+		return fmt.Errorf("Failed to get mapped RBD path")
+	}
+
+	oldSize, err := shared.ParseByteSizeString(s.volume.Config["size"])
+	if err != nil {
+		return err
+	}
+
+	// The right disjunct just means that someone unset the size property in
+	// the container's config. We obviously cannot resize to 0.
+	if oldSize == size || size == 0 {
+		return nil
+	}
+
+	if size < oldSize {
+		err = s.rbdShrink(RBDDevPath, size, fsType, mountpoint,
+			volumeType, volumeName, data)
+	} else if size > oldSize {
+		err = s.rbdGrow(RBDDevPath, size, fsType, mountpoint,
+			volumeType, volumeName, data)
+	}
+	if err != nil {
+		return err
+	}
+
+	// Update the database
+	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
+	err = db.StoragePoolVolumeUpdate(
+		s.s.DB,
+		s.volume.Name,
+		volumeType,
+		s.poolID,
+		s.volume.Description,
+		s.volume.Config)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf(`Set RBD quota for "%s"`, s.volume.Name)
+	return nil
 }
