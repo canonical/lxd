@@ -43,6 +43,9 @@ func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntP
 		if ourMount {
 			defer s.StoragePoolVolumeUmount()
 		}
+	default:
+		return fmt.Errorf(`Resizing not implemented for storage `+
+			`volume type %d`, volumeType)
 	}
 
 	switch fsType {
@@ -90,6 +93,9 @@ func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntP
 			if !ourMount {
 				defer s.StoragePoolVolumeMount()
 			}
+		default:
+			return fmt.Errorf(`Resizing not implemented for `+
+				`storage volume type %d`, volumeType)
 		}
 
 		msg, err = shared.TryRunCommand("e2fsck", "-f", "-y", lvPath)
