@@ -223,6 +223,19 @@ func setupSharedMounts() error {
 }
 
 func (d *Daemon) Init() error {
+	err := d.init()
+
+	// If an error occured synchronously while starting up, let's try to
+	// cleanup any state we produced so far. Errors happening here will be
+	// ignored.
+	if err != nil {
+		d.Stop()
+	}
+
+	return err
+}
+
+func (d *Daemon) init() error {
 	/* Initialize some variables */
 	d.readyChan = make(chan bool)
 	d.shutdownChan = make(chan bool)
@@ -465,31 +478,49 @@ func (d *Daemon) numRunningContainers() (int, error) {
 
 // Stop stops the shared daemon.
 func (d *Daemon) Stop() error {
-	// FIXME: we should track also other errors happening during shutdown,
-	// not only the endpoints one.
-	errEndpointsDown := d.endpoints.Down()
-
-	d.tasks.Stop(5 * time.Second) // Give tasks at most five seconds to cleanup.
-
-	if n, err := d.numRunningContainers(); err != nil || n == 0 {
-		logger.Infof("Unmounting temporary filesystems")
-
-		syscall.Unmount(shared.VarPath("devlxd"), syscall.MNT_DETACH)
-		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
-
-		logger.Infof("Done unmounting temporary filesystems")
-	} else {
-		logger.Debugf("Not unmounting temporary filesystems (containers are still running)")
+	errors := []error{}
+	trackError := func(err error) {
+		if err != nil {
+			errors = append(errors, err)
+		}
 	}
 
-	logger.Infof("Closing the database")
-	d.db.Close()
+	if d.endpoints != nil {
+		trackError(d.endpoints.Down())
+	}
+
+	trackError(d.tasks.Stop(5 * time.Second)) // Give tasks at most five seconds to cleanup.
+
+	if d.db != nil {
+		if n, err := d.numRunningContainers(); err != nil || n == 0 {
+			logger.Infof("Unmounting temporary filesystems")
+
+			syscall.Unmount(shared.VarPath("devlxd"), syscall.MNT_DETACH)
+			syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
+
+			logger.Infof("Done unmounting temporary filesystems")
+		} else {
+			logger.Debugf(
+				"Not unmounting temporary filesystems (containers are still running)")
+		}
+
+		logger.Infof("Closing the database")
+		trackError(d.db.Close())
+	}
 
 	logger.Infof("Saving simplestreams cache")
-	imageSaveStreamCache()
+	trackError(imageSaveStreamCache())
 	logger.Infof("Saved simplestreams cache")
 
-	return errEndpointsDown
+	var err error
+	if n := len(errors); n > 0 {
+		format := "%v"
+		if n > 1 {
+			format += fmt.Sprintf(" (and %d more errors)", n)
+		}
+		err = fmt.Errorf(format, errors[0])
+	}
+	return err
 }
 
 type lxdHttpServer struct {
