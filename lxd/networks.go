@@ -32,7 +32,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 		recursion = 0
 	}
 
-	ifs, err := networkGetInterfaces(d.db)
+	ifs, err := networkGetInterfaces(d.nodeDB)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -81,7 +81,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Only 'bridge' type networks can be created"))
 	}
 
-	networks, err := networkGetInterfaces(d.db)
+	networks, err := networkGetInterfaces(d.nodeDB)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -130,7 +130,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Create the database entry
-	_, err = db.NetworkCreate(d.db, req.Name, req.Description, req.Config)
+	_, err = db.NetworkCreate(d.nodeDB, req.Name, req.Description, req.Config)
 	if err != nil {
 		return InternalError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
@@ -169,7 +169,7 @@ func networkGet(d *Daemon, r *http.Request) Response {
 func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	// Get some information
 	osInfo, _ := net.InterfaceByName(name)
-	_, dbInfo, _ := db.NetworkGet(d.db, name)
+	_, dbInfo, _ := db.NetworkGet(d.nodeDB, name)
 
 	// Sanity check
 	if osInfo == nil && dbInfo == nil {
@@ -183,7 +183,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	n.Config = map[string]string{}
 
 	// Look for containers using the interface
-	cts, err := db.ContainersList(d.db, db.CTypeRegular)
+	cts, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
 	if err != nil {
 		return api.Network{}, err
 	}
@@ -280,7 +280,7 @@ func networkPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	networks, err := networkGetInterfaces(d.db)
+	networks, err := networkGetInterfaces(d.nodeDB)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -302,7 +302,7 @@ func networkPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := db.NetworkGet(d.db, name)
+	_, dbInfo, err := db.NetworkGet(d.nodeDB, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -327,7 +327,7 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := db.NetworkGet(d.db, name)
+	_, dbInfo, err := db.NetworkGet(d.nodeDB, name)
 	if dbInfo != nil {
 		return SmartError(err)
 	}

@@ -31,7 +31,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		if req.Source.Server != "" {
 			hash = req.Source.Alias
 		} else {
-			_, alias, err := db.ImageAliasGet(d.db, req.Source.Alias, true)
+			_, alias, err := db.ImageAliasGet(d.nodeDB, req.Source.Alias, true)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -43,7 +43,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
-		hashes, err := db.ImagesGet(d.db, false)
+		hashes, err := db.ImagesGet(d.nodeDB, false)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -51,7 +51,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		var image *api.Image
 
 		for _, imageHash := range hashes {
-			_, img, err := db.ImageGet(d.db, imageHash, false, true)
+			_, img, err := db.ImageGet(d.nodeDB, imageHash, false, true)
 			if err != nil {
 				continue
 			}
@@ -103,7 +103,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 				return err
 			}
 		} else {
-			_, info, err = db.ImageGet(d.db, hash, false, false)
+			_, info, err = db.ImageGet(d.nodeDB, hash, false, false)
 			if err != nil {
 				return err
 			}
@@ -201,7 +201,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 	// Handle copying/moving between two storage-api LXD instances.
 	if storagePool != "" {
-		_, err := db.StoragePoolGetID(d.db, storagePool)
+		_, err := db.StoragePoolGetID(d.nodeDB, storagePool)
 		if err == db.NoSuchObjectError {
 			storagePool = ""
 			// Unset the local root disk device storage pool if not
@@ -213,7 +213,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
 		for _, pName := range req.Profiles {
-			_, p, err := db.ProfileGet(d.db, pName)
+			_, p, err := db.ProfileGet(d.nodeDB, pName)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -230,7 +230,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	logger.Debugf("No valid storage pool in the container's local root disk device and profiles found.")
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
-		pools, err := db.StoragePools(d.db)
+		pools, err := db.StoragePools(d.nodeDB)
 		if err != nil {
 			if err == db.NoSuchObjectError {
 				return BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured."))
@@ -287,7 +287,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
-	_, _, err = db.ImageGet(d.db, req.Source.BaseImage, false, true)
+	_, _, err = db.ImageGet(d.nodeDB, req.Source.BaseImage, false, true)
 	if err != nil {
 		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
@@ -519,13 +519,13 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// If no storage pool is found, error out.
-	pools, err := db.StoragePools(d.db)
+	pools, err := db.StoragePools(d.nodeDB)
 	if err != nil || len(pools) == 0 {
 		return BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool."))
 	}
 
 	if req.Name == "" {
-		cs, err := db.ContainersList(d.db, db.CTypeRegular)
+		cs, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
 		if err != nil {
 			return SmartError(err)
 		}

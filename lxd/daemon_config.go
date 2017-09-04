@@ -128,7 +128,7 @@ func (k *daemonConfigKey) Set(d *Daemon, value string) error {
 	k.currentValue = value
 	daemonConfigLock.Unlock()
 
-	err = dbapi.ConfigValueSet(d.db, name, value)
+	err = dbapi.ConfigValueSet(d.nodeDB, name, value)
 	if err != nil {
 		return err
 	}

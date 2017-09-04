@@ -24,7 +24,7 @@ import (
 
 /* This is used for both profiles post and profile put */
 func profilesGet(d *Daemon, r *http.Request) Response {
-	results, err := db.Profiles(d.db)
+	results, err := db.Profiles(d.nodeDB)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -67,7 +67,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	_, profile, _ := db.ProfileGet(d.db, req.Name)
+	_, profile, _ := db.ProfileGet(d.nodeDB, req.Name)
 	if profile != nil {
 		return BadRequest(fmt.Errorf("The profile already exists"))
 	}
@@ -85,13 +85,13 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = containerValidDevices(d.db, req.Devices, true, false)
+	err = containerValidDevices(d.nodeDB, req.Devices, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
 
 	// Update DB entry
-	_, err = db.ProfileCreate(d.db, req.Name, req.Description, req.Config, req.Devices)
+	_, err = db.ProfileCreate(d.nodeDB, req.Name, req.Description, req.Config, req.Devices)
 	if err != nil {
 		return SmartError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
@@ -160,7 +160,7 @@ func getContainersWithProfile(s *state.State, profile string) []container {
 func profilePut(d *Daemon, r *http.Request) Response {
 	// Get the profile
 	name := mux.Vars(r)["name"]
-	id, profile, err := db.ProfileGet(d.db, name)
+	id, profile, err := db.ProfileGet(d.nodeDB, name)
 	if err != nil {
 		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
 	}
@@ -183,7 +183,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 func profilePatch(d *Daemon, r *http.Request) Response {
 	// Get the profile
 	name := mux.Vars(r)["name"]
-	id, profile, err := db.ProfileGet(d.db, name)
+	id, profile, err := db.ProfileGet(d.nodeDB, name)
 	if err != nil {
 		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
 	}
@@ -261,7 +261,7 @@ func profilePost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _, _ := db.ProfileGet(d.db, req.Name)
+	id, _, _ := db.ProfileGet(d.nodeDB, req.Name)
 	if id > 0 {
 		return Conflict
 	}
@@ -274,7 +274,7 @@ func profilePost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
-	err := db.ProfileUpdate(d.db, name, req.Name)
+	err := db.ProfileUpdate(d.nodeDB, name, req.Name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -296,7 +296,7 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Profile is currently in use"))
 	}
 
-	err = db.ProfileDelete(d.db, name)
+	err = db.ProfileDelete(d.nodeDB, name)
 	if err != nil {
 		return SmartError(err)
 	}

@@ -15,7 +15,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		return BadRequest(err)
 	}
 
-	err = containerValidDevices(d.db, req.Devices, true, false)
+	err = containerValidDevices(d.nodeDB, req.Devices, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -38,7 +38,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 			// Check what profile the device comes from
 			profiles := container.Profiles()
 			for i := len(profiles) - 1; i >= 0; i-- {
-				_, profile, err := db.ProfileGet(d.db, profiles[i])
+				_, profile, err := db.ProfileGet(d.nodeDB, profiles[i])
 				if err != nil {
 					return SmartError(err)
 				}
@@ -60,7 +60,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	}
 
 	// Update the database
-	tx, err := db.Begin(d.db)
+	tx, err := db.Begin(d.nodeDB)
 	if err != nil {
 		return SmartError(err)
 	}

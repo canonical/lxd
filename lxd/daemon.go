@@ -41,7 +41,7 @@ import (
 type Daemon struct {
 	clientCerts  []x509.Certificate
 	os           *sys.OS
-	db           *sql.DB
+	nodeDB       *sql.DB
 	readyChan    chan bool
 	shutdownChan chan bool
 
@@ -171,7 +171,7 @@ func isJSONRequest(r *http.Request) bool {
 
 // State creates a new State instance liked to our internal db and os.
 func (d *Daemon) State() *state.State {
-	return state.NewState(d.db, d.os)
+	return state.NewState(d.nodeDB, d.os)
 }
 
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
@@ -350,7 +350,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Load all config values from the database */
-	err = daemonConfigInit(d.db)
+	err = daemonConfigInit(d.nodeDB)
 	if err != nil {
 		return err
 	}
@@ -380,7 +380,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Log expiry */
-	d.tasks.Add(expireLogsTask(d.db))
+	d.tasks.Add(expireLogsTask(d.nodeDB))
 
 	/* set the initial proxy function based on config values in the DB */
 	d.proxy = shared.ProxyFromConfig(
@@ -493,7 +493,7 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := db.ContainersList(d.db, db.CTypeRegular)
+	results, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
 	if err != nil {
 		return 0, err
 	}
@@ -528,7 +528,7 @@ func (d *Daemon) Stop() error {
 
 	trackError(d.tasks.Stop(5 * time.Second)) // Give tasks at most five seconds to cleanup.
 
-	if d.db != nil {
+	if d.nodeDB != nil {
 		if n, err := d.numRunningContainers(); err != nil || n == 0 {
 			logger.Infof("Unmounting temporary filesystems")
 
@@ -542,7 +542,7 @@ func (d *Daemon) Stop() error {
 		}
 
 		logger.Infof("Closing the database")
-		trackError(d.db.Close())
+		trackError(d.nodeDB.Close())
 	}
 
 	logger.Infof("Saving simplestreams cache")
@@ -650,7 +650,7 @@ func initializeDbObject(d *Daemon) error {
 				// FIXME: Attach the local db to the Daemon, since at
 				//        this stage we're not fully initialized, yet
 				//        some legacy patches expect to find it here.
-				d.db = db
+				d.nodeDB = db
 				return patch(d)
 			},
 		}
@@ -670,11 +670,11 @@ func initializeDbObject(d *Daemon) error {
 		}
 		return nil
 	}
-	db, err := db.OpenNode(d.os.VarDir, freshHook, legacy)
+	node, err := db.OpenNode(d.os.VarDir, freshHook, legacy)
 	if err != nil {
 		return fmt.Errorf("Error creating database: %s", err)
 	}
-	d.db = db.DB()
+	d.nodeDB = node.DB()
 
 	return nil
 }

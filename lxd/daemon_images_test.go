@@ -20,11 +20,11 @@ type daemonImagesTestSuite struct {
 // newer image even if available, and just use the cached one.
 func (suite *daemonImagesTestSuite) TestUseCachedImagesIfAvailable() {
 	// Create an image with alias "test" and fingerprint "abcd".
-	err := db.ImageInsert(suite.d.db, "abcd", "foo.xz", 1, false, true, "amd64", time.Now(), time.Now(), map[string]string{})
+	err := db.ImageInsert(suite.d.nodeDB, "abcd", "foo.xz", 1, false, true, "amd64", time.Now(), time.Now(), map[string]string{})
 	suite.Req.Nil(err)
-	id, _, err := db.ImageGet(suite.d.db, "abcd", false, true)
+	id, _, err := db.ImageGet(suite.d.nodeDB, "abcd", false, true)
 	suite.Req.Nil(err)
-	err = db.ImageSourceInsert(suite.d.db, id, "img.srv", "simplestreams", "", "test")
+	err = db.ImageSourceInsert(suite.d.nodeDB, id, "img.srv", "simplestreams", "", "test")
 	suite.Req.Nil(err)
 
 	// Pretend we have already a non-expired entry for the remote

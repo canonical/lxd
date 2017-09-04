@@ -85,7 +85,7 @@ func (suite *lxdTestSuite) TearDownSuite() {
 
 func (suite *lxdTestSuite) SetupTest() {
 	initializeDbObject(suite.d)
-	daemonConfigInit(suite.d.db)
+	daemonConfigInit(suite.d.nodeDB)
 
 	// Create default storage pool. Make sure that we don't pass a nil to
 	// the next function.
@@ -94,7 +94,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	mockStorage, _ := storageTypeToString(storageTypeMock)
 	// Create the database entry for the storage pool.
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
-	_, err := dbStoragePoolCreateAndUpdateCache(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
+	_, err := dbStoragePoolCreateAndUpdateCache(suite.d.nodeDB, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -106,12 +106,12 @@ func (suite *lxdTestSuite) SetupTest() {
 	devicesMap := map[string]map[string]string{}
 	devicesMap["root"] = rootDev
 
-	defaultID, _, err := db.ProfileGet(suite.d.db, "default")
+	defaultID, _, err := db.ProfileGet(suite.d.nodeDB, "default")
 	if err != nil {
 		os.Exit(1)
 	}
 
-	tx, err := db.Begin(suite.d.db)
+	tx, err := db.Begin(suite.d.nodeDB)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -130,6 +130,6 @@ func (suite *lxdTestSuite) SetupTest() {
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
-	suite.d.db.Close()
+	suite.d.nodeDB.Close()
 	os.Remove(filepath.Join(suite.d.os.VarDir, "lxd.db"))
 }

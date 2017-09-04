@@ -81,7 +81,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _ := db.ContainerId(d.db, req.Name)
+	id, _ := db.ContainerId(d.nodeDB, req.Name)
 	if id > 0 {
 		return Conflict
 	}

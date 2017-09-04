@@ -514,7 +514,7 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 	// Now create the empty storage
 	err = c.Storage().ContainerCreate(c)
 	if err != nil {
-		db.ContainerRemove(d.db, args.Name)
+		db.ContainerRemove(d.nodeDB, args.Name)
 		return nil, err
 	}
 
