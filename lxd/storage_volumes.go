@@ -27,14 +27,14 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 
 	// Retrieve ID of the storage pool (and check if the storage pool
 	// exists).
-	poolID, err := db.StoragePoolGetID(d.db, poolName)
+	poolID, err := db.StoragePoolGetID(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	// Get all volumes currently attached to the storage pool by ID of the
 	// pool.
-	volumes, err := db.StoragePoolVolumesGet(d.db, poolID, supportedVolumeTypes)
+	volumes, err := db.StoragePoolVolumesGet(d.nodeDB, poolID, supportedVolumeTypes)
 	if err != nil && err != db.NoSuchObjectError {
 		return SmartError(err)
 	}
@@ -94,14 +94,14 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 
 	// Retrieve ID of the storage pool (and check if the storage pool
 	// exists).
-	poolID, err := db.StoragePoolGetID(d.db, poolName)
+	poolID, err := db.StoragePoolGetID(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	// Get the names of all storage volumes of a given volume type currently
 	// attached to the storage pool.
-	volumes, err := db.StoragePoolVolumesGetType(d.db, volumeType, poolID)
+	volumes, err := db.StoragePoolVolumesGetType(d.nodeDB, volumeType, poolID)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -116,7 +116,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 			}
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume))
 		} else {
-			_, vol, err := db.StoragePoolVolumeGetType(d.db, volume, volumeType, poolID)
+			_, vol, err := db.StoragePoolVolumeGetType(d.nodeDB, volume, volumeType, poolID)
 			if err != nil {
 				continue
 			}
@@ -222,7 +222,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 
 	// Retrieve ID of the storage pool (and check if the storage pool
 	// exists).
-	poolID, err := db.StoragePoolGetID(d.db, poolName)
+	poolID, err := db.StoragePoolGetID(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -272,13 +272,13 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 
 	// Get the ID of the storage pool the storage volume is supposed to be
 	// attached to.
-	poolID, err := db.StoragePoolGetID(d.db, poolName)
+	poolID, err := db.StoragePoolGetID(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	// Get the storage volume.
-	_, volume, err := db.StoragePoolVolumeGetType(d.db, volumeName, volumeType, poolID)
+	_, volume, err := db.StoragePoolVolumeGetType(d.nodeDB, volumeName, volumeType, poolID)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -316,13 +316,13 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
 	}
 
-	poolID, pool, err := db.StoragePoolGet(d.db, poolName)
+	poolID, pool, err := db.StoragePoolGet(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	// Get the existing storage volume.
-	_, volume, err := db.StoragePoolVolumeGetType(d.db, volumeName, volumeType, poolID)
+	_, volume, err := db.StoragePoolVolumeGetType(d.nodeDB, volumeName, volumeType, poolID)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -378,13 +378,13 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 
 	// Get the ID of the storage pool the storage volume is supposed to be
 	// attached to.
-	poolID, pool, err := db.StoragePoolGet(d.db, poolName)
+	poolID, pool, err := db.StoragePoolGet(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	// Get the existing storage volume.
-	_, volume, err := db.StoragePoolVolumeGetType(d.db, volumeName, volumeType, poolID)
+	_, volume, err := db.StoragePoolVolumeGetType(d.nodeDB, volumeName, volumeType, poolID)
 	if err != nil {
 		return SmartError(err)
 	}

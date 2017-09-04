@@ -188,7 +188,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	// Try to retrieve the storage pool the container supposedly lives on.
 	var poolErr error
-	poolID, pool, poolErr := db.StoragePoolGet(d.db, containerPoolName)
+	poolID, pool, poolErr := db.StoragePoolGet(d.nodeDB, containerPoolName)
 	if poolErr != nil {
 		if poolErr != db.NoSuchObjectError {
 			return SmartError(poolErr)
@@ -210,7 +210,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
-		poolID, err = db.StoragePoolGetID(d.db, containerPoolName)
+		poolID, err = db.StoragePoolGetID(d.nodeDB, containerPoolName)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -505,7 +505,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if a storage volume entry for the container already exists.
-	_, volume, ctVolErr := db.StoragePoolVolumeGetType(d.db, req.Name,
+	_, volume, ctVolErr := db.StoragePoolVolumeGetType(d.nodeDB, req.Name,
 		storagePoolVolumeTypeContainer, poolID)
 	if ctVolErr != nil {
 		if ctVolErr != db.NoSuchObjectError {
@@ -520,7 +520,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if an entry for the container already exists in the db.
-	_, containerErr := db.ContainerId(d.db, req.Name)
+	_, containerErr := db.ContainerId(d.nodeDB, req.Name)
 	if containerErr != nil {
 		if containerErr != sql.ErrNoRows {
 			return SmartError(containerErr)
@@ -555,7 +555,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := db.StoragePoolVolumeDelete(d.db, req.Name,
+		err := db.StoragePoolVolumeDelete(d.nodeDB, req.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return SmartError(err)
@@ -565,7 +565,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if containerErr == nil {
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := db.ContainerRemove(d.db, req.Name)
+		err := db.ContainerRemove(d.nodeDB, req.Name)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -573,7 +573,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	for _, snap := range existingSnapshots {
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := db.ContainerId(d.db, snap.Name)
+		_, snapErr := db.ContainerId(d.nodeDB, snap.Name)
 		if snapErr != nil {
 			if snapErr != sql.ErrNoRows {
 				return SmartError(snapErr)
@@ -588,7 +588,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := db.StoragePoolVolumeGetType(d.db, snap.Name,
+		_, _, csVolErr := db.StoragePoolVolumeGetType(d.nodeDB, snap.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
 			if csVolErr != db.NoSuchObjectError {
@@ -604,14 +604,14 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		if snapErr == nil {
-			err := db.ContainerRemove(d.db, snap.Name)
+			err := db.ContainerRemove(d.nodeDB, snap.Name)
 			if err != nil {
 				return SmartError(err)
 			}
 		}
 
 		if csVolErr == nil {
-			err := db.StoragePoolVolumeDelete(d.db, snap.Name,
+			err := db.StoragePoolVolumeDelete(d.nodeDB, snap.Name,
 				storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				return SmartError(err)

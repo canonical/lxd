@@ -23,7 +23,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 		recursion = 0
 	}
 
-	pools, err := db.StoragePools(d.db)
+	pools, err := db.StoragePools(d.nodeDB)
 	if err != nil && err != db.NoSuchObjectError {
 		return SmartError(err)
 	}
@@ -34,13 +34,13 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 		if recursion == 0 {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, pool))
 		} else {
-			plID, pl, err := db.StoragePoolGet(d.db, pool)
+			plID, pl, err := db.StoragePoolGet(d.nodeDB, pool)
 			if err != nil {
 				continue
 			}
 
 			// Get all users of the storage pool.
-			poolUsedBy, err := storagePoolUsedByGet(d.db, plID, pool)
+			poolUsedBy, err := storagePoolUsedByGet(d.nodeDB, plID, pool)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -93,13 +93,13 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
-	poolID, pool, err := db.StoragePoolGet(d.db, poolName)
+	poolID, pool, err := db.StoragePoolGet(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	// Get all users of the storage pool.
-	poolUsedBy, err := storagePoolUsedByGet(d.db, poolID, poolName)
+	poolUsedBy, err := storagePoolUsedByGet(d.nodeDB, poolID, poolName)
 	if err != nil && err != db.NoSuchObjectError {
 		return SmartError(err)
 	}
@@ -116,7 +116,7 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
-	_, dbInfo, err := db.StoragePoolGet(d.db, poolName)
+	_, dbInfo, err := db.StoragePoolGet(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -154,7 +154,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing network
-	_, dbInfo, err := db.StoragePoolGet(d.db, poolName)
+	_, dbInfo, err := db.StoragePoolGet(d.nodeDB, poolName)
 	if dbInfo != nil {
 		return SmartError(err)
 	}
@@ -203,20 +203,20 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	poolName := mux.Vars(r)["name"]
 
-	poolID, err := db.StoragePoolGetID(d.db, poolName)
+	poolID, err := db.StoragePoolGetID(d.nodeDB, poolName)
 	if err != nil {
 		return NotFound
 	}
 
 	// Check if the storage pool has any volumes associated with it, if so
 	// error out.
-	volumeCount, err := db.StoragePoolVolumesGetNames(d.db, poolID)
+	volumeCount, err := db.StoragePoolVolumesGetNames(d.nodeDB, poolID)
 	if volumeCount > 0 {
 		return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
 	}
 
 	// Check if the storage pool is still referenced in any profiles.
-	profiles, err := profilesUsingPoolGetNames(d.db, poolName)
+	profiles, err := profilesUsingPoolGetNames(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -234,7 +234,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	err = dbStoragePoolDeleteAndUpdateCache(d.db, poolName)
+	err = dbStoragePoolDeleteAndUpdateCache(d.nodeDB, poolName)
 	if err != nil {
 		return SmartError(err)
 	}
