@@ -15,6 +15,14 @@ import (
 
 func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
 	lvSizeString := shared.GetByteSizeString(lvSize, 0)
+
+	if (lvSize / 1024) == 0 {
+		// Everything under a 1MB doesn't make sense. Even if lvextend
+		// won't freak out xfs or ext4 will.
+		return fmt.Errorf(`The size of the storage volume would be ` +
+			`less than 1MB`)
+	}
+
 	msg, err := shared.TryRunCommand(
 		"lvextend",
 		"-L", lvSizeString,
@@ -43,6 +51,9 @@ func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntP
 		if ourMount {
 			defer s.StoragePoolVolumeUmount()
 		}
+	default:
+		return fmt.Errorf(`Resizing not implemented for storage `+
+			`volume type %d`, volumeType)
 	}
 
 	switch fsType {
@@ -64,6 +75,13 @@ func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntP
 func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
 	var err error
 	var msg string
+
+	if (lvSize / 1024) == 0 {
+		// Everything under a 1MB doesn't make sense. Even if lvreduce
+		// won't freak out xfs or ext4 will.
+		return fmt.Errorf(`The size of the storage volume would be ` +
+			`less than 1MB`)
+	}
 
 	lvSizeString := strconv.FormatInt(lvSize, 10)
 	switch fsType {
@@ -90,6 +108,9 @@ func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntP
 			if !ourMount {
 				defer s.StoragePoolVolumeMount()
 			}
+		default:
+			return fmt.Errorf(`Resizing not implemented for `+
+				`storage volume type %d`, volumeType)
 		}
 
 		msg, err = shared.TryRunCommand("e2fsck", "-f", "-y", lvPath)
