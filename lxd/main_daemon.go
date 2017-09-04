@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	dbg "github.com/lxc/lxd/lxd/debug"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -40,7 +41,7 @@ func cmdDaemon(args *Args) error {
 	c := &DaemonConfig{
 		Group: args.Group,
 	}
-	d := NewDaemon(c)
+	d := NewDaemon(c, sys.DefaultOS())
 	err = d.Init()
 	if err != nil {
 		return err
