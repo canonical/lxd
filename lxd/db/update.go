@@ -129,7 +129,8 @@ func UpdatesApplyAll(db *sql.DB, doBackup bool, legacyPatches map[int]*LegacyPat
 		}
 		return nil
 	})
-	return schema.Ensure(db)
+	_, err := schema.Ensure(db)
+	return err
 }
 
 // UpdateSchemaDotGo rewrites the 'schema.go' source file in this package to
@@ -147,7 +148,7 @@ func UpdateSchemaDotGo() error {
 
 	schema := schema.NewFromMap(updates)
 
-	err = schema.Ensure(db)
+	_, err = schema.Ensure(db)
 	if err != nil {
 		return err
 	}
