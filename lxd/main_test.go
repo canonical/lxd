@@ -111,7 +111,7 @@ func (suite *lxdTestSuite) SetupTest() {
 		os.Exit(1)
 	}
 
-	tx, err := db.Begin(suite.d.nodeDB)
+	tx, err := suite.d.db.Begin()
 	if err != nil {
 		os.Exit(1)
 	}
