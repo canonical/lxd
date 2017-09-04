@@ -246,6 +246,7 @@ func containerLXCCreate(s *state.State, storage storage, args db.ContainerArgs) 
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
+		db:           s.DB,
 		id:           args.Id,
 		name:         args.Name,
 		ephemeral:    args.Ephemeral,
@@ -397,6 +398,7 @@ func containerLXCLoad(s *state.State, storage storage, args db.ContainerArgs) (c
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
+		db:           s.DB,
 		id:           args.Id,
 		name:         args.Name,
 		ephemeral:    args.Ephemeral,
@@ -445,6 +447,7 @@ type containerLXC struct {
 
 	// Cache
 	c        *lxc.Container
+	db       *db.Node
 	state    *state.State
 	idmapset *idmap.IdmapSet
 	storage  storage
@@ -3328,7 +3331,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database
-	tx, err := db.Begin(c.state.NodeDB)
+	tx, err := c.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -5122,7 +5125,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	updateKey := func(key string, value string) error {
-		tx, err := db.Begin(c.state.NodeDB)
+		tx, err := c.db.Begin()
 		if err != nil {
 			return err
 		}

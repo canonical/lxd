@@ -128,7 +128,7 @@ func ContainerCreate(db *sql.DB, args ContainerArgs) (int, error) {
 		return 0, DbErrAlreadyDefined
 	}
 
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return 0, err
 	}
@@ -342,7 +342,7 @@ func ContainersList(db *sql.DB, cType ContainerType) ([]string, error) {
 }
 
 func ContainerSetState(db *sql.DB, id int, state string) error {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}
@@ -379,7 +379,7 @@ func ContainerSetState(db *sql.DB, id int, state string) error {
 }
 
 func ContainerRename(db *sql.DB, oldName string, newName string) error {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}
