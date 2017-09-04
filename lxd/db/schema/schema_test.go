@@ -134,7 +134,8 @@ func TestSchemaEnsure_ApplyAfterInitialDumpCreation(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, db = newSchemaAndDB(t)
-	_, err = db.Exec(dump)
+	schema.Fresh(dump)
+	_, err = schema.Ensure(db)
 	assert.NoError(t, err)
 
 	schema.Add(updateNoop)
@@ -228,7 +229,8 @@ func TestSchemaDump(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, db = newSchemaAndDB(t)
-	_, err = db.Exec(dump)
+	schema.Fresh(dump)
+	_, err = schema.Ensure(db)
 	assert.NoError(t, err)
 
 	tx, err := db.Begin()
