@@ -49,6 +49,18 @@ func TestSchemaEnsure_VersionMoreRecentThanExpected(t *testing.T) {
 	assert.EqualError(t, err, "schema version '1' is more recent than expected '0'")
 }
 
+// If a "fresh" SQL statement for creating the schema from scratch is provided,
+// but it fails to run, an error is returned.
+func TestSchemaEnsure_FreshStatementError(t *testing.T) {
+	schema, db := newSchemaAndDB(t)
+	schema.Add(updateNoop)
+	schema.Fresh("garbage")
+
+	_, err := schema.Ensure(db)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "cannot apply fresh schema")
+}
+
 // If the database schema contains "holes" in the applied versions, an error is
 // returned.
 func TestSchemaEnsure_MissingVersion(t *testing.T) {

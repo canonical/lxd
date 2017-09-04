@@ -15,6 +15,7 @@ import (
 type Schema struct {
 	updates []Update // Ordered series of updates making up the schema
 	hook    Hook     // Optional hook to execute whenever a update gets applied
+	fresh   string   // Optional SQL statement used to create schema from scratch
 }
 
 // Update applies a specific schema change to a database, and returns an error
@@ -86,6 +87,14 @@ func (s *Schema) Hook(hook Hook) {
 	s.hook = hook
 }
 
+// Fresh sets a statement that will be used to create the schema from scratch
+// when bootstraping an empty database. It should be a "flattening" of the
+// available updates, generated using the Dump() method. If not given, all
+// patches will be applied in order.
+func (s *Schema) Fresh(statement string) {
+	s.fresh = statement
+}
+
 // Ensure makes sure that the actual schema in the given database matches the
 // one defined by our updates.
 //
@@ -109,9 +118,19 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 		if err != nil {
 			return err
 		}
-		err = ensureUpdatesAreApplied(tx, current, s.updates, s.hook)
-		if err != nil {
-			return err
+
+		// When creating the schema from scratch, use the fresh dump if
+		// available. Otherwise just apply all relevant updates.
+		if current == 0 && s.fresh != "" {
+			_, err = tx.Exec(s.fresh)
+			if err != nil {
+				return fmt.Errorf("cannot apply fresh schema: %v", err)
+			}
+		} else {
+			err = ensureUpdatesAreApplied(tx, current, s.updates, s.hook)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
