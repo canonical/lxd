@@ -42,6 +42,7 @@ type Daemon struct {
 	clientCerts  []x509.Certificate
 	os           *sys.OS
 	nodeDB       *sql.DB
+	db           *db.Node
 	readyChan    chan bool
 	shutdownChan chan bool
 
@@ -670,11 +671,12 @@ func initializeDbObject(d *Daemon) error {
 		}
 		return nil
 	}
-	node, err := db.OpenNode(d.os.VarDir, freshHook, legacy)
+	var err error
+	d.db, err = db.OpenNode(d.os.VarDir, freshHook, legacy)
 	if err != nil {
 		return fmt.Errorf("Error creating database: %s", err)
 	}
-	d.nodeDB = node.DB()
+	d.nodeDB = d.db.DB()
 
 	return nil
 }
