@@ -1,6 +1,8 @@
 package sys
 
 import (
+	"path/filepath"
+
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/util"
@@ -12,6 +14,10 @@ import (
 // OS is a high-level facade for accessing all operating-system
 // level functionality that LXD uses.
 type OS struct {
+	VarDir   string // Data directory (e.g. /var/lib/lxd/).
+	CacheDir string // Cache directory (e.g. /var/cache/lxd/).
+	LogDir   string // Log directory (e.g. /var/log/lxd).
+
 	// Caches of system characteristics detected at Init() time.
 	Architectures           []int           // Cache of detected system architectures
 	LxcPath                 string          // Path to the $LXD_DIR/containers directory
@@ -37,9 +43,13 @@ type OS struct {
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
 
-// NewOS returns a fresh uninitialized OS instance.
-func NewOS() *OS {
-	return &OS{}
+// DefaultOS returns a fresh uninitialized OS instance with default values.
+func DefaultOS() *OS {
+	return &OS{
+		VarDir:   shared.VarPath(),
+		CacheDir: shared.CachePath(),
+		LogDir:   shared.LogPath(),
+	}
 }
 
 // Init our internal data structures.
@@ -54,7 +64,7 @@ func (s *OS) Init() error {
 		return err
 	}
 
-	s.LxcPath = shared.VarPath("containers")
+	s.LxcPath = filepath.Join(s.VarDir, "containers")
 
 	s.BackingFS, err = util.FilesystemDetect(s.LxcPath)
 	if err != nil {
