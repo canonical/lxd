@@ -285,7 +285,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 
 		// Check that we don't already use this volume group.
-		inUse, user, err := lxdUsesPool(s.s.DB, poolName, s.pool.Driver, "lvm.vg_name")
+		inUse, user, err := lxdUsesPool(s.s.NodeDB, poolName, s.pool.Driver, "lvm.vg_name")
 		if err != nil {
 			return err
 		}
@@ -557,7 +557,7 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 	}
 
 	err = db.StoragePoolVolumeDelete(
-		s.s.DB,
+		s.s.NodeDB,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -1798,7 +1798,7 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 	// Update the database
 	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
 	err = db.StoragePoolVolumeUpdate(
-		s.s.DB,
+		s.s.NodeDB,
 		s.volume.Name,
 		volumeType,
 		s.poolID,

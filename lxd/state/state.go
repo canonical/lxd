@@ -10,15 +10,15 @@ import (
 // and the operating system. It's typically used by model entities such as
 // containers, volumes, etc. in order to perform changes.
 type State struct {
-	DB *sql.DB
-	OS *sys.OS
+	NodeDB *sql.DB
+	OS     *sys.OS
 }
 
 // NewState returns a new State object with the given database and operating
 // system components.
 func NewState(db *sql.DB, os *sys.OS) *State {
 	return &State{
-		DB: db,
-		OS: os,
+		NodeDB: db,
+		OS:     os,
 	}
 }

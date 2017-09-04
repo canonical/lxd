@@ -746,7 +746,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	defer networkStaticLock.Unlock()
 
 	// Get all the containers
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -755,7 +755,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	networks := []string{}
 	if networkName == "" {
 		var err error
-		networks, err = db.Networks(s.DB)
+		networks, err = db.Networks(s.NodeDB)
 		if err != nil {
 			return err
 		}

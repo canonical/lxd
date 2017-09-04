@@ -592,7 +592,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the containers
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -718,7 +718,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		return
 	}
 
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
 	if err != nil {
 		return
 	}
@@ -749,7 +749,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 }
 
 func deviceUSBEvent(s *state.State, usb usbDevice) {
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -835,7 +835,7 @@ func deviceEventListener(s *state.State) {
 
 			logger.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
 			deviceNetworkPriority(s, e[0])
-			networkAutoAttach(s.DB, e[0])
+			networkAutoAttach(s.NodeDB, e[0])
 		case e := <-chUSB:
 			deviceUSBEvent(s, e)
 		case e := <-deviceSchedRebalance:

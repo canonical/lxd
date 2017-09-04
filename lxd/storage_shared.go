@@ -114,7 +114,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	}
 
 	// Create a db entry for the storage volume of the image.
-	_, err = db.StoragePoolVolumeCreate(s.s.DB, fingerprint, "", storagePoolVolumeTypeImage, s.poolID, volumeConfig)
+	_, err = db.StoragePoolVolumeCreate(s.s.NodeDB, fingerprint, "", storagePoolVolumeTypeImage, s.poolID, volumeConfig)
 	if err != nil {
 		// Try to delete the db entry on error.
 		s.deleteImageDbPoolVolume(fingerprint)
@@ -125,7 +125,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 }
 
 func (s *storageShared) deleteImageDbPoolVolume(fingerprint string) error {
-	err := db.StoragePoolVolumeDelete(s.s.DB, fingerprint, storagePoolVolumeTypeImage, s.poolID)
+	err := db.StoragePoolVolumeDelete(s.s.NodeDB, fingerprint, storagePoolVolumeTypeImage, s.poolID)
 	if err != nil {
 		return err
 	}

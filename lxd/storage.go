@@ -284,7 +284,7 @@ func storageCoreInit(driver string) (storage, error) {
 
 func storageInit(s *state.State, poolName string, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
-	poolID, pool, err := db.StoragePoolGet(s.DB, poolName)
+	poolID, pool, err := db.StoragePoolGet(s.NodeDB, poolName)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
 	if volumeName != "" && volumeType >= 0 {
-		_, volume, err = db.StoragePoolVolumeGetType(s.DB, volumeName, volumeType, poolID)
+		_, volume, err = db.StoragePoolVolumeGetType(s.NodeDB, volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -512,11 +512,11 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 	st.SetStoragePoolVolumeWritable(&poolVolumePut)
 
-	poolID, err := db.StoragePoolGetID(s.DB, poolName)
+	poolID, err := db.StoragePoolGetID(s.NodeDB, poolName)
 	if err != nil {
 		return nil, err
 	}
-	err = db.StoragePoolVolumeUpdate(s.DB, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = db.StoragePoolVolumeUpdate(s.NodeDB, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -539,7 +539,7 @@ func storagePoolVolumeContainerCreateInit(s *state.State, poolName string, conta
 
 func storagePoolVolumeContainerLoadInit(s *state.State, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
-	poolName, err := db.ContainerPool(s.DB, containerName)
+	poolName, err := db.ContainerPool(s.NodeDB, containerName)
 	if err != nil {
 		return nil, err
 	}
@@ -805,7 +805,7 @@ func StorageProgressWriter(op *operation, key string, description string) func(i
 }
 
 func SetupStorageDriver(s *state.State, forceCheck bool) error {
-	pools, err := db.StoragePools(s.DB)
+	pools, err := db.StoragePools(s.NodeDB)
 	if err != nil {
 		if err == db.NoSuchObjectError {
 			logger.Debugf("No existing storage pools detected.")
@@ -822,7 +822,7 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 	// but the upgrade somehow got messed up then there will be no
 	// "storage_api" entry in the db.
 	if len(pools) > 0 && !forceCheck {
-		appliedPatches, err := db.Patches(s.DB)
+		appliedPatches, err := db.Patches(s.NodeDB)
 		if err != nil {
 			return err
 		}
@@ -858,7 +858,7 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
 	if !storagePoolDriversCacheInitialized {
-		tmp, err := db.StoragePoolsGetDrivers(s.DB)
+		tmp, err := db.StoragePoolsGetDrivers(s.NodeDB)
 		if err != nil && err != db.NoSuchObjectError {
 			return nil
 		}

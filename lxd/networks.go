@@ -392,7 +392,7 @@ var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: netwo
 
 // The network structs and functions
 func networkLoadByName(s *state.State, name string) (*network, error) {
-	id, dbInfo, err := db.NetworkGet(s.DB, name)
+	id, dbInfo, err := db.NetworkGet(s.NodeDB, name)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +404,7 @@ func networkLoadByName(s *state.State, name string) (*network, error) {
 
 func networkStartup(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := db.Networks(s.DB)
+	networks, err := db.Networks(s.NodeDB)
 	if err != nil {
 		return err
 	}
@@ -428,7 +428,7 @@ func networkStartup(s *state.State) error {
 
 func networkShutdown(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := db.Networks(s.DB)
+	networks, err := db.Networks(s.NodeDB)
 	if err != nil {
 		return err
 	}
@@ -474,7 +474,7 @@ func (n *network) IsRunning() bool {
 
 func (n *network) IsUsed() bool {
 	// Look for containers using the interface
-	cts, err := db.ContainersList(n.state.DB, db.CTypeRegular)
+	cts, err := db.ContainersList(n.state.NodeDB, db.CTypeRegular)
 	if err != nil {
 		return true
 	}
@@ -508,7 +508,7 @@ func (n *network) Delete() error {
 	}
 
 	// Remove the network from the database
-	err := db.NetworkDelete(n.state.DB, n.name)
+	err := db.NetworkDelete(n.state.NodeDB, n.name)
 	if err != nil {
 		return err
 	}
@@ -543,7 +543,7 @@ func (n *network) Rename(name string) error {
 	}
 
 	// Rename the database entry
-	err := db.NetworkRename(n.state.DB, n.name, name)
+	err := db.NetworkRename(n.state.NodeDB, n.name, name)
 	if err != nil {
 		return err
 	}
@@ -1424,7 +1424,7 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 	n.description = newNetwork.Description
 
 	// Update the database
-	err = db.NetworkUpdate(n.state.DB, n.name, n.description, n.config)
+	err = db.NetworkUpdate(n.state.NodeDB, n.name, n.description, n.config)
 	if err != nil {
 		return err
 	}
