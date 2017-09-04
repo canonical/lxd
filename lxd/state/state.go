@@ -3,6 +3,7 @@ package state
 import (
 	"database/sql"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/sys"
 )
 
@@ -11,14 +12,16 @@ import (
 // containers, volumes, etc. in order to perform changes.
 type State struct {
 	NodeDB *sql.DB
+	DB     *db.Node
 	OS     *sys.OS
 }
 
 // NewState returns a new State object with the given database and operating
 // system components.
-func NewState(db *sql.DB, os *sys.OS) *State {
+func NewState(nodeDB *sql.DB, db *db.Node, os *sys.OS) *State {
 	return &State{
-		NodeDB: db,
+		NodeDB: nodeDB,
+		DB:     db,
 		OS:     os,
 	}
 }

@@ -87,7 +87,7 @@ func (n *Node) DB() *sql.DB {
 
 // Begin a new transaction against the local database. Legacy method.
 func (n *Node) Begin() (*sql.Tx, error) {
-	return Begin(n.db)
+	return begin(n.db)
 }
 
 func IsDbLockedError(err error) bool {
@@ -113,7 +113,7 @@ func isNoMatchError(err error) bool {
 	return false
 }
 
-func Begin(db *sql.DB) (*sql.Tx, error) {
+func begin(db *sql.DB) (*sql.Tx, error) {
 	for i := 0; i < 1000; i++ {
 		tx, err := db.Begin()
 		if err == nil {

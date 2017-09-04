@@ -77,7 +77,7 @@ func CertGet(db *sql.DB, fingerprint string) (cert *CertInfo, err error) {
 // CertSave stores a CertBaseInfo object in the db,
 // it will ignore the ID field from the CertInfo.
 func CertSave(db *sql.DB, cert *CertInfo) error {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func CertDelete(db *sql.DB, fingerprint string) error {
 }
 
 func CertUpdate(db *sql.DB, fingerprint string, certName string, certType int) error {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}

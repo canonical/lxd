@@ -133,7 +133,7 @@ func StoragePoolConfigGet(db *sql.DB, poolID int64) (map[string]string, error) {
 
 // Create new storage pool.
 func StoragePoolCreate(db *sql.DB, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return -1, err
 	}
@@ -191,7 +191,7 @@ func StoragePoolUpdate(db *sql.DB, poolName, description string, poolConfig map[
 		return err
 	}
 
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}
@@ -353,7 +353,7 @@ func StoragePoolVolumeUpdate(db *sql.DB, volumeName string, volumeType int, pool
 		return err
 	}
 
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}
@@ -401,7 +401,7 @@ func StoragePoolVolumeRename(db *sql.DB, oldVolumeName string, newVolumeName str
 		return err
 	}
 
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}
@@ -417,7 +417,7 @@ func StoragePoolVolumeRename(db *sql.DB, oldVolumeName string, newVolumeName str
 
 // Create new storage volume attached to a given storage pool.
 func StoragePoolVolumeCreate(db *sql.DB, volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return -1, err
 	}

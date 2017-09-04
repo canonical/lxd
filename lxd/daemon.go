@@ -172,7 +172,7 @@ func isJSONRequest(r *http.Request) bool {
 
 // State creates a new State instance liked to our internal db and os.
 func (d *Daemon) State() *state.State {
-	return state.NewState(d.nodeDB, d.os)
+	return state.NewState(d.nodeDB, d.db, d.os)
 }
 
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
