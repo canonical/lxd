@@ -7,6 +7,8 @@ import (
 
 	"github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/db/node"
+	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -25,66 +27,62 @@ var (
 	NoSuchObjectError = fmt.Errorf("No such object")
 )
 
-func enableForeignKeys(conn *sqlite3.SQLiteConn) error {
-	_, err := conn.Exec("PRAGMA foreign_keys=ON;", nil)
-	return err
+// Node mediates access to LXD's data stored in the node-local SQLite database.
+type Node struct {
+	db *sql.DB // Handle to the node-local SQLite database file.
+
 }
 
-func init() {
-	sql.Register("sqlite3_with_fk", &sqlite3.SQLiteDriver{ConnectHook: enableForeignKeys})
-}
-
-// OpenDb opens the database with the correct parameters for LXD.
-func OpenDb(path string) (*sql.DB, error) {
-	timeout := 5 // TODO - make this command-line configurable?
-
-	// These are used to tune the transaction BEGIN behavior instead of using the
-	// similar "locking_mode" pragma (locking for the whole database connection).
-	openPath := fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
-
-	// Open the database. If the file doesn't exist it is created.
-	return sql.Open("sqlite3_with_fk", openPath)
-}
-
-// Create the initial (current) schema for a given SQLite DB connection.
-func CreateDb(db *sql.DB, patchNames []string) (err error) {
-	latestVersion := GetSchema(db)
-
-	if latestVersion != 0 {
-		return nil
-	}
-
-	_, err = db.Exec(CURRENT_SCHEMA)
+// OpenNode creates a new Node object.
+//
+// The fresh hook parameter is used by the daemon to mark all known patch names
+// as applied when a brand new database is created.
+//
+// The legacyPatches parameter is used as a mean to apply the legacy V10, V11,
+// V15, V29 and V30 non-db updates during the database upgrade sequence, to
+// avoid any change in semantics wrt the old logic (see PR #3322).
+func OpenNode(dir string, fresh func(*sql.DB) error, legacyPatches map[int]*LegacyPatch) (*Node, error) {
+	db, err := node.Open(dir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Mark all existing patches as applied
-	for _, patchName := range patchNames {
-		PatchesMarkApplied(db, patchName)
-	}
+	schema := schema.NewFromMap(updates)
+	schema.Fresh(CURRENT_SCHEMA)
 
-	err = ProfileCreateDefault(db)
+	hook := legacyPatchHook(db, legacyPatches)
+	initial, err := node.EnsureSchema(db, dir, schema, hook)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	if initial == 0 {
+		err := ProfileCreateDefault(db)
+		if err != nil {
+			return nil, err
+		}
+		if fresh != nil {
+			err := fresh(db)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	node := &Node{
+		db: db,
+	}
+
+	return node, nil
 }
 
-func GetSchema(db *sql.DB) (v int) {
-	arg1 := []interface{}{}
-	arg2 := []interface{}{&v}
-	q := "SELECT max(version) FROM schema"
-	err := dbQueryRowScan(db, q, arg1, arg2)
-	if err != nil {
-		return 0
-	}
-	return v
-}
-
-func GetLatestSchema() int {
-	return len(updates)
+// DB returns the low level database handle to the node-local SQLite
+// database.
+//
+// FIXME: this is used for compatibility with some legacy code, and should be
+//        dropped once there are no call sites left.
+func (db *Node) DB() *sql.DB {
+	return db.db
 }
 
 func IsDbLockedError(err error) bool {

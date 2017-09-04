@@ -25,7 +25,7 @@ func cmdActivateIfNeeded(args *Args) error {
 		return nil
 	}
 
-	err := initializeDbObject(d, shared.VarPath("lxd.db"))
+	err := initializeDbObject(d)
 	if err != nil {
 		return err
 	}

@@ -344,7 +344,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Initialize the database */
-	err = initializeDbObject(d, shared.VarPath("lxd.db"))
+	err = initializeDbObject(d)
 	if err != nil {
 		return err
 	}
@@ -637,28 +637,7 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 // Create a database connection and perform any updates needed.
-func initializeDbObject(d *Daemon, path string) error {
-	var err error
-
-	// Open the database. If the file doesn't exist it is created.
-	d.db, err = db.OpenDb(path)
-	if err != nil {
-		return err
-	}
-
-	// Create the DB if it doesn't exist.
-	err = db.CreateDb(d.db, patchesGetNames())
-	if err != nil {
-		return fmt.Errorf("Error creating database: %s", err)
-	}
-
-	// Detect LXD downgrades
-	if db.GetSchema(d.db) > db.GetLatestSchema() {
-		return fmt.Errorf("The database schema is more recent than LXD's schema.")
-	}
-
-	// Apply any database update.
-	//
+func initializeDbObject(d *Daemon) error {
 	// NOTE: we use the legacyPatches parameter to run a few
 	// legacy non-db updates that were in place before the
 	// patches mechanism was introduced in lxd/patches.go. The
@@ -667,7 +646,11 @@ func initializeDbObject(d *Daemon, path string) error {
 	legacy := map[int]*db.LegacyPatch{}
 	for i, patch := range legacyPatches {
 		legacy[i] = &db.LegacyPatch{
-			Hook: func() error {
+			Hook: func(db *sql.DB) error {
+				// FIXME: Attach the local db to the Daemon, since at
+				//        this stage we're not fully initialized, yet
+				//        some legacy patches expect to find it here.
+				d.db = db
 				return patch(d)
 			},
 		}
@@ -675,10 +658,23 @@ func initializeDbObject(d *Daemon, path string) error {
 	for _, i := range legacyPatchesNeedingDB {
 		legacy[i].NeedsDB = true
 	}
-	err = db.UpdatesApplyAll(d.db, true, legacy)
-	if err != nil {
-		return err
+
+	// Hook to run when the local database is created from scratch. It will
+	// create the default profile and mark all patches as applied.
+	freshHook := func(nodeDB *sql.DB) error {
+		for _, patchName := range patchesGetNames() {
+			err := db.PatchesMarkApplied(nodeDB, patchName)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	}
+	db, err := db.OpenNode(d.os.VarDir, freshHook, legacy)
+	if err != nil {
+		return fmt.Errorf("Error creating database: %s", err)
+	}
+	d.db = db.DB()
 
 	return nil
 }
