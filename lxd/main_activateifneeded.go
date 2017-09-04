@@ -31,7 +31,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	/* Load all config values from the database */
-	err = daemonConfigInit(d.db)
+	err = daemonConfigInit(d.nodeDB)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	// Look for auto-started or previously started containers
-	result, err := db.ContainersList(d.db, db.CTypeRegular)
+	result, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}

@@ -51,7 +51,7 @@ func (p *patch) apply(d *Daemon) error {
 		return err
 	}
 
-	err = db.PatchesMarkApplied(d.db, p.name)
+	err = db.PatchesMarkApplied(d.nodeDB, p.name)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func patchesGetNames() []string {
 }
 
 func patchesApplyAll(d *Daemon) error {
-	appliedPatches, err := db.Patches(d.db)
+	appliedPatches, err := db.Patches(d.nodeDB)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
 DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FROM profiles_devices);
 `
 
-	_, err := d.db.Exec(stmt)
+	_, err := d.nodeDB.Exec(stmt)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FR
 }
 
 func patchInvalidProfileNames(name string, d *Daemon) error {
-	profiles, err := db.Profiles(d.db)
+	profiles, err := db.Profiles(d.nodeDB)
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 	for _, profile := range profiles {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
 			logger.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
-			err := db.ProfileDelete(d.db, profile)
+			err := db.ProfileDelete(d.nodeDB, profile)
 			if err != nil {
 				return err
 			}
@@ -124,18 +124,18 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 }
 
 func patchFixUploadedAt(name string, d *Daemon) error {
-	images, err := db.ImagesGet(d.db, false)
+	images, err := db.ImagesGet(d.nodeDB, false)
 	if err != nil {
 		return err
 	}
 
 	for _, fingerprint := range images {
-		id, image, err := db.ImageGet(d.db, fingerprint, false, true)
+		id, image, err := db.ImageGet(d.nodeDB, fingerprint, false, true)
 		if err != nil {
 			return err
 		}
 
-		_, err = db.Exec(d.db, "UPDATE images SET upload_date=? WHERE id=?", image.UploadedAt, id)
+		_, err = db.Exec(d.nodeDB, "UPDATE images SET upload_date=? WHERE id=?", image.UploadedAt, id)
 		if err != nil {
 			return err
 		}
@@ -182,7 +182,7 @@ func patchUpdateFromV10(d *Daemon) error {
 }
 
 func patchUpdateFromV11(d *Daemon) error {
-	cNames, err := db.ContainersList(d.db, db.CTypeSnapshot)
+	cNames, err := db.ContainersList(d.nodeDB, db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -253,12 +253,12 @@ func patchUpdateFromV15(d *Daemon) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
 
-	cNames, err := db.ContainersList(d.db, db.CTypeRegular)
+	cNames, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
-	err = daemonConfigInit(d.db)
+	err = daemonConfigInit(d.nodeDB)
 	if err != nil {
 		return err
 	}

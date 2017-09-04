@@ -20,7 +20,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 	defer os.RemoveAll(d.os.VarDir)
 	err = initializeDbObject(d)
-	db = d.db
+	db = d.nodeDB
 
 	// Insert a container and a related profile. Dont't forget that the profile
 	// we insert is profile ID 2 (there is a default profile already).
@@ -44,7 +44,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_devices entries left.
-	devices, err := dbapi.Devices(d.db, "theprofile", true)
+	devices, err := dbapi.Devices(d.nodeDB, "theprofile", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_config entries left.
-	config, err := dbapi.ProfileConfig(d.db, "theprofile")
+	config, err := dbapi.ProfileConfig(d.nodeDB, "theprofile")
 	if err == nil {
 		t.Fatal("found the profile!")
 	}

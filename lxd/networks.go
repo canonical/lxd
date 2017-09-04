@@ -97,7 +97,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	n.UsedBy = []string{}
 
 	// Look for containers using the interface
-	cts, err := db.ContainersList(d.db, db.CTypeRegular)
+	cts, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
 	if err != nil {
 		return api.Network{}, err
 	}

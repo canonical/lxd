@@ -68,7 +68,7 @@ func nextSnapshot(d *Daemon, name string) int {
 	var numstr string
 	inargs := []interface{}{db.CTypeSnapshot, length, base}
 	outfmt := []interface{}{numstr}
-	results, err := db.QueryScan(d.db, q, inargs, outfmt)
+	results, err := db.QueryScan(d.nodeDB, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}
@@ -221,7 +221,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := db.ContainerId(d.db, fullName)
+	id, _ := db.ContainerId(d.nodeDB, fullName)
 	if id > 0 {
 		return Conflict
 	}

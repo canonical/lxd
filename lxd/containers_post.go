@@ -31,7 +31,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		if req.Source.Server != "" {
 			hash = req.Source.Alias
 		} else {
-			_, alias, err := db.ImageAliasGet(d.db, req.Source.Alias, true)
+			_, alias, err := db.ImageAliasGet(d.nodeDB, req.Source.Alias, true)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -43,7 +43,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
-		hashes, err := db.ImagesGet(d.db, false)
+		hashes, err := db.ImagesGet(d.nodeDB, false)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -51,7 +51,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		var image *api.Image
 
 		for _, imageHash := range hashes {
-			_, img, err := db.ImageGet(d.db, imageHash, false, true)
+			_, img, err := db.ImageGet(d.nodeDB, imageHash, false, true)
 			if err != nil {
 				continue
 			}
@@ -103,7 +103,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 				return err
 			}
 		} else {
-			_, info, err = db.ImageGet(d.db, hash, false, false)
+			_, info, err = db.ImageGet(d.nodeDB, hash, false, false)
 			if err != nil {
 				return err
 			}
@@ -202,7 +202,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
-	_, _, err = db.ImageGet(d.db, req.Source.BaseImage, false, true)
+	_, _, err = db.ImageGet(d.nodeDB, req.Source.BaseImage, false, true)
 	if err == nil && d.Storage.MigrationType() == MigrationFSType_RSYNC {
 		c, err = containerCreateFromImage(d.State(), d.Storage, args, req.Source.BaseImage)
 		if err != nil {
@@ -355,7 +355,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Name == "" {
-		cs, err := db.ContainersList(d.db, db.CTypeRegular)
+		cs, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
 		if err != nil {
 			return SmartError(err)
 		}

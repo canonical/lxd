@@ -93,7 +93,7 @@ func storageLVMGetThinPoolUsers(dbObj *sql.DB) ([]string, error) {
 }
 
 func storageLVMValidateThinPoolName(d *Daemon, key string, value string) error {
-	return doStorageLVMValidateThinPoolName(d.db, key, value)
+	return doStorageLVMValidateThinPoolName(d.nodeDB, key, value)
 }
 
 func doStorageLVMValidateThinPoolName(db *sql.DB, key string, value string) error {
@@ -126,7 +126,7 @@ func doStorageLVMValidateThinPoolName(db *sql.DB, key string, value string) erro
 }
 
 func storageLVMValidateVolumeGroupName(d *Daemon, key string, value string) error {
-	users, err := storageLVMGetThinPoolUsers(d.db)
+	users, err := storageLVMGetThinPoolUsers(d.nodeDB)
 	if err != nil {
 		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
 	}
