@@ -152,14 +152,14 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 		s.SetStoragePoolVolumeWritable(&newWritable)
 	}
 
-	poolID, err := db.StoragePoolGetID(state.DB, poolName)
+	poolID, err := db.StoragePoolGetID(state.NodeDB, poolName)
 	if err != nil {
 		return err
 	}
 
 	// Update the database if something changed
 	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = db.StoragePoolVolumeUpdate(state.DB, volumeName, volumeType, poolID, newDescription, newConfig)
+		err = db.StoragePoolVolumeUpdate(state.NodeDB, volumeName, volumeType, poolID, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
@@ -173,7 +173,7 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 
 func storagePoolVolumeUsedByContainersGet(s *state.State, volumeName string,
 	volumeTypeName string) ([]string, error) {
-	cts, err := db.ContainersList(s.DB, db.CTypeRegular)
+	cts, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
 	if err != nil {
 		return []string{}, err
 	}
@@ -234,7 +234,7 @@ func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeNam
 			fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
 	}
 
-	profiles, err := profilesUsingPoolVolumeGetNames(s.DB, volumeName, volumeTypeName)
+	profiles, err := profilesUsingPoolVolumeGetNames(s.NodeDB, volumeName, volumeTypeName)
 	if err != nil {
 		return []string{}, err
 	}
@@ -303,14 +303,14 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 	}
 
 	// Load storage pool the volume will be attached to.
-	poolID, poolStruct, err := db.StoragePoolGet(s.DB, poolName)
+	poolID, poolStruct, err := db.StoragePoolGet(s.NodeDB, poolName)
 	if err != nil {
 		return err
 	}
 
 	// Check that a storage volume of the same storage volume type does not
 	// already exist.
-	volumeID, _ := db.StoragePoolVolumeGetTypeID(s.DB, volumeName, volumeType, poolID)
+	volumeID, _ := db.StoragePoolVolumeGetTypeID(s.NodeDB, volumeName, volumeType, poolID)
 	if volumeID > 0 {
 		return fmt.Errorf("a storage volume of type %s does already exist", volumeTypeName)
 	}
@@ -332,7 +332,7 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 	}
 
 	// Create the database entry for the storage volume.
-	_, err = db.StoragePoolVolumeCreate(s.DB, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
+	_, err = db.StoragePoolVolumeCreate(s.NodeDB, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
 	}
@@ -362,7 +362,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, volume
 	// Create storage volume.
 	err = s.StoragePoolVolumeCreate()
 	if err != nil {
-		db.StoragePoolVolumeDelete(state.DB, volumeName, volumeType, poolID)
+		db.StoragePoolVolumeDelete(state.NodeDB, volumeName, volumeType, poolID)
 		return err
 	}
 

@@ -106,12 +106,12 @@ var profilesCmd = Command{
 	post: profilesPost}
 
 func doProfileGet(s *state.State, name string) (*api.Profile, error) {
-	_, profile, err := db.ProfileGet(s.DB, name)
+	_, profile, err := db.ProfileGet(s.NodeDB, name)
 	if err != nil {
 		return nil, err
 	}
 
-	cts, err := db.ProfileContainersGet(s.DB, name)
+	cts, err := db.ProfileContainersGet(s.NodeDB, name)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func profileGet(d *Daemon, r *http.Request) Response {
 func getContainersWithProfile(s *state.State, profile string) []container {
 	results := []container{}
 
-	output, err := db.ProfileContainersGet(s.DB, profile)
+	output, err := db.ProfileContainersGet(s.NodeDB, profile)
 	if err != nil {
 		return results
 	}
