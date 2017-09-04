@@ -62,17 +62,18 @@ type DaemonConfig struct {
 }
 
 // NewDaemon returns a new Daemon object with the given configuration.
-func NewDaemon(config *DaemonConfig) *Daemon {
+func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	return &Daemon{
 		config: config,
-		os:     sys.NewOS(),
+		os:     os,
 	}
 }
 
 // DefaultDaemon returns a new, un-initialized Daemon object with default values.
 func DefaultDaemon() *Daemon {
 	config := &DaemonConfig{}
-	return NewDaemon(config)
+	os := sys.DefaultOS()
+	return NewDaemon(config, os)
 }
 
 // Command is the basic structure for every API call.

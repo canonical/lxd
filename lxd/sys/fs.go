@@ -2,8 +2,7 @@ package sys
 
 import (
 	"os"
-
-	"github.com/lxc/lxd/shared"
+	"path/filepath"
 )
 
 // Make sure all our directories are available.
@@ -12,16 +11,16 @@ func (s *OS) initDirs() error {
 		path string
 		mode os.FileMode
 	}{
-		{shared.VarPath(), 0711},
-		{shared.CachePath(), 0700},
-		{shared.VarPath("containers"), 0711},
-		{shared.VarPath("devices"), 0711},
-		{shared.VarPath("devlxd"), 0755},
-		{shared.VarPath("images"), 0700},
-		{shared.LogPath(), 0700},
-		{shared.VarPath("security"), 0700},
-		{shared.VarPath("shmounts"), 0711},
-		{shared.VarPath("snapshots"), 0700},
+		{s.VarDir, 0711},
+		{s.CacheDir, 0700},
+		{filepath.Join(s.VarDir, "containers"), 0711},
+		{filepath.Join(s.VarDir, "devices"), 0711},
+		{filepath.Join(s.VarDir, "devlxd"), 0755},
+		{filepath.Join(s.VarDir, "images"), 0700},
+		{s.LogDir, 0700},
+		{filepath.Join(s.VarDir, "security"), 0700},
+		{filepath.Join(s.VarDir, "shmounts"), 0711},
+		{filepath.Join(s.VarDir, "snapshots"), 0700},
 	}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir.path, dir.mode); err != nil {
