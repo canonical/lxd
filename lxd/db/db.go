@@ -86,8 +86,13 @@ func OpenNode(dir string, fresh func(*sql.DB) error, legacyPatches map[int]*Lega
 //
 // FIXME: this is used for compatibility with some legacy code, and should be
 //        dropped once there are no call sites left.
-func (db *Node) DB() *sql.DB {
-	return db.db
+func (n *Node) DB() *sql.DB {
+	return n.db
+}
+
+// Begin a new transaction against the local database. Legacy method.
+func (n *Node) Begin() (*sql.Tx, error) {
+	return Begin(n.db)
 }
 
 func IsDbLockedError(err error) bool {
