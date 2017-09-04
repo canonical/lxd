@@ -860,7 +860,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 			return "", fmt.Errorf("Error creating LVM thin pool: %v", err)
 		}
 
-		err = doStorageLVMValidateThinPoolName(s.s.DB, "", poolname)
+		err = doStorageLVMValidateThinPoolName(s.s.NodeDB, "", poolname)
 		if err != nil {
 			s.log.Error("Setting thin pool name", log.Ctx{"err": err})
 			return "", fmt.Errorf("Error setting LVM thin pool config: %v", err)

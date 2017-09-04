@@ -83,7 +83,7 @@ func (slice containerAutostartList) Swap(i, j int) {
 
 func containersRestart(s *state.State, storage storage) error {
 	// Get all the containers
-	result, err := db.ContainersList(s.DB, db.CTypeRegular)
+	result, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -130,13 +130,13 @@ func containersShutdown(s *state.State, storage storage) error {
 	var wg sync.WaitGroup
 
 	// Get all the containers
-	results, err := db.ContainersList(s.DB, db.CTypeRegular)
+	results, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Reset all container states
-	_, err = db.Exec(s.DB, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	_, err = db.Exec(s.NodeDB, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func containerDeleteSnapshots(s *state.State, storage storage, cname string) err
 	logger.Debug("containerDeleteSnapshots",
 		log.Ctx{"container": cname})
 
-	results, err := db.ContainerGetSnapshots(s.DB, cname)
+	results, err := db.ContainerGetSnapshots(s.NodeDB, cname)
 	if err != nil {
 		return err
 	}

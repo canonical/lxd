@@ -243,7 +243,7 @@ func deviceTaskBalance(s *state.State, storage storage) {
 	}
 
 	// Iterate through the containers
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -369,7 +369,7 @@ func deviceNetworkPriority(s *state.State, storage storage, netif string) {
 		return
 	}
 
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
 	if err != nil {
 		return
 	}
