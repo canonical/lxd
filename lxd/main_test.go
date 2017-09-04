@@ -88,11 +88,12 @@ func (suite *lxdTestSuite) TearDownSuite() {
 }
 
 func (suite *lxdTestSuite) SetupTest() {
-	initializeDbObject(suite.d, ":memory:")
+	initializeDbObject(suite.d)
 	daemonConfigInit(suite.d.db)
 	suite.Req = require.New(suite.T())
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
 	suite.d.db.Close()
+	os.Remove(filepath.Join(suite.d.os.VarDir, "lxd.db"))
 }

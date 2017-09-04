@@ -71,64 +71,6 @@ var updates = map[int]schema.Update{
 	32: updateFromV31,
 }
 
-// LegacyPatch is a "database" update that performs non-database work. They
-// are needed for historical reasons, since there was a time were db updates
-// could do non-db work and depend on functionality external to the db
-// package. See UpdatesApplyAll below.
-type LegacyPatch struct {
-	NeedsDB bool         // Whether the patch does any DB-related work
-	Hook    func() error // The actual patch logic
-}
-
-// UpdatesApplyAll applies all possible database patches. If "doBackup" is
-// true, the sqlite file will be backed up before any update is applied. The
-// legacyPatches parameter is used by the Daemon as a mean to apply the legacy
-// V10, V11, V15, V29 and V30 non-db updates during the database upgrade
-// sequence, to avoid any change in semantics wrt the old logic (see PR #3322).
-func UpdatesApplyAll(db *sql.DB, doBackup bool, legacyPatches map[int]*LegacyPatch) error {
-	backup := false
-
-	schema := schema.NewFromMap(updates)
-	schema.Hook(func(version int, tx *sql.Tx) error {
-		if doBackup && !backup {
-			logger.Infof("Updating the LXD database schema. Backup made as \"lxd.db.bak\"")
-			err := shared.FileCopy(shared.VarPath("lxd.db"), shared.VarPath("lxd.db.bak"))
-			if err != nil {
-				return err
-			}
-
-			backup = true
-		}
-		logger.Debugf("Updating DB schema from %d to %d", version, version+1)
-
-		legacyPatch, ok := legacyPatches[version]
-		if ok {
-			// FIXME We need to commit the transaction before the
-			// hook and then open it again afterwards because this
-			// legacy patch pokes with the database and would fail
-			// with a lock error otherwise.
-			if legacyPatch.NeedsDB {
-				_, err := tx.Exec("COMMIT")
-				if err != nil {
-					return err
-				}
-			}
-			err := legacyPatch.Hook()
-			if err != nil {
-				return err
-			}
-			if legacyPatch.NeedsDB {
-				_, err = tx.Exec("BEGIN")
-			}
-
-			return err
-		}
-		return nil
-	})
-	_, err := schema.Ensure(db)
-	return err
-}
-
 // UpdateSchemaDotGo rewrites the 'schema.go' source file in this package to
 // match the current schema updates.
 //

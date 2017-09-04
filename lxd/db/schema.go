@@ -139,12 +139,6 @@ CREATE TABLE profiles_devices_config (
     UNIQUE (profile_device_id, key),
     FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id) ON DELETE CASCADE
 );
-CREATE TABLE schema (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    version    INTEGER NOT NULL,
-    updated_at DATETIME NOT NULL,
-    UNIQUE (version)
-);
 
 INSERT INTO schema (version, updated_at) VALUES (32, strftime("%s"))
 `

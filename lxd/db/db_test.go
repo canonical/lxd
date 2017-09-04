@@ -3,12 +3,16 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
 
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -33,7 +37,8 @@ const DB_FIXTURES string = `
 type dbTestSuite struct {
 	suite.Suite
 
-	db *sql.DB
+	dir string
+	db  *sql.DB
 }
 
 func (s *dbTestSuite) SetupTest() {
@@ -44,22 +49,25 @@ func (s *dbTestSuite) SetupTest() {
 
 func (s *dbTestSuite) TearDownTest() {
 	s.db.Close()
+	os.RemoveAll(s.dir)
 }
 
 // Initialize a test in-memory DB.
 func (s *dbTestSuite) CreateTestDb() *sql.DB {
+	var err error
+
 	// Setup logging if main() hasn't been called/when testing
 	if logger.Log == nil {
-		var err error
 		logger.Log, err = logging.GetLogger("", "", true, true, nil)
 		s.Nil(err)
 	}
 
-	db, err := OpenDb(":memory:")
+	s.dir, err = ioutil.TempDir("", "lxd-db-test")
 	s.Nil(err)
-	s.Nil(CreateDb(db, []string{}))
-	s.Nil(UpdatesApplyAll(db, false, nil))
-	return db
+
+	db, err := OpenNode(s.dir, nil, nil)
+	s.Nil(err)
+	return db.db
 
 }
 
@@ -161,25 +169,6 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 	s.Equal(count, 0, "Deleting an image didn't delete the related images_properties!")
 }
 
-func (s *dbTestSuite) Test_initializing_db_is_idempotent() {
-	// This calls "CreateDb" once already.
-	db := s.CreateTestDb()
-	defer db.Close()
-
-	// Let's call it a second time.
-	s.Nil(CreateDb(db, []string{}))
-}
-
-func (s *dbTestSuite) Test_get_schema_returns_0_on_uninitialized_db() {
-	var db *sql.DB
-	var err error
-
-	db, err = sql.Open("sqlite3", ":memory:")
-	s.Nil(err)
-	result := GetSchema(db)
-	s.Equal(0, result, "getSchema should return 0 on uninitialized db!")
-}
-
 func (s *dbTestSuite) Test_running_UpdateFromV6_adds_on_delete_cascade() {
 	// Upgrading the database schema with updateFromV6 adds ON DELETE CASCADE
 	// to sqlite tables that require it, and conserve the data.
@@ -244,7 +233,11 @@ func (s *dbTestSuite) Test_run_database_upgrades_with_some_foreign_keys_inconsis
 	var count int
 	var statements string
 
-	db, err = sql.Open("sqlite3", ":memory:")
+	dir, err := ioutil.TempDir("", "lxd-db-test-")
+	s.Nil(err)
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "lxd.db")
+	db, err = sql.Open("sqlite3", path)
 	defer db.Close()
 	s.Nil(err)
 
@@ -314,11 +307,9 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 
 	// The "foreign key" on containers_config now points to nothing.
 	// Let's run the schema upgrades.
-	err = UpdatesApplyAll(db, false, nil)
+	schema := schema.NewFromMap(updates)
+	_, err = schema.Ensure(db)
 	s.Nil(err)
-
-	result := GetSchema(db)
-	s.Equal(result, GetLatestSchema(), "The schema is not at the latest version after update!")
 
 	// Make sure there are 0 containers_config entries left.
 	statements = `SELECT count(*) FROM containers_config;`
@@ -426,7 +417,6 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 			fmt.Sprintf("Mismatching value for key %s: %s != %s", key, result[key], value))
 	}
 }
-
 func (s *dbTestSuite) Test_ContainerProfiles() {
 	var err error
 	var result []string
