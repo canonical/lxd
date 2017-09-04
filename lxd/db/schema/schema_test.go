@@ -20,7 +20,9 @@ func TestNewFromMap(t *testing.T) {
 		1: updateCreateTable,
 		2: updateInsertValue,
 	})
-	assert.NoError(t, schema.Ensure(db))
+	initial, err := schema.Ensure(db)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, initial)
 }
 
 // Panic if there are missing versions in the map.
@@ -38,10 +40,11 @@ func TestNewFromMap_MissingVersions(t *testing.T) {
 func TestSchemaEnsure_VersionMoreRecentThanExpected(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateNoop)
-	assert.NoError(t, schema.Ensure(db))
+	_, err := schema.Ensure(db)
+	assert.NoError(t, err)
 
 	schema, _ = newSchemaAndDB(t)
-	err := schema.Ensure(db)
+	_, err = schema.Ensure(db)
 	assert.NotNil(t, err)
 	assert.EqualError(t, err, "schema version '1' is more recent than expected '0'")
 }
@@ -51,14 +54,15 @@ func TestSchemaEnsure_VersionMoreRecentThanExpected(t *testing.T) {
 func TestSchemaEnsure_MissingVersion(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateNoop)
-	assert.NoError(t, schema.Ensure(db))
+	_, err := schema.Ensure(db)
+	assert.NoError(t, err)
 
-	_, err := db.Exec(`INSERT INTO schema (version, updated_at) VALUES (3, strftime("%s"))`)
+	_, err = db.Exec(`INSERT INTO schema (version, updated_at) VALUES (3, strftime("%s"))`)
 
 	schema.Add(updateNoop)
 	schema.Add(updateNoop)
 
-	err = schema.Ensure(db)
+	_, err = schema.Ensure(db)
 	assert.NotNil(t, err)
 	assert.EqualError(t, err, "missing updates: 1 -> 3")
 }
@@ -67,7 +71,7 @@ func TestSchemaEnsure_MissingVersion(t *testing.T) {
 func TestSchemaEnsure_ZeroUpdates(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 
-	err := schema.Ensure(db)
+	_, err := schema.Ensure(db)
 	assert.NoError(t, err)
 
 	tx, err := db.Begin()
@@ -85,8 +89,9 @@ func TestSchemaEnsure_ApplyAllUpdates(t *testing.T) {
 	schema.Add(updateCreateTable)
 	schema.Add(updateInsertValue)
 
-	err := schema.Ensure(db)
+	initial, err := schema.Ensure(db)
 	assert.NoError(t, err)
+	assert.Equal(t, 0, initial)
 
 	tx, err := db.Begin()
 	assert.NoError(t, err)
@@ -110,7 +115,8 @@ func TestSchemaEnsure_ApplyAfterInitialDumpCreation(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateCreateTable)
 	schema.Add(updateAddColumn)
-	assert.NoError(t, schema.Ensure(db))
+	_, err := schema.Ensure(db)
+	assert.NoError(t, err)
 
 	dump, err := schema.Dump(db)
 	assert.NoError(t, err)
@@ -120,7 +126,8 @@ func TestSchemaEnsure_ApplyAfterInitialDumpCreation(t *testing.T) {
 	assert.NoError(t, err)
 
 	schema.Add(updateNoop)
-	assert.NoError(t, schema.Ensure(db))
+	_, err = schema.Ensure(db)
+	assert.NoError(t, err)
 
 	tx, err := db.Begin()
 	assert.NoError(t, err)
@@ -136,10 +143,13 @@ func TestSchemaEnsure_ApplyAfterInitialDumpCreation(t *testing.T) {
 func TestSchemaEnsure_OnlyApplyMissing(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateCreateTable)
-	assert.NoError(t, schema.Ensure(db))
+	_, err := schema.Ensure(db)
+	assert.NoError(t, err)
 
 	schema.Add(updateInsertValue)
-	assert.NoError(t, schema.Ensure(db))
+	initial, err := schema.Ensure(db)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, initial)
 
 	tx, err := db.Begin()
 	assert.NoError(t, err)
@@ -161,7 +171,7 @@ func TestSchemaEnsure_FailingUpdate(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateCreateTable)
 	schema.Add(updateBoom)
-	err := schema.Ensure(db)
+	_, err := schema.Ensure(db)
 	assert.EqualError(t, err, "failed to apply update 1: boom")
 
 	tx, err := db.Begin()
@@ -180,7 +190,7 @@ func TestSchemaEnsure_FailingHook(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateCreateTable)
 	schema.Hook(func(int, *sql.Tx) error { return fmt.Errorf("boom") })
-	err := schema.Ensure(db)
+	_, err := schema.Ensure(db)
 	assert.EqualError(t, err, "failed to execute hook (version 0): boom")
 
 	tx, err := db.Begin()
@@ -199,7 +209,8 @@ func TestSchemaDump(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateCreateTable)
 	schema.Add(updateAddColumn)
-	assert.NoError(t, schema.Ensure(db))
+	_, err := schema.Ensure(db)
+	assert.NoError(t, err)
 
 	dump, err := schema.Dump(db)
 	assert.NoError(t, err)
@@ -226,10 +237,11 @@ func TestSchemaDump(t *testing.T) {
 func TestSchemaDump_MissingUpdatees(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 	schema.Add(updateCreateTable)
-	assert.NoError(t, schema.Ensure(db))
+	_, err := schema.Ensure(db)
+	assert.NoError(t, err)
 	schema.Add(updateAddColumn)
 
-	_, err := schema.Dump(db)
+	_, err = schema.Dump(db)
 	assert.EqualError(t, err, "update level is 1, expected 2")
 }
 

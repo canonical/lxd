@@ -95,20 +95,31 @@ func (s *Schema) Hook(hook Hook) {
 // A update will be applied only if it hasn't been before (currently applied
 // updates are tracked in the a 'shema' table, which gets automatically
 // created).
-func (s *Schema) Ensure(db *sql.DB) error {
-	return query.Transaction(db, func(tx *sql.Tx) error {
+//
+// If no error occurs, the integer returned by this method is the
+// initial version that the schema has been upgraded from.
+func (s *Schema) Ensure(db *sql.DB) (int, error) {
+	var current int
+	err := query.Transaction(db, func(tx *sql.Tx) error {
 		err := ensureSchemaTableExists(tx)
 		if err != nil {
 			return err
 		}
-
-		err = ensureUpdatesAreApplied(tx, s.updates, s.hook)
+		current, err = queryCurrentVersion(tx)
+		if err != nil {
+			return err
+		}
+		err = ensureUpdatesAreApplied(tx, current, s.updates, s.hook)
 		if err != nil {
 			return err
 		}
 
 		return nil
 	})
+	if err != nil {
+		return -1, err
+	}
+	return current, nil
 }
 
 // Dump returns a text of SQL commands that can be used to create this schema
@@ -158,23 +169,25 @@ func ensureSchemaTableExists(tx *sql.Tx) error {
 	return nil
 }
 
-// Apply any pending update that was not yet applied.
-func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
+// Return the highest update version currently applied. Zero means that no
+// updates have been applied yet.
+func queryCurrentVersion(tx *sql.Tx) (int, error) {
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
-		return fmt.Errorf("failed to fetch update versions: %v", err)
+		return -1, fmt.Errorf("failed to fetch update versions: %v", err)
 	}
 
 	// Fix bad upgrade code between 30 and 32
-	if shared.IntInSlice(30, versions) && shared.IntInSlice(32, versions) && !shared.IntInSlice(31, versions) {
+	hasVersion := func(v int) bool { return shared.IntInSlice(v, versions) }
+	if hasVersion(30) && hasVersion(32) && !hasVersion(31) {
 		err = insertSchemaVersion(tx, 31)
 		if err != nil {
-			return fmt.Errorf("failed to insert missing schema version 31")
+			return -1, fmt.Errorf("failed to insert missing schema version 31")
 		}
 
 		versions, err = selectSchemaVersions(tx)
 		if err != nil {
-			return fmt.Errorf("failed to fetch update versions: %v", err)
+			return -1, fmt.Errorf("failed to fetch update versions: %v", err)
 		}
 	}
 
@@ -182,10 +195,15 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 	if len(versions) > 0 {
 		err = checkSchemaVersionsHaveNoHoles(versions)
 		if err != nil {
-			return err
+			return -1, err
 		}
 		current = versions[len(versions)-1] // Highest recorded version
 	}
+	return current, nil
+}
+
+// Apply any pending update that was not yet applied.
+func ensureUpdatesAreApplied(tx *sql.Tx, current int, updates []Update, hook Hook) error {
 	if current > len(updates) {
 		return fmt.Errorf(
 			"schema version '%d' is more recent than expected '%d'",
