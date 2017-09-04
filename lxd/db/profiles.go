@@ -65,7 +65,7 @@ func ProfileGet(db *sql.DB, name string) (int64, *api.Profile, error) {
 func ProfileCreate(db *sql.DB, profile string, description string, config map[string]string,
 	devices types.Devices) (int64, error) {
 
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return -1, err
 	}
@@ -176,7 +176,7 @@ func ProfileDelete(db *sql.DB, name string) error {
 }
 
 func ProfileUpdate(db *sql.DB, name string, newName string) error {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}

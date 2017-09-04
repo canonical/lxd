@@ -26,7 +26,7 @@ func ConfigValuesGet(db *sql.DB) (map[string]string, error) {
 }
 
 func ConfigValueSet(db *sql.DB, key string, value string) error {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}

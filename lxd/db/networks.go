@@ -143,7 +143,7 @@ func NetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
 }
 
 func NetworkCreate(db *sql.DB, name, description string, config map[string]string) (int64, error) {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return -1, err
 	}
@@ -180,7 +180,7 @@ func NetworkUpdate(db *sql.DB, name, description string, config map[string]strin
 		return err
 	}
 
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func NetworkRename(db *sql.DB, oldName string, newName string) error {
 		return err
 	}
 
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}

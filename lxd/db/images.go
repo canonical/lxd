@@ -390,7 +390,7 @@ func ImageUpdate(db *sql.DB, id int, fname string, sz int64, public bool, autoUp
 		arch = 0
 	}
 
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}
@@ -447,7 +447,7 @@ func ImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, aut
 		arch = 0
 	}
 
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}
