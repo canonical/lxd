@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -101,6 +102,12 @@ func isJSONRequest(r *http.Request) bool {
 // State creates a new State instance liked to our internal db and os.
 func (d *Daemon) State() *state.State {
 	return state.NewState(d.db, d.os)
+}
+
+// UnixSocket returns the full path to the unix.socket file that this daemon is
+// listening on. Used by tests.
+func (d *Daemon) UnixSocket() string {
+	return filepath.Join(d.os.VarDir, "unix.socket")
 }
 
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {

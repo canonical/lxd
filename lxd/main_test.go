@@ -19,19 +19,9 @@ func mockStartDaemon() (*Daemon, error) {
 	// Setup test certificates. We re-use the ones already on disk under
 	// the test/ directory, to avoid generating new ones, which is
 	// expensive.
-	cwd, err := os.Getwd()
+	err := setupTestCerts(shared.VarPath())
 	if err != nil {
 		return nil, err
-	}
-	deps := filepath.Join(cwd, "..", "test", "deps")
-	for _, f := range []string{"server.crt", "server.key"} {
-		err := os.Symlink(
-			filepath.Join(deps, f),
-			filepath.Join(shared.VarPath(), f),
-		)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if err := d.Init(); err != nil {

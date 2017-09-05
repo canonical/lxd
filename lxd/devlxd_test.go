@@ -38,6 +38,10 @@ func setupDir() error {
 	if err != nil {
 		return err
 	}
+	err = setupTestCerts(testDir)
+	if err != nil {
+		return err
+	}
 
 	err = os.Chmod(testDir, 0700)
 	if err != nil {
