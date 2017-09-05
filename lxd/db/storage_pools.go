@@ -240,7 +240,7 @@ func StoragePoolDelete(db *sql.DB, poolName string) (*api.StoragePool, error) {
 		return nil, err
 	}
 
-	_, err = Exec(db, "DELETE FROM storage_pools WHERE id=?", poolID)
+	_, err = exec(db, "DELETE FROM storage_pools WHERE id=?", poolID)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +386,7 @@ func StoragePoolVolumeDelete(db *sql.DB, volumeName string, volumeType int, pool
 		return err
 	}
 
-	_, err = Exec(db, "DELETE FROM storage_volumes WHERE id=?", volumeID)
+	_, err = exec(db, "DELETE FROM storage_volumes WHERE id=?", volumeID)
 	if err != nil {
 		return err
 	}
@@ -503,6 +503,6 @@ func StoragePoolVolumeTypeToName(volumeType int) (string, error) {
 }
 
 func StoragePoolInsertZfsDriver(db *sql.DB) error {
-	_, err := Exec(db, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
+	_, err := exec(db, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
 	return err
 }

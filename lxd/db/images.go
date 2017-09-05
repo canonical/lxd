@@ -93,7 +93,7 @@ func ImageSourceInsert(db *sql.DB, imageId int, server string, protocol string, 
 		return fmt.Errorf("Invalid protocol: %s", protocol)
 	}
 
-	_, err := Exec(db, stmt, imageId, server, protocolInt, certificate, alias)
+	_, err := exec(db, stmt, imageId, server, protocolInt, certificate, alias)
 	return err
 }
 
@@ -304,7 +304,7 @@ func ImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) 
 }
 
 func ImageDelete(db *sql.DB, id int) error {
-	_, err := Exec(db, "DELETE FROM images WHERE id=?", id)
+	_, err := exec(db, "DELETE FROM images WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -361,42 +361,42 @@ func ImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, api.Imag
 }
 
 func ImageAliasRename(db *sql.DB, id int, name string) error {
-	_, err := Exec(db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
+	_, err := exec(db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
 	return err
 }
 
 func ImageAliasDelete(db *sql.DB, name string) error {
-	_, err := Exec(db, "DELETE FROM images_aliases WHERE name=?", name)
+	_, err := exec(db, "DELETE FROM images_aliases WHERE name=?", name)
 	return err
 }
 
 func ImageAliasesMove(db *sql.DB, source int, destination int) error {
-	_, err := Exec(db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
+	_, err := exec(db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
 	return err
 }
 
 // Insert an alias ento the database.
 func ImageAliasAdd(db *sql.DB, name string, imageID int, desc string) error {
 	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
-	_, err := Exec(db, stmt, name, imageID, desc)
+	_, err := exec(db, stmt, name, imageID, desc)
 	return err
 }
 
 func ImageAliasUpdate(db *sql.DB, id int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
-	_, err := Exec(db, stmt, imageID, desc, id)
+	_, err := exec(db, stmt, imageID, desc, id)
 	return err
 }
 
 func ImageLastAccessUpdate(db *sql.DB, fingerprint string, date time.Time) error {
 	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
-	_, err := Exec(db, stmt, date, fingerprint)
+	_, err := exec(db, stmt, date, fingerprint)
 	return err
 }
 
 func ImageLastAccessInit(db *sql.DB, fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
-	_, err := Exec(db, stmt, fingerprint)
+	_, err := exec(db, stmt, fingerprint)
 	return err
 }
 
@@ -566,4 +566,10 @@ func ImageGetPoolNamesFromIDs(db *sql.DB, poolIDs []int64) ([]string, error) {
 	}
 
 	return poolNames, nil
+}
+
+// ImageUploadedAt updates the upload_date column and an image row.
+func ImageUploadedAt(db *sql.DB, id int, uploadedAt time.Time) error {
+	_, err := exec(db, "UPDATE images SET upload_date=? WHERE id=?", uploadedAt, id)
+	return err
 }

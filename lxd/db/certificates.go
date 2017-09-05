@@ -110,7 +110,7 @@ func CertSave(db *sql.DB, cert *CertInfo) error {
 
 // CertDelete deletes a certificate from the db.
 func CertDelete(db *sql.DB, fingerprint string) error {
-	_, err := Exec(db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
+	_, err := exec(db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
 	if err != nil {
 		return err
 	}
