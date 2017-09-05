@@ -38,22 +38,22 @@ type dbTestSuite struct {
 	suite.Suite
 
 	dir string
-	db  *sql.DB
+	db  *Node
 }
 
 func (s *dbTestSuite) SetupTest() {
 	s.db = s.CreateTestDb()
-	_, err := s.db.Exec(DB_FIXTURES)
+	_, err := s.db.DB().Exec(DB_FIXTURES)
 	s.Nil(err)
 }
 
 func (s *dbTestSuite) TearDownTest() {
-	s.db.Close()
+	s.db.DB().Close()
 	os.RemoveAll(s.dir)
 }
 
 // Initialize a test in-memory DB.
-func (s *dbTestSuite) CreateTestDb() *sql.DB {
+func (s *dbTestSuite) CreateTestDb() *Node {
 	var err error
 
 	// Setup logging if main() hasn't been called/when testing
@@ -67,7 +67,8 @@ func (s *dbTestSuite) CreateTestDb() *sql.DB {
 
 	db, err := OpenNode(s.dir, nil, nil)
 	s.Nil(err)
-	return db.db
+
+	return db
 
 }
 
@@ -83,30 +84,30 @@ func (s *dbTestSuite) Test_deleting_a_container_cascades_on_related_tables() {
 	// Drop the container we just created.
 	statements = `DELETE FROM containers WHERE name = 'thename';`
 
-	_, err = s.db.Exec(statements)
+	_, err = s.db.DB().Exec(statements)
 	s.Nil(err, "Error deleting container!")
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the profile association!")
 
 	// Make sure there are 0 containers_config entries left.
 	statements = `SELECT count(*) FROM containers_config;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_config!")
 
 	// Make sure there are 0 containers_devices entries left.
 	statements = `SELECT count(*) FROM containers_devices;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices!")
 
 	// Make sure there are 0 containers_devices_config entries left.
 	statements = `SELECT count(*) FROM containers_devices_config;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices_config!")
 }
@@ -119,29 +120,29 @@ func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	// Drop the profile we just created.
 	statements = `DELETE FROM profiles WHERE name = 'theprofile';`
 
-	_, err = s.db.Exec(statements)
+	_, err = s.db.DB().Exec(statements)
 	s.Nil(err)
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles WHERE profile_id = 3;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Equal(count, 0, "Deleting a profile didn't delete the container association!")
 
 	// Make sure there are 0 profiles_devices entries left.
 	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id == 3;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices!")
 
 	// Make sure there are 0 profiles_config entries left.
 	statements = `SELECT count(*) FROM profiles_config WHERE profile_id == 3;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_config! There are %d left")
 
 	// Make sure there are 0 profiles_devices_config entries left.
 	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 4;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices_config!")
 }
@@ -154,17 +155,17 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 	// Drop the image we just created.
 	statements = `DELETE FROM images;`
 
-	_, err = s.db.Exec(statements)
+	_, err = s.db.DB().Exec(statements)
 	s.Nil(err)
 	// Make sure there are 0 images_aliases entries left.
 	statements = `SELECT count(*) FROM images_aliases;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting an image didn't delete the image alias association!")
 
 	// Make sure there are 0 images_properties entries left.
 	statements = `SELECT count(*) FROM images_properties;`
-	err = s.db.QueryRow(statements).Scan(&count)
+	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting an image didn't delete the related images_properties!")
 }
@@ -177,7 +178,7 @@ func (s *dbTestSuite) Test_running_UpdateFromV6_adds_on_delete_cascade() {
 	var count int
 
 	db := s.CreateTestDb()
-	defer db.Close()
+	defer db.DB().Close()
 
 	statements := `
 CREATE TABLE IF NOT EXISTS containers (
@@ -201,28 +202,28 @@ CREATE TABLE IF NOT EXISTS containers_config (
 INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
 INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
 
-	_, err = db.Exec(statements)
+	_, err = db.DB().Exec(statements)
 	s.Nil(err)
 
 	// Run the upgrade from V6 code
-	err = query.Transaction(db, updateFromV6)
+	err = query.Transaction(db.DB(), updateFromV6)
 	s.Nil(err)
 
 	// Make sure the inserted data is still there.
 	statements = `SELECT count(*) FROM containers_config;`
-	err = db.QueryRow(statements).Scan(&count)
+	err = db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 1, "There should be exactly one entry in containers_config!")
 
 	// Drop the container.
 	statements = `DELETE FROM containers WHERE name = 'thename';`
 
-	_, err = db.Exec(statements)
+	_, err = db.DB().Exec(statements)
 	s.Nil(err)
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles;`
-	err = db.QueryRow(statements).Scan(&count)
+	err = db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the profile association!")
 }
@@ -322,7 +323,7 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 	var err error
 	var result *api.Image
 
-	_, result, err = ImageGet(s.db, "fingerprint", false, false)
+	_, result, err = ImageGet(s.db.DB(), "fingerprint", false, false)
 	s.Nil(err)
 	s.NotNil(result)
 	s.Equal(result.Filename, "filename")
@@ -334,14 +335,14 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	var err error
 
-	_, _, err = ImageGet(s.db, "unknown", false, false)
+	_, _, err = ImageGet(s.db.DB(), "unknown", false, false)
 	s.Equal(err, sql.ErrNoRows)
 }
 
 func (s *dbTestSuite) Test_ImageExists_true() {
 	var err error
 
-	exists, err := ImageExists(s.db, "fingerprint")
+	exists, err := ImageExists(s.db.DB(), "fingerprint")
 	s.Nil(err)
 	s.True(exists)
 }
@@ -349,7 +350,7 @@ func (s *dbTestSuite) Test_ImageExists_true() {
 func (s *dbTestSuite) Test_ImageExists_false() {
 	var err error
 
-	exists, err := ImageExists(s.db, "foobar")
+	exists, err := ImageExists(s.db.DB(), "foobar")
 	s.Nil(err)
 	s.False(exists)
 }
@@ -357,7 +358,7 @@ func (s *dbTestSuite) Test_ImageExists_false() {
 func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
 	var err error
 
-	_, alias, err := ImageAliasGet(s.db, "somealias", true)
+	_, alias, err := ImageAliasGet(s.db.DB(), "somealias", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
@@ -365,17 +366,17 @@ func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
 func (s *dbTestSuite) Test_ImageAliasGet_alias_does_not_exists() {
 	var err error
 
-	_, _, err = ImageAliasGet(s.db, "whatever", true)
+	_, _, err = ImageAliasGet(s.db.DB(), "whatever", true)
 	s.Equal(err, NoSuchObjectError)
 }
 
 func (s *dbTestSuite) Test_ImageAliasAdd() {
 	var err error
 
-	err = ImageAliasAdd(s.db, "Chaosphere", 1, "Someone will like the name")
+	err = ImageAliasAdd(s.db.DB(), "Chaosphere", 1, "Someone will like the name")
 	s.Nil(err)
 
-	_, alias, err := ImageAliasGet(s.db, "Chaosphere", true)
+	_, alias, err := ImageAliasGet(s.db.DB(), "Chaosphere", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
@@ -385,10 +386,10 @@ func (s *dbTestSuite) Test_dbContainerConfig() {
 	var result map[string]string
 	var expected map[string]string
 
-	_, err = s.db.Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
+	_, err = s.db.DB().Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
 	s.Nil(err)
 
-	result, err = ContainerConfig(s.db, 1)
+	result, err = s.db.ContainerConfig(1)
 	s.Nil(err)
 
 	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
@@ -404,10 +405,10 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 	var result map[string]string
 	var expected map[string]string
 
-	_, err = s.db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'something', 'something else');")
+	_, err = s.db.DB().Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'something', 'something else');")
 	s.Nil(err)
 
-	result, err = ProfileConfig(s.db, "theprofile")
+	result, err = ProfileConfig(s.db.DB(), "theprofile")
 	s.Nil(err)
 
 	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
@@ -423,7 +424,7 @@ func (s *dbTestSuite) Test_ContainerProfiles() {
 	var expected []string
 
 	expected = []string{"theprofile"}
-	result, err = ContainerProfiles(s.db, 1)
+	result, err = s.db.ContainerProfiles(1)
 	s.Nil(err)
 
 	for i := range expected {
@@ -438,7 +439,7 @@ func (s *dbTestSuite) Test_dbDevices_profiles() {
 	var subresult types.Device
 	var expected types.Device
 
-	result, err = Devices(s.db, "theprofile", true)
+	result, err = Devices(s.db.DB(), "theprofile", true)
 	s.Nil(err)
 
 	expected = types.Device{"type": "nic", "devicekey": "devicevalue"}
@@ -456,7 +457,7 @@ func (s *dbTestSuite) Test_dbDevices_containers() {
 	var subresult types.Device
 	var expected types.Device
 
-	result, err = Devices(s.db, "thename", false)
+	result, err = Devices(s.db.DB(), "thename", false)
 	s.Nil(err)
 
 	expected = types.Device{"type": "nic", "configkey": "configvalue"}

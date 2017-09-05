@@ -182,7 +182,7 @@ func patchUpdateFromV10(d *Daemon) error {
 }
 
 func patchUpdateFromV11(d *Daemon) error {
-	cNames, err := db.ContainersList(d.nodeDB, db.CTypeSnapshot)
+	cNames, err := d.db.ContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func patchUpdateFromV15(d *Daemon) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
 
-	cNames, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
+	cNames, err := d.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}

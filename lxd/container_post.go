@@ -7,7 +7,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -47,7 +46,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _ := db.ContainerId(d.nodeDB, body.Name)
+	id, _ := d.db.ContainerId(body.Name)
 	if id > 0 {
 		return Conflict
 	}

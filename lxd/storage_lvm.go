@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -52,14 +51,14 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 	return false, fmt.Errorf("Pool named '%s' exists but is not a thin pool.", poolName)
 }
 
-func storageLVMGetThinPoolUsers(dbObj *sql.DB) ([]string, error) {
+func storageLVMGetThinPoolUsers(dbObj *db.Node) ([]string, error) {
 	results := []string{}
 
 	if daemonConfig["storage.lvm_vg_name"].Get() == "" {
 		return results, nil
 	}
 
-	cNames, err := db.ContainersList(dbObj, db.CTypeRegular)
+	cNames, err := dbObj.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return results, err
 	}
@@ -77,7 +76,7 @@ func storageLVMGetThinPoolUsers(dbObj *sql.DB) ([]string, error) {
 		}
 	}
 
-	imageNames, err := db.ImagesGet(dbObj, false)
+	imageNames, err := db.ImagesGet(dbObj.DB(), false)
 	if err != nil {
 		return results, err
 	}
@@ -93,10 +92,10 @@ func storageLVMGetThinPoolUsers(dbObj *sql.DB) ([]string, error) {
 }
 
 func storageLVMValidateThinPoolName(d *Daemon, key string, value string) error {
-	return doStorageLVMValidateThinPoolName(d.nodeDB, key, value)
+	return doStorageLVMValidateThinPoolName(d.db, key, value)
 }
 
-func doStorageLVMValidateThinPoolName(db *sql.DB, key string, value string) error {
+func doStorageLVMValidateThinPoolName(db *db.Node, key string, value string) error {
 	users, err := storageLVMGetThinPoolUsers(db)
 	if err != nil {
 		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
@@ -126,7 +125,7 @@ func doStorageLVMValidateThinPoolName(db *sql.DB, key string, value string) erro
 }
 
 func storageLVMValidateVolumeGroupName(d *Daemon, key string, value string) error {
-	users, err := storageLVMGetThinPoolUsers(d.nodeDB)
+	users, err := storageLVMGetThinPoolUsers(d.db)
 	if err != nil {
 		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
 	}
@@ -860,7 +859,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 			return "", fmt.Errorf("Error creating LVM thin pool: %v", err)
 		}
 
-		err = doStorageLVMValidateThinPoolName(s.s.NodeDB, "", poolname)
+		err = doStorageLVMValidateThinPoolName(s.s.DB, "", poolname)
 		if err != nil {
 			s.log.Error("Setting thin pool name", log.Ctx{"err": err})
 			return "", fmt.Errorf("Error setting LVM thin pool config: %v", err)

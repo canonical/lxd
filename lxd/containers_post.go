@@ -355,7 +355,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Name == "" {
-		cs, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
+		cs, err := d.db.ContainersList(db.CTypeRegular)
 		if err != nil {
 			return SmartError(err)
 		}

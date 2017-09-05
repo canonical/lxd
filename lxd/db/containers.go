@@ -38,13 +38,13 @@ const (
 	CTypeSnapshot ContainerType = 1
 )
 
-func ContainerRemove(db *sql.DB, name string) error {
-	id, err := ContainerId(db, name)
+func (n *Node) ContainerRemove(name string) error {
+	id, err := n.ContainerId(name)
 	if err != nil {
 		return err
 	}
 
-	_, err = exec(db, "DELETE FROM containers WHERE id=?", id)
+	_, err = exec(n.db, "DELETE FROM containers WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -52,25 +52,25 @@ func ContainerRemove(db *sql.DB, name string) error {
 	return nil
 }
 
-func ContainerName(db *sql.DB, id int) (string, error) {
+func (n *Node) ContainerName(id int) (string, error) {
 	q := "SELECT name FROM containers WHERE id=?"
 	name := ""
 	arg1 := []interface{}{id}
 	arg2 := []interface{}{&name}
-	err := dbQueryRowScan(db, q, arg1, arg2)
+	err := dbQueryRowScan(n.db, q, arg1, arg2)
 	return name, err
 }
 
-func ContainerId(db *sql.DB, name string) (int, error) {
+func (n *Node) ContainerId(name string) (int, error) {
 	q := "SELECT id FROM containers WHERE name=?"
 	id := -1
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id}
-	err := dbQueryRowScan(db, q, arg1, arg2)
+	err := dbQueryRowScan(n.db, q, arg1, arg2)
 	return id, err
 }
 
-func ContainerGet(db *sql.DB, name string) (ContainerArgs, error) {
+func (n *Node) ContainerGet(name string) (ContainerArgs, error) {
 	args := ContainerArgs{}
 	args.Name = name
 
@@ -79,7 +79,7 @@ func ContainerGet(db *sql.DB, name string) (ContainerArgs, error) {
 	q := "SELECT id, architecture, type, ephemeral, stateful, creation_date FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&args.Id, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate}
-	err := dbQueryRowScan(db, q, arg1, arg2)
+	err := dbQueryRowScan(n.db, q, arg1, arg2)
 	if err != nil {
 		return args, err
 	}
@@ -96,13 +96,13 @@ func ContainerGet(db *sql.DB, name string) (ContainerArgs, error) {
 		args.Stateful = true
 	}
 
-	config, err := ContainerConfig(db, args.Id)
+	config, err := n.ContainerConfig(args.Id)
 	if err != nil {
 		return args, err
 	}
 	args.Config = config
 
-	profiles, err := ContainerProfiles(db, args.Id)
+	profiles, err := n.ContainerProfiles(args.Id)
 	if err != nil {
 		return args, err
 	}
@@ -110,7 +110,7 @@ func ContainerGet(db *sql.DB, name string) (ContainerArgs, error) {
 
 	/* get container_devices */
 	args.Devices = types.Devices{}
-	newdevs, err := Devices(db, name, false)
+	newdevs, err := Devices(n.db, name, false)
 	if err != nil {
 		return args, err
 	}
@@ -122,13 +122,13 @@ func ContainerGet(db *sql.DB, name string) (ContainerArgs, error) {
 	return args, nil
 }
 
-func ContainerCreate(db *sql.DB, args ContainerArgs) (int, error) {
-	id, err := ContainerId(db, args.Name)
+func (n *Node) ContainerCreate(args ContainerArgs) (int, error) {
+	id, err := n.ContainerId(args.Name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
 	}
 
-	tx, err := begin(db)
+	tx, err := begin(n.db)
 	if err != nil {
 		return 0, err
 	}
@@ -224,27 +224,27 @@ func ContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
 	return nil
 }
 
-func ContainerConfigGet(db *sql.DB, id int, key string) (string, error) {
+func (n *Node) ContainerConfigGet(id int, key string) (string, error) {
 	q := "SELECT value FROM containers_config WHERE container_id=? AND key=?"
 	value := ""
 	arg1 := []interface{}{id, key}
 	arg2 := []interface{}{&value}
-	err := dbQueryRowScan(db, q, arg1, arg2)
+	err := dbQueryRowScan(n.db, q, arg1, arg2)
 	return value, err
 }
 
-func ContainerConfigRemove(db *sql.DB, id int, name string) error {
-	_, err := exec(db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
+func (n *Node) ContainerConfigRemove(id int, name string) error {
+	_, err := exec(n.db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
 	return err
 }
 
-func ContainerSetStateful(db *sql.DB, id int, stateful bool) error {
+func (n *Node) ContainerSetStateful(id int, stateful bool) error {
 	statefulInt := 0
 	if stateful {
 		statefulInt = 1
 	}
 
-	_, err := exec(db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
+	_, err := exec(n.db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
 	return err
 }
 
@@ -271,7 +271,7 @@ func ContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 }
 
 // Get a list of profiles for a given container id.
-func ContainerProfiles(db *sql.DB, containerId int) ([]string, error) {
+func (n *Node) ContainerProfiles(containerId int) ([]string, error) {
 	var name string
 	var profiles []string
 
@@ -283,7 +283,7 @@ func ContainerProfiles(db *sql.DB, containerId int) ([]string, error) {
 	inargs := []interface{}{containerId}
 	outfmt := []interface{}{name}
 
-	results, err := queryScan(db, query, inargs, outfmt)
+	results, err := queryScan(n.db, query, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func ContainerProfiles(db *sql.DB, containerId int) ([]string, error) {
 }
 
 // ContainerConfig gets the container configuration map from the DB
-func ContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
+func (n *Node) ContainerConfig(containerId int) (map[string]string, error) {
 	var key, value string
 	q := `SELECT key, value FROM containers_config WHERE container_id=?`
 
@@ -306,7 +306,7 @@ func ContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	outfmt := []interface{}{key, value}
 
 	// Results is already a slice here, not db Rows anymore.
-	results, err := queryScan(db, q, inargs, outfmt)
+	results, err := queryScan(n.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err //SmartError will wrap this and make "not found" errors pretty
 	}
@@ -323,12 +323,12 @@ func ContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	return config, nil
 }
 
-func ContainersList(db *sql.DB, cType ContainerType) ([]string, error) {
+func (n *Node) ContainersList(cType ContainerType) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? ORDER BY name")
 	inargs := []interface{}{cType}
 	var container string
 	outfmt := []interface{}{container}
-	result, err := queryScan(db, q, inargs, outfmt)
+	result, err := queryScan(n.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -341,14 +341,14 @@ func ContainersList(db *sql.DB, cType ContainerType) ([]string, error) {
 	return ret, nil
 }
 
-func ContainersResetState(db *sql.DB) error {
+func (n *Node) ContainersResetState() error {
 	// Reset all container states
-	_, err := exec(db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	_, err := exec(n.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
 	return err
 }
 
-func ContainerSetState(db *sql.DB, id int, state string) error {
-	tx, err := begin(db)
+func (n *Node) ContainerSetState(id int, state string) error {
+	tx, err := begin(n.db)
 	if err != nil {
 		return err
 	}
@@ -384,8 +384,8 @@ func ContainerSetState(db *sql.DB, id int, state string) error {
 	return TxCommit(tx)
 }
 
-func ContainerRename(db *sql.DB, oldName string, newName string) error {
-	tx, err := begin(db)
+func (n *Node) ContainerRename(oldName string, newName string) error {
+	tx, err := begin(n.db)
 	if err != nil {
 		return err
 	}
@@ -432,7 +432,7 @@ func ContainerUpdate(tx *sql.Tx, id int, architecture int, ephemeral bool) error
 	return nil
 }
 
-func ContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
+func (n *Node) ContainerGetSnapshots(name string) ([]string, error) {
 	result := []string{}
 
 	regexp := name + shared.SnapshotDelimiter
@@ -440,7 +440,7 @@ func ContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
 	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
 	inargs := []interface{}{CTypeSnapshot, length, regexp}
 	outfmt := []interface{}{name}
-	dbResults, err := queryScan(db, q, inargs, outfmt)
+	dbResults, err := queryScan(n.db, q, inargs, outfmt)
 	if err != nil {
 		return result, err
 	}
@@ -456,14 +456,14 @@ func ContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
  * Note, the code below doesn't deal with snapshots of snapshots.
  * To do that, we'll need to weed out based on # slashes in names
  */
-func ContainerNextSnapshot(db *sql.DB, name string) int {
+func (n *Node) ContainerNextSnapshot(name string) int {
 	base := name + shared.SnapshotDelimiter + "snap"
 	length := len(base)
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
 	var numstr string
 	inargs := []interface{}{CTypeSnapshot, length, base}
 	outfmt := []interface{}{numstr}
-	results, err := queryScan(db, q, inargs, outfmt)
+	results, err := queryScan(n.db, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}

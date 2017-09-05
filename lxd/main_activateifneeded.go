@@ -51,7 +51,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	// Look for auto-started or previously started containers
-	result, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
+	result, err := d.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
