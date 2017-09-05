@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/x509"
-	"database/sql"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -25,7 +24,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 	if recursion {
 		certResponses := []api.Certificate{}
 
-		baseCerts, err := db.CertsGet(d.nodeDB)
+		baseCerts, err := d.db.CertsGet()
 		if err != nil {
 			return SmartError(err)
 		}
@@ -55,7 +54,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = []x509.Certificate{}
 
-	dbCerts, err := db.CertsGet(d.nodeDB)
+	dbCerts, err := d.db.CertsGet()
 	if err != nil {
 		logger.Infof("Error reading certificates from database: %s", err)
 		return
@@ -77,7 +76,7 @@ func readSavedClientCAList(d *Daemon) {
 	}
 }
 
-func saveCert(dbObj *sql.DB, host string, cert *x509.Certificate) error {
+func saveCert(dbObj *db.Node, host string, cert *x509.Certificate) error {
 	baseCert := new(db.CertInfo)
 	baseCert.Fingerprint = shared.CertFingerprint(cert)
 	baseCert.Type = 1
@@ -86,7 +85,7 @@ func saveCert(dbObj *sql.DB, host string, cert *x509.Certificate) error {
 		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}),
 	)
 
-	return db.CertSave(dbObj, baseCert)
+	return dbObj.CertSave(baseCert)
 }
 
 func certificatesPost(d *Daemon, r *http.Request) Response {
@@ -143,7 +142,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	err := saveCert(d.nodeDB, name, cert)
+	err := saveCert(d.db, name, cert)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -166,7 +165,7 @@ var certificatesCmd = Command{
 func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	cert, err := doCertificateGet(d.nodeDB, fingerprint)
+	cert, err := doCertificateGet(d.db, fingerprint)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -174,10 +173,10 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, cert)
 }
 
-func doCertificateGet(dbObj *sql.DB, fingerprint string) (api.Certificate, error) {
+func doCertificateGet(dbObj *db.Node, fingerprint string) (api.Certificate, error) {
 	resp := api.Certificate{}
 
-	dbCertInfo, err := db.CertGet(dbObj, fingerprint)
+	dbCertInfo, err := dbObj.CertGet(fingerprint)
 	if err != nil {
 		return resp, err
 	}
@@ -197,12 +196,12 @@ func doCertificateGet(dbObj *sql.DB, fingerprint string) (api.Certificate, error
 func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	certInfo, err := db.CertGet(d.nodeDB, fingerprint)
+	certInfo, err := d.db.CertGet(fingerprint)
 	if err != nil {
 		return NotFound
 	}
 
-	err = db.CertDelete(d.nodeDB, certInfo.Fingerprint)
+	err = d.db.CertDelete(certInfo.Fingerprint)
 	if err != nil {
 		return SmartError(err)
 	}
