@@ -2444,7 +2444,7 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 		cleanSource := filepath.Clean(source)
 		poolMntPoint := getStoragePoolMountPoint(poolName)
 
-		if cleanSource == poolName {
+		if cleanSource == poolMntPoint {
 			continue
 		}
 
