@@ -1,10 +1,6 @@
 package db
 
-import (
-	"database/sql"
-
-	_ "github.com/mattn/go-sqlite3"
-)
+import _ "github.com/mattn/go-sqlite3"
 
 // CertInfo is here to pass the certificates content
 // from the database around
@@ -17,9 +13,9 @@ type CertInfo struct {
 }
 
 // CertsGet returns all certificates from the DB as CertBaseInfo objects.
-func CertsGet(db *sql.DB) (certs []*CertInfo, err error) {
+func (n *Node) CertsGet() (certs []*CertInfo, err error) {
 	rows, err := dbQuery(
-		db,
+		n.db,
 		"SELECT id, fingerprint, type, name, certificate FROM certificates",
 	)
 	if err != nil {
@@ -48,7 +44,7 @@ func CertsGet(db *sql.DB) (certs []*CertInfo, err error) {
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func CertGet(db *sql.DB, fingerprint string) (cert *CertInfo, err error) {
+func (n *Node) CertGet(fingerprint string) (cert *CertInfo, err error) {
 	cert = new(CertInfo)
 
 	inargs := []interface{}{fingerprint + "%"}
@@ -67,7 +63,7 @@ func CertGet(db *sql.DB, fingerprint string) (cert *CertInfo, err error) {
 			certificates
 		WHERE fingerprint LIKE ?`
 
-	if err = dbQueryRowScan(db, query, inargs, outfmt); err != nil {
+	if err = dbQueryRowScan(n.db, query, inargs, outfmt); err != nil {
 		return nil, err
 	}
 
@@ -76,8 +72,8 @@ func CertGet(db *sql.DB, fingerprint string) (cert *CertInfo, err error) {
 
 // CertSave stores a CertBaseInfo object in the db,
 // it will ignore the ID field from the CertInfo.
-func CertSave(db *sql.DB, cert *CertInfo) error {
-	tx, err := begin(db)
+func (n *Node) CertSave(cert *CertInfo) error {
+	tx, err := begin(n.db)
 	if err != nil {
 		return err
 	}
@@ -109,8 +105,8 @@ func CertSave(db *sql.DB, cert *CertInfo) error {
 }
 
 // CertDelete deletes a certificate from the db.
-func CertDelete(db *sql.DB, fingerprint string) error {
-	_, err := exec(db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
+func (n *Node) CertDelete(fingerprint string) error {
+	_, err := exec(n.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
 	if err != nil {
 		return err
 	}
@@ -118,8 +114,8 @@ func CertDelete(db *sql.DB, fingerprint string) error {
 	return nil
 }
 
-func CertUpdate(db *sql.DB, fingerprint string, certName string, certType int) error {
-	tx, err := begin(db)
+func (n *Node) CertUpdate(fingerprint string, certName string, certType int) error {
+	tx, err := begin(n.db)
 	if err != nil {
 		return err
 	}
