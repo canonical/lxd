@@ -41,7 +41,7 @@ type Node struct {
 // The legacyPatches parameter is used as a mean to apply the legacy V10, V11,
 // V15, V29 and V30 non-db updates during the database upgrade sequence, to
 // avoid any change in semantics wrt the old logic (see PR #3322).
-func OpenNode(dir string, fresh func(*sql.DB) error, legacyPatches map[int]*LegacyPatch) (*Node, error) {
+func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*LegacyPatch) (*Node, error) {
 	db, err := node.Open(dir)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func OpenNode(dir string, fresh func(*sql.DB) error, legacyPatches map[int]*Lega
 			return nil, err
 		}
 		if fresh != nil {
-			err := fresh(db)
+			err := fresh(node)
 			if err != nil {
 				return nil, err
 			}
