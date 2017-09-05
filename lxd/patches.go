@@ -1879,26 +1879,11 @@ func patchStorageApiV1(name string, d *Daemon) error {
 }
 
 func patchStorageApiDirCleanup(name string, d *Daemon) error {
-	_, err := db.Exec(d.nodeDB, "DELETE FROM storage_volumes WHERE type=? AND name NOT IN (SELECT fingerprint FROM images);", storagePoolVolumeTypeImage)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return db.StorageVolumeCleanupImages(d.nodeDB)
 }
 
 func patchStorageApiLvmKeys(name string, d *Daemon) error {
-	_, err := db.Exec(d.nodeDB, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
-	if err != nil {
-		return err
-	}
-
-	_, err = db.Exec(d.nodeDB, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return db.StorageVolumeMoveToLVMThinPoolNameKey(d.nodeDB)
 }
 
 func patchStorageApiKeys(name string, d *Daemon) error {
@@ -2255,12 +2240,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 }
 
 func patchStorageApiInsertZfsDriver(name string, d *Daemon) error {
-	_, err := db.Exec(d.nodeDB, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return db.StoragePoolInsertZfsDriver(d.nodeDB)
 }
 
 func patchStorageZFSnoauto(name string, d *Daemon) error {

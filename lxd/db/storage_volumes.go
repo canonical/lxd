@@ -82,3 +82,22 @@ func StorageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
 
 	return nil
 }
+
+func StorageVolumeCleanupImages(db *sql.DB) error {
+	_, err := Exec(db, "DELETE FROM storage_volumes WHERE type=? AND name NOT IN (SELECT fingerprint FROM images);", StoragePoolVolumeTypeImage)
+	return err
+}
+
+func StorageVolumeMoveToLVMThinPoolNameKey(db *sql.DB) error {
+	_, err := Exec(db, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
+	if err != nil {
+		return err
+	}
+
+	_, err = Exec(db, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
