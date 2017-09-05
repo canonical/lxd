@@ -31,7 +31,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	/* Load all config values from the database */
-	err = daemonConfigInit(d.nodeDB)
+	err = daemonConfigInit(d.db.DB())
 	if err != nil {
 		return err
 	}

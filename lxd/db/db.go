@@ -97,6 +97,11 @@ func (n *Node) DB() *sql.DB {
 	return n.db
 }
 
+// Close the database facade.
+func (n *Node) Close() error {
+	return n.db.Close()
+}
+
 // Begin a new transaction against the local database. Legacy method.
 func (n *Node) Begin() (*sql.Tx, error) {
 	return begin(n.db)

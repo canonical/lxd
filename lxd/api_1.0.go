@@ -128,7 +128,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 }
 
 func api10Put(d *Daemon, r *http.Request) Response {
-	oldConfig, err := db.ConfigValuesGet(d.nodeDB)
+	oldConfig, err := db.ConfigValuesGet(d.db.DB())
 	if err != nil {
 		return SmartError(err)
 	}

@@ -18,7 +18,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 	defer os.RemoveAll(d.os.VarDir)
 	err = initializeDbObject(d)
-	db = d.nodeDB
+	db = d.db.DB()
 
 	// Insert a container and a related profile. Dont't forget that the profile
 	// we insert is profile ID 2 (there is a default profile already).
