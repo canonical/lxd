@@ -46,7 +46,7 @@ func ContainerRemove(db *sql.DB, name string) error {
 		return err
 	}
 
-	_, err = Exec(db, "DELETE FROM containers WHERE id=?", id)
+	_, err = exec(db, "DELETE FROM containers WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func ContainerConfigGet(db *sql.DB, id int, key string) (string, error) {
 }
 
 func ContainerConfigRemove(db *sql.DB, id int, name string) error {
-	_, err := Exec(db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
+	_, err := exec(db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
 	return err
 }
 
@@ -258,7 +258,7 @@ func ContainerSetStateful(db *sql.DB, id int, stateful bool) error {
 		statefulInt = 1
 	}
 
-	_, err := Exec(db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
+	_, err := exec(db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
 	return err
 }
 
@@ -357,7 +357,7 @@ func ContainersList(db *sql.DB, cType ContainerType) ([]string, error) {
 
 func ContainersResetState(db *sql.DB) error {
 	// Reset all container states
-	_, err := Exec(db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	_, err := exec(db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
 	return err
 }
 
@@ -448,7 +448,7 @@ func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, e
 
 func ContainerLastUsedUpdate(db *sql.DB, id int, date time.Time) error {
 	stmt := `UPDATE containers SET last_use_date=? WHERE id=?`
-	_, err := Exec(db, stmt, date, id)
+	_, err := exec(db, stmt, date, id)
 	return err
 }
 

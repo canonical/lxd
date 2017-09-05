@@ -245,7 +245,7 @@ func NetworkDelete(db *sql.DB, name string) error {
 		return err
 	}
 
-	_, err = Exec(db, "DELETE FROM networks WHERE id=?", id)
+	_, err = exec(db, "DELETE FROM networks WHERE id=?", id)
 	if err != nil {
 		return err
 	}

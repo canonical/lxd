@@ -272,7 +272,7 @@ func queryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{})
 	return nil, fmt.Errorf("DB is locked")
 }
 
-func Exec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
+func exec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 	for i := 0; i < 1000; i++ {
 		result, err := db.Exec(q, args...)
 		if err == nil {
