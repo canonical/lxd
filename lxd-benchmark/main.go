@@ -61,6 +61,8 @@ func run(args []string) error {
 		return err
 	}
 
+	benchmark.PrintServerInfo(c)
+
 	switch os.Args[1] {
 	case "spawn":
 		return benchmark.SpawnContainers(c, *argCount, *argParallel, *argImage, *argPrivileged, *argFreeze)
