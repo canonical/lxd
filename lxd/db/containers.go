@@ -355,6 +355,12 @@ func ContainersList(db *sql.DB, cType ContainerType) ([]string, error) {
 	return ret, nil
 }
 
+func ContainersResetState(db *sql.DB) error {
+	// Reset all container states
+	_, err := Exec(db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	return err
+}
+
 func ContainerSetState(db *sql.DB, id int, state string) error {
 	tx, err := begin(db)
 	if err != nil {

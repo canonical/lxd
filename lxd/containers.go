@@ -152,7 +152,7 @@ func containersShutdown(s *state.State) error {
 	}
 
 	// Reset all container states
-	_, err = db.Exec(s.NodeDB, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	err = db.ContainersResetState(s.NodeDB)
 	if err != nil {
 		return err
 	}

@@ -501,3 +501,8 @@ func StoragePoolVolumeTypeToName(volumeType int) (string, error) {
 
 	return "", fmt.Errorf("invalid storage volume type")
 }
+
+func StoragePoolInsertZfsDriver(db *sql.DB) error {
+	_, err := Exec(db, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
+	return err
+}
