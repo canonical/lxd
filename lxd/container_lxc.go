@@ -716,7 +716,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
-	cs, err := db.ContainersList(state.NodeDB, db.CTypeRegular)
+	cs, err := state.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1722,7 +1722,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 
 		// Remove the volatile key from the DB
-		err = db.ContainerConfigRemove(c.state.NodeDB, c.id, "volatile.apply_quota")
+		err = c.db.ContainerConfigRemove(c.id, "volatile.apply_quota")
 		if err != nil {
 			return "", err
 		}
@@ -2087,7 +2087,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Update time container was last started
-	err = db.ContainerLastUsedUpdate(c.state.NodeDB, c.id, time.Now().UTC())
+	err = c.db.ContainerLastUsedUpdate(c.id, time.Now().UTC())
 	if err != nil {
 		return "", fmt.Errorf("Error updating last used: %v", err)
 	}
@@ -2145,7 +2145,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		os.RemoveAll(c.StatePath())
 		c.stateful = false
 
-		err = db.ContainerSetStateful(c.state.NodeDB, c.id, false)
+		err = c.db.ContainerSetStateful(c.id, false)
 		if err != nil {
 			logger.Error("Failed starting container", ctxMap)
 			return err
@@ -2162,7 +2162,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 
 		c.stateful = false
-		err = db.ContainerSetStateful(c.state.NodeDB, c.id, false)
+		err = c.db.ContainerSetStateful(c.id, false)
 		if err != nil {
 			return err
 		}
@@ -2255,7 +2255,7 @@ func (c *containerLXC) OnStart() error {
 		}
 
 		// Remove the volatile key from the DB
-		err := db.ContainerConfigRemove(c.state.NodeDB, c.id, key)
+		err := c.db.ContainerConfigRemove(c.id, key)
 		if err != nil {
 			AADestroy(c)
 			if ourStart {
@@ -2309,7 +2309,7 @@ func (c *containerLXC) OnStart() error {
 	}
 
 	// Record current state
-	err = db.ContainerSetState(c.state.NodeDB, c.id, "RUNNING")
+	err = c.db.ContainerSetState(c.id, "RUNNING")
 	if err != nil {
 		return err
 	}
@@ -2363,7 +2363,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		}
 
 		c.stateful = true
-		err = db.ContainerSetStateful(c.state.NodeDB, c.id, true)
+		err = c.db.ContainerSetStateful(c.id, true)
 		if err != nil {
 			op.Done(err)
 			logger.Error("Failed stopping container", ctxMap)
@@ -2547,7 +2547,7 @@ func (c *containerLXC) OnStop(target string) error {
 		deviceTaskSchedulerTrigger("container", c.name, "stopped")
 
 		// Record current state
-		err = db.ContainerSetState(c.state.NodeDB, c.id, "STOPPED")
+		err = c.db.ContainerSetState(c.id, "STOPPED")
 		if err != nil {
 			logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 		}
@@ -2747,7 +2747,7 @@ func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 
 func (c *containerLXC) Snapshots() ([]container, error) {
 	// Get all the snapshots
-	snaps, err := db.ContainerGetSnapshots(c.state.NodeDB, c.name)
+	snaps, err := c.db.ContainerGetSnapshots(c.name)
 	if err != nil {
 		return nil, err
 	}
@@ -2964,7 +2964,7 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Remove the database record
-	if err := db.ContainerRemove(c.state.NodeDB, c.Name()); err != nil {
+	if err := c.db.ContainerRemove(c.Name()); err != nil {
 		logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
 		return err
 	}
@@ -3057,7 +3057,7 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	// Rename the database entry
-	err = db.ContainerRename(c.state.NodeDB, oldName, newName)
+	err = c.db.ContainerRename(oldName, newName)
 	if err != nil {
 		logger.Error("Failed renaming container", ctxMap)
 		return err
@@ -3073,7 +3073,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	if !c.IsSnapshot() {
 		// Rename all the snapshots
-		results, err := db.ContainerGetSnapshots(c.state.NodeDB, oldName)
+		results, err := c.db.ContainerGetSnapshots(oldName)
 		if err != nil {
 			logger.Error("Failed renaming container", ctxMap)
 			return err
@@ -3083,7 +3083,7 @@ func (c *containerLXC) Rename(newName string) error {
 			// Rename the snapshot
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
-			err := db.ContainerRename(c.state.NodeDB, sname, newSnapshotName)
+			err := c.db.ContainerRename(sname, newSnapshotName)
 			if err != nil {
 				logger.Error("Failed renaming container", ctxMap)
 				return err
@@ -6250,7 +6250,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			err = updateKey(configKey, volatileHwaddr)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := db.ContainerConfigGet(c.state.NodeDB, c.id, configKey)
+				value, err1 := c.db.ContainerConfigGet(c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
@@ -6280,7 +6280,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			err = updateKey(configKey, volatileName)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := db.ContainerConfigGet(c.state.NodeDB, c.id, configKey)
+				value, err1 := c.db.ContainerConfigGet(c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
@@ -7241,7 +7241,7 @@ func (c *containerLXC) StatePath() string {
 }
 
 func (c *containerLXC) StoragePool() (string, error) {
-	poolName, err := db.ContainerPool(c.state.NodeDB, c.Name())
+	poolName, err := c.db.ContainerPool(c.Name())
 	if err != nil {
 		return "", err
 	}

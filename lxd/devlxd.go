@@ -332,7 +332,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 		return nil, err
 	}
 
-	containers, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
+	containers, err := d.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return nil, err
 	}

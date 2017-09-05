@@ -173,7 +173,7 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 
 func storagePoolVolumeUsedByContainersGet(s *state.State, volumeName string,
 	volumeTypeName string) ([]string, error) {
-	cts, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
+	cts, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return []string{}, err
 	}

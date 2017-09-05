@@ -76,6 +76,13 @@ func OpenNode(dir string, fresh func(*sql.DB) error, legacyPatches map[int]*Lega
 	return node, nil
 }
 
+// ForLegacyPatches is a aid for the hack in initializeDbObject, which sets
+// the db-related Deamon attributes upfront, to be backward compatible with the
+// legacy patches that need to interact with the database.
+func ForLegacyPatches(db *sql.DB) *Node {
+	return &Node{db: db}
+}
+
 // DB returns the low level database handle to the node-local SQLite
 // database.
 //

@@ -183,7 +183,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	n.Config = map[string]string{}
 
 	// Look for containers using the interface
-	cts, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
+	cts, err := d.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return api.Network{}, err
 	}
@@ -397,7 +397,7 @@ func networkLoadByName(s *state.State, name string) (*network, error) {
 		return nil, err
 	}
 
-	n := network{state: s, id: id, name: name, description: dbInfo.Description, config: dbInfo.Config}
+	n := network{db: s.DB, state: s, id: id, name: name, description: dbInfo.Description, config: dbInfo.Config}
 
 	return &n, nil
 }
@@ -455,6 +455,7 @@ func networkShutdown(s *state.State) error {
 
 type network struct {
 	// Properties
+	db          *db.Node
 	state       *state.State
 	id          int64
 	name        string
@@ -474,7 +475,7 @@ func (n *network) IsRunning() bool {
 
 func (n *network) IsUsed() bool {
 	// Look for containers using the interface
-	cts, err := db.ContainersList(n.state.NodeDB, db.CTypeRegular)
+	cts, err := n.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return true
 	}

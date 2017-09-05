@@ -207,13 +207,13 @@ func patchStorageApi(name string, d *Daemon) error {
 	// Check if this LXD instace currently has any containers, snapshots, or
 	// images configured. If so, we create a default storage pool in the
 	// database. Otherwise, the user will have to run LXD init.
-	cRegular, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
+	cRegular, err := d.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := db.ContainersList(d.nodeDB, db.CTypeSnapshot)
+	cSnapshots, err := d.db.ContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -437,7 +437,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := db.ContainerGetSnapshots(d.nodeDB, ct)
+		ctSnapshots, err := d.db.ContainerGetSnapshots(ct)
 		if err != nil {
 			return err
 		}
@@ -1107,7 +1107,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := db.ContainerGetSnapshots(d.nodeDB, ct)
+		ctSnapshots, err := d.db.ContainerGetSnapshots(ct)
 		if err != nil {
 			return err
 		}
@@ -1553,7 +1553,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := db.ContainerGetSnapshots(d.nodeDB, ct)
+		ctSnapshots, err := d.db.ContainerGetSnapshots(ct)
 		if err != nil {
 			logger.Errorf("Failed to query database")
 			return err
@@ -1858,13 +1858,13 @@ func patchStorageApiV1(name string, d *Daemon) error {
 		return nil
 	}
 
-	cRegular, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
+	cRegular, err := d.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := db.ContainersList(d.nodeDB, db.CTypeSnapshot)
+	cSnapshots, err := d.db.ContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -2556,7 +2556,7 @@ func patchUpdateFromV10(d *Daemon) error {
 }
 
 func patchUpdateFromV11(d *Daemon) error {
-	cNames, err := db.ContainersList(d.nodeDB, db.CTypeSnapshot)
+	cNames, err := d.db.ContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -2627,7 +2627,7 @@ func patchUpdateFromV15(d *Daemon) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
 
-	cNames, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
+	cNames, err := d.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
