@@ -663,9 +663,9 @@ func initializeDbObject(d *Daemon) error {
 
 	// Hook to run when the local database is created from scratch. It will
 	// create the default profile and mark all patches as applied.
-	freshHook := func(nodeDB *sql.DB) error {
+	freshHook := func(db *db.Node) error {
 		for _, patchName := range patchesGetNames() {
-			err := db.PatchesMarkApplied(nodeDB, patchName)
+			err := db.PatchesMarkApplied(patchName)
 			if err != nil {
 				return err
 			}
