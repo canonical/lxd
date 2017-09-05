@@ -835,7 +835,7 @@ func deviceEventListener(s *state.State) {
 
 			logger.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
 			deviceNetworkPriority(s, e[0])
-			networkAutoAttach(s.NodeDB, e[0])
+			networkAutoAttach(s.DB, e[0])
 		case e := <-chUSB:
 			deviceUSBEvent(s, e)
 		case e := <-deviceSchedRebalance:
