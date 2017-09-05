@@ -51,7 +51,7 @@ func (p *patch) apply(d *Daemon) error {
 		return err
 	}
 
-	err = db.PatchesMarkApplied(d.nodeDB, p.name)
+	err = d.db.PatchesMarkApplied(p.name)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func patchesGetNames() []string {
 }
 
 func patchesApplyAll(d *Daemon) error {
-	appliedPatches, err := db.Patches(d.nodeDB)
+	appliedPatches, err := d.db.Patches()
 	if err != nil {
 		return err
 	}
