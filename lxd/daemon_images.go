@@ -250,7 +250,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 
 		// Get the ID of the target storage pool
-		poolID, err := db.StoragePoolGetID(d.nodeDB, storagePool)
+		poolID, err := d.db.StoragePoolGetID(storagePool)
 		if err != nil {
 			return nil, err
 		}

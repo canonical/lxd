@@ -188,7 +188,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	// Try to retrieve the storage pool the container supposedly lives on.
 	var poolErr error
-	poolID, pool, poolErr := db.StoragePoolGet(d.nodeDB, containerPoolName)
+	poolID, pool, poolErr := d.db.StoragePoolGet(containerPoolName)
 	if poolErr != nil {
 		if poolErr != db.NoSuchObjectError {
 			return SmartError(poolErr)
@@ -210,7 +210,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
-		poolID, err = db.StoragePoolGetID(d.nodeDB, containerPoolName)
+		poolID, err = d.db.StoragePoolGetID(containerPoolName)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -505,8 +505,8 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if a storage volume entry for the container already exists.
-	_, volume, ctVolErr := db.StoragePoolVolumeGetType(d.nodeDB, req.Name,
-		storagePoolVolumeTypeContainer, poolID)
+	_, volume, ctVolErr := d.db.StoragePoolVolumeGetType(
+		req.Name, storagePoolVolumeTypeContainer, poolID)
 	if ctVolErr != nil {
 		if ctVolErr != db.NoSuchObjectError {
 			return SmartError(ctVolErr)
@@ -555,7 +555,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := db.StoragePoolVolumeDelete(d.nodeDB, req.Name,
+		err := d.db.StoragePoolVolumeDelete(req.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return SmartError(err)
@@ -588,7 +588,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := db.StoragePoolVolumeGetType(d.nodeDB, snap.Name,
+		_, _, csVolErr := d.db.StoragePoolVolumeGetType(snap.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
 			if csVolErr != db.NoSuchObjectError {
@@ -611,7 +611,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		if csVolErr == nil {
-			err := db.StoragePoolVolumeDelete(d.nodeDB, snap.Name,
+			err := d.db.StoragePoolVolumeDelete(snap.Name,
 				storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				return SmartError(err)

@@ -151,14 +151,14 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 		s.SetStoragePoolVolumeWritable(&newWritable)
 	}
 
-	poolID, err := db.StoragePoolGetID(state.NodeDB, poolName)
+	poolID, err := state.DB.StoragePoolGetID(poolName)
 	if err != nil {
 		return err
 	}
 
 	// Update the database if something changed
 	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = db.StoragePoolVolumeUpdate(state.NodeDB, volumeName, volumeType, poolID, newDescription, newConfig)
+		err = state.DB.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
@@ -302,14 +302,14 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 	}
 
 	// Load storage pool the volume will be attached to.
-	poolID, poolStruct, err := db.StoragePoolGet(s.NodeDB, poolName)
+	poolID, poolStruct, err := s.DB.StoragePoolGet(poolName)
 	if err != nil {
 		return err
 	}
 
 	// Check that a storage volume of the same storage volume type does not
 	// already exist.
-	volumeID, _ := db.StoragePoolVolumeGetTypeID(s.NodeDB, volumeName, volumeType, poolID)
+	volumeID, _ := s.DB.StoragePoolVolumeGetTypeID(volumeName, volumeType, poolID)
 	if volumeID > 0 {
 		return fmt.Errorf("a storage volume of type %s does already exist", volumeTypeName)
 	}
@@ -331,7 +331,7 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 	}
 
 	// Create the database entry for the storage volume.
-	_, err = db.StoragePoolVolumeCreate(s.NodeDB, volumeName, volumeDescription, volumeType, poolID, volumeConfig)
+	_, err = s.DB.StoragePoolVolumeCreate(volumeName, volumeDescription, volumeType, poolID, volumeConfig)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
 	}
@@ -361,7 +361,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, volume
 	// Create storage volume.
 	err = s.StoragePoolVolumeCreate()
 	if err != nil {
-		db.StoragePoolVolumeDelete(state.NodeDB, volumeName, volumeType, poolID)
+		state.DB.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
 		return err
 	}
 

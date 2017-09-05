@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -285,7 +284,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 
 		// Check that we don't already use this volume group.
-		inUse, user, err := lxdUsesPool(s.s.NodeDB, poolName, s.pool.Driver, "lvm.vg_name")
+		inUse, user, err := lxdUsesPool(s.db, poolName, s.pool.Driver, "lvm.vg_name")
 		if err != nil {
 			return err
 		}
@@ -556,8 +555,7 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 		}
 	}
 
-	err = db.StoragePoolVolumeDelete(
-		s.s.NodeDB,
+	err = s.db.StoragePoolVolumeDelete(
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -1797,8 +1795,7 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 
 	// Update the database
 	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
-	err = db.StoragePoolVolumeUpdate(
-		s.s.NodeDB,
+	err = s.db.StoragePoolVolumeUpdate(
 		s.volume.Name,
 		volumeType,
 		s.poolID,

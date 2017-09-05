@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"strings"
@@ -165,14 +164,14 @@ const imagesDirMode os.FileMode = 0700
 const snapshotsDirMode os.FileMode = 0700
 
 // Detect whether LXD already uses the given storage pool.
-func lxdUsesPool(dbObj *sql.DB, onDiskPoolName string, driver string, onDiskProperty string) (bool, string, error) {
-	pools, err := db.StoragePools(dbObj)
+func lxdUsesPool(dbObj *db.Node, onDiskPoolName string, driver string, onDiskProperty string) (bool, string, error) {
+	pools, err := dbObj.StoragePools()
 	if err != nil && err != db.NoSuchObjectError {
 		return false, "", err
 	}
 
 	for _, pool := range pools {
-		_, pl, err := db.StoragePoolGet(dbObj, pool)
+		_, pl, err := dbObj.StoragePoolGet(pool)
 		if err != nil {
 			continue
 		}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"os"
@@ -278,7 +277,7 @@ func containerGetRootDiskDevice(devices types.Devices) (string, types.Device, er
 	return "", types.Device{}, fmt.Errorf("No root device could be found.")
 }
 
-func containerValidDevices(dbObj *sql.DB, devices types.Devices, profile bool, expanded bool) error {
+func containerValidDevices(db *db.Node, devices types.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -345,7 +344,7 @@ func containerValidDevices(dbObj *sql.DB, devices types.Devices, profile bool, e
 					return fmt.Errorf("Storage volumes cannot be specified as absolute paths.")
 				}
 
-				_, err := db.StoragePoolGetID(dbObj, m["pool"])
+				_, err := db.StoragePoolGetID(m["pool"])
 				if err != nil {
 					return fmt.Errorf("The \"%s\" storage pool doesn't exist.", m["pool"])
 				}
@@ -768,7 +767,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate container devices
-	err = containerValidDevices(s.NodeDB, args.Devices, false, false)
+	err = containerValidDevices(s.DB, args.Devices, false, false)
 	if err != nil {
 		return nil, err
 	}

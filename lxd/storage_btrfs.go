@@ -576,8 +576,7 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 		}
 	}
 
-	err = db.StoragePoolVolumeDelete(
-		s.s.NodeDB,
+	err = s.db.StoragePoolVolumeDelete(
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)

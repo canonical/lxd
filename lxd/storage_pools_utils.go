@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -63,7 +62,7 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 
 	// Update the database if something changed
 	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = db.StoragePoolUpdate(state.NodeDB, name, newDescription, newConfig)
+		err = state.DB.StoragePoolUpdate(name, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
@@ -83,7 +82,7 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 // /1.0/profiles/default
 func storagePoolUsedByGet(dbObj *db.Node, poolID int64, poolName string) ([]string, error) {
 	// Retrieve all non-custom volumes that exist on this storage pool.
-	volumes, err := db.StoragePoolVolumesGet(dbObj.DB(), poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom})
+	volumes, err := dbObj.StoragePoolVolumesGet(poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom})
 	if err != nil && err != db.NoSuchObjectError {
 		return []string{}, err
 	}
@@ -165,7 +164,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	}
 
 	// Check that the storage pool does not already exist.
-	_, err = db.StoragePoolGetID(s.NodeDB, poolName)
+	_, err = s.DB.StoragePoolGetID(poolName)
 	if err == nil {
 		return fmt.Errorf("The storage pool already exists")
 	}
@@ -188,7 +187,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	}
 
 	// Create the database entry for the storage pool.
-	_, err = dbStoragePoolCreateAndUpdateCache(s.NodeDB, poolName, poolDescription, driver, config)
+	_, err = dbStoragePoolCreateAndUpdateCache(s.DB, poolName, poolDescription, driver, config)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 	}
@@ -210,7 +209,7 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 		if !tryUndo {
 			return
 		}
-		dbStoragePoolDeleteAndUpdateCache(state.NodeDB, poolName)
+		dbStoragePoolDeleteAndUpdateCache(state.DB, poolName)
 	}()
 
 	s, err := storagePoolInit(state, poolName)
@@ -239,7 +238,7 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 	configDiff, _ := storageConfigDiff(config, postCreateConfig)
 	if len(configDiff) > 0 {
 		// Create the database entry for the storage pool.
-		err = db.StoragePoolUpdate(state.NodeDB, poolName, poolDescription, postCreateConfig)
+		err = state.DB.StoragePoolUpdate(poolName, poolDescription, postCreateConfig)
 		if err != nil {
 			return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 		}
@@ -253,8 +252,8 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 
 // Helper around the low-level DB API, which also updates the driver names
 // cache.
-func dbStoragePoolCreateAndUpdateCache(dbObj *sql.DB, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
-	id, err := db.StoragePoolCreate(dbObj, poolName, poolDescription, poolDriver, poolConfig)
+func dbStoragePoolCreateAndUpdateCache(db *db.Node, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
+	id, err := db.StoragePoolCreate(poolName, poolDescription, poolDriver, poolConfig)
 	if err != nil {
 		return id, err
 	}
@@ -273,8 +272,8 @@ func dbStoragePoolCreateAndUpdateCache(dbObj *sql.DB, poolName string, poolDescr
 
 // Helper around the low-level DB API, which also updates the driver names
 // cache.
-func dbStoragePoolDeleteAndUpdateCache(dbObj *sql.DB, poolName string) error {
-	pool, err := db.StoragePoolDelete(dbObj, poolName)
+func dbStoragePoolDeleteAndUpdateCache(db *db.Node, poolName string) error {
+	pool, err := db.StoragePoolDelete(poolName)
 	if err != nil {
 		return err
 	}
