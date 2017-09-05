@@ -203,20 +203,15 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 	return nil
 }
 
-// DeleteContainers removes containers created by the benchmark.
-func DeleteContainers(c lxd.ContainerServer, parallel int) error {
-	batchSize, err := getBatchSize(parallel)
-	if err != nil {
-		return err
-	}
+// GetContainers returns containers created by the benchmark.
+func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
+	containers := []api.Container{}
 
-	// List all the containers
 	allContainers, err := c.GetContainers()
 	if err != nil {
-		return err
+		return containers, err
 	}
 
-	containers := []api.Container{}
 	for _, container := range allContainers {
 		if container.Config["user.lxd-benchmark"] != "true" {
 			continue
@@ -225,10 +220,18 @@ func DeleteContainers(c lxd.ContainerServer, parallel int) error {
 		containers = append(containers, container)
 	}
 
-	// Delete them all
-	count := len(containers)
-	logf("%d containers to delete", count)
+	return containers, nil
+}
 
+// DeleteContainers removes containers created by the benchmark.
+func DeleteContainers(c lxd.ContainerServer, containers []api.Container, parallel int) error {
+	batchSize, err := getBatchSize(parallel)
+	if err != nil {
+		return err
+	}
+
+	count := len(containers)
+	logf("Deleting %d containers", count)
 	batches := count / batchSize
 
 	deletedCount := 0
