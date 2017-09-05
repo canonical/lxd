@@ -36,21 +36,15 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 
 // SpawnContainers launches a set of containers.
 func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, freeze bool) error {
-	batch := parallel
-	if batch < 1 {
-		// Detect the number of parallel actions
-		cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
-		if err != nil {
-			return err
-		}
-
-		batch = len(cpus)
+	batchSize, err := getBatchSize(parallel)
+	if err != nil {
+		return err
 	}
 
-	printTestConfig(count, batch, image, privileged, freeze)
+	printTestConfig(count, batchSize, image, privileged, freeze)
 
-	batches := count / batch
-	remainder := count % batch
+	batches := count / batchSize
+	remainder := count % batchSize
 
 	// Pre-load the image
 	var fingerprint string
@@ -112,7 +106,7 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 	spawnedCount := 0
 	nameFormat := "benchmark-%." + fmt.Sprintf("%d", len(fmt.Sprintf("%d", count))) + "d"
 	wgBatch := sync.WaitGroup{}
-	nextStat := batch
+	nextStat := batchSize
 
 	startContainer := func(name string) {
 		defer wgBatch.Done()
@@ -179,7 +173,7 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 	timeStart := time.Now()
 
 	for i := 0; i < batches; i++ {
-		for j := 0; j < batch; j++ {
+		for j := 0; j < batchSize; j++ {
 			spawnedCount = spawnedCount + 1
 			name := fmt.Sprintf(nameFormat, spawnedCount)
 
@@ -209,16 +203,11 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 	return nil
 }
 
+// DeleteContainers removes containers created by the benchmark.
 func DeleteContainers(c lxd.ContainerServer, parallel int) error {
-	batch := parallel
-	if batch < 1 {
-		// Detect the number of parallel actions
-		cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
-		if err != nil {
-			return err
-		}
-
-		batch = len(cpus)
+	batchSize, err := getBatchSize(parallel)
+	if err != nil {
+		return err
 	}
 
 	// List all the containers
@@ -240,11 +229,11 @@ func DeleteContainers(c lxd.ContainerServer, parallel int) error {
 	count := len(containers)
 	logf("%d containers to delete", count)
 
-	batches := count / batch
+	batches := count / batchSize
 
 	deletedCount := 0
 	wgBatch := sync.WaitGroup{}
-	nextStat := batch
+	nextStat := batchSize
 
 	deleteContainer := func(ct api.Container) {
 		defer wgBatch.Done()
@@ -282,7 +271,7 @@ func DeleteContainers(c lxd.ContainerServer, parallel int) error {
 	timeStart := time.Now()
 
 	for i := 0; i < batches; i++ {
-		for j := 0; j < batch; j++ {
+		for j := 0; j < batchSize; j++ {
 			wgBatch.Add(1)
 			go deleteContainer(containers[deletedCount])
 
@@ -308,6 +297,21 @@ func DeleteContainers(c lxd.ContainerServer, parallel int) error {
 	logf("Cleanup completed")
 
 	return nil
+}
+
+func getBatchSize(parallel int) (int, error) {
+	batchSize := parallel
+	if batchSize < 1 {
+		// Detect the number of parallel actions
+		cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
+		if err != nil {
+			return -1, err
+		}
+
+		batchSize = len(cpus)
+	}
+
+	return batchSize, nil
 }
 
 func logf(format string, args ...interface{}) {
