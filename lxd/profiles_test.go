@@ -38,7 +38,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Delete the profile we just created with dbapi.ProfileDelete
-	err = dbapi.ProfileDelete(db, "theprofile")
+	err = d.db.ProfileDelete("theprofile")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_config entries left.
-	config, err := dbapi.ProfileConfig(d.nodeDB, "theprofile")
+	config, err := d.db.ProfileConfig("theprofile")
 	if err == nil {
 		t.Fatal("found the profile!")
 	}

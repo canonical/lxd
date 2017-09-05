@@ -1481,7 +1481,7 @@ func (c *containerLXC) expandConfig() error {
 
 	// Apply all the profiles
 	for _, name := range c.profiles {
-		profileConfig, err := db.ProfileConfig(c.state.NodeDB, name)
+		profileConfig, err := c.db.ProfileConfig(name)
 		if err != nil {
 			return err
 		}
@@ -2689,7 +2689,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Validate the new profiles
-	profiles, err := db.Profiles(c.state.NodeDB)
+	profiles, err := c.db.Profiles()
 	if err != nil {
 		return err
 	}

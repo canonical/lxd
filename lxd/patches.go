@@ -105,7 +105,7 @@ DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FR
 }
 
 func patchInvalidProfileNames(name string, d *Daemon) error {
-	profiles, err := db.Profiles(d.nodeDB)
+	profiles, err := d.db.Profiles()
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 	for _, profile := range profiles {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
 			logger.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
-			err := db.ProfileDelete(d.nodeDB, profile)
+			err := d.db.ProfileDelete(profile)
 			if err != nil {
 				return err
 			}

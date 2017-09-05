@@ -56,8 +56,12 @@ func OpenNode(dir string, fresh func(*sql.DB) error, legacyPatches map[int]*Lega
 		return nil, err
 	}
 
+	node := &Node{
+		db: db,
+	}
+
 	if initial == 0 {
-		err := ProfileCreateDefault(db)
+		err := node.ProfileCreateDefault()
 		if err != nil {
 			return nil, err
 		}
@@ -69,13 +73,9 @@ func OpenNode(dir string, fresh func(*sql.DB) error, legacyPatches map[int]*Lega
 		}
 	}
 
-	err = dbProfileCreateDocker(db)
+	err = node.ProfileCreateDocker()
 	if err != nil {
 		return nil, err
-	}
-
-	node := &Node{
-		db: db,
 	}
 
 	return node, nil

@@ -11,12 +11,12 @@ import (
 )
 
 // Profiles returns a string list of profiles.
-func Profiles(db *sql.DB) ([]string, error) {
+func (n *Node) Profiles() ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM profiles")
 	inargs := []interface{}{}
 	var name string
 	outfmt := []interface{}{name}
-	result, err := queryScan(db, q, inargs, outfmt)
+	result, err := queryScan(n.db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -29,24 +29,24 @@ func Profiles(db *sql.DB) ([]string, error) {
 	return response, nil
 }
 
-func ProfileGet(db *sql.DB, name string) (int64, *api.Profile, error) {
+func (n *Node) ProfileGet(name string) (int64, *api.Profile, error) {
 	id := int64(-1)
 	description := sql.NullString{}
 
 	q := "SELECT id, description FROM profiles WHERE name=?"
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id, &description}
-	err := dbQueryRowScan(db, q, arg1, arg2)
+	err := dbQueryRowScan(n.db, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	config, err := ProfileConfig(db, name)
+	config, err := n.ProfileConfig(name)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	devices, err := Devices(db, name, true)
+	devices, err := Devices(n.db, name, true)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -62,10 +62,10 @@ func ProfileGet(db *sql.DB, name string) (int64, *api.Profile, error) {
 	return id, &profile, nil
 }
 
-func ProfileCreate(db *sql.DB, profile string, description string, config map[string]string,
+func (n *Node) ProfileCreate(profile string, description string, config map[string]string,
 	devices types.Devices) (int64, error) {
 
-	tx, err := begin(db)
+	tx, err := begin(n.db)
 	if err != nil {
 		return -1, err
 	}
@@ -100,8 +100,8 @@ func ProfileCreate(db *sql.DB, profile string, description string, config map[st
 	return id, nil
 }
 
-func ProfileCreateDefault(db *sql.DB) error {
-	id, _, _ := ProfileGet(db, "default")
+func (n *Node) ProfileCreateDefault() error {
+	id, _, _ := n.ProfileGet("default")
 
 	if id != -1 {
 		// default profile already exists
@@ -115,7 +115,7 @@ func ProfileCreateDefault(db *sql.DB) error {
 			"type":    "nic",
 			"nictype": "bridged",
 			"parent":  "lxdbr0"}}
-	_, err := ProfileCreate(db, "default", "Default LXD profile", map[string]string{}, devices)
+	_, err := n.ProfileCreate("default", "Default LXD profile", map[string]string{}, devices)
 	if err != nil {
 		return err
 	}
@@ -123,8 +123,8 @@ func ProfileCreateDefault(db *sql.DB) error {
 	return nil
 }
 
-func dbProfileCreateDocker(db *sql.DB) error {
-	id, _, err := ProfileGet(db, "docker")
+func (n *Node) ProfileCreateDocker() error {
+	id, _, err := n.ProfileGet("docker")
 
 	if id != -1 {
 		// docker profile already exists
@@ -141,12 +141,12 @@ func dbProfileCreateDocker(db *sql.DB) error {
 	}
 	devices := map[string]map[string]string{"aadisable": aadisable}
 
-	_, err = ProfileCreate(db, "docker", "Profile supporting docker in containers", config, devices)
+	_, err = n.ProfileCreate("docker", "Profile supporting docker in containers", config, devices)
 	return err
 }
 
 // Get the profile configuration map from the DB
-func ProfileConfig(db *sql.DB, name string) (map[string]string, error) {
+func (n *Node) ProfileConfig(name string) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT
@@ -156,7 +156,7 @@ func ProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 		WHERE name=?`
 	inargs := []interface{}{name}
 	outfmt := []interface{}{key, value}
-	results, err := queryScan(db, query, inargs, outfmt)
+	results, err := queryScan(n.db, query, inargs, outfmt)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get profile '%s'", name)
 	}
@@ -168,7 +168,7 @@ func ProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 		 */
 		query := "SELECT id FROM profiles WHERE name=?"
 		var id int
-		results, err := queryScan(db, query, []interface{}{name}, []interface{}{id})
+		results, err := queryScan(n.db, query, []interface{}{name}, []interface{}{id})
 		if err != nil {
 			return nil, err
 		}
@@ -190,13 +190,13 @@ func ProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 	return config, nil
 }
 
-func ProfileDelete(db *sql.DB, name string) error {
-	id, _, err := ProfileGet(db, name)
+func (n *Node) ProfileDelete(name string) error {
+	id, _, err := n.ProfileGet(name)
 	if err != nil {
 		return err
 	}
 
-	_, err = exec(db, "DELETE FROM profiles WHERE id=?", id)
+	_, err = exec(n.db, "DELETE FROM profiles WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -204,8 +204,8 @@ func ProfileDelete(db *sql.DB, name string) error {
 	return nil
 }
 
-func ProfileUpdate(db *sql.DB, name string, newName string) error {
-	tx, err := begin(db)
+func (n *Node) ProfileUpdate(name string, newName string) error {
+	tx, err := begin(n.db)
 	if err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	return nil
 }
 
-func ProfileContainersGet(db *sql.DB, profile string) ([]string, error) {
+func (n *Node) ProfileContainersGet(profile string) ([]string, error) {
 	q := `SELECT containers.name FROM containers JOIN containers_profiles
 		ON containers.id == containers_profiles.container_id
 		JOIN profiles ON containers_profiles.profile_id == profiles.id
@@ -273,7 +273,7 @@ func ProfileContainersGet(db *sql.DB, profile string) ([]string, error) {
 	var name string
 	outfmt := []interface{}{name}
 
-	output, err := queryScan(db, q, inargs, outfmt)
+	output, err := queryScan(n.db, q, inargs, outfmt)
 	if err != nil {
 		return results, err
 	}

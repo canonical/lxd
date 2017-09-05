@@ -774,7 +774,7 @@ func containerCreateInternal(s *state.State, storage storage, args db.ContainerA
 	}
 
 	// Validate profiles
-	profiles, err := db.Profiles(s.NodeDB)
+	profiles, err := s.DB.Profiles()
 	if err != nil {
 		return nil, err
 	}
