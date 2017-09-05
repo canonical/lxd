@@ -65,13 +65,15 @@ func run(args []string) error {
 
 	switch os.Args[1] {
 	case "spawn":
-		return benchmark.SpawnContainers(c, *argCount, *argParallel, *argImage, *argPrivileged, *argFreeze)
+		_, err = benchmark.SpawnContainers(c, *argCount, *argParallel, *argImage, *argPrivileged, *argFreeze)
+		return err
 	case "delete":
 		containers, err := benchmark.GetContainers(c)
 		if err != nil {
 			return err
 		}
-		return benchmark.DeleteContainers(c, containers, *argParallel)
+		_, err = benchmark.DeleteContainers(c, containers, *argParallel)
+		return err
 	}
 
 	return nil
