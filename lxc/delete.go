@@ -31,8 +31,8 @@ Delete containers and snapshots.`)
 }
 
 func (c *deleteCmd) flags() {
-	gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the removal of stopped containers"))
-	gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the removal of stopped containers"))
+	gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the removal of running containers"))
+	gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the removal of running containers"))
 	gnuflag.BoolVar(&c.interactive, "i", false, i18n.G("Require user confirmation"))
 	gnuflag.BoolVar(&c.interactive, "interactive", false, i18n.G("Require user confirmation"))
 }
