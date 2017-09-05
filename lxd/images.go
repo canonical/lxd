@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -307,7 +308,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	}
 
 	/* rename the the file to the expected name so our caller can use it */
-	finalName := shared.VarPath("images", info.Fingerprint)
+	finalName := filepath.Join(d.os.VarDir, "images", info.Fingerprint)
 	err = shared.FileMove(compressedPath, finalName)
 	if err != nil {
 		return nil, err
@@ -537,7 +538,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) 
 			return nil, err
 		}
 
-		imgfname := shared.VarPath("images", info.Fingerprint)
+		imgfname := filepath.Join(d.os.VarDir, "images", info.Fingerprint)
 		err = shared.FileMove(imageTarf.Name(), imgfname)
 		if err != nil {
 			logger.Error(
@@ -549,7 +550,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) 
 			return nil, err
 		}
 
-		rootfsfname := shared.VarPath("images", info.Fingerprint+".rootfs")
+		rootfsfname := filepath.Join(d.os.VarDir, "images", info.Fingerprint+".rootfs")
 		err = shared.FileMove(rootfsTarf.Name(), rootfsfname)
 		if err != nil {
 			logger.Error(
@@ -597,7 +598,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) 
 			return nil, err
 		}
 
-		imgfname := shared.VarPath("images", info.Fingerprint)
+		imgfname := filepath.Join(d.os.VarDir, "images", info.Fingerprint)
 		err = shared.FileMove(post.Name(), imgfname)
 		if err != nil {
 			logger.Error(
@@ -651,7 +652,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	var err error
 
 	// create a directory under which we keep everything while building
-	builddir, err := ioutil.TempDir(shared.VarPath("images"), "lxd_build_")
+	builddir, err := ioutil.TempDir(filepath.Join(d.os.VarDir, "images"), "lxd_build_")
 	if err != nil {
 		return InternalError(err)
 	}
@@ -993,7 +994,7 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	}
 
 	// Remove main image file
-	fname := shared.VarPath("images", imgInfo.Fingerprint)
+	fname := filepath.Join(d.os.VarDir, "images", imgInfo.Fingerprint)
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
@@ -1002,7 +1003,7 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 	}
 
 	// Remove the rootfs file
-	fname = shared.VarPath("images", imgInfo.Fingerprint) + ".rootfs"
+	fname = filepath.Join(d.os.VarDir, "images", imgInfo.Fingerprint) + ".rootfs"
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
@@ -1273,7 +1274,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
-	imagePath := shared.VarPath("images", imgInfo.Fingerprint)
+	imagePath := filepath.Join(d.os.VarDir, "images", imgInfo.Fingerprint)
 	rootfsPath := imagePath + ".rootfs"
 
 	_, ext, err := detectCompression(imagePath)

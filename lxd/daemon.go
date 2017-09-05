@@ -351,13 +351,13 @@ func (d *Daemon) init() error {
 		NotFound.Render(w)
 	})
 
-	certInfo, err := shared.KeyPairAndCA(shared.VarPath(), "server", shared.CertServer)
+	certInfo, err := shared.KeyPairAndCA(d.os.VarDir, "server", shared.CertServer)
 	if err != nil {
 		return err
 	}
 
 	config := &endpoints.Config{
-		Dir:                  shared.VarPath(),
+		Dir:                  d.os.VarDir,
 		Cert:                 certInfo,
 		RestServer:           &http.Server{Handler: &lxdHttpServer{r: restAPI, d: d}},
 		DevLxdServer:         &http.Server{Handler: devLxdAPI(d), ConnState: pidMapper.ConnStateHandler},
