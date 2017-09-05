@@ -43,60 +43,9 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 
 	printTestConfig(count, batchSize, image, privileged, freeze)
 
-	// Pre-load the image
-	var fingerprint string
-	if strings.Contains(image, ":") {
-		var remote string
-		var err error
-
-		defaultConfig := config.DefaultConfig
-		defaultConfig.UserAgent = version.UserAgent
-
-		remote, fingerprint, err = defaultConfig.ParseRemote(image)
-		if err != nil {
-			return err
-		}
-
-		d, err := defaultConfig.GetImageServer(remote)
-		if err != nil {
-			return err
-		}
-
-		if fingerprint == "" {
-			fingerprint = "default"
-		}
-
-		alias, _, err := d.GetImageAlias(fingerprint)
-		if err == nil {
-			fingerprint = alias.Target
-		}
-
-		_, _, err = c.GetImage(fingerprint)
-		if err != nil {
-			logf("Importing image into local store: %s", fingerprint)
-			image, _, err := d.GetImage(fingerprint)
-			if err != nil {
-				logf(fmt.Sprintf("Failed to import image: %s", err))
-				return err
-			}
-
-			op, err := c.CopyImage(d, *image, nil)
-			if err != nil {
-				logf(fmt.Sprintf("Failed to import image: %s", err))
-				return err
-			}
-
-			err = op.Wait()
-			if err != nil {
-				logf(fmt.Sprintf("Failed to import image: %s", err))
-				return err
-			}
-		} else {
-			logf("Found image in local store: %s", fingerprint)
-		}
-	} else {
-		fingerprint = image
-		logf("Found image in local store: %s", fingerprint)
+	fingerprint, err := ensureImage(c, image)
+	if err != nil {
+		return err
 	}
 
 	startContainer := func(index int, wg *sync.WaitGroup) {
@@ -247,6 +196,63 @@ func getBatchSize(parallel int) (int, error) {
 	}
 
 	return batchSize, nil
+}
+
+func ensureImage(c lxd.ContainerServer, image string) (string, error) {
+	var fingerprint string
+
+	if strings.Contains(image, ":") {
+		defaultConfig := config.DefaultConfig
+		defaultConfig.UserAgent = version.UserAgent
+
+		remote, fp, err := defaultConfig.ParseRemote(image)
+		if err != nil {
+			return "", err
+		}
+		fingerprint = fp
+
+		imageServer, err := defaultConfig.GetImageServer(remote)
+		if err != nil {
+			return "", err
+		}
+
+		if fingerprint == "" {
+			fingerprint = "default"
+		}
+
+		alias, _, err := imageServer.GetImageAlias(fingerprint)
+		if err == nil {
+			fingerprint = alias.Target
+		}
+
+		_, _, err = c.GetImage(fingerprint)
+		if err != nil {
+			logf("Importing image into local store: %s", fingerprint)
+			image, _, err := imageServer.GetImage(fingerprint)
+			if err != nil {
+				logf("Failed to import image: %s", err)
+				return "", err
+			}
+
+			op, err := c.CopyImage(imageServer, *image, nil)
+			if err != nil {
+				logf("Failed to import image: %s", err)
+				return "", err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				logf("Failed to import image: %s", err)
+				return "", err
+			}
+		} else {
+			logf("Found image in local store: %s", fingerprint)
+		}
+	} else {
+		fingerprint = image
+		logf("Found image in local store: %s", fingerprint)
+	}
+	return fingerprint, nil
 }
 
 func processBatch(count int, batchSize int, process func(index int, wg *sync.WaitGroup)) time.Duration {
