@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -991,7 +992,7 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 	}
 
 	// Remove main image file.
-	fname := shared.VarPath("images", fingerprint)
+	fname := filepath.Join(d.os.VarDir, "images", fingerprint)
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
@@ -1000,7 +1001,7 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 	}
 
 	// Remove the rootfs file for the image.
-	fname = shared.VarPath("images", fingerprint) + ".rootfs"
+	fname = filepath.Join(d.os.VarDir, "images", fingerprint) + ".rootfs"
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
@@ -1069,7 +1070,7 @@ func pruneExpiredImages(d *Daemon) {
 		}
 
 		// Remove main image file.
-		fname := shared.VarPath("images", fp)
+		fname := filepath.Join(d.os.VarDir, "images", fp)
 		if shared.PathExists(fname) {
 			err = os.Remove(fname)
 			if err != nil {
@@ -1078,7 +1079,7 @@ func pruneExpiredImages(d *Daemon) {
 		}
 
 		// Remove the rootfs file for the image.
-		fname = shared.VarPath("images", fp) + ".rootfs"
+		fname = filepath.Join(d.os.VarDir, "images", fp) + ".rootfs"
 		if shared.PathExists(fname) {
 			err = os.Remove(fname)
 			if err != nil {
