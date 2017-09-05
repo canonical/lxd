@@ -41,7 +41,6 @@ import (
 type Daemon struct {
 	clientCerts  []x509.Certificate
 	os           *sys.OS
-	nodeDB       *sql.DB
 	db           *db.Node
 	readyChan    chan bool
 	shutdownChan chan bool
@@ -172,7 +171,7 @@ func isJSONRequest(r *http.Request) bool {
 
 // State creates a new State instance liked to our internal db and os.
 func (d *Daemon) State() *state.State {
-	return state.NewState(d.nodeDB, d.db, d.os)
+	return state.NewState(d.db, d.os)
 }
 
 func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
@@ -351,7 +350,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Load all config values from the database */
-	err = daemonConfigInit(d.nodeDB)
+	err = daemonConfigInit(d.db.DB())
 	if err != nil {
 		return err
 	}
@@ -529,7 +528,7 @@ func (d *Daemon) Stop() error {
 
 	trackError(d.tasks.Stop(5 * time.Second)) // Give tasks at most five seconds to cleanup.
 
-	if d.nodeDB != nil {
+	if d.db != nil {
 		if n, err := d.numRunningContainers(); err != nil || n == 0 {
 			logger.Infof("Unmounting temporary filesystems")
 
@@ -543,7 +542,7 @@ func (d *Daemon) Stop() error {
 		}
 
 		logger.Infof("Closing the database")
-		trackError(d.nodeDB.Close())
+		trackError(d.db.Close())
 	}
 
 	logger.Infof("Saving simplestreams cache")
@@ -652,7 +651,6 @@ func initializeDbObject(d *Daemon) error {
 				//        this stage we're not fully initialized, yet
 				//        some legacy patches expect to find it here.
 				d.db = db.ForLegacyPatches(node)
-				d.nodeDB = node
 				return patch(d)
 			},
 		}
@@ -677,7 +675,6 @@ func initializeDbObject(d *Daemon) error {
 	if err != nil {
 		return fmt.Errorf("Error creating database: %s", err)
 	}
-	d.nodeDB = d.db.DB()
 
 	return nil
 }

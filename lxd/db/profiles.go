@@ -255,3 +255,17 @@ func (n *Node) ProfileContainersGet(profile string) ([]string, error) {
 
 	return results, nil
 }
+
+func (n *Node) ProfileCleanupLeftover() error {
+	stmt := `
+DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FROM profiles_devices);
+`
+	_, err := n.db.Exec(stmt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
