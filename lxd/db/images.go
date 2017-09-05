@@ -26,7 +26,7 @@ func ImagesGet(db *sql.DB, public bool) ([]string, error) {
 	var fp string
 	inargs := []interface{}{}
 	outfmt := []interface{}{fp}
-	dbResults, err := QueryScan(db, q, inargs, outfmt)
+	dbResults, err := queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -48,7 +48,7 @@ func ImagesGetExpired(db *sql.DB, expiry int64) ([]string, error) {
 
 	inargs := []interface{}{}
 	outfmt := []interface{}{fpStr, useStr, uploadStr}
-	dbResults, err := QueryScan(db, q, inargs, outfmt)
+	dbResults, err := queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -262,7 +262,7 @@ func ImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) 
 	var key, value, name, desc string
 	inargs = []interface{}{id}
 	outfmt = []interface{}{key, value}
-	results, err := QueryScan(db, q, inargs, outfmt)
+	results, err := queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -280,7 +280,7 @@ func ImageGet(db *sql.DB, fingerprint string, public bool, strictMatching bool) 
 	q = "SELECT name, description FROM images_aliases WHERE image_id=?"
 	inargs = []interface{}{id}
 	outfmt = []interface{}{name, desc}
-	results, err = QueryScan(db, q, inargs, outfmt)
+	results, err = queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -310,6 +310,22 @@ func ImageDelete(db *sql.DB, id int) error {
 	}
 
 	return nil
+}
+
+func ImageAliasesGet(db *sql.DB) ([]string, error) {
+	q := "SELECT name FROM images_aliases"
+	var name string
+	inargs := []interface{}{}
+	outfmt := []interface{}{name}
+	results, err := queryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return nil, err
+	}
+	names := []string{}
+	for _, res := range results {
+		names = append(names, res[0].(string))
+	}
+	return names, nil
 }
 
 func ImageAliasGet(db *sql.DB, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
@@ -516,7 +532,7 @@ func ImageGetPools(db *sql.DB, imageFingerprint string) ([]int64, error) {
 	inargs := []interface{}{imageFingerprint, StoragePoolVolumeTypeImage}
 	outargs := []interface{}{poolID}
 
-	result, err := QueryScan(db, query, inargs, outargs)
+	result, err := queryScan(db, query, inargs, outargs)
 	if err != nil {
 		return []int64{}, err
 	}
@@ -539,7 +555,7 @@ func ImageGetPoolNamesFromIDs(db *sql.DB, poolIDs []int64) ([]string, error) {
 		inargs := []interface{}{poolID}
 		outargs := []interface{}{poolName}
 
-		result, err := QueryScan(db, query, inargs, outargs)
+		result, err := queryScan(db, query, inargs, outargs)
 		if err != nil {
 			return []string{}, err
 		}

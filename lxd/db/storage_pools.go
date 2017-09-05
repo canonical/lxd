@@ -16,7 +16,7 @@ func StoragePools(db *sql.DB) ([]string, error) {
 	inargs := []interface{}{}
 	outargs := []interface{}{name}
 
-	result, err := QueryScan(db, query, inargs, outargs)
+	result, err := queryScan(db, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -40,7 +40,7 @@ func StoragePoolsGetDrivers(db *sql.DB) ([]string, error) {
 	inargs := []interface{}{}
 	outargs := []interface{}{poolDriver}
 
-	result, err := QueryScan(db, query, inargs, outargs)
+	result, err := queryScan(db, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -114,7 +114,7 @@ func StoragePoolConfigGet(db *sql.DB, poolID int64) (map[string]string, error) {
 	inargs := []interface{}{poolID}
 	outargs := []interface{}{key, value}
 
-	results, err := QueryScan(db, query, inargs, outargs)
+	results, err := queryScan(db, query, inargs, outargs)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func StoragePoolVolumesGetNames(db *sql.DB, poolID int64) (int, error) {
 	inargs := []interface{}{poolID}
 	outargs := []interface{}{volumeName}
 
-	result, err := QueryScan(db, query, inargs, outargs)
+	result, err := queryScan(db, query, inargs, outargs)
 	if err != nil {
 		return -1, err
 	}
@@ -301,7 +301,7 @@ func StoragePoolVolumesGetType(db *sql.DB, volumeType int, poolID int64) ([]stri
 	inargs := []interface{}{poolID, volumeType}
 	outargs := []interface{}{poolName}
 
-	result, err := QueryScan(db, query, inargs, outargs)
+	result, err := queryScan(db, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}

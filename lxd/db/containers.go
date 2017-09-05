@@ -297,7 +297,7 @@ func ContainerProfiles(db *sql.DB, containerId int) ([]string, error) {
 	inargs := []interface{}{containerId}
 	outfmt := []interface{}{name}
 
-	results, err := QueryScan(db, query, inargs, outfmt)
+	results, err := queryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +320,7 @@ func ContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	outfmt := []interface{}{key, value}
 
 	// Results is already a slice here, not db Rows anymore.
-	results, err := QueryScan(db, q, inargs, outfmt)
+	results, err := queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err //SmartError will wrap this and make "not found" errors pretty
 	}
@@ -342,7 +342,7 @@ func ContainersList(db *sql.DB, cType ContainerType) ([]string, error) {
 	inargs := []interface{}{cType}
 	var container string
 	outfmt := []interface{}{container}
-	result, err := QueryScan(db, q, inargs, outfmt)
+	result, err := queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +454,7 @@ func ContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
 	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
 	inargs := []interface{}{CTypeSnapshot, length, regexp}
 	outfmt := []interface{}{name}
-	dbResults, err := QueryScan(db, q, inargs, outfmt)
+	dbResults, err := queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return result, err
 	}
@@ -464,6 +464,42 @@ func ContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+/*
+ * Note, the code below doesn't deal with snapshots of snapshots.
+ * To do that, we'll need to weed out based on # slashes in names
+ */
+func ContainerNextSnapshot(db *sql.DB, name string) int {
+	base := name + shared.SnapshotDelimiter + "snap"
+	length := len(base)
+	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
+	var numstr string
+	inargs := []interface{}{CTypeSnapshot, length, base}
+	outfmt := []interface{}{numstr}
+	results, err := queryScan(db, q, inargs, outfmt)
+	if err != nil {
+		return 0
+	}
+	max := 0
+
+	for _, r := range results {
+		numstr = r[0].(string)
+		if len(numstr) <= length {
+			continue
+		}
+		substr := numstr[length:]
+		var num int
+		count, err := fmt.Sscanf(substr, "%d", &num)
+		if err != nil || count != 1 {
+			continue
+		}
+		if num >= max {
+			max = num + 1
+		}
+	}
+
+	return max
 }
 
 // Get the storage pool of a given container.
