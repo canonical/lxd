@@ -2390,6 +2390,91 @@ func patchStorageZFSVolumeSize(name string, d *Daemon) error {
 	return nil
 }
 
+func patchNetworkDnsmasqHosts(name string, d *Daemon) error {
+	// Get the list of networks
+	networks, err := db.Networks(d.db)
+	if err != nil {
+		return err
+	}
+
+	for _, network := range networks {
+		// Remove the old dhcp-hosts file (will be re-generated on startup)
+		if shared.PathExists(shared.VarPath("networks", network, "dnsmasq.hosts")) {
+			err = os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts"))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func patchStorageApiDirBindMount(name string, d *Daemon) error {
+	pools, err := db.StoragePools(d.db)
+	if err != nil && err == db.NoSuchObjectError {
+		// No pool was configured in the previous update. So we're on a
+		// pristine LXD instance.
+		return nil
+	} else if err != nil {
+		// Database is screwed.
+		logger.Errorf("Failed to query database: %s", err)
+		return err
+	}
+
+	for _, poolName := range pools {
+		_, pool, err := db.StoragePoolGet(d.db, poolName)
+		if err != nil {
+			logger.Errorf("Failed to query database: %s", err)
+			return err
+		}
+
+		// We only care about dir
+		if pool.Driver != "dir" {
+			continue
+		}
+
+		source := pool.Config["source"]
+		if source == "" {
+			msg := fmt.Sprintf(`No "source" property for storage `+
+				`pool "%s" found`, poolName)
+			logger.Errorf(msg)
+			return fmt.Errorf(msg)
+		}
+		cleanSource := filepath.Clean(source)
+		poolMntPoint := getStoragePoolMountPoint(poolName)
+
+		if cleanSource == poolMntPoint {
+			continue
+		}
+
+		if shared.PathExists(poolMntPoint) {
+			err := os.Remove(poolMntPoint)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = os.MkdirAll(poolMntPoint, 0711)
+		if err != nil {
+			return err
+		}
+
+		mountSource := cleanSource
+		mountFlags := syscall.MS_BIND
+
+		err = syscall.Mount(mountSource, poolMntPoint, "", uintptr(mountFlags), "")
+		if err != nil {
+			logger.Errorf(`Failed to mount DIR storage pool "%s" onto `+
+				`"%s": %s`, mountSource, poolMntPoint, err)
+			return err
+		}
+
+	}
+
+	return nil
+}
+
 // Patches end here
 
 // Here are a couple of legacy patches that were originally in
@@ -2595,91 +2680,6 @@ func patchUpdateFromV30(d *Daemon) error {
 				return err
 			}
 		}
-	}
-
-	return nil
-}
-
-func patchNetworkDnsmasqHosts(name string, d *Daemon) error {
-	// Get the list of networks
-	networks, err := db.Networks(d.db)
-	if err != nil {
-		return err
-	}
-
-	for _, network := range networks {
-		// Remove the old dhcp-hosts file (will be re-generated on startup)
-		if shared.PathExists(shared.VarPath("networks", network, "dnsmasq.hosts")) {
-			err = os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts"))
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func patchStorageApiDirBindMount(name string, d *Daemon) error {
-	pools, err := db.StoragePools(d.db)
-	if err != nil && err == db.NoSuchObjectError {
-		// No pool was configured in the previous update. So we're on a
-		// pristine LXD instance.
-		return nil
-	} else if err != nil {
-		// Database is screwed.
-		logger.Errorf("Failed to query database: %s", err)
-		return err
-	}
-
-	for _, poolName := range pools {
-		_, pool, err := db.StoragePoolGet(d.db, poolName)
-		if err != nil {
-			logger.Errorf("Failed to query database: %s", err)
-			return err
-		}
-
-		// We only care about dir
-		if pool.Driver != "dir" {
-			continue
-		}
-
-		source := pool.Config["source"]
-		if source == "" {
-			msg := fmt.Sprintf(`No "source" property for storage `+
-				`pool "%s" found`, poolName)
-			logger.Errorf(msg)
-			return fmt.Errorf(msg)
-		}
-		cleanSource := filepath.Clean(source)
-		poolMntPoint := getStoragePoolMountPoint(poolName)
-
-		if cleanSource == poolName {
-			continue
-		}
-
-		if shared.PathExists(poolMntPoint) {
-			err := os.Remove(poolMntPoint)
-			if err != nil {
-				return err
-			}
-		}
-
-		err = os.MkdirAll(poolMntPoint, 0711)
-		if err != nil {
-			return err
-		}
-
-		mountSource := cleanSource
-		mountFlags := syscall.MS_BIND
-
-		err = syscall.Mount(mountSource, poolMntPoint, "", uintptr(mountFlags), "")
-		if err != nil {
-			logger.Errorf(`Failed to mount DIR storage pool "%s" onto `+
-				`"%s": %s`, mountSource, poolMntPoint, err)
-			return err
-		}
-
 	}
 
 	return nil
