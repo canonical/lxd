@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -16,10 +17,10 @@ import (
 
 // This task function expires logs when executed. It's started by the Daemon
 // and will run once every 24h.
-func expireLogsTask(db *db.Node) (task.Func, task.Schedule) {
+func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 	f := func(context.Context) {
 		logger.Infof("Expiring log files")
-		err := expireLogs(db)
+		err := expireLogs(state)
 		if err != nil {
 			logger.Error("Failed to expire logs", log.Ctx{"err": err})
 		}
@@ -28,13 +29,13 @@ func expireLogsTask(db *db.Node) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
-func expireLogs(dbObj *db.Node) error {
-	entries, err := ioutil.ReadDir(shared.LogPath())
+func expireLogs(state *state.State) error {
+	entries, err := ioutil.ReadDir(state.OS.LogDir)
 	if err != nil {
 		return err
 	}
 
-	result, err := dbObj.ContainersList(db.CTypeRegular)
+	result, err := state.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
