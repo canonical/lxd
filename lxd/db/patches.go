@@ -10,7 +10,7 @@ func Patches(db *sql.DB) ([]string, error) {
 	outfmt := []interface{}{""}
 
 	query := fmt.Sprintf("SELECT name FROM patches")
-	result, err := QueryScan(db, query, inargs, outfmt)
+	result, err := queryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}

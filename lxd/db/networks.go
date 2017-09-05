@@ -15,7 +15,7 @@ func Networks(db *sql.DB) ([]string, error) {
 	inargs := []interface{}{}
 	var name string
 	outfmt := []interface{}{name}
-	result, err := QueryScan(db, q, inargs, outfmt)
+	result, err := queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -64,7 +64,7 @@ func NetworkGetInterface(db *sql.DB, devName string) (int64, *api.Network, error
 	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\""
 	arg1 := []interface{}{}
 	arg2 := []interface{}{id, name, value}
-	result, err := QueryScan(db, q, arg1, arg2)
+	result, err := queryScan(db, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -108,7 +108,7 @@ func NetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
 		WHERE network_id=?`
 	inargs := []interface{}{id}
 	outfmt := []interface{}{key, value}
-	results, err := QueryScan(db, query, inargs, outfmt)
+	results, err := queryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get network '%d'", id)
 	}
@@ -120,7 +120,7 @@ func NetworkConfigGet(db *sql.DB, id int64) (map[string]string, error) {
 		 */
 		query := "SELECT id FROM networks WHERE id=?"
 		var r int
-		results, err := QueryScan(db, query, []interface{}{id}, []interface{}{r})
+		results, err := queryScan(db, query, []interface{}{id}, []interface{}{r})
 		if err != nil {
 			return nil, err
 		}

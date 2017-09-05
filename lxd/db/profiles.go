@@ -16,7 +16,7 @@ func Profiles(db *sql.DB) ([]string, error) {
 	inargs := []interface{}{}
 	var name string
 	outfmt := []interface{}{name}
-	result, err := QueryScan(db, q, inargs, outfmt)
+	result, err := queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -127,7 +127,7 @@ func ProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 		WHERE name=?`
 	inargs := []interface{}{name}
 	outfmt := []interface{}{key, value}
-	results, err := QueryScan(db, query, inargs, outfmt)
+	results, err := queryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get profile '%s'", name)
 	}
@@ -139,7 +139,7 @@ func ProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 		 */
 		query := "SELECT id FROM profiles WHERE name=?"
 		var id int
-		results, err := QueryScan(db, query, []interface{}{name}, []interface{}{id})
+		results, err := queryScan(db, query, []interface{}{name}, []interface{}{id})
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +244,7 @@ func ProfileContainersGet(db *sql.DB, profile string) ([]string, error) {
 	var name string
 	outfmt := []interface{}{name}
 
-	output, err := QueryScan(db, q, inargs, outfmt)
+	output, err := queryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return results, err
 	}

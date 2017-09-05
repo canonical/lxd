@@ -13,7 +13,7 @@ func StorageVolumeConfigGet(db *sql.DB, volumeID int64) (map[string]string, erro
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{key, value}
 
-	results, err := QueryScan(db, query, inargs, outargs)
+	results, err := queryScan(db, query, inargs, outargs)
 	if err != nil {
 		return nil, err
 	}
