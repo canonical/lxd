@@ -13,6 +13,28 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+// PrintServerInfo prints out information about the server.
+func PrintServerInfo(c lxd.ContainerServer) error {
+	server, _, err := c.GetServer()
+	if err != nil {
+		return err
+	}
+	env := server.Environment
+	fmt.Printf("Test environment:\n")
+	fmt.Printf("  Server backend: %s\n", env.Server)
+	fmt.Printf("  Server version: %s\n", env.ServerVersion)
+	fmt.Printf("  Kernel: %s\n", env.Kernel)
+	fmt.Printf("  Kernel architecture: %s\n", env.KernelArchitecture)
+	fmt.Printf("  Kernel version: %s\n", env.KernelVersion)
+	fmt.Printf("  Storage backend: %s\n", env.Storage)
+	fmt.Printf("  Storage version: %s\n", env.StorageVersion)
+	fmt.Printf("  Container backend: %s\n", env.Driver)
+	fmt.Printf("  Container version: %s\n", env.DriverVersion)
+	fmt.Printf("\n")
+	return nil
+}
+
+// SpawnContainers launches a set of containers.
 func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, freeze bool) error {
 	batch := parallel
 	if batch < 1 {
@@ -29,32 +51,14 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 	remainder := count % batch
 
 	// Print the test header
-	st, _, err := c.GetServer()
-	if err != nil {
-		return err
-	}
-
 	privilegedStr := "unprivileged"
 	if privileged {
 		privilegedStr = "privileged"
 	}
-
 	mode := "normal startup"
 	if freeze {
 		mode = "start and freeze"
 	}
-
-	fmt.Printf("Test environment:\n")
-	fmt.Printf("  Server backend: %s\n", st.Environment.Server)
-	fmt.Printf("  Server version: %s\n", st.Environment.ServerVersion)
-	fmt.Printf("  Kernel: %s\n", st.Environment.Kernel)
-	fmt.Printf("  Kernel architecture: %s\n", st.Environment.KernelArchitecture)
-	fmt.Printf("  Kernel version: %s\n", st.Environment.KernelVersion)
-	fmt.Printf("  Storage backend: %s\n", st.Environment.Storage)
-	fmt.Printf("  Storage version: %s\n", st.Environment.StorageVersion)
-	fmt.Printf("  Container backend: %s\n", st.Environment.Driver)
-	fmt.Printf("  Container version: %s\n", st.Environment.DriverVersion)
-	fmt.Printf("\n")
 	fmt.Printf("Test variables:\n")
 	fmt.Printf("  Container count: %d\n", count)
 	fmt.Printf("  Container mode: %s\n", privilegedStr)
@@ -69,6 +73,7 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 	var fingerprint string
 	if strings.Contains(image, ":") {
 		var remote string
+		var err error
 
 		defaultConfig := config.DefaultConfig
 		defaultConfig.UserAgent = version.UserAgent
