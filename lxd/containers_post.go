@@ -213,7 +213,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
 		for _, pName := range req.Profiles {
-			_, p, err := db.ProfileGet(d.nodeDB, pName)
+			_, p, err := d.db.ProfileGet(pName)
 			if err != nil {
 				return SmartError(err)
 			}

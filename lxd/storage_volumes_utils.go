@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -234,7 +233,7 @@ func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeNam
 			fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
 	}
 
-	profiles, err := profilesUsingPoolVolumeGetNames(s.NodeDB, volumeName, volumeTypeName)
+	profiles, err := profilesUsingPoolVolumeGetNames(s.DB, volumeName, volumeTypeName)
 	if err != nil {
 		return []string{}, err
 	}
@@ -250,16 +249,16 @@ func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeNam
 	return volumeUsedBy, nil
 }
 
-func profilesUsingPoolVolumeGetNames(dbObj *sql.DB, volumeName string, volumeType string) ([]string, error) {
+func profilesUsingPoolVolumeGetNames(db *db.Node, volumeName string, volumeType string) ([]string, error) {
 	usedBy := []string{}
 
-	profiles, err := db.Profiles(dbObj)
+	profiles, err := db.Profiles()
 	if err != nil {
 		return usedBy, err
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := db.ProfileGet(dbObj, pName)
+		_, profile, err := db.ProfileGet(pName)
 		if err != nil {
 			return usedBy, err
 		}

@@ -38,7 +38,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 			// Check what profile the device comes from
 			profiles := container.Profiles()
 			for i := len(profiles) - 1; i >= 0; i-- {
-				_, profile, err := db.ProfileGet(d.nodeDB, profiles[i])
+				_, profile, err := d.db.ProfileGet(profiles[i])
 				if err != nil {
 					return SmartError(err)
 				}

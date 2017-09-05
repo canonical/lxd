@@ -429,7 +429,7 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 	_, err = s.db.DB().Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'something', 'something else');")
 	s.Nil(err)
 
-	result, err = ProfileConfig(s.db.DB(), "theprofile")
+	result, err = s.db.ProfileConfig("theprofile")
 	s.Nil(err)
 
 	expected = map[string]string{"thekey": "thevalue", "something": "something else"}

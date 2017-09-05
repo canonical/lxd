@@ -40,7 +40,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 			}
 
 			// Get all users of the storage pool.
-			poolUsedBy, err := storagePoolUsedByGet(d.nodeDB, plID, pool)
+			poolUsedBy, err := storagePoolUsedByGet(d.db, plID, pool)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -99,7 +99,7 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// Get all users of the storage pool.
-	poolUsedBy, err := storagePoolUsedByGet(d.nodeDB, poolID, poolName)
+	poolUsedBy, err := storagePoolUsedByGet(d.db, poolID, poolName)
 	if err != nil && err != db.NoSuchObjectError {
 		return SmartError(err)
 	}
@@ -216,7 +216,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if the storage pool is still referenced in any profiles.
-	profiles, err := profilesUsingPoolGetNames(d.nodeDB, poolName)
+	profiles, err := profilesUsingPoolGetNames(d.db, poolName)
 	if err != nil {
 		return SmartError(err)
 	}

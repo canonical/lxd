@@ -106,7 +106,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	devicesMap := map[string]map[string]string{}
 	devicesMap["root"] = rootDev
 
-	defaultID, _, err := db.ProfileGet(suite.d.nodeDB, "default")
+	defaultID, _, err := suite.d.db.ProfileGet("default")
 	if err != nil {
 		os.Exit(1)
 	}
