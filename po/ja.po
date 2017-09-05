@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-08-22 00:35-0400\n"
+"POT-Creation-Date: 2017-09-05 18:15+0200\n"
 "PO-Revision-Date: 2017-08-03 05:16+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -512,7 +512,8 @@ msgid "Force the container to shutdown"
 msgstr "コンテナを強制シャットダウンします"
 
 #: lxc/delete.go:34 lxc/delete.go:35
-msgid "Force the removal of stopped containers"
+#, fuzzy
+msgid "Force the removal of running containers"
 msgstr "停止したコンテナを強制的に削除します"
 
 #: lxc/main.go:49

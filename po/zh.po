@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-08-22 00:35-0400\n"
+"POT-Creation-Date: 2017-09-05 18:15+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -505,7 +505,7 @@ msgid "Force the container to shutdown"
 msgstr ""
 
 #: lxc/delete.go:34 lxc/delete.go:35
-msgid "Force the removal of stopped containers"
+msgid "Force the removal of running containers"
 msgstr ""
 
 #: lxc/main.go:49
