@@ -196,7 +196,7 @@ func ProfileDelete(db *sql.DB, name string) error {
 		return err
 	}
 
-	_, err = Exec(db, "DELETE FROM profiles WHERE id=?", id)
+	_, err = exec(db, "DELETE FROM profiles WHERE id=?", id)
 	if err != nil {
 		return err
 	}

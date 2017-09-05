@@ -135,7 +135,7 @@ func patchFixUploadedAt(name string, d *Daemon) error {
 			return err
 		}
 
-		_, err = db.Exec(d.nodeDB, "UPDATE images SET upload_date=? WHERE id=?", image.UploadedAt, id)
+		err = db.ImageUploadedAt(d.nodeDB, id, image.UploadedAt)
 		if err != nil {
 			return err
 		}
