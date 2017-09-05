@@ -94,7 +94,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	mockStorage, _ := storageTypeToString(storageTypeMock)
 	// Create the database entry for the storage pool.
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
-	_, err := dbStoragePoolCreateAndUpdateCache(suite.d.nodeDB, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
+	_, err := dbStoragePoolCreateAndUpdateCache(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
 		os.Exit(1)
 	}

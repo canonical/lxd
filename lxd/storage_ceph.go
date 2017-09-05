@@ -520,8 +520,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 			s.volume.Name, s.pool.Name)
 	}
 
-	err = db.StoragePoolVolumeDelete(
-		s.s.NodeDB,
+	err = s.db.StoragePoolVolumeDelete(
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -973,7 +972,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
 
 		if ok {
-			_, volume, err := db.StoragePoolVolumeGetType(s.s.NodeDB, fingerprint, db.StoragePoolVolumeTypeImage, s.poolID)
+			_, volume, err := s.s.DB.StoragePoolVolumeGetType(fingerprint, db.StoragePoolVolumeTypeImage, s.poolID)
 			if err != nil {
 				return err
 			}
@@ -2762,8 +2761,7 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 
 	// Update the database
 	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
-	err = db.StoragePoolVolumeUpdate(
-		s.s.NodeDB,
+	err = s.db.StoragePoolVolumeUpdate(
 		s.volume.Name,
 		volumeType,
 		s.poolID,

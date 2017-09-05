@@ -84,7 +84,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = containerValidDevices(d.nodeDB, req.Devices, true, false)
+	err = containerValidDevices(d.db, req.Devices, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
