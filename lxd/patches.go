@@ -105,18 +105,7 @@ func patchesApplyAll(d *Daemon) error {
 
 // Patches begin here
 func patchLeftoverProfileConfig(name string, d *Daemon) error {
-	stmt := `
-DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
-DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
-DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FROM profiles_devices);
-`
-
-	_, err := d.nodeDB.Exec(stmt)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return d.db.ProfileCleanupLeftover()
 }
 
 func patchInvalidProfileNames(name string, d *Daemon) error {
@@ -2632,7 +2621,7 @@ func patchUpdateFromV15(d *Daemon) error {
 		return err
 	}
 
-	err = daemonConfigInit(d.nodeDB)
+	err = daemonConfigInit(d.db.DB())
 	if err != nil {
 		return err
 	}
