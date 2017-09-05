@@ -35,17 +35,19 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 }
 
 // SpawnContainers launches a set of containers.
-func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, freeze bool) error {
+func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, freeze bool) (time.Duration, error) {
+	var duration time.Duration
+
 	batchSize, err := getBatchSize(parallel)
 	if err != nil {
-		return err
+		return duration, err
 	}
 
 	printTestConfig(count, batchSize, image, privileged, freeze)
 
 	fingerprint, err := ensureImage(c, image)
 	if err != nil {
-		return err
+		return duration, err
 	}
 
 	startContainer := func(index int, wg *sync.WaitGroup) {
@@ -111,8 +113,8 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 		}
 	}
 
-	processBatch(count, batchSize, startContainer)
-	return nil
+	duration = processBatch(count, batchSize, startContainer)
+	return duration, nil
 }
 
 // GetContainers returns containers created by the benchmark.
@@ -136,10 +138,12 @@ func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
 }
 
 // StopContainers stops containers created by the benchmark.
-func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel int) error {
+func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
+	var duration time.Duration
+
 	batchSize, err := getBatchSize(parallel)
 	if err != nil {
-		return err
+		return duration, err
 	}
 
 	count := len(containers)
@@ -158,15 +162,17 @@ func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel 
 		}
 	}
 
-	processBatch(count, batchSize, stopContainer)
-	return nil
+	duration = processBatch(count, batchSize, stopContainer)
+	return duration, nil
 }
 
 // DeleteContainers removes containers created by the benchmark.
-func DeleteContainers(c lxd.ContainerServer, containers []api.Container, parallel int) error {
+func DeleteContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
+	var duration time.Duration
+
 	batchSize, err := getBatchSize(parallel)
 	if err != nil {
-		return err
+		return duration, err
 	}
 
 	count := len(containers)
@@ -199,8 +205,8 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 		}
 	}
 
-	processBatch(count, batchSize, deleteContainer)
-	return nil
+	duration = processBatch(count, batchSize, deleteContainer)
+	return duration, nil
 }
 
 func getBatchSize(parallel int) (int, error) {
