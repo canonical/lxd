@@ -1148,18 +1148,13 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 func aliasesGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
 
-	q := "SELECT name FROM images_aliases"
-	var name string
-	inargs := []interface{}{}
-	outfmt := []interface{}{name}
-	results, err := db.QueryScan(d.nodeDB, q, inargs, outfmt)
+	names, err := db.ImageAliasesGet(d.nodeDB)
 	if err != nil {
 		return BadRequest(err)
 	}
 	responseStr := []string{}
 	responseMap := []api.ImageAliasesEntry{}
-	for _, res := range results {
-		name = res[0].(string)
+	for _, name := range names {
 		if !recursion {
 			url := fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, name)
 			responseStr = append(responseStr, url)

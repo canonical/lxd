@@ -249,7 +249,7 @@ func updateFromV18(tx *sql.Tx) error {
 	var value string
 
 	// Update container config
-	rows, err := QueryScan(tx, "SELECT id, value FROM containers_config WHERE key='limits.memory'", nil, []interface{}{id, value})
+	rows, err := queryScan(tx, "SELECT id, value FROM containers_config WHERE key='limits.memory'", nil, []interface{}{id, value})
 	if err != nil {
 		return err
 	}
@@ -286,7 +286,7 @@ func updateFromV18(tx *sql.Tx) error {
 	}
 
 	// Update profiles config
-	rows, err = QueryScan(tx, "SELECT id, value FROM profiles_config WHERE key='limits.memory'", nil, []interface{}{id, value})
+	rows, err = queryScan(tx, "SELECT id, value FROM profiles_config WHERE key='limits.memory'", nil, []interface{}{id, value})
 	if err != nil {
 		return err
 	}

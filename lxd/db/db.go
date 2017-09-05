@@ -259,7 +259,7 @@ type queryer interface {
  * The result will be an array (one per output row) of arrays (one per output argument)
  * of interfaces, containing pointers to the actual output arguments.
  */
-func QueryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
+func queryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
 	for i := 0; i < 1000; i++ {
 		result, err := doDbQueryScan(qi, q, inargs, outfmt)
 		if err == nil {
