@@ -546,7 +546,7 @@ func (d *Daemon) Stop() error {
 	}
 
 	logger.Infof("Saving simplestreams cache")
-	trackError(imageSaveStreamCache())
+	trackError(imageSaveStreamCache(d.os))
 	logger.Infof("Saved simplestreams cache")
 
 	var err error
