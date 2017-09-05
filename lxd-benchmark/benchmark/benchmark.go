@@ -135,6 +135,33 @@ func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
 	return containers, nil
 }
 
+// StopContainers stops containers created by the benchmark.
+func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel int) error {
+	batchSize, err := getBatchSize(parallel)
+	if err != nil {
+		return err
+	}
+
+	count := len(containers)
+	logf("Stopping %d containers", count)
+
+	stopContainer := func(index int, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		container := containers[index]
+		if container.IsActive() {
+			err := stopContainer(c, container.Name)
+			if err != nil {
+				logf("Failed to stop container '%s': %s", container.Name, err)
+				return
+			}
+		}
+	}
+
+	processBatch(count, batchSize, stopContainer)
+	return nil
+}
+
 // DeleteContainers removes containers created by the benchmark.
 func DeleteContainers(c lxd.ContainerServer, containers []api.Container, parallel int) error {
 	batchSize, err := getBatchSize(parallel)
@@ -150,17 +177,10 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 
 		ct := containers[index]
 
-		// Stop
 		if ct.IsActive() {
-			op, err := c.UpdateContainerState(ct.Name, api.ContainerStatePut{Action: "stop", Timeout: -1, Force: true}, "")
+			err := stopContainer(c, ct.Name)
 			if err != nil {
-				logf("Failed to delete container '%s': %s", ct.Name, err)
-				return
-			}
-
-			err = op.Wait()
-			if err != nil {
-				logf("Failed to delete container '%s': %s", ct.Name, err)
+				logf("Failed to stop container '%s': %s", ct.Name, err)
 				return
 			}
 		}
