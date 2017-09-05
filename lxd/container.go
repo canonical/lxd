@@ -514,7 +514,7 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 	// Now create the empty storage
 	err = c.Storage().ContainerCreate(c)
 	if err != nil {
-		db.ContainerRemove(d.nodeDB, args.Name)
+		d.db.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -538,7 +538,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 	// Now create the empty snapshot
 	err = c.Storage().ContainerSnapshotCreateEmpty(c)
 	if err != nil {
-		db.ContainerRemove(s.NodeDB, args.Name)
+		s.DB.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -570,14 +570,14 @@ func containerCreateFromImage(s *state.State, args db.ContainerArgs, hash string
 
 	err = db.ImageLastAccessUpdate(s.NodeDB, hash, time.Now().UTC())
 	if err != nil {
-		db.ContainerRemove(s.NodeDB, args.Name)
+		s.DB.ContainerRemove(args.Name)
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
 	// Now create the storage from an image
 	err = c.Storage().ContainerCreateFromImage(c, hash)
 	if err != nil {
-		db.ContainerRemove(s.NodeDB, args.Name)
+		s.DB.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -602,7 +602,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	if !containerOnly {
 		snapshots, err := sourceContainer.Snapshots()
 		if err != nil {
-			db.ContainerRemove(s.NodeDB, args.Name)
+			s.DB.ContainerRemove(args.Name)
 			return nil, err
 		}
 
@@ -634,9 +634,9 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	err = ct.Storage().ContainerCopy(ct, sourceContainer, containerOnly)
 	if err != nil {
 		for _, v := range csList {
-			db.ContainerRemove(s.NodeDB, (*v).Name())
+			s.DB.ContainerRemove((*v).Name())
 		}
-		db.ContainerRemove(s.NodeDB, args.Name)
+		s.DB.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -705,7 +705,7 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 	// Clone the container
 	err = sourceContainer.Storage().ContainerSnapshotCreate(c, sourceContainer)
 	if err != nil {
-		db.ContainerRemove(s.NodeDB, args.Name)
+		s.DB.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -796,7 +796,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Create the container entry
-	id, err := db.ContainerCreate(s.NodeDB, args)
+	id, err := s.DB.ContainerCreate(args)
 	if err != nil {
 		if err == db.DbErrAlreadyDefined {
 			thing := "Container"
@@ -814,9 +814,9 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	args.Id = id
 
 	// Read the timestamp from the database
-	dbArgs, err := db.ContainerGet(s.NodeDB, args.Name)
+	dbArgs, err := s.DB.ContainerGet(args.Name)
 	if err != nil {
-		db.ContainerRemove(s.NodeDB, args.Name)
+		s.DB.ContainerRemove(args.Name)
 		return nil, err
 	}
 	args.CreationDate = dbArgs.CreationDate
@@ -825,7 +825,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Setup the container struct and finish creation (storage and idmap)
 	c, err := containerLXCCreate(s, args)
 	if err != nil {
-		db.ContainerRemove(s.NodeDB, args.Name)
+		s.DB.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -880,7 +880,7 @@ func containerConfigureInternal(c container) error {
 
 func containerLoadById(s *state.State, id int) (container, error) {
 	// Get the DB record
-	name, err := db.ContainerName(s.NodeDB, id)
+	name, err := s.DB.ContainerName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -890,7 +890,7 @@ func containerLoadById(s *state.State, id int) (container, error) {
 
 func containerLoadByName(s *state.State, name string) (container, error) {
 	// Get the DB record
-	args, err := db.ContainerGet(s.NodeDB, name)
+	args, err := s.DB.ContainerGet(name)
 	if err != nil {
 		return nil, err
 	}

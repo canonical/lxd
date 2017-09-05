@@ -539,7 +539,7 @@ func storagePoolVolumeContainerCreateInit(s *state.State, poolName string, conta
 
 func storagePoolVolumeContainerLoadInit(s *state.State, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
-	poolName, err := db.ContainerPool(s.NodeDB, containerName)
+	poolName, err := s.DB.ContainerPool(containerName)
 	if err != nil {
 		return nil, err
 	}

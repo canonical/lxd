@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"io/ioutil"
 	"os"
 	"time"
@@ -17,7 +16,7 @@ import (
 
 // This task function expires logs when executed. It's started by the Daemon
 // and will run once every 24h.
-func expireLogsTask(db *sql.DB) (task.Func, task.Schedule) {
+func expireLogsTask(db *db.Node) (task.Func, task.Schedule) {
 	f := func(context.Context) {
 		logger.Infof("Expiring log files")
 		err := expireLogs(db)
@@ -29,13 +28,13 @@ func expireLogsTask(db *sql.DB) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
-func expireLogs(dbObj *sql.DB) error {
+func expireLogs(dbObj *db.Node) error {
 	entries, err := ioutil.ReadDir(shared.LogPath())
 	if err != nil {
 		return err
 	}
 
-	result, err := db.ContainersList(dbObj, db.CTypeRegular)
+	result, err := dbObj.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}

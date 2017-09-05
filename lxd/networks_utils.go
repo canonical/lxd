@@ -746,7 +746,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	defer networkStaticLock.Unlock()
 
 	// Get all the containers
-	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
+	containers, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}

@@ -592,7 +592,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the containers
-	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
+	containers, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -718,7 +718,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		return
 	}
 
-	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
+	containers, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return
 	}
@@ -749,7 +749,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 }
 
 func deviceUSBEvent(s *state.State, usb usbDevice) {
-	containers, err := db.ContainersList(s.NodeDB, db.CTypeRegular)
+	containers, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return

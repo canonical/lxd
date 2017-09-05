@@ -381,7 +381,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Log expiry */
-	d.tasks.Add(expireLogsTask(d.nodeDB))
+	d.tasks.Add(expireLogsTask(d.db))
 
 	/* set the initial proxy function based on config values in the DB */
 	d.proxy = shared.ProxyFromConfig(
@@ -494,7 +494,7 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := db.ContainersList(d.nodeDB, db.CTypeRegular)
+	results, err := d.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return 0, err
 	}
@@ -647,11 +647,12 @@ func initializeDbObject(d *Daemon) error {
 	legacy := map[int]*db.LegacyPatch{}
 	for i, patch := range legacyPatches {
 		legacy[i] = &db.LegacyPatch{
-			Hook: func(db *sql.DB) error {
+			Hook: func(node *sql.DB) error {
 				// FIXME: Attach the local db to the Daemon, since at
 				//        this stage we're not fully initialized, yet
 				//        some legacy patches expect to find it here.
-				d.nodeDB = db
+				d.db = db.ForLegacyPatches(node)
+				d.nodeDB = node
 				return patch(d)
 			},
 		}

@@ -520,7 +520,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if an entry for the container already exists in the db.
-	_, containerErr := db.ContainerId(d.nodeDB, req.Name)
+	_, containerErr := d.db.ContainerId(req.Name)
 	if containerErr != nil {
 		if containerErr != sql.ErrNoRows {
 			return SmartError(containerErr)
@@ -565,7 +565,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if containerErr == nil {
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := db.ContainerRemove(d.nodeDB, req.Name)
+		err := d.db.ContainerRemove(req.Name)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -573,7 +573,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	for _, snap := range existingSnapshots {
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := db.ContainerId(d.nodeDB, snap.Name)
+		_, snapErr := d.db.ContainerId(snap.Name)
 		if snapErr != nil {
 			if snapErr != sql.ErrNoRows {
 				return SmartError(snapErr)
@@ -604,7 +604,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		if snapErr == nil {
-			err := db.ContainerRemove(d.nodeDB, snap.Name)
+			err := d.db.ContainerRemove(snap.Name)
 			if err != nil {
 				return SmartError(err)
 			}
