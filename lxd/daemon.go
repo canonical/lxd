@@ -380,7 +380,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Log expiry */
-	d.tasks.Add(expireLogsTask(d.db))
+	d.tasks.Add(expireLogsTask(d.State()))
 
 	/* set the initial proxy function based on config values in the DB */
 	d.proxy = shared.ProxyFromConfig(
