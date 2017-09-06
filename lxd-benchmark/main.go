@@ -30,7 +30,7 @@ func main() {
 
 func run(args []string) error {
 	// Parse command line
-	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"spawn", "delete"}) {
+	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"spawn", "start", "stop", "delete"}) {
 		if len(os.Args) > 1 && os.Args[1] == "--version" {
 			fmt.Println(version.Version)
 			return nil
@@ -43,6 +43,8 @@ func run(args []string) error {
 		gnuflag.SetOut(out)
 
 		fmt.Fprintf(out, "Usage: %s spawn [--count=COUNT] [--image=IMAGE] [--privileged=BOOL] [--start=BOOL] [--freeze=BOOL] [--parallel=COUNT]\n", os.Args[0])
+		fmt.Fprintf(out, "       %s start [--parallel=COUNT]\n", os.Args[0])
+		fmt.Fprintf(out, "       %s stop [--parallel=COUNT]\n", os.Args[0])
 		fmt.Fprintf(out, "       %s delete [--parallel=COUNT]\n\n", os.Args[0])
 		gnuflag.PrintDefaults()
 		fmt.Fprintf(out, "\n")
@@ -51,7 +53,7 @@ func run(args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("A valid action (spawn or delete) must be passed.")
+		return fmt.Errorf("A valid action (spawn, start, stop, delete) must be passed.")
 	}
 
 	gnuflag.Parse(true)
@@ -67,6 +69,20 @@ func run(args []string) error {
 	switch os.Args[1] {
 	case "spawn":
 		_, err = benchmark.SpawnContainers(c, *argCount, *argParallel, *argImage, *argPrivileged, *argStart, *argFreeze)
+		return err
+	case "start":
+		containers, err := benchmark.GetContainers(c)
+		if err != nil {
+			return err
+		}
+		_, err = benchmark.StartContainers(c, containers, *argParallel)
+		return err
+	case "stop":
+		containers, err := benchmark.GetContainers(c)
+		if err != nil {
+			return err
+		}
+		_, err = benchmark.StopContainers(c, containers, *argParallel)
 		return err
 	case "delete":
 		containers, err := benchmark.GetContainers(c)
