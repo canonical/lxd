@@ -61,16 +61,9 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 			return
 		}
 
-		// Start
-		op, err := c.UpdateContainerState(name, api.ContainerStatePut{Action: "start", Timeout: -1}, "")
+		err = startContainer(c, name)
 		if err != nil {
-			logf("Failed to spawn container '%s': %s", name, err)
-			return
-		}
-
-		err = op.Wait()
-		if err != nil {
-			logf("Failed to spawn container '%s': %s", name, err)
+			logf("Failed to start container '%s': %s", name, err)
 			return
 		}
 
@@ -138,6 +131,35 @@ func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
 	}
 
 	return containers, nil
+}
+
+// StartContainers starts containers created by the benchmark.
+func StartContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
+	var duration time.Duration
+
+	batchSize, err := getBatchSize(parallel)
+	if err != nil {
+		return duration, err
+	}
+
+	count := len(containers)
+	logf("Starting %d containers", count)
+
+	startContainer := func(index int, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		container := containers[index]
+		if !container.IsActive() {
+			err := startContainer(c, container.Name)
+			if err != nil {
+				logf("Failed to start container '%s': %s", container.Name, err)
+				return
+			}
+		}
+	}
+
+	duration = processBatch(count, batchSize, startContainer)
+	return duration, nil
 }
 
 // StopContainers stops containers created by the benchmark.
