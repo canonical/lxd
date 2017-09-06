@@ -714,12 +714,12 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 		return err
 	}
 
-	ourMount, err := s.ContainerMount(target)
+	ourMount, err := target.StorageStart()
 	if err != nil {
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(target.Name(), targetContainerMountPoint)
+		defer target.StorageStop()
 	}
 
 	err = target.TemplateApply("copy")
@@ -822,12 +822,12 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		return err
 	}
 
-	ourMount, err := s.ContainerMount(target)
+	ourMount, err := target.StorageStart()
 	if err != nil {
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(target.Name(), targetContainerMountPoint)
+		defer target.StorageStop()
 	}
 
 	err = target.TemplateApply("copy")
