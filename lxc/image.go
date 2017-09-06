@@ -289,7 +289,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 				return err
 			}
 
-			// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overriden)
+			// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overridden)
 			fp = imgInfo.Fingerprint
 		}
 
