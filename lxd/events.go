@@ -51,7 +51,8 @@ type eventListener struct {
 	messageTypes []string
 	active       chan bool
 	id           string
-	msgLock      sync.Mutex
+	lock         sync.Mutex
+	done         bool
 }
 
 type eventsServe struct {
@@ -92,13 +93,6 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 
 	<-listener.active
 
-	eventsLock.Lock()
-	delete(eventListeners, listener.id)
-	eventsLock.Unlock()
-
-	listener.connection.Close()
-	logger.Debugf("Disconnected events listener: %s", listener.id)
-
 	return nil
 }
 
@@ -127,16 +121,32 @@ func eventSend(eventType string, eventMessage interface{}) error {
 		}
 
 		go func(listener *eventListener, body []byte) {
+			// Check that the listener still exists
 			if listener == nil {
 				return
 			}
 
-			listener.msgLock.Lock()
-			err = listener.connection.WriteMessage(websocket.TextMessage, body)
-			listener.msgLock.Unlock()
+			// Ensure there is only a single even going out at the time
+			listener.lock.Lock()
+			defer listener.lock.Unlock()
 
+			// Make sure we're not done already
+			if listener.done {
+				return
+			}
+
+			err = listener.connection.WriteMessage(websocket.TextMessage, body)
 			if err != nil {
+				// Remove the listener from the list
+				eventsLock.Lock()
+				delete(eventListeners, listener.id)
+				eventsLock.Unlock()
+
+				// Disconnect the listener
+				listener.connection.Close()
 				listener.active <- false
+				listener.done = true
+				logger.Debugf("Disconnected events listener: %s", listener.id)
 			}
 		}(listener, body)
 	}
