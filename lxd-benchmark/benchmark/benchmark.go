@@ -2,7 +2,6 @@ package benchmark
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +11,8 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
+
+const userConfigKey = "user.lxd-benchmark"
 
 // PrintServerInfo prints out information about the server.
 func PrintServerInfo(c lxd.ContainerServer) error {
@@ -35,7 +36,7 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 }
 
 // SpawnContainers launches a set of containers.
-func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, freeze bool) (time.Duration, error) {
+func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, start bool, freeze bool) (time.Duration, error) {
 	var duration time.Duration
 
 	batchSize, err := getBatchSize(parallel)
@@ -61,16 +62,19 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 			return
 		}
 
-		err = startContainer(c, name)
-		if err != nil {
-			logf("Failed to start container '%s': %s", name, err)
-			return
-		}
-
-		if freeze {
-			if freezeContainer(c, name) != nil {
-				logf("Failed to freeze container '%s': %s", name, err)
+		if start {
+			err := startContainer(c, name)
+			if err != nil {
+				logf("Failed to start container '%s': %s", name, err)
 				return
+			}
+
+			if freeze {
+				err := freezeContainer(c, name)
+				if err != nil {
+					logf("Failed to freeze container '%s': %s", name, err)
+					return
+				}
 			}
 		}
 	}
@@ -115,11 +119,9 @@ func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
 	}
 
 	for _, container := range allContainers {
-		if container.Config["user.lxd-benchmark"] != "true" {
-			continue
+		if container.Config[userConfigKey] == "true" {
+			containers = append(containers, container)
 		}
-
-		containers = append(containers, container)
 	}
 
 	return containers, nil
@@ -226,26 +228,6 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 	return duration, nil
 }
 
-func getBatchSize(parallel int) (int, error) {
-	batchSize := parallel
-	if batchSize < 1 {
-		// Detect the number of parallel actions
-		cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
-		if err != nil {
-			return -1, err
-		}
-
-		batchSize = len(cpus)
-	}
-
-	return batchSize, nil
-}
-
-func getContainerName(count int, index int) string {
-	nameFormat := "benchmark-%." + fmt.Sprintf("%d", len(fmt.Sprintf("%d", count))) + "d"
-	return fmt.Sprintf(nameFormat, index+1)
-}
-
 func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 	var fingerprint string
 
@@ -301,70 +283,4 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 		logf("Found image in local store: %s", fingerprint)
 	}
 	return fingerprint, nil
-}
-
-func processBatch(count int, batchSize int, process func(index int, wg *sync.WaitGroup)) time.Duration {
-	batches := count / batchSize
-	remainder := count % batchSize
-	processed := 0
-	wg := sync.WaitGroup{}
-	nextStat := batchSize
-
-	logf("Batch processing start")
-	timeStart := time.Now()
-
-	for i := 0; i < batches; i++ {
-		for j := 0; j < batchSize; j++ {
-			wg.Add(1)
-			go process(processed, &wg)
-			processed++
-		}
-		wg.Wait()
-
-		if processed >= nextStat {
-			interval := time.Since(timeStart).Seconds()
-			logf("Processed %d containers in %.3fs (%.3f/s)", processed, interval, float64(processed)/interval)
-			nextStat = nextStat * 2
-		}
-
-	}
-
-	for k := 0; k < remainder; k++ {
-		wg.Add(1)
-		go process(processed, &wg)
-		processed++
-	}
-	wg.Wait()
-
-	timeEnd := time.Now()
-	duration := timeEnd.Sub(timeStart)
-	logf("Batch processing completed in %.3fs", duration.Seconds())
-	return duration
-}
-
-func logf(format string, args ...interface{}) {
-	fmt.Printf(fmt.Sprintf("[%s] %s\n", time.Now().Format(time.StampMilli), format), args...)
-}
-
-func printTestConfig(count int, batchSize int, image string, privileged bool, freeze bool) {
-	privilegedStr := "unprivileged"
-	if privileged {
-		privilegedStr = "privileged"
-	}
-	mode := "normal startup"
-	if freeze {
-		mode = "start and freeze"
-	}
-
-	batches := count / batchSize
-	remainder := count % batchSize
-	fmt.Printf("Test variables:\n")
-	fmt.Printf("  Container count: %d\n", count)
-	fmt.Printf("  Container mode: %s\n", privilegedStr)
-	fmt.Printf("  Startup mode: %s\n", mode)
-	fmt.Printf("  Image: %s\n", image)
-	fmt.Printf("  Batches: %d\n", batches)
-	fmt.Printf("  Batch size: %d\n", batchSize)
-	fmt.Printf("  Remainder: %d\n", remainder)
-	fmt.Printf("\n")
 }
