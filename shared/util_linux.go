@@ -354,12 +354,12 @@ func UserId(name string) (int, error) {
 	var pw C.struct_passwd
 	var result *C.struct_passwd
 
-	bufSize := C.size_t(C.sysconf(C._SC_GETPW_R_SIZE_MAX))
+	bufSize := C.sysconf(C._SC_GETPW_R_SIZE_MAX)
 	if bufSize < 0 {
 		bufSize = 4096
 	}
 
-	buf := C.malloc(bufSize)
+	buf := C.malloc(C.size_t(bufSize))
 	if buf == nil {
 		return -1, fmt.Errorf("allocation failed")
 	}
@@ -372,14 +372,14 @@ again:
 	rv, errno := C.getpwnam_r(cname,
 		&pw,
 		(*C.char)(buf),
-		bufSize,
+		C.size_t(bufSize),
 		&result)
 	if rv < 0 {
 		// OOM killer will take care of us if we end up doing this too
 		// often.
 		if errno == syscall.ERANGE {
 			bufSize *= 2
-			tmp := C.realloc(buf, bufSize)
+			tmp := C.realloc(buf, C.size_t(bufSize))
 			if tmp == nil {
 				return -1, fmt.Errorf("allocation failed")
 			}
@@ -401,12 +401,12 @@ func GroupId(name string) (int, error) {
 	var grp C.struct_group
 	var result *C.struct_group
 
-	bufSize := C.size_t(C.sysconf(C._SC_GETGR_R_SIZE_MAX))
+	bufSize := C.sysconf(C._SC_GETGR_R_SIZE_MAX)
 	if bufSize < 0 {
 		bufSize = 4096
 	}
 
-	buf := C.malloc(bufSize)
+	buf := C.malloc(C.size_t(bufSize))
 	if buf == nil {
 		return -1, fmt.Errorf("allocation failed")
 	}
@@ -418,14 +418,14 @@ again:
 	rv, errno := C.getgrnam_r(cname,
 		&grp,
 		(*C.char)(buf),
-		bufSize,
+		C.size_t(bufSize),
 		&result)
 	if rv != 0 {
 		// OOM killer will take care of us if we end up doing this too
 		// often.
 		if errno == syscall.ERANGE {
 			bufSize *= 2
-			tmp := C.realloc(buf, bufSize)
+			tmp := C.realloc(buf, C.size_t(bufSize))
 			if tmp == nil {
 				return -1, fmt.Errorf("allocation failed")
 			}
