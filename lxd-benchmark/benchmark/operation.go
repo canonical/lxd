@@ -29,6 +29,16 @@ func createContainer(c lxd.ContainerServer, fingerprint string, name string, pri
 	return op.Wait()
 }
 
+func startContainer(c lxd.ContainerServer, name string) error {
+	op, err := c.UpdateContainerState(
+		name, api.ContainerStatePut{Action: "start", Timeout: -1}, "")
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
+}
+
 func stopContainer(c lxd.ContainerServer, name string) error {
 	op, err := c.UpdateContainerState(
 		name, api.ContainerStatePut{Action: "stop", Timeout: -1, Force: true}, "")
