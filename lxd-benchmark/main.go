@@ -15,6 +15,7 @@ var argCount = gnuflag.Int("count", 100, "Number of containers to create")
 var argParallel = gnuflag.Int("parallel", -1, "Number of threads to use")
 var argImage = gnuflag.String("image", "ubuntu:", "Image to use for the test")
 var argPrivileged = gnuflag.Bool("privileged", false, "Use privileged containers")
+var argStart = gnuflag.Bool("start", true, "Start the container after creation")
 var argFreeze = gnuflag.Bool("freeze", false, "Freeze the container right after start")
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 
 func run(args []string) error {
 	// Parse command line
-	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"spawn", "delete"}) {
+	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"spawn", "start", "stop", "delete"}) {
 		if len(os.Args) > 1 && os.Args[1] == "--version" {
 			fmt.Println(version.Version)
 			return nil
@@ -41,7 +42,9 @@ func run(args []string) error {
 		}
 		gnuflag.SetOut(out)
 
-		fmt.Fprintf(out, "Usage: %s spawn [--count=COUNT] [--image=IMAGE] [--privileged=BOOL] [--parallel=COUNT]\n", os.Args[0])
+		fmt.Fprintf(out, "Usage: %s spawn [--count=COUNT] [--image=IMAGE] [--privileged=BOOL] [--start=BOOL] [--freeze=BOOL] [--parallel=COUNT]\n", os.Args[0])
+		fmt.Fprintf(out, "       %s start [--parallel=COUNT]\n", os.Args[0])
+		fmt.Fprintf(out, "       %s stop [--parallel=COUNT]\n", os.Args[0])
 		fmt.Fprintf(out, "       %s delete [--parallel=COUNT]\n\n", os.Args[0])
 		gnuflag.PrintDefaults()
 		fmt.Fprintf(out, "\n")
@@ -50,7 +53,7 @@ func run(args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("An valid action (spawn or delete) must be passed.")
+		return fmt.Errorf("A valid action (spawn, start, stop, delete) must be passed.")
 	}
 
 	gnuflag.Parse(true)
@@ -65,13 +68,29 @@ func run(args []string) error {
 
 	switch os.Args[1] {
 	case "spawn":
-		return benchmark.SpawnContainers(c, *argCount, *argParallel, *argImage, *argPrivileged, *argFreeze)
+		_, err = benchmark.SpawnContainers(c, *argCount, *argParallel, *argImage, *argPrivileged, *argStart, *argFreeze)
+		return err
+	case "start":
+		containers, err := benchmark.GetContainers(c)
+		if err != nil {
+			return err
+		}
+		_, err = benchmark.StartContainers(c, containers, *argParallel)
+		return err
+	case "stop":
+		containers, err := benchmark.GetContainers(c)
+		if err != nil {
+			return err
+		}
+		_, err = benchmark.StopContainers(c, containers, *argParallel)
+		return err
 	case "delete":
 		containers, err := benchmark.GetContainers(c)
 		if err != nil {
 			return err
 		}
-		return benchmark.DeleteContainers(c, containers, *argParallel)
+		_, err = benchmark.DeleteContainers(c, containers, *argParallel)
+		return err
 	}
 
 	return nil

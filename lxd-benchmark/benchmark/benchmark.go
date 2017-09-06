@@ -2,7 +2,6 @@ package benchmark
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +11,8 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
+
+const userConfigKey = "user.lxd-benchmark"
 
 // PrintServerInfo prints out information about the server.
 func PrintServerInfo(c lxd.ContainerServer) error {
@@ -35,84 +36,77 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 }
 
 // SpawnContainers launches a set of containers.
-func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, freeze bool) error {
+func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, start bool, freeze bool) (time.Duration, error) {
+	var duration time.Duration
+
 	batchSize, err := getBatchSize(parallel)
 	if err != nil {
-		return err
+		return duration, err
 	}
 
 	printTestConfig(count, batchSize, image, privileged, freeze)
 
 	fingerprint, err := ensureImage(c, image)
 	if err != nil {
-		return err
+		return duration, err
 	}
 
 	startContainer := func(index int, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		// Configure
-		config := map[string]string{}
-		if privileged {
-			config["security.privileged"] = "true"
-		}
-		config["user.lxd-benchmark"] = "true"
+		name := getContainerName(count, index)
 
-		// Create
-		nameFormat := "benchmark-%." + fmt.Sprintf("%d", len(fmt.Sprintf("%d", count))) + "d"
-		name := fmt.Sprintf(nameFormat, index+1)
-		req := api.ContainersPost{
-			Name: name,
-			Source: api.ContainerSource{
-				Type:        "image",
-				Fingerprint: fingerprint,
-			},
-		}
-		req.Config = config
-
-		op, err := c.CreateContainer(req)
+		err := createContainer(c, fingerprint, name, privileged)
 		if err != nil {
 			logf("Failed to spawn container '%s': %s", name, err)
 			return
 		}
 
-		err = op.Wait()
-		if err != nil {
-			logf("Failed to spawn container '%s': %s", name, err)
-			return
-		}
-
-		// Start
-		op, err = c.UpdateContainerState(name, api.ContainerStatePut{Action: "start", Timeout: -1}, "")
-		if err != nil {
-			logf("Failed to spawn container '%s': %s", name, err)
-			return
-		}
-
-		err = op.Wait()
-		if err != nil {
-			logf("Failed to spawn container '%s': %s", name, err)
-			return
-		}
-
-		// Freeze
-		if freeze {
-			op, err := c.UpdateContainerState(name, api.ContainerStatePut{Action: "freeze", Timeout: -1}, "")
+		if start {
+			err := startContainer(c, name)
 			if err != nil {
-				logf("Failed to spawn container '%s': %s", name, err)
+				logf("Failed to start container '%s': %s", name, err)
 				return
 			}
 
-			err = op.Wait()
-			if err != nil {
-				logf("Failed to spawn container '%s': %s", name, err)
-				return
+			if freeze {
+				err := freezeContainer(c, name)
+				if err != nil {
+					logf("Failed to freeze container '%s': %s", name, err)
+					return
+				}
 			}
 		}
 	}
 
-	processBatch(count, batchSize, startContainer)
-	return nil
+	duration = processBatch(count, batchSize, startContainer)
+	return duration, nil
+}
+
+// CreateContainers create the specified number of containers.
+func CreateContainers(c lxd.ContainerServer, count int, parallel int, fingerprint string, privileged bool) (time.Duration, error) {
+	var duration time.Duration
+
+	batchSize, err := getBatchSize(parallel)
+	if err != nil {
+		return duration, err
+	}
+
+	createContainer := func(index int, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		name := getContainerName(count, index)
+
+		err := createContainer(c, fingerprint, name, privileged)
+		if err != nil {
+			logf("Failed to spawn container '%s': %s", name, err)
+			return
+		}
+	}
+
+	duration = processBatch(count, batchSize, createContainer)
+
+	return duration, nil
 }
 
 // GetContainers returns containers created by the benchmark.
@@ -125,21 +119,79 @@ func GetContainers(c lxd.ContainerServer) ([]api.Container, error) {
 	}
 
 	for _, container := range allContainers {
-		if container.Config["user.lxd-benchmark"] != "true" {
-			continue
+		if container.Config[userConfigKey] == "true" {
+			containers = append(containers, container)
 		}
-
-		containers = append(containers, container)
 	}
 
 	return containers, nil
 }
 
-// DeleteContainers removes containers created by the benchmark.
-func DeleteContainers(c lxd.ContainerServer, containers []api.Container, parallel int) error {
+// StartContainers starts containers created by the benchmark.
+func StartContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
+	var duration time.Duration
+
 	batchSize, err := getBatchSize(parallel)
 	if err != nil {
-		return err
+		return duration, err
+	}
+
+	count := len(containers)
+	logf("Starting %d containers", count)
+
+	startContainer := func(index int, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		container := containers[index]
+		if !container.IsActive() {
+			err := startContainer(c, container.Name)
+			if err != nil {
+				logf("Failed to start container '%s': %s", container.Name, err)
+				return
+			}
+		}
+	}
+
+	duration = processBatch(count, batchSize, startContainer)
+	return duration, nil
+}
+
+// StopContainers stops containers created by the benchmark.
+func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
+	var duration time.Duration
+
+	batchSize, err := getBatchSize(parallel)
+	if err != nil {
+		return duration, err
+	}
+
+	count := len(containers)
+	logf("Stopping %d containers", count)
+
+	stopContainer := func(index int, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		container := containers[index]
+		if container.IsActive() {
+			err := stopContainer(c, container.Name)
+			if err != nil {
+				logf("Failed to stop container '%s': %s", container.Name, err)
+				return
+			}
+		}
+	}
+
+	duration = processBatch(count, batchSize, stopContainer)
+	return duration, nil
+}
+
+// DeleteContainers removes containers created by the benchmark.
+func DeleteContainers(c lxd.ContainerServer, containers []api.Container, parallel int) (time.Duration, error) {
+	var duration time.Duration
+
+	batchSize, err := getBatchSize(parallel)
+	if err != nil {
+		return duration, err
 	}
 
 	count := len(containers)
@@ -150,17 +202,10 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 
 		ct := containers[index]
 
-		// Stop
 		if ct.IsActive() {
-			op, err := c.UpdateContainerState(ct.Name, api.ContainerStatePut{Action: "stop", Timeout: -1, Force: true}, "")
+			err := stopContainer(c, ct.Name)
 			if err != nil {
-				logf("Failed to delete container '%s': %s", ct.Name, err)
-				return
-			}
-
-			err = op.Wait()
-			if err != nil {
-				logf("Failed to delete container '%s': %s", ct.Name, err)
+				logf("Failed to stop container '%s': %s", ct.Name, err)
 				return
 			}
 		}
@@ -179,23 +224,8 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 		}
 	}
 
-	processBatch(count, batchSize, deleteContainer)
-	return nil
-}
-
-func getBatchSize(parallel int) (int, error) {
-	batchSize := parallel
-	if batchSize < 1 {
-		// Detect the number of parallel actions
-		cpus, err := ioutil.ReadDir("/sys/bus/cpu/devices")
-		if err != nil {
-			return -1, err
-		}
-
-		batchSize = len(cpus)
-	}
-
-	return batchSize, nil
+	duration = processBatch(count, batchSize, deleteContainer)
+	return duration, nil
 }
 
 func ensureImage(c lxd.ContainerServer, image string) (string, error) {
@@ -253,70 +283,4 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 		logf("Found image in local store: %s", fingerprint)
 	}
 	return fingerprint, nil
-}
-
-func processBatch(count int, batchSize int, process func(index int, wg *sync.WaitGroup)) time.Duration {
-	batches := count / batchSize
-	remainder := count % batchSize
-	processed := 0
-	wg := sync.WaitGroup{}
-	nextStat := batchSize
-
-	logf("Batch processing start")
-	timeStart := time.Now()
-
-	for i := 0; i < batches; i++ {
-		for j := 0; j < batchSize; j++ {
-			wg.Add(1)
-			go process(processed, &wg)
-			processed++
-		}
-		wg.Wait()
-
-		if processed >= nextStat {
-			interval := time.Since(timeStart).Seconds()
-			logf("Processed %d containers in %.3fs (%.3f/s)", processed, interval, float64(processed)/interval)
-			nextStat = nextStat * 2
-		}
-
-	}
-
-	for k := 0; k < remainder; k++ {
-		wg.Add(1)
-		go process(processed, &wg)
-		processed++
-	}
-	wg.Wait()
-
-	timeEnd := time.Now()
-	duration := timeEnd.Sub(timeStart)
-	logf("Batch processing completed in %.3fs", duration.Seconds())
-	return duration
-}
-
-func logf(format string, args ...interface{}) {
-	fmt.Printf(fmt.Sprintf("[%s] %s\n", time.Now().Format(time.StampMilli), format), args...)
-}
-
-func printTestConfig(count int, batchSize int, image string, privileged bool, freeze bool) {
-	privilegedStr := "unprivileged"
-	if privileged {
-		privilegedStr = "privileged"
-	}
-	mode := "normal startup"
-	if freeze {
-		mode = "start and freeze"
-	}
-
-	batches := count / batchSize
-	remainder := count % batchSize
-	fmt.Printf("Test variables:\n")
-	fmt.Printf("  Container count: %d\n", count)
-	fmt.Printf("  Container mode: %s\n", privilegedStr)
-	fmt.Printf("  Startup mode: %s\n", mode)
-	fmt.Printf("  Image: %s\n", image)
-	fmt.Printf("  Batches: %d\n", batches)
-	fmt.Printf("  Batch size: %d\n", batchSize)
-	fmt.Printf("  Remainder: %d\n", remainder)
-	fmt.Printf("\n")
 }
