@@ -10,7 +10,7 @@ func createContainer(c lxd.ContainerServer, fingerprint string, name string, pri
 	if privileged {
 		config["security.privileged"] = "true"
 	}
-	config["user.lxd-benchmark"] = "true"
+	config[userConfigKey] = "true"
 
 	req := api.ContainersPost{
 		Name: name,
