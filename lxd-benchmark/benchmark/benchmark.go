@@ -53,39 +53,16 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 	startContainer := func(index int, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		// Configure
-		config := map[string]string{}
-		if privileged {
-			config["security.privileged"] = "true"
-		}
-		config["user.lxd-benchmark"] = "true"
+		name := getContainerName(count, index)
 
-		// Create
-		nameFormat := "benchmark-%." + fmt.Sprintf("%d", len(fmt.Sprintf("%d", count))) + "d"
-		name := fmt.Sprintf(nameFormat, index+1)
-		req := api.ContainersPost{
-			Name: name,
-			Source: api.ContainerSource{
-				Type:        "image",
-				Fingerprint: fingerprint,
-			},
-		}
-		req.Config = config
-
-		op, err := c.CreateContainer(req)
-		if err != nil {
-			logf("Failed to spawn container '%s': %s", name, err)
-			return
-		}
-
-		err = op.Wait()
+		err := createContainer(c, fingerprint, name, privileged)
 		if err != nil {
 			logf("Failed to spawn container '%s': %s", name, err)
 			return
 		}
 
 		// Start
-		op, err = c.UpdateContainerState(name, api.ContainerStatePut{Action: "start", Timeout: -1}, "")
+		op, err := c.UpdateContainerState(name, api.ContainerStatePut{Action: "start", Timeout: -1}, "")
 		if err != nil {
 			logf("Failed to spawn container '%s': %s", name, err)
 			return
@@ -114,6 +91,32 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 	}
 
 	duration = processBatch(count, batchSize, startContainer)
+	return duration, nil
+}
+
+// CreateContainers create the specified number of containers.
+func CreateContainers(c lxd.ContainerServer, count int, parallel int, fingerprint string, privileged bool) (time.Duration, error) {
+	var duration time.Duration
+
+	batchSize, err := getBatchSize(parallel)
+	if err != nil {
+		return duration, err
+	}
+
+	createContainer := func(index int, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		name := getContainerName(count, index)
+
+		err := createContainer(c, fingerprint, name, privileged)
+		if err != nil {
+			logf("Failed to spawn container '%s': %s", name, err)
+			return
+		}
+	}
+
+	duration = processBatch(count, batchSize, createContainer)
+
 	return duration, nil
 }
 
@@ -222,6 +225,11 @@ func getBatchSize(parallel int) (int, error) {
 	}
 
 	return batchSize, nil
+}
+
+func getContainerName(count int, index int) string {
+	nameFormat := "benchmark-%." + fmt.Sprintf("%d", len(fmt.Sprintf("%d", count))) + "d"
+	return fmt.Sprintf(nameFormat, index+1)
 }
 
 func ensureImage(c lxd.ContainerServer, image string) (string, error) {
