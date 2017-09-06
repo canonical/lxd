@@ -67,17 +67,9 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 			return
 		}
 
-		// Freeze
 		if freeze {
-			op, err := c.UpdateContainerState(name, api.ContainerStatePut{Action: "freeze", Timeout: -1}, "")
-			if err != nil {
-				logf("Failed to spawn container '%s': %s", name, err)
-				return
-			}
-
-			err = op.Wait()
-			if err != nil {
-				logf("Failed to spawn container '%s': %s", name, err)
+			if freezeContainer(c, name) != nil {
+				logf("Failed to freeze container '%s': %s", name, err)
 				return
 			}
 		}

@@ -48,3 +48,13 @@ func stopContainer(c lxd.ContainerServer, name string) error {
 
 	return op.Wait()
 }
+
+func freezeContainer(c lxd.ContainerServer, name string) error {
+	op, err := c.UpdateContainerState(
+		name, api.ContainerStatePut{Action: "freeze", Timeout: -1}, "")
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
+}
