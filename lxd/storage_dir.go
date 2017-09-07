@@ -789,14 +789,16 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	// Check if the symlink
 	// ${LXD_DIR}/snapshots/<source_container_name> -> ${POOL_PATH}/snapshots/<source_container_name>
 	// exists and if not create it.
-	sourceContainerName, _, _ := containerGetParentAndSnapshotName(targetContainerName)
-	sourceContainerSymlink := shared.VarPath("snapshots", sourceContainerName)
-	sourceContainerSymlinkTarget := getSnapshotMountPoint(s.pool.Name, sourceContainerName)
-	if !shared.PathExists(sourceContainerSymlink) {
-		err := os.Symlink(sourceContainerSymlinkTarget, sourceContainerSymlink)
-		if err != nil {
-			return err
-		}
+	targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name,
+		targetContainerName)
+	sourceName, _, _ := containerGetParentAndSnapshotName(targetContainerName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
+		s.pool.Name, "snapshots", sourceName)
+	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
+	err = createSnapshotMountpoint(targetContainerMntPoint,
+		snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		return err
 	}
 
 	revert = false
