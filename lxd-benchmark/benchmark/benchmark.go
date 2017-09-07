@@ -275,12 +275,22 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 				logf("Failed to import image: %s", err)
 				return "", err
 			}
-		} else {
-			logf("Found image in local store: %s", fingerprint)
 		}
 	} else {
+		alias, _, err := c.GetImageAlias(image)
+		if err == nil {
+			fingerprint = alias.Target
+		} else {
+			_, _, err = c.GetImage(image)
+		}
+
+		if err != nil {
+			logf("Image not found in local store: %s", image)
+			return "", err
+		}
 		fingerprint = image
-		logf("Found image in local store: %s", fingerprint)
 	}
+
+	logf("Found image in local store: %s", fingerprint)
 	return fingerprint, nil
 }
