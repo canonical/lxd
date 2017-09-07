@@ -176,7 +176,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	}
 
 	// Validate the requested storage pool configuration.
-	err = storagePoolValidateConfig(poolName, driver, config)
+	err = storagePoolValidateConfig(poolName, driver, config, nil)
 	if err != nil {
 		return err
 	}

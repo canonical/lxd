@@ -293,7 +293,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 	poolSubvolumePath := getStoragePoolMountPoint(defaultPoolName)
 	poolConfig["source"] = poolSubvolumePath
 
-	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig)
+	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig, nil)
 	if err != nil {
 		return err
 	}
@@ -590,7 +590,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 	poolConfig := map[string]string{}
 	poolConfig["source"] = shared.VarPath("storage-pools", defaultPoolName)
 
-	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig)
+	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig, nil)
 	if err != nil {
 		return err
 	}
@@ -873,7 +873,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	// "volume.size", so unset it.
 	poolConfig["size"] = ""
 
-	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig)
+	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig, nil)
 	if err != nil {
 		return err
 	}
@@ -1380,7 +1380,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	// run into problems. For example, the "zfs.img" file might have already
 	// been moved into ${LXD_DIR}/disks and we might therefore falsely
 	// conclude that we're using an existing storage pool.
-	err := storagePoolValidateConfig(poolName, defaultStorageTypeName, poolConfig)
+	err := storagePoolValidateConfig(poolName, defaultStorageTypeName, poolConfig, nil)
 	if err != nil {
 		return err
 	}

@@ -46,7 +46,7 @@ test_image_auto_update() {
   #
   # XXX: Since the auto-update logic runs asynchronously we need to wait
   #      a little bit before it actually completes.
-  retries=10
+  retries=60
   while [ "${retries}" != "0" ]; do
     if lxc image info "${fp1}" > /dev/null 2>&1; then
         sleep 2
