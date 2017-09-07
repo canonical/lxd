@@ -15,7 +15,7 @@ test_storage_driver_ceph() {
     LXD_DIR="${LXD_STORAGE_DIR}"
 
     if [ "$lxd_backend" != "ceph" ]; then
-        exit 0
+      exit 0
     fi
 
     # shellcheck disable=SC1009
