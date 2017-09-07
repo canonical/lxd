@@ -378,14 +378,15 @@ func cephRBDSnapshotListClones(clusterName string, poolName string,
 // creating a sparse copy of a container or when LXD updated an image and the
 // image still has dependent container clones.
 func cephRBDVolumeMarkDeleted(clusterName string, poolName string,
-	volumeName string, volumeType string, userName string) error {
+	volumeType string, oldVolumeName string, newVolumeName string,
+	userName string) error {
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", userName,
 		"--cluster", clusterName,
 		"mv",
-		fmt.Sprintf("%s/%s_%s", poolName, volumeType, volumeName),
-		fmt.Sprintf("%s/zombie_%s_%s", poolName, volumeType, volumeName))
+		fmt.Sprintf("%s/%s_%s", poolName, volumeType, oldVolumeName),
+		fmt.Sprintf("%s/zombie_%s_%s", poolName, volumeType, newVolumeName))
 	if err != nil {
 		return err
 	}
@@ -964,8 +965,10 @@ func cephContainerDelete(clusterName string, poolName string, volumeName string,
 				return 1
 			}
 
+			newVolumeName := fmt.Sprintf("%s_%s", volumeName,
+				uuid.NewRandom().String())
 			err := cephRBDVolumeMarkDeleted(clusterName, poolName,
-				volumeName, volumeType, userName)
+				volumeType, volumeName, newVolumeName, userName)
 			if err != nil {
 				logger.Errorf(`Failed to mark RBD storage `+
 					`volume "%s" as zombie: %s`, logEntry,
