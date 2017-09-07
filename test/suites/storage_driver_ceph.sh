@@ -55,6 +55,24 @@ test_storage_driver_ceph() {
     lxc launch testimage c4pool2 -s "lxdtest-$(basename "${LXD_DIR}")-pool2"
     lxc list -c b c4pool2 | grep "lxdtest-$(basename "${LXD_DIR}")-pool2"
 
+    # Test whether dependency tracking is working correctly. We should be able
+    # to create a container, copy it, which leads to a dependency relation
+    # between the source container's storage volume and the copied container's
+    # storage volume. Now, we delete the source container which will trigger a
+    # rename operation and not an actual delete operation. Now we create a
+    # container of the same name as the source container again, create a copy of
+    # it to introduce another dependency relation. Now we delete the source
+    # container again. This should work. If it doesn't it means the rename
+    # operation tries to map the two source to the same name.
+    lxc init testimage a -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
+    lxc copy a b
+    lxc delete a
+    lxc init testimage a -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
+    lxc copy a c
+    lxc delete a
+    lxc delete b
+    lxc delete c
+
     lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1
     lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice /opt
     ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool1" c1pool1 c1pool1 testDevice2 /opt
