@@ -192,7 +192,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 
 	err = storagePoolUpdate(d.State(), poolName, req.Description, req.Config)
 	if err != nil {
-		return InternalError(fmt.Errorf("failed to update the storage pool configuration"))
+		return InternalError(err)
 	}
 
 	return EmptySyncResponse
