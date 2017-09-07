@@ -81,6 +81,7 @@ run_benchmark "start-one" "start 1 container" start
 run_benchmark "stop-one" "stop 1 container" stop
 run_benchmark "delete-one" "delete 1 container" delete
 run_benchmark "create-128" "create 128 containers" spawn --count 128 --start=false
+run_benchmark "start-128" "start 128 containers" start
 run_benchmark "delete-128" "delete 128 containers" delete
 
 # shellcheck disable=SC2034
