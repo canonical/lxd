@@ -573,8 +573,9 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 	}
 
 	// Now create the empty storage
-	if err := c.Storage().ContainerCreate(c); err != nil {
-		c.Delete()
+	err = c.Storage().ContainerCreate(c)
+	if err != nil {
+		db.ContainerRemove(d.db, args.Name)
 		return nil, err
 	}
 
@@ -596,8 +597,9 @@ func containerCreateEmptySnapshot(s *state.State, storage storage, args db.Conta
 	}
 
 	// Now create the empty snapshot
-	if err := c.Storage().ContainerSnapshotCreateEmpty(c); err != nil {
-		c.Delete()
+	err = c.Storage().ContainerSnapshotCreateEmpty(c)
+	if err != nil {
+		db.ContainerRemove(s.DB, args.Name)
 		return nil, err
 	}
 
@@ -614,13 +616,16 @@ func containerCreateFromImage(s *state.State, storage storage, args db.Container
 		return nil, err
 	}
 
-	if err := db.ImageLastAccessUpdate(s.DB, hash, time.Now().UTC()); err != nil {
+	err = db.ImageLastAccessUpdate(s.DB, hash, time.Now().UTC())
+	if err != nil {
+		db.ContainerRemove(s.DB, args.Name)
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
 	// Now create the storage from an image
-	if err := c.Storage().ContainerCreateFromImage(c, hash); err != nil {
-		c.Delete()
+	err = c.Storage().ContainerCreateFromImage(c, hash)
+	if err != nil {
+		db.ContainerRemove(s.DB, args.Name)
 		return nil, err
 	}
 
@@ -699,8 +704,9 @@ func containerCreateAsSnapshot(s *state.State, storage storage, args db.Containe
 	}
 
 	// Clone the container
-	if err := sourceContainer.Storage().ContainerSnapshotCreate(c, sourceContainer); err != nil {
-		c.Delete()
+	err = sourceContainer.Storage().ContainerSnapshotCreate(c, sourceContainer)
+	if err != nil {
+		db.ContainerRemove(s.DB, args.Name)
 		return nil, err
 	}
 
@@ -797,6 +803,7 @@ func containerCreateInternal(s *state.State, storage storage, args db.ContainerA
 	// Read the timestamp from the database
 	dbArgs, err := db.ContainerGet(s.DB, args.Name)
 	if err != nil {
+		db.ContainerRemove(s.DB, args.Name)
 		return nil, err
 	}
 	args.CreationDate = dbArgs.CreationDate
@@ -804,6 +811,7 @@ func containerCreateInternal(s *state.State, storage storage, args db.ContainerA
 	// Setup the container struct and finish creation (storage and idmap)
 	c, err := containerLXCCreate(s, storage, args)
 	if err != nil {
+		db.ContainerRemove(s.DB, args.Name)
 		return nil, err
 	}
 
