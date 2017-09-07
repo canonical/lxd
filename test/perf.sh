@@ -56,6 +56,11 @@ trap cleanup EXIT HUP INT TERM
 
 # Setup test directories
 TEST_DIR=$(mktemp -d -p "$(pwd)" tmp.XXX)
+
+if [ -n "${LXD_TMPFS:-}" ]; then
+  mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751
+fi
+
 LXD_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
 export LXD_DIR
 chmod +x "${TEST_DIR}" "${LXD_DIR}"
