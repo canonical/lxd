@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd-benchmark/benchmark"
@@ -17,6 +18,8 @@ var argImage = gnuflag.String("image", "ubuntu:", "Image to use for the test")
 var argPrivileged = gnuflag.Bool("privileged", false, "Use privileged containers")
 var argStart = gnuflag.Bool("start", true, "Start the container after creation")
 var argFreeze = gnuflag.Bool("freeze", false, "Freeze the container right after start")
+var argReportFile = gnuflag.String("report-file", "", "A CSV file to write test file to. If the file is present, it will be appended to.")
+var argReportLabel = gnuflag.String("report-label", "", "A label for the report entry. By default, the action is used.")
 
 func main() {
 	err := run(os.Args)
@@ -66,32 +69,65 @@ func run(args []string) error {
 
 	benchmark.PrintServerInfo(c)
 
-	switch os.Args[1] {
+	var report *benchmark.CSVReport
+	if *argReportFile != "" {
+		report = &benchmark.CSVReport{Filename: *argReportFile}
+		if shared.PathExists(*argReportFile) {
+			err := report.Load()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	action := os.Args[1]
+	var duration time.Duration
+	switch action {
 	case "spawn":
-		_, err = benchmark.SpawnContainers(c, *argCount, *argParallel, *argImage, *argPrivileged, *argStart, *argFreeze)
-		return err
+		duration, err = benchmark.SpawnContainers(
+			c, *argCount, *argParallel, *argImage, *argPrivileged, *argStart, *argFreeze)
+		if err != nil {
+			return err
+		}
 	case "start":
 		containers, err := benchmark.GetContainers(c)
 		if err != nil {
 			return err
 		}
-		_, err = benchmark.StartContainers(c, containers, *argParallel)
-		return err
+		duration, err = benchmark.StartContainers(c, containers, *argParallel)
+		if err != nil {
+			return err
+		}
 	case "stop":
 		containers, err := benchmark.GetContainers(c)
 		if err != nil {
 			return err
 		}
-		_, err = benchmark.StopContainers(c, containers, *argParallel)
-		return err
+		duration, err = benchmark.StopContainers(c, containers, *argParallel)
+		if err != nil {
+			return err
+		}
 	case "delete":
 		containers, err := benchmark.GetContainers(c)
 		if err != nil {
 			return err
 		}
-		_, err = benchmark.DeleteContainers(c, containers, *argParallel)
-		return err
+		duration, err = benchmark.DeleteContainers(c, containers, *argParallel)
+		if err != nil {
+			return err
+		}
 	}
 
+	if report != nil {
+		label := action
+		if *argReportLabel != "" {
+			label = *argReportLabel
+		}
+		report.AddRecord(label, duration)
+		err := report.Write()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

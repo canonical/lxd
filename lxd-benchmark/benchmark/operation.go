@@ -58,3 +58,21 @@ func freezeContainer(c lxd.ContainerServer, name string) error {
 
 	return op.Wait()
 }
+
+func deleteContainer(c lxd.ContainerServer, name string) error {
+	op, err := c.DeleteContainer(name)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
+}
+
+func copyImage(c lxd.ContainerServer, s lxd.ImageServer, image api.Image) error {
+	op, err := c.CopyImage(s, image, nil)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
+}

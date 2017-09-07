@@ -200,26 +200,19 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 	deleteContainer := func(index int, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		ct := containers[index]
-
-		if ct.IsActive() {
-			err := stopContainer(c, ct.Name)
+		container := containers[index]
+		name := container.Name
+		if container.IsActive() {
+			err := stopContainer(c, name)
 			if err != nil {
-				logf("Failed to stop container '%s': %s", ct.Name, err)
+				logf("Failed to stop container '%s': %s", name, err)
 				return
 			}
 		}
 
-		// Delete
-		op, err := c.DeleteContainer(ct.Name)
+		err = deleteContainer(c, name)
 		if err != nil {
-			logf("Failed to delete container: %s", ct.Name)
-			return
-		}
-
-		err = op.Wait()
-		if err != nil {
-			logf("Failed to delete container: %s", ct.Name)
+			logf("Failed to delete container: %s", name)
 			return
 		}
 	}
@@ -264,23 +257,27 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 				return "", err
 			}
 
-			op, err := c.CopyImage(imageServer, *image, nil)
+			err = copyImage(c, imageServer, *image)
 			if err != nil {
 				logf("Failed to import image: %s", err)
 				return "", err
 			}
-
-			err = op.Wait()
-			if err != nil {
-				logf("Failed to import image: %s", err)
-				return "", err
-			}
-		} else {
-			logf("Found image in local store: %s", fingerprint)
 		}
 	} else {
+		alias, _, err := c.GetImageAlias(image)
+		if err == nil {
+			fingerprint = alias.Target
+		} else {
+			_, _, err = c.GetImage(image)
+		}
+
+		if err != nil {
+			logf("Image not found in local store: %s", image)
+			return "", err
+		}
 		fingerprint = image
-		logf("Found image in local store: %s", fingerprint)
 	}
+
+	logf("Found image in local store: %s", fingerprint)
 	return fingerprint, nil
 }
