@@ -2354,8 +2354,8 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 			}
 
 			err := cephRBDVolumeMarkDeleted(s.ClusterName,
-				s.OSDPoolName, fingerprint,
-				storagePoolVolumeTypeNameImage, s.UserName)
+				s.OSDPoolName, storagePoolVolumeTypeNameImage,
+				fingerprint, fingerprint, s.UserName)
 			if err != nil {
 				logger.Warnf(`Failed to mark RBD storage `+
 					`volume for image "%s" on storage `+
@@ -2472,7 +2472,8 @@ func (s *storageCeph) ImageDelete(fingerprint string) error {
 
 		// mark deleted
 		err := cephRBDVolumeMarkDeleted(s.ClusterName, s.OSDPoolName,
-			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
+			storagePoolVolumeTypeNameImage, fingerprint,
+			fingerprint, s.UserName)
 		if err != nil {
 			logger.Errorf(`Failed to mark RBD storage volume for `+
 				`image "%s" on storage pool "%s" as zombie: %s`,
