@@ -1,4 +1,8 @@
 test_template() {
+  # shellcheck disable=2039
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
   # Import a template which only triggers on create
   deps/import-busybox --alias template-test --template create
   lxc init template-test template
@@ -9,6 +13,10 @@ test_template() {
   # Validate that the template is applied
   lxc start template
   lxc file pull template/template - | grep "^name: template$"
+
+  if [ "$lxd_backend" = "lvm" ]; then
+    lxc stop template --force
+  fi
 
   # Confirm it's not applied on copies
   lxc copy template template1
@@ -25,6 +33,9 @@ test_template() {
 
   # Confirm that the template doesn't trigger on create
   ! lxc file pull template/template -
+  if [ "$lxd_backend" = "lvm" ]; then
+    lxc stop template --force
+  fi
 
   # Copy the container
   lxc copy template template1
