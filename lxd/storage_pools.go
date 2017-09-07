@@ -135,7 +135,7 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the configuration
-	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config)
+	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config, dbInfo.Config)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -185,14 +185,14 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the configuration
-	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config)
+	err = storagePoolValidateConfig(poolName, dbInfo.Driver, req.Config, dbInfo.Config)
 	if err != nil {
 		return BadRequest(err)
 	}
 
 	err = storagePoolUpdate(d.State(), poolName, req.Description, req.Config)
 	if err != nil {
-		return InternalError(fmt.Errorf("failed to update the storage pool configuration"))
+		return InternalError(err)
 	}
 
 	return EmptySyncResponse
