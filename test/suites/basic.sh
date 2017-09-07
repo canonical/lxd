@@ -125,7 +125,7 @@ test_basic_usage() {
   lxc launch testimage baz
   # change the container filesystem so the resulting image is different
   lxc exec baz touch /somefile
-  lxc stop baz
+  lxc stop baz --force
   # publishing another image with same alias doesn't fail
   lxc publish baz --alias=foo-image
   lxc delete baz
