@@ -2834,14 +2834,16 @@ func (c *containerLXC) Delete() error {
 	if c.IsSnapshot() {
 		// Remove the snapshot
 		if c.storage != nil {
-			if err := c.storage.ContainerSnapshotDelete(c); err != nil {
+			err := c.storage.ContainerSnapshotDelete(c)
+			if err != nil {
 				logger.Warn("Failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
 				return err
 			}
 		}
 	} else {
 		// Remove all snapshot
-		if err := containerDeleteSnapshots(c.state, c.Name()); err != nil {
+		err := containerDeleteSnapshots(c.state, c.Name())
+		if err != nil {
 			logger.Warn("Failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
 			return err
 		}
@@ -2850,10 +2852,16 @@ func (c *containerLXC) Delete() error {
 		c.cleanup()
 
 		// Delete the container from disk
-		if shared.PathExists(c.Path()) && c.storage != nil {
-			if err := c.storage.ContainerDelete(c); err != nil {
-				logger.Error("Failed deleting container storage", log.Ctx{"name": c.Name(), "err": err})
-				return err
+		if c.storage != nil {
+			_, poolName := c.storage.GetContainerPoolInfo()
+			containerMountPoint := getContainerMountPoint(poolName, c.Name())
+			if shared.PathExists(c.Path()) ||
+				shared.PathExists(containerMountPoint) {
+				err := c.storage.ContainerDelete(c)
+				if err != nil {
+					logger.Error("Failed deleting container storage", log.Ctx{"name": c.Name(), "err": err})
+					return err
+				}
 			}
 		}
 	}
