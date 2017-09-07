@@ -1,10 +1,13 @@
 test_container_import() {
-  ensure_import_testimage
-
   LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_IMPORT_DIR}"
   spawn_lxd "${LXD_IMPORT_DIR}" true
   (
+    # shellcheck disable=SC2030
+    LXD_DIR=${LXD_IMPORT_DIR}
+
+    ensure_import_testimage
+
     lxc init testimage ctImport
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
@@ -31,10 +34,8 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    shutdown_lxd "${LXD_IMPORT_DIR}"
     kill -9 "${pid}"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
-    respawn_lxd "${LXD_IMPORT_DIR}"
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
@@ -44,10 +45,8 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    shutdown_lxd "${LXD_IMPORT_DIR}"
     kill -9 "${pid}"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
-    respawn_lxd "${LXD_IMPORT_DIR}"
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
@@ -57,12 +56,10 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    shutdown_lxd "${LXD_IMPORT_DIR}"
     kill -9 "${pid}"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
-    respawn_lxd "${LXD_IMPORT_DIR}"
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
@@ -72,13 +69,11 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    shutdown_lxd "${LXD_IMPORT_DIR}"
     kill -9 "${pid}"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport/snap0'"
-    respawn_lxd "${LXD_IMPORT_DIR}"
     lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
@@ -89,12 +84,10 @@ test_container_import() {
     lxc start ctImport
     rm "${LXD_DIR}/containers/ctImport"
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    shutdown_lxd "${LXD_IMPORT_DIR}"
     kill -9 "${pid}"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
-    respawn_lxd "${LXD_IMPORT_DIR}"
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
@@ -106,9 +99,7 @@ test_container_import() {
     if [ "$(storage_backend "$LXD_DIR")" = "dir" ]; then
       lxc init testimage ctImport
       lxc snapshot ctImport
-      shutdown_lxd "${LXD_IMPORT_DIR}"
       sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport/snap0'"
-      respawn_lxd "${LXD_IMPORT_DIR}"
       ! lxd import ctImport
       lxd import ctImport --force
       lxc info ctImport | grep snap0
@@ -116,5 +107,6 @@ test_container_import() {
     fi
   )
   # shellcheck disable=SC2031
+  LXD_DIR=${LXD_DIR}
   kill_lxd "${LXD_IMPORT_DIR}"
 }
