@@ -11,10 +11,10 @@ import (
 // NewTestNode creates a new Node for testing purposes, along with a function
 // that can be used to clean it up when done.
 func NewTestNode(t *testing.T) (*Node, func()) {
-	dir, err := ioutil.TempDir("", "lxd-db-test")
+	dir, err := ioutil.TempDir("", "lxd-db-test-node-")
 	require.NoError(t, err)
 
-	db, err := New(dir, nil, nil)
+	db, err := OpenNode(dir, nil, nil)
 	require.NoError(t, err)
 
 	cleanup := func() {
@@ -23,4 +23,23 @@ func NewTestNode(t *testing.T) (*Node, func()) {
 	}
 
 	return db, cleanup
+}
+
+// NewTestNodeTx returns a fresh NodeTx object, along with a function that can
+// be called to cleanup state when done with it.
+func NewTestNodeTx(t *testing.T) (*NodeTx, func()) {
+	node, nodeCleanup := NewTestNode(t)
+
+	var err error
+
+	nodeTx := &NodeTx{}
+	nodeTx.tx, err = node.db.Begin()
+	require.NoError(t, err)
+
+	cleanup := func() {
+		require.NoError(t, nodeTx.tx.Commit())
+		nodeCleanup()
+	}
+
+	return nodeTx, cleanup
 }
