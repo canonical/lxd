@@ -72,15 +72,16 @@ fi
 import_storage_backends
 
 spawn_lxd "${LXD_DIR}" true
+ensure_import_testimage
 
 # shellcheck disable=SC2034
 TEST_RESULT=failure
 
-run_benchmark "create-one" "create 1 container" spawn --count 1 --start=false
+run_benchmark "create-one" "create 1 container" spawn --count 1 --start=false --image=testimage
 run_benchmark "start-one" "start 1 container" start
 run_benchmark "stop-one" "stop 1 container" stop
 run_benchmark "delete-one" "delete 1 container" delete
-run_benchmark "create-128" "create 128 containers" spawn --count 128 --start=false
+run_benchmark "create-128" "create 128 containers" spawn --count 128 --start=false --image=testimage
 run_benchmark "start-128" "start 128 containers" start
 run_benchmark "delete-128" "delete 128 containers" delete
 
