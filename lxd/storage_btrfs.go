@@ -16,6 +16,7 @@ import (
 	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -923,7 +924,7 @@ func (s *storageBtrfs) MigrationSource(c container) (MigrationStorageSourceDrive
 	return driver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
 	if runningInUserns {
 		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap)
 	}

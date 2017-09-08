@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -537,7 +538,7 @@ func (cmd *CmdInit) askDefaultPrivileged() int {
 	// Detect lack of uid/gid
 	defaultPrivileged := -1
 	needPrivileged := false
-	idmapset, err := shared.DefaultIdmapSet()
+	idmapset, err := idmap.DefaultIdmapSet()
 	if err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil {
 		needPrivileged = true
 	}

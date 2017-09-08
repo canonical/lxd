@@ -21,6 +21,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -665,16 +666,16 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	restore := make(chan error)
 	go func(c *migrationSink) {
 		imagesDir := ""
-		srcIdmap := new(shared.IdmapSet)
+		srcIdmap := new(idmap.IdmapSet)
 
-		for _, idmap := range header.Idmap {
-			e := shared.IdmapEntry{
-				Isuid:    *idmap.Isuid,
-				Isgid:    *idmap.Isgid,
-				Nsid:     int64(*idmap.Nsid),
-				Hostid:   int64(*idmap.Hostid),
-				Maprange: int64(*idmap.Maprange)}
-			srcIdmap.Idmap = shared.Extend(srcIdmap.Idmap, e)
+		for _, idmapSet := range header.Idmap {
+			e := idmap.IdmapEntry{
+				Isuid:    *idmapSet.Isuid,
+				Isgid:    *idmapSet.Isgid,
+				Nsid:     int64(*idmapSet.Nsid),
+				Hostid:   int64(*idmapSet.Hostid),
+				Maprange: int64(*idmapSet.Maprange)}
+			srcIdmap.Idmap = idmap.Extend(srcIdmap.Idmap, e)
 		}
 
 		/* We do the fs receive in parallel so we don't have to reason

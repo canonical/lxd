@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 
@@ -155,7 +156,7 @@ type storage interface {
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
 	MigrationSource(container container) (MigrationStorageSourceDriver, error)
-	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error
+	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error
 }
 
 func newStorage(d *Daemon, sType storageType) (storage, error) {
@@ -540,7 +541,7 @@ func (lw *storageLogWrapper) MigrationSource(container container) (MigrationStor
 	return lw.w.MigrationSource(container)
 }
 
-func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
 	objNames := []string{}
 	for _, obj := range objects {
 		objNames = append(objNames, obj.GetName())
@@ -556,14 +557,14 @@ func (lw *storageLogWrapper) MigrationSink(live bool, container container, objec
 	return lw.w.MigrationSink(live, container, objects, conn, srcIdmap)
 }
 
-func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
+func ShiftIfNecessary(container container, srcIdmap *idmap.IdmapSet) error {
 	dstIdmap, err := container.IdmapSet()
 	if err != nil {
 		return err
 	}
 
 	if dstIdmap == nil {
-		dstIdmap = new(shared.IdmapSet)
+		dstIdmap = new(idmap.IdmapSet)
 	}
 
 	if !reflect.DeepEqual(srcIdmap, dstIdmap) {
@@ -663,7 +664,7 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) db.Co
 	}
 }
 
-func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
 	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
 
 	if isDirBackend {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 
 	"github.com/pborman/uuid"
@@ -1379,7 +1380,7 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet) error {
+func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
 	zfsRecv := func(zfsName string) error {
 		zfsFsName := fmt.Sprintf("%s/%s", s.zfsPool, zfsName)
 		args := []string{"receive", "-F", "-u", zfsFsName}

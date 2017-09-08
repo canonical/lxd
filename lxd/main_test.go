@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 )
 
 func mockStartDaemon() (*Daemon, error) {
@@ -20,7 +21,7 @@ func mockStartDaemon() (*Daemon, error) {
 		return nil, err
 	}
 
-	d.os.IdmapSet = &shared.IdmapSet{Idmap: []shared.IdmapEntry{
+	d.os.IdmapSet = &idmap.IdmapSet{Idmap: []idmap.IdmapEntry{
 		{Isuid: true, Hostid: 100000, Nsid: 0, Maprange: 500000},
 		{Isgid: true, Hostid: 100000, Nsid: 0, Maprange: 500000},
 	}}
