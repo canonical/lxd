@@ -5,6 +5,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -16,7 +17,7 @@ type OS struct {
 	Architectures []int  // Cache of detected system architectures
 	LxcPath       string // Path to the $LXD_DIR/containers directory
 	BackingFS     string // Backing filesystem of $LXD_DIR/containers
-	IdmapSet      *shared.IdmapSet
+	IdmapSet      *idmap.IdmapSet
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
