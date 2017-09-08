@@ -8,6 +8,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/db/node"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -90,6 +91,18 @@ func ForLegacyPatches(db *sql.DB) *Node {
 //        dropped once there are no call sites left.
 func (n *Node) DB() *sql.DB {
 	return n.db
+}
+
+// Transaction creates a new NodeTx object and transactionally executes the
+// node-level database interactions invoked by the given function. If the
+// function returns no error, all database changes are committed to the
+// node-level database, otherwise they are rolled back.
+func (n *Node) Transaction(f func(*NodeTx) error) error {
+	nodeTx := &NodeTx{}
+	return query.Transaction(n.db, func(tx *sql.Tx) error {
+		nodeTx.tx = tx
+		return f(nodeTx)
+	})
 }
 
 // Close the database facade.
