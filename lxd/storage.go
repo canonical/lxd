@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -220,7 +221,7 @@ type storage interface {
 		c container,
 		objects []*Snapshot,
 		conn *websocket.Conn,
-		srcIdmap *shared.IdmapSet,
+		srcIdmap *idmap.IdmapSet,
 		op *operation,
 		containerOnly bool) error
 }
@@ -392,7 +393,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 	poolVolumePut := st.GetStoragePoolVolumeWritable()
 
 	// get last idmapset
-	var lastIdmap *shared.IdmapSet
+	var lastIdmap *idmap.IdmapSet
 	if poolVolumePut.Config["volatile.idmap.last"] != "" {
 		lastIdmap, err = idmapsetFromString(poolVolumePut.Config["volatile.idmap.last"])
 		if err != nil {
@@ -709,14 +710,14 @@ func deleteSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 
 // ShiftIfNecessary sets the volatile.last_state.idmap key to the idmap last
 // used by the container.
-func ShiftIfNecessary(container container, srcIdmap *shared.IdmapSet) error {
+func ShiftIfNecessary(container container, srcIdmap *idmap.IdmapSet) error {
 	dstIdmap, err := container.IdmapSet()
 	if err != nil {
 		return err
 	}
 
 	if dstIdmap == nil {
-		dstIdmap = new(shared.IdmapSet)
+		dstIdmap = new(idmap.IdmapSet)
 	}
 
 	if !reflect.DeepEqual(srcIdmap, dstIdmap) {

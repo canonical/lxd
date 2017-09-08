@@ -1,4 +1,4 @@
-package shared
+package idmap
 
 import (
 	"fmt"
