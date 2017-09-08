@@ -1,12 +1,4 @@
 test_image_auto_update() {
-  # XXX this test appears to be flaky when running on Jenkins
-  # against the LVM backend. Needs further investigation.
-  # shellcheck disable=2153
-  backend=$(storage_backend "$LXD_DIR")
-  if [ "${backend}" = "lvm" ]; then
-      return 0
-  fi
-
   if lxc image alias list | grep -q "^| testimage\s*|.*$"; then
       lxc image delete testimage
   fi
