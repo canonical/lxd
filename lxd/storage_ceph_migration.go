@@ -9,6 +9,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -191,7 +192,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 	return &driver, nil
 }
 
-func (s *storageCeph) MigrationSink(live bool, c container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
+func (s *storageCeph) MigrationSink(live bool, c container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
 	// Check that we received a valid root disk device with a pool property
 	// set.
 	parentStoragePool := ""

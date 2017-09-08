@@ -5,8 +5,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -211,7 +211,7 @@ func (s *storageMock) PreservesInodes() bool {
 func (s *storageMock) MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (s *storageMock) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
+func (s *storageMock) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
 	return nil
 }
 

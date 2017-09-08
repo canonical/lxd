@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 )
 
 // MigrationStorageSourceDriver defines the functions needed to implement a
@@ -122,7 +123,7 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) db.Co
 	}
 }
 
-func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *shared.IdmapSet, op *operation, containerOnly bool) error {
+func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
 	ourStart, err := container.StorageStart()
 	if err != nil {
 		return err
