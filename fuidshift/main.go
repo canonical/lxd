@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 )
 
 func help(me string, status int) {
@@ -35,7 +35,7 @@ func run() error {
 	}
 
 	directory := os.Args[1]
-	idmap := shared.IdmapSet{}
+	idmapSet := idmap.IdmapSet{}
 	testmode := false
 	reverse := false
 
@@ -48,14 +48,14 @@ func run() error {
 			testmode = true
 		default:
 			var err error
-			idmap, err = idmap.Append(os.Args[pos])
+			idmapSet, err = idmapSet.Append(os.Args[pos])
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	if idmap.Len() == 0 {
+	if idmapSet.Len() == 0 {
 		fmt.Printf("No idmaps given\n")
 		help(os.Args[0], 1)
 	}
@@ -66,7 +66,7 @@ func run() error {
 	}
 
 	if reverse {
-		return idmap.UidshiftFromContainer(directory, testmode)
+		return idmapSet.UidshiftFromContainer(directory, testmode)
 	}
-	return idmap.UidshiftIntoContainer(directory, testmode)
+	return idmapSet.UidshiftIntoContainer(directory, testmode)
 }

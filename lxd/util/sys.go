@@ -5,7 +5,7 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -36,14 +36,14 @@ func GetArchitectures() ([]int, error) {
 }
 
 // GetIdmapSet reads the uid/gid allocation.
-func GetIdmapSet() *shared.IdmapSet {
-	idmapSet, err := shared.DefaultIdmapSet()
+func GetIdmapSet() *idmap.IdmapSet {
+	idmapSet, err := idmap.DefaultIdmapSet()
 	if err != nil {
 		logger.Warn("Error reading default uid/gid map", log.Ctx{"err": err.Error()})
 		logger.Warnf("Only privileged containers will be able to run")
 		idmapSet = nil
 	} else {
-		kernelIdmapSet, err := shared.CurrentIdmapSet()
+		kernelIdmapSet, err := idmap.CurrentIdmapSet()
 		if err == nil {
 			logger.Infof("Kernel uid/gid map:")
 			for _, lxcmap := range kernelIdmapSet.ToLxcString() {

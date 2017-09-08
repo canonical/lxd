@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 
-	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 )
 
-func idmapsetFromString(idmap string) (*shared.IdmapSet, error) {
-	lastIdmap := new(shared.IdmapSet)
-	err := json.Unmarshal([]byte(idmap), &lastIdmap.Idmap)
+func idmapsetFromString(idmapString string) (*idmap.IdmapSet, error) {
+	lastIdmap := new(idmap.IdmapSet)
+	err := json.Unmarshal([]byte(idmapString), &lastIdmap.Idmap)
 	if err != nil {
 		return nil, err
 	}
@@ -20,8 +20,8 @@ func idmapsetFromString(idmap string) (*shared.IdmapSet, error) {
 	return lastIdmap, nil
 }
 
-func idmapsetToJSON(idmap *shared.IdmapSet) (string, error) {
-	idmapBytes, err := json.Marshal(idmap.Idmap)
+func idmapsetToJSON(idmapSet *idmap.IdmapSet) (string, error) {
+	idmapBytes, err := json.Marshal(idmapSet.Idmap)
 	if err != nil {
 		return "", err
 	}

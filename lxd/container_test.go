@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -351,7 +352,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 }
 
 func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
-	maps := []*shared.IdmapSet{}
+	maps := []*idmap.IdmapSet{}
 
 	for i := 0; i < 7; i++ {
 		c, err := containerCreateInternal(suite.d.State(), db.ContainerArgs{
