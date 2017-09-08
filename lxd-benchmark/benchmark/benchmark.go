@@ -264,6 +264,7 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 			}
 		}
 	} else {
+		fingerprint = image
 		alias, _, err := c.GetImageAlias(image)
 		if err == nil {
 			fingerprint = alias.Target
@@ -275,7 +276,6 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 			logf("Image not found in local store: %s", image)
 			return "", err
 		}
-		fingerprint = image
 	}
 
 	logf("Found image in local store: %s", fingerprint)
