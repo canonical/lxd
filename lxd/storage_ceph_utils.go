@@ -1582,7 +1582,7 @@ func (s *storageCeph) rbdShrink(path string, size int64, fsType string,
 		"--id", s.UserName,
 		"--cluster", s.ClusterName,
 		"--pool", s.OSDPoolName,
-		"--size", fmt.Sprintf("%dM", (size/1024)),
+		"--size", fmt.Sprintf("%dM", (size/1024/1024)),
 		fmt.Sprintf("%s_%s", volumeTypeName, volumeName))
 	if err != nil {
 		logger.Errorf(`Could not shrink RBD storage volume "%s": %s`,
@@ -1637,7 +1637,7 @@ func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
 		"--id", s.UserName,
 		"--cluster", s.ClusterName,
 		"--pool", s.OSDPoolName,
-		"--size", fmt.Sprintf("%dM", (size/1024)),
+		"--size", fmt.Sprintf("%dM", (size/1024/1024)),
 		fmt.Sprintf("%s_%s", volumeTypeName, volumeName))
 	if err != nil {
 		logger.Errorf(`Could not extend RBD storage volume "%s": %s`,
