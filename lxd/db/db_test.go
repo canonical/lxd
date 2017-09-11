@@ -23,3 +23,19 @@ func TestNode_Schema(t *testing.T) {
 	assert.NoError(t, rows.Scan(&n))
 	assert.Equal(t, 1, n)
 }
+
+// A gRPC SQL connection is established when starting to interact with the
+// cluster database.
+func TestCluster_Setup(t *testing.T) {
+	cluster, cleanup := db.NewTestCluster(t)
+	defer cleanup()
+
+	db := cluster.DB()
+	rows, err := db.Query("SELECT COUNT(*) FROM sqlite_master")
+	assert.NoError(t, err)
+	defer rows.Close()
+	assert.Equal(t, true, rows.Next())
+	var n uint
+	assert.NoError(t, rows.Scan(&n))
+	assert.Zero(t, n)
+}
