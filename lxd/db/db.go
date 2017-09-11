@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	grpcsql "github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/logger"
@@ -30,7 +32,6 @@ var (
 // Node mediates access to LXD's data stored in the node-local SQLite database.
 type Node struct {
 	db *sql.DB // Handle to the node-local SQLite database file.
-
 }
 
 // OpenNode creates a new Node object.
@@ -109,6 +110,41 @@ func (n *Node) Close() error {
 // Begin a new transaction against the local database. Legacy method.
 func (n *Node) Begin() (*sql.Tx, error) {
 	return begin(n.db)
+}
+
+// Cluster mediates access to LXD's data stored in the cluster dqlite database.
+type Cluster struct {
+	db *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
+}
+
+// OpenCluster creates a new Cluster object for interacting with the dqlite
+// database.
+func OpenCluster(name string, dialer grpcsql.Dialer) (*Cluster, error) {
+	db, err := cluster.Open(name, dialer)
+	if err != nil {
+		return nil, err
+	}
+	cluster := &Cluster{
+		db: db,
+	}
+	return cluster, nil
+}
+
+// Transaction creates a new ClusterTx object and transactionally executes the
+// cluster database interactions invoked by the given function. If the function
+// returns no error, all database changes are committed to the cluster database
+// database, otherwise they are rolled back.
+func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
+	clusterTx := &ClusterTx{}
+	return query.Transaction(c.db, func(tx *sql.Tx) error {
+		clusterTx.tx = tx
+		return f(clusterTx)
+	})
+}
+
+// Close the database facade.
+func (c *Cluster) Close() error {
+	return c.db.Close()
 }
 
 // UpdateSchemasDotGo updates the schema.go files in the local/ and cluster/
