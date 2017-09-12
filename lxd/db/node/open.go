@@ -26,9 +26,10 @@ func Open(dir string) (*sql.DB, error) {
 //
 // Return the initial schema version found before starting the update, along
 // with any error occurred.
-func EnsureSchema(db *sql.DB, dir string, schema *schema.Schema, hook schema.Hook) (int, error) {
+func EnsureSchema(db *sql.DB, dir string, hook schema.Hook) (int, error) {
 	backupDone := false
 
+	schema := Schema()
 	schema.Hook(func(version int, tx *sql.Tx) error {
 		if !backupDone {
 			logger.Infof("Updating the LXD database schema. Backup made as \"lxd.db.bak\"")

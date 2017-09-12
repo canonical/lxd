@@ -9,7 +9,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -48,11 +47,8 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 		return nil, err
 	}
 
-	schema := schema.NewFromMap(updates)
-	schema.Fresh(CURRENT_SCHEMA)
-
 	hook := legacyPatchHook(db, legacyPatches)
-	initial, err := node.EnsureSchema(db, dir, schema, hook)
+	initial, err := node.EnsureSchema(db, dir, hook)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +114,17 @@ func (n *Node) Close() error {
 // Begin a new transaction against the local database. Legacy method.
 func (n *Node) Begin() (*sql.Tx, error) {
 	return begin(n.db)
+}
+
+// UpdateSchemasDotGo updates the schema.go files in the local/ and cluster/
+// sub-packages.
+func UpdateSchemasDotGo() error {
+	err := node.SchemaDotGo()
+	if err != nil {
+		return fmt.Errorf("failed to update local schema.go: %v", err)
+	}
+
+	return nil
 }
 
 func IsDbLockedError(err error) bool {

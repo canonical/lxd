@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -206,7 +206,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	s.Nil(err)
 
 	// Run the upgrade from V6 code
-	err = query.Transaction(db.DB(), updateFromV6)
+	err = query.Transaction(db.DB(), node.UpdateFromV16)
 	s.Nil(err)
 
 	// Make sure the inserted data is still there.
@@ -308,7 +308,7 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 
 	// The "foreign key" on containers_config now points to nothing.
 	// Let's run the schema upgrades.
-	schema := schema.NewFromMap(updates)
+	schema := node.Schema()
 	_, err = schema.Ensure(db)
 	s.Nil(err)
 
