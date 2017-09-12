@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db/node"
-	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,8 +20,8 @@ func TestOpen(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// When the node-local database is not created from scratch, the value for the
-// initial patch is not 0.
+// When the node-local database is created from scratch, the value for the
+// initial patch is 0.
 func TestEnsureSchema(t *testing.T) {
 	dir, cleanup := newDir(t)
 	defer cleanup()
@@ -30,17 +29,15 @@ func TestEnsureSchema(t *testing.T) {
 	db, err := node.Open(dir)
 	defer db.Close()
 
-	schema := schema.New([]schema.Update{func(*sql.Tx) error { return nil }})
-
 	hookHasRun := false
 	hook := func(int, *sql.Tx) error {
 		hookHasRun = true
 		return nil
 	}
-	initial, err := node.EnsureSchema(db, dir, schema, hook)
+	initial, err := node.EnsureSchema(db, dir, hook)
 	require.NoError(t, err)
 	assert.Equal(t, 0, initial)
-	assert.True(t, hookHasRun)
+	assert.False(t, hookHasRun) // Because we use a schema.Fresh()
 }
 
 // Create a new temporary directory, along with a function to clean it up.
