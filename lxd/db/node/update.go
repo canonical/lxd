@@ -84,9 +84,40 @@ var updates = map[int]schema.Update{
 	34: updateFromV33,
 	35: updateFromV34,
 	36: updateFromV35,
+	37: updateFromV36,
 }
 
 // Schema updates begin here
+
+// Add a raft_nodes table to be used when running in clustered mode. It lists
+// the current nodes in the LXD cluster that are participating to the dqlite
+// database Raft cluster.
+//
+// The 'id' column contains the raft server ID of the database node, and the
+// 'address' column its network address. Both are used internally by the raft
+// Go package to manage the cluster.
+//
+// Typical setups will have 3 LXD cluster nodes that participate to the dqlite
+// database Raft cluster, and an arbitrary number of additional LXD cluster
+// nodes that don't. Non-database nodes are not tracked in this table, but rather
+// in the nodes table of the cluster database itself.
+//
+// The data in this table must be replicated by LXD on all nodes of the
+// cluster, regardless of whether they are part of the raft cluster or not, and
+// all nodes will consult this table when they need to find out a leader to
+// send SQL queries to.
+func updateFromV36(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE raft_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    address TEXT NOT NULL,
+    UNIQUE (address)
+);
+`
+	_, err := tx.Exec(stmts)
+	return err
+}
+
 func updateFromV35(tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE tmp (
