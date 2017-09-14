@@ -9,7 +9,7 @@ test_database_update(){
   spawn_lxd "${LXD_MIGRATE_DIR}" true
 
   # Assert there are enough tables.
-  expected_tables=23
+  expected_tables=24
   tables=$(sqlite3 "${MIGRATE_DB}" ".dump" | grep -c "CREATE TABLE")
   [ "${tables}" -eq "${expected_tables}" ] || { echo "FAIL: Wrong number of tables after database migration. Found: ${tables}, expected ${expected_tables}"; false; }
 
