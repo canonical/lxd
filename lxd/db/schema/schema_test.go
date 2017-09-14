@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
@@ -257,6 +258,54 @@ func TestSchemaDump_MissingUpdatees(t *testing.T) {
 
 	_, err = schema.Dump(db)
 	assert.EqualError(t, err, "update level is 1, expected 2")
+}
+
+// After trimming a schema, only the updates up to the trim point are applied.
+func TestSchema_Trim(t *testing.T) {
+	updates := map[int]schema.Update{
+		1: updateCreateTable,
+		2: updateInsertValue,
+		3: updateAddColumn,
+	}
+	schema := schema.NewFromMap(updates)
+	trimmed := schema.Trim(2)
+	assert.Len(t, trimmed, 1)
+
+	db := newDB(t)
+	_, err := schema.Ensure(db)
+	require.NoError(t, err)
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	versions, err := query.SelectIntegers(tx, "SELECT version FROM schema")
+	require.NoError(t, err)
+	assert.Equal(t, []int{1, 2}, versions)
+}
+
+// Exercise a given update in a schema.
+func TestSchema_ExeciseUpdate(t *testing.T) {
+	updates := map[int]schema.Update{
+		1: updateCreateTable,
+		2: updateInsertValue,
+		3: updateAddColumn,
+	}
+
+	schema := schema.NewFromMap(updates)
+	db, err := schema.ExerciseUpdate(2, nil)
+	require.NoError(t, err)
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	// Update 2 has been applied.
+	ids, err := query.SelectIntegers(tx, "SELECT id FROM test")
+	require.NoError(t, err)
+	assert.Equal(t, []int{1}, ids)
+
+	// Update 3 has not been applied.
+	_, err = query.SelectStrings(tx, "SELECT name FROM test")
+	require.EqualError(t, err, "no such column: name")
 }
 
 // Return a new in-memory SQLite database.
