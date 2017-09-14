@@ -173,6 +173,54 @@ INSERT INTO schema (version, updated_at) VALUES (%d, strftime("%%s"))
 	return strings.Join(statements, ";\n"), nil
 }
 
+// Trim the schema updates to the given version (included). Updates with higher
+// versions will be discarded. Any fresh schema dump previously set will be
+// unset, since it's assumed to no longer be applicable. Return all updates
+// that have been trimmed.
+func (s *Schema) Trim(version int) []Update {
+	trimmed := s.updates[version:]
+	s.updates = s.updates[:version]
+	s.fresh = ""
+	return trimmed
+}
+
+// ExerciseUpdate is a convenience for exercising a particular update of a
+// schema.
+//
+// It first creates an in-memory SQLite database, then it applies all updates
+// up to the one with given version (exlcuded) and optionally executes the
+// given hook for populating the database with test data. Finally it applies
+// the update with the given version, returning the database handle for further
+// inspection of the resulting state.
+func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error) {
+	// Create an in-memory database.
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open memory database: %v", err)
+	}
+
+	// Apply all updates to the given version, excluded.
+	trimmed := s.Trim(version - 1)
+	_, err = s.Ensure(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply previous updates: %v", err)
+	}
+
+	// Execute the optional hook.
+	if hook != nil {
+		hook(db)
+	}
+
+	// Apply the update with the given version
+	s.Add(trimmed[0])
+	_, err = s.Ensure(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply given update: %v", err)
+	}
+
+	return db, nil
+}
+
 // Ensure that the schema exists.
 func ensureSchemaTableExists(tx *sql.Tx) error {
 	exists, err := doesSchemaTableExist(tx)
