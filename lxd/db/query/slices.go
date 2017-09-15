@@ -2,6 +2,8 @@ package query
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 )
 
 // SelectStrings executes a statement which must yield rows with a single string
@@ -46,6 +48,29 @@ func SelectIntegers(tx *sql.Tx, query string) ([]int, error) {
 	}
 
 	return values, nil
+}
+
+// InsertStrings inserts a new row for each of the given strings, using the
+// given insert statement template, which must define exactly one insertion
+// column and one substitution placeholder for the values. For example:
+// InsertStrings(tx, "INSERT INTO foo(name) VALUES %s", []string{"bar"}).
+func InsertStrings(tx *sql.Tx, stmt string, values []string) error {
+	n := len(values)
+
+	if n == 0 {
+		return nil
+	}
+
+	params := make([]string, n)
+	args := make([]interface{}, n)
+	for i, value := range values {
+		params[i] = "(?)"
+		args[i] = value
+	}
+
+	stmt = fmt.Sprintf(stmt, strings.Join(params, ", "))
+	_, err := tx.Exec(stmt, args...)
+	return err
 }
 
 // Execute the given query and ensure that it yields rows with a single column
