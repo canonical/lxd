@@ -686,6 +686,10 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 				return fmt.Errorf(i18n.G("Bad property: %s"), entry)
 			}
 
+			if image.Properties == nil {
+				image.Properties = map[string]string{}
+			}
+
 			image.Properties[strings.TrimSpace(fields[0])] = strings.TrimSpace(fields[1])
 		}
 
