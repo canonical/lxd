@@ -146,7 +146,7 @@ start() {
         iptables "${use_iptables_lock}" -I FORWARD -i "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
         iptables "${use_iptables_lock}" -I FORWARD -o "${LXD_BRIDGE}" -j ACCEPT -m comment --comment "managed by lxd-bridge"
     fi
-    iptables "${use_iptables_lock}" -t mangle -A POSTROUTING -o "${LXD_BRIDGE}" -p udp -m udp --dport 68 -j CHECKSUM --checksum-fill -m comment --comment "managed by lxd-bridge"
+    iptables "${use_iptables_lock}" -t mangle -A POSTROUTING -o "${LXD_BRIDGE}" -p udp -m udp --dport 68 -j CHECKSUM --checksum-fill -m comment --comment "managed by lxd-bridge" || true
 
     if [ "${HAS_IPV6}" = "true" ]; then
         ip6tables "${use_iptables_lock}" -I INPUT -i "${LXD_BRIDGE}" -p udp --dport 67 -j ACCEPT -m comment --comment "managed by lxd-bridge"
@@ -203,7 +203,7 @@ stop() {
             iptables ${use_iptables_lock} -D FORWARD -i ${LXD_BRIDGE} -j ACCEPT -m comment --comment "managed by lxd-bridge"
             iptables ${use_iptables_lock} -D FORWARD -o ${LXD_BRIDGE} -j ACCEPT -m comment --comment "managed by lxd-bridge"
         fi
-        iptables ${use_iptables_lock} -t mangle -D POSTROUTING -o ${LXD_BRIDGE} -p udp -m udp --dport 68 -j CHECKSUM --checksum-fill -m comment --comment "managed by lxd-bridge"
+        iptables ${use_iptables_lock} -t mangle -D POSTROUTING -o ${LXD_BRIDGE} -p udp -m udp --dport 68 -j CHECKSUM --checksum-fill -m comment --comment "managed by lxd-bridge" || true
 
         if [ -n "${LXD_IPV4_NETWORK}" ] && [ "${LXD_IPV4_NAT}" = "true" ]; then
             iptables ${use_iptables_lock} -t nat -D POSTROUTING -s ${LXD_IPV4_NETWORK} ! -d ${LXD_IPV4_NETWORK} -j MASQUERADE -m comment --comment "managed by lxd-bridge"
