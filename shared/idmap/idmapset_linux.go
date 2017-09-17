@@ -344,6 +344,8 @@ func (m IdmapSet) ValidRanges() ([]*IdRange, error) {
 	return ranges, nil
 }
 
+var ErrHostIdIsSubId = fmt.Errorf("Host id is in the range of subids")
+
 /* AddSafe adds an entry to the idmap set, breaking apart any ranges that the
  * new idmap intersects with in the process.
  */
@@ -357,7 +359,7 @@ func (m *IdmapSet) AddSafe(i IdmapEntry) error {
 		}
 
 		if e.HostidsIntersect(i) {
-			return fmt.Errorf("can't map the same host ID twice")
+			return ErrHostIdIsSubId
 		}
 
 		added = true
