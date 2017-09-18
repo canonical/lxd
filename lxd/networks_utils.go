@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var networkStaticLock sync.Mutex
@@ -725,6 +726,15 @@ func networkKillDnsmasq(name string, reload bool) error {
 	// Cleanup
 	os.Remove(pidPath)
 	return nil
+}
+
+func networkGetDnsmasqVersion() (*version.DottedVersion, error) {
+	output, err := shared.TryRunCommand("dnsmasq", "--version")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to check dnsmasq version")
+	}
+	lines := strings.Split(output, " ")
+	return version.NewDottedVersion(lines[2])
 }
 
 func networkUpdateStatic(s *state.State, networkName string) error {
