@@ -11,7 +11,7 @@ import (
 var storageVolumeConfigKeys = map[string]func(value string) error{
 	"block.mount_options": shared.IsAny,
 	"block.filesystem": func(value string) error {
-		return shared.IsOneOf(value, []string{"ext4", "xfs"})
+		return shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
 	},
 	"size": func(value string) error {
 		if value == "" {

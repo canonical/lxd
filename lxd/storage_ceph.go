@@ -417,7 +417,7 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 		`"%s" on storage pool "%s"`, RBDFilesystem, s.volume.Name,
 		s.pool.Name)
 
-	msg, err := makeFSType(RBDDevPath, RBDFilesystem)
+	msg, err := makeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
 		logger.Errorf(`Failed to create filesystem type "%s" on `+
 			`device path "%s" for RBD storage volume "%s" on `+
@@ -794,7 +794,7 @@ func (s *storageCeph) ContainerCreate(container container) error {
 		`for container "%s" on storage pool "%s"`, RBDFilesystem,
 		containerName, s.pool.Name)
 
-	msg, err := makeFSType(RBDDevPath, RBDFilesystem)
+	msg, err := makeFSType(RBDDevPath, RBDFilesystem, nil)
 	if err != nil {
 		logger.Errorf(`Failed to create filesystem type "%s" on `+
 			`device path "%s" for RBD storage volume for `+
@@ -2220,7 +2220,7 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 
 		// get filesystem
 		RBDFilesystem := s.getRBDFilesystem()
-		msg, err := makeFSType(RBDDevPath, RBDFilesystem)
+		msg, err := makeFSType(RBDDevPath, RBDFilesystem, nil)
 		if err != nil {
 			logger.Errorf(`Failed to create filesystem "%s" for RBD `+
 				`storage volume for image "%s" on storage `+

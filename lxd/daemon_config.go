@@ -191,7 +191,7 @@ func daemonConfigInit(db *sql.DB) error {
 		"images.remote_cache_expiry":   {valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
 
 		// Keys deprecated since the implementation of the storage api.
-		"storage.lvm_fstype":           {valueType: "string", defaultValue: "ext4", validValues: []string{"ext4", "xfs"}, validator: storageDeprecatedKeys},
+		"storage.lvm_fstype":           {valueType: "string", defaultValue: "ext4", validValues: []string{"btrfs", "ext4", "xfs"}, validator: storageDeprecatedKeys},
 		"storage.lvm_mount_options":    {valueType: "string", defaultValue: "discard", validator: storageDeprecatedKeys},
 		"storage.lvm_thinpool_name":    {valueType: "string", defaultValue: "LXDPool", validator: storageDeprecatedKeys},
 		"storage.lvm_vg_name":          {valueType: "string", validator: storageDeprecatedKeys},

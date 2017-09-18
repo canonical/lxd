@@ -133,9 +133,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 			return fmt.Errorf("Failed to create sparse file %s: %s", source, err)
 		}
 
-		output, err := shared.RunCommand(
-			"mkfs.btrfs",
-			"-L", s.pool.Name, source)
+		output, err := makeFSType(source, "btrfs", &mkfsOptions{label: s.pool.Name})
 		if err != nil {
 			return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
 		}
@@ -146,9 +144,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		if filepath.IsAbs(source) {
 			isBlockDev = shared.IsBlockdevPath(source)
 			if isBlockDev {
-				output, err := shared.RunCommand(
-					"mkfs.btrfs",
-					"-L", s.pool.Name, source)
+				output, err := makeFSType(source, "btrfs", &mkfsOptions{label: s.pool.Name})
 				if err != nil {
 					return fmt.Errorf("Failed to create the BTRFS pool: %s", output)
 				}
