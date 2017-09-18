@@ -330,3 +330,7 @@ This records the actual source passed to LXD during storage pool creation.
 This introduces the "ceph.osd.force_reuse" property for the ceph storage
 driver. When set to "true" LXD will reuse a osd storage pool that is already in
 use by another LXD instance.
+
+## storage\_block\_filesystem\_btrfs
+This adds support for btrfs as a storage volume filesystem, in addition to ext4
+and xfs.
