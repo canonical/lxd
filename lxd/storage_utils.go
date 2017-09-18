@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -10,6 +11,11 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 )
+
+// Options for filesystem creation
+type mkfsOptions struct {
+	label string
+}
 
 // Export the mount options map since we might find it useful in other parts of
 // LXD.
@@ -181,19 +187,25 @@ func lxdUsesPool(dbObj *sql.DB, onDiskPoolName string, driver string, onDiskProp
 	return false, "", nil
 }
 
-func makeFSType(path string, fsType string) (string, error) {
+func makeFSType(path string, fsType string, options *mkfsOptions) (string, error) {
 	var err error
 	var msg string
 
-	switch fsType {
-	case "xfs":
-		msg, err = shared.TryRunCommand("mkfs.xfs", path)
-	default:
-		msg, err = shared.TryRunCommand(
-			"mkfs.ext4",
-			"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
-			path)
+	fsOptions := options
+	if fsOptions == nil {
+		fsOptions = &mkfsOptions{}
 	}
+
+	cmd := []string{fmt.Sprintf("mkfs.%s", fsType), path}
+	if fsOptions.label != "" {
+		cmd = append(cmd, "-L", fsOptions.label)
+	}
+
+	if fsType == "ext4" {
+		cmd = append(cmd, "-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0")
+	}
+
+	msg, err = shared.TryRunCommand(cmd[0], cmd[1:]...)
 	if err != nil {
 		return msg, err
 	}
