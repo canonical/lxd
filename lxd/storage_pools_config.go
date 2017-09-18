@@ -60,7 +60,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 
 	// valid drivers: ceph, lvm
 	"volume.block.filesystem": func(value string) error {
-		return shared.IsOneOf(value, []string{"ext4", "xfs"})
+		return shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
 	},
 	"volume.block.mount_options": shared.IsAny,
 
