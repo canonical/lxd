@@ -1493,7 +1493,7 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 	}
 
 	if shared.IsTrue(zfsUseRefquota) {
-		property = "usedbydataset"
+		property = "referenced"
 	}
 
 	value, err := zfsFilesystemEntityPropertyGet(s.getOnDiskPoolName(), fs, property)
