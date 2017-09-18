@@ -103,6 +103,11 @@ func storageVolumeFillDefault(name string, config map[string]string, parentPool 
 			config["size"] = "10GB"
 		}
 	} else {
+		// Does the pool request a default size for new storage volumes?
+		if config["size"] == "0" || config["size"] == "" {
+			config["size"] = parentPool.Config["volume.size"]
+		}
+
 		if config["size"] != "" {
 			_, err := shared.ParseByteSizeString(config["size"])
 			if err != nil {

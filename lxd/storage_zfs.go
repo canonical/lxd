@@ -548,7 +548,91 @@ func (s *storageZfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 	}
 
 	if shared.StringInSlice("volume.size", changedConfig) {
-		return fmt.Errorf("the \"volume.size\" property cannot be changed")
+		volumes, err := db.StoragePoolVolumesGet(s.s.DB, s.poolID,
+			[]int{storagePoolVolumeTypeContainer,
+				storagePoolVolumeTypeCustom})
+		if err != nil {
+			if err != db.NoSuchObjectError {
+				return err
+			}
+		}
+
+		poolName := s.getOnDiskPoolName()
+		size := int64(0)
+		if writable.Config["volume.size"] != "" {
+			size, err = shared.ParseByteSizeString(writable.Config["volume.size"])
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, volume := range volumes {
+			var data interface{}
+			var volumeType int
+
+			// Check if the storage volume itself already has a
+			// local "size" property set.
+			if volume.Config["size"] != "" {
+				continue
+			}
+
+			switch volume.Type {
+			case storagePoolVolumeTypeNameContainer:
+				// The name of a container is always identical
+				// to the name of its storage volume.
+				ct, err := containerLoadByName(s.s, volume.Name)
+				if err != nil {
+					return err
+				}
+
+				// Quota do not apply to snapshots.
+				if ct.IsSnapshot() {
+					continue
+				}
+
+				// Non-storage pool "size" properties override
+				// storage pool "size" properties.
+				expandedDevices := ct.ExpandedDevices()
+				_, rootDiskDevice, _ := containerGetRootDiskDevice(expandedDevices)
+				if rootDiskDevice["size"] != "" {
+					continue
+				}
+
+				// We only care about the storage interface for
+				// the container being initialized.
+				ourStart, err := ct.StorageStart()
+				if err != nil {
+					return err
+				}
+				if ourStart {
+					defer ct.StorageStop()
+				}
+				data = ct
+				volumeType = storagePoolVolumeTypeContainer
+			case storagePoolVolumeTypeNameCustom:
+				volumeType = storagePoolVolumeTypeCustom
+			default:
+				return fmt.Errorf(`Unknown or non-quota `+
+					`supporting unsupported `+
+					`storage volume type "%s"`,
+					volume.Type)
+			}
+
+			// Are we using refquota?
+			if s.pool.Config["volume.zfs.use_refquota"] != "" {
+				zfsUseRefquota = s.pool.Config["volume.zfs.use_refquota"]
+			}
+			if s.volume.Config["zfs.use_refquota"] != "" {
+				zfsUseRefquota = s.volume.Config["zfs.use_refquota"]
+			}
+			refquota := shared.IsTrue(zfsUseRefquota)
+
+			err = storageEntitySetQuota(poolName,
+				volumeType, s.volume.Name, refquota, size, data)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if shared.StringInSlice("volume.block.mount_options", changedConfig) {
@@ -589,14 +673,64 @@ func (s *storageZfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 	}
 
 	if shared.StringInSlice("size", changedConfig) {
-		// apply quota
 		if s.volume.Config["size"] != writable.Config["size"] {
-			size, err := shared.ParseByteSizeString(writable.Config["size"])
-			if err != nil {
-				return err
+			var err error
+			var data interface{}
+			var volumeType int
+
+			poolName := s.getOnDiskPoolName()
+			size := int64(0)
+			if writable.Config["size"] != "" {
+				size, err = shared.ParseByteSizeString(writable.Config["size"])
+				if err != nil {
+					return err
+				}
+			}
+			switch s.volume.Type {
+			case storagePoolVolumeTypeNameContainer:
+				ct, err := containerLoadByName(s.s, s.volume.Name)
+				if err != nil {
+					return err
+				}
+
+				// Quotas do not apply to snapshots.
+				if ct.IsSnapshot() {
+					return fmt.Errorf(`Quota do not apply ` +
+						`to storage volumes of snapshots`)
+				}
+
+				// Non-storage volume "size" properties override
+				// storage volume "size" properties
+				expandedDevices := ct.ExpandedDevices()
+				_, rootDiskDevice, _ := containerGetRootDiskDevice(expandedDevices)
+				if rootDiskDevice["size"] != "" {
+					return fmt.Errorf(`The storage volume ` +
+						`for this container has a ` +
+						`"size" property set on its ` +
+						`root disk device`)
+				}
+				data = ct
+				volumeType = storagePoolVolumeTypeContainer
+			case storagePoolVolumeTypeNameCustom:
+				volumeType = storagePoolVolumeTypeCustom
+			default:
+				return fmt.Errorf(`Unknown or non-quota `+
+					`supporting unsupported `+
+					`storage volume type "%s"`,
+					s.volume.Type)
 			}
 
-			err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+			// Are we using refquota?
+			if s.pool.Config["volume.zfs.use_refquota"] != "" {
+				zfsUseRefquota = s.pool.Config["volume.zfs.use_refquota"]
+			}
+			if s.volume.Config["zfs.use_refquota"] != "" {
+				zfsUseRefquota = s.volume.Config["zfs.use_refquota"]
+			}
+			refquota := shared.IsTrue(zfsUseRefquota)
+
+			err = storageEntitySetQuota(poolName,
+				volumeType, s.volume.Name, refquota, size, data)
 			if err != nil {
 				return err
 			}
@@ -761,6 +895,19 @@ func (s *storageZfs) ContainerCreate(container container) error {
 		defer s.ContainerUmount(containerName, containerPath)
 	}
 
+	// apply quota
+	if s.volume.Config["size"] != "" {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, container)
+		if err != nil {
+			return err
+		}
+	}
+
 	err = createContainerMountpoint(containerPoolVolumeMntPoint, containerPath, container.IsPrivileged())
 	if err != nil {
 		return err
@@ -835,6 +982,19 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	}
 	if ourMount {
 		defer s.ContainerUmount(containerName, containerPath)
+	}
+
+	// apply quota
+	if s.volume.Config["size"] != "" {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, container)
+		if err != nil {
+			return err
+		}
 	}
 
 	privileged := container.IsPrivileged()
@@ -2272,47 +2432,19 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 }
 
 func (s *storageZfs) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
-	logger.Debugf(`Setting ZFS quota for "%s"`, s.volume.Name)
-
-	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
-		return fmt.Errorf("Invalid storage type")
-	}
-
-	var c container
-	var fs string
-	switch volumeType {
-	case storagePoolVolumeTypeContainer:
-		c = data.(container)
-		fs = fmt.Sprintf("containers/%s", c.Name())
-	case storagePoolVolumeTypeCustom:
-		fs = fmt.Sprintf("custom/%s", s.volume.Name)
-	}
-
-	property := "quota"
-
 	if s.pool.Config["volume.zfs.use_refquota"] != "" {
 		zfsUseRefquota = s.pool.Config["volume.zfs.use_refquota"]
 	}
 	if s.volume.Config["zfs.use_refquota"] != "" {
 		zfsUseRefquota = s.volume.Config["zfs.use_refquota"]
 	}
-
-	if shared.IsTrue(zfsUseRefquota) {
-		property = "refquota"
-	}
-
+	refquota := shared.IsTrue(zfsUseRefquota)
 	poolName := s.getOnDiskPoolName()
-	var err error
-	if size > 0 {
-		err = zfsPoolVolumeSet(poolName, fs, property, fmt.Sprintf("%d", size))
-	} else {
-		err = zfsPoolVolumeSet(poolName, fs, property, "none")
-	}
-
+	err := storageEntitySetQuota(poolName, volumeType, s.volume.Name,
+		refquota, size, data)
 	if err != nil {
 		return err
 	}
 
-	logger.Debugf(`Set ZFS quota for "%s"`, s.volume.Name)
 	return nil
 }
