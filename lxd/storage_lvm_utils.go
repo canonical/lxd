@@ -826,17 +826,7 @@ func lvmCreateLv(vgName string, thinPoolName string, lvName string, lvFsType str
 
 	fsPath := getLvmDevPath(vgName, volumeType, lvName)
 
-	switch lvFsType {
-	case "xfs":
-		output, err = shared.TryRunCommand("mkfs.xfs", fsPath)
-	default:
-		// default = ext4
-		output, err = shared.TryRunCommand(
-			"mkfs.ext4",
-			"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0",
-			fsPath)
-	}
-
+	output, err = makeFSType(fsPath, lvFsType, nil)
 	if err != nil {
 		logger.Errorf("Filesystem creation failed: %s.", output)
 		return fmt.Errorf("Error making filesystem on image LV: %v", err)
