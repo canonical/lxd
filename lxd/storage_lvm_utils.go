@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
@@ -900,41 +901,20 @@ func createDefaultThinPool(sTypeVersion string, vgName string, thinPoolName stri
 	return nil
 }
 
-func versionSplit(versionString string) (int, int, int, error) {
-	fs := strings.Split(versionString, ".")
-	majs, mins, incs := fs[0], fs[1], fs[2]
-
-	maj, err := strconv.Atoi(majs)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	min, err := strconv.Atoi(mins)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	incs = strings.Split(incs, "(")[0]
-	inc, err := strconv.Atoi(incs)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-
-	return maj, min, inc, nil
-}
-
 func lvmVersionIsAtLeast(sTypeVersion string, versionString string) (bool, error) {
-	lvmVersion := strings.Split(sTypeVersion, "/")[0]
+	lvmVersionString := strings.Split(sTypeVersion, "/")[0]
 
-	lvmMaj, lvmMin, lvmInc, err := versionSplit(lvmVersion)
+	lvmVersion, err := version.Parse(lvmVersionString)
 	if err != nil {
 		return false, err
 	}
 
-	inMaj, inMin, inInc, err := versionSplit(versionString)
+	inVersion, err := version.Parse(versionString)
 	if err != nil {
 		return false, err
 	}
 
-	if lvmMaj < inMaj || lvmMin < inMin || lvmInc < inInc {
+	if lvmVersion.Compare(inVersion) < 0 {
 		return false, nil
 	}
 
