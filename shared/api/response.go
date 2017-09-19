@@ -65,11 +65,7 @@ func (r *Response) MetadataAsStringSlice() ([]string, error) {
 
 // MetadataAsStruct parses the Response metadata into a provided struct
 func (r *Response) MetadataAsStruct(target interface{}) error {
-	if err := json.Unmarshal(r.Metadata, &target); err != nil {
-		return err
-	}
-
-	return nil
+	return json.Unmarshal(r.Metadata, &target)
 }
 
 // ResponseType represents a valid LXD response type
