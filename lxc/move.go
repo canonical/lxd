@@ -91,5 +91,7 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 		return err
 	}
 
-	return commands["delete"].run(conf, args[:1])
+	del := deleteCmd{}
+	del.force = true
+	return del.run(conf, args[:1])
 }
