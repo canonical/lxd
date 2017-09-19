@@ -98,12 +98,16 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 
 	cpy := copyCmd{}
 
+	stateful := !c.stateless
+
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the container.
-	err = cpy.copyContainer(conf, args[0], args[1], true, -1, true, c.containerOnly, mode)
+	err = cpy.copyContainer(conf, args[0], args[1], true, -1, stateful, c.containerOnly, mode)
 	if err != nil {
 		return err
 	}
 
-	return commands["delete"].run(conf, args[:1])
+	del := deleteCmd{}
+	del.force = true
+	return del.run(conf, args[:1])
 }
