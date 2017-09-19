@@ -674,10 +674,20 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 		Config: map[string]string{},
 	}
 
-	defaultStorage := "dir"
-	if shared.StringInSlice("zfs", availableBackends) {
-		defaultStorage = "zfs"
+	backingFs, err := util.FilesystemDetect(shared.VarPath())
+	if err != nil {
+		backingFs = "dir"
 	}
+
+	defaultStorage := "dir"
+	if backingFs == "btrfs" && shared.StringInSlice("btrfs", availableBackends) {
+		defaultStorage = "btrfs"
+	} else if shared.StringInSlice("zfs", availableBackends) {
+		defaultStorage = "zfs"
+	} else if shared.StringInSlice("btrfs", availableBackends) {
+		defaultStorage = "btrfs"
+	}
+
 	for {
 		storage.Pool = cmd.Context.AskString("Name of the new storage pool [default=default]: ", "default", nil)
 		if shared.StringInSlice(storage.Pool, existingPools) {
@@ -708,6 +718,14 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 			break
 		}
 
+		// Optimization for btrfs on btrfs
+		if storage.Backend == "btrfs" && backingFs == "btrfs" {
+			if cmd.Context.AskBool(fmt.Sprintf("Would you like to create a new btrfs subvolume under %s (yes/no) [default=yes]: ", shared.VarPath("")), "yes") {
+				storage.Dataset = shared.VarPath("storage-pools", storage.Pool)
+				break
+			}
+		}
+
 		storage.LoopSize = -1
 		question := fmt.Sprintf("Create a new %s pool (yes/no) [default=yes]? ", strings.ToUpper(storage.Backend))
 		if cmd.Context.AskBool(question, "yes") {
@@ -734,30 +752,23 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 				}
 				storage.Device = cmd.Context.AskString("Path to the existing block device: ", "", deviceExists)
 			} else {
-				backingFs, err := util.FilesystemDetect(shared.VarPath())
-				if err == nil && storage.Backend == "btrfs" && backingFs == "btrfs" {
-					if cmd.Context.AskBool("Would you like to create a new subvolume for the BTRFS storage pool (yes/no) [default=yes]: ", "yes") {
-						storage.Dataset = shared.VarPath("storage-pools", storage.Pool)
-					}
-				} else {
-					st := syscall.Statfs_t{}
-					err := syscall.Statfs(shared.VarPath(), &st)
-					if err != nil {
-						return nil, fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
-					}
-
-					/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
-					defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-					if defaultSize > 100 {
-						defaultSize = 100
-					}
-					if defaultSize < 15 {
-						defaultSize = 15
-					}
-
-					question := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", defaultSize)
-					storage.LoopSize = cmd.Context.AskInt(question, 1, -1, fmt.Sprintf("%d", defaultSize))
+				st := syscall.Statfs_t{}
+				err := syscall.Statfs(shared.VarPath(), &st)
+				if err != nil {
+					return nil, fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
 				}
+
+				/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
+				defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
+				if defaultSize > 100 {
+					defaultSize = 100
+				}
+				if defaultSize < 15 {
+					defaultSize = 15
+				}
+
+				question := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", defaultSize)
+				storage.LoopSize = cmd.Context.AskInt(question, 1, -1, fmt.Sprintf("%d", defaultSize))
 			}
 		} else {
 			if storage.Backend == "ceph" {
