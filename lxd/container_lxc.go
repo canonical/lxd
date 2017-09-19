@@ -648,7 +648,10 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 		copy(newIdmapset.Idmap, state.OS.IdmapSet.Idmap)
 
 		for _, ent := range rawMaps {
-			newIdmapset.AddSafe(ent)
+			err := newIdmapset.AddSafe(ent)
+			if err != nil && err == idmap.ErrHostIdIsSubId {
+				return nil, 0, err
+			}
 		}
 
 		return &newIdmapset, 0, nil
@@ -659,17 +662,20 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 		return nil, 0, err
 	}
 
-	mkIdmap := func(offset int64, size int64) *idmap.IdmapSet {
+	mkIdmap := func(offset int64, size int64) (*idmap.IdmapSet, error) {
 		set := &idmap.IdmapSet{Idmap: []idmap.IdmapEntry{
 			{Isuid: true, Nsid: 0, Hostid: offset, Maprange: size},
 			{Isgid: true, Nsid: 0, Hostid: offset, Maprange: size},
 		}}
 
 		for _, ent := range rawMaps {
-			set.AddSafe(ent)
+			err := set.AddSafe(ent)
+			if err != nil && err == idmap.ErrHostIdIsSubId {
+				return nil, err
+			}
 		}
 
-		return set
+		return set, nil
 	}
 
 	if configBase != "" {
@@ -678,7 +684,12 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 			return nil, 0, err
 		}
 
-		return mkIdmap(offset, size), offset, nil
+		set, err := mkIdmap(offset, size)
+		if err != nil && err == idmap.ErrHostIdIsSubId {
+			return nil, 0, err
+		}
+
+		return set, offset, nil
 	}
 
 	idmapLock.Lock()
@@ -736,7 +747,12 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 				continue
 			}
 
-			return mkIdmap(offset, size), offset, nil
+			set, err := mkIdmap(offset, size)
+			if err != nil && err == idmap.ErrHostIdIsSubId {
+				return nil, 0, err
+			}
+
+			return set, offset, nil
 		}
 
 		if mapentries[i-1].Hostid+mapentries[i-1].Maprange > offset {
@@ -746,13 +762,23 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 
 		offset = mapentries[i-1].Hostid + mapentries[i-1].Maprange
 		if offset+size < mapentries[i].Hostid {
-			return mkIdmap(offset, size), offset, nil
+			set, err := mkIdmap(offset, size)
+			if err != nil && err == idmap.ErrHostIdIsSubId {
+				return nil, 0, err
+			}
+
+			return set, offset, nil
 		}
 		offset = mapentries[i].Hostid + mapentries[i].Maprange
 	}
 
 	if offset+size < state.OS.IdmapSet.Idmap[0].Hostid+state.OS.IdmapSet.Idmap[0].Maprange {
-		return mkIdmap(offset, size), offset, nil
+		set, err := mkIdmap(offset, size)
+		if err != nil && err == idmap.ErrHostIdIsSubId {
+			return nil, 0, err
+		}
+
+		return set, offset, nil
 	}
 
 	return nil, 0, fmt.Errorf("Not enough uid/gid available for the container.")
