@@ -40,11 +40,14 @@ func ImagesGet(db *sql.DB, public bool) ([]string, error) {
 }
 
 func ImagesGetExpired(db *sql.DB, expiry int64) ([]string, error) {
-	q := `SELECT fingerprint FROM images WHERE cached=1 AND creation_date<=strftime('%s', date('now', '-` + fmt.Sprintf("%d", expiry) + ` day'))`
+	q := `SELECT fingerprint, last_use_date, upload_date FROM images WHERE cached=1`
 
-	var fp string
+	var fpStr string
+	var useStr string
+	var uploadStr string
+
 	inargs := []interface{}{}
-	outfmt := []interface{}{fp}
+	outfmt := []interface{}{fpStr, useStr, uploadStr}
 	dbResults, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
@@ -52,10 +55,28 @@ func ImagesGetExpired(db *sql.DB, expiry int64) ([]string, error) {
 
 	results := []string{}
 	for _, r := range dbResults {
+		// Figure out the expiry
+		timestamp := r[2]
+		if r[1] != "" {
+			timestamp = r[1]
+		}
+
+		var imageExpiry time.Time
+		err = imageExpiry.UnmarshalText([]byte(timestamp.(string)))
+		if err != nil {
+			return []string{}, err
+		}
+		imageExpiry = imageExpiry.Add(time.Duration(expiry*24) * time.Hour)
+
+		// Check if expired
+		if imageExpiry.After(time.Now()) {
+			continue
+		}
+
 		results = append(results, r[0].(string))
 	}
 
-	return results, nil
+	return []string{}, nil
 }
 
 func ImageSourceInsert(db *sql.DB, imageId int, server string, protocol string, certificate string, alias string) error {
