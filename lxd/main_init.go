@@ -689,6 +689,7 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 	}
 
 	for {
+		storage.LoopSize = -1
 		storage.Pool = cmd.Context.AskString("Name of the new storage pool [default=default]: ", "default", nil)
 		if shared.StringInSlice(storage.Pool, existingPools) {
 			fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", storage.Pool)
@@ -726,7 +727,6 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 			}
 		}
 
-		storage.LoopSize = -1
 		question := fmt.Sprintf("Create a new %s pool (yes/no) [default=yes]? ", strings.ToUpper(storage.Backend))
 		if cmd.Context.AskBool(question, "yes") {
 			if storage.Backend == "ceph" {
