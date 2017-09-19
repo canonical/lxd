@@ -778,7 +778,15 @@ func (n *network) Start() error {
 		fmt.Sprintf("--interface=%s", n.name)}
 
 	if !debug {
-		dnsmasqCmd = append(dnsmasqCmd, []string{"--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra"}...)
+		// --quiet options are only supported on >2.67
+		v, err := networkGetDnsmasqVersion()
+		if err != nil {
+			return err
+		}
+		minVer, _ := version.NewDottedVersion("2.67")
+		if v.Compare(minVer) > 0 {
+			dnsmasqCmd = append(dnsmasqCmd, []string{"--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra"}...)
+		}
 	}
 
 	// Configure IPv4
