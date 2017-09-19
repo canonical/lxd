@@ -51,6 +51,10 @@ test_idmap() {
   [ "$(lxc exec idmap -- cat /proc/self/uid_map | awk '{print $3}')" = "${UIDs}" ]
   [ "$(lxc exec idmap -- cat /proc/self/gid_map | awk '{print $3}')" = "${GIDs}" ]
 
+  # Confirm that we don't allow double mappings
+  ! echo "uid $((UID_BASE+1)) 1000" | lxc config set idmap raw.idmap - || false
+  ! echo "gid $((GID_BASE+1)) 1000" | lxc config set idmap raw.idmap - || false
+
   # Convert container to isolated and confirm it's not using the first range
   lxc config set idmap security.idmap.isolated true
   lxc restart idmap --force
