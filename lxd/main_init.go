@@ -674,10 +674,20 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 		Config: map[string]string{},
 	}
 
-	defaultStorage := "dir"
-	if shared.StringInSlice("zfs", availableBackends) {
-		defaultStorage = "zfs"
+	backingFs, err := util.FilesystemDetect(shared.VarPath())
+	if err != nil {
+		backingFs = "dir"
 	}
+
+	defaultStorage := "dir"
+	if backingFs == "btrfs" && shared.StringInSlice("btrfs", availableBackends) {
+		defaultStorage = "btrfs"
+	} else if shared.StringInSlice("zfs", availableBackends) {
+		defaultStorage = "zfs"
+	} else if shared.StringInSlice("btrfs", availableBackends) {
+		defaultStorage = "btrfs"
+	}
+
 	for {
 		storage.Pool = cmd.Context.AskString("Name of the new storage pool [default=default]: ", "default", nil)
 		if shared.StringInSlice(storage.Pool, existingPools) {
@@ -709,8 +719,7 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []strin
 		}
 
 		// Optimization for btrfs on btrfs
-		backingFs, err := util.FilesystemDetect(shared.VarPath())
-		if err == nil && storage.Backend == "btrfs" && backingFs == "btrfs" {
+		if storage.Backend == "btrfs" && backingFs == "btrfs" {
 			if cmd.Context.AskBool(fmt.Sprintf("Would you like to create a new btrfs subvolume under %s (yes/no) [default=yes]: ", shared.VarPath("")), "yes") {
 				storage.Dataset = shared.VarPath("storage-pools", storage.Pool)
 				break
