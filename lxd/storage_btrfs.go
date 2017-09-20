@@ -548,9 +548,11 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 
 	// Delete subvolume.
 	customSubvolumeName := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	err = btrfsSubVolumesDelete(customSubvolumeName)
-	if err != nil {
-		return err
+	if shared.PathExists(customSubvolumeName) && isBtrfsSubVolume(customSubvolumeName) {
+		err = btrfsSubVolumesDelete(customSubvolumeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete the mountpoint.
@@ -776,9 +778,11 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 
 	// Delete the subvolume.
 	containerSubvolumeName := getContainerMountPoint(s.pool.Name, container.Name())
-	err = btrfsSubVolumesDelete(containerSubvolumeName)
-	if err != nil {
-		return err
+	if shared.PathExists(containerSubvolumeName) && isBtrfsSubVolume(containerSubvolumeName) {
+		err = btrfsSubVolumesDelete(containerSubvolumeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete the container's symlink to the subvolume.
@@ -1155,9 +1159,11 @@ func (s *storageBtrfs) ContainerSnapshotDelete(snapshotContainer container) erro
 	}
 
 	snapshotSubvolumeName := getSnapshotMountPoint(s.pool.Name, snapshotContainer.Name())
-	err = btrfsSubVolumesDelete(snapshotSubvolumeName)
-	if err != nil {
-		return err
+	if shared.PathExists(snapshotSubvolumeName) && isBtrfsSubVolume(snapshotSubvolumeName) {
+		err = btrfsSubVolumesDelete(snapshotSubvolumeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	sourceSnapshotMntPoint := shared.VarPath("snapshots", snapshotContainer.Name())
@@ -1220,9 +1226,11 @@ func (s *storageBtrfs) ContainerSnapshotStop(container container) (bool, error) 
 		return false, nil
 	}
 
-	err = btrfsSubVolumesDelete(snapshotSubvolumeName)
-	if err != nil {
-		return false, err
+	if shared.PathExists(snapshotSubvolumeName) && isBtrfsSubVolume(snapshotSubvolumeName) {
+		err = btrfsSubVolumesDelete(snapshotSubvolumeName)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	err = os.Rename(roSnapshotSubvolumeName, snapshotSubvolumeName)
@@ -1390,9 +1398,11 @@ func (s *storageBtrfs) ImageDelete(fingerprint string) error {
 	// Delete the btrfs subvolume. The path with which we
 	// do this is ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>.
 	imageSubvolumeName := getImageMountPoint(s.pool.Name, fingerprint)
-	err = btrfsSubVolumesDelete(imageSubvolumeName)
-	if err != nil {
-		return err
+	if shared.PathExists(imageSubvolumeName) && isBtrfsSubVolume(imageSubvolumeName) {
+		err = btrfsSubVolumesDelete(imageSubvolumeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = s.deleteImageDbPoolVolume(fingerprint)
