@@ -905,8 +905,25 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		lxdStorageMapLock.Unlock()
 
 		var imgerr error
-		if !cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
-			fingerprint, storagePoolVolumeTypeNameImage, s.UserName) {
+		ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
+			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
+
+		if ok {
+			_, volume, err := db.StoragePoolVolumeGetType(s.s.DB, fingerprint, db.StoragePoolVolumeTypeImage, s.poolID)
+			if err != nil {
+				return err
+			}
+			if volume.Config["block.filesystem"] != s.getRBDFilesystem() {
+				// The storage pool volume.blockfilesystem property has changed, re-import the image
+				err := s.ImageDelete(fingerprint)
+				if err != nil {
+					return err
+				}
+				ok = false
+			}
+		}
+
+		if !ok {
 			imgerr = s.ImageCreate(fingerprint)
 		}
 
