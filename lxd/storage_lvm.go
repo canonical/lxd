@@ -331,8 +331,10 @@ func (s *storageLvm) StoragePoolDelete() error {
 	}
 
 	poolName := s.getOnDiskPoolName()
+	poolExists, _ := storageVGExists(poolName)
+
 	// Delete the thinpool.
-	if s.useThinpool {
+	if s.useThinpool && poolExists {
 		// Check that the thinpool actually exists. For example, it
 		// won't when the user has never created a storage volume in the
 		// storage pool.
@@ -357,7 +359,7 @@ func (s *storageLvm) StoragePoolDelete() error {
 	}
 
 	// Remove the volume group.
-	if count == 0 {
+	if count == 0 && poolExists {
 		output, err := shared.TryRunCommand("vgremove", "-f", poolName)
 		if err != nil {
 			logger.Errorf("failed to destroy the volume group for the lvm storage pool: %s", output)
