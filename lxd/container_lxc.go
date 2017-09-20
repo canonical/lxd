@@ -3013,6 +3013,9 @@ func (c *containerLXC) Rename(newName string) error {
 	// Invalidate the go-lxc cache
 	c.c = nil
 
+	// Update lease files
+	networkUpdateStatic(c.state, "")
+
 	logger.Info("Renamed container", ctxMap)
 
 	return nil
