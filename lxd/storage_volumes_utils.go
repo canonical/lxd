@@ -357,7 +357,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, volume
 		return err
 	}
 
-	poolID, _ := s.GetContainerPoolInfo()
+	poolID, _, _ := s.GetContainerPoolInfo()
 
 	// Create storage volume.
 	err = s.StoragePoolVolumeCreate()

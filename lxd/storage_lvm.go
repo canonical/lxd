@@ -678,8 +678,8 @@ func (s *storageLvm) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageLvm) GetContainerPoolInfo() (int64, string) {
-	return s.poolID, s.pool.Name
+func (s *storageLvm) GetContainerPoolInfo() (int64, string, string) {
+	return s.poolID, s.pool.Name, s.getOnDiskPoolName()
 }
 
 func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
@@ -1050,8 +1050,8 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 		defer source.StorageStop()
 	}
 
-	_, sourcePool := source.Storage().GetContainerPoolInfo()
-	_, targetPool := target.Storage().GetContainerPoolInfo()
+	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
+	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
 		return fmt.Errorf("copying containers between different storage pools is not implemented")
 	}
@@ -1292,7 +1292,7 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 		defer source.StorageStop()
 	}
 
-	_, sourcePool := source.Storage().GetContainerPoolInfo()
+	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	if s.pool.Name != sourcePool {
 		return fmt.Errorf("containers must be on the same pool to be restored")
 	}
