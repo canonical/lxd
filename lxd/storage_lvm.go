@@ -523,10 +523,16 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 func (s *storageLvm) StoragePoolVolumeDelete() error {
 	logger.Infof("Deleting LVM storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
-	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	_, err := s.StoragePoolVolumeUmount()
-	if err != nil {
-		return err
+	poolName := s.getOnDiskPoolName()
+	customLvmDevPath := getLvmDevPath(poolName,
+		storagePoolVolumeAPIEndpointCustom, s.volume.Name)
+	lvExists, _ := storageLVExists(customLvmDevPath)
+
+	if lvExists {
+		_, err := s.StoragePoolVolumeUmount()
+		if err != nil {
+			return err
+		}
 	}
 
 	volumeType, err := storagePoolVolumeTypeNameToAPIEndpoint(s.volume.Type)
@@ -534,12 +540,14 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 		return err
 	}
 
-	poolName := s.getOnDiskPoolName()
-	err = s.removeLV(poolName, volumeType, s.volume.Name)
-	if err != nil {
-		return err
+	if lvExists {
+		err = s.removeLV(poolName, volumeType, s.volume.Name)
+		if err != nil {
+			return err
+		}
 	}
 
+	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	if shared.PathExists(customPoolVolumeMntPoint) {
 		err := os.Remove(customPoolVolumeMntPoint)
 		if err != nil {
