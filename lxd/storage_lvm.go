@@ -1583,15 +1583,21 @@ func (s *storageLvm) ImageDelete(fingerprint string) error {
 	logger.Debugf("Deleting LVM storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
 	if s.useThinpool {
-		_, err := s.ImageUmount(fingerprint)
-		if err != nil {
-			return err
-		}
-
 		poolName := s.getOnDiskPoolName()
-		err = s.removeLV(poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
-		if err != nil {
-			return err
+		imageLvmDevPath := getLvmDevPath(poolName,
+			storagePoolVolumeAPIEndpointImages, fingerprint)
+		lvExists, _ := storageLVExists(imageLvmDevPath)
+
+		if lvExists {
+			_, err := s.ImageUmount(fingerprint)
+			if err != nil {
+				return err
+			}
+
+			err = s.removeLV(poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
