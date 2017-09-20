@@ -548,9 +548,11 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 
 	// Delete subvolume.
 	customSubvolumeName := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	err = btrfsSubVolumesDelete(customSubvolumeName)
-	if err != nil {
-		return err
+	if shared.PathExists(customSubvolumeName) && isBtrfsSubVolume(customSubvolumeName) {
+		err = btrfsSubVolumesDelete(customSubvolumeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete the mountpoint.
