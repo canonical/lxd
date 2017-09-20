@@ -282,8 +282,8 @@ func (s *storageDir) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageDir) GetContainerPoolInfo() (int64, string) {
-	return s.poolID, s.pool.Name
+func (s *storageDir) GetContainerPoolInfo() (int64, string, string) {
+	return s.poolID, s.pool.Name, s.pool.Name
 }
 
 func (s *storageDir) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
@@ -592,8 +592,8 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 		defer source.StorageStop()
 	}
 
-	_, sourcePool := source.Storage().GetContainerPoolInfo()
-	_, targetPool := target.Storage().GetContainerPoolInfo()
+	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
+	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
 		return fmt.Errorf("copying containers between different storage pools is not implemented")
 	}
@@ -753,7 +753,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 		defer sourceContainer.StorageStop()
 	}
 
-	_, sourcePool := sourceContainer.Storage().GetContainerPoolInfo()
+	_, sourcePool, _ := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerName := sourceContainer.Name()
 	sourceContainerMntPoint := getContainerMountPoint(sourcePool, sourceContainerName)
 	bwlimit := s.pool.Config["rsync.bwlimit"]

@@ -767,6 +767,14 @@ func getLvmDevPath(lvmPool string, volumeType string, lvmVolume string) string {
 	return fmt.Sprintf("/dev/%s/%s_%s", lvmPool, volumeType, lvmVolume)
 }
 
+func getLVName(lvmPool string, volumeType string, lvmVolume string) string {
+	if volumeType == "" {
+		return fmt.Sprintf("%s/%s", lvmPool, lvmVolume)
+	}
+
+	return fmt.Sprintf("%s/%s_%s", lvmPool, volumeType, lvmVolume)
+}
+
 func getPrefixedLvName(volumeType string, lvmVolume string) string {
 	return fmt.Sprintf("%s_%s", volumeType, lvmVolume)
 }

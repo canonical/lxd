@@ -343,8 +343,8 @@ func (s *storageCeph) SetStoragePoolVolumeWritable(writable *api.StorageVolumePu
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageCeph) GetContainerPoolInfo() (int64, string) {
-	return s.poolID, s.pool.Name
+func (s *storageCeph) GetContainerPoolInfo() (int64, string, string) {
+	return s.poolID, s.pool.Name, s.OSDPoolName
 }
 
 func (s *storageCeph) StoragePoolVolumeCreate() error {
@@ -1160,8 +1160,8 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		defer source.StorageStop()
 	}
 
-	_, sourcePool := source.Storage().GetContainerPoolInfo()
-	_, targetPool := target.Storage().GetContainerPoolInfo()
+	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
+	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
 		return fmt.Errorf(`Copying containers between different ` +
 			`storage pools is not implemented`)
