@@ -1159,9 +1159,11 @@ func (s *storageBtrfs) ContainerSnapshotDelete(snapshotContainer container) erro
 	}
 
 	snapshotSubvolumeName := getSnapshotMountPoint(s.pool.Name, snapshotContainer.Name())
-	err = btrfsSubVolumesDelete(snapshotSubvolumeName)
-	if err != nil {
-		return err
+	if shared.PathExists(snapshotSubvolumeName) && isBtrfsSubVolume(snapshotSubvolumeName) {
+		err = btrfsSubVolumesDelete(snapshotSubvolumeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	sourceSnapshotMntPoint := shared.VarPath("snapshots", snapshotContainer.Name())
@@ -1224,9 +1226,11 @@ func (s *storageBtrfs) ContainerSnapshotStop(container container) (bool, error) 
 		return false, nil
 	}
 
-	err = btrfsSubVolumesDelete(snapshotSubvolumeName)
-	if err != nil {
-		return false, err
+	if shared.PathExists(snapshotSubvolumeName) && isBtrfsSubVolume(snapshotSubvolumeName) {
+		err = btrfsSubVolumesDelete(snapshotSubvolumeName)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	err = os.Rename(roSnapshotSubvolumeName, snapshotSubvolumeName)
