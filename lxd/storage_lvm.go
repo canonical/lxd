@@ -1008,21 +1008,27 @@ func (s *storageLvm) ContainerDelete(container container) error {
 	}
 
 	poolName := s.getOnDiskPoolName()
-	err := s.removeLV(poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
-	if err != nil {
-		return err
+	containerLvmDevPath := getLvmDevPath(poolName,
+		storagePoolVolumeAPIEndpointContainers, containerLvmName)
+	lvExists, _ := storageLVExists(containerLvmDevPath)
+
+	if lvExists {
+		err := s.removeLV(poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
+		if err != nil {
+			return err
+		}
 	}
 
 	if container.IsSnapshot() {
 		sourceName, _, _ := containerGetParentAndSnapshotName(containerName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
-		err = deleteSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err := deleteSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = deleteContainerMountpoint(containerMntPoint, container.Path(), s.GetStorageTypeName())
+		err := deleteContainerMountpoint(containerMntPoint, container.Path(), s.GetStorageTypeName())
 		if err != nil {
 			return err
 		}
