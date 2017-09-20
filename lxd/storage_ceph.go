@@ -494,27 +494,31 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 			`pool "%s"`, s.volume.Name, s.pool.Name)
 	}
 
+	rbdVolumeExists := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
+		s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName)
 	// unmap
 	err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, s.volume.Name,
 		storagePoolVolumeTypeNameCustom, s.UserName, true)
 	if err != nil {
-		logger.Errorf(`Failed to unmap RBD storage volume "%s" on `+
+		logger.Warnf(`Failed to unmap RBD storage volume "%s" on `+
 			`storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
-		return err
+	} else {
+		logger.Debugf(`Unmapped RBD storage volume "%s" on storage `+
+			`pool "%s"`, s.volume.Name, s.pool.Name)
 	}
-	logger.Debugf(`Unmapped RBD storage volume "%s" on storage pool "%s"`,
-		s.volume.Name, s.pool.Name)
 
 	// delete
-	err = cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName, s.volume.Name,
-		storagePoolVolumeTypeNameCustom, s.UserName)
-	if err != nil {
-		logger.Errorf(`Failed to delete RBD storage volume "%s" on `+
-			`storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
-		return err
+	if rbdVolumeExists {
+		err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName, s.volume.Name,
+			storagePoolVolumeTypeNameCustom, s.UserName)
+		if err != nil {
+			logger.Errorf(`Failed to delete RBD storage volume "%s" on `+
+				`storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
+			return err
+		}
+		logger.Debugf(`Deleted RBD storage volume "%s" on storage pool "%s"`,
+			s.volume.Name, s.pool.Name)
 	}
-	logger.Debugf(`Deleted RBD storage volume "%s" on storage pool "%s"`,
-		s.volume.Name, s.pool.Name)
 
 	err = db.StoragePoolVolumeDelete(
 		s.s.DB,
@@ -529,16 +533,18 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 	logger.Debugf(`Deleted database entry for RBD storage volume "%s" on `+
 		`storage pool "%s"`, s.volume.Name, s.pool.Name)
 
-	err = os.Remove(volumeMntPoint)
-	if err != nil {
-		logger.Errorf(`Failed to delete mountpoint "%s" for RBD `+
-			`storage volume "%s" on storage pool "%s": %s"`,
-			volumeMntPoint, s.volume.Name, s.pool.Name, err)
-		return err
+	if shared.PathExists(volumeMntPoint) {
+		err = os.Remove(volumeMntPoint)
+		if err != nil {
+			logger.Errorf(`Failed to delete mountpoint "%s" for RBD `+
+				`storage volume "%s" on storage pool "%s": %s"`,
+				volumeMntPoint, s.volume.Name, s.pool.Name, err)
+			return err
+		}
+		logger.Debugf(`Deleted mountpoint "%s" for RBD storage volume "%s" `+
+			`on storage pool "%s"`, volumeMntPoint, s.volume.Name,
+			s.pool.Name)
 	}
-	logger.Debugf(`Deleted mountpoint "%s" for RBD storage volume "%s" `+
-		`on storage pool "%s"`, volumeMntPoint, s.volume.Name,
-		s.pool.Name)
 
 	logger.Debugf(`Deleted RBD storage volume "%s" on storage pool "%s"`,
 		s.volume.Name, s.pool.Name)
