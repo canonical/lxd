@@ -1065,18 +1065,24 @@ func (s *storageCeph) ContainerDelete(container container) error {
 		return err
 	}
 
+	rbdVolumeExists := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
+		containerName, storagePoolVolumeTypeNameContainer, s.UserName)
+
 	// delete
-	ret := cephContainerDelete(s.ClusterName, s.OSDPoolName, containerName,
-		storagePoolVolumeTypeNameContainer, s.UserName)
-	if ret < 0 {
-		msg := fmt.Sprintf(`Failed to delete RBD storage volume for `+
-			`container "%s" on storage pool "%s"`, containerName, s.pool.Name)
-		logger.Errorf(msg)
-		return fmt.Errorf(msg)
+	if rbdVolumeExists {
+		ret := cephContainerDelete(s.ClusterName, s.OSDPoolName, containerName,
+			storagePoolVolumeTypeNameContainer, s.UserName)
+		if ret < 0 {
+			msg := fmt.Sprintf(`Failed to delete RBD storage volume for `+
+				`container "%s" on storage pool "%s"`, containerName, s.pool.Name)
+			logger.Errorf(msg)
+			return fmt.Errorf(msg)
+		}
 	}
 
 	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
-	err = deleteContainerMountpoint(containerMntPoint, containerPath, s.GetStorageTypeName())
+	err = deleteContainerMountpoint(containerMntPoint, containerPath,
+		s.GetStorageTypeName())
 	if err != nil {
 		logger.Errorf(`Failed to delete mountpoint %s for RBD storage `+
 			`volume of container "%s" for RBD storage volume on `+
