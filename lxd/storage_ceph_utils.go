@@ -96,6 +96,23 @@ func cephRBDVolumeExists(clusterName string, poolName string, volumeName string,
 	return true
 }
 
+// cephRBDVolumeSnapshotExists checks whether a given RBD snapshot exists.
+func cephRBDSnapshotExists(clusterName string, poolName string,
+	volumeName string, volumeType string, snapshotName string,
+	userName string) bool {
+	_, err := shared.RunCommand(
+		"rbd",
+		"--id", userName,
+		"--cluster", clusterName,
+		"--pool", poolName,
+		"info",
+		fmt.Sprintf("%s_%s@%s", volumeType, volumeName, snapshotName))
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 // cephRBDVolumeDelete deletes an RBD storage volume.
 // - In case the RBD storage volume that is supposed to be deleted does not
 //   exist this command will still exit 0. This means that if the caller wants
