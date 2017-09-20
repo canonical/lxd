@@ -778,9 +778,11 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 
 	// Delete the subvolume.
 	containerSubvolumeName := getContainerMountPoint(s.pool.Name, container.Name())
-	err = btrfsSubVolumesDelete(containerSubvolumeName)
-	if err != nil {
-		return err
+	if shared.PathExists(containerSubvolumeName) && isBtrfsSubVolume(containerSubvolumeName) {
+		err = btrfsSubVolumesDelete(containerSubvolumeName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete the container's symlink to the subvolume.
