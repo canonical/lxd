@@ -769,3 +769,51 @@ func GetErrno(err error) (errno error, iserrno bool) {
 
 	return nil, false
 }
+
+// Utsname returns the same info as syscall.Utsname, as strings
+type Utsname struct {
+	Sysname    string
+	Nodename   string
+	Release    string
+	Version    string
+	Machine    string
+	Domainname string
+}
+
+// Uname returns Utsname as strings
+func Uname() (*Utsname, error) {
+	/*
+	 * Based on: https://groups.google.com/forum/#!topic/golang-nuts/Jel8Bb-YwX8
+	 * there is really no better way to do this, which is
+	 * unfortunate. Also, we ditch the more accepted CharsToString
+	 * version in that thread, since it doesn't seem as portable,
+	 * viz. github issue #206.
+	 */
+
+	uname := syscall.Utsname{}
+	err := syscall.Uname(&uname)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Utsname{
+		Sysname:    intArrayToString(uname.Sysname),
+		Nodename:   intArrayToString(uname.Nodename),
+		Release:    intArrayToString(uname.Release),
+		Version:    intArrayToString(uname.Version),
+		Machine:    intArrayToString(uname.Machine),
+		Domainname: intArrayToString(uname.Domainname),
+	}, nil
+}
+
+func intArrayToString(arr [65]int8) string {
+	s := ""
+	for _, c := range arr {
+		if c == 0 {
+			break
+		}
+		s += string(byte(c))
+	}
+
+	return s
+}
