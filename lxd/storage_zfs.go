@@ -323,9 +323,12 @@ func (s *storageZfs) zfsPoolCreate() error {
 func (s *storageZfs) StoragePoolDelete() error {
 	logger.Infof("Deleting ZFS storage pool \"%s\".", s.pool.Name)
 
-	err := zfsFilesystemEntityDelete(s.pool.Config["source"], s.getOnDiskPoolName())
-	if err != nil {
-		return err
+	poolName := s.getOnDiskPoolName()
+	if zfsFilesystemEntityExists(poolName, "") {
+		err := zfsFilesystemEntityDelete(s.pool.Config["source"], poolName)
+		if err != nil {
+			return err
+		}
 	}
 
 	storagePoolMntPoint := getStoragePoolMountPoint(s.pool.Name)
@@ -403,9 +406,12 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 	fs := fmt.Sprintf("custom/%s", s.volume.Name)
 	customPoolVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
-	err := zfsPoolVolumeDestroy(s.getOnDiskPoolName(), fs)
-	if err != nil {
-		return err
+	poolName := s.getOnDiskPoolName()
+	if zfsFilesystemEntityExists(poolName, fs) {
+		err := zfsPoolVolumeDestroy(s.getOnDiskPoolName(), fs)
+		if err != nil {
+			return err
+		}
 	}
 
 	if shared.PathExists(customPoolVolumeMntPoint) {
@@ -415,7 +421,7 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 		}
 	}
 
-	err = db.StoragePoolVolumeDelete(
+	err := db.StoragePoolVolumeDelete(
 		s.s.DB,
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
