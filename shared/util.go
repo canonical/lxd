@@ -857,3 +857,15 @@ func Round(x float64) int64 {
 
 	return int64(math.Floor(x + 0.5))
 }
+
+// WriteTempFile creates a temp file with the specified content
+func WriteTempFile(dir string, prefix string, content string) (string, error) {
+	f, err := ioutil.TempFile(dir, prefix)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(content)
+	return f.Name(), err
+}
