@@ -704,7 +704,7 @@ func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, ch
 }
 
 func (s *storageCeph) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	return fmt.Errorf("ODS storage pool properties cannot be changed")
+	return fmt.Errorf("OSD storage pool properties cannot be changed")
 }
 
 func (s *storageCeph) ContainerStorageReady(name string) bool {

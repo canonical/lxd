@@ -720,7 +720,7 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 
 	if shared.StringInSlice("lvm.thinpool_name", changedConfig) {
 		if !s.useThinpool {
-			return fmt.Errorf("the LVM storage pool \"%s\" does not use thin pools. The \"lvm.thinpool_name\" porperty cannot be set", s.pool.Name)
+			return fmt.Errorf("the LVM storage pool \"%s\" does not use thin pools. The \"lvm.thinpool_name\" property cannot be set", s.pool.Name)
 		}
 
 		newThinpoolName := writable.Config["lvm.thinpool_name"]
