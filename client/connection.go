@@ -32,6 +32,9 @@ type ConnectionArgs struct {
 
 	// Custom HTTP Client (used as base for the connection)
 	HTTPClient *http.Client
+
+	// Controls whether a client verifies the server's certificate chain and host name.
+	InsecureSkipVerify bool
 }
 
 // ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
@@ -123,7 +126,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, args.Proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +155,7 @@ func httpsLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	}
 
 	// Setup the HTTP client
-	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.Proxy)
+	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, args.Proxy)
 	if err != nil {
 		return nil, err
 	}
