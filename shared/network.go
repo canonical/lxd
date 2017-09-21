@@ -107,9 +107,9 @@ func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsClientCA
 	return tlsConfig, nil
 }
 
-func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsClientCA string, tlsRemoteCertPEM string) (*tls.Config, error) {
+func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsClientCA string, tlsRemoteCertPEM string, insecureSkipVerify bool) (*tls.Config, error) {
 	tlsConfig := initTLSConfig()
-
+	tlsConfig.InsecureSkipVerify = insecureSkipVerify
 	// Client authentication
 	if tlsClientCert != "" && tlsClientKey != "" {
 		cert, err := tls.X509KeyPair([]byte(tlsClientCert), []byte(tlsClientKey))
