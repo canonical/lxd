@@ -3,22 +3,15 @@
 package osarch
 
 import (
-	"syscall"
+	"github.com/lxc/lxd/shared"
 )
 
+// ArchitectureGetLocal returns the local hardware architecture
 func ArchitectureGetLocal() (string, error) {
-	uname := syscall.Utsname{}
-	if err := syscall.Uname(&uname); err != nil {
+	uname, err := shared.Uname()
+	if err != nil {
 		return ArchitectureDefault, err
 	}
 
-	architectureName := ""
-	for _, c := range uname.Machine {
-		if c == 0 {
-			break
-		}
-		architectureName += string(byte(c))
-	}
-
-	return architectureName, nil
+	return uname.Machine, nil
 }
