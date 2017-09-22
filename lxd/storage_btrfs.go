@@ -609,29 +609,35 @@ func (s *storageBtrfs) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageBtrfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
-	logger.Infof(`Updating BTRFS storage volume "%s" on storage pool "%s"`,
-		s.volume.Name, s.pool.Name)
+	logger.Infof(`Updating BTRFS storage volume "%s"`, s.pool.Name)
 
-	if !(shared.StringInSlice("size", changedConfig) && len(changedConfig) == 1) {
-		return fmt.Errorf(`The "%v" properties cannot be changed`,
-			changedConfig)
-	}
-
-	// apply quota
-	if s.volume.Config["size"] != writable.Config["size"] {
-		size, err := shared.ParseByteSizeString(writable.Config["size"])
-		if err != nil {
-			return err
-		}
-
-		err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
-		if err != nil {
-			return err
+	changeable := changeableStoragePoolVolumeProperties["btrfs"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
 		}
 	}
 
-	logger.Infof(`Updated BTRFS storage volume "%s" on storage pool "%s"`,
-		s.volume.Name, s.pool.Name)
+	if len(unchangeable) > 0 {
+		return updateStoragePoolVolumeError(unchangeable, "btrfs")
+	}
+
+	if shared.StringInSlice("size", changedConfig) {
+		if s.volume.Config["size"] != writable.Config["size"] {
+			size, err := shared.ParseByteSizeString(writable.Config["size"])
+			if err != nil {
+				return err
+			}
+
+			err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	logger.Infof(`Updated BTRFS storage volume "%s"`, s.pool.Name)
 	return nil
 }
 
