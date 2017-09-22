@@ -1095,9 +1095,12 @@ func (s *storageCeph) ContainerDelete(container container) error {
 
 	// umount
 	containerPath := container.Path()
-	_, err := s.ContainerUmount(containerName, containerPath)
-	if err != nil {
-		return err
+	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	if shared.PathExists(containerMntPoint) {
+		_, err := s.ContainerUmount(containerName, containerPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	rbdVolumeExists := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
@@ -1115,8 +1118,7 @@ func (s *storageCeph) ContainerDelete(container container) error {
 		}
 	}
 
-	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
-	err = deleteContainerMountpoint(containerMntPoint, containerPath,
+	err := deleteContainerMountpoint(containerMntPoint, containerPath,
 		s.GetStorageTypeName())
 	if err != nil {
 		logger.Errorf(`Failed to delete mountpoint %s for RBD storage `+
