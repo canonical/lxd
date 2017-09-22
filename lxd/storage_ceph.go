@@ -669,22 +669,21 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
-	logger.Infof(`Updating RBD storage volume "%s" on storage pool "%s"`,
-		s.volume.Name, s.pool.Name)
+	logger.Infof(`Updating CEPH storage volume "%s"`, s.pool.Name)
 
-	if !(shared.StringInSlice("block.mount_options", changedConfig) &&
-		len(changedConfig) == 1) &&
-		!(shared.StringInSlice("block.mount_options", changedConfig) &&
-			len(changedConfig) == 2 &&
-			shared.StringInSlice("size", changedConfig)) &&
-		!(shared.StringInSlice("size", changedConfig) &&
-			len(changedConfig) == 1) {
-		return fmt.Errorf("The properties \"%v\" cannot be changed",
-			changedConfig)
+	changeable := changeableStoragePoolVolumeProperties["ceph"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
+	}
+
+	if len(unchangeable) > 0 {
+		return updateStoragePoolVolumeError(unchangeable, "ceph")
 	}
 
 	if shared.StringInSlice("size", changedConfig) {
-		// apply quota
 		if s.volume.Config["size"] != writable.Config["size"] {
 			size, err := shared.ParseByteSizeString(writable.Config["size"])
 			if err != nil {
@@ -698,8 +697,7 @@ func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, ch
 		}
 	}
 
-	logger.Infof(`Updated RBD storage volume "%s" on storage pool "%s"`,
-		s.volume.Name, s.pool.Name)
+	logger.Infof(`Updated CEPH storage volume "%s"`, s.pool.Name)
 	return nil
 }
 
