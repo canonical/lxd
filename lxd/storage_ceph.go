@@ -2206,7 +2206,9 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 		}
 	}()
 
-	prefixedType := fmt.Sprintf("zombie_%s", storagePoolVolumeTypeNameImage)
+	prefixedType := fmt.Sprintf("zombie_%s_%s",
+		storagePoolVolumeTypeNameImage,
+		s.volume.Config["block.filesystem"])
 	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, fingerprint,
 		prefixedType, s.UserName)
 	if !ok {
@@ -2402,7 +2404,8 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 
 		// unmark deleted
 		err := cephRBDVolumeUnmarkDeleted(s.ClusterName, s.OSDPoolName,
-			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
+			fingerprint, storagePoolVolumeTypeNameImage, s.UserName,
+			s.volume.Config["block.filesystem"], "")
 		if err != nil {
 			logger.Errorf(`Failed to unmark RBD storage volume `+
 				`for image "%s" on storage pool "%s" as
@@ -2419,7 +2422,8 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 
 			err := cephRBDVolumeMarkDeleted(s.ClusterName,
 				s.OSDPoolName, storagePoolVolumeTypeNameImage,
-				fingerprint, fingerprint, s.UserName)
+				fingerprint, fingerprint, s.UserName,
+				s.volume.Config["block.filesystem"])
 			if err != nil {
 				logger.Warnf(`Failed to mark RBD storage `+
 					`volume for image "%s" on storage `+
@@ -2537,7 +2541,8 @@ func (s *storageCeph) ImageDelete(fingerprint string) error {
 		// mark deleted
 		err := cephRBDVolumeMarkDeleted(s.ClusterName, s.OSDPoolName,
 			storagePoolVolumeTypeNameImage, fingerprint,
-			fingerprint, s.UserName)
+			fingerprint, s.UserName,
+			s.volume.Config["block.filesystem"])
 		if err != nil {
 			logger.Errorf(`Failed to mark RBD storage volume for `+
 				`image "%s" on storage pool "%s" as zombie: %s`,

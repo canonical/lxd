@@ -396,14 +396,19 @@ func cephRBDSnapshotListClones(clusterName string, poolName string,
 // image still has dependent container clones.
 func cephRBDVolumeMarkDeleted(clusterName string, poolName string,
 	volumeType string, oldVolumeName string, newVolumeName string,
-	userName string) error {
+	userName string, suffix string) error {
+	deletedName := fmt.Sprintf("%s/zombie_%s_%s", poolName, volumeType,
+		newVolumeName)
+	if suffix != "" {
+		deletedName = fmt.Sprintf("%s_%s", deletedName, suffix)
+	}
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", userName,
 		"--cluster", clusterName,
 		"mv",
 		fmt.Sprintf("%s/%s_%s", poolName, volumeType, oldVolumeName),
-		fmt.Sprintf("%s/zombie_%s_%s", poolName, volumeType, newVolumeName))
+		deletedName)
 	if err != nil {
 		return err
 	}
@@ -422,14 +427,25 @@ func cephRBDVolumeMarkDeleted(clusterName string, poolName string,
 //   the pool but is marked as "zombie" it will unmark it as a zombie instead of
 //   creating another storage volume for the image.
 func cephRBDVolumeUnmarkDeleted(clusterName string, poolName string,
-	volumeName string, volumeType string, userName string) error {
+	volumeName string, volumeType string, userName string, oldSuffix string,
+	newSuffix string) error {
+	oldName := fmt.Sprintf("%s/zombie_%s_%s", poolName, volumeType, volumeName)
+	if oldSuffix != "" {
+		oldName = fmt.Sprintf("%s_%s", oldName, oldSuffix)
+	}
+
+	newName := fmt.Sprintf("%s/%s_%s", poolName, volumeType, volumeName)
+	if newSuffix != "" {
+		newName = fmt.Sprintf("%s_%s", newName, newSuffix)
+	}
+
 	_, err := shared.RunCommand(
 		"rbd",
 		"--id", userName,
 		"--cluster", clusterName,
 		"mv",
-		fmt.Sprintf("%s/zombie_%s_%s", poolName, volumeType, volumeName),
-		fmt.Sprintf("%s/%s_%s", poolName, volumeType, volumeName))
+		oldName,
+		newName)
 	if err != nil {
 		return err
 	}
@@ -985,7 +1001,8 @@ func cephContainerDelete(clusterName string, poolName string, volumeName string,
 			newVolumeName := fmt.Sprintf("%s_%s", volumeName,
 				uuid.NewRandom().String())
 			err := cephRBDVolumeMarkDeleted(clusterName, poolName,
-				volumeType, volumeName, newVolumeName, userName)
+				volumeType, volumeName, newVolumeName, userName,
+				"")
 			if err != nil {
 				logger.Errorf(`Failed to mark RBD storage `+
 					`volume "%s" as zombie: %s`, logEntry,
