@@ -683,26 +683,18 @@ func (s *storageLvm) GetContainerPoolInfo() (int64, string) {
 }
 
 func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	logger.Infof("Updating LVM storage pool \"%s\".", s.pool.Name)
+	logger.Infof(`Updating LVM storage pool "%s"`, s.pool.Name)
 
-	if shared.StringInSlice("size", changedConfig) {
-		return fmt.Errorf("the \"size\" property cannot be changed")
+	changeable := changeableStoragePoolProperties["lvm"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
 	}
 
-	if shared.StringInSlice("source", changedConfig) {
-		return fmt.Errorf("the \"source\" property cannot be changed")
-	}
-
-	if shared.StringInSlice("volume.zfs.use_refquota", changedConfig) {
-		return fmt.Errorf("the \"volume.zfs.use_refquota\" property does not apply to LVM drivers")
-	}
-
-	if shared.StringInSlice("volume.zfs.remove_snapshots", changedConfig) {
-		return fmt.Errorf("the \"volume.zfs.remove_snapshots\" property does not apply to LVM drivers")
-	}
-
-	if shared.StringInSlice("zfs.pool_name", changedConfig) {
-		return fmt.Errorf("the \"zfs.pool_name\" property does not apply to LVM drivers")
+	if len(unchangeable) > 0 {
+		return updateStoragePoolError(unchangeable, "lvm")
 	}
 
 	// "volume.block.mount_options" requires no on-disk modifications.
@@ -710,23 +702,20 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 	// "volume.size" requires no on-disk modifications.
 	// "rsync.bwlimit" requires no on-disk modifications.
 
-	// Given a set of changeable pool properties the change should be
-	// "transactional": either the whole update succeeds or none. So try to
-	// revert on error.
 	revert := true
-	if shared.StringInSlice("lvm.use_thinpool", changedConfig) {
-		return fmt.Errorf("the \"lvm.use_thinpool\" property cannot be changed")
-	}
 
 	if shared.StringInSlice("lvm.thinpool_name", changedConfig) {
 		if !s.useThinpool {
-			return fmt.Errorf("the LVM storage pool \"%s\" does not use thin pools. The \"lvm.thinpool_name\" porperty cannot be set", s.pool.Name)
+			return fmt.Errorf(`The LVM storage pool "%s" does `+
+				`not use thin pools. The "lvm.thinpool_name" `+
+				`property cannot be set`, s.pool.Name)
 		}
 
 		newThinpoolName := writable.Config["lvm.thinpool_name"]
 		// Paranoia check
 		if newThinpoolName == "" {
-			return fmt.Errorf("could not rename volume group: No new name provided")
+			return fmt.Errorf(`Could not rename volume group: No ` +
+				`new name provided`)
 		}
 
 		poolName := s.getOnDiskPoolName()
@@ -747,10 +736,10 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 
 			err = lvmLVRename(poolName, newThinpoolName, oldThinpoolName)
 			if err != nil {
-				logger.Warnf("Failed to rename LVM thinpool from \"%s\" to \"%s\": %s. Manual intervention needed.",
-					newThinpoolName,
-					oldThinpoolName,
-					err)
+				logger.Warnf(`Failed to rename LVM thinpool `+
+					`from "%s" to "%s": %s. Manual `+
+					`intervention needed`, newThinpoolName,
+					oldThinpoolName, err)
 			}
 			s.setLvmThinpoolName(oldThinpoolName)
 		}()
@@ -760,7 +749,8 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 		newName := writable.Config["lvm.vg_name"]
 		// Paranoia check
 		if newName == "" {
-			return fmt.Errorf("could not rename volume group: No new name provided")
+			return fmt.Errorf(`Could not rename volume group: No ` +
+				`new name provided`)
 		}
 		writable.Config["source"] = newName
 
@@ -781,8 +771,9 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 
 			err := lvmVGRename(newName, oldPoolName)
 			if err != nil {
-				logger.Warnf("Failed to rename LVM volume group from \"%s\" to \"%s\": %s. Manual intervention needed.",
-					newName,
+				logger.Warnf(`Failed to rename LVM volume `+
+					`group from "%s" to "%s": %s. Manual `+
+					`intervention needed`, newName,
 					oldPoolName)
 			}
 			s.setOnDiskPoolName(oldPoolName)
@@ -792,7 +783,7 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 	// Update succeeded.
 	revert = false
 
-	logger.Infof("Updated LVM storage pool \"%s\".", s.pool.Name)
+	logger.Infof(`Updated LVM storage pool "%s"`, s.pool.Name)
 	return nil
 }
 

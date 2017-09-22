@@ -338,7 +338,7 @@ func (suite *cmdInitTestSuite) TestCmdInit_StoragePoolPreseedUpdate() {
 `)
 
 	err = suite.command.Run()
-	suite.Req.Equal("storage property cannot be changed", err.Error())
+	suite.Req.Error(err)
 }
 
 // It's possible to configure a network bridge interactively.
