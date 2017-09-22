@@ -704,7 +704,27 @@ func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, ch
 }
 
 func (s *storageCeph) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	return fmt.Errorf("ODS storage pool properties cannot be changed")
+	logger.Infof(`Updating CEPH storage pool "%s"`, s.pool.Name)
+
+	changeable := changeableStoragePoolProperties["ceph"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
+	}
+
+	if len(unchangeable) > 0 {
+		return updateStoragePoolError(unchangeable, "ceph")
+	}
+
+	// "rsync.bwlimit" requires no on-disk modifications.
+	// "volume.block.filesystem" requires no on-disk modifications.
+	// "volume.block.mount_options" requires no on-disk modifications.
+	// "volume.size" requires no on-disk modifications.
+
+	logger.Infof(`Updated CEPH storage pool "%s"`, s.pool.Name)
+	return nil
 }
 
 func (s *storageCeph) ContainerStorageReady(name string) bool {

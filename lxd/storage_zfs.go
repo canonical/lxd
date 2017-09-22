@@ -543,43 +543,25 @@ func (s *storageZfs) GetContainerPoolInfo() (int64, string) {
 }
 
 func (s *storageZfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	logger.Infof("Updating ZFS storage pool \"%s\".", s.pool.Name)
+	logger.Infof(`Updating ZFS storage pool "%s"`, s.pool.Name)
 
-	if shared.StringInSlice("size", changedConfig) {
-		return fmt.Errorf("the \"size\" property cannot be changed")
+	changeable := changeableStoragePoolProperties["zfs"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
 	}
 
-	if shared.StringInSlice("source", changedConfig) {
-		return fmt.Errorf("the \"source\" property cannot be changed")
-	}
-
-	if shared.StringInSlice("volume.size", changedConfig) {
-		return fmt.Errorf("the \"volume.size\" property cannot be changed")
-	}
-
-	if shared.StringInSlice("volume.block.mount_options", changedConfig) {
-		return fmt.Errorf("the \"volume.block.mount_options\" property cannot be changed")
-	}
-
-	if shared.StringInSlice("volume.block.filesystem", changedConfig) {
-		return fmt.Errorf("the \"volume.block.filesystem\" property cannot be changed")
-	}
-
-	if shared.StringInSlice("lvm.thinpool_name", changedConfig) {
-		return fmt.Errorf("the \"lvm.thinpool_name\" property cannot be changed")
-	}
-
-	if shared.StringInSlice("lvm.vg_name", changedConfig) {
-		return fmt.Errorf("the \"lvm.vg_name\" property cannot be changed")
-	}
-
-	if shared.StringInSlice("zfs.pool_name", changedConfig) {
-		return fmt.Errorf("the \"zfs.pool_name\" property cannot be changed")
+	if len(unchangeable) > 0 {
+		return updateStoragePoolError(unchangeable, "zfs")
 	}
 
 	// "rsync.bwlimit" requires no on-disk modifications.
+	// "volume.zfs.remove_snapshots" requires no on-disk modifications.
+	// "volume.zfs.use_refquota" requires no on-disk modifications.
 
-	logger.Infof("Updated ZFS storage pool \"%s\".", s.pool.Name)
+	logger.Infof(`Updated ZFS storage pool "%s"`, s.pool.Name)
 	return nil
 }
 

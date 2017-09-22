@@ -466,10 +466,23 @@ func (s *storageBtrfs) StoragePoolUmount() (bool, error) {
 	return true, nil
 }
 
-func (s *storageBtrfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	logger.Infof("Updating BTRFS storage pool \"%s\".", s.pool.Name)
+func (s *storageBtrfs) StoragePoolUpdate(writable *api.StoragePoolPut,
+	changedConfig []string) error {
+	logger.Infof(`Updating BTRFS storage pool "%s"`, s.pool.Name)
 
-	// rsync.bwlimit does not require any on-disk changes
+	changeable := changeableStoragePoolProperties["btrfs"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
+	}
+
+	if len(unchangeable) > 0 {
+		return updateStoragePoolError(unchangeable, "btrfs")
+	}
+
+	// "rsync.bwlimit" requires no on-disk modifications.
 
 	if shared.StringInSlice("btrfs.mount_options", changedConfig) {
 		s.setBtrfsMountOptions(writable.Config["btrfs.mount_options"])
@@ -480,7 +493,7 @@ func (s *storageBtrfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedCo
 		}
 	}
 
-	logger.Infof("Updated BTRFS storage pool \"%s\".", s.pool.Name)
+	logger.Infof(`Updated BTRFS storage pool "%s"`, s.pool.Name)
 	return nil
 }
 
