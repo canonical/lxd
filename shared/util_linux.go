@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -806,13 +807,29 @@ func Uname() (*Utsname, error) {
 	}, nil
 }
 
-func intArrayToString(arr [65]int8) string {
+func intArrayToString(arr interface{}) string {
+	slice := reflect.ValueOf(arr)
 	s := ""
-	for _, c := range arr {
-		if c == 0 {
+	for i := 0; i < slice.Len(); i++ {
+		val := slice.Index(i)
+		valInt := int64(-1)
+
+		switch val.Kind() {
+		case reflect.Int:
+		case reflect.Int8:
+			valInt = int64(val.Int())
+		case reflect.Uint:
+		case reflect.Uint8:
+			valInt = int64(val.Uint())
+		default:
+			continue
+		}
+
+		if valInt == 0 {
 			break
 		}
-		s += string(byte(c))
+
+		s += string(byte(valInt))
 	}
 
 	return s
