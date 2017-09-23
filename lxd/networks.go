@@ -779,12 +779,10 @@ func (n *network) Start() error {
 
 	if !debug {
 		// --quiet options are only supported on >2.67
-		v, err := networkGetDnsmasqVersion()
-		if err != nil {
-			return err
-		}
 		minVer, _ := version.NewDottedVersion("2.67")
-		if v.Compare(minVer) > 0 {
+
+		v, err := networkGetDnsmasqVersion()
+		if err == nil && v.Compare(minVer) > 0 {
 			dnsmasqCmd = append(dnsmasqCmd, []string{"--quiet-dhcp", "--quiet-dhcp6", "--quiet-ra"}...)
 		}
 	}
