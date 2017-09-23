@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -729,11 +730,13 @@ func networkKillDnsmasq(name string, reload bool) error {
 }
 
 func networkGetDnsmasqVersion() (*version.DottedVersion, error) {
-	output, err := shared.TryRunCommand("dnsmasq", "--version")
+	// Discard stderr on purpose (occasional linker errors)
+	output, err := exec.Command("dnsmasq", "--version").Output()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to check dnsmasq version")
+		return nil, fmt.Errorf("Failed to check dnsmasq version: %v", err)
 	}
-	lines := strings.Split(output, " ")
+
+	lines := strings.Split(string(output), " ")
 	return version.NewDottedVersion(lines[2])
 }
 
