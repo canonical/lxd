@@ -539,6 +539,21 @@ func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) erro
 
 		var imgerr error
 		ok, _ := storageLVExists(imageLvmDevPath)
+		if ok {
+			_, volume, err := db.StoragePoolVolumeGetType(s.s.DB, fp, db.StoragePoolVolumeTypeImage, s.poolID)
+			if err != nil {
+				return err
+			}
+			if volume.Config["block.filesystem"] != s.getLvmFilesystem() {
+				// The storage pool volume.blockfilesystem property has changed, re-import the image
+				err := s.ImageDelete(fp)
+				if err != nil {
+					return err
+				}
+				ok = false
+			}
+		}
+
 		if !ok {
 			imgerr = s.ImageCreate(fp)
 		}

@@ -287,11 +287,24 @@ func (s *storageDir) GetContainerPoolInfo() (int64, string) {
 }
 
 func (s *storageDir) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	if shared.StringInSlice("rsync.bwlimit", changedConfig) {
-		return nil
+	logger.Infof(`Updating DIR storage pool "%s"`, s.pool.Name)
+
+	changeable := changeableStoragePoolProperties["dir"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
 	}
 
-	return fmt.Errorf("storage property cannot be changed")
+	if len(unchangeable) > 0 {
+		return updateStoragePoolError(unchangeable, "dir")
+	}
+
+	// "rsync.bwlimit" requires no on-disk modifications.
+
+	logger.Infof(`Updated DIR storage pool "%s"`, s.pool.Name)
+	return nil
 }
 
 // Functions dealing with storage pools.
@@ -355,7 +368,22 @@ func (s *storageDir) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
-	return fmt.Errorf("dir storage properties cannot be changed")
+	logger.Infof(`Updating DIR storage volume "%s"`, s.pool.Name)
+
+	changeable := changeableStoragePoolVolumeProperties["dir"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
+	}
+
+	if len(unchangeable) > 0 {
+		return updateStoragePoolVolumeError(unchangeable, "dir")
+	}
+
+	logger.Infof(`Updated DIR storage volume "%s"`, s.pool.Name)
+	return nil
 }
 
 func (s *storageDir) ContainerStorageReady(name string) bool {

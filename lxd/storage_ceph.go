@@ -669,22 +669,21 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
-	logger.Infof(`Updating RBD storage volume "%s" on storage pool "%s"`,
-		s.volume.Name, s.pool.Name)
+	logger.Infof(`Updating CEPH storage volume "%s"`, s.pool.Name)
 
-	if !(shared.StringInSlice("block.mount_options", changedConfig) &&
-		len(changedConfig) == 1) &&
-		!(shared.StringInSlice("block.mount_options", changedConfig) &&
-			len(changedConfig) == 2 &&
-			shared.StringInSlice("size", changedConfig)) &&
-		!(shared.StringInSlice("size", changedConfig) &&
-			len(changedConfig) == 1) {
-		return fmt.Errorf("The properties \"%v\" cannot be changed",
-			changedConfig)
+	changeable := changeableStoragePoolVolumeProperties["ceph"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
+	}
+
+	if len(unchangeable) > 0 {
+		return updateStoragePoolVolumeError(unchangeable, "ceph")
 	}
 
 	if shared.StringInSlice("size", changedConfig) {
-		// apply quota
 		if s.volume.Config["size"] != writable.Config["size"] {
 			size, err := shared.ParseByteSizeString(writable.Config["size"])
 			if err != nil {
@@ -698,13 +697,32 @@ func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, ch
 		}
 	}
 
-	logger.Infof(`Updated RBD storage volume "%s" on storage pool "%s"`,
-		s.volume.Name, s.pool.Name)
+	logger.Infof(`Updated CEPH storage volume "%s"`, s.pool.Name)
 	return nil
 }
 
 func (s *storageCeph) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
-	return fmt.Errorf("ODS storage pool properties cannot be changed")
+	logger.Infof(`Updating CEPH storage pool "%s"`, s.pool.Name)
+
+	changeable := changeableStoragePoolProperties["ceph"]
+	unchangeable := []string{}
+	for _, change := range changedConfig {
+		if !shared.StringInSlice(change, changeable) {
+			unchangeable = append(unchangeable, change)
+		}
+	}
+
+	if len(unchangeable) > 0 {
+		return updateStoragePoolError(unchangeable, "ceph")
+	}
+
+	// "rsync.bwlimit" requires no on-disk modifications.
+	// "volume.block.filesystem" requires no on-disk modifications.
+	// "volume.block.mount_options" requires no on-disk modifications.
+	// "volume.size" requires no on-disk modifications.
+
+	logger.Infof(`Updated CEPH storage pool "%s"`, s.pool.Name)
+	return nil
 }
 
 func (s *storageCeph) ContainerStorageReady(name string) bool {
@@ -887,8 +905,25 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		lxdStorageMapLock.Unlock()
 
 		var imgerr error
-		if !cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
-			fingerprint, storagePoolVolumeTypeNameImage, s.UserName) {
+		ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
+			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
+
+		if ok {
+			_, volume, err := db.StoragePoolVolumeGetType(s.s.DB, fingerprint, db.StoragePoolVolumeTypeImage, s.poolID)
+			if err != nil {
+				return err
+			}
+			if volume.Config["block.filesystem"] != s.getRBDFilesystem() {
+				// The storage pool volume.blockfilesystem property has changed, re-import the image
+				err := s.ImageDelete(fingerprint)
+				if err != nil {
+					return err
+				}
+				ok = false
+			}
+		}
+
+		if !ok {
 			imgerr = s.ImageCreate(fingerprint)
 		}
 
@@ -1060,9 +1095,12 @@ func (s *storageCeph) ContainerDelete(container container) error {
 
 	// umount
 	containerPath := container.Path()
-	_, err := s.ContainerUmount(containerName, containerPath)
-	if err != nil {
-		return err
+	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	if shared.PathExists(containerMntPoint) {
+		_, err := s.ContainerUmount(containerName, containerPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	rbdVolumeExists := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
@@ -1080,8 +1118,7 @@ func (s *storageCeph) ContainerDelete(container container) error {
 		}
 	}
 
-	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
-	err = deleteContainerMountpoint(containerMntPoint, containerPath,
+	err := deleteContainerMountpoint(containerMntPoint, containerPath,
 		s.GetStorageTypeName())
 	if err != nil {
 		logger.Errorf(`Failed to delete mountpoint %s for RBD storage `+
@@ -2171,7 +2208,9 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 		}
 	}()
 
-	prefixedType := fmt.Sprintf("zombie_%s", storagePoolVolumeTypeNameImage)
+	prefixedType := fmt.Sprintf("zombie_%s_%s",
+		storagePoolVolumeTypeNameImage,
+		s.volume.Config["block.filesystem"])
 	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, fingerprint,
 		prefixedType, s.UserName)
 	if !ok {
@@ -2367,7 +2406,8 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 
 		// unmark deleted
 		err := cephRBDVolumeUnmarkDeleted(s.ClusterName, s.OSDPoolName,
-			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
+			fingerprint, storagePoolVolumeTypeNameImage, s.UserName,
+			s.volume.Config["block.filesystem"], "")
 		if err != nil {
 			logger.Errorf(`Failed to unmark RBD storage volume `+
 				`for image "%s" on storage pool "%s" as
@@ -2384,7 +2424,8 @@ func (s *storageCeph) ImageCreate(fingerprint string) error {
 
 			err := cephRBDVolumeMarkDeleted(s.ClusterName,
 				s.OSDPoolName, storagePoolVolumeTypeNameImage,
-				fingerprint, fingerprint, s.UserName)
+				fingerprint, fingerprint, s.UserName,
+				s.volume.Config["block.filesystem"])
 			if err != nil {
 				logger.Warnf(`Failed to mark RBD storage `+
 					`volume for image "%s" on storage `+
@@ -2502,7 +2543,8 @@ func (s *storageCeph) ImageDelete(fingerprint string) error {
 		// mark deleted
 		err := cephRBDVolumeMarkDeleted(s.ClusterName, s.OSDPoolName,
 			storagePoolVolumeTypeNameImage, fingerprint,
-			fingerprint, s.UserName)
+			fingerprint, s.UserName,
+			s.volume.Config["block.filesystem"])
 		if err != nil {
 			logger.Errorf(`Failed to mark RBD storage volume for `+
 				`image "%s" on storage pool "%s" as zombie: %s`,
