@@ -373,6 +373,10 @@ test_storage() {
       lxc launch testimage c12pool15 -s "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
       lxc list -c b c12pool15 | grep "lxdtest-$(basename "${LXD_DIR}")-non-thinpool-pool15"
 
+      # Test that changing block filesystem works
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem xfs
+      lxc init testimage c1pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
+
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice2 /opt
@@ -562,6 +566,7 @@ test_storage() {
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5
 
     if [ "$lxd_backend" = "lvm" ]; then
+      lxc delete -f c1pool6
       lxc delete -f c10pool6
       lxc delete -f c12pool6
 

@@ -8,11 +8,35 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+func updateStoragePoolVolumeError(unchangeable []string, driverName string) error {
+	return fmt.Errorf(`The %v properties cannot be changed for "%s" `+
+		`storage volumes`, unchangeable, driverName)
+}
+
+var changeableStoragePoolVolumeProperties = map[string][]string{
+	"btrfs": {"size"},
+
+	"ceph": {
+		"block.mount_options",
+		"size"},
+
+	"dir": {""},
+
+	"lvm": {
+		"block.mount_options",
+		"size"},
+
+	"zfs": {
+		"size",
+		"zfs.remove_snapshots",
+		"zfs.use_refquota"},
+}
+
 var storageVolumeConfigKeys = map[string]func(value string) error{
-	"block.mount_options": shared.IsAny,
 	"block.filesystem": func(value string) error {
 		return shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
 	},
+	"block.mount_options": shared.IsAny,
 	"size": func(value string) error {
 		if value == "" {
 			return nil
@@ -21,10 +45,10 @@ var storageVolumeConfigKeys = map[string]func(value string) error{
 		_, err := shared.ParseByteSizeString(value)
 		return err
 	},
-	"zfs.use_refquota":     shared.IsBool,
-	"zfs.remove_snapshots": shared.IsBool,
 	"volatile.idmap.last":  shared.IsAny,
 	"volatile.idmap.next":  shared.IsAny,
+	"zfs.remove_snapshots": shared.IsBool,
+	"zfs.use_refquota":     shared.IsBool,
 }
 
 func storageVolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {

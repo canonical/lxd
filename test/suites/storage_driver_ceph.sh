@@ -55,6 +55,12 @@ test_storage_driver_ceph() {
     lxc launch testimage c4pool2 -s "lxdtest-$(basename "${LXD_DIR}")-pool2"
     lxc list -c b c4pool2 | grep "lxdtest-$(basename "${LXD_DIR}")-pool2"
 
+    lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool1" volume.block.filesystem xfs
+    # xfs is unhappy with block devices < 50 MB. It seems to calculate the
+    # ag{count,size} parameters wrong and/or sets the data area too big.
+    lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool1" volume.size 50MB
+    lxc init testimage c5pool1 -s "lxdtest-$(basename "${LXD_DIR}")-pool1"
+
     # Test whether dependency tracking is working correctly. We should be able
     # to create a container, copy it, which leads to a dependency relation
     # between the source container's storage volume and the copied container's
@@ -107,6 +113,7 @@ test_storage_driver_ceph() {
 
     lxc delete -f c1pool1
     lxc delete -f c3pool1
+    lxc delete -f c5pool1
 
     lxc delete -f c4pool2
     lxc delete -f c2pool2
