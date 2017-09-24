@@ -1409,7 +1409,8 @@ func (s *storageLvm) ContainerSnapshotRename(snapshotContainer container, newCon
 }
 
 func (s *storageLvm) ContainerSnapshotStart(container container) (bool, error) {
-	logger.Debugf("Initializing LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf(`Initializing LVM storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, s.volume.Name, s.pool.Name)
 
 	poolName := s.getOnDiskPoolName()
 	containerName := container.Name()
@@ -1432,14 +1433,28 @@ func (s *storageLvm) ContainerSnapshotStart(container container) (bool, error) {
 	lvFsType := s.getLvmFilesystem()
 	containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
 	if !shared.IsMountPoint(containerMntPoint) {
-		mountFlags, mountOptions := lxdResolveMountoptions(s.getLvmMountOptions())
+		mntOptString := s.getLvmMountOptions()
+		mountFlags, mountOptions := lxdResolveMountoptions(mntOptString)
+
+		if lvFsType == "xfs" {
+			idx := strings.Index(mountOptions, "nouuid")
+			if idx < 0 {
+				mountOptions += ",nouuid"
+			}
+		}
+
 		err = tryMount(containerLvmPath, containerMntPoint, lvFsType, mountFlags, mountOptions)
 		if err != nil {
-			return false, fmt.Errorf("Error mounting snapshot LV path='%s': %s", containerMntPoint, err)
+			logger.Errorf(`Failed to mount LVM snapshot "%s" with `+
+				`filesystem "%s" options "%s" onto "%s": %s`,
+				s.volume.Name, lvFsType, mntOptString,
+				containerMntPoint, err)
+			return false, err
 		}
 	}
 
-	logger.Debugf("Initialized LVM storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf(`Initialized LVM storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, s.volume.Name, s.pool.Name)
 
 	if wasWritableAtCheck {
 		return false, nil
