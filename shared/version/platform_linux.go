@@ -3,6 +3,8 @@
 package version
 
 import (
+	"strings"
+
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -13,7 +15,7 @@ func getPlatformVersionStrings() []string {
 	// add kernel version
 	uname, err := shared.Uname()
 	if err == nil {
-		versions = append(versions, uname.Release)
+		versions = append(versions, strings.Split(uname.Release, "-")[0])
 	}
 
 	// add distribution info
