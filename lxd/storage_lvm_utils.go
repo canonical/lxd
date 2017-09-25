@@ -172,7 +172,7 @@ func (s *storageLvm) renameLVByPath(oldName string, newName string, volumeType s
 	return lvmLVRename(poolName, oldLvmName, newLvmName)
 }
 
-func (s *storageLvm) removeLV(vgName string, volumeType string, lvName string) error {
+func removeLV(vgName string, volumeType string, lvName string) error {
 	lvmVolumePath := getLvmDevPath(vgName, volumeType, lvName)
 	output, err := shared.TryRunCommand("lvremove", "-f", lvmVolumePath)
 

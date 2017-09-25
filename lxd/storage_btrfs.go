@@ -46,7 +46,7 @@ func (s *storageBtrfs) getContainerSubvolumePath(poolName string) string {
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/snapshots
-func (s *storageBtrfs) getSnapshotSubvolumePath(poolName string, containerName string) string {
+func getSnapshotSubvolumePath(poolName string, containerName string) string {
 	return shared.VarPath("storage-pools", poolName, "snapshots", containerName)
 }
 
@@ -1145,7 +1145,7 @@ func (s *storageBtrfs) ContainerSnapshotCreate(snapshotContainer container, sour
 	// ${LXD_DIR}/storage-pools/<pool>/snapshots/. The btrfs tool will
 	// complain if the intermediate path does not exist, so create it if it
 	// doesn't already.
-	snapshotSubvolumePath := s.getSnapshotSubvolumePath(s.pool.Name, sourceContainer.Name())
+	snapshotSubvolumePath := getSnapshotSubvolumePath(s.pool.Name, sourceContainer.Name())
 	if !shared.PathExists(snapshotSubvolumePath) {
 		err := os.MkdirAll(snapshotSubvolumePath, 0711)
 		if err != nil {
@@ -1173,6 +1173,30 @@ func (s *storageBtrfs) ContainerSnapshotCreate(snapshotContainer container, sour
 	return nil
 }
 
+func btrfsSnapshotDeleteInternal(poolName string, snapshotName string) error {
+	snapshotSubvolumeName := getSnapshotMountPoint(poolName, snapshotName)
+	if shared.PathExists(snapshotSubvolumeName) && isBtrfsSubVolume(snapshotSubvolumeName) {
+		err := btrfsSubVolumesDelete(snapshotSubvolumeName)
+		if err != nil {
+			return err
+		}
+	}
+
+	sourceSnapshotMntPoint := shared.VarPath("snapshots", snapshotName)
+	os.Remove(sourceSnapshotMntPoint)
+	os.Remove(snapshotSubvolumeName)
+
+	sourceName, _, _ := containerGetParentAndSnapshotName(snapshotName)
+	snapshotSubvolumePath := getSnapshotSubvolumePath(poolName, sourceName)
+	os.Remove(snapshotSubvolumePath)
+	if !shared.PathExists(snapshotSubvolumePath) {
+		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
+		os.Remove(snapshotMntPointSymlink)
+	}
+
+	return nil
+}
+
 func (s *storageBtrfs) ContainerSnapshotDelete(snapshotContainer container) error {
 	logger.Debugf("Deleting BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
@@ -1181,24 +1205,9 @@ func (s *storageBtrfs) ContainerSnapshotDelete(snapshotContainer container) erro
 		return err
 	}
 
-	snapshotSubvolumeName := getSnapshotMountPoint(s.pool.Name, snapshotContainer.Name())
-	if shared.PathExists(snapshotSubvolumeName) && isBtrfsSubVolume(snapshotSubvolumeName) {
-		err = btrfsSubVolumesDelete(snapshotSubvolumeName)
-		if err != nil {
-			return err
-		}
-	}
-
-	sourceSnapshotMntPoint := shared.VarPath("snapshots", snapshotContainer.Name())
-	os.Remove(sourceSnapshotMntPoint)
-	os.Remove(snapshotSubvolumeName)
-
-	sourceName, _, _ := containerGetParentAndSnapshotName(snapshotContainer.Name())
-	snapshotSubvolumePath := s.getSnapshotSubvolumePath(s.pool.Name, sourceName)
-	os.Remove(snapshotSubvolumePath)
-	if !shared.PathExists(snapshotSubvolumePath) {
-		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
-		os.Remove(snapshotMntPointSymlink)
+	err = btrfsSnapshotDeleteInternal(s.pool.Name, snapshotContainer.Name())
+	if err != nil {
+		return err
 	}
 
 	logger.Debugf("Deleted BTRFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
@@ -1301,7 +1310,7 @@ func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container)
 
 	// Create the snapshot subvole path on the storage pool.
 	sourceName, _, _ := containerGetParentAndSnapshotName(snapshotContainer.Name())
-	snapshotSubvolumePath := s.getSnapshotSubvolumePath(s.pool.Name, sourceName)
+	snapshotSubvolumePath := getSnapshotSubvolumePath(s.pool.Name, sourceName)
 	snapshotSubvolumeName := getSnapshotMountPoint(s.pool.Name, snapshotContainer.Name())
 	if !shared.PathExists(snapshotSubvolumePath) {
 		err := os.MkdirAll(snapshotSubvolumePath, 0711)

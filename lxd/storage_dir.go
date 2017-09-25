@@ -836,18 +836,8 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	return nil
 }
 
-func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error {
-	logger.Debugf("Deleting DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-
-	source := s.pool.Config["source"]
-	if source == "" {
-		return fmt.Errorf("no \"source\" property found for the storage pool")
-	}
-
-	// Delete the snapshot on its storage pool:
-	// ${POOL}/snapshots/<snapshot_name>
-	snapshotContainerName := snapshotContainer.Name()
-	snapshotContainerMntPoint := getSnapshotMountPoint(s.pool.Name, snapshotContainerName)
+func dirSnapshotDeleteInternal(poolName string, snapshotName string) error {
+	snapshotContainerMntPoint := getSnapshotMountPoint(poolName, snapshotName)
 	if shared.PathExists(snapshotContainerMntPoint) {
 		err := os.RemoveAll(snapshotContainerMntPoint)
 		if err != nil {
@@ -855,15 +845,10 @@ func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error 
 		}
 	}
 
-	// Check if we can remove the snapshot symlink:
-	// ${LXD_DIR}/snapshots/<container_name> -> ${POOL}/snapshots/<container_name>
-	// by checking if the directory is empty.
-	sourceContainerName, _, _ := containerGetParentAndSnapshotName(snapshotContainerName)
-	snapshotContainerPath := getSnapshotMountPoint(s.pool.Name, sourceContainerName)
+	sourceContainerName, _, _ := containerGetParentAndSnapshotName(snapshotName)
+	snapshotContainerPath := getSnapshotMountPoint(poolName, sourceContainerName)
 	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
 	if empty == true {
-		// Remove the snapshot directory for the container:
-		// ${POOL}/snapshots/<source_container_name>
 		err := os.Remove(snapshotContainerPath)
 		if err != nil {
 			return err
@@ -876,6 +861,23 @@ func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error 
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error {
+	logger.Debugf("Deleting DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	snapshotContainerName := snapshotContainer.Name()
+	err := dirSnapshotDeleteInternal(s.pool.Name, snapshotContainerName)
+	if err != nil {
+		return err
 	}
 
 	logger.Debugf("Deleted DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
