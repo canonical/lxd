@@ -57,20 +57,7 @@ func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntP
 			`volume type %d`, volumeType)
 	}
 
-	switch fsType {
-	case "xfs":
-		msg, err = shared.TryRunCommand("xfs_growfs", fsMntPoint)
-	default:
-		// default = ext4
-		msg, err = shared.TryRunCommand("resize2fs", lvPath)
-	}
-	if err != nil {
-		logger.Errorf("could not extend underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
-		return fmt.Errorf("could not extend underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
-	}
-
-	logger.Debugf("extended underlying %s filesystem for LV \"%s\"", fsType, lvPath)
-	return nil
+	return growFileSystem(fsType, fsMntPoint, lvPath)
 }
 
 func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {

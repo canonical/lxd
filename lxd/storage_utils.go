@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Options for filesystem creation
@@ -223,4 +224,28 @@ func xfsGenerateNewUUID(lvpath string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func growFileSystem(fsType string, devPath string, mntpoint string) error {
+	var msg string
+	var err error
+	switch fsType {
+	case "": // if not specified, default to ext4
+		fallthrough
+	case "ext4":
+		msg, err = shared.TryRunCommand("resize2fs", mntpoint)
+	case "xfs":
+		msg, err = shared.TryRunCommand("xfs_growfs", devPath)
+	default:
+		return fmt.Errorf(`Unsupported filesystem type "%s"`, fsType)
+	}
+
+	if err != nil {
+		errorMsg := fmt.Sprintf(`Could not extend underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
+		logger.Errorf(errorMsg)
+		return fmt.Errorf(errorMsg)
+	}
+
+	logger.Debugf(`extended underlying %s filesystem for "%s"`, fsType, devPath)
+	return nil
 }
