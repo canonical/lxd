@@ -761,10 +761,11 @@ func (s *btrfsMigrationSourceDriver) Snapshots() []container {
 }
 
 func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string, btrfsParent string) error {
-	args := []string{"send", btrfsPath}
+	args := []string{"send"}
 	if btrfsParent != "" {
 		args = append(args, "-p", btrfsParent)
 	}
+	args = append(args, btrfsPath)
 
 	cmd := exec.Command("btrfs", args...)
 
