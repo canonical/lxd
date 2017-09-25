@@ -1556,44 +1556,24 @@ func (s *storageCeph) rbdShrink(path string, size int64, fsType string,
 			`less than 1MB`)
 	}
 
-	volumeTypeName := ""
-	switch fsType {
-	case "xfs":
-		logger.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
-		return fmt.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
-	default:
-		// default = ext4
-		switch volumeType {
-		case storagePoolVolumeTypeContainer:
-			c := data.(container)
-			ourMount, err := c.StorageStop()
-			if err != nil {
-				return err
-			}
-			if !ourMount {
-				defer c.StorageStart()
-			}
-			volumeTypeName = storagePoolVolumeTypeNameContainer
-		case storagePoolVolumeTypeCustom:
-			ourMount, err := s.StoragePoolVolumeUmount()
-			if err != nil {
-				return err
-			}
-			if !ourMount {
-				defer s.StoragePoolVolumeMount()
-			}
-			volumeTypeName = storagePoolVolumeTypeNameCustom
-		default:
-			return fmt.Errorf(`Resizing not implemented for `+
-				`storage volume type %d`, volumeType)
-		}
+	cleanupFunc, err := shrinkVolumeFilesystem(s, volumeType, fsType, path, size, data)
+	if cleanupFunc != nil {
+		defer cleanupFunc()
 	}
-
-	err = shrinkFileSystem(fsType, path, size)
 	if err != nil {
 		return err
 	}
 
+	volumeTypeName := ""
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		volumeTypeName = storagePoolVolumeTypeNameContainer
+	case storagePoolVolumeTypeCustom:
+		volumeTypeName = storagePoolVolumeTypeNameCustom
+	default:
+		return fmt.Errorf(`Resizing not implemented for `+
+			`storage volume type %d`, volumeType)
+	}
 	msg, err = shared.TryRunCommand(
 		"rbd",
 		"resize",
