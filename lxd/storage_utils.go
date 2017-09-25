@@ -237,7 +237,7 @@ func growFileSystem(fsType string, devPath string, mntpoint string) error {
 	case "xfs":
 		msg, err = shared.TryRunCommand("xfs_growfs", devPath)
 	default:
-		return fmt.Errorf(`Unsupported filesystem type "%s"`, fsType)
+		return fmt.Errorf(`Growing not supported for filesystem type "%s"`, fsType)
 	}
 
 	if err != nil {
@@ -247,5 +247,31 @@ func growFileSystem(fsType string, devPath string, mntpoint string) error {
 	}
 
 	logger.Debugf(`extended underlying %s filesystem for "%s"`, fsType, devPath)
+	return nil
+}
+
+func shrinkFileSystem(fsType string, devPath string, byteSize int64) error {
+	var msg string
+	var err error
+	switch fsType {
+	case "": // if not specified, default to ext4
+		fallthrough
+	case "ext4":
+		msg, err = shared.TryRunCommand("e2fsck", "-f", "-y", devPath)
+		if err != nil {
+			return err
+		}
+		kbSize := byteSize / 1024
+		msg, err = shared.TryRunCommand("resize2fs", devPath, fmt.Sprintf("%dK", kbSize))
+
+	default:
+		return fmt.Errorf(`Shrinking not supported for filesystem type "%s"`, fsType)
+	}
+
+	if err != nil {
+		errorMsg := fmt.Sprintf(`Could not reduce underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
+		logger.Errorf(errorMsg)
+		return fmt.Errorf(errorMsg)
+	}
 	return nil
 }
