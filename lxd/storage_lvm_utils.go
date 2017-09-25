@@ -101,21 +101,11 @@ func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntP
 				`storage volume type %d`, volumeType)
 		}
 
-		msg, err = shared.TryRunCommand("e2fsck", "-f", "-y", lvPath)
-		if err != nil {
-			return err
-		}
+	}
 
-		// don't assume resize2fs semantics are sane (because they
-		// aren't)
-		kbSize := lvSize / 1024
-		ext4LvSizeString := strconv.FormatInt(kbSize, 10)
-		ext4LvSizeString += "K"
-		msg, err = shared.TryRunCommand("resize2fs", lvPath, ext4LvSizeString)
-		if err != nil {
-			logger.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
-			return fmt.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
-		}
+	err = shrinkFileSystem(fsType, lvPath, lvSize)
+	if err != nil {
+		return err
 	}
 
 	msg, err = shared.TryRunCommand(
