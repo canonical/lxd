@@ -1832,8 +1832,6 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 
 		migrationSendSnapshot := fmt.Sprintf("%s/.migration-send", tmpContainerMntPoint)
 		snapshotMntPoint := getSnapshotMountPoint(containerPool, containerName)
-		if s.container.IsSnapshot() {
-		}
 		err = s.btrfs.btrfsPoolVolumesSnapshot(snapshotMntPoint, migrationSendSnapshot, true)
 		if err != nil {
 			return err
@@ -1888,14 +1886,17 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 }
 
 func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
-	tmpPath := containerPath(fmt.Sprintf("%s/.migration-send", s.container.Name()), true)
+	tmpPath := getSnapshotMountPoint(s.btrfs.pool.Name,
+		fmt.Sprintf("%s/.migration-send", s.container.Name()))
 	err := os.MkdirAll(tmpPath, 0700)
 	if err != nil {
 		return err
 	}
 
 	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
-	err = s.btrfs.btrfsPoolVolumesSnapshot(s.container.Path(), s.stoppedSnapName, true)
+	parentName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
+	containerMntPt := getContainerMountPoint(s.btrfs.pool.Name, parentName)
+	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPt, s.stoppedSnapName, true)
 	if err != nil {
 		return err
 	}
@@ -1956,7 +1957,7 @@ func (s *storageBtrfs) MigrationSource(c container, containerOnly bool) (Migrati
 
 	if !containerOnly {
 		for _, snap := range snapshots {
-			btrfsPath := snap.Path()
+			btrfsPath := getSnapshotMountPoint(s.pool.Name, snap.Name())
 			driver.btrfsSnapshotNames = append(driver.btrfsSnapshotNames, btrfsPath)
 		}
 	}
