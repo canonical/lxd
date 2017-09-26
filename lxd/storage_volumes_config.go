@@ -13,6 +13,11 @@ func updateStoragePoolVolumeError(unchangeable []string, driverName string) erro
 		`storage volumes`, unchangeable, driverName)
 }
 
+// For storage volumes of type storagePoolVolumeTypeContainer We only allow to
+// change properties directly on the storage volume if there's not
+// corresponding way to change it by other means. A good example is the "size"
+// property which can be manipulated by setting a root disk device "size"
+// property.
 var changeableStoragePoolVolumeProperties = map[string][]string{
 	"btrfs": {"size"},
 

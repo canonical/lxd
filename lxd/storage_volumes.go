@@ -164,7 +164,6 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 	// volume is supposed to be created.
 	poolName := mux.Vars(r)["name"]
 
-
 	// We currently only allow to create storage volumes of type
 	// storagePoolVolumeTypeCustom. So check, that nothing else was
 	// requested.
