@@ -3,7 +3,6 @@ package main
 import (
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -50,7 +49,7 @@ type lxdTestSuite struct {
 	tmpdir string
 }
 
-func (suite *lxdTestSuite) SetupSuite() {
+func (suite *lxdTestSuite) SetupTest() {
 	tmpdir, err := ioutil.TempDir("", "lxd_testrun_")
 	if err != nil {
 		os.Exit(1)
@@ -66,24 +65,15 @@ func (suite *lxdTestSuite) SetupSuite() {
 		os.Exit(1)
 	}
 	suite.Req = require.New(suite.T())
-}
 
-func (suite *lxdTestSuite) TearDownSuite() {
-	suite.d.Stop()
-
-	err := os.RemoveAll(suite.tmpdir)
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
-func (suite *lxdTestSuite) SetupTest() {
-	initializeDbObject(suite.d)
 	daemonConfigInit(suite.d.db.DB())
 	suite.Req = require.New(suite.T())
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
-	suite.d.db.Close()
-	os.Remove(filepath.Join(suite.d.os.VarDir, "lxd.db"))
+	suite.d.Stop()
+	err := os.RemoveAll(suite.tmpdir)
+	if err != nil {
+		os.Exit(1)
+	}
 }
