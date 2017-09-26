@@ -57,20 +57,7 @@ func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntP
 			`volume type %d`, volumeType)
 	}
 
-	switch fsType {
-	case "xfs":
-		msg, err = shared.TryRunCommand("xfs_growfs", fsMntPoint)
-	default:
-		// default = ext4
-		msg, err = shared.TryRunCommand("resize2fs", lvPath)
-	}
-	if err != nil {
-		logger.Errorf("could not extend underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
-		return fmt.Errorf("could not extend underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
-	}
-
-	logger.Debugf("extended underlying %s filesystem for LV \"%s\"", fsType, lvPath)
-	return nil
+	return growFileSystem(fsType, fsMntPoint, lvPath)
 }
 
 func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
@@ -83,54 +70,15 @@ func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntP
 		return fmt.Errorf(`The size of the storage volume would be ` +
 			`less than 1MB`)
 	}
-
-	lvSizeString := strconv.FormatInt(lvSize, 10)
-	switch fsType {
-	case "xfs":
-		logger.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
-		return fmt.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
-	default:
-		// default = ext4
-		switch volumeType {
-		case storagePoolVolumeTypeContainer:
-			c := data.(container)
-			ourMount, err := c.StorageStop()
-			if err != nil {
-				return err
-			}
-			if !ourMount {
-				defer c.StorageStart()
-			}
-		case storagePoolVolumeTypeCustom:
-			ourMount, err := s.StoragePoolVolumeUmount()
-			if err != nil {
-				return err
-			}
-			if !ourMount {
-				defer s.StoragePoolVolumeMount()
-			}
-		default:
-			return fmt.Errorf(`Resizing not implemented for `+
-				`storage volume type %d`, volumeType)
-		}
-
-		msg, err = shared.TryRunCommand("e2fsck", "-f", "-y", lvPath)
-		if err != nil {
-			return err
-		}
-
-		// don't assume resize2fs semantics are sane (because they
-		// aren't)
-		kbSize := lvSize / 1024
-		ext4LvSizeString := strconv.FormatInt(kbSize, 10)
-		ext4LvSizeString += "K"
-		msg, err = shared.TryRunCommand("resize2fs", lvPath, ext4LvSizeString)
-		if err != nil {
-			logger.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
-			return fmt.Errorf("could not reduce underlying %s filesystem for LV \"%s\": %s", fsType, lvPath, msg)
-		}
+	cleanupFunc, err := shrinkVolumeFilesystem(s, volumeType, fsType, lvPath, lvSize, data)
+	if cleanupFunc != nil {
+		defer cleanupFunc()
+	}
+	if err != nil {
+		return err
 	}
 
+	lvSizeString := strconv.FormatInt(lvSize, 10)
 	msg, err = shared.TryRunCommand(
 		"lvreduce",
 		"-L", lvSizeString+"B",
