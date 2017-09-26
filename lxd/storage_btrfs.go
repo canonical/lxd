@@ -624,6 +624,10 @@ func (s *storageBtrfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, c
 	}
 
 	if shared.StringInSlice("size", changedConfig) {
+		if s.volume.Type != storagePoolVolumeTypeNameCustom {
+			return updateStoragePoolVolumeError([]string{"size"}, "btrfs")
+		}
+
 		if s.volume.Config["size"] != writable.Config["size"] {
 			size, err := shared.ParseByteSizeString(writable.Config["size"])
 			if err != nil {
