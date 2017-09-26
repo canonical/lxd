@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/stretchr/testify/require"
@@ -47,7 +46,7 @@ type lxdTestSuite struct {
 
 const lxdTestSuiteDefaultStoragePool string = "lxdTestrunPool"
 
-func (suite *lxdTestSuite) SetupSuite() {
+func (suite *lxdTestSuite) SetupTest() {
 	tmpdir, err := ioutil.TempDir("", "lxd_testrun_")
 	if err != nil {
 		os.Exit(1)
@@ -62,19 +61,7 @@ func (suite *lxdTestSuite) SetupSuite() {
 	if err != nil {
 		os.Exit(1)
 	}
-}
 
-func (suite *lxdTestSuite) TearDownSuite() {
-	suite.d.Stop()
-
-	err := os.RemoveAll(suite.tmpdir)
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
-func (suite *lxdTestSuite) SetupTest() {
-	initializeDbObject(suite.d)
 	daemonConfigInit(suite.d.db.DB())
 
 	// Create default storage pool. Make sure that we don't pass a nil to
@@ -84,7 +71,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	mockStorage, _ := storageTypeToString(storageTypeMock)
 	// Create the database entry for the storage pool.
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
-	_, err := dbStoragePoolCreateAndUpdateCache(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
+	_, err = dbStoragePoolCreateAndUpdateCache(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -120,6 +107,9 @@ func (suite *lxdTestSuite) SetupTest() {
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
-	suite.d.db.Close()
-	os.Remove(filepath.Join(suite.d.os.VarDir, "lxd.db"))
+	suite.d.Stop()
+	err := os.RemoveAll(suite.tmpdir)
+	if err != nil {
+		os.Exit(1)
+	}
 }
