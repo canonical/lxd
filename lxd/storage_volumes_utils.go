@@ -302,13 +302,6 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 		return err
 	}
 
-	// We currently only allow to create storage volumes of type
-	// storagePoolVolumeTypeCustom. So check, that nothing else was
-	// requested.
-	if volumeType != storagePoolVolumeTypeCustom {
-		return fmt.Errorf("currently not allowed to create storage volumes of type %s", volumeTypeName)
-	}
-
 	// Load storage pool the volume will be attached to.
 	poolID, poolStruct, err := db.StoragePoolGet(s.DB, poolName)
 	if err != nil {
