@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Options for filesystem creation
@@ -223,4 +224,93 @@ func xfsGenerateNewUUID(lvpath string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func growFileSystem(fsType string, devPath string, mntpoint string) error {
+	var msg string
+	var err error
+	switch fsType {
+	case "": // if not specified, default to ext4
+		fallthrough
+	case "ext4":
+		msg, err = shared.TryRunCommand("resize2fs", mntpoint)
+	case "xfs":
+		msg, err = shared.TryRunCommand("xfs_growfs", devPath)
+	default:
+		return fmt.Errorf(`Growing not supported for filesystem type "%s"`, fsType)
+	}
+
+	if err != nil {
+		errorMsg := fmt.Sprintf(`Could not extend underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
+		logger.Errorf(errorMsg)
+		return fmt.Errorf(errorMsg)
+	}
+
+	logger.Debugf(`extended underlying %s filesystem for "%s"`, fsType, devPath)
+	return nil
+}
+
+func shrinkFileSystem(fsType string, devPath string, byteSize int64) error {
+	var msg string
+	var err error
+	switch fsType {
+	case "": // if not specified, default to ext4
+		fallthrough
+	case "ext4":
+		msg, err = shared.TryRunCommand("e2fsck", "-f", "-y", devPath)
+		if err != nil {
+			return err
+		}
+		kbSize := byteSize / 1024
+		msg, err = shared.TryRunCommand("resize2fs", devPath, fmt.Sprintf("%dK", kbSize))
+
+	default:
+		return fmt.Errorf(`Shrinking not supported for filesystem type "%s"`, fsType)
+	}
+
+	if err != nil {
+		errorMsg := fmt.Sprintf(`Could not reduce underlying %s filesystem for "%s": %s`, fsType, devPath, msg)
+		logger.Errorf(errorMsg)
+		return fmt.Errorf(errorMsg)
+	}
+	return nil
+}
+
+func shrinkVolumeFilesystem(s storage, volumeType int, fsType string, devPath string, byteSize int64, data interface{}) (func() (bool, error), error) {
+	var cleanupFunc func() (bool, error)
+	switch fsType {
+	case "xfs":
+		logger.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
+		return nil, fmt.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
+	case "": // if not specified, default to ext4
+		fallthrough
+	case "ext4":
+		switch volumeType {
+		case storagePoolVolumeTypeContainer:
+			c := data.(container)
+			ourMount, err := c.StorageStop()
+			if err != nil {
+				return nil, err
+			}
+			if !ourMount {
+				cleanupFunc = c.StorageStart
+			}
+		case storagePoolVolumeTypeCustom:
+			ourMount, err := s.StoragePoolVolumeUmount()
+			if err != nil {
+				return nil, err
+			}
+			if !ourMount {
+				cleanupFunc = s.StoragePoolVolumeMount
+			}
+		default:
+			return nil, fmt.Errorf(`Resizing not implemented for storage volume type %d`, volumeType)
+		}
+
+	default:
+		return nil, fmt.Errorf(`Shrinking not supported for filesystem type "%s"`, fsType)
+	}
+
+	err := shrinkFileSystem(fsType, devPath, byteSize)
+	return cleanupFunc, err
 }
