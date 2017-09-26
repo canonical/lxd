@@ -652,6 +652,19 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
+
+		// Recreate missing mountpoints and symlinks.
+		snapshotMountPoint := getSnapshotMountPoint(backup.Pool.Name,
+			snap.Name)
+		sourceName, _, _ := containerGetParentAndSnapshotName(snap.Name)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
+			backup.Pool.Name, "snapshots", sourceName)
+		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
+		err = createSnapshotMountpoint(snapshotMountPoint,
+			snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		if err != nil {
+			return InternalError(err)
+		}
 	}
 
 	baseImage := backup.Container.Config["volatile.base_image"]
@@ -675,6 +688,17 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	})
 	if err != nil {
 		return SmartError(err)
+	}
+
+	containerPath := containerPath(req.Name, false)
+	isPrivileged := false
+	if backup.Container.Config["security.privileged"] == "" {
+		isPrivileged = true
+	}
+	err = createContainerMountpoint(containerMntPoint, containerPath,
+		isPrivileged)
+	if err != nil {
+		return InternalError(err)
 	}
 
 	return EmptySyncResponse
