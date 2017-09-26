@@ -1556,7 +1556,7 @@ func (s *storageCeph) rbdShrink(path string, size int64, fsType string,
 			`less than 1MB`)
 	}
 
-	cleanupFunc, err := shrinkVolumeFilesystem(s, volumeType, fsType, path, size, data)
+	cleanupFunc, err := shrinkVolumeFilesystem(s, volumeType, fsType, path, fsMntPoint, size, data)
 	if cleanupFunc != nil {
 		defer cleanupFunc()
 	}
