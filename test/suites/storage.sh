@@ -376,6 +376,9 @@ test_storage() {
       # Test that changing block filesystem works
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem xfs
       lxc init testimage c1pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem btrfs
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 100MB
+      lxc init testimage c2pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6 c10pool6 testDevice /opt
@@ -567,6 +570,7 @@ test_storage() {
 
     if [ "$lxd_backend" = "lvm" ]; then
       lxc delete -f c1pool6
+      lxc delete -f c2pool6
       lxc delete -f c10pool6
       lxc delete -f c12pool6
 
