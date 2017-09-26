@@ -20,6 +20,7 @@ test_container_import() {
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
     lxd import ctImport --force
+    lxc start ctImport
     lxc delete --force ctImport
 
     lxc init testimage ctImport
@@ -42,6 +43,7 @@ test_container_import() {
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
+    lxc start ctImport
     lxc delete --force ctImport
 
     lxc init testimage ctImport
@@ -53,6 +55,7 @@ test_container_import() {
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
+    lxc start ctImport
     lxc delete --force ctImport
 
     lxc init testimage ctImport
@@ -66,6 +69,7 @@ test_container_import() {
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
+    lxc start ctImport
     lxc delete --force ctImport
 
     lxc init testimage ctImport
@@ -80,6 +84,7 @@ test_container_import() {
     lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
+    lxc start ctImport
     lxc delete --force ctImport
 
 
@@ -88,6 +93,9 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     rm "${LXD_DIR}/containers/ctImport"
+    if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "btrfs" ]; then
+      rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0"
+    fi
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill -9 "${pid}"
     sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
@@ -96,6 +104,11 @@ test_container_import() {
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
+    [ -L "${LXD_DIR}/containers/ctImport" ] && [ -d "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers/ctImport" ]
+    if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "btrfs" ]; then
+      [ -L "${LXD_DIR}/snapshots/ctImport" ] && [ -d "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0" ]
+    fi
+    lxc start ctImport
     lxc delete --force ctImport
 
     lxc init testimage ctImport
@@ -126,6 +139,7 @@ test_container_import() {
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
+    lxc start ctImport
     lxc delete --force ctImport
 
     # delete one snapshot from disk
@@ -157,6 +171,7 @@ test_container_import() {
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
+    lxc start ctImport
     lxc delete --force ctImport
   )
   # shellcheck disable=SC2031
