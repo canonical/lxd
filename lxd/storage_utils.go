@@ -233,9 +233,11 @@ func growFileSystem(fsType string, devPath string, mntpoint string) error {
 	case "": // if not specified, default to ext4
 		fallthrough
 	case "ext4":
-		msg, err = shared.TryRunCommand("resize2fs", mntpoint)
+		msg, err = shared.TryRunCommand("resize2fs", devPath)
 	case "xfs":
 		msg, err = shared.TryRunCommand("xfs_growfs", devPath)
+	case "btrfs":
+		msg, err = shared.TryRunCommand("btrfs", "filesystem", "resize", "max", mntpoint)
 	default:
 		return fmt.Errorf(`Growing not supported for filesystem type "%s"`, fsType)
 	}
@@ -250,9 +252,10 @@ func growFileSystem(fsType string, devPath string, mntpoint string) error {
 	return nil
 }
 
-func shrinkFileSystem(fsType string, devPath string, byteSize int64) error {
+func shrinkFileSystem(fsType string, devPath string, mntpoint string, byteSize int64) error {
 	var msg string
 	var err error
+	strSize := fmt.Sprintf("%dK", byteSize/1024)
 	switch fsType {
 	case "": // if not specified, default to ext4
 		fallthrough
@@ -261,9 +264,9 @@ func shrinkFileSystem(fsType string, devPath string, byteSize int64) error {
 		if err != nil {
 			return err
 		}
-		kbSize := byteSize / 1024
-		msg, err = shared.TryRunCommand("resize2fs", devPath, fmt.Sprintf("%dK", kbSize))
-
+		msg, err = shared.TryRunCommand("resize2fs", devPath, strSize)
+	case "btrfs":
+		msg, err = shared.TryRunCommand("btrfs", "filesystem", "resize", strSize, mntpoint)
 	default:
 		return fmt.Errorf(`Shrinking not supported for filesystem type "%s"`, fsType)
 	}
@@ -276,12 +279,14 @@ func shrinkFileSystem(fsType string, devPath string, byteSize int64) error {
 	return nil
 }
 
-func shrinkVolumeFilesystem(s storage, volumeType int, fsType string, devPath string, byteSize int64, data interface{}) (func() (bool, error), error) {
+func shrinkVolumeFilesystem(s storage, volumeType int, fsType string, devPath string, mntpoint string, byteSize int64, data interface{}) (func() (bool, error), error) {
 	var cleanupFunc func() (bool, error)
 	switch fsType {
 	case "xfs":
 		logger.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
 		return nil, fmt.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
+	case "btrfs":
+		fallthrough
 	case "": // if not specified, default to ext4
 		fallthrough
 	case "ext4":
@@ -311,6 +316,6 @@ func shrinkVolumeFilesystem(s storage, volumeType int, fsType string, devPath st
 		return nil, fmt.Errorf(`Shrinking not supported for filesystem type "%s"`, fsType)
 	}
 
-	err := shrinkFileSystem(fsType, devPath, byteSize)
+	err := shrinkFileSystem(fsType, devPath, mntpoint, byteSize)
 	return cleanupFunc, err
 }

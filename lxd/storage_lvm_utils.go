@@ -57,7 +57,7 @@ func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntP
 			`volume type %d`, volumeType)
 	}
 
-	return growFileSystem(fsType, fsMntPoint, lvPath)
+	return growFileSystem(fsType, lvPath, fsMntPoint)
 }
 
 func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
@@ -70,7 +70,7 @@ func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntP
 		return fmt.Errorf(`The size of the storage volume would be ` +
 			`less than 1MB`)
 	}
-	cleanupFunc, err := shrinkVolumeFilesystem(s, volumeType, fsType, lvPath, lvSize, data)
+	cleanupFunc, err := shrinkVolumeFilesystem(s, volumeType, fsType, lvPath, fsMntPoint, lvSize, data)
 	if cleanupFunc != nil {
 		defer cleanupFunc()
 	}
