@@ -360,6 +360,9 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	criuType := CRIUType_CRIU_RSYNC.Enum()
 	if !s.live {
 		criuType = nil
+		if s.container.IsRunning() {
+			criuType = CRIUType_NONE.Enum()
+		}
 	}
 
 	// Storage needs to start unconditionally now, since we need to
@@ -470,6 +473,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	restoreSuccess := make(chan bool, 1)
 	dumpSuccess := make(chan error, 1)
+
 	if s.live {
 		if header.Criu == nil {
 			return abort(fmt.Errorf("Got no CRIU socket type for live migration"))
@@ -589,7 +593,9 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		if err != nil {
 			return abort(err)
 		}
+	}
 
+	if s.live || (header.Criu != nil && *header.Criu == CRIUType_NONE) {
 		err = driver.SendAfterCheckpoint(s.fsConn, bwlimit)
 		if err != nil {
 			return abort(err)
@@ -827,8 +833,12 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}
 
 	criuType := CRIUType_CRIU_RSYNC.Enum()
-	if !live {
-		criuType = nil
+	if header.Criu != nil && *header.Criu == CRIUType_NONE {
+		criuType = CRIUType_NONE.Enum()
+	} else {
+		if !live {
+			criuType = nil
+		}
 	}
 
 	mySink := c.src.container.Storage().MigrationSink
@@ -898,7 +908,18 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				fsConn = c.src.fsConn
 			}
 
-			err = mySink(live, c.src.container, snapshots, fsConn, srcIdmap, migrateOp, c.src.containerOnly)
+			sendFinalFsDelta := false
+			if live {
+				sendFinalFsDelta = true
+			}
+
+			if criuType != nil && *criuType == CRIUType_NONE {
+				sendFinalFsDelta = true
+			}
+
+			err = mySink(sendFinalFsDelta, c.src.container,
+				snapshots, fsConn, srcIdmap, migrateOp,
+				c.src.containerOnly)
 			if err != nil {
 				fsTransfer <- err
 				return
