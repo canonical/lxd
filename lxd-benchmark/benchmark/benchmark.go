@@ -35,8 +35,8 @@ func PrintServerInfo(c lxd.ContainerServer) error {
 	return nil
 }
 
-// SpawnContainers launches a set of containers.
-func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, start bool, freeze bool) (time.Duration, error) {
+// LaunchContainers launches a set of containers.
+func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image string, privileged bool, start bool, freeze bool) (time.Duration, error) {
 	var duration time.Duration
 
 	batchSize, err := getBatchSize(parallel)
@@ -58,7 +58,7 @@ func SpawnContainers(c lxd.ContainerServer, count int, parallel int, image strin
 
 		err := createContainer(c, fingerprint, name, privileged)
 		if err != nil {
-			logf("Failed to spawn container '%s': %s", name, err)
+			logf("Failed to launch container '%s': %s", name, err)
 			return
 		}
 
@@ -99,7 +99,7 @@ func CreateContainers(c lxd.ContainerServer, count int, parallel int, fingerprin
 
 		err := createContainer(c, fingerprint, name, privileged)
 		if err != nil {
-			logf("Failed to spawn container '%s': %s", name, err)
+			logf("Failed to launch container '%s': %s", name, err)
 			return
 		}
 	}

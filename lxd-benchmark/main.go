@@ -12,7 +12,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-var argCount = gnuflag.Int("count", 100, "Number of containers to create")
+var argCount = gnuflag.Int("count", 3, "Number of containers to create")
 var argParallel = gnuflag.Int("parallel", -1, "Number of threads to use")
 var argImage = gnuflag.String("image", "ubuntu:", "Image to use for the test")
 var argPrivileged = gnuflag.Bool("privileged", false, "Use privileged containers")
@@ -33,7 +33,7 @@ func main() {
 
 func run(args []string) error {
 	// Parse command line
-	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"spawn", "start", "stop", "delete"}) {
+	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"launch", "start", "stop", "delete"}) {
 		if len(os.Args) > 1 && os.Args[1] == "--version" {
 			fmt.Println(version.Version)
 			return nil
@@ -45,7 +45,7 @@ func run(args []string) error {
 		}
 		gnuflag.SetOut(out)
 
-		fmt.Fprintf(out, "Usage: %s spawn [--count=COUNT] [--image=IMAGE] [--privileged=BOOL] [--start=BOOL] [--freeze=BOOL] [--parallel=COUNT]\n", os.Args[0])
+		fmt.Fprintf(out, "Usage: %s launch [--count=COUNT] [--image=IMAGE] [--privileged=BOOL] [--start=BOOL] [--freeze=BOOL] [--parallel=COUNT]\n", os.Args[0])
 		fmt.Fprintf(out, "       %s start [--parallel=COUNT]\n", os.Args[0])
 		fmt.Fprintf(out, "       %s stop [--parallel=COUNT]\n", os.Args[0])
 		fmt.Fprintf(out, "       %s delete [--parallel=COUNT]\n\n", os.Args[0])
@@ -56,7 +56,7 @@ func run(args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("A valid action (spawn, start, stop, delete) must be passed.")
+		return fmt.Errorf("A valid action (launch, start, stop, delete) must be passed.")
 	}
 
 	gnuflag.Parse(true)
@@ -83,8 +83,8 @@ func run(args []string) error {
 	action := os.Args[1]
 	var duration time.Duration
 	switch action {
-	case "spawn":
-		duration, err = benchmark.SpawnContainers(
+	case "launch":
+		duration, err = benchmark.LaunchContainers(
 			c, *argCount, *argParallel, *argImage, *argPrivileged, *argStart, *argFreeze)
 		if err != nil {
 			return err
