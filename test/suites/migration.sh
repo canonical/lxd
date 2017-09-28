@@ -122,6 +122,23 @@ migration() {
   lxc_remote list l1: | grep RUNNING | grep nonlive2
   lxc_remote delete l1:nonlive2 l2:nonlive2 --force
 
+  lxc_remote launch testimage cccp
+  lxc_remote copy l1:cccp l2:udssr --stateless
+  lxc_remote delete l2:udssr --force
+  lxc_remote copy l1:cccp l2:udssr --stateless --mode=push
+  lxc_remote delete l2:udssr --force
+  lxc_remote copy l1:cccp l2:udssr --stateless --mode=relay
+  lxc_remote delete l2:udssr --force
+
+  lxc_remote move l1:cccp l2:udssr --stateless
+  lxc_remote delete l2:udssr --force
+  lxc_remote launch testimage cccp
+  lxc_remote move l1:cccp l2:udssr --stateless --mode=push
+  lxc_remote delete l2:udssr --force
+  lxc_remote launch testimage cccp
+  lxc_remote move l1:cccp l2:udssr --stateless --mode=relay
+  lxc_remote delete l2:udssr --force
+
   lxc_remote start l2:nonlive
   lxc_remote list l2: | grep RUNNING | grep nonlive
   lxc_remote delete l2:nonlive --force

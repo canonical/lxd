@@ -1310,14 +1310,23 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 		}
 
 		poolName := s.getOnDiskPoolName()
-		err = s.removeLV(poolName, storagePoolVolumeAPIEndpointContainers, targetLvmName)
+		err = s.removeLV(poolName,
+			storagePoolVolumeAPIEndpointContainers, targetLvmName)
 		if err != nil {
-			logger.Errorf(fmt.Sprintf("Failed to remove \"%s\": %s.", targetLvmName, err))
+			logger.Errorf("Failed to remove \"%s\": %s",
+				targetLvmName, err)
 		}
 
-		_, err = s.createSnapshotLV(poolName, sourceLvmName, storagePoolVolumeAPIEndpointContainers, targetLvmName, storagePoolVolumeAPIEndpointContainers, false, true)
+		_, err = s.createSnapshotLV(poolName, sourceLvmName,
+			storagePoolVolumeAPIEndpointContainers, targetLvmName,
+			storagePoolVolumeAPIEndpointContainers, false, true)
 		if err != nil {
 			return fmt.Errorf("Error creating snapshot LV: %v", err)
+		}
+
+		_, err = target.Storage().ContainerMount(target)
+		if err != nil {
+			return err
 		}
 	} else {
 		ourMount, err := target.Storage().ContainerMount(target)
