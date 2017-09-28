@@ -71,6 +71,10 @@ rootfs.tar contains a Linux root filesystem at its root.
 In this mode the image identifier is the SHA-256 of the concatenation of
 the metadata and rootfs tarball (in that order).
 
+## Supported compression
+The tarball(s) can be compressed using bz2, gz, xz, lzma, tar (uncompressed) or
+it can also be a squashfs image.
+
 ## Content
 The rootfs directory (or tarball) contains a full file system tree of what will become the container's /.
 
