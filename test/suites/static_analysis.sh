@@ -65,10 +65,11 @@ test_static_analysis() {
     fi
 
     if which godeps >/dev/null 2>&1; then
-      OUT=$(godeps . ./shared | cut -f1)
-      if [ "${OUT}" != "$(printf "github.com/gorilla/websocket\ngopkg.in/yaml.v2\n")" ]; then
+      OUT=$(godeps -T ./client ./lxc/config ./shared/api 2> /dev/null | grep -v lxc/lxd | grep -v gorilla/websocket | grep -v yaml.v2 || true)
+      if [ -n "${OUT}" ]; then
         echo "ERROR: you added a new dependency to the client or shared; please make sure this is what you want"
         echo "${OUT}"
+        exit 1
       fi
     fi
 
