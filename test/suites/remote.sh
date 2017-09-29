@@ -84,8 +84,8 @@ test_remote_usage() {
 
   lxc_remote image export localhost:testimage "${LXD_DIR}/foo"
   lxc_remote image delete localhost:testimage
-  sum=$(sha256sum "${LXD_DIR}/foo" | cut -d' ' -f1)
-  lxc_remote image import "${LXD_DIR}/foo" localhost: --public
+  sum=$(sha256sum "${LXD_DIR}/foo.tar.xz" | cut -d' ' -f1)
+  lxc_remote image import "${LXD_DIR}/foo.tar.xz" localhost: --public
   lxc_remote image alias create localhost:testimage "${sum}"
 
   lxc_remote image delete "lxd2:${sum}" || true

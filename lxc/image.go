@@ -945,6 +945,16 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 					return err
 				}
 			}
+		} else if resp.RootfsSize == 0 && len(args) > 2 {
+			if resp.MetaName != "" {
+				extension := strings.SplitN(resp.MetaName, ".", 2)[1]
+				err := os.Rename(targetMeta, fmt.Sprintf("%s.%s", targetMeta, extension))
+				if err != nil {
+					os.Remove(targetMeta)
+					progress.Done("")
+					return err
+				}
+			}
 		}
 
 		progress.Done(i18n.G("Image exported successfully!"))
