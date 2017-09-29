@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 
@@ -37,6 +39,7 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		"rsync",
 		"-a",
 		"-HAX",
+		"--sparse",
 		"--devices",
 		"--delete",
 		"--checksum",
@@ -44,8 +47,21 @@ func storageRsyncCopy(source string, dest string) (string, error) {
 		rsyncVerbosity,
 		shared.AddSlash(source),
 		dest)
+	if err != nil {
+		runError, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 24 {
+					return string(output), nil
+				}
+			}
+		}
+		return string(output), err
+	}
 
-	return string(output), err
+	return string(output), nil
 }
 
 // storageType defines the type of a storage
