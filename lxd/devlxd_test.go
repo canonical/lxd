@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -50,8 +51,17 @@ func setupDir() error {
 
 func setupSocket() (*net.UnixListener, error) {
 	setupDir()
+	path := filepath.Join(testDir, "test-devlxd-sock")
+	addr, err := net.ResolveUnixAddr("unix", path)
+	if err != nil {
+		return nil, err
+	}
 
-	return createAndBindDevLxd()
+	listener, err := net.ListenUnix("unix", addr)
+	if err != nil {
+		return nil, err
+	}
+	return listener, nil
 }
 
 func connect(path string) (*net.UnixConn, error) {
@@ -96,7 +106,7 @@ func TestCredsSendRecv(t *testing.T) {
 		result <- cred.pid
 	}()
 
-	conn, err := connect(fmt.Sprintf("%s/devlxd/sock", testDir))
+	conn, err := connect(fmt.Sprintf("%s/test-devlxd-sock", testDir))
 	if err != nil {
 		t.Fatal(err)
 	}

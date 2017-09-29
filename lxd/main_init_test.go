@@ -1,10 +1,12 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/lxc/lxd/client"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/cmd"
 	"github.com/stretchr/testify/suite"
 )
@@ -30,7 +32,7 @@ func (suite *cmdInitTestSuite) SetupTest() {
 		Context:         suite.context,
 		Args:            suite.args,
 		RunningInUserns: false,
-		SocketPath:      suite.d.UnixSocket.Socket.Addr().String(),
+		SocketPath:      filepath.Join(shared.VarPath(), "unix.socket"),
 	}
 	client, err := lxd.ConnectLXDUnix(suite.command.SocketPath, nil)
 	suite.Req.Nil(err)

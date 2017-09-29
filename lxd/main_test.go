@@ -1,20 +1,38 @@
 package main
 
 import (
-	"crypto/tls"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 )
 
 func mockStartDaemon() (*Daemon, error) {
 	d := NewDaemon()
 	d.os.MockMode = true
-	d.tlsConfig = &tls.Config{}
+
+	// Setup test certificates. We re-use the ones already on disk under
+	// the test/ directory, to avoid generating new ones, which is
+	// expensive.
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	deps := filepath.Join(cwd, "..", "test", "deps")
+	for _, f := range []string{"server.crt", "server.key"} {
+		err := os.Symlink(
+			filepath.Join(deps, f),
+			filepath.Join(shared.VarPath(), f),
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	if err := d.Init(); err != nil {
 		return nil, err
