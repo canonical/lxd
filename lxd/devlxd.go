@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -128,54 +127,14 @@ func hoistReq(f func(container, *http.Request) *devLxdResponse, d *Daemon) func(
 	}
 }
 
-func createAndBindDevLxd() (*net.UnixListener, error) {
-	sockFile := path.Join(shared.VarPath("devlxd"), "sock")
-
-	/*
-	 * If this socket exists, that means a previous lxd died and didn't
-	 * clean up after itself. We assume that the LXD is actually dead if we
-	 * get this far, since StartDaemon() tries to connect to the actual lxd
-	 * socket to make sure that it is actually dead. So, it is safe to
-	 * remove it here without any checks.
-	 *
-	 * Also, it would be nice to SO_REUSEADDR here so we don't have to
-	 * delete the socket, but we can't:
-	 *   http://stackoverflow.com/questions/15716302/so-reuseaddr-and-af-unix
-	 *
-	 * Note that this will force clients to reconnect when LXD is restarted.
-	 */
-	if err := os.Remove(sockFile); err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	unixAddr, err := net.ResolveUnixAddr("unix", sockFile)
-	if err != nil {
-		return nil, err
-	}
-
-	unixl, err := net.ListenUnix("unix", unixAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := os.Chmod(sockFile, 0666); err != nil {
-		return nil, err
-	}
-
-	return unixl, nil
-}
-
-func devLxdServer(d *Daemon) *http.Server {
+func devLxdAPI(d *Daemon) http.Handler {
 	m := mux.NewRouter()
 
 	for _, handler := range handlers {
 		m.HandleFunc(handler.path, hoistReq(handler.f, d))
 	}
 
-	return &http.Server{
-		Handler:   m,
-		ConnState: pidMapper.ConnStateHandler,
-	}
+	return m
 }
 
 /*

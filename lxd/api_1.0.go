@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
@@ -162,10 +161,9 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	var certificate string
+	certificate := string(d.endpoints.NetworkPublicKey())
 	var certificateFingerprint string
-	if len(d.tlsConfig.Certificates) != 0 {
-		certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: d.tlsConfig.Certificates[0].Certificate[0]}))
+	if certificate != "" {
 		certificateFingerprint, err = shared.CertFingerprintStr(certificate)
 		if err != nil {
 			return InternalError(err)
