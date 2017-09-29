@@ -2,12 +2,10 @@ package main
 
 import (
 	"bytes"
-	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,10 +23,9 @@ import (
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
-	"gopkg.in/tomb.v2"
 
-	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
@@ -39,32 +36,20 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-type Socket struct {
-	Socket      net.Listener
-	CloseOnExit bool
-}
-
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
 	clientCerts         []x509.Certificate
 	os                  *sys.OS
 	db                  *sql.DB
 	group               string
-	mux                 *mux.Router
-	tomb                tomb.Tomb
 	readyChan           chan bool
 	pruneChan           chan bool
 	shutdownChan        chan bool
 	resetAutoUpdateChan chan bool
 
-	TCPSocket  *Socket
-	UnixSocket *Socket
-
-	devlxd *net.UnixListener
-
 	SetupMode bool
 
-	tlsConfig *tls.Config
+	endpoints *endpoints.Endpoints
 
 	proxy func(req *http.Request) (*url.URL, error)
 
@@ -93,15 +78,6 @@ type Command struct {
 	post          func(d *Daemon, r *http.Request) Response
 	delete        func(d *Daemon, r *http.Request) Response
 	patch         func(d *Daemon, r *http.Request) Response
-}
-
-func readMyCert() (string, string, error) {
-	certf := shared.VarPath("server.crt")
-	keyf := shared.VarPath("server.key")
-	logger.Debug("Looking for existing certificates", log.Ctx{"cert": certf, "key": keyf})
-	err := shared.FindOrGenCert(certf, keyf, false)
-
-	return certf, keyf, err
 }
 
 // Check whether the request comes from a trusted client.
@@ -180,7 +156,7 @@ func (d *Daemon) State() *state.State {
 	return state.NewState(d.db, d.os)
 }
 
-func (d *Daemon) createCmd(version string, c Command) {
+func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 	var uri string
 	if c.name == "" {
 		uri = fmt.Sprintf("/%s", version)
@@ -188,7 +164,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 		uri = fmt.Sprintf("/%s/%s", version, c.name)
 	}
 
-	d.mux.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
+	restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		untrustedOk := (r.Method == "GET" && c.untrustedGet) || (r.Method == "POST" && c.untrustedPost)
@@ -310,49 +286,6 @@ func setupSharedMounts() error {
 	return nil
 }
 
-func (d *Daemon) UpdateHTTPsPort(newAddress string) error {
-	oldAddress := daemonConfig["core.https_address"].Get()
-
-	if oldAddress == newAddress {
-		return nil
-	}
-
-	if d.TCPSocket != nil {
-		d.TCPSocket.Socket.Close()
-	}
-
-	if newAddress != "" {
-		_, _, err := net.SplitHostPort(newAddress)
-		if err != nil {
-			ip := net.ParseIP(newAddress)
-			if ip != nil && ip.To4() == nil {
-				newAddress = fmt.Sprintf("[%s]:%s", newAddress, shared.DefaultPort)
-			} else {
-				newAddress = fmt.Sprintf("%s:%s", newAddress, shared.DefaultPort)
-			}
-		}
-
-		var tcpl net.Listener
-		for i := 0; i < 10; i++ {
-			tcpl, err = tls.Listen("tcp", newAddress, d.tlsConfig)
-			if err == nil {
-				break
-			}
-
-			time.Sleep(100 * time.Millisecond)
-		}
-
-		if err != nil {
-			return fmt.Errorf("cannot listen on https socket: %v", err)
-		}
-
-		d.tomb.Go(func() error { return http.Serve(tcpl, &lxdHttpServer{d.mux, d}) })
-		d.TCPSocket = &Socket{Socket: tcpl, CloseOnExit: true}
-	}
-
-	return nil
-}
-
 func (d *Daemon) Init() error {
 	/* Initialize some variables */
 	d.readyChan = make(chan bool)
@@ -452,172 +385,56 @@ func (d *Daemon) Init() error {
 		}
 	}
 
-	/* Setup /dev/lxd */
-	logger.Infof("Starting /dev/lxd handler")
-	d.devlxd, err = createAndBindDevLxd()
-	if err != nil {
-		return err
-	}
-
-	d.tomb.Go(func() error {
-		server := devLxdServer(d)
-		return server.Serve(d.devlxd)
-	})
-
 	if !d.os.MockMode {
 		/* Start the scheduler */
 		go deviceEventListener(d.State())
-
-		/* Setup the TLS authentication */
-		certf, keyf, err := readMyCert()
-		if err != nil {
-			return err
-		}
-
-		cert, err := tls.LoadX509KeyPair(certf, keyf)
-		if err != nil {
-			return err
-		}
-
-		tlsConfig := &tls.Config{
-			ClientAuth:   tls.RequestClientCert,
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-			MaxVersion:   tls.VersionTLS12,
-			CipherSuites: []uint16{
-				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA},
-			PreferServerCipherSuites: true,
-		}
-
-		if shared.PathExists(shared.VarPath("server.ca")) {
-			ca, err := shared.ReadCert(shared.VarPath("server.ca"))
-			if err != nil {
-				return err
-			}
-
-			caPool := x509.NewCertPool()
-			caPool.AddCert(ca)
-			tlsConfig.RootCAs = caPool
-			tlsConfig.ClientCAs = caPool
-
-			logger.Infof("LXD is in CA mode, only CA-signed certificates will be allowed")
-		}
-
-		tlsConfig.BuildNameToCertificate()
-
-		d.tlsConfig = tlsConfig
-
 		readSavedClientCAList(d)
 	}
 
-	d.setupWebServer()
 	err = d.setupExternalAuthentication(daemonConfig["core.macaroon.endpoint"].Get())
 	if err != nil {
 		return err
 	}
 
-	// Prepare the list of listeners
-	listeners := util.GetListeners(util.SystemdListenFDsStart)
-	if len(listeners) > 0 {
-		logger.Infof("LXD is socket activated")
+	/* Setup the web server */
+	restAPI := mux.NewRouter()
+	restAPI.StrictSlash(false)
 
-		for _, listener := range listeners {
-			if shared.PathExists(listener.Addr().String()) {
-				d.UnixSocket = &Socket{Socket: listener, CloseOnExit: false}
-			} else {
-				tlsListener := tls.NewListener(listener, d.tlsConfig)
-				d.TCPSocket = &Socket{Socket: tlsListener, CloseOnExit: false}
-			}
-		}
-	} else {
-		logger.Infof("LXD isn't socket activated")
+	restAPI.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		SyncResponse(true, []string{"/1.0"}).Render(w)
+	})
 
-		localSocketPath := shared.VarPath("unix.socket")
-
-		// If the socket exists, let's try to connect to it and see if there's
-		// a lxd running.
-		if shared.PathExists(localSocketPath) {
-			_, err := lxd.ConnectLXDUnix("", nil)
-			if err != nil {
-				logger.Debugf("Detected stale unix socket, deleting")
-				// Connecting failed, so let's delete the socket and
-				// listen on it ourselves.
-				err = os.Remove(localSocketPath)
-				if err != nil {
-					return err
-				}
-			} else {
-				return fmt.Errorf("LXD is already running.")
-			}
-		}
-
-		unixAddr, err := net.ResolveUnixAddr("unix", localSocketPath)
-		if err != nil {
-			return fmt.Errorf("cannot resolve unix socket address: %v", err)
-		}
-
-		unixl, err := net.ListenUnix("unix", unixAddr)
-		if err != nil {
-			return fmt.Errorf("cannot listen on unix socket: %v", err)
-		}
-
-		if err := os.Chmod(localSocketPath, 0660); err != nil {
-			return err
-		}
-
-		var gid int
-		if d.group != "" {
-			gid, err = shared.GroupId(d.group)
-			if err != nil {
-				return err
-			}
-		} else {
-			gid = os.Getgid()
-		}
-
-		if err := os.Chown(localSocketPath, os.Getuid(), gid); err != nil {
-			return err
-		}
-
-		d.UnixSocket = &Socket{Socket: unixl, CloseOnExit: true}
+	for _, c := range api10 {
+		d.createCmd(restAPI, "1.0", c)
 	}
 
-	listenAddr := daemonConfig["core.https_address"].Get()
-	if listenAddr != "" {
-		_, _, err := net.SplitHostPort(listenAddr)
-		if err != nil {
-			listenAddr = fmt.Sprintf("%s:%s", listenAddr, shared.DefaultPort)
-		}
-
-		tcpl, err := tls.Listen("tcp", listenAddr, d.tlsConfig)
-		if err != nil {
-			logger.Error("cannot listen on https socket, skipping...", log.Ctx{"err": err})
-		} else {
-			if d.TCPSocket != nil {
-				logger.Infof("Replacing inherited TCP socket with configured one")
-				d.TCPSocket.Socket.Close()
-			}
-			d.TCPSocket = &Socket{Socket: tcpl, CloseOnExit: true}
-		}
+	for _, c := range apiInternal {
+		d.createCmd(restAPI, "internal", c)
 	}
 
-	// Bind the REST API
-	logger.Infof("REST API daemon:")
-	if d.UnixSocket != nil {
-		logger.Info(" - binding Unix socket", log.Ctx{"socket": d.UnixSocket.Socket.Addr()})
-		d.tomb.Go(func() error { return http.Serve(d.UnixSocket.Socket, &lxdHttpServer{d.mux, d}) })
+	restAPI.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Info("Sending top level 404", log.Ctx{"url": r.URL})
+		w.Header().Set("Content-Type", "application/json")
+		NotFound.Render(w)
+	})
+
+	certInfo, err := shared.KeyPairAndCA(shared.VarPath(), "server", shared.CertServer)
+	if err != nil {
+		return err
 	}
 
-	if d.TCPSocket != nil {
-		logger.Info(" - binding TCP socket", log.Ctx{"socket": d.TCPSocket.Socket.Addr()})
-		d.tomb.Go(func() error { return http.Serve(d.TCPSocket.Socket, &lxdHttpServer{d.mux, d}) })
+	config := &endpoints.Config{
+		Dir:                  shared.VarPath(),
+		Cert:                 certInfo,
+		RestServer:           &http.Server{Handler: &lxdHttpServer{r: restAPI, d: d}},
+		DevLxdServer:         &http.Server{Handler: devLxdAPI(d), ConnState: pidMapper.ConnStateHandler},
+		LocalUnixSocketGroup: d.group,
+		NetworkAddress:       daemonConfig["core.https_address"].Get(),
+	}
+	d.endpoints, err = endpoints.Up(config)
+	if err != nil {
+		return fmt.Errorf("cannot start API endpoints: %v", err)
 	}
 
 	// Run the post initialization actions
@@ -725,31 +542,11 @@ func (d *Daemon) numRunningContainers() (int, error) {
 	return count, nil
 }
 
-var errStop = fmt.Errorf("requested stop")
-
 // Stop stops the shared daemon.
 func (d *Daemon) Stop() error {
-	forceStop := false
-
-	d.tomb.Kill(errStop)
-	logger.Infof("Stopping REST API handler:")
-	for _, socket := range []*Socket{d.TCPSocket, d.UnixSocket} {
-		if socket == nil {
-			continue
-		}
-
-		if socket.CloseOnExit {
-			logger.Info(" - closing socket", log.Ctx{"socket": socket.Socket.Addr()})
-			socket.Socket.Close()
-		} else {
-			logger.Info(" - skipping socket-activated socket", log.Ctx{"socket": socket.Socket.Addr()})
-			forceStop = true
-		}
-	}
-
-	logger.Infof("Stopping /dev/lxd handler")
-	d.devlxd.Close()
-	logger.Infof("Stopped /dev/lxd handler")
+	// FIXME: we should track also other errors happening during shutdown,
+	// not only the endpoints one.
+	errEndpointsDown := d.endpoints.Down()
 
 	if n, err := d.numRunningContainers(); err != nil || n == 0 {
 		logger.Infof("Unmounting temporary filesystems")
@@ -769,43 +566,7 @@ func (d *Daemon) Stop() error {
 	imageSaveStreamCache()
 	logger.Infof("Saved simplestreams cache")
 
-	if d.os.MockMode || forceStop {
-		return nil
-	}
-
-	err := d.tomb.Wait()
-	if err == errStop {
-		return nil
-	}
-
-	return err
-}
-
-// Setup the API web server
-func (d *Daemon) setupWebServer() {
-	/* Setup the web server */
-	d.mux = mux.NewRouter()
-	d.mux.StrictSlash(false)
-
-	d.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		SyncResponse(true, []string{"/1.0"}).Render(w)
-	})
-
-	for _, c := range api10 {
-		d.createCmd("1.0", c)
-	}
-
-	for _, c := range apiInternal {
-		d.createCmd("internal", c)
-	}
-
-	d.mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Info("Sending top level 404", log.Ctx{"url": r.URL})
-		w.Header().Set("Content-Type", "application/json")
-		NotFound.Render(w)
-	})
-
+	return errEndpointsDown
 }
 
 // Setup external authentication

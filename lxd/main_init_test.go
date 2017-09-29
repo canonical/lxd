@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -36,7 +37,7 @@ func (suite *cmdInitTestSuite) SetupTest() {
 		Context:         suite.context,
 		Args:            suite.args,
 		RunningInUserns: false,
-		SocketPath:      suite.d.UnixSocket.Socket.Addr().String(),
+		SocketPath:      filepath.Join(shared.VarPath(), "unix.socket"),
 	}
 	client, err := lxd.ConnectLXDUnix(suite.command.SocketPath, nil)
 	suite.Req.Nil(err)
