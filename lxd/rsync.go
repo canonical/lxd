@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
@@ -31,7 +32,7 @@ func rsyncLocalCopy(source string, dest string, bwlimit string) (string, error) 
 		bwlimit = "0"
 	}
 
-	return shared.RunCommand("rsync",
+	msg, err := shared.RunCommand("rsync",
 		"-a",
 		"-HAX",
 		"--sparse",
@@ -43,6 +44,21 @@ func rsyncLocalCopy(source string, dest string, bwlimit string) (string, error) 
 		rsyncVerbosity,
 		shared.AddSlash(source),
 		dest)
+	if err != nil {
+		runError, ok := err.(shared.RunError)
+		if ok {
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if ok {
+				waitStatus := exitError.Sys().(syscall.WaitStatus)
+				if waitStatus.ExitStatus() == 24 {
+					return msg, nil
+				}
+			}
+		}
+		return msg, err
+	}
+
+	return msg, nil
 }
 
 func rsyncSendSetup(name string, path string, bwlimit string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
