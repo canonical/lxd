@@ -81,6 +81,16 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	return Log, nil
 }
 
+// SetLogger installs the given logger as global logger. It returns a function
+// that can be used to restore whatever logger was installed beforehand.
+func SetLogger(newLogger logger.Logger) func() {
+	origLog := logger.Log
+	logger.Log = newLogger
+	return func() {
+		logger.Log = origLog
+	}
+}
+
 // AddContext will return a copy of the logger with extra context added
 func AddContext(logger logger.Logger, ctx log.Ctx) logger.Logger {
 	log15logger, ok := logger.(log.Logger)
