@@ -33,7 +33,8 @@ func main() {
 
 func run(args []string) error {
 	// Parse command line
-	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"launch", "start", "stop", "delete"}) {
+	// "spawn" is being deprecated, use "launch" instead.
+	if len(os.Args) == 1 || !shared.StringInSlice(os.Args[1], []string{"launch", "spawn", "start", "stop", "delete"}) {
 		if len(os.Args) > 1 && os.Args[1] == "--version" {
 			fmt.Println(version.Version)
 			return nil
@@ -83,7 +84,8 @@ func run(args []string) error {
 	action := os.Args[1]
 	var duration time.Duration
 	switch action {
-	case "launch":
+	// "spawn" is being deprecated.
+	case "launch", "spawn":
 		duration, err = benchmark.LaunchContainers(
 			c, *argCount, *argParallel, *argImage, *argPrivileged, *argStart, *argFreeze)
 		if err != nil {
