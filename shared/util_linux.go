@@ -4,11 +4,11 @@
 package shared
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -335,15 +335,34 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 	return
 }
 
-func IsMountPoint(name string) bool {
-	_, err := exec.LookPath("mountpoint")
-	if err == nil {
-		_, err = RunCommand("mountpoint", "-q", name)
-		if err != nil {
-			return false
-		}
+func parseMountinfo(name string) int {
+	f, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return -1
+	}
+	defer f.Close()
 
-		return true
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		tokens := strings.Fields(line)
+		if len(tokens) < 5 {
+			return -1
+		}
+		cleanPath := filepath.Clean(tokens[4])
+		cleanName := filepath.Clean(name)
+		if cleanPath == cleanName {
+			return 1
+		}
+	}
+
+	return 0
+}
+
+func IsMountPoint(name string) bool {
+	ret := parseMountinfo(name)
+	if ret >= 0 {
+		return (ret == 1)
 	}
 
 	stat, err := os.Stat(name)
