@@ -80,8 +80,6 @@ const AA_PROFILE_BASE = `
 
   # block some other dangerous paths
   deny @{PROC}/kcore rwklx,
-  deny @{PROC}/kmem rwklx,
-  deny @{PROC}/mem rwklx,
   deny @{PROC}/sysrq-trigger rwklx,
 
   # deny writes in /sys except for /sys/fs/cgroup, also allow
