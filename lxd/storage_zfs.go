@@ -538,8 +538,8 @@ func (s *storageZfs) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageZfs) GetContainerPoolInfo() (int64, string) {
-	return s.poolID, s.pool.Name
+func (s *storageZfs) GetContainerPoolInfo() (int64, string, string) {
+	return s.poolID, s.pool.Name, s.getOnDiskPoolName()
 }
 
 func (s *storageZfs) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
@@ -1228,8 +1228,8 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 		defer source.StorageStop()
 	}
 
-	_, sourcePool := source.Storage().GetContainerPoolInfo()
-	_, targetPool := target.Storage().GetContainerPoolInfo()
+	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
+	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
 		return fmt.Errorf("copying containers between different storage pools is not implemented")
 	}
@@ -1549,35 +1549,41 @@ func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, source
 	return nil
 }
 
-func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error {
-	logger.Debugf("Deleting ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
-
-	poolName := s.getOnDiskPoolName()
-
-	sourceContainerName, sourceContainerSnapOnlyName, _ := containerGetParentAndSnapshotName(snapshotContainer.Name())
+func zfsSnapshotDeleteInternal(poolName string, ctName string, onDiskPoolName string) error {
+	sourceContainerName, sourceContainerSnapOnlyName, _ := containerGetParentAndSnapshotName(ctName)
 	snapName := fmt.Sprintf("snapshot-%s", sourceContainerSnapOnlyName)
 
-	if zfsFilesystemEntityExists(poolName, fmt.Sprintf("containers/%s@%s", sourceContainerName, snapName)) {
-		removable, err := zfsPoolVolumeSnapshotRemovable(s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", sourceContainerName), snapName)
+	if zfsFilesystemEntityExists(onDiskPoolName,
+		fmt.Sprintf("containers/%s@%s",
+			sourceContainerName, snapName)) {
+		removable, err := zfsPoolVolumeSnapshotRemovable(onDiskPoolName,
+			fmt.Sprintf("containers/%s",
+				sourceContainerName),
+			snapName)
+		if err != nil {
+			return err
+		}
+
 		if removable {
-			err = zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", sourceContainerName), snapName)
-			if err != nil {
-				return err
-			}
+			err = zfsPoolVolumeSnapshotDestroy(onDiskPoolName,
+				fmt.Sprintf("containers/%s",
+					sourceContainerName),
+				snapName)
 		} else {
-			err = zfsPoolVolumeSnapshotRename(
-				poolName, fmt.Sprintf("containers/%s", sourceContainerName), snapName,
+			err = zfsPoolVolumeSnapshotRename(onDiskPoolName,
+				fmt.Sprintf("containers/%s",
+					sourceContainerName),
+				snapName,
 				fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
-			if err != nil {
-				return err
-			}
+		}
+		if err != nil {
+			return err
 		}
 	}
 
 	// Delete the snapshot on its storage pool:
 	// ${POOL}/snapshots/<snapshot_name>
-	snapshotContainerName := snapshotContainer.Name()
-	snapshotContainerMntPoint := getSnapshotMountPoint(s.pool.Name, snapshotContainerName)
+	snapshotContainerMntPoint := getSnapshotMountPoint(poolName, ctName)
 	if shared.PathExists(snapshotContainerMntPoint) {
 		err := os.RemoveAll(snapshotContainerMntPoint)
 		if err != nil {
@@ -1588,7 +1594,7 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 	// Check if we can remove the snapshot symlink:
 	// ${LXD_DIR}/snapshots/<container_name> -> ${POOL}/snapshots/<container_name>
 	// by checking if the directory is empty.
-	snapshotContainerPath := getSnapshotMountPoint(s.pool.Name, sourceContainerName)
+	snapshotContainerPath := getSnapshotMountPoint(poolName, sourceContainerName)
 	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
 	if empty == true {
 		// Remove the snapshot directory for the container:
@@ -1623,6 +1629,19 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error {
+	logger.Debugf("Deleting ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	poolName := s.getOnDiskPoolName()
+	err := zfsSnapshotDeleteInternal(s.pool.Name, snapshotContainer.Name(),
+		poolName)
+	if err != nil {
+		return err
 	}
 
 	logger.Debugf("Deleted ZFS storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)

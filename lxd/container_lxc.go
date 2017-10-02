@@ -2881,7 +2881,7 @@ func (c *containerLXC) Delete() error {
 
 		// Delete the container from disk
 		if c.storage != nil {
-			_, poolName := c.storage.GetContainerPoolInfo()
+			_, poolName, _ := c.storage.GetContainerPoolInfo()
 			containerMountPoint := getContainerMountPoint(poolName, c.Name())
 			if shared.PathExists(c.Path()) ||
 				shared.PathExists(containerMountPoint) {
@@ -2905,7 +2905,7 @@ func (c *containerLXC) Delete() error {
 		// Get the name of the storage pool the container is attached to. This
 		// reverse-engineering works because container names are globally
 		// unique.
-		poolID, _ := c.storage.GetContainerPoolInfo()
+		poolID, _, _ := c.storage.GetContainerPoolInfo()
 
 		// Remove volume from storage pool.
 		err := db.StoragePoolVolumeDelete(c.state.DB, c.Name(), storagePoolVolumeTypeContainer, poolID)
@@ -2995,7 +2995,7 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	// Rename storage volume for the container.
-	poolID, _ := c.storage.GetContainerPoolInfo()
+	poolID, _, _ := c.storage.GetContainerPoolInfo()
 	err = db.StoragePoolVolumeRename(c.state.DB, oldName, newName, storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		logger.Error("Failed renaming storage volume", ctxMap)

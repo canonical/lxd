@@ -171,7 +171,7 @@ type storage interface {
 	ContainerRename(container container, newName string) error
 	ContainerRestore(container container, sourceContainer container) error
 	ContainerGetUsage(container container) (int64, error)
-	GetContainerPoolInfo() (int64, string)
+	GetContainerPoolInfo() (int64, string, string)
 	ContainerStorageReady(name string) bool
 
 	ContainerSnapshotCreate(target container, source container) error

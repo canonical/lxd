@@ -172,7 +172,7 @@ func (s *storageLvm) renameLVByPath(oldName string, newName string, volumeType s
 	return lvmLVRename(poolName, oldLvmName, newLvmName)
 }
 
-func (s *storageLvm) removeLV(vgName string, volumeType string, lvName string) error {
+func removeLV(vgName string, volumeType string, lvName string) error {
 	lvmVolumePath := getLvmDevPath(vgName, volumeType, lvName)
 	output, err := shared.TryRunCommand("lvremove", "-f", lvmVolumePath)
 
@@ -765,6 +765,14 @@ func getLvmDevPath(lvmPool string, volumeType string, lvmVolume string) string {
 	}
 
 	return fmt.Sprintf("/dev/%s/%s_%s", lvmPool, volumeType, lvmVolume)
+}
+
+func getLVName(lvmPool string, volumeType string, lvmVolume string) string {
+	if volumeType == "" {
+		return fmt.Sprintf("%s/%s", lvmPool, lvmVolume)
+	}
+
+	return fmt.Sprintf("%s/%s_%s", lvmPool, volumeType, lvmVolume)
 }
 
 func getPrefixedLvName(volumeType string, lvmVolume string) string {

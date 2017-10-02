@@ -76,8 +76,8 @@ func (s *storageMock) SetStoragePoolVolumeWritable(writable *api.StorageVolumePu
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageMock) GetContainerPoolInfo() (int64, string) {
-	return s.poolID, s.pool.Name
+func (s *storageMock) GetContainerPoolInfo() (int64, string, string) {
+	return s.poolID, s.pool.Name, s.pool.Name
 }
 
 func (s *storageMock) StoragePoolVolumeCreate() error {
