@@ -19,7 +19,7 @@ func Pretty(input interface{}) string {
 // GetStack will convert the Go stack into a string suitable for logging
 func GetStack() string {
 	buf := make([]byte, 1<<16)
-	runtime.Stack(buf, true)
+	n := runtime.Stack(buf, true)
 
-	return fmt.Sprintf("\n\t%s", buf)
+	return fmt.Sprintf("\n\t%s", buf[:n])
 }
