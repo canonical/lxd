@@ -541,7 +541,7 @@ func (s *storageLvm) StoragePoolVolumeDelete() error {
 	}
 
 	if lvExists {
-		err = s.removeLV(poolName, volumeType, s.volume.Name)
+		err = removeLV(poolName, volumeType, s.volume.Name)
 		if err != nil {
 			return err
 		}
@@ -678,8 +678,8 @@ func (s *storageLvm) SetStoragePoolVolumeWritable(writable *api.StorageVolumePut
 	s.volume.StorageVolumePut = *writable
 }
 
-func (s *storageLvm) GetContainerPoolInfo() (int64, string) {
-	return s.poolID, s.pool.Name
+func (s *storageLvm) GetContainerPoolInfo() (int64, string, string) {
+	return s.poolID, s.pool.Name, s.getOnDiskPoolName()
 }
 
 func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
@@ -987,52 +987,58 @@ func (s *storageLvm) ContainerCanRestore(container container, sourceContainer co
 	return nil
 }
 
-func (s *storageLvm) ContainerDelete(container container) error {
-	logger.Debugf("Deleting LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+func lvmContainerDeleteInternal(poolName string, ctName string, isSnapshot bool, vgName string, ctPath string) error {
 	containerMntPoint := ""
-
-	containerName := container.Name()
-	containerLvmName := containerNameToLVName(containerName)
-	if container.IsSnapshot() {
-		containerMntPoint = getSnapshotMountPoint(s.pool.Name, containerName)
+	containerLvmName := containerNameToLVName(ctName)
+	if isSnapshot {
+		containerMntPoint = getSnapshotMountPoint(poolName, ctName)
 	} else {
-		containerMntPoint = getContainerMountPoint(s.pool.Name, containerName)
+		containerMntPoint = getContainerMountPoint(poolName, ctName)
 	}
 
-	// Make sure that the container is really unmounted at this point.
-	// Otherwise we will fail.
 	if shared.IsMountPoint(containerMntPoint) {
 		err := tryUnmount(containerMntPoint, 0)
 		if err != nil {
-			return fmt.Errorf("Failed to unmount container path '%s': %s", containerMntPoint, err)
+			return fmt.Errorf(`Failed to unmount container path `+
+				`"%s": %s`, containerMntPoint, err)
 		}
 	}
 
-	poolName := s.getOnDiskPoolName()
-	containerLvmDevPath := getLvmDevPath(poolName,
+	containerLvmDevPath := getLvmDevPath(vgName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
-	lvExists, _ := storageLVExists(containerLvmDevPath)
 
+	lvExists, _ := storageLVExists(containerLvmDevPath)
 	if lvExists {
-		err := s.removeLV(poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
+		err := removeLV(vgName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
 		if err != nil {
 			return err
 		}
 	}
 
-	if container.IsSnapshot() {
-		sourceName, _, _ := containerGetParentAndSnapshotName(containerName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
+	var err error
+	if isSnapshot {
+		sourceName, _, _ := containerGetParentAndSnapshotName(ctName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", poolName, "snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
-		err := deleteSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
-		if err != nil {
-			return err
-		}
+		err = deleteSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
-		err := deleteContainerMountpoint(containerMntPoint, container.Path(), s.GetStorageTypeName())
-		if err != nil {
-			return err
-		}
+		err = deleteContainerMountpoint(containerMntPoint, ctPath, "lvm")
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageLvm) ContainerDelete(container container) error {
+	logger.Debugf("Deleting LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	containerName := container.Name()
+	poolName := s.getOnDiskPoolName()
+	err := lvmContainerDeleteInternal(s.pool.Name, containerName, container.IsSnapshot(), poolName, container.Path())
+	if err != nil {
+		return err
 	}
 
 	logger.Debugf("Deleted LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
@@ -1050,8 +1056,8 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 		defer source.StorageStop()
 	}
 
-	_, sourcePool := source.Storage().GetContainerPoolInfo()
-	_, targetPool := target.Storage().GetContainerPoolInfo()
+	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
+	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
 		return fmt.Errorf("copying containers between different storage pools is not implemented")
 	}
@@ -1292,7 +1298,7 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 		defer source.StorageStop()
 	}
 
-	_, sourcePool := source.Storage().GetContainerPoolInfo()
+	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	if s.pool.Name != sourcePool {
 		return fmt.Errorf("containers must be on the same pool to be restored")
 	}
@@ -1310,7 +1316,8 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 		}
 
 		poolName := s.getOnDiskPoolName()
-		err = s.removeLV(poolName,
+
+		err = removeLV(poolName,
 			storagePoolVolumeAPIEndpointContainers, targetLvmName)
 		if err != nil {
 			logger.Errorf("Failed to remove \"%s\": %s",
@@ -1619,7 +1626,7 @@ func (s *storageLvm) ImageDelete(fingerprint string) error {
 				return err
 			}
 
-			err = s.removeLV(poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
+			err = removeLV(poolName, storagePoolVolumeAPIEndpointImages, fingerprint)
 			if err != nil {
 				return err
 			}
