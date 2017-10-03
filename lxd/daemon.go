@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -42,6 +43,7 @@ type Daemon struct {
 
 	Storage storage
 
+	tasks     task.Group
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
 
@@ -280,20 +282,7 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Log expiry */
-	go func() {
-		t := time.NewTicker(24 * time.Hour)
-		for {
-			logger.Infof("Expiring log files")
-
-			err := ExpireLogs(d.db)
-			if err != nil {
-				logger.Error("Failed to expire logs", log.Ctx{"err": err})
-			}
-
-			logger.Infof("Done expiring log files")
-			<-t.C
-		}
-	}()
+	d.tasks.Add(expireLogsTask(d.db))
 
 	/* set the initial proxy function based on config values in the DB */
 	d.proxy = shared.ProxyFromConfig(
@@ -432,6 +421,14 @@ func (d *Daemon) Ready() error {
 		}
 	}()
 
+	// FIXME: There's no hard reason for which we should not run tasks in
+	//        mock mode. However it requires that we tweak the tasks so
+	//        they exit gracefully without blocking (something we should
+	//        do anyways) and they don't hit the internet or similar.
+	if !d.os.MockMode {
+		d.tasks.Start()
+	}
+
 	s := d.State()
 
 	/* Restore containers */
@@ -471,6 +468,8 @@ func (d *Daemon) Stop() error {
 	// FIXME: we should track also other errors happening during shutdown,
 	// not only the endpoints one.
 	errEndpointsDown := d.endpoints.Down()
+
+	d.tasks.Stop(5 * time.Second) // Give tasks at most five seconds to cleanup.
 
 	if n, err := d.numRunningContainers(); err != nil || n == 0 {
 		logger.Infof("Unmounting temporary filesystems")
