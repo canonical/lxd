@@ -32,7 +32,9 @@ zfs.pool\_name                  | string    | zfs driver                        
 
 Storage pool configuration keys can be set using the lxc tool with:
 
-    lxc storage set [<remote>:]<pool> <key> <value>
+```bash
+lxc storage set [<remote>:]<pool> <key> <value>
+```
 
 ## Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | API Extension | Description
@@ -45,7 +47,9 @@ zfs.use\_refquota       | string    | zfs driver                | same as volume
 
 Storage volume configuration keys can be set using the lxc tool with:
 
-    lxc storage volume set [<remote>:]<pool> <volume> <key> <value>
+```bash
+lxc storage volume set [<remote>:]<pool> <volume> <key> <value>
+```
 
 # Storage Backends and supported functions
 ## Feature comparison
@@ -94,7 +98,7 @@ or because the storage backend of the source and target servers differ,
 LXD will fallback to using rsync to transfer the individual files instead.
 
 When rsync has to be used LXD allows to specify an upper limit on the amount of
-socket I/O by setting the "rsync.bwlimit" storage pool property to a non-zero
+socket I/O by setting the `rsync.bwlimit` storage pool property to a non-zero
 value.
 
 ## Default storage pool
@@ -102,7 +106,8 @@ There is no concept of a default storage pool in LXD.
 Instead, the pool to use for the container's root is treated as just another "disk" device in LXD.
 
 The device entry looks like:
-```
+
+```yaml
   root:
     type: disk
     path: /
@@ -114,17 +119,20 @@ or it can be set through LXD profiles.
 
 That latter option is what the default LXD setup (through "lxd init") will do for you.  
 The same can be done manually against any profile using (for the "default" profile):
-```
+
+```bash
 lxc profile device add default root disk path=/ pool=default
 ```
 
 ## I/O limits
-I/O limits in IOp/s or MB/s can be set on storage devices when attached to a container (see containers.md).
+I/O limits in IOp/s or MB/s can be set on storage devices when attached to a
+container (see [Containers](containers.md)).
 
-Those are applied through the Linux "blkio" cgroup controller which makes it possible  
+Those are applied through the Linux `blkio` cgroup controller which makes it possible  
 to restrict I/O at the disk level (but nothing finer grained than that).
 
 Because those apply to a whole physical disk rather than a partition or path, the following restrictions apply:
+
  - Limits will not apply to filesystems that are backed by virtual devices (e.g. device mapper).
  - If a fileystem is backed by multiple block devices, each device will get the same limit.
  - If the container is passed two disk devices that are each backed by the same disk,  
@@ -145,13 +153,13 @@ This also means that access to cached data will not be affected by the limit.
 
  - Create a new directory pool called "pool1".
 
-```
+```bash
 lxc storage create pool1 dir
 ```
 
  - Use an existing directory for "pool2".
 
-```
+```bash
 lxc storage create pool2 dir source=/data/lxd
 ```
 
@@ -172,7 +180,7 @@ lxc storage create pool2 dir source=/data/lxd
   `lxd import`. In line with this, LXD requires the "ceph.osd.force_reuse"
   property to be set to true. If not set, LXD will refuse to reuse an osd
   storage pool it detected as being in use by another LXD instance.
-* When setting up a ceph cluster that LXD is going to use we recommend using
+- When setting up a ceph cluster that LXD is going to use we recommend using
   `xfs` as the underlying filesystem for the storage entities that are used to
   hold OSD storage pools. Using `ext4` as the underlying filesystem for the
   storage entities is not recommended by Ceph upstream. You may see unexpected
@@ -182,25 +190,25 @@ lxc storage create pool2 dir source=/data/lxd
 
 - Create a osd storage pool named "pool1" in the CEPH cluster "ceph".
 
-```
+```bash
 lxc storage create pool1 ceph
 ```
 
 - Create a osd storage pool named "pool1" in the CEPH cluster "my-cluster".
 
-```
+```bash
 lxc storage create pool1 ceph ceph.cluster\_name=my-cluster
 ```
 
 - Create a osd storage pool named "pool1" with the on-disk name "my-osd".
 
-```
+```bash
 lxc storage create pool1 ceph ceph.osd.pool\_name=my-osd
 ```
 
 - Use the existing osd storage pool "my-already-existing-osd".
 
-```
+```bash
 lxc storage create pool1 ceph source=my-already-existing-osd
 ```
 
@@ -219,19 +227,19 @@ lxc storage create pool1 ceph source=my-already-existing-osd
 
  - Create loop-backed pool named "pool1".
 
-```
+```bash
 lxc storage create pool1 btrfs
 ```
 
- - Create a btrfs subvolume named "pool1" on the btrfs filesystem "/some/path" and use as pool.
+ - Create a btrfs subvolume named "pool1" on the btrfs filesystem `/some/path` and use as pool.
 
-```
+```bash
 lxc storage create pool1 btrfs source=/some/path
 ```
 
- - Create a new pool called "pool1" on "/dev/sdX".
+ - Create a new pool called "pool1" on `/dev/sdX`.
 
-```
+```bash
 lxc storage create pool1 btrfs source=/dev/sdX
 ```
 
@@ -254,25 +262,25 @@ lxc storage create pool1 btrfs source=/dev/sdX
 
  - Create a loop-backed pool named "pool1". The LVM Volume Group will also be called "pool1".
 
-```
+```bash
 lxc storage create pool1 lvm
 ```
 
  - Use the existing LVM Volume Group called "my-pool"
 
-```
+```bash
 lxc storage create pool1 lvm source=my-pool
 ```
 
- - Create a new pool named "pool1" on "/dev/sdX". The LVM Volume Group will also be called "pool1".
+ - Create a new pool named "pool1" on `/dev/sdX`. The LVM Volume Group will also be called "pool1".
 
-```
+```bash
 lxc storage create pool1 lvm source=/dev/sdX
 ```
 
- - Create a new pool called "pool1" using "/dev/sdX" with the LVM Volume Group called "my-pool".
+ - Create a new pool called "pool1" using `/dev/sdX` with the LVM Volume Group called "my-pool".
 
-```
+```bash
 lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
 ```
 
@@ -316,44 +324,44 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
 
  - Create a loop-backed pool named "pool1". The ZFS Zpool will also be called "pool1".
 
-```
+```bash
 lxc storage create pool1 zfs
 ```
 
  - Create a loop-backed pool named "pool1" with the ZFS Zpool called "my-tank".
 
-```
+```bash
 lxc storage create pool1 zfs zfs.pool\_name=my-tank
 ```
 
  - Use the existing ZFS Zpool "my-tank".
 
-```
+```bash
 lxc storage create pool1 zfs source=my-tank
 ```
 
  - Use the existing ZFS dataset "my-tank/slice".
 
-```
+```bash
 lxc storage create pool1 zfs source=my-tank/slice
 ```
 
- - Create a new pool called "pool1" on "/dev/sdX". The ZFS Zpool will also be called "pool1".
+ - Create a new pool called "pool1" on `/dev/sdX`. The ZFS Zpool will also be called "pool1".
 
-```
+```bash
 lxc storage create pool1 zfs source=/dev/sdX
 ```
 
- - Create a new pool on "/dev/sdX" with the ZFS Zpool called "my-tank".
+ - Create a new pool on `/dev/sdX` with the ZFS Zpool called "my-tank".
 
-```
+```bash
 lxc storage create pool1 zfs source=/dev/sdX zfs.pool_name=my-tank
 ```
 
 #### Growing a loop backed ZFS pool
 LXD doesn't let you directly grow a loop backed ZFS pool, but you can do so with:
 
-```
+```bash
 sudo truncate -s +5G /var/lib/lxd/disks/<POOL>.img
 sudo zpool set autoexpand=on lxd
 sudo zpool online -e lxd /var/lib/lxd/disks/<POOL>.img
