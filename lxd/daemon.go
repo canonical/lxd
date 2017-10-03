@@ -33,17 +33,22 @@ import (
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	clientCerts         []x509.Certificate
-	os                  *sys.OS
-	db                  *sql.DB
-	readyChan           chan bool
-	pruneChan           chan bool
-	shutdownChan        chan bool
-	resetAutoUpdateChan chan bool
+	clientCerts  []x509.Certificate
+	os           *sys.OS
+	db           *sql.DB
+	readyChan    chan bool
+	shutdownChan chan bool
 
 	Storage storage
 
-	tasks     task.Group
+	// Tasks registry for long-running background tasks.
+	tasks task.Group
+
+	// Indexes of tasks that need to be reset when their execution interval
+	// changes.
+	taskPruneImages int
+	taskAutoUpdate  int
+
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
 
@@ -376,63 +381,13 @@ func (d *Daemon) init() error {
 
 func (d *Daemon) Ready() error {
 	/* Prune images */
-	d.pruneChan = make(chan bool)
-	go func() {
-		for {
-			timer := time.NewTimer(24 * time.Hour)
-			select {
-			case <-timer.C:
-				/* run once per day */
-				pruneExpiredImages(d)
-			case <-d.pruneChan:
-				/* run when image.remote_cache_expiry is changed */
-				pruneExpiredImages(d)
-				timer.Stop()
-			}
-		}
-	}()
-
-	// Do an initial pruning run before we start updating images
-	pruneExpiredImages(d)
+	d.taskPruneImages = d.tasks.Add(pruneExpiredImagesTask(d))
 
 	/* Auto-update images */
-	d.resetAutoUpdateChan = make(chan bool)
-	go func() {
-		// Initial image sync
-		interval := daemonConfig["images.auto_update_interval"].GetInt64()
-		if interval > 0 {
-			autoUpdateImages(d)
-		}
-
-		// Background image sync
-		for {
-			interval := daemonConfig["images.auto_update_interval"].GetInt64()
-			if interval > 0 {
-				timer := time.NewTimer(time.Duration(interval) * time.Hour)
-
-				select {
-				case <-timer.C:
-					autoUpdateImages(d)
-				case <-d.resetAutoUpdateChan:
-					timer.Stop()
-				}
-			} else {
-				select {
-				case <-d.resetAutoUpdateChan:
-					continue
-				}
-			}
-		}
-	}()
+	d.taskAutoUpdate = d.tasks.Add(autoUpdateImagesTask(d))
 
 	/* Auto-update instance types */
-	go func() {
-		// Background update
-		for {
-			instanceRefreshTypes(d)
-			time.Sleep(24 * time.Hour)
-		}
-	}()
+	d.tasks.Add(instanceRefreshTypesTask(d))
 
 	// FIXME: There's no hard reason for which we should not run tasks in
 	//        mock mode. However it requires that we tweak the tasks so

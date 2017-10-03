@@ -324,12 +324,12 @@ func daemonConfigSetProxy(d *Daemon, key string, value string) (string, error) {
 
 func daemonConfigTriggerExpiry(d *Daemon, key string, value string) {
 	// Trigger an image pruning run
-	d.pruneChan <- true
+	d.tasks.Reset(d.taskPruneImages)
 }
 
 func daemonConfigTriggerAutoUpdateInterval(d *Daemon, key string, value string) {
 	// Reset the auto-update interval loop
-	d.resetAutoUpdateChan <- true
+	d.tasks.Reset(d.taskAutoUpdate)
 }
 
 func daemonConfigValidateCompression(d *Daemon, key string, value string) error {
