@@ -546,7 +546,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 
 func containerCreateFromImage(s *state.State, args db.ContainerArgs, hash string) (container, error) {
 	// Get the image properties
-	_, img, err := db.ImageGet(s.NodeDB, hash, false, false)
+	_, img, err := s.DB.ImageGet(hash, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -567,7 +567,7 @@ func containerCreateFromImage(s *state.State, args db.ContainerArgs, hash string
 		return nil, err
 	}
 
-	err = db.ImageLastAccessUpdate(s.NodeDB, hash, time.Now().UTC())
+	err = s.DB.ImageLastAccessUpdate(hash, time.Now().UTC())
 	if err != nil {
 		s.DB.ContainerRemove(args.Name)
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)

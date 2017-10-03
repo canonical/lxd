@@ -219,13 +219,13 @@ func patchStorageApi(name string, d *Daemon) error {
 	}
 
 	// Get list of existing public images.
-	imgPublic, err := db.ImagesGet(d.nodeDB, true)
+	imgPublic, err := d.db.ImagesGet(true)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing private images.
-	imgPrivate, err := db.ImagesGet(d.nodeDB, false)
+	imgPrivate, err := d.db.ImagesGet(false)
 	if err != nil {
 		return err
 	}
@@ -2458,18 +2458,18 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 }
 
 func patchFixUploadedAt(name string, d *Daemon) error {
-	images, err := db.ImagesGet(d.nodeDB, false)
+	images, err := d.db.ImagesGet(false)
 	if err != nil {
 		return err
 	}
 
 	for _, fingerprint := range images {
-		id, image, err := db.ImageGet(d.nodeDB, fingerprint, false, true)
+		id, image, err := d.db.ImageGet(fingerprint, false, true)
 		if err != nil {
 			return err
 		}
 
-		err = db.ImageUploadedAt(d.nodeDB, id, image.UploadedAt)
+		err = d.db.ImageUploadedAt(id, image.UploadedAt)
 		if err != nil {
 			return err
 		}

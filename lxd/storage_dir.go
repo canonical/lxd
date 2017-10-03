@@ -433,7 +433,7 @@ func (s *storageDir) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renamed DIR storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	return db.StoragePoolVolumeRename(s.s.DB, s.volume.Name, newName,
+	return s.db.StoragePoolVolumeRename(s.volume.Name, newName,
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 

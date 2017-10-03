@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -295,7 +294,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
-	_, _, err = db.ImageGet(d.nodeDB, info.Fingerprint, false, true)
+	_, _, err = d.db.ImageGet(info.Fingerprint, false, true)
 	if err == nil {
 		return nil, fmt.Errorf("The image already exists: %s", info.Fingerprint)
 	}
@@ -311,7 +310,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	info.Properties = req.Properties
 
 	// Create the database entry
-	err = db.ImageInsert(d.nodeDB, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.db.ImageInsert(info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +335,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image
 		return nil, err
 	}
 
-	id, info, err := db.ImageGet(d.nodeDB, info.Fingerprint, false, true)
+	id, info, err := d.db.ImageGet(info.Fingerprint, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +347,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image
 
 	// Update the DB record if needed
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-		err = db.ImageUpdate(d.nodeDB, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+		err = d.db.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 		if err != nil {
 			return nil, err
 		}
@@ -405,7 +404,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 		return nil, err
 	}
 
-	id, info, err := db.ImageGet(d.nodeDB, info.Fingerprint, false, false)
+	id, info, err := d.db.ImageGet(info.Fingerprint, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +415,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 	}
 
 	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-		err = db.ImageUpdate(d.nodeDB, id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+		err = d.db.ImageUpdate(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 		if err != nil {
 			return nil, err
 		}
@@ -613,7 +612,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) 
 	}
 
 	// Check if the image already exists
-	exists, err := db.ImageExists(d.nodeDB, info.Fingerprint)
+	exists, err := d.db.ImageExists(info.Fingerprint)
 	if err != nil {
 		return nil, err
 	}
@@ -621,7 +620,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) 
 		return nil, fmt.Errorf("Image with same fingerprint already exists")
 	}
 	// Create the database entry
-	err = db.ImageInsert(d.nodeDB, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.db.ImageInsert(info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
 		return nil, err
 	}
@@ -736,17 +735,17 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 		// Apply any provided alias
 		for _, alias := range req.Aliases {
-			_, _, err := db.ImageAliasGet(d.nodeDB, alias.Name, true)
+			_, _, err := d.db.ImageAliasGet(alias.Name, true)
 			if err == nil {
 				return fmt.Errorf("Alias already exists: %s", alias.Name)
 			}
 
-			id, _, err := db.ImageGet(d.nodeDB, info.Fingerprint, false, false)
+			id, _, err := d.db.ImageGet(info.Fingerprint, false, false)
 			if err != nil {
 				return err
 			}
 
-			err = db.ImageAliasAdd(d.nodeDB, alias.Name, id, alias.Description)
+			err = d.db.ImageAliasAdd(alias.Name, id, alias.Description)
 			if err != nil {
 				return err
 			}
@@ -812,7 +811,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, error) {
 }
 
 func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
-	results, err := db.ImagesGet(d.nodeDB, public)
+	results, err := d.db.ImagesGet(public)
 	if err != nil {
 		return []string{}, err
 	}
@@ -825,7 +824,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 			url := fmt.Sprintf("/%s/images/%s", version.APIVersion, name)
 			resultString[i] = url
 		} else {
-			image, response := doImageGet(d.nodeDB, name, public)
+			image, response := doImageGet(d.db, name, public)
 			if response != nil {
 				continue
 			}
@@ -868,14 +867,14 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 func autoUpdateImages(d *Daemon) {
 	logger.Infof("Updating images")
 
-	images, err := db.ImagesGet(d.nodeDB, false)
+	images, err := d.db.ImagesGet(false)
 	if err != nil {
 		logger.Error("Unable to retrieve the list of images", log.Ctx{"err": err})
 		return
 	}
 
 	for _, fingerprint := range images {
-		id, info, err := db.ImageGet(d.nodeDB, fingerprint, false, true)
+		id, info, err := d.db.ImageGet(fingerprint, false, true)
 		if err != nil {
 			logger.Error("Error loading image", log.Ctx{"err": err, "fp": fingerprint})
 			continue
@@ -895,7 +894,7 @@ func autoUpdateImages(d *Daemon) {
 // Returns whether the image has been updated.
 func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 	fingerprint := info.Fingerprint
-	_, source, err := db.ImageSourceGet(d.nodeDB, id)
+	_, source, err := d.db.ImageSourceGet(id)
 	if err != nil {
 		logger.Error("Error getting source image", log.Ctx{"err": err, "fp": fingerprint})
 		return err
@@ -903,14 +902,14 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 
 	// Get the IDs of all storage pools on which a storage volume
 	// for the requested image currently exists.
-	poolIDs, err := db.ImageGetPools(d.nodeDB, fingerprint)
+	poolIDs, err := d.db.ImageGetPools(fingerprint)
 	if err != nil {
 		logger.Error("Error getting image pools", log.Ctx{"err": err, "fp": fingerprint})
 		return err
 	}
 
 	// Translate the IDs to poolNames.
-	poolNames, err := db.ImageGetPoolNamesFromIDs(d.nodeDB, poolIDs)
+	poolNames, err := d.db.ImageGetPoolNamesFromIDs(poolIDs)
 	if err != nil {
 		logger.Error("Error getting image pools", log.Ctx{"err": err, "fp": fingerprint})
 		return err
@@ -949,27 +948,27 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 			continue
 		}
 
-		newId, _, err := db.ImageGet(d.nodeDB, hash, false, true)
+		newId, _, err := d.db.ImageGet(hash, false, true)
 		if err != nil {
 			logger.Error("Error loading image", log.Ctx{"err": err, "fp": hash})
 			continue
 		}
 
 		if info.Cached {
-			err = db.ImageLastAccessInit(d.nodeDB, hash)
+			err = d.db.ImageLastAccessInit(hash)
 			if err != nil {
 				logger.Error("Error setting cached flag", log.Ctx{"err": err, "fp": hash})
 				continue
 			}
 		}
 
-		err = db.ImageLastAccessUpdate(d.nodeDB, hash, info.LastUsedAt)
+		err = d.db.ImageLastAccessUpdate(hash, info.LastUsedAt)
 		if err != nil {
 			logger.Error("Error setting last use date", log.Ctx{"err": err, "fp": hash})
 			continue
 		}
 
-		err = db.ImageAliasesMove(d.nodeDB, id, newId)
+		err = d.db.ImageAliasesMove(id, newId)
 		if err != nil {
 			logger.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
 			continue
@@ -1010,7 +1009,7 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 	}
 
 	// Remove the database entry for the image.
-	if err = db.ImageDelete(d.nodeDB, id); err != nil {
+	if err = d.db.ImageDelete(id); err != nil {
 		logger.Debugf("Error deleting image from database %s: %s", fname, err)
 	}
 
@@ -1040,7 +1039,7 @@ func pruneExpiredImages(d *Daemon) {
 	}
 
 	logger.Infof("Pruning expired images")
-	images, err := db.ImagesGetExpired(d.nodeDB, expiry)
+	images, err := d.db.ImagesGetExpired(expiry)
 	if err != nil {
 		logger.Error("Unable to retrieve the list of expired images", log.Ctx{"err": err})
 		return
@@ -1050,13 +1049,13 @@ func pruneExpiredImages(d *Daemon) {
 	for _, fp := range images {
 		// Get the IDs of all storage pools on which a storage volume
 		// for the requested image currently exists.
-		poolIDs, err := db.ImageGetPools(d.nodeDB, fp)
+		poolIDs, err := d.db.ImageGetPools(fp)
 		if err != nil {
 			continue
 		}
 
 		// Translate the IDs to poolNames.
-		poolNames, err := db.ImageGetPoolNamesFromIDs(d.nodeDB, poolIDs)
+		poolNames, err := d.db.ImageGetPoolNamesFromIDs(poolIDs)
 		if err != nil {
 			continue
 		}
@@ -1087,13 +1086,13 @@ func pruneExpiredImages(d *Daemon) {
 			}
 		}
 
-		imgID, _, err := db.ImageGet(d.nodeDB, fp, false, false)
+		imgID, _, err := d.db.ImageGet(fp, false, false)
 		if err != nil {
 			logger.Debugf("Error retrieving image info %s: %s", fp, err)
 		}
 
 		// Remove the database entry for the image.
-		if err = db.ImageDelete(d.nodeDB, imgID); err != nil {
+		if err = d.db.ImageDelete(imgID); err != nil {
 			logger.Debugf("Error deleting image %s from database: %s", fp, err)
 		}
 	}
@@ -1123,17 +1122,17 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	deleteFromAllPools := func() error {
 		// Use the fingerprint we received in a LIKE query and use the full
 		// fingerprint we receive from the database in all further queries.
-		imgID, imgInfo, err := db.ImageGet(d.nodeDB, fingerprint, false, false)
+		imgID, imgInfo, err := d.db.ImageGet(fingerprint, false, false)
 		if err != nil {
 			return err
 		}
 
-		poolIDs, err := db.ImageGetPools(d.nodeDB, imgInfo.Fingerprint)
+		poolIDs, err := d.db.ImageGetPools(imgInfo.Fingerprint)
 		if err != nil {
 			return err
 		}
 
-		pools, err := db.ImageGetPoolNamesFromIDs(d.nodeDB, poolIDs)
+		pools, err := d.db.ImageGetPoolNamesFromIDs(poolIDs)
 		if err != nil {
 			return err
 		}
@@ -1164,7 +1163,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 		}
 
 		// Remove the database entry for the image.
-		return db.ImageDelete(d.nodeDB, imgID)
+		return d.db.ImageDelete(imgID)
 	}
 
 	rmimg := func(op *operation) error {
@@ -1182,8 +1181,8 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func doImageGet(dbObj *sql.DB, fingerprint string, public bool) (*api.Image, Response) {
-	_, imgInfo, err := db.ImageGet(dbObj, fingerprint, public, false)
+func doImageGet(db *db.Node, fingerprint string, public bool) (*api.Image, Response) {
+	_, imgInfo, err := db.ImageGet(fingerprint, public, false)
 	if err != nil {
 		return nil, SmartError(err)
 	}
@@ -1226,7 +1225,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 	public := d.checkTrustedClient(r) != nil
 	secret := r.FormValue("secret")
 
-	info, response := doImageGet(d.nodeDB, fingerprint, false)
+	info, response := doImageGet(d.db, fingerprint, false)
 	if response != nil {
 		return response
 	}
@@ -1242,7 +1241,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 func imagePut(d *Daemon, r *http.Request) Response {
 	// Get current value
 	fingerprint := mux.Vars(r)["fingerprint"]
-	id, info, err := db.ImageGet(d.nodeDB, fingerprint, false, false)
+	id, info, err := d.db.ImageGet(fingerprint, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1259,7 +1258,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = db.ImageUpdate(d.nodeDB, id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties)
+	err = d.db.ImageUpdate(id, info.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, req.Properties)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1270,7 +1269,7 @@ func imagePut(d *Daemon, r *http.Request) Response {
 func imagePatch(d *Daemon, r *http.Request) Response {
 	// Get current value
 	fingerprint := mux.Vars(r)["fingerprint"]
-	id, info, err := db.ImageGet(d.nodeDB, fingerprint, false, false)
+	id, info, err := d.db.ImageGet(fingerprint, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1325,7 +1324,7 @@ func imagePatch(d *Daemon, r *http.Request) Response {
 		info.Properties = properties
 	}
 
-	err = db.ImageUpdate(d.nodeDB, id, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.db.ImageUpdate(id, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1346,17 +1345,17 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// This is just to see if the alias name already exists.
-	_, _, err := db.ImageAliasGet(d.nodeDB, req.Name, true)
+	_, _, err := d.db.ImageAliasGet(req.Name, true)
 	if err == nil {
 		return Conflict
 	}
 
-	id, _, err := db.ImageGet(d.nodeDB, req.Target, false, false)
+	id, _, err := d.db.ImageGet(req.Target, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	err = db.ImageAliasAdd(d.nodeDB, req.Name, id, req.Description)
+	err = d.db.ImageAliasAdd(req.Name, id, req.Description)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1367,7 +1366,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 func aliasesGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
 
-	names, err := db.ImageAliasesGet(d.nodeDB)
+	names, err := d.db.ImageAliasesGet()
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -1379,7 +1378,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 			responseStr = append(responseStr, url)
 
 		} else {
-			_, alias, err := db.ImageAliasGet(d.nodeDB, name, d.checkTrustedClient(r) == nil)
+			_, alias, err := d.db.ImageAliasGet(name, d.checkTrustedClient(r) == nil)
 			if err != nil {
 				continue
 			}
@@ -1397,7 +1396,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 func aliasGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	_, alias, err := db.ImageAliasGet(d.nodeDB, name, d.checkTrustedClient(r) == nil)
+	_, alias, err := d.db.ImageAliasGet(name, d.checkTrustedClient(r) == nil)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1407,12 +1406,12 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 
 func aliasDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	_, _, err := db.ImageAliasGet(d.nodeDB, name, true)
+	_, _, err := d.db.ImageAliasGet(name, true)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	err = db.ImageAliasDelete(d.nodeDB, name)
+	err = d.db.ImageAliasDelete(name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1423,7 +1422,7 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 func aliasPut(d *Daemon, r *http.Request) Response {
 	// Get current value
 	name := mux.Vars(r)["name"]
-	id, alias, err := db.ImageAliasGet(d.nodeDB, name, true)
+	id, alias, err := d.db.ImageAliasGet(name, true)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1443,12 +1442,12 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("The target field is required"))
 	}
 
-	imageId, _, err := db.ImageGet(d.nodeDB, req.Target, false, false)
+	imageId, _, err := d.db.ImageGet(req.Target, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	err = db.ImageAliasUpdate(d.nodeDB, id, imageId, req.Description)
+	err = d.db.ImageAliasUpdate(id, imageId, req.Description)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1459,7 +1458,7 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 func aliasPatch(d *Daemon, r *http.Request) Response {
 	// Get current value
 	name := mux.Vars(r)["name"]
-	id, alias, err := db.ImageAliasGet(d.nodeDB, name, true)
+	id, alias, err := d.db.ImageAliasGet(name, true)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1495,12 +1494,12 @@ func aliasPatch(d *Daemon, r *http.Request) Response {
 		alias.Description = description
 	}
 
-	imageId, _, err := db.ImageGet(d.nodeDB, alias.Target, false, false)
+	imageId, _, err := d.db.ImageGet(alias.Target, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	err = db.ImageAliasUpdate(d.nodeDB, id, imageId, alias.Description)
+	err = d.db.ImageAliasUpdate(id, imageId, alias.Description)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1517,17 +1516,17 @@ func aliasPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _, _ := db.ImageAliasGet(d.nodeDB, req.Name, true)
+	id, _, _ := d.db.ImageAliasGet(req.Name, true)
 	if id > 0 {
 		return Conflict
 	}
 
-	id, _, err := db.ImageAliasGet(d.nodeDB, name, true)
+	id, _, err := d.db.ImageAliasGet(name, true)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	err = db.ImageAliasRename(d.nodeDB, id, req.Name)
+	err = d.db.ImageAliasRename(id, req.Name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1541,7 +1540,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	public := d.checkTrustedClient(r) != nil
 	secret := r.FormValue("secret")
 
-	_, imgInfo, err := db.ImageGet(d.nodeDB, fingerprint, false, false)
+	_, imgInfo, err := d.db.ImageGet(fingerprint, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1591,7 +1590,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 func imageSecret(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	_, imgInfo, err := db.ImageGet(d.nodeDB, fingerprint, false, false)
+	_, imgInfo, err := d.db.ImageGet(fingerprint, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1618,7 +1617,7 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 
 func imageRefresh(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	imageId, imageInfo, err := db.ImageGet(d.nodeDB, fingerprint, false, false)
+	imageId, imageInfo, err := d.db.ImageGet(fingerprint, false, false)
 	if err != nil {
 		return SmartError(err)
 	}
