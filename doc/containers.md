@@ -1,22 +1,24 @@
 # Container configuration
 ## Properties
 The following are direct container properties and can't be part of a profile:
- - name
- - architecture
+
+ - `name`
+ - `architecture`
 
 Name is the container name and can only be changed by renaming the container.
 
 ## Key/value configuration
 The key/value configuration is namespaced with the following namespaces
 currently supported:
- - boot (boot related options, timing, dependencies, ...)
- - environment (environment variables)
- - image (copy of the image properties at time of creation)
- - limits (resource limits)
- - raw (raw container configuration overrides)
- - security (security policies)
- - user (storage for user properties, searchable)
- - volatile (used internally by LXD to store settings that are specific to a specific container instance)
+
+ - `boot` (boot related options, timing, dependencies, ...)
+ - `environment` (environment variables)
+ - `image` (copy of the image properties at time of creation)
+ - `limits` (resource limits)
+ - `raw` (raw container configuration overrides)
+ - `security` (security policies)
+ - `user` (storage for user properties, searchable)
+ - `volatile` (used internally by LXD to store settings that are specific to a specific container instance)
 
 The currently supported keys are:
 
@@ -86,7 +88,9 @@ backward compatibility).
 
 Those keys can be set using the lxc tool with:
 
-    lxc config set <container> <key> <value>
+```bash
+lxc config set <container> <key> <value>
+```
 
 Volatile keys can't be set by the user and can only be set directly against a container.
 
@@ -100,6 +104,7 @@ for a standard POSIX system to work. These aren't visible in container or
 profile configuration and may not be overriden.
 
 Those includes:
+
  - `/dev/null` (character device)
  - `/dev/zero` (character device)
  - `/dev/full` (character device)
@@ -126,12 +131,15 @@ is overriden by the new definition.
 
 Device entries are added to a container through:
 
-    lxc config device add <container> <name> <type> [key=value]...
+```bash
+lxc config device add <container> <name> <type> [key=value]...
+```
 
 or to a profile with:
 
-    lxc profile device add <profile> <name> <type> [key=value]...
-
+```bash
+lxc profile device add <profile> <name> <type> [key=value]...
+```
 
 ## Device types
 LXD supports the following device types:
@@ -156,10 +164,11 @@ It can be added in a profile being applied after the profile it originated from 
 
 ### Type: nic
 LXD supports different kind of network devices:
- - physical: Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the container.
- - bridged: Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the container.
- - macvlan: Sets up a new network device based on an existing one but using a different MAC address.
- - p2p: Creates a virtual device pair, putting one side in the container and leaving the other side on the host.
+
+ - `physical`: Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the container.
+ - `bridged`: Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the container.
+ - `macvlan`: Sets up a new network device based on an existing one but using a different MAC address.
+ - `p2p`: Creates a virtual device pair, putting one side in the container and leaving the other side on the host.
 
 Different network interface types have different additional properties, the current list is:
 
@@ -180,7 +189,7 @@ ipv6.address            | string    | -                 | no        | bridged   
 security.mac\_filtering | boolean   | false             | no        | bridged                       | network                                | Prevent the container from spoofing another's MAC address
 
 #### bridged or macvlan for connection to physical network
-The "bridged" and "macvlan" interface types can both be used to connect
+The `bridged` and `macvlan` interface types can both be used to connect
 to an existing physical network.
 
 macvlan effectively lets you fork your physical NIC, getting a second
@@ -221,7 +230,7 @@ the average of the limits will be used.
 
 ### Type: unix-char
 Unix character device entries simply make the requested character device
-appear in the container's /dev and allow read/write operations to it.
+appear in the container's `/dev` and allow read/write operations to it.
 
 The following properties exist:
 
@@ -237,7 +246,7 @@ mode        | int       | 0660              |                                   
 
 ### Type: unix-block
 Unix block device entries simply make the requested block device
-appear in the container's /dev and allow read/write operations to it.
+appear in the container's `/dev` and allow read/write operations to it.
 
 The following properties exist:
 
