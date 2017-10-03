@@ -1,4 +1,4 @@
-# Custom Network Configuration With cloud-init
+# Custom network configuration with cloud-init
 
 [cloud-init](https://launchpad.net/cloud-init) may be used for custom network configuration of containers.
 
@@ -9,17 +9,18 @@ have the cloud-init package installed, therefore, any of the configuration
 options mentioned in this guide will not work. On the contrary, images
 provided at cloud-images.ubuntu.com have the necessary package installed
 and also have a templates directory in their archive populated with
- * cloud-init-meta.tpl
- * cloud-init-user.tpl
- * cloud-init-vendor.tpl
- * cloud-init-network.tpl
+
+ * `cloud-init-meta.tpl`
+ * `cloud-init-user.tpl`
+ * `cloud-init-vendor.tpl`
+ * `cloud-init-network.tpl`
 
 and others not related to cloud-init.
 
 Templates provided with container images at cloud-images.ubuntu.com have
-the following in their metadata.yaml:
+the following in their `metadata.yaml`:
 
-```
+```yaml
 /var/lib/cloud/seed/nocloud-net/network-config:
   when:
     - create
@@ -29,7 +30,7 @@ the following in their metadata.yaml:
 
 Therefore, either when you create or copy a container it gets a newly rendered
 network configuration from a pre-defined template. cloud-init uses the
-network-config file to render /etc/network/interfaces.d/50-cloud-init.cfg when
+network-config file to render `/etc/network/interfaces.d/50-cloud-init.cfg` when
 you first start a container. It will not react to any changes if you restart
 a container afterwards unless you force it.
 
@@ -39,13 +40,13 @@ In order to change this you need to define your own network configuration
 using user.network-config key in the config dictionary which will override
 the default configuration (this is due to how the template is structured).
 
-The allowed values follow /etc/network/interfaces syntax in case of Ubuntu
+The allowed values follow `/etc/network/interfaces` syntax in case of Ubuntu
 images.
 
 For example, to configure a specific network interface with a static IPv4
 address and also use a custom nameserver use
 
-```
+```yaml
 config:
   user.network-config: |
     version: 1
@@ -65,16 +66,16 @@ config:
 
 A container's rootfs will contain the following files as a result:
 
- * /var/lib/cloud/seed/nocloud-net/network-config
- * /etc/network/interfaces.d/50-cloud-init.cfg
+ * `/var/lib/cloud/seed/nocloud-net/network-config`
+ * `/etc/network/interfaces.d/50-cloud-init.cfg`
 
 The former will be the same as the value provided in user.network-config,
-the latter will be a file in /etc/network/interfaces format converted from
+the latter will be a file in `/etc/network/interfaces` format converted from
 the network-config file by cloud-init (if it is not check syslog for cloud-init
 error messages).
 
 
-/etc/network/interfaces.d/50-cloud-init.cfg should then contain
+`/etc/network/interfaces.d/50-cloud-init.cfg` should then contain
 
 ```
 # This file is generated from information provided by
@@ -93,7 +94,7 @@ iface eth1 inet static
     netmask 255.255.255.0
 ```
 
-You will also notice that /run/resolvconf/resolv.conf or /etc/resolv.conf
+You will also notice that `/run/resolvconf/resolv.conf` or `/etc/resolv.conf`
 which is pointing to it will contain the desired dns server after boot-up.
 
 ```
@@ -105,11 +106,12 @@ nameserver 10.10.10.254
 # Implementation Details
 
 cloud-init allows you to seed instance configuration using the following files
-located at /var/lib/cloud/seed/nocloud-net:
- * user-data (required)
- * meta-data (required)
- * vendor-data (optional)
- * network-config (optional)
+located at `/var/lib/cloud/seed/nocloud-net`:
+
+ * `user-data` (required)
+ * `meta-data` (required)
+ * `vendor-data` (optional)
+ * `network-config` (optional)
 
 The network-config file is written to by lxd using data provided in templates
 that come with an image. This is governed by metadata.yaml but naming of the
@@ -121,7 +123,7 @@ concerned - this is purely image data that can be modified if needed.
  * A good reference on which values you can use are [unit tests for cloud-init](https://git.launchpad.net/cloud-init/tree/tests/unittests/test_datasource/test_nocloud.py#n163)
  * [cloud-init directory layout](https://cloudinit.readthedocs.io/en/latest/topics/dir_layout.html)
 
-A default cloud-init-network.tpl provided with images from the "ubuntu:" image
+A default `cloud-init-network.tpl` provided with images from the "ubuntu:" image
 source looks like this:
 
 ```
@@ -135,11 +137,12 @@ config:
 ```
 
 The template syntax is the one used in the pongo2 template engine. A custom
-config_get function is defined to retrieve values from a container
+`config_get` function is defined to retrieve values from a container
 configuration.
 
 Options available with such a template structure:
+
  * Use DHCP by default on your eth0 interface;
- * Set user.network_mode to "link-local" and configure networking by hand;
- * Seed cloud-init by defining user.network-config.
+ * Set `user.network_mode` to `link-local` and configure networking by hand;
+ * Seed cloud-init by defining `user.network-config`.
 
