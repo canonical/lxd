@@ -945,7 +945,7 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 		if info.Cached {
 			err = db.ImageLastAccessInit(d.db, hash)
 			if err != nil {
-				logger.Error("Error moving aliases", log.Ctx{"err": err, "fp": hash})
+				logger.Error("Error setting cached flag", log.Ctx{"err": err, "fp": hash})
 				continue
 			}
 		}
