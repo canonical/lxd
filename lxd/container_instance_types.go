@@ -9,10 +9,12 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
+	"golang.org/x/net/context"
 )
 
 type instanceType struct {
@@ -59,6 +61,13 @@ func instanceLoadCache() error {
 	}
 
 	return nil
+}
+
+func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(context.Context) {
+		instanceRefreshTypes(d)
+	}
+	return f, task.Daily()
 }
 
 func instanceRefreshTypes(d *Daemon) error {
