@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"github.com/gorilla/websocket"
 	"github.com/mattn/go-colorable"
@@ -42,16 +41,7 @@ func (c *execCmd) controlSocketHandler(control *websocket.Conn) {
 
 	for {
 		sig := <-ch
-		switch sig {
-		case os.Interrupt:
-			logger.Debugf("Received '%s signal', forwarding to executing program.", sig)
-			err := c.forwardSignal(control, syscall.SIGINT)
-			if err != nil {
-				logger.Debugf("Failed to forward signal '%s'.", syscall.SIGINT)
-				return
-			}
-		default:
-			break
-		}
+
+		logger.Debugf("Received '%s signal', updating window geometry.", sig)
 	}
 }
