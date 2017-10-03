@@ -17,8 +17,10 @@ This command will monitor messages as they appear on remote server.
 Shutting down `lxd` server and running it in foreground with `--debug`
 flag will bring a lot of (hopefully) useful info:
 
-    systemctl stop lxd lxd.socket
-    lxd --debug --group lxd
+```bash
+systemctl stop lxd lxd.socket
+lxd --debug --group lxd
+ ```
 
 `--group lxd` is needed to grant access to unprivileged users in this
 group.
@@ -31,9 +33,11 @@ local socket. This command accesses `GET /1.0` and formats JSON into
 human readable form using [jq](https://stedolan.github.io/jq/tutorial/)
 utility:
 
-    curl --unix-socket /var/lib/lxd/unix.socket lxd/1.0 | jq .
+```bash
+curl --unix-socket /var/lib/lxd/unix.socket lxd/1.0 | jq .
+```
 
-See [rest-api.md](rest-api.md) for available API.
+See the [RESTful API](rest-api.md) for available API.
 
 
 ### REST API through HTTPS
@@ -45,7 +49,9 @@ connection tools for authentication and encryption.
 
 Examining certificate. In case you are curious:
 
-    openssl x509 -in client.crt -purpose
+```bash
+openssl x509 -in client.crt -purpose
+```
 
 Among the lines you should see:
 
@@ -54,7 +60,9 @@ Among the lines you should see:
 
 #### with command line tools
 
-    wget --no-check-certificate https://127.0.0.1:8443/1.0 --certificate=$HOME/.config/lxc/client.crt --private-key=$HOME/.config/lxc/client.key -O - -q
+```bash
+wget --no-check-certificate https://127.0.0.1:8443/1.0 --certificate=$HOME/.config/lxc/client.crt --private-key=$HOME/.config/lxc/client.key -O - -q
+```
 
 #### with browser
 
@@ -65,6 +73,8 @@ browser.
 
 For example this produces `client.pfx` in Windows-compatible format:
 
-    openssl pkcs12 -clcerts -inkey client.key -in client.crt -export -out client.pfx
+```bash
+openssl pkcs12 -clcerts -inkey client.key -in client.crt -export -out client.pfx
+```
 
 After that, opening https://127.0.0.1:8443/1.0 should work as expected.
