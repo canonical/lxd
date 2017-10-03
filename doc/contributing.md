@@ -1,7 +1,7 @@
 # Pull requests:
 
 Changes to this project should be proposed as pull requests on Github
-at: https://github.com/lxc/lxd
+at: <https://github.com/lxc/lxd>
 
 Proposed changes will then go through code review there and once acked,
 be merged in the main branch.
@@ -63,7 +63,9 @@ to pass it on as an open-source contribution.
 
 An example of a valid sign-off line is:
 
-    Signed-off-by: Random J Developer <random@developer.org>
+```
+Signed-off-by: Random J Developer <random@developer.org>
+```
 
 Use your real name and a valid e-mail address.
 Sorry, no pseudonyms or anonymous contributions are allowed.
