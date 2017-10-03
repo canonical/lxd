@@ -439,7 +439,7 @@ func (s *dbTestSuite) Test_dbDevices_profiles() {
 	var subresult types.Device
 	var expected types.Device
 
-	result, err = Devices(s.db.DB(), "theprofile", true)
+	result, err = s.db.Devices("theprofile", true)
 	s.Nil(err)
 
 	expected = types.Device{"type": "nic", "devicekey": "devicevalue"}
@@ -457,7 +457,7 @@ func (s *dbTestSuite) Test_dbDevices_containers() {
 	var subresult types.Device
 	var expected types.Device
 
-	result, err = Devices(s.db.DB(), "thename", false)
+	result, err = s.db.Devices("thename", false)
 	s.Nil(err)
 
 	expected = types.Device{"type": "nic", "configkey": "configvalue"}

@@ -1505,7 +1505,7 @@ func (c *containerLXC) expandDevices() error {
 
 	// Apply all the profiles
 	for _, p := range c.profiles {
-		profileDevices, err := db.Devices(c.state.NodeDB, p, true)
+		profileDevices, err := c.db.Devices(p, true)
 		if err != nil {
 			return err
 		}
