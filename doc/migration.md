@@ -4,10 +4,11 @@
 
 Migration has two pieces, a "source", that is, the host that already has the
 container, and a "sink", the host that's getting the container. Currently,
-in the 'pull' mode, the source sets up an operation, and the sink connects
+in the `pull` mode, the source sets up an operation, and the sink connects
 to the source and pulls the container.
 
 There are three websockets (channels) used in migration:
+
   1. the control stream
   2. the criu images stream
   3. the filesystem stream
