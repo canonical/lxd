@@ -70,8 +70,8 @@ and the client can now connect to the server without having to provide
 any additional credentials.
 
 Enabling PKI mode is done by adding a client.ca file in the
-client's configuration directory (~/.config/lxc) and a server.ca file in
-the server's configuration directory (/var/lib/lxd). Then a client
+client's configuration directory (`~/.config/lxc`) and a server.ca file in
+the server's configuration directory (`/var/lib/lxd`). Then a client
 certificate must be issued by the CA for the client and a server
 certificate for the server. Those must then replace the existing
 pre-generated files.
@@ -90,11 +90,12 @@ To establish a new trust relationship, a password must be set on the
 server and send by the client when adding itself.
 
 A remote add operation should therefore go like this:
+
  1. Call GET /1.0
  2. If we're not in a PKI setup ask the user to confirm the fingerprint.
  3. Look at the dict we received back from the server. If "auth" is
-    "untrusted", ask the user for the server's password and do a POST to
-    /1.0/certificates, then call /1.0 again to check that we're indeed
+    "untrusted", ask the user for the server's password and do a `POST` to
+    `/1.0/certificates`, then call `/1.0` again to check that we're indeed
     trusted.
  4. Remote is now ready
 
