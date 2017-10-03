@@ -23,7 +23,7 @@ This file can be processed by the `lxd import` command.
 
 Running 
 
-```
+```bash
 lxd import <container-name>
 ```
 
@@ -41,7 +41,7 @@ If any matching database entry for resources declared in `backup.yaml` is found
 during import, the command will refuse to restore the container.  This can be
 overridden running 
 
-```
+```bash
 lxd import --force <container-name>
 ```
 
