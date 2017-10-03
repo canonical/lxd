@@ -29,7 +29,8 @@ terribly useful.
 
 
 # Design
-The design of the database is made to be as close as possible to the REST API.
+The design of the database is made to be as close as possible to
+the [RESTful API](rest-api.md).
 
 The main table and field names are exact match for the REST API.
 
