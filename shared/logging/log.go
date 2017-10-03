@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/inconshreveable/log15.v2/term"
@@ -88,6 +89,19 @@ func SetLogger(newLogger logger.Logger) func() {
 	logger.Log = newLogger
 	return func() {
 		logger.Log = origLog
+	}
+}
+
+// WaitRecord blocks until a log.Record is received on the given channel. It
+// returns the emitted record, or nil if no record was received within the
+// given timeout. Useful in conjunction with log.ChannelHandler, for
+// asynchronous testing.
+func WaitRecord(ch chan *log.Record, timeout time.Duration) *log.Record {
+	select {
+	case record := <-ch:
+		return record
+	case <-time.After(timeout):
+		return nil
 	}
 }
 
