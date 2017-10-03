@@ -6,6 +6,7 @@ Note that this feature was introduced as part of API extension "network".
 
 The key/value configuration is namespaced with the following namespaces
 currently supported:
+
  - `bridge` (L2 interface configuration)
  - `fan` (configuration specific to the Ubuntu FAN overlay)
  - `tunnel` (cross-host tunneling configuration)
@@ -58,5 +59,6 @@ raw.dnsmasq                     | string    | -                     | -         
 
 Those keys can be set using the lxc tool with:
 
-    lxc network set <network> <key> <value>
-
+```bash
+lxc network set <network> <key> <value>
+```
