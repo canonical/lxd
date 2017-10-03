@@ -222,13 +222,13 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 
 	// Retrieve ID of the storage pool (and check if the storage pool
 	// exists).
-	poolID, err := db.StoragePoolGetID(d.nodeDB, poolName)
+	poolID, err := d.db.StoragePoolGetID(poolName)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	// Check that the name isn't already in use.
-	_, err = db.StoragePoolVolumeGetTypeID(d.State().DB, req.Name,
+	_, err = d.db.StoragePoolVolumeGetTypeID(req.Name,
 		storagePoolVolumeTypeCustom, poolID)
 	if err == nil || err != nil && err != db.NoSuchObjectError {
 		return Conflict

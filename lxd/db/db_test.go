@@ -321,7 +321,7 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 	var err error
 	var result *api.Image
 
-	_, result, err = ImageGet(s.db.DB(), "fingerprint", false, false)
+	_, result, err = s.db.ImageGet("fingerprint", false, false)
 	s.Nil(err)
 	s.NotNil(result)
 	s.Equal(result.Filename, "filename")
@@ -333,14 +333,14 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	var err error
 
-	_, _, err = ImageGet(s.db.DB(), "unknown", false, false)
+	_, _, err = s.db.ImageGet("unknown", false, false)
 	s.Equal(err, sql.ErrNoRows)
 }
 
 func (s *dbTestSuite) Test_ImageExists_true() {
 	var err error
 
-	exists, err := ImageExists(s.db.DB(), "fingerprint")
+	exists, err := s.db.ImageExists("fingerprint")
 	s.Nil(err)
 	s.True(exists)
 }
@@ -348,7 +348,7 @@ func (s *dbTestSuite) Test_ImageExists_true() {
 func (s *dbTestSuite) Test_ImageExists_false() {
 	var err error
 
-	exists, err := ImageExists(s.db.DB(), "foobar")
+	exists, err := s.db.ImageExists("foobar")
 	s.Nil(err)
 	s.False(exists)
 }
@@ -356,7 +356,7 @@ func (s *dbTestSuite) Test_ImageExists_false() {
 func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
 	var err error
 
-	_, alias, err := ImageAliasGet(s.db.DB(), "somealias", true)
+	_, alias, err := s.db.ImageAliasGet("somealias", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
@@ -364,41 +364,41 @@ func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
 func (s *dbTestSuite) Test_ImageAliasGet_alias_does_not_exists() {
 	var err error
 
-	_, _, err = ImageAliasGet(s.db.DB(), "whatever", true)
+	_, _, err = s.db.ImageAliasGet("whatever", true)
 	s.Equal(err, NoSuchObjectError)
 }
 
 func (s *dbTestSuite) Test_ImageAliasAdd() {
 	var err error
 
-	err = ImageAliasAdd(s.db.DB(), "Chaosphere", 1, "Someone will like the name")
+	err = s.db.ImageAliasAdd("Chaosphere", 1, "Someone will like the name")
 	s.Nil(err)
 
-	_, alias, err := ImageAliasGet(s.db.DB(), "Chaosphere", true)
+	_, alias, err := s.db.ImageAliasGet("Chaosphere", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
 
 func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint() {
-	imageID, _, err := ImageGet(s.db.DB(), "fingerprint", false, false)
+	imageID, _, err := s.db.ImageGet("fingerprint", false, false)
 	s.Nil(err)
 
-	err = ImageSourceInsert(s.db.DB(), imageID, "server.remote", "simplestreams", "", "test")
+	err = s.db.ImageSourceInsert(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
-	fingerprint, err := ImageSourceGetCachedFingerprint(s.db.DB(), "server.remote", "simplestreams", "test")
+	fingerprint, err := s.db.ImageSourceGetCachedFingerprint("server.remote", "simplestreams", "test")
 	s.Nil(err)
 	s.Equal(fingerprint, "fingerprint")
 }
 
 func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint_no_match() {
-	imageID, _, err := ImageGet(s.db.DB(), "fingerprint", false, false)
+	imageID, _, err := s.db.ImageGet("fingerprint", false, false)
 	s.Nil(err)
 
-	err = ImageSourceInsert(s.db.DB(), imageID, "server.remote", "simplestreams", "", "test")
+	err = s.db.ImageSourceInsert(imageID, "server.remote", "simplestreams", "", "test")
 	s.Nil(err)
 
-	_, err = ImageSourceGetCachedFingerprint(s.db.DB(), "server.remote", "lxd", "test")
+	_, err = s.db.ImageSourceGetCachedFingerprint("server.remote", "lxd", "test")
 	s.Equal(err, NoSuchObjectError)
 }
 

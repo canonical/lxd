@@ -693,7 +693,7 @@ func storageLVMGetThinPoolUsers(s *state.State) ([]string, error) {
 		}
 	}
 
-	imageNames, err := db.ImagesGet(s.NodeDB, false)
+	imageNames, err := s.DB.ImagesGet(false)
 	if err != nil {
 		return results, err
 	}

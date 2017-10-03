@@ -760,7 +760,7 @@ func (s *storageCeph) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renamed CEPH storage volume on OSD storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	return db.StoragePoolVolumeRename(s.s.DB, s.volume.Name, newName,
+	return s.db.StoragePoolVolumeRename(s.volume.Name, newName,
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 
