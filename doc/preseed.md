@@ -7,7 +7,7 @@ pools, network devices and profiles, in a non-interactive way.
 For example, starting from a brand new LXD installation, the command
 line:
 
-```
+```bash
     cat <<EOF | lxd init --preseed
 config:
   core.https_address: 192.168.1.1:9999
@@ -40,10 +40,9 @@ command, then the provided YAML configuration is meant to completely
 overwrite existing entities (if the provided entities do not exist,
 they will just be created, as in the brand new LXD case).
 
-In case you are overwriting an existing entity you must provide the
-full configuration of the new desired state for the entity (i.e. the
-semantics is the same as a `PUT` request in the [rest-api.md](LXD
-RESTful API)).
+In case you are overwriting an existing entity you must provide the full
+configuration of the new desired state for the entity (i.e. the semantics is
+the same as a `PUT` request in the [RESTful API](rest-api.md)).
 
 ### Rollback
 
@@ -58,7 +57,7 @@ configuration and revert overwritten entities back to their original
 state.
 
 Failure modes when overwriting entities are the same as `PUT` requests
-in the LXD RESTful API.
+in the [RESTful API](rest-api.md).
 
 Note however, that the rollback itself might potentially fail as well,
 although rarely (typically due to backend bugs or limitations). Thus
@@ -77,7 +76,7 @@ a network interface to your default profile. See below for an example.
 # Configuration format
 
 The supported keys and values of the various entities are the same as
-the ones documented in the [rest-api.md](RESTful API), but converted
+the ones documented in the [RESTful API](rest-api.md), but converted
 to YAML for easier reading (however you can use JSON too, since YAML
 is a superset of JSON).
 
