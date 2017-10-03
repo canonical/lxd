@@ -7,10 +7,29 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
+	"golang.org/x/net/context"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-func ExpireLogs(dbObj *sql.DB) error {
+// This task function expires logs when executed. It's started by the Daemon
+// and will run once every 24h.
+func expireLogsTask(db *sql.DB) (task.Func, task.Schedule) {
+	f := func(context.Context) {
+		logger.Infof("Expiring log files")
+		err := expireLogs(db)
+		if err != nil {
+			logger.Error("Failed to expire logs", log.Ctx{"err": err})
+		}
+		logger.Infof("Done expiring log files")
+	}
+	return f, task.Daily()
+}
+
+func expireLogs(dbObj *sql.DB) error {
 	entries, err := ioutil.ReadDir(shared.LogPath())
 	if err != nil {
 		return err
