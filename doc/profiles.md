@@ -8,9 +8,9 @@ specify a specific key wins.
 In any case, resource-specific configuration always overrides that coming from
 the profiles.
 
-If not present, LXD will create a "default" profile.
+If not present, LXD will create a `default` profile.
 
-The "default" profile is set for any new container created which doesn't
+The `default` profile is set for any new container created which doesn't
 specify a different profiles list.
 
 
