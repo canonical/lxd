@@ -21,10 +21,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -852,6 +854,17 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
+func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(context.Context) {
+		autoUpdateImages(d)
+	}
+	schedule := func() (time.Duration, error) {
+		interval := daemonConfig["images.auto_update_interval"].GetInt64()
+		return time.Duration(interval) * time.Hour, nil
+	}
+	return f, schedule
+}
+
 func autoUpdateImages(d *Daemon) {
 	logger.Infof("Updating images")
 
@@ -1003,6 +1016,18 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 
 	setRefreshResult(true)
 	return nil
+}
+
+func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(context.Context) {
+		pruneExpiredImages(d)
+	}
+
+	// Skip the first run, and instead run an initial pruning synchronously
+	// before we start updating images later on in the start up process.
+	pruneExpiredImages(d)
+
+	return f, task.Daily(task.SkipFirst)
 }
 
 func pruneExpiredImages(d *Daemon) {
