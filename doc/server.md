@@ -3,8 +3,9 @@ The server configuration is a simple set of key and values.
 
 The key/value configuration is namespaced with the following namespaces
 currently supported:
- - core (core daemon configuration)
- - images (image configuration)
+
+ - `core` (core daemon configuration)
+ - `images` (image configuration)
 
 Key                             | Type      | Default   | API extension  | Description
 :--                             | :---      | :------   | :------------  | :----------
@@ -24,4 +25,6 @@ images.remote\_cache\_expiry    | integer   | 10        | -              | Numbe
 
 Those keys can be set using the lxc tool with:
 
-    lxc config set <key> <value>
+```bash
+lxc config set <key> <value>
+```
