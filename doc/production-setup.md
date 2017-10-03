@@ -56,7 +56,7 @@ If you have at least 1GbE NIC on your lxd host with a lot of local activity (con
 You need to change `txqueuelen` of your real NIC to 10000 (not sure about the best possible value for you), and change and change lxdbr0 interface `txqueuelen` to 10000.  
 In Debian-based distros you can change `txqueuelen` permanently in `/etc/network/interfaces`  
 You can add for ex.: `up ip link set eth0 txqueuelen 10000` to your interface configuration to set txqueuelen value on boot.  
-You could set it txqueuelen temporary (for test purpose) with `ifconfig interfacename# txqueuelen 10000`
+You could set it txqueuelen temporary (for test purpose) with `ifconfig <interface> txqueuelen 10000`
 
 #### /etc/sysctl.conf
 
