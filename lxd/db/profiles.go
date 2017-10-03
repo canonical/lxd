@@ -46,7 +46,7 @@ func (n *Node) ProfileGet(name string) (int64, *api.Profile, error) {
 		return -1, nil, err
 	}
 
-	devices, err := Devices(n.db, name, true)
+	devices, err := n.Devices(name, true)
 	if err != nil {
 		return -1, nil, err
 	}

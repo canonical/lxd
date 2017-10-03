@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-
-	dbapi "github.com/lxc/lxd/lxd/db"
 )
 
 func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing.T) {
@@ -44,7 +42,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_devices entries left.
-	devices, err := dbapi.Devices(d.nodeDB, "theprofile", true)
+	devices, err := d.db.Devices("theprofile", true)
 	if err != nil {
 		t.Fatal(err)
 	}
