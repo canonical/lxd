@@ -15,7 +15,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -226,7 +225,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Check if the image already exists (partial hash match)
-	_, imgInfo, err := db.ImageGet(d.nodeDB, fp, false, true)
+	_, imgInfo, err := d.db.ImageGet(fp, false, true)
 	if err == nil {
 		logger.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		info = imgInfo
@@ -248,7 +247,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		<-waitChannel
 
 		// Grab the database entry
-		_, imgInfo, err := db.ImageGet(d.nodeDB, fp, false, true)
+		_, imgInfo, err := d.db.ImageGet(fp, false, true)
 		if err != nil {
 			// Other download failed, lets try again
 			logger.Error("Other image download didn't succeed", log.Ctx{"image": fp})
@@ -480,7 +479,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Create the database entry
-	err = db.ImageInsert(d.nodeDB, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.db.ImageInsert(info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
 		return nil, err
 	}
@@ -506,12 +505,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := db.ImageGet(d.nodeDB, fp, false, true)
+		id, _, err := d.db.ImageGet(fp, false, true)
 		if err != nil {
 			return nil, err
 		}
 
-		err = db.ImageSourceInsert(d.nodeDB, id, server, protocol, certificate, alias)
+		err = d.db.ImageSourceInsert(id, server, protocol, certificate, alias)
 		if err != nil {
 			return nil, err
 		}
@@ -519,7 +518,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// Mark the image as "cached" if downloading for a container
 	if forContainer {
-		err := db.ImageLastAccessInit(d.nodeDB, fp)
+		err := d.db.ImageLastAccessInit(fp)
 		if err != nil {
 			return nil, err
 		}

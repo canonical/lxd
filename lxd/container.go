@@ -619,7 +619,7 @@ func containerCreateFromImage(s *state.State, storage storage, args db.Container
 		return nil, err
 	}
 
-	err = db.ImageLastAccessUpdate(s.NodeDB, hash, time.Now().UTC())
+	err = s.DB.ImageLastAccessUpdate(hash, time.Now().UTC())
 	if err != nil {
 		s.DB.ContainerRemove(args.Name)
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)

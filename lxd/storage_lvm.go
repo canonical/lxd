@@ -76,7 +76,7 @@ func storageLVMGetThinPoolUsers(dbObj *db.Node) ([]string, error) {
 		}
 	}
 
-	imageNames, err := db.ImagesGet(dbObj.DB(), false)
+	imageNames, err := dbObj.ImagesGet(false)
 	if err != nil {
 		return results, err
 	}
