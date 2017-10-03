@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	dbg "github.com/lxc/lxd/lxd/debug"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -39,8 +38,7 @@ func cmdDaemon(args *Args) error {
 
 	}
 	c := &DaemonConfig{
-		Group:     args.Group,
-		SetupMode: shared.PathExists(shared.VarPath(".setup_mode")),
+		Group: args.Group,
 	}
 	d := NewDaemon(c)
 	err = d.Init()

@@ -63,8 +63,7 @@ type externalAuth struct {
 
 // DaemonConfig holds configuration values for Daemon.
 type DaemonConfig struct {
-	Group     string // Group name the local unix socket should be chown'ed to
-	SetupMode bool   // Legacy option for running the daemon in "setup mode"
+	Group string // Group name the local unix socket should be chown'ed to
 }
 
 // NewDaemon returns a new Daemon object with the given configuration.
@@ -327,9 +326,6 @@ func (d *Daemon) init() error {
 	if d.os.MockMode {
 		logger.Info(fmt.Sprintf("LXD %s is starting in mock mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
-	} else if d.config.SetupMode {
-		logger.Info(fmt.Sprintf("LXD %s is starting in setup mode", version.Version),
-			log.Ctx{"path": shared.VarPath("")})
 	} else {
 		logger.Info(fmt.Sprintf("LXD %s is starting in normal mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
@@ -451,11 +447,9 @@ func (d *Daemon) init() error {
 	}
 
 	// Run the post initialization actions
-	if !d.config.SetupMode {
-		err := d.Ready()
-		if err != nil {
-			return err
-		}
+	err = d.Ready()
+	if err != nil {
+		return err
 	}
 
 	return nil

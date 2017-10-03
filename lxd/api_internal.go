@@ -31,18 +31,7 @@ var apiInternal = []Command{
 }
 
 func internalReady(d *Daemon, r *http.Request) Response {
-	if !d.config.SetupMode {
-		return InternalError(fmt.Errorf("The server isn't currently in setup mode"))
-	}
-
-	err := d.Ready()
-	if err != nil {
-		return InternalError(err)
-	}
-
-	d.config.SetupMode = false
-
-	return EmptySyncResponse
+	return InternalError(fmt.Errorf("The server does not support setup mode"))
 }
 
 func internalWaitReady(d *Daemon, r *http.Request) Response {
