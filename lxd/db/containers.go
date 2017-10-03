@@ -123,7 +123,7 @@ func (n *Node) ContainerGet(name string) (ContainerArgs, error) {
 
 	/* get container_devices */
 	args.Devices = types.Devices{}
-	newdevs, err := Devices(n.db, name, false)
+	newdevs, err := n.Devices(name, false)
 	if err != nil {
 		return args, err
 	}
