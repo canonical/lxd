@@ -12,6 +12,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -312,7 +313,7 @@ func containerValidDeviceConfigKey(t, k string) bool {
 	}
 }
 
-func containerValidConfig(d *Daemon, config map[string]string, profile bool, expanded bool) error {
+func containerValidConfig(os *sys.OS, config map[string]string, profile bool, expanded bool) error {
 	if config == nil {
 		return nil
 	}
@@ -328,7 +329,7 @@ func containerValidConfig(d *Daemon, config map[string]string, profile bool, exp
 		}
 	}
 
-	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && d.os.IdmapSet == nil {
+	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && os.IdmapSet == nil {
 		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
 	}
 
@@ -741,7 +742,7 @@ func containerCreateInternal(d *Daemon, args db.ContainerArgs) (container, error
 	}
 
 	// Validate container config
-	err := containerValidConfig(d, args.Config, false, false)
+	err := containerValidConfig(d.os, args.Config, false, false)
 	if err != nil {
 		return nil, err
 	}

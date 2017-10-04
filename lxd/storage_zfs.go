@@ -630,7 +630,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
-	err = unpackImage(s.d, imagePath, subvol)
+	err = unpackImage(imagePath, subvol, s.d.Storage.GetStorageType())
 	if err != nil {
 		return cleanup(err)
 	}

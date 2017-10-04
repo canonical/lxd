@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -76,7 +77,7 @@ func readSavedClientCAList(d *Daemon) {
 	}
 }
 
-func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
+func saveCert(dbObj *sql.DB, host string, cert *x509.Certificate) error {
 	baseCert := new(db.CertInfo)
 	baseCert.Fingerprint = shared.CertFingerprint(cert)
 	baseCert.Type = 1
@@ -85,7 +86,7 @@ func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}),
 	)
 
-	return db.CertSave(d.db, baseCert)
+	return db.CertSave(dbObj, baseCert)
 }
 
 func certificatesPost(d *Daemon, r *http.Request) Response {
@@ -142,7 +143,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	err := saveCert(d, name, cert)
+	err := saveCert(d.db, name, cert)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -165,7 +166,7 @@ var certificatesCmd = Command{
 func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	cert, err := doCertificateGet(d, fingerprint)
+	cert, err := doCertificateGet(d.db, fingerprint)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -173,10 +174,10 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, cert)
 }
 
-func doCertificateGet(d *Daemon, fingerprint string) (api.Certificate, error) {
+func doCertificateGet(dbObj *sql.DB, fingerprint string) (api.Certificate, error) {
 	resp := api.Certificate{}
 
-	dbCertInfo, err := db.CertGet(d.db, fingerprint)
+	dbCertInfo, err := db.CertGet(dbObj, fingerprint)
 	if err != nil {
 		return resp, err
 	}

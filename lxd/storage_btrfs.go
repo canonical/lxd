@@ -415,7 +415,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
-	if err := unpackImage(s.d, imagePath, subvol); err != nil {
+	if err := unpackImage(imagePath, subvol, s.d.Storage.GetStorageType()); err != nil {
 		s.subvolsDelete(subvol)
 		return err
 	}

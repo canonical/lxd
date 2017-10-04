@@ -738,7 +738,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		return fmt.Errorf("Error mounting image LV: %v", err)
 	}
 
-	unpackErr := unpackImage(s.d, finalName, tempLVMountPoint)
+	unpackErr := unpackImage(finalName, tempLVMountPoint, s.d.Storage.GetStorageType())
 
 	err = tryUnmount(tempLVMountPoint, 0)
 	if err != nil {

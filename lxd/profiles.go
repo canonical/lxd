@@ -77,7 +77,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
-	err := containerValidConfig(d, req.Config, true, false)
+	err := containerValidConfig(d.os, req.Config, true, false)
 	if err != nil {
 		return BadRequest(err)
 	}
