@@ -127,16 +127,6 @@ func isJSONRequest(r *http.Request) bool {
 	return false
 }
 
-func (d *Daemon) isRecursionRequest(r *http.Request) bool {
-	recursionStr := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		return false
-	}
-
-	return recursion == 1
-}
-
 func (d *Daemon) createCmd(version string, c Command) {
 	var uri string
 	if c.name == "" {

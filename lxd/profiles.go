@@ -10,6 +10,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -25,7 +26,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	recursion := d.isRecursionRequest(r)
+	recursion := util.IsRecursionRequest(r)
 
 	resultString := make([]string, len(results))
 	resultMap := make([]*api.Profile, len(results))

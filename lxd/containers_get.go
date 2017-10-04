@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
@@ -13,7 +14,7 @@ import (
 
 func containersGet(d *Daemon, r *http.Request) Response {
 	for i := 0; i < 100; i++ {
-		result, err := doContainersGet(d, d.isRecursionRequest(r))
+		result, err := doContainersGet(d, util.IsRecursionRequest(r))
 		if err == nil {
 			return SyncResponse(true, result)
 		}

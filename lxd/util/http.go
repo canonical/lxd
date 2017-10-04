@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -121,4 +122,17 @@ func checkTrustState(cert x509.Certificate, trustedCerts []x509.Certificate) boo
 	}
 
 	return false
+}
+
+// IsRecursionRequest checks whether the given HTTP request is marked with the
+// "recursion" flag in its form values.
+func IsRecursionRequest(r *http.Request) bool {
+	recursionStr := r.FormValue("recursion")
+
+	recursion, err := strconv.Atoi(recursionStr)
+	if err != nil {
+		return false
+	}
+
+	return recursion == 1
 }
