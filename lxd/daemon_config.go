@@ -273,7 +273,7 @@ func daemonConfigSetStorage(d *Daemon, key string, value string) (string, error)
 	}()
 
 	// Update the current storage driver
-	err := d.SetupStorageDriver()
+	err := SetupStorageDriver(d)
 	if err != nil {
 		return "", err
 	}

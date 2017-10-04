@@ -216,40 +216,6 @@ func (d *Daemon) createCmd(version string, c Command) {
 	})
 }
 
-func (d *Daemon) SetupStorageDriver() error {
-	var err error
-
-	lvmVgName := daemonConfig["storage.lvm_vg_name"].Get()
-	zfsPoolName := daemonConfig["storage.zfs_pool_name"].Get()
-
-	if lvmVgName != "" {
-		d.Storage, err = newStorage(d, storageTypeLvm)
-		if err != nil {
-			logger.Errorf("Could not initialize storage type LVM: %s - falling back to dir", err)
-		} else {
-			return nil
-		}
-	} else if zfsPoolName != "" {
-		d.Storage, err = newStorage(d, storageTypeZfs)
-		if err != nil {
-			logger.Errorf("Could not initialize storage type ZFS: %s - falling back to dir", err)
-		} else {
-			return nil
-		}
-	} else if d.BackingFs == "btrfs" {
-		d.Storage, err = newStorage(d, storageTypeBtrfs)
-		if err != nil {
-			logger.Errorf("Could not initialize storage type btrfs: %s - falling back to dir", err)
-		} else {
-			return nil
-		}
-	}
-
-	d.Storage, err = newStorage(d, storageTypeDir)
-
-	return err
-}
-
 // have we setup shared mounts?
 var sharedMounted bool
 var sharedMountsLock sync.Mutex
@@ -683,7 +649,7 @@ func (d *Daemon) Init() error {
 
 	if !d.MockMode {
 		/* Setup the storage driver */
-		err = d.SetupStorageDriver()
+		err = SetupStorageDriver(d)
 		if err != nil {
 			return fmt.Errorf("Failed to setup storage: %s", err)
 		}
