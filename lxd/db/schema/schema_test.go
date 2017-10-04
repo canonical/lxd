@@ -46,19 +46,24 @@ func TestSchemaEnsure_VersionMoreRecentThanExpected(t *testing.T) {
 	assert.EqualError(t, err, "schema version '1' is more recent than expected '0'")
 }
 
-// If there's more than one row in the schema table, an error is returned.
-func TestSchemaEnsure_ExtraVersions(t *testing.T) {
+// If the database schema contains "holes" in the applied versions, an error is
+// returned.
+func TestSchemaEnsure_MissingVersion(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
+	schema.Add(updateNoop)
 	assert.NoError(t, schema.Ensure(db))
 
-	_, err := db.Exec(`INSERT INTO schema (version, updated_at) VALUES (2, strftime("%s"))`)
-	assert.NoError(t, err)
+	_, err := db.Exec(`INSERT INTO schema (version, updated_at) VALUES (3, strftime("%s"))`)
+
+	schema.Add(updateNoop)
+	schema.Add(updateNoop)
 
 	err = schema.Ensure(db)
-	assert.EqualError(t, err, "schema table contains 2 rows, expected at most one")
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, "missing updates: 1 -> 3")
 }
 
-// If the schema has no update, the schema table gets created and has version 0.
+// If the schema has no update, the schema table gets created and has no version.
 func TestSchemaEnsure_ZeroUpdates(t *testing.T) {
 	schema, db := newSchemaAndDB(t)
 
@@ -70,7 +75,7 @@ func TestSchemaEnsure_ZeroUpdates(t *testing.T) {
 
 	versions, err := query.SelectIntegers(tx, "SELECT version FROM SCHEMA")
 	assert.NoError(t, err)
-	assert.Equal(t, []int{0}, versions)
+	assert.Equal(t, []int{}, versions)
 }
 
 // If the schema has updates and no one was applied yet, all of them get
@@ -89,12 +94,41 @@ func TestSchemaEnsure_ApplyAllUpdates(t *testing.T) {
 	// THe update version is recorded.
 	versions, err := query.SelectIntegers(tx, "SELECT version FROM SCHEMA")
 	assert.NoError(t, err)
-	assert.Equal(t, []int{2}, versions)
+	assert.Equal(t, []int{1, 2}, versions)
 
 	// The two updates have been applied in order.
 	ids, err := query.SelectIntegers(tx, "SELECT id FROM test")
 	assert.NoError(t, err)
 	assert.Equal(t, []int{1}, ids)
+}
+
+// If the schema schema has been created using a dump, the schema table will
+// contain just one row with the update level associated with the dump. It's
+// possible to apply further updates from there, and only these new ones will
+// be inserted in the schema table.
+func TestSchemaEnsure_ApplyAfterInitialDumpCreation(t *testing.T) {
+	schema, db := newSchemaAndDB(t)
+	schema.Add(updateCreateTable)
+	schema.Add(updateAddColumn)
+	assert.NoError(t, schema.Ensure(db))
+
+	dump, err := schema.Dump(db)
+	assert.NoError(t, err)
+
+	_, db = newSchemaAndDB(t)
+	_, err = db.Exec(dump)
+	assert.NoError(t, err)
+
+	schema.Add(updateNoop)
+	assert.NoError(t, schema.Ensure(db))
+
+	tx, err := db.Begin()
+	assert.NoError(t, err)
+
+	// Only updates starting from the initial dump are recorded.
+	versions, err := query.SelectIntegers(tx, "SELECT version FROM SCHEMA")
+	assert.NoError(t, err)
+	assert.Equal(t, []int{2, 3}, versions)
 }
 
 // If the schema has updates and part of them were already applied, only the
@@ -113,7 +147,7 @@ func TestSchemaEnsure_OnlyApplyMissing(t *testing.T) {
 	// All update versions are recorded.
 	versions, err := query.SelectIntegers(tx, "SELECT version FROM SCHEMA")
 	assert.NoError(t, err)
-	assert.Equal(t, []int{2}, versions)
+	assert.Equal(t, []int{1, 2}, versions)
 
 	// The two updates have been applied in order.
 	ids, err := query.SelectIntegers(tx, "SELECT id FROM test")
