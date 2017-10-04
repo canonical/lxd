@@ -743,7 +743,7 @@ func SetupStorageDriver(d *Daemon) error {
 		} else {
 			return nil
 		}
-	} else if d.BackingFs == "btrfs" {
+	} else if d.os.BackingFS == "btrfs" {
 		d.Storage, err = newStorage(d, storageTypeBtrfs)
 		if err != nil {
 			logger.Errorf("Could not initialize storage type btrfs: %s - falling back to dir", err)
