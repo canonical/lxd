@@ -9,6 +9,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
@@ -67,7 +68,7 @@ func instanceRefreshTypes(d *Daemon) error {
 	downloadParse := func(filename string, target interface{}) error {
 		url := fmt.Sprintf("https://images.linuxcontainers.org/meta/instance-types/%s", filename)
 
-		httpClient, err := d.httpClient("")
+		httpClient, err := util.HTTPClient("", d.proxy)
 		if err != nil {
 			return err
 		}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
@@ -391,7 +392,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 	} else if protocol == "direct" {
 		// Setup HTTP client
-		httpClient, err := d.httpClient(certificate)
+		httpClient, err := util.HTTPClient(certificate, d.proxy)
 		if err != nil {
 			return nil, err
 		}

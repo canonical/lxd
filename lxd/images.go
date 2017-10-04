@@ -23,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -373,7 +374,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 		return nil, fmt.Errorf("Missing URL")
 	}
 
-	myhttp, err := d.httpClient("")
+	myhttp, err := util.HTTPClient("", d.proxy)
 	if err != nil {
 		return nil, err
 	}
