@@ -227,7 +227,7 @@ func connectViaUnix(c *Client, remote *RemoteConfig) error {
 }
 
 func connectViaHttp(c *Client, remote *RemoteConfig, clientCert, clientKey, serverCert string) error {
-	tlsconfig, err := shared.GetTLSConfigMem(clientCert, clientKey, "", serverCert)
+	tlsconfig, err := shared.GetTLSConfigMem(clientCert, clientKey, "", serverCert, false)
 	if err != nil {
 		return err
 	}
