@@ -771,7 +771,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Load the go-lxc struct
-	cc, err := lxc.NewContainer(c.Name(), c.daemon.lxcpath)
+	cc, err := lxc.NewContainer(c.Name(), c.daemon.os.LxcPath)
 	if err != nil {
 		return err
 	}
@@ -1766,7 +1766,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		execPath,
 		"forkstart",
 		c.name,
-		c.daemon.lxcpath,
+		c.daemon.os.LxcPath,
 		configPath)
 
 	// Capture debug output
@@ -1810,7 +1810,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		return fmt.Errorf(
 			"Error calling 'lxd forkstart %s %s %s': err='%v'%s",
 			c.name,
-			c.daemon.lxcpath,
+			c.daemon.os.LxcPath,
 			filepath.Join(c.LogPath(), "lxc.conf"),
 			err, lxcLog)
 	}
@@ -3658,7 +3658,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			execPath,
 			"forkmigrate",
 			c.name,
-			c.daemon.lxcpath,
+			c.daemon.os.LxcPath,
 			configPath,
 			stateDir,
 			fmt.Sprintf("%v", preservesInodes))
@@ -3673,7 +3673,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			migrateErr = fmt.Errorf(
 				"Error calling 'lxd forkmigrate %s %s %s %s': err='%v' out='%v'",
 				c.name,
-				c.daemon.lxcpath,
+				c.daemon.os.LxcPath,
 				filepath.Join(c.LogPath(), "lxc.conf"),
 				stateDir,
 				err,
@@ -4206,7 +4206,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	args := []string{execPath, "forkexec", c.name, c.daemon.lxcpath, filepath.Join(c.LogPath(), "lxc.conf")}
+	args := []string{execPath, "forkexec", c.name, c.daemon.os.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
 	args = append(args, "env")
@@ -5044,7 +5044,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		}
 
 		// Attempt to include all existing interfaces
-		cc, err := lxc.NewContainer(c.Name(), c.daemon.lxcpath)
+		cc, err := lxc.NewContainer(c.Name(), c.daemon.os.LxcPath)
 		if err == nil {
 			interfaces, err := cc.Interfaces()
 			if err == nil {
@@ -5223,7 +5223,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct
-	cc, err := lxc.NewContainer(c.Name(), c.daemon.lxcpath)
+	cc, err := lxc.NewContainer(c.Name(), c.daemon.os.LxcPath)
 	if err != nil {
 		return err
 	}
