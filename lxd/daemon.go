@@ -27,11 +27,11 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
-	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -64,9 +64,9 @@ type Socket struct {
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	architectures       []int
 	BackingFs           string
 	clientCerts         []x509.Certificate
+	os                  *sys.OS
 	db                  *sql.DB
 	group               string
 	IdmapSet            *shared.IdmapSet
@@ -466,28 +466,12 @@ func (d *Daemon) Init() error {
 		logger.Warnf("CGroup memory swap accounting is disabled, swap limits will be ignored.")
 	}
 
-	/* Get the list of supported architectures */
-	var architectures = []int{}
-
-	architectureName, err := osarch.ArchitectureGetLocal()
+	/* Initialize the operating system facade */
+	d.os = &sys.OS{}
+	err = d.os.Init()
 	if err != nil {
 		return err
 	}
-
-	architecture, err := osarch.ArchitectureId(architectureName)
-	if err != nil {
-		return err
-	}
-	architectures = append(architectures, architecture)
-
-	personalities, err := osarch.ArchitecturePersonalities(architecture)
-	if err != nil {
-		return err
-	}
-	for _, personality := range personalities {
-		architectures = append(architectures, personality)
-	}
-	d.architectures = architectures
 
 	/* Set container path */
 	d.lxcpath = shared.VarPath("containers")

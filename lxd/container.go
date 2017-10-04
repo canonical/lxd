@@ -729,7 +729,7 @@ func containerCreateInternal(d *Daemon, args db.ContainerArgs) (container, error
 	}
 
 	if args.Architecture == 0 {
-		args.Architecture = d.architectures[0]
+		args.Architecture = d.os.Architectures[0]
 	}
 
 	// Validate container name
@@ -758,7 +758,7 @@ func containerCreateInternal(d *Daemon, args db.ContainerArgs) (container, error
 		return nil, err
 	}
 
-	if !shared.IntInSlice(args.Architecture, d.architectures) {
+	if !shared.IntInSlice(args.Architecture, d.os.Architectures) {
 		return nil, fmt.Errorf("Requested architecture isn't supported by this host")
 	}
 
