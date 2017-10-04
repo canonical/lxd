@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd-benchmark/benchmark"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/version"
+	"github.com/lxc/lxd/test/lxd-benchmark/benchmark"
 )
 
 var argCount = gnuflag.Int("count", 100, "Number of containers to create")
