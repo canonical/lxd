@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -111,6 +112,38 @@ func (s *Schema) Ensure(db *sql.DB) error {
 	})
 }
 
+// Dump returns a text of SQL commands that can be used to create this schema
+// from scratch in one go, without going thorugh individual patches
+// (essentially flattening them).
+//
+// It requires that all patches in this schema have been applied, otherwise an
+// error will be returned.
+func (s *Schema) Dump(db *sql.DB) (string, error) {
+	var statements []string
+	err := query.Transaction(db, func(tx *sql.Tx) error {
+		err := checkAllUpdatesAreApplied(tx, s.updates)
+		if err != nil {
+			return err
+		}
+		statements, err = selectTablesSQL(tx)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	for i, statement := range statements {
+		statements[i] = formatSQL(statement)
+	}
+
+	// Add a statement for inserting the current schema version row.
+	statements = append(
+		statements,
+		fmt.Sprintf(`
+INSERT INTO schema (version, updated_at) VALUES (%d, strftime("%%s"))
+`, len(s.updates)))
+	return strings.Join(statements, ";\n"), nil
+}
+
 // Ensure that the schema exists.
 func ensureSchemaTableExists(tx *sql.Tx) error {
 	exists, err := doesSchemaTableExist(tx)
@@ -190,4 +223,36 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 	}
 
 	return nil
+}
+
+// Check that all the given updates are applied.
+func checkAllUpdatesAreApplied(tx *sql.Tx, updates []Update) error {
+	versions, err := selectSchemaVersions(tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch update versions")
+	}
+	if len(versions) != 1 {
+		return fmt.Errorf("schema table contains %d rows, expected 1", len(versions))
+	}
+	if versions[0] != len(updates) {
+		return fmt.Errorf("update level is %d, expected %d", versions[0], len(updates))
+	}
+	return nil
+}
+
+// Format the given SQL statement in a human-readable way.
+//
+// In particular make sure that each column definition in a CREATE TABLE clause
+// is in its own row, since SQLite dumps occasionally stuff more than one
+// column in the same line.
+func formatSQL(statement string) string {
+	lines := strings.Split(statement, "\n")
+	for i, line := range lines {
+		if strings.Contains(line, "UNIQUE") {
+			// Let UNIQUE(x, y) constraints alone.
+			continue
+		}
+		lines[i] = strings.Replace(line, ", ", ",\n    ", -1)
+	}
+	return strings.Join(lines, "\n")
 }

@@ -37,6 +37,15 @@ SELECT version FROM schema ORDER BY version
 	return query.SelectIntegers(tx, statement)
 }
 
+// Return a list of SQL statements that can be used to create all tables in the
+// database.
+func selectTablesSQL(tx *sql.Tx) ([]string, error) {
+	statement := `
+SELECT sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name
+`
+	return query.SelectStrings(tx, statement)
+}
+
 // Create the schema table.
 func createSchemaTable(tx *sql.Tx) error {
 	statement := `
