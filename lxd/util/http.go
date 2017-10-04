@@ -10,8 +10,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -196,4 +198,41 @@ func ListenAddresses(value string) ([]string, error) {
 	}
 
 	return addresses, nil
+}
+
+func GetListeners() []net.Listener {
+	defer func() {
+		os.Unsetenv("LISTEN_PID")
+		os.Unsetenv("LISTEN_FDS")
+	}()
+
+	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
+	if err != nil {
+		return nil
+	}
+
+	if pid != os.Getpid() {
+		return nil
+	}
+
+	fds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
+	if err != nil {
+		return nil
+	}
+
+	listeners := []net.Listener{}
+
+	for i := 3; i < 3+fds; i++ {
+		syscall.CloseOnExec(i)
+
+		file := os.NewFile(uintptr(i), fmt.Sprintf("inherited-fd%d", i))
+		listener, err := net.FileListener(file)
+		if err != nil {
+			continue
+		}
+
+		listeners = append(listeners, listener)
+	}
+
+	return listeners
 }
