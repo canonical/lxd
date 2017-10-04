@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -49,7 +50,7 @@ func (p *patch) apply(d *Daemon) error {
 		return err
 	}
 
-	err = dbPatchesMarkApplied(d.db, p.name)
+	err = db.PatchesMarkApplied(d.db, p.name)
 	if err != nil {
 		return err
 	}
@@ -57,8 +58,17 @@ func (p *patch) apply(d *Daemon) error {
 	return nil
 }
 
+// Return the names of all available patches.
+func patchesGetNames() []string {
+	names := make([]string, len(patches))
+	for i, patch := range patches {
+		names[i] = patch.name
+	}
+	return names
+}
+
 func patchesApplyAll(d *Daemon) error {
-	appliedPatches, err := dbPatches(d.db)
+	appliedPatches, err := db.Patches(d.db)
 	if err != nil {
 		return err
 	}
@@ -94,7 +104,7 @@ DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FR
 }
 
 func patchInvalidProfileNames(name string, d *Daemon) error {
-	profiles, err := dbProfiles(d.db)
+	profiles, err := db.Profiles(d.db)
 	if err != nil {
 		return err
 	}
@@ -102,7 +112,7 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 	for _, profile := range profiles {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
 			logger.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
-			err := dbProfileDelete(d.db, profile)
+			err := db.ProfileDelete(d.db, profile)
 			if err != nil {
 				return err
 			}
@@ -148,7 +158,7 @@ func patchUpdateFromV10(d *Daemon) error {
 }
 
 func patchUpdateFromV11(d *Daemon) error {
-	cNames, err := dbContainersList(d.db, cTypeSnapshot)
+	cNames, err := db.ContainersList(d.db, db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -219,7 +229,7 @@ func patchUpdateFromV15(d *Daemon) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
 
-	cNames, err := dbContainersList(d.db, cTypeRegular)
+	cNames, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return err
 	}

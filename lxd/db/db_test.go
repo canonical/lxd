@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -54,10 +54,10 @@ func (s *dbTestSuite) CreateTestDb() *sql.DB {
 		s.Nil(err)
 	}
 
-	db, err := openDb(":memory:")
+	db, err := OpenDb(":memory:")
 	s.Nil(err)
-	s.Nil(createDb(db))
-	s.Nil(dbUpdatesApplyAll(db, false, nil))
+	s.Nil(CreateDb(db, []string{}))
+	s.Nil(UpdatesApplyAll(db, false, nil))
 	return db
 
 }
@@ -161,12 +161,12 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 }
 
 func (s *dbTestSuite) Test_initializing_db_is_idempotent() {
-	// This calls "createDb" once already.
+	// This calls "CreateDb" once already.
 	db := s.CreateTestDb()
 	defer db.Close()
 
 	// Let's call it a second time.
-	s.Nil(createDb(db))
+	s.Nil(CreateDb(db, []string{}))
 }
 
 func (s *dbTestSuite) Test_get_schema_returns_0_on_uninitialized_db() {
@@ -175,11 +175,11 @@ func (s *dbTestSuite) Test_get_schema_returns_0_on_uninitialized_db() {
 
 	db, err = sql.Open("sqlite3", ":memory:")
 	s.Nil(err)
-	result := dbGetSchema(db)
+	result := GetSchema(db)
 	s.Equal(0, result, "getSchema should return 0 on uninitialized db!")
 }
 
-func (s *dbTestSuite) Test_running_dbUpdateFromV6_adds_on_delete_cascade() {
+func (s *dbTestSuite) Test_running_UpdateFromV6_adds_on_delete_cascade() {
 	// Upgrading the database schema with updateFromV6 adds ON DELETE CASCADE
 	// to sqlite tables that require it, and conserve the data.
 
@@ -313,11 +313,11 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 
 	// The "foreign key" on containers_config now points to nothing.
 	// Let's run the schema upgrades.
-	err = dbUpdatesApplyAll(db, false, nil)
+	err = UpdatesApplyAll(db, false, nil)
 	s.Nil(err)
 
-	result := dbGetSchema(db)
-	s.Equal(result, dbGetLatestSchema(), "The schema is not at the latest version after update!")
+	result := GetSchema(db)
+	s.Equal(result, GetLatestSchema(), "The schema is not at the latest version after update!")
 
 	// Make sure there are 0 containers_config entries left.
 	statements = `SELECT count(*) FROM containers_config;`
@@ -326,11 +326,11 @@ INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 't
 	s.Equal(count, 0, "updateDb did not delete orphaned child entries after adding ON DELETE CASCADE!")
 }
 
-func (s *dbTestSuite) Test_dbImageGet_finds_image_for_fingerprint() {
+func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 	var err error
 	var result *api.Image
 
-	_, result, err = dbImageGet(s.db, "fingerprint", false, false)
+	_, result, err = ImageGet(s.db, "fingerprint", false, false)
 	s.Nil(err)
 	s.NotNil(result)
 	s.Equal(result.Filename, "filename")
@@ -339,51 +339,51 @@ func (s *dbTestSuite) Test_dbImageGet_finds_image_for_fingerprint() {
 	s.Equal(result.UploadedAt.UTC(), time.Unix(1431547176, 0).UTC())
 }
 
-func (s *dbTestSuite) Test_dbImageGet_for_missing_fingerprint() {
+func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	var err error
 
-	_, _, err = dbImageGet(s.db, "unknown", false, false)
+	_, _, err = ImageGet(s.db, "unknown", false, false)
 	s.Equal(err, sql.ErrNoRows)
 }
 
-func (s *dbTestSuite) Test_dbImageExists_true() {
+func (s *dbTestSuite) Test_ImageExists_true() {
 	var err error
 
-	exists, err := dbImageExists(s.db, "fingerprint")
+	exists, err := ImageExists(s.db, "fingerprint")
 	s.Nil(err)
 	s.True(exists)
 }
 
-func (s *dbTestSuite) Test_dbImageExists_false() {
+func (s *dbTestSuite) Test_ImageExists_false() {
 	var err error
 
-	exists, err := dbImageExists(s.db, "foobar")
+	exists, err := ImageExists(s.db, "foobar")
 	s.Nil(err)
 	s.False(exists)
 }
 
-func (s *dbTestSuite) Test_dbImageAliasGet_alias_exists() {
+func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
 	var err error
 
-	_, alias, err := dbImageAliasGet(s.db, "somealias", true)
+	_, alias, err := ImageAliasGet(s.db, "somealias", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
 
-func (s *dbTestSuite) Test_dbImageAliasGet_alias_does_not_exists() {
+func (s *dbTestSuite) Test_ImageAliasGet_alias_does_not_exists() {
 	var err error
 
-	_, _, err = dbImageAliasGet(s.db, "whatever", true)
+	_, _, err = ImageAliasGet(s.db, "whatever", true)
 	s.Equal(err, NoSuchObjectError)
 }
 
-func (s *dbTestSuite) Test_dbImageAliasAdd() {
+func (s *dbTestSuite) Test_ImageAliasAdd() {
 	var err error
 
-	err = dbImageAliasAdd(s.db, "Chaosphere", 1, "Someone will like the name")
+	err = ImageAliasAdd(s.db, "Chaosphere", 1, "Someone will like the name")
 	s.Nil(err)
 
-	_, alias, err := dbImageAliasGet(s.db, "Chaosphere", true)
+	_, alias, err := ImageAliasGet(s.db, "Chaosphere", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
@@ -396,7 +396,7 @@ func (s *dbTestSuite) Test_dbContainerConfig() {
 	_, err = s.db.Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
 	s.Nil(err)
 
-	result, err = dbContainerConfig(s.db, 1)
+	result, err = ContainerConfig(s.db, 1)
 	s.Nil(err)
 
 	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
@@ -415,7 +415,7 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 	_, err = s.db.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (3, 'something', 'something else');")
 	s.Nil(err)
 
-	result, err = dbProfileConfig(s.db, "theprofile")
+	result, err = ProfileConfig(s.db, "theprofile")
 	s.Nil(err)
 
 	expected = map[string]string{"thekey": "thevalue", "something": "something else"}
@@ -426,13 +426,13 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 	}
 }
 
-func (s *dbTestSuite) Test_dbContainerProfiles() {
+func (s *dbTestSuite) Test_ContainerProfiles() {
 	var err error
 	var result []string
 	var expected []string
 
 	expected = []string{"theprofile"}
-	result, err = dbContainerProfiles(s.db, 1)
+	result, err = ContainerProfiles(s.db, 1)
 	s.Nil(err)
 
 	for i := range expected {
@@ -447,7 +447,7 @@ func (s *dbTestSuite) Test_dbDevices_profiles() {
 	var subresult types.Device
 	var expected types.Device
 
-	result, err = dbDevices(s.db, "theprofile", true)
+	result, err = Devices(s.db, "theprofile", true)
 	s.Nil(err)
 
 	expected = types.Device{"type": "nic", "devicekey": "devicevalue"}
@@ -465,7 +465,7 @@ func (s *dbTestSuite) Test_dbDevices_containers() {
 	var subresult types.Device
 	var expected types.Device
 
-	result, err = dbDevices(s.db, "thename", false)
+	result, err = Devices(s.db, "thename", false)
 	s.Nil(err)
 
 	expected = types.Device{"type": "nic", "configkey": "configvalue"}

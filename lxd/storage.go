@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -662,7 +663,7 @@ func rsyncMigrationSource(container container) (MigrationStorageSourceDriver, er
 	return rsyncStorageSourceDriver{container, snapshots}, nil
 }
 
-func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) containerArgs {
+func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) db.ContainerArgs {
 	config := map[string]string{}
 
 	for _, ent := range snap.LocalConfig {
@@ -680,9 +681,9 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) conta
 	}
 
 	name := containerName + shared.SnapshotDelimiter + snap.GetName()
-	return containerArgs{
+	return db.ContainerArgs{
 		Name:         name,
-		Ctype:        cTypeSnapshot,
+		Ctype:        db.CTypeSnapshot,
 		Config:       config,
 		Profiles:     snap.Profiles,
 		Ephemeral:    snap.GetEphemeral(),

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -42,7 +43,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	if configRaw.Restore == "" {
 		// Update container configuration
 		do = func(op *operation) error {
-			args := containerArgs{
+			args := db.ContainerArgs{
 				Architecture: architecture,
 				Config:       configRaw.Config,
 				Devices:      configRaw.Devices,

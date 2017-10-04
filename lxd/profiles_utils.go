@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -22,13 +23,13 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	containers := getContainersWithProfile(d, name)
 
 	// Update the database
-	tx, err := dbBegin(d.db)
+	tx, err := db.Begin(d.db)
 	if err != nil {
 		return SmartError(err)
 	}
 
 	if profile.Description != req.Description {
-		err = dbProfileDescriptionUpdate(tx, id, req.Description)
+		err = db.ProfileDescriptionUpdate(tx, id, req.Description)
 		if err != nil {
 			tx.Rollback()
 			return SmartError(err)
@@ -37,7 +38,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 
 	// Optimize for description-only changes
 	if reflect.DeepEqual(profile.Config, req.Config) && reflect.DeepEqual(profile.Devices, req.Devices) {
-		err = txCommit(tx)
+		err = db.TxCommit(tx)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -45,33 +46,33 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		return EmptySyncResponse
 	}
 
-	err = dbProfileConfigClear(tx, id)
+	err = db.ProfileConfigClear(tx, id)
 	if err != nil {
 		tx.Rollback()
 		return SmartError(err)
 	}
 
-	err = dbProfileConfigAdd(tx, id, req.Config)
+	err = db.ProfileConfigAdd(tx, id, req.Config)
 	if err != nil {
 		tx.Rollback()
 		return SmartError(err)
 	}
 
-	err = dbDevicesAdd(tx, "profile", id, req.Devices)
+	err = db.DevicesAdd(tx, "profile", id, req.Devices)
 	if err != nil {
 		tx.Rollback()
 		return SmartError(err)
 	}
 
-	err = txCommit(tx)
+	err = db.TxCommit(tx)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	// Update all the containers using the profile. Must be done after txCommit due to DB lock.
+	// Update all the containers using the profile. Must be done after db.TxCommit due to DB lock.
 	failures := map[string]error{}
 	for _, c := range containers {
-		err = c.Update(containerArgs{
+		err = c.Update(db.ContainerArgs{
 			Architecture: c.Architecture(),
 			Ephemeral:    c.IsEphemeral(),
 			Config:       c.LocalConfig(),

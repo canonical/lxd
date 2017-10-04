@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -81,7 +82,7 @@ func (slice containerAutostartList) Swap(i, j int) {
 
 func containersRestart(d *Daemon) error {
 	// Get all the containers
-	result, err := dbContainersList(d.db, cTypeRegular)
+	result, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -128,13 +129,13 @@ func containersShutdown(d *Daemon) error {
 	var wg sync.WaitGroup
 
 	// Get all the containers
-	results, err := dbContainersList(d.db, cTypeRegular)
+	results, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Reset all container states
-	_, err = dbExec(d.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	_, err = db.Exec(d.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
 	if err != nil {
 		return err
 	}
@@ -172,7 +173,7 @@ func containerDeleteSnapshots(d *Daemon, cname string) error {
 	logger.Debug("containerDeleteSnapshots",
 		log.Ctx{"container": cname})
 
-	results, err := dbContainerGetSnapshots(d.db, cname)
+	results, err := db.ContainerGetSnapshots(d.db, cname)
 	if err != nil {
 		return err
 	}

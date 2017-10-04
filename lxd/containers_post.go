@@ -11,6 +11,7 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -30,7 +31,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		if req.Source.Server != "" {
 			hash = req.Source.Alias
 		} else {
-			_, alias, err := dbImageAliasGet(d.db, req.Source.Alias, true)
+			_, alias, err := db.ImageAliasGet(d.db, req.Source.Alias, true)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -42,7 +43,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
-		hashes, err := dbImagesGet(d.db, false)
+		hashes, err := db.ImagesGet(d.db, false)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -50,7 +51,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		var image *api.Image
 
 		for _, imageHash := range hashes {
-			_, img, err := dbImageGet(d.db, imageHash, false, true)
+			_, img, err := db.ImageGet(d.db, imageHash, false, true)
 			if err != nil {
 				continue
 			}
@@ -84,9 +85,9 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	run := func(op *operation) error {
-		args := containerArgs{
+		args := db.ContainerArgs{
 			Config:    req.Config,
-			Ctype:     cTypeRegular,
+			Ctype:     db.CTypeRegular,
 			Devices:   req.Devices,
 			Ephemeral: req.Ephemeral,
 			Name:      req.Name,
@@ -102,7 +103,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 				return err
 			}
 		} else {
-			_, info, err = dbImageGet(d.db, hash, false, false)
+			_, info, err = db.ImageGet(d.db, hash, false, false)
 			if err != nil {
 				return err
 			}
@@ -129,9 +130,9 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 }
 
 func createFromNone(d *Daemon, req *api.ContainersPost) Response {
-	args := containerArgs{
+	args := db.ContainerArgs{
 		Config:    req.Config,
-		Ctype:     cTypeRegular,
+		Ctype:     db.CTypeRegular,
 		Devices:   req.Devices,
 		Ephemeral: req.Ephemeral,
 		Name:      req.Name,
@@ -177,11 +178,11 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	// Prepare the container creation request
-	args := containerArgs{
+	args := db.ContainerArgs{
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Ctype:        cTypeRegular,
+		Ctype:        db.CTypeRegular,
 		Devices:      req.Devices,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
@@ -201,7 +202,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
-	_, _, err = dbImageGet(d.db, req.Source.BaseImage, false, true)
+	_, _, err = db.ImageGet(d.db, req.Source.BaseImage, false, true)
 	if err == nil && d.Storage.MigrationType() == MigrationFSType_RSYNC {
 		c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
 		if err != nil {
@@ -314,11 +315,11 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 		req.Profiles = source.Profiles()
 	}
 
-	args := containerArgs{
+	args := db.ContainerArgs{
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
-		Ctype:        cTypeRegular,
+		Ctype:        db.CTypeRegular,
 		Devices:      req.Devices,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
@@ -354,7 +355,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Name == "" {
-		cs, err := dbContainersList(d.db, cTypeRegular)
+		cs, err := db.ContainersList(d.db, db.CTypeRegular)
 		if err != nil {
 			return SmartError(err)
 		}

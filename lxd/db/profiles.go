@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -10,13 +10,13 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// dbProfiles returns a string list of profiles.
-func dbProfiles(db *sql.DB) ([]string, error) {
+// Profiles returns a string list of profiles.
+func Profiles(db *sql.DB) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM profiles")
 	inargs := []interface{}{}
 	var name string
 	outfmt := []interface{}{name}
-	result, err := dbQueryScan(db, q, inargs, outfmt)
+	result, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -29,7 +29,7 @@ func dbProfiles(db *sql.DB) ([]string, error) {
 	return response, nil
 }
 
-func dbProfileGet(db *sql.DB, name string) (int64, *api.Profile, error) {
+func ProfileGet(db *sql.DB, name string) (int64, *api.Profile, error) {
 	id := int64(-1)
 	description := sql.NullString{}
 
@@ -41,12 +41,12 @@ func dbProfileGet(db *sql.DB, name string) (int64, *api.Profile, error) {
 		return -1, nil, err
 	}
 
-	config, err := dbProfileConfig(db, name)
+	config, err := ProfileConfig(db, name)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	devices, err := dbDevices(db, name, true)
+	devices, err := Devices(db, name, true)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -62,10 +62,10 @@ func dbProfileGet(db *sql.DB, name string) (int64, *api.Profile, error) {
 	return id, &profile, nil
 }
 
-func dbProfileCreate(db *sql.DB, profile string, description string, config map[string]string,
+func ProfileCreate(db *sql.DB, profile string, description string, config map[string]string,
 	devices types.Devices) (int64, error) {
 
-	tx, err := dbBegin(db)
+	tx, err := Begin(db)
 	if err != nil {
 		return -1, err
 	}
@@ -80,19 +80,19 @@ func dbProfileCreate(db *sql.DB, profile string, description string, config map[
 		return -1, err
 	}
 
-	err = dbProfileConfigAdd(tx, id, config)
+	err = ProfileConfigAdd(tx, id, config)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
 	}
 
-	err = dbDevicesAdd(tx, "profile", id, devices)
+	err = DevicesAdd(tx, "profile", id, devices)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
 	}
 
-	err = txCommit(tx)
+	err = TxCommit(tx)
 	if err != nil {
 		return -1, err
 	}
@@ -100,8 +100,8 @@ func dbProfileCreate(db *sql.DB, profile string, description string, config map[
 	return id, nil
 }
 
-func dbProfileCreateDefault(db *sql.DB) error {
-	id, _, _ := dbProfileGet(db, "default")
+func ProfileCreateDefault(db *sql.DB) error {
+	id, _, _ := ProfileGet(db, "default")
 
 	if id != -1 {
 		// default profile already exists
@@ -115,7 +115,7 @@ func dbProfileCreateDefault(db *sql.DB) error {
 			"type":    "nic",
 			"nictype": "bridged",
 			"parent":  "lxdbr0"}}
-	_, err := dbProfileCreate(db, "default", "Default LXD profile", map[string]string{}, devices)
+	_, err := ProfileCreate(db, "default", "Default LXD profile", map[string]string{}, devices)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func dbProfileCreateDefault(db *sql.DB) error {
 }
 
 func dbProfileCreateDocker(db *sql.DB) error {
-	id, _, err := dbProfileGet(db, "docker")
+	id, _, err := ProfileGet(db, "docker")
 
 	if id != -1 {
 		// docker profile already exists
@@ -141,12 +141,12 @@ func dbProfileCreateDocker(db *sql.DB) error {
 	}
 	devices := map[string]map[string]string{"aadisable": aadisable}
 
-	_, err = dbProfileCreate(db, "docker", "Profile supporting docker in containers", config, devices)
+	_, err = ProfileCreate(db, "docker", "Profile supporting docker in containers", config, devices)
 	return err
 }
 
 // Get the profile configuration map from the DB
-func dbProfileConfig(db *sql.DB, name string) (map[string]string, error) {
+func ProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT
@@ -156,7 +156,7 @@ func dbProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 		WHERE name=?`
 	inargs := []interface{}{name}
 	outfmt := []interface{}{key, value}
-	results, err := dbQueryScan(db, query, inargs, outfmt)
+	results, err := QueryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get profile '%s'", name)
 	}
@@ -168,7 +168,7 @@ func dbProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 		 */
 		query := "SELECT id FROM profiles WHERE name=?"
 		var id int
-		results, err := dbQueryScan(db, query, []interface{}{name}, []interface{}{id})
+		results, err := QueryScan(db, query, []interface{}{name}, []interface{}{id})
 		if err != nil {
 			return nil, err
 		}
@@ -190,13 +190,13 @@ func dbProfileConfig(db *sql.DB, name string) (map[string]string, error) {
 	return config, nil
 }
 
-func dbProfileDelete(db *sql.DB, name string) error {
-	id, _, err := dbProfileGet(db, name)
+func ProfileDelete(db *sql.DB, name string) error {
+	id, _, err := ProfileGet(db, name)
 	if err != nil {
 		return err
 	}
 
-	_, err = dbExec(db, "DELETE FROM profiles WHERE id=?", id)
+	_, err = Exec(db, "DELETE FROM profiles WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -204,8 +204,8 @@ func dbProfileDelete(db *sql.DB, name string) error {
 	return nil
 }
 
-func dbProfileUpdate(db *sql.DB, name string, newName string) error {
-	tx, err := dbBegin(db)
+func ProfileUpdate(db *sql.DB, name string, newName string) error {
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -216,17 +216,17 @@ func dbProfileUpdate(db *sql.DB, name string, newName string) error {
 		return err
 	}
 
-	err = txCommit(tx)
+	err = TxCommit(tx)
 
 	return err
 }
 
-func dbProfileDescriptionUpdate(tx *sql.Tx, id int64, description string) error {
+func ProfileDescriptionUpdate(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE profiles SET description=? WHERE id=?", description, id)
 	return err
 }
 
-func dbProfileConfigClear(tx *sql.Tx, id int64) error {
+func ProfileConfigClear(tx *sql.Tx, id int64) error {
 	_, err := tx.Exec("DELETE FROM profiles_config WHERE profile_id=?", id)
 	if err != nil {
 		return err
@@ -247,7 +247,7 @@ func dbProfileConfigClear(tx *sql.Tx, id int64) error {
 	return nil
 }
 
-func dbProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
+func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO profiles_config (profile_id, key, value) VALUES(?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
@@ -262,7 +262,7 @@ func dbProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	return nil
 }
 
-func dbProfileContainersGet(db *sql.DB, profile string) ([]string, error) {
+func ProfileContainersGet(db *sql.DB, profile string) ([]string, error) {
 	q := `SELECT containers.name FROM containers JOIN containers_profiles
 		ON containers.id == containers_profiles.container_id
 		JOIN profiles ON containers_profiles.profile_id == profiles.id
@@ -273,7 +273,7 @@ func dbProfileContainersGet(db *sql.DB, profile string) ([]string, error) {
 	var name string
 	outfmt := []interface{}{name}
 
-	output, err := dbQueryScan(db, q, inargs, outfmt)
+	output, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return results, err
 	}

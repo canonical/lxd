@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -51,7 +52,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	// Look for auto-started or previously started containers
-	result, err := dbContainersList(d.db, cTypeRegular)
+	result, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return err
 	}

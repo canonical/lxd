@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -22,7 +23,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 	if recursion {
 		certResponses := []api.Certificate{}
 
-		baseCerts, err := dbCertsGet(d.db)
+		baseCerts, err := db.CertsGet(d.db)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -52,7 +53,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = []x509.Certificate{}
 
-	dbCerts, err := dbCertsGet(d.db)
+	dbCerts, err := db.CertsGet(d.db)
 	if err != nil {
 		logger.Infof("Error reading certificates from database: %s", err)
 		return
@@ -75,7 +76,7 @@ func readSavedClientCAList(d *Daemon) {
 }
 
 func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
-	baseCert := new(dbCertInfo)
+	baseCert := new(db.CertInfo)
 	baseCert.Fingerprint = shared.CertFingerprint(cert)
 	baseCert.Type = 1
 	baseCert.Name = host
@@ -83,7 +84,7 @@ func saveCert(d *Daemon, host string, cert *x509.Certificate) error {
 		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}),
 	)
 
-	return dbCertSave(d.db, baseCert)
+	return db.CertSave(d.db, baseCert)
 }
 
 func certificatesPost(d *Daemon, r *http.Request) Response {
@@ -173,7 +174,7 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 func doCertificateGet(d *Daemon, fingerprint string) (api.Certificate, error) {
 	resp := api.Certificate{}
 
-	dbCertInfo, err := dbCertGet(d.db, fingerprint)
+	dbCertInfo, err := db.CertGet(d.db, fingerprint)
 	if err != nil {
 		return resp, err
 	}
@@ -193,12 +194,12 @@ func doCertificateGet(d *Daemon, fingerprint string) (api.Certificate, error) {
 func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	certInfo, err := dbCertGet(d.db, fingerprint)
+	certInfo, err := db.CertGet(d.db, fingerprint)
 	if err != nil {
 		return NotFound
 	}
 
-	err = dbCertDelete(d.db, certInfo.Fingerprint)
+	err = db.CertDelete(d.db, certInfo.Fingerprint)
 	if err != nil {
 		return SmartError(err)
 	}

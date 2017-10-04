@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -56,7 +57,7 @@ func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 		return results, nil
 	}
 
-	cNames, err := dbContainersList(d.db, cTypeRegular)
+	cNames, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return results, err
 	}
@@ -74,7 +75,7 @@ func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 		}
 	}
 
-	imageNames, err := dbImagesGet(d.db, false)
+	imageNames, err := db.ImagesGet(d.db, false)
 	if err != nil {
 		return results, err
 	}
