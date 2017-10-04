@@ -138,9 +138,10 @@ var legacyPatches = map[int](func(d *Daemon) error){
 	11: patchUpdateFromV10,
 	12: patchUpdateFromV11,
 	16: patchUpdateFromV15,
-	31: patchUpdateFromV30,
 	30: patchUpdateFromV29,
+	31: patchUpdateFromV30,
 }
+var legacyPatchesNeedingDB = []int{11, 12, 16} // Legacy patches doing DB work
 
 func patchUpdateFromV10(d *Daemon) error {
 	if shared.PathExists(shared.VarPath("lxc")) {
