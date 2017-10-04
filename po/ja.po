@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-10-03 18:09-0400\n"
+"POT-Creation-Date: 2017-10-03 23:36-0400\n"
 "PO-Revision-Date: 2017-09-28 21:49+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -68,7 +68,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/image.go:837
+#: lxc/image.go:851
 #, c-format
 msgid "%s (%d more)"
 msgstr ""
@@ -86,11 +86,11 @@ msgstr "'/' はスナップショットの名前には使用できません。"
 msgid "(none)"
 msgstr ""
 
-#: lxc/image.go:858 lxc/image.go:887
+#: lxc/image.go:872 lxc/image.go:901
 msgid "ALIAS"
 msgstr ""
 
-#: lxc/image.go:862
+#: lxc/image.go:876
 msgid "ARCH"
 msgstr ""
 
@@ -187,7 +187,7 @@ msgstr "コマンド:"
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
-#: lxc/config.go:647 lxc/config.go:712 lxc/image.go:942 lxc/profile.go:237
+#: lxc/config.go:647 lxc/config.go:712 lxc/image.go:956 lxc/profile.go:237
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -237,7 +237,7 @@ msgstr "%s を作成中"
 msgid "Creating the container"
 msgstr "コンテナを作成中"
 
-#: lxc/image.go:861 lxc/image.go:889
+#: lxc/image.go:875 lxc/image.go:903
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -296,12 +296,12 @@ msgstr "失効日時: %s"
 msgid "Expires: never"
 msgstr "失効日時: 失効しない"
 
-#: lxc/image.go:706
+#: lxc/image.go:710
 #, c-format
 msgid "Exporting the image: %s"
 msgstr "イメージのエクスポート中: %s"
 
-#: lxc/config.go:348 lxc/image.go:859 lxc/image.go:888
+#: lxc/config.go:348 lxc/image.go:873 lxc/image.go:902
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -388,11 +388,11 @@ msgstr "コンテナの状態を無視します (startのみ)。"
 msgid "Image copied successfully!"
 msgstr "イメージのコピーが成功しました!"
 
-#: lxc/image.go:756
+#: lxc/image.go:770
 msgid "Image exported successfully!"
 msgstr "イメージのエクスポートに成功しました!"
 
-#: lxc/image.go:576
+#: lxc/image.go:580
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
@@ -544,7 +544,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:860 lxc/remote.go:367
+#: lxc/image.go:874 lxc/remote.go:367
 msgid "PUBLIC"
 msgstr ""
 
@@ -581,7 +581,7 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
-#: lxc/config.go:648 lxc/config.go:713 lxc/image.go:943
+#: lxc/config.go:648 lxc/config.go:713 lxc/image.go:957
 msgid "Press enter to start the editor again"
 msgstr "再度エディタを起動するには Enter キーを押します"
 
@@ -675,7 +675,7 @@ msgstr "コンテナを再起動します。"
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
 
-#: lxc/image.go:863
+#: lxc/image.go:877
 msgid "SIZE"
 msgstr ""
 
@@ -866,7 +866,7 @@ msgstr ""
 msgid "Transferring container: %s"
 msgstr "イメージを転送中: %s"
 
-#: lxc/image.go:524
+#: lxc/image.go:528
 #, c-format
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
@@ -884,7 +884,7 @@ msgstr "タイプ: ephemeral"
 msgid "Type: persistent"
 msgstr "タイプ: persistent"
 
-#: lxc/image.go:864
+#: lxc/image.go:878
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -1944,7 +1944,7 @@ msgstr "エラー: %v"
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s"
 
-#: lxc/image.go:396 lxc/image.go:401 lxc/image.go:840
+#: lxc/image.go:396 lxc/image.go:401 lxc/image.go:854
 msgid "no"
 msgstr ""
 
@@ -1994,7 +1994,7 @@ msgstr "%s に取得しました"
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
-#: lxc/delete.go:45 lxc/image.go:398 lxc/image.go:403 lxc/image.go:844
+#: lxc/delete.go:45 lxc/image.go:398 lxc/image.go:403 lxc/image.go:858
 msgid "yes"
 msgstr ""
 
