@@ -151,8 +151,9 @@ func patchUpdateFromV10(d *Daemon) error {
 		}
 
 		logger.Debugf("Restarting all the containers following directory rename")
-		containersShutdown(d)
-		containersRestart(d)
+		s := d.State()
+		containersShutdown(s, d.Storage)
+		containersRestart(s, d.Storage)
 	}
 
 	return nil

@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -61,7 +62,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	} else {
 		// Snapshot Restore
 		do = func(op *operation) error {
-			return containerSnapRestore(d, name, configRaw.Restore)
+			return containerSnapRestore(d.State(), d.Storage, name, configRaw.Restore)
 		}
 	}
 
@@ -76,7 +77,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func containerSnapRestore(d *Daemon, name string, snap string) error {
+func containerSnapRestore(s *state.State, storage storage, name string, snap string) error {
 	// normalize snapshot name
 	if !shared.IsSnapshot(snap) {
 		snap = name + shared.SnapshotDelimiter + snap
@@ -88,7 +89,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 			"snapshot":  snap,
 			"container": name})
 
-	c, err := containerLoadByName(d.State(), d.Storage, name)
+	c, err := containerLoadByName(s, storage, name)
 	if err != nil {
 		logger.Error(
 			"RESTORE => loadcontainerLXD() failed",
@@ -98,7 +99,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 		return err
 	}
 
-	source, err := containerLoadByName(d.State(), d.Storage, snap)
+	source, err := containerLoadByName(s, storage, snap)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:

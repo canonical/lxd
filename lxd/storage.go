@@ -246,9 +246,9 @@ func storageForFilename(s *state.State, storage storage, filename string) (stora
 	return newStorageWithConfig(s, storage, storageType, config)
 }
 
-func storageForImage(d *Daemon, imgInfo *api.Image) (storage, error) {
+func storageForImage(s *state.State, storage storage, imgInfo *api.Image) (storage, error) {
 	imageFilename := shared.VarPath("images", imgInfo.Fingerprint)
-	return storageForFilename(d.State(), d.Storage, imageFilename)
+	return storageForFilename(s, storage, imageFilename)
 }
 
 type storageShared struct {

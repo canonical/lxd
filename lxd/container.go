@@ -604,17 +604,17 @@ func containerCreateEmptySnapshot(s *state.State, storage storage, args db.Conta
 	return c, nil
 }
 
-func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (container, error) {
+func containerCreateFromImage(s *state.State, storage storage, args db.ContainerArgs, hash string) (container, error) {
 	// Set the BaseImage field (regardless of previous value)
 	args.BaseImage = hash
 
 	// Create the container
-	c, err := containerCreateInternal(d.State(), d.Storage, args)
+	c, err := containerCreateInternal(s, storage, args)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := db.ImageLastAccessUpdate(d.db, hash, time.Now().UTC()); err != nil {
+	if err := db.ImageLastAccessUpdate(s.DB, hash, time.Now().UTC()); err != nil {
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
@@ -634,9 +634,9 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 	return c, nil
 }
 
-func containerCreateAsCopy(d *Daemon, args db.ContainerArgs, sourceContainer container) (container, error) {
+func containerCreateAsCopy(s *state.State, storage storage, args db.ContainerArgs, sourceContainer container) (container, error) {
 	// Create the container.
-	c, err := containerCreateInternal(d.State(), d.Storage, args)
+	c, err := containerCreateInternal(s, storage, args)
 	if err != nil {
 		return nil, err
 	}

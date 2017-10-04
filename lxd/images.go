@@ -953,7 +953,7 @@ func doDeleteImage(d *Daemon, fingerprint string) error {
 
 	// get storage before deleting images/$fp because we need to
 	// look at the path
-	s, err := storageForImage(d, imgInfo)
+	s, err := storageForImage(d.State(), d.Storage, imgInfo)
 	if err != nil {
 		logger.Error("error detecting image storage backend", log.Ctx{"fingerprint": imgInfo.Fingerprint, "err": err})
 	} else {

@@ -20,7 +20,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		return BadRequest(err)
 	}
 
-	containers := getContainersWithProfile(d, name)
+	containers := getContainersWithProfile(d.State(), d.Storage, name)
 
 	// Update the database
 	tx, err := db.Begin(d.db)

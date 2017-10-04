@@ -593,7 +593,7 @@ func (d *Daemon) Init() error {
 
 	if !d.os.MockMode {
 		/* Start the scheduler */
-		go deviceEventListener(d)
+		go deviceEventListener(d.State(), d.Storage)
 
 		/* Setup the TLS authentication */
 		certf, keyf, err := readMyCert()
@@ -820,11 +820,13 @@ func (d *Daemon) Ready() error {
 		}
 	}()
 
+	s := d.State()
+
 	/* Restore containers */
-	containersRestart(d)
+	containersRestart(s, d.Storage)
 
 	/* Re-balance in case things changed while LXD was down */
-	deviceTaskBalance(d)
+	deviceTaskBalance(s, d.Storage)
 
 	close(d.readyChan)
 
