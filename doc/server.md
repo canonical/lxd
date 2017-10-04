@@ -1,9 +1,10 @@
 # Server configuration
 The key/value configuration is namespaced with the following namespaces
 currently supported:
- - core (core daemon configuration)
- - images (image configuration)
- - storage (storage configuration)
+
+ - `core` (core daemon configuration)
+ - `images` (image configuration)
+ - `storage` (storage configuration)
 
 Key                             | Type          | Default                   | Description
 :--                             | :---          | :------                   | :----------
@@ -27,4 +28,6 @@ images.auto\_update\_cached     | boolean       | true                      | Wh
 
 Those keys can be set using the lxc tool with:
 
-    lxc config set <key> <value>
+```bash
+lxc config set <key> <value>
+```
