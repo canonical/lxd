@@ -6,12 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"syscall"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -19,46 +19,6 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
-
-/* Some interesting filesystems */
-const (
-	filesystemSuperMagicTmpfs = 0x01021994
-	filesystemSuperMagicExt4  = 0xEF53
-	filesystemSuperMagicXfs   = 0x58465342
-	filesystemSuperMagicNfs   = 0x6969
-	filesystemSuperMagicZfs   = 0x2fc12fc1
-)
-
-/*
- * filesystemDetect returns the filesystem on which
- * the passed-in path sits
- */
-func filesystemDetect(path string) (string, error) {
-	fs := syscall.Statfs_t{}
-
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return "", err
-	}
-
-	switch fs.Type {
-	case filesystemSuperMagicBtrfs:
-		return "btrfs", nil
-	case filesystemSuperMagicZfs:
-		return "zfs", nil
-	case filesystemSuperMagicTmpfs:
-		return "tmpfs", nil
-	case filesystemSuperMagicExt4:
-		return "ext4", nil
-	case filesystemSuperMagicXfs:
-		return "xfs", nil
-	case filesystemSuperMagicNfs:
-		return "nfs", nil
-	default:
-		logger.Debugf("Unknown backing filesystem type: 0x%x", fs.Type)
-		return string(fs.Type), nil
-	}
-}
 
 // storageRsyncCopy copies a directory using rsync (with the --devices option).
 func storageRsyncCopy(source string, dest string) (string, error) {
@@ -251,7 +211,7 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 	}
 
 	if shared.PathExists(filename) {
-		filesystem, err = filesystemDetect(filename)
+		filesystem, err = util.FilesystemDetect(filename)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
 		}
