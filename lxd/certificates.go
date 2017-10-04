@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -95,7 +96,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Access check
-	if !d.isTrustedClient(r) && d.PasswordCheck(req.Password) != nil {
+	if !util.IsTrustedClient(r, d.clientCerts) && d.PasswordCheck(req.Password) != nil {
 		return Forbidden
 	}
 

@@ -9,8 +9,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func WriteJSON(w http.ResponseWriter, body interface{}, debug bool) error {
@@ -78,3 +82,43 @@ func HTTPClient(certificate string, proxy proxyFunc) (*http.Client, error) {
 
 // A function capable of proxing an HTTP request.
 type proxyFunc func(req *http.Request) (*url.URL, error)
+
+// IsTrustedClient checks if the given HTTP request comes from a trusted client
+// (i.e. either it's received via Unix socket, or via TLS with a trusted
+// certificate).
+func IsTrustedClient(r *http.Request, trustedCerts []x509.Certificate) bool {
+	if r.RemoteAddr == "@" {
+		// Unix socket
+		return true
+	}
+
+	if r.TLS == nil {
+		return false
+	}
+
+	for i := range r.TLS.PeerCertificates {
+		if checkTrustState(*r.TLS.PeerCertificates[i], trustedCerts) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Check whether the given client certificate is trusted (i.e. it has a valid
+// time span and it belongs to the given list of trusted certificates).
+func checkTrustState(cert x509.Certificate, trustedCerts []x509.Certificate) bool {
+	// Extra validity check (should have been caught by TLS stack)
+	if time.Now().Before(cert.NotBefore) || time.Now().After(cert.NotAfter) {
+		return false
+	}
+
+	for k, v := range trustedCerts {
+		if bytes.Compare(cert.Raw, v.Raw) == 0 {
+			logger.Debug("Found cert", log.Ctx{"k": k})
+			return true
+		}
+	}
+
+	return false
+}

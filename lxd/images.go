@@ -816,7 +816,7 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 }
 
 func imagesGet(d *Daemon, r *http.Request) Response {
-	public := !d.isTrustedClient(r)
+	public := !util.IsTrustedClient(r, d.clientCerts)
 
 	result, err := doImagesGet(d, d.isRecursionRequest(r), public)
 	if err != nil {
@@ -1047,7 +1047,7 @@ func imageValidSecret(fingerprint string, secret string) bool {
 
 func imageGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	public := !d.isTrustedClient(r)
+	public := !util.IsTrustedClient(r, d.clientCerts)
 	secret := r.FormValue("secret")
 
 	info, response := doImageGet(d, fingerprint, false)
@@ -1134,7 +1134,8 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 			responseStr = append(responseStr, url)
 
 		} else {
-			_, alias, err := db.ImageAliasGet(d.db, name, d.isTrustedClient(r))
+			isTrustedClient := util.IsTrustedClient(r, d.clientCerts)
+			_, alias, err := db.ImageAliasGet(d.db, name, isTrustedClient)
 			if err != nil {
 				continue
 			}
@@ -1152,7 +1153,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 func aliasGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	_, alias, err := db.ImageAliasGet(d.db, name, d.isTrustedClient(r))
+	_, alias, err := db.ImageAliasGet(d.db, name, util.IsTrustedClient(r, d.clientCerts))
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1235,7 +1236,7 @@ func aliasPost(d *Daemon, r *http.Request) Response {
 func imageExport(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	public := !d.isTrustedClient(r)
+	public := !util.IsTrustedClient(r, d.clientCerts)
 	secret := r.FormValue("secret")
 
 	_, imgInfo, err := db.ImageGet(d.db, fingerprint, false, false)

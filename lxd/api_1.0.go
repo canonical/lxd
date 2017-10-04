@@ -11,6 +11,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
@@ -70,7 +71,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	}
 
 	// If untrusted, return now
-	if !d.isTrustedClient(r) {
+	if !util.IsTrustedClient(r, d.clientCerts) {
 		return SyncResponse(true, srv)
 	}
 
