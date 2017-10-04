@@ -57,7 +57,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	for _, name := range result {
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(d.State(), d.Storage, name)
 		if err != nil {
 			return err
 		}

@@ -22,8 +22,6 @@ import (
 )
 
 type storageBtrfs struct {
-	d *Daemon
-
 	storageShared
 }
 
@@ -415,7 +413,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
-	if err := unpackImage(imagePath, subvol, s.d.Storage.GetStorageType()); err != nil {
+	if err := unpackImage(imagePath, subvol, s.storage.GetStorageType()); err != nil {
 		s.subvolsDelete(subvol)
 		return err
 	}
@@ -1000,7 +998,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 	for _, snap := range snapshots {
 		args := snapshotProtobufToContainerArgs(container.Name(), snap)
-		s, err := containerCreateEmptySnapshot(container.Daemon(), args)
+		s, err := containerCreateEmptySnapshot(s.s, s.storage, args)
 		if err != nil {
 			return err
 		}

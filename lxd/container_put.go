@@ -23,7 +23,7 @@ import (
  */
 func containerPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), d.Storage, name)
 	if err != nil {
 		return NotFound
 	}
@@ -88,7 +88,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 			"snapshot":  snap,
 			"container": name})
 
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), d.Storage, name)
 	if err != nil {
 		logger.Error(
 			"RESTORE => loadcontainerLXD() failed",
@@ -98,7 +98,7 @@ func containerSnapRestore(d *Daemon, name string, snap string) error {
 		return err
 	}
 
-	source, err := containerLoadByName(d, snap)
+	source, err := containerLoadByName(d.State(), d.Storage, snap)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:

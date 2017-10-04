@@ -103,7 +103,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	}
 
 	for _, ct := range cts {
-		c, err := containerLoadByName(d, ct)
+		c, err := containerLoadByName(d.State(), d.Storage, ct)
 		if err != nil {
 			return api.Network{}, err
 		}

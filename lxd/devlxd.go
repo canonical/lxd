@@ -345,7 +345,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 			parts := strings.Split(string(cmdline), " ")
 			name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
 
-			return containerLoadByName(d, name)
+			return containerLoadByName(d.State(), d.Storage, name)
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
@@ -379,7 +379,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 	}
 
 	for _, container := range containers {
-		c, err := containerLoadByName(d, container)
+		c, err := containerLoadByName(d.State(), d.Storage, container)
 		if err != nil {
 			return nil, err
 		}

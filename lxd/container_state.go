@@ -15,7 +15,7 @@ import (
 
 func containerState(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), d.Storage, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -44,7 +44,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	// Don't mess with containers while in setup mode
 	<-d.readyChan
 
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), d.Storage, name)
 	if err != nil {
 		return SmartError(err)
 	}

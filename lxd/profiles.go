@@ -127,7 +127,7 @@ func getContainersWithProfile(d *Daemon, profile string) []container {
 	}
 
 	for _, name := range output {
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(d.State(), d.Storage, name)
 		if err != nil {
 			logger.Error("Failed opening container", log.Ctx{"container": name})
 			continue

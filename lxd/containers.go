@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -90,7 +91,7 @@ func containersRestart(d *Daemon) error {
 	containers := []container{}
 
 	for _, name := range result {
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(d.State(), d.Storage, name)
 		if err != nil {
 			return err
 		}
@@ -142,7 +143,7 @@ func containersShutdown(d *Daemon) error {
 
 	for _, r := range results {
 		// Load the container
-		c, err := containerLoadByName(d, r)
+		c, err := containerLoadByName(d.State(), d.Storage, r)
 		if err != nil {
 			return err
 		}
@@ -169,17 +170,17 @@ func containersShutdown(d *Daemon) error {
 	return nil
 }
 
-func containerDeleteSnapshots(d *Daemon, cname string) error {
+func containerDeleteSnapshots(s *state.State, storage storage, cname string) error {
 	logger.Debug("containerDeleteSnapshots",
 		log.Ctx{"container": cname})
 
-	results, err := db.ContainerGetSnapshots(d.db, cname)
+	results, err := db.ContainerGetSnapshots(s.DB, cname)
 	if err != nil {
 		return err
 	}
 
 	for _, sname := range results {
-		sc, err := containerLoadByName(d, sname)
+		sc, err := containerLoadByName(s, storage, sname)
 		if err != nil {
 			logger.Error(
 				"containerDeleteSnapshots: Failed to load the snapshotcontainer",

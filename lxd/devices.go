@@ -250,7 +250,7 @@ func deviceTaskBalance(d *Daemon) {
 	fixedContainers := map[int][]container{}
 	balancedContainers := map[container]int{}
 	for _, name := range containers {
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(d.State(), d.Storage, name)
 		if err != nil {
 			continue
 		}
@@ -375,7 +375,7 @@ func deviceNetworkPriority(d *Daemon, netif string) {
 
 	for _, name := range containers {
 		// Get the container struct
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(d.State(), d.Storage, name)
 		if err != nil {
 			continue
 		}

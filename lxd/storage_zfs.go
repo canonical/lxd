@@ -21,7 +21,6 @@ import (
 )
 
 type storageZfs struct {
-	d       *Daemon
 	zfsPool string
 
 	storageShared
@@ -630,7 +629,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
-	err = unpackImage(imagePath, subvol, s.d.Storage.GetStorageType())
+	err = unpackImage(imagePath, subvol, s.storage.GetStorageType())
 	if err != nil {
 		return cleanup(err)
 	}
@@ -1368,7 +1367,7 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", ct.Name(), shared.SnapshotDelimiter, snap[len("snapshot-"):])
-		snapshot, err := containerLoadByName(s.d, lxdName)
+		snapshot, err := containerLoadByName(s.s, s.storage, lxdName)
 		if err != nil {
 			return nil, err
 		}
@@ -1428,7 +1427,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 
 	for _, snap := range snapshots {
 		args := snapshotProtobufToContainerArgs(container.Name(), snap)
-		_, err := containerCreateEmptySnapshot(container.Daemon(), args)
+		_, err := containerCreateEmptySnapshot(container.StateObject(), container.Storage(), args)
 		if err != nil {
 			return err
 		}
