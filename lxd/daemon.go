@@ -469,12 +469,6 @@ func (d *Daemon) Init() error {
 		logger.Warnf("CGroup memory swap accounting is disabled, swap limits will be ignored.")
 	}
 
-	/* Initialize the operating system facade */
-	err = d.os.Init()
-	if err != nil {
-		return err
-	}
-
 	/* Make sure all our directories are available */
 	if err := os.MkdirAll(shared.VarPath(), 0711); err != nil {
 		return err
@@ -504,6 +498,12 @@ func (d *Daemon) Init() error {
 		return err
 	}
 	if err := os.MkdirAll(shared.VarPath("snapshots"), 0700); err != nil {
+		return err
+	}
+
+	/* Initialize the operating system facade */
+	err = d.os.Init()
+	if err != nil {
 		return err
 	}
 
