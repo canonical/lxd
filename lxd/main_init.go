@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
@@ -445,7 +446,7 @@ func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 	// Detect zfs
 	out, err := exec.LookPath("zfs")
 	if err == nil && len(out) != 0 && !cmd.RunningInUserns {
-		_ = loadModule("zfs")
+		_ = util.LoadModule("zfs")
 
 		_, err := shared.RunCommand("zpool", "list")
 		if err == nil {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -54,7 +55,7 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 	err = s.zfsCheckPool(s.zfsPool)
 	if err != nil {
 		if shared.PathExists(shared.VarPath("zfs.img")) {
-			_ = loadModule("zfs")
+			_ = util.LoadModule("zfs")
 
 			output, err := shared.RunCommand("zpool", "import",
 				"-d", shared.VarPath(), s.zfsPool)

@@ -1,16 +1,15 @@
-package main
+package util
 
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/lxc/lxd/shared"
 )
 
-func WriteJSON(w http.ResponseWriter, body interface{}) error {
+func WriteJSON(w http.ResponseWriter, body interface{}, debug bool) error {
 	var output io.Writer
 	var captured *bytes.Buffer
 
@@ -26,14 +25,5 @@ func WriteJSON(w http.ResponseWriter, body interface{}) error {
 		shared.DebugJson(captured)
 	}
 
-	return err
-}
-
-func loadModule(module string) error {
-	if shared.PathExists(fmt.Sprintf("/sys/module/%s", module)) {
-		return nil
-	}
-
-	_, err := shared.RunCommand("modprobe", module)
 	return err
 }

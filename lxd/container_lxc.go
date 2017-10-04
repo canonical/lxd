@@ -26,6 +26,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -1522,7 +1523,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	if kernelModules != "" {
 		for _, module := range strings.Split(kernelModules, ",") {
 			module = strings.TrimPrefix(module, " ")
-			err := loadModule(module)
+			err := util.LoadModule(module)
 			if err != nil {
 				return "", fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
 			}
@@ -2908,7 +2909,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			} else if key == "linux.kernel_modules" && value != "" {
 				for _, module := range strings.Split(value, ",") {
 					module = strings.TrimPrefix(module, " ")
-					err := loadModule(module)
+					err := util.LoadModule(module)
 					if err != nil {
 						return fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
 					}
