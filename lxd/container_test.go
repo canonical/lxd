@@ -258,7 +258,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	map2, err := c2.(*containerLXC).NextIdmapSet()
 	suite.Req.Nil(err)
 
-	host := suite.d.IdmapSet.Idmap[0]
+	host := suite.d.os.IdmapSet.Idmap[0]
 
 	for i := 0; i < 2; i++ {
 		suite.Req.Equal(host.Hostid+65536, map1.Idmap[i].Hostid, "hostids don't match %d", i)
@@ -299,7 +299,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	map2, err := c2.(*containerLXC).NextIdmapSet()
 	suite.Req.Nil(err)
 
-	host := suite.d.IdmapSet.Idmap[0]
+	host := suite.d.os.IdmapSet.Idmap[0]
 
 	for i := 0; i < 2; i++ {
 		suite.Req.Equal(host.Hostid, map1.Idmap[i].Hostid, "hostids don't match %d", i)
@@ -329,7 +329,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 	map1, err := c1.(*containerLXC).NextIdmapSet()
 	suite.Req.Nil(err)
 
-	host := suite.d.IdmapSet.Idmap[0]
+	host := suite.d.os.IdmapSet.Idmap[0]
 
 	for _, i := range []int{0, 3} {
 		suite.Req.Equal(host.Hostid, map1.Idmap[i].Hostid, "hostids don't match")

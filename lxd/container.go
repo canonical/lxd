@@ -328,7 +328,7 @@ func containerValidConfig(d *Daemon, config map[string]string, profile bool, exp
 		}
 	}
 
-	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && d.IdmapSet == nil {
+	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && d.os.IdmapSet == nil {
 		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
 	}
 

@@ -507,11 +507,11 @@ func idmapSize(daemon *Daemon, isolatedStr string, size string) (int64, error) {
 		if isolated {
 			idMapSize = 65536
 		} else {
-			if len(daemon.IdmapSet.Idmap) != 2 {
-				return 0, fmt.Errorf("bad initial idmap: %v", daemon.IdmapSet)
+			if len(daemon.os.IdmapSet.Idmap) != 2 {
+				return 0, fmt.Errorf("bad initial idmap: %v", daemon.os.IdmapSet)
 			}
 
-			idMapSize = daemon.IdmapSet.Idmap[0].Maprange
+			idMapSize = daemon.os.IdmapSet.Idmap[0].Maprange
 		}
 	} else {
 		size, err := strconv.ParseInt(size, 10, 64)
@@ -625,8 +625,8 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configBase stri
 	}
 
 	if !isolated {
-		newIdmapset := shared.IdmapSet{Idmap: make([]shared.IdmapEntry, len(daemon.IdmapSet.Idmap))}
-		copy(newIdmapset.Idmap, daemon.IdmapSet.Idmap)
+		newIdmapset := shared.IdmapSet{Idmap: make([]shared.IdmapEntry, len(daemon.os.IdmapSet.Idmap))}
+		copy(newIdmapset.Idmap, daemon.os.IdmapSet.Idmap)
 
 		for _, ent := range rawMaps {
 			newIdmapset.AddSafe(ent)
@@ -670,7 +670,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configBase stri
 		return nil, 0, err
 	}
 
-	offset := daemon.IdmapSet.Idmap[0].Hostid + 65536
+	offset := daemon.os.IdmapSet.Idmap[0].Hostid + 65536
 
 	mapentries := shared.ByHostid{}
 	for _, name := range cs {
@@ -732,7 +732,7 @@ func findIdmap(daemon *Daemon, cName string, isolatedStr string, configBase stri
 		offset = mapentries[i].Hostid + mapentries[i].Maprange
 	}
 
-	if offset+size < daemon.IdmapSet.Idmap[0].Hostid+daemon.IdmapSet.Idmap[0].Maprange {
+	if offset+size < daemon.os.IdmapSet.Idmap[0].Hostid+daemon.os.IdmapSet.Idmap[0].Maprange {
 		return mkIdmap(offset, size), offset, nil
 	}
 
@@ -5878,8 +5878,8 @@ func (c *containerLXC) NextIdmapSet() (*shared.IdmapSet, error) {
 		return c.idmapsetFromConfig("volatile.idmap.next")
 	} else if c.IsPrivileged() {
 		return nil, nil
-	} else if c.daemon.IdmapSet != nil {
-		return c.daemon.IdmapSet, nil
+	} else if c.daemon.os.IdmapSet != nil {
+		return c.daemon.os.IdmapSet, nil
 	}
 
 	return nil, fmt.Errorf("Unable to determine the idmap")
