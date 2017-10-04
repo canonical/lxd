@@ -1,0 +1,16 @@
+github.com/golang/protobuf
+github.com/gorilla/websocket
+github.com/juju/go4
+github.com/juju/httprequest
+github.com/juju/loggo
+github.com/juju/persistent-cookiejar
+github.com/juju/webbrowser
+github.com/julienschmidt/httprouter
+github.com/rogpeppe/fastuuid
+golang.org/x/crypto
+golang.org/x/net
+gopkg.in/errgo.v1
+gopkg.in/macaroon-bakery.v2-unstable
+gopkg.in/macaroon.v2-unstable
+gopkg.in/retry.v1
+gopkg.in/yaml.v2
