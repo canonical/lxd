@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/cmd"
 	"github.com/stretchr/testify/suite"
 )

@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,8 +19,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"golang.org/x/crypto/scrypt"
 
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
@@ -968,33 +965,6 @@ func (d *Daemon) Stop() error {
 	}
 
 	return err
-}
-
-func (d *Daemon) PasswordCheck(password string) error {
-	value := daemonConfig["core.trust_password"].Get()
-
-	// No password set
-	if value == "" {
-		return fmt.Errorf("No password is set")
-	}
-
-	// Compare the password
-	buff, err := hex.DecodeString(value)
-	if err != nil {
-		return err
-	}
-
-	salt := buff[0:32]
-	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, 64)
-	if err != nil {
-		return err
-	}
-
-	if !bytes.Equal(hash, buff[32:]) {
-		return fmt.Errorf("Bad password provided")
-	}
-
-	return nil
 }
 
 func (d *Daemon) ExpireLogs() error {
