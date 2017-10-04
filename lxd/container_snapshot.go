@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
@@ -21,7 +22,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	cname := mux.Vars(r)["name"]
-	c, err := containerLoadByName(d, cname)
+	c, err := containerLoadByName(d.State(), d.Storage, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -65,9 +66,9 @@ func nextSnapshot(d *Daemon, name string) int {
 	length := len(base)
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
 	var numstr string
-	inargs := []interface{}{cTypeSnapshot, length, base}
+	inargs := []interface{}{db.CTypeSnapshot, length, base}
 	outfmt := []interface{}{numstr}
-	results, err := dbQueryScan(d.db, q, inargs, outfmt)
+	results, err := db.QueryScan(d.db, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}
@@ -101,7 +102,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), d.Storage, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -122,9 +123,9 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		req.Name
 
 	snapshot := func(op *operation) error {
-		args := containerArgs{
+		args := db.ContainerArgs{
 			Name:         fullName,
-			Ctype:        cTypeSnapshot,
+			Ctype:        db.CTypeSnapshot,
 			Config:       c.LocalConfig(),
 			Profiles:     c.Profiles(),
 			Ephemeral:    c.IsEphemeral(),
@@ -134,7 +135,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			Stateful:     req.Stateful,
 		}
 
-		_, err := containerCreateAsSnapshot(d, args, c)
+		_, err := containerCreateAsSnapshot(d.State(), d.Storage, args, c)
 		if err != nil {
 			return err
 		}
@@ -158,7 +159,8 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	snapshotName := mux.Vars(r)["snapshotName"]
 
 	sc, err := containerLoadByName(
-		d,
+		d.State(),
+		d.Storage,
 		containerName+
 			shared.SnapshotDelimiter+
 			snapshotName)
@@ -219,7 +221,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := dbContainerId(d.db, fullName)
+	id, _ := db.ContainerId(d.db, fullName)
 	if id > 0 {
 		return Conflict
 	}

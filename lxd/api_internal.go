@@ -52,7 +52,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	c, err := containerLoadById(d, id)
+	c, err := containerLoadById(d.State(), d.Storage, id)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -77,7 +77,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 		target = "unknown"
 	}
 
-	c, err := containerLoadById(d, id)
+	c, err := containerLoadById(d.State(), d.Storage, id)
 	if err != nil {
 		return SmartError(err)
 	}

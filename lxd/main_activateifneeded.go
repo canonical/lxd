@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -16,9 +17,8 @@ func cmdActivateIfNeeded() error {
 	}
 
 	// Don't start a full daemon, we just need DB access
-	d := &Daemon{
-		lxcpath: shared.VarPath("containers"),
-	}
+	d := NewDaemon()
+	d.os.LxcPath = shared.VarPath("containers")
 
 	if !shared.PathExists(shared.VarPath("lxd.db")) {
 		logger.Debugf("No DB, so no need to start the daemon now.")
@@ -45,19 +45,19 @@ func cmdActivateIfNeeded() error {
 	}
 
 	// Load the idmap for unprivileged containers
-	d.IdmapSet, err = shared.DefaultIdmapSet()
+	d.os.IdmapSet, err = shared.DefaultIdmapSet()
 	if err != nil {
 		return err
 	}
 
 	// Look for auto-started or previously started containers
-	result, err := dbContainersList(d.db, cTypeRegular)
+	result, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	for _, name := range result {
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(d.State(), d.Storage, name)
 		if err != nil {
 			return err
 		}

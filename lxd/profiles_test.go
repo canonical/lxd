@@ -3,13 +3,15 @@ package main
 import (
 	"database/sql"
 	"testing"
+
+	dbapi "github.com/lxc/lxd/lxd/db"
 )
 
 func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing.T) {
 	var db *sql.DB
 	var err error
 
-	d := &Daemon{}
+	d := NewDaemon()
 	err = initializeDbObject(d, ":memory:")
 	db = d.db
 
@@ -28,14 +30,14 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 		t.Fatal(err)
 	}
 
-	// Delete the profile we just created with dbProfileDelete
-	err = dbProfileDelete(db, "theprofile")
+	// Delete the profile we just created with dbapi.ProfileDelete
+	err = dbapi.ProfileDelete(db, "theprofile")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Make sure there are 0 profiles_devices entries left.
-	devices, err := dbDevices(d.db, "theprofile", true)
+	devices, err := dbapi.Devices(d.db, "theprofile", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +46,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_config entries left.
-	config, err := dbProfileConfig(d.db, "theprofile")
+	config, err := dbapi.ProfileConfig(d.db, "theprofile")
 	if err == nil {
 		t.Fatal("found the profile!")
 	}

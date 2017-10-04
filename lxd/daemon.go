@@ -5,8 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
-	"encoding/hex"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,18 +20,19 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/crypto/scrypt"
-
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/syndtr/gocapability/capability"
 	"gopkg.in/tomb.v2"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/sys"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
-	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -66,13 +65,10 @@ type Socket struct {
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	architectures       []int
-	BackingFs           string
 	clientCerts         []x509.Certificate
+	os                  *sys.OS
 	db                  *sql.DB
 	group               string
-	IdmapSet            *shared.IdmapSet
-	lxcpath             string
 	mux                 *mux.Router
 	tomb                tomb.Tomb
 	readyChan           chan bool
@@ -87,12 +83,18 @@ type Daemon struct {
 
 	devlxd *net.UnixListener
 
-	MockMode  bool
 	SetupMode bool
 
 	tlsConfig *tls.Config
 
 	proxy func(req *http.Request) (*url.URL, error)
+}
+
+// NewDaemon returns a new, un-initialized Daemon object.
+func NewDaemon() *Daemon {
+	return &Daemon{
+		os: sys.NewOS(),
+	}
 }
 
 // Command is the basic structure for every API call.
@@ -106,49 +108,6 @@ type Command struct {
 	delete        func(d *Daemon, r *http.Request) Response
 }
 
-func (d *Daemon) httpClient(certificate string) (*http.Client, error) {
-	var err error
-	var cert *x509.Certificate
-
-	if certificate != "" {
-		certBlock, _ := pem.Decode([]byte(certificate))
-		if certBlock == nil {
-			return nil, fmt.Errorf("Invalid certificate")
-		}
-
-		cert, err = x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	tlsConfig, err := shared.GetTLSConfig("", "", "", cert)
-	if err != nil {
-		return nil, err
-	}
-
-	tr := &http.Transport{
-		TLSClientConfig:   tlsConfig,
-		Dial:              shared.RFC3493Dialer,
-		Proxy:             d.proxy,
-		DisableKeepAlives: true,
-	}
-
-	myhttp := http.Client{
-		Transport: tr,
-	}
-
-	// Setup redirect policy
-	myhttp.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		// Replicate the headers
-		req.Header = via[len(via)-1].Header
-
-		return nil
-	}
-
-	return &myhttp, nil
-}
-
 func readMyCert() (string, string, error) {
 	certf := shared.VarPath("server.crt")
 	keyf := shared.VarPath("server.key")
@@ -156,22 +115,6 @@ func readMyCert() (string, string, error) {
 	err := shared.FindOrGenCert(certf, keyf, false)
 
 	return certf, keyf, err
-}
-
-func (d *Daemon) isTrustedClient(r *http.Request) bool {
-	if r.RemoteAddr == "@" {
-		// Unix socket
-		return true
-	}
-	if r.TLS == nil {
-		return false
-	}
-	for i := range r.TLS.PeerCertificates {
-		if d.CheckTrustState(*r.TLS.PeerCertificates[i]) {
-			return true
-		}
-	}
-	return false
 }
 
 func isJSONRequest(r *http.Request) bool {
@@ -185,14 +128,9 @@ func isJSONRequest(r *http.Request) bool {
 	return false
 }
 
-func (d *Daemon) isRecursionRequest(r *http.Request) bool {
-	recursionStr := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		return false
-	}
-
-	return recursion == 1
+// State creates a new State instance liked to our internal db and os.
+func (d *Daemon) State() *state.State {
+	return state.NewState(d.db, d.os)
 }
 
 func (d *Daemon) createCmd(version string, c Command) {
@@ -206,7 +144,7 @@ func (d *Daemon) createCmd(version string, c Command) {
 	d.mux.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		if d.isTrustedClient(r) {
+		if util.IsTrustedClient(r, d.clientCerts) {
 			logger.Debug(
 				"handling",
 				log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
@@ -284,40 +222,6 @@ func (d *Daemon) createCmd(version string, c Command) {
 	})
 }
 
-func (d *Daemon) SetupStorageDriver() error {
-	var err error
-
-	lvmVgName := daemonConfig["storage.lvm_vg_name"].Get()
-	zfsPoolName := daemonConfig["storage.zfs_pool_name"].Get()
-
-	if lvmVgName != "" {
-		d.Storage, err = newStorage(d, storageTypeLvm)
-		if err != nil {
-			logger.Errorf("Could not initialize storage type LVM: %s - falling back to dir", err)
-		} else {
-			return nil
-		}
-	} else if zfsPoolName != "" {
-		d.Storage, err = newStorage(d, storageTypeZfs)
-		if err != nil {
-			logger.Errorf("Could not initialize storage type ZFS: %s - falling back to dir", err)
-		} else {
-			return nil
-		}
-	} else if d.BackingFs == "btrfs" {
-		d.Storage, err = newStorage(d, storageTypeBtrfs)
-		if err != nil {
-			logger.Errorf("Could not initialize storage type btrfs: %s - falling back to dir", err)
-		} else {
-			return nil
-		}
-	}
-
-	d.Storage, err = newStorage(d, storageTypeDir)
-
-	return err
-}
-
 // have we setup shared mounts?
 var sharedMounted bool
 var sharedMountsLock sync.Mutex
@@ -352,66 +256,6 @@ func setupSharedMounts() error {
 
 	sharedMounted = true
 	return nil
-}
-
-func (d *Daemon) ListenAddresses() ([]string, error) {
-	addresses := make([]string, 0)
-
-	value := daemonConfig["core.https_address"].Get()
-	if value == "" {
-		return addresses, nil
-	}
-
-	localHost, localPort, err := net.SplitHostPort(value)
-	if err != nil {
-		localHost = value
-		localPort = shared.DefaultPort
-	}
-
-	if localHost == "0.0.0.0" || localHost == "::" || localHost == "[::]" {
-		ifaces, err := net.Interfaces()
-		if err != nil {
-			return addresses, err
-		}
-
-		for _, i := range ifaces {
-			addrs, err := i.Addrs()
-			if err != nil {
-				continue
-			}
-
-			for _, addr := range addrs {
-				var ip net.IP
-				switch v := addr.(type) {
-				case *net.IPNet:
-					ip = v.IP
-				case *net.IPAddr:
-					ip = v.IP
-				}
-
-				if !ip.IsGlobalUnicast() {
-					continue
-				}
-
-				if ip.To4() == nil {
-					if localHost == "0.0.0.0" {
-						continue
-					}
-					addresses = append(addresses, fmt.Sprintf("[%s]:%s", ip, localPort))
-				} else {
-					addresses = append(addresses, fmt.Sprintf("%s:%s", ip, localPort))
-				}
-			}
-		}
-	} else {
-		if strings.Contains(localHost, ":") {
-			addresses = append(addresses, fmt.Sprintf("[%s]:%s", localHost, localPort))
-		} else {
-			addresses = append(addresses, fmt.Sprintf("%s:%s", localHost, localPort))
-		}
-	}
-
-	return addresses, nil
 }
 
 func (d *Daemon) UpdateHTTPsPort(newAddress string) error {
@@ -489,7 +333,7 @@ func (d *Daemon) Init() error {
 	}
 
 	/* Print welcome message */
-	if d.MockMode {
+	if d.os.MockMode {
 		logger.Info(fmt.Sprintf("LXD %s is starting in mock mode", version.Version),
 			log.Ctx{"path": shared.VarPath("")})
 	} else if d.SetupMode {
@@ -631,32 +475,6 @@ func (d *Daemon) Init() error {
 		logger.Warnf("CGroup memory swap accounting is disabled, swap limits will be ignored.")
 	}
 
-	/* Get the list of supported architectures */
-	var architectures = []int{}
-
-	architectureName, err := osarch.ArchitectureGetLocal()
-	if err != nil {
-		return err
-	}
-
-	architecture, err := osarch.ArchitectureId(architectureName)
-	if err != nil {
-		return err
-	}
-	architectures = append(architectures, architecture)
-
-	personalities, err := osarch.ArchitecturePersonalities(architecture)
-	if err != nil {
-		return err
-	}
-	for _, personality := range personalities {
-		architectures = append(architectures, personality)
-	}
-	d.architectures = architectures
-
-	/* Set container path */
-	d.lxcpath = shared.VarPath("containers")
-
 	/* Make sure all our directories are available */
 	if err := os.MkdirAll(shared.VarPath(), 0711); err != nil {
 		return err
@@ -689,52 +507,10 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
-	/* Detect the filesystem */
-	d.BackingFs, err = filesystemDetect(d.lxcpath)
+	/* Initialize the operating system facade */
+	err = d.os.Init()
 	if err != nil {
-		logger.Error("Error detecting backing fs", log.Ctx{"err": err})
-	}
-
-	/* Read the uid/gid allocation */
-	d.IdmapSet, err = shared.DefaultIdmapSet()
-	if err != nil {
-		logger.Warn("Error reading default uid/gid map", log.Ctx{"err": err.Error()})
-		logger.Warnf("Only privileged containers will be able to run")
-		d.IdmapSet = nil
-	} else {
-		kernelIdmapSet, err := shared.CurrentIdmapSet()
-		if err == nil {
-			logger.Infof("Kernel uid/gid map:")
-			for _, lxcmap := range kernelIdmapSet.ToLxcString() {
-				logger.Infof(strings.TrimRight(" - "+lxcmap, "\n"))
-			}
-		}
-
-		if len(d.IdmapSet.Idmap) == 0 {
-			logger.Warnf("No available uid/gid map could be found")
-			logger.Warnf("Only privileged containers will be able to run")
-			d.IdmapSet = nil
-		} else {
-			logger.Infof("Configured LXD uid/gid map:")
-			for _, lxcmap := range d.IdmapSet.Idmap {
-				suffix := ""
-
-				if lxcmap.Usable() != nil {
-					suffix = " (unusable)"
-				}
-
-				for _, lxcEntry := range lxcmap.ToLxcString() {
-					logger.Infof(" - %s%s", strings.TrimRight(lxcEntry, "\n"), suffix)
-				}
-			}
-
-			err = d.IdmapSet.Usable()
-			if err != nil {
-				logger.Warnf("One or more uid/gid map entry isn't usable (typically due to nesting)")
-				logger.Warnf("Only privileged containers will be able to run")
-				d.IdmapSet = nil
-			}
-		}
+		return err
 	}
 
 	/* Initialize the database */
@@ -749,9 +525,9 @@ func (d *Daemon) Init() error {
 		return err
 	}
 
-	if !d.MockMode {
+	if !d.os.MockMode {
 		/* Setup the storage driver */
-		err = d.SetupStorageDriver()
+		err = SetupStorageDriver(d)
 		if err != nil {
 			return fmt.Errorf("Failed to setup storage: %s", err)
 		}
@@ -775,7 +551,7 @@ func (d *Daemon) Init() error {
 		for {
 			logger.Infof("Expiring log files")
 
-			err := d.ExpireLogs()
+			err := ExpireLogs(d.db)
 			if err != nil {
 				logger.Error("Failed to expire logs", log.Ctx{"err": err})
 			}
@@ -793,7 +569,7 @@ func (d *Daemon) Init() error {
 	)
 
 	/* Setup some mounts (nice to have) */
-	if !d.MockMode {
+	if !d.os.MockMode {
 		// Attempt to mount the shmounts tmpfs
 		setupSharedMounts()
 
@@ -815,9 +591,9 @@ func (d *Daemon) Init() error {
 		return server.Serve(d.devlxd)
 	})
 
-	if !d.MockMode {
+	if !d.os.MockMode {
 		/* Start the scheduler */
-		go deviceEventListener(d)
+		go deviceEventListener(d.State(), d.Storage)
 
 		/* Setup the TLS authentication */
 		certf, keyf, err := readMyCert()
@@ -877,7 +653,7 @@ func (d *Daemon) Init() error {
 	})
 
 	// Prepare the list of listeners
-	listeners := d.GetListeners()
+	listeners := util.GetListeners()
 	if len(listeners) > 0 {
 		logger.Infof("LXD is socket activated")
 
@@ -974,7 +750,7 @@ func (d *Daemon) Init() error {
 	}
 
 	// Run the post initialization actions
-	if !d.MockMode && !d.SetupMode {
+	if !d.os.MockMode && !d.SetupMode {
 		err := d.Ready()
 		if err != nil {
 			return err
@@ -1044,38 +820,28 @@ func (d *Daemon) Ready() error {
 		}
 	}()
 
+	s := d.State()
+
 	/* Restore containers */
-	containersRestart(d)
+	containersRestart(s, d.Storage)
 
 	/* Re-balance in case things changed while LXD was down */
-	deviceTaskBalance(d)
+	deviceTaskBalance(s, d.Storage)
 
 	close(d.readyChan)
 
 	return nil
 }
 
-// CheckTrustState returns True if the client is trusted else false.
-func (d *Daemon) CheckTrustState(cert x509.Certificate) bool {
-	for k, v := range d.clientCerts {
-		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			logger.Debug("Found cert", log.Ctx{"k": k})
-			return true
-		}
-		logger.Debug("Client cert != key", log.Ctx{"k": k})
-	}
-	return false
-}
-
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := dbContainersList(d.db, cTypeRegular)
+	results, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return 0, err
 	}
 
 	count := 0
 	for _, r := range results {
-		container, err := containerLoadByName(d, r)
+		container, err := containerLoadByName(d.State(), d.Storage, r)
 		if err != nil {
 			continue
 		}
@@ -1132,7 +898,7 @@ func (d *Daemon) Stop() error {
 	imageSaveStreamCache()
 	logger.Infof("Saved simplestreams cache")
 
-	if d.MockMode || forceStop {
+	if d.os.MockMode || forceStop {
 		return nil
 	}
 
@@ -1142,152 +908,6 @@ func (d *Daemon) Stop() error {
 	}
 
 	return err
-}
-
-func (d *Daemon) PasswordCheck(password string) error {
-	value := daemonConfig["core.trust_password"].Get()
-
-	// No password set
-	if value == "" {
-		return fmt.Errorf("No password is set")
-	}
-
-	// Compare the password
-	buff, err := hex.DecodeString(value)
-	if err != nil {
-		return err
-	}
-
-	salt := buff[0:32]
-	hash, err := scrypt.Key([]byte(password), salt, 1<<14, 8, 1, 64)
-	if err != nil {
-		return err
-	}
-
-	if !bytes.Equal(hash, buff[32:]) {
-		return fmt.Errorf("Bad password provided")
-	}
-
-	return nil
-}
-
-func (d *Daemon) ExpireLogs() error {
-	entries, err := ioutil.ReadDir(shared.LogPath())
-	if err != nil {
-		return err
-	}
-
-	result, err := dbContainersList(d.db, cTypeRegular)
-	if err != nil {
-		return err
-	}
-
-	newestFile := func(path string, dir os.FileInfo) time.Time {
-		newest := dir.ModTime()
-
-		entries, err := ioutil.ReadDir(path)
-		if err != nil {
-			return newest
-		}
-
-		for _, entry := range entries {
-			if entry.ModTime().After(newest) {
-				newest = entry.ModTime()
-			}
-		}
-
-		return newest
-	}
-
-	for _, entry := range entries {
-		// Check if the container still exists
-		if shared.StringInSlice(entry.Name(), result) {
-			// Remove any log file which wasn't modified in the past 48 hours
-			logs, err := ioutil.ReadDir(shared.LogPath(entry.Name()))
-			if err != nil {
-				return err
-			}
-
-			for _, logfile := range logs {
-				path := shared.LogPath(entry.Name(), logfile.Name())
-
-				// Always keep the LXC config
-				if logfile.Name() == "lxc.conf" {
-					continue
-				}
-
-				// Deal with directories (snapshots)
-				if logfile.IsDir() {
-					newest := newestFile(path, logfile)
-					if time.Since(newest).Hours() >= 48 {
-						os.RemoveAll(path)
-						if err != nil {
-							return err
-						}
-					}
-
-					continue
-				}
-
-				// Individual files
-				if time.Since(logfile.ModTime()).Hours() >= 48 {
-					err := os.Remove(path)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		} else {
-			// Empty directory if unchanged in the past 24 hours
-			path := shared.LogPath(entry.Name())
-			newest := newestFile(path, entry)
-			if time.Since(newest).Hours() >= 24 {
-				err := os.RemoveAll(path)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (d *Daemon) GetListeners() []net.Listener {
-	defer func() {
-		os.Unsetenv("LISTEN_PID")
-		os.Unsetenv("LISTEN_FDS")
-	}()
-
-	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
-	if err != nil {
-		return nil
-	}
-
-	if pid != os.Getpid() {
-		return nil
-	}
-
-	fds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
-	if err != nil {
-		return nil
-	}
-
-	listeners := []net.Listener{}
-
-	for i := 3; i < 3+fds; i++ {
-		syscall.CloseOnExec(i)
-
-		file := os.NewFile(uintptr(i), fmt.Sprintf("inherited-fd%d", i))
-		listener, err := net.FileListener(file)
-		if err != nil {
-			continue
-		}
-
-		listeners = append(listeners, listener)
-	}
-
-	return listeners
 }
 
 type lxdHttpServer struct {
@@ -1323,45 +943,44 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 // Create a database connection and perform any updates needed.
 func initializeDbObject(d *Daemon, path string) error {
-	var openPath string
 	var err error
 
-	timeout := 5 // TODO - make this command-line configurable?
-
-	// These are used to tune the transaction BEGIN behavior instead of using the
-	// similar "locking_mode" pragma (locking for the whole database connection).
-	openPath = fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
-
 	// Open the database. If the file doesn't exist it is created.
-	d.db, err = sql.Open("sqlite3_with_fk", openPath)
+	d.db, err = db.OpenDb(path)
 	if err != nil {
 		return err
 	}
 
 	// Create the DB if it doesn't exist.
-	err = createDb(d.db)
+	err = db.CreateDb(d.db, patchesGetNames())
 	if err != nil {
 		return fmt.Errorf("Error creating database: %s", err)
 	}
 
 	// Detect LXD downgrades
-	if dbGetSchema(d.db) > dbGetLatestSchema() {
+	if db.GetSchema(d.db) > db.GetLatestSchema() {
 		return fmt.Errorf("The database schema is more recent than LXD's schema.")
 	}
 
 	// Apply any database update.
 	//
-	// NOTE: we use the postApply parameter to run a couple of
-	// legacy non-db updates that were introduced before the
+	// NOTE: we use the legacyPatches parameter to run a few
+	// legacy non-db updates that were in place before the
 	// patches mechanism was introduced in lxd/patches.go. The
 	// rest of non-db patches will be applied separately via
 	// patchesApplyAll. See PR #3322 for more details.
-	err = dbUpdatesApplyAll(d.db, true, func(version int) error {
-		if legacyPatch, ok := legacyPatches[version]; ok {
-			return legacyPatch(d)
+	legacy := map[int]*db.LegacyPatch{}
+	for i, patch := range legacyPatches {
+		legacy[i] = &db.LegacyPatch{
+			Hook: func() error {
+				return patch(d)
+			},
 		}
-		return nil
-	})
+	}
+	for _, i := range legacyPatchesNeedingDB {
+		legacy[i].NeedsDB = true
+	}
+	err = db.UpdatesApplyAll(d.db, true, legacy)
 	if err != nil {
 		return err
 	}

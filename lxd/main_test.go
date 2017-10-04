@@ -12,16 +12,15 @@ import (
 )
 
 func mockStartDaemon() (*Daemon, error) {
-	d := &Daemon{
-		MockMode:  true,
-		tlsConfig: &tls.Config{},
-	}
+	d := NewDaemon()
+	d.os.MockMode = true
+	d.tlsConfig = &tls.Config{}
 
 	if err := d.Init(); err != nil {
 		return nil, err
 	}
 
-	d.IdmapSet = &shared.IdmapSet{Idmap: []shared.IdmapEntry{
+	d.os.IdmapSet = &shared.IdmapSet{Idmap: []shared.IdmapEntry{
 		{Isuid: true, Hostid: 100000, Nsid: 0, Maprange: 500000},
 		{Isgid: true, Hostid: 100000, Nsid: 0, Maprange: 500000},
 	}}

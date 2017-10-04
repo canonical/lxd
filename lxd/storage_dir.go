@@ -14,8 +14,6 @@ import (
 )
 
 type storageDir struct {
-	d *Daemon
-
 	storageShared
 }
 
@@ -69,7 +67,7 @@ func (s *storageDir) ContainerCreateFromImage(
 	}
 
 	imagePath := shared.VarPath("images", imageFingerprint)
-	if err := unpackImage(s.d, imagePath, container.Path()); err != nil {
+	if err := unpackImage(imagePath, container.Path(), s.storage.GetStorageType()); err != nil {
 		s.ContainerDelete(container)
 		return err
 	}

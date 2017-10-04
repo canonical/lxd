@@ -12,28 +12,18 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/util"
+
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// CmdInitArgs holds command line arguments for the "lxd init" command.
-type CmdInitArgs struct {
-	Auto                bool
-	StorageBackend      string
-	StorageCreateDevice string
-	StorageCreateLoop   int64
-	StoragePool         string
-	NetworkPort         int64
-	NetworkAddress      string
-	TrustPassword       string
-}
-
 // CmdInit implements the "lxd init" command line.
 type CmdInit struct {
 	Context         *cmd.Context
-	Args            *CmdInitArgs
+	Args            *Args
 	RunningInUserns bool
 	SocketPath      string
 	PasswordReader  func(int) ([]byte, error)
@@ -129,7 +119,7 @@ func (cmd *CmdInit) fillDataAuto(data *cmdInitData, client lxd.ContainerServer, 
 			Backend:  cmd.Args.StorageBackend,
 			LoopSize: cmd.Args.StorageCreateLoop,
 			Device:   cmd.Args.StorageCreateDevice,
-			Pool:     cmd.Args.StoragePool,
+			Pool:     cmd.Args.StorageDataset,
 		}
 
 		if cmd.Args.StorageCreateDevice != "" {
@@ -399,7 +389,7 @@ func (cmd *CmdInit) initProfileUpdate(client lxd.ContainerServer, profile api.Pr
 // and no invalid combination is provided.
 func (cmd *CmdInit) validateArgs() error {
 	if !cmd.Args.Auto {
-		if cmd.Args.StorageBackend != "" || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageCreateLoop != -1 || cmd.Args.StoragePool != "" || cmd.Args.NetworkAddress != "" || cmd.Args.NetworkPort != -1 || cmd.Args.TrustPassword != "" {
+		if cmd.Args.StorageBackend != "" || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageDataset != "" || cmd.Args.NetworkAddress != "" || cmd.Args.NetworkPort != -1 || cmd.Args.TrustPassword != "" {
 			return fmt.Errorf("Init configuration is only valid with --auto")
 		}
 	}
@@ -417,7 +407,7 @@ func (cmd *CmdInit) validateArgsAuto(availableStoragePoolsDrivers []string) erro
 	}
 
 	if cmd.Args.StorageBackend == "dir" {
-		if cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageCreateDevice != "" || cmd.Args.StoragePool != "" {
+		if cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageDataset != "" {
 			return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend.")
 		}
 	} else {
@@ -445,7 +435,7 @@ func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 	// Detect zfs
 	out, err := exec.LookPath("zfs")
 	if err == nil && len(out) != 0 && !cmd.RunningInUserns {
-		_ = loadModule("zfs")
+		_ = util.LoadModule("zfs")
 
 		_, err := shared.RunCommand("zpool", "list")
 		if err == nil {
@@ -633,18 +623,8 @@ type cmdInitNetworkingParams struct {
 // some change, and that are passed around as parameters.
 type reverter func() error
 
-func cmdInit() error {
+func cmdInit(args *Args) error {
 	context := cmd.NewContext(os.Stdin, os.Stdout, os.Stderr)
-	args := &CmdInitArgs{
-		Auto:                *argAuto,
-		StorageBackend:      *argStorageBackend,
-		StorageCreateDevice: *argStorageCreateDevice,
-		StorageCreateLoop:   *argStorageCreateLoop,
-		StoragePool:         *argStoragePool,
-		NetworkPort:         *argNetworkPort,
-		NetworkAddress:      *argNetworkAddress,
-		TrustPassword:       *argTrustPassword,
-	}
 	command := &CmdInit{
 		Context:         context,
 		Args:            args,

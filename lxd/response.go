@@ -13,6 +13,8 @@ import (
 
 	"github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -48,7 +50,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		Metadata: r.metadata,
 	}
 
-	return WriteJSON(w, resp)
+	return util.WriteJSON(w, resp, debug)
 }
 
 func (r *syncResponse) String() string {
@@ -211,7 +213,7 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 	w.Header().Set("Location", url)
 	w.WriteHeader(202)
 
-	return WriteJSON(w, body)
+	return util.WriteJSON(w, body, debug)
 }
 
 func (r *operationResponse) String() string {
@@ -291,11 +293,11 @@ func SmartError(err error) Response {
 		return NotFound
 	case sql.ErrNoRows:
 		return NotFound
-	case NoSuchObjectError:
+	case db.NoSuchObjectError:
 		return NotFound
 	case os.ErrPermission:
 		return Forbidden
-	case DbErrAlreadyDefined:
+	case db.DbErrAlreadyDefined:
 		return Conflict
 	case sqlite3.ErrConstraintUnique:
 		return Conflict

@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
@@ -12,11 +15,11 @@ import (
 
 func containersGet(d *Daemon, r *http.Request) Response {
 	for i := 0; i < 100; i++ {
-		result, err := doContainersGet(d, d.isRecursionRequest(r))
+		result, err := doContainersGet(d.State(), d.Storage, util.IsRecursionRequest(r))
 		if err == nil {
 			return SyncResponse(true, result)
 		}
-		if !isDbLockedError(err) {
+		if !db.IsDbLockedError(err) {
 			logger.Debugf("DBERR: containersGet: error %q", err)
 			return SmartError(err)
 		}
@@ -30,8 +33,8 @@ func containersGet(d *Daemon, r *http.Request) Response {
 	return InternalError(fmt.Errorf("DB is locked"))
 }
 
-func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
-	result, err := dbContainersList(d.db, cTypeRegular)
+func doContainersGet(s *state.State, storage storage, recursion bool) (interface{}, error) {
+	result, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +50,7 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 			url := fmt.Sprintf("/%s/containers/%s", version.APIVersion, container)
 			resultString = append(resultString, url)
 		} else {
-			c, err := doContainerGet(d, container)
+			c, err := doContainerGet(s, storage, container)
 			if err != nil {
 				c = &api.Container{
 					Name:       container,
@@ -65,8 +68,8 @@ func doContainersGet(d *Daemon, recursion bool) (interface{}, error) {
 	return resultList, nil
 }
 
-func doContainerGet(d *Daemon, cname string) (*api.Container, error) {
-	c, err := containerLoadByName(d, cname)
+func doContainerGet(s *state.State, storage storage, cname string) (*api.Container, error) {
+	c, err := containerLoadByName(s, storage, cname)
 	if err != nil {
 		return nil, err
 	}

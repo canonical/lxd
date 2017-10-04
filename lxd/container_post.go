@@ -7,12 +7,13 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared/api"
 )
 
 func containerPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	c, err := containerLoadByName(d, name)
+	c, err := containerLoadByName(d.State(), d.Storage, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -46,7 +47,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _ := dbContainerId(d.db, body.Name)
+	id, _ := db.ContainerId(d.db, body.Name)
 	if id > 0 {
 		return Conflict
 	}

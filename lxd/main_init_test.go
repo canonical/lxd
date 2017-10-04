@@ -3,7 +3,8 @@ package main
 import (
 	"testing"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
+
 	"github.com/lxc/lxd/shared/cmd"
 	"github.com/stretchr/testify/suite"
 )
@@ -12,7 +13,7 @@ type cmdInitTestSuite struct {
 	lxdTestSuite
 	streams *cmd.MemoryStreams
 	context *cmd.Context
-	args    *CmdInitArgs
+	args    *Args
 	command *CmdInit
 	client  lxd.ContainerServer
 }
@@ -21,7 +22,7 @@ func (suite *cmdInitTestSuite) SetupTest() {
 	suite.lxdTestSuite.SetupTest()
 	suite.streams = cmd.NewMemoryStreams("")
 	suite.context = cmd.NewMemoryContext(suite.streams)
-	suite.args = &CmdInitArgs{
+	suite.args = &Args{
 		NetworkPort:       -1,
 		StorageCreateLoop: -1,
 	}

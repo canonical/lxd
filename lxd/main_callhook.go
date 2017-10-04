@@ -8,15 +8,15 @@ import (
 	"github.com/lxc/lxd/client"
 )
 
-func cmdCallHook(args []string) error {
+func cmdCallHook(args *Args) error {
 	// Parse the arguments
-	if len(args) < 4 {
+	if len(args.Params) < 3 {
 		return fmt.Errorf("Invalid arguments")
 	}
 
-	path := args[1]
-	id := args[2]
-	state := args[3]
+	path := args.Params[0]
+	id := args.Params[1]
+	state := args.Params[2]
 	target := ""
 
 	// Connect to LXD

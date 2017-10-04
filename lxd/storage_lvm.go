@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -49,14 +51,14 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 	return false, fmt.Errorf("Pool named '%s' exists but is not a thin pool.", poolName)
 }
 
-func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
+func storageLVMGetThinPoolUsers(dbObj *sql.DB) ([]string, error) {
 	results := []string{}
 
 	if daemonConfig["storage.lvm_vg_name"].Get() == "" {
 		return results, nil
 	}
 
-	cNames, err := dbContainersList(d.db, cTypeRegular)
+	cNames, err := db.ContainersList(dbObj, db.CTypeRegular)
 	if err != nil {
 		return results, err
 	}
@@ -74,7 +76,7 @@ func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 		}
 	}
 
-	imageNames, err := dbImagesGet(d.db, false)
+	imageNames, err := db.ImagesGet(dbObj, false)
 	if err != nil {
 		return results, err
 	}
@@ -90,7 +92,11 @@ func storageLVMGetThinPoolUsers(d *Daemon) ([]string, error) {
 }
 
 func storageLVMValidateThinPoolName(d *Daemon, key string, value string) error {
-	users, err := storageLVMGetThinPoolUsers(d)
+	return doStorageLVMValidateThinPoolName(d.db, key, value)
+}
+
+func doStorageLVMValidateThinPoolName(db *sql.DB, key string, value string) error {
+	users, err := storageLVMGetThinPoolUsers(db)
 	if err != nil {
 		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
 	}
@@ -119,7 +125,7 @@ func storageLVMValidateThinPoolName(d *Daemon, key string, value string) error {
 }
 
 func storageLVMValidateVolumeGroupName(d *Daemon, key string, value string) error {
-	users, err := storageLVMGetThinPoolUsers(d)
+	users, err := storageLVMGetThinPoolUsers(d.db)
 	if err != nil {
 		return fmt.Errorf("Error checking if a pool is already in use: %v", err)
 	}
@@ -156,7 +162,6 @@ func containerNameToLVName(containerName string) string {
 }
 
 type storageLvm struct {
-	d      *Daemon
 	vgName string
 
 	storageShared
@@ -737,7 +742,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		return fmt.Errorf("Error mounting image LV: %v", err)
 	}
 
-	unpackErr := unpackImage(s.d, finalName, tempLVMountPoint)
+	unpackErr := unpackImage(finalName, tempLVMountPoint, s.storage.GetStorageType())
 
 	err = tryUnmount(tempLVMountPoint, 0)
 	if err != nil {
@@ -854,7 +859,7 @@ func (s *storageLvm) createThinLV(lvname string) (string, error) {
 			return "", fmt.Errorf("Error creating LVM thin pool: %v", err)
 		}
 
-		err = storageLVMValidateThinPoolName(s.d, "", poolname)
+		err = doStorageLVMValidateThinPoolName(s.s.DB, "", poolname)
 		if err != nil {
 			s.log.Error("Setting thin pool name", log.Ctx{"err": err})
 			return "", fmt.Errorf("Error setting LVM thin pool config: %v", err)

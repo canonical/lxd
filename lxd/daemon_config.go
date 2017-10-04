@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/scrypt"
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	dbapi "github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -127,7 +128,7 @@ func (k *daemonConfigKey) Set(d *Daemon, value string) error {
 	k.currentValue = value
 	daemonConfigLock.Unlock()
 
-	err = dbConfigValueSet(d.db, name, value)
+	err = dbapi.ConfigValueSet(d.db, name, value)
 	if err != nil {
 		return err
 	}
@@ -196,7 +197,7 @@ func daemonConfigInit(db *sql.DB) error {
 	}
 
 	// Load the values from the DB
-	dbValues, err := dbConfigValuesGet(db)
+	dbValues, err := dbapi.ConfigValuesGet(db)
 	if err != nil {
 		return err
 	}
@@ -272,7 +273,7 @@ func daemonConfigSetStorage(d *Daemon, key string, value string) (string, error)
 	}()
 
 	// Update the current storage driver
-	err := d.SetupStorageDriver()
+	err := SetupStorageDriver(d)
 	if err != nil {
 		return "", err
 	}

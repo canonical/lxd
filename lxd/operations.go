@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
@@ -476,7 +477,7 @@ var operationCmd = Command{name: "operations/{id}", get: operationAPIGet, delete
 func operationsAPIGet(d *Daemon, r *http.Request) Response {
 	var md shared.Jmap
 
-	recursion := d.isRecursionRequest(r)
+	recursion := util.IsRecursionRequest(r)
 
 	md = shared.Jmap{}
 

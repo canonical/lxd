@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -20,7 +21,6 @@ import (
 )
 
 type storageZfs struct {
-	d       *Daemon
 	zfsPool string
 
 	storageShared
@@ -54,7 +54,7 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 	err = s.zfsCheckPool(s.zfsPool)
 	if err != nil {
 		if shared.PathExists(shared.VarPath("zfs.img")) {
-			_ = loadModule("zfs")
+			_ = util.LoadModule("zfs")
 
 			output, err := shared.RunCommand("zpool", "import",
 				"-d", shared.VarPath(), s.zfsPool)
@@ -629,7 +629,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
-	err = unpackImage(s.d, imagePath, subvol)
+	err = unpackImage(imagePath, subvol, s.storage.GetStorageType())
 	if err != nil {
 		return cleanup(err)
 	}
@@ -1367,7 +1367,7 @@ func (s *storageZfs) MigrationSource(ct container) (MigrationStorageSourceDriver
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", ct.Name(), shared.SnapshotDelimiter, snap[len("snapshot-"):])
-		snapshot, err := containerLoadByName(s.d, lxdName)
+		snapshot, err := containerLoadByName(s.s, s.storage, lxdName)
 		if err != nil {
 			return nil, err
 		}
@@ -1427,7 +1427,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 
 	for _, snap := range snapshots {
 		args := snapshotProtobufToContainerArgs(container.Name(), snap)
-		_, err := containerCreateEmptySnapshot(container.Daemon(), args)
+		_, err := containerCreateEmptySnapshot(container.StateObject(), container.Storage(), args)
 		if err != nil {
 			return err
 		}

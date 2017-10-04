@@ -15,6 +15,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
@@ -118,7 +120,7 @@ func hoistReq(f func(container, *http.Request) *devLxdResponse, d *Daemon) func(
 			http.Error(w, fmt.Sprintf("%s", resp.content), resp.code)
 		} else if resp.ctype == "json" {
 			w.Header().Set("Content-Type", "application/json")
-			WriteJSON(w, resp.content)
+			util.WriteJSON(w, resp.content, debug)
 		} else {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			fmt.Fprintf(w, resp.content.(string))
@@ -343,7 +345,7 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 			parts := strings.Split(string(cmdline), " ")
 			name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
 
-			return containerLoadByName(d, name)
+			return containerLoadByName(d.State(), d.Storage, name)
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
@@ -371,13 +373,13 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 		return nil, err
 	}
 
-	containers, err := dbContainersList(d.db, cTypeRegular)
+	containers, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, container := range containers {
-		c, err := containerLoadByName(d, container)
+		c, err := containerLoadByName(d.State(), d.Storage, container)
 		if err != nil {
 			return nil, err
 		}

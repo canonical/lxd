@@ -6,11 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"syscall"
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -18,46 +20,6 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 )
-
-/* Some interesting filesystems */
-const (
-	filesystemSuperMagicTmpfs = 0x01021994
-	filesystemSuperMagicExt4  = 0xEF53
-	filesystemSuperMagicXfs   = 0x58465342
-	filesystemSuperMagicNfs   = 0x6969
-	filesystemSuperMagicZfs   = 0x2fc12fc1
-)
-
-/*
- * filesystemDetect returns the filesystem on which
- * the passed-in path sits
- */
-func filesystemDetect(path string) (string, error) {
-	fs := syscall.Statfs_t{}
-
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return "", err
-	}
-
-	switch fs.Type {
-	case filesystemSuperMagicBtrfs:
-		return "btrfs", nil
-	case filesystemSuperMagicZfs:
-		return "zfs", nil
-	case filesystemSuperMagicTmpfs:
-		return "tmpfs", nil
-	case filesystemSuperMagicExt4:
-		return "ext4", nil
-	case filesystemSuperMagicXfs:
-		return "xfs", nil
-	case filesystemSuperMagicNfs:
-		return "nfs", nil
-	default:
-		logger.Debugf("Unknown backing filesystem type: 0x%x", fs.Type)
-		return string(fs.Type), nil
-	}
-}
 
 // storageRsyncCopy copies a directory using rsync (with the --devices option).
 func storageRsyncCopy(source string, dest string) (string, error) {
@@ -198,59 +160,64 @@ type storage interface {
 
 func newStorage(d *Daemon, sType storageType) (storage, error) {
 	var nilmap map[string]interface{}
-	return newStorageWithConfig(d, sType, nilmap)
+	return newStorageWithConfig(d.State(), d.Storage, sType, nilmap)
 }
 
-func newStorageWithConfig(d *Daemon, sType storageType, config map[string]interface{}) (storage, error) {
-	if d.MockMode {
-		return d.Storage, nil
+func newStorageWithConfig(s *state.State, st storage, sType storageType, config map[string]interface{}) (storage, error) {
+	if s.OS.MockMode {
+		return st, nil
 	}
 
-	var s storage
+	shared := storageShared{s: s}
+	var w storage
 
 	switch sType {
 	case storageTypeBtrfs:
-		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeBtrfs {
-			return d.Storage, nil
+		if st != nil && st.GetStorageType() == storageTypeBtrfs {
+			return st, nil
 		}
-
-		s = &storageLogWrapper{w: &storageBtrfs{d: d}}
+		btrfs := &storageBtrfs{storageShared: shared}
+		w = &storageLogWrapper{w: btrfs}
+		btrfs.storage = w
 	case storageTypeZfs:
-		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeZfs {
-			return d.Storage, nil
+		if st != nil && st.GetStorageType() == storageTypeZfs {
+			return st, nil
 		}
-
-		s = &storageLogWrapper{w: &storageZfs{d: d}}
+		zfs := &storageZfs{storageShared: shared}
+		w = &storageLogWrapper{w: zfs}
+		zfs.storage = w
 	case storageTypeLvm:
-		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeLvm {
-			return d.Storage, nil
+		if st != nil && st.GetStorageType() == storageTypeLvm {
+			return st, nil
 		}
-
-		s = &storageLogWrapper{w: &storageLvm{d: d}}
+		lvm := &storageLvm{storageShared: shared}
+		w = &storageLogWrapper{w: lvm}
+		lvm.storage = w
 	default:
-		if d.Storage != nil && d.Storage.GetStorageType() == storageTypeDir {
-			return d.Storage, nil
+		if st != nil && st.GetStorageType() == storageTypeDir {
+			return st, nil
 		}
-
-		s = &storageLogWrapper{w: &storageDir{d: d}}
+		dir := &storageDir{storageShared: shared}
+		w = &storageLogWrapper{w: dir}
+		dir.storage = w
 	}
 
-	return s.Init(config)
+	return w.Init(config)
 }
 
-func storageForFilename(d *Daemon, filename string) (storage, error) {
+func storageForFilename(s *state.State, storage storage, filename string) (storage, error) {
 	var filesystem string
 	var err error
 
 	config := make(map[string]interface{})
 	storageType := storageTypeDir
 
-	if d.MockMode {
-		return newStorageWithConfig(d, storageTypeMock, config)
+	if s.OS.MockMode {
+		return newStorageWithConfig(s, storage, storageTypeMock, config)
 	}
 
 	if shared.PathExists(filename) {
-		filesystem, err = filesystemDetect(filename)
+		filesystem, err = util.FilesystemDetect(filename)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't detect filesystem for '%s': %v", filename, err)
 		}
@@ -276,18 +243,22 @@ func storageForFilename(d *Daemon, filename string) (storage, error) {
 		storageType = storageTypeBtrfs
 	}
 
-	return newStorageWithConfig(d, storageType, config)
+	return newStorageWithConfig(s, storage, storageType, config)
 }
 
-func storageForImage(d *Daemon, imgInfo *api.Image) (storage, error) {
+func storageForImage(s *state.State, storage storage, imgInfo *api.Image) (storage, error) {
 	imageFilename := shared.VarPath("images", imgInfo.Fingerprint)
-	return storageForFilename(d, imageFilename)
+	return storageForFilename(s, storage, imageFilename)
 }
 
 type storageShared struct {
 	sType        storageType
 	sTypeName    string
 	sTypeVersion string
+
+	s *state.State
+
+	storage storage
 
 	log logger.Logger
 }
@@ -662,7 +633,7 @@ func rsyncMigrationSource(container container) (MigrationStorageSourceDriver, er
 	return rsyncStorageSourceDriver{container, snapshots}, nil
 }
 
-func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) containerArgs {
+func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) db.ContainerArgs {
 	config := map[string]string{}
 
 	for _, ent := range snap.LocalConfig {
@@ -680,9 +651,9 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) conta
 	}
 
 	name := containerName + shared.SnapshotDelimiter + snap.GetName()
-	return containerArgs{
+	return db.ContainerArgs{
 		Name:         name,
-		Ctype:        cTypeSnapshot,
+		Ctype:        db.CTypeSnapshot,
 		Config:       config,
 		Profiles:     snap.Profiles,
 		Ephemeral:    snap.GetEphemeral(),
@@ -704,7 +675,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 		}
 		for _, snap := range snapshots {
 			args := snapshotProtobufToContainerArgs(container.Name(), snap)
-			s, err := containerCreateEmptySnapshot(container.Daemon(), args)
+			s, err := containerCreateEmptySnapshot(container.StateObject(), container.Storage(), args)
 			if err != nil {
 				return err
 			}
@@ -737,7 +708,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 			}
 
 			args := snapshotProtobufToContainerArgs(container.Name(), snap)
-			_, err := containerCreateAsSnapshot(container.Daemon(), args, container)
+			_, err := containerCreateAsSnapshot(container.StateObject(), container.Storage(), args, container)
 			if err != nil {
 				return err
 			}
@@ -760,4 +731,38 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 	}
 
 	return nil
+}
+
+func SetupStorageDriver(d *Daemon) error {
+	var err error
+
+	lvmVgName := daemonConfig["storage.lvm_vg_name"].Get()
+	zfsPoolName := daemonConfig["storage.zfs_pool_name"].Get()
+
+	if lvmVgName != "" {
+		d.Storage, err = newStorage(d, storageTypeLvm)
+		if err != nil {
+			logger.Errorf("Could not initialize storage type LVM: %s - falling back to dir", err)
+		} else {
+			return nil
+		}
+	} else if zfsPoolName != "" {
+		d.Storage, err = newStorage(d, storageTypeZfs)
+		if err != nil {
+			logger.Errorf("Could not initialize storage type ZFS: %s - falling back to dir", err)
+		} else {
+			return nil
+		}
+	} else if d.os.BackingFS == "btrfs" {
+		d.Storage, err = newStorage(d, storageTypeBtrfs)
+		if err != nil {
+			logger.Errorf("Could not initialize storage type btrfs: %s - falling back to dir", err)
+		} else {
+			return nil
+		}
+	}
+
+	d.Storage, err = newStorage(d, storageTypeDir)
+
+	return err
 }

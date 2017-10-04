@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
@@ -79,9 +81,9 @@ func (slice containerAutostartList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-func containersRestart(d *Daemon) error {
+func containersRestart(s *state.State, storage storage) error {
 	// Get all the containers
-	result, err := dbContainersList(d.db, cTypeRegular)
+	result, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -89,7 +91,7 @@ func containersRestart(d *Daemon) error {
 	containers := []container{}
 
 	for _, name := range result {
-		c, err := containerLoadByName(d, name)
+		c, err := containerLoadByName(s, storage, name)
 		if err != nil {
 			return err
 		}
@@ -124,24 +126,24 @@ func containersRestart(d *Daemon) error {
 	return nil
 }
 
-func containersShutdown(d *Daemon) error {
+func containersShutdown(s *state.State, storage storage) error {
 	var wg sync.WaitGroup
 
 	// Get all the containers
-	results, err := dbContainersList(d.db, cTypeRegular)
+	results, err := db.ContainersList(s.DB, db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Reset all container states
-	_, err = dbExec(d.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	_, err = db.Exec(s.DB, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
 	if err != nil {
 		return err
 	}
 
 	for _, r := range results {
 		// Load the container
-		c, err := containerLoadByName(d, r)
+		c, err := containerLoadByName(s, storage, r)
 		if err != nil {
 			return err
 		}
@@ -168,17 +170,17 @@ func containersShutdown(d *Daemon) error {
 	return nil
 }
 
-func containerDeleteSnapshots(d *Daemon, cname string) error {
+func containerDeleteSnapshots(s *state.State, storage storage, cname string) error {
 	logger.Debug("containerDeleteSnapshots",
 		log.Ctx{"container": cname})
 
-	results, err := dbContainerGetSnapshots(d.db, cname)
+	results, err := db.ContainerGetSnapshots(s.DB, cname)
 	if err != nil {
 		return err
 	}
 
 	for _, sname := range results {
-		sc, err := containerLoadByName(d, sname)
+		sc, err := containerLoadByName(s, storage, sname)
 		if err != nil {
 			logger.Error(
 				"containerDeleteSnapshots: Failed to load the snapshotcontainer",

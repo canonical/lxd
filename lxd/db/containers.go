@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -12,20 +12,39 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-type containerType int
+// ContainerArgs is a value object holding all db-related details about a
+// container.
+type ContainerArgs struct {
+	// Don't set manually
+	Id int
+
+	Architecture int
+	BaseImage    string
+	Config       map[string]string
+	CreationDate time.Time
+	Ctype        ContainerType
+	Devices      types.Devices
+	Ephemeral    bool
+	Name         string
+	Profiles     []string
+	Stateful     bool
+}
+
+// ContainerType encodes the type of container (either regular or snapshot).
+type ContainerType int
 
 const (
-	cTypeRegular  containerType = 0
-	cTypeSnapshot containerType = 1
+	CTypeRegular  ContainerType = 0
+	CTypeSnapshot ContainerType = 1
 )
 
-func dbContainerRemove(db *sql.DB, name string) error {
-	id, err := dbContainerId(db, name)
+func ContainerRemove(db *sql.DB, name string) error {
+	id, err := ContainerId(db, name)
 	if err != nil {
 		return err
 	}
 
-	_, err = dbExec(db, "DELETE FROM containers WHERE id=?", id)
+	_, err = Exec(db, "DELETE FROM containers WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -33,7 +52,7 @@ func dbContainerRemove(db *sql.DB, name string) error {
 	return nil
 }
 
-func dbContainerName(db *sql.DB, id int) (string, error) {
+func ContainerName(db *sql.DB, id int) (string, error) {
 	q := "SELECT name FROM containers WHERE id=?"
 	name := ""
 	arg1 := []interface{}{id}
@@ -42,7 +61,7 @@ func dbContainerName(db *sql.DB, id int) (string, error) {
 	return name, err
 }
 
-func dbContainerId(db *sql.DB, name string) (int, error) {
+func ContainerId(db *sql.DB, name string) (int, error) {
 	q := "SELECT id FROM containers WHERE name=?"
 	id := -1
 	arg1 := []interface{}{name}
@@ -51,8 +70,8 @@ func dbContainerId(db *sql.DB, name string) (int, error) {
 	return id, err
 }
 
-func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
-	args := containerArgs{}
+func ContainerGet(db *sql.DB, name string) (ContainerArgs, error) {
+	args := ContainerArgs{}
 	args.Name = name
 
 	ephemInt := -1
@@ -77,13 +96,13 @@ func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 		args.Stateful = true
 	}
 
-	config, err := dbContainerConfig(db, args.Id)
+	config, err := ContainerConfig(db, args.Id)
 	if err != nil {
 		return args, err
 	}
 	args.Config = config
 
-	profiles, err := dbContainerProfiles(db, args.Id)
+	profiles, err := ContainerProfiles(db, args.Id)
 	if err != nil {
 		return args, err
 	}
@@ -91,7 +110,7 @@ func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 
 	/* get container_devices */
 	args.Devices = types.Devices{}
-	newdevs, err := dbDevices(db, name, false)
+	newdevs, err := Devices(db, name, false)
 	if err != nil {
 		return args, err
 	}
@@ -103,13 +122,13 @@ func dbContainerGet(db *sql.DB, name string) (containerArgs, error) {
 	return args, nil
 }
 
-func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
-	id, err := dbContainerId(db, args.Name)
+func ContainerCreate(db *sql.DB, args ContainerArgs) (int, error) {
+	id, err := ContainerId(db, args.Name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
 	}
 
-	tx, err := dbBegin(db)
+	tx, err := Begin(db)
 	if err != nil {
 		return 0, err
 	}
@@ -146,25 +165,25 @@ func dbContainerCreate(db *sql.DB, args containerArgs) (int, error) {
 	}
 	// TODO: is this really int64? we should fix it everywhere if so
 	id = int(id64)
-	if err := dbContainerConfigInsert(tx, id, args.Config); err != nil {
+	if err := ContainerConfigInsert(tx, id, args.Config); err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
-	if err := dbContainerProfilesInsert(tx, id, args.Profiles); err != nil {
+	if err := ContainerProfilesInsert(tx, id, args.Profiles); err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
-	if err := dbDevicesAdd(tx, "container", int64(id), args.Devices); err != nil {
+	if err := DevicesAdd(tx, "container", int64(id), args.Devices); err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
-	return id, txCommit(tx)
+	return id, TxCommit(tx)
 }
 
-func dbContainerConfigClear(tx *sql.Tx, id int) error {
+func ContainerConfigClear(tx *sql.Tx, id int) error {
 	_, err := tx.Exec("DELETE FROM containers_config WHERE container_id=?", id)
 	if err != nil {
 		return err
@@ -185,7 +204,7 @@ func dbContainerConfigClear(tx *sql.Tx, id int) error {
 	return err
 }
 
-func dbContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
+func ContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
 	str := "INSERT INTO containers_config (container_id, key, value) values (?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	if err != nil {
@@ -205,7 +224,7 @@ func dbContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error
 	return nil
 }
 
-func dbContainerConfigGet(db *sql.DB, id int, key string) (string, error) {
+func ContainerConfigGet(db *sql.DB, id int, key string) (string, error) {
 	q := "SELECT value FROM containers_config WHERE container_id=? AND key=?"
 	value := ""
 	arg1 := []interface{}{id, key}
@@ -214,22 +233,22 @@ func dbContainerConfigGet(db *sql.DB, id int, key string) (string, error) {
 	return value, err
 }
 
-func dbContainerConfigRemove(db *sql.DB, id int, name string) error {
-	_, err := dbExec(db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
+func ContainerConfigRemove(db *sql.DB, id int, name string) error {
+	_, err := Exec(db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
 	return err
 }
 
-func dbContainerSetStateful(db *sql.DB, id int, stateful bool) error {
+func ContainerSetStateful(db *sql.DB, id int, stateful bool) error {
 	statefulInt := 0
 	if stateful {
 		statefulInt = 1
 	}
 
-	_, err := dbExec(db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
+	_, err := Exec(db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
 	return err
 }
 
-func dbContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
+func ContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 	applyOrder := 1
 	str := `INSERT INTO containers_profiles (container_id, profile_id, apply_order) VALUES
 		(?, (SELECT id FROM profiles WHERE name=?), ?);`
@@ -252,7 +271,7 @@ func dbContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 }
 
 // Get a list of profiles for a given container id.
-func dbContainerProfiles(db *sql.DB, containerId int) ([]string, error) {
+func ContainerProfiles(db *sql.DB, containerId int) ([]string, error) {
 	var name string
 	var profiles []string
 
@@ -264,7 +283,7 @@ func dbContainerProfiles(db *sql.DB, containerId int) ([]string, error) {
 	inargs := []interface{}{containerId}
 	outfmt := []interface{}{name}
 
-	results, err := dbQueryScan(db, query, inargs, outfmt)
+	results, err := QueryScan(db, query, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -278,8 +297,8 @@ func dbContainerProfiles(db *sql.DB, containerId int) ([]string, error) {
 	return profiles, nil
 }
 
-// dbContainerConfig gets the container configuration map from the DB
-func dbContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
+// ContainerConfig gets the container configuration map from the DB
+func ContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	var key, value string
 	q := `SELECT key, value FROM containers_config WHERE container_id=?`
 
@@ -287,7 +306,7 @@ func dbContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	outfmt := []interface{}{key, value}
 
 	// Results is already a slice here, not db Rows anymore.
-	results, err := dbQueryScan(db, q, inargs, outfmt)
+	results, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err //SmartError will wrap this and make "not found" errors pretty
 	}
@@ -304,12 +323,12 @@ func dbContainerConfig(db *sql.DB, containerId int) (map[string]string, error) {
 	return config, nil
 }
 
-func dbContainersList(db *sql.DB, cType containerType) ([]string, error) {
+func ContainersList(db *sql.DB, cType ContainerType) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? ORDER BY name")
 	inargs := []interface{}{cType}
 	var container string
 	outfmt := []interface{}{container}
-	result, err := dbQueryScan(db, q, inargs, outfmt)
+	result, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -322,8 +341,8 @@ func dbContainersList(db *sql.DB, cType containerType) ([]string, error) {
 	return ret, nil
 }
 
-func dbContainerSetState(db *sql.DB, id int, state string) error {
-	tx, err := dbBegin(db)
+func ContainerSetState(db *sql.DB, id int, state string) error {
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -356,11 +375,11 @@ func dbContainerSetState(db *sql.DB, id int, state string) error {
 		return err
 	}
 
-	return txCommit(tx)
+	return TxCommit(tx)
 }
 
-func dbContainerRename(db *sql.DB, oldName string, newName string) error {
-	tx, err := dbBegin(db)
+func ContainerRename(db *sql.DB, oldName string, newName string) error {
+	tx, err := Begin(db)
 	if err != nil {
 		return err
 	}
@@ -384,10 +403,10 @@ func dbContainerRename(db *sql.DB, oldName string, newName string) error {
 		return err
 	}
 
-	return txCommit(tx)
+	return TxCommit(tx)
 }
 
-func dbContainerUpdate(tx *sql.Tx, id int, architecture int, ephemeral bool) error {
+func ContainerUpdate(tx *sql.Tx, id int, architecture int, ephemeral bool) error {
 	str := fmt.Sprintf("UPDATE containers SET architecture=?, ephemeral=? WHERE id=?")
 	stmt, err := tx.Prepare(str)
 	if err != nil {
@@ -407,15 +426,15 @@ func dbContainerUpdate(tx *sql.Tx, id int, architecture int, ephemeral bool) err
 	return nil
 }
 
-func dbContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
+func ContainerGetSnapshots(db *sql.DB, name string) ([]string, error) {
 	result := []string{}
 
 	regexp := name + shared.SnapshotDelimiter
 	length := len(regexp)
 	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
-	inargs := []interface{}{cTypeSnapshot, length, regexp}
+	inargs := []interface{}{CTypeSnapshot, length, regexp}
 	outfmt := []interface{}{name}
-	dbResults, err := dbQueryScan(db, q, inargs, outfmt)
+	dbResults, err := QueryScan(db, q, inargs, outfmt)
 	if err != nil {
 		return result, err
 	}

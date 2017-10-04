@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
@@ -96,13 +97,13 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	n.UsedBy = []string{}
 
 	// Look for containers using the interface
-	cts, err := dbContainersList(d.db, cTypeRegular)
+	cts, err := db.ContainersList(d.db, db.CTypeRegular)
 	if err != nil {
 		return api.Network{}, err
 	}
 
 	for _, ct := range cts {
-		c, err := containerLoadByName(d, ct)
+		c, err := containerLoadByName(d.State(), d.Storage, ct)
 		if err != nil {
 			return api.Network{}, err
 		}
