@@ -6,7 +6,6 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -18,9 +17,7 @@ func cmdActivateIfNeeded() error {
 	}
 
 	// Don't start a full daemon, we just need DB access
-	d := &Daemon{
-		os: sys.NewOS(),
-	}
+	d := NewDaemon()
 	d.os.LxcPath = shared.VarPath("containers")
 
 	if !shared.PathExists(shared.VarPath("lxd.db")) {

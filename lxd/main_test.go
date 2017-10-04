@@ -12,10 +12,9 @@ import (
 )
 
 func mockStartDaemon() (*Daemon, error) {
-	d := &Daemon{
-		MockMode:  true,
-		tlsConfig: &tls.Config{},
-	}
+	d := NewDaemon()
+	d.os.MockMode = true
+	d.tlsConfig = &tls.Config{}
 
 	if err := d.Init(); err != nil {
 		return nil, err
