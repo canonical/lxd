@@ -161,9 +161,9 @@ test_config_profiles() {
   # test live-adding a nic
   lxc start foo
   lxc exec foo -- cat /proc/self/mountinfo | grep -q "/mnt1.*ro,"
-  ! lxc config show foo | grep -q "raw.lxc"
+  ! lxc config show foo | grep -q "raw.lxc" || false
   lxc config show foo --expanded | grep -q "raw.lxc"
-  ! lxc config show foo | grep -v "volatile.eth0" | grep -q "eth0"
+  ! lxc config show foo | grep -v "volatile.eth0" | grep -q "eth0" || false
   lxc config show foo --expanded | grep -v "volatile.eth0" | grep -q "eth0"
   lxc config device add foo eth2 nic nictype=p2p name=eth10
   lxc exec foo -- /sbin/ifconfig -a | grep eth0
@@ -288,7 +288,7 @@ test_container_metadata() {
     
     # templates can be removed
     lxc config template delete c my.tpl
-    ! (lxc config template list c | grep -q my.tpl)
+    ! lxc config template list c | grep -q my.tpl || false
 
     lxc delete c
 }
