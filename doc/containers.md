@@ -238,3 +238,29 @@ minor       | int       | device on host    | no        | Device minor number
 uid         | int       | 0                 | no        | UID of the device owner in the container
 gid         | int       | 0                 | no        | GID of the device owner in the container
 mode        | int       | 0660              | no        | Mode of the device in the container
+
+## Instance types
+LXD supports simple instance types. Those are represented as a string
+which can be passed at container creation time.
+
+There are three allowed syntaxes:
+
+ - `<instance type>`
+ - `<cloud>:<instance type>`
+ - `c<CPU>-m<RAM in GB>`
+
+For example, those 3 are equivalent:
+
+ - t2.micro
+ - aws:t2.micro
+ - c1-m1
+
+On the command line, this is passed like this:
+
+```bash
+lxc launch ubuntu:16.04 my-container -t t2.micro
+```
+
+The list of supported clouds and instance types can be found here:
+
+  https://github.com/dustinkirkland/instance-type
