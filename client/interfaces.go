@@ -43,6 +43,7 @@ type ContainerServer interface {
 
 	// Server functions
 	GetServer() (server *api.Server, ETag string, err error)
+	GetServerResources() (*api.Resources, error)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) bool
 	RequireAuthenticated(authenticated bool)
