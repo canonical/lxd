@@ -76,7 +76,7 @@ func ImagesGetExpired(db *sql.DB, expiry int64) ([]string, error) {
 		results = append(results, r[0].(string))
 	}
 
-	return []string{}, nil
+	return results, nil
 }
 
 func ImageSourceInsert(db *sql.DB, imageId int, server string, protocol string, certificate string, alias string) error {
