@@ -1010,6 +1010,10 @@ func pruneExpiredImages(d *Daemon) {
 
 	// Get the list of expired images.
 	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
+	if expiry <= 0 {
+		return
+	}
+
 	images, err := db.ImagesGetExpired(d.db, expiry)
 	if err != nil {
 		logger.Error("Unable to retrieve the list of expired images", log.Ctx{"err": err})
