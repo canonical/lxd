@@ -133,6 +133,11 @@ func (k *daemonConfigKey) Set(d *Daemon, value string) error {
 		return err
 	}
 
+	// Run the trigger (if any)
+	if k.trigger != nil {
+		k.trigger(d, k.name(), value)
+	}
+
 	return nil
 }
 
