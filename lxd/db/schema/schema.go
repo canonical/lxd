@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared"
 )
 
 // Schema captures the schema of a database in terms of a series of ordered
@@ -162,6 +163,19 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch update versions: %v", err)
+	}
+
+	// Fix bad upgrade code between 30 and 32
+	if shared.IntInSlice(30, versions) && shared.IntInSlice(32, versions) && !shared.IntInSlice(31, versions) {
+		err = insertSchemaVersion(tx, 31)
+		if err != nil {
+			return fmt.Errorf("failed to insert missing schema version 31")
+		}
+
+		versions, err = selectSchemaVersions(tx)
+		if err != nil {
+			return fmt.Errorf("failed to fetch update versions: %v", err)
+		}
 	}
 
 	current := 0
