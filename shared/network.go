@@ -36,7 +36,10 @@ func RFC3493Dialer(network, address string) (net.Conn, error) {
 	return nil, fmt.Errorf("Unable to connect to: " + address)
 }
 
-func initTLSConfig() *tls.Config {
+// InitTLSConfig returns a tls.Config populated with default encryption
+// parameters. This is used as baseline config for both client and server
+// certificates used by LXD.
+func InitTLSConfig() *tls.Config {
 	return &tls.Config{
 		MinVersion: tls.VersionTLS12,
 		MaxVersion: tls.VersionTLS12,
@@ -48,7 +51,8 @@ func initTLSConfig() *tls.Config {
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA},
+			tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+		},
 		PreferServerCipherSuites: true,
 	}
 }
@@ -79,7 +83,7 @@ func finalizeTLSConfig(tlsConfig *tls.Config, tlsRemoteCert *x509.Certificate) {
 }
 
 func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsClientCAFile string, tlsRemoteCert *x509.Certificate) (*tls.Config, error) {
-	tlsConfig := initTLSConfig()
+	tlsConfig := InitTLSConfig()
 
 	// Client authentication
 	if tlsClientCertFile != "" && tlsClientKeyFile != "" {
@@ -108,7 +112,7 @@ func GetTLSConfig(tlsClientCertFile string, tlsClientKeyFile string, tlsClientCA
 }
 
 func GetTLSConfigMem(tlsClientCert string, tlsClientKey string, tlsClientCA string, tlsRemoteCertPEM string, insecureSkipVerify bool) (*tls.Config, error) {
-	tlsConfig := initTLSConfig()
+	tlsConfig := InitTLSConfig()
 	tlsConfig.InsecureSkipVerify = insecureSkipVerify
 	// Client authentication
 	if tlsClientCert != "" && tlsClientKey != "" {
