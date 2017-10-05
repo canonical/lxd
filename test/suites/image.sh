@@ -26,7 +26,7 @@ test_image_expiry() {
   lxc_remote config set images.remote_cache_expiry 0
   lxc_remote remote set-default local
 
-  ! lxc_remote image list l2: | grep -q "${fpbrief}"
+  ! lxc_remote image list l2: | grep -q "${fpbrief}" || false
 
   lxc_remote delete l2:c1
 

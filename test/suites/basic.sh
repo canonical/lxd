@@ -335,11 +335,11 @@ test_basic_usage() {
       aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
       aa-status | grep -q ":${aa_namespace}:unconfined" || aa-status | grep -q ":${aa_namespace}://unconfined"
       lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -q ":${aa_namespace}:"
+      ! aa-status | grep -q ":${aa_namespace}:" || false
     else
       aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>"
       lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -q "lxd-lxd-apparmor-test_<${LXD_DIR}>"
+      ! aa-status | grep -q "lxd-lxd-apparmor-test_<${LXD_DIR}>" || false
     fi
     lxc delete lxd-apparmor-test
     [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
@@ -382,5 +382,5 @@ test_basic_usage() {
   sleep 2
 
   lxc stop foo --force || true
-  ! lxc list | grep -q foo
+  ! lxc list | grep -q foo || false
 }
