@@ -1,6 +1,8 @@
 package lxd
 
 import (
+	"fmt"
+
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -52,4 +54,21 @@ func (r *ProtocolLXD) HasExtension(extension string) bool {
 	}
 
 	return false
+}
+
+// GetServerResources returns the resources available to a given LXD server
+func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
+	if !r.HasExtension("resources") {
+		return nil, fmt.Errorf("The server is missing the required \"resources\" API extension")
+	}
+
+	resources := api.Resources{}
+
+	// Fetch the raw value
+	_, err := r.queryStruct("GET", "/resources", nil, "", &resources)
+	if err != nil {
+		return nil, err
+	}
+
+	return &resources, nil
 }
