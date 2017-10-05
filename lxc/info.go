@@ -15,7 +15,8 @@ import (
 )
 
 type infoCmd struct {
-	showLog bool
+	showLog   bool
+	resources bool
 }
 
 func (c *infoCmd) showByDefault() bool {
@@ -24,19 +25,20 @@ func (c *infoCmd) showByDefault() bool {
 
 func (c *infoCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc info [<remote>:][<container>] [--show-log]
+		`Usage: lxc info [<remote>:][<container>] [--show-log] [--resources]
 
 Show container or server information.
 
 lxc info [<remote>:]<container> [--show-log]
     For container information.
 
-lxc info [<remote>:]
+lxc info [<remote>:] [--resources]
     For LXD server information.`)
 }
 
 func (c *infoCmd) flags() {
 	gnuflag.BoolVar(&c.showLog, "show-log", false, i18n.G("Show the container's last 100 log lines?"))
+	gnuflag.BoolVar(&c.resources, "resources", false, i18n.G("Show the resources available to the server"))
 }
 
 func (c *infoCmd) run(conf *config.Config, args []string) error {
@@ -68,6 +70,22 @@ func (c *infoCmd) run(conf *config.Config, args []string) error {
 }
 
 func (c *infoCmd) remoteInfo(d lxd.ContainerServer) error {
+	if c.resources {
+		resources, err := d.GetServerResources()
+		if err != nil {
+			return err
+		}
+
+		resourceData, err := yaml.Marshal(&resources)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s", resourceData)
+
+		return nil
+	}
+
 	serverStatus, _, err := d.GetServer()
 	if err != nil {
 		return err
