@@ -121,6 +121,18 @@ func (suite *lxdTestSuite) SetupTest() {
 		os.Exit(1)
 	}
 	suite.Req = require.New(suite.T())
+
+	suite.d.pruneChan = make(chan bool)
+	suite.d.resetAutoUpdateChan = make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-suite.d.pruneChan:
+			case <-suite.d.resetAutoUpdateChan:
+				continue
+			}
+		}
+	}()
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
