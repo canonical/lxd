@@ -209,6 +209,7 @@ won't work and PUT needs to be used instead.
          * `/1.0/operations/<uuid>/websocket`
      * `/1.0/profiles`
        * `/1.0/profiles/<name>`
+     * `/1.0/resources`
 
 # API details
 ## `/`
@@ -2162,6 +2163,34 @@ Input (none at present):
     {
     }
 
+## `/1.0/storage-pools/<name>/resources`
+### GET
+ * Description: information about the resources available to the storage pool
+ * Introduced: with API extension `resources`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the storage pool resources
+
+    {
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "operation": "",
+        "error_code": 0,
+        "error": "",
+        "metadata": {
+            "space": {
+                "used": 207111192576,
+                "total": 306027577344
+            },
+            "inodes": {
+                "used": 3275333,
+                "total": 18989056
+            }
+        }
+    }
+
+
 ## `/1.0/storage-pools/<name>/volumes`
 ### GET
  * Description: list of storage volumes
@@ -2336,4 +2365,40 @@ l    }
 Input (none at present):
 
     {
+    }
+
+## `/1.0/resources`
+### GET
+ * Description: information about the resources available to the LXD server
+ * Introduced: with API extension `resources`
+ * Authentication: guest, untrusted or trusted
+ * Operation: sync
+ * Return: dict representing the system resources
+
+    {
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "operation": "",
+        "error_code": 0,
+        "error": "",
+        "metadata": {
+            "cpu": {
+                "sockets": [
+                   {
+                       "cores": 2,
+                       "frequency": 2691,
+                       "frequency_turbo": 3400,
+                       "name": "GenuineIntel",
+                       "vendor": "Intel(R) Core(TM) i5-3340M CPU @ 2.70GHz",
+                       "threads": 4
+                   }
+                ],
+                "total": 4
+            },
+            "memory": {
+                "used": 4454240256,
+                "total": 8271765504
+            }
+        }
     }
