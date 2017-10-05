@@ -631,6 +631,11 @@ func (cmd *CmdInit) validateArgsAuto(availableStoragePoolsDrivers []string) erro
 func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 	drivers := []string{"dir"}
 
+	backingFs, err := util.FilesystemDetect(shared.VarPath())
+	if err != nil {
+		backingFs = "dir"
+	}
+
 	// Check available backends
 	for _, driver := range supportedStoragePoolDrivers {
 		if driver == "dir" {
@@ -639,7 +644,7 @@ func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 
 		// btrfs can work in user namespaces too. (If
 		// source=/some/path/on/btrfs is used.)
-		if cmd.RunningInUserns && driver != "btrfs" {
+		if cmd.RunningInUserns && (backingFs != "btrfs" || driver != "btrfs") {
 			continue
 		}
 
