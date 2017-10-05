@@ -157,6 +157,16 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		args.TLSClientKey = string(content)
 	}
 
+	// Client CA
+	if shared.PathExists(c.ConfigPath("client.ca")) {
+		content, err := ioutil.ReadFile(c.ConfigPath("client.ca"))
+		if err != nil {
+			return nil, err
+		}
+
+		args.TLSCA = string(content)
+	}
+
 	// Server certificate
 	if shared.PathExists(c.ServerCertPath(name)) {
 		content, err := ioutil.ReadFile(c.ServerCertPath(name))
