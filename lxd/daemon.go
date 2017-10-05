@@ -767,9 +767,8 @@ func (d *Daemon) Ready() error {
 		pruneExpiredImages(d)
 		for {
 			timer := time.NewTimer(24 * time.Hour)
-			timeChan := timer.C
 			select {
-			case <-timeChan:
+			case <-timer.C:
 				/* run once per day */
 				pruneExpiredImages(d)
 			case <-d.pruneChan:
@@ -794,10 +793,9 @@ func (d *Daemon) Ready() error {
 			interval := daemonConfig["images.auto_update_interval"].GetInt64()
 			if interval > 0 {
 				timer := time.NewTimer(time.Duration(interval) * time.Hour)
-				timeChan := timer.C
 
 				select {
-				case <-timeChan:
+				case <-timer.C:
 					autoUpdateImages(d)
 				case <-d.resetAutoUpdateChan:
 					timer.Stop()
