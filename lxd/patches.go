@@ -35,6 +35,7 @@ import (
 var patches = []patch{
 	{name: "invalid_profile_names", run: patchInvalidProfileNames},
 	{name: "leftover_profile_config", run: patchLeftoverProfileConfig},
+	{name: "fix_uploaded_at", run: patchFixUploadedAt},
 }
 
 type patch struct {
@@ -116,6 +117,27 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+func patchFixUploadedAt(name string, d *Daemon) error {
+	images, err := db.ImagesGet(d.db, false)
+	if err != nil {
+		return err
+	}
+
+	for _, fingerprint := range images {
+		id, image, err := db.ImageGet(d.db, fingerprint, false, true)
+		if err != nil {
+			return err
+		}
+
+		_, err = db.Exec(d.db, "UPDATE images SET upload_date=? WHERE id=?", image.UploadedAt, id)
+		if err != nil {
+			return err
 		}
 	}
 
