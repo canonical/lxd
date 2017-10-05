@@ -48,6 +48,7 @@ var api10 = []Command{
 	certificateFingerprintCmd,
 	profilesCmd,
 	profileCmd,
+	serverResourceCmd,
 	storagePoolsCmd,
 	storagePoolCmd,
 	storagePoolVolumesCmd,
