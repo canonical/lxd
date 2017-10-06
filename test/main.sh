@@ -84,8 +84,8 @@ cleanup() {
 
   echo "==> Cleaning up"
 
+  kill_external_auth_daemon "$TEST_DIR"
   cleanup_lxds "$TEST_DIR"
-
 
   echo ""
   echo ""
@@ -122,6 +122,8 @@ chmod +x "${LXD_DIR}"
 spawn_lxd "${LXD_DIR}" true
 LXD_ADDR=$(cat "${LXD_DIR}/lxd.addr")
 export LXD_ADDR
+
+start_external_auth_daemon "${LXD_DIR}"
 
 run_test() {
   TEST_CURRENT=${1}
@@ -186,6 +188,7 @@ run_test test_storage_volume_attach "attaching storage volumes"
 run_test test_storage_driver_ceph "ceph storage driver"
 run_test test_resources "resources"
 run_test test_kernel_limits "kernel limits"
+run_test test_macaroon_auth "macaroon authentication"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success
