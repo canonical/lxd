@@ -107,7 +107,7 @@ test_config_profiles() {
 
   # setting an invalid config item should error out when setting it, not get
   # into the database and never let the user edit the container again.
-  ! lxc config set foo raw.lxc "lxc.notaconfigkey = invalid"
+  ! lxc config set foo raw.lxc lxc.notaconfigkey=invalid
 
   lxc profile create stdintest
   echo "BADCONF" | lxc profile set stdintest user.user_data -
