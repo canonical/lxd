@@ -90,16 +90,18 @@ func run() error {
 	var err error
 
 	if *forceLocal {
-		conf = &config.DefaultConfig
+		conf = config.NewConfig("", true)
 	} else if shared.PathExists(configPath) {
 		conf, err = config.LoadConfig(configPath)
 		if err != nil {
 			return err
 		}
 	} else {
-		conf = &config.DefaultConfig
-		conf.ConfigDir = filepath.Dir(configPath)
+		conf = config.NewConfig(filepath.Dir(configPath), true)
 	}
+
+	// Save cookies on exit
+	defer conf.SaveCookies()
 
 	// Set the user agent
 	conf.UserAgent = version.UserAgent
