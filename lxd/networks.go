@@ -547,6 +547,7 @@ func (n *network) Rename(name string) error {
 	if err != nil {
 		return err
 	}
+	n.name = name
 
 	// Bring the network up
 	err = n.Start()
