@@ -853,3 +853,14 @@ func intArrayToString(arr interface{}) string {
 
 	return s
 }
+
+func Statvfs(path string) (*syscall.Statfs_t, error) {
+	var st syscall.Statfs_t
+
+	err := syscall.Statfs(path, &st)
+	if err != nil {
+		return nil, err
+	}
+
+	return &st, nil
+}

@@ -234,12 +234,12 @@ func getThreads() ([]thread, error) {
 	return threads, nil
 }
 
-func CpuResource() (api.ResourcesCPU, error) {
+func CpuResource() (*api.ResourcesCPU, error) {
 	c := api.ResourcesCPU{}
 
 	threads, err := getThreads()
 	if err != nil {
-		return c, err
+		return nil, err
 	}
 
 	var cur *api.ResourcesCPUSocket
@@ -264,19 +264,18 @@ func CpuResource() (api.ResourcesCPU, error) {
 		cur.FrequencyTurbo = v.frequencyTurbo
 	}
 
-	return c, nil
+	return &c, nil
 }
 
-func MemoryResource() (api.ResourcesMemory, error) {
+func MemoryResource() (*api.ResourcesMemory, error) {
 	var buffers uint64
 	var cached uint64
 	var free uint64
 	var total uint64
 
-	mem := api.ResourcesMemory{}
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {
-		return mem, err
+		return nil, err
 	}
 	defer f.Close()
 
@@ -290,6 +289,7 @@ func MemoryResource() (api.ResourcesMemory, error) {
 		return strings.TrimSpace(l[:idx]), nil
 	}
 
+	mem := api.ResourcesMemory{}
 	scanner := bufio.NewScanner(f)
 	found := 0
 	for scanner.Scan() {
@@ -299,48 +299,48 @@ func MemoryResource() (api.ResourcesMemory, error) {
 		if strings.HasPrefix(line, "MemTotal:") {
 			line, err = cleanLine(line[len("MemTotal:"):])
 			if err != nil {
-				return mem, err
+				return nil, err
 			}
 
 			total, err = strconv.ParseUint(line, 10, 64)
 			if err != nil {
-				return mem, err
+				return nil, err
 			}
 
 			found++
 		} else if strings.HasPrefix(line, "MemFree:") {
 			line, err = cleanLine(line[len("MemFree:"):])
 			if err != nil {
-				return mem, err
+				return nil, err
 			}
 
 			free, err = strconv.ParseUint(line, 10, 64)
 			if err != nil {
-				return mem, err
+				return nil, err
 			}
 
 			found++
 		} else if strings.HasPrefix(line, "Cached:") {
 			line, err = cleanLine(line[len("Cached:"):])
 			if err != nil {
-				return mem, err
+				return nil, err
 			}
 
 			cached, err = strconv.ParseUint(line, 10, 64)
 			if err != nil {
-				return mem, err
+				return nil, err
 			}
 
 			found++
 		} else if strings.HasPrefix(line, "Buffers:") {
 			line, err = cleanLine(line[len("Buffers:"):])
 			if err != nil {
-				return mem, err
+				return nil, err
 			}
 
 			buffers, err = strconv.ParseUint(line, 10, 64)
 			if err != nil {
-				return mem, err
+				return nil, err
 			}
 
 			found++
@@ -354,5 +354,5 @@ func MemoryResource() (api.ResourcesMemory, error) {
 	mem.Total = total * 1024
 	mem.Used = (total - free - cached - buffers) * 1024
 
-	return mem, err
+	return &mem, err
 }

@@ -218,3 +218,7 @@ func (s *storageMock) MigrationSink(live bool, container container, snapshots []
 func (s *storageMock) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
 	return nil
 }
+
+func (s *storageMock) StoragePoolResources() (*api.ResourcesStoragePool, error) {
+	return &api.ResourcesStoragePool{}, nil
+}

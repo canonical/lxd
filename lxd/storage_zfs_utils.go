@@ -250,6 +250,10 @@ func zfsPoolVolumeCleanup(pool string, path string) error {
 }
 
 func zfsFilesystemEntityPropertyGet(pool string, path string, key string) (string, error) {
+	entity := pool
+	if path != "" {
+		entity = fmt.Sprintf("%s/%s", pool, path)
+	}
 	output, err := shared.RunCommand(
 		"zfs",
 		"get",
@@ -257,7 +261,7 @@ func zfsFilesystemEntityPropertyGet(pool string, path string, key string) (strin
 		"-p",
 		"-o", "value",
 		key,
-		fmt.Sprintf("%s/%s", pool, path))
+		entity)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get ZFS config: %s", output)
 	}
