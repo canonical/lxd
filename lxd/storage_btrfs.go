@@ -2229,3 +2229,19 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 	logger.Debugf(`Set BTRFS quota for "%s"`, s.volume.Name)
 	return nil
 }
+
+func (s *storageBtrfs) StoragePoolResources() (*api.ResourcesStoragePool, error) {
+	ourMount, err := s.StoragePoolMount()
+	if err != nil {
+		return nil, err
+	}
+	if ourMount {
+		defer s.StoragePoolUmount()
+	}
+
+	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+
+	// Inode allocation is dynamic so no use in reporting them.
+
+	return storageResource(poolMntPoint)
+}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -318,4 +319,24 @@ func shrinkVolumeFilesystem(s storage, volumeType int, fsType string, devPath st
 
 	err := shrinkFileSystem(fsType, devPath, mntpoint, byteSize)
 	return cleanupFunc, err
+}
+
+func storageResource(path string) (*api.ResourcesStoragePool, error) {
+	st, err := shared.Statvfs(path)
+	if err != nil {
+		return nil, err
+	}
+
+	res := api.ResourcesStoragePool{}
+	res.Space.Total = st.Blocks * uint64(st.Bsize)
+	res.Space.Used = (st.Blocks - st.Bfree) * uint64(st.Bsize)
+
+	// Some filesystems don't report inodes since they allocate them
+	// dynamically e.g. btrfs.
+	if st.Files > 0 {
+		res.Inodes.Total = st.Files
+		res.Inodes.Used = st.Files - st.Ffree
+	}
+
+	return &res, nil
 }

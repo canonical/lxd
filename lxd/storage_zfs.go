@@ -2330,3 +2330,39 @@ func (s *storageZfs) StorageEntitySetQuota(volumeType int, size int64, data inte
 	logger.Debugf(`Set ZFS quota for "%s"`, s.volume.Name)
 	return nil
 }
+
+func (s *storageZfs) StoragePoolResources() (*api.ResourcesStoragePool, error) {
+	poolName := s.getOnDiskPoolName()
+
+	totalBuf, err := zfsFilesystemEntityPropertyGet(poolName, "", "available")
+	if err != nil {
+		return nil, err
+	}
+
+	totalStr := string(totalBuf)
+	totalStr = strings.TrimSpace(totalStr)
+	total, err := strconv.ParseUint(totalStr, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	usedBuf, err := zfsFilesystemEntityPropertyGet(poolName, "", "used")
+	if err != nil {
+		return nil, err
+	}
+
+	usedStr := string(usedBuf)
+	usedStr = strings.TrimSpace(usedStr)
+	used, err := strconv.ParseUint(usedStr, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	res := api.ResourcesStoragePool{}
+	res.Space.Total = total
+	res.Space.Used = used
+
+	// Inode allocation is dynamic so no use in reporting them.
+
+	return &res, nil
+}

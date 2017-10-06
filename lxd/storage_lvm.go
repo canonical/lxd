@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -1777,4 +1778,42 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 
 	logger.Debugf(`Set LVM quota for "%s"`, s.volume.Name)
 	return nil
+}
+
+func (s *storageLvm) StoragePoolResources() (*api.ResourcesStoragePool, error) {
+	args := []string{s.pool.Config["lvm.vg_name"], "--noheadings",
+		"--units", "b", "--nosuffix", "-o"}
+
+	totalBuf, err := shared.TryRunCommand("vgs", append(args, "vg_size")...)
+	if err != nil {
+		return nil, err
+	}
+
+	totalStr := string(totalBuf)
+	totalStr = strings.TrimSpace(totalStr)
+	total, err := strconv.ParseUint(totalStr, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	res := api.ResourcesStoragePool{}
+	res.Space.Total = total
+
+	// Thinpools will always report zero free space so no use in calculating
+	// a used count. It'll be useless information for the user.
+	if !s.useThinpool {
+		freeBuf, err := shared.TryRunCommand("vgs", append(args, "vg_free")...)
+		if err != nil {
+			return nil, err
+		}
+		freeStr := string(freeBuf)
+		freeStr = strings.TrimSpace(freeStr)
+		free, err := strconv.ParseUint(freeStr, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		res.Space.Used = total - free
+	}
+
+	return &res, nil
 }

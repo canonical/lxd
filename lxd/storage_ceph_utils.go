@@ -1647,3 +1647,32 @@ func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
 
 	return growFileSystem(fsType, path, fsMntPoint)
 }
+
+func parseCephSize(numStr string) (uint64, error) {
+	if numStr == "" {
+		return 0, fmt.Errorf("Empty string is not valid input")
+	}
+
+	lxdSuffix := "GB"
+	cephSuffix := numStr[(len(numStr) - 1):]
+	switch cephSuffix {
+	case "M":
+		lxdSuffix = "MB"
+	case "K":
+		lxdSuffix = "KB"
+	}
+
+	_, err := strconv.Atoi(cephSuffix)
+	if err != nil {
+		numStr = numStr[:(len(numStr) - 1)]
+		numStr = strings.TrimSpace(numStr)
+	}
+	numStr = fmt.Sprintf("%s%s", numStr, lxdSuffix)
+
+	size, err := shared.ParseByteSizeString(numStr)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(size), nil
+}
