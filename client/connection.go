@@ -27,6 +27,9 @@ type ConnectionArgs struct {
 	// User agent string
 	UserAgent string
 
+	// Authentication type
+	AuthType string
+
 	// Custom proxy
 	Proxy func(*http.Request) (*url.URL, error)
 
@@ -35,6 +38,9 @@ type ConnectionArgs struct {
 
 	// Controls whether a client verifies the server's certificate chain and host name.
 	InsecureSkipVerify bool
+
+	// Cookie jar
+	CookieJar http.CookieJar
 }
 
 // ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
@@ -153,13 +159,22 @@ func httpsLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 		httpProtocol:    "https",
 		httpUserAgent:   args.UserAgent,
 	}
+	if args.AuthType == "macaroons" {
+		server.RequireAuthenticated(true)
+	}
 
 	// Setup the HTTP client
 	httpClient, err := tlsHTTPClient(args.HTTPClient, args.TLSClientCert, args.TLSClientKey, args.TLSCA, args.TLSServerCert, args.InsecureSkipVerify, args.Proxy)
 	if err != nil {
 		return nil, err
 	}
+	if args.CookieJar != nil {
+		httpClient.Jar = args.CookieJar
+	}
 	server.http = httpClient
+	if args.AuthType == "macaroons" {
+		server.setupBakeryClient()
+	}
 
 	// Test the connection and seed the server information
 	_, _, err = server.GetServer()

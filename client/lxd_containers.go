@@ -718,7 +718,7 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 	}
 
 	// Send the request
-	resp, err := r.http.Do(req)
+	resp, err := r.do(req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -824,7 +824,7 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Send the request
-	resp, err := r.http.Do(req)
+	resp, err := r.do(req)
 	if err != nil {
 		return err
 	}
@@ -1246,7 +1246,7 @@ func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.Read
 	}
 
 	// Send the request
-	resp, err := r.http.Do(req)
+	resp, err := r.do(req)
 	if err != nil {
 		return nil, err
 	}
