@@ -225,7 +225,7 @@ func ensureImage(c lxd.ContainerServer, image string) (string, error) {
 	var fingerprint string
 
 	if strings.Contains(image, ":") {
-		defaultConfig := config.DefaultConfig
+		defaultConfig := config.NewConfig("", true)
 		defaultConfig.UserAgent = version.UserAgent
 
 		remote, fp, err := defaultConfig.ParseRemote(image)
