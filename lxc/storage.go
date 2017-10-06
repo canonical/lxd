@@ -16,11 +16,13 @@ import (
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
 
 type storageCmd struct {
+	resources bool
 }
 
 func (c *storageCmd) showByDefault() bool {
@@ -68,7 +70,7 @@ Manage storage pools and volumes.
 lxc storage list [<remote>:]
     List available storage pools.
 
-lxc storage show [<remote>:]<pool>
+lxc storage show [<remote>:]<pool> [--resources]
     Show details of a storage pool.
 
 lxc storage create [<remote>:]<pool> <driver> [key=value]...
@@ -142,7 +144,9 @@ lxc storage volume show default container/data
     Will show the properties of the filesystem for a container called "data" in the "default" pool.`)
 }
 
-func (c *storageCmd) flags() {}
+func (c *storageCmd) flags() {
+	gnuflag.BoolVar(&c.resources, "resources", false, i18n.G("Show the resources available to the storage pool"))
+}
 
 func (c *storageCmd) run(conf *config.Config, args []string) error {
 	if len(args) < 1 {
@@ -703,6 +707,22 @@ func (c *storageCmd) doStoragePoolSet(client lxd.ContainerServer, name string, a
 func (c *storageCmd) doStoragePoolShow(client lxd.ContainerServer, name string) error {
 	if name == "" {
 		return errArgs
+	}
+
+	if c.resources {
+		res, err := client.GetStoragePoolResources(name)
+		if err != nil {
+			return err
+		}
+
+		data, err := yaml.Marshal(&res)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("%s", data)
+
+		return nil
 	}
 
 	pool, _, err := client.GetStoragePool(name)
