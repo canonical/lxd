@@ -803,12 +803,10 @@ func (d *Daemon) Ready() error {
 	/* Prune images */
 	d.pruneChan = make(chan bool)
 	go func() {
-		pruneExpiredImages(d)
 		for {
 			timer := time.NewTimer(24 * time.Hour)
-			timeChan := timer.C
 			select {
-			case <-timeChan:
+			case <-timer.C:
 				/* run once per day */
 				pruneExpiredImages(d)
 			case <-d.pruneChan:
@@ -818,6 +816,9 @@ func (d *Daemon) Ready() error {
 			}
 		}
 	}()
+
+	// Do an initial pruning run before we start updating images
+	pruneExpiredImages(d)
 
 	/* Auto-update images */
 	d.resetAutoUpdateChan = make(chan bool)
@@ -833,10 +834,9 @@ func (d *Daemon) Ready() error {
 			interval := daemonConfig["images.auto_update_interval"].GetInt64()
 			if interval > 0 {
 				timer := time.NewTimer(time.Duration(interval) * time.Hour)
-				timeChan := timer.C
 
 				select {
-				case <-timeChan:
+				case <-timer.C:
 					autoUpdateImages(d)
 				case <-d.resetAutoUpdateChan:
 					timer.Stop()

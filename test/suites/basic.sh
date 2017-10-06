@@ -370,11 +370,11 @@ test_basic_usage() {
       aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
       aa-status | grep -q ":${aa_namespace}:unconfined" || aa-status | grep -q ":${aa_namespace}://unconfined"
       lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -q ":${aa_namespace}:"
+      ! aa-status | grep -q ":${aa_namespace}:" || false
     else
       aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>"
       lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -q "lxd-lxd-apparmor-test_<${LXD_DIR}>"
+      ! aa-status | grep -q "lxd-lxd-apparmor-test_<${LXD_DIR}>" || false
     fi
     lxc delete lxd-apparmor-test
     [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
@@ -420,9 +420,9 @@ test_basic_usage() {
   lxc publish --force c3 --alias=image3
   # Delete multiple images with lxc delete and confirm they're deleted
   lxc image delete local:image1 local:image2 local:image3
-  ! lxc image list | grep -q image1
-  ! lxc image list | grep -q image2
-  ! lxc image list | grep -q image3
+  ! lxc image list | grep -q image1 || false
+  ! lxc image list | grep -q image2 || false
+  ! lxc image list | grep -q image3 || false
   # Cleanup the containers
   lxc delete --force c1 c2 c3
 
@@ -453,5 +453,5 @@ test_basic_usage() {
   sleep 2
 
   lxc stop foo --force || true
-  ! lxc list | grep -q foo
+  ! lxc list | grep -q foo || false
 }

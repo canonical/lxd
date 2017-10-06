@@ -157,105 +157,119 @@ func (c *storageCmd) run(conf *config.Config, args []string) error {
 		return errArgs
 	}
 
-	remote, sub, err := conf.ParseRemote(args[1])
-	if err != nil {
-		return err
-	}
-
-	client, err := conf.GetContainerServer(remote)
-	if err != nil {
-		return err
-	}
-
 	if args[0] == "volume" {
+		if len(args) < 3 {
+			return errArgs
+		}
+
+		remote, sub, err := conf.ParseRemote(args[2])
+		if err != nil {
+			return err
+		}
+
+		client, err := conf.GetContainerServer(remote)
+		if err != nil {
+			return err
+		}
+
 		switch args[1] {
 		case "attach":
 			if len(args) < 5 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeAttach(client, pool, volume, args[4:])
 		case "attach-profile":
 			if len(args) < 5 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeAttachProfile(client, pool, volume, args[4:])
 		case "create":
 			if len(args) < 4 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeCreate(client, pool, volume, args[4:])
 		case "delete":
 			if len(args) != 4 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeDelete(client, pool, volume)
 		case "detach":
 			if len(args) < 4 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeDetach(client, pool, volume, args[4:])
 		case "detach-profile":
 			if len(args) < 5 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeDetachProfile(client, pool, volume, args[4:])
 		case "edit":
 			if len(args) != 4 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeEdit(client, pool, volume)
 		case "get":
 			if len(args) < 4 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeGet(client, pool, volume, args[3:])
 		case "list":
 			if len(args) != 3 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			return c.doStoragePoolVolumesList(conf, remote, pool, args)
 		case "set":
 			if len(args) < 4 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeSet(client, pool, volume, args[3:])
 		case "unset":
 			if len(args) < 4 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeSet(client, pool, volume, args[3:])
 		case "show":
 			if len(args) != 4 {
 				return errArgs
 			}
-			pool := args[2]
+			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeShow(client, pool, volume)
 		default:
 			return errArgs
 		}
 	} else {
+		remote, sub, err := conf.ParseRemote(args[1])
+		if err != nil {
+			return err
+		}
+
+		client, err := conf.GetContainerServer(remote)
+		if err != nil {
+			return err
+		}
+
 		pool := sub
 		switch args[0] {
 		case "create":
