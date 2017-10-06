@@ -14,6 +14,7 @@ type Remote struct {
 	Addr     string `yaml:"addr"`
 	Public   bool   `yaml:"public"`
 	Protocol string `yaml:"protocol,omitempty"`
+	AuthType string `yaml:"auth_type,omitempty"`
 	Static   bool   `yaml:"-"`
 }
 
@@ -133,8 +134,11 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 }
 
 func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
+	remote, _ := c.Remotes[name]
 	args := lxd.ConnectionArgs{
 		UserAgent: c.UserAgent,
+		CookieJar: c.cookiejar,
+		AuthType:  remote.AuthType,
 	}
 
 	// Client certificate
