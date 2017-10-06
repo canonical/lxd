@@ -99,3 +99,20 @@ func (r *ProtocolLXD) DeleteStoragePool(name string) error {
 
 	return nil
 }
+
+// GetStoragePoolResources gets the resources available to a given storage pool
+func (r *ProtocolLXD) GetStoragePoolResources(name string) (*api.ResourcesStoragePool, error) {
+	if !r.HasExtension("resources") {
+		return nil, fmt.Errorf("The server is missing the required \"resources\" API extension")
+	}
+
+	res := api.ResourcesStoragePool{}
+
+	// Fetch the raw value
+	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/resources", name), nil, "", &res)
+	if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
