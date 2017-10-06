@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"path/filepath"
+
+	"github.com/juju/persistent-cookiejar"
 )
 
 // Config holds settings to be used by a client or daemon
@@ -23,6 +25,8 @@ type Config struct {
 
 	// The UserAgent to pass for all queries
 	UserAgent string `yaml:"-"`
+
+	cookiejar *cookiejar.Jar
 }
 
 // ConfigPath returns a joined path of the configuration directory and passed arguments
@@ -36,4 +40,26 @@ func (c *Config) ConfigPath(paths ...string) string {
 // ServerCertPath returns the path for the remote's server certificate
 func (c *Config) ServerCertPath(remote string) string {
 	return c.ConfigPath("servercerts", fmt.Sprintf("%s.crt", remote))
+}
+
+// SaveCookies saves cookies to file
+func (c *Config) SaveCookies() {
+	if c.cookiejar != nil {
+		c.cookiejar.Save()
+	}
+}
+
+// NewConfig returns a Config, optionally using default remotes.
+func NewConfig(configDir string, defaults bool) *Config {
+	config := &Config{ConfigDir: configDir}
+	if defaults {
+		config.Remotes = DefaultRemotes
+		config.DefaultRemote = "local"
+	}
+	if configDir != "" {
+		config.cookiejar, _ = cookiejar.New(
+			&cookiejar.Options{
+				Filename: filepath.Join(configDir, "cookies")})
+	}
+	return config
 }
