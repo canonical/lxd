@@ -41,7 +41,7 @@ func processBatch(count int, batchSize int, process func(index int, wg *sync.Wai
 
 		if processed >= nextStat {
 			interval := time.Since(timeStart).Seconds()
-			logf("Processed %d containers in %.3fs (%.3f/s)", processed, interval, float64(processed)/interval)
+			logf("Processed %d containers in %.3fs (%.3fs per container)", processed, interval, interval/float64(processed))
 			nextStat = nextStat * 2
 		}
 
