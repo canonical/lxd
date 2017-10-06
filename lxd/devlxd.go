@@ -21,6 +21,15 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+// DevLxdServer creates an http.Server capable of handling requests against the
+// /dev/lxd Unix socket endpoint created inside containers.
+func DevLxdServer(d *Daemon) *http.Server {
+	return &http.Server{
+		Handler:   devLxdAPI(d),
+		ConnState: pidMapper.ConnStateHandler,
+	}
+}
+
 type devLxdResponse struct {
 	content interface{}
 	code    int

@@ -419,28 +419,6 @@ func (d *Daemon) init() error {
 	}
 
 	/* Setup the web server */
-	restAPI := mux.NewRouter()
-	restAPI.StrictSlash(false)
-
-	restAPI.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		SyncResponse(true, []string{"/1.0"}).Render(w)
-	})
-
-	for _, c := range api10 {
-		d.createCmd(restAPI, "1.0", c)
-	}
-
-	for _, c := range apiInternal {
-		d.createCmd(restAPI, "internal", c)
-	}
-
-	restAPI.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Info("Sending top level 404", log.Ctx{"url": r.URL})
-		w.Header().Set("Content-Type", "application/json")
-		NotFound.Render(w)
-	})
-
 	certInfo, err := shared.KeyPairAndCA(d.os.VarDir, "server", shared.CertServer)
 	if err != nil {
 		return err
@@ -449,8 +427,8 @@ func (d *Daemon) init() error {
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
 		Cert:                 certInfo,
-		RestServer:           &http.Server{Handler: &lxdHttpServer{r: restAPI, d: d}},
-		DevLxdServer:         &http.Server{Handler: devLxdAPI(d), ConnState: pidMapper.ConnStateHandler},
+		RestServer:           RestServer(d),
+		DevLxdServer:         DevLxdServer(d),
 		LocalUnixSocketGroup: d.config.Group,
 		NetworkAddress:       daemonConfig["core.https_address"].Get(),
 	}
@@ -605,42 +583,6 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string) error {
 		bakery:   bakery,
 	}
 	return nil
-}
-
-type lxdHttpServer struct {
-	r *mux.Router
-	d *Daemon
-}
-
-func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	allowedOrigin := daemonConfig["core.https_allowed_origin"].Get()
-	origin := req.Header.Get("Origin")
-	if allowedOrigin != "" && origin != "" {
-		rw.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-	}
-
-	allowedMethods := daemonConfig["core.https_allowed_methods"].Get()
-	if allowedMethods != "" && origin != "" {
-		rw.Header().Set("Access-Control-Allow-Methods", allowedMethods)
-	}
-
-	allowedHeaders := daemonConfig["core.https_allowed_headers"].Get()
-	if allowedHeaders != "" && origin != "" {
-		rw.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
-	}
-
-	allowedCredentials := daemonConfig["core.https_allowed_credentials"].GetBool()
-	if allowedCredentials {
-		rw.Header().Set("Access-Control-Allow-Credentials", "true")
-	}
-
-	// OPTIONS request don't need any further processing
-	if req.Method == "OPTIONS" {
-		return
-	}
-
-	// Call the original server
-	s.r.ServeHTTP(rw, req)
 }
 
 // Create a database connection and perform any updates needed.
