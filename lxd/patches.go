@@ -49,6 +49,7 @@ var patches = []patch{
 	{name: "storage_zfs_volume_size", run: patchStorageZFSVolumeSize},
 	{name: "network_dnsmasq_hosts", run: patchNetworkDnsmasqHosts},
 	{name: "storage_api_dir_bind_mount", run: patchStorageApiDirBindMount},
+	{name: "fix_uploaded_at", run: patchFixUploadedAt},
 }
 
 type patch struct {
@@ -2470,6 +2471,27 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 			return err
 		}
 
+	}
+
+	return nil
+}
+
+func patchFixUploadedAt(name string, d *Daemon) error {
+	images, err := db.ImagesGet(d.db, false)
+	if err != nil {
+		return err
+	}
+
+	for _, fingerprint := range images {
+		id, image, err := db.ImageGet(d.db, fingerprint, false, true)
+		if err != nil {
+			return err
+		}
+
+		_, err = db.Exec(d.db, "UPDATE images SET upload_date=? WHERE id=?", image.UploadedAt, id)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
