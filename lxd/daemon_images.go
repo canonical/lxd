@@ -360,7 +360,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	var canceler *cancel.Canceler
 	if op != nil {
-		canceler = &cancel.Canceler{}
+		canceler = cancel.NewCanceler()
 		op.canceler = canceler
 	}
 
