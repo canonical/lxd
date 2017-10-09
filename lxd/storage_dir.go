@@ -948,3 +948,17 @@ func (s *storageDir) MigrationSink(live bool, container container, snapshots []*
 func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
 	return fmt.Errorf("the directory container backend doesn't support quotas")
 }
+
+func (s *storageDir) StoragePoolResources() (*api.ResourcesStoragePool, error) {
+	ourMount, err := s.StoragePoolMount()
+	if err != nil {
+		return nil, err
+	}
+	if ourMount {
+		defer s.StoragePoolUmount()
+	}
+
+	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+
+	return storageResource(poolMntPoint)
+}

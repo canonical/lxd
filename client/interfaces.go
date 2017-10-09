@@ -43,6 +43,7 @@ type ContainerServer interface {
 
 	// Server functions
 	GetServer() (server *api.Server, ETag string, err error)
+	GetServerResources() (*api.Resources, error)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) bool
 
@@ -139,6 +140,7 @@ type ContainerServer interface {
 	GetStoragePoolNames() (names []string, err error)
 	GetStoragePools() (pools []api.StoragePool, err error)
 	GetStoragePool(name string) (pool *api.StoragePool, ETag string, err error)
+	GetStoragePoolResources(name string) (resources *api.ResourcesStoragePool, err error)
 	CreateStoragePool(pool api.StoragePoolsPost) (err error)
 	UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) (err error)
 	DeleteStoragePool(name string) (err error)

@@ -2716,3 +2716,67 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 	logger.Debugf(`Set RBD quota for "%s"`, s.volume.Name)
 	return nil
 }
+
+func (s *storageCeph) StoragePoolResources() (*api.ResourcesStoragePool, error) {
+	buf, err := shared.RunCommand(
+		"ceph",
+		"--name", fmt.Sprintf("client.%s", s.UserName),
+		"--cluster", s.ClusterName,
+		"df")
+	if err != nil {
+		return nil, err
+	}
+
+	msg := string(buf)
+	idx := strings.Index(msg, "GLOBAL:")
+	if idx < 0 {
+		return nil, fmt.Errorf(`Output did not contain expected ` +
+			`"GLOBAL:" string`)
+	}
+
+	msg = msg[len("GLOBAL:")+1:]
+	msg = strings.TrimSpace(msg)
+
+	if !strings.HasPrefix(msg, "SIZE") {
+		return nil, fmt.Errorf(`Output "%s" did not contain expected `+
+			`"SIZE" string`, msg)
+	}
+
+	lines := strings.Split(msg, "\n")
+	if len(lines) < 2 {
+		return nil, fmt.Errorf(`Output did not contain expected ` +
+			`resource information`)
+	}
+
+	properties := strings.Fields(lines[1])
+	if len(properties) < 3 {
+		return nil, fmt.Errorf(`Output is missing size properties`)
+	}
+
+	totalStr := strings.TrimSpace(properties[0])
+	usedStr := strings.TrimSpace(properties[2])
+
+	if totalStr == "" {
+		return nil, fmt.Errorf(`Failed to detect space available to ` +
+			`the Ceph cluster`)
+	}
+
+	total, err := parseCephSize(totalStr)
+	if err != nil {
+		return nil, err
+	}
+
+	used := uint64(0)
+	if usedStr != "" {
+		used, err = parseCephSize(usedStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	res := api.ResourcesStoragePool{}
+	res.Space.Total = total
+	res.Space.Used = used
+
+	return &res, nil
+}
