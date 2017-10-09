@@ -136,9 +136,10 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	remote, _ := c.Remotes[name]
 	args := lxd.ConnectionArgs{
-		UserAgent: c.UserAgent,
-		CookieJar: c.cookiejar,
-		AuthType:  remote.AuthType,
+		UserAgent:      c.UserAgent,
+		CookieJar:      c.cookiejar,
+		AuthType:       remote.AuthType,
+		AuthInteractor: c.authInteractor,
 	}
 
 	// Client certificate
