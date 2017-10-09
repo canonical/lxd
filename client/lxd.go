@@ -11,13 +11,11 @@ import (
 	"github.com/gorilla/websocket"
 	"gopkg.in/macaroon-bakery.v2-unstable/bakery"
 	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery"
-	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery/form"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 
-	schemaform "gopkg.in/juju/environschema.v1/form"
 	neturl "net/url"
 )
 
@@ -35,6 +33,7 @@ type ProtocolLXD struct {
 	httpUserAgent   string
 
 	bakeryClient         *httpbakery.Client
+	bakeryInteractor     httpbakery.Interactor
 	requireAuthenticated bool
 }
 
@@ -327,5 +326,7 @@ func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
 func (r *ProtocolLXD) setupBakeryClient() {
 	r.bakeryClient = httpbakery.NewClient()
 	r.bakeryClient.Client = r.http
-	r.bakeryClient.AddInteractor(form.Interactor{Filler: schemaform.IOFiller{}})
+	if r.bakeryInteractor != nil {
+		r.bakeryClient.AddInteractor(r.bakeryInteractor)
+	}
 }

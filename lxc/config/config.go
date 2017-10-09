@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/juju/persistent-cookiejar"
+	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery"
 )
 
 // Config holds settings to be used by a client or daemon
@@ -26,6 +27,8 @@ type Config struct {
 	// The UserAgent to pass for all queries
 	UserAgent string `yaml:"-"`
 
+	authInteractor httpbakery.Interactor
+
 	cookiejar *cookiejar.Jar
 }
 
@@ -40,6 +43,11 @@ func (c *Config) ConfigPath(paths ...string) string {
 // ServerCertPath returns the path for the remote's server certificate
 func (c *Config) ServerCertPath(remote string) string {
 	return c.ConfigPath("servercerts", fmt.Sprintf("%s.crt", remote))
+}
+
+// SetAuthInteractor sets the interactor for macaroon-based authorization
+func (c *Config) SetAuthInteractor(interactor httpbakery.Interactor) {
+	c.authInteractor = interactor
 }
 
 // SaveCookies saves cookies to file
