@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/simplestreams"
+	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery"
 )
 
 // ConnectionArgs represents a set of common connection properties
@@ -29,6 +30,9 @@ type ConnectionArgs struct {
 
 	// Authentication type
 	AuthType string
+
+	// Authentication interactor
+	AuthInteractor httpbakery.Interactor
 
 	// Custom proxy
 	Proxy func(*http.Request) (*url.URL, error)
@@ -154,10 +158,11 @@ func httpsLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 
 	// Initialize the client struct
 	server := ProtocolLXD{
-		httpCertificate: args.TLSServerCert,
-		httpHost:        url,
-		httpProtocol:    "https",
-		httpUserAgent:   args.UserAgent,
+		httpCertificate:  args.TLSServerCert,
+		httpHost:         url,
+		httpProtocol:     "https",
+		httpUserAgent:    args.UserAgent,
+		bakeryInteractor: args.AuthInteractor,
 	}
 	if args.AuthType == "macaroons" {
 		server.RequireAuthenticated(true)
