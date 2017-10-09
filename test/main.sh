@@ -184,6 +184,7 @@ run_test test_storage_profiles "storage profiles"
 run_test test_container_import "container import"
 run_test test_storage_volume_attach "attaching storage volumes"
 run_test test_storage_driver_ceph "ceph storage driver"
+run_test test_resources "resources"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success

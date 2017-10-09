@@ -48,11 +48,14 @@ var api10 = []Command{
 	certificateFingerprintCmd,
 	profilesCmd,
 	profileCmd,
+	serverResourceCmd,
 	storagePoolsCmd,
 	storagePoolCmd,
+	storagePoolResourcesCmd,
 	storagePoolVolumesCmd,
 	storagePoolVolumesTypeCmd,
 	storagePoolVolumeTypeCmd,
+	serverResourceCmd,
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
@@ -125,6 +128,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_volatile_initial_source",
 			"storage_ceph_force_osd_reuse",
 			"storage_block_filesystem_btrfs",
+			"resources",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

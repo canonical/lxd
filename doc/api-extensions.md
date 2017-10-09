@@ -339,3 +339,7 @@ use by another LXD instance.
 ## storage\_block\_filesystem\_btrfs
 This adds support for btrfs as a storage volume filesystem, in addition to ext4
 and xfs.
+
+## resources
+This adds support for querying an LXD daemon for the system resources it has
+available.
