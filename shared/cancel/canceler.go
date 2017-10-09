@@ -7,20 +7,28 @@ import (
 
 // A struct to track canceleation
 type Canceler struct {
-	chCancel chan struct{}
+	reqChCancel map[*http.Request]chan struct{}
+}
+
+func NewCanceler() *Canceler {
+	c := Canceler{}
+	c.reqChCancel = make(map[*http.Request]chan struct{})
+	return &c
 }
 
 func (c *Canceler) Cancelable() bool {
-	return c.chCancel != nil
+	return len(c.reqChCancel) > 0
 }
 
 func (c *Canceler) Cancel() error {
-	if c.chCancel == nil {
+	if !c.Cancelable() {
 		return fmt.Errorf("This operation cannot be canceled at this time")
 	}
 
-	close(c.chCancel)
-	c.chCancel = nil
+	for req, ch := range c.reqChCancel {
+		close(ch)
+		delete(c.reqChCancel, req)
+	}
 	return nil
 }
 
@@ -28,14 +36,14 @@ func CancelableDownload(c *Canceler, client *http.Client, req *http.Request) (*h
 	chDone := make(chan bool)
 	chCancel := make(chan struct{})
 	if c != nil {
-		c.chCancel = chCancel
+		c.reqChCancel[req] = chCancel
 	}
 	req.Cancel = chCancel
 
 	go func() {
 		<-chDone
 		if c != nil {
-			c.chCancel = nil
+			delete(c.reqChCancel, req)
 		}
 	}()
 
