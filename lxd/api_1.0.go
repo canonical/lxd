@@ -129,6 +129,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_ceph_force_osd_reuse",
 			"storage_block_filesystem_btrfs",
 			"resources",
+			"kernel_limits",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

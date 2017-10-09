@@ -154,6 +154,12 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 		}
 	}
 
+	if strings.HasPrefix(key, "lxc.prlimit.") {
+		if !lxc.VersionAtLeast(2, 1, 0) {
+			return fmt.Errorf(`Process limits require libxc >= 2.1`)
+		}
+	}
+
 	err := c.SetConfigItem(key, value)
 	if err != nil {
 		return fmt.Errorf("Failed to set LXC config: %s=%s", key, value)
@@ -196,6 +202,12 @@ func lxcValidConfig(rawLxc string) error {
 
 		if key == "lxc.ephemeral" {
 			return fmt.Errorf("Setting lxc.ephemeral is not allowed")
+		}
+
+		if strings.HasPrefix(key, "lxc.prlimit.") {
+			return fmt.Errorf(`Process limits should be set via ` +
+				`"limits.kernel.[limit name]" and not ` +
+				`directly via "lxc.prlimit.[limit name]"`)
 		}
 
 		networkKeyPrefix := "lxc.net."
@@ -1278,6 +1290,18 @@ func (c *containerLXC) initLXC() error {
 			}
 
 			err = lxcSetConfigItem(cc, "lxc.cgroup.pids.max", fmt.Sprintf("%d", valueInt))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Setup process limits
+	for k, v := range c.expandedConfig {
+		if strings.HasPrefix(k, "limits.kernel.") {
+			prlimitSuffix := strings.TrimPrefix(k, "limits.kernel.")
+			prlimitKey := fmt.Sprintf("lxc.prlimit.%s", prlimitSuffix)
+			err = lxcSetConfigItem(cc, prlimitKey, v)
 			if err != nil {
 				return err
 			}
