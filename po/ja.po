@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
 "POT-Creation-Date: 2017-10-03 23:36-0400\n"
-"PO-Revision-Date: 2017-09-28 21:49+0900\n"
+"PO-Revision-Date: 2017-10-10 14:59+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
 "Language: \n"
@@ -71,12 +71,12 @@ msgstr ""
 #: lxc/image.go:851
 #, c-format
 msgid "%s (%d more)"
-msgstr ""
+msgstr "%s (他%d個)"
 
 #: lxc/utils.go:324
 #, c-format
 msgid "%v (interrupt two more times to force)"
-msgstr ""
+msgstr "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
 #: lxc/snapshot.go:53
 msgid "'/' not allowed in snapshot name"
@@ -143,9 +143,9 @@ msgid "CREATED AT"
 msgstr ""
 
 #: lxc/image.go:443
-#, fuzzy, c-format
+#, c-format
 msgid "Cached: %s"
-msgstr "作成日時: %s"
+msgstr "キャッシュ済: %s"
 
 #: lxc/config.go:156
 #, c-format
@@ -306,9 +306,9 @@ msgid "FINGERPRINT"
 msgstr ""
 
 #: lxc/utils.go:362
-#, fuzzy, c-format
+#, c-format
 msgid "Failed to create alias %s"
-msgstr "'lxc.%s.1' の生成が失敗しました: %v"
+msgstr "エイリアス %s の作成に失敗しました"
 
 #: lxc/manpage.go:62
 #, c-format
@@ -327,7 +327,7 @@ msgstr "コピー先のコンテナ名が取得できませんでした"
 #: lxc/utils.go:352
 #, c-format
 msgid "Failed to remove alias %s"
-msgstr ""
+msgstr "エイリアス %s の削除に失敗しました"
 
 #: lxc/list.go:112
 msgid "Fast mode (same as --columns=nsacPt)"
@@ -343,9 +343,8 @@ msgid "Force the container to shutdown"
 msgstr "コンテナを強制シャットダウンします。"
 
 #: lxc/delete.go:34 lxc/delete.go:35
-#, fuzzy
 msgid "Force the removal of running containers"
-msgstr "停止したコンテナを強制的に削除します。"
+msgstr "稼働中のコンテナを強制的に削除します"
 
 #: lxc/main.go:49
 msgid "Force using the local unix socket"
@@ -399,7 +398,7 @@ msgstr "イメージは以下のフィンガープリントでインポートさ
 
 #: lxc/init.go:141
 msgid "Instance type"
-msgstr ""
+msgstr "インスタンスタイプ"
 
 #: lxc/remote.go:107
 #, c-format
@@ -644,9 +643,8 @@ msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
 #: lxc/utils.go:315
-#, fuzzy
 msgid "Remote operation canceled by user"
-msgstr "ユーザによりサーバ証明書が拒否されました"
+msgstr "リモート操作がユーザによってキャンセルされました"
 
 #: lxc/info.go:101
 #, c-format
@@ -862,9 +860,9 @@ msgstr ""
 "さい。"
 
 #: lxc/copy.go:155
-#, fuzzy, c-format
+#, c-format
 msgid "Transferring container: %s"
-msgstr "イメージを転送中: %s"
+msgstr "コンテナを転送中: %s"
 
 #: lxc/image.go:528
 #, c-format
@@ -1348,7 +1346,6 @@ msgstr ""
 "    LXD サーバの情報を表示します。"
 
 #: lxc/init.go:75
-#, fuzzy
 msgid ""
 "Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--"
 "profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t <instance "
@@ -1362,19 +1359,17 @@ msgid ""
 "Examples:\n"
 "    lxc init ubuntu:16.04 u1"
 msgstr ""
-"使い方: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--"
-"profile|-p <profile>...] [--config|-c <key=value>...]\n"
+"使い方: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t <instance type>]\n"
 "\n"
-"指定したイメージとコンテナ名を使ってコンテナを初期化します。\n"
+"指定したイメージからコンテナを初期化します。\n"
 "\n"
 "-p を指定しない場合はデフォルトのプロファイルを使います。\n"
 "\"-p\" のように引数なしで -p を使うとプロファイルなしとなります。\n"
 "\n"
 "例:\n"
-"    lxc init ubuntu u1"
+"    lxc init ubuntu:16.04 u1"
 
 #: lxc/launch.go:20
-#, fuzzy
 msgid ""
 "Usage: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--"
 "profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t <instance "
@@ -1388,10 +1383,9 @@ msgid ""
 "Examples:\n"
 "    lxc launch ubuntu:16.04 u1"
 msgstr ""
-"使い方: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] "
-"[--profile|-p <profile>...] [--config|-c <key=value>...]\n"
+"使い方: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t <instance type>]\n"
 "\n"
-"指定したイメージと名前を使ってコンテナを起動します。\n"
+"指定したイメージからコンテナを起動します。\n"
 "\n"
 "-p を指定しない場合はデフォルトのプロファイルを使います。\n"
 "\"-p\" のように引数なしで -p を使うとプロファイルなしとなります。\n"
@@ -1400,7 +1394,6 @@ msgstr ""
 "    lxc launch ubuntu:16.04 u1"
 
 #: lxc/list.go:46
-#, fuzzy
 msgid ""
 "Usage: lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] "
 "[--fast]\n"
@@ -1468,8 +1461,7 @@ msgid ""
 "    Shows a list of containers using the \"NAME\", \"STATE\", \"IPV4\", "
 "\"IPV6\" columns."
 msgstr ""
-"使い方: lxc list [<remote>:] [filters] [--format table|json] [-c columns] [--"
-"fast]\n"
+"使い方: lxc list [<remote>:] [filters] [--format table|json] [-c columns] [--fast]\n"
 "\n"
 "コンテナを一覧表示します。\n"
 "\n"
@@ -1477,15 +1469,13 @@ msgstr ""
 "Fast モードのカラムレイアウト: nsacPt\n"
 "\n"
 "*フィルタ*\n"
-"単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるコ\n"
-"ンテナが一覧表示されます。\n"
+"単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるコンテナが一覧表示されます。\n"
 "\n"
 "コンテナ名の正規表現 (例: .*web.*01$)。\n"
 "\n"
 "設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することがで\n"
 "きます:\n"
-"    - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定\n"
-"    されているコンテナをすべて一覧表示します。\n"
+"    - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定されているコンテナをすべて一覧表示します。\n"
 "\n"
 "    - \"u.blah=abc\" は上記と同じ意味になります。\n"
 "\n"
@@ -1493,8 +1483,7 @@ msgstr ""
 "\n"
 "    - \"s.privilaged=1\" は上記と同じ意味になります。\n"
 "\n"
-"設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:."
-"*)\n"
+"設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:.*)\n"
 "\n"
 "*カラム*\n"
 "\n"
@@ -1532,8 +1521,7 @@ msgstr ""
 "\n"
 "*例*\n"
 "lxc list -c ns46\n"
-"    コンテナの \"NAME\"、\"STATE\"、\"IPV4\"、\"IPV6\" を使って一覧表示しま"
-"す。"
+"    コンテナの \"NAME\"、\"STATE\"、\"IPV4\"、\"IPV6\" を使って一覧表示します。"
 
 #: lxc/manpage.go:20
 msgid ""
@@ -1887,7 +1875,7 @@ msgstr "ユーザが削除操作を中断しました。"
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."
-msgstr ""
+msgstr "ユーザからのシグナルを 3 度受信したので exit しました。リモート操作は実行し続けます。"
 
 #: lxc/restore.go:38
 msgid ""
