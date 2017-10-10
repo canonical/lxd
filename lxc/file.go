@@ -109,7 +109,7 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 	var sourcefilenames []string
 	for _, fname := range args[:len(args)-1] {
 		if !strings.HasPrefix(fname, "--") {
-			sourcefilenames = append(sourcefilenames, fname)
+			sourcefilenames = append(sourcefilenames, shared.HostPath(filepath.Clean(fname)))
 		}
 	}
 
@@ -187,7 +187,7 @@ func (c *fileCmd) pull(conf *config.Config, args []string) error {
 		return errArgs
 	}
 
-	target := args[len(args)-1]
+	target := shared.HostPath(filepath.Clean(args[len(args)-1]))
 	targetIsDir := false
 	sb, err := os.Stat(target)
 	if err != nil && !os.IsNotExist(err) {
