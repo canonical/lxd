@@ -462,7 +462,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 
 		for _, arg := range args[1:] {
 			split := strings.Split(arg, "=")
-			if len(split) == 1 || shared.PathExists(arg) {
+			if len(split) == 1 || shared.PathExists(shared.HostPath(arg)) {
 				if strings.HasSuffix(arg, ":") {
 					var err error
 					remote, _, err = conf.ParseRemote(arg)
@@ -489,6 +489,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			imageFile = args[1]
 			properties = properties[1:]
 		}
+		imageFile = shared.HostPath(filepath.Clean(imageFile))
 
 		d, err := conf.GetContainerServer(remote)
 		if err != nil {
@@ -691,6 +692,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 				targetMeta = args[2]
 			}
 		}
+		targetMeta = shared.HostPath(targetMeta)
 		targetRootfs := targetMeta + ".root"
 
 		// Prepare the files
@@ -737,7 +739,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 		// Rename files
 		if shared.IsDir(target) {
 			if resp.MetaName != "" {
-				err := os.Rename(targetMeta, filepath.Join(target, resp.MetaName))
+				err := os.Rename(targetMeta, shared.HostPath(filepath.Join(target, resp.MetaName)))
 				if err != nil {
 					os.Remove(targetMeta)
 					os.Remove(targetRootfs)
@@ -747,7 +749,7 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			}
 
 			if resp.RootfsSize > 0 && resp.RootfsName != "" {
-				err := os.Rename(targetRootfs, filepath.Join(target, resp.RootfsName))
+				err := os.Rename(targetRootfs, shared.HostPath(filepath.Join(target, resp.RootfsName)))
 				if err != nil {
 					os.Remove(targetMeta)
 					os.Remove(targetRootfs)
