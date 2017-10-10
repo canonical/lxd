@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-10-06 13:51+0200\n"
+"POT-Creation-Date: 2017-10-09 23:44-0400\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -381,7 +381,7 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 
-#: lxc/network.go:468 lxc/profile.go:528 lxc/storage.go:629
+#: lxc/network.go:468 lxc/profile.go:528 lxc/storage.go:643
 msgid "Cannot provide container name to list"
 msgstr ""
 
@@ -408,7 +408,7 @@ msgid "Config key/value to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1169
-#: lxc/network.go:418 lxc/profile.go:267 lxc/storage.go:580 lxc/storage.go:955
+#: lxc/network.go:418 lxc/profile.go:267 lxc/storage.go:594 lxc/storage.go:969
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
 msgstr "YAML Analyse Fehler %v\n"
@@ -473,11 +473,11 @@ msgid "Creating the container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/image.go:231 lxc/image.go:1116 lxc/list.go:463 lxc/network.go:507
-#: lxc/storage.go:658 lxc/storage.go:769
+#: lxc/storage.go:672 lxc/storage.go:783
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/storage.go:659
+#: lxc/storage.go:673
 msgid "DRIVER"
 msgstr ""
 
@@ -784,7 +784,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "Fehlende Zusammenfassung."
 
-#: lxc/network.go:276 lxc/network.go:329 lxc/storage.go:378 lxc/storage.go:498
+#: lxc/network.go:276 lxc/network.go:329 lxc/storage.go:392 lxc/storage.go:512
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
@@ -808,7 +808,7 @@ msgid "Must supply container name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
 #: lxc/list.go:465 lxc/network.go:504 lxc/profile.go:555 lxc/remote.go:381
-#: lxc/storage.go:657 lxc/storage.go:768
+#: lxc/storage.go:671 lxc/storage.go:782
 msgid "NAME"
 msgstr ""
 
@@ -854,7 +854,7 @@ msgstr "Kein Zertifikat zum hinzufügen bereitgestellt"
 msgid "No device found for this network"
 msgstr "Kein Zertifikat für diese Verbindung"
 
-#: lxc/storage.go:387 lxc/storage.go:507
+#: lxc/storage.go:401 lxc/storage.go:521
 #, fuzzy
 msgid "No device found for this storage volume."
 msgstr "Kein Zertifikat für diese Verbindung"
@@ -863,7 +863,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid "No fingerprint specified."
 msgstr "Kein Fingerabdruck angegeben."
 
-#: lxc/storage.go:331 lxc/storage.go:424
+#: lxc/storage.go:345 lxc/storage.go:438
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr ""
 
@@ -939,7 +939,7 @@ msgstr ""
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/network.go:419 lxc/profile.go:268 lxc/storage.go:581 lxc/storage.go:956
+#: lxc/network.go:419 lxc/profile.go:268 lxc/storage.go:595 lxc/storage.go:970
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -1072,7 +1072,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:660
+#: lxc/storage.go:674
 msgid "SOURCE"
 msgstr ""
 
@@ -1188,12 +1188,12 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Stopping the container failed: %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/storage.go:472
+#: lxc/storage.go:486
 #, fuzzy, c-format
 msgid "Storage pool %s created"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/storage.go:531
+#: lxc/storage.go:545
 #, fuzzy, c-format
 msgid "Storage pool %s deleted"
 msgstr "Profil %s gelöscht\n"
@@ -1203,12 +1203,12 @@ msgstr "Profil %s gelöscht\n"
 msgid "Storage pool name"
 msgstr "Profilname kann nicht geändert werden"
 
-#: lxc/storage.go:802
+#: lxc/storage.go:816
 #, fuzzy, c-format
 msgid "Storage volume %s created"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/storage.go:817
+#: lxc/storage.go:831
 #, fuzzy, c-format
 msgid "Storage volume %s deleted"
 msgstr "Profil %s gelöscht\n"
@@ -1226,7 +1226,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:470 lxc/network.go:505 lxc/storage.go:767
+#: lxc/list.go:470 lxc/network.go:505 lxc/storage.go:781
 msgid "TYPE"
 msgstr ""
 
@@ -1264,7 +1264,7 @@ msgstr ""
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
-#: lxc/network.go:290 lxc/network.go:343 lxc/storage.go:392 lxc/storage.go:512
+#: lxc/network.go:290 lxc/network.go:343 lxc/storage.go:406 lxc/storage.go:526
 #, fuzzy
 msgid "The specified device doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
@@ -1343,7 +1343,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:508 lxc/profile.go:556 lxc/storage.go:661 lxc/storage.go:770
+#: lxc/network.go:508 lxc/profile.go:556 lxc/storage.go:675 lxc/storage.go:784
 msgid "USED BY"
 msgstr ""
 
