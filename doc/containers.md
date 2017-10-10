@@ -33,6 +33,7 @@ limits.cpu                           | string    | - (all)       | yes          
 limits.cpu.allowance                 | string    | 100%          | yes           | -                                    | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
 limits.cpu.priority                  | integer   | 10 (maximum)  | yes           | -                                    | CPU scheduling priority compared to other containers sharing the same CPUs (overcommit) (integer between 0 and 10)
 limits.disk.priority                 | integer   | 5 (medium)    | yes           | -                                    | When under load, how much priority to give to the container's I/O requests (integer between 0 and 10)
+limits.kernel.\*                     | string    | -             | no            | kernel\_limits                       | This limits kernel resources per container (e.g. number of open files)
 limits.memory                        | string    | - (all)       | yes           | -                                    | Percentage of the host's memory or fixed value in bytes (supports kB, MB, GB, TB, PB and EB suffixes)
 limits.memory.enforce                | string    | hard          | yes           | -                                    | If hard, container can't exceed its memory limit. If soft, the container can exceed its memory limit when extra host memory is available.
 limits.memory.swap                   | boolean   | true          | yes           | -                                    | Whether to allow some of the container's memory to be swapped out to disk
@@ -316,3 +317,39 @@ lxc launch ubuntu:16.04 my-container -t t2.micro
 The list of supported clouds and instance types can be found here:
 
   https://github.com/dustinkirkland/instance-type
+
+## Resource limits via `limits.kernel.[limit name]`
+LXD exposes a generic namespaced key `limits.kernel.*` which can be used to set
+resource limits for a given container. It is generic in the sense that LXD will
+not perform any validation on the resource that is specified following the
+`limits.kernel.*` prefix. LXD cannot know about all the possible resources that
+a given kernel supports. Instead, LXD will simply pass down the corresponding
+resource key after the `limits.kernel.*` prefix and its value to the kernel.
+The kernel will do the appropriate validation. This allows users to specify any
+supported limit on their system. Some common limits are:
+
+Key                      | Resource          | Description
+:--                      | :---              | :----------
+limits.kernel.as         | RLIMIT_AS         | Maximum size of the process's virtual memory
+limits.kernel.core       | RLIMIT_CORE       | Maximum size of the process's coredump file
+limits.kernel.cpu        | RLIMIT_CPU        | Limit in seconds on the amount of cpu time the process can consume
+limits.kernel.data       | RLIMIT_DATA       | Maximum size of the process's data segment
+limits.kernel.fsize      | RLIMIT_FSIZE      | Maximum size of files the process may create
+limits.kernel.locks      | RLIMIT_LOCKS      | Limit on the number of file locks that this process may establish
+limits.kernel.memlock    | RLIMIT_MEMLOCK    | Limit on the number of bytes of memory that the process may lock in RAM
+limits.kernel.nice       | RLIMIT_NICE       | Maximum value to which the process's nice value can be raised
+limits.kernel.nofile     | RLIMIT_NOFILE     | Maximum number of open files for the process
+limits.kernel.nproc      | RLIMIT_NPROC      | Maximum number of processes that can be created for the user of the calling process
+limits.kernel.rtprio     | RLIMIT_RTPRIO     | Maximum value on the real-time-priority that maybe set for this process
+limits.kernel.sigpending | RLIMIT_SIGPENDING | Maximum number of signals that maybe queued for the user of the calling process
+
+A full list of all available limits can be found in the manpages for the
+`getrlimit(2)`/`setrlimit(2)` system calls. To specify a limit within the
+`limits.kernel.*` namespace use the resource name in lowercase without the
+`RLIMIT_` prefix, e.g.  `RLIMIT_NOFILE` should be specified as `nofile`.
+A limit is specified as two colon separated values which are either numeric or
+the word `unlimited` (e.g. `limits.kernel.nofile=1000:2000`). A single value can be
+used as a shortcut to set both soft and hard limit (e.g.
+`limits.kernel.nofile=3000`) to the same value. A resource with no explicitly
+configured limitation will be inherited from the process starting up the
+container. Note that this inheritance is not enforced by LXD but by the kernel.
