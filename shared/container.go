@@ -231,5 +231,10 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 		return IsAny, nil
 	}
 
+	if strings.HasPrefix(key, "limits.kernel.") &&
+		(len(key) > len("limits.kernel.")) {
+		return IsAny, nil
+	}
+
 	return nil, fmt.Errorf("Bad key: %s", key)
 }
