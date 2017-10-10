@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-10-06 13:51+0200\n"
-"PO-Revision-Date: 2017-08-03 05:16+0000\n"
+"POT-Creation-Date: 2017-10-09 23:44-0400\n"
+"PO-Revision-Date: 2017-09-28 20:29+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 2.16-dev\n"
+"X-Generator: Weblate 2.17-dev\n"
 
 #: lxc/storage.go:33
 msgid ""
@@ -197,7 +197,7 @@ msgstr "証明書を受け入れます"
 
 #: lxc/query.go:38
 msgid "Action (defaults to GET)"
-msgstr ""
+msgstr "使用するHTTPのメソッド (デフォルト: GET)"
 
 #: lxc/remote.go:256
 #, c-format
@@ -248,9 +248,9 @@ msgid "CREATED AT"
 msgstr ""
 
 #: lxc/image.go:611
-#, fuzzy, c-format
+#, c-format
 msgid "Cached: %s"
-msgstr "作成日時: %s"
+msgstr "キャッシュ済: %s"
 
 #: lxc/file.go:485
 #, fuzzy
@@ -273,7 +273,7 @@ msgstr "キー '%s' が設定されていないので削除できません"
 msgid "Can't unset key '%s', it's not currently set."
 msgstr "キー '%s' が指定されていないので削除できません。"
 
-#: lxc/network.go:468 lxc/profile.go:528 lxc/storage.go:629
+#: lxc/network.go:468 lxc/profile.go:528 lxc/storage.go:643
 msgid "Cannot provide container name to list"
 msgstr "コンテナ名を取得できません"
 
@@ -299,7 +299,7 @@ msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
 #: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1169
-#: lxc/network.go:418 lxc/profile.go:267 lxc/storage.go:580 lxc/storage.go:955
+#: lxc/network.go:418 lxc/profile.go:267 lxc/storage.go:594 lxc/storage.go:969
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -362,11 +362,11 @@ msgid "Creating the container"
 msgstr "コンテナを作成中"
 
 #: lxc/image.go:231 lxc/image.go:1116 lxc/list.go:463 lxc/network.go:507
-#: lxc/storage.go:658 lxc/storage.go:769
+#: lxc/storage.go:672 lxc/storage.go:783
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/storage.go:659
+#: lxc/storage.go:673
 msgid "DRIVER"
 msgstr ""
 
@@ -512,9 +512,8 @@ msgid "Force the container to shutdown"
 msgstr "コンテナを強制シャットダウンします"
 
 #: lxc/delete.go:34 lxc/delete.go:35
-#, fuzzy
 msgid "Force the removal of running containers"
-msgstr "停止したコンテナを強制的に削除します"
+msgstr "稼働中のコンテナを強制的に削除します"
 
 #: lxc/main.go:49
 msgid "Force using the local unix socket"
@@ -575,7 +574,7 @@ msgstr "イメージの更新が成功しました!"
 
 #: lxc/query.go:39
 msgid "Input data"
-msgstr ""
+msgstr "入力するデータ"
 
 #: lxc/init.go:147
 msgid "Instance type"
@@ -666,7 +665,7 @@ msgstr "メモリ消費量:"
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
-#: lxc/network.go:276 lxc/network.go:329 lxc/storage.go:378 lxc/storage.go:498
+#: lxc/network.go:276 lxc/network.go:329 lxc/storage.go:392 lxc/storage.go:512
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
@@ -689,7 +688,7 @@ msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
 #: lxc/list.go:465 lxc/network.go:504 lxc/profile.go:555 lxc/remote.go:381
-#: lxc/storage.go:657 lxc/storage.go:768
+#: lxc/storage.go:671 lxc/storage.go:782
 msgid "NAME"
 msgstr ""
 
@@ -732,7 +731,7 @@ msgstr "追加すべき証明書が提供されていません"
 msgid "No device found for this network"
 msgstr "このネットワークに対するデバイスがありません"
 
-#: lxc/storage.go:387 lxc/storage.go:507
+#: lxc/storage.go:401 lxc/storage.go:521
 msgid "No device found for this storage volume."
 msgstr "このストレージボリュームに対するデバイスがありません。"
 
@@ -740,7 +739,7 @@ msgstr "このストレージボリュームに対するデバイスがありま
 msgid "No fingerprint specified."
 msgstr "フィンガープリントが指定されていません。"
 
-#: lxc/storage.go:331 lxc/storage.go:424
+#: lxc/storage.go:345 lxc/storage.go:438
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr "\"カスタム\" のボリュームのみがコンテナにアタッチできます。"
 
@@ -813,7 +812,7 @@ msgstr "アクセスが拒否されました。lxd グループに所属して�
 msgid "Pid: %d"
 msgstr "Pid: %d"
 
-#: lxc/network.go:419 lxc/profile.go:268 lxc/storage.go:581 lxc/storage.go:956
+#: lxc/network.go:419 lxc/profile.go:268 lxc/storage.go:595 lxc/storage.go:970
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
@@ -832,7 +831,7 @@ msgstr "全てのコマンドを表示します (主なコマンドだけでは�
 
 #: lxc/query.go:37
 msgid "Print the raw response"
-msgstr ""
+msgstr "レスポンスをそのまま表示します"
 
 #: lxc/help.go:74
 msgid "Print verbose information"
@@ -942,7 +941,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:660
+#: lxc/storage.go:674
 msgid "SOURCE"
 msgstr ""
 
@@ -1055,12 +1054,12 @@ msgstr "コンテナの停止に失敗しました！"
 msgid "Stopping the container failed: %s"
 msgstr "コンテナの停止に失敗しました: %s"
 
-#: lxc/storage.go:472
+#: lxc/storage.go:486
 #, c-format
 msgid "Storage pool %s created"
 msgstr "ストレージプール %s を作成しました"
 
-#: lxc/storage.go:531
+#: lxc/storage.go:545
 #, c-format
 msgid "Storage pool %s deleted"
 msgstr "ストレージプール %s を削除しました"
@@ -1069,12 +1068,12 @@ msgstr "ストレージプール %s を削除しました"
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
-#: lxc/storage.go:802
+#: lxc/storage.go:816
 #, c-format
 msgid "Storage volume %s created"
 msgstr "ストレージボリューム %s を作成しました"
 
-#: lxc/storage.go:817
+#: lxc/storage.go:831
 #, c-format
 msgid "Storage volume %s deleted"
 msgstr "ストレージボリューム %s を削除しました"
@@ -1091,7 +1090,7 @@ msgstr "Swap (現在値)"
 msgid "Swap (peak)"
 msgstr "Swap (ピーク)"
 
-#: lxc/list.go:470 lxc/network.go:505 lxc/storage.go:767
+#: lxc/list.go:470 lxc/network.go:505 lxc/storage.go:781
 msgid "TYPE"
 msgstr ""
 
@@ -1130,7 +1129,7 @@ msgstr ""
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
-#: lxc/network.go:290 lxc/network.go:343 lxc/storage.go:392 lxc/storage.go:512
+#: lxc/network.go:290 lxc/network.go:343 lxc/storage.go:406 lxc/storage.go:526
 msgid "The specified device doesn't exist"
 msgstr "指定したデバイスが存在しません"
 
@@ -1215,7 +1214,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:508 lxc/profile.go:556 lxc/storage.go:661 lxc/storage.go:770
+#: lxc/network.go:508 lxc/profile.go:556 lxc/storage.go:675 lxc/storage.go:784
 msgid "USED BY"
 msgstr ""
 
@@ -1731,13 +1730,14 @@ msgstr ""
 "    リでなければなりません。出力先がディレクトリの場合、データベースで\n"
 "    見つかったイメージ名 (分割イメージの部分それぞれの名前) をエクスポー\n"
 "    トするイメージに使用します。出力先がファイルの場合 (ディレクトリで\n"
-"    も標準出力でもない場合)、イメージを圧縮するアルゴリズムにも土づい\n"
+"    も標準出力でもない場合)、イメージを圧縮するアルゴリズムにもとづい\n"
 "    た適切な拡張子が対象のファイル名に追加されます。\n"
 "\n"
 "lxc image info [<remote>:]<image>\n"
 "    指定したイメージについてのすべての情報を表示します。\n"
 "\n"
-"lxc image list [<remote>:] [filter] [--format table|json]\n"
+"lxc image list [<remote>:] [filter] [--format csv|json|table|yaml] [-c "
+"<columns>]\n"
 "    LXD のイメージストア内のイメージを一覧表示します。プロパティでフィルタ\n"
 "    を行う場合は、フィルタは <key>=<value> の形になります。フィルタはイメー\n"
 "    ジハッシュの一部やイメージエイリアス名の一部も指定できます。\n"
@@ -2395,6 +2395,14 @@ msgid ""
 "lxc query -X DELETE --wait /1.0/containers/c1\n"
 "    Delete local container \"c1\"."
 msgstr ""
+"使い方: lxc query [-X <action>] [-d <data>] [--wait] [--raw] [<remote>:]<API "
+"path>\n"
+"\n"
+"LXD に対して直接 API を指定してリクエストを送ります。\n"
+"\n"
+"*例*\n"
+"lxc query -X DELETE --wait /1.0/containers/c1\n"
+"    ローカルのコンテナ \"c1\" を削除します。"
 
 #: lxc/remote.go:39
 msgid ""
@@ -2709,7 +2717,7 @@ msgstr ""
 
 #: lxc/query.go:36
 msgid "Wait for the operation to complete"
-msgstr ""
+msgstr "処理が完全に終わるまで待ちます"
 
 #: lxc/restore.go:38
 msgid ""

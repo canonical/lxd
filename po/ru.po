@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-10-06 13:51+0200\n"
-"PO-Revision-Date: 2017-06-06 13:55+0000\n"
-"Last-Translator: Александр Киль <shorrey@gmail.com>\n"
+"POT-Creation-Date: 2017-10-09 23:44-0400\n"
+"PO-Revision-Date: 2017-09-05 16:48+0000\n"
+"Last-Translator: Ilya Yakimavets <ilya.yakimavets@backend.expert>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/ru/>\n"
 "Language: ru\n"
@@ -18,10 +18,9 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
-"X-Generator: Weblate 2.15-dev\n"
+"X-Generator: Weblate 2.17-dev\n"
 
 #: lxc/storage.go:33
-#, fuzzy
 msgid ""
 "### This is a yaml representation of a storage pool.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -37,22 +36,19 @@ msgid ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 msgstr ""
-"### Это представление сети в формате YAML.\n"
+"### Это представление хранилища в формате YAML.\n"
 "### Любая строка начинающаяся с '#' будет игнорироваться.\n"
 "###\n"
-"### Сеть состоит из набора элементов конфигурации.\n"
+"### Хранилище состоит из набора элементов конфигурации.\n"
 "###\n"
-"### Пример:\n"
-"### name: lxdbr0\n"
+"###Пример:\n"
+"### name: default\n"
+"### driver: zfs\n"
+"### used_by: []\n"
 "### config:\n"
-"###   ipv4.address: 10.62.42.1/24\n"
-"###   ipv4.nat: true\n"
-"###   ipv6.address: fd00:56ad:9f7a:9800::1/64\n"
-"###   ipv6.nat: true\n"
-"### managed: true\n"
-"### type: bridge\n"
-"###\n"
-"### Обратите внимание, что только конфигурация может быть изменена."
+"###   size: \"61203283968\"\n"
+"###   source: /home/chb/mnt/lxd_test/default.img\n"
+"###   zfs.pool_name: default"
 
 #: lxc/storage.go:50
 msgid ""
@@ -358,7 +354,7 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 
-#: lxc/network.go:468 lxc/profile.go:528 lxc/storage.go:629
+#: lxc/network.go:468 lxc/profile.go:528 lxc/storage.go:643
 msgid "Cannot provide container name to list"
 msgstr "Невозможно добавить имя контейнера в список"
 
@@ -384,7 +380,7 @@ msgid "Config key/value to apply to the new container"
 msgstr ""
 
 #: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1169
-#: lxc/network.go:418 lxc/profile.go:267 lxc/storage.go:580 lxc/storage.go:955
+#: lxc/network.go:418 lxc/profile.go:267 lxc/storage.go:594 lxc/storage.go:969
 #, c-format
 msgid "Config parsing error: %s"
 msgstr ""
@@ -447,11 +443,11 @@ msgid "Creating the container"
 msgstr ""
 
 #: lxc/image.go:231 lxc/image.go:1116 lxc/list.go:463 lxc/network.go:507
-#: lxc/storage.go:658 lxc/storage.go:769
+#: lxc/storage.go:672 lxc/storage.go:783
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/storage.go:659
+#: lxc/storage.go:673
 msgid "DRIVER"
 msgstr ""
 
@@ -751,7 +747,7 @@ msgstr " Использование памяти:"
 msgid "Missing summary."
 msgstr ""
 
-#: lxc/network.go:276 lxc/network.go:329 lxc/storage.go:378 lxc/storage.go:498
+#: lxc/network.go:276 lxc/network.go:329 lxc/storage.go:392 lxc/storage.go:512
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
@@ -772,7 +768,7 @@ msgid "Must supply container name for: "
 msgstr ""
 
 #: lxc/list.go:465 lxc/network.go:504 lxc/profile.go:555 lxc/remote.go:381
-#: lxc/storage.go:657 lxc/storage.go:768
+#: lxc/storage.go:671 lxc/storage.go:782
 msgid "NAME"
 msgstr ""
 
@@ -816,7 +812,7 @@ msgstr ""
 msgid "No device found for this network"
 msgstr ""
 
-#: lxc/storage.go:387 lxc/storage.go:507
+#: lxc/storage.go:401 lxc/storage.go:521
 msgid "No device found for this storage volume."
 msgstr ""
 
@@ -824,7 +820,7 @@ msgstr ""
 msgid "No fingerprint specified."
 msgstr ""
 
-#: lxc/storage.go:331 lxc/storage.go:424
+#: lxc/storage.go:345 lxc/storage.go:438
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr ""
 
@@ -897,7 +893,7 @@ msgstr ""
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/network.go:419 lxc/profile.go:268 lxc/storage.go:581 lxc/storage.go:956
+#: lxc/network.go:419 lxc/profile.go:268 lxc/storage.go:595 lxc/storage.go:970
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -1026,7 +1022,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:660
+#: lxc/storage.go:674
 msgid "SOURCE"
 msgstr ""
 
@@ -1139,12 +1135,12 @@ msgstr ""
 msgid "Stopping the container failed: %s"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/storage.go:472
+#: lxc/storage.go:486
 #, c-format
 msgid "Storage pool %s created"
 msgstr ""
 
-#: lxc/storage.go:531
+#: lxc/storage.go:545
 #, c-format
 msgid "Storage pool %s deleted"
 msgstr ""
@@ -1153,12 +1149,12 @@ msgstr ""
 msgid "Storage pool name"
 msgstr ""
 
-#: lxc/storage.go:802
+#: lxc/storage.go:816
 #, c-format
 msgid "Storage volume %s created"
 msgstr ""
 
-#: lxc/storage.go:817
+#: lxc/storage.go:831
 #, c-format
 msgid "Storage volume %s deleted"
 msgstr ""
@@ -1175,7 +1171,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:470 lxc/network.go:505 lxc/storage.go:767
+#: lxc/list.go:470 lxc/network.go:505 lxc/storage.go:781
 msgid "TYPE"
 msgstr ""
 
@@ -1211,7 +1207,7 @@ msgstr ""
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
-#: lxc/network.go:290 lxc/network.go:343 lxc/storage.go:392 lxc/storage.go:512
+#: lxc/network.go:290 lxc/network.go:343 lxc/storage.go:406 lxc/storage.go:526
 msgid "The specified device doesn't exist"
 msgstr ""
 
@@ -1286,7 +1282,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:508 lxc/profile.go:556 lxc/storage.go:661 lxc/storage.go:770
+#: lxc/network.go:508 lxc/profile.go:556 lxc/storage.go:675 lxc/storage.go:784
 msgid "USED BY"
 msgstr ""
 
