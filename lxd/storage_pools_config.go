@@ -187,9 +187,10 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 }
 
 func storagePoolFillDefault(name string, driver string, config map[string]string) error {
-	if driver == "dir" {
+	if driver == "dir" || driver == "ceph" {
 		if config["size"] != "" {
-			return fmt.Errorf("The \"size\" property does not apply to %s storage pools", driver)
+			return fmt.Errorf(`The "size" property does not apply `+
+				`to %s storage pools`, driver)
 		}
 	} else {
 		if config["size"] == "" {
