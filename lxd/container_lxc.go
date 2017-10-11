@@ -3387,7 +3387,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Diff the devices
-	removeDevices, addDevices, updateDevices := oldExpandedDevices.Update(c.expandedDevices)
+	removeDevices, addDevices, updateDevices, updateDiff := oldExpandedDevices.Update(c.expandedDevices)
 
 	// Do some validation of the config diff
 	err = containerValidConfig(c.state.OS, c.expandedConfig, false, true)
@@ -3997,10 +3997,20 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			if m["type"] == "disk" {
 				updateDiskLimit = true
 			} else if m["type"] == "nic" {
-				// Refresh tc limits
-				err = c.setNetworkLimits(k, m)
-				if err != nil {
-					return err
+				needsUpdate := false
+				for _, v := range containerNetworkLimitKeys {
+					needsUpdate = shared.StringInSlice(v, updateDiff)
+					if needsUpdate {
+						break
+					}
+				}
+
+				if needsUpdate {
+					// Refresh tc limits
+					err = c.setNetworkLimits(k, m)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -6796,7 +6806,6 @@ func (c *containerLXC) setNetworkLimits(name string, m types.Device) error {
 
 	// Look for the host side interface name
 	veth := c.getHostInterface(m["name"])
-
 	if veth == "" {
 		return fmt.Errorf("LXC doesn't know about this device and the host_name property isn't set, can't find host side veth name")
 	}
