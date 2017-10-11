@@ -48,7 +48,26 @@ func deviceEquals(old Device, d Device) bool {
 	return true
 }
 
-func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device, map[string]Device) {
+func deviceEqualsDiffKeys(old Device, d Device) []string {
+	keys := []string{}
+
+	// Check for any difference and addition/removal of properties
+	for k := range d {
+		if d[k] != old[k] {
+			keys = append(keys, k)
+		}
+	}
+
+	for k := range old {
+		if d[k] != old[k] {
+			keys = append(keys, k)
+		}
+	}
+
+	return keys
+}
+
+func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device, map[string]Device, []string) {
 	rmlist := map[string]Device{}
 	addlist := map[string]Device{}
 	updatelist := map[string]Device{}
@@ -65,6 +84,7 @@ func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device
 		}
 	}
 
+	updateDiff := []string{}
 	for key, d := range addlist {
 		srcOldDevice := rmlist[key]
 		var oldDevice Device
@@ -80,6 +100,8 @@ func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device
 			continue
 		}
 
+		updateDiff = deviceEqualsDiffKeys(oldDevice, newDevice)
+
 		for _, k := range []string{"limits.max", "limits.read", "limits.write", "limits.egress", "limits.ingress", "ipv4.address", "ipv6.address"} {
 			delete(oldDevice, k)
 			delete(newDevice, k)
@@ -92,7 +114,7 @@ func (old Devices) Update(newlist Devices) (map[string]Device, map[string]Device
 		}
 	}
 
-	return rmlist, addlist, updatelist
+	return rmlist, addlist, updatelist, updateDiff
 }
 
 func (newBaseDevices Devices) ExtendFromProfile(currentFullDevices Devices, newDevicesFromProfile Devices) error {
