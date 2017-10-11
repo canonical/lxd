@@ -239,6 +239,8 @@ func containerValidConfigKey(key string, value string) error {
 	return fmt.Errorf("Bad key: %s", key)
 }
 
+var containerNetworkLimitKeys = []string{"limits.max", "limits.ingress", "limits.egress"}
+
 func containerValidDeviceConfigKey(t, k string) bool {
 	if k == "type" {
 		return true
