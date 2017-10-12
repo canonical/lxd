@@ -217,6 +217,32 @@ func TestSchemaEnsure_FailingHook(t *testing.T) {
 	assert.NotContains(t, tables, "test")
 }
 
+// If the schema check callback returns ErrGracefulAbort, the process is
+// aborted, although every change performed so far gets still committed.
+func TestSchemaEnsure_CheckGracefulAbort(t *testing.T) {
+	check := func(current int, tx *sql.Tx) error {
+		_, err := tx.Exec("CREATE TABLE test (n INTEGER)")
+		require.NoError(t, err)
+		return schema.ErrGracefulAbort
+	}
+
+	schema, db := newSchemaAndDB(t)
+	schema.Add(updateCreateTable)
+	schema.Check(check)
+
+	_, err := schema.Ensure(db)
+	require.EqualError(t, err, "schema check gracefully aborted")
+
+	tx, err := db.Begin()
+	assert.NoError(t, err)
+
+	// The table created by the check function still got committed.
+	// to insert the row was not.
+	ids, err := query.SelectIntegers(tx, "SELECT n FROM test")
+	assert.NoError(t, err)
+	assert.Equal(t, []int{}, ids)
+}
+
 // The SQL text returns by Dump() can be used to create the schema from
 // scratch, without applying each individual update.
 func TestSchemaDump(t *testing.T) {
