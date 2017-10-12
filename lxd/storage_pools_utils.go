@@ -64,7 +64,7 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 
 	// Update the database if something changed
 	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = state.DB.StoragePoolUpdate(name, newDescription, newConfig)
+		err = state.Node.StoragePoolUpdate(name, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
@@ -166,7 +166,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	}
 
 	// Check that the storage pool does not already exist.
-	_, err = s.DB.StoragePoolGetID(poolName)
+	_, err = s.Node.StoragePoolGetID(poolName)
 	if err == nil {
 		return fmt.Errorf("The storage pool already exists")
 	}
@@ -189,7 +189,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	}
 
 	// Create the database entry for the storage pool.
-	_, err = dbStoragePoolCreateAndUpdateCache(s.DB, poolName, poolDescription, driver, config)
+	_, err = dbStoragePoolCreateAndUpdateCache(s.Node, poolName, poolDescription, driver, config)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 	}
@@ -211,7 +211,7 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 		if !tryUndo {
 			return
 		}
-		dbStoragePoolDeleteAndUpdateCache(state.DB, poolName)
+		dbStoragePoolDeleteAndUpdateCache(state.Node, poolName)
 	}()
 
 	s, err := storagePoolInit(state, poolName)
@@ -240,7 +240,7 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 	configDiff, _ := storageConfigDiff(config, postCreateConfig)
 	if len(configDiff) > 0 {
 		// Create the database entry for the storage pool.
-		err = state.DB.StoragePoolUpdate(poolName, poolDescription, postCreateConfig)
+		err = state.Node.StoragePoolUpdate(poolName, poolDescription, postCreateConfig)
 		if err != nil {
 			return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 		}

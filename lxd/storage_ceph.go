@@ -968,7 +968,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
 
 		if ok {
-			_, volume, err := s.s.DB.StoragePoolVolumeGetType(fingerprint, db.StoragePoolVolumeTypeImage, s.poolID)
+			_, volume, err := s.s.Node.StoragePoolVolumeGetType(fingerprint, db.StoragePoolVolumeTypeImage, s.poolID)
 			if err != nil {
 				return err
 			}
