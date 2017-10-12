@@ -16,6 +16,7 @@ type Schema struct {
 	updates []Update // Ordered series of updates making up the schema
 	hook    Hook     // Optional hook to execute whenever a update gets applied
 	fresh   string   // Optional SQL statement used to create schema from scratch
+	check   Check    // Optional callback invoked before doing any update
 }
 
 // Update applies a specific schema change to a database, and returns an error
@@ -24,6 +25,14 @@ type Update func(*sql.Tx) error
 
 // Hook is a callback that gets fired when a update gets applied.
 type Hook func(int, *sql.Tx) error
+
+// Check is a callback that gets fired all the times Schema.Ensure is invoked,
+// before applying any update. It gets passed the version that the schema is
+// currently at and a handle to the transaction. If it returns nil, the update
+// proceeds normally, otherwise it's aborted. If ErrGracefulAbort is returned,
+// the transaction will still be committed, giving chance to this function to
+// perform state changes.
+type Check func(int, *sql.Tx) error
 
 // New creates a new schema Schema with the given updates.
 func New(updates []Update) *Schema {
@@ -87,6 +96,13 @@ func (s *Schema) Hook(hook Hook) {
 	s.hook = hook
 }
 
+// Check instructs the schema to invoke the given function whenever Ensure is
+// invoked, before applying any due update. It can be used for aborting the
+// operation.
+func (s *Schema) Check(check Check) {
+	s.check = check
+}
+
 // Fresh sets a statement that will be used to create the schema from scratch
 // when bootstraping an empty database. It should be a "flattening" of the
 // available updates, generated using the Dump() method. If not given, all
@@ -109,6 +125,7 @@ func (s *Schema) Fresh(statement string) {
 // initial version that the schema has been upgraded from.
 func (s *Schema) Ensure(db *sql.DB) (int, error) {
 	var current int
+	aborted := false
 	err := query.Transaction(db, func(tx *sql.Tx) error {
 		err := ensureSchemaTableExists(tx)
 		if err != nil {
@@ -119,6 +136,18 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 			return err
 		}
 
+		if s.check != nil {
+			err := s.check(current, tx)
+			if err == ErrGracefulAbort {
+				// Abort the update gracefully, committing what
+				// we've done so far.
+				aborted = true
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+		}
 		// When creating the schema from scratch, use the fresh dump if
 		// available. Otherwise just apply all relevant updates.
 		if current == 0 && s.fresh != "" {
@@ -137,6 +166,9 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 	})
 	if err != nil {
 		return -1, err
+	}
+	if aborted {
+		return current, ErrGracefulAbort
 	}
 	return current, nil
 }
@@ -287,7 +319,8 @@ func ensureUpdatesAreApplied(tx *sql.Tx, current int, updates []Update, hook Hoo
 		if hook != nil {
 			err := hook(current, tx)
 			if err != nil {
-				return fmt.Errorf("failed to execute hook (version %d): %v", current, err)
+				return fmt.Errorf(
+					"failed to execute hook (version %d): %v", current, err)
 			}
 		}
 		err := update(tx)
