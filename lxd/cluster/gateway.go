@@ -93,6 +93,7 @@ func (g *Gateway) init() error {
 func grpcMemoryDial(dial func() net.Conn) func() (*grpc.ClientConn, error) {
 	options := []grpc.DialOption{
 		grpc.WithInsecure(),
+		grpc.WithBlock(),
 		grpc.WithDialer(func(string, time.Duration) (net.Conn, error) {
 			return dial(), nil
 		}),

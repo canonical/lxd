@@ -41,7 +41,7 @@ func internalWaitReady(d *Daemon, r *http.Request) Response {
 }
 
 func internalShutdown(d *Daemon, r *http.Request) Response {
-	d.shutdownChan <- true
+	d.shutdownChan <- struct{}{}
 
 	return EmptySyncResponse
 }

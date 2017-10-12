@@ -2,7 +2,6 @@ package endpoints
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net"
 	"sync"
@@ -161,22 +160,10 @@ func (l *networkListener) Accept() (net.Conn, error) {
 
 // Config safely swaps the underlying TLS configuration.
 func (l *networkListener) Config(cert *shared.CertInfo) {
-	config := shared.InitTLSConfig()
-	config.ClientAuth = tls.RequestClientCert
-	config.Certificates = []tls.Certificate{cert.KeyPair()}
-
-	if cert.CA() != nil {
-		pool := x509.NewCertPool()
-		pool.AddCert(cert.CA())
-		config.RootCAs = pool
-		config.ClientCAs = pool
-
-		logger.Infof("LXD is in CA mode, only CA-signed certificates will be allowed")
-	}
-
-	config.BuildNameToCertificate()
+	config := util.ServerTLSConfig(cert)
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
 	l.config = config
 }
