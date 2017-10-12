@@ -13,6 +13,7 @@ func (s *OS) initDirs() error {
 	}{
 		{s.VarDir, 0711},
 		{s.CacheDir, 0700},
+		{filepath.Join(s.VarDir, "raft"), 0700},
 		{filepath.Join(s.VarDir, "containers"), 0711},
 		{filepath.Join(s.VarDir, "devices"), 0711},
 		{filepath.Join(s.VarDir, "devlxd"), 0755},

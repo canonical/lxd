@@ -48,8 +48,9 @@ type Daemon struct {
 	db           *db.Node
 	maas         *maas.Controller
 	cluster      *db.Cluster
-	readyChan    chan bool
-	shutdownChan chan bool
+	setupChan    chan struct{} // Closed when basic Daemon setup is completed
+	readyChan    chan struct{} // Closed when LXD is fully ready
+	shutdownChan chan struct{}
 
 	// Tasks registry for long-running background tasks.
 	tasks task.Group
@@ -82,8 +83,11 @@ type DaemonConfig struct {
 // NewDaemon returns a new Daemon object with the given configuration.
 func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	return &Daemon{
-		config: config,
-		os:     os,
+		config:       config,
+		os:           os,
+		setupChan:    make(chan struct{}),
+		readyChan:    make(chan struct{}),
+		shutdownChan: make(chan struct{}),
 	}
 }
 
@@ -205,6 +209,10 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 
 	restAPI.HandleFunc(uri, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+
+		// Block public API requests until we're done with basic
+		// initialization tasks, such setting up the cluster database.
+		<-d.setupChan
 
 		untrustedOk := (r.Method == "GET" && c.untrustedGet) || (r.Method == "POST" && c.untrustedPost)
 		err := d.checkTrustedClient(r)
@@ -339,10 +347,6 @@ func (d *Daemon) Init() error {
 }
 
 func (d *Daemon) init() error {
-	/* Initialize some variables */
-	d.readyChan = make(chan bool)
-	d.shutdownChan = make(chan bool)
-
 	/* Set the LVM environment */
 	err := os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
 	if err != nil {
@@ -409,6 +413,20 @@ func (d *Daemon) init() error {
 		return errors.Wrap(err, "failed to open cluster database")
 	}
 
+	/* Setup the web server */
+	config := &endpoints.Config{
+		Dir:                  d.os.VarDir,
+		Cert:                 certInfo,
+		RestServer:           RestServer(d),
+		DevLxdServer:         DevLxdServer(d),
+		LocalUnixSocketGroup: d.config.Group,
+		NetworkAddress:       address,
+	}
+	d.endpoints, err = endpoints.Up(config)
+	if err != nil {
+		return err
+	}
+
 	/* Read the storage pools */
 	err = SetupStorageDriver(d.State(), false)
 	if err != nil {
@@ -462,19 +480,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	/* Setup the web server */
-	config := &endpoints.Config{
-		Dir:                  d.os.VarDir,
-		Cert:                 certInfo,
-		RestServer:           RestServer(d),
-		DevLxdServer:         DevLxdServer(d),
-		LocalUnixSocketGroup: d.config.Group,
-		NetworkAddress:       address,
-	}
-	d.endpoints, err = endpoints.Up(config)
-	if err != nil {
-		return fmt.Errorf("cannot start API endpoints: %v", err)
-	}
+	close(d.setupChan)
 
 	// Run the post initialization actions
 	err = d.Ready()
@@ -554,17 +560,10 @@ func (d *Daemon) Stop() error {
 
 	trackError(d.tasks.Stop(time.Second)) // Give tasks at most a second to cleanup.
 
+	shouldUnmount := false
 	if d.db != nil {
 		if n, err := d.numRunningContainers(); err != nil || n == 0 {
-			logger.Infof("Unmounting temporary filesystems")
-
-			syscall.Unmount(shared.VarPath("devlxd"), syscall.MNT_DETACH)
-			syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
-
-			logger.Infof("Done unmounting temporary filesystems")
-		} else {
-			logger.Debugf(
-				"Not unmounting temporary filesystems (containers are still running)")
+			shouldUnmount = true
 		}
 
 		logger.Infof("Closing the database")
@@ -578,6 +577,22 @@ func (d *Daemon) Stop() error {
 	}
 	if d.endpoints != nil {
 		trackError(d.endpoints.Down())
+	}
+
+	if d.endpoints != nil {
+		trackError(d.endpoints.Down())
+	}
+
+	if shouldUnmount {
+		logger.Infof("Unmounting temporary filesystems")
+
+		syscall.Unmount(shared.VarPath("devlxd"), syscall.MNT_DETACH)
+		syscall.Unmount(shared.VarPath("shmounts"), syscall.MNT_DETACH)
+
+		logger.Infof("Done unmounting temporary filesystems")
+	} else {
+		logger.Debugf(
+			"Not unmounting temporary filesystems (containers are still running)")
 	}
 
 	logger.Infof("Saving simplestreams cache")
