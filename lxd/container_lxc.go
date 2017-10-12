@@ -271,7 +271,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
-		db:           s.DB,
+		db:           s.Node,
 		id:           args.Id,
 		name:         args.Name,
 		description:  args.Description,
@@ -307,7 +307,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		return nil, err
 	}
 
-	err = containerValidDevices(s.DB, c.expandedDevices, false, true)
+	err = containerValidDevices(s.Node, c.expandedDevices, false, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -329,7 +329,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, pool, err := s.DB.StoragePoolGet(storagePool)
+	poolID, pool, err := s.Node.StoragePoolGet(storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -343,7 +343,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	}
 
 	// Create a new database entry for the container's storage volume
-	_, err = s.DB.StoragePoolVolumeCreate(args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
+	_, err = s.Node.StoragePoolVolumeCreate(args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -353,7 +353,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	cStorage, err := storagePoolVolumeContainerCreateInit(s, storagePool, args.Name)
 	if err != nil {
 		c.Delete()
-		s.DB.StoragePoolVolumeDelete(args.Name, storagePoolVolumeTypeContainer, poolID)
+		s.Node.StoragePoolVolumeDelete(args.Name, storagePoolVolumeTypeContainer, poolID)
 		logger.Error("Failed to initialize container storage", ctxMap)
 		return nil, err
 	}
@@ -447,7 +447,7 @@ func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) 
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
-		db:           s.DB,
+		db:           s.Node,
 		id:           args.Id,
 		name:         args.Name,
 		description:  args.Description,
@@ -733,7 +733,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
-	cs, err := state.DB.ContainersList(db.CTypeRegular)
+	cs, err := state.Node.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -3380,12 +3380,12 @@ func writeBackupFile(c container) error {
 	}
 
 	s := c.DaemonState()
-	poolID, pool, err := s.DB.StoragePoolGet(poolName)
+	poolID, pool, err := s.Node.StoragePoolGet(poolName)
 	if err != nil {
 		return err
 	}
 
-	_, volume, err := s.DB.StoragePoolVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
+	_, volume, err := s.Node.StoragePoolVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		return err
 	}

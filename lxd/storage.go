@@ -283,7 +283,7 @@ func storageCoreInit(driver string) (storage, error) {
 
 func storageInit(s *state.State, poolName string, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
-	poolID, pool, err := s.DB.StoragePoolGet(poolName)
+	poolID, pool, err := s.Node.StoragePoolGet(poolName)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
 	if volumeName != "" && volumeType >= 0 {
-		_, volume, err = s.DB.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+		_, volume, err = s.Node.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -316,7 +316,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		btrfs.pool = pool
 		btrfs.volume = volume
 		btrfs.s = s
-		btrfs.db = s.DB
+		btrfs.db = s.Node
 		err = btrfs.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -328,7 +328,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		dir.pool = pool
 		dir.volume = volume
 		dir.s = s
-		dir.db = s.DB
+		dir.db = s.Node
 		err = dir.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -340,7 +340,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		ceph.pool = pool
 		ceph.volume = volume
 		ceph.s = s
-		ceph.db = s.DB
+		ceph.db = s.Node
 		err = ceph.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -352,7 +352,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		lvm.pool = pool
 		lvm.volume = volume
 		lvm.s = s
-		lvm.db = s.DB
+		lvm.db = s.Node
 		err = lvm.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -364,7 +364,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		mock.pool = pool
 		mock.volume = volume
 		mock.s = s
-		mock.db = s.DB
+		mock.db = s.Node
 		err = mock.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -376,7 +376,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		zfs.pool = pool
 		zfs.volume = volume
 		zfs.s = s
-		zfs.db = s.DB
+		zfs.db = s.Node
 		err = zfs.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -517,11 +517,11 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 	st.SetStoragePoolVolumeWritable(&poolVolumePut)
 
-	poolID, err := s.DB.StoragePoolGetID(poolName)
+	poolID, err := s.Node.StoragePoolGetID(poolName)
 	if err != nil {
 		return nil, err
 	}
-	err = s.DB.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = s.Node.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -544,7 +544,7 @@ func storagePoolVolumeContainerCreateInit(s *state.State, poolName string, conta
 
 func storagePoolVolumeContainerLoadInit(s *state.State, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
-	poolName, err := s.DB.ContainerPool(containerName)
+	poolName, err := s.Node.ContainerPool(containerName)
 	if err != nil {
 		return nil, err
 	}
@@ -810,7 +810,7 @@ func StorageProgressWriter(op *operation, key string, description string) func(i
 }
 
 func SetupStorageDriver(s *state.State, forceCheck bool) error {
-	pools, err := s.DB.StoragePools()
+	pools, err := s.Node.StoragePools()
 	if err != nil {
 		if err == db.NoSuchObjectError {
 			logger.Debugf("No existing storage pools detected.")
@@ -827,7 +827,7 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 	// but the upgrade somehow got messed up then there will be no
 	// "storage_api" entry in the db.
 	if len(pools) > 0 && !forceCheck {
-		appliedPatches, err := s.DB.Patches()
+		appliedPatches, err := s.Node.Patches()
 		if err != nil {
 			return err
 		}
@@ -854,7 +854,7 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 	}
 
 	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheUpdate(s.DB)
+	storagePoolDriversCacheUpdate(s.Node)
 	return nil
 }
 
