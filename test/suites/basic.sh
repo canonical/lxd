@@ -27,6 +27,11 @@ test_basic_usage() {
   lxc image alias delete foo
   lxc image alias delete bar
 
+  lxc image alias create foo "${sum}"
+  lxc image alias rename foo bar
+  lxc image alias list | grep -qv foo  # the old name is gone
+  lxc image alias delete bar
+
   # Test image list output formats (table & json)
   lxc image list --format table | grep -q testimage
   lxc image list --format json \
