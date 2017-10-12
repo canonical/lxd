@@ -19,6 +19,12 @@ test_network() {
   lxc network show lxdt$$ | grep -q 'description: foo'
   lxc network delete lxdt$$
 
+  # rename network
+  lxc network create lxdt$$
+  lxc network rename lxdt$$ newnet
+  lxc network list | grep -qv lxdt$$  # the old name is gone
+  lxc network delete newnet
+
   # Unconfigured bridge
   lxc network create lxdt$$ ipv4.address=none ipv6.address=none
   lxc network delete lxdt$$
