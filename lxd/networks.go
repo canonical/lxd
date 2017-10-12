@@ -514,19 +514,19 @@ var networkLeasesCmd = Command{name: "networks/{name}/leases", get: networkLease
 
 // The network structs and functions
 func networkLoadByName(s *state.State, name string) (*network, error) {
-	id, dbInfo, err := s.DB.NetworkGet(name)
+	id, dbInfo, err := s.Node.NetworkGet(name)
 	if err != nil {
 		return nil, err
 	}
 
-	n := network{db: s.DB, state: s, id: id, name: name, description: dbInfo.Description, config: dbInfo.Config}
+	n := network{db: s.Node, state: s, id: id, name: name, description: dbInfo.Description, config: dbInfo.Config}
 
 	return &n, nil
 }
 
 func networkStartup(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := s.DB.Networks()
+	networks, err := s.Node.Networks()
 	if err != nil {
 		return err
 	}
@@ -550,7 +550,7 @@ func networkStartup(s *state.State) error {
 
 func networkShutdown(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := s.DB.Networks()
+	networks, err := s.Node.Networks()
 	if err != nil {
 		return err
 	}

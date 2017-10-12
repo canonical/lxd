@@ -186,7 +186,7 @@ func isJSONRequest(r *http.Request) bool {
 
 // State creates a new State instance liked to our internal db and os.
 func (d *Daemon) State() *state.State {
-	return state.NewState(d.db, d.maas, d.os)
+	return state.NewState(d.db, d.cluster, d.maas, d.os)
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is
