@@ -1,10 +1,13 @@
 package util
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // InMemoryNetwork creates a fully in-memory listener and dial function.
@@ -78,4 +81,25 @@ func CanonicalNetworkAddress(address string) string {
 		}
 	}
 	return address
+}
+
+// ServerTLSConfig returns a new server-side tls.Config generated from the give
+// certificate info.
+func ServerTLSConfig(cert *shared.CertInfo) *tls.Config {
+	config := shared.InitTLSConfig()
+	config.ClientAuth = tls.RequestClientCert
+	config.Certificates = []tls.Certificate{cert.KeyPair()}
+	config.NextProtos = []string{"h2"} // Required by gRPC
+
+	if cert.CA() != nil {
+		pool := x509.NewCertPool()
+		pool.AddCert(cert.CA())
+		config.RootCAs = pool
+		config.ClientCAs = pool
+
+		logger.Infof("LXD is in CA mode, only CA-signed certificates will be allowed")
+	}
+
+	config.BuildNameToCertificate()
+	return config
 }

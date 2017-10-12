@@ -62,8 +62,6 @@ func (suite *lxdTestSuite) SetupTest() {
 		suite.T().Fatalf("failed to start daemon: %v", err)
 	}
 
-	daemonConfigInit(suite.d.db.DB())
-
 	// Create default storage pool. Make sure that we don't pass a nil to
 	// the next function.
 	poolConfig := map[string]string{}
@@ -107,8 +105,11 @@ func (suite *lxdTestSuite) SetupTest() {
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
-	suite.d.Stop()
-	err := os.RemoveAll(suite.tmpdir)
+	err := suite.d.Stop()
+	if err != nil {
+		suite.T().Fatalf("failed to stop daemon: %v", err)
+	}
+	err = os.RemoveAll(suite.tmpdir)
 	if err != nil {
 		suite.T().Fatalf("failed to remove temp dir: %v", err)
 	}
