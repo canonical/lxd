@@ -159,7 +159,11 @@ func (c *Cluster) Close() error {
 func UpdateSchemasDotGo() error {
 	err := node.SchemaDotGo()
 	if err != nil {
-		return fmt.Errorf("failed to update local schema.go: %v", err)
+		return fmt.Errorf("failed to update node schema.go: %v", err)
+	}
+	err = cluster.SchemaDotGo()
+	if err != nil {
+		return fmt.Errorf("failed to update cluster schema.go: %v", err)
 	}
 
 	return nil

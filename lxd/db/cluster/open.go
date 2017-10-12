@@ -34,6 +34,15 @@ func Open(name string, dialer grpcsql.Dialer) (*sql.DB, error) {
 	return db, nil
 }
 
+// EnsureSchema applies all relevant schema updates to the cluster database.
+//
+// Return the initial schema version found before starting the update, along
+// with any error occurred.
+func EnsureSchema(db *sql.DB) (int, error) {
+	schema := Schema()
+	return schema.Ensure(db)
+}
+
 // Generate a new name for the grpcsql driver registration. We need it to be
 // unique for testing, see below.
 func grpcSQLDriverName() string {
