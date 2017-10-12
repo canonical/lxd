@@ -107,6 +107,11 @@ test_basic_usage() {
   lxc list | grep -v foo
   lxc list | grep bar
 
+  lxc rename bar foo
+  lxc list | grep -v bar
+  lxc list | grep foo
+  lxc rename foo bar
+
   # Test container copy
   lxc copy bar foo
   lxc delete foo

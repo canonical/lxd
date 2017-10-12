@@ -220,6 +220,7 @@ var commands = map[string]command{
 	"list":    &listCmd{},
 	"manpage": &manpageCmd{},
 	"monitor": &monitorCmd{},
+	"rename":  &renameCmd{},
 	"move":    &moveCmd{},
 	"network": &networkCmd{},
 	"pause": &actionCmd{
@@ -263,11 +264,10 @@ var commands = map[string]command{
 var defaultAliases = map[string]string{
 	"shell": "exec @ARGS@ -- login -f root",
 
-	"cp":     "copy",
-	"ls":     "list",
-	"mv":     "move",
-	"rename": "move",
-	"rm":     "delete",
+	"cp": "copy",
+	"ls": "list",
+	"mv": "move",
+	"rm": "delete",
 
 	"image cp": "image copy",
 	"image ls": "image list",
