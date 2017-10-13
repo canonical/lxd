@@ -91,3 +91,18 @@ func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name 
 
 	return nil
 }
+
+// RenameStoragePoolVolume renames a storage volume
+func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) error {
+	if !r.HasExtension("storage_api_volume_rename") {
+		return fmt.Errorf("The server is missing the required \"storage_api_volume_rename\" API extension")
+	}
+
+	// Send the request
+	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", pool, volType, name), volume, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
