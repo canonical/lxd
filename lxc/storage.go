@@ -101,6 +101,9 @@ lxc storage volume show [<remote>:]<pool> <volume>
 lxc storage volume create [<remote>:]<pool> <volume> [key=value]...
     Create a storage volume on a storage pool.
 
+lxc storage volume rename [<remote>:]<pool> <old name> <new name>
+    Rename a storage volume on a storage pool.
+
 lxc storage volume get [<remote>:]<pool> <volume> <key>
     Get storage volume configuration on a storage pool.
 
@@ -239,6 +242,13 @@ func (c *storageCmd) run(conf *config.Config, args []string) error {
 			}
 			pool := sub
 			return c.doStoragePoolVolumesList(conf, remote, pool, args)
+		case "rename":
+			if len(args) != 5 {
+				return errArgs
+			}
+			pool := sub
+			volume := args[3]
+			return c.doStoragePoolVolumeRename(client, pool, volume, args)
 		case "set":
 			if len(args) < 4 {
 				return errArgs
@@ -982,5 +992,23 @@ func (c *storageCmd) doStoragePoolVolumeEdit(client lxd.ContainerServer, pool st
 		}
 		break
 	}
+	return nil
+}
+
+func (c *storageCmd) doStoragePoolVolumeRename(client lxd.ContainerServer, pool string, volume string, args []string) error {
+	// Parse the input
+	volName, volType := c.parseVolume(volume)
+
+	// Create the storage volume entry
+	vol := api.StorageVolumePost{}
+	vol.Name = args[4]
+
+	err := client.RenameStoragePoolVolume(pool, volType, volName, vol)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G(`Renamed storage volume from "%s" to "%s"`)+"\n", volName, vol.Name)
+
 	return nil
 }
