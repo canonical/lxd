@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/juju/idmclient"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
@@ -399,11 +400,13 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	address := daemonConfig["core.https_address"].Get()
+
 	/* Open the cluster database */
 	clusterFilename := filepath.Join(d.os.VarDir, "db.bin")
-	d.cluster, err = db.OpenCluster(clusterFilename, d.gateway.Dialer())
+	d.cluster, err = db.OpenCluster(clusterFilename, d.gateway.Dialer(), address)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to open cluster database")
 	}
 
 	/* Read the storage pools */
@@ -466,7 +469,7 @@ func (d *Daemon) init() error {
 		RestServer:           RestServer(d),
 		DevLxdServer:         DevLxdServer(d),
 		LocalUnixSocketGroup: d.config.Group,
-		NetworkAddress:       daemonConfig["core.https_address"].Get(),
+		NetworkAddress:       address,
 	}
 	d.endpoints, err = endpoints.Up(config)
 	if err != nil {
