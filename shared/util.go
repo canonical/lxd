@@ -104,8 +104,8 @@ func IsUnixSocket(path string) bool {
 // On a normal system, this does nothing
 // When inside of a snap environment, returns the real path
 func HostPath(path string) string {
-	// Ignore relative paths
-	if len(path) == 0 || path[0] != os.PathSeparator {
+	// Ignore empty paths
+	if len(path) == 0 {
 		return path
 	}
 
@@ -113,6 +113,22 @@ func HostPath(path string) string {
 	snap := os.Getenv("SNAP")
 	if snap == "" {
 		return path
+	}
+
+	// Handle relative paths
+	if path[0] != os.PathSeparator {
+		// Use the cwd of the parent as snap-confine alters our own cwd on launch
+		ppid := os.Getppid()
+		if ppid < 1 {
+			return path
+		}
+
+		pwd, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", ppid))
+		if err != nil {
+			return path
+		}
+
+		path = filepath.Clean(strings.Join([]string{pwd, path}, string(os.PathSeparator)))
 	}
 
 	// Check if the path is already snap-aware
