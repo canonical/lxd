@@ -153,6 +153,7 @@ type ContainerServer interface {
 	CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) (err error)
 	UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) (err error)
 	DeleteStoragePoolVolume(pool string, volType string, name string) (err error)
+	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (err error)
 
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)
