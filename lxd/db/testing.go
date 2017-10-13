@@ -56,7 +56,7 @@ func NewTestCluster(t *testing.T) (*Cluster, func()) {
 	// Create an in-memory gRPC SQL server and dialer.
 	server, dialer := newGrpcServer()
 
-	cluster, err := OpenCluster(":memory:", dialer)
+	cluster, err := OpenCluster(":memory:", dialer, "1")
 	require.NoError(t, err)
 
 	cleanup := func() {
