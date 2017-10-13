@@ -160,6 +160,9 @@ lxc image edit [<remote>:]<image>
 lxc image alias create [<remote>:]<alias> <fingerprint>
     Create a new alias for an existing image.
 
+lxc image alias rename [<remote>:]<alias> <new-name>
+    Rename an alias.
+
 lxc image alias delete [<remote>:]<alias>
     Delete an alias.
 
@@ -323,6 +326,22 @@ func (c *imageCmd) doImageAlias(conf *config.Config, args []string) error {
 		alias.Target = args[3]
 
 		return d.CreateImageAlias(alias)
+	case "rename":
+		/* alias rename [<remote>:]<alias> <newname> */
+		if len(args) < 4 {
+			return errArgs
+		}
+		remote, alias, err := conf.ParseRemote(args[2])
+		if err != nil {
+			return err
+		}
+
+		d, err := conf.GetContainerServer(remote)
+		if err != nil {
+			return err
+		}
+
+		return d.RenameImageAlias(alias, api.ImageAliasesEntryPost{Name: args[3]})
 	case "delete":
 		/* alias delete [<remote>:]<alias> */
 		if len(args) < 3 {
