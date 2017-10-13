@@ -76,6 +76,9 @@ lxc network delete [<remote>:]<network>
 lxc network edit [<remote>:]<network>
     Edit network, either by launching external editor or reading STDIN.
 
+lxc network rename [<remote>:]<network> <new-name>
+    Rename a network.
+
 lxc network attach [<remote>:]<network> <container> [device name] [interface name]
     Attach a network interface connecting the network to a specified container.
 
@@ -133,6 +136,11 @@ func (c *networkCmd) run(conf *config.Config, args []string) error {
 		return c.doNetworkDetachProfile(client, network, args[2:])
 	case "edit":
 		return c.doNetworkEdit(client, network)
+	case "rename":
+		if len(args) != 3 {
+			return errArgs
+		}
+		return c.doNetworkRename(client, network, args[2])
 	case "get":
 		return c.doNetworkGet(client, network, args[2:])
 	case "set":
@@ -431,6 +439,16 @@ func (c *networkCmd) doNetworkEdit(client lxd.ContainerServer, name string) erro
 		}
 		break
 	}
+	return nil
+}
+
+func (c *networkCmd) doNetworkRename(client lxd.ContainerServer, name string, newName string) error {
+	err := client.RenameNetwork(name, api.NetworkPost{Name: newName})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Network %s renamed to %s")+"\n", name, newName)
 	return nil
 }
 

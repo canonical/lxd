@@ -81,6 +81,9 @@ lxc profile delete [<remote>:]<profile>
 lxc profile edit [<remote>:]<profile>
     Edit profile, either by launching external editor or reading STDIN.
 
+lxc profile rename [<remote>:]<profile> <new-name>
+    Rename a profile.
+
 *Profile assignment*
 lxc profile assign [<remote>:]<container> <profiles>
     Replace the current set of profiles for the container by the one provided.
@@ -161,6 +164,11 @@ func (c *profileCmd) run(conf *config.Config, args []string) error {
 		return c.doProfileDevice(conf, args)
 	case "edit":
 		return c.doProfileEdit(client, profile)
+	case "rename":
+		if len(args) != 3 {
+			return errArgs
+		}
+		return c.doProfileRename(client, profile, args[2])
 	case "apply", "assign":
 		container := profile
 		switch len(args) {
@@ -280,6 +288,16 @@ func (c *profileCmd) doProfileEdit(client lxd.ContainerServer, p string) error {
 		}
 		break
 	}
+	return nil
+}
+
+func (c *profileCmd) doProfileRename(client lxd.ContainerServer, p string, newName string) error {
+	err := client.RenameProfile(p, api.ProfilePost{Name: newName})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Profile %s renamed to %s")+"\n", p, newName)
 	return nil
 }
 

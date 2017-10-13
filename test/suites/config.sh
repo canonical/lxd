@@ -150,6 +150,11 @@ test_config_profiles() {
   lxc profile create unconfined
   lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
   lxc profile assign foo onenic,unconfined
+  # test profile rename
+  lxc profile create foo
+  lxc profile rename foo bar
+  lxc profile list | grep -qv foo  # the old name is gone
+  lxc profile delete bar
 
   lxc config device list foo | grep mnt1
   lxc config device show foo | grep "/mnt1"
