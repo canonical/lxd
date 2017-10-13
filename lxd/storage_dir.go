@@ -289,6 +289,11 @@ func (s *storageDir) GetContainerPoolInfo() (int64, string, string) {
 func (s *storageDir) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
 	logger.Infof(`Updating DIR storage pool "%s"`, s.pool.Name)
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	changeable := changeableStoragePoolProperties["dir"]
 	unchangeable := []string{}
 	for _, change := range changedConfig {
@@ -311,13 +316,18 @@ func (s *storageDir) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 func (s *storageDir) StoragePoolVolumeCreate() error {
 	logger.Infof("Creating DIR storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	source := s.pool.Config["source"]
 	if source == "" {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	storageVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	err := os.MkdirAll(storageVolumePath, 0711)
+	err = os.MkdirAll(storageVolumePath, 0711)
 	if err != nil {
 		return err
 	}
@@ -370,6 +380,11 @@ func (s *storageDir) StoragePoolVolumeUmount() (bool, error) {
 func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
 	logger.Infof(`Updating DIR storage volume "%s"`, s.pool.Name)
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	changeable := changeableStoragePoolVolumeProperties["dir"]
 	unchangeable := []string{}
 	for _, change := range changedConfig {
@@ -395,13 +410,18 @@ func (s *storageDir) ContainerStorageReady(name string) bool {
 func (s *storageDir) ContainerCreate(container container) error {
 	logger.Debugf("Creating empty DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	source := s.pool.Config["source"]
 	if source == "" {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
-	err := createContainerMountpoint(containerMntPoint, container.Path(), container.IsPrivileged())
+	err = createContainerMountpoint(containerMntPoint, container.Path(), container.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -427,6 +447,11 @@ func (s *storageDir) ContainerCreate(container container) error {
 func (s *storageDir) ContainerCreateFromImage(container container, imageFingerprint string) error {
 	logger.Debugf("Creating DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	source := s.pool.Config["source"]
 	if source == "" {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
@@ -435,7 +460,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 	privileged := container.IsPrivileged()
 	containerName := container.Name()
 	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
-	err := createContainerMountpoint(containerMntPoint, container.Path(), privileged)
+	err = createContainerMountpoint(containerMntPoint, container.Path(), privileged)
 	if err != nil {
 		return err
 	}
@@ -483,6 +508,11 @@ func (s *storageDir) ContainerDelete(container container) error {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	// Delete the container on its storage pool:
 	// ${POOL}/containers/<container_name>
 	containerName := container.Name()
@@ -498,7 +528,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 		}
 	}
 
-	err := deleteContainerMountpoint(containerMntPoint, container.Path(), s.GetStorageTypeName())
+	err = deleteContainerMountpoint(containerMntPoint, container.Path(), s.GetStorageTypeName())
 	if err != nil {
 		return err
 	}
@@ -584,6 +614,11 @@ func (s *storageDir) copySnapshot(target container, source container) error {
 func (s *storageDir) ContainerCopy(target container, source container, containerOnly bool) error {
 	logger.Debugf("Copying DIR container storage %s -> %s.", source.Name(), target.Name())
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	ourStart, err := source.StorageStart()
 	if err != nil {
 		return err
@@ -642,7 +677,7 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 }
 
 func (s *storageDir) ContainerMount(c container) (bool, error) {
-	return true, nil
+	return s.StoragePoolMount()
 }
 
 func (s *storageDir) ContainerUmount(name string, path string) (bool, error) {
@@ -651,6 +686,11 @@ func (s *storageDir) ContainerUmount(name string, path string) (bool, error) {
 
 func (s *storageDir) ContainerRename(container container, newName string) error {
 	logger.Debugf("Renaming DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -661,7 +701,7 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 	oldContainerSymlink := shared.VarPath("containers", container.Name())
 	newContainerMntPoint := getContainerMountPoint(s.pool.Name, newName)
 	newContainerSymlink := shared.VarPath("containers", newName)
-	err := renameContainerMountpoint(oldContainerMntPoint, oldContainerSymlink, newContainerMntPoint, newContainerSymlink)
+	err = renameContainerMountpoint(oldContainerMntPoint, oldContainerSymlink, newContainerMntPoint, newContainerSymlink)
 	if err != nil {
 		return err
 	}
@@ -702,6 +742,11 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 func (s *storageDir) ContainerRestore(container container, sourceContainer container) error {
 	logger.Debugf("Restoring DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	targetPath := container.Path()
 	sourcePath := sourceContainer.Path()
 
@@ -728,10 +773,15 @@ func (s *storageDir) ContainerGetUsage(container container) (int64, error) {
 func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
 	logger.Debugf("Creating DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	// Create the path for the snapshot.
 	targetContainerName := snapshotContainer.Name()
 	targetContainerMntPoint := getSnapshotMountPoint(s.pool.Name, targetContainerName)
-	err := os.MkdirAll(targetContainerMntPoint, 0711)
+	err = os.MkdirAll(targetContainerMntPoint, 0711)
 	if err != nil {
 		return err
 	}
@@ -800,10 +850,15 @@ onSuccess:
 func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
 	logger.Debugf("Creating empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	// Create the path for the snapshot.
 	targetContainerName := snapshotContainer.Name()
 	targetContainerMntPoint := getSnapshotMountPoint(s.pool.Name, targetContainerName)
-	err := os.MkdirAll(targetContainerMntPoint, 0711)
+	err = os.MkdirAll(targetContainerMntPoint, 0711)
 	if err != nil {
 		return err
 	}
@@ -869,13 +924,18 @@ func dirSnapshotDeleteInternal(poolName string, snapshotName string) error {
 func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error {
 	logger.Debugf("Deleting DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	source := s.pool.Config["source"]
 	if source == "" {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
 	snapshotContainerName := snapshotContainer.Name()
-	err := dirSnapshotDeleteInternal(s.pool.Name, snapshotContainerName)
+	err = dirSnapshotDeleteInternal(s.pool.Name, snapshotContainerName)
 	if err != nil {
 		return err
 	}
@@ -887,11 +947,16 @@ func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error 
 func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newName string) error {
 	logger.Debugf("Renaming DIR storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
 
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
 	// Rename the mountpoint for the snapshot:
 	// ${POOL}/snapshots/<old_snapshot_name> to ${POOL}/snapshots/<new_snapshot_name>
 	oldSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, snapshotContainer.Name())
 	newSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, newName)
-	err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
+	err = os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 	if err != nil {
 		return err
 	}
@@ -901,7 +966,7 @@ func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newNam
 }
 
 func (s *storageDir) ContainerSnapshotStart(container container) (bool, error) {
-	return true, nil
+	return s.StoragePoolMount()
 }
 
 func (s *storageDir) ContainerSnapshotStop(container container) (bool, error) {
@@ -950,12 +1015,9 @@ func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data inte
 }
 
 func (s *storageDir) StoragePoolResources() (*api.ResourcesStoragePool, error) {
-	ourMount, err := s.StoragePoolMount()
+	_, err := s.StoragePoolMount()
 	if err != nil {
 		return nil, err
-	}
-	if ourMount {
-		defer s.StoragePoolUmount()
 	}
 
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
