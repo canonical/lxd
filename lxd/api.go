@@ -21,6 +21,10 @@ func RestServer(d *Daemon) *http.Server {
 		SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
+	for endpoint, f := range d.gateway.HandlerFuncs() {
+		mux.HandleFunc(endpoint, f)
+	}
+
 	for _, c := range api10 {
 		d.createCmd(mux, "1.0", c)
 	}

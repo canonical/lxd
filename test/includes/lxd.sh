@@ -14,6 +14,9 @@ spawn_lxd() {
     storage=${1}
     shift
 
+    # Link to local sqlite with replication patch for dqlite
+    sqlite="$(pwd)/../lxd/sqlite/.libs"
+
     # shellcheck disable=SC2153
     if [ "$LXD_BACKEND" = "random" ]; then
         lxd_backend="$(random_storage_backend)"
@@ -36,7 +39,8 @@ spawn_lxd() {
 
     echo "==> Spawning lxd in ${lxddir}"
     # shellcheck disable=SC2086
-    LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" ${DEBUG-} "$@" 2>&1 &
+
+    LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     # shellcheck disable=SC2153
@@ -82,9 +86,12 @@ respawn_lxd() {
     lxddir=${1}
     shift
 
+    # Link to local sqlite with replication patch for dqlite
+    sqlite="$(pwd)/../lxd/sqlite/.libs"
+
     echo "==> Spawning lxd in ${lxddir}"
     # shellcheck disable=SC2086
-    LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" ${DEBUG-} "$@" 2>&1 &
+    LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
