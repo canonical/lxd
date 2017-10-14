@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"path/filepath"
+
+	"github.com/lxc/lxd/shared"
+	"github.com/pkg/errors"
 
 	"golang.org/x/crypto/scrypt"
 )
@@ -32,4 +36,19 @@ func PasswordCheck(secret string, password string) error {
 	}
 
 	return nil
+}
+
+// LoadCert reads the LXD server certificate from the given var dir.
+//
+// If a cluster certificate is found it will be loaded instead.
+func LoadCert(dir string) (*shared.CertInfo, error) {
+	prefix := "server"
+	if shared.PathExists(filepath.Join(dir, "cluster.crt")) {
+		prefix = "cluster"
+	}
+	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load TLS certificate")
+	}
+	return cert, nil
 }
