@@ -115,6 +115,26 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveHTTPSAddressAndTrustPasswo
 	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
 }
 
+// Enable clustering interactively.
+func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClustering() {
+	suite.command.PasswordReader = func(int) ([]byte, error) {
+		return []byte("sekret"), nil
+	}
+	port, err := shared.AllocatePort()
+	suite.Req.Nil(err)
+	answers := &cmdInitAnswers{
+		WantClustering: true,
+		ClusterName:    "buzz",
+		ClusterAddress: fmt.Sprintf("127.0.0.1:%d", port),
+	}
+	answers.Render(suite.streams)
+
+	suite.Req.Nil(suite.command.Run())
+	state := suite.d.State()
+	certfile := filepath.Join(state.OS.VarDir, "cluster.crt")
+	suite.Req.True(shared.PathExists(certfile))
+}
+
 // Pass network address and trust password via command line arguments.
 func (suite *cmdInitTestSuite) TestCmdInit_AutoHTTPSAddressAndTrustPassword() {
 	port, err := shared.AllocatePort()
@@ -631,6 +651,10 @@ func (suite *cmdInitTestSuite) TestCmdInit_ProfilesPreseedUpdate() {
 // Convenience for building the input text a user would enter for a certain
 // sequence of answers.
 type cmdInitAnswers struct {
+	WantClustering           bool
+	WantJoinCluster          bool
+	ClusterName              string
+	ClusterAddress           string
 	WantStoragePool          bool
 	WantAvailableOverNetwork bool
 	BindToAddress            string
@@ -645,8 +669,16 @@ type cmdInitAnswers struct {
 // Render the input text the user would type for the desired answers, populating
 // the stdin of the given streams.
 func (answers *cmdInitAnswers) Render(streams *cmd.MemoryStreams) {
+	streams.InputAppendBoolAnswer(answers.WantClustering)
+	if answers.WantClustering {
+		streams.InputAppendLine(answers.ClusterName)
+		streams.InputAppendLine(answers.ClusterAddress)
+		streams.InputAppendBoolAnswer(answers.WantJoinCluster)
+	}
 	streams.InputAppendBoolAnswer(answers.WantStoragePool)
-	streams.InputAppendBoolAnswer(answers.WantAvailableOverNetwork)
+	if !answers.WantClustering {
+		streams.InputAppendBoolAnswer(answers.WantAvailableOverNetwork)
+	}
 	if answers.WantAvailableOverNetwork {
 		streams.InputAppendLine(answers.BindToAddress)
 		streams.InputAppendLine(answers.BindToPort)

@@ -103,3 +103,32 @@ func ServerTLSConfig(cert *shared.CertInfo) *tls.Config {
 	config.BuildNameToCertificate()
 	return config
 }
+
+// NetworkInterfaceAddress returns the first non-loopback address of any of the
+// system network interfaces.
+//
+// Return the empty string if none is found.
+func NetworkInterfaceAddress() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+	for _, iface := range ifaces {
+		if shared.IsLoopback(&iface) {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		if len(addrs) == 0 {
+			continue
+		}
+		addr, ok := addrs[0].(*net.IPNet)
+		if !ok {
+			continue
+		}
+		return addr.IP.String()
+	}
+	return ""
+}
