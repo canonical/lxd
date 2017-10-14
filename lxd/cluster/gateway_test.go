@@ -1,10 +1,13 @@
 package cluster_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
+	grpcsql "github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
@@ -23,10 +26,46 @@ func TestGateway_Single(t *testing.T) {
 	gateway := newGateway(t, db, cert)
 	defer gateway.Shutdown()
 
+	handlerFuncs := gateway.HandlerFuncs()
+	assert.Len(t, handlerFuncs, 2)
+	for endpoint, f := range handlerFuncs {
+		w := httptest.NewRecorder()
+		r := &http.Request{}
+		f(w, r)
+		assert.Equal(t, 404, w.Code, endpoint)
+	}
+
 	dialer := gateway.Dialer()
 	conn, err := dialer()
 	assert.NoError(t, err)
 	assert.NotNil(t, conn)
+}
+
+// If there's a network address configured, we expose the gRPC endpoint with
+// an HTTP handler.
+func TestGateway_SingleWithNetworkAddress(t *testing.T) {
+	db, cleanup := db.NewTestNode(t)
+	defer cleanup()
+
+	cert := shared.TestingKeyPair()
+	mux := http.NewServeMux()
+	server := newServer(cert, mux)
+	defer server.Close()
+
+	address := server.Listener.Addr().String()
+	setRaftRole(t, db, address)
+
+	gateway := newGateway(t, db, cert)
+	defer gateway.Shutdown()
+
+	for path, handler := range gateway.HandlerFuncs() {
+		mux.HandleFunc(path, handler)
+	}
+
+	driver := grpcsql.NewDriver(gateway.Dialer())
+	conn, err := driver.Open("test.db")
+	require.NoError(t, err)
+	require.NoError(t, conn.Close())
 }
 
 // Create a new test Gateway with the given parameters, and ensure no error

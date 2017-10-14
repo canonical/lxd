@@ -407,8 +407,7 @@ func (d *Daemon) init() error {
 	address := daemonConfig["core.https_address"].Get()
 
 	/* Open the cluster database */
-	clusterFilename := filepath.Join(d.os.VarDir, "db.bin")
-	d.cluster, err = db.OpenCluster(clusterFilename, d.gateway.Dialer(), address)
+	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
 	if err != nil {
 		return errors.Wrap(err, "failed to open cluster database")
 	}
