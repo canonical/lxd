@@ -56,7 +56,7 @@ CREATE TABLE schema (
     UNIQUE (version)
 )
 `
-	_, err := tx.Exec(statement, nil)
+	_, err := tx.Exec(statement)
 	return err
 }
 
