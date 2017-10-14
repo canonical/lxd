@@ -52,17 +52,17 @@ type lxdTestSuite struct {
 func (suite *lxdTestSuite) SetupTest() {
 	tmpdir, err := ioutil.TempDir("", "lxd_testrun_")
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to create temp dir: %v", err)
 	}
 	suite.tmpdir = tmpdir
 
 	if err := os.Setenv("LXD_DIR", suite.tmpdir); err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to set LXD_DIR: %v", err)
 	}
 
 	suite.d, err = mockStartDaemon()
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to start daemon: %v", err)
 	}
 	suite.Req = require.New(suite.T())
 
@@ -74,6 +74,6 @@ func (suite *lxdTestSuite) TearDownTest() {
 	suite.d.Stop()
 	err := os.RemoveAll(suite.tmpdir)
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to remove temp dir: %v", err)
 	}
 }
