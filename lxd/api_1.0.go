@@ -48,24 +48,11 @@ var api10 = []Command{
 
 func api10Get(d *Daemon, r *http.Request) Response {
 	srv := api.ServerUntrusted{
-		/* List of API extensions in the order they were added.
-		 *
-		 * The following kind of changes require an addition to api_extensions:
-		 *  - New configuration key
-		 *  - New valid values for a configuration key
-		 *  - New REST API endpoint
-		 *  - New argument inside an existing REST API call
-		 *  - New HTTPs authentication mechanisms or protocols
-		 */
-		APIExtensions: []string{
-			"id_map",
-			"id_map_base",
-			"resource_limits",
-		},
-		APIStatus:  "stable",
-		APIVersion: version.APIVersion,
-		Public:     false,
-		Auth:       "untrusted",
+		APIExtensions: version.APIExtensions,
+		APIStatus:     "stable",
+		APIVersion:    version.APIVersion,
+		Public:        false,
+		Auth:          "untrusted",
 	}
 
 	// If untrusted, return now
