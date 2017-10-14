@@ -31,7 +31,8 @@ var (
 
 // Node mediates access to LXD's data stored in the node-local SQLite database.
 type Node struct {
-	db *sql.DB // Handle to the node-local SQLite database file.
+	db  *sql.DB // Handle to the node-local SQLite database file.
+	dir string  // Reference to the directory where the database file lives.
 }
 
 // OpenNode creates a new Node object.
@@ -55,7 +56,8 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 	}
 
 	node := &Node{
-		db: db,
+		db:  db,
+		dir: dir,
 	}
 
 	if initial == 0 {
@@ -88,6 +90,11 @@ func ForLegacyPatches(db *sql.DB) *Node {
 //        dropped once there are no call sites left.
 func (n *Node) DB() *sql.DB {
 	return n.db
+}
+
+// Dir returns the directory of the underlying SQLite database file.
+func (n *Node) Dir() string {
+	return n.dir
 }
 
 // Transaction creates a new NodeTx object and transactionally executes the
