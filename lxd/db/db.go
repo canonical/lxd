@@ -7,6 +7,7 @@ import (
 
 	grpcsql "github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/mattn/go-sqlite3"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
@@ -129,11 +130,18 @@ type Cluster struct {
 func OpenCluster(name string, dialer grpcsql.Dialer) (*Cluster, error) {
 	db, err := cluster.Open(name, dialer)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to open database")
 	}
+
+	_, err = cluster.EnsureSchema(db)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to ensure schema")
+	}
+
 	cluster := &Cluster{
 		db: db,
 	}
+
 	return cluster, nil
 }
 
