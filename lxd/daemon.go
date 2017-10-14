@@ -381,7 +381,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Setup server certificate */
-	certInfo, err := shared.KeyPairAndCA(d.os.VarDir, "server", shared.CertServer)
+	certInfo, err := util.LoadCert(d.os.VarDir)
 	if err != nil {
 		return err
 	}
