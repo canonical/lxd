@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -131,12 +132,29 @@ func (cmd *CmdInit) fillDataAuto(data *cmdInitData, client lxd.ContainerServer, 
 // Fill the given configuration data with parameters collected with
 // interactive questions.
 func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerServer, backendsAvailable []string, existingPools []string) error {
+	clustering, err := cmd.askClustering()
+	if err != nil {
+		return err
+	}
 	storage, err := cmd.askStorage(client, existingPools, backendsAvailable)
 	if err != nil {
 		return err
 	}
 	defaultPrivileged := cmd.askDefaultPrivileged()
-	networking := cmd.askNetworking()
+
+	// Ask about networking only if we skipped the clustering questions.
+	var networking *cmdInitNetworkingParams
+	if clustering == nil {
+		networking = cmd.askNetworking()
+	} else {
+		// Re-use the answers to the clustering questions.
+		networking = &cmdInitNetworkingParams{
+			Address:       clustering.Address,
+			Port:          clustering.Port,
+			TrustPassword: clustering.TrustPassword,
+		}
+	}
+
 	imagesAutoUpdate := cmd.askImages()
 	bridge := cmd.askBridge(client)
 
@@ -144,6 +162,8 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 	if err != nil && bridge != nil {
 		return fmt.Errorf("LXD managed bridges require \"dnsmasq\". Install it and try again.")
 	}
+
+	cmd.fillDataWithClustering(data, clustering)
 
 	err = cmd.fillDataWithStorage(data, storage, existingPools)
 	if err != nil {
@@ -196,6 +216,15 @@ func (cmd *CmdInit) fillDataWithCurrentDefaultProfile(data *cmdInitData, client 
 		data.Profiles = []api.ProfilesPost{{Name: "default"}}
 		data.Profiles[0].ProfilePut = defaultProfile.ProfilePut
 	}
+}
+
+// Fill the given init data with clustering details matching the given
+// clustering parameters.
+func (cmd *CmdInit) fillDataWithClustering(data *cmdInitData, clustering *cmdInitClusteringParams) {
+	if clustering == nil {
+		return
+	}
+	data.Cluster.Name = clustering.Name
 }
 
 // Fill the given init data with a new storage pool structure matching the
@@ -382,6 +411,13 @@ func (cmd *CmdInit) apply(client lxd.ContainerServer, data *cmdInitData) error {
 		return cmd.initConfig(client, data.Config)
 	})
 
+	// Cluster changers
+	if data.Cluster.Name != "" {
+		changers = append(changers, func() (reverter, error) {
+			return cmd.initCluster(client, data.Cluster)
+		})
+	}
+
 	// Storage pool changers
 	for i := range data.Pools {
 		pool := data.Pools[i] // Local variable for the closure
@@ -462,6 +498,17 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 
 	// Updating the server was successful, so return the reverter function
 	// in case it's needed later.
+	return reverter, nil
+}
+
+// Turn on clustering.
+func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterPost) (reverter, error) {
+	var reverter func() error
+	op, err := client.BootstrapCluster(cluster.Name)
+	if err != nil {
+		return nil, err
+	}
+	op.Wait()
 	return reverter, nil
 }
 
@@ -667,6 +714,52 @@ func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.ProfilesPost, device
 		return fmt.Errorf("Device already exists: %s", deviceName)
 	}
 	return nil
+}
+
+// Ask if the user wants to enable clustering
+func (cmd *CmdInit) askClustering() (*cmdInitClusteringParams, error) {
+	askWants := "Would you like to use LXD clustering? (yes/no) [default=no]: "
+	if !cmd.Context.AskBool(askWants, "no") {
+		return nil, nil
+	}
+
+	params := &cmdInitClusteringParams{}
+
+	// Node name
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "lxd"
+	}
+	askName := fmt.Sprintf(
+		"What name should be used to identify this node in the cluster? [default=%s]: ",
+		hostname)
+	params.Name = cmd.Context.AskString(askName, hostname, nil)
+
+	// Network address
+	address := util.NetworkInterfaceAddress()
+	askAddress := fmt.Sprintf(
+		"What IP address or DNS name should be used to reach this node? [default=%s]: ",
+		address)
+	address = util.CanonicalNetworkAddress(cmd.Context.AskString(askAddress, address, nil))
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+	portN, err := strconv.Atoi(port)
+	if err != nil {
+		return nil, err
+	}
+	params.Address = host
+	params.Port = int64(portN)
+
+	// Join existing cluster
+	if !cmd.Context.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no") {
+		params.TrustPassword = cmd.Context.AskPassword(
+			"Trust password for new clients: ", cmd.PasswordReader)
+		return params, nil
+	}
+
+	return nil, fmt.Errorf("joining cluster not yet implemented")
 }
 
 // Ask if the user wants to create a new storage pool, and return
@@ -939,6 +1032,16 @@ type cmdInitData struct {
 	Pools         []api.StoragePoolsPost `yaml:"storage_pools"`
 	Networks      []api.NetworksPost
 	Profiles      []api.ProfilesPost
+	Cluster       api.ClusterPost
+}
+
+// Parameters needed when enbling clustering in interactive mode.
+type cmdInitClusteringParams struct {
+	Name          string // Name of the new node
+	Address       string // Network address of the new node
+	Port          int64  // Network port of the new node
+	Join          string // Network address of existing node to join.
+	TrustPassword string // Trust password
 }
 
 // Parameters needed when creating a storage pool in interactive or auto
