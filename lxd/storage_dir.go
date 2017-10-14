@@ -204,6 +204,10 @@ func (s *storageDir) StoragePoolMount() (bool, error) {
 	mountSource := cleanSource
 	mountFlags := syscall.MS_BIND
 
+	if shared.IsMountPoint(poolMntPoint) {
+		return false, nil
+	}
+
 	err := syscall.Mount(mountSource, poolMntPoint, "", uintptr(mountFlags), "")
 	if err != nil {
 		logger.Errorf(`Failed to mount DIR storage pool "%s" onto `+
@@ -255,11 +259,13 @@ func (s *storageDir) StoragePoolUmount() (bool, error) {
 
 	defer removeLockFromMap()
 
-	if shared.IsMountPoint(poolMntPoint) {
-		err := syscall.Unmount(poolMntPoint, 0)
-		if err != nil {
-			return false, err
-		}
+	if !shared.IsMountPoint(poolMntPoint) {
+		return false, nil
+	}
+
+	err := syscall.Unmount(poolMntPoint, 0)
+	if err != nil {
+		return false, err
 	}
 
 	logger.Debugf("Unmounted DIR pool \"%s\".", s.pool.Name)
