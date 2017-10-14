@@ -55,7 +55,9 @@ func newDaemon(t *testing.T) (*Daemon, func()) {
 
 // Create a new DaemonConfig object for testing purposes.
 func newConfig() *DaemonConfig {
-	return &DaemonConfig{}
+	return &DaemonConfig{
+		RaftLatency: 0.2,
+	}
 }
 
 // Create a new sys.OS object for testing purposes.
