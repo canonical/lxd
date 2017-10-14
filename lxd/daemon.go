@@ -25,6 +25,7 @@ import (
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/maas"
@@ -45,6 +46,7 @@ type Daemon struct {
 	os           *sys.OS
 	db           *db.Node
 	maas         *maas.Controller
+	cluster      *db.Cluster
 	readyChan    chan bool
 	shutdownChan chan bool
 
@@ -58,6 +60,7 @@ type Daemon struct {
 
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
+	gateway   *cluster.Gateway
 
 	proxy func(req *http.Request) (*url.URL, error)
 
@@ -71,7 +74,8 @@ type externalAuth struct {
 
 // DaemonConfig holds configuration values for Daemon.
 type DaemonConfig struct {
-	Group string // Group name the local unix socket should be chown'ed to
+	Group       string  // Group name the local unix socket should be chown'ed to
+	RaftLatency float64 // Coarse grain measure of the cluster latency
 }
 
 // NewDaemon returns a new Daemon object with the given configuration.
@@ -82,9 +86,16 @@ func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	}
 }
 
+// DefaultDaemonConfig returns a DaemonConfig object with default values/
+func DefaultDaemonConfig() *DaemonConfig {
+	return &DaemonConfig{
+		RaftLatency: 1.0,
+	}
+}
+
 // DefaultDaemon returns a new, un-initialized Daemon object with default values.
 func DefaultDaemon() *Daemon {
-	config := &DaemonConfig{}
+	config := DefaultDaemonConfig()
 	os := sys.DefaultOS()
 	return NewDaemon(config, os)
 }
@@ -364,6 +375,37 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	/* Setup server certificate */
+	certInfo, err := shared.KeyPairAndCA(d.os.VarDir, "server", shared.CertServer)
+	if err != nil {
+		return err
+	}
+
+	/* Setup dqlite */
+	d.gateway, err = cluster.NewGateway(d.db, certInfo, d.config.RaftLatency)
+	if err != nil {
+		return err
+	}
+
+	/* Setup some mounts (nice to have) */
+	if !d.os.MockMode {
+		// Attempt to mount the shmounts tmpfs
+		setupSharedMounts()
+
+		// Attempt to Mount the devlxd tmpfs
+		devlxd := filepath.Join(d.os.VarDir, "devlxd")
+		if !shared.IsMountPoint(devlxd) {
+			syscall.Mount("tmpfs", devlxd, "tmpfs", 0, "size=100k,mode=0755")
+		}
+	}
+
+	/* Open the cluster database */
+	clusterFilename := filepath.Join(d.os.VarDir, "db.bin")
+	d.cluster, err = db.OpenCluster(clusterFilename, d.gateway.Dialer())
+	if err != nil {
+		return err
+	}
+
 	/* Read the storage pools */
 	err = SetupStorageDriver(d.State(), false)
 	if err != nil {
@@ -398,17 +440,6 @@ func (d *Daemon) init() error {
 		daemonConfig["core.proxy_ignore_hosts"].Get(),
 	)
 
-	/* Setup some mounts (nice to have) */
-	if !d.os.MockMode {
-		// Attempt to mount the shmounts tmpfs
-		setupSharedMounts()
-
-		// Attempt to Mount the devlxd tmpfs
-		if !shared.IsMountPoint(shared.VarPath("devlxd")) {
-			syscall.Mount("tmpfs", shared.VarPath("devlxd"), "tmpfs", 0, "size=100k,mode=0755")
-		}
-	}
-
 	if !d.os.MockMode {
 		/* Start the scheduler */
 		go deviceEventListener(d.State())
@@ -439,11 +470,6 @@ func (d *Daemon) init() error {
 	}
 
 	/* Setup the web server */
-	certInfo, err := shared.KeyPairAndCA(d.os.VarDir, "server", shared.CertServer)
-	if err != nil {
-		return err
-	}
-
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
 		Cert:                 certInfo,
@@ -550,6 +576,15 @@ func (d *Daemon) Stop() error {
 
 		logger.Infof("Closing the database")
 		trackError(d.db.Close())
+	}
+	if d.cluster != nil {
+		trackError(d.cluster.Close())
+	}
+	if d.gateway != nil {
+		trackError(d.gateway.Shutdown())
+	}
+	if d.endpoints != nil {
+		trackError(d.endpoints.Down())
 	}
 
 	logger.Infof("Saving simplestreams cache")
