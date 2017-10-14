@@ -49,17 +49,17 @@ const lxdTestSuiteDefaultStoragePool string = "lxdTestrunPool"
 func (suite *lxdTestSuite) SetupTest() {
 	tmpdir, err := ioutil.TempDir("", "lxd_testrun_")
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to create temp dir: %v", err)
 	}
 	suite.tmpdir = tmpdir
 
 	if err := os.Setenv("LXD_DIR", suite.tmpdir); err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to set LXD_DIR: %v", err)
 	}
 
 	suite.d, err = mockStartDaemon()
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to start daemon: %v", err)
 	}
 
 	daemonConfigInit(suite.d.db.DB())
@@ -73,7 +73,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
 	_, err = dbStoragePoolCreateAndUpdateCache(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to create default storage pool: %v", err)
 	}
 
 	rootDev := map[string]string{}
@@ -85,23 +85,23 @@ func (suite *lxdTestSuite) SetupTest() {
 
 	defaultID, _, err := suite.d.db.ProfileGet("default")
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to get default profile: %v", err)
 	}
 
 	tx, err := suite.d.db.Begin()
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to begin transaction: %v", err)
 	}
 
 	err = db.DevicesAdd(tx, "profile", defaultID, devicesMap)
 	if err != nil {
 		tx.Rollback()
-		os.Exit(1)
+		suite.T().Fatalf("failed to rollback transaction: %v", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to commit transaction: %v", err)
 	}
 	suite.Req = require.New(suite.T())
 }
@@ -110,6 +110,6 @@ func (suite *lxdTestSuite) TearDownTest() {
 	suite.d.Stop()
 	err := os.RemoveAll(suite.tmpdir)
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to remove temp dir: %v", err)
 	}
 }
