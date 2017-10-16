@@ -187,6 +187,66 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 
 var storagePoolVolumesTypeCmd = Command{name: "storage-pools/{name}/volumes/{type}", get: storagePoolVolumesTypeGet, post: storagePoolVolumesTypePost}
 
+// /1.0/storage-pools/{name}/volumes/{type}/{name}
+// Rename a storage volume of a given volume type in a given storage pool.
+func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
+	// Get the name of the storage volume.
+	volumeName := mux.Vars(r)["name"]
+
+	// Get the name of the storage pool the volume is supposed to be
+	// attached to.
+	poolName := mux.Vars(r)["pool"]
+
+	// Get the name of the volume type.
+	volumeTypeName := mux.Vars(r)["type"]
+
+	req := api.StorageVolumePost{}
+
+	// Parse the request.
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	// Sanity checks.
+	if req.Name == "" {
+		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	// We currently only allow to create storage volumes of type
+	// storagePoolVolumeTypeCustom. So check, that nothing else was
+	// requested.
+	if volumeTypeName != storagePoolVolumeTypeNameCustom {
+		return BadRequest(fmt.Errorf("Renaming storage volumes of type %s is not allowed", volumeTypeName))
+	}
+
+	// Retrieve ID of the storage pool (and check if the storage pool
+	// exists).
+	poolID, err := db.StoragePoolGetID(d.db, poolName)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Check that the name isn't already in use.
+	_, err = db.StoragePoolVolumeGetTypeID(d.State().DB, req.Name,
+		storagePoolVolumeTypeCustom, poolID)
+	if err == nil || err != nil && err != db.NoSuchObjectError {
+		return Conflict
+	}
+
+	s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, storagePoolVolumeTypeCustom)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	err = s.StoragePoolVolumeRename(req.Name)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return EmptySyncResponse
+}
+
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
 // Get storage volume of a given volume type on a given storage pool.
 func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
@@ -437,4 +497,4 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var storagePoolVolumeTypeCmd = Command{name: "storage-pools/{pool}/volumes/{type}/{name:.*}", get: storagePoolVolumeTypeGet, put: storagePoolVolumeTypePut, patch: storagePoolVolumeTypePatch, delete: storagePoolVolumeTypeDelete}
+var storagePoolVolumeTypeCmd = Command{name: "storage-pools/{pool}/volumes/{type}/{name:.*}", post: storagePoolVolumeTypePost, get: storagePoolVolumeTypeGet, put: storagePoolVolumeTypePut, patch: storagePoolVolumeTypePatch, delete: storagePoolVolumeTypeDelete}
