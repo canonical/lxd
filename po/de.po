@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-10-12 17:53+0200\n"
+"POT-Creation-Date: 2017-10-17 05:05+0200\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -371,7 +371,7 @@ msgstr ""
 msgid "Can't read from stdin: %s"
 msgstr ""
 
-#: lxc/rename.go:45
+#: lxc/rename.go:41
 msgid "Can't specify a different remote for rename."
 msgstr ""
 
@@ -385,7 +385,7 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 
-#: lxc/network.go:486 lxc/profile.go:546 lxc/storage.go:643
+#: lxc/network.go:486 lxc/profile.go:546 lxc/storage.go:653
 msgid "Cannot provide container name to list"
 msgstr ""
 
@@ -412,7 +412,7 @@ msgid "Config key/value to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1190
-#: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:594 lxc/storage.go:969
+#: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:604 lxc/storage.go:979
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
 msgstr "YAML Analyse Fehler %v\n"
@@ -477,11 +477,11 @@ msgid "Creating the container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:463 lxc/network.go:525
-#: lxc/storage.go:672 lxc/storage.go:783
+#: lxc/storage.go:682 lxc/storage.go:793
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/storage.go:673
+#: lxc/storage.go:683
 msgid "DRIVER"
 msgstr ""
 
@@ -788,7 +788,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "Fehlende Zusammenfassung."
 
-#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:392 lxc/storage.go:512
+#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:402 lxc/storage.go:522
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
@@ -812,7 +812,7 @@ msgid "Must supply container name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
 #: lxc/list.go:465 lxc/network.go:522 lxc/profile.go:573 lxc/remote.go:381
-#: lxc/storage.go:671 lxc/storage.go:782
+#: lxc/storage.go:681 lxc/storage.go:792
 msgid "NAME"
 msgstr ""
 
@@ -863,7 +863,7 @@ msgstr "Kein Zertifikat zum hinzufügen bereitgestellt"
 msgid "No device found for this network"
 msgstr "Kein Zertifikat für diese Verbindung"
 
-#: lxc/storage.go:401 lxc/storage.go:521
+#: lxc/storage.go:411 lxc/storage.go:531
 #, fuzzy
 msgid "No device found for this storage volume."
 msgstr "Kein Zertifikat für diese Verbindung"
@@ -872,7 +872,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid "No fingerprint specified."
 msgstr "Kein Fingerabdruck angegeben."
 
-#: lxc/storage.go:345 lxc/storage.go:438
+#: lxc/storage.go:355 lxc/storage.go:448
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr ""
 
@@ -948,7 +948,7 @@ msgstr ""
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:595 lxc/storage.go:970
+#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:605 lxc/storage.go:980
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -1060,6 +1060,11 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
+#: lxc/storage.go:1011
+#, c-format
+msgid "Renamed storage volume from \"%s\" to \"%s\""
+msgstr ""
+
 #: lxc/delete.go:36 lxc/delete.go:37
 msgid "Require user confirmation"
 msgstr ""
@@ -1086,7 +1091,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:674
+#: lxc/storage.go:684
 msgid "SOURCE"
 msgstr ""
 
@@ -1147,7 +1152,7 @@ msgstr ""
 msgid "Show the resources available to the server"
 msgstr ""
 
-#: lxc/storage.go:148
+#: lxc/storage.go:151
 msgid "Show the resources available to the storage pool"
 msgstr ""
 
@@ -1202,12 +1207,12 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Stopping the container failed: %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/storage.go:486
+#: lxc/storage.go:496
 #, fuzzy, c-format
 msgid "Storage pool %s created"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/storage.go:545
+#: lxc/storage.go:555
 #, fuzzy, c-format
 msgid "Storage pool %s deleted"
 msgstr "Profil %s gelöscht\n"
@@ -1217,12 +1222,12 @@ msgstr "Profil %s gelöscht\n"
 msgid "Storage pool name"
 msgstr "Profilname kann nicht geändert werden"
 
-#: lxc/storage.go:816
+#: lxc/storage.go:826
 #, fuzzy, c-format
 msgid "Storage volume %s created"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/storage.go:831
+#: lxc/storage.go:841
 #, fuzzy, c-format
 msgid "Storage volume %s deleted"
 msgstr "Profil %s gelöscht\n"
@@ -1240,7 +1245,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:470 lxc/network.go:523 lxc/storage.go:781
+#: lxc/list.go:470 lxc/network.go:523 lxc/storage.go:791
 msgid "TYPE"
 msgstr ""
 
@@ -1278,7 +1283,7 @@ msgstr ""
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
-#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:406 lxc/storage.go:526
+#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:416 lxc/storage.go:536
 #, fuzzy
 msgid "The specified device doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
@@ -1357,7 +1362,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:675 lxc/storage.go:784
+#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:685 lxc/storage.go:794
 msgid "USED BY"
 msgstr ""
 
@@ -2196,7 +2201,7 @@ msgstr ""
 "lxc remote get-default                                                    "
 "Gibt die Standard Instanz aus.\n"
 
-#: lxc/rename.go:22
+#: lxc/rename.go:18
 #, fuzzy
 msgid ""
 "Usage: lxc rename [<remote>:]<container>[/<snapshot>] [<container>[/"
@@ -2280,6 +2285,9 @@ msgid ""
 "\n"
 "lxc storage volume create [<remote>:]<pool> <volume> [key=value]...\n"
 "    Create a storage volume on a storage pool.\n"
+"\n"
+"lxc storage volume rename [<remote>:]<pool> <old name> <new name>\n"
+"    Rename a storage volume on a storage pool.\n"
 "\n"
 "lxc storage volume get [<remote>:]<pool> <volume> <key>\n"
 "    Get storage volume configuration on a storage pool.\n"
