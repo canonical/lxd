@@ -240,7 +240,7 @@ func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeNam
 	}
 
 	if len(volumeUsedBy) == 0 && len(profiles) == 0 {
-		return []string{}, err
+		return []string{}, nil
 	}
 
 	for _, pName := range profiles {
