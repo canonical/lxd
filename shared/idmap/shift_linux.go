@@ -115,56 +115,96 @@ func ShiftACL(path string, shiftIds func(uid int64, gid int64) (int64, int64)) e
 		return nil
 	}
 
+	err = shiftAclType(path, C.ACL_TYPE_ACCESS, shiftIds)
+	if err != nil {
+		return err
+	}
+
+	err = shiftAclType(path, C.ACL_TYPE_DEFAULT, shiftIds)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func shiftAclType(path string, aclType _Ctype_acl_type_t, shiftIds func(uid int64, gid int64) (int64, int64)) error {
+	// Convert the path to something usable with cgo
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
-	acl := C.acl_get_file(cpath, C.ACL_TYPE_ACCESS)
+	// Read the current ACL set for the requested type
+	acl := C.acl_get_file(cpath, aclType)
 	if acl == nil {
 		return nil
 	}
 	defer C.acl_free(unsafe.Pointer(acl))
 
+	newAcl := C.acl_init(0)
+	defer C.acl_free(unsafe.Pointer(newAcl))
+
+	// Iterate through all ACL entries
+	update := false
 	for entryId := C.ACL_FIRST_ENTRY; ; entryId = C.ACL_NEXT_ENTRY {
 		var ent C.acl_entry_t
+		var newEnt C.acl_entry_t
 		var tag C.acl_tag_t
-		updateACL := false
 
+		// Get the ACL entry
 		ret := C.acl_get_entry(acl, C.int(entryId), &ent)
-		if ret != 1 {
+		if ret == 0 {
 			break
+		} else if ret < 0 {
+			return fmt.Errorf("Failed to get the ACL entry for %s", path)
 		}
 
-		ret = C.acl_get_tag_type(ent, &tag)
+		// Setup the new entry
+		ret = C.acl_create_entry(&newAcl, &newEnt)
 		if ret == -1 {
-			return fmt.Errorf("Failed to change ACLs on %s", path)
+			return fmt.Errorf("Failed to allocate a new ACL entry for %s", path)
 		}
 
-		idp := (*C.id_t)(C.acl_get_qualifier(ent))
-		if idp == nil {
+		ret = C.acl_copy_entry(newEnt, ent)
+		if ret == -1 {
+			return fmt.Errorf("Failed to copy the ACL entry for %s", path)
+		}
+
+		// Get the ACL type
+		ret = C.acl_get_tag_type(newEnt, &tag)
+		if ret == -1 {
+			return fmt.Errorf("Failed to get the ACL type for %s", path)
+		}
+
+		// We only care about user and group ACLs, copy anything else
+		if tag != C.ACL_USER && tag != C.ACL_GROUP {
 			continue
 		}
 
-		var newId int64
-		switch tag {
-		case C.ACL_USER:
-			newId, _ = shiftIds((int64)(*idp), -1)
-			updateACL = true
-
-		case C.ACL_GROUP:
-			_, newId = shiftIds(-1, (int64)(*idp))
-			updateACL = true
+		// Get the value
+		idp := (*C.id_t)(C.acl_get_qualifier(newEnt))
+		if idp == nil {
+			return fmt.Errorf("Failed to get current ACL value for %s", path)
 		}
 
-		if updateACL {
-			ret = C.acl_set_qualifier(ent, unsafe.Pointer(&newId))
-			if ret == -1 {
-				return fmt.Errorf("Failed to change ACLs on %s", path)
-			}
-			ret = C.acl_set_file(cpath, C.ACL_TYPE_ACCESS, acl)
-			if ret == -1 {
-				return fmt.Errorf("Failed to change ACLs on %s", path)
-			}
+		// Shift the value
+		newId, _ := shiftIds((int64)(*idp), -1)
+
+		// Update the new entry with the shifted value
+		ret = C.acl_set_qualifier(newEnt, unsafe.Pointer(&newId))
+		if ret == -1 {
+			return fmt.Errorf("Failed to set ACL qualifier on %s", path)
+		}
+
+		update = true
+	}
+
+	// Update the on-disk ACLs to match
+	if update {
+		ret := C.acl_set_file(cpath, aclType, newAcl)
+		if ret == -1 {
+			return fmt.Errorf("Failed to change ACLs on %s", path)
 		}
 	}
+
 	return nil
 }
