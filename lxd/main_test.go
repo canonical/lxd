@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -20,7 +21,7 @@ func mockStartDaemon() (*Daemon, error) {
 	// Setup test certificates. We re-use the ones already on disk under
 	// the test/ directory, to avoid generating new ones, which is
 	// expensive.
-	err := setupTestCerts(shared.VarPath())
+	err := sys.SetupTestCerts(shared.VarPath())
 	if err != nil {
 		return nil, err
 	}
