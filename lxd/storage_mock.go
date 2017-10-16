@@ -100,6 +100,10 @@ func (s *storageMock) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, ch
 	return nil
 }
 
+func (s *storageMock) StoragePoolVolumeRename(newName string) error {
+	return nil
+}
+
 func (s *storageMock) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
 	return nil
 }

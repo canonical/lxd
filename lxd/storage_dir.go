@@ -407,6 +407,38 @@ func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 	return nil
 }
 
+func (s *storageDir) StoragePoolVolumeRename(newName string) error {
+	logger.Infof(`Renaming DIR storage volume on storage pool "%s" from "%s" to "%s`,
+		s.pool.Name, s.volume.Name, newName)
+
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, s.volume.Name, storagePoolVolumeTypeNameCustom)
+	if err != nil {
+		return err
+	}
+	if len(usedBy) > 0 {
+		return fmt.Errorf(`DIR storage volume "%s" on storage pool "%s" is attached to containers`,
+			s.volume.Name, s.pool.Name)
+	}
+
+	oldPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	newPath := getStoragePoolVolumeMountPoint(s.pool.Name, newName)
+	err = os.Rename(oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof(`Renamed DIR storage volume on storage pool "%s" from "%s" to "%s`,
+		s.pool.Name, s.volume.Name, newName)
+
+	return db.StoragePoolVolumeRename(s.s.DB, s.volume.Name, newName,
+		storagePoolVolumeTypeCustom, s.poolID)
+}
+
 func (s *storageDir) ContainerStorageReady(name string) bool {
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 	ok, _ := shared.PathIsEmpty(containerMntPoint)
