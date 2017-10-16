@@ -22,6 +22,15 @@ func (e *Endpoints) NetworkPublicKey() []byte {
 	return e.cert.PublicKey()
 }
 
+// NetworkPrivateKey returns the private key of the TLS certificate used by the
+// network endpoint.
+func (e *Endpoints) NetworkPrivateKey() []byte {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return e.cert.PrivateKey()
+}
+
 // NetworkAddress returns the network addresss of the network endpoint, or an
 // empty string if there's no network endpoint
 func (e *Endpoints) NetworkAddress() string {

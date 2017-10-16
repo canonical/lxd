@@ -508,7 +508,10 @@ func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterP
 	if err != nil {
 		return nil, err
 	}
-	op.Wait()
+	err = op.Wait()
+	if err != nil {
+		return nil, err
+	}
 	return reverter, nil
 }
 
