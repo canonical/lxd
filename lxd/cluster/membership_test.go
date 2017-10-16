@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -125,6 +127,117 @@ func TestBootstrap(t *testing.T) {
 	conn, err := driver.Open("test.db")
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
+}
+
+// If pre-conditions are not met, a descriptive error is returned.
+func TestAccept_UnmetPreconditions(t *testing.T) {
+	cases := []struct {
+		name    string
+		address string
+		schema  int
+		api     int
+		setup   func(*membershipFixtures)
+		error   string
+	}{
+		{
+			"buzz",
+			"1.2.3.4:666",
+			cluster.SchemaVersion,
+			len(version.APIExtensions),
+			func(f *membershipFixtures) {},
+			"clustering not enabled",
+		},
+		{
+			"rusp",
+			"1.2.3.4:666",
+			cluster.SchemaVersion,
+			len(version.APIExtensions),
+			func(f *membershipFixtures) {
+				f.ClusterNode("5.6.7.8:666")
+			},
+			"cluster already has node with name rusp",
+		},
+		{
+			"buzz",
+			"5.6.7.8:666",
+			cluster.SchemaVersion,
+			len(version.APIExtensions),
+			func(f *membershipFixtures) {
+				f.ClusterNode("5.6.7.8:666")
+			},
+			"cluster already has node with address 5.6.7.8:666",
+		},
+		{
+			"buzz",
+			"1.2.3.4:666",
+			cluster.SchemaVersion - 1,
+			len(version.APIExtensions),
+			func(f *membershipFixtures) {
+				f.ClusterNode("5.6.7.8:666")
+			},
+			fmt.Sprintf("schema version mismatch: cluster has %d", cluster.SchemaVersion),
+		},
+		{
+			"buzz",
+			"1.2.3.4:666",
+			cluster.SchemaVersion,
+			len(version.APIExtensions) - 1,
+			func(f *membershipFixtures) {
+				f.ClusterNode("5.6.7.8:666")
+			},
+			fmt.Sprintf("API version mismatch: cluster has %d", len(version.APIExtensions)),
+		},
+	}
+	for _, c := range cases {
+		subtest.Run(t, c.error, func(t *testing.T) {
+			state, cleanup := state.NewTestState(t)
+			defer cleanup()
+
+			c.setup(&membershipFixtures{t: t, state: state})
+
+			_, err := cluster.Accept(state, c.name, c.address, c.schema, c.api)
+			assert.EqualError(t, err, c.error)
+		})
+	}
+}
+
+// When a node gets accepted, it gets included in the raft nodes.
+func TestAccept(t *testing.T) {
+	state, cleanup := state.NewTestState(t)
+	defer cleanup()
+
+	f := &membershipFixtures{t: t, state: state}
+	f.RaftNode("1.2.3.4:666")
+	f.ClusterNode("1.2.3.4:666")
+
+	nodes, err := cluster.Accept(
+		state, "buzz", "5.6.7.8:666", cluster.SchemaVersion, len(version.APIExtensions))
+	assert.NoError(t, err)
+	assert.Len(t, nodes, 2)
+	assert.Equal(t, int64(1), nodes[0].ID)
+	assert.Equal(t, int64(2), nodes[1].ID)
+	assert.Equal(t, "1.2.3.4:666", nodes[0].Address)
+	assert.Equal(t, "5.6.7.8:666", nodes[1].Address)
+}
+
+// If the cluster has already reached its maximum number of raft nodes, the
+// joining node is not included in the returned raft nodes list.
+func TestAccept_MaxRaftNodes(t *testing.T) {
+	state, cleanup := state.NewTestState(t)
+	defer cleanup()
+
+	f := &membershipFixtures{t: t, state: state}
+	f.RaftNode("1.1.1.1:666")
+	f.RaftNode("2.2.2.2:666")
+	f.RaftNode("3.3.3.3:666")
+	f.ClusterNode("1.2.3.4:666")
+
+	nodes, err := cluster.Accept(
+		state, "buzz", "4.5.6.7:666", cluster.SchemaVersion, len(version.APIExtensions))
+	assert.NoError(t, err)
+	for _, node := range nodes {
+		assert.NotEqual(t, "4.5.6.7:666", node.Address)
+	}
 }
 
 // Helper for setting fixtures for Bootstrap tests.
