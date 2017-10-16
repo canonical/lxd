@@ -109,7 +109,7 @@ func clusterPostJoin(d *Daemon, req api.ClusterPost) Response {
 	run := func(op *operation) error {
 		// First request for this node to be added to the list of
 		// cluster nodes.
-		client, err := lxd.ConnectLXD(req.TargetAddress, args)
+		client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", req.TargetAddress), args)
 		if err != nil {
 			return err
 		}
