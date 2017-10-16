@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 
 	"github.com/lxc/lxd/shared"
@@ -51,4 +52,27 @@ func LoadCert(dir string) (*shared.CertInfo, error) {
 		return nil, errors.Wrap(err, "failed to load TLS certificate")
 	}
 	return cert, nil
+}
+
+// WriteCert writes the given material to the appropriate certificate files in
+// the given LXD var directory.
+func WriteCert(dir, prefix string, cert, key, ca []byte) error {
+	err := ioutil.WriteFile(filepath.Join(dir, prefix+".crt"), cert, 0644)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(filepath.Join(dir, prefix+".key"), key, 0600)
+	if err != nil {
+		return err
+	}
+
+	if ca != nil {
+		err = ioutil.WriteFile(filepath.Join(dir, prefix+".ca"), ca, 0644)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
