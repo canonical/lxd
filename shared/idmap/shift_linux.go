@@ -136,7 +136,7 @@ func ShiftACL(path string, shiftIds func(uid int64, gid int64) (int64, int64)) e
 
 		ret = C.acl_get_tag_type(ent, &tag)
 		if ret == -1 {
-			return fmt.Errorf("Failed to change ACLs on %s", path)
+			return fmt.Errorf("Failed to get ACLs for %s", path)
 		}
 
 		idp := (*C.id_t)(C.acl_get_qualifier(ent))
@@ -158,8 +158,9 @@ func ShiftACL(path string, shiftIds func(uid int64, gid int64) (int64, int64)) e
 		if updateACL {
 			ret = C.acl_set_qualifier(ent, unsafe.Pointer(&newId))
 			if ret == -1 {
-				return fmt.Errorf("Failed to change ACLs on %s", path)
+				return fmt.Errorf("Failed to set ACL qualifier on %s", path)
 			}
+
 			ret = C.acl_set_file(cpath, C.ACL_TYPE_ACCESS, acl)
 			if ret == -1 {
 				return fmt.Errorf("Failed to change ACLs on %s", path)
