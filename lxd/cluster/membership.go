@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
+	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 
@@ -181,6 +186,103 @@ func Accept(state *state.State, name, address string, schema, api int) ([]db.Raf
 	}
 
 	return nodes, nil
+}
+
+// Join makes a non-clustered LXD node join an existing cluster.
+//
+// It's assumed that Accept() was previously called against the target node,
+// which handed the raft server ID.
+//
+// The cert parameter must contain the keypair/CA material of the cluster being
+// joined.
+func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name string, nodes []db.RaftNode) error {
+	// Check parameters
+	if name == "" {
+		return fmt.Errorf("node name must not be empty")
+	}
+
+	var address string
+	err := state.Node.Transaction(func(tx *db.NodeTx) error {
+		// Fetch current network address and raft nodes
+		config, err := node.ConfigLoad(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to fetch node configuration")
+		}
+		address = config.HTTPSAddress()
+
+		// Make sure node-local database state is in order.
+		err = membershipCheckNodeStateForBootstrapOrJoin(tx, address)
+		if err != nil {
+			return err
+		}
+
+		// Set the raft nodes list to the one that was returned by Accept().
+		err = tx.RaftNodesReplace(nodes)
+		if err != nil {
+			return errors.Wrap(err, "failed to set raft nodes")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Shutdown the gateway and wipe any raft data. This will trash any
+	// gRPC SQL connection against our in-memory dqlite driver and shutdown
+	// the associated raft instance.
+	err = gateway.Shutdown()
+	if err != nil {
+		return errors.Wrap(err, "failed to shutdown gRPC SQL gateway")
+	}
+	err = os.RemoveAll(filepath.Join(state.OS.VarDir, "raft"))
+	if err != nil {
+		return errors.Wrap(err, "failed to remove existing raft data")
+	}
+
+	// Re-initialize the gateway. This will create a new raft factory an
+	// dqlite driver instance, which will be exposed over gRPC by the
+	// gateway handlers.
+	gateway.cert = cert
+	err = gateway.init()
+	if err != nil {
+		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
+	}
+
+	// If we are listed among the database nodes, join the raft cluster.
+	id := ""
+	target := ""
+	for _, node := range nodes {
+		if node.Address == address {
+			id = strconv.Itoa(int(node.ID))
+		} else {
+			target = node.Address
+		}
+	}
+	if id != "" {
+		logger.Info(
+			"Joining dqlite raft cluster",
+			log15.Ctx{"id": id, "address": address, "target": target})
+		changer := gateway.raft.MembershipChanger()
+		err := changer.Join(raft.ServerID(id), raft.ServerAddress(target), 5*time.Second)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Make sure we can actually connect to the cluster database through
+	// the network endpoint. This also makes the Go SQL pooling system
+	// invalidate the old connection, so new queries will be executed over
+	// the new gRPC network connection.
+	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		_, err := tx.Nodes()
+		return err
+	})
+	if err != nil {
+		return errors.Wrap(err, "cluster database initialization failed")
+	}
+
+	return nil
 }
 
 // Check that node-related preconditions are met for bootstrapping or joining a

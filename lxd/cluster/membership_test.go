@@ -240,6 +240,60 @@ func TestAccept_MaxRaftNodes(t *testing.T) {
 	}
 }
 
+func TestJoin(t *testing.T) {
+	// Setup a target node running as leader of a cluster.
+	targetState, cleanup := state.NewTestState(t)
+	defer cleanup()
+
+	targetCert := shared.TestingKeyPair()
+	targetGateway := newGateway(t, targetState.Node, targetCert)
+	defer targetGateway.Shutdown()
+
+	targetMux := http.NewServeMux()
+	targetServer := newServer(targetCert, targetMux)
+	defer targetServer.Close()
+
+	for path, handler := range targetGateway.HandlerFuncs() {
+		targetMux.HandleFunc(path, handler)
+	}
+
+	targetAddress := targetServer.Listener.Addr().String()
+	targetF := &membershipFixtures{t: t, state: targetState}
+	targetF.NetworkAddress(targetAddress)
+
+	err := cluster.Bootstrap(targetState, targetGateway, "buzz")
+	require.NoError(t, err)
+
+	// Setup a joining node
+	state, cleanup := state.NewTestState(t)
+	defer cleanup()
+
+	cert := shared.TestingAltKeyPair()
+	gateway := newGateway(t, state.Node, cert)
+	defer gateway.Shutdown()
+
+	mux := http.NewServeMux()
+	server := newServer(cert, mux)
+	defer server.Close()
+
+	for path, handler := range gateway.HandlerFuncs() {
+		mux.HandleFunc(path, handler)
+	}
+
+	address := server.Listener.Addr().String()
+	f := &membershipFixtures{t: t, state: state}
+	f.NetworkAddress(address)
+
+	// Accept the joining node.
+	nodes, err := cluster.Accept(
+		targetState, "rusp", address, cluster.SchemaVersion, len(version.APIExtensions))
+	require.NoError(t, err)
+
+	// Actually join the cluster.
+	err = cluster.Join(state, gateway, targetCert, "rusp", nodes)
+	require.NoError(t, err)
+}
+
 // Helper for setting fixtures for Bootstrap tests.
 type membershipFixtures struct {
 	t     *testing.T
