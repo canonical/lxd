@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/pem"
 	"fmt"
 	"net"
 	"os"
@@ -136,17 +137,31 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 	if err != nil {
 		return err
 	}
-	storage, err := cmd.askStorage(client, existingPools, backendsAvailable)
-	if err != nil {
-		return err
-	}
-	defaultPrivileged := cmd.askDefaultPrivileged()
 
-	// Ask about networking only if we skipped the clustering questions.
+	// Ask to create basic entities only if we are not joining an existing
+	// cluster.
+	var storage *cmdInitStorageParams
+	var defaultPrivileged int
 	var networking *cmdInitNetworkingParams
-	if clustering == nil {
-		networking = cmd.askNetworking()
-	} else {
+	var imagesAutoUpdate bool
+	var bridge *cmdInitBridgeParams
+
+	if clustering == nil || clustering.TargetAddress == "" {
+		storage, err = cmd.askStorage(client, existingPools, backendsAvailable)
+		if err != nil {
+			return err
+		}
+		defaultPrivileged = cmd.askDefaultPrivileged()
+
+		// Ask about networking only if we skipped the clustering questions.
+		if clustering == nil {
+			networking = cmd.askNetworking()
+		}
+
+		imagesAutoUpdate = cmd.askImages()
+		bridge = cmd.askBridge(client)
+	}
+	if clustering != nil {
 		// Re-use the answers to the clustering questions.
 		networking = &cmdInitNetworkingParams{
 			Address:       clustering.Address,
@@ -154,9 +169,6 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 			TrustPassword: clustering.TrustPassword,
 		}
 	}
-
-	imagesAutoUpdate := cmd.askImages()
-	bridge := cmd.askBridge(client)
 
 	_, err = exec.LookPath("dnsmasq")
 	if err != nil && bridge != nil {
@@ -225,6 +237,9 @@ func (cmd *CmdInit) fillDataWithClustering(data *cmdInitData, clustering *cmdIni
 		return
 	}
 	data.Cluster.Name = clustering.Name
+	data.Cluster.TargetAddress = clustering.TargetAddress
+	data.Cluster.TargetCert = clustering.TargetCert
+	data.Cluster.TargetPassword = clustering.TargetPassword
 }
 
 // Fill the given init data with a new storage pool structure matching the
@@ -504,9 +519,19 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 // Turn on clustering.
 func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterPost) (reverter, error) {
 	var reverter func() error
-	op, err := client.BootstrapCluster(cluster.Name)
-	if err != nil {
-		return nil, err
+	var op *lxd.Operation
+	var err error
+	if cluster.TargetAddress == "" {
+		op, err = client.BootstrapCluster(cluster.Name)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		op, err = client.JoinCluster(
+			cluster.TargetAddress, cluster.TargetPassword, cluster.TargetCert, cluster.Name)
+		if err != nil {
+			return nil, err
+		}
 	}
 	err = op.Wait()
 	if err != nil {
@@ -762,7 +787,33 @@ func (cmd *CmdInit) askClustering() (*cmdInitClusteringParams, error) {
 		return params, nil
 	}
 
-	return nil, fmt.Errorf("joining cluster not yet implemented")
+	// Target node address, password and certificate.
+join:
+	params.TargetAddress = cmd.Context.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
+	params.TargetPassword = cmd.Context.AskPassword(
+		"Trust password for the existing cluster: ", cmd.PasswordReader)
+
+	url := fmt.Sprintf("https://%s", params.TargetAddress)
+	certificate, err := shared.GetRemoteCertificate(url)
+	if err != nil {
+		cmd.Context.Output("Error connecting to existing cluster node: %v\n", err)
+		goto join
+	}
+	digest := shared.CertFingerprint(certificate)
+	askFingerprint := fmt.Sprintf("Remote node fingerprint: %s ok (y/n)? ", digest)
+	if !cmd.Context.AskBool(askFingerprint, "") {
+		return nil, fmt.Errorf("Cluster certificate NACKed by user")
+	}
+	params.TargetCert = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+
+	// Confirm wipe this node
+	askConfirm := ("All existing data is lost when joining a cluster, " +
+		"continue? (yes/no) [default=no] ")
+	if !cmd.Context.AskBool(askConfirm, "") {
+		return nil, fmt.Errorf("User did not confirm erasing data")
+	}
+
+	return params, nil
 }
 
 // Ask if the user wants to create a new storage pool, and return
@@ -1040,11 +1091,13 @@ type cmdInitData struct {
 
 // Parameters needed when enbling clustering in interactive mode.
 type cmdInitClusteringParams struct {
-	Name          string // Name of the new node
-	Address       string // Network address of the new node
-	Port          int64  // Network port of the new node
-	Join          string // Network address of existing node to join.
-	TrustPassword string // Trust password
+	Name           string // Name of the new node
+	Address        string // Network address of the new node
+	Port           int64  // Network port of the new node
+	TrustPassword  string // Trust password
+	TargetAddress  string // Network address of cluster node to join.
+	TargetCert     []byte // Public key of the cluster to join.
+	TargetPassword string // Trust password of the cluster to join.
 }
 
 // Parameters needed when creating a storage pool in interactive or auto
