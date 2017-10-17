@@ -13,6 +13,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"golang.org/x/crypto/scrypt"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	dbapi "github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
@@ -227,28 +228,26 @@ func daemonConfigRender(state *state.State) (map[string]interface{}, error) {
 	config := map[string]interface{}{}
 
 	// Turn the config into a JSON-compatible map
-	for k, v := range daemonConfig {
-		value := v.Get()
-		if value != v.defaultValue {
-			if v.hiddenValue {
-				config[k] = true
-			} else {
-				config[k] = value
-			}
+	err := state.Cluster.Transaction(func(tx *dbapi.ClusterTx) error {
+		clusterConfig, err := cluster.ConfigLoad(tx)
+		if err != nil {
+			return err
 		}
+		for key, value := range clusterConfig.Dump() {
+			config[key] = value
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	err := state.Node.Transaction(func(tx *dbapi.NodeTx) error {
+	err = state.Node.Transaction(func(tx *dbapi.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err
 		}
 		for key, value := range nodeConfig.Dump() {
-			// FIXME: we can drop this conditional as soon as we
-			//        migrate all non-node-local keys to the cluster db
-			if key != "core.https_address" {
-				continue
-			}
 			config[key] = value
 		}
 		return nil
