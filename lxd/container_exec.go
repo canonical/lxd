@@ -84,13 +84,7 @@ func (s *execWs) Do(op *operation) error {
 						break
 					}
 
-					// If an abnormal closure occurred, kill the attached process.
-					err := syscall.Kill(s.attachedChildPid, syscall.SIGKILL)
-					if err != nil {
-						logger.Debugf("Failed to send SIGKILL to pid %d.", s.attachedChildPid)
-					} else {
-						logger.Debugf("Sent SIGKILL to pid %d.", s.attachedChildPid)
-					}
+					s.handleAbnormalClosure()
 					return
 				}
 
@@ -281,6 +275,16 @@ func (s *execWs) handleSignal(signal int) {
 		return
 	}
 	logger.Debugf("Forwarded signal '%d' to PID %d.", signal, s.attachedChildPid)
+}
+
+func (s *execWs) handleAbnormalClosure() {
+	// If an abnormal closure occurred, kill the attached process.
+	err := syscall.Kill(s.attachedChildPid, syscall.SIGKILL)
+	if err != nil {
+		logger.Debugf("Failed to send SIGKILL to pid %d.", s.attachedChildPid)
+	} else {
+		logger.Debugf("Sent SIGKILL to pid %d.", s.attachedChildPid)
+	}
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
