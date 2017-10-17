@@ -106,12 +106,21 @@ var ConfigSchema = config.Schema{
 	"maas.api.key":                   {},
 	"maas.api.url":                   {},
 	"maas.machine":                   {},
-	"storage.lvm_fstype":             {},
-	"storage.lvm_mount_options":      {},
-	"storage.lvm_thinpool_name":      {},
-	"storage.lvm_vg_name":            {},
-	"storage.lvm_volume_size":        {},
-	"storage.zfs_pool_name":          {},
-	"storage.zfs_remove_snapshots":   {},
-	"storage.zfs_use_refquota":       {},
+
+	// Keys deprecated since the implementation of the storage api.
+	"storage.lvm_fstype":           {Setter: deprecatedStorage, Default: "ext4"},
+	"storage.lvm_mount_options":    {Setter: deprecatedStorage, Default: "discard"},
+	"storage.lvm_thinpool_name":    {Setter: deprecatedStorage, Default: "LXDPool"},
+	"storage.lvm_vg_name":          {Setter: deprecatedStorage},
+	"storage.lvm_volume_size":      {Setter: deprecatedStorage, Default: "10GiB"},
+	"storage.zfs_pool_name":        {Setter: deprecatedStorage},
+	"storage.zfs_remove_snapshots": {Setter: deprecatedStorage, Type: config.Bool},
+	"storage.zfs_use_refquota":     {Setter: deprecatedStorage, Type: config.Bool},
+}
+
+func deprecatedStorage(value string) (string, error) {
+	if value == "" {
+		return "", nil
+	}
+	return "", fmt.Errorf("deprecated: use storage pool configuration")
 }

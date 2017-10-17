@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -163,8 +164,18 @@ func patchNetworkPermissions(name string, d *Daemon) error {
 }
 
 func patchStorageApi(name string, d *Daemon) error {
-	lvmVgName := daemonConfig["storage.lvm_vg_name"].Get()
-	zfsPoolName := daemonConfig["storage.zfs_pool_name"].Get()
+	var daemonConfig map[string]string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		daemonConfig, err = tx.Config()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	lvmVgName := daemonConfig["storage.lvm_vg_name"]
+	zfsPoolName := daemonConfig["storage.zfs_pool_name"]
 	defaultPoolName := "default"
 	preStorageApiStorageType := storageTypeDir
 
@@ -268,14 +279,25 @@ func patchStorageApi(name string, d *Daemon) error {
 	}
 
 	// Unset deprecated storage keys.
-	daemonConfig["storage.lvm_fstype"].Set(d, "")
-	daemonConfig["storage.lvm_mount_options"].Set(d, "")
-	daemonConfig["storage.lvm_thinpool_name"].Set(d, "")
-	daemonConfig["storage.lvm_vg_name"].Set(d, "")
-	daemonConfig["storage.lvm_volume_size"].Set(d, "")
-	daemonConfig["storage.zfs_pool_name"].Set(d, "")
-	daemonConfig["storage.zfs_remove_snapshots"].Set(d, "")
-	daemonConfig["storage.zfs_use_refquota"].Set(d, "")
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+		return config.Patch(map[string]interface{}{
+			"storage.lvm_fstype":           "",
+			"storage.lvm_mount_options":    "",
+			"storage.lvm_thinpool_name":    "",
+			"storage.lvm_vg_name":          "",
+			"storage.lvm_volume_size":      "",
+			"storage.zfs_pool_name":        "",
+			"storage.zfs_remove_snapshots": "",
+			"storage.zfs_use_refquota":     "",
+		})
+	})
+	if err != nil {
+		return err
+	}
 
 	return SetupStorageDriver(d.State(), true)
 }
@@ -831,26 +853,35 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	poolConfig["source"] = defaultPoolName
 
 	// Set it only if it is not the default value.
-	fsType := daemonConfig["storage.lvm_fstype"].Get()
+	var daemonConfig map[string]string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		daemonConfig, err = tx.Config()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	fsType := daemonConfig["storage.lvm_fstype"]
 	if fsType != "" && fsType != "ext4" {
 		poolConfig["volume.block.filesystem"] = fsType
 	}
 
 	// Set it only if it is not the default value.
-	fsMntOpts := daemonConfig["storage.lvm_mount_options"].Get()
+	fsMntOpts := daemonConfig["storage.lvm_mount_options"]
 	if fsMntOpts != "" && fsMntOpts != "discard" {
 		poolConfig["volume.block.mount_options"] = fsMntOpts
 	}
 
-	poolConfig["lvm.thinpool_name"] = daemonConfig["storage.lvm_thinpool_name"].Get()
+	poolConfig["lvm.thinpool_name"] = daemonConfig["storage.lvm_thinpool_name"]
 	if poolConfig["lvm.thinpool_name"] == "" {
 		// If empty we need to set it to the old default.
 		poolConfig["lvm.thinpool_name"] = "LXDPool"
 	}
 
-	poolConfig["lvm.vg_name"] = daemonConfig["storage.lvm_vg_name"].Get()
+	poolConfig["lvm.vg_name"] = daemonConfig["storage.lvm_vg_name"]
 
-	poolConfig["volume.size"] = daemonConfig["storage.lvm_volume_size"].Get()
+	poolConfig["volume.size"] = daemonConfig["storage.lvm_volume_size"]
 	if poolConfig["volume.size"] != "" {
 		// In case stuff like GiB is used which
 		// share.dParseByteSizeString() doesn't handle.
@@ -862,7 +893,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	// "volume.size", so unset it.
 	poolConfig["size"] = ""
 
-	err := storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig, nil)
+	err = storagePoolValidateConfig(defaultPoolName, defaultStorageTypeName, poolConfig, nil)
 	if err != nil {
 		return err
 	}
