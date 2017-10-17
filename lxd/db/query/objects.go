@@ -51,7 +51,7 @@ func UpsertObject(tx *sql.Tx, table string, columns []string, values []interface
 
 	stmt := fmt.Sprintf(
 		"INSERT OR REPLACE INTO %s (%s) VALUES %s",
-		table, strings.Join(columns, ", "), exprParams(n))
+		table, strings.Join(columns, ", "), Params(n))
 	result, err := tx.Exec(stmt, values...)
 	if err != nil {
 		return -1, err
