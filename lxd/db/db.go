@@ -46,16 +46,35 @@ type Node struct {
 // The legacyPatches parameter is used as a mean to apply the legacy V10, V11,
 // V15, V29 and V30 non-db updates during the database upgrade sequence, to
 // avoid any change in semantics wrt the old logic (see PR #3322).
-func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*LegacyPatch) (*Node, error) {
+//
+// Return the newly created Node object, and a Dump of the pre-clustering data
+// if we've migrating to a cluster-aware version.
+func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*LegacyPatch) (*Node, *Dump, error) {
+	// When updating the node database schema we'll detect if we're
+	// transitioning to the dqlite-based database and dump all the data
+	// before purging the schema. This data will be then imported by the
+	// daemon into the dqlite database.
+	var dump *Dump
+
 	db, err := node.Open(dir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	hook := legacyPatchHook(db, legacyPatches)
+	legacyHook := legacyPatchHook(db, legacyPatches)
+	hook := func(version int, tx *sql.Tx) error {
+		if version == node.UpdateFromPreClustering {
+			var err error
+			dump, err = LoadPreClusteringData(tx)
+			if err != nil {
+				return err
+			}
+		}
+		return legacyHook(version, tx)
+	}
 	initial, err := node.EnsureSchema(db, dir, hook)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	node := &Node{
@@ -66,17 +85,17 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 	if initial == 0 {
 		err := node.ProfileCreateDefault()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if fresh != nil {
 			err := fresh(node)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	}
 
-	return node, nil
+	return node, dump, nil
 }
 
 // ForLegacyPatches is a aid for the hack in initializeDbObject, which sets

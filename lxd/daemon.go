@@ -370,13 +370,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Initialize the database */
-	err = initializeDbObject(d)
-	if err != nil {
-		return err
-	}
-
-	/* Load all config values from the database */
-	err = daemonConfigInit(d.db.DB())
+	dump, err := initializeDbObject(d)
 	if err != nil {
 		return err
 	}
@@ -426,6 +420,21 @@ func (d *Daemon) init() error {
 		NetworkAddress:       address,
 	}
 	d.endpoints, err = endpoints.Up(config)
+	if err != nil {
+		return err
+	}
+
+	/* Migrate the node local data to the cluster database, if needed */
+	if dump != nil {
+		logger.Infof("Migrating data from lxd.db to db.bin")
+		err = d.cluster.ImportPreClusteringData(dump)
+		if err != nil {
+			return fmt.Errorf("Failed to migrate data to db.bin: %v", err)
+		}
+	}
+
+	/* Load all config values from the database */
+	err = daemonConfigInit(d.db.DB())
 	if err != nil {
 		return err
 	}
@@ -683,7 +692,7 @@ func (d *Daemon) setupMAASController(server string, key string, machine string) 
 }
 
 // Create a database connection and perform any updates needed.
-func initializeDbObject(d *Daemon) error {
+func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	// NOTE: we use the legacyPatches parameter to run a few
 	// legacy non-db updates that were in place before the
 	// patches mechanism was introduced in lxd/patches.go. The
@@ -717,10 +726,11 @@ func initializeDbObject(d *Daemon) error {
 		return nil
 	}
 	var err error
-	d.db, err = db.OpenNode(d.os.VarDir, freshHook, legacy)
+	var dump *db.Dump
+	d.db, dump, err = db.OpenNode(d.os.VarDir, freshHook, legacy)
 	if err != nil {
-		return fmt.Errorf("Error creating database: %s", err)
+		return nil, fmt.Errorf("Error creating database: %s", err)
 	}
 
-	return nil
+	return dump, nil
 }

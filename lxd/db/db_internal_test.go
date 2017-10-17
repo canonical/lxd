@@ -65,7 +65,7 @@ func (s *dbTestSuite) CreateTestDb() *Node {
 	s.dir, err = ioutil.TempDir("", "lxd-db-test")
 	s.Nil(err)
 
-	db, err := OpenNode(s.dir, nil, nil)
+	db, _, err := OpenNode(s.dir, nil, nil)
 	s.Nil(err)
 	return db
 }

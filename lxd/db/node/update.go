@@ -87,6 +87,10 @@ var updates = map[int]schema.Update{
 	37: updateFromV36,
 }
 
+// UpdateFromPreClustering is the last schema version where clustering support
+// was not available, and hence no cluster dqlite database is used.
+const UpdateFromPreClustering = 36
+
 // Schema updates begin here
 
 // Add a raft_nodes table to be used when running in clustered mode. It lists
