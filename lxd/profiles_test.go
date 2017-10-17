@@ -18,7 +18,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 	defer os.RemoveAll(d.os.VarDir)
 
-	err = initializeDbObject(d)
+	_, err = initializeDbObject(d)
 	if err != nil {
 		t.Fatal(err)
 	}
