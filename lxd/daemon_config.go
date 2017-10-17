@@ -195,16 +195,6 @@ func daemonConfigInit(cluster *dbapi.Cluster) error {
 		"maas.api.key": {valueType: "string", setter: daemonConfigSetMAAS},
 		"maas.api.url": {valueType: "string", setter: daemonConfigSetMAAS},
 		"maas.machine": {valueType: "string", setter: daemonConfigSetMAAS},
-
-		// Keys deprecated since the implementation of the storage api.
-		"storage.lvm_fstype":           {valueType: "string", defaultValue: "ext4", validValues: []string{"btrfs", "ext4", "xfs"}, validator: storageDeprecatedKeys},
-		"storage.lvm_mount_options":    {valueType: "string", defaultValue: "discard", validator: storageDeprecatedKeys},
-		"storage.lvm_thinpool_name":    {valueType: "string", defaultValue: "LXDPool", validator: storageDeprecatedKeys},
-		"storage.lvm_vg_name":          {valueType: "string", validator: storageDeprecatedKeys},
-		"storage.lvm_volume_size":      {valueType: "string", defaultValue: "10GiB", validator: storageDeprecatedKeys},
-		"storage.zfs_pool_name":        {valueType: "string", validator: storageDeprecatedKeys},
-		"storage.zfs_remove_snapshots": {valueType: "bool", validator: storageDeprecatedKeys},
-		"storage.zfs_use_refquota":     {valueType: "bool", validator: storageDeprecatedKeys},
 	}
 
 	// Load the values from the DB
@@ -371,12 +361,4 @@ func daemonConfigValidateCompression(d *Daemon, key string, value string) error 
 
 	_, err := exec.LookPath(value)
 	return err
-}
-
-func storageDeprecatedKeys(d *Daemon, key string, value string) error {
-	if value == "" || daemonConfig[key].defaultValue == value {
-		return nil
-	}
-
-	return fmt.Errorf("Setting the key \"%s\" is deprecated in favor of storage pool configuration.", key)
 }
