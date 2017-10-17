@@ -24,3 +24,16 @@ func TestUpdateFromV0(t *testing.T) {
 	_, err = db.Exec("INSERT INTO nodes VALUES (3, 'bar', 'gasp', '1.2.3.4:666', 9, 11), ?)", time.Now())
 	require.Error(t, err)
 }
+
+func TestUpdateFromV1(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(2, nil)
+	require.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO config VALUES (1, 'foo', 'blah')")
+	require.NoError(t, err)
+
+	// Unique constraint on key.
+	_, err = db.Exec("INSERT INTO config VALUES (2, 'foo', 'gosh')")
+	require.Error(t, err)
+}
