@@ -132,45 +132,9 @@ func (s *execWs) Do(op *operation) error {
 				}
 			}
 		}()
-
-		go func() {
-			s.connsLock.Lock()
-			conn := s.conns[0]
-			s.connsLock.Unlock()
-
-			logger.Debugf("Starting to mirror websocket")
-			readDone, writeDone := shared.WebsocketExecMirror(conn, s.ptys[0], s.ptys[0], s.doneCh, int(s.ptys[0].Fd()))
-
-			<-readDone
-			<-writeDone
-			logger.Debugf("Finished to mirror websocket")
-
-			conn.Close()
-			s.wgEOF.Done()
-		}()
-
+		s.connectInteractiveStreams()
 	} else {
-		s.wgEOF.Add(len(s.ttys) - 1)
-		for i := 0; i < len(s.ttys); i++ {
-			go func(i int) {
-				if i == 0 {
-					s.connsLock.Lock()
-					conn := s.conns[0]
-					s.connsLock.Unlock()
-
-					<-shared.WebsocketRecvStream(s.ttys[0], conn)
-					s.ttys[0].Close()
-				} else {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
-
-					<-shared.WebsocketSendStream(conn, s.ptys[i], -1)
-					s.ptys[i].Close()
-					s.wgEOF.Done()
-				}
-			}(i)
-		}
+		s.connectNotInteractiveStreams()
 	}
 
 	cmd, _, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false)
@@ -238,6 +202,48 @@ func (s *execWs) openTTYs() (*os.File, *os.File, *os.File, error) {
 	}
 
 	return stdin, stdout, stderr, nil
+}
+
+func (s *execWs) connectInteractiveStreams() {
+	go func() {
+		s.connsLock.Lock()
+		conn := s.conns[0]
+		s.connsLock.Unlock()
+
+		logger.Debugf("Starting to mirror websocket")
+		readDone, writeDone := shared.WebsocketExecMirror(conn, s.ptys[0], s.ptys[0], s.doneCh, int(s.ptys[0].Fd()))
+
+		<-readDone
+		<-writeDone
+		logger.Debugf("Finished to mirror websocket")
+
+		conn.Close()
+		s.wgEOF.Done()
+	}()
+}
+
+func (s *execWs) connectNotInteractiveStreams() {
+	s.wgEOF.Add(len(s.ttys) - 1)
+	for i := 0; i < len(s.ttys); i++ {
+		go func(i int) {
+			if i == 0 {
+				s.connsLock.Lock()
+				conn := s.conns[0]
+				s.connsLock.Unlock()
+
+				<-shared.WebsocketRecvStream(s.ttys[0], conn)
+				s.ttys[0].Close()
+			} else {
+				s.connsLock.Lock()
+				conn := s.conns[i]
+				s.connsLock.Unlock()
+
+				<-shared.WebsocketSendStream(conn, s.ptys[i], -1)
+				s.ptys[i].Close()
+				s.wgEOF.Done()
+			}
+		}(i)
+	}
 }
 
 func (s *execWs) finish(op *operation, cmdResult int) error {
