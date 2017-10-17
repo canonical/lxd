@@ -32,62 +32,32 @@ type execWs struct {
 	rootUid int64
 	rootGid int64
 
-	ttys []*os.File
-	ptys []*os.File
+	ttys        []*os.File
+	ptys        []*os.File
+	controlExit chan bool
+	doneCh      chan bool
+	wgEOF       sync.WaitGroup
 }
 
 func (s *execWs) Do(op *operation) error {
 	<-s.allConnected
 
-	var err error
-	var ttys []*os.File
-	var ptys []*os.File
-
-	var stdin *os.File
-	var stdout *os.File
-	var stderr *os.File
-
-	if s.interactive {
-		ttys = make([]*os.File, 1)
-		ptys = make([]*os.File, 1)
-		ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
-
-		stdin = ttys[0]
-		stdout = ttys[0]
-		stderr = ttys[0]
-
-		if s.width > 0 && s.height > 0 {
-			shared.SetSize(int(ptys[0].Fd()), s.width, s.height)
-		}
-	} else {
-		ttys = make([]*os.File, 3)
-		ptys = make([]*os.File, 3)
-		for i := 0; i < len(ttys); i++ {
-			ptys[i], ttys[i], err = shared.Pipe()
-			if err != nil {
-				return err
-			}
-		}
-
-		stdin = ptys[0]
-		stdout = ttys[1]
-		stderr = ttys[2]
+	stdin, stdout, stderr, err := s.openTTYs()
+	if err != nil {
+		return err
 	}
 
-	controlExit := make(chan bool)
 	attachedChildIsBorn := make(chan int)
-	attachedChildIsDead := make(chan bool, 1)
-	var wgEOF sync.WaitGroup
 
 	if s.interactive {
-		wgEOF.Add(1)
+		s.wgEOF.Add(1)
 		go func() {
 			attachedChildPid := <-attachedChildIsBorn
 			select {
 			case <-s.controlConnected:
 				break
 
-			case <-controlExit:
+			case <-s.controlExit:
 				return
 			}
 
@@ -148,7 +118,7 @@ func (s *execWs) Do(op *operation) error {
 						continue
 					}
 
-					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
+					err = shared.SetSize(int(s.ptys[0].Fd()), winchWidth, winchHeight)
 					if err != nil {
 						logger.Debugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
 						continue
@@ -169,72 +139,38 @@ func (s *execWs) Do(op *operation) error {
 			s.connsLock.Unlock()
 
 			logger.Debugf("Starting to mirror websocket")
-			readDone, writeDone := shared.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+			readDone, writeDone := shared.WebsocketExecMirror(conn, s.ptys[0], s.ptys[0], s.doneCh, int(s.ptys[0].Fd()))
 
 			<-readDone
 			<-writeDone
 			logger.Debugf("Finished to mirror websocket")
 
 			conn.Close()
-			wgEOF.Done()
+			s.wgEOF.Done()
 		}()
 
 	} else {
-		wgEOF.Add(len(ttys) - 1)
-		for i := 0; i < len(ttys); i++ {
+		s.wgEOF.Add(len(s.ttys) - 1)
+		for i := 0; i < len(s.ttys); i++ {
 			go func(i int) {
 				if i == 0 {
 					s.connsLock.Lock()
-					conn := s.conns[i]
+					conn := s.conns[0]
 					s.connsLock.Unlock()
 
-					<-shared.WebsocketRecvStream(ttys[i], conn)
-					ttys[i].Close()
+					<-shared.WebsocketRecvStream(s.ttys[0], conn)
+					s.ttys[0].Close()
 				} else {
 					s.connsLock.Lock()
 					conn := s.conns[i]
 					s.connsLock.Unlock()
 
-					<-shared.WebsocketSendStream(conn, ptys[i], -1)
-					ptys[i].Close()
-					wgEOF.Done()
+					<-shared.WebsocketSendStream(conn, s.ptys[i], -1)
+					s.ptys[i].Close()
+					s.wgEOF.Done()
 				}
 			}(i)
 		}
-	}
-
-	finisher := func(cmdResult int, cmdErr error) error {
-		for _, tty := range ttys {
-			tty.Close()
-		}
-
-		s.connsLock.Lock()
-		conn := s.conns[-1]
-		s.connsLock.Unlock()
-
-		if conn == nil {
-			if s.interactive {
-				controlExit <- true
-			}
-		} else {
-			conn.Close()
-		}
-
-		attachedChildIsDead <- true
-
-		wgEOF.Wait()
-
-		for _, pty := range ptys {
-			pty.Close()
-		}
-
-		metadata := shared.Jmap{"return": cmdResult}
-		err = op.UpdateMetadata(metadata)
-		if err != nil {
-			return err
-		}
-
-		return cmdErr
 	}
 
 	cmd, _, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false)
@@ -248,23 +184,88 @@ func (s *execWs) Do(op *operation) error {
 
 	err = cmd.Wait()
 	if err == nil {
-		return finisher(0, nil)
+		return s.finish(op, 0)
 	}
 
 	exitErr, ok := err.(*exec.ExitError)
 	if ok {
 		status, ok := exitErr.Sys().(syscall.WaitStatus)
 		if ok {
-			return finisher(status.ExitStatus(), nil)
+			return s.finish(op, status.ExitStatus())
 		}
 
 		if status.Signaled() {
 			// 128 + n == Fatal error signal "n"
-			return finisher(128+int(status.Signal()), nil)
+			return s.finish(op, 128+int(status.Signal()))
 		}
 	}
 
-	return finisher(-1, nil)
+	return s.finish(op, -1)
+}
+
+// Open TTYs. Retruns stdin, stdout, stderr descriptors.
+func (s *execWs) openTTYs() (*os.File, *os.File, *os.File, error) {
+	var stdin *os.File
+	var stdout *os.File
+	var stderr *os.File
+	var err error
+
+	if s.interactive {
+		s.ttys = make([]*os.File, 1)
+		s.ptys = make([]*os.File, 1)
+		s.ptys[0], s.ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
+
+		stdin = s.ttys[0]
+		stdout = s.ttys[0]
+		stderr = s.ttys[0]
+
+		if s.width > 0 && s.height > 0 {
+			shared.SetSize(int(s.ptys[0].Fd()), s.width, s.height)
+		}
+	} else {
+		s.ttys = make([]*os.File, 3)
+		s.ptys = make([]*os.File, 3)
+		for i := 0; i < 3; i++ {
+			s.ptys[i], s.ttys[i], err = shared.Pipe()
+			if err != nil {
+				return nil, nil, nil, err
+			}
+		}
+
+		stdin = s.ptys[0]
+		stdout = s.ttys[1]
+		stderr = s.ttys[2]
+	}
+
+	return stdin, stdout, stderr, nil
+}
+
+func (s *execWs) finish(op *operation, cmdResult int) error {
+	for _, tty := range s.ttys {
+		tty.Close()
+	}
+
+	s.connsLock.Lock()
+	conn := s.conns[-1]
+	s.connsLock.Unlock()
+
+	if conn == nil {
+		if s.interactive {
+			s.controlExit <- true
+		}
+	} else {
+		conn.Close()
+	}
+
+	s.doneCh <- true
+	s.wgEOF.Wait()
+
+	for _, pty := range s.ptys {
+		pty.Close()
+	}
+
+	metadata := shared.Jmap{"return": cmdResult}
+	return op.UpdateMetadata(metadata)
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
@@ -339,9 +340,11 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 		ws := &execWs{
-			ttyWs:   *ttyWs,
-			command: post.Command,
-			env:     env,
+			ttyWs:       *ttyWs,
+			command:     post.Command,
+			env:         env,
+			controlExit: make(chan bool),
+			doneCh:      make(chan bool, 1),
 		}
 		idmapset, err := c.IdmapSet()
 		if err != nil {
