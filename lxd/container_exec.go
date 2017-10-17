@@ -37,6 +37,7 @@ type execWs struct {
 	controlExit chan bool
 	doneCh      chan bool
 	wgEOF       sync.WaitGroup
+	cmdResult   int
 }
 
 func (s *execWs) Do(op *operation) error {
@@ -147,24 +148,23 @@ func (s *execWs) Do(op *operation) error {
 	}
 
 	err = cmd.Wait()
+	s.cmdResult = -1
 	if err == nil {
-		return s.finish(op, 0)
-	}
-
-	exitErr, ok := err.(*exec.ExitError)
-	if ok {
-		status, ok := exitErr.Sys().(syscall.WaitStatus)
+		s.cmdResult = 0
+	} else {
+		exitErr, ok := err.(*exec.ExitError)
 		if ok {
-			return s.finish(op, status.ExitStatus())
-		}
-
-		if status.Signaled() {
-			// 128 + n == Fatal error signal "n"
-			return s.finish(op, 128+int(status.Signal()))
+			status, ok := exitErr.Sys().(syscall.WaitStatus)
+			if ok {
+				s.cmdResult = status.ExitStatus()
+			} else if status.Signaled() {
+				// 128 + n == Fatal error signal "n"
+				s.cmdResult = 128 + int(status.Signal())
+			}
 		}
 	}
-
-	return s.finish(op, -1)
+	s.finish(op)
+	return op.UpdateMetadata(s.getMetadata())
 }
 
 // Open TTYs. Retruns stdin, stdout, stderr descriptors.
@@ -246,7 +246,11 @@ func (s *execWs) connectNotInteractiveStreams() {
 	}
 }
 
-func (s *execWs) finish(op *operation, cmdResult int) error {
+func (s *execWs) getMetadata() shared.Jmap {
+	return shared.Jmap{"return": s.cmdResult}
+}
+
+func (s *execWs) finish(op *operation) {
 	for _, tty := range s.ttys {
 		tty.Close()
 	}
@@ -269,9 +273,6 @@ func (s *execWs) finish(op *operation, cmdResult int) error {
 	for _, pty := range s.ptys {
 		pty.Close()
 	}
-
-	metadata := shared.Jmap{"return": cmdResult}
-	return op.UpdateMetadata(metadata)
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
