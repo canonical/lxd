@@ -10,6 +10,13 @@ type StorageVolumesPost struct {
 	Type string `json:"type" yaml:"type"`
 }
 
+// StorageVolumePost represents the fields required to rename a LXD storage pool volume
+//
+// API extension: storage_api_volume_rename
+type StorageVolumePost struct {
+	Name string `json:"name" yaml:"name"`
+}
+
 // StorageVolume represents the fields of a LXD storage volume.
 //
 // API extension: storage

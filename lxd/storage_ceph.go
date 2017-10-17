@@ -705,6 +705,66 @@ func (s *storageCeph) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, ch
 	return nil
 }
 
+func (s *storageCeph) StoragePoolVolumeRename(newName string) error {
+	logger.Infof(`Renaming CEPH storage volume on OSD storage pool "%s" from "%s" to "%s`,
+		s.pool.Name, s.volume.Name, newName)
+
+	_, err := s.StoragePoolVolumeUmount()
+	if err != nil {
+		return err
+	}
+
+	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, s.volume.Name, storagePoolVolumeTypeNameCustom)
+	if err != nil {
+		return err
+	}
+	if len(usedBy) > 0 {
+		return fmt.Errorf(`RBD storage volume "%s" on CEPH OSD storage pool "%s" is attached to containers`,
+			s.volume.Name, s.pool.Name)
+	}
+
+	// unmap
+	err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
+		s.volume.Name, storagePoolVolumeTypeNameCustom,
+		s.UserName, true)
+	if err != nil {
+		logger.Errorf(`Failed to unmap RBD storage volume for `+`container "%s" on storage pool "%s": %s`,
+			s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Unmapped RBD storage volume for container "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	err = cephRBDVolumeRename(s.ClusterName, s.OSDPoolName,
+		storagePoolVolumeTypeNameCustom, s.volume.Name,
+		newName, s.UserName)
+	if err != nil {
+		logger.Errorf(`Failed to rename RBD storage volume for container "%s" on storage pool "%s": %s`,
+			s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Renamed RBD storage volume for container "%s" on storage pool "%s"`,
+		s.volume.Name, s.pool.Name)
+
+	// map
+	_, err = cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
+		newName, storagePoolVolumeTypeNameCustom,
+		s.UserName)
+	if err != nil {
+		logger.Errorf(`Failed to map RBD storage volume for container "%s" on storage pool "%s": %s`,
+			newName, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Mapped RBD storage volume for container "%s" on storage pool "%s"`,
+		newName, s.pool.Name)
+
+	logger.Infof(`Renamed CEPH storage volume on OSD storage pool "%s" from "%s" to "%s`,
+		s.pool.Name, s.volume.Name, newName)
+
+	return db.StoragePoolVolumeRename(s.s.DB, s.volume.Name, newName,
+		storagePoolVolumeTypeCustom, s.poolID)
+}
+
 func (s *storageCeph) StoragePoolUpdate(writable *api.StoragePoolPut, changedConfig []string) error {
 	logger.Infof(`Updating CEPH storage pool "%s"`, s.pool.Name)
 
