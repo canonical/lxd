@@ -2773,12 +2773,18 @@ func patchUpdateFromV15(d *Daemon) error {
 		return err
 	}
 
-	err = daemonConfigInit(d.cluster)
+	vgName := ""
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		config, err := tx.Config()
+		if err != nil {
+			return err
+		}
+		vgName = config["storage.lvm_vg_name"]
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-
-	vgName := daemonConfig["storage.lvm_vg_name"].Get()
 
 	for _, cName := range cNames {
 		var lvLinkPath string
