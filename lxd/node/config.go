@@ -90,31 +90,4 @@ func (c *Config) update(values map[string]interface{}) error {
 var ConfigSchema = config.Schema{
 	// Network address for this LXD server.
 	"core.https_address": {},
-
-	// FIXME: Legacy node-level config values. Will be migrated to
-	//        cluster-config, but we need them here just to avoid
-	//        spurious errors in the logs
-	"core.https_allowed_headers":     {},
-	"core.https_allowed_methods":     {},
-	"core.https_allowed_origin":      {},
-	"core.https_allowed_credentials": {},
-	"core.proxy_http":                {},
-	"core.proxy_https":               {},
-	"core.proxy_ignore_hosts":        {},
-	"core.trust_password":            {},
-	"images.auto_update_cached":      {},
-	"images.auto_update_interval":    {},
-	"images.compression_algorithm":   {},
-	"images.remote_cache_expiry":     {},
-	"maas.api.key":                   {},
-	"maas.api.url":                   {},
-	"maas.machine":                   {},
-	"storage.lvm_fstype":             {},
-	"storage.lvm_mount_options":      {},
-	"storage.lvm_thinpool_name":      {},
-	"storage.lvm_vg_name":            {},
-	"storage.lvm_volume_size":        {},
-	"storage.zfs_pool_name":          {},
-	"storage.zfs_remove_snapshots":   {},
-	"storage.zfs_use_refquota":       {},
 }
