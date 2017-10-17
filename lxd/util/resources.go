@@ -197,18 +197,22 @@ func parseSysDevSystemCpu() ([]thread, error) {
 		path = fmt.Sprintf("/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", t.ID)
 		freq, err := parseNumberFromFile(path)
 		if err != nil {
-			return nil, err
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+		} else {
+			t.frequency = uint64(freq / 1000)
 		}
-
-		t.frequency = uint64(freq / 1000)
 
 		path = fmt.Sprintf("/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", t.ID)
 		freq, err = parseNumberFromFile(path)
 		if err != nil {
-			return nil, err
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+		} else {
+			t.frequencyTurbo = uint64(freq / 1000)
 		}
-
-		t.frequencyTurbo = uint64(freq / 1000)
 
 		threads = append(threads, t)
 	}
