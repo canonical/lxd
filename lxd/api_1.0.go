@@ -9,6 +9,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -85,7 +86,11 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	addresses, err := util.ListenAddresses(daemonConfig["core.https_address"].Get())
+	address, err := node.HTTPSAddress(d.db)
+	if err != nil {
+		return InternalError(err)
+	}
+	addresses, err := util.ListenAddresses(address)
 	if err != nil {
 		return InternalError(err)
 	}

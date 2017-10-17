@@ -30,6 +30,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/maas"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
@@ -404,7 +405,10 @@ func (d *Daemon) init() error {
 		}
 	}
 
-	address := daemonConfig["core.https_address"].Get()
+	address, err := node.HTTPSAddress(d.db)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch node address")
+	}
 
 	/* Open the cluster database */
 	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
