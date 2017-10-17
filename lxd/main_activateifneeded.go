@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
@@ -30,15 +31,14 @@ func cmdActivateIfNeeded(args *Args) error {
 		return err
 	}
 
-	/* Load all config values from the database */
-	err = daemonConfigInit(d.db.DB())
+	/* Load the configured address the database */
+	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
 		return err
 	}
 
 	// Look for network socket
-	value := daemonConfig["core.https_address"].Get()
-	if value != "" {
+	if address != "" {
 		logger.Debugf("Daemon has core.https_address set, activating...")
 		_, err := lxd.ConnectLXDUnix("", nil)
 		return err
