@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-10-12 17:53+0200\n"
+"POT-Creation-Date: 2017-10-17 05:05+0200\n"
 "PO-Revision-Date: 2017-09-28 20:29+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -263,7 +263,7 @@ msgstr ""
 msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
 
-#: lxc/rename.go:45
+#: lxc/rename.go:41
 msgid "Can't specify a different remote for rename."
 msgstr ""
 
@@ -277,7 +277,7 @@ msgstr "キー '%s' が設定されていないので削除できません"
 msgid "Can't unset key '%s', it's not currently set."
 msgstr "キー '%s' が指定されていないので削除できません。"
 
-#: lxc/network.go:486 lxc/profile.go:546 lxc/storage.go:643
+#: lxc/network.go:486 lxc/profile.go:546 lxc/storage.go:653
 msgid "Cannot provide container name to list"
 msgstr "コンテナ名を取得できません"
 
@@ -303,7 +303,7 @@ msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
 #: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1190
-#: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:594 lxc/storage.go:969
+#: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:604 lxc/storage.go:979
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -366,11 +366,11 @@ msgid "Creating the container"
 msgstr "コンテナを作成中"
 
 #: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:463 lxc/network.go:525
-#: lxc/storage.go:672 lxc/storage.go:783
+#: lxc/storage.go:682 lxc/storage.go:793
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/storage.go:673
+#: lxc/storage.go:683
 msgid "DRIVER"
 msgstr ""
 
@@ -669,7 +669,7 @@ msgstr "メモリ消費量:"
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
-#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:392 lxc/storage.go:512
+#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:402 lxc/storage.go:522
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
@@ -692,7 +692,7 @@ msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
 #: lxc/list.go:465 lxc/network.go:522 lxc/profile.go:573 lxc/remote.go:381
-#: lxc/storage.go:671 lxc/storage.go:782
+#: lxc/storage.go:681 lxc/storage.go:792
 msgid "NAME"
 msgstr ""
 
@@ -740,7 +740,7 @@ msgstr "追加すべき証明書が提供されていません"
 msgid "No device found for this network"
 msgstr "このネットワークに対するデバイスがありません"
 
-#: lxc/storage.go:401 lxc/storage.go:521
+#: lxc/storage.go:411 lxc/storage.go:531
 msgid "No device found for this storage volume."
 msgstr "このストレージボリュームに対するデバイスがありません。"
 
@@ -748,7 +748,7 @@ msgstr "このストレージボリュームに対するデバイスがありま
 msgid "No fingerprint specified."
 msgstr "フィンガープリントが指定されていません。"
 
-#: lxc/storage.go:345 lxc/storage.go:438
+#: lxc/storage.go:355 lxc/storage.go:448
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr "\"カスタム\" のボリュームのみがコンテナにアタッチできます。"
 
@@ -821,7 +821,7 @@ msgstr "アクセスが拒否されました。lxd グループに所属して�
 msgid "Pid: %d"
 msgstr "Pid: %d"
 
-#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:595 lxc/storage.go:970
+#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:605 lxc/storage.go:980
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
@@ -930,6 +930,11 @@ msgstr "リモート名: %s"
 msgid "Remove %s (yes/no): "
 msgstr "%s を消去しますか (yes/no): "
 
+#: lxc/storage.go:1011
+#, c-format
+msgid "Renamed storage volume from \"%s\" to \"%s\""
+msgstr ""
+
 #: lxc/delete.go:36 lxc/delete.go:37
 msgid "Require user confirmation"
 msgstr "ユーザの確認を要求する"
@@ -955,7 +960,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:674
+#: lxc/storage.go:684
 msgid "SOURCE"
 msgstr ""
 
@@ -1015,7 +1020,7 @@ msgstr "拡張した設定を表示する"
 msgid "Show the resources available to the server"
 msgstr ""
 
-#: lxc/storage.go:148
+#: lxc/storage.go:151
 msgid "Show the resources available to the storage pool"
 msgstr ""
 
@@ -1068,12 +1073,12 @@ msgstr "コンテナの停止に失敗しました！"
 msgid "Stopping the container failed: %s"
 msgstr "コンテナの停止に失敗しました: %s"
 
-#: lxc/storage.go:486
+#: lxc/storage.go:496
 #, c-format
 msgid "Storage pool %s created"
 msgstr "ストレージプール %s を作成しました"
 
-#: lxc/storage.go:545
+#: lxc/storage.go:555
 #, c-format
 msgid "Storage pool %s deleted"
 msgstr "ストレージプール %s を削除しました"
@@ -1082,12 +1087,12 @@ msgstr "ストレージプール %s を削除しました"
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
-#: lxc/storage.go:816
+#: lxc/storage.go:826
 #, c-format
 msgid "Storage volume %s created"
 msgstr "ストレージボリューム %s を作成しました"
 
-#: lxc/storage.go:831
+#: lxc/storage.go:841
 #, c-format
 msgid "Storage volume %s deleted"
 msgstr "ストレージボリューム %s を削除しました"
@@ -1104,7 +1109,7 @@ msgstr "Swap (現在値)"
 msgid "Swap (peak)"
 msgstr "Swap (ピーク)"
 
-#: lxc/list.go:470 lxc/network.go:523 lxc/storage.go:781
+#: lxc/list.go:470 lxc/network.go:523 lxc/storage.go:791
 msgid "TYPE"
 msgstr ""
 
@@ -1143,7 +1148,7 @@ msgstr ""
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
-#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:406 lxc/storage.go:526
+#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:416 lxc/storage.go:536
 msgid "The specified device doesn't exist"
 msgstr "指定したデバイスが存在しません"
 
@@ -1228,7 +1233,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:675 lxc/storage.go:784
+#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:685 lxc/storage.go:794
 msgid "USED BY"
 msgstr ""
 
@@ -2484,7 +2489,7 @@ msgstr ""
 "lxc remote get-default\n"
 "    デフォルトに設定されているリモートホストを表示します。"
 
-#: lxc/rename.go:22
+#: lxc/rename.go:18
 #, fuzzy
 msgid ""
 "Usage: lxc rename [<remote>:]<container>[/<snapshot>] [<container>[/"
@@ -2591,6 +2596,9 @@ msgid ""
 "\n"
 "lxc storage volume create [<remote>:]<pool> <volume> [key=value]...\n"
 "    Create a storage volume on a storage pool.\n"
+"\n"
+"lxc storage volume rename [<remote>:]<pool> <old name> <new name>\n"
+"    Rename a storage volume on a storage pool.\n"
 "\n"
 "lxc storage volume get [<remote>:]<pool> <volume> <key>\n"
 "    Get storage volume configuration on a storage pool.\n"

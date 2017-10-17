@@ -826,6 +826,38 @@ func (s *storageLvm) StoragePoolVolumeUpdate(writable *api.StorageVolumePut,
 	return nil
 }
 
+func (s *storageLvm) StoragePoolVolumeRename(newName string) error {
+	logger.Infof(`Renaming LVM storage volume on storage pool "%s" from "%s" to "%s`,
+		s.pool.Name, s.volume.Name, newName)
+
+	_, err := s.StoragePoolVolumeUmount()
+	if err != nil {
+		return err
+	}
+
+	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, s.volume.Name, storagePoolVolumeTypeNameCustom)
+	if err != nil {
+		return err
+	}
+	if len(usedBy) > 0 {
+		return fmt.Errorf(`LVM storage volume "%s" on storage pool "%s" is attached to containers`,
+			s.volume.Name, s.pool.Name)
+	}
+
+	err = s.renameLVByPath(s.volume.Name, newName,
+		storagePoolVolumeAPIEndpointCustom)
+	if err != nil {
+		return fmt.Errorf(`Failed to rename logical volume from "%s" to "%s": %s`,
+			s.volume.Name, newName, err)
+	}
+
+	logger.Infof(`Renamed ZFS storage volume on storage pool "%s" from "%s" to "%s`,
+		s.pool.Name, s.volume.Name, newName)
+
+	return db.StoragePoolVolumeRename(s.s.DB, s.volume.Name, newName,
+		storagePoolVolumeTypeCustom, s.poolID)
+}
+
 func (s *storageLvm) ContainerStorageReady(name string) bool {
 	containerLvmName := containerNameToLVName(name)
 	poolName := s.getOnDiskPoolName()

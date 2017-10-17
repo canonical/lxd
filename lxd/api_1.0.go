@@ -130,6 +130,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"storage_block_filesystem_btrfs",
 			"resources",
 			"kernel_limits",
+			"storage_api_volume_rename",
 		},
 		APIStatus:  "stable",
 		APIVersion: version.APIVersion,

@@ -602,6 +602,34 @@ func (s *storageZfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 	return nil
 }
 
+func (s *storageZfs) StoragePoolVolumeRename(newName string) error {
+	logger.Infof(`Renaming ZFS storage volume on storage pool "%s" from "%s" to "%s`,
+		s.pool.Name, s.volume.Name, newName)
+
+	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, s.volume.Name, storagePoolVolumeTypeNameCustom)
+	if err != nil {
+		return err
+	}
+	if len(usedBy) > 0 {
+		return fmt.Errorf(`ZFS storage volume "%s" on storage pool "%s" is attached to containers`,
+			s.volume.Name, s.pool.Name)
+	}
+
+	oldPath := fmt.Sprintf("custom/%s", s.volume.Name)
+	newPath := fmt.Sprintf("custom/%s", newName)
+	poolName := s.getOnDiskPoolName()
+	err = zfsPoolVolumeRename(poolName, oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof(`Renamed ZFS storage volume on storage pool "%s" from "%s" to "%s`,
+		s.pool.Name, s.volume.Name, newName)
+
+	return db.StoragePoolVolumeRename(s.s.DB, s.volume.Name, newName,
+		storagePoolVolumeTypeCustom, s.poolID)
+}
+
 // Things we don't need to care about
 func (s *storageZfs) ContainerMount(c container) (bool, error) {
 	name := c.Name()

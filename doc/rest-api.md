@@ -2288,10 +2288,23 @@ Input:
         "pool": "pool1",
         "name": "vol1",
         "type": "custom"
-l    }
+    }
 
 
 ## `/1.0/storage-pools/<pool>/volumes/<type>/<name>`
+### POST
+ * Description: rename a storage volume on a given storage pool
+ * Introduced: with API extension `storage_api_volume_rename`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "name": "vol1",
+    }
+
 ### GET
  * Description: information about a storage volume of a given type on a storage pool
  * Introduced: with API extension `storage`

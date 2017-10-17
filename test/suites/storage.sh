@@ -270,6 +270,8 @@ test_storage() {
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool2" custom/c4pool2 c4pool2 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool2" custom/c4pool2 c4pool2 testDevice2 /opt
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2 c4pool2
+      lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2 c4pool2-renamed
+      lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool2" c4pool2-renamed c4pool2
     fi
 
     if [ "$lxd_backend" = "btrfs" ]; then
@@ -314,6 +316,8 @@ test_storage() {
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool4" custom/c8pool4 c8pool4 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool4" custom/c8pool4 c8pool4 testDevice2 /opt
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4 c8pool4 testDevice
+      lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4 c8pool4-renamed
+      lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool4" c8pool4-renamed c8pool4
     fi
 
     lxc init testimage c9pool5 -s "lxdtest-$(basename "${LXD_DIR}")-pool5"
@@ -337,6 +341,8 @@ test_storage() {
     lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool5" custom/c11pool5 c11pool5 testDevice /opt
     ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool5" custom/c11pool5 c11pool5 testDevice2 /opt
     lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5 c11pool5 testDevice
+    lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5 c11pool5-renamed
+    lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5-renamed c11pool5
 
     if [ "$lxd_backend" = "lvm" ]; then
       lxc init testimage c10pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
@@ -547,6 +553,8 @@ test_storage() {
       lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool9" custom/c18pool9 c18pool9 testDevice /opt
       ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")-pool9" custom/c18pool9 c18pool9 testDevice2 /opt
       lxc storage volume detach "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9 c18pool9 testDevice
+      lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9 c18pool9-renamed
+      lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool9" c18pool9-renamed c18pool9
     fi
 
     if [ "$lxd_backend" = "zfs" ]; then
