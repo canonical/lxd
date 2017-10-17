@@ -181,15 +181,11 @@ func (k *daemonConfigKey) GetInt64() int64 {
 func daemonConfigInit(cluster *dbapi.Cluster) error {
 	// Set all the keys
 	daemonConfig = map[string]*daemonConfigKey{
-		"core.https_allowed_headers":     {valueType: "string"},
-		"core.https_allowed_methods":     {valueType: "string"},
-		"core.https_allowed_origin":      {valueType: "string"},
-		"core.https_allowed_credentials": {valueType: "bool"},
-		"core.proxy_http":                {valueType: "string", setter: daemonConfigSetProxy},
-		"core.proxy_https":               {valueType: "string", setter: daemonConfigSetProxy},
-		"core.proxy_ignore_hosts":        {valueType: "string", setter: daemonConfigSetProxy},
-		"core.trust_password":            {valueType: "string", hiddenValue: true, setter: daemonConfigSetPassword},
-		"core.macaroon.endpoint":         {valueType: "string", setter: daemonConfigSetMacaroonEndpoint},
+		"core.proxy_http":         {valueType: "string", setter: daemonConfigSetProxy},
+		"core.proxy_https":        {valueType: "string", setter: daemonConfigSetProxy},
+		"core.proxy_ignore_hosts": {valueType: "string", setter: daemonConfigSetProxy},
+		"core.trust_password":     {valueType: "string", hiddenValue: true, setter: daemonConfigSetPassword},
+		"core.macaroon.endpoint":  {valueType: "string", setter: daemonConfigSetMacaroonEndpoint},
 
 		"images.auto_update_cached":    {valueType: "bool", defaultValue: "true"},
 		"images.auto_update_interval":  {valueType: "int", defaultValue: "6", trigger: daemonConfigTriggerAutoUpdateInterval},

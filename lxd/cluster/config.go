@@ -30,6 +30,26 @@ func ConfigLoad(tx *db.ClusterTx) (*Config, error) {
 	return &Config{tx: tx, m: m}, nil
 }
 
+// HTTPSAllowedHeaders returns the relevant CORS setting.
+func (c *Config) HTTPSAllowedHeaders() string {
+	return c.m.GetString("core.https_allowed_headers")
+}
+
+// HTTPSAllowedMethods returns the relevant CORS setting.
+func (c *Config) HTTPSAllowedMethods() string {
+	return c.m.GetString("core.https_allowed_methods")
+}
+
+// HTTPSAllowedOrigin returns the relevant CORS setting.
+func (c *Config) HTTPSAllowedOrigin() string {
+	return c.m.GetString("core.https_allowed_origin")
+}
+
+// HTTPSAllowedCredentials returns the relevant CORS setting.
+func (c *Config) HTTPSAllowedCredentials() bool {
+	return c.m.GetBool("core.https_allowed_credentials")
+}
+
 // ProxyHTTP returns the configured HTTP proxy, if any.
 func (c *Config) ProxyHTTP() string {
 	return c.m.GetString("core.proxy_http")
@@ -74,7 +94,7 @@ var ConfigSchema = config.Schema{
 	"core.https_allowed_headers":     {},
 	"core.https_allowed_methods":     {},
 	"core.https_allowed_origin":      {},
-	"core.https_allowed_credentials": {},
+	"core.https_allowed_credentials": {Type: config.Bool},
 	"core.proxy_http":                {},
 	"core.proxy_https":               {},
 	"core.proxy_ignore_hosts":        {},
