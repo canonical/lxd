@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
@@ -26,10 +28,13 @@ func cmdActivateIfNeeded(args *Args) error {
 		return nil
 	}
 
-	err := initializeDbObject(d)
+	// Open the database directly to avoid triggering any initialization
+	// code, in particular the data migration from node to cluster db.
+	sqldb, err := sql.Open("sqlite3", filepath.Join(d.os.VarDir, "lxd.db"))
 	if err != nil {
 		return err
 	}
+	d.db = db.ForLegacyPatches(sqldb)
 
 	/* Load the configured address the database */
 	address, err := node.HTTPSAddress(d.db)
