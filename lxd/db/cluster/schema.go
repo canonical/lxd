@@ -6,6 +6,12 @@ package cluster
 // modify the database schema, please add a new schema update to update.go
 // and the run 'make update-schema'.
 const freshSchema = `
+CREATE TABLE config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (key)
+);
 CREATE TABLE nodes (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -18,5 +24,5 @@ CREATE TABLE nodes (
     UNIQUE (address)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (1, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (2, strftime("%s"))
 `

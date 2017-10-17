@@ -24,8 +24,22 @@ var SchemaVersion = len(updates)
 
 var updates = map[int]schema.Update{
 	1: updateFromV0,
+	2: updateFromV1,
 }
 
+func updateFromV1(tx *sql.Tx) error {
+	// config table
+	stmt := `
+CREATE TABLE config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (key)
+);
+`
+	_, err := tx.Exec(stmt)
+	return err
+}
 func updateFromV0(tx *sql.Tx) error {
 	// v0..v1 the dawn of clustering
 	stmt := `
