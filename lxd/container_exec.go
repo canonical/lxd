@@ -32,13 +32,14 @@ type execWs struct {
 	rootUid int64
 	rootGid int64
 
-	ttys             []*os.File
-	ptys             []*os.File
-	controlExit      chan bool
-	doneCh           chan bool
-	wgEOF            sync.WaitGroup
-	cmdResult        int
-	attachedChildPid int
+	ttys                []*os.File
+	ptys                []*os.File
+	controlExit         chan bool
+	doneCh              chan bool
+	wgEOF               sync.WaitGroup
+	cmdResult           int
+	attachedChildPid    int
+	attachedChildIsBorn chan int
 }
 
 func (s *execWs) Do(op *operation) error {
@@ -49,12 +50,10 @@ func (s *execWs) Do(op *operation) error {
 		return err
 	}
 
-	attachedChildIsBorn := make(chan int)
-
 	if s.interactive {
 		s.wgEOF.Add(1)
 		go func() {
-			s.attachedChildPid = <-attachedChildIsBorn
+			s.attachedChildPid = <-s.attachedChildIsBorn
 			select {
 			case <-s.controlConnected:
 				break
@@ -135,7 +134,7 @@ func (s *execWs) Do(op *operation) error {
 	}
 
 	if s.interactive {
-		attachedChildIsBorn <- attachedPid
+		s.attachedChildIsBorn <- attachedPid
 	}
 
 	err = cmd.Wait()
@@ -359,11 +358,12 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 		ws := &execWs{
-			ttyWs:       *ttyWs,
-			command:     post.Command,
-			env:         env,
-			controlExit: make(chan bool),
-			doneCh:      make(chan bool, 1),
+			ttyWs:               *ttyWs,
+			command:             post.Command,
+			env:                 env,
+			controlExit:         make(chan bool),
+			doneCh:              make(chan bool, 1),
+			attachedChildIsBorn: make(chan int),
 		}
 		idmapset, err := c.IdmapSet()
 		if err != nil {
