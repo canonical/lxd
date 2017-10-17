@@ -187,7 +187,7 @@ func (s *execWs) Do(op *operation) error {
 					break
 				}
 
-				command := api.ContainerExecControl{}
+				command := api.ContainerTTYControl{}
 
 				if err := json.Unmarshal(buf, &command); err != nil {
 					logger.Debugf("Failed to unmarshal control socket command: %s", err)
