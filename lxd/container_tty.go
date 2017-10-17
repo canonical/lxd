@@ -19,8 +19,39 @@ type ttyWs struct {
 	allConnected     chan bool
 	controlConnected chan bool
 	fds              map[int]string
+	interactive      bool
 	width            int
 	height           int
+}
+
+func newttyWs(c container, interactive bool, width int, height int) (*ttyWs, error) {
+	fds := map[int]string{}
+	conns := map[int]*websocket.Conn{
+		-1: nil,
+		0:  nil,
+	}
+	if !interactive {
+		conns[1] = nil
+		conns[2] = nil
+	}
+	for i := -1; i < len(conns)-1; i++ {
+		var err error
+		fds[i], err = shared.RandomCryptoString()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &ttyWs{
+		container:        c,
+		fds:              fds,
+		conns:            conns,
+		allConnected:     make(chan bool, 1),
+		controlConnected: make(chan bool, 1),
+		interactive:      interactive,
+		width:            width,
+		height:           height,
+	}, nil
 }
 
 func (s *ttyWs) Metadata() interface{} {

@@ -27,11 +27,13 @@ import (
 type execWs struct {
 	ttyWs
 
-	command     []string
-	env         map[string]string
-	rootUid     int64
-	rootGid     int64
-	interactive bool
+	command []string
+	env     map[string]string
+	rootUid int64
+	rootGid int64
+
+	ttys []*os.File
+	ptys []*os.File
 }
 
 func (s *execWs) Do(op *operation) error {
@@ -332,41 +334,22 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if post.WaitForWS {
-		ws := &execWs{}
-		ws.fds = map[int]string{}
-
+		ttyWs, err := newttyWs(c, post.Interactive, post.Width, post.Height)
+		if err != nil {
+			return InternalError(err)
+		}
+		ws := &execWs{
+			ttyWs:   *ttyWs,
+			command: post.Command,
+			env:     env,
+		}
 		idmapset, err := c.IdmapSet()
 		if err != nil {
 			return InternalError(err)
 		}
-
 		if idmapset != nil {
 			ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
 		}
-
-		ws.conns = map[int]*websocket.Conn{}
-		ws.conns[-1] = nil
-		ws.conns[0] = nil
-		if !post.Interactive {
-			ws.conns[1] = nil
-			ws.conns[2] = nil
-		}
-		ws.allConnected = make(chan bool, 1)
-		ws.controlConnected = make(chan bool, 1)
-		ws.interactive = post.Interactive
-		for i := -1; i < len(ws.conns)-1; i++ {
-			ws.fds[i], err = shared.RandomCryptoString()
-			if err != nil {
-				return InternalError(err)
-			}
-		}
-
-		ws.command = post.Command
-		ws.container = c
-		ws.env = env
-
-		ws.width = post.Width
-		ws.height = post.Height
 
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.container.Name()}
