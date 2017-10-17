@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/rand"
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -130,7 +129,7 @@ func (k *daemonConfigKey) Set(d *Daemon, value string) error {
 	k.currentValue = value
 	daemonConfigLock.Unlock()
 
-	err = dbapi.ConfigValueSet(d.db.DB(), name, value)
+	err = dbapi.ConfigValueSet(d.cluster, name, value)
 	if err != nil {
 		return err
 	}
@@ -179,7 +178,7 @@ func (k *daemonConfigKey) GetInt64() int64 {
 	return ret
 }
 
-func daemonConfigInit(db *sql.DB) error {
+func daemonConfigInit(cluster *dbapi.Cluster) error {
 	// Set all the keys
 	daemonConfig = map[string]*daemonConfigKey{
 		"core.https_allowed_headers":     {valueType: "string"},
@@ -213,7 +212,12 @@ func daemonConfigInit(db *sql.DB) error {
 	}
 
 	// Load the values from the DB
-	dbValues, err := dbapi.ConfigValuesGet(db)
+	var dbValues map[string]string
+	err := cluster.Transaction(func(tx *dbapi.ClusterTx) error {
+		var err error
+		dbValues, err = tx.Config()
+		return err
+	})
 	if err != nil {
 		return err
 	}
