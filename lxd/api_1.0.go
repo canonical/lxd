@@ -158,7 +158,12 @@ func api10Get(d *Daemon, r *http.Request) Response {
 }
 
 func api10Put(d *Daemon, r *http.Request) Response {
-	oldConfig, err := db.ConfigValuesGet(d.db.DB())
+	var oldConfig map[string]string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		oldConfig, err = tx.Config()
+		return err
+	})
 	if err != nil {
 		return SmartError(err)
 	}
@@ -181,7 +186,12 @@ func api10Put(d *Daemon, r *http.Request) Response {
 }
 
 func api10Patch(d *Daemon, r *http.Request) Response {
-	oldConfig, err := db.ConfigValuesGet(d.db.DB())
+	var oldConfig map[string]string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		oldConfig, err = tx.Config()
+		return err
+	})
 	if err != nil {
 		return SmartError(err)
 	}

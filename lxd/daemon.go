@@ -434,7 +434,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Load all config values from the database */
-	err = daemonConfigInit(d.db.DB())
+	err = daemonConfigInit(d.cluster)
 	if err != nil {
 		return err
 	}
