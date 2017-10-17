@@ -15,6 +15,8 @@ import (
 	"golang.org/x/crypto/scrypt"
 
 	dbapi "github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -180,7 +182,6 @@ func (k *daemonConfigKey) GetInt64() int64 {
 func daemonConfigInit(db *sql.DB) error {
 	// Set all the keys
 	daemonConfig = map[string]*daemonConfigKey{
-		"core.https_address":             {valueType: "string", setter: daemonConfigSetAddress},
 		"core.https_allowed_headers":     {valueType: "string"},
 		"core.https_allowed_methods":     {valueType: "string"},
 		"core.https_allowed_origin":      {valueType: "string"},
@@ -232,7 +233,7 @@ func daemonConfigInit(db *sql.DB) error {
 	return nil
 }
 
-func daemonConfigRender() map[string]interface{} {
+func daemonConfigRender(state *state.State) (map[string]interface{}, error) {
 	config := map[string]interface{}{}
 
 	// Turn the config into a JSON-compatible map
@@ -247,7 +248,26 @@ func daemonConfigRender() map[string]interface{} {
 		}
 	}
 
-	return config
+	err := state.Node.Transaction(func(tx *dbapi.NodeTx) error {
+		nodeConfig, err := node.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+		for key, value := range nodeConfig.Dump() {
+			// FIXME: we can drop this conditional as soon as we
+			//        migrate all non-node-local keys to the cluster db
+			if key != "core.https_address" {
+				continue
+			}
+			config[key] = value
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
 
 func daemonConfigSetPassword(d *Daemon, key string, value string) (string, error) {
@@ -270,15 +290,6 @@ func daemonConfigSetPassword(d *Daemon, key string, value string) (string, error
 
 	buf = append(buf, hash...)
 	value = hex.EncodeToString(buf)
-
-	return value, nil
-}
-
-func daemonConfigSetAddress(d *Daemon, key string, value string) (string, error) {
-	err := d.endpoints.NetworkUpdateAddress(value)
-	if err != nil {
-		return "", err
-	}
 
 	return value, nil
 }
