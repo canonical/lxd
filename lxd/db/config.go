@@ -30,6 +30,11 @@ func ConfigValuesGet(db *sql.DB) (map[string]string, error) {
 	for rows.Next() {
 		var key, value string
 		rows.Scan(&key, &value)
+		// FIXME: we can get rid of this special casing as soon as we
+		//        move config keys to the cluster database.
+		if key == "core.https_address" {
+			continue
+		}
 		results[key] = value
 	}
 

@@ -20,7 +20,8 @@ func (suite *daemonTestSuite) Test_config_value_set_empty_removes_val() {
 	val := daemonConfig["core.trust_password"].Get()
 	suite.Req.Equal(len(val), 192)
 
-	valMap := daemonConfigRender()
+	valMap, err := daemonConfigRender(d.State())
+	suite.Req.NoError(err)
 	value, present := valMap["core.trust_password"]
 	suite.Req.True(present)
 	suite.Req.Equal(value, true)
@@ -31,7 +32,8 @@ func (suite *daemonTestSuite) Test_config_value_set_empty_removes_val() {
 	val = daemonConfig["core.trust_password"].Get()
 	suite.Req.Equal(val, "")
 
-	valMap = daemonConfigRender()
+	valMap, err = daemonConfigRender(d.State())
+	suite.Req.NoError(err)
 	_, present = valMap["core.trust_password"]
 	suite.Req.False(present)
 }
