@@ -1,10 +1,6 @@
 package db
 
-import (
-	"database/sql"
-
-	"github.com/lxc/lxd/lxd/db/query"
-)
+import "github.com/lxc/lxd/lxd/db/query"
 
 // Config fetches all LXD node-level config keys.
 func (n *NodeTx) Config() (map[string]string, error) {
@@ -28,32 +24,8 @@ func (c *ClusterTx) UpdateConfig(values map[string]string) error {
 	return query.UpdateConfig(c.tx, "config", values)
 }
 
-func ConfigValuesGet(db *sql.DB) (map[string]string, error) {
-	q := "SELECT key, value FROM config"
-	rows, err := dbQuery(db, q)
-	if err != nil {
-		return map[string]string{}, err
-	}
-	defer rows.Close()
-
-	results := map[string]string{}
-
-	for rows.Next() {
-		var key, value string
-		rows.Scan(&key, &value)
-		// FIXME: we can get rid of this special casing as soon as we
-		//        move config keys to the cluster database.
-		if key == "core.https_address" {
-			continue
-		}
-		results[key] = value
-	}
-
-	return results, nil
-}
-
-func ConfigValueSet(db *sql.DB, key string, value string) error {
-	tx, err := begin(db)
+func ConfigValueSet(cluster *Cluster, key string, value string) error {
+	tx, err := begin(cluster.db)
 	if err != nil {
 		return err
 	}

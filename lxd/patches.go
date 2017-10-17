@@ -2773,7 +2773,7 @@ func patchUpdateFromV15(d *Daemon) error {
 		return err
 	}
 
-	err = daemonConfigInit(d.db.DB())
+	err = daemonConfigInit(d.cluster)
 	if err != nil {
 		return err
 	}
