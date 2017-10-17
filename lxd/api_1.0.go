@@ -8,6 +8,7 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/util"
@@ -15,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
+	"github.com/pkg/errors"
 )
 
 var api10 = []Command{
@@ -146,7 +148,10 @@ func api10Get(d *Daemon, r *http.Request) Response {
 
 	fullSrv := api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
-	fullSrv.Config = daemonConfigRender()
+	fullSrv.Config, err = daemonConfigRender(d.State())
+	if err != nil {
+		return InternalError(err)
+	}
 
 	return SyncResponseETag(true, fullSrv, fullSrv.Config)
 }
@@ -157,7 +162,11 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = util.EtagCheck(r, daemonConfigRender())
+	render, err := daemonConfigRender(d.State())
+	if err != nil {
+		return InternalError(err)
+	}
+	err = util.EtagCheck(r, render)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -176,7 +185,11 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = util.EtagCheck(r, daemonConfigRender())
+	render, err := daemonConfigRender(d.State())
+	if err != nil {
+		return InternalError(err)
+	}
+	err = util.EtagCheck(r, render)
 	if err != nil {
 		return PreconditionFailed(err)
 	}
@@ -201,6 +214,32 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 }
 
 func doApi10Update(d *Daemon, oldConfig map[string]string, req api.ServerPut) Response {
+	// The HTTPS address is the only config key that we want to save in the
+	// node-level database, so handle it here.
+	nodeValues := map[string]interface{}{}
+	address, ok := req.Config["core.https_address"]
+	if ok {
+		nodeValues["core.https_address"] = address
+		delete(req.Config, "core.https_address")
+	}
+	err := d.db.Transaction(func(tx *db.NodeTx) error {
+		trigger := config.Trigger{
+			Key: "core.https_address",
+			Func: func(value string) error {
+				return d.endpoints.NetworkUpdateAddress(value)
+			},
+		}
+		config, err := node.ConfigLoad(tx, trigger)
+		if err != nil {
+			return errors.Wrap(err, "failed to load node config")
+		}
+		err = config.Replace(nodeValues)
+		return err
+	})
+	if err != nil {
+		return InternalError(err)
+	}
+
 	// Deal with special keys
 	for k, v := range req.Config {
 		config := daemonConfig[k]
