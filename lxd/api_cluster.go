@@ -8,6 +8,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
@@ -94,7 +95,10 @@ func clusterPostJoin(d *Daemon, req api.ClusterPost) Response {
 	if len(req.TargetCert) == 0 {
 		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
 	}
-	address := daemonConfig["core.https_address"].Get()
+	address, err := node.HTTPSAddress(d.db)
+	if err != nil {
+		return InternalError(err)
+	}
 	if address == "" {
 		return BadRequest(fmt.Errorf("No core.https_address config key is set on this node"))
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/util"
 
 	"github.com/lxc/lxd/shared"
@@ -87,8 +88,9 @@ func (suite *cmdInitTestSuite) TestCmdInit_PreseedHTTPSAddressAndTrustPassword()
 `, port))
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["core.https_address"]
-	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
+	address, err := node.HTTPSAddress(suite.d.db)
+	suite.Req.NoError(err)
+	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), address)
 	secret := daemonConfig["core.trust_password"].Get()
 	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
 }
@@ -109,8 +111,9 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveHTTPSAddressAndTrustPasswo
 
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["core.https_address"]
-	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
+	address, err := node.HTTPSAddress(suite.d.db)
+	suite.Req.NoError(err)
+	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), address)
 	secret := daemonConfig["core.trust_password"].Get()
 	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
 }
@@ -147,8 +150,9 @@ func (suite *cmdInitTestSuite) TestCmdInit_AutoHTTPSAddressAndTrustPassword() {
 
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["core.https_address"]
-	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
+	address, err := node.HTTPSAddress(suite.d.db)
+	suite.Req.NoError(err)
+	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), address)
 	secret := daemonConfig["core.trust_password"].Get()
 	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
 }
