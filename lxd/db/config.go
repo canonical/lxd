@@ -17,6 +17,17 @@ func (n *NodeTx) UpdateConfig(values map[string]string) error {
 	return query.UpdateConfig(n.tx, "config", values)
 }
 
+// Config fetches all LXD cluster config keys.
+func (c *ClusterTx) Config() (map[string]string, error) {
+	return query.SelectConfig(c.tx, "config")
+}
+
+// UpdateConfig updates the given LXD cluster configuration keys in the
+// config table. Config keys set to empty values will be deleted.
+func (c *ClusterTx) UpdateConfig(values map[string]string) error {
+	return query.UpdateConfig(c.tx, "config", values)
+}
+
 func ConfigValuesGet(db *sql.DB) (map[string]string, error) {
 	q := "SELECT key, value FROM config"
 	rows, err := dbQuery(db, q)

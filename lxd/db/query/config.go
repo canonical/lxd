@@ -98,7 +98,7 @@ func deleteConfig(tx *sql.Tx, table string, keys []string) error {
 		return nil // Nothing to delete.
 	}
 
-	query := fmt.Sprintf("DELETE FROM %s WHERE key IN %s", table, exprParams(n))
+	query := fmt.Sprintf("DELETE FROM %s WHERE key IN %s", table, Params(n))
 	values := make([]interface{}, n)
 	for i, key := range keys {
 		values[i] = key
