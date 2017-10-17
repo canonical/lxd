@@ -128,6 +128,15 @@ func (s *execWs) Do(op *operation) error {
 		s.connectNotInteractiveStreams()
 	}
 
+	err = s.do(stdin, stdout, stderr)
+	if err != nil {
+		return err
+	}
+	s.finish(op)
+	return op.UpdateMetadata(s.getMetadata())
+}
+
+func (s *execWs) do(stdin, stdout, stderr *os.File) error {
 	cmd, _, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false)
 	if err != nil {
 		return err
@@ -153,8 +162,7 @@ func (s *execWs) Do(op *operation) error {
 			}
 		}
 	}
-	s.finish(op)
-	return op.UpdateMetadata(s.getMetadata())
+	return nil
 }
 
 // Open TTYs. Retruns stdin, stdout, stderr descriptors.
