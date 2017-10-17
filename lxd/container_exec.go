@@ -32,12 +32,13 @@ type execWs struct {
 	rootUid int64
 	rootGid int64
 
-	ttys        []*os.File
-	ptys        []*os.File
-	controlExit chan bool
-	doneCh      chan bool
-	wgEOF       sync.WaitGroup
-	cmdResult   int
+	ttys             []*os.File
+	ptys             []*os.File
+	controlExit      chan bool
+	doneCh           chan bool
+	wgEOF            sync.WaitGroup
+	cmdResult        int
+	attachedChildPid int
 }
 
 func (s *execWs) Do(op *operation) error {
@@ -53,7 +54,7 @@ func (s *execWs) Do(op *operation) error {
 	if s.interactive {
 		s.wgEOF.Add(1)
 		go func() {
-			attachedChildPid := <-attachedChildIsBorn
+			s.attachedChildPid = <-attachedChildIsBorn
 			select {
 			case <-s.controlConnected:
 				break
@@ -84,11 +85,11 @@ func (s *execWs) Do(op *operation) error {
 					}
 
 					// If an abnormal closure occurred, kill the attached process.
-					err := syscall.Kill(attachedChildPid, syscall.SIGKILL)
+					err := syscall.Kill(s.attachedChildPid, syscall.SIGKILL)
 					if err != nil {
-						logger.Debugf("Failed to send SIGKILL to pid %d.", attachedChildPid)
+						logger.Debugf("Failed to send SIGKILL to pid %d.", s.attachedChildPid)
 					} else {
-						logger.Debugf("Sent SIGKILL to pid %d.", attachedChildPid)
+						logger.Debugf("Sent SIGKILL to pid %d.", s.attachedChildPid)
 					}
 					return
 				}
@@ -125,11 +126,7 @@ func (s *execWs) Do(op *operation) error {
 						continue
 					}
 				} else if command.Command == "signal" {
-					if err := syscall.Kill(attachedChildPid, syscall.Signal(command.Signal)); err != nil {
-						logger.Debugf("Failed forwarding signal '%s' to PID %d.", command.Signal, attachedChildPid)
-						continue
-					}
-					logger.Debugf("Forwarded signal '%d' to PID %d.", command.Signal, attachedChildPid)
+					s.handleSignal(command.Signal)
 				}
 			}
 		}()
@@ -273,6 +270,17 @@ func (s *execWs) finish(op *operation) {
 	for _, pty := range s.ptys {
 		pty.Close()
 	}
+}
+
+func (s *execWs) handleSignal(signal int) {
+	if s.attachedChildPid == 0 {
+		return
+	}
+	if err := syscall.Kill(s.attachedChildPid, syscall.Signal(signal)); err != nil {
+		logger.Debugf("Failed forwarding signal '%s' to PID %d.", signal, s.attachedChildPid)
+		return
+	}
+	logger.Debugf("Forwarded signal '%d' to PID %d.", signal, s.attachedChildPid)
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
