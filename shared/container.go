@@ -236,5 +236,5 @@ func ConfigKeyChecker(key string) (func(value string) error, error) {
 		return IsAny, nil
 	}
 
-	return nil, fmt.Errorf("Bad key: %s", key)
+	return nil, fmt.Errorf("Unknown configuration key: %s", key)
 }
