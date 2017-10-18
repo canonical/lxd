@@ -10,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 
+	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery/form"
+
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -17,6 +19,8 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
+
+	schemaform "gopkg.in/juju/environschema.v1/form"
 )
 
 var configPath string
@@ -90,16 +94,21 @@ func run() error {
 	var err error
 
 	if *forceLocal {
-		conf = &config.DefaultConfig
+		conf = config.NewConfig("", true)
 	} else if shared.PathExists(configPath) {
 		conf, err = config.LoadConfig(configPath)
 		if err != nil {
 			return err
 		}
 	} else {
-		conf = &config.DefaultConfig
-		conf.ConfigDir = filepath.Dir(configPath)
+		conf = config.NewConfig(filepath.Dir(configPath), true)
 	}
+
+	// Add interactor for external authentication
+	conf.SetAuthInteractor(form.Interactor{Filler: schemaform.IOFiller{}})
+
+	// Save cookies on exit
+	defer conf.SaveCookies()
 
 	// Set the user agent
 	conf.UserAgent = version.UserAgent

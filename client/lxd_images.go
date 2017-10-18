@@ -404,7 +404,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	}
 
 	// Send the request
-	resp, err := r.http.Do(req)
+	resp, err := r.do(req)
 	if err != nil {
 		return nil, err
 	}

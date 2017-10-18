@@ -21,17 +21,23 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	// Decode the yaml document
-	c := Config{}
+	c := NewConfig(filepath.Dir(path), false)
 	err = yaml.Unmarshal(content, &c)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to decode the configuration: %v", err)
+	}
+
+	for k, r := range c.Remotes {
+		if !r.Public && r.AuthType == "" {
+			r.AuthType = "tls"
+			c.Remotes[k] = r
+		}
 	}
 
 	// Set default values
 	if c.Remotes == nil {
 		c.Remotes = make(map[string]Remote)
 	}
-	c.ConfigDir = filepath.Dir(path)
 
 	// Apply the static remotes
 	for k, v := range StaticRemotes {
@@ -46,7 +52,7 @@ func LoadConfig(path string) (*Config, error) {
 		c.SaveConfig(path)
 	}
 
-	return &c, nil
+	return c, nil
 }
 
 // SaveConfig writes the provided configuration to the config file.

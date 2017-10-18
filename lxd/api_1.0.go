@@ -59,6 +59,10 @@ var api10 = []Command{
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
+	authMethods := []string{"tls"}
+	if daemonConfig["core.macaroon.endpoint"].Get() != "" {
+		authMethods = append(authMethods, "macaroons")
+	}
 	srv := api.ServerUntrusted{
 		/* List of API extensions in the order they were added.
 		 *
@@ -131,15 +135,17 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"resources",
 			"kernel_limits",
 			"storage_api_volume_rename",
+			"macaroon_authentication",
 		},
-		APIStatus:  "stable",
-		APIVersion: version.APIVersion,
-		Public:     false,
-		Auth:       "untrusted",
+		APIStatus:   "stable",
+		APIVersion:  version.APIVersion,
+		Public:      false,
+		Auth:        "untrusted",
+		AuthMethods: authMethods,
 	}
 
 	// If untrusted, return now
-	if !util.IsTrustedClient(r, d.clientCerts) {
+	if d.checkTrustedClient(r) != nil {
 		return SyncResponseETag(true, srv, nil)
 	}
 

@@ -342,6 +342,7 @@ and xfs.
 
 ## resources
 This adds support for querying an LXD daemon for the system resources it has
+available.
 
 ## kernel\_limits
 This adds support for setting process limits such as maximum number of open
@@ -349,3 +350,6 @@ files for the container via `nofile`. The format is `limits.kernel.[limit name]`
 
 ## storage\_api\_volume\_rename
 This adds support for renaming custom storage volumes.
+
+## external\_authentication
+This adds support for external authentication via Macaroons.
