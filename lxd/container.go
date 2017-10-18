@@ -236,7 +236,7 @@ func containerValidConfigKey(key string, value string) error {
 		return nil
 	}
 
-	return fmt.Errorf("Bad key: %s", key)
+	return fmt.Errorf("Unknown configuration key: %s", key)
 }
 
 var containerNetworkLimitKeys = []string{"limits.max", "limits.ingress", "limits.egress"}
