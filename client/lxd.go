@@ -76,6 +76,7 @@ func (r *ProtocolLXD) do(req *http.Request) (*http.Response, error) {
 		r.addMacaroonHeaders(req)
 		return r.bakeryClient.Do(req)
 	}
+
 	return r.http.Do(req)
 }
 
