@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -27,6 +28,7 @@ type cmdInitTestSuite struct {
 }
 
 func (suite *cmdInitTestSuite) SetupTest() {
+	logging.Testing(suite.T())
 	suite.lxdTestSuite.SetupTest()
 	suite.streams = cmd.NewMemoryStreams("")
 	suite.context = cmd.NewMemoryContext(suite.streams)
