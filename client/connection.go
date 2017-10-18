@@ -173,9 +173,11 @@ func httpsLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if args.CookieJar != nil {
 		httpClient.Jar = args.CookieJar
 	}
+
 	server.http = httpClient
 	if args.AuthType == "macaroons" {
 		server.setupBakeryClient()
