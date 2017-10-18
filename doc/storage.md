@@ -12,16 +12,16 @@ source                          | string    | -                                 
 btrfs.mount\_options            | string    | btrfs driver                      | user\_subvol\_rm\_allowed  | storage\_btrfs\_mount\_options     | Mount options for block devices
 ceph.cluster\_name              | string    | ceph driver                       | ceph                       | storage\_driver\_ceph              | Name of the ceph cluster in which to create new storage pools.
 ceph.osd.force\_reuse           | bool      | ceph driver                       | false                      | storage\_ceph\_force\_osd\_reuse   | Force using an osd storage pool that is already in use by another LXD instance.
-ceph.osd.pool\_name             | string    | ceph driver                       | name of the pool           | storage\_driver\_ceph              | Name of the osd storage pool.
 ceph.osd.pg\_num                | string    | ceph driver                       | 32                         | storage\_driver\_ceph              | Number of placement groups for the osd storage pool.
+ceph.osd.pool\_name             | string    | ceph driver                       | name of the pool           | storage\_driver\_ceph              | Name of the osd storage pool.
 ceph.rbd.clone\_copy            | string    | ceph driver                       | true                       | storage\_driver\_ceph              | Whether to use RBD lightweight clones rather than full dataset copies.
 ceph.user.name                  | string    | ceph driver                       | admin                      | storage\_ceph\_user\_name          | The ceph user to use when creating storage pools and volumes.
 lvm.thinpool\_name              | string    | lvm driver                        | LXDPool                    | storage                            | Thin pool where images and containers are created.
 lvm.use\_thinpool               | bool      | lvm driver                        | true                       | storage\_lvm\_use\_thinpool        | Whether the storage pool uses a thinpool for logical volumes.
 lvm.vg\_name                    | string    | lvm driver                        | name of the pool           | storage                            | Name of the volume group to create.
 rsync.bwlimit                   | string    | -                                 | 0 (no limit)               | storage\_rsync\_bwlimit            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
-volatile.pool.pristine          | string    | -                                 | true                       | storage\_driver\_ceph              | Whether the pool has been empty on creation time.
 volatile.initial\_source        | string    | -                                 | -                          | storage\_volatile\_initial\_source | Records the actual source passed during creating (e.g. /dev/sdb).
+volatile.pool.pristine          | string    | -                                 | true                       | storage\_driver\_ceph              | Whether the pool has been empty on creation time.
 volume.block.filesystem         | string    | block based driver (lvm)          | ext4                       | storage                            | Filesystem to use for new volumes
 volume.block.mount\_options     | string    | block based driver (lvm)          | discard                    | storage                            | Mount options for block devices
 volume.size                     | string    | appropriate driver                | 0                          | storage                            | Default volume size
