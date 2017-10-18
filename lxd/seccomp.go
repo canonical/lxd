@@ -129,6 +129,11 @@ func getSeccompProfileContent(c container) (string, error) {
 		policy += fmt.Sprintf(COMPAT_BLOCKING_POLICY, arch)
 	}
 
+	blacklist := config["security.syscalls.blacklist"]
+	if blacklist != "" {
+		policy += blacklist
+	}
+
 	return policy, nil
 }
 
