@@ -137,9 +137,12 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 	remote, _ := c.Remotes[name]
 	args := lxd.ConnectionArgs{
 		UserAgent:      c.UserAgent,
-		CookieJar:      c.cookiejar,
 		AuthType:       remote.AuthType,
 		AuthInteractor: c.authInteractor,
+	}
+
+	if c.cookiejar != nil {
+		args.CookieJar = c.cookiejar
 	}
 
 	// Client certificate
