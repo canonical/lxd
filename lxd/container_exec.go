@@ -8,13 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -24,145 +21,44 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-type execWs struct {
-	ttyWs
-
+type execWsOps struct {
 	command []string
 	env     map[string]string
 	rootUid int64
 	rootGid int64
 
-	ttys                []*os.File
-	ptys                []*os.File
-	controlExit         chan bool
-	doneCh              chan bool
-	wgEOF               sync.WaitGroup
 	cmdResult           int
 	attachedChildPid    int
 	attachedChildIsBorn chan int
 }
 
-func (s *execWs) Do(op *operation) error {
-	<-s.allConnected
+func (o *execWsOps) startup(s *ttyWs) {
+	o.attachedChildPid = <-o.attachedChildIsBorn
+}
 
-	stdin, stdout, stderr, err := s.openTTYs()
+func (o *execWsOps) do(s *ttyWs, stdin, stdout, stderr *os.File) error {
+	cmd, _, attachedPid, err := s.container.Exec(o.command, o.env, stdin, stdout, stderr, false)
 	if err != nil {
 		return err
 	}
 
 	if s.interactive {
-		s.wgEOF.Add(1)
-		go func() {
-			s.startup()
-			select {
-			case <-s.controlConnected:
-				break
-
-			case <-s.controlExit:
-				return
-			}
-
-			for {
-				s.connsLock.Lock()
-				conn := s.conns[-1]
-				s.connsLock.Unlock()
-
-				mt, r, err := conn.NextReader()
-				if mt == websocket.CloseMessage {
-					break
-				}
-
-				if err != nil {
-					logger.Debugf("Got error getting next reader %s", err)
-					er, ok := err.(*websocket.CloseError)
-					if !ok {
-						break
-					}
-
-					if er.Code != websocket.CloseAbnormalClosure {
-						break
-					}
-
-					s.handleAbnormalClosure()
-					return
-				}
-
-				buf, err := ioutil.ReadAll(r)
-				if err != nil {
-					logger.Debugf("Failed to read message %s", err)
-					break
-				}
-
-				command := api.ContainerTTYControl{}
-
-				if err := json.Unmarshal(buf, &command); err != nil {
-					logger.Debugf("Failed to unmarshal control socket command: %s", err)
-					continue
-				}
-
-				if command.Command == "window-resize" {
-					winchWidth, err := strconv.Atoi(command.Args["width"])
-					if err != nil {
-						logger.Debugf("Unable to extract window width: %s", err)
-						continue
-					}
-
-					winchHeight, err := strconv.Atoi(command.Args["height"])
-					if err != nil {
-						logger.Debugf("Unable to extract window height: %s", err)
-						continue
-					}
-
-					err = shared.SetSize(int(s.ptys[0].Fd()), winchWidth, winchHeight)
-					if err != nil {
-						logger.Debugf("Failed to set window size to: %dx%d", winchWidth, winchHeight)
-						continue
-					}
-				} else if command.Command == "signal" {
-					s.handleSignal(command.Signal)
-				}
-			}
-		}()
-		s.connectInteractiveStreams()
-	} else {
-		s.connectNotInteractiveStreams()
-	}
-
-	err = s.do(stdin, stdout, stderr)
-	if err != nil {
-		return err
-	}
-	s.finish(op)
-	return op.UpdateMetadata(s.getMetadata())
-}
-
-func (s *execWs) startup() {
-	s.attachedChildPid = <-s.attachedChildIsBorn
-}
-
-func (s *execWs) do(stdin, stdout, stderr *os.File) error {
-	cmd, _, attachedPid, err := s.container.Exec(s.command, s.env, stdin, stdout, stderr, false)
-	if err != nil {
-		return err
-	}
-
-	if s.interactive {
-		s.attachedChildIsBorn <- attachedPid
+		o.attachedChildIsBorn <- attachedPid
 	}
 
 	err = cmd.Wait()
-	s.cmdResult = -1
+	o.cmdResult = -1
 	if err == nil {
-		s.cmdResult = 0
+		o.cmdResult = 0
 	} else {
 		exitErr, ok := err.(*exec.ExitError)
 		if ok {
 			status, ok := exitErr.Sys().(syscall.WaitStatus)
 			if ok {
-				s.cmdResult = status.ExitStatus()
+				o.cmdResult = status.ExitStatus()
 			} else if status.Signaled() {
 				// 128 + n == Fatal error signal "n"
-				s.cmdResult = 128 + int(status.Signal())
+				o.cmdResult = 128 + int(status.Signal())
 			}
 		}
 	}
@@ -170,7 +66,7 @@ func (s *execWs) do(stdin, stdout, stderr *os.File) error {
 }
 
 // Open TTYs. Retruns stdin, stdout, stderr descriptors.
-func (s *execWs) openTTYs() (*os.File, *os.File, *os.File, error) {
+func (o *execWsOps) openTTYs(s *ttyWs) (*os.File, *os.File, *os.File, error) {
 	var stdin *os.File
 	var stdout *os.File
 	var stderr *os.File
@@ -179,7 +75,7 @@ func (s *execWs) openTTYs() (*os.File, *os.File, *os.File, error) {
 	if s.interactive {
 		s.ttys = make([]*os.File, 1)
 		s.ptys = make([]*os.File, 1)
-		s.ptys[0], s.ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
+		s.ptys[0], s.ttys[0], err = shared.OpenPty(o.rootUid, o.rootGid)
 
 		stdin = s.ttys[0]
 		stdout = s.ttys[0]
@@ -206,95 +102,28 @@ func (s *execWs) openTTYs() (*os.File, *os.File, *os.File, error) {
 	return stdin, stdout, stderr, nil
 }
 
-func (s *execWs) connectInteractiveStreams() {
-	go func() {
-		s.connsLock.Lock()
-		conn := s.conns[0]
-		s.connsLock.Unlock()
-
-		logger.Debugf("Starting to mirror websocket")
-		readDone, writeDone := shared.WebsocketExecMirror(conn, s.ptys[0], s.ptys[0], s.doneCh, int(s.ptys[0].Fd()))
-
-		<-readDone
-		<-writeDone
-		logger.Debugf("Finished to mirror websocket")
-
-		conn.Close()
-		s.wgEOF.Done()
-	}()
+func (o *execWsOps) getMetadata(s *ttyWs) shared.Jmap {
+	return shared.Jmap{"return": o.cmdResult}
 }
 
-func (s *execWs) connectNotInteractiveStreams() {
-	s.wgEOF.Add(len(s.ttys) - 1)
-	for i := 0; i < len(s.ttys); i++ {
-		go func(i int) {
-			if i == 0 {
-				s.connsLock.Lock()
-				conn := s.conns[0]
-				s.connsLock.Unlock()
-
-				<-shared.WebsocketRecvStream(s.ttys[0], conn)
-				s.ttys[0].Close()
-			} else {
-				s.connsLock.Lock()
-				conn := s.conns[i]
-				s.connsLock.Unlock()
-
-				<-shared.WebsocketSendStream(conn, s.ptys[i], -1)
-				s.ptys[i].Close()
-				s.wgEOF.Done()
-			}
-		}(i)
-	}
-}
-
-func (s *execWs) getMetadata() shared.Jmap {
-	return shared.Jmap{"return": s.cmdResult}
-}
-
-func (s *execWs) finish(op *operation) {
-	for _, tty := range s.ttys {
-		tty.Close()
-	}
-
-	s.connsLock.Lock()
-	conn := s.conns[-1]
-	s.connsLock.Unlock()
-
-	if conn == nil {
-		if s.interactive {
-			s.controlExit <- true
-		}
-	} else {
-		conn.Close()
-	}
-
-	s.doneCh <- true
-	s.wgEOF.Wait()
-
-	for _, pty := range s.ptys {
-		pty.Close()
-	}
-}
-
-func (s *execWs) handleSignal(signal int) {
-	if s.attachedChildPid == 0 {
+func (o *execWsOps) handleSignal(s *ttyWs, signal int) {
+	if o.attachedChildPid == 0 {
 		return
 	}
-	if err := syscall.Kill(s.attachedChildPid, syscall.Signal(signal)); err != nil {
-		logger.Debugf("Failed forwarding signal '%s' to PID %d.", signal, s.attachedChildPid)
+	if err := syscall.Kill(o.attachedChildPid, syscall.Signal(signal)); err != nil {
+		logger.Debugf("Failed forwarding signal '%s' to PID %d.", signal, o.attachedChildPid)
 		return
 	}
-	logger.Debugf("Forwarded signal '%d' to PID %d.", signal, s.attachedChildPid)
+	logger.Debugf("Forwarded signal '%d' to PID %d.", signal, o.attachedChildPid)
 }
 
-func (s *execWs) handleAbnormalClosure() {
+func (o *execWsOps) handleAbnormalClosure(s *ttyWs) {
 	// If an abnormal closure occurred, kill the attached process.
-	err := syscall.Kill(s.attachedChildPid, syscall.SIGKILL)
+	err := syscall.Kill(o.attachedChildPid, syscall.SIGKILL)
 	if err != nil {
-		logger.Debugf("Failed to send SIGKILL to pid %d.", s.attachedChildPid)
+		logger.Debugf("Failed to send SIGKILL to pid %d.", o.attachedChildPid)
 	} else {
-		logger.Debugf("Sent SIGKILL to pid %d.", s.attachedChildPid)
+		logger.Debugf("Sent SIGKILL to pid %d.", o.attachedChildPid)
 	}
 }
 
@@ -365,24 +194,21 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if post.WaitForWS {
-		ttyWs, err := newttyWs(c, post.Interactive, post.Width, post.Height)
-		if err != nil {
-			return InternalError(err)
-		}
-		ws := &execWs{
-			ttyWs:               *ttyWs,
+		ops := &execWsOps{
 			command:             post.Command,
 			env:                 env,
-			controlExit:         make(chan bool),
-			doneCh:              make(chan bool, 1),
 			attachedChildIsBorn: make(chan int),
+		}
+		ws, err := newttyWs(ops, c, post.Interactive, post.Width, post.Height)
+		if err != nil {
+			return InternalError(err)
 		}
 		idmapset, err := c.IdmapSet()
 		if err != nil {
 			return InternalError(err)
 		}
 		if idmapset != nil {
-			ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
+			ops.rootUid, ops.rootGid = idmapset.ShiftIntoNs(0, 0)
 		}
 
 		resources := map[string][]string{}
