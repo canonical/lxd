@@ -60,40 +60,50 @@ _have lxc && {
       return 0
     fi
 
-    lxc_cmds="config copy delete exec file help image info init launch \
-      list move network profile publish remote restart restore shell snapshot \
-      start stop storage version"
+    lxc_cmds="config copy delete exec file finger help image info init launch \
+      list manpage monitor move network profile publish query remote rename \
+      restart restore shell snapshot start stop storage version"
 
-    global_keys="core.https_address core.https_allowd_origin \
-      core.https_allowed_methods core.https_allowed_headers  \
-      core.https_allowed_credentials core.proxy_https \
-      core.proxy_http core.proxy_ignore_host core.trust_password \
-      images.compression_algorithm \
-      images.remote_cache_expiry images.auto_update_interval \
-      images.auto_update_cached"
+    global_keys="core.https_address core.https_allowed_credentials \
+      core.https_allowed_headers core.https_allowed_methods \
+      core.https_allowed_origin core.macaroon.endpoint core.proxy_https \
+      core.proxy_http core.proxy_ignore_hosts core.trust_password \
+      images.auto_update_cached images.auto_update_interval \
+      images.compression_algorithm images.remote_cache_expiry"
 
-    container_keys="boot.autostart boot.autostart.delay boot.autostart.priority \
-      boot.host_shutdown_timeout limits.cpu limits.cpu.allowance limits.cpu.priority \
-      limits.disk.priority limits.memory limits.memory.enforce limits.memory.swap \
-      limits.memory.swap.priority limits.network.priority limits.processes \
-      linux.kernel_modules raw.apparmor raw.lxc raw.seccomp security.nesting \
-      security.privileged security.syscalls.blacklist_default \
-      security.syscalls.blacklist_compat security.syscalls.blacklist \
-      security.syscalls.whitelist volatile.apply_template volatile.base_image \
-      volatile.last_state.idmap volatile.last_state.power user.network_mode \
-      user.meta-data user.user-data user.vendor-data"
+    container_keys="boot.autostart boot.autostart.delay \
+      boot.autostart.priority boot.host_shutdown_timeout environment. \
+      limits.cpu limits.cpu.allowance limits.cpu.priority \
+      limits.disk.priority limits.memory limits.memory.enforce \
+      limits.memory.swap limits.memory.swap.priority limits.network.priority \
+      limits.processes linux.kernel_modules raw.apparmor raw.idmap raw.lxc \
+      raw.seccomp security.idmap.base security.idmap.isolated \
+      security.idmap.size security.nesting security.privileged \
+      security.syscalls.blacklist security.syscalls.blacklist_compat \
+      security.syscalls.blacklist_default \
+      volatile.apply_quota volatile.apply_template volatile.base_image \
+      volatile.idmap.base volatile.idmap.next volatile.last_state.idmap \
+      volatile.last_state.power user.meta-data user.network-config \
+      user.network_mode user.user-data user.vendor-data"
 
-    networks_keys="bridge.driver bridge.external_interfaces bridge.mtu bridge.mode \
-      fan.underlay_subnet fan.overlay_subnet fan.type ipv4.address ipv4.nat ipv4.dhcp \
-      ipv4.dhcp.expiry ipv4.dhcp.ranges ipv4.routing ipv6.address ipv6.nat ipv6.dhcp ipv6.dhcp.stateful \
-      ipv6.dhcp.expiry ipv6.dhcp.ranges ipv6.routing dns.domain dns.mode raw.dnsmasq"
+    networks_keys="bridge.driver bridge.external_interfaces bridge.mode \
+      bridge.mtu dns.domain dns.mode fan.overlay_subnet fan.type \
+      fan.underlay_subnet ipv4.address ipv4.dhcp ipv4.dhcp.expiry \
+      ipv4.dhcp.ranges ipv4.firewall ipv4.nat ipv4.routes ipv4.routing \
+      ipv6.address ipv6.dhcp ipv6.dhcp.expiry ipv6.dhcp.ranges \
+      ipv6.dhcp.stateful ipv6.firewall ipv6.nat ipv6.routes ipv6.routing \
+      raw.dnsmasq"
 
-    storage_pool_keys="source size volume.block.mount_options
-    volume.block.filesystem volume.size volume.zfs.use_refquota
-    volume.zfs.remove_snapshots volume.lvm.thinpool_name zfs.pool_name"
+    storage_pool_keys="source size btrfs.mount_options ceph.cluster_name \
+      ceph.osd.force_reuse ceph.osd.pg_num ceph.osd.pool_name \
+      ceph.rbd.clone_copy ceph.user.name lvm.thinpool_name lvm.use_thinpool \
+      lvm.vg_name rsync.bwlimit volatile.initial_source \
+      volatile.pool.pristine volume.block.filesystem \
+      volume.block.mount_options volume.size volume.zfs.remove_snapshots \
+      volume.zfs.use_refquota zfs.clone_copy zfs.pool_name"
 
-    storage_volume_keys="block.mount_options block.filesystem size
-    zfs.use_refquota zfs.remove_snapshots"
+    storage_volume_keys="size block.filesystem block.mount_options \
+      zfs.remove_snapshots zfs.use_refquota"
 
     if [ $COMP_CWORD -eq 1 ]; then
       COMPREPLY=( $(compgen -W "$lxc_cmds" -- ${COMP_WORDS[COMP_CWORD]}) )
@@ -113,7 +123,7 @@ _have lxc && {
       "config")
         case $pos in
           2)
-            COMPREPLY=( $(compgen -W "device edit get set show trust" -- $cur) )
+            COMPREPLY=( $(compgen -W "get set unset show edit metadata template device trust" -- $cur) )
             ;;
           3)
             case ${no_dashargs[2]} in
@@ -122,6 +132,12 @@ _have lxc && {
                 ;;
               "device")
                 COMPREPLY=( $(compgen -W "add get set unset list show remove" -- $cur) )
+                ;;
+              "metadata")
+                COMPREPLY=( $(compgen -W "show edit" -- $cur) )
+                ;;
+              "template")
+                COMPREPLY=( $(compgen -W "list show create edit delete" -- $cur) )
                 ;;
               "show"|"edit")
                 _lxd_names
@@ -164,7 +180,7 @@ _have lxc && {
         COMPREPLY=( $(compgen -W "$lxc_cmds" -- $cur) )
         ;;
       "image")
-        COMPREPLY=( $(compgen -W "import copy delete edit export info list show alias" -- $cur) )
+        COMPREPLY=( $(compgen -W "import copy delete refresh export info list show edit alias" -- $cur) )
         ;;
       "info")
         _lxd_names
@@ -181,11 +197,11 @@ _have lxc && {
       "network")
         case $pos in
           2)
-            COMPREPLY=( $(compgen -W "list show create get set unset delete edit attach attach-profile detach detach-profile" -- $cur) )
+            COMPREPLY=( $(compgen -W "list show create get set unset delete edit rename attach attach-profile detach detach-profile" -- $cur) )
             ;;
           3)
             case ${no_dashargs[2]} in
-              "show"|"get"|"set"|"unset"|"delete"|"edit"|"attach"|"attach-profile"|"detach"|"detach-profile")
+              "show"|"get"|"set"|"unset"|"delete"|"edit"|"rename"|"attach"|"attach-profile"|"detach"|"detach-profile")
                 _lxd_networks
                 ;;
             esac
@@ -207,12 +223,12 @@ _have lxc && {
       "profile")
         case $pos in
           2)
-            COMPREPLY=( $(compgen -W "list copy delete apply device edit get set show" -- $cur) )
+            COMPREPLY=( $(compgen -W "list show create copy get set unset delete edit rename assign add remove device " -- $cur) )
             ;;
           3)
             case ${no_dashargs[2]} in
               "device")
-                COMPREPLY=( $(compgen -W "add get set unset list show remove" -- $cur) )
+                COMPREPLY=( $(compgen -W "list show remove get set unset add" -- $cur) )
                 ;;
               *)
                 _lxd_profiles
@@ -279,11 +295,11 @@ _have lxc && {
       "storage_volumes")
         case $pos in
           2)
-            COMPREPLY=( $(compgen -W "list show create get set unset delete edit attach attach-profile detach detach-profile" -- $cur) )
+            COMPREPLY=( $(compgen -W "list show create rename get set unset delete edit attach attach-profile detach detach-profile" -- $cur) )
             ;;
           3)
             case ${no_dashargs[2]} in
-              "show"|"get"|"set"|"unset"|"delete"|"edit"|"attach"|"attach-profile"|"detach"|"detach-profile")
+              "show"|"get"|"set"|"unset"|"rename"|"delete"|"edit"|"attach"|"attach-profile"|"detach"|"detach-profile")
                 _lxd_storage_volumes
                 ;;
             esac
