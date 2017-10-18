@@ -64,10 +64,12 @@ func NewConfig(configDir string, defaults bool) *Config {
 		config.Remotes = DefaultRemotes
 		config.DefaultRemote = "local"
 	}
+
 	if configDir != "" {
 		config.cookiejar, _ = cookiejar.New(
 			&cookiejar.Options{
 				Filename: filepath.Join(configDir, "cookies")})
 	}
+
 	return config
 }
