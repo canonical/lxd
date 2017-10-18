@@ -42,17 +42,17 @@ limits.network.priority              | integer   | 0 (minimum)   | yes          
 limits.processes                     | integer   | - (max)       | yes           | -                                    | Maximum number of processes that can run in the container
 linux.kernel\_modules                | string    | -             | yes           | -                                    | Comma separated list of kernel modules to load before starting the container
 raw.apparmor                         | blob      | -             | yes           | -                                    | Apparmor profile entries to be appended to the generated profile
+raw.idmap                            | blob      | -             | no            | id\_map                              | Raw idmap configuration (e.g. "both 1000 1000")
 raw.lxc                              | blob      | -             | no            | -                                    | Raw LXC configuration to be appended to the generated one
 raw.seccomp                          | blob      | -             | no            | container\_syscall\_filtering        | Raw Seccomp configuration
-raw.idmap                            | blob      | -             | no            | id\_map                              | Raw idmap configuration (e.g. "both 1000 1000")
 security.idmap.base                  | integer   | -             | no            | id\_map\_base                        | The base host ID to use for the allocation (overrides auto-detection)
 security.idmap.isolated              | boolean   | false         | no            | id\_map                              | Use an idmap for this container that is unique among containers with isolated set.
 security.idmap.size                  | integer   | -             | no            | id\_map                              | The size of the idmap to use
 security.nesting                     | boolean   | false         | yes           | -                                    | Support running lxd (nested) inside the container
 security.privileged                  | boolean   | false         | no            | -                                    | Runs the container in privileged mode
-security.syscalls.blacklist\_default | boolean   | true          | no            | container\_syscall\_filtering        | Enables the default syscall blacklist
-security.syscalls.blacklist\_compat  | boolean   | false         | no            | container\_syscall\_filtering        | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
 security.syscalls.blacklist          | string    | -             | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to blacklist
+security.syscalls.blacklist\_compat  | boolean   | false         | no            | container\_syscall\_filtering        | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
+security.syscalls.blacklist\_default | boolean   | true          | no            | container\_syscall\_filtering        | Enables the default syscall blacklist
 security.syscalls.whitelist          | string    | -             | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
 user.\*                              | string    | -             | n/a           | -                                    | Free form user key/value storage (can be used in search)
 
@@ -60,9 +60,6 @@ The following volatile keys are currently internally used by LXD:
 
 Key                             | Type      | Default       | Description
 :--                             | :---      | :------       | :----------
-volatile.\<name\>.hwaddr        | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
-volatile.\<name\>.name          | string    | -             | Network device name (when no name propery is set on the device itself)
-volatile.\<name\>.host\_name    | string    | -             | Network device name on the host (for nictype=bridged or nictype=p2p)
 volatile.apply\_quota           | string    | -             | Disk quota to be applied on next container start
 volatile.apply\_template        | string    | -             | The name of a template hook which should be triggered upon next startup
 volatile.base\_image            | string    | -             | The hash of the image the container was created from, if any.
@@ -70,17 +67,20 @@ volatile.idmap.base             | integer   | -             | The first id in th
 volatile.idmap.next             | string    | -             | The idmap to use next time the container starts
 volatile.last\_state.idmap      | string    | -             | Serialized container uid/gid map
 volatile.last\_state.power      | string    | -             | Container state as of last host shutdown
+volatile.\<name\>.host\_name    | string    | -             | Network device name on the host (for nictype=bridged or nictype=p2p)
+volatile.\<name\>.hwaddr        | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
+volatile.\<name\>.name          | string    | -             | Network device name (when no name propery is set on the device itself)
 
 
 Additionally, those user keys have become common with images (support isn't guaranteed):
 
 Key                         | Type          | Default           | Description
 :--                         | :---          | :------           | :----------
-user.network\_mode          | string        | dhcp              | One of "dhcp" or "link-local". Used to configure network in supported images.
 user.meta-data              | string        | -                 | Cloud-init meta-data, content is appended to seed value.
+user.network-config         | string        | DHCP on eth0      | Cloud-init network-config, content is used as seed value.
+user.network\_mode          | string        | dhcp              | One of "dhcp" or "link-local". Used to configure network in supported images.
 user.user-data              | string        | #!cloud-config    | Cloud-init user-data, content is used as seed value.
 user.vendor-data            | string        | #!cloud-config    | Cloud-init vendor-data, content is used as seed value.
-user.network-config         | string        | DHCP on eth0      | Cloud-init network-config, content is used as seed value.
 
 Note that while a type is defined above as a convenience, all values are
 stored as strings and should be exported over the REST API as strings
