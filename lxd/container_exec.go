@@ -53,7 +53,7 @@ func (s *execWs) Do(op *operation) error {
 	if s.interactive {
 		s.wgEOF.Add(1)
 		go func() {
-			s.attachedChildPid = <-s.attachedChildIsBorn
+			s.startup()
 			select {
 			case <-s.controlConnected:
 				break
@@ -134,6 +134,10 @@ func (s *execWs) Do(op *operation) error {
 	}
 	s.finish(op)
 	return op.UpdateMetadata(s.getMetadata())
+}
+
+func (s *execWs) startup() {
+	s.attachedChildPid = <-s.attachedChildIsBorn
 }
 
 func (s *execWs) do(stdin, stdout, stderr *os.File) error {
