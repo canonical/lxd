@@ -136,6 +136,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 			"kernel_limits",
 			"storage_api_volume_rename",
 			"macaroon_authentication",
+			"network_vfio",
 		},
 		APIStatus:   "stable",
 		APIVersion:  version.APIVersion,
