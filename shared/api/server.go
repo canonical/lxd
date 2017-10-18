@@ -29,6 +29,7 @@ type ServerUntrusted struct {
 	APIStatus     string   `json:"api_status" yaml:"api_status"`
 	APIVersion    string   `json:"api_version" yaml:"api_version"`
 	Auth          string   `json:"auth" yaml:"auth"`
+	AuthMethods   []string `json:"auth_methods" yaml:"auth_methods"`
 	Public        bool     `json:"public" yaml:"public"`
 }
 

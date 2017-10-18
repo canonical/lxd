@@ -29,6 +29,7 @@ type remoteCmd struct {
 	password   string
 	public     bool
 	protocol   string
+	authType   string
 }
 
 func (c *remoteCmd) showByDefault() bool {
@@ -41,7 +42,7 @@ func (c *remoteCmd) usage() string {
 
 Manage the list of remote LXD servers.
 
-lxc remote add [<remote>] <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD] [--public] [--protocol=PROTOCOL]
+lxc remote add [<remote>] <IP|FQDN|URL> [--accept-certificate] [--password=PASSWORD] [--public] [--protocol=PROTOCOL] [--auth-type=AUTH_TYPE]
     Add the remote <remote> at <url>.
 
 lxc remote remove <remote>
@@ -67,13 +68,21 @@ func (c *remoteCmd) flags() {
 	gnuflag.BoolVar(&c.acceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
 	gnuflag.StringVar(&c.password, "password", "", i18n.G("Remote admin password"))
 	gnuflag.StringVar(&c.protocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)"))
+	gnuflag.StringVar(&c.authType, "auth-type", "", i18n.G("Server authentication type (tls or macaroons)"))
 	gnuflag.BoolVar(&c.public, "public", false, i18n.G("Public image server"))
 }
 
-func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, acceptCert bool, password string, public bool, protocol string) error {
+func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, acceptCert bool, password string, public bool, protocol string, authType string) error {
 	var rScheme string
 	var rHost string
 	var rPort string
+
+	if protocol == "" {
+		protocol = "lxd"
+	}
+	if authType == "" {
+		authType = "tls"
+	}
 
 	// Setup the remotes list
 	if conf.Remotes == nil {
@@ -94,6 +103,8 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 
 		conf.Remotes[server] = config.Remote{Addr: addr, Public: true, Protocol: protocol}
 		return nil
+	} else if protocol != "lxd" {
+		return fmt.Errorf(i18n.G("Invalid protocol: %s"), protocol)
 	}
 
 	// Fix broken URL parser
@@ -150,7 +161,7 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 	// Finally, actually add the remote, almost...  If the remote is a private
 	// HTTPS server then we need to ensure we have a client certificate before
 	// adding the remote server.
-	if rScheme != "unix" && !public {
+	if rScheme != "unix" && !public && authType == "tls" {
 		if !conf.HasClientCertificate() {
 			fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
 			err = conf.GenerateClientCertificate()
@@ -159,10 +170,10 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 			}
 		}
 	}
-	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: protocol}
+	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: protocol, AuthType: authType}
 
 	// Attempt to connect
-	var d interface{}
+	var d lxd.ImageServer
 	if public {
 		d, err = conf.GetImageServer(server)
 	} else {
@@ -234,10 +245,18 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 		return nil
 	}
 
+	if authType == "macaroons" {
+		d.(lxd.ContainerServer).RequireAuthenticated(false)
+	}
+
 	// Get server information
 	srv, _, err := d.(lxd.ContainerServer).GetServer()
 	if err != nil {
 		return err
+	}
+
+	if !srv.Public && !shared.StringInSlice(authType, srv.AuthMethods) {
+		return fmt.Errorf(i18n.G("Authentication type '%s' not supported by server"), authType)
 	}
 
 	// Detect public remotes
@@ -251,31 +270,35 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 		return nil
 	}
 
-	// Prompt for trust password
-	if password == "" {
-		fmt.Printf(i18n.G("Admin password for %s: "), server)
-		pwd, err := terminal.ReadPassword(0)
-		if err != nil {
-			/* We got an error, maybe this isn't a terminal, let's try to
-			 * read it as a file */
-			pwd, err = shared.ReadStdin()
+	if authType == "tls" {
+		// Prompt for trust password
+		if password == "" {
+			fmt.Printf(i18n.G("Admin password for %s: "), server)
+			pwd, err := terminal.ReadPassword(0)
 			if err != nil {
-				return err
+				/* We got an error, maybe this isn't a terminal, let's try to
+				 * read it as a file */
+				pwd, err = shared.ReadStdin()
+				if err != nil {
+					return err
+				}
 			}
+			fmt.Println("")
+			password = string(pwd)
 		}
-		fmt.Println("")
-		password = string(pwd)
-	}
 
-	// Add client certificate to trust store
-	req := api.CertificatesPost{
-		Password: password,
-	}
-	req.Type = "client"
+		// Add client certificate to trust store
+		req := api.CertificatesPost{
+			Password: password,
+		}
+		req.Type = "client"
 
-	err = d.(lxd.ContainerServer).CreateCertificate(req)
-	if err != nil {
-		return err
+		err = d.(lxd.ContainerServer).CreateCertificate(req)
+		if err != nil {
+			return err
+		}
+	} else {
+		d.(lxd.ContainerServer).RequireAuthenticated(true)
 	}
 
 	// And check if trusted now
@@ -285,10 +308,12 @@ func (c *remoteCmd) addServer(conf *config.Config, server string, addr string, a
 	}
 
 	if srv.Auth != "trusted" {
-		return fmt.Errorf(i18n.G("Server doesn't trust us after adding our cert"))
+		return fmt.Errorf(i18n.G("Server doesn't trust us after authentication"))
 	}
 
-	fmt.Println(i18n.G("Client certificate stored at server: "), server)
+	if authType == "tls" {
+		fmt.Println(i18n.G("Client certificate stored at server: "), server)
+	}
 	return nil
 }
 
@@ -320,7 +345,7 @@ func (c *remoteCmd) run(conf *config.Config, args []string) error {
 			return fmt.Errorf(i18n.G("remote %s exists as <%s>"), remote, rc.Addr)
 		}
 
-		err := c.addServer(conf, remote, fqdn, c.acceptCert, c.password, c.public, c.protocol)
+		err := c.addServer(conf, remote, fqdn, c.acceptCert, c.password, c.public, c.protocol, c.authType)
 		if err != nil {
 			delete(conf.Remotes, remote)
 			c.removeCertificate(conf, remote)
@@ -365,12 +390,15 @@ func (c *remoteCmd) run(conf *config.Config, args []string) error {
 			if rc.Protocol == "" {
 				rc.Protocol = "lxd"
 			}
+			if rc.AuthType == "" && !rc.Public {
+				rc.AuthType = "tls"
+			}
 
 			strName := name
 			if name == conf.DefaultRemote {
 				strName = fmt.Sprintf("%s (%s)", name, i18n.G("default"))
 			}
-			data = append(data, []string{strName, rc.Addr, rc.Protocol, strPublic, strStatic})
+			data = append(data, []string{strName, rc.Addr, rc.Protocol, rc.AuthType, strPublic, strStatic})
 		}
 
 		table := tablewriter.NewWriter(os.Stdout)
@@ -381,6 +409,7 @@ func (c *remoteCmd) run(conf *config.Config, args []string) error {
 			i18n.G("NAME"),
 			i18n.G("URL"),
 			i18n.G("PROTOCOL"),
+			i18n.G("AUTH TYPE"),
 			i18n.G("PUBLIC"),
 			i18n.G("STATIC")})
 		sort.Sort(byName(data))

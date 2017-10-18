@@ -15,6 +15,9 @@ test_remote_url() {
     urls="images.linuxcontainers.org https://images.linuxcontainers.org ${urls}"
   fi
 
+  # an invalid protocol returns an error
+  ! lxc_remote remote add test "${url}" --accept-certificate --password foo --protocol foo
+
   for url in ${urls}; do
     lxc_remote remote add test "${url}"
     lxc_remote remote remove test
