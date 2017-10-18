@@ -9,14 +9,14 @@ currently supported:
 
 Key                             | Type      | Default   | API extension            | Description
 :--                             | :---      | :------   | :------------            | :----------
-core.macaroon.endpoint          | string    | -         | macaroon\_authentication | URL of the the external authentication endpoint using Macaroons
 core.https\_address             | string    | -         | -                        | Address to bind for the remote API
+core.https\_allowed\_credentials| boolean   | -         | -                        | Whether to set Access-Control-Allow-Credentials http header value to "true"
 core.https\_allowed\_headers    | string    | -         | -                        | Access-Control-Allow-Headers http header value
 core.https\_allowed\_methods    | string    | -         | -                        | Access-Control-Allow-Methods http header value
 core.https\_allowed\_origin     | string    | -         | -                        | Access-Control-Allow-Origin http header value
-core.https\_allowed\_credentials| boolean   | -         | -                        | Whether to set Access-Control-Allow-Credentials http header value to "true"
-core.proxy\_http                | string    | -         | -                        | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
+core.macaroon.endpoint          | string    | -         | macaroon\_authentication | URL of the the external authentication endpoint using Macaroons
 core.proxy\_https               | string    | -         | -                        | https proxy to use, if any (falls back to HTTPS\_PROXY environment variable)
+core.proxy\_http                | string    | -         | -                        | http proxy to use, if any (falls back to HTTP\_PROXY environment variable)
 core.proxy\_ignore\_hosts       | string    | -         | -                        | hosts which don't need the proxy for use (similar format to NO\_PROXY, e.g. 1.2.3.4,1.2.3.5, falls back to NO\_PROXY environment variable)
 core.trust\_password            | string    | -         | -                        | Password to be provided by clients to setup a trust
 images.auto\_update\_cached     | boolean   | true      | -                        | Whether to automatically update any image that LXD caches
