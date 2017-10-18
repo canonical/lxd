@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	grpcsql "github.com/CanonicalLtd/go-grpc-sql"
@@ -182,10 +183,25 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 // database, otherwise they are rolled back.
 func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
 	clusterTx := &ClusterTx{}
-	return query.Transaction(c.db, func(tx *sql.Tx) error {
-		clusterTx.tx = tx
-		return f(clusterTx)
-	})
+
+	// FIXME: the retry loop should be configurable.
+	var err error
+	for i := 0; i < 10; i++ {
+		err = query.Transaction(c.db, func(tx *sql.Tx) error {
+			clusterTx.tx = tx
+			return f(clusterTx)
+		})
+		if err != nil {
+			// FIXME: we should bubble errors using errors.Wrap()
+			// instead, and check for sql.ErrBadConnection.
+			if strings.Contains(err.Error(), "bad connection") {
+				time.Sleep(time.Second)
+				continue
+			}
+		}
+		break
+	}
+	return err
 }
 
 // Close the database facade.
