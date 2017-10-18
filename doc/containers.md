@@ -39,8 +39,8 @@ limits.network.priority     | integer   | 0 (minimum)   | yes           | When u
 limits.processes            | integer   | - (max)       | yes           | Maximum number of processes that can run in the container
 linux.kernel\_modules       | string    | -             | yes           | Comma separated list of kernel modules to load before starting the container
 raw.apparmor                | blob      | -             | yes           | Apparmor profile entries to be appended to the generated profile
-raw.lxc                     | blob      | -             | no            | Raw LXC configuration to be appended to the generated one
 raw.idmap                   | blob      | -             | no            | Raw idmap configuration (e.g. "both 1000 1000")
+raw.lxc                     | blob      | -             | no            | Raw LXC configuration to be appended to the generated one
 security.idmap.base         | integer   | -             | no            | The base host ID to use for the allocation (overrides auto-detection)
 security.idmap.isolated     | boolean   | false         | no            | Use an idmap for this container that is unique among containers with isolated set.
 security.idmap.size         | integer   | -             | no            | The size of the idmap to use
@@ -52,26 +52,26 @@ The following volatile keys are currently internally used by LXD:
 
 Key                             | Type      | Default       | Description
 :--                             | :---      | :------       | :----------
-volatile.\<name\>.hwaddr        | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
-volatile.\<name\>.name          | string    | -             | Network device name (when no name propery is set on the device itself)
-volatile.\<name\>.host\_name    | string    | -             | Network device name on the host (for nictype=bridged or nictype=p2p)
 volatile.apply\_template        | string    | -             | The name of a template hook which should be triggered upon next startup
 volatile.base\_image            | string    | -             | The hash of the image the container was created from, if any.
 volatile.idmap.base             | integer   | -             | The first id in the container's primary idmap range
 volatile.idmap.next             | string    | -             | The idmap to use next time the container starts
 volatile.last\_state.idmap      | string    | -             | Serialized container uid/gid map
 volatile.last\_state.power      | string    | -             | Container state as of last host shutdown
+volatile.\<name\>.host\_name    | string    | -             | Network device name on the host (for nictype=bridged or nictype=p2p)
+volatile.\<name\>.hwaddr        | string    | -             | Network device MAC address (when no hwaddr property is set on the device itself)
+volatile.\<name\>.name          | string    | -             | Network device name (when no name propery is set on the device itself)
 
 
 Additionally, those user keys have become common with images (support isn't guaranteed):
 
 Key                         | Type          | Default           | Description
 :--                         | :---          | :------           | :----------
-user.network\_mode          | string        | dhcp              | One of "dhcp" or "link-local". Used to configure network in supported images.
 user.meta-data              | string        | -                 | Cloud-init meta-data, content is appended to seed value.
+user.network-config         | string        | DHCP on eth0      | Cloud-init network-config, content is used as seed value.
+user.network\_mode          | string        | dhcp              | One of "dhcp" or "link-local". Used to configure network in supported images.
 user.user-data              | string        | #!cloud-config    | Cloud-init user-data, content is used as seed value.
 user.vendor-data            | string        | #!cloud-config    | Cloud-init vendor-data, content is used as seed value.
-user.network-config         | string        | DHCP on eth0      | Cloud-init network-config, content is used as seed value.
 
 Note that while a type is defined above as a convenience, all values are
 stored as strings and should be exported over the REST API as strings
