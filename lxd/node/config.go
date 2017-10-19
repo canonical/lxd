@@ -75,7 +75,7 @@ func HTTPSAddress(node *db.Node) (string, error) {
 func (c *Config) update(values map[string]interface{}) error {
 	changed, err := c.m.Change(values)
 	if err != nil {
-		return fmt.Errorf("invalid configuration changes: %s", err)
+		return err
 	}
 
 	err = c.tx.UpdateConfig(changed)

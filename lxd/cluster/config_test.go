@@ -58,10 +58,11 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	config, err := cluster.ConfigLoad(tx)
 	require.NoError(t, err)
 
-	err = config.Replace(map[string]interface{}{"core.proxy_http": "foo.bar"})
+	changed, err := config.Replace(map[string]interface{}{"core.proxy_http": "foo.bar"})
 	assert.NoError(t, err)
+	assert.Equal(t, map[string]string{"core.proxy_http": "foo.bar"}, changed)
 
-	err = config.Replace(map[string]interface{}{})
+	_, err = config.Replace(map[string]interface{}{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "", config.ProxyHTTP())
@@ -80,10 +81,10 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	config, err := cluster.ConfigLoad(tx)
 	require.NoError(t, err)
 
-	err = config.Replace(map[string]interface{}{"core.proxy_http": "foo.bar"})
+	_, err = config.Replace(map[string]interface{}{"core.proxy_http": "foo.bar"})
 	assert.NoError(t, err)
 
-	err = config.Patch(map[string]interface{}{})
+	_, err = config.Patch(map[string]interface{}{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "foo.bar", config.ProxyHTTP())
