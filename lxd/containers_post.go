@@ -11,6 +11,7 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
@@ -96,9 +97,13 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 		var info *api.Image
 		if req.Source.Server != "" {
+			autoUpdate, err := cluster.ConfigGetBool(d.cluster, "images.auto_update_cached")
+			if err != nil {
+				return err
+			}
 			info, err = d.ImageDownload(
-				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret,
-				hash, true, daemonConfig["images.auto_update_cached"].GetBool(), "", true)
+				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate,
+				req.Source.Secret, hash, true, autoUpdate, "", true)
 			if err != nil {
 				return err
 			}

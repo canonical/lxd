@@ -63,8 +63,18 @@ var api10 = []Command{
 
 func api10Get(d *Daemon, r *http.Request) Response {
 	authMethods := []string{"tls"}
-	if daemonConfig["core.macaroon.endpoint"].Get() != "" {
-		authMethods = append(authMethods, "macaroons")
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+		if config.MacaroonEndpoint() != "" {
+			authMethods = append(authMethods, "macaroons")
+		}
+		return nil
+	})
+	if err != nil {
+		return SmartError(err)
 	}
 	srv := api.ServerUntrusted{
 		APIExtensions: version.APIExtensions,
@@ -228,15 +238,17 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 	}
 
 	var changed map[string]string
+	var newConfig *cluster.Config
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		config, err := cluster.ConfigLoad(tx)
+		var err error
+		newConfig, err = cluster.ConfigLoad(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed to load cluster config")
 		}
 		if patch {
-			changed, err = config.Patch(req.Config)
+			changed, err = newConfig.Patch(req.Config)
 		} else {
-			changed, err = config.Replace(req.Config)
+			changed, err = newConfig.Replace(req.Config)
 		}
 		return err
 	})
@@ -249,8 +261,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 	}
 
-	daemonConfigInit(d.cluster)
-
+	maasControllerChanged := false
 	for key, value := range changed {
 		switch key {
 		case "core.proxy_http":
@@ -258,7 +269,13 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		case "core.proxy_https":
 			fallthrough
 		case "core.proxy_ignore_hosts":
-			daemonConfigSetProxy(d, changed)
+			daemonConfigSetProxy(d, newConfig)
+		case "maas.api.url":
+			fallthrough
+		case "maas.api.key":
+			fallthrough
+		case "maas.machine":
+			maasControllerChanged = true
 		case "core.macaroon.endpoint":
 			err := d.setupExternalAuthentication(value)
 			if err != nil {
@@ -268,6 +285,13 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 			d.taskAutoUpdate.Reset()
 		case "images.remote_cache_expiry":
 			d.taskPruneImages.Reset()
+		}
+	}
+	if maasControllerChanged {
+		url, key, machine := newConfig.MAASController()
+		err := d.setupMAASController(url, key, machine)
+		if err != nil {
+			return SmartError(err)
 		}
 	}
 
