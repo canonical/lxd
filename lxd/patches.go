@@ -284,7 +284,7 @@ func patchStorageApi(name string, d *Daemon) error {
 		if err != nil {
 			return err
 		}
-		return config.Patch(map[string]interface{}{
+		_, err = config.Patch(map[string]interface{}{
 			"storage.lvm_fstype":           "",
 			"storage.lvm_mount_options":    "",
 			"storage.lvm_thinpool_name":    "",
@@ -294,6 +294,7 @@ func patchStorageApi(name string, d *Daemon) error {
 			"storage.zfs_remove_snapshots": "",
 			"storage.zfs_use_refquota":     "",
 		})
+		return err
 	})
 	if err != nil {
 		return err
