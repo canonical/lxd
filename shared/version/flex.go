@@ -9,7 +9,7 @@ import (
 )
 
 // Version contains the LXD version number
-var Version = "2.0.10"
+var Version = "2.0.11"
 
 // UserAgent contains a string suitable as a user-agent
 var UserAgent = getUserAgent()
