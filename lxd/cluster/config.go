@@ -62,15 +62,45 @@ func (c *Config) TrustPassword() string {
 	return c.m.GetString("core.trust_password")
 }
 
+// MacaroonEndpoint returns the address of the macaroon endpoint to use for
+// authentication, if any.
+func (c *Config) MacaroonEndpoint() string {
+	return c.m.GetString("core.macaroon.endpoint")
+}
+
 // AutoUpdateInterval returns the configured images auto update interval.
 func (c *Config) AutoUpdateInterval() time.Duration {
 	n := c.m.GetInt64("images.auto_update_interval")
 	return time.Duration(n) * time.Hour
 }
 
+// RemoteCacheExpiry returns the configured expiration value for remote images
+// expiration.
+func (c *Config) RemoteCacheExpiry() int64 {
+	return c.m.GetInt64("images.remote_cache_expiry")
+}
+
+// ProxyHTTPS returns the configured HTTPS proxy, if any.
+func (c *Config) ProxyHTTPS() string {
+	return c.m.GetString("core.proxy_https")
+}
+
 // ProxyHTTP returns the configured HTTP proxy, if any.
 func (c *Config) ProxyHTTP() string {
 	return c.m.GetString("core.proxy_http")
+}
+
+// ProxyIgnoreHosts returns the configured ignore-hosts proxy setting, if any.
+func (c *Config) ProxyIgnoreHosts() string {
+	return c.m.GetString("core.proxy_ignore_hosts")
+}
+
+// MAASController the configured MAAS url, key and machine.
+func (c *Config) MAASController() (string, string, string) {
+	url := c.m.GetString("maas.api.url")
+	key := c.m.GetString("maas.api.key")
+	machine := c.m.GetString("maas.machine")
+	return url, key, machine
 }
 
 // Dump current configuration keys and their values. Keys with values matching
@@ -109,6 +139,55 @@ func (c *Config) update(values map[string]interface{}) (map[string]string, error
 	}
 
 	return changed, nil
+}
+
+// ConfigGetString is a convenience for loading the cluster configuration and
+// returning the value of a particular key.
+//
+// It's a deprecated API meant to be used by call sites that are not
+// interacting with the database in a transactional way.
+func ConfigGetString(cluster *db.Cluster, key string) (string, error) {
+	config, err := configGet(cluster)
+	if err != nil {
+		return "", err
+	}
+	return config.m.GetString(key), nil
+}
+
+// ConfigGetBool is a convenience for loading the cluster configuration and
+// returning the value of a particular boolean key.
+//
+// It's a deprecated API meant to be used by call sites that are not
+// interacting with the database in a transactional way.
+func ConfigGetBool(cluster *db.Cluster, key string) (bool, error) {
+	config, err := configGet(cluster)
+	if err != nil {
+		return false, err
+	}
+	return config.m.GetBool(key), nil
+}
+
+// ConfigGetInt64 is a convenience for loading the cluster configuration and
+// returning the value of a particular key.
+//
+// It's a deprecated API meant to be used by call sites that are not
+// interacting with the database in a transactional way.
+func ConfigGetInt64(cluster *db.Cluster, key string) (int64, error) {
+	config, err := configGet(cluster)
+	if err != nil {
+		return 0, err
+	}
+	return config.m.GetInt64(key), nil
+}
+
+func configGet(cluster *db.Cluster) (*Config, error) {
+	var config *Config
+	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		config, err = ConfigLoad(tx)
+		return err
+	})
+	return config, err
 }
 
 // ConfigSchema defines available server configuration keys.

@@ -71,7 +71,10 @@ func clusterPostBootstrap(d *Daemon, req api.ClusterPost) Response {
 func clusterPostAccept(d *Daemon, req api.ClusterPost) Response {
 	// Accepting a node requires the client to provide the correct
 	// trust password.
-	secret := daemonConfig["core.trust_password"].Get()
+	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
+	if err != nil {
+		return SmartError(err)
+	}
 	if util.PasswordCheck(secret, req.TargetPassword) != nil {
 		return Forbidden
 	}

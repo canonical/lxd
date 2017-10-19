@@ -396,8 +396,9 @@ storage_pools:
 	_, _, err = suite.client.GetStoragePool("second")
 	suite.Req.Equal("not found", err.Error())
 
-	key, _ := daemonConfig["images.auto_update_interval"]
-	suite.Req.NotEqual("15", key.Get())
+	interval, err := cluster.ConfigGetInt64(suite.d.cluster, "images.auto_update_interval")
+	suite.Req.NoError(err)
+	suite.Req.NotEqual(int64(15), interval)
 }
 
 // Updating a storage pool via preseed will fail, since it's not supported

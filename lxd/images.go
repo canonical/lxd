@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
@@ -164,7 +166,10 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	if req.CompressionAlgorithm != "" {
 		compress = req.CompressionAlgorithm
 	} else {
-		compress = daemonConfig["images.compression_algorithm"].Get()
+		compress, err = cluster.ConfigGetString(d.cluster, "images.compression_algorithm")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if compress != "none" {
@@ -755,8 +760,19 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		autoUpdateImages(ctx, d)
 	}
 	schedule := func() (time.Duration, error) {
-		interval := daemonConfig["images.auto_update_interval"].GetInt64()
-		return time.Duration(interval) * time.Hour, nil
+		var interval time.Duration
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			config, err := cluster.ConfigLoad(tx)
+			if err != nil {
+				return errors.Wrap(err, "failed to load cluster configuration")
+			}
+			interval = config.AutoUpdateInterval()
+			return nil
+		})
+		if err != nil {
+			return 0, err
+		}
+		return interval, nil
 	}
 	return f, schedule
 }
@@ -933,8 +949,10 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 	// Skip the first run, and instead run an initial pruning synchronously
 	// before we start updating images later on in the start up process.
-	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
-	if expiry > 0 {
+	expiry, err := cluster.ConfigGetInt64(d.cluster, "images.remote_cache_expiry")
+	if err != nil {
+		logger.Error("Unable to fetch cluster configuration", log.Ctx{"err": err})
+	} else if expiry > 0 {
 		pruneExpiredImages(context.Background(), d)
 	}
 	first := true
@@ -945,7 +963,11 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return interval, task.ErrSkip
 		}
 
-		expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
+		expiry, err := cluster.ConfigGetInt64(d.cluster, "images.remote_cache_expiry")
+		if err != nil {
+			logger.Error("Unable to fetch cluster configuration", log.Ctx{"err": err})
+			return interval, nil
+		}
 
 		// Check if we're supposed to prune at all
 		if expiry <= 0 {
@@ -959,10 +981,15 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 }
 
 func pruneExpiredImages(ctx context.Context, d *Daemon) {
-	// Get the list of expired images.
-	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
-
 	logger.Infof("Pruning expired images")
+
+	expiry, err := cluster.ConfigGetInt64(d.cluster, "images.remote_cache_expiry")
+	if err != nil {
+		logger.Error("Unable to fetch cluster configuration", log.Ctx{"err": err})
+		return
+	}
+
+	// Get the list of expired images.
 	images, err := d.db.ImagesGetExpired(expiry)
 	if err != nil {
 		logger.Error("Unable to retrieve the list of expired images", log.Ctx{"err": err})

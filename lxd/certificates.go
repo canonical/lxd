@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -98,7 +99,10 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Access check
-	secret := daemonConfig["core.trust_password"].Get()
+	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
+	if err != nil {
+		return SmartError(err)
+	}
 	if d.checkTrustedClient(r) != nil && util.PasswordCheck(secret, req.Password) != nil {
 		return Forbidden
 	}
@@ -144,7 +148,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	err := saveCert(d.db, name, cert)
+	err = saveCert(d.db, name, cert)
 	if err != nil {
 		return SmartError(err)
 	}
