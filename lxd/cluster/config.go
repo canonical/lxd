@@ -1,7 +1,14 @@
 package cluster
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"io"
+	"os/exec"
+	"time"
+
+	"golang.org/x/crypto/scrypt"
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
@@ -50,6 +57,17 @@ func (c *Config) HTTPSAllowedCredentials() bool {
 	return c.m.GetBool("core.https_allowed_credentials")
 }
 
+// TrustPassword returns the LXD trust password for authenticating clients.
+func (c *Config) TrustPassword() string {
+	return c.m.GetString("core.trust_password")
+}
+
+// AutoUpdateInterval returns the configured images auto update interval.
+func (c *Config) AutoUpdateInterval() time.Duration {
+	n := c.m.GetInt64("images.auto_update_interval")
+	return time.Duration(n) * time.Hour
+}
+
 // ProxyHTTP returns the configured HTTP proxy, if any.
 func (c *Config) ProxyHTTP() string {
 	return c.m.GetString("core.proxy_http")
@@ -62,12 +80,16 @@ func (c *Config) Dump() map[string]interface{} {
 }
 
 // Replace the current configuration with the given values.
-func (c *Config) Replace(values map[string]interface{}) error {
+//
+// Return what has actually changed.
+func (c *Config) Replace(values map[string]interface{}) (map[string]string, error) {
 	return c.update(values)
 }
 
 // Patch changes only the configuration keys in the given map.
-func (c *Config) Patch(patch map[string]interface{}) error {
+//
+// Return what has actually changed.
+func (c *Config) Patch(patch map[string]interface{}) (map[string]string, error) {
 	values := c.Dump() // Use current values as defaults
 	for name, value := range patch {
 		values[name] = value
@@ -75,18 +97,18 @@ func (c *Config) Patch(patch map[string]interface{}) error {
 	return c.update(values)
 }
 
-func (c *Config) update(values map[string]interface{}) error {
+func (c *Config) update(values map[string]interface{}) (map[string]string, error) {
 	changed, err := c.m.Change(values)
 	if err != nil {
-		return fmt.Errorf("invalid configuration changes: %s", err)
+		return nil, err
 	}
 
 	err = c.tx.UpdateConfig(changed)
 	if err != nil {
-		return fmt.Errorf("cannot persist confiuration changes: %v", err)
+		return nil, fmt.Errorf("cannot persist confiuration changes: %v", err)
 	}
 
-	return nil
+	return changed, nil
 }
 
 // ConfigSchema defines available server configuration keys.
@@ -98,11 +120,11 @@ var ConfigSchema = config.Schema{
 	"core.proxy_http":                {},
 	"core.proxy_https":               {},
 	"core.proxy_ignore_hosts":        {},
-	"core.trust_password":            {Hidden: true},
+	"core.trust_password":            {Hidden: true, Setter: passwordSetter},
 	"core.macaroon.endpoint":         {},
 	"images.auto_update_cached":      {Type: config.Bool, Default: "true"},
 	"images.auto_update_interval":    {Type: config.Int64, Default: "6"},
-	"images.compression_algorithm":   {Default: "gzip"},
+	"images.compression_algorithm":   {Default: "gzip", Validator: validateCompression},
 	"images.remote_cache_expiry":     {Type: config.Int64, Default: "10"},
 	"maas.api.key":                   {},
 	"maas.api.url":                   {},
@@ -117,6 +139,39 @@ var ConfigSchema = config.Schema{
 	"storage.zfs_pool_name":        {Setter: deprecatedStorage},
 	"storage.zfs_remove_snapshots": {Setter: deprecatedStorage, Type: config.Bool},
 	"storage.zfs_use_refquota":     {Setter: deprecatedStorage, Type: config.Bool},
+}
+
+func passwordSetter(value string) (string, error) {
+	// Nothing to do on unset
+	if value == "" {
+		return value, nil
+	}
+
+	// Hash the password
+	buf := make([]byte, 32)
+	_, err := io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return "", err
+	}
+
+	hash, err := scrypt.Key([]byte(value), buf, 1<<14, 8, 1, 64)
+	if err != nil {
+		return "", err
+	}
+
+	buf = append(buf, hash...)
+	value = hex.EncodeToString(buf)
+
+	return value, nil
+}
+
+func validateCompression(value string) error {
+	if value == "none" {
+		return nil
+	}
+
+	_, err := exec.LookPath(value)
+	return err
 }
 
 func deprecatedStorage(value string) (string, error) {

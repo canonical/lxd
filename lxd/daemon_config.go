@@ -1,17 +1,12 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"io"
-	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
 
 	log "github.com/lxc/lxd/shared/log15"
-	"golang.org/x/crypto/scrypt"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	dbapi "github.com/lxc/lxd/lxd/db"
@@ -96,53 +91,6 @@ func (k *daemonConfigKey) Validate(d *Daemon, value string) error {
 	return nil
 }
 
-func (k *daemonConfigKey) Set(d *Daemon, value string) error {
-	var name string
-
-	// Check if we are actually changing things
-	oldValue := k.currentValue
-	if oldValue == value {
-		return nil
-	}
-
-	// Validate the new value
-	err := k.Validate(d, value)
-	if err != nil {
-		return err
-	}
-
-	// Run external setting function
-	if k.setter != nil {
-		value, err = k.setter(d, k.name(), value)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Get the configuration key and make sure daemonConfig is sane
-	name = k.name()
-	if name == "" {
-		return fmt.Errorf("Corrupted configuration cache")
-	}
-
-	// Actually apply the change
-	daemonConfigLock.Lock()
-	k.currentValue = value
-	daemonConfigLock.Unlock()
-
-	err = dbapi.ConfigValueSet(d.cluster, name, value)
-	if err != nil {
-		return err
-	}
-
-	// Run the trigger (if any)
-	if k.trigger != nil {
-		k.trigger(d, k.name(), value)
-	}
-
-	return nil
-}
-
 func (k *daemonConfigKey) Get() string {
 	value := k.currentValue
 
@@ -182,16 +130,16 @@ func (k *daemonConfigKey) GetInt64() int64 {
 func daemonConfigInit(cluster *dbapi.Cluster) error {
 	// Set all the keys
 	daemonConfig = map[string]*daemonConfigKey{
-		"core.proxy_http":         {valueType: "string", setter: daemonConfigSetProxy},
-		"core.proxy_https":        {valueType: "string", setter: daemonConfigSetProxy},
-		"core.proxy_ignore_hosts": {valueType: "string", setter: daemonConfigSetProxy},
-		"core.trust_password":     {valueType: "string", hiddenValue: true, setter: daemonConfigSetPassword},
-		"core.macaroon.endpoint":  {valueType: "string", setter: daemonConfigSetMacaroonEndpoint},
+		"core.proxy_http":         {valueType: "string"},
+		"core.proxy_https":        {valueType: "string"},
+		"core.proxy_ignore_hosts": {valueType: "string"},
+		"core.trust_password":     {valueType: "string", hiddenValue: true},
+		"core.macaroon.endpoint":  {valueType: "string"},
 
 		"images.auto_update_cached":    {valueType: "bool", defaultValue: "true"},
-		"images.auto_update_interval":  {valueType: "int", defaultValue: "6", trigger: daemonConfigTriggerAutoUpdateInterval},
-		"images.compression_algorithm": {valueType: "string", validator: daemonConfigValidateCompression, defaultValue: "gzip"},
-		"images.remote_cache_expiry":   {valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
+		"images.auto_update_interval":  {valueType: "int", defaultValue: "6"},
+		"images.compression_algorithm": {valueType: "string", defaultValue: "gzip"},
+		"images.remote_cache_expiry":   {valueType: "int", defaultValue: "10"},
 
 		"maas.api.key": {valueType: "string", setter: daemonConfigSetMAAS},
 		"maas.api.url": {valueType: "string", setter: daemonConfigSetMAAS},
@@ -259,49 +207,7 @@ func daemonConfigRender(state *state.State) (map[string]interface{}, error) {
 	return config, nil
 }
 
-func daemonConfigSetPassword(d *Daemon, key string, value string) (string, error) {
-	// Nothing to do on unset
-	if value == "" {
-		return value, nil
-	}
-
-	// Hash the password
-	buf := make([]byte, 32)
-	_, err := io.ReadFull(rand.Reader, buf)
-	if err != nil {
-		return "", err
-	}
-
-	hash, err := scrypt.Key([]byte(value), buf, 1<<14, 8, 1, 64)
-	if err != nil {
-		return "", err
-	}
-
-	buf = append(buf, hash...)
-	value = hex.EncodeToString(buf)
-
-	return value, nil
-}
-
-func daemonConfigSetMacaroonEndpoint(d *Daemon, key string, value string) (string, error) {
-	err := d.setupExternalAuthentication(value)
-	if err != nil {
-		return "", err
-	}
-
-	return value, nil
-}
-
-func daemonConfigSetProxy(d *Daemon, key string, value string) (string, error) {
-	// Get the current config
-	config := map[string]string{}
-	config["core.proxy_https"] = daemonConfig["core.proxy_https"].Get()
-	config["core.proxy_http"] = daemonConfig["core.proxy_http"].Get()
-	config["core.proxy_ignore_hosts"] = daemonConfig["core.proxy_ignore_hosts"].Get()
-
-	// Apply the change
-	config[key] = value
-
+func daemonConfigSetProxy(d *Daemon, config map[string]string) {
 	// Update the cached proxy function
 	d.proxy = shared.ProxyFromConfig(
 		config["core.proxy_https"],
@@ -315,8 +221,6 @@ func daemonConfigSetProxy(d *Daemon, key string, value string) (string, error) {
 		delete(imageStreamCache, k)
 	}
 	imageStreamCacheLock.Unlock()
-
-	return value, nil
 }
 
 func daemonConfigSetMAAS(d *Daemon, key string, value string) (string, error) {
@@ -341,23 +245,4 @@ func daemonConfigSetMAAS(d *Daemon, key string, value string) (string, error) {
 	}
 
 	return value, nil
-}
-
-func daemonConfigTriggerExpiry(d *Daemon, key string, value string) {
-	// Trigger an image pruning run
-	d.taskPruneImages.Reset()
-}
-
-func daemonConfigTriggerAutoUpdateInterval(d *Daemon, key string, value string) {
-	// Reset the auto-update interval loop
-	d.taskAutoUpdate.Reset()
-}
-
-func daemonConfigValidateCompression(d *Daemon, key string, value string) error {
-	if value == "none" {
-		return nil
-	}
-
-	_, err := exec.LookPath(value)
-	return err
 }

@@ -6,8 +6,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/util"
 
@@ -93,8 +96,13 @@ func (suite *cmdInitTestSuite) TestCmdInit_PreseedHTTPSAddressAndTrustPassword()
 	address, err := node.HTTPSAddress(suite.d.db)
 	suite.Req.NoError(err)
 	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), address)
-	secret := daemonConfig["core.trust_password"].Get()
-	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Nil(util.PasswordCheck(config.TrustPassword(), "sekret"))
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // Input network address and trust password interactively.
@@ -116,8 +124,13 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveHTTPSAddressAndTrustPasswo
 	address, err := node.HTTPSAddress(suite.d.db)
 	suite.Req.NoError(err)
 	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), address)
-	secret := daemonConfig["core.trust_password"].Get()
-	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Nil(util.PasswordCheck(config.TrustPassword(), "sekret"))
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // Enable clustering interactively.
@@ -155,8 +168,13 @@ func (suite *cmdInitTestSuite) TestCmdInit_AutoHTTPSAddressAndTrustPassword() {
 	address, err := node.HTTPSAddress(suite.d.db)
 	suite.Req.NoError(err)
 	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), address)
-	secret := daemonConfig["core.trust_password"].Get()
-	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Nil(util.PasswordCheck(config.TrustPassword(), "sekret"))
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // The images auto-update interval can be interactively set by simply accepting
@@ -169,15 +187,25 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateAnswerYes() {
 
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["images.auto_update_interval"]
-	suite.Req.Equal("6", key.Get())
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(6*time.Hour, config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // If the images auto-update interval value is already set to non-zero, it
 // won't be overwritten.
 func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateNoOverwrite() {
-	key, _ := daemonConfig["images.auto_update_interval"]
-	err := key.Set(suite.d, "10")
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		_, err = config.Patch(map[string]interface{}{"images.auto_update_interval": "10"})
+		suite.Req.NoError(err)
+		return nil
+	})
 	suite.Req.Nil(err)
 
 	answers := &cmdInitAnswers{
@@ -187,7 +215,13 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateNoOverwrite() {
 
 	suite.Req.Nil(suite.command.Run())
 
-	suite.Req.Equal("10", key.Get())
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(10*time.Hour, config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // If an invalid backend type is passed with --storage-backend, an
@@ -243,15 +277,26 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateAnswerNo() {
 
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["images.auto_update_interval"]
-	suite.Req.Equal("0", key.Get())
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(time.Duration(0), config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // If the user answers "no" to the images auto-update question, the value will
 // be set to 0, even it was already set to some value.
 func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateOverwriteIfZero() {
-	key, _ := daemonConfig["images.auto_update_interval"]
-	key.Set(suite.d, "10")
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		_, err = config.Patch(map[string]interface{}{"images.auto_update_interval": "10"})
+		suite.Req.NoError(err)
+		return nil
+	})
+	suite.Req.Nil(err)
 
 	answers := &cmdInitAnswers{
 		WantImageAutoUpdate: false,
@@ -259,7 +304,14 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateOverwriteIfZero() {
 	answers.Render(suite.streams)
 
 	suite.Req.Nil(suite.command.Run())
-	suite.Req.Equal("0", key.Get())
+
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(time.Duration(0), config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // Preseed the image auto-update interval.
@@ -270,8 +322,13 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdatePreseed() {
 `)
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["images.auto_update_interval"]
-	suite.Req.Equal("15", key.Get())
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(15*time.Hour, config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // If --storage-backend is set to "dir" a storage pool is created.

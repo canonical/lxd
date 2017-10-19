@@ -1,13 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
@@ -158,16 +157,6 @@ func api10Get(d *Daemon, r *http.Request) Response {
 }
 
 func api10Put(d *Daemon, r *http.Request) Response {
-	var oldConfig map[string]string
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		oldConfig, err = tx.Config()
-		return err
-	})
-	if err != nil {
-		return SmartError(err)
-	}
-
 	render, err := daemonConfigRender(d.State())
 	if err != nil {
 		return InternalError(err)
@@ -182,20 +171,10 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	return doApi10Update(d, oldConfig, req)
+	return doApi10Update(d, req, false)
 }
 
 func api10Patch(d *Daemon, r *http.Request) Response {
-	var oldConfig map[string]string
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		oldConfig, err = tx.Config()
-		return err
-	})
-	if err != nil {
-		return SmartError(err)
-	}
-
 	render, err := daemonConfigRender(d.State())
 	if err != nil {
 		return InternalError(err)
@@ -214,17 +193,10 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 		return EmptySyncResponse
 	}
 
-	for k, v := range oldConfig {
-		_, ok := req.Config[k]
-		if !ok {
-			req.Config[k] = v
-		}
-	}
-
-	return doApi10Update(d, oldConfig, req)
+	return doApi10Update(d, req, true)
 }
 
-func doApi10Update(d *Daemon, oldConfig map[string]string, req api.ServerPut) Response {
+func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 	// The HTTPS address is the only config key that we want to save in the
 	// node-level database, so handle it here.
 	nodeValues := map[string]interface{}{}
@@ -248,51 +220,55 @@ func doApi10Update(d *Daemon, oldConfig map[string]string, req api.ServerPut) Re
 		return err
 	})
 	if err != nil {
-		return InternalError(err)
-	}
-
-	// Deal with special keys
-	for k, v := range req.Config {
-		config := daemonConfig[k]
-		if config != nil && config.hiddenValue && v == true {
-			req.Config[k] = oldConfig[k]
-		}
-	}
-
-	// Diff the configs
-	changedConfig := map[string]interface{}{}
-	for key, value := range oldConfig {
-		if req.Config[key] != value {
-			changedConfig[key] = req.Config[key]
-		}
-	}
-
-	for key, value := range req.Config {
-		if oldConfig[key] != value {
-			changedConfig[key] = req.Config[key]
-		}
-	}
-
-	for key, valueRaw := range changedConfig {
-		if valueRaw == nil {
-			valueRaw = ""
-		}
-
-		s := reflect.ValueOf(valueRaw)
-		if !s.IsValid() || s.Kind() != reflect.String {
-			return BadRequest(fmt.Errorf("Invalid value type for '%s'", key))
-		}
-
-		value := valueRaw.(string)
-
-		confKey, ok := daemonConfig[key]
-		if !ok {
-			return BadRequest(fmt.Errorf("Bad server config key: '%s'", key))
-		}
-
-		err := confKey.Set(d, value)
-		if err != nil {
+		switch err.(type) {
+		case config.ErrorList:
+			return BadRequest(err)
+		default:
 			return SmartError(err)
+		}
+	}
+
+	var changed map[string]string
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to load cluster config")
+		}
+		if patch {
+			changed, err = config.Patch(req.Config)
+		} else {
+			changed, err = config.Replace(req.Config)
+		}
+		return err
+	})
+	if err != nil {
+		switch err.(type) {
+		case config.ErrorList:
+			return BadRequest(err)
+		default:
+			return SmartError(err)
+		}
+	}
+
+	daemonConfigInit(d.cluster)
+
+	for key, value := range changed {
+		switch key {
+		case "core.proxy_http":
+			fallthrough
+		case "core.proxy_https":
+			fallthrough
+		case "core.proxy_ignore_hosts":
+			daemonConfigSetProxy(d, changed)
+		case "core.macaroon.endpoint":
+			err := d.setupExternalAuthentication(value)
+			if err != nil {
+				return SmartError(err)
+			}
+		case "images.auto_update_interval":
+			d.taskAutoUpdate.Reset()
+		case "images.remote_cache_expiry":
+			d.taskPruneImages.Reset()
 		}
 	}
 
