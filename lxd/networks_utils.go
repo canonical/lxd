@@ -104,7 +104,7 @@ func networkIsInUse(c container, name string) bool {
 			continue
 		}
 
-		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan", "physical"}) {
+		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan", "physical", "vfio"}) {
 			continue
 		}
 

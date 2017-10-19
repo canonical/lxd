@@ -1350,7 +1350,7 @@ func (c *containerLXC) initLXC() error {
 				if err != nil {
 					return err
 				}
-			} else if m["nictype"] == "physical" {
+			} else if m["nictype"] == "physical" || m["nictype"] == "vfio" {
 				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx), "phys")
 				if err != nil {
 					return err
@@ -1377,6 +1377,11 @@ func (c *containerLXC) initLXC() error {
 				if err != nil {
 					return err
 				}
+			} else if m["nictype"] == "vfio" {
+				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), m["host_name"])
+				if err != nil {
+					return err
+				}
 			} else if shared.StringInSlice(m["nictype"], []string{"macvlan", "physical"}) {
 				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), networkGetHostDevice(m["parent"], m["vlan"]))
 				if err != nil {
@@ -1386,7 +1391,7 @@ func (c *containerLXC) initLXC() error {
 
 			// Host Virtual NIC name
 			vethName := ""
-			if m["host_name"] != "" {
+			if m["host_name"] != "" && m["nictype"] != "vfio" {
 				vethName = m["host_name"]
 			} else if shared.IsTrue(m["security.mac_filtering"]) {
 				// We need a known device name for MAC filtering
@@ -1916,16 +1921,49 @@ func (c *containerLXC) startCommon() (string, error) {
 				diskDevices[k] = m
 			}
 		} else if m["type"] == "nic" {
-			if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
-				m, err = c.fillNetworkDevice(k, m)
+			networkKeyPrefix := "lxc.net"
+			if !lxc.VersionAtLeast(2, 1, 0) {
+				networkKeyPrefix = "lxc.network"
+			}
+
+			m, err = c.fillNetworkDevice(k, m)
+			if err != nil {
+				return "", err
+			}
+
+			networkidx := -1
+			reserved := []string{}
+			for _, k := range c.expandedDevices.DeviceNames() {
+				m := c.expandedDevices[k]
+				if m["type"] != "nic" {
+					continue
+				}
+				networkidx++
+
+				if m["nictype"] != "vfio" {
+					continue
+				}
+
+				m, err = c.fillVfioNetworkDevice(k, m, reserved)
 				if err != nil {
 					return "", err
 				}
 
-				networkKeyPrefix := "lxc.net"
-				if !lxc.VersionAtLeast(2, 1, 0) {
-					networkKeyPrefix = "lxc.network"
+				reserved = append(reserved, m["host_name"])
+
+				val := c.c.ConfigItem(fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx))
+				if len(val) == 0 || val[0] != "phys" {
+					return "", fmt.Errorf("Network index corresponds to false network")
 				}
+
+				// Fill in correct name right now
+				err = lxcSetConfigItem(c.c, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), m["host_name"])
+				if err != nil {
+					return "", err
+				}
+			}
+
+			if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
 
 				// Read device name from config
 				vethName := ""
@@ -5885,6 +5923,10 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		}
 	}
 
+	if m["nictype"] == "vfio" {
+		dev = m["host_name"]
+	}
+
 	// Handle bridged and p2p
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
 		n2 := deviceNextVeth()
@@ -5914,7 +5956,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	}
 
 	// Handle physical and macvlan
-	if shared.StringInSlice(m["nictype"], []string{"physical", "macvlan"}) {
+	if shared.StringInSlice(m["nictype"], []string{"macvlan", "physical"}) {
 		// Deal with VLAN
 		device := m["parent"]
 		if m["vlan"] != "" {
@@ -5971,6 +6013,135 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	}
 
 	return dev, nil
+}
+
+func (c *containerLXC) fillVfioNetworkDevice(name string, m types.Device, reserved []string) (types.Device, error) {
+	if m["nictype"] != "vfio" {
+		return m, nil
+	}
+
+	if m["parent"] == "" {
+		return nil, fmt.Errorf("Missing parent for 'vfio' nic '%s'", name)
+	}
+
+	newDevice := types.Device{}
+	err := shared.DeepCopy(&m, &newDevice)
+	if err != nil {
+		return nil, err
+	}
+
+	if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["parent"])) {
+		return nil, fmt.Errorf("Parent device '%s' doesn't exist", m["parent"])
+	}
+	sriovNumVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", m["parent"])
+	sriovTotalVFs := fmt.Sprintf("/sys/class/net/%s/device/sriov_totalvfs", m["parent"])
+
+	// verify that this is indeed a SR-IOV enabled device
+	if !shared.PathExists(sriovTotalVFs) {
+		return nil, fmt.Errorf("Parent device '%s' doesn't support SR-IOV", m["parent"])
+	}
+
+	// get number of currently enabled VFs
+	sriovNumVfsBuf, err := ioutil.ReadFile(sriovNumVFs)
+	if err != nil {
+		return nil, err
+	}
+	sriovNumVfsStr := strings.TrimSpace(string(sriovNumVfsBuf))
+	sriovNum, err := strconv.Atoi(sriovNumVfsStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// get number of possible VFs
+	sriovTotalVfsBuf, err := ioutil.ReadFile(sriovTotalVFs)
+	if err != nil {
+		return nil, err
+	}
+	sriovTotalVfsStr := strings.TrimSpace(string(sriovTotalVfsBuf))
+	sriovTotal, err := strconv.Atoi(sriovTotalVfsStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if any VFs are already enabled
+	vf := ""
+	nicName := ""
+	for i := 0; i < sriovNum; i++ {
+		vf = fmt.Sprintf("virtfn%d", i)
+		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device/%s/net", m["parent"], vf)) {
+			vf = ""
+			continue
+		}
+
+		// Check if VF is already in use
+		empty, err := shared.PathIsEmpty(fmt.Sprintf("/sys/class/net/%s/device/%s/net", m["parent"], vf))
+		if err != nil {
+			return nil, err
+		}
+		if empty {
+			vf = ""
+			continue
+		}
+
+		vf = fmt.Sprintf("/sys/class/net/%s/device/%s/net", m["parent"], vf)
+		ents, err := ioutil.ReadDir(vf)
+		if err != nil {
+			return nil, err
+		}
+		if len(ents) == 0 || len(ents) > 1 {
+			continue
+		}
+
+		if shared.StringInSlice(ents[0].Name(), reserved) {
+			continue
+		}
+
+		nicName = ents[0].Name()
+
+		// found free VF
+		break
+	}
+
+	if nicName == "" {
+		if sriovNum == sriovTotal {
+			return nil, fmt.Errorf("All virtual functions of vfio device '%s' seem to be in use", m["parent"])
+		}
+
+		// bump the number of VFs to the maximum
+		err := ioutil.WriteFile(sriovNumVFs, []byte(sriovTotalVfsStr), 0644)
+		if err != nil {
+			return nil, err
+		}
+
+		// use next free VF index
+		vf = fmt.Sprintf("virtfn%d", sriovNum+1)
+
+		for i := sriovNum + 1; i < sriovTotal; i++ {
+			vf = fmt.Sprintf("/sys/class/net/%s/device/%s/net", m["parent"], vf)
+			ents, err := ioutil.ReadDir(vf)
+			if err != nil {
+				return nil, err
+			}
+			if len(ents) == 0 || len(ents) > 1 {
+				return nil, fmt.Errorf("Failed to determine unique device name")
+			}
+			if shared.StringInSlice(ents[0].Name(), reserved) {
+				continue
+			}
+
+			nicName = ents[0].Name()
+		}
+	}
+
+	if nicName == "" {
+		return nil, fmt.Errorf("All virtual functions on device \"%s\" are already in use", name)
+	}
+
+	newDevice["host_name"] = nicName
+	configKey := fmt.Sprintf("volatile.%s.host_name", name)
+	c.localConfig[configKey] = nicName
+
+	return newDevice, nil
 }
 
 func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Device, error) {
@@ -6118,7 +6289,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	// Fill in the host name (but don't generate a static one ourselves)
-	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
+	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p", "vfio"}) {
 		configKey := fmt.Sprintf("volatile.%s.host_name", name)
 		newDevice["host_name"] = c.localConfig[configKey]
 	}
@@ -6212,6 +6383,12 @@ func (c *containerLXC) insertNetworkDevice(name string, m types.Device) error {
 		return fmt.Errorf("Can't insert device into stopped container")
 	}
 
+	// Fill in some fields from volatile
+	m, err = c.fillVfioNetworkDevice(name, m, []string{})
+	if err != nil {
+		return nil
+	}
+
 	// Create the interface
 	devName, err := c.createNetworkDevice(name, m)
 	if err != nil {
@@ -6249,6 +6426,8 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	var hostName string
 	if m["nictype"] == "physical" {
 		hostName = m["parent"]
+	} else if m["nictype"] == "vfio" {
+		hostName = m["host_name"]
 	} else {
 		hostName = deviceNextVeth()
 	}
@@ -6266,7 +6445,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 
 	// If a veth, destroy it
-	if m["nictype"] != "physical" {
+	if m["nictype"] != "physical" && m["nictype"] != "vfio" {
 		deviceRemoveInterface(hostName)
 	}
 
