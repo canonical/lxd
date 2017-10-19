@@ -433,12 +433,6 @@ func (d *Daemon) init() error {
 		}
 	}
 
-	/* Load all config values from the database */
-	err = daemonConfigInit(d.cluster)
-	if err != nil {
-		return err
-	}
-
 	/* Read the storage pools */
 	err = SetupStorageDriver(d.State(), false)
 	if err != nil {
@@ -466,13 +460,30 @@ func (d *Daemon) init() error {
 	/* Log expiry */
 	d.tasks.Add(expireLogsTask(d.State()))
 
-	/* set the initial proxy function based on config values in the DB */
-	d.proxy = shared.ProxyFromConfig(
-		daemonConfig["core.proxy_https"].Get(),
-		daemonConfig["core.proxy_http"].Get(),
-		daemonConfig["core.proxy_ignore_hosts"].Get(),
-	)
-
+	/* set the initial proxy function and external auth based on config values in the DB */
+	macaroonEndpoint := ""
+	maasAPIURL := ""
+	maasAPIKey := ""
+	maasMachine := ""
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+		d.proxy = shared.ProxyFromConfig(
+			config.ProxyHTTPS(), config.ProxyHTTP(), config.ProxyIgnoreHosts(),
+		)
+		macaroonEndpoint = config.MacaroonEndpoint()
+		maasAPIURL, maasAPIKey, maasMachine = config.MAASController()
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	err = d.setupExternalAuthentication(macaroonEndpoint)
+	if err != nil {
+		return err
+	}
 	if !d.os.MockMode {
 		/* Start the scheduler */
 		go deviceEventListener(d.State())
@@ -489,17 +500,15 @@ func (d *Daemon) init() error {
 		readSavedClientCAList(d)
 	}
 
-	err = d.setupExternalAuthentication(daemonConfig["core.macaroon.endpoint"].Get())
+	err = d.setupMAASController(maasAPIURL, maasAPIKey, maasMachine)
 	if err != nil {
 		return err
 	}
 
-	err = d.setupMAASController(
-		daemonConfig["maas.api.url"].Get(),
-		daemonConfig["maas.api.key"].Get(),
-		daemonConfig["maas.machine"].Get())
-	if err != nil {
-		return err
+	if !d.os.MockMode {
+		/* Start the scheduler */
+		go deviceEventListener(d.State())
+		readSavedClientCAList(d)
 	}
 
 	close(d.setupChan)

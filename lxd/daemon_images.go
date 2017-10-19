@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -231,7 +232,10 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	// server/protocol/alias, regardless of whether it's stale or
 	// not (we can assume that it will be not *too* stale since
 	// auto-update is on).
-	interval := daemonConfig["images.auto_update_interval"].GetInt64()
+	interval, err := cluster.ConfigGetInt64(d.cluster, "images.auto_update_interval")
+	if err != nil {
+		return nil, err
+	}
 	if preferCached && interval > 0 && alias != fp {
 		cachedFingerprint, err := d.db.ImageSourceGetCachedFingerprint(server, protocol, alias)
 		if err == nil && cachedFingerprint != fp {
