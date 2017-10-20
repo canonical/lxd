@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/CanonicalLtd/dqlite"
@@ -102,6 +103,24 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 			return
 		}
 
+		// Handle heatbeats.
+		if r.Method == "PUT" {
+			var nodes []db.RaftNode
+			err := shared.ReadToJSON(r.Body, &nodes)
+			if err != nil {
+				http.Error(w, "400 invalid raft nodes payload", http.StatusBadRequest)
+				return
+			}
+			err = g.db.Transaction(func(tx *db.NodeTx) error {
+				return tx.RaftNodesReplace(nodes)
+			})
+			if err != nil {
+				http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
+				return
+			}
+			return
+		}
+
 		g.server.ServeHTTP(w, r)
 	}
 	raft := func(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +147,7 @@ func (g *Gateway) Dialer() grpcsql.Dialer {
 		}
 
 		// Network connection.
-		addresses, err := g.raftNodes()
+		addresses, err := g.cachedRaftNodes()
 		if err != nil {
 			return nil, err
 		}
@@ -208,8 +227,40 @@ func (g *Gateway) waitLeadership() error {
 	return fmt.Errorf("raft node did not self-elect within 5 seconds")
 }
 
-// Return the addresses of the current raft nodes.
-func (g *Gateway) raftNodes() ([]string, error) {
+// Return information about the LXD nodes that a currently part of the raft
+// cluster, as configured in the raft log. It returns an error if this node is
+// not the leader.
+func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
+	if g.raft == nil {
+		return nil, raft.ErrNotLeader
+	}
+	servers, err := g.raft.Servers()
+	if err != nil {
+		return nil, err
+	}
+	provider := raftAddressProvider{db: g.db}
+	nodes := make([]db.RaftNode, len(servers))
+	for i, server := range servers {
+		address, err := provider.ServerAddr(server.ID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to fetch raft server address")
+		}
+		id, err := strconv.Atoi(string(server.ID))
+		if err != nil {
+			return nil, errors.Wrap(err, "non-numeric server ID")
+		}
+		nodes[i].ID = int64(id)
+		nodes[i].Address = string(address)
+	}
+	return nodes, nil
+}
+
+// Return the addresses of the raft nodes as stored in the node-level
+// database.
+//
+// These values might leg behind the actual values, and are refreshed
+// periodically during heartbeats.
+func (g *Gateway) cachedRaftNodes() ([]string, error) {
 	var addresses []string
 	err := g.db.Transaction(func(tx *db.NodeTx) error {
 		var err error
