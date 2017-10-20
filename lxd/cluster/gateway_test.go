@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
@@ -103,6 +104,27 @@ func TestGateway_NetworkAuth(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, response.StatusCode)
 	}
 
+}
+
+// RaftNodes returns an error if the underlying raft instance is not the leader.
+func TestGateway_RaftNodesNotLeader(t *testing.T) {
+	db, cleanup := db.NewTestNode(t)
+	defer cleanup()
+
+	cert := shared.TestingKeyPair()
+	mux := http.NewServeMux()
+	server := newServer(cert, mux)
+	defer server.Close()
+
+	address := server.Listener.Addr().String()
+	setRaftRole(t, db, address)
+
+	gateway := newGateway(t, db, cert)
+	defer gateway.Shutdown()
+
+	// Get the node immediately, before the election has took place.
+	_, err := gateway.RaftNodes()
+	assert.Equal(t, raft.ErrNotLeader, err)
 }
 
 // Create a new test Gateway with the given parameters, and ensure no error
