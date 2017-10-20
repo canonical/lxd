@@ -42,7 +42,7 @@ func TestHeartbeat(t *testing.T) {
 	require.NoError(t, err)
 
 	// Perform the heartbeat requests.
-	heartbeat := cluster.Heartbeat(gateway0, state0.Cluster)
+	heartbeat, _ := cluster.Heartbeat(gateway0, state0.Cluster)
 	ctx := context.Background()
 	heartbeat(ctx)
 
@@ -93,7 +93,7 @@ func TestHeartbeat_MarkAsDown(t *testing.T) {
 
 	// Shutdown the second node and perform the heartbeat requests.
 	f.Server(gateway1).Close()
-	heartbeat := cluster.Heartbeat(gateway0, state0.Cluster)
+	heartbeat, _ := cluster.Heartbeat(gateway0, state0.Cluster)
 	ctx := context.Background()
 	heartbeat(ctx)
 
