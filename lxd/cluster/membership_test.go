@@ -292,6 +292,15 @@ func TestJoin(t *testing.T) {
 	// Actually join the cluster.
 	err = cluster.Join(state, gateway, targetCert, "rusp", nodes)
 	require.NoError(t, err)
+
+	// The leader now returns an updated list of raft nodes.
+	nodes, err = targetGateway.RaftNodes()
+	require.NoError(t, err)
+	assert.Len(t, nodes, 2)
+	assert.Equal(t, int64(1), nodes[0].ID)
+	assert.Equal(t, targetAddress, nodes[0].Address)
+	assert.Equal(t, int64(2), nodes[1].ID)
+	assert.Equal(t, address, nodes[1].Address)
 }
 
 // Helper for setting fixtures for Bootstrap tests.

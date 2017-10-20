@@ -207,6 +207,22 @@ func (i *raftInstance) Raft() *raft.Raft {
 	return i.raft
 }
 
+// Servers returns the servers that are currently part of the cluster.
+//
+// If this raft instance is not the leader, an error is returned.
+func (i *raftInstance) Servers() ([]raft.Server, error) {
+	if i.raft.State() != raft.Leader {
+		return nil, raft.ErrNotLeader
+	}
+	future := i.raft.GetConfiguration()
+	err := future.Error()
+	if err != nil {
+		return nil, err
+	}
+	configuration := future.Configuration()
+	return configuration.Servers, nil
+}
+
 // HandlerFunc can be used to handle HTTP requests performed against the LXD
 // API RaftEndpoint ("/internal/raft"), in order to join/leave/form the raft
 // cluster.
