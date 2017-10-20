@@ -109,24 +109,6 @@ func TestCluster_Failover(t *testing.T) {
 	f := clusterFixture{t: t}
 	f.FormCluster(daemons)
 
-	// FIXME: here we manually update the raft_nodes table, this can be
-	//        removed when automatic database nodes updating is in place.
-	var nodes []db.RaftNode
-	state := daemons[0].State()
-	err := state.Node.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		nodes, err = tx.RaftNodes()
-		return err
-	})
-	require.NoError(t, err)
-	for _, daemon := range daemons[1:] {
-		state := daemon.State()
-		err := state.Node.Transaction(func(tx *db.NodeTx) error {
-			return tx.RaftNodesReplace(nodes)
-		})
-		require.NoError(t, err)
-	}
-
 	require.NoError(t, daemons[0].Stop())
 
 	for i, daemon := range daemons[1:] {
