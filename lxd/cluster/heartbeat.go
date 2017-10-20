@@ -22,12 +22,13 @@ import (
 //
 // It will update the heartbeat timestamp column of the nodes table
 // accordingly, and also notify them of the current list of database nodes.
-func Heartbeat(gateway *Gateway, cluster *db.Cluster) task.Func {
+func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule) {
 	heartbeat := func(ctx context.Context) {
 		if gateway.server == nil || gateway.memoryDial != nil {
 			// We're not a raft node or we're not clustered
 			return
 		}
+		logger.Debugf("Starting heartbeat round")
 
 		raftNodes, err := gateway.currentRaftNodes()
 		if err == raft.ErrNotLeader {
@@ -51,7 +52,10 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) task.Func {
 				defer wg.Done()
 				err := heartbeatNode(ctx, address, gateway.cert, raftNodes)
 				if err == nil {
+					logger.Debugf("Successful heartbeat for %s", address)
 					heartbeats[i] = time.Now()
+				} else {
+					logger.Debugf("Failed heartbeat for %s: %v", address, err)
 				}
 			}(i, node.Address)
 		}
@@ -78,7 +82,10 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) task.Func {
 			logger.Warnf("Failed to update heartbeat: %v", err)
 		}
 	}
-	return heartbeat
+
+	schedule := task.Every(3 * time.Second)
+
+	return heartbeat, schedule
 }
 
 // Perform a single heartbeat request against the node with the given address.

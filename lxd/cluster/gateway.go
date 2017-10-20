@@ -146,23 +146,26 @@ func (g *Gateway) Dialer() grpcsql.Dialer {
 			return g.memoryDial()
 		}
 
-		// Network connection.
-		addresses, err := g.cachedRaftNodes()
-		if err != nil {
-			return nil, err
-		}
-
 		// FIXME: timeout should be configurable
+		var err error
 		remaining := 10 * time.Second
 		for remaining > 0 {
+			// Network connection.
+			addresses, dbErr := g.cachedRaftNodes()
+			if dbErr != nil {
+				return nil, dbErr
+			}
+
 			for _, address := range addresses {
 				var conn *grpc.ClientConn
 				conn, err = grpcNetworkDial(address, g.cert, time.Second)
 				if err == nil {
 					return conn, nil
 				}
+				logger.Debugf("Failed to establish gRPC connection with %s: %v", address, err)
 			}
 			time.Sleep(250 * time.Millisecond)
+			remaining -= 250 * time.Millisecond
 		}
 		return nil, err
 	}
