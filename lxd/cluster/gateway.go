@@ -86,6 +86,11 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 			return
 		}
 
+		if !tlsCheckCert(r, g.cert) {
+			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
+			return
+		}
+
 		// Before actually establishing the gRPC SQL connection, our
 		// dialer probes the node to see if it's currently the leader
 		// (otherwise it tries with another node or retry later).
