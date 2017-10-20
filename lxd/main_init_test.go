@@ -153,6 +153,36 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClustering() {
 	suite.Req.True(shared.PathExists(certfile))
 }
 
+// Enable clustering interactively, joining an existing cluser.
+func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClusteringJoin() {
+	leader, cleanup := newDaemon(suite.T())
+	defer cleanup()
+
+	f := clusterFixture{t: suite.T()}
+	f.FormCluster([]*Daemon{leader})
+
+	suite.command.PasswordReader = func(int) ([]byte, error) {
+		return []byte("sekret"), nil
+	}
+	port, err := shared.AllocatePort()
+	suite.Req.Nil(err)
+	answers := &cmdInitAnswers{
+		WantClustering:           true,
+		ClusterName:              "rusp",
+		ClusterAddress:           fmt.Sprintf("127.0.0.1:%d", port),
+		WantJoinCluster:          true,
+		ClusterTargetNodeAddress: leader.endpoints.NetworkAddress(),
+		ClusterAcceptFingerprint: true,
+		ClusterConfirmLosingData: true,
+	}
+	answers.Render(suite.streams)
+
+	suite.Req.Nil(suite.command.Run())
+	state := suite.d.State()
+	certfile := filepath.Join(state.OS.VarDir, "cluster.crt")
+	suite.Req.True(shared.PathExists(certfile))
+}
+
 // Pass network address and trust password via command line arguments.
 func (suite *cmdInitTestSuite) TestCmdInit_AutoHTTPSAddressAndTrustPassword() {
 	port, err := shared.AllocatePort()
@@ -716,9 +746,12 @@ func (suite *cmdInitTestSuite) TestCmdInit_ProfilesPreseedUpdate() {
 // sequence of answers.
 type cmdInitAnswers struct {
 	WantClustering           bool
-	WantJoinCluster          bool
 	ClusterName              string
 	ClusterAddress           string
+	WantJoinCluster          bool
+	ClusterTargetNodeAddress string
+	ClusterAcceptFingerprint bool
+	ClusterConfirmLosingData bool
 	WantStoragePool          bool
 	WantAvailableOverNetwork bool
 	BindToAddress            string
@@ -738,6 +771,11 @@ func (answers *cmdInitAnswers) Render(streams *cmd.MemoryStreams) {
 		streams.InputAppendLine(answers.ClusterName)
 		streams.InputAppendLine(answers.ClusterAddress)
 		streams.InputAppendBoolAnswer(answers.WantJoinCluster)
+		if answers.WantJoinCluster {
+			streams.InputAppendLine(answers.ClusterTargetNodeAddress)
+			streams.InputAppendBoolAnswer(answers.ClusterAcceptFingerprint)
+			streams.InputAppendBoolAnswer(answers.ClusterConfirmLosingData)
+		}
 	}
 	streams.InputAppendBoolAnswer(answers.WantStoragePool)
 	if !answers.WantClustering {
