@@ -108,6 +108,11 @@ func HostPath(path string) string {
 		return path
 	}
 
+	// Don't prefix stdin/stdout
+	if path == "-" {
+		return path
+	}
+
 	// Check if we're running in a snap package
 	snap := os.Getenv("SNAP")
 	if snap == "" {
