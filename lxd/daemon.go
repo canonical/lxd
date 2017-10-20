@@ -26,6 +26,7 @@ import (
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/net/context"
 	"gopkg.in/macaroon-bakery.v2-unstable/bakery"
+	"gopkg.in/macaroon-bakery.v2-unstable/bakery/checkers"
 	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery"
 	"gopkg.in/tomb.v2"
 
@@ -166,9 +167,11 @@ func getBakeryOps(r *http.Request) []bakery.Op {
 
 func writeMacaroonsRequiredResponse(b *bakery.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError) {
 	ctx := httpbakery.ContextWithRequest(context.TODO(), r)
+	caveats := append(derr.Caveats, checkers.TimeBeforeCaveat(time.Now().Add(5*time.Minute)))
+
 	// Mint an appropriate macaroon and send it back to the client.
 	m, err := b.Oven.NewMacaroon(
-		ctx, httpbakery.RequestVersion(r), time.Now().Add(5*time.Minute), derr.Caveats, derr.Ops...)
+		ctx, httpbakery.RequestVersion(r), caveats, derr.Ops...)
 	if err != nil {
 		resp := errorResponse{http.StatusInternalServerError, err.Error()}
 		resp.Render(w)
