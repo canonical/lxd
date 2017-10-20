@@ -45,6 +45,26 @@ func newDaemon(t *testing.T) (*Daemon, func()) {
 	return daemon, cleanup
 }
 
+// Create the given numbers of test Daemon instances.
+//
+// Return a function that can be used to cleanup every associated state.
+func newDaemons(t *testing.T, n int) ([]*Daemon, func()) {
+	daemons := make([]*Daemon, n)
+	cleanups := make([]func(), n)
+
+	for i := 0; i < n; i++ {
+		daemons[i], cleanups[i] = newDaemon(t)
+	}
+
+	cleanup := func() {
+		for _, cleanup := range cleanups {
+			cleanup()
+		}
+	}
+
+	return daemons, cleanup
+}
+
 // Create a new DaemonConfig object for testing purposes.
 func newConfig() *DaemonConfig {
 	return &DaemonConfig{

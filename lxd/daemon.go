@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/x509"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"io"
 	"net/http"
@@ -578,10 +579,10 @@ func (d *Daemon) numRunningContainers() (int, error) {
 
 // Stop stops the shared daemon.
 func (d *Daemon) Stop() error {
-	errors := []error{}
+	errs := []error{}
 	trackError := func(err error) {
 		if err != nil {
-			errors = append(errors, err)
+			errs = append(errs, err)
 		}
 	}
 
@@ -601,7 +602,15 @@ func (d *Daemon) Stop() error {
 		trackError(d.db.Close())
 	}
 	if d.cluster != nil {
-		trackError(d.cluster.Close())
+		err := d.cluster.Close()
+		// If we got io.EOF the network connection was interrupted and
+		// it's likely that the other node shutdown. Let's just log a
+		// warning.
+		if errors.Cause(err) == driver.ErrBadConn {
+			logger.Warnf("Could not close remote database: %v", err)
+		} else {
+			trackError(err)
+		}
 	}
 	if d.gateway != nil {
 		trackError(d.gateway.Shutdown())
@@ -631,12 +640,12 @@ func (d *Daemon) Stop() error {
 	logger.Infof("Saved simplestreams cache")
 
 	var err error
-	if n := len(errors); n > 0 {
+	if n := len(errs); n > 0 {
 		format := "%v"
 		if n > 1 {
 			format += fmt.Sprintf(" (and %d more errors)", n)
 		}
-		err = fmt.Errorf(format, errors[0])
+		err = fmt.Errorf(format, errs[0])
 	}
 	return err
 }
