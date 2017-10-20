@@ -1,13 +1,14 @@
 package cluster_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
-	grpcsql "github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
@@ -66,6 +67,42 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	conn, err := driver.Open("test.db")
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
+}
+
+// When networked, the grpc and raft endpoints requires the cluster
+// certificate.
+func TestGateway_NetworkAuth(t *testing.T) {
+	db, cleanup := db.NewTestNode(t)
+	defer cleanup()
+
+	cert := shared.TestingKeyPair()
+	mux := http.NewServeMux()
+	server := newServer(cert, mux)
+	defer server.Close()
+
+	address := server.Listener.Addr().String()
+	setRaftRole(t, db, address)
+
+	gateway := newGateway(t, db, cert)
+	defer gateway.Shutdown()
+
+	for path, handler := range gateway.HandlerFuncs() {
+		mux.HandleFunc(path, handler)
+	}
+
+	// Make a request using a certificate different than the cluster one.
+	config, err := cluster.TLSClientConfig(shared.TestingAltKeyPair())
+	config.InsecureSkipVerify = true // Skip client-side verification
+	require.NoError(t, err)
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
+
+	for path := range gateway.HandlerFuncs() {
+		url := fmt.Sprintf("https://%s%s", address, path)
+		response, err := client.Head(url)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+	}
+
 }
 
 // Create a new test Gateway with the given parameters, and ensure no error

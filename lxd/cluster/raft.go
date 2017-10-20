@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"bytes"
-	"crypto/x509"
 	"fmt"
 	"log"
 	"math"
@@ -22,7 +21,6 @@ import (
 	"github.com/hashicorp/raft-boltdb"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -360,17 +358,10 @@ func raftHandler(info *shared.CertInfo, handler *rafthttp.Handler) http.HandlerF
 	if handler == nil {
 		return nil
 	}
-	cert, err := x509.ParseCertificate(info.KeyPair().Certificate[0])
-	if err != nil {
-		// Since we have already loaded this certificate, typically
-		// using LoadX509KeyPair, an error should never happen, but
-		// check for good measure.
-		panic(fmt.Sprintf("invalid keypair material: %v", err))
-	}
-	trustedCerts := []x509.Certificate{*cert}
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.TLS == nil || !util.CheckTrustState(*r.TLS.PeerCertificates[0], trustedCerts) {
+		if !tlsCheckCert(r, info) {
 			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
+			return
 		}
 		handler.ServeHTTP(w, r)
 	}
