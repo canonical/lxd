@@ -306,12 +306,12 @@ func containerValidDevices(dbObj *sql.DB, devices types.Devices, profile bool, e
 				return fmt.Errorf("Missing nic type")
 			}
 
-			if !shared.StringInSlice(m["nictype"], []string{"bridged", "physical", "p2p", "macvlan"}) {
+			if !shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "p2p", "physical", "vfio"}) {
 				return fmt.Errorf("Bad nic type: %s", m["nictype"])
 			}
 
-			if shared.StringInSlice(m["nictype"], []string{"bridged", "physical", "macvlan"}) && m["parent"] == "" {
-				return fmt.Errorf("Missing parent for %s type nic.", m["nictype"])
+			if shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "physical", "vfio"}) && m["parent"] == "" {
+				return fmt.Errorf("Missing parent for %s type nic", m["nictype"])
 			}
 		} else if m["type"] == "disk" {
 			if !expanded && !shared.StringInSlice(m["path"], diskDevicePaths) {
