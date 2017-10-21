@@ -31,6 +31,14 @@ func (e *Endpoints) NetworkPrivateKey() []byte {
 	return e.cert.PrivateKey()
 }
 
+// NetworkCert returns the full TLS certificate information for this endpoint.
+func (e *Endpoints) NetworkCert() *shared.CertInfo {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return e.cert
+}
+
 // NetworkAddress returns the network addresss of the network endpoint, or an
 // empty string if there's no network endpoint
 func (e *Endpoints) NetworkAddress() string {

@@ -6,6 +6,7 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
@@ -167,18 +168,41 @@ func api10Get(d *Daemon, r *http.Request) Response {
 }
 
 func api10Put(d *Daemon, r *http.Request) Response {
+	req := api.ServerPut{}
+	if err := shared.ReadToJSON(r.Body, &req); err != nil {
+		return BadRequest(err)
+	}
+
+	// If this is a notification from a cluster node, just run the triggers
+	// for reacting to the values that changed.
+	if r.Header.Get("User-Agent") == "lxd-cluster-notifier" {
+		changed := make(map[string]string)
+		for key, value := range req.Config {
+			changed[key] = value.(string)
+		}
+		var config *cluster.Config
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			config, err = cluster.ConfigLoad(tx)
+			return err
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+		err = doApi10UpdateTriggers(d, changed, config)
+		if err != nil {
+			return SmartError(err)
+		}
+		return EmptySyncResponse
+	}
+
 	render, err := daemonConfigRender(d.State())
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 	err = util.EtagCheck(r, render)
 	if err != nil {
 		return PreconditionFailed(err)
-	}
-
-	req := api.ServerPut{}
-	if err := shared.ReadToJSON(r.Body, &req); err != nil {
-		return BadRequest(err)
 	}
 
 	return doApi10Update(d, req, false)
@@ -262,6 +286,35 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 	}
 
+	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+	if err != nil {
+		return SmartError(err)
+	}
+	err = notifier(func(client lxd.ContainerServer) error {
+		server, etag, err := client.GetServer()
+		if err != nil {
+			return err
+		}
+		serverPut := server.Writable()
+		serverPut.Config = make(map[string]interface{})
+		for key, value := range changed {
+			serverPut.Config[key] = value
+		}
+		return client.UpdateServer(serverPut, etag)
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+
+	err = doApi10UpdateTriggers(d, changed, newConfig)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
+}
+
+func doApi10UpdateTriggers(d *Daemon, changed map[string]string, config *cluster.Config) error {
 	maasControllerChanged := false
 	for key, value := range changed {
 		switch key {
@@ -270,7 +323,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		case "core.proxy_https":
 			fallthrough
 		case "core.proxy_ignore_hosts":
-			daemonConfigSetProxy(d, newConfig)
+			daemonConfigSetProxy(d, config)
 		case "maas.api.url":
 			fallthrough
 		case "maas.api.key":
@@ -280,7 +333,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		case "core.macaroon.endpoint":
 			err := d.setupExternalAuthentication(value)
 			if err != nil {
-				return SmartError(err)
+				return err
 			}
 		case "images.auto_update_interval":
 			d.taskAutoUpdate.Reset()
@@ -289,14 +342,13 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 	}
 	if maasControllerChanged {
-		url, key, machine := newConfig.MAASController()
+		url, key, machine := config.MAASController()
 		err := d.setupMAASController(url, key, machine)
 		if err != nil {
-			return SmartError(err)
+			return err
 		}
 	}
-
-	return EmptySyncResponse
+	return nil
 }
 
 var api10Cmd = Command{name: "", untrustedGet: true, get: api10Get, put: api10Put, patch: api10Patch}

@@ -195,6 +195,7 @@ func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
 			// FIXME: we should bubble errors using errors.Wrap()
 			// instead, and check for sql.ErrBadConnection.
 			if strings.Contains(err.Error(), "bad connection") {
+				logger.Debugf("Retry failed transaction")
 				time.Sleep(time.Second)
 				continue
 			}
