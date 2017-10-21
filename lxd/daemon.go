@@ -139,11 +139,17 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 		return err
 	}
 
+	// Add the server or cluster certificate to the list of trusted ones.
+	cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
+	certs := d.clientCerts
+	certs = append(certs, *cert)
+
 	for i := range r.TLS.PeerCertificates {
-		if util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts) {
+		if util.CheckTrustState(*r.TLS.PeerCertificates[i], certs) {
 			return nil
 		}
 	}
+
 	return fmt.Errorf("unauthorized")
 }
 

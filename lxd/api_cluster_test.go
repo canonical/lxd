@@ -68,6 +68,18 @@ func TestCluster_Join(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+
+	// Changing the configuration on the second node also updates it on the
+	// first, via internal notifications.
+	server, _, err := client.GetServer()
+	require.NoError(t, err)
+	serverPut := server.Writable()
+	serverPut.Config["core.macaroon.endpoint"] = "foo.bar"
+	require.NoError(t, client.UpdateServer(serverPut, ""))
+
+	for _, daemon := range daemons {
+		assert.NotNil(t, daemon.externalAuth)
+	}
 }
 
 // If the wrong trust password is given, the join request fails.
@@ -112,12 +124,14 @@ func TestCluster_Failover(t *testing.T) {
 	require.NoError(t, daemons[0].Stop())
 
 	for i, daemon := range daemons[1:] {
+		t.Logf("Invoking GetServer API against daemon %d", i)
 		client := f.ClientUnix(daemon)
 		server, _, err := client.GetServer()
 		require.NoError(f.t, err)
 		serverPut := server.Writable()
 		serverPut.Config["core.trust_password"] = fmt.Sprintf("sekret-%d", i)
 
+		t.Logf("Invoking UpdateServer API against daemon %d", i)
 		require.NoError(f.t, client.UpdateServer(serverPut, ""))
 	}
 }
