@@ -855,8 +855,8 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
 
 func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
-	f := func(context.Context) {
-		autoUpdateImages(d)
+	f := func(ctx context.Context) {
+		autoUpdateImages(ctx, d)
 	}
 	schedule := func() (time.Duration, error) {
 		interval := daemonConfig["images.auto_update_interval"].GetInt64()
@@ -865,7 +865,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func autoUpdateImages(d *Daemon) {
+func autoUpdateImages(ctx context.Context, d *Daemon) {
 	logger.Infof("Updating images")
 
 	images, err := d.db.ImagesGet(false)
@@ -885,7 +885,19 @@ func autoUpdateImages(d *Daemon) {
 			continue
 		}
 
-		autoUpdateImage(d, nil, id, info)
+		// FIXME: since our APIs around image downloading don't support
+		//        cancelling, we run the function in a different
+		//        goroutine and simply abort when the context expires.
+		ch := make(chan struct{})
+		go func() {
+			autoUpdateImage(d, nil, id, info)
+			ch <- struct{}{}
+		}()
+		select {
+		case <-ctx.Done():
+			return
+		case <-ch:
+		}
 	}
 
 	logger.Infof("Done updating images")
@@ -1019,18 +1031,18 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 }
 
 func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
-	f := func(context.Context) {
-		pruneExpiredImages(d)
+	f := func(ctx context.Context) {
+		pruneExpiredImages(ctx, d)
 	}
 
 	// Skip the first run, and instead run an initial pruning synchronously
 	// before we start updating images later on in the start up process.
-	pruneExpiredImages(d)
+	pruneExpiredImages(context.Background(), d)
 
 	return f, task.Daily(task.SkipFirst)
 }
 
-func pruneExpiredImages(d *Daemon) {
+func pruneExpiredImages(ctx context.Context, d *Daemon) {
 	// Get the list of expired images.
 	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
 
@@ -1048,6 +1060,15 @@ func pruneExpiredImages(d *Daemon) {
 
 	// Delete them
 	for _, fp := range images {
+		// At each iteration we check if we got cancelled in the
+		// meantime. It is safe to abort here since anything not
+		// expired now will be expired at the next run.
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		// Get the IDs of all storage pools on which a storage volume
 		// for the requested image currently exists.
 		poolIDs, err := d.db.ImageGetPools(fp)

@@ -18,9 +18,9 @@ import (
 // This task function expires logs when executed. It's started by the Daemon
 // and will run once every 24h.
 func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
-	f := func(context.Context) {
+	f := func(ctx context.Context) {
 		logger.Infof("Expiring log files")
-		err := expireLogs(state)
+		err := expireLogs(ctx, state)
 		if err != nil {
 			logger.Error("Failed to expire logs", log.Ctx{"err": err})
 		}
@@ -29,13 +29,27 @@ func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 	return f, task.Daily()
 }
 
-func expireLogs(state *state.State) error {
+func expireLogs(ctx context.Context, state *state.State) error {
 	entries, err := ioutil.ReadDir(state.OS.LogDir)
 	if err != nil {
 		return err
 	}
 
-	result, err := state.DB.ContainersList(db.CTypeRegular)
+	// FIXME: our DB APIs don't yet support cancellation, se we need to run
+	//        them in a goroutine and abort this task if the context gets
+	//        cancelled.
+	var containers []string
+	ch := make(chan struct{})
+	go func() {
+		containers, err = state.DB.ContainersList(db.CTypeRegular)
+		ch <- struct{}{}
+	}()
+	select {
+	case <-ctx.Done():
+		return nil // Context expired
+	case <-ch:
+	}
+
 	if err != nil {
 		return err
 	}
@@ -58,8 +72,15 @@ func expireLogs(state *state.State) error {
 	}
 
 	for _, entry := range entries {
+		// At each iteration we check if we got cancelled in the meantime.
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
 		// Check if the container still exists
-		if shared.StringInSlice(entry.Name(), result) {
+		if shared.StringInSlice(entry.Name(), containers) {
 			// Remove any log file which wasn't modified in the past 48 hours
 			logs, err := ioutil.ReadDir(shared.LogPath(entry.Name()))
 			if err != nil {
