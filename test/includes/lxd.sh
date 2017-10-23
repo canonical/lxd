@@ -187,8 +187,6 @@ kill_lxd() {
         check_empty_table "${daemon_dir}/lxd.db" "containers_devices"
         check_empty_table "${daemon_dir}/lxd.db" "containers_devices_config"
         check_empty_table "${daemon_dir}/lxd.db" "containers_profiles"
-        check_empty_table "${daemon_dir}/lxd.db" "networks"
-        check_empty_table "${daemon_dir}/lxd.db" "networks_config"
         check_empty_table "${daemon_dir}/lxd.db" "images"
         check_empty_table "${daemon_dir}/lxd.db" "images_aliases"
         check_empty_table "${daemon_dir}/lxd.db" "images_properties"
@@ -201,6 +199,12 @@ kill_lxd() {
         check_empty_table "${daemon_dir}/lxd.db" "storage_pools_config"
         check_empty_table "${daemon_dir}/lxd.db" "storage_volumes"
         check_empty_table "${daemon_dir}/lxd.db" "storage_volumes_config"
+
+        echo "==> Checking for leftover cluster DB entries"
+	# FIXME: we should not use the command line sqlite client, since it's
+        #        not compatible with dqlite
+        check_empty_table "${daemon_dir}/raft/db.bin" "networks"
+        check_empty_table "${daemon_dir}/raft/db.bin" "networks_config"
     fi
 
     # teardown storage
