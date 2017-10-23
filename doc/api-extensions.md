@@ -354,5 +354,5 @@ This adds support for renaming custom storage volumes.
 ## external\_authentication
 This adds support for external authentication via Macaroons.
 
-## network\_vfio
+## network\_sriov
 This adds support for SR-IOV enabled network devices.
