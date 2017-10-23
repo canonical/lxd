@@ -29,7 +29,7 @@ func Open(name string, dialer grpcsql.Dialer) (*sql.DB, error) {
 	if name == "" {
 		name = "db.bin"
 	}
-	db, err := sql.Open(driverName, name)
+	db, err := sql.Open(driverName, name+"?_foreign_keys=1")
 	if err != nil {
 		return nil, fmt.Errorf("cannot open cluster database: %v", err)
 	}
