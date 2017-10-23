@@ -10,12 +10,12 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func (n *Node) Networks() ([]string, error) {
+func (c *Cluster) Networks() ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM networks")
 	inargs := []interface{}{}
 	var name string
 	outfmt := []interface{}{name}
-	result, err := queryScan(n.db, q, inargs, outfmt)
+	result, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -28,19 +28,19 @@ func (n *Node) Networks() ([]string, error) {
 	return response, nil
 }
 
-func (n *Node) NetworkGet(name string) (int64, *api.Network, error) {
+func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
 
 	q := "SELECT id, description FROM networks WHERE name=?"
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id, &description}
-	err := dbQueryRowScan(n.db, q, arg1, arg2)
+	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	config, err := n.NetworkConfigGet(id)
+	config, err := c.NetworkConfigGet(id)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -56,7 +56,7 @@ func (n *Node) NetworkGet(name string) (int64, *api.Network, error) {
 	return id, &network, nil
 }
 
-func (n *Node) NetworkGetInterface(devName string) (int64, *api.Network, error) {
+func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, error) {
 	id := int64(-1)
 	name := ""
 	value := ""
@@ -64,7 +64,7 @@ func (n *Node) NetworkGetInterface(devName string) (int64, *api.Network, error) 
 	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\""
 	arg1 := []interface{}{}
 	arg2 := []interface{}{id, name, value}
-	result, err := queryScan(n.db, q, arg1, arg2)
+	result, err := queryScan(c.db, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -84,7 +84,7 @@ func (n *Node) NetworkGetInterface(devName string) (int64, *api.Network, error) 
 		return -1, nil, fmt.Errorf("No network found for interface: %s", devName)
 	}
 
-	config, err := n.NetworkConfigGet(id)
+	config, err := c.NetworkConfigGet(id)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -99,7 +99,7 @@ func (n *Node) NetworkGetInterface(devName string) (int64, *api.Network, error) 
 	return id, &network, nil
 }
 
-func (n *Node) NetworkConfigGet(id int64) (map[string]string, error) {
+func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT
@@ -108,7 +108,7 @@ func (n *Node) NetworkConfigGet(id int64) (map[string]string, error) {
 		WHERE network_id=?`
 	inargs := []interface{}{id}
 	outfmt := []interface{}{key, value}
-	results, err := queryScan(n.db, query, inargs, outfmt)
+	results, err := queryScan(c.db, query, inargs, outfmt)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get network '%d'", id)
 	}
@@ -120,7 +120,7 @@ func (n *Node) NetworkConfigGet(id int64) (map[string]string, error) {
 		 */
 		query := "SELECT id FROM networks WHERE id=?"
 		var r int
-		results, err := queryScan(n.db, query, []interface{}{id}, []interface{}{r})
+		results, err := queryScan(c.db, query, []interface{}{id}, []interface{}{r})
 		if err != nil {
 			return nil, err
 		}
@@ -142,8 +142,8 @@ func (n *Node) NetworkConfigGet(id int64) (map[string]string, error) {
 	return config, nil
 }
 
-func (n *Node) NetworkCreate(name, description string, config map[string]string) (int64, error) {
-	tx, err := begin(n.db)
+func (c *Cluster) NetworkCreate(name, description string, config map[string]string) (int64, error) {
+	tx, err := begin(c.db)
 	if err != nil {
 		return -1, err
 	}
@@ -174,13 +174,13 @@ func (n *Node) NetworkCreate(name, description string, config map[string]string)
 	return id, nil
 }
 
-func (n *Node) NetworkUpdate(name, description string, config map[string]string) error {
-	id, _, err := n.NetworkGet(name)
+func (c *Cluster) NetworkUpdate(name, description string, config map[string]string) error {
+	id, _, err := c.NetworkGet(name)
 	if err != nil {
 		return err
 	}
 
-	tx, err := begin(n.db)
+	tx, err := begin(c.db)
 	if err != nil {
 		return err
 	}
@@ -242,13 +242,13 @@ func NetworkConfigClear(tx *sql.Tx, id int64) error {
 	return nil
 }
 
-func (n *Node) NetworkDelete(name string) error {
-	id, _, err := n.NetworkGet(name)
+func (c *Cluster) NetworkDelete(name string) error {
+	id, _, err := c.NetworkGet(name)
 	if err != nil {
 		return err
 	}
 
-	_, err = exec(n.db, "DELETE FROM networks WHERE id=?", id)
+	_, err = exec(c.db, "DELETE FROM networks WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -256,13 +256,13 @@ func (n *Node) NetworkDelete(name string) error {
 	return nil
 }
 
-func (n *Node) NetworkRename(oldName string, newName string) error {
-	id, _, err := n.NetworkGet(oldName)
+func (c *Cluster) NetworkRename(oldName string, newName string) error {
+	id, _, err := c.NetworkGet(oldName)
 	if err != nil {
 		return err
 	}
 
-	tx, err := begin(n.db)
+	tx, err := begin(c.db)
 	if err != nil {
 		return err
 	}

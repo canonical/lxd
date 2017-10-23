@@ -131,7 +131,7 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 
 func patchNetworkPermissions(name string, d *Daemon) error {
 	// Get the list of networks
-	networks, err := d.db.Networks()
+	networks, err := d.cluster.Networks()
 	if err != nil {
 		return err
 	}
@@ -2394,7 +2394,7 @@ func patchStorageZFSVolumeSize(name string, d *Daemon) error {
 
 func patchNetworkDnsmasqHosts(name string, d *Daemon) error {
 	// Get the list of networks
-	networks, err := d.db.Networks()
+	networks, err := d.cluster.Networks()
 	if err != nil {
 		return err
 	}

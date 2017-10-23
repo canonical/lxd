@@ -117,6 +117,9 @@ CREATE TABLE raft_nodes (
     address TEXT NOT NULL,
     UNIQUE (address)
 );
+DELETE FROM config WHERE NOT key='core.https_address';
+DROP TABLE networks_config;
+DROP TABLE networks;
 `
 	_, err := tx.Exec(stmts)
 	return err

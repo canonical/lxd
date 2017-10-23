@@ -15,10 +15,17 @@ func TestLoadPreClusteringData(t *testing.T) {
 	dump, err := db.LoadPreClusteringData(tx)
 	require.NoError(t, err)
 
+	// config
 	assert.Equal(t, []string{"id", "key", "value"}, dump.Schema["config"])
 	assert.Len(t, dump.Data["config"], 1)
 	rows := []interface{}{int64(1), []byte("core.https_address"), []byte("1.2.3.4:666")}
 	assert.Equal(t, rows, dump.Data["config"][0])
+
+	// networks
+	assert.Equal(t, []string{"id", "name", "description"}, dump.Schema["networks"])
+	assert.Len(t, dump.Data["networks"], 1)
+	rows = []interface{}{int64(1), []byte("lxcbr0"), []byte("LXD bridge")}
+	assert.Equal(t, rows, dump.Data["networks"][0])
 }
 
 func TestImportPreClusteringData(t *testing.T) {
@@ -33,13 +40,24 @@ func TestImportPreClusteringData(t *testing.T) {
 	err = cluster.ImportPreClusteringData(dump)
 	require.NoError(t, err)
 
-	cluster.Transaction(func(tx *db.ClusterTx) error {
+	// config
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := tx.Config()
 		require.NoError(t, err)
 		values := map[string]string{"core.https_address": "1.2.3.4:666"}
 		assert.Equal(t, values, config)
 		return nil
 	})
+	require.NoError(t, err)
+
+	// networks
+	networks, err := cluster.Networks()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"lxcbr0"}, networks)
+	id, network, err := cluster.NetworkGet("lxcbr0")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), id)
+	assert.Equal(t, "true", network.Config["ipv4.nat"])
 }
 
 // Return a sql.Tx against a memory database populated with pre-clustering
@@ -54,6 +72,8 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 	stmts := []string{
 		preClusteringNodeSchema,
 		"INSERT INTO config VALUES(1, 'core.https_address', '1.2.3.4:666')",
+		"INSERT INTO networks VALUES(1, 'lxcbr0', 'LXD bridge')",
+		"INSERT INTO networks_config VALUES(1, 1, 'ipv4.nat', 'true')",
 	}
 	for _, stmt := range stmts {
 		_, err := tx.Exec(stmt)

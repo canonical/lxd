@@ -105,20 +105,6 @@ CREATE TABLE images_source (
     alias VARCHAR(255) NOT NULL,
     FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
 );
-CREATE TABLE networks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    UNIQUE (name)
-);
-CREATE TABLE networks_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    network_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    UNIQUE (network_id, key),
-    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE
-);
 CREATE TABLE patches (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,

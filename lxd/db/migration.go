@@ -18,14 +18,11 @@ import (
 // (regardless of whether clustering is actually on or off).
 func LoadPreClusteringData(tx *sql.Tx) (*Dump, error) {
 	// Dump all tables.
-	tables := []string{
-		"config",
-	}
 	dump := &Dump{
 		Schema: map[string][]string{},
 		Data:   map[string][][]interface{}{},
 	}
-	for _, table := range tables {
+	for _, table := range preClusteringTables {
 		data := [][]interface{}{}
 		stmt := fmt.Sprintf("SELECT * FROM %s", table)
 		rows, err := tx.Query(stmt)
@@ -68,10 +65,19 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 		return errors.Wrap(err, "failed to start cluster database transaction")
 	}
 
-	for table, columns := range dump.Schema {
+	for _, table := range preClusteringTables {
+		columns := dump.Schema[table]
 		stmt := fmt.Sprintf("INSERT INTO %s(%s)", table, strings.Join(columns, ", "))
 		stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
 		for i, row := range dump.Data[table] {
+			for i, element := range row {
+				// Convert []byte columns to string. This is safe to do since
+				// the pre-clustering schema only had TEXT fields and no BLOB.
+				bytes, ok := element.([]byte)
+				if ok {
+					row[i] = string(bytes)
+				}
+			}
 			result, err := tx.Exec(stmt, row...)
 			if err != nil {
 				return errors.Wrapf(err, "failed to insert row %d into %s", i, table)
@@ -98,4 +104,10 @@ type Dump struct {
 	// Map a table name to all the rows it contains. Each row is a slice
 	// of interfaces.
 	Data map[string][][]interface{}
+}
+
+var preClusteringTables = []string{
+	"config",
+	"networks",
+	"networks_config",
 }
