@@ -17,6 +17,7 @@ import (
 	"time"
 
 	log "github.com/lxc/lxd/shared/log15"
+	"golang.org/x/net/context"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -102,7 +103,7 @@ func IsTrustedClient(r *http.Request, trustedCerts []x509.Certificate) bool {
 	}
 
 	for i := range r.TLS.PeerCertificates {
-		if checkTrustState(*r.TLS.PeerCertificates[i], trustedCerts) {
+		if CheckTrustState(*r.TLS.PeerCertificates[i], trustedCerts) {
 			return true
 		}
 	}
@@ -110,9 +111,16 @@ func IsTrustedClient(r *http.Request, trustedCerts []x509.Certificate) bool {
 	return false
 }
 
-// Check whether the given client certificate is trusted (i.e. it has a valid
-// time span and it belongs to the given list of trusted certificates).
-func checkTrustState(cert x509.Certificate, trustedCerts []x509.Certificate) bool {
+// ContextAwareRequest is an interface implemented by http.Request starting
+// from Go 1.8. It supports graceful cancellation using a context.
+type ContextAwareRequest interface {
+	WithContext(ctx context.Context) *http.Request
+}
+
+// CheckTrustState checks whether the given client certificate is trusted
+// (i.e. it has a valid time span and it belongs to the given list of trusted
+// certificates).
+func CheckTrustState(cert x509.Certificate, trustedCerts []x509.Certificate) bool {
 	// Extra validity check (should have been caught by TLS stack)
 	if time.Now().Before(cert.NotBefore) || time.Now().After(cert.NotAfter) {
 		return false

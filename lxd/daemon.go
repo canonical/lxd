@@ -378,7 +378,9 @@ func (d *Daemon) Ready() error {
 	// FIXME: There's no hard reason for which we should not run tasks in
 	//        mock mode. However it requires that we tweak the tasks so
 	//        they exit gracefully without blocking (something we should
-	//        do anyways) and they don't hit the internet or similar.
+	//        do anyways) and they don't hit the internet or similar. Support
+	//        for proper cancellation is something that has been started but
+	//        has not been fully completed.
 	if !d.os.MockMode {
 		d.tasks.Start()
 	}
@@ -430,7 +432,7 @@ func (d *Daemon) Stop() error {
 		trackError(d.endpoints.Down())
 	}
 
-	trackError(d.tasks.Stop(5 * time.Second)) // Give tasks at most five seconds to cleanup.
+	trackError(d.tasks.Stop(time.Second)) // Give tasks at second to cleanup.
 
 	if d.db != nil {
 		if n, err := d.numRunningContainers(); err != nil || n == 0 {
