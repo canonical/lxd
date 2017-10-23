@@ -1350,7 +1350,7 @@ func (c *containerLXC) initLXC() error {
 				if err != nil {
 					return err
 				}
-			} else if m["nictype"] == "physical" || m["nictype"] == "vfio" {
+			} else if m["nictype"] == "physical" || m["nictype"] == "sriov" {
 				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx), "phys")
 				if err != nil {
 					return err
@@ -1377,7 +1377,7 @@ func (c *containerLXC) initLXC() error {
 				if err != nil {
 					return err
 				}
-			} else if m["nictype"] == "vfio" {
+			} else if m["nictype"] == "sriov" {
 				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), m["host_name"])
 				if err != nil {
 					return err
@@ -1391,7 +1391,7 @@ func (c *containerLXC) initLXC() error {
 
 			// Host Virtual NIC name
 			vethName := ""
-			if m["host_name"] != "" && m["nictype"] != "vfio" {
+			if m["host_name"] != "" && m["nictype"] != "sriov" {
 				vethName = m["host_name"]
 			} else if shared.IsTrue(m["security.mac_filtering"]) {
 				// We need a known device name for MAC filtering
@@ -1940,11 +1940,11 @@ func (c *containerLXC) startCommon() (string, error) {
 				}
 				networkidx++
 
-				if m["nictype"] != "vfio" {
+				if m["nictype"] != "sriov" {
 					continue
 				}
 
-				m, err = c.fillVfioNetworkDevice(k, m, reserved)
+				m, err = c.fillSriovNetworkDevice(k, m, reserved)
 				if err != nil {
 					return "", err
 				}
@@ -5923,7 +5923,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		}
 	}
 
-	if m["nictype"] == "vfio" {
+	if m["nictype"] == "sriov" {
 		dev = m["host_name"]
 	}
 
@@ -6015,13 +6015,13 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	return dev, nil
 }
 
-func (c *containerLXC) fillVfioNetworkDevice(name string, m types.Device, reserved []string) (types.Device, error) {
-	if m["nictype"] != "vfio" {
+func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reserved []string) (types.Device, error) {
+	if m["nictype"] != "sriov" {
 		return m, nil
 	}
 
 	if m["parent"] == "" {
-		return nil, fmt.Errorf("Missing parent for 'vfio' nic '%s'", name)
+		return nil, fmt.Errorf("Missing parent for 'sriov' nic '%s'", name)
 	}
 
 	newDevice := types.Device{}
@@ -6101,7 +6101,7 @@ func (c *containerLXC) fillVfioNetworkDevice(name string, m types.Device, reserv
 
 	if nicName == "" {
 		if sriovNum == sriovTotal {
-			return nil, fmt.Errorf("All virtual functions of vfio device '%s' seem to be in use", m["parent"])
+			return nil, fmt.Errorf("All virtual functions of sriov device '%s' seem to be in use", m["parent"])
 		}
 
 		// bump the number of VFs to the maximum
@@ -6289,7 +6289,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	// Fill in the host name (but don't generate a static one ourselves)
-	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p", "vfio"}) {
+	if m["host_name"] == "" && shared.StringInSlice(m["nictype"], []string{"bridged", "p2p", "sriov"}) {
 		configKey := fmt.Sprintf("volatile.%s.host_name", name)
 		newDevice["host_name"] = c.localConfig[configKey]
 	}
@@ -6384,7 +6384,7 @@ func (c *containerLXC) insertNetworkDevice(name string, m types.Device) error {
 	}
 
 	// Fill in some fields from volatile
-	m, err = c.fillVfioNetworkDevice(name, m, []string{})
+	m, err = c.fillSriovNetworkDevice(name, m, []string{})
 	if err != nil {
 		return nil
 	}
@@ -6426,7 +6426,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	var hostName string
 	if m["nictype"] == "physical" {
 		hostName = m["parent"]
-	} else if m["nictype"] == "vfio" {
+	} else if m["nictype"] == "sriov" {
 		hostName = m["host_name"]
 	} else {
 		hostName = deviceNextVeth()
@@ -6445,7 +6445,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 
 	// If a veth, destroy it
-	if m["nictype"] != "physical" && m["nictype"] != "vfio" {
+	if m["nictype"] != "physical" && m["nictype"] != "sriov" {
 		deviceRemoveInterface(hostName)
 	}
 
