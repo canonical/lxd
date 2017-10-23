@@ -12,6 +12,20 @@ CREATE TABLE config (
     value TEXT,
     UNIQUE (key)
 );
+CREATE TABLE networks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    UNIQUE (name)
+);
+CREATE TABLE networks_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    key VARCHAR(255) NOT NULL,
+    value TEXT,
+    UNIQUE (network_id, key),
+    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE
+);
 CREATE TABLE nodes (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
