@@ -142,6 +142,10 @@ func HostPath(path string) string {
 		}
 	}
 
+	if os.Geteuid() == 0 {
+		return fmt.Sprintf("/proc/1/root%s", path)
+	}
+
 	return fmt.Sprintf("/var/lib/snapd/hostfs%s", path)
 }
 
