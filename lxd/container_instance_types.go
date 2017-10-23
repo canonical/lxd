@@ -64,13 +64,32 @@ func instanceLoadCache() error {
 }
 
 func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
-	f := func(context.Context) {
-		instanceRefreshTypes(d)
+	// This is basically a check of whether we're on Go >= 1.8 and
+	// http.Request has cancellation support. If that's the case, it will
+	// be used internally by instanceRefreshTypes to terminate gracefully,
+	// otherwise we'll wrap instanceRefreshTypes in a goroutine and force
+	// returning in case the context expires.
+	_, hasCancellationSupport := interface{}(&http.Request{}).(util.ContextAwareRequest)
+	f := func(ctx context.Context) {
+		if hasCancellationSupport {
+			instanceRefreshTypes(ctx, d)
+		} else {
+			ch := make(chan struct{})
+			go func() {
+				instanceRefreshTypes(ctx, d)
+				ch <- struct{}{}
+			}()
+			select {
+			case <-ctx.Done():
+				return
+			case <-ch:
+			}
+		}
 	}
 	return f, task.Daily()
 }
 
-func instanceRefreshTypes(d *Daemon) error {
+func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 	logger.Info("Updating instance types")
 
 	// Attempt to download the new definitions
@@ -89,9 +108,17 @@ func instanceRefreshTypes(d *Daemon) error {
 
 		httpReq.Header.Set("User-Agent", version.UserAgent)
 
+		cancelableRequest, ok := interface{}(httpReq).(util.ContextAwareRequest)
+		if ok {
+			httpReq = cancelableRequest.WithContext(ctx)
+		}
+
 		resp, err := httpClient.Do(httpReq)
 		if err != nil {
 			return err
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
 		defer resp.Body.Close()
 
@@ -121,7 +148,9 @@ func instanceRefreshTypes(d *Daemon) error {
 	sources := map[string]string{}
 	err := downloadParse(".yaml", &sources)
 	if err != nil {
-		logger.Warnf("Failed to update instance types: %v", err)
+		if err != ctx.Err() {
+			logger.Warnf("Failed to update instance types: %v", err)
+		}
 		return err
 	}
 

@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/context"
+
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
@@ -116,6 +118,12 @@ func HTTPClient(certificate string, proxy proxyFunc) (*http.Client, error) {
 
 // A function capable of proxing an HTTP request.
 type proxyFunc func(req *http.Request) (*url.URL, error)
+
+// ContextAwareRequest is an interface implemented by http.Request starting
+// from Go 1.8. It supports graceful cancellation using a context.
+type ContextAwareRequest interface {
+	WithContext(ctx context.Context) *http.Request
+}
 
 // CheckTrustState checks whether the given client certificate is trusted
 // (i.e. it has a valid time span and it belongs to the given list of trusted
