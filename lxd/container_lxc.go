@@ -6064,41 +6064,38 @@ func (c *containerLXC) fillVfioNetworkDevice(name string, m types.Device, reserv
 	}
 
 	// Check if any VFs are already enabled
-	vf := ""
 	nicName := ""
 	for i := 0; i < sriovNum; i++ {
-		vf = fmt.Sprintf("virtfn%d", i)
-		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device/%s/net", m["parent"], vf)) {
-			vf = ""
+		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", m["parent"], i)) {
 			continue
 		}
 
 		// Check if VF is already in use
-		empty, err := shared.PathIsEmpty(fmt.Sprintf("/sys/class/net/%s/device/%s/net", m["parent"], vf))
+		empty, err := shared.PathIsEmpty(fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", m["parent"], i))
 		if err != nil {
 			return nil, err
 		}
 		if empty {
-			vf = ""
 			continue
 		}
 
-		vf = fmt.Sprintf("/sys/class/net/%s/device/%s/net", m["parent"], vf)
+		vf := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", m["parent"], i)
 		ents, err := ioutil.ReadDir(vf)
 		if err != nil {
 			return nil, err
 		}
-		if len(ents) == 0 || len(ents) > 1 {
+
+		if len(ents) != 1 {
 			continue
 		}
 
+		// another nic device entry called dibs
 		if shared.StringInSlice(ents[0].Name(), reserved) {
 			continue
 		}
 
+		// found a free one
 		nicName = ents[0].Name()
-
-		// found free VF
 		break
 	}
 
@@ -6114,22 +6111,25 @@ func (c *containerLXC) fillVfioNetworkDevice(name string, m types.Device, reserv
 		}
 
 		// use next free VF index
-		vf = fmt.Sprintf("virtfn%d", sriovNum+1)
-
 		for i := sriovNum + 1; i < sriovTotal; i++ {
-			vf = fmt.Sprintf("/sys/class/net/%s/device/%s/net", m["parent"], vf)
+			vf := fmt.Sprintf("/sys/class/net/%s/device/virtfn%d/net", m["parent"], i)
 			ents, err := ioutil.ReadDir(vf)
 			if err != nil {
 				return nil, err
 			}
-			if len(ents) == 0 || len(ents) > 1 {
+
+			if len(ents) != 1 {
 				return nil, fmt.Errorf("Failed to determine unique device name")
 			}
+
+			// another nic device entry called dibs
 			if shared.StringInSlice(ents[0].Name(), reserved) {
 				continue
 			}
 
+			// found a free one
 			nicName = ents[0].Name()
+			break
 		}
 	}
 
