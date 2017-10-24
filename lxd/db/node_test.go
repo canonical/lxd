@@ -24,7 +24,7 @@ func TestNodeAdd(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
-	node := nodes[1]
+	node, err := tx.Node("1.2.3.4:666")
 	assert.Equal(t, "buzz", node.Name)
 	assert.Equal(t, "1.2.3.4:666", node.Address)
 	assert.Equal(t, cluster.SchemaVersion, node.Schema)

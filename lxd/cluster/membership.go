@@ -228,6 +228,18 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		return err
 	}
 
+	// Get the local config keys for the cluster networks. It assumes that
+	// the local networks match the cluster networks, if not an error will
+	// be returned.
+	var networks map[string]map[string]string
+	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		networks, err = tx.NetworkConfigs()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
 	// Shutdown the gateway and wipe any raft data. This will trash any
 	// gRPC SQL connection against our in-memory dqlite driver and shutdown
 	// the associated raft instance.
@@ -273,10 +285,33 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// Make sure we can actually connect to the cluster database through
 	// the network endpoint. This also makes the Go SQL pooling system
 	// invalidate the old connection, so new queries will be executed over
-	// the new gRPC network connection.
+	// the new gRPC network connection. Also, update the networks table
+	// with our local configuration.
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.Nodes()
-		return err
+		node, err := tx.Node(address)
+		if err != nil {
+			return errors.Wrap(err, "failed to get ID of joining node")
+		}
+		state.Cluster.ID(node.ID)
+		ids, err := tx.NetworkIDs()
+		if err != nil {
+			return errors.Wrap(err, "failed to get cluster network IDs")
+		}
+		for name, id := range ids {
+			config, ok := networks[name]
+			if !ok {
+				return fmt.Errorf("joining node has no config for network %s", name)
+			}
+			err := tx.NetworkNodeJoin(id, node.ID)
+			if err != nil {
+				return errors.Wrap(err, "failed to add joining node's to the network")
+			}
+			err = tx.NetworkConfigAdd(id, node.ID, config)
+			if err != nil {
+				return errors.Wrap(err, "failed to add joining node's network config")
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return errors.Wrap(err, "cluster database initialization failed")

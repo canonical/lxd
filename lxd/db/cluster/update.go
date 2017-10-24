@@ -32,13 +32,13 @@ func updateFromV1(tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    key VARCHAR(255) NOT NULL,
+    key TEXT NOT NULL,
     value TEXT,
     UNIQUE (key)
 );
 CREATE TABLE networks (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
+    name TEXT NOT NULL,
     description TEXT,
     state INTEGER NOT NULL DEFAULT 0,
     UNIQUE (name)
@@ -55,7 +55,7 @@ CREATE TABLE networks_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     network_id INTEGER NOT NULL,
     node_id INTEGER,
-    key VARCHAR(255) NOT NULL,
+    key TEXT NOT NULL,
     value TEXT,
     UNIQUE (network_id, node_id, key),
     FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE,

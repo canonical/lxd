@@ -27,10 +27,33 @@ func (n NodeInfo) IsDown() bool {
 	return n.Heartbeat.Before(time.Now().Add(-20 * time.Second))
 }
 
+// Node returns the node with the given network address.
+func (c *ClusterTx) Node(address string) (NodeInfo, error) {
+	null := NodeInfo{}
+	nodes, err := c.nodes("address=?", address)
+	if err != nil {
+		return null, err
+	}
+	switch len(nodes) {
+	case 0:
+		return null, NoSuchObjectError
+	case 1:
+		return nodes[0], nil
+	default:
+		return null, fmt.Errorf("more than one node matches")
+	}
+}
+
 // Nodes returns all LXD nodes part of the cluster.
 //
-// If this LXD instance is not clustered, an empty list is returned.
+// If this LXD instance is not clustered, a list with a single node whose
+// address is 0.0.0.0 is returned.
 func (c *ClusterTx) Nodes() ([]NodeInfo, error) {
+	return c.nodes("")
+}
+
+// Nodes returns all LXD nodes part of the cluster.
+func (c *ClusterTx) nodes(where string, args ...interface{}) ([]NodeInfo, error) {
 	nodes := []NodeInfo{}
 	dest := func(i int) []interface{} {
 		nodes = append(nodes, NodeInfo{})
@@ -45,11 +68,12 @@ func (c *ClusterTx) Nodes() ([]NodeInfo, error) {
 		}
 	}
 	stmt := `
-SELECT id, name, address, description, schema, api_extensions, heartbeat
-  FROM nodes
-    ORDER BY id
-`
-	err := query.SelectObjects(c.tx, dest, stmt)
+SELECT id, name, address, description, schema, api_extensions, heartbeat FROM nodes `
+	if where != "" {
+		stmt += fmt.Sprintf("WHERE %s ", where)
+	}
+	stmt += "ORDER BY id"
+	err := query.SelectObjects(c.tx, dest, stmt, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fecth nodes")
 	}
