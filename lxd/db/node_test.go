@@ -18,13 +18,13 @@ func TestNodeAdd(t *testing.T) {
 
 	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), id)
+	assert.Equal(t, int64(2), id)
 
 	nodes, err := tx.Nodes()
 	require.NoError(t, err)
-	require.Len(t, nodes, 1)
+	require.Len(t, nodes, 2)
 
-	node := nodes[0]
+	node := nodes[1]
 	assert.Equal(t, "buzz", node.Name)
 	assert.Equal(t, "1.2.3.4:666", node.Address)
 	assert.Equal(t, cluster.SchemaVersion, node.Schema)
@@ -45,8 +45,8 @@ func TestNodeHeartbeat(t *testing.T) {
 
 	nodes, err := tx.Nodes()
 	require.NoError(t, err)
-	require.Len(t, nodes, 1)
+	require.Len(t, nodes, 2)
 
-	node := nodes[0]
+	node := nodes[1]
 	assert.True(t, node.IsDown())
 }

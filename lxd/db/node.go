@@ -64,6 +64,22 @@ func (c *ClusterTx) NodeAdd(name string, address string) (int64, error) {
 	return query.UpsertObject(c.tx, "nodes", columns, values)
 }
 
+// NodeUpdate updates the name an address of a node.
+func (c *ClusterTx) NodeUpdate(id int64, name string, address string) error {
+	result, err := c.tx.Exec("UPDATE nodes SET name=?, address=? WHERE id=?", name, address, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf("query updated %d rows instead of 1", n)
+	}
+	return nil
+}
+
 // NodeHeartbeat updates the heartbeat column of the node with the given address.
 func (c *ClusterTx) NodeHeartbeat(address string, heartbeat time.Time) error {
 	stmt := "UPDATE nodes SET heartbeat=? WHERE address=?"
