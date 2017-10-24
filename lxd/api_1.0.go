@@ -336,9 +336,13 @@ func doApi10UpdateTriggers(d *Daemon, changed map[string]string, config *cluster
 				return err
 			}
 		case "images.auto_update_interval":
-			d.taskAutoUpdate.Reset()
+			if !d.os.MockMode {
+				d.taskAutoUpdate.Reset()
+			}
 		case "images.remote_cache_expiry":
-			d.taskPruneImages.Reset()
+			if !d.os.MockMode {
+				d.taskPruneImages.Reset()
+			}
 		}
 	}
 	if maasControllerChanged {

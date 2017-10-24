@@ -16,6 +16,7 @@ import (
 // If the node is not clustered, the schema updates works normally.
 func TestEnsureSchema_NoClustered(t *testing.T) {
 	db := newDB(t)
+	addNode(t, db, "0.0.0.0", 1, 1)
 	ready, err := cluster.EnsureSchema(db, "1.2.3.4:666")
 	assert.True(t, ready)
 	assert.NoError(t, err)

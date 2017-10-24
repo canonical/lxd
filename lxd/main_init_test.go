@@ -170,7 +170,7 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClusteringJoin() {
 		"ipv4.nat": "true",
 	}
 	client := f.ClientUnix(leader)
-	client.CreateNetwork(network)
+	suite.Req.Nil(client.CreateNetwork(network))
 
 	suite.command.PasswordReader = func(int) ([]byte, error) {
 		return []byte("sekret"), nil

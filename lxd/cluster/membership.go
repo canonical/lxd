@@ -61,7 +61,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		return err
 	}
 
-	// Insert ourselves into the nodes table.
+	// Update our own entry in the nodes table.
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Make sure cluster database state is in order.
 		err := membershipCheckClusterStateForBootstrapOrJoin(tx)
@@ -70,9 +70,9 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		}
 
 		// Add ourselves to the nodes table.
-		_, err = tx.NodeAdd(name, address)
+		err = tx.NodeUpdate(1, name, address)
 		if err != nil {
-			return errors.Wrap(err, "failed to insert cluster node")
+			return errors.Wrap(err, "failed to update cluster node")
 		}
 
 		return nil
@@ -320,7 +320,7 @@ func membershipCheckClusterStateForBootstrapOrJoin(tx *db.ClusterTx) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current cluster nodes")
 	}
-	if len(nodes) > 0 {
+	if len(nodes) != 1 {
 		return fmt.Errorf("inconsistent state: found leftover entries in nodes")
 	}
 	return nil
@@ -332,7 +332,7 @@ func membershipCheckClusterStateForAccept(tx *db.ClusterTx, name string, address
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current cluster nodes")
 	}
-	if len(nodes) == 0 {
+	if len(nodes) == 1 && nodes[0].Address == "0.0.0.0" {
 		return fmt.Errorf("clustering not enabled")
 	}
 

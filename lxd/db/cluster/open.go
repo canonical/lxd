@@ -57,12 +57,16 @@ func EnsureSchema(db *sql.DB, address string) (bool, error) {
 		}
 
 		// Check if we're clustered
-		n, err := selectNodesCount(tx)
+		n, err := selectUnclusteredNodesCount(tx)
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch current nodes count")
+			return errors.Wrap(err, "failed to fetch unclustered nodes count")
 		}
-		if n == 0 {
-			return nil // Nothing to do.
+		if n > 1 {
+			// This should never happen, since we only add nodes
+			// with valid addresses, but check it for sanity.
+			return fmt.Errorf("found more than one unclustered nodes")
+		} else if n == 1 {
+			address = "0.0.0.0" // We're not clustered
 		}
 
 		// Update the schema and api_extension columns of ourselves.
@@ -83,13 +87,27 @@ func EnsureSchema(db *sql.DB, address string) (bool, error) {
 	schema := Schema()
 	schema.Check(check)
 
-	_, err := schema.Ensure(db)
+	initial, err := schema.Ensure(db)
 	if someNodesAreBehind {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
+
+	// When creating a database from scratch, insert an entry for node
+	// 1. This is needed for referential integrity with other tables.
+	if initial == 0 {
+		stmt := `
+INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '0.0.0.0', ?, ?)
+`
+		_, err := db.Exec(stmt, SchemaVersion, apiExtensions)
+		if err != nil {
+			return false, err
+		}
+
+	}
+
 	return true, err
 }
 

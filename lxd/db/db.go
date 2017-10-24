@@ -145,6 +145,7 @@ func (n *Node) Begin() (*sql.Tx, error) {
 // Cluster mediates access to LXD's data stored in the cluster dqlite database.
 type Cluster struct {
 	db *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
+	id int64   // Node ID of this LXD instance.
 }
 
 // OpenCluster creates a new Cluster object for interacting with the dqlite
@@ -172,6 +173,29 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 
 	cluster := &Cluster{
 		db: db,
+	}
+
+	// Figure out the ID of this node.
+	err = cluster.Transaction(func(tx *ClusterTx) error {
+		nodes, err := tx.Nodes()
+		if err != nil {
+			return errors.Wrap(err, "failed to fetch nodes")
+		}
+		if len(nodes) == 1 && nodes[0].Address == "0.0.0.0" {
+			// We're not clustered
+			cluster.id = 1
+			return nil
+		}
+		for _, node := range nodes {
+			if node.Address == address {
+				cluster.id = node.ID
+				return nil
+			}
+		}
+		return fmt.Errorf("no node registered with address %s", address)
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return cluster, nil

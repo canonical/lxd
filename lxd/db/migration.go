@@ -66,9 +66,6 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 	}
 
 	for _, table := range preClusteringTables {
-		columns := dump.Schema[table]
-		stmt := fmt.Sprintf("INSERT INTO %s(%s)", table, strings.Join(columns, ", "))
-		stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
 		for i, row := range dump.Data[table] {
 			for i, element := range row {
 				// Convert []byte columns to string. This is safe to do since
@@ -78,6 +75,14 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 					row[i] = string(bytes)
 				}
 			}
+			columns := dump.Schema[table]
+			switch table {
+			case "networks_config":
+				columns = append(columns, "node_id")
+				row = append(row, int64(1))
+			}
+			stmt := fmt.Sprintf("INSERT INTO %s(%s)", table, strings.Join(columns, ", "))
+			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
 			result, err := tx.Exec(stmt, row...)
 			if err != nil {
 				return errors.Wrapf(err, "failed to insert row %d into %s", i, table)
