@@ -49,7 +49,7 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 			return err
 		}
 		for _, node := range nodes {
-			if node.Address == address {
+			if node.Address == address || node.Address == "0.0.0.0" {
 				continue // Exclude ourselves
 			}
 			if node.IsDown() {

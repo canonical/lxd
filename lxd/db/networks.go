@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -61,8 +62,8 @@ func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, erro
 	name := ""
 	value := ""
 
-	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\""
-	arg1 := []interface{}{}
+	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\" AND networks_config.node_id=?"
+	arg1 := []interface{}{c.id}
 	arg2 := []interface{}{id, name, value}
 	result, err := queryScan(c.db, q, arg1, arg2)
 	if err != nil {
@@ -105,8 +106,9 @@ func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
         SELECT
             key, value
         FROM networks_config
-		WHERE network_id=?`
-	inargs := []interface{}{id}
+		WHERE network_id=?
+                AND node_id=?`
+	inargs := []interface{}{id, c.id}
 	outfmt := []interface{}{key, value}
 	results, err := queryScan(c.db, query, inargs, outfmt)
 	if err != nil {
@@ -160,7 +162,16 @@ func (c *Cluster) NetworkCreate(name, description string, config map[string]stri
 		return -1, err
 	}
 
-	err = NetworkConfigAdd(tx, id, config)
+	// Insert a node-specific entry pointing to ourselves.
+	columns := []string{"network_id", "node_id"}
+	values := []interface{}{id, c.id}
+	_, err = query.UpsertObject(tx, "networks_nodes", columns, values)
+	if err != nil {
+		tx.Rollback()
+		return -1, err
+	}
+
+	err = NetworkConfigAdd(tx, id, c.id, config)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -191,13 +202,13 @@ func (c *Cluster) NetworkUpdate(name, description string, config map[string]stri
 		return err
 	}
 
-	err = NetworkConfigClear(tx, id)
+	err = NetworkConfigClear(tx, id, c.id)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = NetworkConfigAdd(tx, id, config)
+	err = NetworkConfigAdd(tx, id, c.id, config)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -211,8 +222,8 @@ func NetworkUpdateDescription(tx *sql.Tx, id int64, description string) error {
 	return err
 }
 
-func NetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
-	str := fmt.Sprintf("INSERT INTO networks_config (network_id, key, value) VALUES(?, ?, ?)")
+func NetworkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]string) error {
+	str := fmt.Sprintf("INSERT INTO networks_config (network_id, node_id, key, value) VALUES(?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
 	if err != nil {
@@ -224,7 +235,7 @@ func NetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 			continue
 		}
 
-		_, err = stmt.Exec(id, k, v)
+		_, err = stmt.Exec(networkID, nodeID, k, v)
 		if err != nil {
 			return err
 		}
@@ -233,8 +244,10 @@ func NetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	return nil
 }
 
-func NetworkConfigClear(tx *sql.Tx, id int64) error {
-	_, err := tx.Exec("DELETE FROM networks_config WHERE network_id=?", id)
+func NetworkConfigClear(tx *sql.Tx, networkID, nodeID int64) error {
+	_, err := tx.Exec(
+		"DELETE FROM networks_config WHERE network_id=? AND node_id=?",
+		networkID, nodeID)
 	if err != nil {
 		return err
 	}

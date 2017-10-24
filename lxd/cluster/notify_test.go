@@ -32,16 +32,26 @@ func TestNewNotifier(t *testing.T) {
 	notifier, err := cluster.NewNotifier(state, cert, cluster.NotifyAll)
 	require.NoError(t, err)
 
-	i := 0
+	peers := make(chan string, 2)
 	hook := func(client lxd.ContainerServer) error {
 		server, _, err := client.GetServer()
 		require.NoError(t, err)
-		assert.Equal(t, f.Address(i+1), server.Config["core.https_address"])
-		i++
+		peers <- server.Config["core.https_address"].(string)
 		return nil
 	}
 	assert.NoError(t, notifier(hook))
-	assert.Equal(t, 2, i)
+
+	addresses := make([]string, 2)
+	for i := range addresses {
+		select {
+		case addresses[i] = <-peers:
+		default:
+		}
+	}
+	require.NoError(t, err)
+	for i := range addresses {
+		assert.True(t, shared.StringInSlice(f.Address(i+1), addresses))
+	}
 }
 
 // Creating a new notifier fails if the policy is set to NotifyAll and one of
@@ -108,7 +118,12 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 		for i := 0; i < n; i++ {
 			name := strconv.Itoa(i)
 			address := servers[i].Listener.Addr().String()
-			_, err := tx.NodeAdd(name, address)
+			var err error
+			if i == 0 {
+				err = tx.NodeUpdate(int64(1), name, address)
+			} else {
+				_, err = tx.NodeAdd(name, address)
+			}
 			require.NoError(h.t, err)
 		}
 		return nil

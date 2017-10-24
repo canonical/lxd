@@ -40,15 +40,26 @@ CREATE TABLE networks (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
+    state INTEGER NOT NULL DEFAULT 0,
     UNIQUE (name)
+);
+CREATE TABLE networks_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    UNIQUE (network_id, node_id),
+    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
 CREATE TABLE networks_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     network_id INTEGER NOT NULL,
+    node_id INTEGER,
     key VARCHAR(255) NOT NULL,
     value TEXT,
-    UNIQUE (network_id, key),
-    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE
+    UNIQUE (network_id, node_id, key),
+    FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
 `
 	_, err := tx.Exec(stmt)
