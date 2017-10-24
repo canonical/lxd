@@ -15,7 +15,39 @@ import (
 	"github.com/pkg/errors"
 )
 
-var clusterCmd = Command{name: "cluster", untrustedPost: true, post: clusterPost}
+var clusterCmd = Command{name: "cluster", untrustedGet: true, get: clusterGet, untrustedPost: true, post: clusterPost}
+
+func clusterGet(d *Daemon, r *http.Request) Response {
+	// If the client is not trusted, check that it's presenting the trust
+	// password.
+	trusted := d.checkTrustedClient(r) == nil
+	if !trusted {
+		secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
+		if err != nil {
+			return SmartError(err)
+		}
+		if util.PasswordCheck(secret, r.FormValue("password")) != nil {
+			return Forbidden
+		}
+	}
+
+	cluster := api.Cluster{}
+
+	// Fill the Networks attribute
+	networks, err := d.cluster.Networks()
+	if err != nil {
+		return SmartError(err)
+	}
+	for _, name := range networks {
+		_, network, err := d.cluster.NetworkGet(name)
+		if err != nil {
+			return SmartError(err)
+		}
+		cluster.Networks = append(cluster.Networks, *network)
+	}
+
+	return SyncResponse(true, cluster)
+}
 
 func clusterPost(d *Daemon, r *http.Request) Response {
 	req := api.ClusterPost{}

@@ -162,6 +162,7 @@ type ContainerServer interface {
 	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (err error)
 
 	// Cluster functions ("cluster" API extensions)
+	GetCluster(password string) (cluster *api.Cluster, err error)
 	BootstrapCluster(name string) (op *Operation, err error)
 	AcceptNode(targetPassword, name, address string, schema, api int) (info *api.ClusterNodeAccepted, err error)
 	JoinCluster(targetAddress, targetPassword string, targetCert []byte, name string) (op *Operation, err error)
