@@ -1,5 +1,10 @@
 package api
 
+// Cluster represents high-level information about a LXD cluster.
+type Cluster struct {
+	Networks []Network
+}
+
 // ClusterPost represents the fields required to bootstrap or join a LXD
 // cluster.
 //
@@ -16,12 +21,16 @@ type ClusterPost struct {
 }
 
 // ClusterNodeAccepted represents the response of a request to join a cluster.
+//
+// API extension: cluster
 type ClusterNodeAccepted struct {
 	RaftNodes  []RaftNode `json:"raft_nodes" yaml:"raft_nodes"`
 	PrivateKey []byte     `json:"private_key" yaml:"private_key"`
 }
 
 // RaftNode represents the a LXD node that is part of the dqlite raft cluster.
+//
+// API extension: cluster
 type RaftNode struct {
 	ID      int64  `json:"id" yaml:"id"`
 	Address string `json:"address" yaml:"address"`

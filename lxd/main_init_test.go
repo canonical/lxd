@@ -161,6 +161,17 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClusteringJoin() {
 	f := clusterFixture{t: suite.T()}
 	f.FormCluster([]*Daemon{leader})
 
+	network := api.NetworksPost{
+		Name:    "mybr",
+		Type:    "bridge",
+		Managed: true,
+	}
+	network.Config = map[string]string{
+		"ipv4.nat": "true",
+	}
+	client := f.ClientUnix(leader)
+	client.CreateNetwork(network)
+
 	suite.command.PasswordReader = func(int) ([]byte, error) {
 		return []byte("sekret"), nil
 	}
@@ -174,6 +185,12 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClusteringJoin() {
 		ClusterTargetNodeAddress: leader.endpoints.NetworkAddress(),
 		ClusterAcceptFingerprint: true,
 		ClusterConfirmLosingData: true,
+		ClusterConfig: []string{
+			"10.23.189.2/24", // ipv4.address
+			"true",           // ipv4.nat
+			"aaaa:bbbb:cccc:dddd::1/64", // ipv6.address
+			"true", // ipv6.nat
+		},
 	}
 	answers.Render(suite.streams)
 
@@ -752,6 +769,7 @@ type cmdInitAnswers struct {
 	ClusterTargetNodeAddress string
 	ClusterAcceptFingerprint bool
 	ClusterConfirmLosingData bool
+	ClusterConfig            []string
 	WantStoragePool          bool
 	WantAvailableOverNetwork bool
 	BindToAddress            string
@@ -775,6 +793,9 @@ func (answers *cmdInitAnswers) Render(streams *cmd.MemoryStreams) {
 			streams.InputAppendLine(answers.ClusterTargetNodeAddress)
 			streams.InputAppendBoolAnswer(answers.ClusterAcceptFingerprint)
 			streams.InputAppendBoolAnswer(answers.ClusterConfirmLosingData)
+			for _, value := range answers.ClusterConfig {
+				streams.InputAppendLine(value)
+			}
 		}
 	}
 	streams.InputAppendBoolAnswer(answers.WantStoragePool)
