@@ -1,6 +1,8 @@
 package cluster_test
 
 import (
+	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -55,7 +57,24 @@ func TestUpdateFromV1_Network(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestUpdateFromV1_NetworkConfig(t *testing.T) {
+func TestUpdateFromV1_ConfigTables(t *testing.T) {
+	testConfigTable(t, "networks", func(db *sql.DB) {
+		_, err := db.Exec("INSERT INTO networks VALUES (1, 'foo', 'blah', 1)")
+		require.NoError(t, err)
+	})
+	testConfigTable(t, "storage_pools", func(db *sql.DB) {
+		_, err := db.Exec("INSERT INTO storage_pools VALUES (1, 'default', 'dir', '')")
+		require.NoError(t, err)
+	})
+	testConfigTable(t, "storage_volumes", func(db *sql.DB) {
+		_, err := db.Exec("INSERT INTO storage_pools VALUES (1, 'default', 'dir', '')")
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO storage_volumes VALUES (1, 'dev', 1, 1, '')")
+		require.NoError(t, err)
+	})
+}
+
+func testConfigTable(t *testing.T, table string, setup func(db *sql.DB)) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
 	require.NoError(t, err)
@@ -66,24 +85,27 @@ func TestUpdateFromV1_NetworkConfig(t *testing.T) {
 	_, err = db.Exec("INSERT INTO nodes VALUES (2, 'two', '', '2.2.2.2', 666, 999, ?)", time.Now())
 	require.NoError(t, err)
 
-	_, err = db.Exec("INSERT INTO networks VALUES (1, 'foo', 'blah', 1)")
+	stmt := func(format string) string {
+		return fmt.Sprintf(format, table)
+	}
+
+	setup(db)
+
+	_, err = db.Exec(stmt("INSERT INTO %s_config VALUES (1, 1, 1, 'bar', 'baz')"))
 	require.NoError(t, err)
 
-	_, err = db.Exec("INSERT INTO networks_config VALUES (1, 1, 1, 'bar', 'baz')")
-	require.NoError(t, err)
-
-	// Unique constraint on network_id/node_id/key.
-	_, err = db.Exec("INSERT INTO networks_config VALUES (2, 1, 1, 'bar', 'egg')")
+	// Unique constraint on <entity>_id/node_id/key.
+	_, err = db.Exec(stmt("INSERT INTO %s_config VALUES (2, 1, 1, 'bar', 'egg')"))
 	require.Error(t, err)
-	_, err = db.Exec("INSERT INTO networks_config VALUES (3, 1, 2, 'bar', 'egg')")
+	_, err = db.Exec(stmt("INSERT INTO %s_config VALUES (3, 1, 2, 'bar', 'egg')"))
 	require.NoError(t, err)
 
-	// Reference constraint on network_id.
-	_, err = db.Exec("INSERT INTO networks_config VALUES (4, 2, 1, 'fuz', 'buz')")
+	// Reference constraint on <entity>_id.
+	_, err = db.Exec(stmt("INSERT INTO %s_config VALUES (4, 2, 1, 'fuz', 'buz')"))
 	require.Error(t, err)
 
 	// Reference constraint on node_id.
-	_, err = db.Exec("INSERT INTO networks_config VALUES (5, 1, 3, 'fuz', 'buz')")
+	_, err = db.Exec(stmt("INSERT INTO %s_config VALUES (5, 1, 3, 'fuz', 'buz')"))
 	require.Error(t, err)
 
 	// Cascade deletes on node_id
@@ -92,19 +114,19 @@ func TestUpdateFromV1_NetworkConfig(t *testing.T) {
 	n, err := result.RowsAffected()
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), n)
-	result, err = db.Exec("UPDATE networks_config SET value='yuk'")
+	result, err = db.Exec(stmt("UPDATE %s_config SET value='yuk'"))
 	require.NoError(t, err)
 	n, err = result.RowsAffected()
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), n) // Only one row was affected, since the other got deleted
 
-	// Cascade deletes on network_id
-	result, err = db.Exec("DELETE FROM networks")
+	// Cascade deletes on <entity>_id
+	result, err = db.Exec(stmt("DELETE FROM %s"))
 	require.NoError(t, err)
 	n, err = result.RowsAffected()
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), n)
-	result, err = db.Exec("DELETE FROM networks_config")
+	result, err = db.Exec(stmt("DELETE FROM %s_config"))
 	require.NoError(t, err)
 	n, err = result.RowsAffected()
 	require.NoError(t, err)
