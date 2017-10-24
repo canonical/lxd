@@ -1,6 +1,28 @@
 package lxd
 
-import "github.com/lxc/lxd/shared/api"
+import (
+	"fmt"
+
+	"github.com/lxc/lxd/shared/api"
+)
+
+// GetCluster returns information about a cluster.
+//
+// If this client is not trusted, the password must be supplied.
+func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, error) {
+	cluster := &api.Cluster{}
+	path := "/cluster"
+	if password != "" {
+		path += fmt.Sprintf("?password=%s", password)
+	}
+	_, err := r.queryStruct("GET", path, nil, "", &cluster)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
+}
 
 // BootstrapCluster requests to bootstrap a new cluster.
 func (r *ProtocolLXD) BootstrapCluster(name string) (*Operation, error) {

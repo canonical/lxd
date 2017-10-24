@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -167,6 +168,25 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 			Address:       clustering.Address,
 			Port:          clustering.Port,
 			TrustPassword: clustering.TrustPassword,
+		}
+		if clustering.TargetAddress != "" {
+			// Client parameters to connect to the target cluster node.
+			args := &lxd.ConnectionArgs{
+				TLSServerCert: string(clustering.TargetCert),
+			}
+			url := fmt.Sprintf("https://%s", clustering.TargetAddress)
+			client, err := lxd.ConnectLXD(url, args)
+			if err != nil {
+				return err
+			}
+			cluster, err := client.GetCluster(clustering.TargetPassword)
+			if err != nil {
+				return err
+			}
+			data.Networks, err = cmd.askClusteringNetworks(cluster)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -426,13 +446,6 @@ func (cmd *CmdInit) apply(client lxd.ContainerServer, data *cmdInitData) error {
 		return cmd.initConfig(client, data.Config)
 	})
 
-	// Cluster changers
-	if data.Cluster.Name != "" {
-		changers = append(changers, func() (reverter, error) {
-			return cmd.initCluster(client, data.Cluster)
-		})
-	}
-
 	// Storage pool changers
 	for i := range data.Pools {
 		pool := data.Pools[i] // Local variable for the closure
@@ -454,6 +467,13 @@ func (cmd *CmdInit) apply(client lxd.ContainerServer, data *cmdInitData) error {
 		profile := data.Profiles[i] // Local variable for the closure
 		changers = append(changers, func() (reverter, error) {
 			return cmd.initProfile(client, profile)
+		})
+	}
+
+	// Cluster changers
+	if data.Cluster.Name != "" {
+		changers = append(changers, func() (reverter, error) {
+			return cmd.initCluster(client, data.Cluster)
 		})
 	}
 
@@ -800,7 +820,7 @@ join:
 		goto join
 	}
 	digest := shared.CertFingerprint(certificate)
-	askFingerprint := fmt.Sprintf("Remote node fingerprint: %s ok (y/n)? ", digest)
+	askFingerprint := fmt.Sprintf("Remote node fingerprint: %s ok (yes/no)? ", digest)
 	if !cmd.Context.AskBool(askFingerprint, "") {
 		return nil, fmt.Errorf("Cluster certificate NACKed by user")
 	}
@@ -814,6 +834,33 @@ join:
 	}
 
 	return params, nil
+}
+
+func (cmd *CmdInit) askClusteringNetworks(cluster *api.Cluster) ([]api.NetworksPost, error) {
+	networks := make([]api.NetworksPost, len(cluster.Networks))
+	for i, network := range cluster.Networks {
+		if !network.Managed {
+			continue
+		}
+		post := api.NetworksPost{}
+		post.Name = network.Name
+		post.Config = network.Config
+		post.Type = network.Type
+		post.Managed = true
+		// Sort config keys to get a stable ordering (expecially for tests)
+		keys := []string{}
+		for key := range post.Config {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			question := fmt.Sprintf(
+				`Enter local value for key "%s" of network "%s": `, key, post.Name)
+			post.Config[key] = cmd.Context.AskString(question, "", nil)
+		}
+		networks[i] = post
+	}
+	return networks, nil
 }
 
 // Ask if the user wants to create a new storage pool, and return
