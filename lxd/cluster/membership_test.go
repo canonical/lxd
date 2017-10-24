@@ -242,45 +242,54 @@ func TestAccept_MaxRaftNodes(t *testing.T) {
 
 func TestJoin(t *testing.T) {
 	// Setup a target node running as leader of a cluster.
-	targetState, cleanup := state.NewTestState(t)
-	defer cleanup()
-
 	targetCert := shared.TestingKeyPair()
-	targetGateway := newGateway(t, targetState.Node, targetCert)
-	defer targetGateway.Shutdown()
-
 	targetMux := http.NewServeMux()
 	targetServer := newServer(targetCert, targetMux)
 	defer targetServer.Close()
+
+	targetState, cleanup := state.NewTestState(t)
+	defer cleanup()
+
+	targetGateway := newGateway(t, targetState.Node, targetCert)
+	defer targetGateway.Shutdown()
 
 	for path, handler := range targetGateway.HandlerFuncs() {
 		targetMux.HandleFunc(path, handler)
 	}
 
 	targetAddress := targetServer.Listener.Addr().String()
+	var err error
+	require.NoError(t, targetState.Cluster.Close())
+	targetState.Cluster, err = db.OpenCluster("db.bin", targetGateway.Dialer(), targetAddress)
+	require.NoError(t, err)
 	targetF := &membershipFixtures{t: t, state: targetState}
 	targetF.NetworkAddress(targetAddress)
 
-	err := cluster.Bootstrap(targetState, targetGateway, "buzz")
+	err = cluster.Bootstrap(targetState, targetGateway, "buzz")
 	require.NoError(t, err)
 
 	// Setup a joining node
+	mux := http.NewServeMux()
+	server := newServer(targetCert, mux)
+	defer server.Close()
+
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
 	cert := shared.TestingAltKeyPair()
 	gateway := newGateway(t, state.Node, cert)
-	defer gateway.Shutdown()
 
-	mux := http.NewServeMux()
-	server := newServer(cert, mux)
-	defer server.Close()
+	defer gateway.Shutdown()
 
 	for path, handler := range gateway.HandlerFuncs() {
 		mux.HandleFunc(path, handler)
 	}
 
 	address := server.Listener.Addr().String()
+	require.NoError(t, state.Cluster.Close())
+	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address)
+	require.NoError(t, err)
+
 	f := &membershipFixtures{t: t, state: state}
 	f.NetworkAddress(address)
 

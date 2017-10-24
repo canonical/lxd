@@ -11,6 +11,67 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+// NetworkConfigs returns a map associating each network name to its config
+// values.
+func (c *ClusterTx) NetworkConfigs() (map[string]map[string]string, error) {
+	names, err := query.SelectStrings(c.tx, "SELECT name FROM networks")
+	if err != nil {
+		return nil, err
+	}
+	networks := make(map[string]map[string]string, len(names))
+	for _, name := range names {
+		table := "networks_config JOIN networks ON networks.id=networks_config.network_id"
+		config, err := query.SelectConfig(c.tx, table, fmt.Sprintf("networks.name='%s'", name))
+		if err != nil {
+			return nil, err
+		}
+		networks[name] = config
+	}
+	return networks, nil
+}
+
+// NetworkIDs returns a map associating each network name to its ID.
+func (c *ClusterTx) NetworkIDs() (map[string]int64, error) {
+	networks := []struct {
+		id   int64
+		name string
+	}{}
+	dest := func(i int) []interface{} {
+		networks = append(networks, struct {
+			id   int64
+			name string
+		}{})
+		return []interface{}{&networks[i].id, &networks[i].name}
+
+	}
+	err := query.SelectObjects(c.tx, dest, "SELECT id, name FROM networks")
+	if err != nil {
+		return nil, err
+	}
+	ids := map[string]int64{}
+	for _, network := range networks {
+		ids[network.name] = network.id
+	}
+	return ids, nil
+}
+
+// NetworkConfigAdd adds a new entry in the networks_config table
+func (c *ClusterTx) NetworkConfigAdd(networkID, nodeID int64, config map[string]string) error {
+	return networkConfigAdd(c.tx, networkID, nodeID, config)
+}
+
+// NetworkNodeJoin adds a new entry in the networks_nodes table.
+//
+// It should only be used when a new node joins the cluster, when it's safe to
+// assume that the relevant network has already been created on the joining node,
+// and we just need to track it.
+func (c *ClusterTx) NetworkNodeJoin(networkID, nodeID int64) error {
+	columns := []string{"network_id", "node_id"}
+	values := []interface{}{networkID, nodeID}
+	_, err := query.UpsertObject(c.tx, "networks_nodes", columns, values)
+	return err
+}
+
 func (c *Cluster) Networks() ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM networks")
 	inargs := []interface{}{}
@@ -171,7 +232,7 @@ func (c *Cluster) NetworkCreate(name, description string, config map[string]stri
 		return -1, err
 	}
 
-	err = NetworkConfigAdd(tx, id, c.id, config)
+	err = networkConfigAdd(tx, id, c.id, config)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -208,7 +269,7 @@ func (c *Cluster) NetworkUpdate(name, description string, config map[string]stri
 		return err
 	}
 
-	err = NetworkConfigAdd(tx, id, c.id, config)
+	err = networkConfigAdd(tx, id, c.id, config)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -222,7 +283,7 @@ func NetworkUpdateDescription(tx *sql.Tx, id int64, description string) error {
 	return err
 }
 
-func NetworkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]string) error {
+func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO networks_config (network_id, node_id, key, value) VALUES(?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()

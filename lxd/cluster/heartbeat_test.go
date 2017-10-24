@@ -172,7 +172,6 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 
 	mux := http.NewServeMux()
 	server := newServer(cert, mux)
-	f.cleanups = append(f.cleanups, server.Close)
 
 	for path, handler := range gateway.HandlerFuncs() {
 		mux.HandleFunc(path, handler)
@@ -181,6 +180,11 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	address := server.Listener.Addr().String()
 	mf := &membershipFixtures{t: f.t, state: state}
 	mf.NetworkAddress(address)
+
+	var err error
+	require.NoError(f.t, state.Cluster.Close())
+	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address)
+	require.NoError(f.t, err)
 
 	f.gateways[len(f.gateways)] = gateway
 	f.states[gateway] = state
@@ -193,5 +197,8 @@ func (f *heartbeatFixture) Cleanup() {
 	// Run the cleanups in reverse order
 	for i := len(f.cleanups) - 1; i >= 0; i-- {
 		f.cleanups[i]()
+	}
+	for _, server := range f.servers {
+		server.Close()
 	}
 }
