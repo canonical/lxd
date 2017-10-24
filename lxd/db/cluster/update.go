@@ -61,6 +61,42 @@ CREATE TABLE networks_config (
     FOREIGN KEY (network_id) REFERENCES networks (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
+CREATE TABLE storage_pools (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    driver TEXT NOT NULL,
+    description TEXT,
+    UNIQUE (name)
+);
+CREATE TABLE storage_pools_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (storage_pool_id, node_id, key),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
+CREATE TABLE storage_volumes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    description TEXT,
+    UNIQUE (storage_pool_id, name, type),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE
+);
+CREATE TABLE storage_volumes_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (storage_volume_id, node_id, key),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
 `
 	_, err := tx.Exec(stmt)
 	return err
