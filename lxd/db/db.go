@@ -183,7 +183,7 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 		}
 		if len(nodes) == 1 && nodes[0].Address == "0.0.0.0" {
 			// We're not clustered
-			cluster.id = 1
+			cluster.ID(1)
 			return nil
 		}
 		for _, node := range nodes {
@@ -218,7 +218,9 @@ func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
 		if err != nil {
 			// FIXME: we should bubble errors using errors.Wrap()
 			// instead, and check for sql.ErrBadConnection.
-			if strings.Contains(err.Error(), "bad connection") {
+			badConnection := strings.Contains(err.Error(), "bad connection")
+			leadershipLost := strings.Contains(err.Error(), "leadership lost")
+			if badConnection || leadershipLost {
 				logger.Debugf("Retry failed transaction")
 				time.Sleep(time.Second)
 				continue
@@ -227,6 +229,14 @@ func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
 		break
 	}
 	return err
+}
+
+// ID sets the the node ID associated with this cluster instance. It's used for
+// backward-compatibility of all db-related APIs that were written before
+// clustering and don't accept a node ID, so in those cases we automatically
+// use this value as implict node ID.
+func (c *Cluster) ID(id int64) {
+	c.id = id
 }
 
 // Close the database facade.
