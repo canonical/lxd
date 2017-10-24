@@ -136,14 +136,10 @@ func HostPath(path string) string {
 	}
 
 	// Check if the path is already snap-aware
-	for _, prefix := range []string{"/snap", "/var/snap", "/var/lib/snapd"} {
+	for _, prefix := range []string{"/dev", "/snap", "/var/snap", "/var/lib/snapd"} {
 		if strings.HasPrefix(path, prefix) {
 			return path
 		}
-	}
-
-	if os.Geteuid() == 0 {
-		return fmt.Sprintf("/proc/1/root%s", path)
 	}
 
 	return fmt.Sprintf("/var/lib/snapd/hostfs%s", path)
