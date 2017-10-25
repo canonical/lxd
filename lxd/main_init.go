@@ -183,6 +183,10 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 			if err != nil {
 				return err
 			}
+			data.Pools, err = cmd.askClusteringStoragePools(cluster)
+			if err != nil {
+				return err
+			}
 			data.Networks, err = cmd.askClusteringNetworks(cluster)
 			if err != nil {
 				return err
@@ -834,6 +838,25 @@ join:
 	}
 
 	return params, nil
+}
+
+func (cmd *CmdInit) askClusteringStoragePools(cluster *api.Cluster) ([]api.StoragePoolsPost, error) {
+	pools := make([]api.StoragePoolsPost, len(cluster.StoragePools))
+	for i, pool := range cluster.StoragePools {
+		post := api.StoragePoolsPost{}
+		post.Name = pool.Name
+		post.Driver = pool.Driver
+		post.Config = pool.Config
+		// The only config key to ask is 'source', which is the only one node-specific.
+		key := "source"
+		question := fmt.Sprintf(
+			`Enter local value for key "%s" of storage pool "%s": `, key, post.Name)
+		// Dummy validator for allowing empty strings.
+		validator := func(string) error { return nil }
+		post.Config[key] = cmd.Context.AskString(question, "", validator)
+		pools[i] = post
+	}
+	return pools, nil
 }
 
 func (cmd *CmdInit) askClusteringNetworks(cluster *api.Cluster) ([]api.NetworksPost, error) {
