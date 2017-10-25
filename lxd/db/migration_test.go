@@ -58,6 +58,20 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "true", network.Config["ipv4.nat"])
+
+	// storage
+	pools, err := cluster.StoragePools()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"default"}, pools)
+	id, pool, err := cluster.StoragePoolGet("default")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), id)
+	assert.Equal(t, "/foo/bar", pool.Config["source"])
+	assert.Equal(t, "123", pool.Config["size"])
+	volumes, err := cluster.StoragePoolVolumesGet(id, []int{1})
+	require.NoError(t, err)
+	assert.Len(t, volumes, 1)
+	assert.Equal(t, "/foo/bar", volumes[0].Config["source"])
 }
 
 // Return a sql.Tx against a memory database populated with pre-clustering
@@ -74,6 +88,11 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 		"INSERT INTO config VALUES(1, 'core.https_address', '1.2.3.4:666')",
 		"INSERT INTO networks VALUES(1, 'lxcbr0', 'LXD bridge')",
 		"INSERT INTO networks_config VALUES(1, 1, 'ipv4.nat', 'true')",
+		"INSERT INTO storage_pools VALUES (1, 'default', 'dir', '')",
+		"INSERT INTO storage_pools_config VALUES(1, 1, 'source', '/foo/bar')",
+		"INSERT INTO storage_pools_config VALUES(2, 1, 'size', '123')",
+		"INSERT INTO storage_volumes VALUES (1, 'dev', 1, 1, '')",
+		"INSERT INTO storage_volumes_config VALUES(1, 1, 'source', '/foo/bar')",
 	}
 	for _, stmt := range stmts {
 		_, err := tx.Exec(stmt)

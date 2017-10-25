@@ -530,13 +530,13 @@ func (n *Node) ImageInsert(fp string, fname string, sz int64, public bool, autoU
 }
 
 // Get the names of all storage pools on which a given image exists.
-func (n *Node) ImageGetPools(imageFingerprint string) ([]int64, error) {
+func (c *Cluster) ImageGetPools(imageFingerprint string) ([]int64, error) {
 	poolID := int64(-1)
 	query := "SELECT storage_pool_id FROM storage_volumes WHERE name=? AND type=?"
 	inargs := []interface{}{imageFingerprint, StoragePoolVolumeTypeImage}
 	outargs := []interface{}{poolID}
 
-	result, err := queryScan(n.db, query, inargs, outargs)
+	result, err := queryScan(c.db, query, inargs, outargs)
 	if err != nil {
 		return []int64{}, err
 	}

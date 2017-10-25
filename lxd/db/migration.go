@@ -76,10 +76,33 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 				}
 			}
 			columns := dump.Schema[table]
+
+			nullNodeID := false // Whether config-related rows should have a NULL node ID
+			appendNodeID := func() {
+				columns = append(columns, "node_id")
+				if nullNodeID {
+					row = append(row, nil)
+				} else {
+					row = append(row, int64(1))
+				}
+			}
+
 			switch table {
 			case "networks_config":
-				columns = append(columns, "node_id")
-				row = append(row, int64(1))
+				appendNodeID()
+			case "storage_pools_config":
+				// The "source" config key is the only one
+				// which is not global to the cluster, so all
+				// other keys will have a NULL node_id.
+				for i, column := range columns {
+					if column == "key" && row[i] != "source" {
+						nullNodeID = true
+						break
+					}
+				}
+				appendNodeID()
+			case "storage_volumes_config":
+				appendNodeID()
 			}
 			stmt := fmt.Sprintf("INSERT INTO %s(%s)", table, strings.Join(columns, ", "))
 			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
@@ -115,4 +138,8 @@ var preClusteringTables = []string{
 	"config",
 	"networks",
 	"networks_config",
+	"storage_pools",
+	"storage_pools_config",
+	"storage_volumes",
+	"storage_volumes_config",
 }

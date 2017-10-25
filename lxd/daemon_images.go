@@ -255,13 +255,13 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 
 		// Get the ID of the target storage pool
-		poolID, err := d.db.StoragePoolGetID(storagePool)
+		poolID, err := d.cluster.StoragePoolGetID(storagePool)
 		if err != nil {
 			return nil, err
 		}
 
 		// Check if the image is already in the pool
-		poolIDs, err := d.db.ImageGetPools(info.Fingerprint)
+		poolIDs, err := d.cluster.ImageGetPools(info.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
