@@ -229,12 +229,20 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	}
 
 	// Get the local config keys for the cluster networks. It assumes that
-	// the local networks match the cluster networks, if not an error will
-	// be returned.
+	// the local storage pools and networks match the cluster networks, if
+	// not an error will be returned.
+	var pools map[string]map[string]string
 	var networks map[string]map[string]string
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		pools, err = tx.StoragePoolConfigs()
+		if err != nil {
+			return err
+		}
 		networks, err = tx.NetworkConfigs()
-		return err
+		if err != nil {
+			return err
+		}
+		return nil
 	})
 	if err != nil {
 		return err
@@ -285,15 +293,36 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// Make sure we can actually connect to the cluster database through
 	// the network endpoint. This also makes the Go SQL pooling system
 	// invalidate the old connection, so new queries will be executed over
-	// the new gRPC network connection. Also, update the networks table
-	// with our local configuration.
+	// the new gRPC network connection. Also, update the storage_pools and
+	// networks tables with our local configuration.
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		node, err := tx.Node(address)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ID of joining node")
 		}
 		state.Cluster.ID(node.ID)
-		ids, err := tx.NetworkIDs()
+
+		// Storage pools.
+		ids, err := tx.StoragePoolIDs()
+		if err != nil {
+			return errors.Wrap(err, "failed to get cluster storage pool IDs")
+		}
+		for name, id := range ids {
+			config, ok := pools[name]
+			if !ok {
+				return fmt.Errorf("joining node has no config for pool %s", name)
+			}
+			// We only need to add the source key, since the other keys are global and
+			// are already there.
+			config = map[string]string{"source": config["source"]}
+			err := tx.StoragePoolConfigAdd(id, node.ID, config)
+			if err != nil {
+				return errors.Wrap(err, "failed to add joining node's pool config")
+			}
+		}
+
+		// Networks.
+		ids, err = tx.NetworkIDs()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster network IDs")
 		}
