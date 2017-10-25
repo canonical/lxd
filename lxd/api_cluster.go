@@ -46,6 +46,19 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 		cluster.Networks = append(cluster.Networks, *network)
 	}
 
+	// Fill the StoragePools attribute
+	pools, err := d.cluster.StoragePools()
+	if err != nil {
+		return SmartError(err)
+	}
+	for _, name := range pools {
+		_, pool, err := d.cluster.StoragePoolGet(name)
+		if err != nil {
+			return SmartError(err)
+		}
+		cluster.StoragePools = append(cluster.StoragePools, *pool)
+	}
+
 	return SyncResponse(true, cluster)
 }
 

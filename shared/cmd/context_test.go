@@ -129,6 +129,7 @@ func TestAskString(t *testing.T) {
 			}
 			return nil
 		}, "Name?Name?", "Invalid input: ugly name\n\n", "Ted\nJohn", "John"},
+		{"Name?", "", func(string) error { return nil }, "Name?", "", "\n", ""},
 	}
 	for _, c := range cases {
 		streams := cmd.NewMemoryStreams(c.input)
