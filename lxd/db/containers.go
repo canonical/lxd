@@ -509,7 +509,7 @@ func (n *Node) ContainerNextSnapshot(name string) int {
 }
 
 // Get the storage pool of a given container.
-func (n *Node) ContainerPool(containerName string) (string, error) {
+func (c *Cluster) ContainerPool(containerName string) (string, error) {
 	// Get container storage volume. Since container names are globally
 	// unique, and their storage volumes carry the same name, their storage
 	// volumes are unique too.
@@ -520,7 +520,7 @@ WHERE storage_volumes.name=? AND storage_volumes.type=?`
 	inargs := []interface{}{containerName, StoragePoolVolumeTypeContainer}
 	outargs := []interface{}{&poolName}
 
-	err := dbQueryRowScan(n.db, query, inargs, outargs)
+	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", NoSuchObjectError

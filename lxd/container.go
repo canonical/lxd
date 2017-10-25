@@ -309,7 +309,7 @@ func containerGetRootDiskDevice(devices types.Devices) (string, types.Device, er
 	return "", types.Device{}, fmt.Errorf("No root device could be found.")
 }
 
-func containerValidDevices(db *db.Node, devices types.Devices, profile bool, expanded bool) error {
+func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -838,7 +838,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate container devices
-	err = containerValidDevices(s.Node, args.Devices, false, false)
+	err = containerValidDevices(s.Cluster, args.Devices, false, false)
 	if err != nil {
 		return nil, err
 	}

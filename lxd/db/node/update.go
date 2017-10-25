@@ -120,6 +120,10 @@ CREATE TABLE raft_nodes (
 DELETE FROM config WHERE NOT key='core.https_address';
 DROP TABLE networks_config;
 DROP TABLE networks;
+DROP TABLE storage_volumes_config;
+DROP TABLE storage_volumes;
+DROP TABLE storage_pools_config;
+DROP TABLE storage_pools;
 `
 	_, err := tx.Exec(stmts)
 	return err

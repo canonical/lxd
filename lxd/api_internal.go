@@ -257,7 +257,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	// Try to retrieve the storage pool the container supposedly lives on.
 	var poolErr error
-	poolID, pool, poolErr := d.db.StoragePoolGet(containerPoolName)
+	poolID, pool, poolErr := d.cluster.StoragePoolGet(containerPoolName)
 	if poolErr != nil {
 		if poolErr != db.NoSuchObjectError {
 			return SmartError(poolErr)
@@ -279,7 +279,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
-		poolID, err = d.db.StoragePoolGetID(containerPoolName)
+		poolID, err = d.cluster.StoragePoolGetID(containerPoolName)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -574,7 +574,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if a storage volume entry for the container already exists.
-	_, volume, ctVolErr := d.db.StoragePoolVolumeGetType(
+	_, volume, ctVolErr := d.cluster.StoragePoolVolumeGetType(
 		req.Name, storagePoolVolumeTypeContainer, poolID)
 	if ctVolErr != nil {
 		if ctVolErr != db.NoSuchObjectError {
@@ -624,7 +624,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := d.db.StoragePoolVolumeDelete(req.Name,
+		err := d.cluster.StoragePoolVolumeDelete(req.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return SmartError(err)
@@ -657,7 +657,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.db.StoragePoolVolumeGetType(snap.Name,
+		_, _, csVolErr := d.cluster.StoragePoolVolumeGetType(snap.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
 			if csVolErr != db.NoSuchObjectError {
@@ -680,7 +680,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		if csVolErr == nil {
-			err := d.db.StoragePoolVolumeDelete(snap.Name,
+			err := d.cluster.StoragePoolVolumeDelete(snap.Name,
 				storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				return SmartError(err)
