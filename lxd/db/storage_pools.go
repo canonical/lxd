@@ -10,13 +10,13 @@ import (
 )
 
 // Get all storage pools.
-func (n *Node) StoragePools() ([]string, error) {
+func (c *Cluster) StoragePools() ([]string, error) {
 	var name string
 	query := "SELECT name FROM storage_pools"
 	inargs := []interface{}{}
 	outargs := []interface{}{name}
 
-	result, err := queryScan(n.db, query, inargs, outargs)
+	result, err := queryScan(c.db, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -34,13 +34,13 @@ func (n *Node) StoragePools() ([]string, error) {
 }
 
 // Get the names of all storage volumes attached to a given storage pool.
-func (n *Node) StoragePoolsGetDrivers() ([]string, error) {
+func (c *Cluster) StoragePoolsGetDrivers() ([]string, error) {
 	var poolDriver string
 	query := "SELECT DISTINCT driver FROM storage_pools"
 	inargs := []interface{}{}
 	outargs := []interface{}{poolDriver}
 
-	result, err := queryScan(n.db, query, inargs, outargs)
+	result, err := queryScan(c.db, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -58,13 +58,13 @@ func (n *Node) StoragePoolsGetDrivers() ([]string, error) {
 }
 
 // Get id of a single storage pool.
-func (n *Node) StoragePoolGetID(poolName string) (int64, error) {
+func (c *Cluster) StoragePoolGetID(poolName string) (int64, error) {
 	poolID := int64(-1)
 	query := "SELECT id FROM storage_pools WHERE name=?"
 	inargs := []interface{}{poolName}
 	outargs := []interface{}{&poolID}
 
-	err := dbQueryRowScan(n.db, query, inargs, outargs)
+	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, NoSuchObjectError
@@ -75,7 +75,7 @@ func (n *Node) StoragePoolGetID(poolName string) (int64, error) {
 }
 
 // Get a single storage pool.
-func (n *Node) StoragePoolGet(poolName string) (int64, *api.StoragePool, error) {
+func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, error) {
 	var poolDriver string
 	poolID := int64(-1)
 	description := sql.NullString{}
@@ -84,7 +84,7 @@ func (n *Node) StoragePoolGet(poolName string) (int64, *api.StoragePool, error) 
 	inargs := []interface{}{poolName}
 	outargs := []interface{}{&poolID, &poolDriver, &description}
 
-	err := dbQueryRowScan(n.db, query, inargs, outargs)
+	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, nil, NoSuchObjectError
@@ -92,7 +92,7 @@ func (n *Node) StoragePoolGet(poolName string) (int64, *api.StoragePool, error) 
 		return -1, nil, err
 	}
 
-	config, err := n.StoragePoolConfigGet(poolID)
+	config, err := c.StoragePoolConfigGet(poolID)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -108,13 +108,13 @@ func (n *Node) StoragePoolGet(poolName string) (int64, *api.StoragePool, error) 
 }
 
 // Get config of a storage pool.
-func (n *Node) StoragePoolConfigGet(poolID int64) (map[string]string, error) {
+func (c *Cluster) StoragePoolConfigGet(poolID int64) (map[string]string, error) {
 	var key, value string
-	query := "SELECT key, value FROM storage_pools_config WHERE storage_pool_id=?"
-	inargs := []interface{}{poolID}
+	query := "SELECT key, value FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)"
+	inargs := []interface{}{poolID, c.id}
 	outargs := []interface{}{key, value}
 
-	results, err := queryScan(n.db, query, inargs, outargs)
+	results, err := queryScan(c.db, query, inargs, outargs)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +132,8 @@ func (n *Node) StoragePoolConfigGet(poolID int64) (map[string]string, error) {
 }
 
 // Create new storage pool.
-func (n *Node) StoragePoolCreate(poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
-	tx, err := begin(n.db)
+func (c *Cluster) StoragePoolCreate(poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
+	tx, err := begin(c.db)
 	if err != nil {
 		return -1, err
 	}
@@ -150,7 +150,7 @@ func (n *Node) StoragePoolCreate(poolName string, poolDescription string, poolDr
 		return -1, err
 	}
 
-	err = StoragePoolConfigAdd(tx, id, poolConfig)
+	err = StoragePoolConfigAdd(tx, id, c.id, poolConfig)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -165,8 +165,8 @@ func (n *Node) StoragePoolCreate(poolName string, poolDescription string, poolDr
 }
 
 // Add new storage pool config.
-func StoragePoolConfigAdd(tx *sql.Tx, poolID int64, poolConfig map[string]string) error {
-	str := "INSERT INTO storage_pools_config (storage_pool_id, key, value) VALUES(?, ?, ?)"
+func StoragePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[string]string) error {
+	str := "INSERT INTO storage_pools_config (storage_pool_id, node_id, key, value) VALUES(?, ?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
 	if err != nil {
@@ -177,8 +177,14 @@ func StoragePoolConfigAdd(tx *sql.Tx, poolID int64, poolConfig map[string]string
 		if v == "" {
 			continue
 		}
+		var nodeIDValue interface{}
+		if k != "source" {
+			nodeIDValue = nil
+		} else {
+			nodeIDValue = nodeID
+		}
 
-		_, err = stmt.Exec(poolID, k, v)
+		_, err = stmt.Exec(poolID, nodeIDValue, k, v)
 		if err != nil {
 			return err
 		}
@@ -188,13 +194,13 @@ func StoragePoolConfigAdd(tx *sql.Tx, poolID int64, poolConfig map[string]string
 }
 
 // Update storage pool.
-func (n *Node) StoragePoolUpdate(poolName, description string, poolConfig map[string]string) error {
-	poolID, _, err := n.StoragePoolGet(poolName)
+func (c *Cluster) StoragePoolUpdate(poolName, description string, poolConfig map[string]string) error {
+	poolID, _, err := c.StoragePoolGet(poolName)
 	if err != nil {
 		return err
 	}
 
-	tx, err := begin(n.db)
+	tx, err := begin(c.db)
 	if err != nil {
 		return err
 	}
@@ -205,13 +211,13 @@ func (n *Node) StoragePoolUpdate(poolName, description string, poolConfig map[st
 		return err
 	}
 
-	err = StoragePoolConfigClear(tx, poolID)
+	err = StoragePoolConfigClear(tx, poolID, c.id)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = StoragePoolConfigAdd(tx, poolID, poolConfig)
+	err = StoragePoolConfigAdd(tx, poolID, c.id, poolConfig)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -227,8 +233,8 @@ func StoragePoolUpdateDescription(tx *sql.Tx, id int64, description string) erro
 }
 
 // Delete storage pool config.
-func StoragePoolConfigClear(tx *sql.Tx, poolID int64) error {
-	_, err := tx.Exec("DELETE FROM storage_pools_config WHERE storage_pool_id=?", poolID)
+func StoragePoolConfigClear(tx *sql.Tx, poolID, nodeID int64) error {
+	_, err := tx.Exec("DELETE FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)", poolID, nodeID)
 	if err != nil {
 		return err
 	}
@@ -237,13 +243,13 @@ func StoragePoolConfigClear(tx *sql.Tx, poolID int64) error {
 }
 
 // Delete storage pool.
-func (n *Node) StoragePoolDelete(poolName string) (*api.StoragePool, error) {
-	poolID, pool, err := n.StoragePoolGet(poolName)
+func (c *Cluster) StoragePoolDelete(poolName string) (*api.StoragePool, error) {
+	poolID, pool, err := c.StoragePoolGet(poolName)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = exec(n.db, "DELETE FROM storage_pools WHERE id=?", poolID)
+	_, err = exec(c.db, "DELETE FROM storage_pools WHERE id=?", poolID)
 	if err != nil {
 		return nil, err
 	}
@@ -252,13 +258,13 @@ func (n *Node) StoragePoolDelete(poolName string) (*api.StoragePool, error) {
 }
 
 // Get the names of all storage volumes attached to a given storage pool.
-func (n *Node) StoragePoolVolumesGetNames(poolID int64) (int, error) {
+func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) (int, error) {
 	var volumeName string
 	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=?"
 	inargs := []interface{}{poolID}
 	outargs := []interface{}{volumeName}
 
-	result, err := queryScan(n.db, query, inargs, outargs)
+	result, err := queryScan(c.db, query, inargs, outargs)
 	if err != nil {
 		return -1, err
 	}
@@ -271,17 +277,17 @@ func (n *Node) StoragePoolVolumesGetNames(poolID int64) (int, error) {
 }
 
 // Get all storage volumes attached to a given storage pool.
-func (n *Node) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
+func (c *Cluster) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	// Get all storage volumes of all types attached to a given storage
 	// pool.
 	result := []*api.StorageVolume{}
 	for _, volumeType := range volumeTypes {
-		volumeNames, err := n.StoragePoolVolumesGetType(volumeType, poolID)
+		volumeNames, err := c.StoragePoolVolumesGetType(volumeType, poolID)
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err
 		}
 		for _, volumeName := range volumeNames {
-			_, volume, err := n.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+			_, volume, err := c.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
 			if err != nil {
 				return nil, err
 			}
@@ -298,13 +304,13 @@ func (n *Node) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api.St
 
 // Get all storage volumes attached to a given storage pool of a given volume
 // type.
-func (n *Node) StoragePoolVolumesGetType(volumeType int, poolID int64) ([]string, error) {
+func (c *Cluster) StoragePoolVolumesGetType(volumeType int, poolID int64) ([]string, error) {
 	var poolName string
 	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND type=?"
 	inargs := []interface{}{poolID, volumeType}
 	outargs := []interface{}{poolName}
 
-	result, err := queryScan(n.db, query, inargs, outargs)
+	result, err := queryScan(c.db, query, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
@@ -318,18 +324,18 @@ func (n *Node) StoragePoolVolumesGetType(volumeType int, poolID int64) ([]string
 }
 
 // Get a single storage volume attached to a given storage pool of a given type.
-func (n *Node) StoragePoolVolumeGetType(volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
-	volumeID, err := n.StoragePoolVolumeGetTypeID(volumeName, volumeType, poolID)
+func (c *Cluster) StoragePoolVolumeGetType(volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
+	volumeID, err := c.StoragePoolVolumeGetTypeID(volumeName, volumeType, poolID)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	volumeConfig, err := n.StorageVolumeConfigGet(volumeID)
+	volumeConfig, err := c.StorageVolumeConfigGet(volumeID)
 	if err != nil {
 		return -1, nil, err
 	}
 
-	volumeDescription, err := n.StorageVolumeDescriptionGet(volumeID)
+	volumeDescription, err := c.StorageVolumeDescriptionGet(volumeID)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -350,24 +356,24 @@ func (n *Node) StoragePoolVolumeGetType(volumeName string, volumeType int, poolI
 }
 
 // Update storage volume attached to a given storage pool.
-func (n *Node) StoragePoolVolumeUpdate(volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
-	volumeID, _, err := n.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+func (c *Cluster) StoragePoolVolumeUpdate(volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
+	volumeID, _, err := c.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
 
-	tx, err := begin(n.db)
+	tx, err := begin(c.db)
 	if err != nil {
 		return err
 	}
 
-	err = StorageVolumeConfigClear(tx, volumeID)
+	err = StorageVolumeConfigClear(tx, volumeID, c.id)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = StorageVolumeConfigAdd(tx, volumeID, volumeConfig)
+	err = StorageVolumeConfigAdd(tx, volumeID, c.id, volumeConfig)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -383,13 +389,13 @@ func (n *Node) StoragePoolVolumeUpdate(volumeName string, volumeType int, poolID
 }
 
 // Delete storage volume attached to a given storage pool.
-func (n *Node) StoragePoolVolumeDelete(volumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := n.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+func (c *Cluster) StoragePoolVolumeDelete(volumeName string, volumeType int, poolID int64) error {
+	volumeID, _, err := c.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
 
-	_, err = exec(n.db, "DELETE FROM storage_volumes WHERE id=?", volumeID)
+	_, err = exec(c.db, "DELETE FROM storage_volumes WHERE id=?", volumeID)
 	if err != nil {
 		return err
 	}
@@ -398,13 +404,13 @@ func (n *Node) StoragePoolVolumeDelete(volumeName string, volumeType int, poolID
 }
 
 // Rename storage volume attached to a given storage pool.
-func (n *Node) StoragePoolVolumeRename(oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := n.StoragePoolVolumeGetType(oldVolumeName, volumeType, poolID)
+func (c *Cluster) StoragePoolVolumeRename(oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
+	volumeID, _, err := c.StoragePoolVolumeGetType(oldVolumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
 
-	tx, err := begin(n.db)
+	tx, err := begin(c.db)
 	if err != nil {
 		return err
 	}
@@ -419,8 +425,8 @@ func (n *Node) StoragePoolVolumeRename(oldVolumeName string, newVolumeName strin
 }
 
 // Create new storage volume attached to a given storage pool.
-func (n *Node) StoragePoolVolumeCreate(volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
-	tx, err := begin(n.db)
+func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
+	tx, err := begin(c.db)
 	if err != nil {
 		return -1, err
 	}
@@ -438,7 +444,7 @@ func (n *Node) StoragePoolVolumeCreate(volumeName, volumeDescription string, vol
 		return -1, err
 	}
 
-	err = StorageVolumeConfigAdd(tx, volumeID, volumeConfig)
+	err = StorageVolumeConfigAdd(tx, volumeID, c.id, volumeConfig)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -454,7 +460,7 @@ func (n *Node) StoragePoolVolumeCreate(volumeName, volumeDescription string, vol
 
 // Get ID of a storage volume on a given storage pool of a given storage volume
 // type.
-func (n *Node) StoragePoolVolumeGetTypeID(volumeName string, volumeType int, poolID int64) (int64, error) {
+func (c *Cluster) StoragePoolVolumeGetTypeID(volumeName string, volumeType int, poolID int64) (int64, error) {
 	volumeID := int64(-1)
 	query := `SELECT storage_volumes.id
 FROM storage_volumes
@@ -465,7 +471,7 @@ AND storage_volumes.name=? AND storage_volumes.type=?`
 	inargs := []interface{}{poolID, volumeName, volumeType}
 	outargs := []interface{}{&volumeID}
 
-	err := dbQueryRowScan(n.db, query, inargs, outargs)
+	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		return -1, NoSuchObjectError
 	}
@@ -505,7 +511,7 @@ func StoragePoolVolumeTypeToName(volumeType int) (string, error) {
 	return "", fmt.Errorf("invalid storage volume type")
 }
 
-func (n *Node) StoragePoolInsertZfsDriver() error {
-	_, err := exec(n.db, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
+func (c *Cluster) StoragePoolInsertZfsDriver() error {
+	_, err := exec(c.db, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
 	return err
 }

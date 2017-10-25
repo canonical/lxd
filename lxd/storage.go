@@ -283,7 +283,7 @@ func storageCoreInit(driver string) (storage, error) {
 
 func storageInit(s *state.State, poolName string, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
-	poolID, pool, err := s.Node.StoragePoolGet(poolName)
+	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
 	if volumeName != "" && volumeType >= 0 {
-		_, volume, err = s.Node.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+		_, volume, err = s.Cluster.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -316,7 +316,6 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		btrfs.pool = pool
 		btrfs.volume = volume
 		btrfs.s = s
-		btrfs.db = s.Node
 		err = btrfs.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -328,7 +327,6 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		dir.pool = pool
 		dir.volume = volume
 		dir.s = s
-		dir.db = s.Node
 		err = dir.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -340,7 +338,6 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		ceph.pool = pool
 		ceph.volume = volume
 		ceph.s = s
-		ceph.db = s.Node
 		err = ceph.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -352,7 +349,6 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		lvm.pool = pool
 		lvm.volume = volume
 		lvm.s = s
-		lvm.db = s.Node
 		err = lvm.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -364,7 +360,6 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		mock.pool = pool
 		mock.volume = volume
 		mock.s = s
-		mock.db = s.Node
 		err = mock.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -376,7 +371,6 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 		zfs.pool = pool
 		zfs.volume = volume
 		zfs.s = s
-		zfs.db = s.Node
 		err = zfs.StoragePoolInit()
 		if err != nil {
 			return nil, err
@@ -517,11 +511,11 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 	st.SetStoragePoolVolumeWritable(&poolVolumePut)
 
-	poolID, err := s.Node.StoragePoolGetID(poolName)
+	poolID, err := s.Cluster.StoragePoolGetID(poolName)
 	if err != nil {
 		return nil, err
 	}
-	err = s.Node.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = s.Cluster.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -544,7 +538,7 @@ func storagePoolVolumeContainerCreateInit(s *state.State, poolName string, conta
 
 func storagePoolVolumeContainerLoadInit(s *state.State, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
-	poolName, err := s.Node.ContainerPool(containerName)
+	poolName, err := s.Cluster.ContainerPool(containerName)
 	if err != nil {
 		return nil, err
 	}
@@ -810,7 +804,7 @@ func StorageProgressWriter(op *operation, key string, description string) func(i
 }
 
 func SetupStorageDriver(s *state.State, forceCheck bool) error {
-	pools, err := s.Node.StoragePools()
+	pools, err := s.Cluster.StoragePools()
 	if err != nil {
 		if err == db.NoSuchObjectError {
 			logger.Debugf("No existing storage pools detected.")
@@ -854,11 +848,11 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 	}
 
 	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheUpdate(s.Node)
+	storagePoolDriversCacheUpdate(s.Cluster)
 	return nil
 }
 
-func storagePoolDriversCacheUpdate(dbNode *db.Node) {
+func storagePoolDriversCacheUpdate(cluster *db.Cluster) {
 	// Get a list of all storage drivers currently in use
 	// on this LXD instance. Only do this when we do not already have done
 	// this once to avoid unnecessarily querying the db. All subsequent
@@ -869,7 +863,7 @@ func storagePoolDriversCacheUpdate(dbNode *db.Node) {
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
 
-	drivers, err := dbNode.StoragePoolsGetDrivers()
+	drivers, err := cluster.StoragePoolsGetDrivers()
 	if err != nil && err != db.NoSuchObjectError {
 		return
 	}

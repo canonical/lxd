@@ -827,7 +827,7 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 
 	// Get the IDs of all storage pools on which a storage volume
 	// for the requested image currently exists.
-	poolIDs, err := d.db.ImageGetPools(fingerprint)
+	poolIDs, err := d.cluster.ImageGetPools(fingerprint)
 	if err != nil {
 		logger.Error("Error getting image pools", log.Ctx{"err": err, "fp": fingerprint})
 		return err
@@ -1009,7 +1009,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) {
 
 		// Get the IDs of all storage pools on which a storage volume
 		// for the requested image currently exists.
-		poolIDs, err := d.db.ImageGetPools(fp)
+		poolIDs, err := d.cluster.ImageGetPools(fp)
 		if err != nil {
 			continue
 		}
@@ -1087,7 +1087,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 			return err
 		}
 
-		poolIDs, err := d.db.ImageGetPools(imgInfo.Fingerprint)
+		poolIDs, err := d.cluster.ImageGetPools(imgInfo.Fingerprint)
 		if err != nil {
 			return err
 		}

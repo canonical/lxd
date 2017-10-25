@@ -307,7 +307,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		return nil, err
 	}
 
-	err = containerValidDevices(s.Node, c.expandedDevices, false, true)
+	err = containerValidDevices(s.Cluster, c.expandedDevices, false, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -329,7 +329,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, pool, err := s.Node.StoragePoolGet(storagePool)
+	poolID, pool, err := s.Cluster.StoragePoolGet(storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -343,7 +343,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	}
 
 	// Create a new database entry for the container's storage volume
-	_, err = s.Node.StoragePoolVolumeCreate(args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
+	_, err = s.Cluster.StoragePoolVolumeCreate(args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -353,7 +353,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	cStorage, err := storagePoolVolumeContainerCreateInit(s, storagePool, args.Name)
 	if err != nil {
 		c.Delete()
-		s.Node.StoragePoolVolumeDelete(args.Name, storagePoolVolumeTypeContainer, poolID)
+		s.Cluster.StoragePoolVolumeDelete(args.Name, storagePoolVolumeTypeContainer, poolID)
 		logger.Error("Failed to initialize container storage", ctxMap)
 		return nil, err
 	}
@@ -3132,7 +3132,7 @@ func (c *containerLXC) Delete() error {
 		poolID, _, _ := c.storage.GetContainerPoolInfo()
 
 		// Remove volume from storage pool.
-		err := c.db.StoragePoolVolumeDelete(c.Name(), storagePoolVolumeTypeContainer, poolID)
+		err := c.state.Cluster.StoragePoolVolumeDelete(c.Name(), storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return err
 		}
@@ -3226,7 +3226,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Rename storage volume for the container.
 	poolID, _, _ := c.storage.GetContainerPoolInfo()
-	err = c.db.StoragePoolVolumeRename(oldName, newName, storagePoolVolumeTypeContainer, poolID)
+	err = c.state.Cluster.StoragePoolVolumeRename(oldName, newName, storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		logger.Error("Failed renaming storage volume", ctxMap)
 		return err
@@ -3251,7 +3251,7 @@ func (c *containerLXC) Rename(newName string) error {
 			}
 
 			// Rename storage volume for the snapshot.
-			err = c.db.StoragePoolVolumeRename(sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
+			err = c.state.Cluster.StoragePoolVolumeRename(sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				logger.Error("Failed renaming storage volume", ctxMap)
 				return err
@@ -3380,12 +3380,12 @@ func writeBackupFile(c container) error {
 	}
 
 	s := c.DaemonState()
-	poolID, pool, err := s.Node.StoragePoolGet(poolName)
+	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
 	if err != nil {
 		return err
 	}
 
-	_, volume, err := s.Node.StoragePoolVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
+	_, volume, err := s.Cluster.StoragePoolVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		return err
 	}
@@ -3444,7 +3444,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Validate the new devices
-	err = containerValidDevices(c.db, args.Devices, false, false)
+	err = containerValidDevices(c.state.Cluster, args.Devices, false, false)
 	if err != nil {
 		return err
 	}
@@ -3605,7 +3605,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Do some validation of the devices diff
-	err = containerValidDevices(c.db, c.expandedDevices, false, true)
+	err = containerValidDevices(c.state.Cluster, c.expandedDevices, false, true)
 	if err != nil {
 		return err
 	}
@@ -7976,7 +7976,7 @@ func (c *containerLXC) StatePath() string {
 }
 
 func (c *containerLXC) StoragePool() (string, error) {
-	poolName, err := c.db.ContainerPool(c.Name())
+	poolName, err := c.state.Cluster.ContainerPool(c.Name())
 	if err != nil {
 		return "", err
 	}
