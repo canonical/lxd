@@ -2,7 +2,8 @@ package api
 
 // Cluster represents high-level information about a LXD cluster.
 type Cluster struct {
-	Networks []Network
+	StoragePools []StoragePool
+	Networks     []Network
 }
 
 // ClusterPost represents the fields required to bootstrap or join a LXD

@@ -170,13 +170,22 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClusteringJoin() {
 		"ipv4.nat": "true",
 	}
 	client := f.ClientUnix(leader)
-	suite.Req.Nil(client.CreateNetwork(network))
+	suite.Req.NoError(client.CreateNetwork(network))
+
+	pool := api.StoragePoolsPost{
+		Name:   "mypool",
+		Driver: "dir",
+	}
+	pool.Config = map[string]string{
+		"source": "",
+	}
+	suite.Req.NoError(client.CreateStoragePool(pool))
 
 	suite.command.PasswordReader = func(int) ([]byte, error) {
 		return []byte("sekret"), nil
 	}
 	port, err := shared.AllocatePort()
-	suite.Req.Nil(err)
+	suite.Req.NoError(err)
 	answers := &cmdInitAnswers{
 		WantClustering:           true,
 		ClusterName:              "rusp",
@@ -186,6 +195,7 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClusteringJoin() {
 		ClusterAcceptFingerprint: true,
 		ClusterConfirmLosingData: true,
 		ClusterConfig: []string{
+			"",               // storage source
 			"10.23.189.2/24", // ipv4.address
 			"true",           // ipv4.nat
 			"aaaa:bbbb:cccc:dddd::1/64", // ipv6.address
