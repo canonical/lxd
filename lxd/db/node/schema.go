@@ -6,14 +6,6 @@ package node
 // modify the database schema, please add a new schema update to update.go
 // and the run 'make update-schema'.
 const freshSchema = `
-CREATE TABLE certificates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    fingerprint VARCHAR(255) NOT NULL,
-    type INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    certificate TEXT NOT NULL,
-    UNIQUE (fingerprint)
-);
 CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key VARCHAR(255) NOT NULL,
