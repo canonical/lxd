@@ -57,6 +57,29 @@ func TestUpdateFromV1_Config(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestUpdateFromV1_Containers(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(2, nil)
+	require.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'one', '', '1.1.1.1', 666, 999, ?)", time.Now())
+	require.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO nodes VALUES (2, 'two', '', '2.2.2.2', 666, 999, ?)", time.Now())
+	require.NoError(t, err)
+
+	_, err = db.Exec(`
+INSERT INTO containers VALUES (1, 1, 'bionic', 1, 1, 0, ?, 0, ?, 'Bionic Beaver')
+`, time.Now(), time.Now())
+	require.NoError(t, err)
+
+	// Unique constraint on name
+	_, err = db.Exec(`
+INSERT INTO containers VALUES (2, 2, 'bionic', 2, 2, 1, ?, 1, ?, 'Ubuntu LTS')
+`, time.Now(), time.Now())
+	require.Error(t, err)
+}
+
 func TestUpdateFromV1_Network(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(2, nil)
