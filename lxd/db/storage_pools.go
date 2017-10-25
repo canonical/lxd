@@ -6,8 +6,61 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 )
+
+// StoragePoolConfigs returns a map associating each storage pool name to its
+// config values.
+func (c *ClusterTx) StoragePoolConfigs() (map[string]map[string]string, error) {
+	names, err := query.SelectStrings(c.tx, "SELECT name FROM storage_pools")
+	if err != nil {
+		return nil, err
+	}
+	pools := make(map[string]map[string]string, len(names))
+	for _, name := range names {
+		table := `
+storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config.storage_pool_id
+`
+		filter := fmt.Sprintf("storage_pools.name='%s'", name)
+		config, err := query.SelectConfig(c.tx, table, filter)
+		if err != nil {
+			return nil, err
+		}
+		pools[name] = config
+	}
+	return pools, nil
+}
+
+// StoragePoolIDs returns a map associating each storage pool name to its ID.
+func (c *ClusterTx) StoragePoolIDs() (map[string]int64, error) {
+	pools := []struct {
+		id   int64
+		name string
+	}{}
+	dest := func(i int) []interface{} {
+		pools = append(pools, struct {
+			id   int64
+			name string
+		}{})
+		return []interface{}{&pools[i].id, &pools[i].name}
+
+	}
+	err := query.SelectObjects(c.tx, dest, "SELECT id, name FROM storage_pools")
+	if err != nil {
+		return nil, err
+	}
+	ids := map[string]int64{}
+	for _, pool := range pools {
+		ids[pool.name] = pool.id
+	}
+	return ids, nil
+}
+
+// StoragePoolConfigAdd adds a new entry in the storage_pools_config table
+func (c *ClusterTx) StoragePoolConfigAdd(poolID, nodeID int64, config map[string]string) error {
+	return storagePoolConfigAdd(c.tx, poolID, nodeID, config)
+}
 
 // Get all storage pools.
 func (c *Cluster) StoragePools() ([]string, error) {
@@ -150,7 +203,7 @@ func (c *Cluster) StoragePoolCreate(poolName string, poolDescription string, poo
 		return -1, err
 	}
 
-	err = StoragePoolConfigAdd(tx, id, c.id, poolConfig)
+	err = storagePoolConfigAdd(tx, id, c.id, poolConfig)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -165,7 +218,7 @@ func (c *Cluster) StoragePoolCreate(poolName string, poolDescription string, poo
 }
 
 // Add new storage pool config.
-func StoragePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[string]string) error {
+func storagePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[string]string) error {
 	str := "INSERT INTO storage_pools_config (storage_pool_id, node_id, key, value) VALUES(?, ?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
@@ -217,7 +270,7 @@ func (c *Cluster) StoragePoolUpdate(poolName, description string, poolConfig map
 		return err
 	}
 
-	err = StoragePoolConfigAdd(tx, poolID, c.id, poolConfig)
+	err = storagePoolConfigAdd(tx, poolID, c.id, poolConfig)
 	if err != nil {
 		tx.Rollback()
 		return err
