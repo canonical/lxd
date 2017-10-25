@@ -31,6 +31,19 @@ func TestUpdateFromV0(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestUpdateFromV1_Certificates(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(2, nil)
+	require.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO certificates VALUES (1, 'abcd:efgh', 1, 'foo', 'FOO')")
+	require.NoError(t, err)
+
+	// Unique constraint on fingerprint.
+	_, err = db.Exec("INSERT INTO certificates VALUES (2, 'abcd:efgh', 2, 'bar', 'BAR')")
+	require.Error(t, err)
+}
+
 func TestUpdateFromV1_Config(t *testing.T) {
 	schema := cluster.Schema()
 	db, err := schema.ExerciseUpdate(2, nil)

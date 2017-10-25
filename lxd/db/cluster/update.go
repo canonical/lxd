@@ -30,6 +30,14 @@ var updates = map[int]schema.Update{
 func updateFromV1(tx *sql.Tx) error {
 	// config table
 	stmt := `
+CREATE TABLE certificates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    type INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    certificate TEXT NOT NULL,
+    UNIQUE (fingerprint)
+);
 CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key TEXT NOT NULL,
