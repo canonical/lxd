@@ -11,9 +11,9 @@ type CertInfo struct {
 }
 
 // CertificatesGet returns all certificates from the DB as CertBaseInfo objects.
-func (n *Node) CertificatesGet() (certs []*CertInfo, err error) {
+func (c *Cluster) CertificatesGet() (certs []*CertInfo, err error) {
 	rows, err := dbQuery(
-		n.db,
+		c.db,
 		"SELECT id, fingerprint, type, name, certificate FROM certificates",
 	)
 	if err != nil {
@@ -42,7 +42,7 @@ func (n *Node) CertificatesGet() (certs []*CertInfo, err error) {
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (n *Node) CertificateGet(fingerprint string) (cert *CertInfo, err error) {
+func (c *Cluster) CertificateGet(fingerprint string) (cert *CertInfo, err error) {
 	cert = new(CertInfo)
 
 	inargs := []interface{}{fingerprint + "%"}
@@ -61,7 +61,7 @@ func (n *Node) CertificateGet(fingerprint string) (cert *CertInfo, err error) {
 			certificates
 		WHERE fingerprint LIKE ?`
 
-	if err = dbQueryRowScan(n.db, query, inargs, outfmt); err != nil {
+	if err = dbQueryRowScan(c.db, query, inargs, outfmt); err != nil {
 		return nil, err
 	}
 
@@ -70,8 +70,8 @@ func (n *Node) CertificateGet(fingerprint string) (cert *CertInfo, err error) {
 
 // CertSave stores a CertBaseInfo object in the db,
 // it will ignore the ID field from the CertInfo.
-func (n *Node) CertSave(cert *CertInfo) error {
-	tx, err := begin(n.db)
+func (c *Cluster) CertSave(cert *CertInfo) error {
+	tx, err := begin(c.db)
 	if err != nil {
 		return err
 	}
@@ -103,8 +103,8 @@ func (n *Node) CertSave(cert *CertInfo) error {
 }
 
 // CertDelete deletes a certificate from the db.
-func (n *Node) CertDelete(fingerprint string) error {
-	_, err := exec(n.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
+func (c *Cluster) CertDelete(fingerprint string) error {
+	_, err := exec(c.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
 	if err != nil {
 		return err
 	}
@@ -112,8 +112,8 @@ func (n *Node) CertDelete(fingerprint string) error {
 	return nil
 }
 
-func (n *Node) CertUpdate(fingerprint string, certName string, certType int) error {
-	tx, err := begin(n.db)
+func (c *Cluster) CertUpdate(fingerprint string, certName string, certType int) error {
+	tx, err := begin(c.db)
 	if err != nil {
 		return err
 	}

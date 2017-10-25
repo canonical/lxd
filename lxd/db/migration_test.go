@@ -40,6 +40,17 @@ func TestImportPreClusteringData(t *testing.T) {
 	err = cluster.ImportPreClusteringData(dump)
 	require.NoError(t, err)
 
+	// certificates
+	certs, err := cluster.CertificatesGet()
+	require.NoError(t, err)
+	assert.Len(t, certs, 1)
+	cert := certs[0]
+	assert.Equal(t, 1, cert.ID)
+	assert.Equal(t, "abcd:efgh", cert.Fingerprint)
+	assert.Equal(t, 1, cert.Type)
+	assert.Equal(t, "foo", cert.Name)
+	assert.Equal(t, "FOO", cert.Certificate)
+
 	// config
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := tx.Config()
@@ -85,6 +96,7 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 
 	stmts := []string{
 		preClusteringNodeSchema,
+		"INSERT INTO certificates VALUES (1, 'abcd:efgh', 1, 'foo', 'FOO')",
 		"INSERT INTO config VALUES(1, 'core.https_address', '1.2.3.4:666')",
 		"INSERT INTO networks VALUES(1, 'lxcbr0', 'LXD bridge')",
 		"INSERT INTO networks_config VALUES(1, 1, 'ipv4.nat', 'true')",

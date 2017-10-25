@@ -135,6 +135,7 @@ type Dump struct {
 }
 
 var preClusteringTables = []string{
+	"certificates",
 	"config",
 	"networks",
 	"networks_config",
