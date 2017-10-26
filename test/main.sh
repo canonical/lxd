@@ -24,6 +24,9 @@ if [ -z "${LXD_BACKEND:-}" ]; then
     LXD_BACKEND="dir"
 fi
 
+# shellcheck disable=SC2034
+LXD_NETNS=""
+
 import_subdir_files() {
     test "$1"
     # shellcheck disable=SC2039
