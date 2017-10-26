@@ -40,7 +40,11 @@ spawn_lxd() {
     echo "==> Spawning lxd in ${lxddir}"
     # shellcheck disable=SC2086
 
-    LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    if [ "${LXD_NETNS}" = "" ]; then
+	LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    else
+	LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" ip netns exec "${LXD_NETNS}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     # shellcheck disable=SC2153
@@ -50,15 +54,17 @@ spawn_lxd() {
     echo "==> Confirming lxd is responsive"
     LXD_DIR="${lxddir}" lxd waitready --timeout=300
 
-    echo "==> Binding to network"
-    # shellcheck disable=SC2034
-    for i in $(seq 10); do
-        addr="127.0.0.1:$(local_tcp_port)"
-        LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}" || continue
-        echo "${addr}" > "${lxddir}/lxd.addr"
-        echo "==> Bound to ${addr}"
-        break
-    done
+    if [ "${LXD_NETNS}" = "" ]; then
+	echo "==> Binding to network"
+	# shellcheck disable=SC2034
+	for i in $(seq 10); do
+            addr="127.0.0.1:$(local_tcp_port)"
+            LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}" || continue
+            echo "${addr}" > "${lxddir}/lxd.addr"
+            echo "==> Bound to ${addr}"
+            break
+	done
+    fi
 
     echo "==> Setting trust password"
     LXD_DIR="${lxddir}" lxc config set core.trust_password foo
@@ -66,8 +72,10 @@ spawn_lxd() {
         set -x
     fi
 
-    echo "==> Setting up networking"
-    LXD_DIR="${lxddir}" lxc profile device add default eth0 nic nictype=p2p name=eth0
+    if [ "${LXD_NETNS}" = "" ]; then
+	echo "==> Setting up networking"
+	LXD_DIR="${lxddir}" lxc profile device add default eth0 nic nictype=p2p name=eth0
+    fi
 
     if [ "${storage}" = true ]; then
         echo "==> Configuring storage backend"
@@ -289,4 +297,8 @@ cleanup_lxds() {
     wipe "$test_dir"
 
     umount_loops "$test_dir"
+
+    # Cleanup clustering networking, if any
+    teardown_clustering_netns
+    teardown_clustering_bridge
 }
