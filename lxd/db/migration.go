@@ -65,6 +65,13 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 		return errors.Wrap(err, "failed to start cluster database transaction")
 	}
 
+	// Delete the default profile in the cluster database, which always
+	// gets created no matter what.
+	_, err = tx.Exec("DELETE FROM profiles WHERE id=1")
+	if err != nil {
+		return errors.Wrap(err, "failed to delete default profile")
+	}
+
 	for _, table := range preClusteringTables {
 		for i, row := range dump.Data[table] {
 			for i, element := range row {
@@ -88,6 +95,8 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 			}
 
 			switch table {
+			case "containers":
+				fallthrough
 			case "networks_config":
 				appendNodeID()
 			case "storage_pools_config":
@@ -117,6 +126,28 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 			if n != 1 {
 				return fmt.Errorf("could not insert %d int %s", i, table)
 			}
+
+			// Also insert the image ID -> node ID association.
+			if table == "images" {
+				stmt := "INSERT INTO images_nodes(image_id, node_id) VALUES(?, 1)"
+				var imageID int64
+				for i, column := range columns {
+					if column == "id" {
+						imageID = row[i].(int64)
+						if err != nil {
+							return err
+						}
+						break
+					}
+				}
+				if imageID == 0 {
+					return fmt.Errorf("image has invalid ID")
+				}
+				_, err := tx.Exec(stmt, row...)
+				if err != nil {
+					return errors.Wrapf(err, "failed to associate image to node")
+				}
+			}
 		}
 	}
 
@@ -137,8 +168,18 @@ type Dump struct {
 var preClusteringTables = []string{
 	"certificates",
 	"config",
+	"containers",
+	"containers_config",
+	"containers_devices",
+	"containers_devices_config",
+	"containers_profiles",
+	"images",
+	"images_aliases",
+	"images_properties",
+	"images_source",
 	"networks",
 	"networks_config",
+	"profiles",
 	"storage_pools",
 	"storage_pools_config",
 	"storage_volumes",

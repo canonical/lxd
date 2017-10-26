@@ -82,12 +82,12 @@ func (suite *lxdTestSuite) SetupTest() {
 	devicesMap := map[string]map[string]string{}
 	devicesMap["root"] = rootDev
 
-	defaultID, _, err := suite.d.db.ProfileGet("default")
+	defaultID, _, err := suite.d.cluster.ProfileGet("default")
 	if err != nil {
 		suite.T().Fatalf("failed to get default profile: %v", err)
 	}
 
-	tx, err := suite.d.db.Begin()
+	tx, err := suite.d.cluster.Begin()
 	if err != nil {
 		suite.T().Fatalf("failed to begin transaction: %v", err)
 	}

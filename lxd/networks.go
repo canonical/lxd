@@ -190,7 +190,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	n.Config = map[string]string{}
 
 	// Look for containers using the interface
-	cts, err := d.db.ContainersList(db.CTypeRegular)
+	cts, err := d.cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return api.Network{}, err
 	}
@@ -482,7 +482,7 @@ func (n *network) IsRunning() bool {
 
 func (n *network) IsUsed() bool {
 	// Look for containers using the interface
-	cts, err := n.db.ContainersList(db.CTypeRegular)
+	cts, err := n.state.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return true
 	}

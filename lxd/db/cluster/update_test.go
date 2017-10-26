@@ -78,6 +78,18 @@ INSERT INTO containers VALUES (1, 1, 'bionic', 1, 1, 0, ?, 0, ?, 'Bionic Beaver'
 INSERT INTO containers VALUES (2, 2, 'bionic', 2, 2, 1, ?, 1, ?, 'Ubuntu LTS')
 `, time.Now(), time.Now())
 	require.Error(t, err)
+
+	// Cascading delete
+	_, err = db.Exec("INSERT INTO containers_config VALUES (1, 1, 'thekey', 'thevalue')")
+	require.NoError(t, err)
+	_, err = db.Exec("DELETE FROM containers")
+	require.NoError(t, err)
+	result, err := db.Exec("DELETE FROM containers_config")
+	require.NoError(t, err)
+	n, err := result.RowsAffected()
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), n) // The row was already deleted by the previous query
+
 }
 
 func TestUpdateFromV1_Network(t *testing.T) {

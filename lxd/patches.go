@@ -107,11 +107,11 @@ func patchesApplyAll(d *Daemon) error {
 
 // Patches begin here
 func patchLeftoverProfileConfig(name string, d *Daemon) error {
-	return d.db.ProfileCleanupLeftover()
+	return d.cluster.ProfileCleanupLeftover()
 }
 
 func patchInvalidProfileNames(name string, d *Daemon) error {
-	profiles, err := d.db.Profiles()
+	profiles, err := d.cluster.Profiles()
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 	for _, profile := range profiles {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
 			logger.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
-			err := d.db.ProfileDelete(profile)
+			err := d.cluster.ProfileDelete(profile)
 			if err != nil {
 				return err
 			}
@@ -208,25 +208,25 @@ func patchStorageApi(name string, d *Daemon) error {
 	// Check if this LXD instace currently has any containers, snapshots, or
 	// images configured. If so, we create a default storage pool in the
 	// database. Otherwise, the user will have to run LXD init.
-	cRegular, err := d.db.ContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := d.db.ContainersList(db.CTypeSnapshot)
+	cSnapshots, err := d.cluster.ContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing public images.
-	imgPublic, err := d.db.ImagesGet(true)
+	imgPublic, err := d.cluster.ImagesGet(true)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing private images.
-	imgPrivate, err := d.db.ImagesGet(false)
+	imgPrivate, err := d.cluster.ImagesGet(false)
 	if err != nil {
 		return err
 	}
@@ -450,7 +450,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := d.db.ContainerGetSnapshots(ct)
+		ctSnapshots, err := d.cluster.ContainerGetSnapshots(ct)
 		if err != nil {
 			return err
 		}
@@ -1126,7 +1126,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := d.db.ContainerGetSnapshots(ct)
+		ctSnapshots, err := d.cluster.ContainerGetSnapshots(ct)
 		if err != nil {
 			return err
 		}
@@ -1572,7 +1572,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := d.db.ContainerGetSnapshots(ct)
+		ctSnapshots, err := d.cluster.ContainerGetSnapshots(ct)
 		if err != nil {
 			logger.Errorf("Failed to query database")
 			return err
@@ -1715,10 +1715,10 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 	// appropriate device including a pool is added to the default profile
 	// or the user explicitly passes the pool the container's storage volume
 	// is supposed to be created on.
-	profiles, err := d.db.Profiles()
+	profiles, err := d.cluster.Profiles()
 	if err == nil {
 		for _, pName := range profiles {
-			pID, p, err := d.db.ProfileGet(pName)
+			pID, p, err := d.cluster.ProfileGet(pName)
 			if err != nil {
 				logger.Errorf("Could not query database: %s.", err)
 				return err
@@ -1878,13 +1878,13 @@ func patchStorageApiV1(name string, d *Daemon) error {
 		return nil
 	}
 
-	cRegular, err := d.db.ContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := d.db.ContainersList(db.CTypeSnapshot)
+	cSnapshots, err := d.cluster.ContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -1899,7 +1899,7 @@ func patchStorageApiV1(name string, d *Daemon) error {
 }
 
 func patchStorageApiDirCleanup(name string, d *Daemon) error {
-	fingerprints, err := d.db.ImagesGet(false)
+	fingerprints, err := d.cluster.ImagesGet(false)
 	if err != nil {
 		return err
 	}
@@ -2482,18 +2482,18 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 }
 
 func patchFixUploadedAt(name string, d *Daemon) error {
-	images, err := d.db.ImagesGet(false)
+	images, err := d.cluster.ImagesGet(false)
 	if err != nil {
 		return err
 	}
 
 	for _, fingerprint := range images {
-		id, image, err := d.db.ImageGet(fingerprint, false, true)
+		id, image, err := d.cluster.ImageGet(fingerprint, false, true)
 		if err != nil {
 			return err
 		}
 
-		err = d.db.ImageUploadedAt(id, image.UploadedAt)
+		err = d.cluster.ImageUploadedAt(id, image.UploadedAt)
 		if err != nil {
 			return err
 		}
@@ -2543,7 +2543,7 @@ func patchStorageApiCephSizeRemove(name string, d *Daemon) error {
 }
 
 func patchDevicesNewNamingScheme(name string, d *Daemon) error {
-	cts, err := d.db.ContainersList(db.CTypeRegular)
+	cts, err := d.cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to retrieve containers from database")
 		return err
@@ -2733,7 +2733,7 @@ func patchUpdateFromV10(d *Daemon) error {
 }
 
 func patchUpdateFromV11(d *Daemon) error {
-	cNames, err := d.db.ContainersList(db.CTypeSnapshot)
+	cNames, err := d.cluster.ContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -2804,7 +2804,7 @@ func patchUpdateFromV15(d *Daemon) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
 
-	cNames, err := d.db.ContainersList(db.CTypeRegular)
+	cNames, err := d.cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}

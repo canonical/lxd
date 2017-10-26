@@ -32,7 +32,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		if req.Source.Server != "" {
 			hash = req.Source.Alias
 		} else {
-			_, alias, err := d.db.ImageAliasGet(req.Source.Alias, true)
+			_, alias, err := d.cluster.ImageAliasGet(req.Source.Alias, true)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -44,7 +44,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
-		hashes, err := d.db.ImagesGet(false)
+		hashes, err := d.cluster.ImagesGet(false)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -52,7 +52,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		var image *api.Image
 
 		for _, imageHash := range hashes {
-			_, img, err := d.db.ImageGet(imageHash, false, true)
+			_, img, err := d.cluster.ImageGet(imageHash, false, true)
 			if err != nil {
 				continue
 			}
@@ -108,7 +108,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 				return err
 			}
 		} else {
-			_, info, err = d.db.ImageGet(hash, false, false)
+			_, info, err = d.cluster.ImageGet(hash, false, false)
 			if err != nil {
 				return err
 			}
@@ -218,7 +218,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
 		for _, pName := range req.Profiles {
-			_, p, err := d.db.ProfileGet(pName)
+			_, p, err := d.cluster.ProfileGet(pName)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -292,7 +292,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
-	_, _, err = d.db.ImageGet(req.Source.BaseImage, false, true)
+	_, _, err = d.cluster.ImageGet(req.Source.BaseImage, false, true)
 	if err != nil {
 		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
@@ -530,7 +530,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Name == "" {
-		cs, err := d.db.ContainersList(db.CTypeRegular)
+		cs, err := d.cluster.ContainersList(db.CTypeRegular)
 		if err != nil {
 			return SmartError(err)
 		}

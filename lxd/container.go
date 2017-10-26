@@ -572,7 +572,7 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 	// Now create the empty storage
 	err = c.Storage().ContainerCreate(c)
 	if err != nil {
-		d.db.ContainerRemove(args.Name)
+		d.cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -596,7 +596,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 	// Now create the empty snapshot
 	err = c.Storage().ContainerSnapshotCreateEmpty(c)
 	if err != nil {
-		s.Node.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -605,7 +605,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 
 func containerCreateFromImage(s *state.State, args db.ContainerArgs, hash string) (container, error) {
 	// Get the image properties
-	_, img, err := s.Node.ImageGet(hash, false, false)
+	_, img, err := s.Cluster.ImageGet(hash, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -626,16 +626,16 @@ func containerCreateFromImage(s *state.State, args db.ContainerArgs, hash string
 		return nil, err
 	}
 
-	err = s.Node.ImageLastAccessUpdate(hash, time.Now().UTC())
+	err = s.Cluster.ImageLastAccessUpdate(hash, time.Now().UTC())
 	if err != nil {
-		s.Node.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
 	// Now create the storage from an image
 	err = c.Storage().ContainerCreateFromImage(c, hash)
 	if err != nil {
-		s.Node.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -660,7 +660,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	if !containerOnly {
 		snapshots, err := sourceContainer.Snapshots()
 		if err != nil {
-			s.Node.ContainerRemove(args.Name)
+			s.Cluster.ContainerRemove(args.Name)
 			return nil, err
 		}
 
@@ -692,9 +692,9 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	err = ct.Storage().ContainerCopy(ct, sourceContainer, containerOnly)
 	if err != nil {
 		for _, v := range csList {
-			s.Node.ContainerRemove((*v).Name())
+			s.Cluster.ContainerRemove((*v).Name())
 		}
-		s.Node.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -773,7 +773,7 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 	// Clone the container
 	err = sourceContainer.Storage().ContainerSnapshotCreate(c, sourceContainer)
 	if err != nil {
-		s.Node.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -852,7 +852,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate profiles
-	profiles, err := s.Node.Profiles()
+	profiles, err := s.Cluster.Profiles()
 	if err != nil {
 		return nil, err
 	}
@@ -864,7 +864,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Create the container entry
-	id, err := s.Node.ContainerCreate(args)
+	id, err := s.Cluster.ContainerCreate(args)
 	if err != nil {
 		if err == db.DbErrAlreadyDefined {
 			thing := "Container"
@@ -882,9 +882,9 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	args.Id = id
 
 	// Read the timestamp from the database
-	dbArgs, err := s.Node.ContainerGet(args.Name)
+	dbArgs, err := s.Cluster.ContainerGet(args.Name)
 	if err != nil {
-		s.Node.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 	args.CreationDate = dbArgs.CreationDate
@@ -893,7 +893,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Setup the container struct and finish creation (storage and idmap)
 	c, err := containerLXCCreate(s, args)
 	if err != nil {
-		s.Node.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -948,7 +948,7 @@ func containerConfigureInternal(c container) error {
 
 func containerLoadById(s *state.State, id int) (container, error) {
 	// Get the DB record
-	name, err := s.Node.ContainerName(id)
+	name, err := s.Cluster.ContainerName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -958,7 +958,7 @@ func containerLoadById(s *state.State, id int) (container, error) {
 
 func containerLoadByName(s *state.State, name string) (container, error) {
 	// Get the DB record
-	args, err := s.Node.ContainerGet(name)
+	args, err := s.Cluster.ContainerGet(name)
 	if err != nil {
 		return nil, err
 	}

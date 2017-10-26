@@ -119,8 +119,18 @@ CREATE TABLE raft_nodes (
 );
 DELETE FROM config WHERE NOT key='core.https_address';
 DROP TABLE certificates;
+DROP TABLE containers_devices_config;
+DROP TABLE containers_devices;
+DROP TABLE containers_config;
+DROP TABLE containers_profiles;
+DROP TABLE containers;
+DROP TABLE images_aliases;
+DROP TABLE images_properties;
+DROP TABLE images_source;
+DROP TABLE images;
 DROP TABLE networks_config;
 DROP TABLE networks;
+DROP TABLE profiles;
 DROP TABLE storage_volumes_config;
 DROP TABLE storage_volumes;
 DROP TABLE storage_pools_config;
