@@ -244,6 +244,14 @@ func (c *Cluster) Close() error {
 	return c.db.Close()
 }
 
+// DB returns the low level database handle to the cluster database.
+//
+// FIXME: this is used for compatibility with some legacy code, and should be
+//        dropped once there are no call sites left.
+func (c *Cluster) DB() *sql.DB {
+	return c.db
+}
+
 // UpdateSchemasDotGo updates the schema.go files in the local/ and cluster/
 // sub-packages.
 func UpdateSchemasDotGo() error {
