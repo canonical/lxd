@@ -12,101 +12,10 @@ CREATE TABLE config (
     value TEXT,
     UNIQUE (key)
 );
-CREATE TABLE "containers" (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    architecture INTEGER NOT NULL,
-    type INTEGER NOT NULL,
-    ephemeral INTEGER NOT NULL DEFAULT 0,
-    creation_date DATETIME NOT NULL DEFAULT 0,
-    stateful INTEGER NOT NULL DEFAULT 0,
-    last_use_date DATETIME,
-    description TEXT,
-    UNIQUE (name)
-);
-CREATE TABLE containers_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
-    UNIQUE (container_id, key)
-);
-CREATE TABLE containers_devices (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    type INTEGER NOT NULL default 0,
-    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
-    UNIQUE (container_id, name)
-);
-CREATE TABLE containers_devices_config (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    container_device_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    FOREIGN KEY (container_device_id) REFERENCES containers_devices (id) ON DELETE CASCADE,
-    UNIQUE (container_device_id, key)
-);
-CREATE TABLE containers_profiles (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    profile_id INTEGER NOT NULL,
-    apply_order INTEGER NOT NULL default 0,
-    UNIQUE (container_id, profile_id),
-    FOREIGN KEY (container_id) REFERENCES containers(id) ON DELETE CASCADE,
-    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
-);
-CREATE TABLE images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    fingerprint VARCHAR(255) NOT NULL,
-    filename VARCHAR(255) NOT NULL,
-    size INTEGER NOT NULL,
-    public INTEGER NOT NULL DEFAULT 0,
-    architecture INTEGER NOT NULL,
-    creation_date DATETIME,
-    expiry_date DATETIME,
-    upload_date DATETIME NOT NULL,
-    cached INTEGER NOT NULL DEFAULT 0,
-    last_use_date DATETIME,
-    auto_update INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (fingerprint)
-);
-CREATE TABLE "images_aliases" (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    image_id INTEGER NOT NULL,
-    description TEXT,
-    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
-    UNIQUE (name)
-);
-CREATE TABLE images_properties (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    image_id INTEGER NOT NULL,
-    type INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
-);
-CREATE TABLE images_source (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    image_id INTEGER NOT NULL,
-    server TEXT NOT NULL,
-    protocol INTEGER NOT NULL,
-    certificate TEXT NOT NULL,
-    alias VARCHAR(255) NOT NULL,
-    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
-);
 CREATE TABLE patches (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     applied_at DATETIME NOT NULL,
-    UNIQUE (name)
-);
-CREATE TABLE profiles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
     UNIQUE (name)
 );
 CREATE TABLE profiles_config (

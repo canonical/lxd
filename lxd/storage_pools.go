@@ -231,7 +231,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if the storage pool is still referenced in any profiles.
-	profiles, err := profilesUsingPoolGetNames(d.db, poolName)
+	profiles, err := profilesUsingPoolGetNames(d.cluster, poolName)
 	if err != nil {
 		return SmartError(err)
 	}

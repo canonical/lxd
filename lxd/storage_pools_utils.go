@@ -90,7 +90,7 @@ func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]
 	}
 
 	// Retrieve all profiles that exist on this storage pool.
-	profiles, err := profilesUsingPoolGetNames(state.Node, poolName)
+	profiles, err := profilesUsingPoolGetNames(state.Cluster, poolName)
 
 	if err != nil {
 		return []string{}, err
@@ -130,7 +130,7 @@ func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]
 	return poolUsedBy, err
 }
 
-func profilesUsingPoolGetNames(db *db.Node, poolName string) ([]string, error) {
+func profilesUsingPoolGetNames(db *db.Cluster, poolName string) ([]string, error) {
 	usedBy := []string{}
 
 	profiles, err := db.Profiles()

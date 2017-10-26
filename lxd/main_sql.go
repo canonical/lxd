@@ -35,7 +35,7 @@ func cmdSQL(args *Args) error {
 	if err != nil {
 		return err
 	}
-	if strings.HasPrefix(query, "SELECT") {
+	if strings.HasPrefix(strings.ToUpper(query), "SELECT") {
 		// Print results in tabular format
 		widths := make([]int, len(result.Columns))
 		for i, column := range result.Columns {

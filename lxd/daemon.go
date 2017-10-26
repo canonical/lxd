@@ -565,7 +565,7 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := d.db.ContainersList(db.CTypeRegular)
+	results, err := d.cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return 0, err
 	}
@@ -602,10 +602,21 @@ func (d *Daemon) Stop() error {
 
 	shouldUnmount := false
 	if d.db != nil {
-		if n, err := d.numRunningContainers(); err != nil || n == 0 {
+		// It might be that database nodes are all down, in that case
+		// we don't want to wait too much.
+		//
+		// FIXME: it should be possible to provide a context or a
+		//        timeout for database queries.
+		ch := make(chan bool)
+		go func() {
+			n, err := d.numRunningContainers()
+			ch <- err != nil || n == 0
+		}()
+		select {
+		case shouldUnmount = <-ch:
+		case <-time.After(2 * time.Second):
 			shouldUnmount = true
 		}
-
 		logger.Infof("Closing the database")
 		trackError(d.db.Close())
 	}
@@ -738,10 +749,15 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	for i, patch := range legacyPatches {
 		legacy[i] = &db.LegacyPatch{
 			Hook: func(node *sql.DB) error {
-				// FIXME: Attach the local db to the Daemon, since at
-				//        this stage we're not fully initialized, yet
-				//        some legacy patches expect to find it here.
+				// FIXME: Use the low-level *node* SQL db as backend for both the
+				//        db.Node and db.Cluster objects, since at this point we
+				//        haven't migrated the data to the cluster database yet.
+				cluster := d.cluster
+				defer func() {
+					d.cluster = cluster
+				}()
 				d.db = db.ForLegacyPatches(node)
+				d.cluster = db.ForLocalInspection(node)
 				return patch(d)
 			},
 		}

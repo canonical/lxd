@@ -173,7 +173,7 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 
 func storagePoolVolumeUsedByContainersGet(s *state.State, volumeName string,
 	volumeTypeName string) ([]string, error) {
-	cts, err := s.Node.ContainersList(db.CTypeRegular)
+	cts, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return []string{}, err
 	}
@@ -411,7 +411,7 @@ func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeNam
 			fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
 	}
 
-	profiles, err := profilesUsingPoolVolumeGetNames(s.Node, volumeName, volumeTypeName)
+	profiles, err := profilesUsingPoolVolumeGetNames(s.Cluster, volumeName, volumeTypeName)
 	if err != nil {
 		return []string{}, err
 	}
@@ -427,7 +427,7 @@ func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeNam
 	return volumeUsedBy, nil
 }
 
-func profilesUsingPoolVolumeGetNames(db *db.Node, volumeName string, volumeType string) ([]string, error) {
+func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeType string) ([]string, error) {
 	usedBy := []string{}
 
 	profiles, err := db.Profiles()

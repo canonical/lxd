@@ -84,10 +84,6 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 	}
 
 	if initial == 0 {
-		err := node.ProfileCreateDefault()
-		if err != nil {
-			return nil, nil, err
-		}
 		if fresh != nil {
 			err := fresh(node)
 			if err != nil {
@@ -201,6 +197,13 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 	return cluster, nil
 }
 
+// ForLocalInspection is a aid for the hack in initializeDbObject, which
+// sets the db-related Deamon attributes upfront, to be backward compatible
+// with the legacy patches that need to interact with the database.
+func ForLocalInspection(db *sql.DB) *Cluster {
+	return &Cluster{db: db}
+}
+
 // Transaction creates a new ClusterTx object and transactionally executes the
 // cluster database interactions invoked by the given function. If the function
 // returns no error, all database changes are committed to the cluster database
@@ -250,6 +253,13 @@ func (c *Cluster) Close() error {
 //        dropped once there are no call sites left.
 func (c *Cluster) DB() *sql.DB {
 	return c.db
+}
+
+// Begin a new transaction against the cluster database.
+//
+// FIXME: legacy method.
+func (c *Cluster) Begin() (*sql.Tx, error) {
+	return begin(c.db)
 }
 
 // UpdateSchemasDotGo updates the schema.go files in the local/ and cluster/

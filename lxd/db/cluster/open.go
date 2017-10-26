@@ -96,7 +96,8 @@ func EnsureSchema(db *sql.DB, address string) (bool, error) {
 	}
 
 	// When creating a database from scratch, insert an entry for node
-	// 1. This is needed for referential integrity with other tables.
+	// 1. This is needed for referential integrity with other tables. Also,
+	// create a default profile.
 	if initial == 0 {
 		stmt := `
 INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '0.0.0.0', ?, ?)
@@ -106,6 +107,13 @@ INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '
 			return false, err
 		}
 
+		stmt = `
+INSERT INTO profiles (name, description) VALUES ('default', 'Default LXD profile')
+`
+		_, err = db.Exec(stmt)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	return true, err

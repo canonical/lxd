@@ -40,13 +40,13 @@ const (
 	CTypeSnapshot ContainerType = 1
 )
 
-func (n *Node) ContainerRemove(name string) error {
-	id, err := n.ContainerId(name)
+func (c *Cluster) ContainerRemove(name string) error {
+	id, err := c.ContainerId(name)
 	if err != nil {
 		return err
 	}
 
-	_, err = exec(n.db, "DELETE FROM containers WHERE id=?", id)
+	_, err = exec(c.db, "DELETE FROM containers WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -54,25 +54,25 @@ func (n *Node) ContainerRemove(name string) error {
 	return nil
 }
 
-func (n *Node) ContainerName(id int) (string, error) {
+func (c *Cluster) ContainerName(id int) (string, error) {
 	q := "SELECT name FROM containers WHERE id=?"
 	name := ""
 	arg1 := []interface{}{id}
 	arg2 := []interface{}{&name}
-	err := dbQueryRowScan(n.db, q, arg1, arg2)
+	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	return name, err
 }
 
-func (n *Node) ContainerId(name string) (int, error) {
+func (c *Cluster) ContainerId(name string) (int, error) {
 	q := "SELECT id FROM containers WHERE name=?"
 	id := -1
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id}
-	err := dbQueryRowScan(n.db, q, arg1, arg2)
+	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	return id, err
 }
 
-func (n *Node) ContainerGet(name string) (ContainerArgs, error) {
+func (c *Cluster) ContainerGet(name string) (ContainerArgs, error) {
 	var used *time.Time // Hold the db-returned time
 	description := sql.NullString{}
 
@@ -84,7 +84,7 @@ func (n *Node) ContainerGet(name string) (ContainerArgs, error) {
 	q := "SELECT id, description, architecture, type, ephemeral, stateful, creation_date, last_use_date FROM containers WHERE name=?"
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&args.Id, &description, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate, &used}
-	err := dbQueryRowScan(n.db, q, arg1, arg2)
+	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		return args, err
 	}
@@ -109,13 +109,13 @@ func (n *Node) ContainerGet(name string) (ContainerArgs, error) {
 		args.LastUsedDate = time.Unix(0, 0).UTC()
 	}
 
-	config, err := n.ContainerConfig(args.Id)
+	config, err := c.ContainerConfig(args.Id)
 	if err != nil {
 		return args, err
 	}
 	args.Config = config
 
-	profiles, err := n.ContainerProfiles(args.Id)
+	profiles, err := c.ContainerProfiles(args.Id)
 	if err != nil {
 		return args, err
 	}
@@ -123,7 +123,7 @@ func (n *Node) ContainerGet(name string) (ContainerArgs, error) {
 
 	/* get container_devices */
 	args.Devices = types.Devices{}
-	newdevs, err := n.Devices(name, false)
+	newdevs, err := c.Devices(name, false)
 	if err != nil {
 		return args, err
 	}
@@ -135,13 +135,13 @@ func (n *Node) ContainerGet(name string) (ContainerArgs, error) {
 	return args, nil
 }
 
-func (n *Node) ContainerCreate(args ContainerArgs) (int, error) {
-	_, err := n.ContainerId(args.Name)
+func (c *Cluster) ContainerCreate(args ContainerArgs) (int, error) {
+	_, err := c.ContainerId(args.Name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
 	}
 
-	tx, err := begin(n.db)
+	tx, err := begin(c.db)
 	if err != nil {
 		return 0, err
 	}
@@ -159,14 +159,14 @@ func (n *Node) ContainerCreate(args ContainerArgs) (int, error) {
 	args.CreationDate = time.Now().UTC()
 	args.LastUsedDate = time.Unix(0, 0).UTC()
 
-	str := fmt.Sprintf("INSERT INTO containers (name, architecture, type, ephemeral, creation_date, last_use_date, stateful) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	str := fmt.Sprintf("INSERT INTO containers (node_id, name, architecture, type, ephemeral, creation_date, last_use_date, stateful) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix(), args.LastUsedDate.Unix(), statefulInt)
+	result, err := stmt.Exec(c.id, args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix(), args.LastUsedDate.Unix(), statefulInt)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -238,27 +238,27 @@ func ContainerConfigInsert(tx *sql.Tx, id int, config map[string]string) error {
 	return nil
 }
 
-func (n *Node) ContainerConfigGet(id int, key string) (string, error) {
+func (c *Cluster) ContainerConfigGet(id int, key string) (string, error) {
 	q := "SELECT value FROM containers_config WHERE container_id=? AND key=?"
 	value := ""
 	arg1 := []interface{}{id, key}
 	arg2 := []interface{}{&value}
-	err := dbQueryRowScan(n.db, q, arg1, arg2)
+	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	return value, err
 }
 
-func (n *Node) ContainerConfigRemove(id int, name string) error {
-	_, err := exec(n.db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
+func (c *Cluster) ContainerConfigRemove(id int, name string) error {
+	_, err := exec(c.db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
 	return err
 }
 
-func (n *Node) ContainerSetStateful(id int, stateful bool) error {
+func (c *Cluster) ContainerSetStateful(id int, stateful bool) error {
 	statefulInt := 0
 	if stateful {
 		statefulInt = 1
 	}
 
-	_, err := exec(n.db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
+	_, err := exec(c.db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
 	return err
 }
 
@@ -285,7 +285,7 @@ func ContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
 }
 
 // Get a list of profiles for a given container id.
-func (n *Node) ContainerProfiles(containerId int) ([]string, error) {
+func (c *Cluster) ContainerProfiles(containerId int) ([]string, error) {
 	var name string
 	var profiles []string
 
@@ -297,7 +297,7 @@ func (n *Node) ContainerProfiles(containerId int) ([]string, error) {
 	inargs := []interface{}{containerId}
 	outfmt := []interface{}{name}
 
-	results, err := queryScan(n.db, query, inargs, outfmt)
+	results, err := queryScan(c.db, query, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func (n *Node) ContainerProfiles(containerId int) ([]string, error) {
 }
 
 // ContainerConfig gets the container configuration map from the DB
-func (n *Node) ContainerConfig(containerId int) (map[string]string, error) {
+func (c *Cluster) ContainerConfig(containerId int) (map[string]string, error) {
 	var key, value string
 	q := `SELECT key, value FROM containers_config WHERE container_id=?`
 
@@ -320,7 +320,7 @@ func (n *Node) ContainerConfig(containerId int) (map[string]string, error) {
 	outfmt := []interface{}{key, value}
 
 	// Results is already a slice here, not db Rows anymore.
-	results, err := queryScan(n.db, q, inargs, outfmt)
+	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err //SmartError will wrap this and make "not found" errors pretty
 	}
@@ -337,12 +337,12 @@ func (n *Node) ContainerConfig(containerId int) (map[string]string, error) {
 	return config, nil
 }
 
-func (n *Node) ContainersList(cType ContainerType) ([]string, error) {
+func (c *Cluster) ContainersList(cType ContainerType) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? ORDER BY name")
 	inargs := []interface{}{cType}
 	var container string
 	outfmt := []interface{}{container}
-	result, err := queryScan(n.db, q, inargs, outfmt)
+	result, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -355,14 +355,14 @@ func (n *Node) ContainersList(cType ContainerType) ([]string, error) {
 	return ret, nil
 }
 
-func (n *Node) ContainersResetState() error {
+func (c *Cluster) ContainersResetState() error {
 	// Reset all container states
-	_, err := exec(n.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	_, err := exec(c.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
 	return err
 }
 
-func (n *Node) ContainerSetState(id int, state string) error {
-	tx, err := begin(n.db)
+func (c *Cluster) ContainerSetState(id int, state string) error {
+	tx, err := begin(c.db)
 	if err != nil {
 		return err
 	}
@@ -398,8 +398,8 @@ func (n *Node) ContainerSetState(id int, state string) error {
 	return TxCommit(tx)
 }
 
-func (n *Node) ContainerRename(oldName string, newName string) error {
-	tx, err := begin(n.db)
+func (c *Cluster) ContainerRename(oldName string, newName string) error {
+	tx, err := begin(c.db)
 	if err != nil {
 		return err
 	}
@@ -446,13 +446,13 @@ func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, e
 	return nil
 }
 
-func (n *Node) ContainerLastUsedUpdate(id int, date time.Time) error {
+func (c *Cluster) ContainerLastUsedUpdate(id int, date time.Time) error {
 	stmt := `UPDATE containers SET last_use_date=? WHERE id=?`
-	_, err := exec(n.db, stmt, date, id)
+	_, err := exec(c.db, stmt, date, id)
 	return err
 }
 
-func (n *Node) ContainerGetSnapshots(name string) ([]string, error) {
+func (c *Cluster) ContainerGetSnapshots(name string) ([]string, error) {
 	result := []string{}
 
 	regexp := name + shared.SnapshotDelimiter
@@ -460,7 +460,7 @@ func (n *Node) ContainerGetSnapshots(name string) ([]string, error) {
 	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
 	inargs := []interface{}{CTypeSnapshot, length, regexp}
 	outfmt := []interface{}{name}
-	dbResults, err := queryScan(n.db, q, inargs, outfmt)
+	dbResults, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
 		return result, err
 	}
@@ -476,14 +476,14 @@ func (n *Node) ContainerGetSnapshots(name string) ([]string, error) {
  * Note, the code below doesn't deal with snapshots of snapshots.
  * To do that, we'll need to weed out based on # slashes in names
  */
-func (n *Node) ContainerNextSnapshot(name string) int {
+func (c *Cluster) ContainerNextSnapshot(name string) int {
 	base := name + shared.SnapshotDelimiter + "snap"
 	length := len(base)
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
 	var numstr string
 	inargs := []interface{}{CTypeSnapshot, length, base}
 	outfmt := []interface{}{numstr}
-	results, err := queryScan(n.db, q, inargs, outfmt)
+	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
 		return 0
 	}

@@ -98,6 +98,7 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 		preClusteringNodeSchema,
 		"INSERT INTO certificates VALUES (1, 'abcd:efgh', 1, 'foo', 'FOO')",
 		"INSERT INTO config VALUES(1, 'core.https_address', '1.2.3.4:666')",
+		"INSERT INTO images VALUES(1, 'abc', 'x.gz', 16, 0, 1, 0, 0, strftime('%d-%m-%Y', 'now'), 0, 0, 0)",
 		"INSERT INTO networks VALUES(1, 'lxcbr0', 'LXD bridge')",
 		"INSERT INTO networks_config VALUES(1, 1, 'ipv4.nat', 'true')",
 		"INSERT INTO storage_pools VALUES (1, 'default', 'dir', '')",

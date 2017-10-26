@@ -237,14 +237,14 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		return nil, err
 	}
 	if preferCached && interval > 0 && alias != fp {
-		cachedFingerprint, err := d.db.ImageSourceGetCachedFingerprint(server, protocol, alias)
+		cachedFingerprint, err := d.cluster.ImageSourceGetCachedFingerprint(server, protocol, alias)
 		if err == nil && cachedFingerprint != fp {
 			fp = cachedFingerprint
 		}
 	}
 
 	// Check if the image already exists (partial hash match)
-	_, imgInfo, err := d.db.ImageGet(fp, false, true)
+	_, imgInfo, err := d.cluster.ImageGet(fp, false, true)
 	if err == nil {
 		logger.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		info = imgInfo
@@ -298,7 +298,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		<-waitChannel
 
 		// Grab the database entry
-		_, imgInfo, err := d.db.ImageGet(fp, false, true)
+		_, imgInfo, err := d.cluster.ImageGet(fp, false, true)
 		if err != nil {
 			// Other download failed, lets try again
 			logger.Error("Other image download didn't succeed", log.Ctx{"image": fp})
@@ -519,7 +519,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Create the database entry
-	err = d.db.ImageInsert(info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.cluster.ImageInsert(info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
 		return nil, err
 	}
@@ -545,12 +545,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := d.db.ImageGet(fp, false, true)
+		id, _, err := d.cluster.ImageGet(fp, false, true)
 		if err != nil {
 			return nil, err
 		}
 
-		err = d.db.ImageSourceInsert(id, server, protocol, certificate, alias)
+		err = d.cluster.ImageSourceInsert(id, server, protocol, certificate, alias)
 		if err != nil {
 			return nil, err
 		}
@@ -566,7 +566,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// Mark the image as "cached" if downloading for a container
 	if forContainer {
-		err := d.db.ImageLastAccessInit(fp)
+		err := d.cluster.ImageLastAccessInit(fp)
 		if err != nil {
 			return nil, err
 		}
