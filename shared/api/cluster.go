@@ -16,7 +16,7 @@ type ClusterPost struct {
 	Schema         int    `json:"schema" yaml:"schema"`
 	API            int    `json:"api" yaml:"api"`
 	TargetAddress  string `json:"target_address" yaml:"target_address"`
-	TargetCert     []byte `json:"target_cert" yaml:"target_cert"`
+	TargetCert     string `json:"target_cert" yaml:"target_cert"`
 	TargetCA       []byte `json:"target_ca" yaml:"target_ca"`
 	TargetPassword string `json:"target_password" yaml:"target_password"`
 }

@@ -173,7 +173,7 @@ func clusterPostJoin(d *Daemon, req api.ClusterPost) Response {
 		}
 
 		// Update our TLS configuration using the returned cluster certificate.
-		err = util.WriteCert(d.os.VarDir, "cluster", req.TargetCert, info.PrivateKey, req.TargetCA)
+		err = util.WriteCert(d.os.VarDir, "cluster", []byte(req.TargetCert), info.PrivateKey, req.TargetCA)
 		if err != nil {
 			return errors.Wrap(err, "failed to save cluster certificate")
 		}

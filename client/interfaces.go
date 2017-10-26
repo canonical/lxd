@@ -168,7 +168,7 @@ type ContainerServer interface {
 	GetCluster(password string) (cluster *api.Cluster, err error)
 	BootstrapCluster(name string) (op *Operation, err error)
 	AcceptNode(targetPassword, name, address string, schema, api int) (info *api.ClusterNodeAccepted, err error)
-	JoinCluster(targetAddress, targetPassword string, targetCert []byte, name string) (op *Operation, err error)
+	JoinCluster(targetAddress, targetPassword, targetCert, name string) (op *Operation, err error)
 
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)

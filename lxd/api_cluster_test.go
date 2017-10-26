@@ -48,7 +48,7 @@ func TestCluster_Join(t *testing.T) {
 
 	// Make the second node join the cluster.
 	address := daemons[0].endpoints.NetworkAddress()
-	cert := daemons[0].endpoints.NetworkPublicKey()
+	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
 	op, err = client.JoinCluster(address, "sekret", cert, "rusp")
 	require.NoError(t, err)
@@ -102,7 +102,7 @@ func TestCluster_JoinWrongTrustPassword(t *testing.T) {
 
 	// Make the second node join the cluster.
 	address := daemons[0].endpoints.NetworkAddress()
-	cert := daemons[0].endpoints.NetworkPublicKey()
+	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
 	op, err = client.JoinCluster(address, "noop", cert, "rusp")
 	require.NoError(t, err)
@@ -160,7 +160,7 @@ func (f *clusterFixture) FormCluster(daemons []*Daemon) {
 
 	// Make the other nodes join the cluster.
 	address := daemons[0].endpoints.NetworkAddress()
-	cert := daemons[0].endpoints.NetworkPublicKey()
+	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	for i, daemon := range daemons[1:] {
 		client = f.ClientUnix(daemon)
 		op, err := client.JoinCluster(address, "sekret", cert, fmt.Sprintf("rusp-%d", i))
