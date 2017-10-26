@@ -28,6 +28,7 @@ var apiInternal = []Command{
 	internalContainerOnStartCmd,
 	internalContainerOnStopCmd,
 	internalContainersCmd,
+	internalSQLCmd,
 }
 
 func internalReady(d *Daemon, r *http.Request) Response {
@@ -91,10 +92,78 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
+type internalSQLPost struct {
+	Query string `json:"query" yaml:"query"`
+}
+
+type internalSQLResult struct {
+	Columns      []string        `json:"columns" yaml:"columns"`
+	Rows         [][]interface{} `json:"rows" yaml:"rows"`
+	RowsAffected int64           `json:"rows_affected" yaml:"rows_affected"`
+}
+
+func internalSQL(d *Daemon, r *http.Request) Response {
+	req := &internalSQLPost{}
+	// Parse the request.
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return BadRequest(err)
+	}
+	db := d.cluster.DB()
+	result := internalSQLResult{}
+	if strings.HasPrefix(req.Query, "SELECT") {
+		rows, err := db.Query(req.Query)
+		if err != nil {
+			return SmartError(err)
+		}
+		defer rows.Close()
+		result.Columns, err = rows.Columns()
+		if err != nil {
+			return SmartError(err)
+		}
+		for rows.Next() {
+			row := make([]interface{}, len(result.Columns))
+			rowPointers := make([]interface{}, len(result.Columns))
+			for i := range row {
+				rowPointers[i] = &row[i]
+			}
+			err := rows.Scan(rowPointers...)
+			if err != nil {
+				return SmartError(err)
+			}
+			for i, column := range row {
+				// Convert bytes to string. This is safe as
+				// long as we don't have any BLOB column type.
+				data, ok := column.([]byte)
+				if ok {
+					row[i] = string(data)
+				}
+			}
+			result.Rows = append(result.Rows, row)
+		}
+		err = rows.Err()
+		if err != nil {
+			return SmartError(err)
+		}
+	} else {
+		r, err := db.Exec(req.Query)
+		if err != nil {
+			return SmartError(err)
+		}
+		result.RowsAffected, err = r.RowsAffected()
+		if err != nil {
+			return SmartError(err)
+		}
+
+	}
+	return SyncResponse(true, result)
+}
+
 var internalShutdownCmd = Command{name: "shutdown", put: internalShutdown}
 var internalReadyCmd = Command{name: "ready", put: internalReady, get: internalWaitReady}
 var internalContainerOnStartCmd = Command{name: "containers/{id}/onstart", get: internalContainerOnStart}
 var internalContainerOnStopCmd = Command{name: "containers/{id}/onstop", get: internalContainerOnStop}
+var internalSQLCmd = Command{name: "sql", post: internalSQL}
 
 func slurpBackupFile(path string) (*backupFile, error) {
 	data, err := ioutil.ReadFile(path)
