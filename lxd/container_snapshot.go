@@ -89,7 +89,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	if req.Name == "" {
 		// come up with a name
-		i := d.db.ContainerNextSnapshot(name)
+		i := d.cluster.ContainerNextSnapshot(name)
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
@@ -258,7 +258,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := d.db.ContainerId(fullName)
+	id, _ := d.cluster.ContainerId(fullName)
 	if id > 0 {
 		return Conflict
 	}

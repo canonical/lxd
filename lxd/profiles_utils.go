@@ -38,7 +38,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 			// Check what profile the device comes from
 			profiles := container.Profiles()
 			for i := len(profiles) - 1; i >= 0; i-- {
-				_, profile, err := d.db.ProfileGet(profiles[i])
+				_, profile, err := d.cluster.ProfileGet(profiles[i])
 				if err != nil {
 					return err
 				}
@@ -60,7 +60,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	}
 
 	// Update the database
-	tx, err := d.db.Begin()
+	tx, err := d.cluster.Begin()
 	if err != nil {
 		return err
 	}

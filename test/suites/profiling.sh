@@ -4,7 +4,8 @@ test_cpu_profiling() {
   spawn_lxd "${LXD3_DIR}" false --cpuprofile "${LXD3_DIR}/cpu.out"
   lxdpid=$(cat "${LXD3_DIR}/lxd.pid")
   kill -TERM "${lxdpid}"
-  wait "${lxdpid}" || true
+  wait "${lxdpid}"
+     #|| true
   export PPROF_TMPDIR="${TEST_DIR}/pprof"
   echo top5 | go tool pprof "$(which lxd)" "${LXD3_DIR}/cpu.out"
   echo ""
