@@ -262,7 +262,7 @@ func (cmd *CmdInit) fillDataWithClustering(data *cmdInitData, clustering *cmdIni
 	}
 	data.Cluster.Name = clustering.Name
 	data.Cluster.TargetAddress = clustering.TargetAddress
-	data.Cluster.TargetCert = clustering.TargetCert
+	data.Cluster.TargetCert = string(clustering.TargetCert)
 	data.Cluster.TargetPassword = clustering.TargetPassword
 }
 

@@ -55,7 +55,7 @@ func (r *ProtocolLXD) AcceptNode(targetPassword, name, address string, schema, a
 }
 
 // JoinCluster requests to join an existing cluster.
-func (r *ProtocolLXD) JoinCluster(targetAddress, targetPassword string, targetCert []byte, name string) (*Operation, error) {
+func (r *ProtocolLXD) JoinCluster(targetAddress, targetPassword, targetCert, name string) (*Operation, error) {
 	cluster := api.ClusterPost{
 		TargetAddress:  targetAddress,
 		TargetPassword: targetPassword,
