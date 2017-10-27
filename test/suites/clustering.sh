@@ -1,12 +1,13 @@
 test_clustering() {
   setup_clustering_bridge
   prefix="lxd$$"
+  bridge="${prefix}"
 
   setup_clustering_netns 1
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_ONE_DIR}"
-  ns="${prefix}1"
-  LXD_NETNS="${ns}" spawn_lxd "${LXD_ONE_DIR}" false
+  ns1="${prefix}1"
+  LXD_NETNS="${ns1}" spawn_lxd "${LXD_ONE_DIR}" false
   (
     set -e
     # shellcheck disable=SC2034
@@ -20,6 +21,12 @@ config:
 storage_pools:
 - name: data
   driver: dir
+networks:
+- name: $bridge
+  type: bridge
+  config:
+    ipv4.address: none
+    ipv6.address: none
 profiles:
 - name: default
   devices:
@@ -38,8 +45,8 @@ EOF
   setup_clustering_netns 2
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_TWO_DIR}"
-  ns="${prefix}2"
-  LXD_NETNS="${ns}" spawn_lxd "${LXD_TWO_DIR}" false
+  ns2="${prefix}2"
+  LXD_NETNS="${ns2}" spawn_lxd "${LXD_TWO_DIR}" false
   (
     set -e
     # shellcheck disable=SC2034
@@ -52,6 +59,12 @@ config:
 storage_pools:
 - name: data
   driver: dir
+networks:
+- name: $bridge
+  type: bridge
+  config:
+    ipv4.address: none
+    ipv6.address: none
 profiles:
 - name: default
   devices:
@@ -66,6 +79,14 @@ cluster:
   target_cert: "$cert"
 EOF
   )
+
+  # The preseeded network bridge exists on all nodes.
+  ip netns exec "${ns1}" ip link show "${bridge}" > /dev/null
+  ip netns exec "${ns2}" ip link show "${bridge}" > /dev/null
+
+  # The preseeded network can be deleted from any node, other nodes
+  # are notified.
+  LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
