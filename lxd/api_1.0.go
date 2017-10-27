@@ -174,7 +174,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 
 	// If this is a notification from a cluster node, just run the triggers
 	// for reacting to the values that changed.
-	if r.Header.Get("User-Agent") == "lxd-cluster-notifier" {
+	if isClusterNotification(r) {
 		changed := make(map[string]string)
 		for key, value := range req.Config {
 			changed[key] = value.(string)

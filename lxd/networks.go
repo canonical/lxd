@@ -16,6 +16,8 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/lxc/lxd/shared/log15"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -244,8 +246,37 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return NotFound
 	}
+	if isClusterNotification(r) {
+		n.db = nil // We just want to delete the network from the system
+	} else {
+		// Sanity checks
+		if n.IsUsed() {
+			return BadRequest(fmt.Errorf("The network is currently in use"))
+		}
+	}
 
-	// Attempt to delete the network
+	// If we're just handling a notification, we're done.
+	if n.db == nil {
+		return EmptySyncResponse
+	}
+
+	// Notify all other nodes. If any node is down, an error will be returned.
+	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+	if err != nil {
+		return SmartError(err)
+	}
+	err = notifier(func(client lxd.ContainerServer) error {
+		_, _, err := client.GetServer()
+		if err != nil {
+			return err
+		}
+		return client.DeleteNetwork(name)
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Delete the network
 	err = n.Delete()
 	if err != nil {
 		return SmartError(err)
@@ -502,16 +533,14 @@ func (n *network) IsUsed() bool {
 }
 
 func (n *network) Delete() error {
-	// Sanity checks
-	if n.IsUsed() {
-		return fmt.Errorf("The network is currently in use")
-	}
-
 	// Bring the network down
 	if n.IsRunning() {
 		err := n.Stop()
 		if err != nil {
 			return err
+		}
+		if n.db == nil {
+			return nil
 		}
 	}
 
