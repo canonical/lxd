@@ -19,7 +19,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 		if err == nil {
 			return SyncResponse(true, result)
 		}
-		if !db.IsDbLockedError(err) {
+		if !db.IsRetriableError(err) {
 			logger.Debugf("DBERR: containersGet: error %q", err)
 			return SmartError(err)
 		}
