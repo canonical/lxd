@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"gopkg.in/macaroon-bakery.v2-unstable/bakery"
-	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery"
+	"gopkg.in/macaroon-bakery.v2/bakery"
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"

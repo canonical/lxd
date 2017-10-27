@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/juju/persistent-cookiejar"
-	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery"
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
 )
 
 // Config holds settings to be used by a client or daemon

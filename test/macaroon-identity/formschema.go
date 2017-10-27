@@ -4,7 +4,7 @@ import (
 	"github.com/juju/schema"
 
 	"gopkg.in/juju/environschema.v1"
-	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery/form"
+	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 )
 
 var schemaResponse = form.SchemaResponse{
