@@ -25,9 +25,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/net/context"
-	"gopkg.in/macaroon-bakery.v2-unstable/bakery"
-	"gopkg.in/macaroon-bakery.v2-unstable/bakery/checkers"
-	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery"
+	"gopkg.in/macaroon-bakery.v2/bakery"
+	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
+	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
 	"gopkg.in/tomb.v2"
 
 	"github.com/lxc/lxd/client"
@@ -98,7 +99,7 @@ type Daemon struct {
 
 type externalAuth struct {
 	endpoint string
-	bakery   *bakery.Bakery
+	bakery   *identchecker.Bakery
 }
 
 // NewDaemon returns a new, un-initialized Daemon object.
@@ -165,7 +166,7 @@ func getBakeryOps(r *http.Request) []bakery.Op {
 	}}
 }
 
-func writeMacaroonsRequiredResponse(b *bakery.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError) {
+func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError) {
 	ctx := httpbakery.ContextWithRequest(context.TODO(), r)
 	caveats := append(derr.Caveats, checkers.TimeBeforeCaveat(time.Now().Add(5*time.Minute)))
 
@@ -1053,15 +1054,15 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string) error {
 	if strings.HasPrefix(authEndpoint, "http://") {
 		pkLocator.AllowInsecure()
 	}
-	bakery := bakery.New(bakery.BakeryParams{
+	bakery := identchecker.NewBakery(identchecker.BakeryParams{
 		Key:            key,
 		Location:       authEndpoint,
 		Locator:        pkLocator,
 		Checker:        httpbakery.NewChecker(),
 		IdentityClient: idmClient,
-		Authorizer: bakery.ACLAuthorizer{
+		Authorizer: identchecker.ACLAuthorizer{
 			GetACL: func(ctx context.Context, op bakery.Op) ([]string, bool, error) {
-				return []string{bakery.Everyone}, false, nil
+				return []string{identchecker.Everyone}, false, nil
 			},
 		},
 	})

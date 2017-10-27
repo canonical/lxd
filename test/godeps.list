@@ -10,7 +10,7 @@ github.com/rogpeppe/fastuuid
 golang.org/x/crypto
 golang.org/x/net
 gopkg.in/errgo.v1
-gopkg.in/macaroon-bakery.v2-unstable
-gopkg.in/macaroon.v2-unstable
+gopkg.in/macaroon-bakery.v2
+gopkg.in/macaroon.v2
 gopkg.in/retry.v1
 gopkg.in/yaml.v2
