@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"gopkg.in/macaroon-bakery.v2-unstable/httpbakery/form"
+	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
