@@ -65,6 +65,7 @@ func cmdDaemon(args *Args) error {
 
 	case <-d.shutdownChan:
 		logger.Infof("Asked to shutdown by API, shutting down containers.")
+		d.Kill()
 		containersShutdown(s)
 		networkShutdown(s)
 	}

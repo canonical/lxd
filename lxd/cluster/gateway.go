@@ -31,10 +31,13 @@ import (
 // HandlerFuncs method returns and to access the dqlite cluster using the gRPC
 // dialer returned by the Dialer method.
 func NewGateway(db *db.Node, cert *shared.CertInfo, latency float64) (*Gateway, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	gateway := &Gateway{
 		db:      db,
 		cert:    cert,
 		latency: latency,
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 
 	err := gateway.init()
@@ -69,6 +72,11 @@ type Gateway struct {
 	// database, to minimize the difference between code paths in
 	// clustering and non-clustering modes.
 	memoryDial func() (*grpc.ClientConn, error)
+
+	// Used when shutting down the daemon to cancel any ongoing gRPC
+	// dialing attempt.
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // HandlerFuncs returns the HTTP handlers that should be added to the REST API
@@ -146,10 +154,11 @@ func (g *Gateway) Dialer() grpcsql.Dialer {
 			return g.memoryDial()
 		}
 
-		// FIXME: timeout should be configurable
+		// TODO: should the timeout be configurable?
+		ctx, cancel := context.WithTimeout(g.ctx, 5*time.Second)
+		defer cancel()
 		var err error
-		remaining := 10 * time.Second
-		for remaining > 0 {
+		for {
 			// Network connection.
 			addresses, dbErr := g.cachedRaftNodes()
 			if dbErr != nil {
@@ -158,17 +167,32 @@ func (g *Gateway) Dialer() grpcsql.Dialer {
 
 			for _, address := range addresses {
 				var conn *grpc.ClientConn
-				conn, err = grpcNetworkDial(address, g.cert, time.Second)
+				conn, err = grpcNetworkDial(g.ctx, address, g.cert)
 				if err == nil {
 					return conn, nil
 				}
 				logger.Debugf("Failed to establish gRPC connection with %s: %v", address, err)
 			}
-			time.Sleep(250 * time.Millisecond)
-			remaining -= 250 * time.Millisecond
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			select {
+			case <-time.After(250 * time.Millisecond):
+				continue
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
 		}
-		return nil, err
 	}
+}
+
+// Kill is an API that the daemon calls before it actually shuts down and calls
+// Shutdown(). It will abort any ongoing or new attempt to establish a SQL gRPC
+// connection with the dialer (typically for running some pre-shutdown
+// queries).
+func (g *Gateway) Kill() {
+	logger.Debug("Cancel ongoing or future gRPC connection attempts")
+	g.cancel()
 }
 
 // Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
@@ -276,16 +300,27 @@ func (g *Gateway) cachedRaftNodes() ([]string, error) {
 	return addresses, nil
 }
 
-func grpcNetworkDial(addr string, cert *shared.CertInfo, t time.Duration) (*grpc.ClientConn, error) {
+func grpcNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) (*grpc.ClientConn, error) {
 	config, err := tlsClientConfig(cert)
 	if err != nil {
 		return nil, err
 	}
 
+	// The whole attempt should not take more than a second. If the context
+	// gets cancelled, calling code will typically try against another
+	// database node, in round robin.
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
 	// Make a probe HEAD request to check if the target node is the leader.
 	url := fmt.Sprintf("https://%s%s", addr, grpcEndpoint)
+	request, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	request = request.WithContext(ctx)
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
-	response, err := client.Head(url)
+	response, err := client.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -293,8 +328,6 @@ func grpcNetworkDial(addr string, cert *shared.CertInfo, t time.Duration) (*grpc
 		return nil, fmt.Errorf(response.Status)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), t)
-	defer cancel()
 	options := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(config)),
 	}
