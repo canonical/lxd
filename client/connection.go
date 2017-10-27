@@ -45,6 +45,9 @@ type ConnectionArgs struct {
 
 	// Cookie jar
 	CookieJar http.CookieJar
+
+	// Skip automatic GetServer request upon connection
+	SkipGetServer bool
 }
 
 // ConnectLXD lets you connect to a remote LXD daemon over HTTPs.
@@ -97,13 +100,15 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) 
 	server.http = httpClient
 
 	// Test the connection and seed the server information
-	serverStatus, _, err := server.GetServer()
-	if err != nil {
-		return nil, err
-	}
+	if !args.SkipGetServer {
+		serverStatus, _, err := server.GetServer()
+		if err != nil {
+			return nil, err
+		}
 
-	// Record the server certificate
-	server.httpCertificate = serverStatus.Environment.Certificate
+		// Record the server certificate
+		server.httpCertificate = serverStatus.Environment.Certificate
+	}
 
 	return &server, nil
 }
@@ -184,10 +189,11 @@ func httpsLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	}
 
 	// Test the connection and seed the server information
-	_, _, err = server.GetServer()
-	if err != nil {
-		return nil, err
+	if !args.SkipGetServer {
+		_, _, err := server.GetServer()
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	return &server, nil
 }
