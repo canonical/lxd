@@ -411,12 +411,6 @@ func (d *Daemon) init() error {
 		return errors.Wrap(err, "failed to fetch node address")
 	}
 
-	/* Open the cluster database */
-	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
-	if err != nil {
-		return errors.Wrap(err, "failed to open cluster database")
-	}
-
 	/* Setup the web server */
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
@@ -429,6 +423,12 @@ func (d *Daemon) init() error {
 	d.endpoints, err = endpoints.Up(config)
 	if err != nil {
 		return err
+	}
+
+	/* Open the cluster database */
+	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
+	if err != nil {
+		return errors.Wrap(err, "failed to open cluster database")
 	}
 
 	/* Migrate the node local data to the cluster database, if needed */
@@ -568,6 +568,15 @@ func (d *Daemon) numRunningContainers() (int, error) {
 	}
 
 	return count, nil
+}
+
+// Kill signals the daemon that we want to shutdown, and that any work
+// initiated from this point (e.g. database queries over gRPC) should not be
+// retried in case of failure.
+func (d *Daemon) Kill() {
+	if d.gateway != nil {
+		d.gateway.Kill()
+	}
 }
 
 // Stop stops the shared daemon.
