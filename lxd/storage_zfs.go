@@ -54,15 +54,24 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 
 	err = s.zfsCheckPool(s.zfsPool)
 	if err != nil {
-		if shared.PathExists(shared.VarPath("zfs.img")) {
-			_ = util.LoadModule("zfs")
+		_ = util.LoadModule("zfs")
 
+		if shared.PathExists(shared.VarPath("zfs.img")) {
 			output, err := shared.RunCommand("zpool", "import",
 				"-d", shared.VarPath(), s.zfsPool)
 			if err != nil {
 				return s, fmt.Errorf("Unable to import the ZFS pool: %s", output)
 			}
 		} else {
+			purePoolName := strings.Split(s.zfsPool, "/")[0]
+			output, err := shared.RunCommand("zpool", "import", purePoolName)
+			if err != nil {
+				return s, fmt.Errorf("Unable to import the ZFS pool: %s", output)
+			}
+		}
+
+		err = s.zfsCheckPool(s.zfsPool)
+		if err != nil {
 			return s, err
 		}
 	}
