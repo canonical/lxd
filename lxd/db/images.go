@@ -440,14 +440,15 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 		return err
 	}
 
-	stmt, err = tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`)
+	stmt2, err := tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
+	defer stmt2.Close()
 
 	for key, value := range properties {
-		_, err = stmt.Exec(id, 0, key, value)
+		_, err = stmt2.Exec(id, 0, key, value)
 		if err != nil {
 			tx.Rollback()
 			return err
