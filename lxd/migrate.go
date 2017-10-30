@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
@@ -407,7 +408,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			return abort(err)
 		}
 
-		if lxc.VersionAtLeast(2, 0, 4) {
+		if util.RuntimeLiblxcVersionAtLeast(2, 0, 4) {
 			/* What happens below is slightly convoluted. Due to various
 			 * complications with networking, there's no easy way for criu
 			 * to exit and leave the container in a frozen state for us to
