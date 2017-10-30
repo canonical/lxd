@@ -80,6 +80,11 @@ cluster:
 EOF
   )
 
+  # Configuration keys can be changed on any node.
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set images.auto_update_interval 10
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'images.auto_update_interval: "10"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'images.auto_update_interval: "10"'
+
   # The preseeded network bridge exists on all nodes.
   ip netns exec "${ns1}" ip link show "${bridge}" > /dev/null
   ip netns exec "${ns2}" ip link show "${bridge}" > /dev/null
