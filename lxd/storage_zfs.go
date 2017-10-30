@@ -87,24 +87,28 @@ func (s *storageZfs) StoragePoolCheck() error {
 	}
 
 	poolName := s.getOnDiskPoolName()
-	if filepath.IsAbs(source) {
-		if zfsFilesystemEntityExists(poolName, "") {
-			return nil
-		}
-		logger.Debugf("ZFS storage pool \"%s\" does not exist. Trying to import it.", poolName)
-
-		disksPath := shared.VarPath("disks")
-		output, err := shared.RunCommand(
-			"zpool",
-			"import",
-			"-d", disksPath, poolName)
-		if err != nil {
-			return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s", poolName, output)
-		}
-
-		logger.Debugf("ZFS storage pool \"%s\" successfully imported.", poolName)
+	exists := zfsFilesystemEntityExists(poolName, "")
+	if exists {
+		return nil
 	}
 
+	logger.Debugf("ZFS storage pool \"%s\" does not exist. Trying to import it.", poolName)
+
+	var err error
+	var msg string
+	if filepath.IsAbs(source) {
+		disksPath := shared.VarPath("disks")
+		msg, err = shared.RunCommand("zpool", "import", "-d", disksPath, poolName)
+	} else {
+		purePoolName := strings.Split(poolName, "/")[0]
+		msg, err = shared.RunCommand("zpool", "import", purePoolName)
+	}
+
+	if err != nil {
+		return fmt.Errorf("ZFS storage pool \"%s\" could not be imported: %s", poolName, msg)
+	}
+
+	logger.Debugf("ZFS storage pool \"%s\" successfully imported.", poolName)
 	return nil
 }
 
