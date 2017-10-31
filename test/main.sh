@@ -194,6 +194,7 @@ run_test test_kernel_limits "kernel limits"
 run_test test_macaroon_auth "macaroon authentication"
 run_test test_console "console"
 run_test test_proxy_device "proxy device"
+run_test test_clustering "clustering"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success
