@@ -70,3 +70,81 @@ teardown_clustering_netns() {
       ip netns delete "${ns}"
   done
 }
+
+spawn_lxd_and_bootstrap_cluster() {
+  set -e
+  ns="${1}"
+  bridge="${2}"
+  LXD_DIR="${3}"
+  LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
+  (
+    set -e
+
+    cat <<EOF | lxd init --preseed
+config:
+  core.trust_password: sekret
+  core.https_address: 10.1.1.101:8443
+  images.auto_update_interval: 15
+storage_pools:
+- name: data
+  driver: dir
+networks:
+- name: $bridge
+  type: bridge
+  config:
+    ipv4.address: none
+    ipv6.address: none
+profiles:
+- name: default
+  devices:
+    root:
+      path: /
+      pool: data
+      type: disk
+cluster:
+  name: node1
+EOF
+  )
+}
+
+spawn_lxd_and_join_cluster() {
+  set -e
+  ns="${1}"
+  bridge="${2}"
+  cert="${3}"
+  index="${4}"
+  target="${5}"
+  LXD_DIR="${6}"
+
+  LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
+  (
+    set -e
+
+    cat <<EOF | lxd init --preseed
+config:
+  core.https_address: 10.1.1.10${index}:8443
+  images.auto_update_interval: 15
+storage_pools:
+- name: data
+  driver: dir
+networks:
+- name: $bridge
+  type: bridge
+  config:
+    ipv4.address: none
+    ipv6.address: none
+profiles:
+- name: default
+  devices:
+    root:
+      path: /
+      pool: data
+      type: disk
+cluster:
+  name: node${index}
+  target_address: 10.1.1.10${target}:8443
+  target_password: sekret
+  target_cert: "$cert"
+EOF
+  )
+}
