@@ -24,12 +24,38 @@ func TestNodeAdd(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, nodes, 2)
 
-	node, err := tx.Node("1.2.3.4:666")
+	node, err := tx.NodeByAddress("1.2.3.4:666")
+	require.NoError(t, err)
 	assert.Equal(t, "buzz", node.Name)
 	assert.Equal(t, "1.2.3.4:666", node.Address)
 	assert.Equal(t, cluster.SchemaVersion, node.Schema)
 	assert.Equal(t, len(version.APIExtensions), node.APIExtensions)
 	assert.False(t, node.IsDown())
+
+	node, err = tx.NodeByName("buzz")
+	require.NoError(t, err)
+	assert.Equal(t, "buzz", node.Name)
+}
+
+// Remove a new raft node.
+func TestNodeRemove(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	id, err := tx.NodeAdd("rusp", "5.6.7.8:666")
+	require.NoError(t, err)
+
+	err = tx.NodeRemove(id)
+	require.NoError(t, err)
+
+	_, err = tx.NodeByName("buzz")
+	assert.NoError(t, err)
+
+	_, err = tx.NodeByName("rusp")
+	assert.Equal(t, db.NoSuchObjectError, err)
 }
 
 // Update the heartbeat of a node.
@@ -49,4 +75,33 @@ func TestNodeHeartbeat(t *testing.T) {
 
 	node := nodes[1]
 	assert.True(t, node.IsDown())
+}
+
+// A node is considered empty only if it has no containers and no images.
+func TestNodeIsEmpty(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	empty, err := tx.NodeIsEmpty(id)
+	require.NoError(t, err)
+	assert.True(t, empty)
+
+	_, err = tx.Tx().Exec(`
+INSERT INTO containers (id, node_id, name, architecture, type) VALUES (1, ?, 'foo', 1, 1)
+`, id)
+	require.NoError(t, err)
+
+	empty, err = tx.NodeIsEmpty(id)
+	require.NoError(t, err)
+	assert.False(t, empty)
+
+	err = tx.NodeClear(id)
+	require.NoError(t, err)
+
+	empty, err = tx.NodeIsEmpty(id)
+	require.NoError(t, err)
+	assert.True(t, empty)
 }

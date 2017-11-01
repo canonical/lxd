@@ -27,10 +27,27 @@ func (n NodeInfo) IsDown() bool {
 	return n.Heartbeat.Before(time.Now().Add(-20 * time.Second))
 }
 
-// Node returns the node with the given network address.
-func (c *ClusterTx) Node(address string) (NodeInfo, error) {
+// NodeByAddress returns the node with the given network address.
+func (c *ClusterTx) NodeByAddress(address string) (NodeInfo, error) {
 	null := NodeInfo{}
 	nodes, err := c.nodes("address=?", address)
+	if err != nil {
+		return null, err
+	}
+	switch len(nodes) {
+	case 0:
+		return null, NoSuchObjectError
+	case 1:
+		return nodes[0], nil
+	default:
+		return null, fmt.Errorf("more than one node matches")
+	}
+}
+
+// NodeByName returns the node with the given name.
+func (c *ClusterTx) NodeByName(name string) (NodeInfo, error) {
+	null := NodeInfo{}
+	nodes, err := c.nodes("name=?", name)
 	if err != nil {
 		return null, err
 	}
@@ -104,6 +121,22 @@ func (c *ClusterTx) NodeUpdate(id int64, name string, address string) error {
 	return nil
 }
 
+// NodeRemove removes the node with the given id.
+func (c *ClusterTx) NodeRemove(id int64) error {
+	result, err := c.tx.Exec("DELETE FROM nodes WHERE id=?", id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf("query deleted %d rows instead of 1", n)
+	}
+	return nil
+}
+
 // NodeHeartbeat updates the heartbeat column of the node with the given address.
 func (c *ClusterTx) NodeHeartbeat(address string, heartbeat time.Time) error {
 	stmt := "UPDATE nodes SET heartbeat=? WHERE address=?"
@@ -118,5 +151,42 @@ func (c *ClusterTx) NodeHeartbeat(address string, heartbeat time.Time) error {
 	if n != 1 {
 		return fmt.Errorf("expected to update one row and not %d", n)
 	}
+	return nil
+}
+
+// NodeIsEmpty returns true if the node with the given ID has no containers or
+// images associated with it.
+func (c *ClusterTx) NodeIsEmpty(id int64) (bool, error) {
+	n, err := query.Count(c.tx, "containers", "node_id=?", id)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get containers count for node %d", id)
+	}
+	if n > 0 {
+		return false, nil
+	}
+
+	n, err = query.Count(c.tx, "images", "node_id=?", id)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to get images count for node %d", id)
+	}
+	if n > 0 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// NodeClear removes any container or image associated with this node.
+func (c *ClusterTx) NodeClear(id int64) error {
+	_, err := c.tx.Exec("DELETE FROM containers WHERE node_id=?", id)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.tx.Exec("DELETE FROM images WHERE node_id=?", id)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
