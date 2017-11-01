@@ -15,8 +15,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-var clusterCmd = Command{name: "cluster", untrustedGet: true, get: clusterGet, untrustedPost: true, post: clusterPost}
+var clusterCmd = Command{name: "cluster", untrustedGet: true, get: clusterGet}
 
+// Return information about the cluster, such as the current networks and
+// storage pools, typically needed when a new node is joining.
 func clusterGet(d *Daemon, r *http.Request) Response {
 	// If the client is not trusted, check that it's presenting the trust
 	// password.
@@ -62,7 +64,18 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, cluster)
 }
 
-func clusterPost(d *Daemon, r *http.Request) Response {
+var clusterNodesCmd = Command{name: "cluster/nodes", untrustedPost: true, post: clusterNodesPost}
+
+// Depending on the parameters passed and on local state this endpoint will
+// either:
+//
+// - bootstrap a new cluster (if this node is not clustered yet)
+// - request to join an existing cluster
+// - accept the request of a node to join the cluster
+//
+// The client is required to be trusted when bootstrapping a cluster or request
+// to join an existing cluster.
+func clusterNodesPost(d *Daemon, r *http.Request) Response {
 	req := api.ClusterPost{}
 
 	// Parse the request
@@ -85,20 +98,20 @@ func clusterPost(d *Daemon, r *http.Request) Response {
 		if !trusted {
 			return Forbidden
 		}
-		return clusterPostBootstrap(d, req)
+		return clusterNodesPostBootstrap(d, req)
 	} else if req.TargetAddress == "" {
-		return clusterPostAccept(d, req)
+		return clusterNodesPostAccept(d, req)
 	} else {
 		// Joining an existing cluster requires the client to be
 		// trusted.
 		if !trusted {
 			return Forbidden
 		}
-		return clusterPostJoin(d, req)
+		return clusterNodesPostJoin(d, req)
 	}
 }
 
-func clusterPostBootstrap(d *Daemon, req api.ClusterPost) Response {
+func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPost) Response {
 	run := func(op *operation) error {
 		return cluster.Bootstrap(d.State(), d.gateway, req.Name)
 	}
@@ -113,7 +126,7 @@ func clusterPostBootstrap(d *Daemon, req api.ClusterPost) Response {
 	return OperationResponse(op)
 }
 
-func clusterPostAccept(d *Daemon, req api.ClusterPost) Response {
+func clusterNodesPostAccept(d *Daemon, req api.ClusterPost) Response {
 	// Accepting a node requires the client to provide the correct
 	// trust password.
 	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
@@ -138,7 +151,7 @@ func clusterPostAccept(d *Daemon, req api.ClusterPost) Response {
 	return SyncResponse(true, accepted)
 }
 
-func clusterPostJoin(d *Daemon, req api.ClusterPost) Response {
+func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 	// Make sure basic pre-conditions are ment.
 	if len(req.TargetCert) == 0 {
 		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
