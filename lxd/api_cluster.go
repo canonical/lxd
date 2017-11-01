@@ -4,18 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
 
+	"github.com/gorilla/mux"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
 
-var clusterCmd = Command{name: "cluster", untrustedGet: true, get: clusterGet}
+var clusterCmd = Command{name: "cluster", untrustedGet: true, get: clusterGet, delete: clusterDelete}
 
 // Return information about the cluster, such as the current networks and
 // storage pools, typically needed when a new node is joining.
@@ -62,6 +67,34 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 	}
 
 	return SyncResponse(true, cluster)
+}
+
+// Disable clustering on a node.
+func clusterDelete(d *Daemon, r *http.Request) Response {
+	// Update our TLS configuration using our original certificate.
+	for _, suffix := range []string{"crt", "key", "ca"} {
+		path := filepath.Join(d.os.VarDir, "cluster."+suffix)
+		if !shared.PathExists(path) {
+			continue
+		}
+		err := os.Remove(path)
+		if err != nil {
+			return InternalError(err)
+		}
+	}
+	cert, err := util.LoadCert(d.os.VarDir)
+	if err != nil {
+		return InternalError(errors.Wrap(err, "failed to parse node certificate"))
+	}
+
+	// Reset the cluster database and make it local to this node.
+	d.endpoints.NetworkUpdateCert(cert)
+	err = d.gateway.Reset(cert)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
 }
 
 var clusterNodesCmd = Command{name: "cluster/nodes", untrustedPost: true, post: clusterNodesPost}
@@ -205,6 +238,59 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 		}
 		return cluster.Join(d.State(), d.gateway, cert, req.Name, nodes)
 	}
+	resources := map[string][]string{}
+	resources["cluster"] = []string{}
+
+	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
+}
+
+var clusterNodeCmd = Command{name: "cluster/nodes/{name}", delete: clusterNodeDelete}
+
+func clusterNodeDelete(d *Daemon, r *http.Request) Response {
+	force, err := strconv.Atoi(r.FormValue("force"))
+	if err != nil {
+		force = 0
+	}
+
+	name := mux.Vars(r)["name"]
+	address, err := cluster.Leave(d.State(), d.gateway, name, force == 1)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	var run func(op *operation) error
+
+	if force == 1 {
+		// If the force flag is on, the returned operation is a no-op.
+		run = func(op *operation) error {
+			return nil
+		}
+
+	} else {
+		// Try to gracefully disable clustering on the target node.
+		cert := d.endpoints.NetworkCert()
+		args := &lxd.ConnectionArgs{
+			TLSServerCert: string(cert.PublicKey()),
+			TLSClientCert: string(cert.PublicKey()),
+			TLSClientKey:  string(cert.PrivateKey()),
+		}
+		run = func(op *operation) error {
+			// First request for this node to be added to the list of
+			// cluster nodes.
+			client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", address), args)
+			if err != nil {
+				return err
+			}
+			_, _, err = client.RawQuery("DELETE", "/1.0/cluster", nil, "")
+			return err
+		}
+	}
+
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
