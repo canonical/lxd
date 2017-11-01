@@ -61,6 +61,7 @@ var api10 = []Command{
 	storagePoolVolumeTypeCmd,
 	serverResourceCmd,
 	clusterCmd,
+	clusterNodesCmd,
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {

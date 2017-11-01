@@ -27,7 +27,7 @@ func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, error) {
 // BootstrapCluster requests to bootstrap a new cluster.
 func (r *ProtocolLXD) BootstrapCluster(name string) (*Operation, error) {
 	cluster := api.ClusterPost{Name: name}
-	op, _, err := r.queryOperation("POST", "/cluster", cluster, "")
+	op, _, err := r.queryOperation("POST", "/cluster/nodes", cluster, "")
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (r *ProtocolLXD) AcceptNode(targetPassword, name, address string, schema, a
 		TargetPassword: targetPassword,
 	}
 	info := &api.ClusterNodeAccepted{}
-	_, err := r.queryStruct("POST", "/cluster", cluster, "", &info)
+	_, err := r.queryStruct("POST", "/cluster/nodes", cluster, "", &info)
 
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func (r *ProtocolLXD) JoinCluster(targetAddress, targetPassword, targetCert, nam
 		TargetCert:     targetCert,
 		Name:           name,
 	}
-	op, _, err := r.queryOperation("POST", "/cluster", cluster, "")
+	op, _, err := r.queryOperation("POST", "/cluster/nodes", cluster, "")
 	if err != nil {
 		return nil, err
 	}
