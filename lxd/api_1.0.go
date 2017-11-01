@@ -62,6 +62,7 @@ var api10 = []Command{
 	serverResourceCmd,
 	clusterCmd,
 	clusterNodesCmd,
+	clusterNodeCmd,
 }
 
 func api10Get(d *Daemon, r *http.Request) Response {
