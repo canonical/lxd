@@ -310,6 +310,26 @@ func TestJoin(t *testing.T) {
 	assert.Equal(t, targetAddress, nodes[0].Address)
 	assert.Equal(t, int64(2), nodes[1].ID)
 	assert.Equal(t, address, nodes[1].Address)
+
+	// Leave the cluster.
+	leaving, err := cluster.Leave(state, gateway, "rusp", false /* force */)
+	require.NoError(t, err)
+	assert.Equal(t, address, leaving)
+
+	// The node has gone from the cluster db.
+	err = targetState.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		nodes, err := tx.Nodes()
+		require.NoError(t, err)
+		assert.Len(t, nodes, 1)
+		return nil
+	})
+	require.NoError(t, err)
+
+	// The node has gone from the raft cluster.
+	raft := targetGateway.Raft()
+	future := raft.GetConfiguration()
+	require.NoError(t, future.Error())
+	assert.Len(t, future.Configuration().Servers, 1)
 }
 
 // Helper for setting fixtures for Bootstrap tests.
