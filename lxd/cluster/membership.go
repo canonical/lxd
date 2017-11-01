@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/CanonicalLtd/raft-http"
+	"github.com/CanonicalLtd/raft-membership"
 	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -296,7 +298,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// the new gRPC network connection. Also, update the storage_pools and
 	// networks tables with our local configuration.
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		node, err := tx.Node(address)
+		node, err := tx.NodeByAddress(address)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ID of joining node")
 		}
@@ -347,6 +349,86 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	}
 
 	return nil
+}
+
+// Leave a cluster.
+//
+// If the force flag is true, the node will be removed even if it still has
+// containers and images.
+//
+// Upon success, return the address of the leaving node.
+func Leave(state *state.State, gateway *Gateway, name string, force bool) (string, error) {
+	// Delete the node from the cluster and track its address.
+	var address string
+	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the node (if it doesn't exists an error is returned).
+		node, err := tx.NodeByName(name)
+		if err != nil {
+			return err
+		}
+
+		// Check that the node is eligeable for leaving.
+		if !force {
+			err = membershipCheckClusterStateForLeave(tx, node.ID)
+		} else {
+			err = tx.NodeClear(node.ID)
+		}
+		if err != nil {
+			return err
+		}
+
+		// Actually remove the node from the cluster database.
+		err = tx.NodeRemove(node.ID)
+		if err != nil {
+			return err
+		}
+		address = node.Address
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// If the node is a database node, leave the raft cluster too.
+	id := ""
+	target := ""
+	err = state.Node.Transaction(func(tx *db.NodeTx) error {
+		nodes, err := tx.RaftNodes()
+		if err != nil {
+			return err
+		}
+		for i, node := range nodes {
+			if node.Address == address {
+				id = strconv.Itoa(int(node.ID))
+				// Save the address of another database node,
+				// we'll use it to leave the raft cluster.
+				target = nodes[(i+1)%len(nodes)].Address
+				break
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	if target != "" {
+		logger.Info(
+			"Remove node from dqlite raft cluster",
+			log15.Ctx{"id": id, "address": address, "target": target})
+		dial, err := raftDial(gateway.cert)
+		if err != nil {
+			return "", err
+		}
+		err = rafthttp.ChangeMembership(
+			raftmembership.LeaveRequest, raftEndpoint, dial,
+			raft.ServerID(id), address, target, 5*time.Second)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return address, nil
 }
 
 // Check that node-related preconditions are met for bootstrapping or joining a
@@ -415,6 +497,28 @@ func membershipCheckClusterStateForAccept(tx *db.ClusterTx, name string, address
 		}
 	}
 
+	return nil
+}
+
+// Check that cluster-related preconditions are met for leaving a cluster.
+func membershipCheckClusterStateForLeave(tx *db.ClusterTx, nodeID int64) error {
+	// Check that it has no containers or images.
+	empty, err := tx.NodeIsEmpty(nodeID)
+	if err != nil {
+		return err
+	}
+	if !empty {
+		return fmt.Errorf("node has containers or images")
+	}
+
+	// Check that it's not the last node.
+	nodes, err := tx.Nodes()
+	if err != nil {
+		return err
+	}
+	if len(nodes) == 1 {
+		return fmt.Errorf("node is the only node in the cluster")
+	}
 	return nil
 }
 
