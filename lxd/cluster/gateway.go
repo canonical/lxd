@@ -5,6 +5,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -236,6 +238,29 @@ func (g *Gateway) Shutdown() error {
 		return nil
 	}
 	return g.raft.Shutdown()
+}
+
+// Reset the gateway, shutting it down and starting against from scratch using
+// the given certificate.
+//
+// This is used when disabling clustering on a node.
+func (g *Gateway) Reset(cert *shared.CertInfo) error {
+	err := g.Shutdown()
+	if err != nil {
+		return err
+	}
+	err = os.RemoveAll(filepath.Join(g.db.Dir(), "raft"))
+	if err != nil {
+		return err
+	}
+	err = g.db.Transaction(func(tx *db.NodeTx) error {
+		return tx.RaftNodesReplace(nil)
+	})
+	if err != nil {
+		return err
+	}
+	g.cert = cert
+	return g.init()
 }
 
 // Initialize the gateway, creating a new raft factory and gRPC server (if this

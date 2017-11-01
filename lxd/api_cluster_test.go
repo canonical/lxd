@@ -136,6 +136,23 @@ func TestCluster_Failover(t *testing.T) {
 	}
 }
 
+// A node can leave a cluster gracefully.
+func TestCluster_Leave(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cluster leave test in short mode.")
+	}
+	daemons, cleanup := newDaemons(t, 2)
+	defer cleanup()
+
+	f := clusterFixture{t: t}
+	f.FormCluster(daemons)
+
+	client := f.ClientUnix(daemons[1])
+	op, err := client.LeaveCluster("rusp-0", false)
+	require.NoError(t, err)
+	assert.NoError(t, op.Wait())
+}
+
 // Test helper for cluster-related APIs.
 type clusterFixture struct {
 	t       *testing.T
