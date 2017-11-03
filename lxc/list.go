@@ -68,15 +68,10 @@ A key/value pair referring to a configuration item. For those, the namespace can
 A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*).
 
 *Columns*
-The -c option takes a comma separated list of arguments that control
-which container attributes to output when displaying in table format.
+The -c option takes a list of column identifiers. Those are letters identifying a particular
+column to show in the containers list.
 
-Column arguments are either pre-defined shorthand chars (see below),
-or (extended) config keys.
-
-Commas between consecutive shorthand chars are optional.
-
-Pre-defined column shorthand chars:
+Available column shorthand chars:
 
     4 - IPv4 address
 
@@ -85,8 +80,6 @@ Pre-defined column shorthand chars:
     a - Architecture
 
     c - Creation date
-
-    l - Last used date
 
     n - Name
 

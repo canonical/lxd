@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-10-03 23:36-0400\n"
+"POT-Creation-Date: 2017-11-03 19:19-0400\n"
 "PO-Revision-Date: 2017-10-10 14:59+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -68,7 +68,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/image.go:851
+#: lxc/image.go:853
 #, c-format
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
@@ -76,7 +76,8 @@ msgstr "%s (他%d個)"
 #: lxc/utils.go:324
 #, c-format
 msgid "%v (interrupt two more times to force)"
-msgstr "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
+msgstr ""
+"%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
 #: lxc/snapshot.go:53
 msgid "'/' not allowed in snapshot name"
@@ -86,15 +87,15 @@ msgstr "'/' はスナップショットの名前には使用できません。"
 msgid "(none)"
 msgstr ""
 
-#: lxc/image.go:872 lxc/image.go:901
+#: lxc/image.go:874 lxc/image.go:903
 msgid "ALIAS"
 msgstr ""
 
-#: lxc/image.go:876
+#: lxc/image.go:878
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:414
+#: lxc/list.go:407
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -121,7 +122,7 @@ msgstr "アーキテクチャ: %s"
 msgid "Auto update: %s"
 msgstr "自動更新: %s"
 
-#: lxc/image.go:518
+#: lxc/image.go:519
 #, c-format
 msgid "Bad property: %s"
 msgstr "不正なプロパティ: %s\n"
@@ -138,7 +139,7 @@ msgstr "送信バイト数"
 msgid "COMMON NAME"
 msgstr ""
 
-#: lxc/list.go:415
+#: lxc/list.go:408
 msgid "CREATED AT"
 msgstr ""
 
@@ -175,7 +176,7 @@ msgstr "証明書のフィンガープリント: %s"
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
 
-#: lxc/list.go:109 lxc/list.go:110
+#: lxc/list.go:102 lxc/list.go:103
 msgid "Columns"
 msgstr "カラムレイアウト"
 
@@ -187,7 +188,7 @@ msgstr "コマンド:"
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
-#: lxc/config.go:647 lxc/config.go:712 lxc/image.go:956 lxc/profile.go:237
+#: lxc/config.go:647 lxc/config.go:712 lxc/image.go:958 lxc/profile.go:237
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -237,7 +238,7 @@ msgstr "%s を作成中"
 msgid "Creating the container"
 msgstr "コンテナを作成中"
 
-#: lxc/image.go:875 lxc/image.go:903
+#: lxc/image.go:877 lxc/image.go:905
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -255,7 +256,7 @@ msgstr "デバイス %s が %s から削除されました"
 msgid "Disk usage:"
 msgstr "ディスク使用量:"
 
-#: lxc/list.go:505
+#: lxc/list.go:498
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -296,12 +297,12 @@ msgstr "失効日時: %s"
 msgid "Expires: never"
 msgstr "失効日時: 失効しない"
 
-#: lxc/image.go:710
+#: lxc/image.go:712
 #, c-format
 msgid "Exporting the image: %s"
 msgstr "イメージのエクスポート中: %s"
 
-#: lxc/config.go:348 lxc/image.go:873 lxc/image.go:902
+#: lxc/config.go:348 lxc/image.go:875 lxc/image.go:904
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -329,7 +330,7 @@ msgstr "コピー先のコンテナ名が取得できませんでした"
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
 
-#: lxc/list.go:112
+#: lxc/list.go:105
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Fast モード (--columns=nsacPt と同じ)"
 
@@ -350,7 +351,7 @@ msgstr "稼働中のコンテナを強制的に削除します"
 msgid "Force using the local unix socket"
 msgstr "強制的にローカルのUNIXソケットを使います。"
 
-#: lxc/list.go:111
+#: lxc/list.go:104
 msgid "Format (table|json)"
 msgstr "フォーマット (table|json)"
 
@@ -358,11 +359,11 @@ msgstr "フォーマット (table|json)"
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
-#: lxc/list.go:412
+#: lxc/list.go:405
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:413
+#: lxc/list.go:406
 msgid "IPV6"
 msgstr ""
 
@@ -387,11 +388,11 @@ msgstr "コンテナの状態を無視します (startのみ)。"
 msgid "Image copied successfully!"
 msgstr "イメージのコピーが成功しました!"
 
-#: lxc/image.go:770
+#: lxc/image.go:772
 msgid "Image exported successfully!"
 msgstr "イメージのエクスポートに成功しました!"
 
-#: lxc/image.go:580
+#: lxc/image.go:581
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
@@ -482,7 +483,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
-#: lxc/list.go:416 lxc/remote.go:364
+#: lxc/list.go:409 lxc/remote.go:364
 msgid "NAME"
 msgstr ""
 
@@ -515,7 +516,7 @@ msgstr "フィンガープリントが指定されていません。"
 msgid "Only https URLs are supported for simplestreams"
 msgstr "simplestreams は https の URL のみサポートします"
 
-#: lxc/image.go:499
+#: lxc/image.go:500
 msgid "Only https:// is supported for remote image import."
 msgstr "リモートイメージのインポートは https:// のみをサポートします。"
 
@@ -527,15 +528,15 @@ msgstr "オプション:"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
-#: lxc/list.go:507
+#: lxc/list.go:500
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:417
+#: lxc/list.go:410
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:418
+#: lxc/list.go:411
 msgid "PROFILES"
 msgstr ""
 
@@ -543,7 +544,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:874 lxc/remote.go:367
+#: lxc/image.go:876 lxc/remote.go:367
 msgid "PUBLIC"
 msgstr ""
 
@@ -580,7 +581,7 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
-#: lxc/config.go:648 lxc/config.go:713 lxc/image.go:957
+#: lxc/config.go:648 lxc/config.go:713 lxc/image.go:959
 msgid "Press enter to start the editor again"
 msgstr "再度エディタを起動するには Enter キーを押します"
 
@@ -673,15 +674,15 @@ msgstr "コンテナを再起動します。"
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
 
-#: lxc/image.go:877
+#: lxc/image.go:879
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:419
+#: lxc/list.go:412
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/list.go:420
+#: lxc/list.go:413
 msgid "STATE"
 msgstr ""
 
@@ -790,7 +791,7 @@ msgstr "Swap (現在値)"
 msgid "Swap (peak)"
 msgstr "Swap (ピーク)"
 
-#: lxc/list.go:421
+#: lxc/list.go:414
 msgid "TYPE"
 msgstr ""
 
@@ -864,7 +865,7 @@ msgstr ""
 msgid "Transferring container: %s"
 msgstr "コンテナを転送中: %s"
 
-#: lxc/image.go:528
+#: lxc/image.go:529
 #, c-format
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
@@ -882,7 +883,7 @@ msgstr "タイプ: ephemeral"
 msgid "Type: persistent"
 msgstr "タイプ: persistent"
 
-#: lxc/image.go:878
+#: lxc/image.go:880
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -1359,7 +1360,9 @@ msgid ""
 "Examples:\n"
 "    lxc init ubuntu:16.04 u1"
 msgstr ""
-"使い方: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t <instance type>]\n"
+"使い方: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--"
+"profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t <instance "
+"type>]\n"
 "\n"
 "指定したイメージからコンテナを初期化します。\n"
 "\n"
@@ -1383,7 +1386,9 @@ msgid ""
 "Examples:\n"
 "    lxc launch ubuntu:16.04 u1"
 msgstr ""
-"使い方: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t <instance type>]\n"
+"使い方: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] "
+"[--profile|-p <profile>...] [--config|-c <key=value>...] [--type|-t "
+"<instance type>]\n"
 "\n"
 "指定したイメージからコンテナを起動します。\n"
 "\n"
@@ -1394,6 +1399,7 @@ msgstr ""
 "    lxc launch ubuntu:16.04 u1"
 
 #: lxc/list.go:46
+#, fuzzy
 msgid ""
 "Usage: lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] "
 "[--fast]\n"
@@ -1424,15 +1430,11 @@ msgid ""
 "volatile.eth0.hwaddr=00:16:3e:.*).\n"
 "\n"
 "*Columns*\n"
-"The -c option takes a comma separated list of arguments that control\n"
-"which container attributes to output when displaying in table format.\n"
+"The -c option takes a list of column identifiers. Those are letters "
+"identifying a particular\n"
+"column to show in the containers list.\n"
 "\n"
-"Column arguments are either pre-defined shorthand chars (see below),\n"
-"or (extended) config keys.\n"
-"\n"
-"Commas between consecutive shorthand chars are optional.\n"
-"\n"
-"Pre-defined column shorthand chars:\n"
+"Available column shorthand chars:\n"
 "\n"
 "    4 - IPv4 address\n"
 "\n"
@@ -1441,8 +1443,6 @@ msgid ""
 "    a - Architecture\n"
 "\n"
 "    c - Creation date\n"
-"\n"
-"    l - Last used date\n"
 "\n"
 "    n - Name\n"
 "\n"
@@ -1461,7 +1461,8 @@ msgid ""
 "    Shows a list of containers using the \"NAME\", \"STATE\", \"IPV4\", "
 "\"IPV6\" columns."
 msgstr ""
-"使い方: lxc list [<remote>:] [filters] [--format table|json] [-c columns] [--fast]\n"
+"使い方: lxc list [<remote>:] [filters] [--format table|json] [-c columns] [--"
+"fast]\n"
 "\n"
 "コンテナを一覧表示します。\n"
 "\n"
@@ -1469,13 +1470,15 @@ msgstr ""
 "Fast モードのカラムレイアウト: nsacPt\n"
 "\n"
 "*フィルタ*\n"
-"単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるコンテナが一覧表示されます。\n"
+"単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるコン"
+"テナが一覧表示されます。\n"
 "\n"
 "コンテナ名の正規表現 (例: .*web.*01$)。\n"
 "\n"
 "設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することがで\n"
 "きます:\n"
-"    - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定されているコンテナをすべて一覧表示します。\n"
+"    - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定さ"
+"れているコンテナをすべて一覧表示します。\n"
 "\n"
 "    - \"u.blah=abc\" は上記と同じ意味になります。\n"
 "\n"
@@ -1483,7 +1486,8 @@ msgstr ""
 "\n"
 "    - \"s.privilaged=1\" は上記と同じ意味になります。\n"
 "\n"
-"設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:.*)\n"
+"設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:."
+"*)\n"
 "\n"
 "*カラム*\n"
 "\n"
@@ -1521,7 +1525,8 @@ msgstr ""
 "\n"
 "*例*\n"
 "lxc list -c ns46\n"
-"    コンテナの \"NAME\"、\"STATE\"、\"IPV4\"、\"IPV6\" を使って一覧表示します。"
+"    コンテナの \"NAME\"、\"STATE\"、\"IPV4\"、\"IPV6\" を使って一覧表示しま"
+"す。"
 
 #: lxc/manpage.go:20
 msgid ""
@@ -1875,7 +1880,9 @@ msgstr "ユーザが削除操作を中断しました。"
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."
-msgstr "ユーザからのシグナルを 3 度受信したので exit しました。リモート操作は実行し続けます。"
+msgstr ""
+"ユーザからのシグナルを 3 度受信したので exit しました。リモート操作は実行し続"
+"けます。"
 
 #: lxc/restore.go:38
 msgid ""
@@ -1932,7 +1939,7 @@ msgstr "エラー: %v"
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s"
 
-#: lxc/image.go:396 lxc/image.go:401 lxc/image.go:854
+#: lxc/image.go:396 lxc/image.go:401 lxc/image.go:856
 msgid "no"
 msgstr ""
 
@@ -1982,7 +1989,7 @@ msgstr "%s に取得しました"
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
-#: lxc/delete.go:45 lxc/image.go:398 lxc/image.go:403 lxc/image.go:858
+#: lxc/delete.go:45 lxc/image.go:398 lxc/image.go:403 lxc/image.go:860
 msgid "yes"
 msgstr ""
 

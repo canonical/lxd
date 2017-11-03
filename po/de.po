@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-10-03 23:36-0400\n"
+"POT-Creation-Date: 2017-11-03 19:19-0400\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -111,7 +111,7 @@ msgstr ""
 "###\n"
 "### Der Name wird zwar angezeigt, lässt sich jedoch nicht ändern.\n"
 
-#: lxc/image.go:851
+#: lxc/image.go:853
 #, c-format
 msgid "%s (%d more)"
 msgstr ""
@@ -130,15 +130,15 @@ msgstr "'/' ist kein gültiges Zeichen im Namen eines Sicherungspunktes\n"
 msgid "(none)"
 msgstr ""
 
-#: lxc/image.go:872 lxc/image.go:901
+#: lxc/image.go:874 lxc/image.go:903
 msgid "ALIAS"
 msgstr ""
 
-#: lxc/image.go:876
+#: lxc/image.go:878
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:414
+#: lxc/list.go:407
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -166,7 +166,7 @@ msgstr "Architektur: %s\n"
 msgid "Auto update: %s"
 msgstr ""
 
-#: lxc/image.go:518
+#: lxc/image.go:519
 #, fuzzy, c-format
 msgid "Bad property: %s"
 msgstr "Ungültige Abbild Eigenschaft: %s\n"
@@ -183,7 +183,7 @@ msgstr ""
 msgid "COMMON NAME"
 msgstr ""
 
-#: lxc/list.go:415
+#: lxc/list.go:408
 msgid "CREATED AT"
 msgstr ""
 
@@ -224,7 +224,7 @@ msgstr "Fingerabdruck des Zertifikats: % x\n"
 msgid "Client certificate stored at server: "
 msgstr "Gespeichertes Nutzerzertifikat auf dem Server: "
 
-#: lxc/list.go:109 lxc/list.go:110
+#: lxc/list.go:102 lxc/list.go:103
 msgid "Columns"
 msgstr ""
 
@@ -237,7 +237,7 @@ msgstr ""
 msgid "Config key/value to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/config.go:647 lxc/config.go:712 lxc/image.go:956 lxc/profile.go:237
+#: lxc/config.go:647 lxc/config.go:712 lxc/image.go:958 lxc/profile.go:237
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
 msgstr "YAML Analyse Fehler %v\n"
@@ -288,7 +288,7 @@ msgstr ""
 msgid "Creating the container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/image.go:875 lxc/image.go:903
+#: lxc/image.go:877 lxc/image.go:905
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -306,7 +306,7 @@ msgstr "Gerät %s wurde von %s entfernt\n"
 msgid "Disk usage:"
 msgstr ""
 
-#: lxc/list.go:505
+#: lxc/list.go:498
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -349,12 +349,12 @@ msgstr ""
 msgid "Expires: never"
 msgstr ""
 
-#: lxc/image.go:710
+#: lxc/image.go:712
 #, c-format
 msgid "Exporting the image: %s"
 msgstr ""
 
-#: lxc/config.go:348 lxc/image.go:873 lxc/image.go:902
+#: lxc/config.go:348 lxc/image.go:875 lxc/image.go:904
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -383,7 +383,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/list.go:112
+#: lxc/list.go:105
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
@@ -405,7 +405,7 @@ msgstr ""
 msgid "Force using the local unix socket"
 msgstr ""
 
-#: lxc/list.go:111
+#: lxc/list.go:104
 msgid "Format (table|json)"
 msgstr ""
 
@@ -414,11 +414,11 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Generiere Nutzerzertifikat. Dies kann wenige Minuten dauern...\n"
 
-#: lxc/list.go:412
+#: lxc/list.go:405
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:413
+#: lxc/list.go:406
 msgid "IPV6"
 msgstr ""
 
@@ -444,11 +444,11 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Image copied successfully!"
 msgstr ""
 
-#: lxc/image.go:770
+#: lxc/image.go:772
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:580
+#: lxc/image.go:581
 #, fuzzy, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
@@ -541,7 +541,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/list.go:416 lxc/remote.go:364
+#: lxc/list.go:409 lxc/remote.go:364
 msgid "NAME"
 msgstr ""
 
@@ -575,7 +575,7 @@ msgstr "Kein Fingerabdruck angegeben."
 msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
-#: lxc/image.go:499
+#: lxc/image.go:500
 msgid "Only https:// is supported for remote image import."
 msgstr ""
 
@@ -587,15 +587,15 @@ msgstr ""
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:507
+#: lxc/list.go:500
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:417
+#: lxc/list.go:410
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:418
+#: lxc/list.go:411
 msgid "PROFILES"
 msgstr ""
 
@@ -603,7 +603,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:874 lxc/remote.go:367
+#: lxc/image.go:876 lxc/remote.go:367
 msgid "PUBLIC"
 msgstr ""
 
@@ -643,7 +643,7 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:648 lxc/config.go:713 lxc/image.go:957
+#: lxc/config.go:648 lxc/config.go:713 lxc/image.go:959
 msgid "Press enter to start the editor again"
 msgstr ""
 
@@ -740,15 +740,15 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/image.go:877
+#: lxc/image.go:879
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:419
+#: lxc/list.go:412
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/list.go:420
+#: lxc/list.go:413
 msgid "STATE"
 msgstr ""
 
@@ -861,7 +861,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:421
+#: lxc/list.go:414
 msgid "TYPE"
 msgstr ""
 
@@ -926,7 +926,7 @@ msgstr ""
 msgid "Transferring container: %s"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/image.go:528
+#: lxc/image.go:529
 #, c-format
 msgid "Transferring image: %s"
 msgstr ""
@@ -944,7 +944,7 @@ msgstr ""
 msgid "Type: persistent"
 msgstr ""
 
-#: lxc/image.go:878
+#: lxc/image.go:880
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -1301,15 +1301,11 @@ msgid ""
 "volatile.eth0.hwaddr=00:16:3e:.*).\n"
 "\n"
 "*Columns*\n"
-"The -c option takes a comma separated list of arguments that control\n"
-"which container attributes to output when displaying in table format.\n"
+"The -c option takes a list of column identifiers. Those are letters "
+"identifying a particular\n"
+"column to show in the containers list.\n"
 "\n"
-"Column arguments are either pre-defined shorthand chars (see below),\n"
-"or (extended) config keys.\n"
-"\n"
-"Commas between consecutive shorthand chars are optional.\n"
-"\n"
-"Pre-defined column shorthand chars:\n"
+"Available column shorthand chars:\n"
 "\n"
 "    4 - IPv4 address\n"
 "\n"
@@ -1318,8 +1314,6 @@ msgid ""
 "    a - Architecture\n"
 "\n"
 "    c - Creation date\n"
-"\n"
-"    l - Last used date\n"
 "\n"
 "    n - Name\n"
 "\n"
@@ -1667,7 +1661,7 @@ msgstr "Fehler: %v\n"
 msgid "error: unknown command: %s"
 msgstr "Fehler: unbekannter Befehl: %s\n"
 
-#: lxc/image.go:396 lxc/image.go:401 lxc/image.go:854
+#: lxc/image.go:396 lxc/image.go:401 lxc/image.go:856
 msgid "no"
 msgstr ""
 
@@ -1718,7 +1712,7 @@ msgstr ""
 msgid "wrong number of subcommand arguments"
 msgstr "falsche Anzahl an Parametern für Unterbefehl"
 
-#: lxc/delete.go:45 lxc/image.go:398 lxc/image.go:403 lxc/image.go:858
+#: lxc/delete.go:45 lxc/image.go:398 lxc/image.go:403 lxc/image.go:860
 msgid "yes"
 msgstr ""
 
