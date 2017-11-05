@@ -372,11 +372,7 @@ func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 	return nil
 }
 
-func operationCreate(opClass operationClass, opResources map[string][]string, opMetadata interface{},
-	onRun func(*operation) error,
-	onCancel func(*operation) error,
-	onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
-
+func operationCreate(opClass operationClass, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
 	// Main attributes
 	op := operation{}
 	op.id = uuid.NewRandom().String()

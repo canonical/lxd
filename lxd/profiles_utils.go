@@ -25,11 +25,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	// Check if the root device is supposed to be changed or removed.
 	oldProfileRootDiskDeviceKey, oldProfileRootDiskDevice, _ := containerGetRootDiskDevice(profile.Devices)
 	_, newProfileRootDiskDevice, _ := containerGetRootDiskDevice(req.Devices)
-	if len(containers) > 0 &&
-		oldProfileRootDiskDevice["pool"] != "" &&
-		newProfileRootDiskDevice["pool"] == "" ||
-		(oldProfileRootDiskDevice["pool"] != newProfileRootDiskDevice["pool"]) {
-
+	if len(containers) > 0 && oldProfileRootDiskDevice["pool"] != "" && newProfileRootDiskDevice["pool"] == "" || (oldProfileRootDiskDevice["pool"] != newProfileRootDiskDevice["pool"]) {
 		// Check for containers using the device
 		for _, container := range containers {
 			// Check if the device is locally overridden
