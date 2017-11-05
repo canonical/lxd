@@ -12,7 +12,6 @@ import (
 // OS is a high-level facade for accessing all operating-system
 // level functionality that LXD uses.
 type OS struct {
-
 	// Caches of system characteristics detected at Init() time.
 	Architectures []int  // Cache of detected system architectures
 	LxcPath       string // Path to the $LXD_DIR/containers directory

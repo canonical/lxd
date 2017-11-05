@@ -1964,7 +1964,6 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 
 			if m["nictype"] == "bridged" && shared.IsTrue(m["security.mac_filtering"]) {
-
 				// Read device name from config
 				vethName := ""
 				for i := 0; i < len(c.c.ConfigItem(networkKeyPrefix)); i++ {
