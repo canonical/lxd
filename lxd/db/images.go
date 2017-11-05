@@ -491,7 +491,6 @@ func ImageInsert(db *sql.DB, fp string, fname string, sz int64, public bool, aut
 		defer pstmt.Close()
 
 		for k, v := range properties {
-
 			// we can assume, that there is just one
 			// value per key
 			_, err = pstmt.Exec(id, k, v)
