@@ -15,7 +15,7 @@ test_init_preseed() {
     if [ "$lxd_backend" = "zfs" ]; then
         configure_loop_device loop_file_4 loop_device_4
         # shellcheck disable=SC2154
-        zpool create "lxdtest-$(basename "${LXD_DIR}")-preseed-pool" "${loop_device_4}" -f -m none -O compression=on
+        zpool create -f -m none -O compression=on "lxdtest-$(basename "${LXD_DIR}")-preseed-pool" "${loop_device_4}"
         driver="zfs"
         source="lxdtest-$(basename "${LXD_DIR}")-preseed-pool"
     elif [ "$lxd_backend" = "ceph" ]; then

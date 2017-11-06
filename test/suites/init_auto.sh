@@ -14,7 +14,7 @@ test_init_auto() {
 
     configure_loop_device loop_file_1 loop_device_1
     # shellcheck disable=SC2154
-    zpool create "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}" -m none -O compression=on
+    zpool create -m none -O compression=on "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}"
     LXD_DIR=${LXD_INIT_DIR} lxd init --auto --storage-backend zfs --storage-pool "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool"
     LXD_DIR=${LXD_INIT_DIR} lxc profile show default | grep -q "pool: default"
 
@@ -28,7 +28,7 @@ test_init_auto() {
 
     # shellcheck disable=SC2154
     configure_loop_device loop_file_1 loop_device_1
-    zpool create "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}" -m none -O compression=on
+    zpool create -m none -O compression=on "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}"
     LXD_DIR=${LXD_INIT_DIR} lxd init --auto --storage-backend zfs --storage-pool "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool/non-existing-dataset"
 
     kill_lxd "${LXD_INIT_DIR}"

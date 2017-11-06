@@ -74,7 +74,7 @@ func zfsPoolCreate(pool string, vdev string) error {
 		}
 	} else {
 		output, err = shared.RunCommand(
-			"zpool", "create", pool, vdev, "-f", "-m", "none", "-O", "compression=on")
+			"zpool", "create", "-f", "-m", "none", "-O", "compression=on", pool, vdev)
 		if err != nil {
 			logger.Errorf("zfs create failed: %s.", output)
 			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
