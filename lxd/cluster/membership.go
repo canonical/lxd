@@ -431,6 +431,45 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	return address, nil
 }
 
+// List the nodes of the cluster.
+//
+// Upon success return a list of the current nodes and a map that for each ID
+// tells if the node is part of the database cluster or not.
+func List(state *state.State) ([]db.NodeInfo, map[int64]bool, error) {
+	addresses := []string{} // Addresses of database nodes
+	err := state.Node.Transaction(func(tx *db.NodeTx) error {
+		nodes, err := tx.RaftNodes()
+		if err != nil {
+			return errors.Wrap(err, "failed to fetch current raft nodes")
+		}
+		for _, node := range nodes {
+			addresses = append(addresses, node.Address)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var nodes []db.NodeInfo
+	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		nodes, err = tx.Nodes()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	flags := make(map[int64]bool) // Whether a node is a database node
+	for _, node := range nodes {
+		flags[node.ID] = shared.StringInSlice(node.Address, addresses)
+	}
+
+	return nodes, flags, nil
+}
+
 // Check that node-related preconditions are met for bootstrapping or joining a
 // cluster.
 func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) error {
