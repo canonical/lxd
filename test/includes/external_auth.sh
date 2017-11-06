@@ -4,6 +4,7 @@ start_external_auth_daemon() {
 
     (
         cd macaroon-identity || return
+        go get -d ./...
         go build ./...
     )
     # shellcheck disable=SC2039
