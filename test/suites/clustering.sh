@@ -49,11 +49,24 @@ test_clustering() {
   ns5="${prefix}5"
   spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 4 "${LXD_FIVE_DIR}"
 
-  # The preseeded network can be deleted from any node, other nodes
-  # are notified.
+  # Shutdown a non-database node, and wait a few seconds so it will be
+  # detected as down.
+  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
+  sleep 5
+
+  # Trying to delete the preseeded network now fails, because a node is degraded.
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
+
+  # Force the removal of the degraded node.
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster remove node5 --force
+
+  # Now the preseeded network can be deleted, and all nodes are
+  # notified.
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
-  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
+  # Remove a node gracefully.
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node4
+
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
