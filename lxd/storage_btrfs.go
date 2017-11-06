@@ -602,9 +602,7 @@ func (s *storageBtrfs) subvolsDelete(subvol string) error {
  * subvolSnapshot creates a snapshot of "source" to "dest"
  * the result will be readonly if "readonly" is True.
  */
-func (s *storageBtrfs) subvolSnapshot(
-	source string, dest string, readonly bool) error {
-
+func (s *storageBtrfs) subvolSnapshot(source string, dest string, readonly bool) error {
 	parentDestPath := filepath.Dir(dest)
 	if !shared.PathExists(parentDestPath) {
 		if err := os.MkdirAll(parentDestPath, 0700); err != nil {
@@ -652,9 +650,7 @@ func (s *storageBtrfs) subvolSnapshot(
 	return err
 }
 
-func (s *storageBtrfs) subvolsSnapshot(
-	source string, dest string, readonly bool) error {
-
+func (s *storageBtrfs) subvolsSnapshot(source string, dest string, readonly bool) error {
 	// Get a list of subvolumes of the root
 	subsubvols, err := s.getSubVolumes(source)
 	if err != nil {
