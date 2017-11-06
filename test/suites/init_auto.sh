@@ -14,7 +14,7 @@ test_init_auto() {
 
     configure_loop_device loop_file_1 loop_device_1
     # shellcheck disable=SC2154
-    zpool create "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}" -m none -O compression=on
+    zpool create -m none -O compression=on "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}"
     LXD_DIR=${LXD_INIT_DIR} lxd init --auto --storage-backend zfs --storage-pool "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool"
 
     kill_lxd "${LXD_INIT_DIR}"
@@ -28,7 +28,7 @@ test_init_auto() {
 
     configure_loop_device loop_file_1 loop_device_1
     # shellcheck disable=SC2154
-    zpool create "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}" -m none -O compression=on
+    zpool create -m none -O compression=on "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool" "${loop_device_1}"
     zfs create -p -o mountpoint=none "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool/existing-dataset"
     LXD_DIR=${LXD_INIT_DIR} lxd init --auto --storage-backend zfs --storage-pool "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool/existing-dataset"
 

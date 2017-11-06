@@ -222,8 +222,8 @@ func (cmd *CmdInit) fillDataWithStorage(data *cmdInitData, storage *cmdInitStora
 	if shared.StringInSlice(storage.Mode, []string{"loop", "device"}) {
 		output, err := shared.RunCommand(
 			"zpool",
-			"create", storage.Pool, storage.Device,
-			"-f", "-m", "none", "-O", "compression=on")
+			"create", "-f", "-m", "none", "-O", "compression=on",
+			storage.Pool, storage.Device)
 		if err != nil {
 			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 		}
