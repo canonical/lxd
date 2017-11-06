@@ -97,7 +97,11 @@ func clusterDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var clusterNodesCmd = Command{name: "cluster/nodes", untrustedPost: true, post: clusterNodesPost}
+var clusterNodesCmd = Command{
+	name: "cluster/nodes",
+	post: clusterNodesPost, untrustedPost: true,
+	get: clusterNodesGet,
+}
 
 // Depending on the parameters passed and on local state this endpoint will
 // either:
@@ -247,6 +251,27 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 	}
 
 	return OperationResponse(op)
+}
+
+func clusterNodesGet(d *Daemon, r *http.Request) Response {
+	dbNodes, flags, err := cluster.List(d.State())
+	if err != nil {
+		return SmartError(err)
+	}
+
+	nodes := make([]api.Node, len(dbNodes))
+	for i, dbNode := range dbNodes {
+		nodes[i].Name = dbNode.Name
+		nodes[i].URL = fmt.Sprintf("https://%s", dbNode.Address)
+		nodes[i].Database = flags[dbNode.ID]
+		if dbNode.IsDown() {
+			nodes[i].State = "OFFLINE"
+		} else {
+			nodes[i].State = "ONLINE"
+		}
+	}
+
+	return SyncResponse(true, nodes)
 }
 
 var clusterNodeCmd = Command{name: "cluster/nodes/{name}", delete: clusterNodeDelete}

@@ -84,3 +84,16 @@ func (r *ProtocolLXD) LeaveCluster(name string, force bool) (*Operation, error) 
 	}
 	return op, nil
 }
+
+// GetNodes returns the current nodes in the cluster.
+func (r *ProtocolLXD) GetNodes() ([]api.Node, error) {
+	nodes := []api.Node{}
+	path := "/cluster/nodes"
+	_, err := r.queryStruct("GET", path, nil, "", &nodes)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return nodes, nil
+}
