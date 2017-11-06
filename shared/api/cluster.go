@@ -36,3 +36,11 @@ type RaftNode struct {
 	ID      int64  `json:"id" yaml:"id"`
 	Address string `json:"address" yaml:"address"`
 }
+
+// Node represents the a LXD node in the cluster.
+type Node struct {
+	Name     string `json:"name" yaml:"name"`
+	URL      string `json:"url" yaml:"url"`
+	Database bool   `json:"database" yaml:"database"`
+	State    string `json:"state" yaml:"state"`
+}

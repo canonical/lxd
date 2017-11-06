@@ -49,10 +49,14 @@ test_clustering() {
   ns5="${prefix}5"
   spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 4 "${LXD_FIVE_DIR}"
 
+  # List all nodes
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -q "ONLINE"
+
   # Shutdown a non-database node, and wait a few seconds so it will be
   # detected as down.
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
-  sleep 5
+  sleep 22
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node5" | grep -q "OFFLINE"
 
   # Trying to delete the preseeded network now fails, because a node is degraded.
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
