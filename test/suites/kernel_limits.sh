@@ -1,4 +1,13 @@
 test_kernel_limits() {
+  lxc_version=$(lxc info | grep "driver_version: " | cut -d' ' -f4)
+  lxc_major=$(echo "${lxc_version}" | cut -d. -f1)
+  lxc_minor=$(echo "${lxc_version}" | cut -d. -f2)
+
+  if [ "${lxc_major}" -lt 2 ] || ([ "${lxc_major}" = "2" ] && [ "${lxc_minor}" -lt "1" ]); then
+    echo "==> SKIP: kernel_limits require liblxc 2.1 or higher"
+    return
+  fi
+
   echo "==> API extension kernel_limits"
 
   ensure_import_testimage

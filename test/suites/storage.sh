@@ -64,7 +64,7 @@ test_storage() {
       # Let LXD use an already existing storage pool.
       configure_loop_device loop_file_4 loop_device_4
       # shellcheck disable=SC2154
-      zpool create "lxdtest-$(basename "${LXD_DIR}")-pool9-existing-pool" "${loop_device_4}" -f -m none -O compression=on
+      zpool create -f -m none -O compression=on "lxdtest-$(basename "${LXD_DIR}")-pool9-existing-pool" "${loop_device_4}"
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-pool9" zfs source="lxdtest-$(basename "${LXD_DIR}")-pool9-existing-pool"
 
       # Let LXD create a new dataset and use as pool.

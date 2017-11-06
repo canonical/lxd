@@ -173,11 +173,6 @@ func networkValidateConfig(name string, config map[string]string) error {
 					}
 				}
 			}
-
-			tunnels := networkGetTunnels(config)
-			if len(tunnels) > 0 && mtu > 1400 {
-				return fmt.Errorf("Maximum MTU when using tunnels is 1400")
-			}
 		}
 	}
 
