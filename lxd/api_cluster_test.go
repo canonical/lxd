@@ -80,6 +80,15 @@ func TestCluster_Join(t *testing.T) {
 	for _, daemon := range daemons {
 		assert.NotNil(t, daemon.externalAuth)
 	}
+
+	// The GetNodes client method returns both nodes.
+	nodes, err := client.GetNodes()
+	require.NoError(t, err)
+	assert.Len(t, nodes, 2)
+	assert.Equal(t, "buzz", nodes[0].Name)
+	assert.Equal(t, "rusp", nodes[1].Name)
+	assert.Equal(t, "ONLINE", nodes[0].State)
+	assert.Equal(t, "ONLINE", nodes[1].State)
 }
 
 // If the wrong trust password is given, the join request fails.
