@@ -109,7 +109,7 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 		return fmt.Errorf("Uninitialized go-lxc struct")
 	}
 
-	if !lxc.VersionAtLeast(2, 1, 0) {
+	if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 		switch key {
 		case "lxc.uts.name":
 			key = "lxc.utsname"
@@ -155,7 +155,7 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 	}
 
 	if strings.HasPrefix(key, "lxc.prlimit.") {
-		if !lxc.VersionAtLeast(2, 1, 0) {
+		if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 			return fmt.Errorf(`Process limits require libxc >= 2.1`)
 		}
 	}
@@ -211,7 +211,7 @@ func lxcValidConfig(rawLxc string) error {
 		}
 
 		networkKeyPrefix := "lxc.net."
-		if !lxc.VersionAtLeast(2, 1, 0) {
+		if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 			networkKeyPrefix = "lxc.network."
 		}
 
@@ -219,7 +219,7 @@ func lxcValidConfig(rawLxc string) error {
 			fields := strings.Split(key, ".")
 
 			allowedIPKeys := []string{"ipv4.address", "ipv6.address"}
-			if !lxc.VersionAtLeast(2, 1, 0) {
+			if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 				allowedIPKeys = []string{"ipv4", "ipv6"}
 			}
 
@@ -1340,7 +1340,7 @@ func (c *containerLXC) initLXC() error {
 			}
 
 			networkKeyPrefix := "lxc.net"
-			if !lxc.VersionAtLeast(2, 1, 0) {
+			if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 				networkKeyPrefix = "lxc.network"
 			}
 
@@ -1452,7 +1452,7 @@ func (c *containerLXC) initLXC() error {
 
 			// Deal with a rootfs
 			if tgtPath == "" {
-				if !lxc.VersionAtLeast(2, 1, 0) {
+				if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 					// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
 					err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
 					if err == nil {
@@ -1464,7 +1464,7 @@ func (c *containerLXC) initLXC() error {
 				}
 
 				// Set the rootfs path
-				if lxc.VersionAtLeast(2, 1, 0) {
+				if util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 					rootfsPath := fmt.Sprintf("dir:%s", c.RootfsPath())
 					err = lxcSetConfigItem(cc, "lxc.rootfs.path", rootfsPath)
 				} else {
@@ -1922,7 +1922,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 		} else if m["type"] == "nic" {
 			networkKeyPrefix := "lxc.net"
-			if !lxc.VersionAtLeast(2, 1, 0) {
+			if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 				networkKeyPrefix = "lxc.network"
 			}
 
@@ -4486,7 +4486,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 	/* This feature was only added in 2.0.1, let's not ask for it
 	 * before then or migrations will fail.
 	 */
-	if !lxc.VersionAtLeast(2, 0, 1) {
+	if !util.RuntimeLiblxcVersionAtLeast(2, 0, 1) {
 		preservesInodes = false
 	}
 
@@ -6921,7 +6921,7 @@ func (c *containerLXC) setNetworkPriority() error {
 func (c *containerLXC) getHostInterface(name string) string {
 	if c.IsRunning() {
 		networkKeyPrefix := "lxc.net"
-		if !lxc.VersionAtLeast(2, 1, 0) {
+		if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 			networkKeyPrefix = "lxc.network"
 		}
 
