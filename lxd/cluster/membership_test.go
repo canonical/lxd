@@ -294,22 +294,29 @@ func TestJoin(t *testing.T) {
 	f.NetworkAddress(address)
 
 	// Accept the joining node.
-	nodes, err := cluster.Accept(
+	raftNodes, err := cluster.Accept(
 		targetState, "rusp", address, cluster.SchemaVersion, len(version.APIExtensions))
 	require.NoError(t, err)
 
 	// Actually join the cluster.
-	err = cluster.Join(state, gateway, targetCert, "rusp", nodes)
+	err = cluster.Join(state, gateway, targetCert, "rusp", raftNodes)
 	require.NoError(t, err)
 
 	// The leader now returns an updated list of raft nodes.
-	nodes, err = targetGateway.RaftNodes()
+	raftNodes, err = targetGateway.RaftNodes()
+	require.NoError(t, err)
+	assert.Len(t, raftNodes, 2)
+	assert.Equal(t, int64(1), raftNodes[0].ID)
+	assert.Equal(t, targetAddress, raftNodes[0].Address)
+	assert.Equal(t, int64(2), raftNodes[1].ID)
+	assert.Equal(t, address, raftNodes[1].Address)
+
+	// The List function returns all nodes in the cluster.
+	nodes, flags, err := cluster.List(state)
 	require.NoError(t, err)
 	assert.Len(t, nodes, 2)
-	assert.Equal(t, int64(1), nodes[0].ID)
-	assert.Equal(t, targetAddress, nodes[0].Address)
-	assert.Equal(t, int64(2), nodes[1].ID)
-	assert.Equal(t, address, nodes[1].Address)
+	assert.True(t, flags[1])
+	assert.True(t, flags[2])
 
 	// Leave the cluster.
 	leaving, err := cluster.Leave(state, gateway, "rusp", false /* force */)
