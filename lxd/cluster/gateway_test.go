@@ -1,6 +1,8 @@
 package cluster_test
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -31,8 +33,13 @@ func TestGateway_Single(t *testing.T) {
 	handlerFuncs := gateway.HandlerFuncs()
 	assert.Len(t, handlerFuncs, 2)
 	for endpoint, f := range handlerFuncs {
+		c, err := x509.ParseCertificate(cert.KeyPair().Certificate[0])
+		require.NoError(t, err)
 		w := httptest.NewRecorder()
 		r := &http.Request{}
+		r.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{c},
+		}
 		f(w, r)
 		assert.Equal(t, 404, w.Code, endpoint)
 	}
