@@ -69,6 +69,7 @@ type ContainerServer interface {
 	DeleteContainer(name string) (op *Operation, err error)
 
 	ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (op *Operation, err error)
+	ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (op *Operation, err error)
 
 	GetContainerFile(containerName string, path string) (content io.ReadCloser, resp *ContainerFileResponse, err error)
 	CreateContainerFile(containerName string, path string, args ContainerFileArgs) (err error)
@@ -277,6 +278,16 @@ type ContainerSnapshotCopyArgs struct {
 	// API extension: container_snapshot_stateful_migration
 	// If set, the container running state will be transferred (live migration)
 	Live bool
+}
+
+// The ContainerConsoleArgs struct is used to pass additional options during a
+// container console session
+type ContainerConsoleArgs struct {
+	// Bidirectional fd to pass to the container
+	Terminal io.ReadWriteCloser
+
+	// Control message handler (window resize)
+	Control func(conn *websocket.Conn)
 }
 
 // The ContainerExecArgs struct is used to pass additional options during container exec
