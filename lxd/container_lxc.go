@@ -5073,6 +5073,25 @@ func (c *containerLXC) FileRemove(path string) error {
 	return nil
 }
 
+func (c *containerLXC) Console(terminal *os.File) error {
+	args := []string{
+		c.state.OS.ExecPath,
+		"forkconsole",
+		c.name,
+		c.state.OS.LxcPath,
+		filepath.Join(c.LogPath(), "lxc.conf"),
+		"0",
+		"1"}
+
+	cmd := exec.Cmd{}
+	cmd.Path = c.state.OS.ExecPath
+	cmd.Args = args
+	cmd.Stdin = terminal
+	cmd.Stdout = terminal
+	cmd.Stderr = terminal
+	return cmd.Run()
+}
+
 func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool) (*exec.Cmd, int, int, error) {
 	envSlice := []string{}
 

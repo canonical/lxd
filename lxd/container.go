@@ -437,6 +437,13 @@ type container interface {
 	FilePush(type_ string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
 	FileRemove(path string) error
 
+	// Console - Allocate and run a console tty.
+	//
+	// terminal  - Bidirectional file descriptor.
+	//
+	// This function will not return until the console has been exited by
+	// the user.
+	Console(terminal *os.File) error
 	/* Command execution:
 		 * 1. passing in false for wait
 		 *    - equivalent to calling cmd.Run()
