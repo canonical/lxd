@@ -113,6 +113,8 @@ Waitready options:
 
 
 Internal commands (don't call these directly):
+    forkconsole
+        Attach to the console of a container
     forkexec
         Execute a command in a container
     forkgetnet
