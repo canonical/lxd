@@ -1403,3 +1403,52 @@ func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName stri
 	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/metadata/templates?path=%s", name, templateName), nil, "")
 	return err
 }
+
+// ConsoleContainer requests that LXD attaches to the console device of a container.
+func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (*Operation, error) {
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/console", containerName), console, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if args == nil || args.Terminal == nil {
+		return nil, fmt.Errorf("A terminal must be set")
+	}
+
+	// Parse the fds
+	fds := map[string]string{}
+
+	value, ok := op.Metadata["fds"]
+	if ok {
+		values := value.(map[string]interface{})
+		for k, v := range values {
+			fds[k] = v.(string)
+		}
+	}
+
+	// Call the control handler with a connection to the control socket
+	if args.Control != nil && fds["control"] != "" {
+		conn, err := r.GetOperationWebsocket(op.ID, fds["control"])
+		if err != nil {
+			return nil, err
+		}
+
+		go args.Control(conn)
+	}
+
+	// Connect to the websocket
+	conn, err := r.GetOperationWebsocket(op.ID, fds["0"])
+	if err != nil {
+		return nil, err
+	}
+
+	// And attach stdin and stdout to it
+	go func() {
+		shared.WebsocketSendStream(conn, args.Terminal, -1)
+		<-shared.WebsocketRecvStream(args.Terminal, conn)
+		conn.Close()
+	}()
+
+	return op, nil
+}

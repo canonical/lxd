@@ -19,6 +19,7 @@ import (
 var api10 = []Command{
 	containersCmd,
 	containerCmd,
+	containerConsoleCmd,
 	containerStateCmd,
 	containerFileCmd,
 	containerLogsCmd,
