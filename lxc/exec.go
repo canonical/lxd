@@ -79,7 +79,7 @@ func (c *execCmd) sendTermSize(control *websocket.Conn) error {
 		return err
 	}
 
-	msg := api.ContainerExecControl{}
+	msg := api.ContainerTTYControl{}
 	msg.Command = "window-resize"
 	msg.Args = make(map[string]string)
 	msg.Args["width"] = strconv.Itoa(width)
@@ -103,7 +103,7 @@ func (c *execCmd) forwardSignal(control *websocket.Conn, sig syscall.Signal) err
 		return err
 	}
 
-	msg := api.ContainerExecControl{}
+	msg := api.ContainerTTYControl{}
 	msg.Command = "signal"
 	msg.Signal = int(sig)
 

@@ -1,12 +1,5 @@
 package api
 
-// ContainerExecControl represents a message on the container exec "control" socket
-type ContainerExecControl struct {
-	Command string            `json:"command" yaml:"command"`
-	Args    map[string]string `json:"args" yaml:"args"`
-	Signal  int               `json:"signal" yaml:"signal"`
-}
-
 // ContainerExecPost represents a LXD container exec request
 type ContainerExecPost struct {
 	Command     []string          `json:"command" yaml:"command"`
