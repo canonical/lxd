@@ -41,6 +41,10 @@ func TestGateway_Single(t *testing.T) {
 	conn, err := dialer()
 	assert.NoError(t, err)
 	assert.NotNil(t, conn)
+
+	leader, err := gateway.LeaderAddress()
+	assert.Equal(t, "", leader)
+	assert.EqualError(t, err, "node is not clustered")
 }
 
 // If there's a network address configured, we expose the gRPC endpoint with
@@ -68,6 +72,10 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	conn, err := driver.Open("test.db")
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
+
+	leader, err := gateway.LeaderAddress()
+	require.NoError(t, err)
+	assert.Equal(t, address, leader)
 }
 
 // When networked, the grpc and raft endpoints requires the cluster
