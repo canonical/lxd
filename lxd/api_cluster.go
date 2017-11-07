@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
@@ -164,6 +166,26 @@ func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPost) Response {
 }
 
 func clusterNodesPostAccept(d *Daemon, req api.ClusterPost) Response {
+	// Redirect all requests to the leader, which is the one with
+	// knowning what nodes are part of the raft cluster.
+	address, err := node.HTTPSAddress(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return InternalError(err)
+	}
+	if address != leader {
+		logger.Debugf("Redirect node accept request to %s", leader)
+		url := &url.URL{
+			Scheme: "https",
+			Path:   "/1.0/cluster/nodes",
+			Host:   leader,
+		}
+		return SyncResponseRedirect(url.String())
+	}
+
 	// Accepting a node requires the client to provide the correct
 	// trust password.
 	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
@@ -173,7 +195,7 @@ func clusterNodesPostAccept(d *Daemon, req api.ClusterPost) Response {
 	if util.PasswordCheck(secret, req.TargetPassword) != nil {
 		return Forbidden
 	}
-	nodes, err := cluster.Accept(d.State(), req.Name, req.Address, req.Schema, req.API)
+	nodes, err := cluster.Accept(d.State(), d.gateway, req.Name, req.Address, req.Schema, req.API)
 	if err != nil {
 		return BadRequest(err)
 	}

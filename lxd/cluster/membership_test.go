@@ -193,9 +193,13 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 			state, cleanup := state.NewTestState(t)
 			defer cleanup()
 
+			cert := shared.TestingKeyPair()
+			gateway := newGateway(t, state.Node, cert)
+			defer gateway.Shutdown()
+
 			c.setup(&membershipFixtures{t: t, state: state})
 
-			_, err := cluster.Accept(state, c.name, c.address, c.schema, c.api)
+			_, err := cluster.Accept(state, gateway, c.name, c.address, c.schema, c.api)
 			assert.EqualError(t, err, c.error)
 		})
 	}
@@ -206,38 +210,22 @@ func TestAccept(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
+	cert := shared.TestingKeyPair()
+	gateway := newGateway(t, state.Node, cert)
+	defer gateway.Shutdown()
+
 	f := &membershipFixtures{t: t, state: state}
 	f.RaftNode("1.2.3.4:666")
 	f.ClusterNode("1.2.3.4:666")
 
 	nodes, err := cluster.Accept(
-		state, "buzz", "5.6.7.8:666", cluster.SchemaVersion, len(version.APIExtensions))
+		state, gateway, "buzz", "5.6.7.8:666", cluster.SchemaVersion, len(version.APIExtensions))
 	assert.NoError(t, err)
 	assert.Len(t, nodes, 2)
 	assert.Equal(t, int64(1), nodes[0].ID)
 	assert.Equal(t, int64(2), nodes[1].ID)
 	assert.Equal(t, "1.2.3.4:666", nodes[0].Address)
 	assert.Equal(t, "5.6.7.8:666", nodes[1].Address)
-}
-
-// If the cluster has already reached its maximum number of raft nodes, the
-// joining node is not included in the returned raft nodes list.
-func TestAccept_MaxRaftNodes(t *testing.T) {
-	state, cleanup := state.NewTestState(t)
-	defer cleanup()
-
-	f := &membershipFixtures{t: t, state: state}
-	f.RaftNode("1.1.1.1:666")
-	f.RaftNode("2.2.2.2:666")
-	f.RaftNode("3.3.3.3:666")
-	f.ClusterNode("1.2.3.4:666")
-
-	nodes, err := cluster.Accept(
-		state, "buzz", "4.5.6.7:666", cluster.SchemaVersion, len(version.APIExtensions))
-	assert.NoError(t, err)
-	for _, node := range nodes {
-		assert.NotEqual(t, "4.5.6.7:666", node.Address)
-	}
 }
 
 func TestJoin(t *testing.T) {
@@ -295,7 +283,7 @@ func TestJoin(t *testing.T) {
 
 	// Accept the joining node.
 	raftNodes, err := cluster.Accept(
-		targetState, "rusp", address, cluster.SchemaVersion, len(version.APIExtensions))
+		targetState, targetGateway, "rusp", address, cluster.SchemaVersion, len(version.APIExtensions))
 	require.NoError(t, err)
 
 	// Actually join the cluster.

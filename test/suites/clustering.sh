@@ -49,8 +49,14 @@ test_clustering() {
   ns5="${prefix}5"
   spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 4 "${LXD_FIVE_DIR}"
 
-  # List all nodes
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -q "ONLINE"
+  # List all nodes, using clients points to different nodes and
+  # checking which are database nodes and which are not.
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node1" | grep -q "YES"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list | grep "node2" | grep -q "YES"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep "node3" | grep -q "YES"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep "node5" | grep -q "NO"
 
   # Shutdown a non-database node, and wait a few seconds so it will be
   # detected as down.

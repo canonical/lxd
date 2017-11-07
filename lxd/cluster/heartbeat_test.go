@@ -135,7 +135,7 @@ func (f *heartbeatFixture) Grow() *cluster.Gateway {
 	targetState := f.states[target]
 
 	nodes, err := cluster.Accept(
-		targetState, name, address, cluster.SchemaVersion, len(version.APIExtensions))
+		targetState, target, name, address, cluster.SchemaVersion, len(version.APIExtensions))
 
 	err = cluster.Join(state, gateway, target.Cert(), name, nodes)
 	require.NoError(f.t, err)

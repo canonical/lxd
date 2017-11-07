@@ -93,24 +93,8 @@ type Gateway struct {
 // database node part of the dqlite cluster.
 func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 	grpc := func(w http.ResponseWriter, r *http.Request) {
-		if g.server == nil || g.memoryDial != nil {
-			http.NotFound(w, r)
-			return
-		}
-
 		if !tlsCheckCert(r, g.cert) {
 			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
-			return
-		}
-
-		// Before actually establishing the gRPC SQL connection, our
-		// dialer probes the node to see if it's currently the leader
-		// (otherwise it tries with another node or retry later).
-		if r.Method == "HEAD" {
-			if g.raft.Raft().State() != raft.Leader {
-				http.Error(w, "503 not leader", http.StatusServiceUnavailable)
-				return
-			}
 			return
 		}
 
@@ -127,6 +111,23 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 			})
 			if err != nil {
 				http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
+				return
+			}
+			return
+		}
+
+		// From here on we require that this node is part of the raft cluster.
+		if g.server == nil || g.memoryDial != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Before actually establishing the gRPC SQL connection, our
+		// dialer probes the node to see if it's currently the leader
+		// (otherwise it tries with another node or retry later).
+		if r.Method == "HEAD" {
+			if g.raft.Raft().State() != raft.Leader {
+				http.Error(w, "503 not leader", http.StatusServiceUnavailable)
 				return
 			}
 			return
@@ -288,10 +289,11 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	// wait a bit until one is elected.
 	if g.raft != nil {
 		for ctx.Err() == nil {
-			address := g.raft.Raft().Leader()
+			address := string(g.raft.Raft().Leader())
 			if address != "" {
-				return string(address), nil
+				return address, nil
 			}
+			time.Sleep(time.Second)
 		}
 		return "", ctx.Err()
 
@@ -388,6 +390,9 @@ func (g *Gateway) init() error {
 
 		g.server = server
 		g.raft = raft
+	} else {
+		g.server = nil
+		g.raft = nil
 	}
 	return nil
 }
@@ -420,7 +425,13 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	for i, server := range servers {
 		address, err := provider.ServerAddr(server.ID)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to fetch raft server address")
+			if err != db.NoSuchObjectError {
+				return nil, errors.Wrap(err, "failed to fetch raft server address")
+			}
+			// Use the initial address as fallback. This is an edge
+			// case that happens when a new leader is elected and
+			// its raft_nodes table is not fully up-to-date yet.
+			address = server.Address
 		}
 		id, err := strconv.Atoi(string(server.ID))
 		if err != nil {
