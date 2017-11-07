@@ -123,6 +123,8 @@ type ContainerServer interface {
 	DeleteNetwork(name string) (err error)
 
 	// Operation functions
+	GetOperationUUIDs() (uuids []string, err error)
+	GetOperations() (operations []api.Operation, err error)
 	GetOperation(uuid string) (op *api.Operation, ETag string, err error)
 	DeleteOperation(uuid string) (err error)
 	GetOperationWebsocket(uuid string, secret string) (conn *websocket.Conn, err error)
