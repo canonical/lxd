@@ -382,6 +382,45 @@ func WebsocketMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, Re
 	return readDone, writeDone
 }
 
+func WebsocketConsoleMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser) (chan bool, chan bool) {
+	readDone := make(chan bool, 1)
+	writeDone := make(chan bool, 1)
+
+	go defaultWriter(conn, w, writeDone)
+
+	go func(conn *websocket.Conn, r io.ReadCloser) {
+		in := ReaderToChannel(r, -1)
+		for {
+			buf, ok := <-in
+			if !ok {
+				r.Close()
+				logger.Debugf("sending write barrier")
+				conn.WriteMessage(websocket.TextMessage, []byte{})
+				readDone <- true
+				return
+			}
+			w, err := conn.NextWriter(websocket.BinaryMessage)
+			if err != nil {
+				logger.Debugf("Got error getting next writer %s", err)
+				break
+			}
+
+			_, err = w.Write(buf)
+			w.Close()
+			if err != nil {
+				logger.Debugf("Got err writing %s", err)
+				break
+			}
+		}
+		closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+		conn.WriteMessage(websocket.CloseMessage, closeMsg)
+		readDone <- true
+		r.Close()
+	}(conn, r)
+
+	return readDone, writeDone
+}
+
 var WebsocketUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
