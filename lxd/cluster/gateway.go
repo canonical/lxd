@@ -132,6 +132,17 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 			return
 		}
 
+		// Handle leader address requests.
+		if r.Method == "GET" {
+			leader, err := g.LeaderAddress()
+			if err != nil {
+				http.Error(w, "500 no elected leader", http.StatusInternalServerError)
+				return
+			}
+			util.WriteJSON(w, map[string]string{"leader": leader}, false)
+			return
+		}
+
 		g.server.ServeHTTP(w, r)
 	}
 	raft := func(w http.ResponseWriter, r *http.Request) {
@@ -261,6 +272,91 @@ func (g *Gateway) Reset(cert *shared.CertInfo) error {
 	}
 	g.cert = cert
 	return g.init()
+}
+
+// LeaderAddress returns the address of the current raft leader.
+func (g *Gateway) LeaderAddress() (string, error) {
+	// If we aren't clustered, return an error.
+	if g.memoryDial != nil {
+		return "", fmt.Errorf("node is not clustered")
+	}
+
+	ctx, cancel := context.WithTimeout(g.ctx, 5*time.Second)
+	defer cancel()
+
+	// If this is a raft node, return the address of the current leader, or
+	// wait a bit until one is elected.
+	if g.raft != nil {
+		for ctx.Err() == nil {
+			address := g.raft.Raft().Leader()
+			if address != "" {
+				return string(address), nil
+			}
+		}
+		return "", ctx.Err()
+
+	}
+
+	// If this isn't a raft node, contact a raft node and ask for the
+	// address of the current leader.
+	config, err := tlsClientConfig(g.cert)
+	if err != nil {
+		return "", err
+	}
+	addresses := []string{}
+	err = g.db.Transaction(func(tx *db.NodeTx) error {
+		nodes, err := tx.RaftNodes()
+		if err != nil {
+			return err
+		}
+		for _, node := range nodes {
+			addresses = append(addresses, node.Address)
+		}
+		return nil
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "failed to fetch raft nodes addresses")
+	}
+
+	if len(addresses) == 0 {
+		// This should never happen because the raft_nodes table should
+		// be never empty for a clustered node, but check it for good
+		// measure.
+		return "", fmt.Errorf("no raft node known")
+	}
+
+	for _, address := range addresses {
+		url := fmt.Sprintf("https://%s%s", address, grpcEndpoint)
+		request, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return "", err
+		}
+		request = request.WithContext(ctx)
+		client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
+		response, err := client.Do(request)
+		if err != nil {
+			logger.Debugf("Failed to fetch leader address from %s", address)
+			continue
+		}
+		if response.StatusCode != http.StatusOK {
+			logger.Debugf("Request for leader address from %s failed", address)
+			continue
+		}
+		info := map[string]string{}
+		err = shared.ReadToJSON(response.Body, &info)
+		if err != nil {
+			logger.Debugf("Failed to parse leader address from %s", address)
+			continue
+		}
+		leader := info["leader"]
+		if leader == "" {
+			logger.Debugf("Raft node %s returned no leader address", address)
+			continue
+		}
+		return leader, nil
+	}
+
+	return "", fmt.Errorf("raft cluster is unavailable")
 }
 
 // Initialize the gateway, creating a new raft factory and gRPC server (if this
