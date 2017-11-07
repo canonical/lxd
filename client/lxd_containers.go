@@ -1406,6 +1406,10 @@ func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName stri
 
 // ConsoleContainer requests that LXD attaches to the console device of a container.
 func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (*Operation, error) {
+	if !r.HasExtension("console") {
+		return nil, fmt.Errorf("The server is missing the required \"console\" API extension")
+	}
+
 	// Send the request
 	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/console", containerName), console, "")
 	if err != nil {
