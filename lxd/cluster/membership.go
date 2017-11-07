@@ -136,7 +136,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 //
 // Return an updated list raft database nodes (possibly including the newly
 // accepted node).
-func Accept(state *state.State, name, address string, schema, api int) ([]db.RaftNode, error) {
+func Accept(state *state.State, gateway *Gateway, name, address string, schema, api int) ([]db.RaftNode, error) {
 	// Check parameters
 	if name == "" {
 		return nil, fmt.Errorf("node name must not be empty")
@@ -166,25 +166,22 @@ func Accept(state *state.State, name, address string, schema, api int) ([]db.Raf
 
 	// Possibly insert the new node into the raft_nodes table (if we have
 	// less than 3 database nodes).
-	var nodes []db.RaftNode
-	err = state.Node.Transaction(func(tx *db.NodeTx) error {
-		var err error
-		nodes, err = tx.RaftNodes()
-		if err != nil {
-			return errors.Wrap(err, "failed to fetch current raft nodes")
-		}
-		if len(nodes) >= membershipMaxRaftNodes {
-			return nil
-		}
-		id, err := tx.RaftNodeAdd(address)
-		if err != nil {
-			return err
-		}
-		nodes = append(nodes, db.RaftNode{ID: id, Address: address})
-		return nil
-	})
+	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get raft nodes from the log")
+	}
+	if len(nodes) < membershipMaxRaftNodes {
+		err = state.Node.Transaction(func(tx *db.NodeTx) error {
+			id, err := tx.RaftNodeAdd(address)
+			if err != nil {
+				return err
+			}
+			nodes = append(nodes, db.RaftNode{ID: id, Address: address})
+			return nil
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to insert new node into raft_nodes")
+		}
 	}
 
 	return nodes, nil

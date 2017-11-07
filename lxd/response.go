@@ -30,6 +30,7 @@ type syncResponse struct {
 	etag     interface{}
 	metadata interface{}
 	location string
+	code     int
 	headers  map[string]string
 }
 
@@ -56,7 +57,11 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 
 	if r.location != "" {
 		w.Header().Set("Location", r.location)
-		w.WriteHeader(201)
+		code := r.code
+		if code == 0 {
+			code = 201
+		}
+		w.WriteHeader(code)
 	}
 
 	resp := api.ResponseRaw{
@@ -88,6 +93,10 @@ func SyncResponseETag(success bool, metadata interface{}, etag interface{}) Resp
 
 func SyncResponseLocation(success bool, metadata interface{}, location string) Response {
 	return &syncResponse{success: success, metadata: metadata, location: location}
+}
+
+func SyncResponseRedirect(address string) Response {
+	return &syncResponse{success: true, location: address, code: http.StatusPermanentRedirect}
 }
 
 func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]string) Response {
