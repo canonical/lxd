@@ -64,7 +64,7 @@ func (g *Group) Reset(i int) {
 // for the function to terminate.
 //
 // In case the given timeout expires before all tasks complete, this method
-// exists immediately and returns an error, otherwise it returns nil.
+// exits immediately and returns an error, otherwise it returns nil.
 func (g *Group) Stop(timeout time.Duration) error {
 	if g.cancel == nil {
 		// We were not even started
