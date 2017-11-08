@@ -236,12 +236,12 @@ func (e *Endpoints) serveHTTP(kind kind) {
 
 // Stop the HTTP server of the endpoint associated with the given code. The
 // associated socket will be shutdown too.
-func (e *Endpoints) closeListener(code kind) error {
-	listener := e.listeners[code]
+func (e *Endpoints) closeListener(kind kind) error {
+	listener := e.listeners[kind]
 	if listener == nil {
 		return nil
 	}
-	delete(e.listeners, code)
+	delete(e.listeners, kind)
 
 	logger.Info(" - closing socket", log.Ctx{"socket": listener.Addr()})
 
@@ -253,17 +253,17 @@ func (e *Endpoints) closeListener(code kind) error {
 func activatedListeners(systemdListeners []net.Listener, cert *shared.CertInfo) map[kind]net.Listener {
 	listeners := map[kind]net.Listener{}
 	for _, listener := range systemdListeners {
-		var code kind
+		var kind kind
 		switch listener.(type) {
 		case *net.UnixListener:
-			code = local
+			kind = local
 		case *net.TCPListener:
-			code = network
+			kind = network
 			listener = networkTLSListener(listener, cert)
 		default:
 			continue
 		}
-		listeners[code] = listener
+		listeners[kind] = listener
 	}
 	return listeners
 }
