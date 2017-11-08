@@ -375,13 +375,13 @@ func (d *Daemon) init() error {
 	}
 
 	/* Setup the networks */
-	err = networkStartup(d.State()) // No-op if MockMode is on.
+	err = networkStartup(d.State())
 	if err != nil {
 		return err
 	}
 
 	/* Restore simplestreams cache */
-	err = imageLoadStreamCache(d) // No-op if no simplestreams.yaml metadata file exists.
+	err = imageLoadStreamCache(d)
 	if err != nil {
 		return err
 	}
