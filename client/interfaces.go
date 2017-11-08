@@ -69,6 +69,7 @@ type ContainerServer interface {
 
 	ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (op *Operation, err error)
 	ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (op *Operation, err error)
+	GetContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) (content io.ReadCloser, err error)
 
 	GetContainerFile(containerName string, path string) (content io.ReadCloser, resp *ContainerFileResponse, err error)
 	CreateContainerFile(containerName string, path string, args ContainerFileArgs) (err error)
@@ -287,6 +288,11 @@ type ContainerConsoleArgs struct {
 
 	// Control message handler (window resize)
 	Control func(conn *websocket.Conn)
+}
+
+// The ContainerConsoleLogArgs struct is used to pass additional options during a
+// container console log request
+type ContainerConsoleLogArgs struct {
 }
 
 // The ContainerExecArgs struct is used to pass additional options during container exec
