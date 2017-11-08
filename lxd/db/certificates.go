@@ -10,8 +10,8 @@ type CertInfo struct {
 	Certificate string
 }
 
-// CertsGet returns all certificates from the DB as CertBaseInfo objects.
-func (n *Node) CertsGet() (certs []*CertInfo, err error) {
+// CertificatesGet returns all certificates from the DB as CertBaseInfo objects.
+func (n *Node) CertificatesGet() (certs []*CertInfo, err error) {
 	rows, err := dbQuery(
 		n.db,
 		"SELECT id, fingerprint, type, name, certificate FROM certificates",
@@ -37,12 +37,12 @@ func (n *Node) CertsGet() (certs []*CertInfo, err error) {
 	return certs, nil
 }
 
-// CertGet gets an CertBaseInfo object from the database.
+// CertificateGet gets an CertBaseInfo object from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (n *Node) CertGet(fingerprint string) (cert *CertInfo, err error) {
+func (n *Node) CertificateGet(fingerprint string) (cert *CertInfo, err error) {
 	cert = new(CertInfo)
 
 	inargs := []interface{}{fingerprint + "%"}
