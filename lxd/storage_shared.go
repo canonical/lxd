@@ -5,7 +5,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -23,11 +22,6 @@ type storageShared struct {
 	pool   *api.StoragePool
 
 	volume *api.StorageVolume
-}
-
-// OS returns the sys.OS facade instance used by this storage.
-func (s *storageShared) OS() *sys.OS {
-	return s.s.OS
 }
 
 func (s *storageShared) GetStorageType() storageType {
