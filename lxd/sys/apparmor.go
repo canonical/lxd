@@ -4,11 +4,15 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/syndtr/gocapability/capability"
+
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // Initialize AppArmor-specific attributes.
@@ -26,7 +30,7 @@ func (s *OS) initAppArmor() {
 	}
 
 	/* Detect AppArmor stacking support */
-	s.AppArmorStacking = util.AppArmorCanStack()
+	s.AppArmorStacking = appArmorCanStack()
 
 	/* Detect existing AppArmor stack */
 	if shared.PathExists("/sys/kernel/security/apparmor/.ns_stacked") {
@@ -68,4 +72,47 @@ func haveMacAdmin() bool {
 		return true
 	}
 	return false
+}
+
+// Returns true if AppArmor stacking support is available.
+func appArmorCanStack() bool {
+	contentBytes, err := ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/stack")
+	if err != nil {
+		return false
+	}
+
+	if string(contentBytes) != "yes\n" {
+		return false
+	}
+
+	contentBytes, err = ioutil.ReadFile("/sys/kernel/security/apparmor/features/domain/version")
+	if err != nil {
+		return false
+	}
+
+	content := string(contentBytes)
+
+	parts := strings.Split(strings.TrimSpace(content), ".")
+
+	if len(parts) == 0 {
+		logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
+		return false
+	}
+
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
+		return false
+	}
+
+	minor := 0
+	if len(parts) == 2 {
+		minor, err = strconv.Atoi(parts[1])
+		if err != nil {
+			logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
+			return false
+		}
+	}
+
+	return major >= 1 && minor >= 2
 }
