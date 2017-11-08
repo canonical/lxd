@@ -1452,3 +1452,40 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 
 	return op, nil
 }
+
+// GetContainerConsoleLog requests that LXD attaches to the console device of a container.
+//
+// Note that it's the caller's responsibility to close the returned ReadCloser
+func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) (io.ReadCloser, error) {
+	if !r.HasExtension("console") {
+		return nil, fmt.Errorf("The server is missing the required \"console\" API extension")
+	}
+
+	// Prepare the HTTP request
+	url := fmt.Sprintf("%s/1.0/containers/%s/console", r.httpHost, containerName)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the user agent
+	if r.httpUserAgent != "" {
+		req.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Send the request
+	resp, err := r.do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the return value for a cleaner error
+	if resp.StatusCode != http.StatusOK {
+		_, _, err := r.parseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return resp.Body, err
+}
