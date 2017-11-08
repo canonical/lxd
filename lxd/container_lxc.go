@@ -26,7 +26,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -481,11 +480,6 @@ type containerLXC struct {
 	storage storage
 }
 
-// OS returns the sys.OS facade instance used by this container.
-func (c *containerLXC) OS() *sys.OS {
-	return c.state.OS
-}
-
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
 	op, _ := c.getOperation("")
 	if op != nil {
@@ -844,7 +838,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Base config
 	toDrop := "sys_time sys_module sys_rawio"
-	if !c.OS().AppArmorStacking || c.OS().AppArmorStacked {
+	if !c.state.OS.AppArmorStacking || c.state.OS.AppArmorStacked {
 		toDrop = toDrop + " mac_admin mac_override"
 	}
 
@@ -855,7 +849,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Set an appropriate /proc, /sys/ and /sys/fs/cgroup
 	mounts := []string{}
-	if c.IsPrivileged() && !c.OS().RunningInUserNS {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS {
 		mounts = append(mounts, "proc:mixed")
 		mounts = append(mounts, "sys:mixed")
 	} else {
@@ -892,7 +886,7 @@ func (c *containerLXC) initLXC() error {
 		"/sys/kernel/debug",
 		"/sys/kernel/security"}
 
-	if c.IsPrivileged() && !c.OS().RunningInUserNS {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", "mqueue dev/mqueue mqueue rw,relatime,create=dir,optional")
 		if err != nil {
 			return err
@@ -933,7 +927,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Configure devices cgroup
-	if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "a")
 		if err != nil {
 			return err
@@ -1014,12 +1008,12 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup the hooks
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", c.OS().ExecPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", c.OS().ExecPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
@@ -1043,8 +1037,8 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup AppArmor
-	if c.OS().AppArmorAvailable {
-		if c.OS().AppArmorConfined || !c.OS().AppArmorAdmin {
+	if c.state.OS.AppArmorAvailable {
+		if c.state.OS.AppArmorConfined || !c.state.OS.AppArmorAdmin {
 			// If confined but otherwise able to use AppArmor, use our own profile
 			curProfile := util.AppArmorProfile()
 			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
@@ -1063,7 +1057,7 @@ func (c *containerLXC) initLXC() error {
 			 * the old way of nesting, i.e. using the parent's
 			 * profile.
 			 */
-			if c.OS().AppArmorStacking && !c.OS().AppArmorStacked {
+			if c.state.OS.AppArmorStacking && !c.state.OS.AppArmorStacked {
 				profile = fmt.Sprintf("%s//&:%s:", profile, AANamespace(c))
 			}
 
@@ -1109,7 +1103,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Memory limits
-	if c.OS().CGroupMemoryController {
+	if c.state.OS.CGroupMemoryController {
 		memory := c.expandedConfig["limits.memory"]
 		memoryEnforce := c.expandedConfig["limits.memory.enforce"]
 		memorySwap := c.expandedConfig["limits.memory.swap"]
@@ -1143,7 +1137,7 @@ func (c *containerLXC) initLXC() error {
 					return err
 				}
 			} else {
-				if c.OS().CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+				if c.state.OS.CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 					err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", fmt.Sprintf("%d", valueInt))
 					if err != nil {
 						return err
@@ -1189,7 +1183,7 @@ func (c *containerLXC) initLXC() error {
 	cpuPriority := c.expandedConfig["limits.cpu.priority"]
 	cpuAllowance := c.expandedConfig["limits.cpu.allowance"]
 
-	if (cpuPriority != "" || cpuAllowance != "") && c.OS().CGroupCPUController {
+	if (cpuPriority != "" || cpuAllowance != "") && c.state.OS.CGroupCPUController {
 		cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(cpuAllowance, cpuPriority)
 		if err != nil {
 			return err
@@ -1218,7 +1212,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Disk limits
-	if c.OS().CGroupBlkioController {
+	if c.state.OS.CGroupBlkioController {
 		diskPriority := c.expandedConfig["limits.disk.priority"]
 		if diskPriority != "" {
 			priorityInt, err := strconv.Atoi(diskPriority)
@@ -1290,7 +1284,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Processes
-	if c.OS().CGroupPidsController {
+	if c.state.OS.CGroupPidsController {
 		processes := c.expandedConfig["limits.processes"]
 		if processes != "" {
 			valueInt, err := strconv.ParseInt(processes, 10, 64)
@@ -1618,7 +1612,7 @@ func (c *containerLXC) expandDevices() error {
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
 // liblxc configuration items.
 func (c *containerLXC) setupUnixDevice(devType string, dev types.Device, major int, minor int, path string, createMustSucceed bool) error {
-	if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
 		if err != nil {
 			return err
@@ -1843,7 +1837,7 @@ func (c *containerLXC) startCommon() (string, error) {
 				return "", err
 			}
 			devPath := paths[0]
-			if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
+			if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 				// Add the new device cgroup rule
 				dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
 				if err != nil {
@@ -2170,7 +2164,7 @@ func (c *containerLXC) Start(stateful bool) error {
 
 	// Start the LXC container
 	out, err := shared.RunCommand(
-		c.OS().ExecPath,
+		c.state.OS.ExecPath,
 		"forkstart",
 		c.name,
 		c.state.OS.LxcPath,
@@ -3605,7 +3599,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 			} else if key == "limits.disk.priority" {
-				if !c.OS().CGroupBlkioController {
+				if !c.state.OS.CGroupBlkioController {
 					continue
 				}
 
@@ -3630,7 +3624,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if key == "limits.memory" || strings.HasPrefix(key, "limits.memory.") {
 				// Skip if no memory CGroup
-				if !c.OS().CGroupMemoryController {
+				if !c.state.OS.CGroupMemoryController {
 					continue
 				}
 
@@ -3664,7 +3658,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 				// Store the old values for revert
 				oldMemswLimit := ""
-				if c.OS().CGroupSwapAccounting {
+				if c.state.OS.CGroupSwapAccounting {
 					oldMemswLimit, err = c.CGroupGet("memory.memsw.limit_in_bytes")
 					if err != nil {
 						oldMemswLimit = ""
@@ -3696,7 +3690,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 
 				// Reset everything
-				if c.OS().CGroupSwapAccounting {
+				if c.state.OS.CGroupSwapAccounting {
 					err = c.CGroupSet("memory.memsw.limit_in_bytes", "-1")
 					if err != nil {
 						revertMemory()
@@ -3725,7 +3719,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 				} else {
-					if c.OS().CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+					if c.state.OS.CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 						err = c.CGroupSet("memory.limit_in_bytes", memory)
 						if err != nil {
 							revertMemory()
@@ -3793,7 +3787,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				deviceTaskSchedulerTrigger("container", c.name, "changed")
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
 				// Skip if no cpu CGroup
-				if !c.OS().CGroupCPUController {
+				if !c.state.OS.CGroupCPUController {
 					continue
 				}
 
@@ -3818,7 +3812,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					return err
 				}
 			} else if key == "limits.processes" {
-				if !c.OS().CGroupPidsController {
+				if !c.state.OS.CGroupPidsController {
 					continue
 				}
 
@@ -4061,7 +4055,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		}
 
 		// Disk limits parse all devices, so just apply them once
-		if updateDiskLimit && c.OS().CGroupBlkioController {
+		if updateDiskLimit && c.state.OS.CGroupBlkioController {
 			diskLimits, err := c.getDiskLimits()
 			if err != nil {
 				return err
@@ -4545,10 +4539,10 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 
 		var out string
 		out, migrateErr = shared.RunCommand(
-			c.OS().ExecPath,
+			c.state.OS.ExecPath,
 			"forkmigrate",
 			c.name,
-			c.OS().LxcPath,
+			c.state.OS.LxcPath,
 			configPath,
 			stateDir,
 			fmt.Sprintf("%v", preservesInodes))
@@ -4778,7 +4772,7 @@ func (c *containerLXC) FileExists(path string) error {
 
 	// Check if the file exists in the container
 	out, err := shared.RunCommand(
-		c.OS().ExecPath,
+		c.state.OS.ExecPath,
 		"forkcheckfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4824,7 +4818,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 
 	// Get the file from the container
 	out, err := shared.RunCommand(
-		c.OS().ExecPath,
+		c.state.OS.ExecPath,
 		"forkgetfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4967,7 +4961,7 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 
 	// Push the file to the container
 	out, err := shared.RunCommand(
-		c.OS().ExecPath,
+		c.state.OS.ExecPath,
 		"forkputfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -5035,7 +5029,7 @@ func (c *containerLXC) FileRemove(path string) error {
 
 	// Remove the file from the container
 	out, err := shared.RunCommand(
-		c.OS().ExecPath,
+		c.state.OS.ExecPath,
 		"forkremovefile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -5086,7 +5080,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	args := []string{c.OS().ExecPath, "forkexec", c.name, c.OS().LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
+	args := []string{c.state.OS.ExecPath, "forkexec", c.name, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
 	args = append(args, "env")
@@ -5097,7 +5091,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	args = append(args, command...)
 
 	cmd := exec.Cmd{}
-	cmd.Path = c.OS().ExecPath
+	cmd.Path = c.state.OS.ExecPath
 	cmd.Args = args
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
@@ -5153,7 +5147,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 func (c *containerLXC) cpuState() api.ContainerStateCPU {
 	cpu := api.ContainerStateCPU{}
 
-	if !c.OS().CGroupCPUacctController {
+	if !c.state.OS.CGroupCPUacctController {
 		return cpu
 	}
 
@@ -5202,7 +5196,7 @@ func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 func (c *containerLXC) memoryState() api.ContainerStateMemory {
 	memory := api.ContainerStateMemory{}
 
-	if !c.OS().CGroupMemoryController {
+	if !c.state.OS.CGroupMemoryController {
 		return memory
 	}
 
@@ -5220,7 +5214,7 @@ func (c *containerLXC) memoryState() api.ContainerStateMemory {
 		memory.UsagePeak = valueInt
 	}
 
-	if c.OS().CGroupSwapAccounting {
+	if c.state.OS.CGroupSwapAccounting {
 		// Swap in bytes
 		if memory.Usage > 0 {
 			value, err := c.CGroupGet("memory.memsw.usage_in_bytes")
@@ -5253,7 +5247,7 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 
 	// Get the network state from the container
 	out, err := shared.RunCommand(
-		c.OS().ExecPath,
+		c.state.OS.ExecPath,
 		"forkgetnet",
 		fmt.Sprintf("%d", pid))
 
@@ -5287,7 +5281,7 @@ func (c *containerLXC) processesState() int64 {
 		return 0
 	}
 
-	if c.OS().CGroupPidsController {
+	if c.state.OS.CGroupPidsController {
 		value, err := c.CGroupGet("pids.current")
 		valueInt, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
@@ -5504,7 +5498,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	out, err := shared.RunCommand(c.OS().ExecPath, "forkmount", pidStr, mntsrc, target)
+	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", pidStr, mntsrc, target)
 
 	if out != "" {
 		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
@@ -5529,7 +5523,7 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	// Remove the mount from the container
 	pidStr := fmt.Sprintf("%d", pid)
-	out, err := shared.RunCommand(c.OS().ExecPath, "forkumount", pidStr, mount)
+	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkumount", pidStr, mount)
 
 	if out != "" {
 		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
@@ -5567,7 +5561,7 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// Extra checks for nesting
-	if c.OS().RunningInUserNS {
+	if c.state.OS.RunningInUserNS {
 		for key, value := range m {
 			if shared.StringInSlice(key, []string{"major", "minor", "mode", "uid", "gid"}) && value != "" {
 				return nil, fmt.Errorf("The \"%s\" property may not be set when adding a device to a nested container", key)
@@ -5640,7 +5634,7 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 
 	// Clean any existing entry
 	if shared.PathExists(devPath) {
-		if c.OS().RunningInUserNS {
+		if c.state.OS.RunningInUserNS {
 			syscall.Unmount(devPath, syscall.MNT_DETACH)
 		}
 
@@ -5651,7 +5645,7 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	}
 
 	// Create the new entry
-	if !c.OS().RunningInUserNS {
+	if !c.state.OS.RunningInUserNS {
 		encoded_device_number := (minor & 0xff) | (major << 8) | ((minor & ^0xff) << 12)
 		if err := syscall.Mknod(devPath, uint32(mode), encoded_device_number); err != nil {
 			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
@@ -5751,7 +5745,7 @@ func (c *containerLXC) insertUnixDevice(m types.Device) error {
 		}
 	}
 
-	if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		// Add the new device cgroup rule
 		if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
 			return fmt.Errorf("Failed to add cgroup rule for device")
@@ -5823,7 +5817,7 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 		}
 	}
 
-	if c.IsPrivileged() && !c.OS().RunningInUserNS && c.OS().CGroupDevicesController {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		// Remove the device cgroup rule
 		err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
 		if err != nil {
@@ -5850,7 +5844,7 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 	}
 
 	// Remove the host side
-	if c.OS().RunningInUserNS {
+	if c.state.OS.RunningInUserNS {
 		syscall.Unmount(devPath, syscall.MNT_DETACH)
 	}
 
@@ -6189,7 +6183,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		}
 
 		// Attempt to include all existing interfaces
-		cc, err := lxc.NewContainer(c.Name(), c.OS().LxcPath)
+		cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
 		if err == nil {
 			interfaces, err := cc.Interfaces()
 			if err == nil {
@@ -6440,7 +6434,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct
-	cc, err := lxc.NewContainer(c.Name(), c.OS().LxcPath)
+	cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
 	if err != nil {
 		return err
 	}
@@ -6886,7 +6880,7 @@ func (c *containerLXC) setNetworkPriority() error {
 	}
 
 	// Don't bother if the cgroup controller doesn't exist
-	if !c.OS().CGroupNetPrioController {
+	if !c.state.OS.CGroupNetPrioController {
 		return nil
 	}
 
@@ -7161,8 +7155,8 @@ func (c *containerLXC) NextIdmapSet() (*idmap.IdmapSet, error) {
 		return c.idmapsetFromConfig("volatile.idmap.next")
 	} else if c.IsPrivileged() {
 		return nil, nil
-	} else if c.OS().IdmapSet != nil {
-		return c.OS().IdmapSet, nil
+	} else if c.state.OS.IdmapSet != nil {
+		return c.state.OS.IdmapSet, nil
 	}
 
 	return nil, fmt.Errorf("Unable to determine the idmap")
