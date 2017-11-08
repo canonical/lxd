@@ -432,7 +432,7 @@ func (d *Daemon) Stop() error {
 		trackError(d.endpoints.Down())
 	}
 
-	trackError(d.tasks.Stop(time.Second)) // Give tasks at second to cleanup.
+	trackError(d.tasks.Stop(time.Second)) // Give tasks at most a second to cleanup.
 
 	if d.db != nil {
 		if n, err := d.numRunningContainers(); err != nil || n == 0 {
