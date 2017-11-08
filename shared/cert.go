@@ -44,8 +44,8 @@ func KeyPairAndCA(dir, prefix string, kind CertKind) (*CertInfo, error) {
 	certFilename := filepath.Join(dir, prefix+".crt")
 	keyFilename := filepath.Join(dir, prefix+".key")
 
-	// Ensure that a server certificate exists, or create a new one if it
-	// does not.
+	// Ensure that the certificate exists, or create a new one if it does
+	// not.
 	err := FindOrGenCert(certFilename, keyFilename, kind == CertClient)
 	if err != nil {
 		return nil, err
