@@ -639,7 +639,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 		return err
 	}
 
-	err = unpackImage(imagePath, subvol, s.storage.GetStorageType(), s.OS().RunningInUserNS)
+	err = unpackImage(imagePath, subvol, s.storage.GetStorageType(), s.s.OS.RunningInUserNS)
 	if err != nil {
 		return cleanup(err)
 	}
