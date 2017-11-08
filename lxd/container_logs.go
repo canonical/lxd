@@ -93,6 +93,10 @@ func containerLogDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("log file name %s not valid", file))
 	}
 
+	if file == "lxc.log" || file == "lxc.conf" {
+		return BadRequest(fmt.Errorf("lxc.log and lxc.conf may not be deleted"))
+	}
+
 	return SmartError(os.Remove(shared.LogPath(name, file)))
 }
 
