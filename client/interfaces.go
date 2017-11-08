@@ -71,6 +71,7 @@ type ContainerServer interface {
 	ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (op *Operation, err error)
 	ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (op *Operation, err error)
 	GetContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) (content io.ReadCloser, err error)
+	DeleteContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) (err error)
 
 	GetContainerFile(containerName string, path string) (content io.ReadCloser, resp *ContainerFileResponse, err error)
 	CreateContainerFile(containerName string, path string, args ContainerFileArgs) (err error)
