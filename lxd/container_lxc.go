@@ -162,28 +162,41 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 	return nil
 }
 
+func lxcParseRawLXC(line string) (string, string, error) {
+	// Ignore empty lines
+	if len(line) == 0 {
+		return "", "", nil
+	}
+
+	// Skip whitespace {"\t", " "}
+	line = strings.TrimLeft(line, "\t ")
+
+	// Ignore comments
+	if strings.HasPrefix(line, "#") {
+		return "", "", nil
+	}
+
+	// Ensure the format is valid
+	membs := strings.SplitN(line, "=", 2)
+	if len(membs) != 2 {
+		return "", "", fmt.Errorf("Invalid raw.lxc line: %s", line)
+	}
+
+	key := strings.ToLower(strings.Trim(membs[0], " \t"))
+	val := strings.Trim(membs[1], " \t")
+	return key, val, nil
+}
+
 func lxcValidConfig(rawLxc string) error {
 	for _, line := range strings.Split(rawLxc, "\n") {
-		// Ignore empty lines
-		if len(line) == 0 {
+		key, _, err := lxcParseRawLXC(line)
+		if err != nil {
+			return err
+		}
+
+		if key == "" {
 			continue
 		}
-
-		// Skip whitespace {"\t", " "}
-		line = strings.TrimLeft(line, "\t ")
-
-		// Ignore comments
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		// Ensure the format is valid
-		membs := strings.SplitN(line, "=", 2)
-		if len(membs) != 2 {
-			return fmt.Errorf("Invalid raw.lxc line: %s", line)
-		}
-
-		key := strings.ToLower(strings.Trim(membs[0], " \t"))
 
 		// Blacklist some keys
 		if key == "lxc.logfile" || key == "lxc.log.file" {
