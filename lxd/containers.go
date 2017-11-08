@@ -57,6 +57,7 @@ var containerSnapshotCmd = Command{
 
 var containerConsoleCmd = Command{
 	name: "containers/{name}/console",
+	get:  containerConsoleLogGet,
 	post: containerConsolePost,
 }
 
