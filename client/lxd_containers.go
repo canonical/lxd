@@ -1489,3 +1489,18 @@ func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *Contain
 
 	return resp.Body, err
 }
+
+// DeleteContainerConsoleLog deletes the requested container's console log
+func (r *ProtocolLXD) DeleteContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) error {
+	if !r.HasExtension("console") {
+		return fmt.Errorf("The server is missing the required \"console\" API extension")
+	}
+
+	// Send the request
+	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/console", containerName), nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
