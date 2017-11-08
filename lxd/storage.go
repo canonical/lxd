@@ -628,13 +628,13 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn) error {
 		defer send.StorageStop()
 
 		path := send.Path()
-		state := s.container.StateObject()
+		state := s.container.DaemonState()
 		if err := RsyncSend(ctName, shared.AddSlash(path), conn, state.OS.ExecPath); err != nil {
 			return err
 		}
 	}
 
-	state := s.container.StateObject()
+	state := s.container.DaemonState()
 	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, state.OS.ExecPath)
 }
 
@@ -642,7 +642,7 @@ func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn) erro
 	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 
 	/* resync anything that changed between our first send and the checkpoint */
-	state := s.container.StateObject()
+	state := s.container.DaemonState()
 	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, state.OS.ExecPath)
 }
 
@@ -701,7 +701,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 		}
 		for _, snap := range snapshots {
 			args := snapshotProtobufToContainerArgs(container.Name(), snap)
-			s, err := containerCreateEmptySnapshot(container.StateObject(), container.Storage(), args)
+			s, err := containerCreateEmptySnapshot(container.DaemonState(), container.Storage(), args)
 			if err != nil {
 				return err
 			}
@@ -734,7 +734,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, c
 			}
 
 			args := snapshotProtobufToContainerArgs(container.Name(), snap)
-			_, err := containerCreateAsSnapshot(container.StateObject(), container.Storage(), args, container)
+			_, err := containerCreateAsSnapshot(container.DaemonState(), container.Storage(), args, container)
 			if err != nil {
 				return err
 			}

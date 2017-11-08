@@ -470,7 +470,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
-			state := s.container.StateObject()
+			state := s.container.DaemonState()
 			err = writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret, state.OS.ExecPath)
 			if err != nil {
 				os.RemoveAll(checkpointDir)
@@ -512,7 +512,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		 * p.haul's protocol, it will make sense to do these in parallel.
 		 */
 		ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
-		state := s.container.StateObject()
+		state := s.container.DaemonState()
 		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)

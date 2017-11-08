@@ -317,7 +317,7 @@ func getAAProfileContent(c container) string {
 		profile += "  mount fstype=cgroup -> /sys/fs/cgroup/**,\n"
 	}
 
-	state := c.StateObject()
+	state := c.DaemonState()
 	if state.OS.AppArmorStacking && !state.OS.AppArmorStacked {
 		profile += "\n  ### Feature: apparmor stacking\n"
 		profile += `  ### Configuration: apparmor profile loading (in namespace)
@@ -385,7 +385,7 @@ profile "%s" flags=(attach_disconnected,mediate_deleted) {
 }
 
 func runApparmor(command string, c container) error {
-	state := c.StateObject()
+	state := c.DaemonState()
 	if !state.OS.AppArmorAvailable {
 		return nil
 	}
@@ -405,7 +405,7 @@ func runApparmor(command string, c container) error {
 }
 
 func mkApparmorNamespace(c container, namespace string) error {
-	state := c.StateObject()
+	state := c.DaemonState()
 	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
 		return nil
 	}
@@ -421,7 +421,7 @@ func mkApparmorNamespace(c container, namespace string) error {
 // Ensure that the container's policy is loaded into the kernel so the
 // container can boot.
 func AALoadProfile(c container) error {
-	state := c.StateObject()
+	state := c.DaemonState()
 	if !state.OS.AppArmorAdmin {
 		return nil
 	}
@@ -469,7 +469,7 @@ func AALoadProfile(c container) error {
 // Ensure that the container's policy namespace is unloaded to free kernel
 // memory. This does not delete the policy from disk or cache.
 func AADestroy(c container) error {
-	state := c.StateObject()
+	state := c.DaemonState()
 	if !state.OS.AppArmorAdmin {
 		return nil
 	}
@@ -486,7 +486,7 @@ func AADestroy(c container) error {
 
 // Parse the profile without loading it into the kernel.
 func AAParseProfile(c container) error {
-	state := c.StateObject()
+	state := c.DaemonState()
 	if !state.OS.AppArmorAvailable {
 		return nil
 	}
@@ -496,7 +496,7 @@ func AAParseProfile(c container) error {
 
 // Delete the policy from cache/disk.
 func AADeleteProfile(c container) {
-	state := c.StateObject()
+	state := c.DaemonState()
 	if !state.OS.AppArmorAdmin {
 		return
 	}

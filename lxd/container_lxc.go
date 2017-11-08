@@ -5936,8 +5936,13 @@ func (c *containerLXC) LastIdmapSet() (*idmap.IdmapSet, error) {
 	return c.idmapsetFromConfig("volatile.last_state.idmap")
 }
 
-func (c *containerLXC) StateObject() *state.State {
-	// FIXME: This function should go away
+func (c *containerLXC) DaemonState() *state.State {
+	// FIXME: This function should go away, since the abstract container
+	//        interface should not be coupled with internal state details.
+	//        However this is not currently possible, because many
+	//        higher-level APIs use container variables as "implicit
+	//        handles" to database/OS state and then need a way to get a
+	//        reference to it.
 	return c.state
 }
 

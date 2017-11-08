@@ -1437,7 +1437,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 
 	for _, snap := range snapshots {
 		args := snapshotProtobufToContainerArgs(container.Name(), snap)
-		_, err := containerCreateEmptySnapshot(container.StateObject(), container.Storage(), args)
+		_, err := containerCreateEmptySnapshot(container.DaemonState(), container.Storage(), args)
 		if err != nil {
 			return err
 		}
