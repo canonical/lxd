@@ -2254,7 +2254,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 			}
 		}
-		_, err := containerCreateEmptySnapshot(container.StateObject(), args)
+		_, err := containerCreateEmptySnapshot(container.DaemonState(), args)
 		if err != nil {
 			return err
 		}
