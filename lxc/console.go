@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"syscall"
@@ -12,12 +14,14 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/termios"
 )
 
 type consoleCmd struct {
+	showLog bool
 }
 
 func (c *consoleCmd) showByDefault() bool {
@@ -26,12 +30,13 @@ func (c *consoleCmd) showByDefault() bool {
 
 func (c *consoleCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc console [<remote>:]<container>
+		`Usage: lxc console [<remote>:]<container> [-l]
 
 Interact with the container's console device and log.`)
 }
 
 func (c *consoleCmd) flags() {
+	gnuflag.BoolVar(&c.showLog, "show-log", false, i18n.G("Retrieve the container's console log"))
 }
 
 func (c *consoleCmd) sendTermSize(control *websocket.Conn) error {
@@ -81,6 +86,22 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
+	}
+
+	if c.showLog {
+		console := &lxd.ContainerConsoleLogArgs{}
+		log, err := d.GetContainerConsoleLog(name, console)
+		if err != nil {
+			return err
+		}
+
+		stuff, err := ioutil.ReadAll(log)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("\n"+i18n.G("Console log:")+"\n\n%s\n", string(stuff))
+		return nil
 	}
 
 	cfd := int(syscall.Stdin)
