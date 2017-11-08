@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-10-17 19:28+0200\n"
+"POT-Creation-Date: 2017-11-07 17:09-0500\n"
 "PO-Revision-Date: 2017-06-07 15:24+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -336,6 +336,10 @@ msgstr "Octets reçus"
 msgid "Bytes sent"
 msgstr "Octets émis"
 
+#: lxc/operation.go:155
+msgid "CANCELABLE"
+msgstr ""
+
 #: lxc/config.go:400
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
@@ -347,6 +351,11 @@ msgstr "CPU utilisé (en secondes)"
 #: lxc/info.go:183
 msgid "CPU usage:"
 msgstr "CPU utilisé :"
+
+#: lxc/operation.go:156
+#, fuzzy
+msgid "CREATED"
+msgstr "CRÉÉ À"
 
 #: lxc/list.go:462
 msgid "CREATED AT"
@@ -383,7 +392,7 @@ msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 "Impossible de désaffecter la clé '%s', elle n'est pas définie actuellement."
 
-#: lxc/network.go:486 lxc/profile.go:546 lxc/storage.go:653
+#: lxc/profile.go:546 lxc/storage.go:653
 msgid "Cannot provide container name to list"
 msgstr "Impossible de fournir le nom du conteneur à lister"
 
@@ -612,6 +621,10 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Mode rapide (identique à --columns=nsacPt"
 
+#: lxc/network.go:486 lxc/operation.go:121
+msgid "Filtering isn't supported yet"
+msgstr ""
+
 #: lxc/image.go:598
 #, c-format
 msgid "Fingerprint: %s"
@@ -642,6 +655,11 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Génération d'un certificat client. Ceci peut prendre une minute…"
 
+#: lxc/operation.go:152
+#, fuzzy
+msgid "ID"
+msgstr "PID"
+
 #: lxc/list.go:459
 msgid "IPV4"
 msgstr "IPv4"
@@ -654,7 +672,7 @@ msgstr "IPv6"
 msgid "ISSUE DATE"
 msgstr "DATE D'ÉMISSION"
 
-#: lxc/main.go:172
+#: lxc/main.go:171
 #, fuzzy
 msgid "If this is your first time using LXD, you should also run: lxd init"
 msgstr ""
@@ -818,7 +836,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "NAME"
 msgstr "NOM"
 
-#: lxc/network.go:508 lxc/remote.go:380 lxc/remote.go:385
+#: lxc/network.go:508 lxc/operation.go:139 lxc/remote.go:380 lxc/remote.go:385
 msgid "NO"
 msgstr "NON"
 
@@ -888,7 +906,12 @@ msgstr "Seul https:// est supporté par l'import d'images distantes."
 msgid "Only managed networks can be modified."
 msgstr "Seuls les réseaux gérés par LXD peuvent être modifiés."
 
-#: lxc/help.go:71 lxc/main.go:139 lxc/main.go:196
+#: lxc/operation.go:85
+#, fuzzy, c-format
+msgid "Operation %s deleted"
+msgstr "Le réseau %s a été supprimé"
+
+#: lxc/help.go:71 lxc/main.go:139 lxc/main.go:195
 msgid "Options:"
 msgstr "Options :"
 
@@ -1099,6 +1122,11 @@ msgstr "ÉTAT"
 msgid "STATIC"
 msgstr "STATIQUE"
 
+#: lxc/operation.go:154
+#, fuzzy
+msgid "STATUS"
+msgstr "ÉTAT"
+
 #: lxc/list.go:471
 msgid "STORAGE POOL"
 msgstr "ENSEMBLE DE STOCKAGE"
@@ -1244,7 +1272,7 @@ msgstr "Swap (courant)"
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
 
-#: lxc/list.go:470 lxc/network.go:523 lxc/storage.go:791
+#: lxc/list.go:470 lxc/network.go:523 lxc/operation.go:153 lxc/storage.go:791
 msgid "TYPE"
 msgstr "TYPE"
 
@@ -1327,7 +1355,7 @@ msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
-#: lxc/main.go:173
+#: lxc/main.go:172
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
@@ -2253,6 +2281,26 @@ msgstr ""
 "lxc network detach [<remote>:]<network> <container> [device name]\n"
 "lxc network detach-profile [<remote>:]<network> <container> [device name]"
 
+#: lxc/operation.go:25
+msgid ""
+"Usage: lxc operation <subcommand> [options]\n"
+"\n"
+"List, show and delete background operations.\n"
+"\n"
+"lxc operation list [<remote>:]\n"
+"    List background operations.\n"
+"\n"
+"lxc operation show [<remote>:]<operation>\n"
+"    Show details on a background operation.\n"
+"\n"
+"lxc operation delete [<remote>:]<operation>\n"
+"    Delete a background operation (will attempt to cancel).\n"
+"\n"
+"*Examples*\n"
+"lxc operation show 344a79e4-d88a-45bf-9c39-c72c26f6ab8a\n"
+"    Show details on that operation UUID"
+msgstr ""
+
 #: lxc/profile.go:51
 #, fuzzy
 msgid ""
@@ -2679,7 +2727,7 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
 
-#: lxc/network.go:510 lxc/remote.go:382 lxc/remote.go:387
+#: lxc/network.go:510 lxc/operation.go:141 lxc/remote.go:382 lxc/remote.go:387
 msgid "YES"
 msgstr "OUI"
 
@@ -2727,7 +2775,7 @@ msgstr "désactivé"
 msgid "enabled"
 msgstr "activé"
 
-#: lxc/action.go:134 lxc/main.go:33 lxc/main.go:192
+#: lxc/action.go:134 lxc/main.go:33 lxc/main.go:191
 #, c-format
 msgid "error: %v"
 msgstr "erreur : %v"

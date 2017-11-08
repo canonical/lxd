@@ -483,7 +483,7 @@ func (c *networkCmd) doNetworkList(conf *config.Config, args []string) error {
 		}
 
 		if name != "" {
-			return fmt.Errorf(i18n.G("Cannot provide container name to list"))
+			return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
 		}
 	} else {
 		remote = conf.DefaultRemote
