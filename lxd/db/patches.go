@@ -1,6 +1,8 @@
 package db
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func (n *Node) Patches() ([]string, error) {
 	inargs := []interface{}{}
