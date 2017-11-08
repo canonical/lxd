@@ -24,7 +24,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 	if recursion {
 		certResponses := []api.Certificate{}
 
-		baseCerts, err := d.db.CertsGet()
+		baseCerts, err := d.db.CertificatesGet()
 		if err != nil {
 			return SmartError(err)
 		}
@@ -54,7 +54,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = []x509.Certificate{}
 
-	dbCerts, err := d.db.CertsGet()
+	dbCerts, err := d.db.CertificatesGet()
 	if err != nil {
 		logger.Infof("Error reading certificates from database: %s", err)
 		return
@@ -176,7 +176,7 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 func doCertificateGet(dbObj *db.Node, fingerprint string) (api.Certificate, error) {
 	resp := api.Certificate{}
 
-	dbCertInfo, err := dbObj.CertGet(fingerprint)
+	dbCertInfo, err := dbObj.CertificateGet(fingerprint)
 	if err != nil {
 		return resp, err
 	}
@@ -196,7 +196,7 @@ func doCertificateGet(dbObj *db.Node, fingerprint string) (api.Certificate, erro
 func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	certInfo, err := d.db.CertGet(fingerprint)
+	certInfo, err := d.db.CertificateGet(fingerprint)
 	if err != nil {
 		return NotFound
 	}
