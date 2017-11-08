@@ -47,7 +47,7 @@ func (t *task) loop(ctx context.Context) {
 			}
 		default:
 			// If the schedule is not greater than zero, abort the
-			// taks and return immediately. Otherwise set up the
+			// task and return immediately. Otherwise set up the
 			// timer to retry after that amount of time.
 			if schedule <= 0 {
 				return
