@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -293,4 +294,41 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	}
 
 	return OperationResponse(op)
+}
+
+func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	c, err := containerLoadByName(d.State(), name)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	expandedConfig := c.ExpandedConfig()
+	rawLxc := expandedConfig["raw.lxc"]
+
+	consoleLogpath := ""
+	for _, line := range strings.Split(rawLxc, "\n") {
+		key, val, err := lxcParseRawLXC(line)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		if key != "lxc.console.logfile" {
+			continue
+		}
+
+		consoleLogpath = val
+		break
+	}
+
+	if consoleLogpath == "" {
+		return SmartError(fmt.Errorf("Container does not keep console logfile"))
+	}
+
+	ent := fileResponseEntry{
+		path:     consoleLogpath,
+		filename: consoleLogpath,
+	}
+
+	return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 }
