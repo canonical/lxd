@@ -56,7 +56,6 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 			if err == nil {
 				break
 			}
-			logger.Debugf(" - retry binding TCP socket (%v)", err)
 			time.Sleep(100 * time.Millisecond)
 		}
 		if err != nil {
