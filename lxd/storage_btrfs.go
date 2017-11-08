@@ -2137,7 +2137,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			}
 
 			snapshotMntPoint := getSnapshotMountPoint(containerPool, args.Name)
-			_, err := containerCreateEmptySnapshot(container.StateObject(), args)
+			_, err := containerCreateEmptySnapshot(container.DaemonState(), args)
 			if err != nil {
 				return err
 			}

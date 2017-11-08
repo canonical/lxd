@@ -317,7 +317,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 			}
 		}
-		_, err := containerCreateEmptySnapshot(c.StateObject(), args)
+		_, err := containerCreateEmptySnapshot(c.DaemonState(), args)
 		if err != nil {
 			logger.Errorf(`Failed to create empty RBD storage `+
 				`volume for container "%s" on storage pool "%s: %s`,

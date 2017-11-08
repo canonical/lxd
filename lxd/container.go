@@ -499,7 +499,7 @@ type container interface {
 	IdmapSet() (*idmap.IdmapSet, error)
 	LastIdmapSet() (*idmap.IdmapSet, error)
 	TemplateApply(trigger string) error
-	StateObject() *state.State
+	DaemonState() *state.State
 }
 
 // Loader functions
