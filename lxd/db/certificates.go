@@ -1,7 +1,5 @@
 package db
 
-import _ "github.com/mattn/go-sqlite3"
-
 // CertInfo is here to pass the certificates content
 // from the database around
 type CertInfo struct {
