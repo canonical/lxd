@@ -302,7 +302,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Restore simplestreams cache */
-	err = imageLoadStreamCache(d) // No-op if no simplestreams.yaml metadata file exists.
+	err = imageLoadStreamCache(d)
 	if err != nil {
 		return err
 	}
