@@ -9,14 +9,10 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"gopkg.in/macaroon-bakery.v2/bakery"
-	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-
-	neturl "net/url"
 )
 
 // ProtocolLXD represents a LXD API server
@@ -31,10 +27,6 @@ type ProtocolLXD struct {
 	httpHost        string
 	httpProtocol    string
 	httpUserAgent   string
-
-	bakeryClient         *httpbakery.Client
-	bakeryInteractor     httpbakery.Interactor
-	requireAuthenticated bool
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server
@@ -72,25 +64,7 @@ func (r *ProtocolLXD) GetHTTPClient() (*http.Client, error) {
 
 // Do performs a Request, using macaroon authentication if set.
 func (r *ProtocolLXD) do(req *http.Request) (*http.Response, error) {
-	if r.bakeryClient != nil {
-		r.addMacaroonHeaders(req)
-		return r.bakeryClient.Do(req)
-	}
-
 	return r.http.Do(req)
-}
-
-func (r *ProtocolLXD) addMacaroonHeaders(req *http.Request) {
-	req.Header.Set(httpbakery.BakeryProtocolHeader, fmt.Sprint(bakery.LatestVersion))
-
-	for _, cookie := range r.http.Jar.Cookies(req.URL) {
-		req.AddCookie(cookie)
-	}
-}
-
-// RequireAuthenticated sets whether we expect to be authenticated with the server
-func (r *ProtocolLXD) RequireAuthenticated(authenticated bool) {
-	r.requireAuthenticated = authenticated
 }
 
 // RawQuery allows directly querying the LXD API
@@ -187,11 +161,6 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 		req.Header.Set("If-Match", ETag)
 	}
 
-	// Set the authentication header
-	if r.requireAuthenticated {
-		req.Header.Set("X-LXD-authenticated", "true")
-	}
-
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -286,20 +255,6 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 		headers.Set("User-Agent", r.httpUserAgent)
 	}
 
-	if r.requireAuthenticated {
-		headers.Set("X-LXD-authenticated", "true")
-	}
-
-	// Set macaroon headers if needed
-	if r.bakeryClient != nil {
-		u, err := neturl.Parse(r.httpHost) // use the http url, not the ws one
-		if err != nil {
-			return nil, err
-		}
-		req := &http.Request{URL: u, Header: headers}
-		r.addMacaroonHeaders(req)
-	}
-
 	// Establish the connection
 	conn, _, err := dialer.Dial(url, headers)
 	if err != nil {
@@ -322,12 +277,4 @@ func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
 	}
 
 	return r.rawWebsocket(url)
-}
-
-func (r *ProtocolLXD) setupBakeryClient() {
-	r.bakeryClient = httpbakery.NewClient()
-	r.bakeryClient.Client = r.http
-	if r.bakeryInteractor != nil {
-		r.bakeryClient.AddInteractor(r.bakeryInteractor)
-	}
 }

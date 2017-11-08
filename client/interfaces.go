@@ -46,7 +46,6 @@ type ContainerServer interface {
 	GetServerResources() (*api.Resources, error)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) bool
-	RequireAuthenticated(authenticated bool)
 
 	// Certificate functions
 	GetCertificateFingerprints() (fingerprints []string, err error)
