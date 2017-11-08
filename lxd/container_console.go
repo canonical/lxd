@@ -332,3 +332,46 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 
 	return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 }
+
+func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	c, err := containerLoadByName(d.State(), name)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	expandedConfig := c.ExpandedConfig()
+	rawLxc := expandedConfig["raw.lxc"]
+
+	consoleLogpath := ""
+	for _, line := range strings.Split(rawLxc, "\n") {
+		key, val, err := lxcParseRawLXC(line)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		if key != "lxc.console.logfile" {
+			continue
+		}
+
+		consoleLogpath = val
+		break
+	}
+
+	// Check that this is a regular file. We don't want to try and unlink
+	// /dev/stderr or /dev/null or something.
+	st, err := os.Stat(consoleLogpath)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	if !st.Mode().IsRegular() {
+		return SmartError(fmt.Errorf("The console log is not a regular file"))
+	}
+
+	if consoleLogpath == "" {
+		return SmartError(fmt.Errorf("Container does not keep a console logfile"))
+	}
+
+	return SmartError(os.Truncate(consoleLogpath, 0))
+}
