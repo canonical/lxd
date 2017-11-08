@@ -452,7 +452,7 @@ func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
 
 	imagePath := shared.VarPath("images", fp)
 	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
-	err = unpackImage(imagePath, containerMntPoint, storageTypeLvm, s.OS().RunningInUserNS)
+	err = unpackImage(imagePath, containerMntPoint, storageTypeLvm, s.s.OS.RunningInUserNS)
 	if err != nil {
 		logger.Errorf(`Failed to unpack image "%s" into non-thinpool `+
 			`LVM storage volume "%s" for container "%s" on `+

@@ -1420,7 +1420,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 
 	// Unpack the image in imageMntPoint.
 	imagePath := shared.VarPath("images", fingerprint)
-	err = unpackImage(imagePath, tmpImageSubvolumeName, storageTypeBtrfs, s.OS().RunningInUserNS)
+	err = unpackImage(imagePath, tmpImageSubvolumeName, storageTypeBtrfs, s.s.OS.RunningInUserNS)
 	if err != nil {
 		return err
 	}
@@ -1960,7 +1960,7 @@ func (s *btrfsMigrationSourceDriver) Cleanup() {
 }
 
 func (s *storageBtrfs) MigrationType() MigrationFSType {
-	if s.OS().RunningInUserNS {
+	if s.s.OS.RunningInUserNS {
 		return MigrationFSType_RSYNC
 	}
 
@@ -1968,7 +1968,7 @@ func (s *storageBtrfs) MigrationType() MigrationFSType {
 }
 
 func (s *storageBtrfs) PreservesInodes() bool {
-	if s.OS().RunningInUserNS {
+	if s.s.OS.RunningInUserNS {
 		return false
 	}
 
@@ -1976,7 +1976,7 @@ func (s *storageBtrfs) PreservesInodes() bool {
 }
 
 func (s *storageBtrfs) MigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error) {
-	if s.OS().RunningInUserNS {
+	if s.s.OS.RunningInUserNS {
 		return rsyncMigrationSource(c, containerOnly)
 	}
 
@@ -2011,7 +2011,7 @@ func (s *storageBtrfs) MigrationSource(c container, containerOnly bool) (Migrati
 }
 
 func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
-	if s.OS().RunningInUserNS {
+	if s.s.OS.RunningInUserNS {
 		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
 	}
 
@@ -2241,7 +2241,7 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 		output, err := shared.RunCommand(
 			"btrfs", "quota", "enable", poolMntPoint)
-		if err != nil && !s.OS().RunningInUserNS {
+		if err != nil && !s.s.OS.RunningInUserNS {
 			return fmt.Errorf("Failed to enable quotas on BTRFS pool: %s", output)
 		}
 	}
