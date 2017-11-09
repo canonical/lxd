@@ -395,3 +395,16 @@ getting a stream of events over websocket.
 ## proxy
 This adds a new `proxy` device type to containers, allowing forwarding
 of connections between the host and container.
+
+## clustering
+Clustering API for LXD.
+
+This includes the following new endpoints:
+
+* `GET /1.0/cluster`
+* `DELETE /1.0/cluster` (see [RESTful API](rest-api.md) for details)
+
+* `GET /1.0/cluster/nodes`
+* `POST /1.0/cluster/nodes` (see [RESTful API](rest-api.md) for details)
+
+* `DELETE /1.0/cluster/nodes/<name>` (see [RESTful API](rest-api.md) for details)
