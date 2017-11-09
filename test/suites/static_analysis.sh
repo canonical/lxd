@@ -82,6 +82,11 @@ test_static_analysis() {
       fi
     fi
 
+    ## ineffassign
+    if which ineffassign >/dev/null 2>&1; then
+      ineffassign ./
+    fi
+
     # Skip the tests which require git
     if ! git status; then
       return
