@@ -78,6 +78,10 @@ func (c *Config) SaveConfig(path string) error {
 
 	// Write the new config
 	data, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("Unable to marshal the configuration: %v", err)
+	}
+
 	_, err = f.Write(data)
 	if err != nil {
 		return fmt.Errorf("Unable to write the configuration: %v", err)

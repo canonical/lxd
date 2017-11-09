@@ -142,12 +142,12 @@ func (s *SimpleStreamsManifest) ToLXD() ([]api.Image, map[string][][]string) {
 				continue
 			}
 
+			var rootfsSize int64
 			metaPath := meta.Path
 			metaHash := meta.HashSha256
 			metaSize := meta.Size
 			rootfsPath := ""
 			rootfsHash := ""
-			rootfsSize := int64(0)
 			fields := strings.Split(meta.Path, "/")
 			filename := fields[len(fields)-1]
 			size := meta.Size

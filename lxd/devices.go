@@ -442,6 +442,9 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 				}
 
 				devname, ok := props["DEVNAME"]
+				if !ok {
+					continue
+				}
 
 				busnum, ok := props["BUSNUM"]
 				if !ok {

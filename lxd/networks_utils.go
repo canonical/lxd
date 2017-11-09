@@ -183,8 +183,7 @@ func networkGetIP(subnet *net.IPNet, host int64) net.IP {
 
 	// Generate an IPv6
 	if subnet.IP.To4() == nil {
-		newIp := make(net.IP, 16)
-		newIp = bigIP.Bytes()
+		newIp := bigIP.Bytes()
 		return newIp
 	}
 
@@ -300,7 +299,7 @@ func networkInRoutingTable(subnet *net.IPNet) bool {
 		fields := strings.Fields(string(line))
 
 		// Get the IP
-		ip := net.IP{}
+		var ip net.IP
 		if filename == "ipv6_route" {
 			ip, err = hex.DecodeString(fields[0])
 			if err != nil {
@@ -316,7 +315,7 @@ func networkInRoutingTable(subnet *net.IPNet) bool {
 		}
 
 		// Get the mask
-		mask := net.IPMask{}
+		var mask net.IPMask
 		if filename == "ipv6_route" {
 			size, err := strconv.ParseInt(fmt.Sprintf("0x%s", fields[1]), 0, 64)
 			if err != nil {
@@ -751,7 +750,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	}
 
 	// Get all the networks
-	networks := []string{}
+	var networks []string
 	if networkName == "" {
 		var err error
 		networks, err = s.DB.Networks()

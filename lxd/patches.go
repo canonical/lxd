@@ -717,7 +717,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// If the snapshots directory for that container is empty,
 		// remove it.
-		isEmpty, err := shared.PathIsEmpty(oldSnapshotMntPoint)
+		isEmpty, _ := shared.PathIsEmpty(oldSnapshotMntPoint)
 		if isEmpty {
 			os.Remove(oldSnapshotMntPoint)
 			continue
@@ -841,13 +841,10 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		poolConfig["volume.block.mount_options"] = fsMntOpts
 	}
 
-	thinPoolName := "LXDPool"
 	poolConfig["lvm.thinpool_name"] = daemonConfig["storage.lvm_thinpool_name"].Get()
-	if poolConfig["lvm.thinpool_name"] != "" {
-		thinPoolName = poolConfig["lvm.thinpool_name"]
-	} else {
+	if poolConfig["lvm.thinpool_name"] == "" {
 		// If empty we need to set it to the old default.
-		poolConfig["lvm.thinpool_name"] = thinPoolName
+		poolConfig["lvm.thinpool_name"] = "LXDPool"
 	}
 
 	poolConfig["lvm.vg_name"] = daemonConfig["storage.lvm_vg_name"].Get()

@@ -211,6 +211,10 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	// Check if the storage pool has any volumes associated with it, if so
 	// error out.
 	volumeCount, err := d.db.StoragePoolVolumesGetNames(poolID)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	if volumeCount > 0 {
 		return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
 	}
@@ -220,6 +224,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
+
 	if len(profiles) > 0 {
 		return BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
 	}

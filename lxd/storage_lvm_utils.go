@@ -783,10 +783,9 @@ func lvmCreateLv(vgName string, thinPoolName string, lvName string, lvFsType str
 	var output string
 	var err error
 
-	targetVg := vgName
 	lvmPoolVolumeName := getPrefixedLvName(volumeType, lvName)
 	if makeThinLv {
-		targetVg = fmt.Sprintf("%s/%s", vgName, thinPoolName)
+		targetVg := fmt.Sprintf("%s/%s", vgName, thinPoolName)
 		output, err = shared.TryRunCommand("lvcreate", "--thin", "-n", lvmPoolVolumeName, "--virtualsize", lvSize+"B", targetVg)
 	} else {
 		output, err = shared.TryRunCommand("lvcreate", "-n", lvmPoolVolumeName, "--size", lvSize+"B", vgName)

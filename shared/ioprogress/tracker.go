@@ -58,7 +58,7 @@ func (pt *ProgressTracker) update(n int) {
 	}
 
 	// Determine progress
-	progressInt := int64(0)
+	var progressInt int64
 	if pt.Length > 0 {
 		pt.percentage = percentage
 		progressInt = int64(1 - (int(percentage) % 1) + int(percentage))
