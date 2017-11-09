@@ -530,7 +530,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Don't bother running when CGroup support isn't there
-	if !cgCpusetController {
+	if !s.OS.CGroupCPUsetController {
 		return
 	}
 
@@ -592,7 +592,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the containers
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -714,11 +714,11 @@ func deviceTaskBalance(s *state.State) {
 
 func deviceNetworkPriority(s *state.State, netif string) {
 	// Don't bother running when CGroup support isn't there
-	if !cgNetPrioController {
+	if !s.OS.CGroupNetPrioController {
 		return
 	}
 
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return
 	}
@@ -749,7 +749,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 }
 
 func deviceUSBEvent(s *state.State, usb usbDevice) {
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -817,7 +817,7 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !cgCpusetController {
+			if !s.OS.CGroupCPUsetController {
 				continue
 			}
 
@@ -829,7 +829,7 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !cgNetPrioController {
+			if !s.OS.CGroupNetPrioController {
 				continue
 			}
 
@@ -844,7 +844,7 @@ func deviceEventListener(s *state.State) {
 				continue
 			}
 
-			if !cgCpusetController {
+			if !s.OS.CGroupCPUsetController {
 				continue
 			}
 

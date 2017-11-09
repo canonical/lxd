@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -360,8 +359,7 @@ func (s *storageDir) StoragePoolVolumeDelete() error {
 		return err
 	}
 
-	err = db.StoragePoolVolumeDelete(
-		s.s.DB,
+	err = s.db.StoragePoolVolumeDelete(
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -435,7 +433,7 @@ func (s *storageDir) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renamed DIR storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	return db.StoragePoolVolumeRename(s.s.DB, s.volume.Name, newName,
+	return s.db.StoragePoolVolumeRename(s.volume.Name, newName,
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 
@@ -511,7 +509,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 	}()
 
 	imagePath := shared.VarPath("images", imageFingerprint)
-	err = unpackImage(imagePath, containerMntPoint, storageTypeDir)
+	err = unpackImage(imagePath, containerMntPoint, storageTypeDir, s.s.OS.RunningInUserNS)
 	if err != nil {
 		return err
 	}

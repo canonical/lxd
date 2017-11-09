@@ -3,8 +3,19 @@ package db
 import (
 	"database/sql"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/lxc/lxd/lxd/db/query"
 )
+
+// Config fetches all LXD node-level config keys.
+func (n *NodeTx) Config() (map[string]string, error) {
+	return query.SelectConfig(n.tx, "config")
+}
+
+// UpdateConfig updates the given LXD node-level configuration keys in the
+// config table. Config keys set to empty values will be deleted.
+func (n *NodeTx) UpdateConfig(values map[string]string) error {
+	return query.UpdateConfig(n.tx, "config", values)
+}
 
 func ConfigValuesGet(db *sql.DB) (map[string]string, error) {
 	q := "SELECT key, value FROM config"
@@ -26,7 +37,7 @@ func ConfigValuesGet(db *sql.DB) (map[string]string, error) {
 }
 
 func ConfigValueSet(db *sql.DB, key string, value string) error {
-	tx, err := Begin(db)
+	tx, err := begin(db)
 	if err != nil {
 		return err
 	}

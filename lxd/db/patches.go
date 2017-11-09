@@ -1,16 +1,15 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 )
 
-func Patches(db *sql.DB) ([]string, error) {
+func (n *Node) Patches() ([]string, error) {
 	inargs := []interface{}{}
 	outfmt := []interface{}{""}
 
 	query := fmt.Sprintf("SELECT name FROM patches")
-	result, err := QueryScan(db, query, inargs, outfmt)
+	result, err := queryScan(n.db, query, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
 	}
@@ -23,8 +22,8 @@ func Patches(db *sql.DB) ([]string, error) {
 	return response, nil
 }
 
-func PatchesMarkApplied(db *sql.DB, patch string) error {
+func (n *Node) PatchesMarkApplied(patch string) error {
 	stmt := `INSERT INTO patches (name, applied_at) VALUES (?, strftime("%s"));`
-	_, err := db.Exec(stmt, patch)
+	_, err := n.db.Exec(stmt, patch)
 	return err
 }

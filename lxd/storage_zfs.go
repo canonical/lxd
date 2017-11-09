@@ -13,7 +13,6 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -425,8 +424,7 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 		}
 	}
 
-	err := db.StoragePoolVolumeDelete(
-		s.s.DB,
+	err := s.db.StoragePoolVolumeDelete(
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -630,7 +628,7 @@ func (s *storageZfs) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renamed ZFS storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	return db.StoragePoolVolumeRename(s.s.DB, s.volume.Name, newName,
+	return s.db.StoragePoolVolumeRename(s.volume.Name, newName,
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 
@@ -1891,7 +1889,7 @@ func (s *storageZfs) ImageCreate(fingerprint string) error {
 	}
 
 	// Unpack the image into the temporary mountpoint.
-	err = unpackImage(imagePath, tmpImageDir, storageTypeZfs)
+	err = unpackImage(imagePath, tmpImageDir, storageTypeZfs, s.s.OS.RunningInUserNS)
 	if err != nil {
 		return err
 	}
@@ -2256,7 +2254,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 			}
 		}
-		_, err := containerCreateEmptySnapshot(container.StateObject(), args)
+		_, err := containerCreateEmptySnapshot(container.DaemonState(), args)
 		if err != nil {
 			return err
 		}

@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/context"
+
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
@@ -117,6 +119,12 @@ func HTTPClient(certificate string, proxy proxyFunc) (*http.Client, error) {
 // A function capable of proxing an HTTP request.
 type proxyFunc func(req *http.Request) (*url.URL, error)
 
+// ContextAwareRequest is an interface implemented by http.Request starting
+// from Go 1.8. It supports graceful cancellation using a context.
+type ContextAwareRequest interface {
+	WithContext(ctx context.Context) *http.Request
+}
+
 // CheckTrustState checks whether the given client certificate is trusted
 // (i.e. it has a valid time span and it belongs to the given list of trusted
 // certificates).
@@ -208,7 +216,11 @@ func ListenAddresses(value string) ([]string, error) {
 	return addresses, nil
 }
 
-func GetListeners() []net.Listener {
+// GetListeners returns the socket-activated network listeners, if any.
+//
+// The 'start' parameter must be SystemdListenFDsStart, except in unit tests,
+// see the docstring of SystemdListenFDsStart below.
+func GetListeners(start int) []net.Listener {
 	defer func() {
 		os.Unsetenv("LISTEN_PID")
 		os.Unsetenv("LISTEN_FDS")
@@ -230,7 +242,7 @@ func GetListeners() []net.Listener {
 
 	listeners := []net.Listener{}
 
-	for i := 3; i < 3+fds; i++ {
+	for i := start; i < start+fds; i++ {
 		syscall.CloseOnExec(i)
 
 		file := os.NewFile(uintptr(i), fmt.Sprintf("inherited-fd%d", i))
@@ -244,3 +256,10 @@ func GetListeners() []net.Listener {
 
 	return listeners
 }
+
+// SystemdListenFDsStart is the number of the first file descriptor that might
+// have been opened by systemd when socket activation is enabled. It's always 3
+// in real-world usage (i.e. the first file descriptor opened after stdin,
+// stdout and stderr), so this constant should always be the value passed to
+// GetListeners, except for unit tests.
+const SystemdListenFDsStart = 3

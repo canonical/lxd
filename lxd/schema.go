@@ -15,7 +15,7 @@ import (
 // of lxd/db/schema.go according to the current schema updates declared in
 // updates.go in the same package.
 func main() {
-	err := db.UpdateSchemaDotGo()
+	err := db.UpdateSchemasDotGo()
 	if err != nil {
 		log.Fatal(err)
 	}

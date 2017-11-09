@@ -317,7 +317,8 @@ func getAAProfileContent(c container) string {
 		profile += "  mount fstype=cgroup -> /sys/fs/cgroup/**,\n"
 	}
 
-	if aaStacking && !aaStacked {
+	state := c.DaemonState()
+	if state.OS.AppArmorStacking && !state.OS.AppArmorStacked {
 		profile += "\n  ### Feature: apparmor stacking\n"
 		profile += `  ### Configuration: apparmor profile loading (in namespace)
   deny /sys/k[^e]*{,/**} wklx,
@@ -356,12 +357,12 @@ func getAAProfileContent(c container) string {
 		// Apply nesting bits
 		profile += "\n  ### Configuration: nesting\n"
 		profile += strings.TrimLeft(AA_PROFILE_NESTING, "\n")
-		if !aaStacking || aaStacked {
+		if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
 			profile += fmt.Sprintf("  change_profile -> \"%s\",\n", AAProfileFull(c))
 		}
 	}
 
-	if !c.IsPrivileged() || runningInUserns {
+	if !c.IsPrivileged() || state.OS.RunningInUserNS {
 		// Apply unprivileged bits
 		profile += "\n  ### Configuration: unprivileged containers\n"
 		profile += strings.TrimLeft(AA_PROFILE_UNPRIVILEGED, "\n")
@@ -384,7 +385,8 @@ profile "%s" flags=(attach_disconnected,mediate_deleted) {
 }
 
 func runApparmor(command string, c container) error {
-	if !aaAvailable {
+	state := c.DaemonState()
+	if !state.OS.AppArmorAvailable {
 		return nil
 	}
 
@@ -402,8 +404,9 @@ func runApparmor(command string, c container) error {
 	return err
 }
 
-func mkApparmorNamespace(namespace string) error {
-	if !aaStacking || aaStacked {
+func mkApparmorNamespace(c container, namespace string) error {
+	state := c.DaemonState()
+	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
 		return nil
 	}
 
@@ -418,11 +421,12 @@ func mkApparmorNamespace(namespace string) error {
 // Ensure that the container's policy is loaded into the kernel so the
 // container can boot.
 func AALoadProfile(c container) error {
-	if !aaAdmin {
+	state := c.DaemonState()
+	if !state.OS.AppArmorAdmin {
 		return nil
 	}
 
-	if err := mkApparmorNamespace(AANamespace(c)); err != nil {
+	if err := mkApparmorNamespace(c, AANamespace(c)); err != nil {
 		return err
 	}
 
@@ -465,11 +469,12 @@ func AALoadProfile(c container) error {
 // Ensure that the container's policy namespace is unloaded to free kernel
 // memory. This does not delete the policy from disk or cache.
 func AADestroy(c container) error {
-	if !aaAdmin {
+	state := c.DaemonState()
+	if !state.OS.AppArmorAdmin {
 		return nil
 	}
 
-	if aaStacking && !aaStacked {
+	if state.OS.AppArmorStacking && !state.OS.AppArmorStacked {
 		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", AANamespace(c))
 		if err := os.Remove(p); err != nil {
 			logger.Error("error removing apparmor namespace", log.Ctx{"err": err, "ns": p})
@@ -481,7 +486,8 @@ func AADestroy(c container) error {
 
 // Parse the profile without loading it into the kernel.
 func AAParseProfile(c container) error {
-	if !aaAvailable {
+	state := c.DaemonState()
+	if !state.OS.AppArmorAvailable {
 		return nil
 	}
 
@@ -490,7 +496,8 @@ func AAParseProfile(c container) error {
 
 // Delete the policy from cache/disk.
 func AADeleteProfile(c container) {
-	if !aaAdmin {
+	state := c.DaemonState()
+	if !state.OS.AppArmorAdmin {
 		return
 	}
 
@@ -499,16 +506,6 @@ func AADeleteProfile(c container) {
 	 */
 	os.Remove(path.Join(aaPath, "cache", AAProfileShort(c)))
 	os.Remove(path.Join(aaPath, "profiles", AAProfileShort(c)))
-}
-
-// What's current apparmor profile
-func aaProfile() string {
-	contents, err := ioutil.ReadFile("/proc/self/attr/current")
-	if err == nil {
-		return strings.TrimSpace(string(contents))
-	}
-
-	return ""
 }
 
 func aaParserSupports(feature string) bool {

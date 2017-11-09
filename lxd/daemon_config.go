@@ -128,7 +128,7 @@ func (k *daemonConfigKey) Set(d *Daemon, value string) error {
 	k.currentValue = value
 	daemonConfigLock.Unlock()
 
-	err = dbapi.ConfigValueSet(d.db, name, value)
+	err = dbapi.ConfigValueSet(d.db.DB(), name, value)
 	if err != nil {
 		return err
 	}
@@ -271,8 +271,7 @@ func daemonConfigSetPassword(d *Daemon, key string, value string) (string, error
 }
 
 func daemonConfigSetAddress(d *Daemon, key string, value string) (string, error) {
-	// Update the current https address
-	err := d.UpdateHTTPsPort(value)
+	err := d.endpoints.NetworkUpdateAddress(value)
 	if err != nil {
 		return "", err
 	}
@@ -318,12 +317,12 @@ func daemonConfigSetProxy(d *Daemon, key string, value string) (string, error) {
 
 func daemonConfigTriggerExpiry(d *Daemon, key string, value string) {
 	// Trigger an image pruning run
-	d.pruneChan <- true
+	d.taskPruneImages.Reset()
 }
 
 func daemonConfigTriggerAutoUpdateInterval(d *Daemon, key string, value string) {
 	// Reset the auto-update interval loop
-	d.resetAutoUpdateChan <- true
+	d.taskAutoUpdate.Reset()
 }
 
 func daemonConfigValidateCompression(d *Daemon, key string, value string) error {

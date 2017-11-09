@@ -452,7 +452,7 @@ func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
 
 	imagePath := shared.VarPath("images", fp)
 	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
-	err = unpackImage(imagePath, containerMntPoint, storageTypeLvm)
+	err = unpackImage(imagePath, containerMntPoint, storageTypeLvm, s.s.OS.RunningInUserNS)
 	if err != nil {
 		logger.Errorf(`Failed to unpack image "%s" into non-thinpool `+
 			`LVM storage volume "%s" for container "%s" on `+
@@ -488,7 +488,7 @@ func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) erro
 		var imgerr error
 		ok, _ := storageLVExists(imageLvmDevPath)
 		if ok {
-			_, volume, err := db.StoragePoolVolumeGetType(s.s.DB, fp, db.StoragePoolVolumeTypeImage, s.poolID)
+			_, volume, err := s.s.DB.StoragePoolVolumeGetType(fp, db.StoragePoolVolumeTypeImage, s.poolID)
 			if err != nil {
 				return err
 			}
@@ -675,7 +675,7 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 func storageLVMGetThinPoolUsers(s *state.State) ([]string, error) {
 	results := []string{}
 
-	cNames, err := db.ContainersList(s.DB, db.CTypeRegular)
+	cNames, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return results, err
 	}
@@ -693,7 +693,7 @@ func storageLVMGetThinPoolUsers(s *state.State) ([]string, error) {
 		}
 	}
 
-	imageNames, err := db.ImagesGet(s.DB, false)
+	imageNames, err := s.DB.ImagesGet(false)
 	if err != nil {
 		return results, err
 	}
