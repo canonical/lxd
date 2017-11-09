@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -43,13 +43,13 @@ var imageStreamCacheLock sync.Mutex
 var imagesDownloading = map[string]chan bool{}
 var imagesDownloadingLock sync.Mutex
 
-func imageSaveStreamCache() error {
+func imageSaveStreamCache(os *sys.OS) error {
 	data, err := yaml.Marshal(&imageStreamCache)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(shared.CachePath("simplestreams.yaml"), data, 0600)
+	err = ioutil.WriteFile(filepath.Join(os.CacheDir, "simplestreams.yaml"), data, 0600)
 	if err != nil {
 		return err
 	}
@@ -61,11 +61,12 @@ func imageLoadStreamCache(d *Daemon) error {
 	imageStreamCacheLock.Lock()
 	defer imageStreamCacheLock.Unlock()
 
-	if !shared.PathExists(shared.CachePath("simplestreams.yaml")) {
+	simplestreamsPath := filepath.Join(d.os.CacheDir, "simplestreams.yaml")
+	if !shared.PathExists(simplestreamsPath) {
 		return nil
 	}
 
-	content, err := ioutil.ReadFile(shared.CachePath("simplestreams.yaml"))
+	content, err := ioutil.ReadFile(simplestreamsPath)
 	if err != nil {
 		return err
 	}
@@ -146,7 +147,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 				// Generate cache entry
 				entry = &imageStreamCacheEntry{remote: remote, Aliases: aliases, Certificate: certificate, Fingerprints: fingerprints, expiry: time.Now().Add(time.Hour)}
 				imageStreamCache[server] = entry
-				imageSaveStreamCache()
+				imageSaveStreamCache(d.os)
 
 				return entry, nil
 			}
@@ -232,14 +233,14 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	// auto-update is on).
 	interval := daemonConfig["images.auto_update_interval"].GetInt64()
 	if preferCached && interval > 0 && alias != fp {
-		cachedFingerprint, err := db.ImageSourceGetCachedFingerprint(d.db, server, protocol, alias)
+		cachedFingerprint, err := d.db.ImageSourceGetCachedFingerprint(server, protocol, alias)
 		if err == nil && cachedFingerprint != fp {
 			fp = cachedFingerprint
 		}
 	}
 
 	// Check if the image already exists (partial hash match)
-	_, imgInfo, err := db.ImageGet(d.db, fp, false, true)
+	_, imgInfo, err := d.db.ImageGet(fp, false, true)
 	if err == nil {
 		logger.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		info = imgInfo
@@ -250,13 +251,13 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 
 		// Get the ID of the target storage pool
-		poolID, err := db.StoragePoolGetID(d.db, storagePool)
+		poolID, err := d.db.StoragePoolGetID(storagePool)
 		if err != nil {
 			return nil, err
 		}
 
 		// Check if the image is already in the pool
-		poolIDs, err := db.ImageGetPools(d.db, info.Fingerprint)
+		poolIDs, err := d.db.ImageGetPools(info.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
@@ -293,7 +294,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		<-waitChannel
 
 		// Grab the database entry
-		_, imgInfo, err := db.ImageGet(d.db, fp, false, true)
+		_, imgInfo, err := d.db.ImageGet(fp, false, true)
 		if err != nil {
 			// Other download failed, lets try again
 			logger.Error("Other image download didn't succeed", log.Ctx{"image": fp})
@@ -514,7 +515,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Create the database entry
-	err = db.ImageInsert(d.db, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.db.ImageInsert(info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
 		return nil, err
 	}
@@ -540,12 +541,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := db.ImageGet(d.db, fp, false, true)
+		id, _, err := d.db.ImageGet(fp, false, true)
 		if err != nil {
 			return nil, err
 		}
 
-		err = db.ImageSourceInsert(d.db, id, server, protocol, certificate, alias)
+		err = d.db.ImageSourceInsert(id, server, protocol, certificate, alias)
 		if err != nil {
 			return nil, err
 		}
@@ -561,7 +562,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// Mark the image as "cached" if downloading for a container
 	if forContainer {
-		err := db.ImageLastAccessInit(d.db, fp)
+		err := d.db.ImageLastAccessInit(fp)
 		if err != nil {
 			return nil, err
 		}

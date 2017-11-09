@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -30,8 +29,8 @@ import (
 
 var networkStaticLock sync.Mutex
 
-func networkAutoAttach(dbObj *sql.DB, devName string) error {
-	_, dbInfo, err := db.NetworkGetInterface(dbObj, devName)
+func networkAutoAttach(db *db.Node, devName string) error {
+	_, dbInfo, err := db.NetworkGetInterface(devName)
 	if err != nil {
 		// No match found, move on
 		return nil
@@ -78,8 +77,8 @@ func networkDetachInterface(netName string, devName string) error {
 	return nil
 }
 
-func networkGetInterfaces(dbObj *sql.DB) ([]string, error) {
-	networks, err := db.Networks(dbObj)
+func networkGetInterfaces(db *db.Node) ([]string, error) {
+	networks, err := db.Networks()
 	if err != nil {
 		return nil, err
 	}
@@ -746,7 +745,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	defer networkStaticLock.Unlock()
 
 	// Get all the containers
-	containers, err := db.ContainersList(s.DB, db.CTypeRegular)
+	containers, err := s.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -755,7 +754,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	networks := []string{}
 	if networkName == "" {
 		var err error
-		networks, err = db.Networks(s.DB)
+		networks, err = s.DB.Networks()
 		if err != nil {
 			return err
 		}

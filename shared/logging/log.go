@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/inconshreveable/log15.v2/term"
@@ -79,6 +80,29 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	Log.SetHandler(log.MultiHandler(handlers...))
 
 	return Log, nil
+}
+
+// SetLogger installs the given logger as global logger. It returns a function
+// that can be used to restore whatever logger was installed beforehand.
+func SetLogger(newLogger logger.Logger) func() {
+	origLog := logger.Log
+	logger.Log = newLogger
+	return func() {
+		logger.Log = origLog
+	}
+}
+
+// WaitRecord blocks until a log.Record is received on the given channel. It
+// returns the emitted record, or nil if no record was received within the
+// given timeout. Useful in conjunction with log.ChannelHandler, for
+// asynchronous testing.
+func WaitRecord(ch chan *log.Record, timeout time.Duration) *log.Record {
+	select {
+	case record := <-ch:
+		return record
+	case <-time.After(timeout):
+		return nil
+	}
 }
 
 // AddContext will return a copy of the logger with extra context added

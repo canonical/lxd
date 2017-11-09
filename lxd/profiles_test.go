@@ -2,18 +2,23 @@ package main
 
 import (
 	"database/sql"
+	"io/ioutil"
+	"os"
 	"testing"
-
-	dbapi "github.com/lxc/lxd/lxd/db"
 )
 
 func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing.T) {
 	var db *sql.DB
 	var err error
 
-	d := NewDaemon()
-	err = initializeDbObject(d, ":memory:")
-	db = d.db
+	d := DefaultDaemon()
+	d.os.VarDir, err = ioutil.TempDir("", "lxd-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(d.os.VarDir)
+	err = initializeDbObject(d)
+	db = d.db.DB()
 
 	// Insert a container and a related profile. Dont't forget that the profile
 	// we insert is profile ID 2 (there is a default profile already).
@@ -31,13 +36,13 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Delete the profile we just created with dbapi.ProfileDelete
-	err = dbapi.ProfileDelete(db, "theprofile")
+	err = d.db.ProfileDelete("theprofile")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Make sure there are 0 profiles_devices entries left.
-	devices, err := dbapi.Devices(d.db, "theprofile", true)
+	devices, err := d.db.Devices("theprofile", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +51,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_config entries left.
-	config, err := dbapi.ProfileConfig(d.db, "theprofile")
+	config, err := d.db.ProfileConfig("theprofile")
 	if err == nil {
 		t.Fatal("found the profile!")
 	}

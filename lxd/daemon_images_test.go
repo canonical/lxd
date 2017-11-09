@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/stretchr/testify/suite"
 )
@@ -20,11 +19,11 @@ type daemonImagesTestSuite struct {
 // newer image even if available, and just use the cached one.
 func (suite *daemonImagesTestSuite) TestUseCachedImagesIfAvailable() {
 	// Create an image with alias "test" and fingerprint "abcd".
-	err := db.ImageInsert(suite.d.db, "abcd", "foo.xz", 1, false, true, "amd64", time.Now(), time.Now(), map[string]string{})
+	err := suite.d.db.ImageInsert("abcd", "foo.xz", 1, false, true, "amd64", time.Now(), time.Now(), map[string]string{})
 	suite.Req.Nil(err)
-	id, _, err := db.ImageGet(suite.d.db, "abcd", false, true)
+	id, _, err := suite.d.db.ImageGet("abcd", false, true)
 	suite.Req.Nil(err)
-	err = db.ImageSourceInsert(suite.d.db, id, "img.srv", "simplestreams", "", "test")
+	err = suite.d.db.ImageSourceInsert(id, "img.srv", "simplestreams", "", "test")
 	suite.Req.Nil(err)
 
 	// Pretend we have already a non-expired entry for the remote

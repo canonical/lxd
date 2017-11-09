@@ -15,7 +15,8 @@ type storageShared struct {
 	sTypeName    string
 	sTypeVersion string
 
-	s *state.State
+	db *db.Node
+	s  *state.State
 
 	poolID int64
 	pool   *api.StoragePool
@@ -108,7 +109,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	}
 
 	// Create a db entry for the storage volume of the image.
-	_, err = db.StoragePoolVolumeCreate(s.s.DB, fingerprint, "", storagePoolVolumeTypeImage, s.poolID, volumeConfig)
+	_, err = s.db.StoragePoolVolumeCreate(fingerprint, "", storagePoolVolumeTypeImage, s.poolID, volumeConfig)
 	if err != nil {
 		// Try to delete the db entry on error.
 		s.deleteImageDbPoolVolume(fingerprint)
@@ -119,7 +120,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 }
 
 func (s *storageShared) deleteImageDbPoolVolume(fingerprint string) error {
-	err := db.StoragePoolVolumeDelete(s.s.DB, fingerprint, storagePoolVolumeTypeImage, s.poolID)
+	err := s.db.StoragePoolVolumeDelete(fingerprint, storagePoolVolumeTypeImage, s.poolID)
 	if err != nil {
 		return err
 	}

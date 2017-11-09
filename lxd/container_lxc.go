@@ -257,6 +257,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
+		db:           s.DB,
 		id:           args.Id,
 		name:         args.Name,
 		description:  args.Description,
@@ -314,7 +315,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, pool, err := db.StoragePoolGet(s.DB, storagePool)
+	poolID, pool, err := s.DB.StoragePoolGet(storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -328,7 +329,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	}
 
 	// Create a new database entry for the container's storage volume
-	_, err = db.StoragePoolVolumeCreate(s.DB, args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
+	_, err = s.DB.StoragePoolVolumeCreate(args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -338,7 +339,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	cStorage, err := storagePoolVolumeContainerCreateInit(s, storagePool, args.Name)
 	if err != nil {
 		c.Delete()
-		db.StoragePoolVolumeDelete(s.DB, args.Name, storagePoolVolumeTypeContainer, poolID)
+		s.DB.StoragePoolVolumeDelete(args.Name, storagePoolVolumeTypeContainer, poolID)
 		logger.Error("Failed to initialize container storage", ctxMap)
 		return nil, err
 	}
@@ -424,6 +425,7 @@ func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) 
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
+		db:           s.DB,
 		id:           args.Id,
 		name:         args.Name,
 		description:  args.Description,
@@ -470,6 +472,7 @@ type containerLXC struct {
 
 	// Cache
 	c        *lxc.Container
+	db       *db.Node
 	state    *state.State
 	idmapset *idmap.IdmapSet
 
@@ -707,7 +710,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
-	cs, err := db.ContainersList(state.DB, db.CTypeRegular)
+	cs, err := state.DB.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -835,7 +838,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Base config
 	toDrop := "sys_time sys_module sys_rawio"
-	if !aaStacking || aaStacked {
+	if !c.state.OS.AppArmorStacking || c.state.OS.AppArmorStacked {
 		toDrop = toDrop + " mac_admin mac_override"
 	}
 
@@ -846,7 +849,7 @@ func (c *containerLXC) initLXC() error {
 
 	// Set an appropriate /proc, /sys/ and /sys/fs/cgroup
 	mounts := []string{}
-	if c.IsPrivileged() && !runningInUserns {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS {
 		mounts = append(mounts, "proc:mixed")
 		mounts = append(mounts, "sys:mixed")
 	} else {
@@ -883,7 +886,7 @@ func (c *containerLXC) initLXC() error {
 		"/sys/kernel/debug",
 		"/sys/kernel/security"}
 
-	if c.IsPrivileged() && !runningInUserns {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", "mqueue dev/mqueue mqueue rw,relatime,create=dir,optional")
 		if err != nil {
 			return err
@@ -924,7 +927,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Configure devices cgroup
-	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		err = lxcSetConfigItem(cc, "lxc.cgroup.devices.deny", "a")
 		if err != nil {
 			return err
@@ -1005,12 +1008,12 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup the hooks
-	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", execPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
 
-	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", execPath, shared.VarPath(""), c.id))
+	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
 	}
@@ -1034,10 +1037,10 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Setup AppArmor
-	if aaAvailable {
-		if aaConfined || !aaAdmin {
+	if c.state.OS.AppArmorAvailable {
+		if c.state.OS.AppArmorConfined || !c.state.OS.AppArmorAdmin {
 			// If confined but otherwise able to use AppArmor, use our own profile
-			curProfile := aaProfile()
+			curProfile := util.AppArmorProfile()
 			curProfile = strings.TrimSuffix(curProfile, " (enforce)")
 			err := lxcSetConfigItem(cc, "lxc.apparmor.profile", curProfile)
 			if err != nil {
@@ -1054,7 +1057,7 @@ func (c *containerLXC) initLXC() error {
 			 * the old way of nesting, i.e. using the parent's
 			 * profile.
 			 */
-			if aaStacking && !aaStacked {
+			if c.state.OS.AppArmorStacking && !c.state.OS.AppArmorStacked {
 				profile = fmt.Sprintf("%s//&:%s:", profile, AANamespace(c))
 			}
 
@@ -1100,7 +1103,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Memory limits
-	if cgMemoryController {
+	if c.state.OS.CGroupMemoryController {
 		memory := c.expandedConfig["limits.memory"]
 		memoryEnforce := c.expandedConfig["limits.memory.enforce"]
 		memorySwap := c.expandedConfig["limits.memory.swap"]
@@ -1134,7 +1137,7 @@ func (c *containerLXC) initLXC() error {
 					return err
 				}
 			} else {
-				if cgSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+				if c.state.OS.CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 					err = lxcSetConfigItem(cc, "lxc.cgroup.memory.limit_in_bytes", fmt.Sprintf("%d", valueInt))
 					if err != nil {
 						return err
@@ -1180,7 +1183,7 @@ func (c *containerLXC) initLXC() error {
 	cpuPriority := c.expandedConfig["limits.cpu.priority"]
 	cpuAllowance := c.expandedConfig["limits.cpu.allowance"]
 
-	if (cpuPriority != "" || cpuAllowance != "") && cgCpuController {
+	if (cpuPriority != "" || cpuAllowance != "") && c.state.OS.CGroupCPUController {
 		cpuShares, cpuCfsQuota, cpuCfsPeriod, err := deviceParseCPU(cpuAllowance, cpuPriority)
 		if err != nil {
 			return err
@@ -1209,7 +1212,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Disk limits
-	if cgBlkioController {
+	if c.state.OS.CGroupBlkioController {
 		diskPriority := c.expandedConfig["limits.disk.priority"]
 		if diskPriority != "" {
 			priorityInt, err := strconv.Atoi(diskPriority)
@@ -1281,7 +1284,7 @@ func (c *containerLXC) initLXC() error {
 	}
 
 	// Processes
-	if cgPidsController {
+	if c.state.OS.CGroupPidsController {
 		processes := c.expandedConfig["limits.processes"]
 		if processes != "" {
 			valueInt, err := strconv.ParseInt(processes, 10, 64)
@@ -1563,7 +1566,7 @@ func (c *containerLXC) expandConfig() error {
 
 	// Apply all the profiles
 	for _, name := range c.profiles {
-		profileConfig, err := db.ProfileConfig(c.state.DB, name)
+		profileConfig, err := c.db.ProfileConfig(name)
 		if err != nil {
 			return err
 		}
@@ -1587,7 +1590,7 @@ func (c *containerLXC) expandDevices() error {
 
 	// Apply all the profiles
 	for _, p := range c.profiles {
-		profileDevices, err := db.Devices(c.state.DB, p, true)
+		profileDevices, err := c.db.Devices(p, true)
 		if err != nil {
 			return err
 		}
@@ -1609,7 +1612,7 @@ func (c *containerLXC) expandDevices() error {
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
 // liblxc configuration items.
 func (c *containerLXC) setupUnixDevice(devType string, dev types.Device, major int, minor int, path string, createMustSucceed bool) error {
-	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
 		if err != nil {
 			return err
@@ -1713,7 +1716,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 
 		// Remove the volatile key from the DB
-		err = db.ContainerConfigRemove(c.state.DB, c.id, "volatile.apply_quota")
+		err = c.db.ContainerConfigRemove(c.id, "volatile.apply_quota")
 		if err != nil {
 			return "", err
 		}
@@ -1834,8 +1837,7 @@ func (c *containerLXC) startCommon() (string, error) {
 				return "", err
 			}
 			devPath := paths[0]
-
-			if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+			if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 				// Add the new device cgroup rule
 				dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
 				if err != nil {
@@ -2079,7 +2081,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Update time container was last started
-	err = db.ContainerLastUsedUpdate(c.state.DB, c.id, time.Now().UTC())
+	err = c.db.ContainerLastUsedUpdate(c.id, time.Now().UTC())
 	if err != nil {
 		return "", fmt.Errorf("Error updating last used: %v", err)
 	}
@@ -2137,7 +2139,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		os.RemoveAll(c.StatePath())
 		c.stateful = false
 
-		err = db.ContainerSetStateful(c.state.DB, c.id, false)
+		err = c.db.ContainerSetStateful(c.id, false)
 		if err != nil {
 			logger.Error("Failed starting container", ctxMap)
 			return err
@@ -2154,7 +2156,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 
 		c.stateful = false
-		err = db.ContainerSetStateful(c.state.DB, c.id, false)
+		err = c.db.ContainerSetStateful(c.id, false)
 		if err != nil {
 			return err
 		}
@@ -2162,7 +2164,7 @@ func (c *containerLXC) Start(stateful bool) error {
 
 	// Start the LXC container
 	out, err := shared.RunCommand(
-		execPath,
+		c.state.OS.ExecPath,
 		"forkstart",
 		c.name,
 		c.state.OS.LxcPath,
@@ -2247,7 +2249,7 @@ func (c *containerLXC) OnStart() error {
 		}
 
 		// Remove the volatile key from the DB
-		err := db.ContainerConfigRemove(c.state.DB, c.id, key)
+		err := c.db.ContainerConfigRemove(c.id, key)
 		if err != nil {
 			AADestroy(c)
 			if ourStart {
@@ -2301,7 +2303,7 @@ func (c *containerLXC) OnStart() error {
 	}
 
 	// Record current state
-	err = db.ContainerSetState(c.state.DB, c.id, "RUNNING")
+	err = c.db.ContainerSetState(c.id, "RUNNING")
 	if err != nil {
 		return err
 	}
@@ -2355,7 +2357,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		}
 
 		c.stateful = true
-		err = db.ContainerSetStateful(c.state.DB, c.id, true)
+		err = c.db.ContainerSetStateful(c.id, true)
 		if err != nil {
 			op.Done(err)
 			logger.Error("Failed stopping container", ctxMap)
@@ -2539,7 +2541,7 @@ func (c *containerLXC) OnStop(target string) error {
 		deviceTaskSchedulerTrigger("container", c.name, "stopped")
 
 		// Record current state
-		err = db.ContainerSetState(c.state.DB, c.id, "STOPPED")
+		err = c.db.ContainerSetState(c.id, "STOPPED")
 		if err != nil {
 			logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 		}
@@ -2739,7 +2741,7 @@ func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 
 func (c *containerLXC) Snapshots() ([]container, error) {
 	// Get all the snapshots
-	snaps, err := db.ContainerGetSnapshots(c.state.DB, c.name)
+	snaps, err := c.db.ContainerGetSnapshots(c.name)
 	if err != nil {
 		return nil, err
 	}
@@ -2956,7 +2958,7 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Remove the database record
-	if err := db.ContainerRemove(c.state.DB, c.Name()); err != nil {
+	if err := c.db.ContainerRemove(c.Name()); err != nil {
 		logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
 		return err
 	}
@@ -2969,7 +2971,7 @@ func (c *containerLXC) Delete() error {
 		poolID, _, _ := c.storage.GetContainerPoolInfo()
 
 		// Remove volume from storage pool.
-		err := db.StoragePoolVolumeDelete(c.state.DB, c.Name(), storagePoolVolumeTypeContainer, poolID)
+		err := c.db.StoragePoolVolumeDelete(c.Name(), storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return err
 		}
@@ -3049,7 +3051,7 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	// Rename the database entry
-	err = db.ContainerRename(c.state.DB, oldName, newName)
+	err = c.db.ContainerRename(oldName, newName)
 	if err != nil {
 		logger.Error("Failed renaming container", ctxMap)
 		return err
@@ -3057,7 +3059,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Rename storage volume for the container.
 	poolID, _, _ := c.storage.GetContainerPoolInfo()
-	err = db.StoragePoolVolumeRename(c.state.DB, oldName, newName, storagePoolVolumeTypeContainer, poolID)
+	err = c.db.StoragePoolVolumeRename(oldName, newName, storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		logger.Error("Failed renaming storage volume", ctxMap)
 		return err
@@ -3065,7 +3067,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	if !c.IsSnapshot() {
 		// Rename all the snapshots
-		results, err := db.ContainerGetSnapshots(c.state.DB, oldName)
+		results, err := c.db.ContainerGetSnapshots(oldName)
 		if err != nil {
 			logger.Error("Failed renaming container", ctxMap)
 			return err
@@ -3075,14 +3077,14 @@ func (c *containerLXC) Rename(newName string) error {
 			// Rename the snapshot
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
-			err := db.ContainerRename(c.state.DB, sname, newSnapshotName)
+			err := c.db.ContainerRename(sname, newSnapshotName)
 			if err != nil {
 				logger.Error("Failed renaming container", ctxMap)
 				return err
 			}
 
 			// Rename storage volume for the snapshot.
-			err = db.StoragePoolVolumeRename(c.state.DB, sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
+			err = c.db.StoragePoolVolumeRename(sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				logger.Error("Failed renaming storage volume", ctxMap)
 				return err
@@ -3208,13 +3210,13 @@ func writeBackupFile(c container) error {
 		return err
 	}
 
-	s := c.StateObject()
-	poolID, pool, err := db.StoragePoolGet(s.DB, poolName)
+	s := c.DaemonState()
+	poolID, pool, err := s.DB.StoragePoolGet(poolName)
 	if err != nil {
 		return err
 	}
 
-	_, volume, err := db.StoragePoolVolumeGetType(s.DB, c.Name(), storagePoolVolumeTypeContainer, poolID)
+	_, volume, err := s.DB.StoragePoolVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		return err
 	}
@@ -3273,13 +3275,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Validate the new devices
-	err = containerValidDevices(c.state.DB, args.Devices, false, false)
+	err = containerValidDevices(c.db, args.Devices, false, false)
 	if err != nil {
 		return err
 	}
 
 	// Validate the new profiles
-	profiles, err := db.Profiles(c.state.DB)
+	profiles, err := c.db.Profiles()
 	if err != nil {
 		return err
 	}
@@ -3433,7 +3435,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Do some validation of the devices diff
-	err = containerValidDevices(c.state.DB, c.expandedDevices, false, true)
+	err = containerValidDevices(c.db, c.expandedDevices, false, true)
 	if err != nil {
 		return err
 	}
@@ -3597,7 +3599,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 			} else if key == "limits.disk.priority" {
-				if !cgBlkioController {
+				if !c.state.OS.CGroupBlkioController {
 					continue
 				}
 
@@ -3622,7 +3624,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if key == "limits.memory" || strings.HasPrefix(key, "limits.memory.") {
 				// Skip if no memory CGroup
-				if !cgMemoryController {
+				if !c.state.OS.CGroupMemoryController {
 					continue
 				}
 
@@ -3656,7 +3658,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 				// Store the old values for revert
 				oldMemswLimit := ""
-				if cgSwapAccounting {
+				if c.state.OS.CGroupSwapAccounting {
 					oldMemswLimit, err = c.CGroupGet("memory.memsw.limit_in_bytes")
 					if err != nil {
 						oldMemswLimit = ""
@@ -3688,7 +3690,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 
 				// Reset everything
-				if cgSwapAccounting {
+				if c.state.OS.CGroupSwapAccounting {
 					err = c.CGroupSet("memory.memsw.limit_in_bytes", "-1")
 					if err != nil {
 						revertMemory()
@@ -3717,7 +3719,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 				} else {
-					if cgSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
+					if c.state.OS.CGroupSwapAccounting && (memorySwap == "" || shared.IsTrue(memorySwap)) {
 						err = c.CGroupSet("memory.limit_in_bytes", memory)
 						if err != nil {
 							revertMemory()
@@ -3785,7 +3787,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				deviceTaskSchedulerTrigger("container", c.name, "changed")
 			} else if key == "limits.cpu.priority" || key == "limits.cpu.allowance" {
 				// Skip if no cpu CGroup
-				if !cgCpuController {
+				if !c.state.OS.CGroupCPUController {
 					continue
 				}
 
@@ -3810,7 +3812,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					return err
 				}
 			} else if key == "limits.processes" {
-				if !cgPidsController {
+				if !c.state.OS.CGroupPidsController {
 					continue
 				}
 
@@ -4053,7 +4055,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		}
 
 		// Disk limits parse all devices, so just apply them once
-		if updateDiskLimit && cgBlkioController {
+		if updateDiskLimit && c.state.OS.CGroupBlkioController {
 			diskLimits, err := c.getDiskLimits()
 			if err != nil {
 				return err
@@ -4123,7 +4125,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database
-	tx, err := db.Begin(c.state.DB)
+	tx, err := c.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -4537,7 +4539,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 
 		var out string
 		out, migrateErr = shared.RunCommand(
-			execPath,
+			c.state.OS.ExecPath,
 			"forkmigrate",
 			c.name,
 			c.state.OS.LxcPath,
@@ -4770,7 +4772,7 @@ func (c *containerLXC) FileExists(path string) error {
 
 	// Check if the file exists in the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.state.OS.ExecPath,
 		"forkcheckfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4816,7 +4818,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 
 	// Get the file from the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.state.OS.ExecPath,
 		"forkgetfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -4959,7 +4961,7 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 
 	// Push the file to the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.state.OS.ExecPath,
 		"forkputfile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -5027,7 +5029,7 @@ func (c *containerLXC) FileRemove(path string) error {
 
 	// Remove the file from the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.state.OS.ExecPath,
 		"forkremovefile",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
@@ -5078,7 +5080,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	args := []string{execPath, "forkexec", c.name, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
+	args := []string{c.state.OS.ExecPath, "forkexec", c.name, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
 	args = append(args, "env")
@@ -5089,7 +5091,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	args = append(args, command...)
 
 	cmd := exec.Cmd{}
-	cmd.Path = execPath
+	cmd.Path = c.state.OS.ExecPath
 	cmd.Args = args
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
@@ -5145,7 +5147,7 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 func (c *containerLXC) cpuState() api.ContainerStateCPU {
 	cpu := api.ContainerStateCPU{}
 
-	if !cgCpuacctController {
+	if !c.state.OS.CGroupCPUacctController {
 		return cpu
 	}
 
@@ -5194,7 +5196,7 @@ func (c *containerLXC) diskState() map[string]api.ContainerStateDisk {
 func (c *containerLXC) memoryState() api.ContainerStateMemory {
 	memory := api.ContainerStateMemory{}
 
-	if !cgMemoryController {
+	if !c.state.OS.CGroupMemoryController {
 		return memory
 	}
 
@@ -5212,7 +5214,7 @@ func (c *containerLXC) memoryState() api.ContainerStateMemory {
 		memory.UsagePeak = valueInt
 	}
 
-	if cgSwapAccounting {
+	if c.state.OS.CGroupSwapAccounting {
 		// Swap in bytes
 		if memory.Usage > 0 {
 			value, err := c.CGroupGet("memory.memsw.usage_in_bytes")
@@ -5245,7 +5247,7 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 
 	// Get the network state from the container
 	out, err := shared.RunCommand(
-		execPath,
+		c.state.OS.ExecPath,
 		"forkgetnet",
 		fmt.Sprintf("%d", pid))
 
@@ -5279,7 +5281,7 @@ func (c *containerLXC) processesState() int64 {
 		return 0
 	}
 
-	if cgPidsController {
+	if c.state.OS.CGroupPidsController {
 		value, err := c.CGroupGet("pids.current")
 		valueInt, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
@@ -5496,7 +5498,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	out, err := shared.RunCommand(execPath, "forkmount", pidStr, mntsrc, target)
+	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", pidStr, mntsrc, target)
 
 	if out != "" {
 		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
@@ -5521,7 +5523,7 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	// Remove the mount from the container
 	pidStr := fmt.Sprintf("%d", pid)
-	out, err := shared.RunCommand(execPath, "forkumount", pidStr, mount)
+	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkumount", pidStr, mount)
 
 	if out != "" {
 		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
@@ -5559,7 +5561,7 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// Extra checks for nesting
-	if runningInUserns {
+	if c.state.OS.RunningInUserNS {
 		for key, value := range m {
 			if shared.StringInSlice(key, []string{"major", "minor", "mode", "uid", "gid"}) && value != "" {
 				return nil, fmt.Errorf("The \"%s\" property may not be set when adding a device to a nested container", key)
@@ -5632,7 +5634,7 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 
 	// Clean any existing entry
 	if shared.PathExists(devPath) {
-		if runningInUserns {
+		if c.state.OS.RunningInUserNS {
 			syscall.Unmount(devPath, syscall.MNT_DETACH)
 		}
 
@@ -5643,7 +5645,7 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	}
 
 	// Create the new entry
-	if !runningInUserns {
+	if !c.state.OS.RunningInUserNS {
 		encoded_device_number := (minor & 0xff) | (major << 8) | ((minor & ^0xff) << 12)
 		if err := syscall.Mknod(devPath, uint32(mode), encoded_device_number); err != nil {
 			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
@@ -5743,7 +5745,7 @@ func (c *containerLXC) insertUnixDevice(m types.Device) error {
 		}
 	}
 
-	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		// Add the new device cgroup rule
 		if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
 			return fmt.Errorf("Failed to add cgroup rule for device")
@@ -5815,7 +5817,7 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 		}
 	}
 
-	if c.IsPrivileged() && !runningInUserns && cgDevicesController {
+	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		// Remove the device cgroup rule
 		err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
 		if err != nil {
@@ -5842,7 +5844,7 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 	}
 
 	// Remove the host side
-	if runningInUserns {
+	if c.state.OS.RunningInUserNS {
 		syscall.Unmount(devPath, syscall.MNT_DETACH)
 	}
 
@@ -6208,7 +6210,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	updateKey := func(key string, value string) error {
-		tx, err := db.Begin(c.state.DB)
+		tx, err := c.db.Begin()
 		if err != nil {
 			return err
 		}
@@ -6242,7 +6244,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			err = updateKey(configKey, volatileHwaddr)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := db.ContainerConfigGet(c.state.DB, c.id, configKey)
+				value, err1 := c.db.ContainerConfigGet(c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
@@ -6272,7 +6274,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			err = updateKey(configKey, volatileName)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := db.ContainerConfigGet(c.state.DB, c.id, configKey)
+				value, err1 := c.db.ContainerConfigGet(c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
@@ -6878,7 +6880,7 @@ func (c *containerLXC) setNetworkPriority() error {
 	}
 
 	// Don't bother if the cgroup controller doesn't exist
-	if !cgNetPrioController {
+	if !c.state.OS.CGroupNetPrioController {
 		return nil
 	}
 
@@ -7164,8 +7166,13 @@ func (c *containerLXC) LastIdmapSet() (*idmap.IdmapSet, error) {
 	return c.idmapsetFromConfig("volatile.last_state.idmap")
 }
 
-func (c *containerLXC) StateObject() *state.State {
-	// FIXME: This function should go away
+func (c *containerLXC) DaemonState() *state.State {
+	// FIXME: This function should go away, since the abstract container
+	//        interface should not be coupled with internal state details.
+	//        However this is not currently possible, because many
+	//        higher-level APIs use container variables as "implicit
+	//        handles" to database/OS state and then need a way to get a
+	//        reference to it.
 	return c.state
 }
 
@@ -7233,7 +7240,7 @@ func (c *containerLXC) StatePath() string {
 }
 
 func (c *containerLXC) StoragePool() (string, error) {
-	poolName, err := db.ContainerPool(c.state.DB, c.Name())
+	poolName, err := c.db.ContainerPool(c.Name())
 	if err != nil {
 		return "", err
 	}

@@ -7,13 +7,13 @@ import (
 )
 
 // Get config of a storage volume.
-func StorageVolumeConfigGet(db *sql.DB, volumeID int64) (map[string]string, error) {
+func (n *Node) StorageVolumeConfigGet(volumeID int64) (map[string]string, error) {
 	var key, value string
 	query := "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{key, value}
 
-	results, err := QueryScan(db, query, inargs, outargs)
+	results, err := queryScan(n.db, query, inargs, outargs)
 	if err != nil {
 		return nil, err
 	}
@@ -31,13 +31,13 @@ func StorageVolumeConfigGet(db *sql.DB, volumeID int64) (map[string]string, erro
 }
 
 // Get the description of a storage volume.
-func StorageVolumeDescriptionGet(db *sql.DB, volumeID int64) (string, error) {
+func (n *Node) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	description := sql.NullString{}
 	query := "SELECT description FROM storage_volumes WHERE id=?"
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{&description}
 
-	err := dbQueryRowScan(db, query, inargs, outargs)
+	err := dbQueryRowScan(n.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", NoSuchObjectError
@@ -76,6 +76,25 @@ func StorageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]
 // Delete storage volume config.
 func StorageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
 	_, err := tx.Exec("DELETE FROM storage_volumes_config WHERE storage_volume_id=?", volumeID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *Node) StorageVolumeCleanupImages() error {
+	_, err := exec(n.db, "DELETE FROM storage_volumes WHERE type=? AND name NOT IN (SELECT fingerprint FROM images);", StoragePoolVolumeTypeImage)
+	return err
+}
+
+func (n *Node) StorageVolumeMoveToLVMThinPoolNameKey() error {
+	_, err := exec(n.db, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
+	if err != nil {
+		return err
+	}
+
+	_, err = exec(n.db, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
 	if err != nil {
 		return err
 	}

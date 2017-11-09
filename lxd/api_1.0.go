@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
@@ -64,85 +63,12 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		authMethods = append(authMethods, "macaroons")
 	}
 	srv := api.ServerUntrusted{
-		/* List of API extensions in the order they were added.
-		 *
-		 * The following kind of changes require an addition to api_extensions:
-		 *  - New configuration key
-		 *  - New valid values for a configuration key
-		 *  - New REST API endpoint
-		 *  - New argument inside an existing REST API call
-		 *  - New HTTPs authentication mechanisms or protocols
-		 */
-		APIExtensions: []string{
-			"storage_zfs_remove_snapshots",
-			"container_host_shutdown_timeout",
-			"container_syscall_filtering",
-			"auth_pki",
-			"container_last_used_at",
-			"etag",
-			"patch",
-			"usb_devices",
-			"https_allowed_credentials",
-			"image_compression_algorithm",
-			"directory_manipulation",
-			"container_cpu_time",
-			"storage_zfs_use_refquota",
-			"storage_lvm_mount_options",
-			"network",
-			"profile_usedby",
-			"container_push",
-			"container_exec_recording",
-			"certificate_update",
-			"container_exec_signal_handling",
-			"gpu_devices",
-			"container_image_properties",
-			"migration_progress",
-			"id_map",
-			"network_firewall_filtering",
-			"network_routes",
-			"storage",
-			"file_delete",
-			"file_append",
-			"network_dhcp_expiry",
-			"storage_lvm_vg_rename",
-			"storage_lvm_thinpool_rename",
-			"network_vlan",
-			"image_create_aliases",
-			"container_stateless_copy",
-			"container_only_migration",
-			"storage_zfs_clone_copy",
-			"unix_device_rename",
-			"storage_lvm_use_thinpool",
-			"storage_rsync_bwlimit",
-			"network_vxlan_interface",
-			"storage_btrfs_mount_options",
-			"entity_description",
-			"image_force_refresh",
-			"storage_lvm_lv_resizing",
-			"id_map_base",
-			"file_symlinks",
-			"container_push_target",
-			"network_vlan_physical",
-			"storage_images_delete",
-			"container_edit_metadata",
-			"container_snapshot_stateful_migration",
-			"storage_driver_ceph",
-			"storage_ceph_user_name",
-			"resource_limits",
-			"storage_volatile_initial_source",
-			"storage_ceph_force_osd_reuse",
-			"storage_block_filesystem_btrfs",
-			"resources",
-			"kernel_limits",
-			"storage_api_volume_rename",
-			"macaroon_authentication",
-			"network_sriov",
-		},
-		APIStatus:   "stable",
-		APIVersion:  version.APIVersion,
-		Public:      false,
-		Auth:        "untrusted",
-		AuthMethods: authMethods,
+		APIExtensions: version.APIExtensions,
+		APIStatus:     "stable",
+		APIVersion:    version.APIVersion,
+		Public:        false,
+		Auth:          "untrusted",
+		AuthMethods:   authMethods,
 	}
 
 	// If untrusted, return now
@@ -162,10 +88,9 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	var certificate string
+	certificate := string(d.endpoints.NetworkPublicKey())
 	var certificateFingerprint string
-	if len(d.tlsConfig.Certificates) != 0 {
-		certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: d.tlsConfig.Certificates[0].Certificate[0]}))
+	if certificate != "" {
 		certificateFingerprint, err = shared.CertFingerprintStr(certificate)
 		if err != nil {
 			return InternalError(err)
@@ -227,7 +152,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 }
 
 func api10Put(d *Daemon, r *http.Request) Response {
-	oldConfig, err := db.ConfigValuesGet(d.db)
+	oldConfig, err := db.ConfigValuesGet(d.db.DB())
 	if err != nil {
 		return SmartError(err)
 	}
@@ -246,7 +171,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 }
 
 func api10Patch(d *Daemon, r *http.Request) Response {
-	oldConfig, err := db.ConfigValuesGet(d.db)
+	oldConfig, err := db.ConfigValuesGet(d.db.DB())
 	if err != nil {
 		return SmartError(err)
 	}

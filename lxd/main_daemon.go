@@ -5,11 +5,10 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime/pprof"
 	"syscall"
-	"time"
 
-	"github.com/lxc/lxd/shared"
+	dbg "github.com/lxc/lxd/lxd/debug"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -19,18 +18,16 @@ func cmdDaemon(args *Args) error {
 		return fmt.Errorf("This must be run as root")
 	}
 
-	if args.CPUProfile != "" {
-		f, err := os.Create(args.CPUProfile)
-		if err != nil {
-			fmt.Printf("Error opening cpu profile file: %s\n", err)
-			return nil
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-
-	if args.MemProfile != "" {
-		go memProfiler(args.MemProfile)
+	// Start debug activities as per command line flags, if any.
+	stop, err := dbg.Start(
+		dbg.CPU(args.CPUProfile),
+		dbg.Memory(args.MemProfile),
+		dbg.Goroutines(args.PrintGoroutinesEvery),
+	)
+	defer stop()
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		return nil
 	}
 
 	neededPrograms := []string{"setfacl", "rsync", "tar", "unsquashfs", "xz"}
@@ -39,25 +36,14 @@ func cmdDaemon(args *Args) error {
 		if err != nil {
 			return err
 		}
-	}
 
-	if args.PrintGoroutinesEvery > 0 {
-		go func() {
-			for {
-				time.Sleep(time.Duration(args.PrintGoroutinesEvery) * time.Second)
-				logger.Debugf(logger.GetStack())
-			}
-		}()
 	}
-
-	d := NewDaemon()
-	d.group = args.Group
-	d.SetupMode = shared.PathExists(shared.VarPath(".setup_mode"))
-	err := d.Init()
+	c := &DaemonConfig{
+		Group: args.Group,
+	}
+	d := NewDaemon(c, sys.DefaultOS())
+	err = d.Init()
 	if err != nil {
-		if d != nil && d.db != nil {
-			d.db.Close()
-		}
 		return err
 	}
 

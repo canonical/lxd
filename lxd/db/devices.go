@@ -115,7 +115,7 @@ func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (types.Device, error) {
 		query = `SELECT key, value FROM containers_devices_config WHERE container_device_id=?`
 	}
 
-	results, err := QueryScan(db, query, inargs, outfmt)
+	results, err := queryScan(db, query, inargs, outfmt)
 
 	if err != nil {
 		return newdev, err
@@ -130,7 +130,7 @@ func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (types.Device, error) {
 	return newdev, nil
 }
 
-func Devices(db *sql.DB, qName string, isprofile bool) (types.Devices, error) {
+func (n *Node) Devices(qName string, isprofile bool) (types.Devices, error) {
 	var q string
 	if isprofile {
 		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
@@ -147,7 +147,7 @@ func Devices(db *sql.DB, qName string, isprofile bool) (types.Devices, error) {
 	var name, stype string
 	inargs := []interface{}{qName}
 	outfmt := []interface{}{id, name, dtype}
-	results, err := QueryScan(db, q, inargs, outfmt)
+	results, err := queryScan(n.db, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func Devices(db *sql.DB, qName string, isprofile bool) (types.Devices, error) {
 		if err != nil {
 			return nil, err
 		}
-		newdev, err := dbDeviceConfig(db, id, isprofile)
+		newdev, err := dbDeviceConfig(n.db, id, isprofile)
 		if err != nil {
 			return nil, err
 		}

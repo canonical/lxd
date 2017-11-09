@@ -7,6 +7,8 @@ import (
 
 	"github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/db/node"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -25,66 +27,99 @@ var (
 	NoSuchObjectError = fmt.Errorf("No such object")
 )
 
-func enableForeignKeys(conn *sqlite3.SQLiteConn) error {
-	_, err := conn.Exec("PRAGMA foreign_keys=ON;", nil)
-	return err
+// Node mediates access to LXD's data stored in the node-local SQLite database.
+type Node struct {
+	db *sql.DB // Handle to the node-local SQLite database file.
+
 }
 
-func init() {
-	sql.Register("sqlite3_with_fk", &sqlite3.SQLiteDriver{ConnectHook: enableForeignKeys})
-}
-
-// OpenDb opens the database with the correct parameters for LXD.
-func OpenDb(path string) (*sql.DB, error) {
-	timeout := 5 // TODO - make this command-line configurable?
-
-	// These are used to tune the transaction BEGIN behavior instead of using the
-	// similar "locking_mode" pragma (locking for the whole database connection).
-	openPath := fmt.Sprintf("%s?_busy_timeout=%d&_txlock=exclusive", path, timeout*1000)
-
-	// Open the database. If the file doesn't exist it is created.
-	return sql.Open("sqlite3_with_fk", openPath)
-}
-
-// Create the initial (current) schema for a given SQLite DB connection.
-func CreateDb(db *sql.DB, patchNames []string) (err error) {
-	latestVersion := GetSchema(db)
-
-	if latestVersion != 0 {
-		return nil
-	}
-
-	_, err = db.Exec(CURRENT_SCHEMA)
+// OpenNode creates a new Node object.
+//
+// The fresh hook parameter is used by the daemon to mark all known patch names
+// as applied when a brand new database is created.
+//
+// The legacyPatches parameter is used as a mean to apply the legacy V10, V11,
+// V15, V29 and V30 non-db updates during the database upgrade sequence, to
+// avoid any change in semantics wrt the old logic (see PR #3322).
+func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*LegacyPatch) (*Node, error) {
+	db, err := node.Open(dir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Mark all existing patches as applied
-	for _, patchName := range patchNames {
-		PatchesMarkApplied(db, patchName)
-	}
-
-	err = ProfileCreateDefault(db)
+	hook := legacyPatchHook(db, legacyPatches)
+	initial, err := node.EnsureSchema(db, dir, hook)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	node := &Node{
+		db: db,
+	}
+
+	if initial == 0 {
+		err := node.ProfileCreateDefault()
+		if err != nil {
+			return nil, err
+		}
+		if fresh != nil {
+			err := fresh(node)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return node, nil
+}
+
+// ForLegacyPatches is a aid for the hack in initializeDbObject, which sets
+// the db-related Deamon attributes upfront, to be backward compatible with the
+// legacy patches that need to interact with the database.
+func ForLegacyPatches(db *sql.DB) *Node {
+	return &Node{db: db}
+}
+
+// DB returns the low level database handle to the node-local SQLite
+// database.
+//
+// FIXME: this is used for compatibility with some legacy code, and should be
+//        dropped once there are no call sites left.
+func (n *Node) DB() *sql.DB {
+	return n.db
+}
+
+// Transaction creates a new NodeTx object and transactionally executes the
+// node-level database interactions invoked by the given function. If the
+// function returns no error, all database changes are committed to the
+// node-level database, otherwise they are rolled back.
+func (n *Node) Transaction(f func(*NodeTx) error) error {
+	nodeTx := &NodeTx{}
+	return query.Transaction(n.db, func(tx *sql.Tx) error {
+		nodeTx.tx = tx
+		return f(nodeTx)
+	})
+}
+
+// Close the database facade.
+func (n *Node) Close() error {
+	return n.db.Close()
+}
+
+// Begin a new transaction against the local database. Legacy method.
+func (n *Node) Begin() (*sql.Tx, error) {
+	return begin(n.db)
+}
+
+// UpdateSchemasDotGo updates the schema.go files in the local/ and cluster/
+// sub-packages.
+func UpdateSchemasDotGo() error {
+	err := node.SchemaDotGo()
+	if err != nil {
+		return fmt.Errorf("failed to update local schema.go: %v", err)
 	}
 
 	return nil
-}
-
-func GetSchema(db *sql.DB) (v int) {
-	arg1 := []interface{}{}
-	arg2 := []interface{}{&v}
-	q := "SELECT max(version) FROM schema"
-	err := dbQueryRowScan(db, q, arg1, arg2)
-	if err != nil {
-		return 0
-	}
-	return v
-}
-
-func GetLatestSchema() int {
-	return len(updates)
 }
 
 func IsDbLockedError(err error) bool {
@@ -110,7 +145,7 @@ func isNoMatchError(err error) bool {
 	return false
 }
 
-func Begin(db *sql.DB) (*sql.Tx, error) {
+func begin(db *sql.DB) (*sql.Tx, error) {
 	for i := 0; i < 1000; i++ {
 		tx, err := db.Begin()
 		if err == nil {
@@ -251,7 +286,7 @@ type queryer interface {
  * The result will be an array (one per output row) of arrays (one per output argument)
  * of interfaces, containing pointers to the actual output arguments.
  */
-func QueryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
+func queryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
 	for i := 0; i < 1000; i++ {
 		result, err := doDbQueryScan(qi, q, inargs, outfmt)
 		if err == nil {
@@ -269,7 +304,7 @@ func QueryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{})
 	return nil, fmt.Errorf("DB is locked")
 }
 
-func Exec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
+func exec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 	for i := 0; i < 1000; i++ {
 		result, err := db.Exec(q, args...)
 		if err == nil {

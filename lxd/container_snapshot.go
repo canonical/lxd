@@ -59,42 +59,6 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, resultMap)
 }
 
-/*
- * Note, the code below doesn't deal with snapshots of snapshots.
- * To do that, we'll need to weed out based on # slashes in names
- */
-func nextSnapshot(d *Daemon, name string) int {
-	base := name + shared.SnapshotDelimiter + "snap"
-	length := len(base)
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
-	var numstr string
-	inargs := []interface{}{db.CTypeSnapshot, length, base}
-	outfmt := []interface{}{numstr}
-	results, err := db.QueryScan(d.db, q, inargs, outfmt)
-	if err != nil {
-		return 0
-	}
-	max := 0
-
-	for _, r := range results {
-		numstr = r[0].(string)
-		if len(numstr) <= length {
-			continue
-		}
-		substr := numstr[length:]
-		var num int
-		count, err := fmt.Sscanf(substr, "%d", &num)
-		if err != nil || count != 1 {
-			continue
-		}
-		if num >= max {
-			max = num + 1
-		}
-	}
-
-	return max
-}
-
 func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
@@ -124,7 +88,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	if req.Name == "" {
 		// come up with a name
-		i := nextSnapshot(d, name)
+		i := d.db.ContainerNextSnapshot(name)
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
@@ -283,7 +247,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := db.ContainerId(d.db, fullName)
+	id, _ := d.db.ContainerId(fullName)
 	if id > 0 {
 		return Conflict
 	}

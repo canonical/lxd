@@ -18,21 +18,20 @@ func cmdActivateIfNeeded(args *Args) error {
 	}
 
 	// Don't start a full daemon, we just need DB access
-	d := NewDaemon()
-	d.os.LxcPath = shared.VarPath("containers")
+	d := DefaultDaemon()
 
 	if !shared.PathExists(shared.VarPath("lxd.db")) {
 		logger.Debugf("No DB, so no need to start the daemon now.")
 		return nil
 	}
 
-	err := initializeDbObject(d, shared.VarPath("lxd.db"))
+	err := initializeDbObject(d)
 	if err != nil {
 		return err
 	}
 
 	/* Load all config values from the database */
-	err = daemonConfigInit(d.db)
+	err = daemonConfigInit(d.db.DB())
 	if err != nil {
 		return err
 	}
@@ -52,7 +51,7 @@ func cmdActivateIfNeeded(args *Args) error {
 	}
 
 	// Look for auto-started or previously started containers
-	result, err := db.ContainersList(d.db, db.CTypeRegular)
+	result, err := d.db.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}

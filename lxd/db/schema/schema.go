@@ -15,6 +15,8 @@ import (
 type Schema struct {
 	updates []Update // Ordered series of updates making up the schema
 	hook    Hook     // Optional hook to execute whenever a update gets applied
+	fresh   string   // Optional SQL statement used to create schema from scratch
+	check   Check    // Optional callback invoked before doing any update
 }
 
 // Update applies a specific schema change to a database, and returns an error
@@ -23,6 +25,14 @@ type Update func(*sql.Tx) error
 
 // Hook is a callback that gets fired when a update gets applied.
 type Hook func(int, *sql.Tx) error
+
+// Check is a callback that gets fired all the times Schema.Ensure is invoked,
+// before applying any update. It gets passed the version that the schema is
+// currently at and a handle to the transaction. If it returns nil, the update
+// proceeds normally, otherwise it's aborted. If ErrGracefulAbort is returned,
+// the transaction will still be committed, giving chance to this function to
+// perform state changes.
+type Check func(int, *sql.Tx) error
 
 // New creates a new schema Schema with the given updates.
 func New(updates []Update) *Schema {
@@ -86,6 +96,21 @@ func (s *Schema) Hook(hook Hook) {
 	s.hook = hook
 }
 
+// Check instructs the schema to invoke the given function whenever Ensure is
+// invoked, before applying any due update. It can be used for aborting the
+// operation.
+func (s *Schema) Check(check Check) {
+	s.check = check
+}
+
+// Fresh sets a statement that will be used to create the schema from scratch
+// when bootstraping an empty database. It should be a "flattening" of the
+// available updates, generated using the Dump() method. If not given, all
+// patches will be applied in order.
+func (s *Schema) Fresh(statement string) {
+	s.fresh = statement
+}
+
 // Ensure makes sure that the actual schema in the given database matches the
 // one defined by our updates.
 //
@@ -95,20 +120,57 @@ func (s *Schema) Hook(hook Hook) {
 // A update will be applied only if it hasn't been before (currently applied
 // updates are tracked in the a 'shema' table, which gets automatically
 // created).
-func (s *Schema) Ensure(db *sql.DB) error {
-	return query.Transaction(db, func(tx *sql.Tx) error {
+//
+// If no error occurs, the integer returned by this method is the
+// initial version that the schema has been upgraded from.
+func (s *Schema) Ensure(db *sql.DB) (int, error) {
+	var current int
+	aborted := false
+	err := query.Transaction(db, func(tx *sql.Tx) error {
 		err := ensureSchemaTableExists(tx)
 		if err != nil {
 			return err
 		}
-
-		err = ensureUpdatesAreApplied(tx, s.updates, s.hook)
+		current, err = queryCurrentVersion(tx)
 		if err != nil {
 			return err
 		}
 
+		if s.check != nil {
+			err := s.check(current, tx)
+			if err == ErrGracefulAbort {
+				// Abort the update gracefully, committing what
+				// we've done so far.
+				aborted = true
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+		}
+		// When creating the schema from scratch, use the fresh dump if
+		// available. Otherwise just apply all relevant updates.
+		if current == 0 && s.fresh != "" {
+			_, err = tx.Exec(s.fresh)
+			if err != nil {
+				return fmt.Errorf("cannot apply fresh schema: %v", err)
+			}
+		} else {
+			err = ensureUpdatesAreApplied(tx, current, s.updates, s.hook)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
+	if err != nil {
+		return -1, err
+	}
+	if aborted {
+		return current, ErrGracefulAbort
+	}
+	return current, nil
 }
 
 // Dump returns a text of SQL commands that can be used to create this schema
@@ -143,6 +205,54 @@ INSERT INTO schema (version, updated_at) VALUES (%d, strftime("%%s"))
 	return strings.Join(statements, ";\n"), nil
 }
 
+// Trim the schema updates to the given version (included). Updates with higher
+// versions will be discarded. Any fresh schema dump previously set will be
+// unset, since it's assumed to no longer be applicable. Return all updates
+// that have been trimmed.
+func (s *Schema) Trim(version int) []Update {
+	trimmed := s.updates[version:]
+	s.updates = s.updates[:version]
+	s.fresh = ""
+	return trimmed
+}
+
+// ExerciseUpdate is a convenience for exercising a particular update of a
+// schema.
+//
+// It first creates an in-memory SQLite database, then it applies all updates
+// up to the one with given version (exlcuded) and optionally executes the
+// given hook for populating the database with test data. Finally it applies
+// the update with the given version, returning the database handle for further
+// inspection of the resulting state.
+func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error) {
+	// Create an in-memory database.
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open memory database: %v", err)
+	}
+
+	// Apply all updates to the given version, excluded.
+	trimmed := s.Trim(version - 1)
+	_, err = s.Ensure(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply previous updates: %v", err)
+	}
+
+	// Execute the optional hook.
+	if hook != nil {
+		hook(db)
+	}
+
+	// Apply the update with the given version
+	s.Add(trimmed[0])
+	_, err = s.Ensure(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply given update: %v", err)
+	}
+
+	return db, nil
+}
+
 // Ensure that the schema exists.
 func ensureSchemaTableExists(tx *sql.Tx) error {
 	exists, err := doesSchemaTableExist(tx)
@@ -158,23 +268,25 @@ func ensureSchemaTableExists(tx *sql.Tx) error {
 	return nil
 }
 
-// Apply any pending update that was not yet applied.
-func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
+// Return the highest update version currently applied. Zero means that no
+// updates have been applied yet.
+func queryCurrentVersion(tx *sql.Tx) (int, error) {
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
-		return fmt.Errorf("failed to fetch update versions: %v", err)
+		return -1, fmt.Errorf("failed to fetch update versions: %v", err)
 	}
 
 	// Fix bad upgrade code between 30 and 32
-	if shared.IntInSlice(30, versions) && shared.IntInSlice(32, versions) && !shared.IntInSlice(31, versions) {
+	hasVersion := func(v int) bool { return shared.IntInSlice(v, versions) }
+	if hasVersion(30) && hasVersion(32) && !hasVersion(31) {
 		err = insertSchemaVersion(tx, 31)
 		if err != nil {
-			return fmt.Errorf("failed to insert missing schema version 31")
+			return -1, fmt.Errorf("failed to insert missing schema version 31")
 		}
 
 		versions, err = selectSchemaVersions(tx)
 		if err != nil {
-			return fmt.Errorf("failed to fetch update versions: %v", err)
+			return -1, fmt.Errorf("failed to fetch update versions: %v", err)
 		}
 	}
 
@@ -182,10 +294,15 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 	if len(versions) > 0 {
 		err = checkSchemaVersionsHaveNoHoles(versions)
 		if err != nil {
-			return err
+			return -1, err
 		}
 		current = versions[len(versions)-1] // Highest recorded version
 	}
+	return current, nil
+}
+
+// Apply any pending update that was not yet applied.
+func ensureUpdatesAreApplied(tx *sql.Tx, current int, updates []Update, hook Hook) error {
 	if current > len(updates) {
 		return fmt.Errorf(
 			"schema version '%d' is more recent than expected '%d'",
@@ -202,7 +319,8 @@ func ensureUpdatesAreApplied(tx *sql.Tx, updates []Update, hook Hook) error {
 		if hook != nil {
 			err := hook(current, tx)
 			if err != nil {
-				return fmt.Errorf("failed to execute hook (version %d): %v", current, err)
+				return fmt.Errorf(
+					"failed to execute hook (version %d): %v", current, err)
 			}
 		}
 		err := update(tx)

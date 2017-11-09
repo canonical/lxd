@@ -41,8 +41,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 
 func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	// Create an unprivileged profile
-	_, err := db.ProfileCreate(
-		suite.d.db,
+	_, err := suite.d.db.ProfileCreate(
 		"unprivileged",
 		"unprivileged",
 		map[string]string{"security.privileged": "true"},
@@ -50,7 +49,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
-		db.ProfileDelete(suite.d.db, "unprivileged")
+		suite.d.db.ProfileDelete("unprivileged")
 	}()
 
 	args := db.ContainerArgs{

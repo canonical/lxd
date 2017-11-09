@@ -71,7 +71,7 @@ Common options:
 
 Daemon options:
     --group GROUP
-        Group which owns the shared socket
+        Group which owns the shared socket (ignored with socket-based activation)
 
 Daemon debug options:
     --cpuprofile FILE

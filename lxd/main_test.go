@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,19 +14,15 @@ import (
 )
 
 func mockStartDaemon() (*Daemon, error) {
-	certBytes, keyBytes, err := shared.GenerateMemCert(false)
-	if err != nil {
-		return nil, err
-	}
-	cert, err := tls.X509KeyPair(certBytes, keyBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	d := NewDaemon()
+	d := DefaultDaemon()
 	d.os.MockMode = true
-	d.tlsConfig = &tls.Config{
-		Certificates: []tls.Certificate{cert},
+
+	// Setup test certificates. We re-use the ones already on disk under
+	// the test/ directory, to avoid generating new ones, which is
+	// expensive.
+	err := setupTestCerts(shared.VarPath())
+	if err != nil {
+		return nil, err
 	}
 
 	if err := d.Init(); err != nil {
@@ -51,35 +46,23 @@ type lxdTestSuite struct {
 
 const lxdTestSuiteDefaultStoragePool string = "lxdTestrunPool"
 
-func (suite *lxdTestSuite) SetupSuite() {
+func (suite *lxdTestSuite) SetupTest() {
 	tmpdir, err := ioutil.TempDir("", "lxd_testrun_")
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to create temp dir: %v", err)
 	}
 	suite.tmpdir = tmpdir
 
 	if err := os.Setenv("LXD_DIR", suite.tmpdir); err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to set LXD_DIR: %v", err)
 	}
 
 	suite.d, err = mockStartDaemon()
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to start daemon: %v", err)
 	}
-}
 
-func (suite *lxdTestSuite) TearDownSuite() {
-	suite.d.Stop()
-
-	err := os.RemoveAll(suite.tmpdir)
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
-func (suite *lxdTestSuite) SetupTest() {
-	initializeDbObject(suite.d, ":memory:")
-	daemonConfigInit(suite.d.db)
+	daemonConfigInit(suite.d.db.DB())
 
 	// Create default storage pool. Make sure that we don't pass a nil to
 	// the next function.
@@ -88,9 +71,9 @@ func (suite *lxdTestSuite) SetupTest() {
 	mockStorage, _ := storageTypeToString(storageTypeMock)
 	// Create the database entry for the storage pool.
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
-	_, err := dbStoragePoolCreateAndUpdateCache(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
+	_, err = dbStoragePoolCreateAndUpdateCache(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to create default storage pool: %v", err)
 	}
 
 	rootDev := map[string]string{}
@@ -100,41 +83,33 @@ func (suite *lxdTestSuite) SetupTest() {
 	devicesMap := map[string]map[string]string{}
 	devicesMap["root"] = rootDev
 
-	defaultID, _, err := db.ProfileGet(suite.d.db, "default")
+	defaultID, _, err := suite.d.db.ProfileGet("default")
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to get default profile: %v", err)
 	}
 
-	tx, err := db.Begin(suite.d.db)
+	tx, err := suite.d.db.Begin()
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to begin transaction: %v", err)
 	}
 
 	err = db.DevicesAdd(tx, "profile", defaultID, devicesMap)
 	if err != nil {
 		tx.Rollback()
-		os.Exit(1)
+		suite.T().Fatalf("failed to rollback transaction: %v", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		os.Exit(1)
+		suite.T().Fatalf("failed to commit transaction: %v", err)
 	}
 	suite.Req = require.New(suite.T())
-
-	suite.d.pruneChan = make(chan bool)
-	suite.d.resetAutoUpdateChan = make(chan bool)
-	go func() {
-		for {
-			select {
-			case <-suite.d.pruneChan:
-			case <-suite.d.resetAutoUpdateChan:
-				continue
-			}
-		}
-	}()
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
-	suite.d.db.Close()
+	suite.d.Stop()
+	err := os.RemoveAll(suite.tmpdir)
+	if err != nil {
+		suite.T().Fatalf("failed to remove temp dir: %v", err)
+	}
 }
