@@ -64,11 +64,22 @@ test_static_analysis() {
       fi
     fi
 
+    ## imports
     OUT=$(go list -f '{{ join .Imports "\n" }}' ./client ./shared/api ./lxc/config | sort -u | grep \\. | diff -u test/godeps.list - || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: you added a new dependency to the client or shared; please make sure this is what you want"
       echo "${OUT}"
       exit 1
+    fi
+
+    ## misspell
+    if which misspell >/dev/null 2>&1; then
+      OUT=$(misspell ./ | grep -v po/ | grep -Ev "test/includes/lxd.sh.*monitord" | grep -Ev "test/suites/static_analysis.sh.*monitord" || true)
+      if [ -n "${OUT}" ]; then
+        echo "Found some typos"
+        echo "${OUT}"
+        exit 1
+      fi
     fi
 
     # Skip the tests which require git
