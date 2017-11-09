@@ -403,6 +403,46 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 		break
 	}
 
+	console := lxc.ConsoleLogOptions{
+		ClearLog:       true,
+		ReadLog:        false,
+		ReadMax:        0,
+		WriteToLogFile: false,
+	}
+
+	if !c.IsRunning() {
+		if consoleLogpath == "" {
+			return SmartError(fmt.Errorf("The container does not keep a console log"))
+		}
+		goto truncateOnDiskLogFile
+	}
+
+	// Send a ringbuffer request to the container.
+	_, err = c.ConsoleLog(console)
+	if err != nil {
+		errno, isErrno := shared.GetErrno(err)
+		if !isErrno {
+			return SmartError(err)
+		}
+
+		if errno == syscall.ENODATA {
+			return SmartError(nil)
+		}
+
+		if errno == syscall.EFAULT {
+			if consoleLogpath == "" {
+				return SmartError(fmt.Errorf("The container does not keep a console log"))
+			}
+
+			goto truncateOnDiskLogFile
+		}
+
+		return SmartError(err)
+	}
+
+	return SmartError(nil)
+
+truncateOnDiskLogFile:
 	// Check that this is a regular file. We don't want to try and unlink
 	// /dev/stderr or /dev/null or something.
 	st, err := os.Stat(consoleLogpath)
