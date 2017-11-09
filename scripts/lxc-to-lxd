@@ -173,7 +173,7 @@ def config_parse(path):
                             config.append("lxc.mount.entry = %s" % line)
                 continue
 
-            # Proces normal configuration keys
+            # Process normal configuration keys
             if line and not line.strip().startswith("#"):
                 config.append(line)
 

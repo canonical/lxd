@@ -76,7 +76,7 @@ privileged containers.
 
 ## Network
 LXD containers may have any number of network devices attached to them.
-The naming for those unless overriden by the user is ethX where X is an incrementing number.
+The naming for those unless overridden by the user is ethX where X is an incrementing number.
 
 ## Container to host communication
 LXD sets up a socket at `/dev/lxd/sock` which root in the container can use to communicate with LXD on the host.
@@ -86,5 +86,5 @@ The API is [documented here](dev-lxd.md).
 ## LXCFS
 If LXCFS is present on the host, it will automatically be setup for the container.
 
-This normally results in a number of `/proc` files being overriden through bind-mounts.
+This normally results in a number of `/proc` files being overridden through bind-mounts.
 On older kernels a virtual version of `/sys/fs/cgroup` may also be setup by LXCFS.
