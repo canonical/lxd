@@ -444,6 +444,7 @@ type container interface {
 	// This function will not return until the console has been exited by
 	// the user.
 	Console(terminal *os.File) error
+	ConsoleLog(opts lxc.ConsoleLogOptions) (string, error)
 	/* Command execution:
 		 * 1. passing in false for wait
 		 *    - equivalent to calling cmd.Run()
