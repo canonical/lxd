@@ -68,7 +68,7 @@ preseed.
 
 Differently from the interactive init mode, the `lxd init --preseed`
 command line will not modify the default profile in any particular
-way, unless you explicitely express that in the provided YAML payload.
+way, unless you explicitly express that in the provided YAML payload.
 
 For instance, you will typically want to attach a root disk device and
 a network interface to your default profile. See below for an example.

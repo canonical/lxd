@@ -435,6 +435,10 @@ func (n *Node) ImageUpdate(id int, fname string, sz int64, public bool, autoUpda
 	}
 
 	_, err = tx.Exec(`DELETE FROM images_properties WHERE image_id=?`, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 
 	stmt, err = tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`)
 	if err != nil {

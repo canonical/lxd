@@ -124,6 +124,7 @@ func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles WHERE profile_id = 2;`
 	err = s.db.DB().QueryRow(statements).Scan(&count)
+	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the container association!")
 
 	// Make sure there are 0 profiles_devices entries left.

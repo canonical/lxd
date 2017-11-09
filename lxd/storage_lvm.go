@@ -111,9 +111,9 @@ func (s *storageLvm) StoragePoolCreate() error {
 	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
 
 	var globalErr error
+	var pvExisted bool
+	var vgExisted bool
 	tryUndo := true
-	pvExisted := false
-	vgExisted := false
 	poolName := s.getOnDiskPoolName()
 	source := s.pool.Config["source"]
 	// must be initialized
