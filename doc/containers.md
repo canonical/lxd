@@ -94,7 +94,7 @@ and should whenever possible be avoided.
 ## Devices configuration
 LXD will always provide the container with the basic devices which are
 required for a standard POSIX system to work. These aren't visible in
-container or profile configuration and may not be overriden.
+container or profile configuration and may not be overridden.
 
 Those includes:
 
@@ -120,7 +120,7 @@ Devices may be added or removed while the container is running.
 
 Every device entry is identified by a unique name. If the same name is
 used in a subsequent profile or in the container's own configuration,
-the whole entry is overriden by the new definition.
+the whole entry is overridden by the new definition.
 
 Device entries are added through:
 

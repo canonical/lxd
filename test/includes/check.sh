@@ -1,4 +1,4 @@
-# Miscellanous test checks.
+# Miscellaneous test checks.
 
 check_dependencies() {
     # shellcheck disable=SC2039
