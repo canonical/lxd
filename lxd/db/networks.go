@@ -215,6 +215,9 @@ func NetworkConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO networks_config (network_id, key, value) VALUES(?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
+	if err != nil {
+		return err
+	}
 
 	for k, v := range config {
 		if v == "" {

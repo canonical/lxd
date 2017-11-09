@@ -45,8 +45,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		architecture = 0
 	}
 
-	var do = func(*operation) error { return nil }
-
+	var do func(*operation) error
 	if configRaw.Restore == "" {
 		// Update container configuration
 		do = func(op *operation) error {

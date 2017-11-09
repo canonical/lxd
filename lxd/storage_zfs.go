@@ -1111,7 +1111,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 
 	targetName := target.Name()
 	targetDataset := fmt.Sprintf("%s/containers/%s", poolName, targetName)
-	targetSnapshotDataset := targetDataset
+	targetSnapshotDataset := ""
 
 	if sourceIsSnapshot {
 		sourceParentName, sourceSnapOnlyName, _ := containerGetParentAndSnapshotName(source.Name())
@@ -1272,8 +1272,14 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 	if containerOnly || len(snapshots) == 0 {
 		if s.pool.Config["zfs.clone_copy"] != "" && !shared.IsTrue(s.pool.Config["zfs.clone_copy"]) {
 			err = s.copyWithoutSnapshotFull(target, source)
+			if err != nil {
+				return err
+			}
 		} else {
 			err = s.copyWithoutSnapshotsSparse(target, source)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		targetContainerName := target.Name()

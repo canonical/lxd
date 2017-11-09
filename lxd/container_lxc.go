@@ -5153,9 +5153,15 @@ func (c *containerLXC) cpuState() api.ContainerStateCPU {
 
 	// CPU usage in seconds
 	value, err := c.CGroupGet("cpuacct.usage")
+	if err != nil {
+		cpu.Usage = -1
+		return cpu
+	}
+
 	valueInt, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		valueInt = -1
+		cpu.Usage = -1
+		return cpu
 	}
 
 	cpu.Usage = valueInt
@@ -5283,6 +5289,10 @@ func (c *containerLXC) processesState() int64 {
 
 	if c.state.OS.CGroupPidsController {
 		value, err := c.CGroupGet("pids.current")
+		if err != nil {
+			return -1
+		}
+
 		valueInt, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return -1
@@ -5431,7 +5441,7 @@ func (c *containerLXC) StorageStartSensitive() (bool, error) {
 		return false, err
 	}
 
-	isOurOperation := false
+	var isOurOperation bool
 	if c.IsSnapshot() {
 		isOurOperation, err = c.storage.ContainerSnapshotStart(c)
 	} else {
@@ -5448,7 +5458,7 @@ func (c *containerLXC) StorageStop() (bool, error) {
 		return false, err
 	}
 
-	isOurOperation := false
+	var isOurOperation bool
 	if c.IsSnapshot() {
 		isOurOperation, err = c.storage.ContainerSnapshotStop(c)
 	} else {
@@ -6314,6 +6324,10 @@ func (c *containerLXC) createNetworkFilter(name string, bridge string, hwaddr st
 
 func (c *containerLXC) removeNetworkFilter(hwaddr string, bridge string) error {
 	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
+	if err != nil {
+		return err
+	}
+
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		fields := strings.Fields(line)

@@ -169,6 +169,9 @@ func StoragePoolConfigAdd(tx *sql.Tx, poolID int64, poolConfig map[string]string
 	str := "INSERT INTO storage_pools_config (storage_pool_id, key, value) VALUES(?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
+	if err != nil {
+		return err
+	}
 
 	for k, v := range poolConfig {
 		if v == "" {

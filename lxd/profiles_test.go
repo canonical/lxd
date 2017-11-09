@@ -17,7 +17,12 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(d.os.VarDir)
+
 	err = initializeDbObject(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	db = d.db.DB()
 
 	// Insert a container and a related profile. Dont't forget that the profile

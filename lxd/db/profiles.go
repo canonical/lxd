@@ -222,6 +222,9 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO profiles_config (profile_id, key, value) VALUES(?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
+	if err != nil {
+		return err
+	}
 
 	for k, v := range config {
 		_, err = stmt.Exec(id, k, v)
