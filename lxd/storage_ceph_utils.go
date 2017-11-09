@@ -783,7 +783,7 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 	sourceContainerName := source.Name()
 	targetContainerName := target.Name()
 	sourceContainerOnlyName := sourceContainerName
-	sourceSnapshotOnlyName := sourceContainerName
+	sourceSnapshotOnlyName := ""
 	snapshotName := fmt.Sprintf("zombie_snapshot_%s",
 		uuid.NewRandom().String())
 	if sourceIsSnapshot {

@@ -28,7 +28,11 @@ func cmdForkMigrate(args *Args) error {
 	lxcpath := args.Params[1]
 	configPath := args.Params[2]
 	imagesDir := args.Params[3]
+
 	preservesInodes, err := strconv.ParseBool(args.Params[4])
+	if err != nil {
+		return err
+	}
 
 	c, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {

@@ -136,7 +136,7 @@ func (n *Node) ContainerGet(name string) (ContainerArgs, error) {
 }
 
 func (n *Node) ContainerCreate(args ContainerArgs) (int, error) {
-	id, err := n.ContainerId(args.Name)
+	_, err := n.ContainerId(args.Name)
 	if err == nil {
 		return 0, DbErrAlreadyDefined
 	}
@@ -178,7 +178,7 @@ func (n *Node) ContainerCreate(args ContainerArgs) (int, error) {
 		return 0, fmt.Errorf("Error inserting %s into database", args.Name)
 	}
 	// TODO: is this really int64? we should fix it everywhere if so
-	id = int(id64)
+	id := int(id64)
 	if err := ContainerConfigInsert(tx, id, args.Config); err != nil {
 		tx.Rollback()
 		return 0, err

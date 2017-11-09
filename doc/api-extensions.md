@@ -291,7 +291,7 @@ map auto-selection process for isolated containers and specify what host
 uid/gid to use as the base.
 
 ## file\_symlinks
-This adds support for transfering symlinks through the file API.
+This adds support for transferring symlinks through the file API.
 X-LXD-type can now be "symlink" with the request content being the target path.
 
 ## container\_push\_target

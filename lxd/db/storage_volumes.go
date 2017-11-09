@@ -58,6 +58,9 @@ func StorageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]
 	str := "INSERT INTO storage_volumes_config (storage_volume_id, key, value) VALUES(?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
+	if err != nil {
+		return err
+	}
 
 	for k, v := range volumeConfig {
 		if v == "" {

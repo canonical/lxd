@@ -27,6 +27,7 @@ func TestEnsureSchema(t *testing.T) {
 	defer cleanup()
 
 	db, err := node.Open(dir)
+	require.NoError(t, err)
 	defer db.Close()
 
 	hookHasRun := false
