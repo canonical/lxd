@@ -11,11 +11,11 @@ import "time"
 // more details.
 func Start(f Func, schedule Schedule) (func(time.Duration) error, func()) {
 	group := Group{}
-	i := group.Add(f, schedule)
+	task := group.Add(f, schedule)
 	group.Start()
 
 	stop := group.Stop
-	reset := func() { group.Reset(i) }
+	reset := task.Reset
 
 	return stop, reset
 }

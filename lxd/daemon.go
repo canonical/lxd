@@ -47,8 +47,8 @@ type Daemon struct {
 
 	// Indexes of tasks that need to be reset when their execution interval
 	// changes.
-	taskPruneImages int
-	taskAutoUpdate  int
+	taskPruneImages *task.Task
+	taskAutoUpdate  *task.Task
 
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints

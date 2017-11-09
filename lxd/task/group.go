@@ -13,18 +13,18 @@ import (
 type Group struct {
 	cancel func()
 	wg     sync.WaitGroup
-	tasks  []task
+	tasks  []Task
 }
 
 // Add a new task to the group, returning its index.
-func (g *Group) Add(f Func, schedule Schedule) int {
+func (g *Group) Add(f Func, schedule Schedule) *Task {
 	i := len(g.tasks)
-	g.tasks = append(g.tasks, task{
+	g.tasks = append(g.tasks, Task{
 		f:        f,
 		schedule: schedule,
 		reset:    make(chan struct{}, 16), // Buffered to not block senders
 	})
-	return i
+	return &g.tasks[i]
 }
 
 // Start all the tasks in the group.
@@ -39,16 +39,6 @@ func (g *Group) Start() {
 			g.wg.Done()
 		}()
 	}
-}
-
-// Reset the state of the task with the given index as if it had just been
-// started.
-//
-// This is handy if the schedule logic has changed, since the schedule function
-// will be invoked immediately to determine whether and when to run the task
-// function again.
-func (g *Group) Reset(i int) {
-	g.tasks[i].reset <- struct{}{}
 }
 
 // Stop all tasks in the group.

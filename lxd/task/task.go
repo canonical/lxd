@@ -6,17 +6,26 @@ import (
 	"golang.org/x/net/context"
 )
 
-// A task executes a certain function periodically, according to a certain
+// Task executes a certain function periodically, according to a certain
 // schedule.
-type task struct {
+type Task struct {
 	f        Func          // Function to execute.
 	schedule Schedule      // Decides if and when to execute f.
 	reset    chan struct{} // Resets the shedule and starts over.
 }
 
+// Reset the state of the task as if it had just been started.
+//
+// This is handy if the schedule logic has changed, since the schedule function
+// will be invoked immediately to determine whether and when to run the task
+// function again.
+func (t *Task) Reset() {
+	t.reset <- struct{}{}
+}
+
 // Execute the our task function according to our schedule, until the given
 // context gets cancelled.
-func (t *task) loop(ctx context.Context) {
+func (t *Task) loop(ctx context.Context) {
 	// Kick off the task immediately (as long as the the schedule is
 	// greater than zero, see below).
 	delay := immediately
