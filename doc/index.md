@@ -228,7 +228,7 @@ Note that LXD containers cannot load kernel modules, so depending on your
 Docker configuration you may need to have the needed extra kernel modules
 loaded by the host.
 
-You can do so by setting a comma seperate list of kernel modules that your container needs with:
+You can do so by setting a comma separate list of kernel modules that your container needs with:
 
 ```bash
 lxc config set <container> linux.kernel_modules <modules>

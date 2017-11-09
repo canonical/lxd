@@ -102,7 +102,7 @@ and should whenever possible be avoided.
 # Devices configuration
 LXD will always provide the container with the basic devices which are required
 for a standard POSIX system to work. These aren't visible in container or
-profile configuration and may not be overriden.
+profile configuration and may not be overridden.
 
 Those includes:
 
@@ -128,7 +128,7 @@ Devices may be added or removed while the container is running.
 
 Every device entry is identified by a unique name. If the same name is used in
 a subsequent profile or in the container's own configuration, the whole entry
-is overriden by the new definition.
+is overridden by the new definition.
 
 Device entries are added to a container through:
 
@@ -212,7 +212,7 @@ The `sriov` interface type supports SR-IOV enabled network devices. These
 devices associate a set of virtual functions (VFs) with the single physical
 function (PF) of the network device. PFs are standard PCIe functions. VFs on
 the other hand are very lightweight PCIe functions that are optimized for data
-movement. They come with a limited set of configuration capabilites to prevent
+movement. They come with a limited set of configuration capabilities to prevent
 changing properties of the PF. Given that VFs appear as regular PCIe devices to
 the system they can be passed to containers just like a regular physical
 device. The `sriov` interface type expects to be passed the name of an SR-IOV
