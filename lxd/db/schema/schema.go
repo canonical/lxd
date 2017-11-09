@@ -48,7 +48,7 @@ func New(updates []Update) *Schema {
 // (i.e. there are no missing versions).
 //
 // NOTE: the regular New() constructor would be formally enough, but for extra
-//       clarity we also support a map that indicates the version explicitely,
+//       clarity we also support a map that indicates the version explicitly,
 //       see also PR #3704.
 func NewFromMap(versionsToUpdates map[int]Update) *Schema {
 	// Collect all version keys.
@@ -220,7 +220,7 @@ func (s *Schema) Trim(version int) []Update {
 // schema.
 //
 // It first creates an in-memory SQLite database, then it applies all updates
-// up to the one with given version (exlcuded) and optionally executes the
+// up to the one with given version (excluded) and optionally executes the
 // given hook for populating the database with test data. Finally it applies
 // the update with the given version, returning the database handle for further
 // inspection of the resulting state.
@@ -339,7 +339,7 @@ func ensureUpdatesAreApplied(tx *sql.Tx, current int, updates []Update, hook Hoo
 }
 
 // Check that the given list of update version numbers doesn't have "holes",
-// that is each version equal the preceeding version plus 1.
+// that is each version equal the preceding version plus 1.
 func checkSchemaVersionsHaveNoHoles(versions []int) error {
 	// Sanity check that there are no "holes" in the recorded
 	// versions.
