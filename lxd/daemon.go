@@ -121,6 +121,23 @@ type Command struct {
 
 // Check whether the request comes from a trusted client.
 func (d *Daemon) checkTrustedClient(r *http.Request) error {
+	// Check the cluster certificate first, so we return an error if the
+	// notification header is set but the client is not presenting the
+	// cluster certificate (iow this request does not appear to come from a
+	// cluster node).
+	cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
+	clusterCerts := []x509.Certificate{*cert}
+	if r.TLS != nil {
+		for i := range r.TLS.PeerCertificates {
+			if util.CheckTrustState(*r.TLS.PeerCertificates[i], clusterCerts) {
+				return nil
+			}
+		}
+	}
+	if isClusterNotification(r) {
+		return fmt.Errorf("cluster notification not using cluster certificate")
+	}
+
 	if r.RemoteAddr == "@" {
 		// Unix socket
 		return nil
@@ -139,13 +156,8 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 		return err
 	}
 
-	// Add the server or cluster certificate to the list of trusted ones.
-	cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
-	certs := d.clientCerts
-	certs = append(certs, *cert)
-
 	for i := range r.TLS.PeerCertificates {
-		if util.CheckTrustState(*r.TLS.PeerCertificates[i], certs) {
+		if util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts) {
 			return nil
 		}
 	}
