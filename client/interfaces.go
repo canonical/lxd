@@ -43,9 +43,9 @@ type ContainerServer interface {
 
 	// Server functions
 	GetServer() (server *api.Server, ETag string, err error)
-	GetServerResources() (*api.Resources, error)
+	GetServerResources() (resources *api.Resources, err error)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
-	HasExtension(extension string) bool
+	HasExtension(extension string) (exists bool)
 
 	// Certificate functions
 	GetCertificateFingerprints() (fingerprints []string, err error)
@@ -67,7 +67,7 @@ type ContainerServer interface {
 	MigrateContainer(name string, container api.ContainerPost) (op *Operation, err error)
 	DeleteContainer(name string) (op *Operation, err error)
 
-	ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (*Operation, error)
+	ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (op *Operation, err error)
 
 	GetContainerFile(containerName string, path string) (content io.ReadCloser, resp *ContainerFileResponse, err error)
 	CreateContainerFile(containerName string, path string, args ContainerFileArgs) (err error)
@@ -89,8 +89,8 @@ type ContainerServer interface {
 	GetContainerLogfile(name string, filename string) (content io.ReadCloser, err error)
 	DeleteContainerLogfile(name string, filename string) (err error)
 
-	GetContainerMetadata(name string) (*api.ImageMetadata, string, error)
-	SetContainerMetadata(name string, metadata api.ImageMetadata, ETag string) error
+	GetContainerMetadata(name string) (metadata *api.ImageMetadata, ETag string, err error)
+	SetContainerMetadata(name string, metadata api.ImageMetadata, ETag string) (err error)
 
 	GetContainerTemplateFiles(containerName string) (templates []string, err error)
 	GetContainerTemplateFile(containerName string, templateName string) (content io.ReadCloser, err error)
