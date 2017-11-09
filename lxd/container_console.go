@@ -9,9 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -321,15 +323,58 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 		break
 	}
 
-	if consoleLogpath == "" {
-		return SmartError(fmt.Errorf("Container does not keep console logfile"))
+	logContents := ""
+	console := lxc.ConsoleLogOptions{}
+
+	ent := fileResponseEntry{}
+	if !c.IsRunning() {
+		if consoleLogpath == "" {
+			return SmartError(fmt.Errorf("The container does not keep a console log"))
+		}
+
+		// Hand back the contents of the on-disk logfile.
+		ent.path = consoleLogpath
+		ent.filename = consoleLogpath
+		goto onSuccess
 	}
 
-	ent := fileResponseEntry{
-		path:     consoleLogpath,
-		filename: consoleLogpath,
+	// Container keeps an on-disk logfile so keep sync it here.
+	if consoleLogpath != "" {
+		console.WriteToLogFile = true
+	} else {
+		console.WriteToLogFile = false
 	}
 
+	// Query the container's console ringbuffer.
+	console.ClearLog = false
+	console.ReadLog = true
+	console.ReadMax = 0
+
+	// Send a ringbuffer request to the container.
+	logContents, err = c.ConsoleLog(console)
+	if err != nil {
+		errno, isErrno := shared.GetErrno(err)
+		if !isErrno {
+			return SmartError(err)
+		}
+
+		if errno == syscall.ENODATA {
+			goto onSuccess
+		}
+
+		if errno == syscall.EFAULT && consoleLogpath != "" {
+			// Hand back the contents of the on-disk logfile.
+			ent.path = consoleLogpath
+			ent.filename = consoleLogpath
+			goto onSuccess
+		}
+
+		return SmartError(err)
+	}
+
+	ent.buffer = []byte(logContents)
+
+onSuccess:
 	return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 }
 
