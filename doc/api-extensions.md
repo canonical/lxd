@@ -415,3 +415,16 @@ same and between storage pools.
 
 ## operation\_description
 Adds a "description" field to all operations.
+
+## clustering
+Clustering API for LXD.
+
+This includes the following new endpoints:
+
+* `GET /1.0/cluster`
+* `DELETE /1.0/cluster` (see [RESTful API](rest-api.md) for details)
+
+* `GET /1.0/cluster/nodes`
+* `POST /1.0/cluster/nodes` (see [RESTful API](rest-api.md) for details)
+
+* `DELETE /1.0/cluster/nodes/<name>` (see [RESTful API](rest-api.md) for details)
