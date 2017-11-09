@@ -4445,6 +4445,10 @@ func (c *containerLXC) processesState() int64 {
 
 	if c.state.OS.CGroupPidsController {
 		value, err := c.CGroupGet("pids.current")
+		if err != nil {
+			return -1
+		}
+
 		valueInt, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return -1

@@ -124,7 +124,7 @@ func (n *Node) ProfileCreateDefault() error {
 }
 
 func (n *Node) ProfileCreateDocker() error {
-	id, _, err := n.ProfileGet("docker")
+	id, _, _ := n.ProfileGet("docker")
 
 	if id != -1 {
 		// docker profile already exists
@@ -141,7 +141,7 @@ func (n *Node) ProfileCreateDocker() error {
 	}
 	devices := map[string]map[string]string{"aadisable": aadisable}
 
-	_, err = n.ProfileCreate("docker", "Profile supporting docker in containers", config, devices)
+	_, err := n.ProfileCreate("docker", "Profile supporting docker in containers", config, devices)
 	return err
 }
 
@@ -251,6 +251,9 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO profiles_config (profile_id, key, value) VALUES(?, ?, ?)")
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
+	if err != nil {
+		return err
+	}
 
 	for k, v := range config {
 		_, err = stmt.Exec(id, k, v)

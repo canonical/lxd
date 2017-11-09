@@ -273,6 +273,9 @@ func (c *fileCmd) edit(conf *config.Config, args []string) error {
 
 	// Create temp file
 	f, err := ioutil.TempFile("", "lxd_file_edit_")
+	if err != nil {
+		return fmt.Errorf("Unable to create a temporary file: %v", err)
+	}
 	fname := f.Name()
 	f.Close()
 	os.Remove(fname)

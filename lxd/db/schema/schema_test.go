@@ -71,6 +71,7 @@ func TestSchemaEnsure_MissingVersion(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = db.Exec(`INSERT INTO schema (version, updated_at) VALUES (3, strftime("%s"))`)
+	assert.NoError(t, err)
 
 	schema.Add(updateNoop)
 	schema.Add(updateNoop)

@@ -483,6 +483,10 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 
 	if s.zfsExists(fmt.Sprintf("containers/%s@%s", cName, snapName)) {
 		removable, err := s.zfsSnapshotRemovable(fmt.Sprintf("containers/%s", cName), snapName)
+		if err != nil {
+			return err
+		}
+
 		if removable {
 			err = s.zfsSnapshotDestroy(fmt.Sprintf("containers/%s", cName), snapName)
 			if err != nil {

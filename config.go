@@ -143,6 +143,10 @@ func SaveConfig(c *Config, fname string) error {
 	defer os.Remove(fname + ".new")
 
 	data, err := yaml.Marshal(c)
+	if err != nil {
+		return err
+	}
+
 	_, err = f.Write(data)
 	if err != nil {
 		return fmt.Errorf("cannot write configuration: %v", err)
