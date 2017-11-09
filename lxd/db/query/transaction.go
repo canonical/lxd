@@ -20,7 +20,7 @@ func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
 	return tx.Commit()
 }
 
-// Rollback a transaction after the given error occured. If the rollback
+// Rollback a transaction after the given error occurred. If the rollback
 // succeeds the given error is returned, otherwise a new error that wraps it
 // gets generated and returned.
 func rollback(tx *sql.Tx, reason error) error {

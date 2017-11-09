@@ -314,7 +314,7 @@ func setupSharedMounts() error {
 func (d *Daemon) Init() error {
 	err := d.init()
 
-	// If an error occured synchronously while starting up, let's try to
+	// If an error occurred synchronously while starting up, let's try to
 	// cleanup any state we produced so far. Errors happening here will be
 	// ignored.
 	if err != nil {
