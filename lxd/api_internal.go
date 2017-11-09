@@ -396,7 +396,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
 			snapPath := containerPath(snapName, true)
 			err = lvmContainerDeleteInternal(poolName, req.Name,
-				true, poolName, snapPath)
+				true, onDiskPoolName, snapPath)
 		case "ceph":
 			clusterName := "ceph"
 			if backup.Pool.Config["ceph.cluster_name"] != "" {
