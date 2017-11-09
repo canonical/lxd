@@ -956,19 +956,34 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 	// Skip the first run, and instead run an initial pruning synchronously
 	// before we start updating images later on in the start up process.
-	pruneExpiredImages(context.Background(), d)
+	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
+	if expiry > 0 {
+		pruneExpiredImages(context.Background(), d)
+	}
+	first := true
+	schedule := func() (time.Duration, error) {
+		interval := 24 * time.Hour
+		if first {
+			first = false
+			return interval, task.ErrSkip
+		}
 
-	return f, task.Daily(task.SkipFirst)
+		expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
+
+		// Check if we're supposed to prune at all
+		if expiry <= 0 {
+			interval = 0
+		}
+
+		return interval, nil
+	}
+
+	return f, schedule
 }
 
 func pruneExpiredImages(ctx context.Context, d *Daemon) {
 	// Get the list of expired images.
 	expiry := daemonConfig["images.remote_cache_expiry"].GetInt64()
-
-	// Check if we're supposed to prune something
-	if expiry <= 0 {
-		return
-	}
 
 	logger.Infof("Pruning expired images")
 	images, err := d.db.ImagesGetExpired(expiry)
