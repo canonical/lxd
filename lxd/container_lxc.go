@@ -5105,6 +5105,15 @@ func (c *containerLXC) Console(terminal *os.File) error {
 	return cmd.Run()
 }
 
+func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
+	msg, err := c.c.ConsoleLog(opts)
+	if err != nil {
+		return "", err
+	}
+
+	return string(msg), nil
+}
+
 func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool) (*exec.Cmd, int, int, error) {
 	envSlice := []string{}
 
