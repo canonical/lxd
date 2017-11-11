@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
-	"syscall"
 
 	"github.com/gorilla/websocket"
 
@@ -40,7 +39,7 @@ func (c *consoleCmd) flags() {
 }
 
 func (c *consoleCmd) sendTermSize(control *websocket.Conn) error {
-	width, height, err := termios.GetSize(int(syscall.Stdout))
+	width, height, err := termios.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return err
 	}
@@ -71,6 +70,36 @@ func (c *consoleCmd) sendTermSize(control *websocket.Conn) error {
 type ReadWriteCloser struct {
 	io.Reader
 	io.WriteCloser
+}
+
+type StdinMirror struct {
+	r                 io.Reader
+	consoleDisconnect chan<- bool
+	foundEscape       *bool
+}
+
+// The pty has been switched to raw mode so we will only ever read a single
+// byte. The buffer size is therefore uninteresting to us.
+func (er StdinMirror) Read(p []byte) (int, error) {
+	n, err := er.r.Read(p)
+
+	v := rune(p[0])
+	if v == '\u0001' && !*er.foundEscape {
+		*er.foundEscape = true
+		return 0, err
+	}
+
+	if v == 'q' && *er.foundEscape {
+		select {
+		case er.consoleDisconnect <- true:
+			return 0, err
+		default:
+			return 0, err
+		}
+	}
+
+	*er.foundEscape = false
+	return n, err
 }
 
 func (c *consoleCmd) run(conf *config.Config, args []string) error {
@@ -104,7 +133,7 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 		return nil
 	}
 
-	cfd := int(syscall.Stdin)
+	cfd := int(os.Stdin.Fd())
 
 	var oldttystate *termios.State
 	oldttystate, err = termios.MakeRaw(cfd)
@@ -116,7 +145,7 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 	handler := c.controlSocketHandler
 
 	var width, height int
-	width, height, err = termios.GetSize(int(syscall.Stdout))
+	width, height, err = termios.GetSize(int(os.Stdin.Fd()))
 	if err != nil {
 		return err
 	}
@@ -126,10 +155,20 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 		Height: height,
 	}
 
+	consoleDisconnect := make(chan bool)
+	sendDisconnect := make(chan bool)
+	defer close(sendDisconnect)
 	consoleArgs := lxd.ContainerConsoleArgs{
-		Terminal: &ReadWriteCloser{os.Stdin, os.Stdout},
-		Control:  handler,
+		Terminal: &ReadWriteCloser{StdinMirror{os.Stdin,
+			sendDisconnect, new(bool)}, os.Stdout},
+		Control:           handler,
+		ConsoleDisconnect: consoleDisconnect,
 	}
+
+	go func() {
+		<-sendDisconnect
+		close(consoleDisconnect)
+	}()
 
 	// Run the command in the container
 	op, err := d.ConsoleContainer(name, req, &consoleArgs)
