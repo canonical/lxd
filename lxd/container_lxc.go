@@ -5086,7 +5086,7 @@ func (c *containerLXC) FileRemove(path string) error {
 	return nil
 }
 
-func (c *containerLXC) Console(terminal *os.File) error {
+func (c *containerLXC) Console(terminal *os.File) *exec.Cmd {
 	args := []string{
 		c.state.OS.ExecPath,
 		"forkconsole",
@@ -5102,7 +5102,7 @@ func (c *containerLXC) Console(terminal *os.File) error {
 	cmd.Stdin = terminal
 	cmd.Stdout = terminal
 	cmd.Stderr = terminal
-	return cmd.Run()
+	return &cmd
 }
 
 func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
