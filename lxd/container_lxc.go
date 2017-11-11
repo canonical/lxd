@@ -5093,8 +5093,8 @@ func (c *containerLXC) Console(terminal *os.File) error {
 		c.name,
 		c.state.OS.LxcPath,
 		filepath.Join(c.LogPath(), "lxc.conf"),
-		"0",
-		"1"}
+		"tty=0",
+		"escape=-1"}
 
 	cmd := exec.Cmd{}
 	cmd.Path = c.state.OS.ExecPath
