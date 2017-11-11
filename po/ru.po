@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-07 17:09-0500\n"
+"POT-Creation-Date: 2017-11-14 07:36+0100\n"
 "PO-Revision-Date: 2017-09-05 16:48+0000\n"
 "Last-Translator: Ilya Yakimavets <ilya.yakimavets@backend.expert>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -410,6 +410,10 @@ msgstr ""
 #: lxc/main.go:40
 msgid "Connection refused; is LXD running?"
 msgstr "В соединении отказано; LXD запущен?"
+
+#: lxc/console.go:132
+msgid "Console log:"
+msgstr ""
 
 #: lxc/publish.go:71
 msgid "Container name is mandatory"
@@ -925,7 +929,7 @@ msgstr ""
 msgid "Path to an alternate server directory"
 msgstr ""
 
-#: lxc/main.go:237
+#: lxc/main.go:238
 msgid "Pause containers."
 msgstr ""
 
@@ -1060,8 +1064,12 @@ msgstr ""
 msgid "Resources:"
 msgstr ""
 
-#: lxc/main.go:245
+#: lxc/main.go:246
 msgid "Restart containers."
+msgstr ""
+
+#: lxc/console.go:38
+msgid "Retrieve the container's console log"
 msgstr ""
 
 #: lxc/init.go:289
@@ -1167,7 +1175,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Source:"
 msgstr ""
 
-#: lxc/main.go:255
+#: lxc/main.go:256
 msgid "Start containers."
 msgstr ""
 
@@ -1181,7 +1189,7 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/main.go:261
+#: lxc/main.go:262
 msgid "Stop containers."
 msgstr ""
 
@@ -1481,6 +1489,13 @@ msgid ""
 "\n"
 "lxc config set core.trust_password blah\n"
 "    Will set the server's trust password to blah."
+msgstr ""
+
+#: lxc/console.go:31
+msgid ""
+"Usage: lxc console [<remote>:]<container> [-l]\n"
+"\n"
+"Interact with the container's console device and log."
 msgstr ""
 
 #: lxc/copy.go:28
@@ -2288,7 +2303,7 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr ""
 
-#: lxc/main.go:365 lxc/main.go:369
+#: lxc/main.go:366 lxc/main.go:370
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
@@ -2330,7 +2345,7 @@ msgstr ""
 msgid "taken at %s"
 msgstr ""
 
-#: lxc/main.go:296
+#: lxc/main.go:297
 msgid "wrong number of subcommand arguments"
 msgstr ""
 
