@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -124,6 +125,7 @@ func (s *consoleWs) Do(op *operation) error {
 	controlExit := make(chan bool)
 	var wgEOF sync.WaitGroup
 
+	consolePidChan := make(chan int)
 	wgEOF.Add(1)
 	go func() {
 		select {
@@ -134,19 +136,23 @@ func (s *consoleWs) Do(op *operation) error {
 			return
 		}
 
+		consolePid := <-consolePidChan
+
 		for {
 			s.connsLock.Lock()
 			conn := s.conns[-1]
 			s.connsLock.Unlock()
 
-			mt, r, err := conn.NextReader()
-			if mt == websocket.CloseMessage {
-				break
-			}
-
+			_, r, err := conn.NextReader()
 			if err != nil {
 				logger.Debugf("Got error getting next reader %s", err)
-				break
+				err := syscall.Kill(consolePid, syscall.SIGTERM)
+				if err != nil {
+					logger.Debugf("Failed to send SIGTERM to pid %d", consolePid)
+				} else {
+					logger.Debugf("Sent SIGTERM to pid %d", consolePid)
+				}
+				return
 			}
 
 			buf, err := ioutil.ReadAll(r)
@@ -196,7 +202,9 @@ func (s *consoleWs) Do(op *operation) error {
 		readDone, writeDone := shared.WebsocketConsoleMirror(conn, master, master)
 
 		<-readDone
+		logger.Debugf("Finished to read websocket")
 		<-writeDone
+		logger.Debugf("Finished to write websocket")
 		logger.Debugf("Finished to mirror websocket")
 
 		conn.Close()
@@ -221,9 +229,22 @@ func (s *consoleWs) Do(op *operation) error {
 		return cmdErr
 	}
 
-	err = s.container.Console(slave)
-	if err != nil {
-		return err
+	consCmd := s.container.Console(slave)
+	consCmd.Start()
+	consolePidChan <- consCmd.Process.Pid
+	err = consCmd.Wait()
+	if err == nil {
+		return finisher(nil)
+	}
+
+	exitErr, ok := err.(*exec.ExitError)
+	if ok {
+		status, _ := exitErr.Sys().(syscall.WaitStatus)
+		// If we received SIGTERM someone told us to detach from the
+		// console.
+		if status.Signaled() && status.Signal() == syscall.SIGTERM {
+			return finisher(nil)
+		}
 	}
 
 	return finisher(err)
