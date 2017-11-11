@@ -289,6 +289,9 @@ type ContainerConsoleArgs struct {
 
 	// Control message handler (window resize)
 	Control func(conn *websocket.Conn)
+
+	// Closing this Channel causes a disconnect from the container's console
+	ConsoleDisconnect chan bool
 }
 
 // The ContainerConsoleLogArgs struct is used to pass additional options during a
