@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-07 17:09-0500\n"
+"POT-Creation-Date: 2017-11-14 07:36+0100\n"
 "PO-Revision-Date: 2017-06-07 15:24+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -426,6 +426,10 @@ msgstr "Erreur lors de la lecture de la configuration : %s"
 #: lxc/main.go:40
 msgid "Connection refused; is LXD running?"
 msgstr "Connexion refusée ; LXD est-il actif ?"
+
+#: lxc/console.go:132
+msgid "Console log:"
+msgstr ""
 
 #: lxc/publish.go:71
 msgid "Container name is mandatory"
@@ -955,7 +959,7 @@ msgstr "Chemin vers un dossier de configuration client alternatif"
 msgid "Path to an alternate server directory"
 msgstr "Chemin vers un dossier de configuration serveur alternatif"
 
-#: lxc/main.go:237
+#: lxc/main.go:238
 #, fuzzy
 msgid "Pause containers."
 msgstr "Création du conteneur"
@@ -1092,10 +1096,15 @@ msgstr "Requérir une confirmation de l'utilisateur"
 msgid "Resources:"
 msgstr "Ressources :"
 
-#: lxc/main.go:245
+#: lxc/main.go:246
 #, fuzzy
 msgid "Restart containers."
 msgstr "Création du conteneur"
+
+#: lxc/console.go:38
+#, fuzzy
+msgid "Retrieve the container's console log"
+msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
 #: lxc/init.go:289
 #, c-format
@@ -1203,7 +1212,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Source:"
 msgstr "Source :"
 
-#: lxc/main.go:255
+#: lxc/main.go:256
 #, fuzzy
 msgid "Start containers."
 msgstr "Création du conteneur"
@@ -1218,7 +1227,7 @@ msgstr "Démarrage de %s"
 msgid "Status: %s"
 msgstr "État : %s"
 
-#: lxc/main.go:261
+#: lxc/main.go:262
 #, fuzzy
 msgid "Stop containers."
 msgstr "L'arrêt du conteneur a échoué !"
@@ -1589,6 +1598,13 @@ msgstr ""
 "\n"
 "Pour positionner le mot de passe de confiance du serveur :\n"
 "    lxc config set core.trust_password blah"
+
+#: lxc/console.go:31
+msgid ""
+"Usage: lxc console [<remote>:]<container> [-l]\n"
+"\n"
+"Interact with the container's console device and log."
+msgstr ""
 
 #: lxc/copy.go:28
 #, fuzzy
@@ -2793,7 +2809,7 @@ msgstr "non"
 msgid "ok (y/n)?"
 msgstr "ok (y/n) ?"
 
-#: lxc/main.go:365 lxc/main.go:369
+#: lxc/main.go:366 lxc/main.go:370
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "l'analyse des alias a échoué %s\n"
@@ -2835,7 +2851,7 @@ msgstr "sans suivi d'état"
 msgid "taken at %s"
 msgstr "pris à %s"
 
-#: lxc/main.go:296
+#: lxc/main.go:297
 msgid "wrong number of subcommand arguments"
 msgstr "nombre d'arguments incorrect pour la sous-comande"
 
