@@ -1420,6 +1420,10 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 		return nil, fmt.Errorf("A terminal must be set")
 	}
 
+	if args.Control == nil {
+		return nil, fmt.Errorf("A control channel must be set")
+	}
+
 	// Parse the fds
 	fds := map[string]string{}
 
@@ -1431,21 +1435,33 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 		}
 	}
 
+	var controlConn *websocket.Conn
 	// Call the control handler with a connection to the control socket
-	if args.Control != nil && fds["control"] != "" {
-		conn, err := r.GetOperationWebsocket(op.ID, fds["control"])
-		if err != nil {
-			return nil, err
-		}
-
-		go args.Control(conn)
+	if fds["control"] == "" {
+		return nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
 	}
+
+	controlConn, err = r.GetOperationWebsocket(op.ID, fds["control"])
+	if err != nil {
+		return nil, err
+	}
+
+	go args.Control(controlConn)
 
 	// Connect to the websocket
 	conn, err := r.GetOperationWebsocket(op.ID, fds["0"])
 	if err != nil {
 		return nil, err
 	}
+
+	// Detach from console.
+	go func(consoleDisconnect <-chan bool) {
+		<-consoleDisconnect
+		msg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Detaching from console")
+		// We don't care if this fails. This is just for convenience.
+		controlConn.WriteMessage(websocket.CloseMessage, msg)
+		controlConn.Close()
+	}(args.ConsoleDisconnect)
 
 	// And attach stdin and stdout to it
 	go func() {
