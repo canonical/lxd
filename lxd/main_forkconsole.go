@@ -3,12 +3,13 @@ package main
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
 /*
- * This is called by lxd when called as "lxd forkconsole <container> <path> <conf> <ttynum> <escape>"
+ * This is called by lxd when called as "lxd forkconsole <container> <path> <conf> <tty=<n>> <escape=<n>>"
  */
 func cmdForkConsole(args *Args) error {
 	if len(args.Params) != 5 {
@@ -18,11 +19,15 @@ func cmdForkConsole(args *Args) error {
 	name := args.Params[0]
 	lxcpath := args.Params[1]
 	configPath := args.Params[2]
-	ttynum, err := strconv.Atoi(args.Params[3])
+
+	ttyNum := strings.TrimPrefix(args.Params[3], "tty=")
+	tty, err := strconv.Atoi(ttyNum)
 	if err != nil {
 		return SubCommandErrorf(-1, "Failed to retrieve tty number: %q", err)
 	}
-	escape, err := strconv.Atoi(args.Params[4])
+
+	escapeNum := strings.TrimPrefix(args.Params[4], "escape=")
+	escape, err := strconv.Atoi(escapeNum)
 	if err != nil {
 		return SubCommandErrorf(-1, "Failed to retrieve escape character: %q", err)
 	}
@@ -38,7 +43,7 @@ func cmdForkConsole(args *Args) error {
 	}
 
 	opts := lxc.ConsoleOptions{}
-	opts.Tty = ttynum
+	opts.Tty = tty
 	opts.StdinFd = uintptr(os.Stdin.Fd())
 	opts.StdoutFd = uintptr(os.Stdout.Fd())
 	opts.StderrFd = uintptr(os.Stderr.Fd())
