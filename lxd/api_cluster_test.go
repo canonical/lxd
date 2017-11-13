@@ -89,6 +89,11 @@ func TestCluster_Join(t *testing.T) {
 	assert.Equal(t, "rusp", nodes[1].Name)
 	assert.Equal(t, "ONLINE", nodes[0].State)
 	assert.Equal(t, "ONLINE", nodes[1].State)
+
+	// The GetNode method returns the requested node.
+	node, err := client.GetNode("buzz")
+	require.NoError(t, err)
+	assert.Equal(t, "buzz", node.Name)
 }
 
 // If the wrong trust password is given, the join request fails.

@@ -97,3 +97,16 @@ func (r *ProtocolLXD) GetNodes() ([]api.Node, error) {
 
 	return nodes, nil
 }
+
+// GetNode returns information about the given node.
+func (r *ProtocolLXD) GetNode(name string) (*api.Node, error) {
+	node := api.Node{}
+	path := fmt.Sprintf("/cluster/nodes/%s", name)
+	_, err := r.queryStruct("GET", path, nil, "", &node)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &node, nil
+}

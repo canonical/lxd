@@ -2593,6 +2593,31 @@ of the cluster certificate:
 	}
 
 ## `/1.0/cluster/nodes/<name>`
+### GET
+ * Description: retrieve the node's information and status
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the node
+
+    {
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "error_code": 0,
+        "error": "",
+        "metadata": {
+            "type": "custom",
+            "used_by": [],
+            "name": "vol1",
+            "config": {
+                "block.filesystem": "ext4",
+                "block.mount_options": "discard",
+                "size": "10737418240"
+            }
+        }
+    }
+
 ### DELETE (optional `?force=1`)
  * Description: remove a node from the cluster
  * Introduced: with API extension `clustering`

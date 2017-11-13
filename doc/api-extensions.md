@@ -407,4 +407,5 @@ This includes the following new endpoints:
 * `GET /1.0/cluster/nodes`
 * `POST /1.0/cluster/nodes` (see [RESTful API](rest-api.md) for details)
 
+* `GET /1.0/cluster/nodes/<name>` (see [RESTful API](rest-api.md) for details)
 * `DELETE /1.0/cluster/nodes/<name>` (see [RESTful API](rest-api.md) for details)
