@@ -8,8 +8,8 @@ import (
 
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
-	log "gopkg.in/inconshreveable/log15.v2"
 	tomb "gopkg.in/tomb.v2"
 )
 
