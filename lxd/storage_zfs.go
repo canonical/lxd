@@ -17,8 +17,8 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/pborman/uuid"
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 type storageZfs struct {
