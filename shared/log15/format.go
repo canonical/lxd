@@ -1,26 +1,37 @@
-package logging
+package log15
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 const (
 	timeFormat     = "2006-01-02T15:04:05-0700"
-	floatFormat    = 'f'
-	errorKey       = "LOG15_ERROR"
 	termTimeFormat = "01-02|15:04:05"
+	floatFormat    = 'f'
 	termMsgJust    = 40
 )
 
-// Imported from the log15 project
+type Format interface {
+	Format(r *Record) []byte
+}
+
+// FormatFunc returns a new Format object which uses
+// the given function to perform record formatting.
+func FormatFunc(f func(*Record) []byte) Format {
+	return formatFunc(f)
+}
+
+type formatFunc func(*Record) []byte
+
+func (f formatFunc) Format(r *Record) []byte {
+	return f(r)
+}
 
 // TerminalFormat formats log records optimized for human readability on
 // a terminal with color-coded level output and terser human friendly timestamp.
@@ -32,19 +43,19 @@ const (
 //
 //     [May 16 20:58:45] [DBUG] remove route ns=haproxy addr=127.0.0.1:50002
 //
-func TerminalFormat() log.Format {
-	return log.FormatFunc(func(r *log.Record) []byte {
+func TerminalFormat() Format {
+	return FormatFunc(func(r *Record) []byte {
 		var color = 0
 		switch r.Lvl {
-		case log.LvlCrit:
+		case LvlCrit:
 			color = 35
-		case log.LvlError:
+		case LvlError:
 			color = 31
-		case log.LvlWarn:
+		case LvlWarn:
 			color = 33
-		case log.LvlInfo:
+		case LvlInfo:
 			color = 32
-		case log.LvlDebug:
+		case LvlDebug:
 			color = 36
 		}
 
@@ -67,9 +78,13 @@ func TerminalFormat() log.Format {
 	})
 }
 
-// LogfmtFormat return a formatter for a text log file
-func LogfmtFormat() log.Format {
-	return log.FormatFunc(func(r *log.Record) []byte {
+// LogfmtFormat prints records in logfmt format, an easy machine-parseable but human-readable
+// format for key/value pairs.
+//
+// For more details see: http://godoc.org/github.com/kr/logfmt
+//
+func LogfmtFormat() Format {
+	return FormatFunc(func(r *Record) []byte {
 		common := []interface{}{r.KeyNames.Time, r.Time, r.KeyNames.Lvl, r.Lvl, r.KeyNames.Msg, r.Msg}
 		buf := &bytes.Buffer{}
 		logfmt(buf, append(common, r.Ctx...), 0)
@@ -78,9 +93,11 @@ func LogfmtFormat() log.Format {
 }
 
 func logfmt(buf *bytes.Buffer, ctx []interface{}, color int) {
-	entries := []string{}
-
 	for i := 0; i < len(ctx); i += 2 {
+		if i != 0 {
+			buf.WriteByte(' ')
+		}
+
 		k, ok := ctx[i].(string)
 		v := formatLogfmtValue(ctx[i+1])
 		if !ok {
@@ -89,23 +106,61 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int) {
 
 		// XXX: we should probably check that all of your key bytes aren't invalid
 		if color > 0 {
-			entries = append(entries, fmt.Sprintf("\x1b[%dm%s\x1b[0m=%s", color, k, v))
+			fmt.Fprintf(buf, "\x1b[%dm%s\x1b[0m=%s", color, k, v)
 		} else {
-			entries = append(entries, fmt.Sprintf("%s=%s", k, v))
+			fmt.Fprintf(buf, "%s=%s", k, v)
 		}
-	}
-
-	sort.Strings(entries)
-
-	for i, v := range entries {
-		if i != 0 {
-			buf.WriteByte(' ')
-		}
-
-		fmt.Fprint(buf, v)
 	}
 
 	buf.WriteByte('\n')
+}
+
+// JsonFormat formats log records as JSON objects separated by newlines.
+// It is the equivalent of JsonFormatEx(false, true).
+func JsonFormat() Format {
+	return JsonFormatEx(false, true)
+}
+
+// JsonFormatEx formats log records as JSON objects. If pretty is true,
+// records will be pretty-printed. If lineSeparated is true, records
+// will be logged with a new line between each record.
+func JsonFormatEx(pretty, lineSeparated bool) Format {
+	jsonMarshal := json.Marshal
+	if pretty {
+		jsonMarshal = func(v interface{}) ([]byte, error) {
+			return json.MarshalIndent(v, "", "    ")
+		}
+	}
+
+	return FormatFunc(func(r *Record) []byte {
+		props := make(map[string]interface{})
+
+		props[r.KeyNames.Time] = r.Time
+		props[r.KeyNames.Lvl] = r.Lvl
+		props[r.KeyNames.Msg] = r.Msg
+
+		for i := 0; i < len(r.Ctx); i += 2 {
+			k, ok := r.Ctx[i].(string)
+			if !ok {
+				props[errorKey] = fmt.Sprintf("%+v is not a string key", r.Ctx[i])
+			}
+			props[k] = formatJsonValue(r.Ctx[i+1])
+		}
+
+		b, err := jsonMarshal(props)
+		if err != nil {
+			b, _ = jsonMarshal(map[string]string{
+				errorKey: err.Error(),
+			})
+			return b
+		}
+
+		if lineSeparated {
+			b = append(b, '\n')
+		}
+
+		return b
+	})
 }
 
 func formatShared(value interface{}) (result interface{}) {
@@ -131,6 +186,16 @@ func formatShared(value interface{}) (result interface{}) {
 
 	default:
 		return v
+	}
+}
+
+func formatJsonValue(value interface{}) interface{} {
+	value = formatShared(value)
+	switch value.(type) {
+	case int, int8, int16, int32, int64, float32, float64, uint, uint8, uint16, uint32, uint64, string:
+		return value
+	default:
+		return fmt.Sprintf("%+v", value)
 	}
 }
 

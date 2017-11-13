@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-	"gopkg.in/inconshreveable/log15.v2/term"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/log15/term"
 
 	"github.com/lxc/lxd/shared/logger"
 )

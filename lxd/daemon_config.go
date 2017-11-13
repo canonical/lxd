@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
+	log "github.com/lxc/lxd/shared/log15"
 	"golang.org/x/crypto/scrypt"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	dbapi "github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"

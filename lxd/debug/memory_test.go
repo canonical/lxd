@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/debug"
 	"github.com/lxc/lxd/shared/logging"

@@ -12,7 +12,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"golang.org/x/net/context"
 
-	log "gopkg.in/inconshreveable/log15.v2"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // This task function expires logs when executed. It's started by the Daemon

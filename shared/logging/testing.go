@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	log "gopkg.in/inconshreveable/log15.v2"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // Testing installs a global logger that emits messages using the t.Logf method
