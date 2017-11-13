@@ -214,10 +214,34 @@ func makeFSType(path string, fsType string, options *mkfsOptions) (string, error
 	return "", nil
 }
 
+func fsGenerateNewUUID(fstype string, lvpath string) (string, error) {
+	switch fstype {
+	case "btrfs":
+		return btrfsGenerateNewUUID(lvpath)
+	case "xfs":
+		return xfsGenerateNewUUID(lvpath)
+	}
+
+	return "", nil
+}
+
 func xfsGenerateNewUUID(lvpath string) (string, error) {
 	msg, err := shared.RunCommand(
 		"xfs_admin",
 		"-U", "generate",
+		lvpath)
+	if err != nil {
+		return msg, err
+	}
+
+	return "", nil
+}
+
+func btrfsGenerateNewUUID(lvpath string) (string, error) {
+	msg, err := shared.RunCommand(
+		"btrfstune",
+		"-f",
+		"-u",
 		lvpath)
 	if err != nil {
 		return msg, err
