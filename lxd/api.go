@@ -3,7 +3,7 @@ package main
 import (
 	"net/http"
 
-	log "gopkg.in/inconshreveable/log15.v2"
+	log "github.com/lxc/lxd/shared/log15"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/shared/logger"
