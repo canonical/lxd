@@ -296,7 +296,48 @@ func clusterNodesGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, nodes)
 }
 
-var clusterNodeCmd = Command{name: "cluster/nodes/{name}", delete: clusterNodeDelete}
+var clusterNodeCmd = Command{
+	name:   "cluster/nodes/{name}",
+	get:    clusterNodeGet,
+	delete: clusterNodeDelete,
+}
+
+func clusterNodeGet(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	node := api.Node{Name: name}
+	address := ""
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		dbNode, err := tx.NodeByName(name)
+		if err != nil {
+			return err
+		}
+		address = dbNode.Address
+		node.URL = fmt.Sprintf("https://%s", dbNode.Address)
+		if dbNode.IsDown() {
+			node.State = "OFFLINE"
+		} else {
+			node.State = "ONLINE"
+		}
+		return nil
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Figure out if this node is currently a database node.
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		addresses, err := tx.RaftNodeAddresses()
+		if err != nil {
+			return err
+		}
+		if shared.StringInSlice(address, addresses) {
+			node.Database = true
+		}
+		return nil
+	})
+
+	return SyncResponse(true, node)
+}
 
 func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 	force, err := strconv.Atoi(r.FormValue("force"))
