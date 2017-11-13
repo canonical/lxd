@@ -12,7 +12,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/syndtr/gocapability/capability"
 
-	log "gopkg.in/inconshreveable/log15.v2"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // Initialize AppArmor-specific attributes.
