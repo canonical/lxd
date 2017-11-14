@@ -170,6 +170,8 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 		close(consoleDisconnect)
 	}()
 
+	fmt.Printf(i18n.G("To detach from the console, press: <ctrl>+a q") + "\n\r")
+
 	// Run the command in the container
 	op, err := d.ConsoleContainer(name, req, &consoleArgs)
 	if err != nil {
