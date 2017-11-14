@@ -295,14 +295,23 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 	containerLvmName := containerNameToLVName(containerName)
 	containerLvDevPath := getLvmDevPath(poolName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
-	if LVFilesystem == "xfs" {
-		msg, err := xfsGenerateNewUUID(containerLvDevPath)
+	// If btrfstune sees two btrfs filesystems with the same UUID it
+	// gets confused and wants both of them unmounted. So unmount
+	// the source as well.
+	if LVFilesystem == "btrfs" {
+		ourUmount, err := s.ContainerUmount(source.Name(), source.Path())
 		if err != nil {
-			logger.Errorf(`Failed to create new xfs UUID for `+
-				`container "%s" on storage pool "%s": %s`,
-				containerName, s.pool.Name, msg)
 			return err
 		}
+		if ourUmount {
+			s.ContainerMount(source)
+		}
+	}
+
+	msg, err := fsGenerateNewUUID(LVFilesystem, containerLvDevPath)
+	if err != nil {
+		logger.Errorf("Failed to create new \"%s\" UUID for container \"%s\" on storage pool \"%s\": %s", LVFilesystem, containerName, s.pool.Name, msg)
+		return err
 	}
 
 	return nil
