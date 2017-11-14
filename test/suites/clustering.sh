@@ -61,6 +61,11 @@ test_clustering() {
   # Show a single node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -q "node5"
 
+  # Client certificate are shared across all nodes.
+  LXD_DIR="${LXD_ONE_DIR}" lxc remote add cluster 10.1.1.101:8443 --accept-certificate --password=sekret
+  LXD_DIR="${LXD_ONE_DIR}" lxc remote set-url cluster https://10.1.1.102:8443
+  lxc network list cluster: | grep -q "${bridge}"
+
   # Shutdown a non-database node, and wait a few seconds so it will be
   # detected as down.
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
