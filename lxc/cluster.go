@@ -5,6 +5,8 @@ import (
 	"os"
 	"sort"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -23,6 +25,9 @@ Manage cluster nodes.
 
 lxc cluster list [<remote>:]
     List all nodes in the cluster.
+
+lxc cluster show [<remote>:]<node>
+    Show details of a node.
 
 lxc cluster delete [<remote>:]<node> [--force]
     Delete a node from the cluster.`)
@@ -45,9 +50,44 @@ func (c *clusterCmd) run(conf *config.Config, args []string) error {
 		return c.doClusterList(conf, args)
 	}
 
+	if args[0] == "show" {
+		return c.doClusterNodeShow(conf, args)
+	}
+
 	if args[0] == "delete" {
 		return c.doClusterNodeDelete(conf, args)
 	}
+
+	return nil
+}
+
+func (c *clusterCmd) doClusterNodeShow(conf *config.Config, args []string) error {
+	if len(args) < 2 {
+		return errArgs
+	}
+
+	// [[lxc cluster]] remove production:bionic-1
+	remote, name, err := conf.ParseRemote(args[1])
+	if err != nil {
+		return err
+	}
+
+	client, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	node, err := client.GetNode(name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&node)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
 
 	return nil
 }
