@@ -12,7 +12,7 @@ import (
 func (c *Cluster) StorageVolumeConfigGet(volumeID int64) (map[string]string, error) {
 	var key, value string
 	query := "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=? AND node_id=?"
-	inargs := []interface{}{volumeID, c.id}
+	inargs := []interface{}{volumeID, c.nodeID}
 	outargs := []interface{}{key, value}
 
 	results, err := queryScan(c.db, query, inargs, outargs)

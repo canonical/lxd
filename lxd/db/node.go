@@ -165,7 +165,7 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (bool, error) {
 		return false, nil
 	}
 
-	n, err = query.Count(c.tx, "images", "node_id=?", id)
+	n, err = query.Count(c.tx, "images_nodes", "node_id=?", id)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to get images count for node %d", id)
 	}
@@ -183,7 +183,7 @@ func (c *ClusterTx) NodeClear(id int64) error {
 		return err
 	}
 
-	_, err = c.tx.Exec("DELETE FROM images WHERE node_id=?", id)
+	_, err = c.tx.Exec("DELETE FROM images_nodes WHERE node_id=?", id)
 	if err != nil {
 		return err
 	}

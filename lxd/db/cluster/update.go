@@ -25,10 +25,24 @@ var SchemaVersion = len(updates)
 var updates = map[int]schema.Update{
 	1: updateFromV0,
 	2: updateFromV1,
+	3: updateFromV2,
+}
+
+func updateFromV2(tx *sql.Tx) error {
+	stmt := `
+CREATE TABLE operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    uuid TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    UNIQUE (uuid),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
+`
+	_, err := tx.Exec(stmt)
+	return err
 }
 
 func updateFromV1(tx *sql.Tx) error {
-	// config table
 	stmt := `
 CREATE TABLE certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
