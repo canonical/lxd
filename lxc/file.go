@@ -78,6 +78,8 @@ func (c *fileCmd) recursivePullFile(d lxd.ContainerServer, container string, p s
 	}
 
 	target := filepath.Join(targetDir, filepath.Base(p))
+	logger.Infof("Pulling %s from %s (%s)", target, p, resp.Type)
+
 	if resp.Type == "directory" {
 		err := os.Mkdir(target, os.FileMode(resp.Mode))
 		if err != nil {
@@ -163,6 +165,7 @@ func (c *fileCmd) recursivePushFile(d lxd.ContainerServer, container string, sou
 			args.Content = f
 		}
 
+		logger.Infof("Pushing %s to %s (%s)", p, targetPath, args.Type)
 		return d.CreateContainerFile(container, targetPath, args)
 	}
 
@@ -202,6 +205,8 @@ func (c *fileCmd) recursiveMkdir(d lxd.ContainerServer, container string, p stri
 			continue
 		}
 
+		cur = "/" + cur
+
 		modeArg := -1
 		if mode != nil {
 			modeArg = int(mode.Perm())
@@ -213,6 +218,7 @@ func (c *fileCmd) recursiveMkdir(d lxd.ContainerServer, container string, p stri
 			Type: "directory",
 		}
 
+		logger.Infof("Creating %s (%s)", cur, args.Type)
 		err := d.CreateContainerFile(container, cur, args)
 		if err != nil {
 			return err
@@ -249,8 +255,6 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 	if strings.HasSuffix(targetPath, "/") {
 		targetIsDir = true
 	}
-
-	logger.Debugf("Pushing to: %s  (isdir: %t)", targetPath, targetIsDir)
 
 	d, err := conf.GetContainerServer(remote)
 	if err != nil {
@@ -408,7 +412,9 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 			args.GID = int64(gid)
 			args.Mode = int(mode.Perm())
 		}
+		args.Type = "file"
 
+		logger.Infof("Pushing %s to %s (%s)", f.Name(), fpath, args.Type)
 		err = d.CreateContainerFile(container, fpath, args)
 		if err != nil {
 			return err
@@ -491,6 +497,8 @@ func (c *fileCmd) pull(conf *config.Config, args []string) error {
 		} else {
 			targetPath = target
 		}
+
+		logger.Infof("Pulling %s from %s (%s)", targetPath, pathSpec[1], resp.Type)
 
 		var f *os.File
 		if targetPath == "-" {
