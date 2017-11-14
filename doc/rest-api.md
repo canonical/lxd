@@ -185,6 +185,7 @@ won't work and PUT needs to be used instead.
        * `/1.0/certificates/<fingerprint>`
      * `/1.0/containers`
        * `/1.0/containers/<name>`
+         * `/1.0/containers/<name>/console`
          * `/1.0/containers/<name>/exec`
          * `/1.0/containers/<name>/files`
          * `/1.0/containers/<name>/snapshots`
@@ -753,6 +754,45 @@ Input (none at present):
     }
 
 HTTP code for this should be 202 (Accepted).
+
+## `/1.0/containers/<name>/console`
+### GET
+* Description: returns the contents of the container's console  log
+* Authentication: trusted
+* Operation: N/A
+* Return: the contents of the console log
+
+### POST
+ * Description: attach to a container's console devices
+ * Authentication: trusted
+ * Operation: async
+ * Return: standard error
+
+Input (attach to /dev/console):
+
+    {
+        "width": 80,                    # Initial width of the terminal (optional)
+        "height": 25,                   # Initial height of the terminal (optional)
+    }
+
+The control websocket can be used to send out-of-band messages during a console session.
+This is currently used for window size changes.
+
+Control (window size change):
+
+    {
+        "command": "window-resize",
+        "args": {
+            "width": "80",
+            "height": "50"
+        }
+    }
+
+### DELETE
+* Description: empty the container's console log
+* Authentication: trusted
+* Operation: Sync
+* Return: empty response or standard error
 
 ## `/1.0/containers/<name>/exec`
 ### POST

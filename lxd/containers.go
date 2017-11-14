@@ -55,6 +55,13 @@ var containerSnapshotCmd = Command{
 	delete: snapshotHandler,
 }
 
+var containerConsoleCmd = Command{
+	name:   "containers/{name}/console",
+	get:    containerConsoleLogGet,
+	post:   containerConsolePost,
+	delete: containerConsoleLogDelete,
+}
+
 var containerExecCmd = Command{
 	name: "containers/{name}/exec",
 	post: containerExecPost,

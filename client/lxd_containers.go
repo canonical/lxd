@@ -1403,3 +1403,124 @@ func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName stri
 	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/metadata/templates?path=%s", name, templateName), nil, "")
 	return err
 }
+
+// ConsoleContainer requests that LXD attaches to the console device of a container.
+func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (*Operation, error) {
+	if !r.HasExtension("console") {
+		return nil, fmt.Errorf("The server is missing the required \"console\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/console", containerName), console, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if args == nil || args.Terminal == nil {
+		return nil, fmt.Errorf("A terminal must be set")
+	}
+
+	if args.Control == nil {
+		return nil, fmt.Errorf("A control channel must be set")
+	}
+
+	// Parse the fds
+	fds := map[string]string{}
+
+	value, ok := op.Metadata["fds"]
+	if ok {
+		values := value.(map[string]interface{})
+		for k, v := range values {
+			fds[k] = v.(string)
+		}
+	}
+
+	var controlConn *websocket.Conn
+	// Call the control handler with a connection to the control socket
+	if fds["control"] == "" {
+		return nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
+	}
+
+	controlConn, err = r.GetOperationWebsocket(op.ID, fds["control"])
+	if err != nil {
+		return nil, err
+	}
+
+	go args.Control(controlConn)
+
+	// Connect to the websocket
+	conn, err := r.GetOperationWebsocket(op.ID, fds["0"])
+	if err != nil {
+		return nil, err
+	}
+
+	// Detach from console.
+	go func(consoleDisconnect <-chan bool) {
+		<-consoleDisconnect
+		msg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Detaching from console")
+		// We don't care if this fails. This is just for convenience.
+		controlConn.WriteMessage(websocket.CloseMessage, msg)
+		controlConn.Close()
+	}(args.ConsoleDisconnect)
+
+	// And attach stdin and stdout to it
+	go func() {
+		shared.WebsocketSendStream(conn, args.Terminal, -1)
+		<-shared.WebsocketRecvStream(args.Terminal, conn)
+		conn.Close()
+	}()
+
+	return op, nil
+}
+
+// GetContainerConsoleLog requests that LXD attaches to the console device of a container.
+//
+// Note that it's the caller's responsibility to close the returned ReadCloser
+func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) (io.ReadCloser, error) {
+	if !r.HasExtension("console") {
+		return nil, fmt.Errorf("The server is missing the required \"console\" API extension")
+	}
+
+	// Prepare the HTTP request
+	url := fmt.Sprintf("%s/1.0/containers/%s/console", r.httpHost, containerName)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the user agent
+	if r.httpUserAgent != "" {
+		req.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Send the request
+	resp, err := r.do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the return value for a cleaner error
+	if resp.StatusCode != http.StatusOK {
+		_, _, err := r.parseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return resp.Body, err
+}
+
+// DeleteContainerConsoleLog deletes the requested container's console log
+func (r *ProtocolLXD) DeleteContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) error {
+	if !r.HasExtension("console") {
+		return fmt.Errorf("The server is missing the required \"console\" API extension")
+	}
+
+	// Send the request
+	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/console", containerName), nil, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

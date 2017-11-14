@@ -356,3 +356,6 @@ This adds support for external authentication via Macaroons.
 
 ## network\_sriov
 This adds support for SR-IOV enabled network devices.
+
+## console
+This adds support to interact with the container console device and console log.

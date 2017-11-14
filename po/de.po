@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-07 17:09-0500\n"
+"POT-Creation-Date: 2017-11-14 07:36+0100\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -437,6 +437,10 @@ msgstr "YAML Analyse Fehler %v\n"
 
 #: lxc/main.go:40
 msgid "Connection refused; is LXD running?"
+msgstr ""
+
+#: lxc/console.go:132
+msgid "Console log:"
 msgstr ""
 
 #: lxc/publish.go:71
@@ -973,7 +977,7 @@ msgstr "Alternatives config Verzeichnis."
 msgid "Path to an alternate server directory"
 msgstr "Alternatives config Verzeichnis."
 
-#: lxc/main.go:237
+#: lxc/main.go:238
 #, fuzzy
 msgid "Pause containers."
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1112,10 +1116,15 @@ msgstr ""
 msgid "Resources:"
 msgstr ""
 
-#: lxc/main.go:245
+#: lxc/main.go:246
 #, fuzzy
 msgid "Restart containers."
 msgstr "kann nicht zum selben Container Namen kopieren"
+
+#: lxc/console.go:38
+#, fuzzy
+msgid "Retrieve the container's console log"
+msgstr "Herunterfahren des Containers erzwingen."
 
 #: lxc/init.go:289
 #, c-format
@@ -1222,7 +1231,7 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Source:"
 msgstr ""
 
-#: lxc/main.go:255
+#: lxc/main.go:256
 #, fuzzy
 msgid "Start containers."
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1237,7 +1246,7 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/main.go:261
+#: lxc/main.go:262
 #, fuzzy
 msgid "Stop containers."
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -1583,6 +1592,13 @@ msgstr ""
 "\tlxc config set <container> raw.lxc 'lxc.aa_allow_incomplete = 1'\n"
 "Um das Server Passwort zur authentifizierung zu setzen:\n"
 "\tlxc config set core.trust_password blah\n"
+
+#: lxc/console.go:31
+msgid ""
+"Usage: lxc console [<remote>:]<container> [-l]\n"
+"\n"
+"Interact with the container's console device and log."
+msgstr ""
 
 #: lxc/copy.go:28
 #, fuzzy
@@ -2510,7 +2526,7 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr "OK (y/n)? "
 
-#: lxc/main.go:365 lxc/main.go:369
+#: lxc/main.go:366 lxc/main.go:370
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr ""
@@ -2552,7 +2568,7 @@ msgstr ""
 msgid "taken at %s"
 msgstr ""
 
-#: lxc/main.go:296
+#: lxc/main.go:297
 msgid "wrong number of subcommand arguments"
 msgstr "falsche Anzahl an Parametern für Unterbefehl"
 

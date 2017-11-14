@@ -79,4 +79,5 @@ var APIExtensions = []string{
 	"storage_api_volume_rename",
 	"macaroon_authentication",
 	"network_sriov",
+	"console",
 }

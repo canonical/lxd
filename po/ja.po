@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-07 17:09-0500\n"
+"POT-Creation-Date: 2017-11-14 07:36+0100\n"
 "PO-Revision-Date: 2017-09-28 20:29+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -328,6 +328,10 @@ msgstr "設定の構文エラー: %s"
 #: lxc/main.go:40
 msgid "Connection refused; is LXD running?"
 msgstr "接続が拒否されました。LXDが実行されていますか?"
+
+#: lxc/console.go:132
+msgid "Console log:"
+msgstr ""
 
 #: lxc/publish.go:71
 msgid "Container name is mandatory"
@@ -845,7 +849,7 @@ msgstr "別のクライアント用設定ディレクトリ"
 msgid "Path to an alternate server directory"
 msgstr "別のサーバ用設定ディレクトリ"
 
-#: lxc/main.go:237
+#: lxc/main.go:238
 msgid "Pause containers."
 msgstr "コンテナを一時停止します。"
 
@@ -980,9 +984,14 @@ msgstr "ユーザの確認を要求する"
 msgid "Resources:"
 msgstr "リソース:"
 
-#: lxc/main.go:245
+#: lxc/main.go:246
 msgid "Restart containers."
 msgstr "コンテナを再起動します。"
+
+#: lxc/console.go:38
+#, fuzzy
+msgid "Retrieve the container's console log"
+msgstr "コンテナの状態を保存します (stopのみ)"
 
 #: lxc/init.go:289
 #, c-format
@@ -1088,7 +1097,7 @@ msgstr "一部のコンテナで %s が失敗しました"
 msgid "Source:"
 msgstr "取得元:"
 
-#: lxc/main.go:255
+#: lxc/main.go:256
 msgid "Start containers."
 msgstr "コンテナを起動します。"
 
@@ -1102,7 +1111,7 @@ msgstr "%s を起動中"
 msgid "Status: %s"
 msgstr "状態: %s"
 
-#: lxc/main.go:261
+#: lxc/main.go:262
 msgid "Stop containers."
 msgstr "コンテナを停止します。"
 
@@ -1519,6 +1528,13 @@ msgstr ""
 "\n"
 "lxc config set core.trust_password blah\n"
 "    サーバのパスワードを blah に設定する。"
+
+#: lxc/console.go:31
+msgid ""
+"Usage: lxc console [<remote>:]<container> [-l]\n"
+"\n"
+"Interact with the container's console device and log."
+msgstr ""
 
 #: lxc/copy.go:28
 msgid ""
@@ -2909,7 +2925,7 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:365 lxc/main.go:369
+#: lxc/main.go:366 lxc/main.go:370
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
@@ -2951,7 +2967,7 @@ msgstr "ステートレス"
 msgid "taken at %s"
 msgstr "%s に取得しました"
 
-#: lxc/main.go:296
+#: lxc/main.go:297
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 
