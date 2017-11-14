@@ -356,7 +356,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 		// Hand back the contents of the on-disk logfile.
 		ent.path = consoleLogpath
 		ent.filename = consoleLogpath
-		goto onSuccess
+		return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 	}
 
 	// Container keeps an on-disk logfile so keep sync it here.
@@ -380,14 +380,14 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 		}
 
 		if errno == syscall.ENODATA {
-			goto onSuccess
+			return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 		}
 
 		if errno == syscall.EFAULT && consoleLogpath != "" {
 			// Hand back the contents of the on-disk logfile.
 			ent.path = consoleLogpath
 			ent.filename = consoleLogpath
-			goto onSuccess
+			return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 		}
 
 		return SmartError(err)
@@ -395,7 +395,6 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 
 	ent.buffer = []byte(logContents)
 
-onSuccess:
 	return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 }
 
@@ -431,11 +430,30 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 		WriteToLogFile: false,
 	}
 
+	truncateConsoleLogFile := func(path string) error {
+		// Check that this is a regular file. We don't want to try and unlink
+		// /dev/stderr or /dev/null or something.
+		st, err := os.Stat(consoleLogpath)
+		if err != nil {
+			return err
+		}
+
+		if !st.Mode().IsRegular() {
+			return fmt.Errorf("The console log is not a regular file")
+		}
+
+		if consoleLogpath == "" {
+			return fmt.Errorf("Container does not keep a console logfile")
+		}
+
+		return os.Truncate(consoleLogpath, 0)
+	}
+
 	if !c.IsRunning() {
 		if consoleLogpath == "" {
 			return SmartError(fmt.Errorf("The container does not keep a console log"))
 		}
-		goto truncateOnDiskLogFile
+		return SmartError(truncateConsoleLogFile(consoleLogpath))
 	}
 
 	// Send a ringbuffer request to the container.
@@ -455,29 +473,11 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 				return SmartError(fmt.Errorf("The container does not keep a console log"))
 			}
 
-			goto truncateOnDiskLogFile
+			return SmartError(truncateConsoleLogFile(consoleLogpath))
 		}
 
 		return SmartError(err)
 	}
 
 	return SmartError(nil)
-
-truncateOnDiskLogFile:
-	// Check that this is a regular file. We don't want to try and unlink
-	// /dev/stderr or /dev/null or something.
-	st, err := os.Stat(consoleLogpath)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	if !st.Mode().IsRegular() {
-		return SmartError(fmt.Errorf("The console log is not a regular file"))
-	}
-
-	if consoleLogpath == "" {
-		return SmartError(fmt.Errorf("Container does not keep a console logfile"))
-	}
-
-	return SmartError(os.Truncate(consoleLogpath, 0))
 }
