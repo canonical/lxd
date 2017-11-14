@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
@@ -148,9 +149,31 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	err = saveCert(d.cluster, name, cert)
-	if err != nil {
-		return SmartError(err)
+	if !isClusterNotification(r) {
+		// Store the certificate in the cluster database.
+		err = saveCert(d.cluster, name, cert)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		// Notify other nodes about the new certificate.
+		notifier, err := cluster.NewNotifier(
+			d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		if err != nil {
+			return SmartError(err)
+		}
+		req := api.CertificatesPost{
+			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+		}
+		req.Name = name
+		req.Type = "client"
+
+		err = notifier(func(client lxd.ContainerServer) error {
+			return client.CreateCertificate(req)
+		})
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	d.clientCerts = append(d.clientCerts, *cert)
