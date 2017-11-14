@@ -58,6 +58,9 @@ test_clustering() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "NO"
   LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep "node5" | grep -q "NO"
 
+  # Show a single node
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -q "node5"
+
   # Shutdown a non-database node, and wait a few seconds so it will be
   # detected as down.
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
