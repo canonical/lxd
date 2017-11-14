@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/termios"
 )
 
@@ -173,6 +174,7 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 			args.Mode = int(mode.Perm())
 		}
 
+		logger.Infof("Pushing %s to %s (%s)", f.Name(), fpath, args.Type)
 		err = d.CreateContainerFile(container, fpath, args)
 		if err != nil {
 			return err
@@ -240,6 +242,8 @@ func (c *fileCmd) pull(conf *config.Config, args []string) error {
 		} else {
 			targetPath = target
 		}
+
+		logger.Infof("Pulling %s from %s", targetPath, pathSpec[1])
 
 		var f *os.File
 		if targetPath == "-" {
