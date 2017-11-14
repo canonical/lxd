@@ -21,9 +21,11 @@ func (c *clusterCmd) usage() string {
 
 Manage cluster nodes.
 
-*Cluster nodes*
-lxc cluster remove <node> [--force]
-    Remove a node from the cluster.`)
+lxc cluster list [<remote>:]
+    List all nodes in the cluster.
+
+lxc cluster delete [<remote>:]<node> [--force]
+    Delete a node from the cluster.`)
 }
 
 func (c *clusterCmd) flags() {
@@ -43,14 +45,14 @@ func (c *clusterCmd) run(conf *config.Config, args []string) error {
 		return c.doClusterList(conf, args)
 	}
 
-	if args[0] == "remove" {
-		return c.doClusterNodeRemove(conf, args)
+	if args[0] == "delete" {
+		return c.doClusterNodeDelete(conf, args)
 	}
 
 	return nil
 }
 
-func (c *clusterCmd) doClusterNodeRemove(conf *config.Config, args []string) error {
+func (c *clusterCmd) doClusterNodeDelete(conf *config.Config, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
