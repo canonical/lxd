@@ -189,6 +189,7 @@ run_test test_storage_driver_ceph "ceph storage driver"
 run_test test_resources "resources"
 run_test test_kernel_limits "kernel limits"
 run_test test_macaroon_auth "macaroon authentication"
+run_test test_console "console"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success

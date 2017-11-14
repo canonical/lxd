@@ -58,6 +58,7 @@ var subcommands = map[string]SubCommand{
 	"import":           cmdImport,
 
 	// Internal commands
+	"forkconsole":        cmdForkConsole,
 	"forkgetnet":         cmdForkGetNet,
 	"forkmigrate":        cmdForkMigrate,
 	"forkstart":          cmdForkStart,

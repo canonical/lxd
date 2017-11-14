@@ -168,28 +168,41 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 	return nil
 }
 
+func lxcParseRawLXC(line string) (string, string, error) {
+	// Ignore empty lines
+	if len(line) == 0 {
+		return "", "", nil
+	}
+
+	// Skip whitespace {"\t", " "}
+	line = strings.TrimLeft(line, "\t ")
+
+	// Ignore comments
+	if strings.HasPrefix(line, "#") {
+		return "", "", nil
+	}
+
+	// Ensure the format is valid
+	membs := strings.SplitN(line, "=", 2)
+	if len(membs) != 2 {
+		return "", "", fmt.Errorf("Invalid raw.lxc line: %s", line)
+	}
+
+	key := strings.ToLower(strings.Trim(membs[0], " \t"))
+	val := strings.Trim(membs[1], " \t")
+	return key, val, nil
+}
+
 func lxcValidConfig(rawLxc string) error {
 	for _, line := range strings.Split(rawLxc, "\n") {
-		// Ignore empty lines
-		if len(line) == 0 {
+		key, _, err := lxcParseRawLXC(line)
+		if err != nil {
+			return err
+		}
+
+		if key == "" {
 			continue
 		}
-
-		// Skip whitespace {"\t", " "}
-		line = strings.TrimLeft(line, "\t ")
-
-		// Ignore comments
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		// Ensure the format is valid
-		membs := strings.SplitN(line, "=", 2)
-		if len(membs) != 2 {
-			return fmt.Errorf("Invalid raw.lxc line: %s", line)
-		}
-
-		key := strings.ToLower(strings.Trim(membs[0], " \t"))
 
 		// Blacklist some keys
 		if key == "lxc.logfile" || key == "lxc.log.file" {
@@ -5071,6 +5084,34 @@ func (c *containerLXC) FileRemove(path string) error {
 	}
 
 	return nil
+}
+
+func (c *containerLXC) Console(terminal *os.File) *exec.Cmd {
+	args := []string{
+		c.state.OS.ExecPath,
+		"forkconsole",
+		c.name,
+		c.state.OS.LxcPath,
+		filepath.Join(c.LogPath(), "lxc.conf"),
+		"tty=0",
+		"escape=-1"}
+
+	cmd := exec.Cmd{}
+	cmd.Path = c.state.OS.ExecPath
+	cmd.Args = args
+	cmd.Stdin = terminal
+	cmd.Stdout = terminal
+	cmd.Stderr = terminal
+	return &cmd
+}
+
+func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
+	msg, err := c.c.ConsoleLog(opts)
+	if err != nil {
+		return "", err
+	}
+
+	return string(msg), nil
 }
 
 func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool) (*exec.Cmd, int, int, error) {
