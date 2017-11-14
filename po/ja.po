@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-14 07:36+0100\n"
+"POT-Creation-Date: 2017-11-14 18:02-0500\n"
 "PO-Revision-Date: 2017-09-28 20:29+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -151,7 +151,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
 
-#: lxc/file.go:192
+#: lxc/file.go:195
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
@@ -162,7 +162,7 @@ msgid "%v (interrupt two more times to force)"
 msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
-#: lxc/file.go:130
+#: lxc/file.go:132
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr "'%s' はサポートされないタイプのファイルです。"
@@ -269,7 +269,7 @@ msgstr ""
 msgid "Cached: %s"
 msgstr "キャッシュ済: %s"
 
-#: lxc/file.go:485
+#: lxc/file.go:491
 #, fuzzy
 msgid "Can't pull a directory without --recursive"
 msgstr ""
@@ -513,7 +513,7 @@ msgstr "新しいコンテナ名が取得できません"
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
 
-#: lxc/file.go:125
+#: lxc/file.go:127
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
@@ -628,7 +628,7 @@ msgstr "不正な証明書です"
 msgid "Invalid configuration key"
 msgstr "正しくない設定項目 (key) です"
 
-#: lxc/file.go:528
+#: lxc/file.go:536
 #, c-format
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
@@ -638,12 +638,12 @@ msgstr "不正なパス %s"
 msgid "Invalid protocol: %s"
 msgstr "不正なパス %s"
 
-#: lxc/file.go:457
+#: lxc/file.go:463
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:234
+#: lxc/file.go:240
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -709,7 +709,7 @@ msgstr "サマリーはありません。"
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
-#: lxc/file.go:444
+#: lxc/file.go:450
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -1247,6 +1247,10 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
+#: lxc/console.go:173
+msgid "To detach from the console, press: <ctrl>+a q"
+msgstr ""
+
 #: lxc/main.go:172
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
@@ -1296,7 +1300,7 @@ msgstr ""
 msgid "Unable to find help2man."
 msgstr "help2man が見つかりません。"
 
-#: lxc/file.go:112
+#: lxc/file.go:114
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
@@ -2885,7 +2889,7 @@ msgstr "`lxc config profile` は廃止されました。`lxc profile` を使っ�
 msgid "can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/file.go:282
+#: lxc/file.go:286
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -2930,7 +2934,7 @@ msgstr "ok (y/n)?"
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
 
-#: lxc/file.go:556
+#: lxc/file.go:564
 msgid "recursive edit doesn't make sense :("
 msgstr "再帰的な edit は意味がありません :("
 

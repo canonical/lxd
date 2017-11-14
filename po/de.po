@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-14 07:36+0100\n"
+"POT-Creation-Date: 2017-11-14 18:02-0500\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -255,7 +255,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/file.go:192
+#: lxc/file.go:195
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
@@ -265,7 +265,7 @@ msgstr ""
 msgid "%v (interrupt two more times to force)"
 msgstr ""
 
-#: lxc/file.go:130
+#: lxc/file.go:132
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr ""
@@ -380,7 +380,7 @@ msgstr ""
 "Optionen:\n"
 "\n"
 
-#: lxc/file.go:485
+#: lxc/file.go:491
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
@@ -629,7 +629,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:125
+#: lxc/file.go:127
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -748,7 +748,7 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Invalid configuration key"
 msgstr ""
 
-#: lxc/file.go:528
+#: lxc/file.go:536
 #, fuzzy, c-format
 msgid "Invalid path %s"
 msgstr "Ungültiges Ziel %s"
@@ -758,12 +758,12 @@ msgstr "Ungültiges Ziel %s"
 msgid "Invalid protocol: %s"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/file.go:457
+#: lxc/file.go:463
 #, c-format
 msgid "Invalid source %s"
 msgstr "Ungültige Quelle %s"
 
-#: lxc/file.go:234
+#: lxc/file.go:240
 #, c-format
 msgid "Invalid target %s"
 msgstr "Ungültiges Ziel %s"
@@ -830,7 +830,7 @@ msgstr "Fehlende Zusammenfassung."
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
-#: lxc/file.go:444
+#: lxc/file.go:450
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
@@ -1380,6 +1380,10 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
+#: lxc/console.go:173
+msgid "To detach from the console, press: <ctrl>+a q"
+msgstr ""
+
 #: lxc/main.go:172
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
@@ -1427,7 +1431,7 @@ msgstr ""
 msgid "Unable to find help2man."
 msgstr ""
 
-#: lxc/file.go:112
+#: lxc/file.go:114
 #, fuzzy, c-format
 msgid "Unknown file type '%s'"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -2487,7 +2491,7 @@ msgstr ""
 msgid "can't remove the default remote"
 msgstr ""
 
-#: lxc/file.go:282
+#: lxc/file.go:286
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -2531,7 +2535,7 @@ msgstr "OK (y/n)? "
 msgid "processing aliases failed %s\n"
 msgstr ""
 
-#: lxc/file.go:556
+#: lxc/file.go:564
 msgid "recursive edit doesn't make sense :("
 msgstr ""
 
