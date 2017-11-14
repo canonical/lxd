@@ -1053,14 +1053,11 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 
 	// Generate a new xfs's UUID
 	RBDFilesystem := s.getRBDFilesystem()
-	if RBDFilesystem == "xfs" {
-		msg, err := xfsGenerateNewUUID(RBDDevPath)
-		if err != nil {
-			logger.Errorf(`Failed to generate new xfs UUID for `+
-				`RBD storage volume for container "%s": %s`,
-				containerName, msg)
-			return err
-		}
+
+	msg, err := fsGenerateNewUUID(RBDFilesystem, RBDDevPath)
+	if err != nil {
+		logger.Errorf("Failed to create new \"%s\" UUID for container \"%s\" on storage pool \"%s\": %s", RBDFilesystem, containerName, s.pool.Name, msg)
+		return err
 	}
 
 	privileged := container.IsPrivileged()

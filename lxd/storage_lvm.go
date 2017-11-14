@@ -971,11 +971,10 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	containerLvDevPath := getLvmDevPath(poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
 	// Generate a new xfs's UUID
 	lvFsType := s.getLvmFilesystem()
-	if lvFsType == "xfs" {
-		_, err := xfsGenerateNewUUID(containerLvDevPath)
-		if err != nil {
-			return err
-		}
+	msg, err := fsGenerateNewUUID(lvFsType, containerLvDevPath)
+	if err != nil {
+		logger.Errorf("Failed to create new \"%s\" UUID for container \"%s\" on storage pool \"%s\": %s", lvFsType, containerName, s.pool.Name, msg)
+		return err
 	}
 
 	ourMount, err := s.ContainerMount(container)
