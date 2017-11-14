@@ -299,7 +299,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		if err != nil {
 			return errors.Wrap(err, "failed to get ID of joining node")
 		}
-		state.Cluster.ID(node.ID)
+		state.Cluster.NodeID(node.ID)
 
 		// Storage pools.
 		ids, err := tx.StoragePoolIDs()

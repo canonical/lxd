@@ -166,7 +166,7 @@ func (c *Cluster) ContainerCreate(args ContainerArgs) (int, error) {
 		return 0, err
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(c.id, args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix(), args.LastUsedDate.Unix(), statefulInt)
+	result, err := stmt.Exec(c.nodeID, args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix(), args.LastUsedDate.Unix(), statefulInt)
 	if err != nil {
 		tx.Rollback()
 		return 0, err

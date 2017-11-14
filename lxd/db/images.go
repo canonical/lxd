@@ -523,7 +523,7 @@ func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, au
 
 	}
 
-	_, err = tx.Exec("INSERT INTO images_nodes(image_id, node_id) VALUES(?, ?)", id, c.id)
+	_, err = tx.Exec("INSERT INTO images_nodes(image_id, node_id) VALUES(?, ?)", id, c.nodeID)
 	if err != nil {
 		tx.Rollback()
 		return err

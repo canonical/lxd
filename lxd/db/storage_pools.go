@@ -164,7 +164,7 @@ func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, erro
 func (c *Cluster) StoragePoolConfigGet(poolID int64) (map[string]string, error) {
 	var key, value string
 	query := "SELECT key, value FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)"
-	inargs := []interface{}{poolID, c.id}
+	inargs := []interface{}{poolID, c.nodeID}
 	outargs := []interface{}{key, value}
 
 	results, err := queryScan(c.db, query, inargs, outargs)
@@ -203,7 +203,7 @@ func (c *Cluster) StoragePoolCreate(poolName string, poolDescription string, poo
 		return -1, err
 	}
 
-	err = storagePoolConfigAdd(tx, id, c.id, poolConfig)
+	err = storagePoolConfigAdd(tx, id, c.nodeID, poolConfig)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -264,13 +264,13 @@ func (c *Cluster) StoragePoolUpdate(poolName, description string, poolConfig map
 		return err
 	}
 
-	err = StoragePoolConfigClear(tx, poolID, c.id)
+	err = StoragePoolConfigClear(tx, poolID, c.nodeID)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = storagePoolConfigAdd(tx, poolID, c.id, poolConfig)
+	err = storagePoolConfigAdd(tx, poolID, c.nodeID, poolConfig)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -420,13 +420,13 @@ func (c *Cluster) StoragePoolVolumeUpdate(volumeName string, volumeType int, poo
 		return err
 	}
 
-	err = StorageVolumeConfigClear(tx, volumeID, c.id)
+	err = StorageVolumeConfigClear(tx, volumeID, c.nodeID)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = StorageVolumeConfigAdd(tx, volumeID, c.id, volumeConfig)
+	err = StorageVolumeConfigAdd(tx, volumeID, c.nodeID, volumeConfig)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -497,7 +497,7 @@ func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, 
 		return -1, err
 	}
 
-	err = StorageVolumeConfigAdd(tx, volumeID, c.id, volumeConfig)
+	err = StorageVolumeConfigAdd(tx, volumeID, c.nodeID, volumeConfig)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
