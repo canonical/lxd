@@ -124,7 +124,7 @@ func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, erro
 	value := ""
 
 	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\" AND networks_config.node_id=?"
-	arg1 := []interface{}{c.id}
+	arg1 := []interface{}{c.nodeID}
 	arg2 := []interface{}{id, name, value}
 	result, err := queryScan(c.db, q, arg1, arg2)
 	if err != nil {
@@ -169,7 +169,7 @@ func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
         FROM networks_config
 		WHERE network_id=?
                 AND node_id=?`
-	inargs := []interface{}{id, c.id}
+	inargs := []interface{}{id, c.nodeID}
 	outfmt := []interface{}{key, value}
 	results, err := queryScan(c.db, query, inargs, outfmt)
 	if err != nil {
@@ -225,14 +225,14 @@ func (c *Cluster) NetworkCreate(name, description string, config map[string]stri
 
 	// Insert a node-specific entry pointing to ourselves.
 	columns := []string{"network_id", "node_id"}
-	values := []interface{}{id, c.id}
+	values := []interface{}{id, c.nodeID}
 	_, err = query.UpsertObject(tx, "networks_nodes", columns, values)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
 	}
 
-	err = networkConfigAdd(tx, id, c.id, config)
+	err = networkConfigAdd(tx, id, c.nodeID, config)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -263,13 +263,13 @@ func (c *Cluster) NetworkUpdate(name, description string, config map[string]stri
 		return err
 	}
 
-	err = NetworkConfigClear(tx, id, c.id)
+	err = NetworkConfigClear(tx, id, c.nodeID)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = networkConfigAdd(tx, id, c.id, config)
+	err = networkConfigAdd(tx, id, c.nodeID, config)
 	if err != nil {
 		tx.Rollback()
 		return err

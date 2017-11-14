@@ -151,6 +151,13 @@ CREATE TABLE nodes (
     UNIQUE (name),
     UNIQUE (address)
 );
+CREATE TABLE operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    uuid TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    UNIQUE (uuid),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
 CREATE TABLE profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -218,5 +225,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (2, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (3, strftime("%s"))
 `

@@ -140,8 +140,8 @@ func (n *Node) Begin() (*sql.Tx, error) {
 
 // Cluster mediates access to LXD's data stored in the cluster dqlite database.
 type Cluster struct {
-	db *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
-	id int64   // Node ID of this LXD instance.
+	db     *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
+	nodeID int64   // Node ID of this LXD instance.
 }
 
 // OpenCluster creates a new Cluster object for interacting with the dqlite
@@ -180,12 +180,12 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 		}
 		if len(nodes) == 1 && nodes[0].Address == "0.0.0.0" {
 			// We're not clustered
-			cluster.ID(1)
+			cluster.NodeID(1)
 			return nil
 		}
 		for _, node := range nodes {
 			if node.Address == address {
-				cluster.id = node.ID
+				cluster.nodeID = node.ID
 				return nil
 			}
 		}
@@ -210,7 +210,9 @@ func ForLocalInspection(db *sql.DB) *Cluster {
 // returns no error, all database changes are committed to the cluster database
 // database, otherwise they are rolled back.
 func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
-	clusterTx := &ClusterTx{}
+	clusterTx := &ClusterTx{
+		nodeID: c.nodeID,
+	}
 
 	// FIXME: the retry loop should be configurable.
 	var err error
@@ -229,12 +231,12 @@ func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
 	return err
 }
 
-// ID sets the the node ID associated with this cluster instance. It's used for
+// NodeID sets the the node NodeID associated with this cluster instance. It's used for
 // backward-compatibility of all db-related APIs that were written before
-// clustering and don't accept a node ID, so in those cases we automatically
-// use this value as implict node ID.
-func (c *Cluster) ID(id int64) {
-	c.id = id
+// clustering and don't accept a node NodeID, so in those cases we automatically
+// use this value as implict node NodeID.
+func (c *Cluster) NodeID(id int64) {
+	c.nodeID = id
 }
 
 // Close the database facade.

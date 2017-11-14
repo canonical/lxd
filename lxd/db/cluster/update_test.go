@@ -180,3 +180,28 @@ func testConfigTable(t *testing.T, table string, setup func(db *sql.DB)) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), n) // The row was already deleted by the previous query
 }
+
+func TestUpdateFromV2(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(3, nil)
+	require.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'one', '', '1.1.1.1', 666, 999, ?)", time.Now())
+	require.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO operations VALUES (1, 'abcd', 1)")
+	require.NoError(t, err)
+
+	// Unique constraint on uuid
+	_, err = db.Exec("INSERT INTO operations VALUES (2, 'abcd', 1)")
+	require.Error(t, err)
+
+	// Cascade delete on node_id
+	_, err = db.Exec("DELETE FROM nodes")
+	require.NoError(t, err)
+	result, err := db.Exec("DELETE FROM operations")
+	require.NoError(t, err)
+	n, err := result.RowsAffected()
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), n)
+}
