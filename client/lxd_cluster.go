@@ -72,17 +72,14 @@ func (r *ProtocolLXD) JoinCluster(targetAddress, targetPassword, targetCert, nam
 
 // LeaveCluster makes the given node leave the cluster (gracefully or not,
 // depending on the force flag).
-func (r *ProtocolLXD) LeaveCluster(name string, force bool) (*Operation, error) {
+func (r *ProtocolLXD) LeaveCluster(name string, force bool) error {
 	params := ""
 	if force {
 		params += "?force=1"
 	}
 	url := fmt.Sprintf("/cluster/nodes/%s%s", name, params)
-	op, _, err := r.queryOperation("DELETE", url, nil, "")
-	if err != nil {
-		return nil, err
-	}
-	return op, nil
+	_, err := r.queryStruct("DELETE", url, nil, "", nil)
+	return err
 }
 
 // GetNodes returns the current nodes in the cluster.

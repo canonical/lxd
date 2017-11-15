@@ -162,9 +162,8 @@ func TestCluster_Leave(t *testing.T) {
 	f.FormCluster(daemons)
 
 	client := f.ClientUnix(daemons[1])
-	op, err := client.LeaveCluster("rusp-0", false)
+	err := client.LeaveCluster("rusp-0", false)
 	require.NoError(t, err)
-	assert.NoError(t, op.Wait())
 }
 
 // Test helper for cluster-related APIs.

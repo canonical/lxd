@@ -702,7 +702,9 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
+			state := s.container.DaemonState()
 			actionScriptOp, err := operationCreate(
+				state.Cluster,
 				operationClassWebsocket,
 				"Live-migrating container",
 				nil,
@@ -741,7 +743,6 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
-			state := s.container.DaemonState()
 			err = writeActionScript(checkpointDir, actionScriptOp.url, actionScriptOpSecret, state.OS.ExecPath)
 			if err != nil {
 				os.RemoveAll(checkpointDir)

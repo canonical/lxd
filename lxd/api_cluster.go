@@ -157,7 +157,7 @@ func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPost) Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -267,7 +267,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -379,13 +379,9 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	resources := map[string][]string{}
-	resources["cluster"] = []string{}
-
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	err = run(nil)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
-
-	return OperationResponse(op)
+	return EmptySyncResponse
 }

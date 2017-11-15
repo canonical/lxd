@@ -25,7 +25,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, "Deleting container", resources, nil, rmct, nil, nil)
+	op, err := operationCreate(d.cluster, "Deleting container", operationClassTask, resources, nil, rmct, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

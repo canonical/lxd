@@ -10,7 +10,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -62,6 +64,8 @@ type operation struct {
 
 	// Locking for concurent access to the operation
 	lock sync.Mutex
+
+	cluster *db.Cluster
 }
 
 func (op *operation) done() {
@@ -87,6 +91,13 @@ func (op *operation) done() {
 
 		delete(operations, op.id)
 		operationsLock.Unlock()
+
+		err := op.cluster.Transaction(func(tx *db.ClusterTx) error {
+			return tx.OperationRemove(op.id)
+		})
+		if err != nil {
+			logger.Warnf("Failed to delete operation %s: %s", op.id, err)
+		}
 
 		/*
 		 * When we create a new lxc.Container, it adds a finalizer (via
@@ -374,7 +385,7 @@ func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 	return nil
 }
 
-func operationCreate(opClass operationClass, description string, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
+func operationCreate(cluster *db.Cluster, opClass operationClass, description string, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
 	// Main attributes
 	op := operation{}
 	op.id = uuid.NewRandom().String()
@@ -386,6 +397,7 @@ func operationCreate(opClass operationClass, description string, opResources map
 	op.url = fmt.Sprintf("/%s/operations/%s", version.APIVersion, op.id)
 	op.resources = opResources
 	op.chanDone = make(chan error)
+	op.cluster = cluster
 
 	newMetadata, err := shared.ParseMetadata(opMetadata)
 	if err != nil {
@@ -418,6 +430,14 @@ func operationCreate(opClass operationClass, description string, opResources map
 	operationsLock.Lock()
 	operations[op.id] = &op
 	operationsLock.Unlock()
+
+	err = op.cluster.Transaction(func(tx *db.ClusterTx) error {
+		_, err := tx.OperationAdd(op.id)
+		return err
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to add operation to database")
+	}
 
 	logger.Debugf("New %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
