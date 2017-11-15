@@ -108,14 +108,9 @@ func (c *clusterCmd) doClusterNodeDelete(conf *config.Config, args []string) err
 		return err
 	}
 
-	op, err := client.LeaveCluster(name, c.force)
+	err = client.LeaveCluster(name, c.force)
 	if err != nil {
 		return err
-	}
-
-	err = op.Wait()
-	if err != nil {
-		return nil
 	}
 
 	fmt.Printf(i18n.G("Node %s removed")+"\n", name)

@@ -229,15 +229,22 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 	// Get the local config keys for the cluster networks. It assumes that
 	// the local storage pools and networks match the cluster networks, if
-	// not an error will be returned.
+	// not an error will be returned. Also get any outstanding operation,
+	// typically there will be just one, created by the POST /cluster/nodes
+	// request which triggered this code.
 	var pools map[string]map[string]string
 	var networks map[string]map[string]string
+	var operations []string
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		pools, err = tx.StoragePoolConfigs()
 		if err != nil {
 			return err
 		}
 		networks, err = tx.NetworkConfigs()
+		if err != nil {
+			return err
+		}
+		operations, err = tx.OperationsUUIDs()
 		if err != nil {
 			return err
 		}
@@ -337,6 +344,14 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			err = tx.NetworkConfigAdd(id, node.ID, config)
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's network config")
+			}
+		}
+
+		// Migrate outstanding operations.
+		for _, uuid := range operations {
+			_, err := tx.OperationAdd(uuid)
+			if err != nil {
+				return err
 			}
 		}
 		return nil
