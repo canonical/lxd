@@ -1,4 +1,14 @@
 test_console() {
+  lxc_version=$(lxc info | grep "driver_version: " | cut -d' ' -f4)
+  lxc_major=$(echo "${lxc_version}" | cut -d. -f1)
+
+  if [ "${lxc_major}" -lt 3 ]; then
+    echo "==> SKIP: The console ringbuffer require liblxc 3.0 or higher"
+    return
+  fi
+
+  echo "==> API extension console"
+
   ensure_import_testimage
 
   lxc init testimage cons1
