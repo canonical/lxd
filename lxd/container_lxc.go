@@ -156,7 +156,7 @@ func lxcSetConfigItem(c *lxc.Container, key string, value string) error {
 
 	if strings.HasPrefix(key, "lxc.prlimit.") {
 		if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
-			return fmt.Errorf(`Process limits require libxc >= 2.1`)
+			return fmt.Errorf(`Process limits require liblxc >= 2.1`)
 		}
 	}
 
