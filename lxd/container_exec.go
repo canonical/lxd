@@ -435,7 +435,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.container.Name()}
 
-		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operationCreate(d.cluster, operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -487,7 +487,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

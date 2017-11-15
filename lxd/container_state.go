@@ -159,7 +159,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, do, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, do, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

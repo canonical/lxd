@@ -126,7 +126,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -160,7 +160,7 @@ func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -407,12 +407,12 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 	var op *operation
 	if push {
-		op, err = operationCreate(operationClassWebsocket, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operationCreate(d.cluster, operationClassWebsocket, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
 	} else {
-		op, err = operationCreate(operationClassTask, resources, nil, run, nil, nil)
+		op, err = operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -507,7 +507,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name, req.Source.Source}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
