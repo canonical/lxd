@@ -127,6 +127,9 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	c2.IsRunning()
 	suite.Req.Nil(err)
 
+	// When loading from DB, we won't have a full LXC config
+	c.(*containerLXC).cConfig = false
+
 	suite.Exactly(
 		c,
 		c2,

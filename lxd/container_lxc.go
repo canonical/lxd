@@ -459,6 +459,7 @@ type containerLXC struct {
 
 	// Cache
 	c        *lxc.Container
+	cConfig  bool
 	db       *db.Node
 	state    *state.State
 	idmapset *idmap.IdmapSet
@@ -799,7 +800,7 @@ func (c *containerLXC) init() error {
 	return nil
 }
 
-func (c *containerLXC) initLXC() error {
+func (c *containerLXC) initLXC(config bool) error {
 	// No need to go through all that for snapshots
 	if c.IsSnapshot() {
 		return nil
@@ -812,13 +813,42 @@ func (c *containerLXC) initLXC() error {
 
 	// Check if already initialized
 	if c.c != nil {
-		return nil
+		if !config || c.cConfig {
+			return nil
+		}
 	}
 
 	// Load the go-lxc struct
 	cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
 	if err != nil {
 		return err
+	}
+
+	// Setup logging
+	logfile := c.LogFilePath()
+
+	err = cc.SetLogFile(logfile)
+	if err != nil {
+		return err
+	}
+
+	logLevel := "warn"
+	if debug {
+		logLevel = "trace"
+	} else if verbose {
+		logLevel = "info"
+	}
+
+	err = lxcSetConfigItem(cc, "lxc.log.level", logLevel)
+	if err != nil {
+		return err
+	}
+
+	// Allow for lightweight init
+	c.cConfig = config
+	if !config {
+		c.c = cc
+		return nil
 	}
 
 	// Base config
@@ -956,26 +986,6 @@ func (c *containerLXC) initLXC() error {
 		if err != nil {
 			return err
 		}
-	}
-
-	// Setup logging
-	logfile := c.LogFilePath()
-
-	err = cc.SetLogFile(logfile)
-	if err != nil {
-		return err
-	}
-
-	logLevel := "warn"
-	if debug {
-		logLevel = "trace"
-	} else if verbose {
-		logLevel = "info"
-	}
-
-	err = lxcSetConfigItem(cc, "lxc.log.level", logLevel)
-	if err != nil {
-		return err
 	}
 
 	// Setup architecture
@@ -1534,7 +1544,7 @@ func (c *containerLXC) expandDevices() error {
 // Start functions
 func (c *containerLXC) startCommon() (string, error) {
 	// Load the go-lxc struct
-	err := c.initLXC()
+	err := c.initLXC(true)
 	if err != nil {
 		return "", err
 	}
@@ -2009,7 +2019,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	// Load the go-lxc struct
-	err = c.initLXC()
+	err = c.initLXC(false)
 	if err != nil {
 		op.Done(err)
 		logger.Error("Failed stopping container", ctxMap)
@@ -2068,7 +2078,7 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	logger.Info("Shutting down container", ctxMap)
 
 	// Load the go-lxc struct
-	err = c.initLXC()
+	err = c.initLXC(false)
 	if err != nil {
 		op.Done(err)
 		logger.Error("Failed shutting down container", ctxMap)
@@ -2203,7 +2213,7 @@ func (c *containerLXC) Freeze() error {
 	logger.Info("Freezing container", ctxMap)
 
 	// Load the go-lxc struct
-	err := c.initLXC()
+	err := c.initLXC(false)
 	if err != nil {
 		ctxMap["err"] = err
 		logger.Error("Failed freezing container", ctxMap)
@@ -2240,7 +2250,7 @@ func (c *containerLXC) Unfreeze() error {
 	logger.Info("Unfreezing container", ctxMap)
 
 	// Load the go-lxc struct
-	err := c.initLXC()
+	err := c.initLXC(false)
 	if err != nil {
 		logger.Error("Failed unfreezing container", ctxMap)
 		return err
@@ -2265,6 +2275,12 @@ func (c *containerLXC) getLxcState() (lxc.State, error) {
 		return lxc.StateMap["STOPPED"], nil
 	}
 
+	// Load the go-lxc struct
+	err := c.initLXC(false)
+	if err != nil {
+		return lxc.StateMap["STOPPED"], err
+	}
+
 	monitor := make(chan lxc.State, 1)
 
 	go func(c *lxc.Container) {
@@ -2280,12 +2296,6 @@ func (c *containerLXC) getLxcState() (lxc.State, error) {
 }
 
 func (c *containerLXC) Render() (interface{}, error) {
-	// Load the go-lxc struct
-	err := c.initLXC()
-	if err != nil {
-		return nil, err
-	}
-
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(c.architecture)
 
@@ -2331,12 +2341,6 @@ func (c *containerLXC) Render() (interface{}, error) {
 }
 
 func (c *containerLXC) RenderState() (*api.ContainerState, error) {
-	// Load the go-lxc struct
-	err := c.initLXC()
-	if err != nil {
-		return nil, err
-	}
-
 	cState, err := c.getLxcState()
 	if err != nil {
 		return nil, err
@@ -2609,6 +2613,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Invalidate the go-lxc cache
 	c.c = nil
+	c.cConfig = false
 
 	logger.Info("Renamed container", ctxMap)
 
@@ -2617,7 +2622,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 func (c *containerLXC) CGroupGet(key string) (string, error) {
 	// Load the go-lxc struct
-	err := c.initLXC()
+	err := c.initLXC(false)
 	if err != nil {
 		return "", err
 	}
@@ -2633,7 +2638,7 @@ func (c *containerLXC) CGroupGet(key string) (string, error) {
 
 func (c *containerLXC) CGroupSet(key string, value string) error {
 	// Load the go-lxc struct
-	err := c.initLXC()
+	err := c.initLXC(false)
 	if err != nil {
 		return err
 	}
@@ -2788,7 +2793,8 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			c.localDevices = oldLocalDevices
 			c.profiles = oldProfiles
 			c.c = nil
-			c.initLXC()
+			c.cConfig = false
+			c.initLXC(true)
 			deviceTaskSchedulerTrigger("container", c.name, "changed")
 		}
 	}()
@@ -2846,7 +2852,8 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 	// Run through initLXC to catch anything we missed
 	c.c = nil
-	err = c.initLXC()
+	c.cConfig = false
+	err = c.initLXC(true)
 	if err != nil {
 		return err
 	}
@@ -3742,7 +3749,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		}
 
 	} else {
-		err := c.initLXC()
+		err := c.initLXC(true)
 		if err != nil {
 			return err
 		}
@@ -5231,7 +5238,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 
 func (c *containerLXC) insertNetworkDevice(name string, m types.Device) error {
 	// Load the go-lxc struct
-	err := c.initLXC()
+	err := c.initLXC(false)
 	if err != nil {
 		return nil
 	}
@@ -5267,14 +5274,8 @@ func (c *containerLXC) insertNetworkDevice(name string, m types.Device) error {
 }
 
 func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
-	// Load the go-lxc struct
-	err := c.initLXC()
-	if err != nil {
-		return nil
-	}
-
 	// Fill in some fields from volatile
-	m, err = c.fillNetworkDevice(name, m)
+	m, err := c.fillNetworkDevice(name, m)
 	if err != nil {
 		return nil
 	}
@@ -5752,19 +5753,13 @@ func (c *containerLXC) setNetworkLimits(name string, m types.Device) error {
 		return fmt.Errorf("Network limits are only supported on bridged and p2p interfaces")
 	}
 
-	// Load the go-lxc struct
-	err := c.initLXC()
-	if err != nil {
-		return err
-	}
-
 	// Check that the container is running
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't set network limits on stopped container")
 	}
 
 	// Fill in some fields from volatile
-	m, err = c.fillNetworkDevice(name, m)
+	m, err := c.fillNetworkDevice(name, m)
 	if err != nil {
 		return nil
 	}
@@ -5906,7 +5901,7 @@ func (c *containerLXC) IdmapSet() (*idmap.IdmapSet, error) {
 
 func (c *containerLXC) InitPID() int {
 	// Load the go-lxc struct
-	err := c.initLXC()
+	err := c.initLXC(false)
 	if err != nil {
 		return -1
 	}
@@ -5977,12 +5972,6 @@ func (c *containerLXC) Profiles() []string {
 }
 
 func (c *containerLXC) State() string {
-	// Load the go-lxc struct
-	err := c.initLXC()
-	if err != nil {
-		return "Broken"
-	}
-
 	state, err := c.getLxcState()
 	if err != nil {
 		return api.Error.String()
