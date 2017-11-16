@@ -44,6 +44,10 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 			nodes, err = tx.Nodes()
 			return err
 		})
+		if err != nil {
+			logger.Warnf("Failed to get current cluster nodes: %v", err)
+			return
+		}
 		wg := sync.WaitGroup{}
 		wg.Add(len(nodes))
 		heartbeats := make([]time.Time, len(nodes))
