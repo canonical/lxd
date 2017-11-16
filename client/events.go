@@ -98,3 +98,13 @@ func (e *EventListener) Wait() error {
 	<-e.chActive
 	return e.err
 }
+
+// Active returns true if this listener is still connected, false otherwise.
+func (e *EventListener) Active() bool {
+	select {
+	case <-e.chActive:
+		return false // If the chActive channel is closed we got disconnected
+	default:
+		return true
+	}
+}

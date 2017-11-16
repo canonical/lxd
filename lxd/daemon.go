@@ -530,6 +530,9 @@ func (d *Daemon) Ready() error {
 	/* Heartbeats */
 	d.tasks.Add(cluster.Heartbeat(d.gateway, d.cluster))
 
+	/* Events */
+	d.tasks.Add(cluster.Events(d.endpoints, d.cluster, eventForward))
+
 	// FIXME: There's no hard reason for which we should not run these
 	//        tasks in mock mode. However it requires that we tweak them so
 	//        they exit gracefully without blocking (something we should do

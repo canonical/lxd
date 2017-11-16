@@ -53,6 +53,11 @@ type eventListener struct {
 	id           string
 	lock         sync.Mutex
 	done         bool
+
+	// If true, this listener won't get events forwarded from other
+	// nodes. It only used by listeners created internally by LXD nodes
+	// connecting to other LXD nodes to get their local events only.
+	noForward bool
 }
 
 type eventsServe struct {
@@ -85,6 +90,11 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 		messageTypes: strings.Split(typeStr, ","),
 	}
 
+	// If this request is an internal one initiated by another node wanting
+	// to watch the events on this node, set the listener to broadcast only
+	// local events.
+	listener.noForward = isClusterNotification(r)
+
 	eventsLock.Lock()
 	eventListeners[listener.id] = &listener
 	eventsLock.Unlock()
@@ -97,7 +107,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 }
 
 func eventsGet(d *Daemon, r *http.Request) Response {
-	return &eventsServe{r}
+	return &eventsServe{req: r}
 }
 
 var eventsCmd = Command{name: "events", get: eventsGet}
@@ -108,15 +118,24 @@ func eventSend(eventType string, eventMessage interface{}) error {
 	event["timestamp"] = time.Now()
 	event["metadata"] = eventMessage
 
+	return eventBroadcast(event)
+}
+
+func eventBroadcast(event shared.Jmap) error {
 	body, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
 
+	_, isForward := event["node"]
 	eventsLock.Lock()
 	listeners := eventListeners
 	for _, listener := range listeners {
-		if !shared.StringInSlice(eventType, listener.messageTypes) {
+		if isForward && listener.noForward {
+			continue
+		}
+
+		if !shared.StringInSlice(event["type"].(string), listener.messageTypes) {
 			continue
 		}
 
@@ -153,4 +172,15 @@ func eventSend(eventType string, eventMessage interface{}) error {
 	eventsLock.Unlock()
 
 	return nil
+}
+
+// Forward to the local events dispatcher an event received from another node .
+func eventForward(id int64, data interface{}) {
+	event := data.(map[string]interface{})
+	event["node"] = id
+
+	err := eventBroadcast(event)
+	if err != nil {
+		logger.Warnf("Failed to forward event from node %d: %v", id, err)
+	}
 }
