@@ -39,7 +39,10 @@ func (e *Endpoints) NetworkAddress() string {
 // NetworkUpdateAddress updates the address for the network endpoint, shutting
 // it down and restarting it.
 func (e *Endpoints) NetworkUpdateAddress(address string) error {
-	address = util.CanonicalNetworkAddress(address)
+	if address != "" {
+		address = util.CanonicalNetworkAddress(address)
+	}
+
 	if address == e.NetworkAddress() {
 		return nil
 	}
@@ -68,8 +71,10 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 
 	e.closeListener(network)
 
-	e.listeners[network] = networkTLSListener(listener, e.cert)
-	e.serveHTTP(network)
+	if address != "" {
+		e.listeners[network] = networkTLSListener(listener, e.cert)
+		e.serveHTTP(network)
+	}
 
 	return nil
 }
