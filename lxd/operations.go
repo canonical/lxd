@@ -12,6 +12,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -459,14 +460,43 @@ func operationGet(id string) (*operation, error) {
 func operationAPIGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 
-	op, err := operationGet(id)
-	if err != nil {
-		return NotFound
-	}
+	var body *api.Operation
 
-	_, body, err := op.Render()
-	if err != nil {
-		return SmartError(err)
+	// First check the local cache, then the cluster database table.
+	op, err := operationGet(id)
+	if err == nil {
+		_, body, err = op.Render()
+		if err != nil {
+			return SmartError(err)
+		}
+	} else {
+		var address string
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			operation, err := tx.OperationByUUID(id)
+			if err != nil {
+				return err
+			}
+			address = operation.NodeAddress
+			return nil
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+		cert := d.endpoints.NetworkCert()
+		args := &lxd.ConnectionArgs{
+			TLSServerCert: string(cert.PublicKey()),
+			TLSClientCert: string(cert.PublicKey()),
+			TLSClientKey:  string(cert.PrivateKey()),
+		}
+		url := fmt.Sprintf("https://%s", address)
+		client, err := lxd.ConnectLXD(url, args)
+		if err != nil {
+			return SmartError(err)
+		}
+		body, _, err = client.GetOperation(id)
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	return SyncResponse(true, body)
