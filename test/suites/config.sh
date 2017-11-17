@@ -25,6 +25,11 @@ dounixdevtest() {
 }
 
 testunixdevs() {
+  if [ ! -e /dev/ttyS0 ] || [ ! -e /dev/ttyS1 ]; then
+     echo "==> SKIP: /dev/ttyS0 or /dev/ttyS1 are missing"
+     return
+  fi
+
   echo "Testing passing char device /dev/ttyS0"
   dounixdevtest path=/dev/ttyS0
 
