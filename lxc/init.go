@@ -68,6 +68,7 @@ type initCmd struct {
 	network      string
 	storagePool  string
 	instanceType string
+	target       string
 }
 
 func (c *initCmd) showByDefault() bool {
@@ -76,7 +77,7 @@ func (c *initCmd) showByDefault() bool {
 
 func (c *initCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>] [--type|-t <instance type>]
+		`Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>] [--type|-t <instance type>] [--target <node>]
 
 Create containers from images.
 
@@ -146,6 +147,7 @@ func (c *initCmd) flags() {
 	gnuflag.StringVar(&c.storagePool, "storage", "", i18n.G("Storage pool name"))
 	gnuflag.StringVar(&c.storagePool, "s", "", i18n.G("Storage pool name"))
 	gnuflag.StringVar(&c.instanceType, "t", "", i18n.G("Instance type"))
+	gnuflag.StringVar(&c.target, "target", "", i18n.G("Node name"))
 }
 
 func (c *initCmd) run(conf *config.Config, args []string) error {
@@ -181,6 +183,7 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 	if err != nil {
 		return nil, "", err
 	}
+	d = d.ClusterTargetNode(c.target)
 
 	/*
 	 * initRequestedEmptyProfiles means user requested empty
