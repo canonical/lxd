@@ -71,7 +71,11 @@ func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (*Operation,
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/containers", container, "")
+	path := "/containers"
+	if r.targetNode != "" {
+		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	}
+	op, _, err := r.queryOperation("POST", path, container, "")
 	if err != nil {
 		return nil, err
 	}

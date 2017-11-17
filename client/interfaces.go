@@ -48,6 +48,7 @@ type ContainerServer interface {
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) (exists bool)
 	RequireAuthenticated(authenticated bool)
+	ClusterTargetNode(name string) ContainerServer
 
 	// Certificate functions
 	GetCertificateFingerprints() (fingerprints []string, err error)

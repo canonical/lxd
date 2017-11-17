@@ -77,3 +77,21 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 
 	return &resources, nil
 }
+
+// ClusterTargetNode returns a client that will target the given node for
+// node-specific operations such as creating containers, modifying storage
+// configuration etc.
+func (r *ProtocolLXD) ClusterTargetNode(name string) ContainerServer {
+	return &ProtocolLXD{
+		server:               r.server,
+		http:                 r.http,
+		httpCertificate:      r.httpCertificate,
+		httpHost:             r.httpHost,
+		httpProtocol:         r.httpProtocol,
+		httpUserAgent:        r.httpUserAgent,
+		bakeryClient:         r.bakeryClient,
+		bakeryInteractor:     r.bakeryInteractor,
+		requireAuthenticated: r.requireAuthenticated,
+		targetNode:           name,
+	}
+}

@@ -35,6 +35,9 @@ type ProtocolLXD struct {
 	bakeryClient         *httpbakery.Client
 	bakeryInteractor     httpbakery.Interactor
 	requireAuthenticated bool
+
+	// Name of the node that node-specific operations will target.
+	targetNode string
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server
