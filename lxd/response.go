@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 type Response interface {
@@ -261,6 +262,42 @@ func (r *operationResponse) String() string {
 
 func OperationResponse(op *operation) Response {
 	return &operationResponse{op}
+}
+
+// Forwarded operation response.
+//
+// Returned when the operation has been created on another node
+type forwardedOperationResponse struct {
+	op *api.Operation
+}
+
+func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
+	url := fmt.Sprintf("/%s/operations/%s", version.APIVersion, r.op.ID)
+
+	body := api.ResponseRaw{
+		Response: api.Response{
+			Type:       api.AsyncResponse,
+			Status:     api.OperationCreated.String(),
+			StatusCode: int(api.OperationCreated),
+			Operation:  url,
+		},
+		Metadata: r.op,
+	}
+
+	w.Header().Set("Location", url)
+	w.WriteHeader(202)
+
+	return util.WriteJSON(w, body, debug)
+}
+
+func (r *forwardedOperationResponse) String() string {
+	return r.op.ID
+}
+
+// ForwardedOperationResponse creates a response that forwards the metadata of
+// an operation created on another node.
+func ForwardedOperationResponse(op *api.Operation) Response {
+	return &forwardedOperationResponse{op}
 }
 
 // Error response

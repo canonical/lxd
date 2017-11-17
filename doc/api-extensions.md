@@ -409,3 +409,7 @@ This includes the following new endpoints:
 
 * `GET /1.0/cluster/nodes/<name>` (see [RESTful API](rest-api.md) for details)
 * `DELETE /1.0/cluster/nodes/<name>` (see [RESTful API](rest-api.md) for details)
+
+The following existing endpoints have been modified:
+
+ * `POST /1.0/containers` accepts a new targetNode query parameter

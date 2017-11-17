@@ -11,6 +11,7 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
 
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
@@ -521,6 +522,43 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	req := api.ContainersPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
+	}
+
+	targetNode := r.FormValue("targetNode")
+	if targetNode != "" {
+		address := ""
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			node, err := tx.NodeByName(targetNode)
+			if err != nil {
+				return err
+			}
+			if node.Address != d.endpoints.NetworkAddress() {
+				address = node.Address
+			}
+			return nil
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+		if address != "" {
+			cert := d.endpoints.NetworkCert()
+			args := &lxd.ConnectionArgs{
+				TLSServerCert: string(cert.PublicKey()),
+				TLSClientCert: string(cert.PublicKey()),
+				TLSClientKey:  string(cert.PrivateKey()),
+			}
+			url := fmt.Sprintf("https://%s", address)
+			client, err := lxd.ConnectLXD(url, args)
+			if err != nil {
+				return SmartError(err)
+			}
+			logger.Debugf("Forward container post request to %s", address)
+			op, err := client.CreateContainer(req)
+			if err != nil {
+				return SmartError(err)
+			}
+			return ForwardedOperationResponse(&op.Operation)
+		}
 	}
 
 	// If no storage pool is found, error out.
