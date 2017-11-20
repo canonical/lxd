@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"time"
 
 	lxd "github.com/lxc/lxd/client"
@@ -86,17 +85,7 @@ func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, i
 
 // Establish a client connection to get events from the given node.
 func eventsConnect(address string, cert *shared.CertInfo) (*lxd.EventListener, error) {
-	args := &lxd.ConnectionArgs{
-		TLSServerCert: string(cert.PublicKey()),
-		TLSClientCert: string(cert.PublicKey()),
-		TLSClientKey:  string(cert.PrivateKey()),
-		// Use a special user agent to let the events API handler know that
-		// it should only notify us of local events.
-		UserAgent: "lxd-cluster-notifier",
-	}
-
-	url := fmt.Sprintf("https://%s", address)
-	client, err := lxd.ConnectLXD(url, args)
+	client, err := Connect(address, cert, true)
 	if err != nil {
 		return nil, err
 	}

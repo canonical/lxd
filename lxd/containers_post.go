@@ -11,7 +11,6 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
 
-	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
@@ -543,13 +542,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		}
 		if address != "" {
 			cert := d.endpoints.NetworkCert()
-			args := &lxd.ConnectionArgs{
-				TLSServerCert: string(cert.PublicKey()),
-				TLSClientCert: string(cert.PublicKey()),
-				TLSClientKey:  string(cert.PrivateKey()),
-			}
-			url := fmt.Sprintf("https://%s", address)
-			client, err := lxd.ConnectLXD(url, args)
+			client, err := cluster.Connect(address, cert, false)
 			if err != nil {
 				return SmartError(err)
 			}
