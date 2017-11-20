@@ -458,6 +458,7 @@ func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) 
 		localConfig:  args.Config,
 		localDevices: args.Devices,
 		stateful:     args.Stateful,
+		node:         args.Node,
 	}
 
 	// Load the config.
@@ -499,6 +500,9 @@ type containerLXC struct {
 
 	// Storage
 	storage storage
+
+	// Clustering
+	node string
 }
 
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
@@ -2837,6 +2841,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 			Name:            c.name,
 			Status:          statusCode.String(),
 			StatusCode:      statusCode,
+			Node:            c.node,
 		}
 
 		ct.Description = c.Description()

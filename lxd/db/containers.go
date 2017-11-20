@@ -16,7 +16,8 @@ import (
 // container.
 type ContainerArgs struct {
 	// Don't set manually
-	Id int
+	Id   int
+	Node string
 
 	Description  string
 	Architecture int
@@ -73,7 +74,8 @@ func (c *Cluster) ContainerId(name string) (int, error) {
 }
 
 func (c *Cluster) ContainerGet(name string) (ContainerArgs, error) {
-	var used *time.Time // Hold the db-returned time
+	var used *time.Time    // Hold the db-returned time
+	var nodeAddress string // Hold the db-returned node address
 	description := sql.NullString{}
 
 	args := ContainerArgs{}
@@ -81,9 +83,14 @@ func (c *Cluster) ContainerGet(name string) (ContainerArgs, error) {
 
 	ephemInt := -1
 	statefulInt := -1
-	q := "SELECT id, description, architecture, type, ephemeral, stateful, creation_date, last_use_date FROM containers WHERE name=?"
+	q := `
+SELECT containers.id, containers.description, architecture, type, ephemeral, stateful,
+       creation_date, last_use_date, nodes.name, nodes.address
+  FROM containers JOIN nodes ON node_id = nodes.id
+  WHERE containers.name=?
+`
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&args.Id, &description, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate, &used}
+	arg2 := []interface{}{&args.Id, &description, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate, &used, &args.Node, &nodeAddress}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		return args, err
@@ -130,6 +137,11 @@ func (c *Cluster) ContainerGet(name string) (ContainerArgs, error) {
 
 	for k, v := range newdevs {
 		args.Devices[k] = v
+	}
+
+	if nodeAddress == "0.0.0.0" {
+		// This means we're not clustered, so omit the node name
+		args.Node = ""
 	}
 
 	return args, nil
