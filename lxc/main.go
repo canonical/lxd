@@ -272,7 +272,7 @@ var commands = map[string]command{
 // defaultAliases contains LXC's built-in command line aliases.  The built-in
 // aliases are checked only if no user-defined alias was found.
 var defaultAliases = map[string]string{
-	"shell": "exec @ARGS@ -- login -f root",
+	"shell": "exec @ARGS@ -- su -l",
 
 	"cp": "copy",
 	"ls": "list",
