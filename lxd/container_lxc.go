@@ -4489,6 +4489,11 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 		}
 	}
 
+	// Sockets cannot be stored in tarballs, just skip them (consistent with tar)
+	if fi.Mode()&os.ModeSocket == os.ModeSocket {
+		return nil
+	}
+
 	hdr, err := tar.FileInfoHeader(fi, link)
 	if err != nil {
 		return fmt.Errorf("failed to create tar info header: %s", err)
