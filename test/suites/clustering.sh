@@ -122,6 +122,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
   LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Node: node2"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
