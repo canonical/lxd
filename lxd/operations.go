@@ -12,7 +12,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -486,13 +486,7 @@ func operationAPIGet(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 		cert := d.endpoints.NetworkCert()
-		args := &lxd.ConnectionArgs{
-			TLSServerCert: string(cert.PublicKey()),
-			TLSClientCert: string(cert.PublicKey()),
-			TLSClientKey:  string(cert.PrivateKey()),
-		}
-		url := fmt.Sprintf("https://%s", address)
-		client, err := lxd.ConnectLXD(url, args)
+		client, err := cluster.Connect(address, cert, false)
 		if err != nil {
 			return SmartError(err)
 		}

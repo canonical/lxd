@@ -362,15 +362,10 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 	} else {
 		// Try to gracefully disable clustering on the target node.
 		cert := d.endpoints.NetworkCert()
-		args := &lxd.ConnectionArgs{
-			TLSServerCert: string(cert.PublicKey()),
-			TLSClientCert: string(cert.PublicKey()),
-			TLSClientKey:  string(cert.PrivateKey()),
-		}
 		run = func(op *operation) error {
 			// First request for this node to be added to the list of
 			// cluster nodes.
-			client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", address), args)
+			client, err := cluster.Connect(address, cert, false)
 			if err != nil {
 				return err
 			}
