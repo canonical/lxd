@@ -477,14 +477,26 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	dir = filepath.Join(tmp, filepath.Base(dir))
 	dir = strings.TrimRight(dir, "/")
 
+	hardLinks := []uint64{}
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
 		if err != nil {
 			return err
 		}
 
-		intUid, intGid, _, _, _, _, err := shared.GetFileStat(path)
+		intUid, intGid, _, _, inode, nlink, err := shared.GetFileStat(path)
 		if err != nil {
 			return err
+		}
+
+		if nlink >= 2 {
+			for _, linkInode := range hardLinks {
+				// File was already shifted through hardlink
+				if linkInode == inode {
+					return nil
+				}
+			}
+
+			hardLinks = append(hardLinks, inode)
 		}
 
 		uid := int64(intUid)
@@ -505,8 +517,8 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 			if err != nil {
 				return err
 			}
-			err = ShiftACL(
-				path, func(uid int64, gid int64) (int64, int64) { return set.doShiftIntoNs(uid, gid, how) })
+
+			err = ShiftACL(path, func(uid int64, gid int64) (int64, int64) { return set.doShiftIntoNs(uid, gid, how) })
 			if err != nil {
 				return err
 			}
