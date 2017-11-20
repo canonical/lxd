@@ -68,19 +68,6 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 		return nil, err
 	}
 
-	// Client parameters to connect to a peer cluster node.
-	args := &lxd.ConnectionArgs{
-		TLSServerCert: string(cert.PublicKey()),
-		TLSClientCert: string(cert.PublicKey()),
-		TLSClientKey:  string(cert.PrivateKey()),
-		// Use a special user agent to let the API handlers know they
-		// should not do any database work.
-		UserAgent: "lxd-cluster-notifier",
-	}
-	if cert.CA() != nil {
-		args.TLSCA = string(cert.CA().Raw)
-	}
-
 	notifier := func(hook func(lxd.ContainerServer) error) error {
 		errs := make([]error, len(peers))
 		wg := sync.WaitGroup{}
@@ -89,7 +76,7 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 			logger.Debugf("Notify node %s of state changes", address)
 			go func(i int, address string) {
 				defer wg.Done()
-				client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", address), args)
+				client, err := Connect(address, cert, true)
 				if err != nil {
 					errs[i] = errors.Wrapf(err, "failed to connect to peer %s", address)
 					return
