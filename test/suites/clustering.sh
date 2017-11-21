@@ -124,6 +124,10 @@ test_clustering_containers() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q foo
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Node: node2"
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc start foo
+  LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: Running"
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
+
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
