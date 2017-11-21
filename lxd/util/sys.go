@@ -152,6 +152,11 @@ func RuntimeLiblxcVersionAtLeast(major int, minor int, micro int) bool {
 }
 
 func GetExecPath() string {
+	execPath := os.Getenv("LXD_EXEC_PATH")
+	if execPath != "" {
+		return execPath
+	}
+
 	execPath, err := os.Readlink("/proc/self/exe")
 	if err != nil {
 		execPath = "bad-exec-path"
