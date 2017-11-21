@@ -20,5 +20,6 @@ Name                            | Description
 # Server environment variable
 Name                            | Description
 :---                            | :----
-`LXD_SECURITY_APPARMOR`         | If set to `false`, forces AppArmor off
+`LXD_EXEC_PATH`                 | Full path to the LXD binary (used when forking subcommands)
 `LXD_LXC_TEMPLATE_CONFIG`       | Path to the LXC template configuration directory
+`LXD_SECURITY_APPARMOR`         | If set to `false`, forces AppArmor off
