@@ -35,7 +35,10 @@ setup_clustering_netns() {
 
   echo "==> Setup clustering netns ${ns}"
 
-  ip netns add "${ns}"
+  mkdir -p /run/netns
+  touch "/run/netns/${ns}"
+
+  unshare -n sh -c "mount --bind /proc/self/ns/net /run/netns/${ns}"
 
   veth1="v${ns}1"
   veth2="v${ns}2"
@@ -43,31 +46,36 @@ setup_clustering_netns() {
   ip link add "${veth1}" type veth peer name "${veth2}"
   ip link set "${veth2}" netns "${ns}"
 
-  bridge="br$$"
-  brctl addif "${bridge}" "${veth1}"
+  nsbridge="br$$"
+  brctl addif "${nsbridge}" "${veth1}"
 
   ip link set "${veth1}" up
 
-  ip netns exec "${ns}" ip link set dev lo up
-  ip netns exec "${ns}" ip link set dev "${veth2}" name eth0
-  ip netns exec "${ns}" ip link set eth0 up
-  ip netns exec "${ns}" ip addr add "10.1.1.10${id}/16" dev eth0
-  ip netns exec "${ns}" ip route add default via 10.1.1.1
+  (
+    cat <<EOF
+    ip link set dev lo up
+    ip link set dev "${veth2}" name eth0
+    ip link set eth0 up
+    ip addr add "10.1.1.10${id}/16" dev eth0
+    ip route add default via 10.1.1.1
+EOF
+  ) | nsenter --net="/run/netns/${ns}" sh
 }
 
 teardown_clustering_netns() {
   prefix="lxd$$"
-  bridge="br$$"
+  nsbridge="br$$"
   for ns in $(ip netns | grep "${prefix}" | cut -f 1 -d " ") ; do
       echo "==> Teardown clustering netns ${ns}"
       veth1="v${ns}1"
       veth2="v${ns}2"
-      ip netns exec "${ns}" ip link set eth0 down
-      ip netns exec "${ns}" ip link set lo down
+      nsenter --net="/run/netns/${ns}" ip link set eth0 down
+      nsenter --net="/run/netns/${ns}" ip link set lo down
       ip link set "${veth1}" down
-      brctl delif "${bridge}" "${veth1}"
+      brctl delif "${nsbridge}" "${veth1}"
       ip link delete "${veth1}" type veth
-      ip netns delete "${ns}"
+      umount "/run/netns/${ns}"
+      rm "/run/netns/${ns}"
   done
 }
 

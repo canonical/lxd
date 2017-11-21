@@ -43,7 +43,7 @@ spawn_lxd() {
     if [ "${LXD_NETNS}" = "" ]; then
 	LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
-	LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" ip netns exec "${LXD_NETNS}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+	LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" nsenter --net="/run/netns/${LXD_NETNS}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"

@@ -132,4 +132,3 @@ test_clustering_containers() {
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 }
-
