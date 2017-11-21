@@ -37,6 +37,25 @@ func TestNodeAdd(t *testing.T) {
 	assert.Equal(t, "buzz", node.Name)
 }
 
+// Rename a node
+func TestNodeRename(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+	err = tx.NodeRename("buzz", "rusp")
+	require.NoError(t, err)
+	node, err := tx.NodeByName("rusp")
+	require.NoError(t, err)
+	assert.Equal(t, "rusp", node.Name)
+
+	_, err = tx.NodeAdd("buzz", "5.6.7.8:666")
+	require.NoError(t, err)
+	err = tx.NodeRename("rusp", "buzz")
+	assert.Equal(t, db.DbErrAlreadyDefined, err)
+}
+
 // Remove a new raft node.
 func TestNodeRemove(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)

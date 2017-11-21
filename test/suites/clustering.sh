@@ -82,8 +82,11 @@ test_clustering() {
   # notified.
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
+  # Rename a node using the pre-existing name.
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster rename node4 node5
+
   # Remove a node gracefully.
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster delete node4
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster delete node5
 
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
