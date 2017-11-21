@@ -107,3 +107,10 @@ func (r *ProtocolLXD) GetNode(name string) (*api.Node, error) {
 
 	return &node, nil
 }
+
+// RenameNode changes the name of an existing node
+func (r *ProtocolLXD) RenameNode(name string, node api.NodePost) error {
+	url := fmt.Sprintf("/cluster/nodes/%s", name)
+	_, _, err := r.query("POST", url, node, "")
+	return err
+}

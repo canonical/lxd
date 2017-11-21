@@ -171,6 +171,7 @@ type ContainerServer interface {
 	LeaveCluster(name string, force bool) (err error)
 	GetNodes() (nodes []api.Node, err error)
 	GetNode(name string) (node *api.Node, err error)
+	RenameNode(name string, node api.NodePost) (err error)
 
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)

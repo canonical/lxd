@@ -69,6 +69,32 @@ func (c *ClusterTx) Nodes() ([]NodeInfo, error) {
 	return c.nodes("")
 }
 
+// NodeRename changes the name of an existing node.
+//
+// Return an error if a node with the same name already exists.
+func (c *ClusterTx) NodeRename(old, new string) error {
+	count, err := query.Count(c.tx, "nodes", "name=?", new)
+	if err != nil {
+		return errors.Wrap(err, "failed to check existing nodes")
+	}
+	if count != 0 {
+		return DbErrAlreadyDefined
+	}
+	stmt := `UPDATE nodes SET name=? WHERE name=?`
+	result, err := c.tx.Exec(stmt, new, old)
+	if err != nil {
+		return errors.Wrap(err, "failed to update node name")
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "failed to get rows count")
+	}
+	if n != 1 {
+		return fmt.Errorf("expected to update one row, not %d", n)
+	}
+	return nil
+}
+
 // Nodes returns all LXD nodes part of the cluster.
 func (c *ClusterTx) nodes(where string, args ...interface{}) ([]NodeInfo, error) {
 	nodes := []NodeInfo{}

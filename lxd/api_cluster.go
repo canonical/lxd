@@ -299,12 +299,14 @@ func clusterNodesGet(d *Daemon, r *http.Request) Response {
 var clusterNodeCmd = Command{
 	name:   "cluster/nodes/{name}",
 	get:    clusterNodeGet,
+	post:   clusterNodePost,
 	delete: clusterNodeDelete,
 }
 
 func clusterNodeGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	node := api.Node{Name: name}
+	node := api.Node{}
+	node.Name = name
 	address := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbNode, err := tx.NodeByName(name)
@@ -337,6 +339,27 @@ func clusterNodeGet(d *Daemon, r *http.Request) Response {
 	})
 
 	return SyncResponse(true, node)
+}
+
+func clusterNodePost(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+
+	req := api.NodePost{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.NodeRename(name, req.Name)
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
 }
 
 func clusterNodeDelete(d *Daemon, r *http.Request) Response {

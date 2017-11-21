@@ -7,6 +7,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -163,6 +164,28 @@ func TestCluster_Leave(t *testing.T) {
 
 	client := f.ClientUnix(daemons[1])
 	err := client.LeaveCluster("rusp-0", false)
+	require.NoError(t, err)
+}
+
+// A LXD node can be renamed.
+func TestCluster_NodeRename(t *testing.T) {
+	daemon, cleanup := newDaemon(t)
+	defer cleanup()
+
+	f := clusterFixture{t: t}
+	f.EnableNetworking(daemon, "")
+
+	client := f.ClientUnix(daemon)
+
+	op, err := client.BootstrapCluster("buzz")
+	require.NoError(t, err)
+	require.NoError(t, op.Wait())
+
+	node := api.NodePost{Name: "rusp"}
+	err = client.RenameNode("buzz", node)
+	require.NoError(t, err)
+
+	_, err = client.GetNode("rusp")
 	require.NoError(t, err)
 }
 

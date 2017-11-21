@@ -2618,6 +2618,20 @@ of the cluster certificate:
         }
     }
 
+## `/1.0/cluster/nodes/<name>`
+### POST
+ * Description: rename a cluster node
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "name": "node1",
+    }
+
 ### DELETE (optional `?force=1`)
  * Description: remove a node from the cluster
  * Introduced: with API extension `clustering`

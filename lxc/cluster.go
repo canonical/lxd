@@ -8,6 +8,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxc/config"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/olekukonko/tablewriter"
@@ -29,6 +30,9 @@ lxc cluster list [<remote>:]
 lxc cluster show [<remote>:]<node>
     Show details of a node.
 
+lxc cluster rename [<remote>:]<node> <new-name>
+    Rename a cluster node.
+
 lxc cluster delete [<remote>:]<node> [--force]
     Delete a node from the cluster.`)
 }
@@ -46,15 +50,14 @@ func (c *clusterCmd) run(conf *config.Config, args []string) error {
 		return errUsage
 	}
 
-	if args[0] == "list" {
+	switch args[0] {
+	case "list":
 		return c.doClusterList(conf, args)
-	}
-
-	if args[0] == "show" {
+	case "show":
 		return c.doClusterNodeShow(conf, args)
-	}
-
-	if args[0] == "delete" {
+	case "rename":
+		return c.doClusterNodeRename(conf, args)
+	case "delete":
 		return c.doClusterNodeDelete(conf, args)
 	}
 
@@ -66,7 +69,6 @@ func (c *clusterCmd) doClusterNodeShow(conf *config.Config, args []string) error
 		return errArgs
 	}
 
-	// [[lxc cluster]] remove production:bionic-1
 	remote, name, err := conf.ParseRemote(args[1])
 	if err != nil {
 		return err
@@ -92,12 +94,36 @@ func (c *clusterCmd) doClusterNodeShow(conf *config.Config, args []string) error
 	return nil
 }
 
+func (c *clusterCmd) doClusterNodeRename(conf *config.Config, args []string) error {
+	if len(args) < 3 {
+		return errArgs
+	}
+	newName := args[2]
+
+	remote, name, err := conf.ParseRemote(args[1])
+	if err != nil {
+		return err
+	}
+
+	client, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	err = client.RenameNode(name, api.NodePost{Name: newName})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Node %s renamed to %s")+"\n", name, newName)
+	return nil
+}
+
 func (c *clusterCmd) doClusterNodeDelete(conf *config.Config, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
 
-	// [[lxc cluster]] remove production:bionic-1
 	remote, name, err := conf.ParseRemote(args[1])
 	if err != nil {
 		return err
