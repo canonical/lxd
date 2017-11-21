@@ -41,6 +41,49 @@ const (
 	CTypeSnapshot ContainerType = 1
 )
 
+// ContainerNodeAddress returns the address of the node hosting the container
+// with the given name.
+//
+// It returns the empty string if the container is hosted on this node.
+func (c *ClusterTx) ContainerNodeAddress(name string) (string, error) {
+	stmt := `
+SELECT nodes.id, nodes.address
+  FROM nodes JOIN containers ON containers.node_id = nodes.id
+    WHERE containers.name = ?
+`
+	var address string
+	var id int64
+	rows, err := c.tx.Query(stmt, name)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return "", NoSuchObjectError
+	}
+
+	err = rows.Scan(&id, &address)
+	if err != nil {
+		return "", err
+	}
+
+	if rows.Next() {
+		return "", fmt.Errorf("more than one node associated with container")
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return "", err
+	}
+
+	if id == c.nodeID {
+		return "", nil
+	}
+
+	return address, nil
+}
+
 func (c *Cluster) ContainerRemove(name string) error {
 	id, err := c.ContainerId(name)
 	if err != nil {

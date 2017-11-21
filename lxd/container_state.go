@@ -31,6 +31,15 @@ func containerState(d *Daemon, r *http.Request) Response {
 func containerStatePut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
+	// Handle requests targeted to a container on a different node
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	if err != nil {
+		return SmartError(err)
+	}
+	if response != nil {
+		return response
+	}
+
 	raw := api.ContainerStatePut{}
 
 	// We default to -1 (i.e. no timeout) here instead of 0 (instant
