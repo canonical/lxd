@@ -194,15 +194,6 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 				continue
 			}
 
-			if isCard {
-				// If it is a card it's minor number will be its id.
-				tmpGpu.id = strconv.Itoa(minorInt)
-				tmp := cardIds{
-					id:  tmpGpu.id,
-					pci: tmpGpu.pci,
-				}
-				cards = append(cards, tmp)
-			}
 			// Find matching /dev/nvidia* entry for /dev/dri/card*
 			if tmpGpu.isNvidiaGpu() && isCard {
 				if !isNvidia {
@@ -212,6 +203,10 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 				nvidiaPath := fmt.Sprintf("/proc/driver/nvidia/gpus/%s/information", tmpGpu.pci)
 				buf, err := ioutil.ReadFile(nvidiaPath)
 				if err != nil {
+					if os.IsNotExist(err) {
+						continue
+					}
+
 					return nil, nil, err
 				}
 				strBuf := strings.TrimSpace(string(buf))
@@ -240,12 +235,26 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 				stat := syscall.Stat_t{}
 				err = syscall.Stat(nvidiaPath, &stat)
 				if err != nil {
+					if os.IsNotExist(err) {
+						continue
+					}
+
 					return nil, nil, err
 				}
 				tmpGpu.nvidia.path = nvidiaPath
 				tmpGpu.nvidia.major = shared.Major(stat.Rdev)
 				tmpGpu.nvidia.minor = shared.Minor(stat.Rdev)
 				tmpGpu.nvidia.id = strconv.Itoa(tmpGpu.nvidia.minor)
+			}
+
+			if isCard {
+				// If it is a card it's minor number will be its id.
+				tmpGpu.id = strconv.Itoa(minorInt)
+				tmp := cardIds{
+					id:  tmpGpu.id,
+					pci: tmpGpu.pci,
+				}
+				cards = append(cards, tmp)
 			}
 			gpus = append(gpus, tmpGpu)
 		}
