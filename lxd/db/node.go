@@ -24,7 +24,7 @@ type NodeInfo struct {
 // IsDown returns true if the last heartbeat time of the node is older than 20
 // seconds.
 func (n NodeInfo) IsDown() bool {
-	return n.Heartbeat.Before(time.Now().Add(-20 * time.Second))
+	return nodeIsDown(n.Heartbeat)
 }
 
 // NodeByAddress returns the node with the given network address.
@@ -215,4 +215,8 @@ func (c *ClusterTx) NodeClear(id int64) error {
 	}
 
 	return nil
+}
+
+func nodeIsDown(heartbeat time.Time) bool {
+	return heartbeat.Before(time.Now().Add(-20 * time.Second))
 }
