@@ -121,21 +121,42 @@ test_clustering_containers() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
-  # Init a container on a node2, using a client connected to node1
+  # Spawn a third node
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  # Init a container on node2, using a client connected to node1
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
-  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q foo
+
+  # The container is visible through both nodes
+  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q STOPPED
+  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep foo | grep -q STOPPED
+
+  # A Node: field indicates on which node the container is running
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Node: node2"
 
+  # Start and stop the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
   LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: Running"
+  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
   LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
 
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
+  # Shutdown node 2, wait for it to be considered offline, and list
+  # containers.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  sleep 22
+  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
+
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2
+  rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 }

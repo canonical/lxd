@@ -84,6 +84,51 @@ SELECT nodes.id, nodes.address
 	return address, nil
 }
 
+// ContainersListByNodeAddress returns the names of all containers grouped by
+// cluster node address.
+//
+// The node address of containers running on the local node is set to the empty
+// string, to distinguish it from remote nodes.
+//
+// Containers whose node is down are addeded to the special address "0.0.0.0".
+func (c *ClusterTx) ContainersListByNodeAddress() (map[string][]string, error) {
+	stmt := `
+SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
+  FROM containers JOIN nodes ON nodes.id = containers.node_id
+  WHERE containers.type=?
+  ORDER BY containers.id
+`
+	rows, err := c.tx.Query(stmt, CTypeRegular)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := map[string][]string{}
+
+	for i := 0; rows.Next(); i++ {
+		var name, nodeAddress string
+		var nodeID int64
+		var nodeHeartbeat time.Time
+		err := rows.Scan(&name, &nodeID, &nodeAddress, &nodeHeartbeat)
+		if err != nil {
+			return nil, err
+		}
+		if nodeID == c.nodeID {
+			nodeAddress = ""
+		} else if nodeIsDown(nodeHeartbeat) {
+			nodeAddress = "0.0.0.0"
+		}
+		result[nodeAddress] = append(result[nodeAddress], name)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func (c *Cluster) ContainerRemove(name string) error {
 	id, err := c.ContainerId(name)
 	if err != nil {
