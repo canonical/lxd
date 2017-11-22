@@ -795,13 +795,13 @@ func deviceUSBEvent(s *state.State, usb usbDevice) {
 			}
 
 			if usb.action == "add" {
-				err := c.insertUnixDeviceNum(name, m, usb.major, usb.minor, usb.path)
+				err := c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", name), m, usb.major, usb.minor, usb.path)
 				if err != nil {
 					logger.Error("failed to create usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
 				}
 			} else if usb.action == "remove" {
-				err := c.removeUnixDeviceNum(name, m, usb.major, usb.minor, usb.path)
+				err := c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", name), m, usb.major, usb.minor, usb.path)
 				if err != nil {
 					logger.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
@@ -1422,7 +1422,7 @@ func deviceLoadInfiniband() (map[string]IBF, error) {
 		return nil, os.ErrNotExist
 	}
 
-	var UseableDevices map[string]IBF
+	UseableDevices := make(map[string]IBF)
 	for _, IBDevName := range IBDevNames {
 		IBDevResourceFile := fmt.Sprintf("/sys/class/infiniband/%s/device/resource", IBDevName)
 		IBDevResourceBuf, err := ioutil.ReadFile(IBDevResourceFile)
@@ -1511,6 +1511,9 @@ func deviceLoadInfiniband() (map[string]IBF, error) {
 				}
 			}
 			for _, v := range tmp {
+				if strings.Index(v, "-") != -1 {
+					return nil, fmt.Errorf("Infiniband character device \"%s\" contains \"-\". Cannot guarantee unique encoding", v)
+				}
 				NewIBF.PerPortDevices = append(NewIBF.PerPortDevices, v)
 			}
 
@@ -1536,6 +1539,9 @@ func deviceLoadInfiniband() (map[string]IBF, error) {
 				}
 			}
 			for _, v := range tmp {
+				if strings.Index(v, "-") != -1 {
+					return nil, fmt.Errorf("Infiniband character device \"%s\" contains \"-\". Cannot guarantee unique encoding", v)
+				}
 				devPath := fmt.Sprintf("/dev/infiniband/%s", v)
 				NewIBF.PerPortDevices = append(NewIBF.PerPortDevices, devPath)
 			}
@@ -1566,6 +1572,10 @@ func deviceLoadInfiniband() (map[string]IBF, error) {
 
 					if PortMad != NewIBF.Port {
 						continue
+					}
+
+					if strings.Index(ent.Name(), "-") != -1 {
+						return nil, fmt.Errorf("Infiniband character device \"%s\" contains \"-\". Cannot guarantee unique encoding", ent.Name())
 					}
 
 					NewIBF.PerFunDevices = append(NewIBF.PerFunDevices, ent.Name())
