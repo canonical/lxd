@@ -109,6 +109,19 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
+	clustered := false
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		addresses, err := tx.RaftNodeAddresses()
+		if err != nil {
+			return err
+		}
+		clustered = len(addresses) > 0
+		return nil
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+
 	certificate := string(d.endpoints.NetworkPublicKey())
 	var certificateFingerprint string
 	if certificate != "" {
@@ -140,7 +153,8 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		KernelVersion:          uname.Release,
 		Server:                 "lxd",
 		ServerPid:              os.Getpid(),
-		ServerVersion:          version.Version}
+		ServerVersion:          version.Version,
+		Clustered:              clustered}
 
 	drivers := readStoragePoolDriversCache()
 	for driver, version := range drivers {
