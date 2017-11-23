@@ -20,6 +20,8 @@ func TestIntegration_UnixSocket(t *testing.T) {
 	server, _, err := client.GetServer()
 	require.NoError(t, err)
 	assert.Equal(t, "trusted", server.Auth)
+	assert.False(t, server.Environment.Clustered)
+	assert.False(t, client.IsClustered())
 }
 
 // Create a new daemon for testing.
