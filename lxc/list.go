@@ -105,6 +105,8 @@ Pre-defined column shorthand chars:
 
 	t - Type (persistent or ephemeral)
 
+	N - Node hosting the container
+
 Custom columns are defined with "key[:name][:maxWidth]":
 
 	KEY: The (extended) config key to display
@@ -126,9 +128,11 @@ lxc list -c ns,user.comment:comment
 	List images with their running state and user comment. `)
 }
 
+const defaultColumns = "ns46tSN"
+
 func (c *listCmd) flags() {
-	gnuflag.StringVar(&c.columnsRaw, "c", "ns46tS", i18n.G("Columns"))
-	gnuflag.StringVar(&c.columnsRaw, "columns", "ns46tS", i18n.G("Columns"))
+	gnuflag.StringVar(&c.columnsRaw, "c", defaultColumns, i18n.G("Columns"))
+	gnuflag.StringVar(&c.columnsRaw, "columns", defaultColumns, i18n.G("Columns"))
 	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (csv|json|table|yaml)"))
 	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
 }
@@ -448,7 +452,7 @@ func (c *listCmd) run(conf *config.Config, args []string) error {
 		cts = append(cts, cinfo)
 	}
 
-	columns, err := c.parseColumns()
+	columns, err := c.parseColumns(d.IsClustered())
 	if err != nil {
 		return err
 	}
@@ -456,7 +460,7 @@ func (c *listCmd) run(conf *config.Config, args []string) error {
 	return c.listContainers(conf, remote, cts, filters, columns)
 }
 
-func (c *listCmd) parseColumns() ([]column, error) {
+func (c *listCmd) parseColumns(clustered bool) ([]column, error) {
 	columnsShorthandMap := map[rune]column{
 		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
 		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
@@ -475,12 +479,24 @@ func (c *listCmd) parseColumns() ([]column, error) {
 	}
 
 	if c.fast {
-		if c.columnsRaw != "ns46tS" {
+		if c.columnsRaw != defaultColumns {
 			// --columns was specified too
 			return nil, fmt.Errorf("Can't specify --fast with --columns")
 		}
 
 		c.columnsRaw = "nsacPt"
+	}
+
+	if clustered {
+		columnsShorthandMap['N'] = column{
+			i18n.G("NODE"), c.nodeColumnData, false, false}
+	} else {
+		if c.columnsRaw != defaultColumns {
+			if strings.ContainsAny(c.columnsRaw, "N") {
+				return nil, fmt.Errorf("Can't specify column N when not clustered")
+			}
+		}
+		c.columnsRaw = strings.Replace(c.columnsRaw, "N", "", -1)
 	}
 
 	columnList := strings.Split(c.columnsRaw, ",")
@@ -685,5 +701,8 @@ func (c *listCmd) NumberOfProcessesColumnData(cInfo api.Container, cState *api.C
 	}
 
 	return ""
+}
 
+func (c *listCmd) nodeColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+	return cInfo.Node
 }
