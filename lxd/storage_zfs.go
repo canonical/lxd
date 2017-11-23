@@ -106,7 +106,7 @@ func (s *storageZfs) ContainerStart(name string, path string) error {
 	fs := fmt.Sprintf("containers/%s", name)
 
 	// Just in case the container filesystem got unmounted
-	if !shared.IsMountPoint(shared.VarPath(fs)) {
+	if !shared.IsMountPoint(shared.VarPath(fs) + ".zfs") {
 		s.zfsMount(fs)
 	}
 
