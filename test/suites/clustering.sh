@@ -1,4 +1,4 @@
-test_clustering() {
+test_clustering_membership() {
   setup_clustering_bridge
   prefix="lxd$$"
   bridge="${prefix}"
@@ -134,6 +134,7 @@ test_clustering_containers() {
 
   # The container is visible through both nodes
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q STOPPED
+  LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q node2
   LXD_DIR="${LXD_TWO_DIR}" lxc list | grep foo | grep -q STOPPED
 
   # A Node: field indicates on which node the container is running
