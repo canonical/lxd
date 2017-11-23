@@ -230,6 +230,9 @@ _have lxc && {
               "device")
                 COMPREPLY=( $(compgen -W "list show remove get set unset add" -- $cur) )
                 ;;
+              "add"|"assign"|"remove")
+                _lxd_names
+                ;;
               *)
                 _lxd_profiles
                 ;;
@@ -237,7 +240,7 @@ _have lxc && {
             ;;
           4)
             case ${no_dashargs[2]} in
-              "device")
+              "device"|"add"|"assign"|"remove")
                 _lxd_profiles
                 ;;
               *)
