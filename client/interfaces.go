@@ -49,6 +49,7 @@ type ContainerServer interface {
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) (exists bool)
 	RequireAuthenticated(authenticated bool)
+	IsClustered() (clustered bool)
 	ClusterTargetNode(name string) ContainerServer
 
 	// Certificate functions
