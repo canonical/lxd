@@ -1339,22 +1339,16 @@ func (c *containerLXC) initLXC(config bool) error {
 	for _, k := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[k]
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-			// Prepare all the paths
-			srcPath, exist := m["source"]
-			if !exist {
-				srcPath = m["path"]
+			// destination paths
+			destPath := m["path"]
+			if destPath == "" {
+				destPath = m["source"]
 			}
-			relativeSrcPath := strings.TrimPrefix(srcPath, "/")
-			devName := fmt.Sprintf("unix.%s", strings.Replace(relativeSrcPath, "/", "-", -1))
-			devPath := filepath.Join(c.DevicesPath(), devName)
-			tgtPath, exist := m["path"]
-			if !exist {
-				tgtPath = m["source"]
-			}
-			relativeTgtPath := strings.TrimPrefix(tgtPath, "/")
+			relativeDestPath := strings.TrimPrefix(destPath, "/")
+			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("unix.%s.%s", k, strings.Replace(relativeDestPath, "/", "-", -1)))
 
-			// Set the bind-mount entry
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, relativeTgtPath))
+			// inform liblxc about the mount
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", sourceDevPath, relativeDestPath))
 			if err != nil {
 				return err
 			}
@@ -5603,9 +5597,10 @@ func (c *containerLXC) removeMount(mount string) error {
 
 // Check if the unix device already exists.
 func (c *containerLXC) deviceExists(name string, path string) bool {
-	tgtPath := strings.TrimPrefix(path, "/")
-	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
+	relativeDestPath := strings.TrimPrefix(path, "/")
+	devName := fmt.Sprintf("unix.%s.%s", name, strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
+
 	return shared.PathExists(devPath)
 }
 
@@ -5613,17 +5608,6 @@ func (c *containerLXC) deviceExists(name string, path string) bool {
 func (c *containerLXC) createUnixDevice(name string, m types.Device) ([]string, error) {
 	var err error
 	var major, minor int
-
-	// Our device paths
-	srcPath, exist := m["source"]
-	if !exist {
-		srcPath = m["path"]
-	}
-
-	relativeSrcPath := strings.TrimPrefix(srcPath, "/")
-
-	devNameLegacy := fmt.Sprintf("unix.%s", strings.Replace(relativeSrcPath, "/", "-", -1))
-	devPathLegacy := filepath.Join(c.DevicesPath(), devNameLegacy)
 
 	// Extra checks for nesting
 	if c.state.OS.RunningInUserNS {
@@ -5633,6 +5617,12 @@ func (c *containerLXC) createUnixDevice(name string, m types.Device) ([]string, 
 			}
 		}
 	}
+
+	srcPath := m["source"]
+	if srcPath == "" {
+		srcPath = m["path"]
+	}
+	srcPath = shared.HostPath(srcPath)
 
 	// Get the major/minor of the device we want to create
 	if m["major"] == "" && m["minor"] == "" {
@@ -5697,32 +5687,28 @@ func (c *containerLXC) createUnixDevice(name string, m types.Device) ([]string, 
 		}
 	}
 
-	// Clean any existing entry
-	if shared.PathExists(devPathLegacy) {
-		if c.state.OS.RunningInUserNS {
-			syscall.Unmount(devPathLegacy, syscall.MNT_DETACH)
-		}
-
-		err = os.Remove(devPathLegacy)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to remove existing entry: %s", err)
-		}
+	destPath := m["path"]
+	if destPath == "" {
+		destPath = m["source"]
 	}
+	relativeDestPath := strings.TrimPrefix(destPath, "/")
+	devName := fmt.Sprintf("unix.%s.%s", name, strings.Replace(relativeDestPath, "/", "-", -1))
+	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// Create the new entry
 	if !c.state.OS.RunningInUserNS {
 		encoded_device_number := (minor & 0xff) | (major << 8) | ((minor & ^0xff) << 12)
-		if err := syscall.Mknod(devPathLegacy, uint32(mode), encoded_device_number); err != nil {
-			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPathLegacy, m["path"], err)
+		if err := syscall.Mknod(devPath, uint32(mode), encoded_device_number); err != nil {
+			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
 		}
 
-		if err := os.Chown(devPathLegacy, uid, gid); err != nil {
-			return nil, fmt.Errorf("Failed to chown device %s: %s", devPathLegacy, err)
+		if err := os.Chown(devPath, uid, gid); err != nil {
+			return nil, fmt.Errorf("Failed to chown device %s: %s", devPath, err)
 		}
 
 		// Needed as mknod respects the umask
-		if err := os.Chmod(devPathLegacy, mode); err != nil {
-			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPathLegacy, err)
+		if err := os.Chmod(devPath, mode); err != nil {
+			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
 		}
 
 		idmapset, err := c.IdmapSet()
@@ -5731,31 +5717,25 @@ func (c *containerLXC) createUnixDevice(name string, m types.Device) ([]string, 
 		}
 
 		if idmapset != nil {
-			if err := idmapset.ShiftFile(devPathLegacy); err != nil {
+			if err := idmapset.ShiftFile(devPath); err != nil {
 				// uidshift failing is weird, but not a big problem.  Log and proceed
 				logger.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
 			}
 		}
 	} else {
-		f, err := os.Create(devPathLegacy)
+		f, err := os.Create(devPath)
 		if err != nil {
 			return nil, err
 		}
 		f.Close()
 
-		err = deviceMountDisk(srcPath, devPathLegacy, false, false)
+		err = deviceMountDisk(srcPath, devPath, false, false)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// generate relative target path
-	tgtPath, exist := m["path"]
-	if !exist {
-		tgtPath = m["source"]
-	}
-	relativeTgtPath := strings.TrimPrefix(tgtPath, "/")
-	return []string{devPathLegacy, relativeTgtPath}, nil
+	return []string{devPath, relativeDestPath}, nil
 }
 
 func (c *containerLXC) insertUnixDevice(name string, m types.Device) error {
@@ -5840,15 +5820,6 @@ func (c *containerLXC) removeUnixDevice(name string, m types.Device) error {
 		return fmt.Errorf("Can't remove device from stopped container")
 	}
 
-	// Figure out the paths
-	srcPath, exist := m["source"]
-	if !exist {
-		srcPath = m["path"]
-	}
-	relativeSrcPath := strings.TrimPrefix(srcPath, "/")
-	devName := fmt.Sprintf("unix.%s", strings.Replace(relativeSrcPath, "/", "-", -1))
-	devPath := filepath.Join(c.DevicesPath(), devName)
-
 	// Check if we've been passed major and minor numbers already.
 	var tmp int
 	var err error
@@ -5875,6 +5846,15 @@ func (c *containerLXC) removeUnixDevice(name string, m types.Device) error {
 		dType = "b"
 	}
 
+	// Figure out the paths
+	destPath := m["path"]
+	if destPath == "" {
+		destPath = m["source"]
+	}
+	relativeDestPath := strings.TrimPrefix(destPath, "/")
+	devName := fmt.Sprintf("unix.%s.%s", name, strings.Replace(relativeDestPath, "/", "-", -1))
+	devPath := filepath.Join(c.DevicesPath(), devName)
+
 	if dType == "" || dMajor < 0 || dMinor < 0 {
 		dType, dMajor, dMinor, err = deviceGetAttributes(devPath)
 		if err != nil {
@@ -5890,19 +5870,13 @@ func (c *containerLXC) removeUnixDevice(name string, m types.Device) error {
 		}
 	}
 
-	// Remove the bind-mount from the container
-	tgtPath, exist := m["path"]
-	if !exist {
-		tgtPath = m["source"]
-	}
-	relativeTgtPath := strings.TrimPrefix(tgtPath, "/")
-	if c.FileExists(relativeTgtPath) == nil {
-		err = c.removeMount(tgtPath)
+	if c.FileExists(relativeDestPath) == nil {
+		err = c.removeMount(destPath)
 		if err != nil {
 			return fmt.Errorf("Error unmounting the device: %s", err)
 		}
 
-		err = c.FileRemove(relativeTgtPath)
+		err = c.FileRemove(relativeDestPath)
 		if err != nil {
 			return fmt.Errorf("Error removing the device: %s", err)
 		}
