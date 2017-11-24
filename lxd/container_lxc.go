@@ -1634,7 +1634,7 @@ func (c *containerLXC) expandDevices() error {
 
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
 // liblxc configuration items.
-func (c *containerLXC) setupUnixDevice(devType string, dev types.Device, major int, minor int, path string, createMustSucceed bool) error {
+func (c *containerLXC) setupUnixDevice(name string, dev types.Device, major int, minor int, path string, createMustSucceed bool) error {
 	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
 		if err != nil {
@@ -1651,9 +1651,9 @@ func (c *containerLXC) setupUnixDevice(devType string, dev types.Device, major i
 	temp["minor"] = fmt.Sprintf("%d", minor)
 	temp["path"] = path
 
-	paths, err := c.createUnixDevice(temp)
+	paths, err := c.createUnixDevice(name, temp)
 	if err != nil {
-		logger.Debug("failed to create device", log.Ctx{"err": err, "device": devType})
+		logger.Debug("failed to create device", log.Ctx{"err": err, "device": name})
 		if createMustSucceed {
 			return err
 		}
@@ -1855,7 +1855,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		m := c.expandedDevices[k]
 		if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			// Unix device
-			paths, err := c.createUnixDevice(m)
+			paths, err := c.createUnixDevice(k, m)
 			if err != nil {
 				return "", err
 			}
@@ -3862,7 +3862,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		// Live update the devices
 		for k, m := range removeDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-				err = c.removeUnixDevice(m)
+				err = c.removeUnixDevice(k, m)
 				if err != nil {
 					return err
 				}
@@ -3890,7 +3890,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						continue
 					}
 
-					err := c.removeUnixDeviceNum(m, usb.major, usb.minor, usb.path)
+					err := c.removeUnixDeviceNum(k, m, usb.major, usb.minor, usb.path)
 					if err != nil {
 						return err
 					}
@@ -3911,7 +3911,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						continue
 					}
 
-					err := c.removeUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+					err := c.removeUnixDeviceNum(k, m, gpu.major, gpu.minor, gpu.path)
 					if err != nil {
 						logger.Error("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
@@ -3921,7 +3921,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						continue
 					}
 
-					err = c.removeUnixDeviceNum(m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
+					err = c.removeUnixDeviceNum(k, m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
 					if err != nil {
 						logger.Error("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
@@ -3931,7 +3931,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				nvidiaExists := false
 				for _, gpu := range gpus {
 					if gpu.nvidia.path != "" {
-						if c.deviceExists(gpu.path) {
+						if c.deviceExists(k, gpu.path) {
 							nvidiaExists = true
 							break
 						}
@@ -3940,10 +3940,10 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 				if !nvidiaExists {
 					for _, gpu := range nvidiaDevices {
-						if !c.deviceExists(gpu.path) {
+						if !c.deviceExists(k, gpu.path) {
 							continue
 						}
-						err = c.removeUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+						err = c.removeUnixDeviceNum(k, m, gpu.major, gpu.minor, gpu.path)
 						if err != nil {
 							logger.Error("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 							return err
@@ -3957,7 +3957,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 		for k, m := range addDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
-				err = c.insertUnixDevice(m)
+				err = c.insertUnixDevice(k, m)
 				if err != nil {
 					return err
 				}
@@ -3981,7 +3981,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						continue
 					}
 
-					err = c.insertUnixDeviceNum(m, usb.major, usb.minor, usb.path)
+					err = c.insertUnixDeviceNum(k, m, usb.major, usb.minor, usb.path)
 					if err != nil {
 						logger.Error("failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					}
@@ -4006,7 +4006,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 					found = true
 
-					err = c.insertUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+					err = c.insertUnixDeviceNum(k, m, gpu.major, gpu.minor, gpu.path)
 					if err != nil {
 						logger.Error("Failed to insert GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
@@ -4016,7 +4016,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						continue
 					}
 
-					err = c.insertUnixDeviceNum(m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
+					err = c.insertUnixDeviceNum(k, m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
 					if err != nil {
 						logger.Error("Failed to insert GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
@@ -4027,10 +4027,10 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 				if sawNvidia {
 					for _, gpu := range nvidiaDevices {
-						if c.deviceExists(gpu.path) {
+						if c.deviceExists(k, gpu.path) {
 							continue
 						}
-						err = c.insertUnixDeviceNum(m, gpu.major, gpu.minor, gpu.path)
+						err = c.insertUnixDeviceNum(k, m, gpu.major, gpu.minor, gpu.path)
 						if err != nil {
 							logger.Error("failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 							return err
@@ -5602,7 +5602,7 @@ func (c *containerLXC) removeMount(mount string) error {
 }
 
 // Check if the unix device already exists.
-func (c *containerLXC) deviceExists(path string) bool {
+func (c *containerLXC) deviceExists(name string, path string) bool {
 	tgtPath := strings.TrimPrefix(path, "/")
 	devName := fmt.Sprintf("unix.%s", strings.Replace(tgtPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
@@ -5610,7 +5610,7 @@ func (c *containerLXC) deviceExists(path string) bool {
 }
 
 // Unix devices handling
-func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
+func (c *containerLXC) createUnixDevice(name string, m types.Device) ([]string, error) {
 	var err error
 	var major, minor int
 
@@ -5619,9 +5619,11 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	if !exist {
 		srcPath = m["path"]
 	}
+
 	relativeSrcPath := strings.TrimPrefix(srcPath, "/")
-	devName := fmt.Sprintf("unix.%s", strings.Replace(relativeSrcPath, "/", "-", -1))
-	devPath := filepath.Join(c.DevicesPath(), devName)
+
+	devNameLegacy := fmt.Sprintf("unix.%s", strings.Replace(relativeSrcPath, "/", "-", -1))
+	devPathLegacy := filepath.Join(c.DevicesPath(), devNameLegacy)
 
 	// Extra checks for nesting
 	if c.state.OS.RunningInUserNS {
@@ -5696,12 +5698,12 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	}
 
 	// Clean any existing entry
-	if shared.PathExists(devPath) {
+	if shared.PathExists(devPathLegacy) {
 		if c.state.OS.RunningInUserNS {
-			syscall.Unmount(devPath, syscall.MNT_DETACH)
+			syscall.Unmount(devPathLegacy, syscall.MNT_DETACH)
 		}
 
-		err = os.Remove(devPath)
+		err = os.Remove(devPathLegacy)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to remove existing entry: %s", err)
 		}
@@ -5710,17 +5712,17 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 	// Create the new entry
 	if !c.state.OS.RunningInUserNS {
 		encoded_device_number := (minor & 0xff) | (major << 8) | ((minor & ^0xff) << 12)
-		if err := syscall.Mknod(devPath, uint32(mode), encoded_device_number); err != nil {
-			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, m["path"], err)
+		if err := syscall.Mknod(devPathLegacy, uint32(mode), encoded_device_number); err != nil {
+			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPathLegacy, m["path"], err)
 		}
 
-		if err := os.Chown(devPath, uid, gid); err != nil {
-			return nil, fmt.Errorf("Failed to chown device %s: %s", devPath, err)
+		if err := os.Chown(devPathLegacy, uid, gid); err != nil {
+			return nil, fmt.Errorf("Failed to chown device %s: %s", devPathLegacy, err)
 		}
 
 		// Needed as mknod respects the umask
-		if err := os.Chmod(devPath, mode); err != nil {
-			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
+		if err := os.Chmod(devPathLegacy, mode); err != nil {
+			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPathLegacy, err)
 		}
 
 		idmapset, err := c.IdmapSet()
@@ -5729,19 +5731,19 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 		}
 
 		if idmapset != nil {
-			if err := idmapset.ShiftFile(devPath); err != nil {
+			if err := idmapset.ShiftFile(devPathLegacy); err != nil {
 				// uidshift failing is weird, but not a big problem.  Log and proceed
 				logger.Debugf("Failed to uidshift device %s: %s\n", m["path"], err)
 			}
 		}
 	} else {
-		f, err := os.Create(devPath)
+		f, err := os.Create(devPathLegacy)
 		if err != nil {
 			return nil, err
 		}
 		f.Close()
 
-		err = deviceMountDisk(srcPath, devPath, false, false)
+		err = deviceMountDisk(srcPath, devPathLegacy, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -5753,17 +5755,17 @@ func (c *containerLXC) createUnixDevice(m types.Device) ([]string, error) {
 		tgtPath = m["source"]
 	}
 	relativeTgtPath := strings.TrimPrefix(tgtPath, "/")
-	return []string{devPath, relativeTgtPath}, nil
+	return []string{devPathLegacy, relativeTgtPath}, nil
 }
 
-func (c *containerLXC) insertUnixDevice(m types.Device) error {
+func (c *containerLXC) insertUnixDevice(name string, m types.Device) error {
 	// Check that the container is running
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't insert device into stopped container")
 	}
 
 	// Create the device on the host
-	paths, err := c.createUnixDevice(m)
+	paths, err := c.createUnixDevice(name, m)
 	if err != nil {
 		return fmt.Errorf("Failed to setup device: %s", err)
 	}
@@ -5818,7 +5820,7 @@ func (c *containerLXC) insertUnixDevice(m types.Device) error {
 	return nil
 }
 
-func (c *containerLXC) insertUnixDeviceNum(m types.Device, major int, minor int, path string) error {
+func (c *containerLXC) insertUnixDeviceNum(name string, m types.Device, major int, minor int, path string) error {
 	temp := types.Device{}
 	if err := shared.DeepCopy(&m, &temp); err != nil {
 		return err
@@ -5828,10 +5830,10 @@ func (c *containerLXC) insertUnixDeviceNum(m types.Device, major int, minor int,
 	temp["minor"] = fmt.Sprintf("%d", minor)
 	temp["path"] = path
 
-	return c.insertUnixDevice(temp)
+	return c.insertUnixDevice(name, temp)
 }
 
-func (c *containerLXC) removeUnixDevice(m types.Device) error {
+func (c *containerLXC) removeUnixDevice(name string, m types.Device) error {
 	// Check that the container is running
 	pid := c.InitPID()
 	if pid == -1 {
@@ -5919,7 +5921,7 @@ func (c *containerLXC) removeUnixDevice(m types.Device) error {
 	return nil
 }
 
-func (c *containerLXC) removeUnixDeviceNum(m types.Device, major int, minor int, path string) error {
+func (c *containerLXC) removeUnixDeviceNum(name string, m types.Device, major int, minor int, path string) error {
 	pid := c.InitPID()
 	if pid == -1 {
 		return fmt.Errorf("Can't remove device from stopped container")
@@ -5934,7 +5936,7 @@ func (c *containerLXC) removeUnixDeviceNum(m types.Device, major int, minor int,
 	temp["minor"] = fmt.Sprintf("%d", minor)
 	temp["path"] = path
 
-	err := c.removeUnixDevice(temp)
+	err := c.removeUnixDevice(name, temp)
 	if err != nil {
 		logger.Error("failed to remove device", log.Ctx{"err": err, m["type"]: path, "container": c.Name()})
 		return err
