@@ -1451,11 +1451,16 @@ func (c *containerLXC) initLXC(config bool) error {
 			// bump network index
 			networkidx++
 		} else if m["type"] == "disk" {
-			// Prepare all the paths
+			isRootfs := isRootDiskDevice(m)
+
+			// source paths
 			srcPath := shared.HostPath(m["source"])
-			tgtPath := strings.TrimPrefix(m["path"], "/")
-			devName := fmt.Sprintf("disk.%s", strings.Replace(tgtPath, "/", "-", -1))
-			devPath := filepath.Join(c.DevicesPath(), devName)
+
+			// destination paths
+			destPath := m["path"]
+			relativeDestPath := strings.TrimPrefix(destPath, "/")
+
+			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("disk.%s.%s", k, strings.Replace(relativeDestPath, "/", "-", -1)))
 
 			// Various option checks
 			isOptional := shared.IsTrue(m["optional"])
@@ -1471,7 +1476,7 @@ func (c *containerLXC) initLXC(config bool) error {
 			}
 
 			// Deal with a rootfs
-			if tgtPath == "" {
+			if isRootfs {
 				if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
 					// Set the rootfs backend type if supported (must happen before any other lxc.rootfs)
 					err := lxcSetConfigItem(cc, "lxc.rootfs.backend", "dir")
@@ -1523,7 +1528,7 @@ func (c *containerLXC) initLXC(config bool) error {
 					options = append(options, "create=dir")
 				}
 
-				err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none %sbind,%s", devPath, tgtPath, rbind, strings.Join(options, ",")))
+				err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none %sbind,%s", sourceDevPath, relativeDestPath, rbind, strings.Join(options, ",")))
 				if err != nil {
 					return err
 				}
@@ -6500,11 +6505,11 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 
 // Disk device handling
 func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, error) {
-	// Prepare all the paths
-	srcPath := shared.HostPath(m["source"])
-	tgtPath := strings.TrimPrefix(m["path"], "/")
-	devName := fmt.Sprintf("disk.%s", strings.Replace(tgtPath, "/", "-", -1))
+	// source paths
+	relativeDestPath := strings.TrimPrefix(m["path"], "/")
+	devName := fmt.Sprintf("disk.%s.%s", name, strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
+	srcPath := shared.HostPath(m["source"])
 
 	// Check if read-only
 	isOptional := shared.IsTrue(m["optional"])
@@ -6646,8 +6651,8 @@ func (c *containerLXC) insertDiskDevice(name string, m types.Device) error {
 	}
 
 	// Bind-mount it into the container
-	tgtPath := strings.TrimSuffix(m["path"], "/")
-	err = c.insertMount(devPath, tgtPath, "none", flags)
+	destPath := strings.TrimSuffix(m["path"], "/")
+	err = c.insertMount(devPath, destPath, "none", flags)
 	if err != nil {
 		return fmt.Errorf("Failed to add mount for device: %s", err)
 	}
@@ -6678,7 +6683,16 @@ func (c *containerLXC) addDiskDevices(devices map[string]types.Device, handler f
 
 	sort.Sort(ordered)
 	for _, d := range ordered {
-		err := handler(d["path"], d)
+		key := ""
+		for k, dd := range devices {
+			key = ""
+			if reflect.DeepEqual(d, dd) {
+				key = k
+				break
+			}
+		}
+
+		err := handler(key, d)
 		if err != nil {
 			return err
 		}
@@ -6695,25 +6709,23 @@ func (c *containerLXC) removeDiskDevice(name string, m types.Device) error {
 	}
 
 	// Figure out the paths
-	tgtPath := strings.TrimPrefix(m["path"], "/")
-	devName := fmt.Sprintf("disk.%s", strings.Replace(tgtPath, "/", "-", -1))
+	destPath := strings.TrimPrefix(m["path"], "/")
+	devName := fmt.Sprintf("disk.%s.%s", name, strings.Replace(destPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
-	// The dsk device doesn't exist and cannot be mounted.
+	// The disk device doesn't exist.
 	if !shared.PathExists(devPath) {
 		return nil
 	}
 
 	// Remove the bind-mount from the container
-	if c.FileExists(tgtPath) == nil {
-		err := c.removeMount(m["path"])
-		if err != nil {
-			return fmt.Errorf("Error unmounting the device: %s", err)
-		}
+	err := c.removeMount(m["path"])
+	if err != nil {
+		return fmt.Errorf("Error unmounting the device: %s", err)
 	}
 
 	// Unmount the host side
-	err := syscall.Unmount(devPath, syscall.MNT_DETACH)
+	err = syscall.Unmount(devPath, syscall.MNT_DETACH)
 	if err != nil {
 		return err
 	}
@@ -6741,7 +6753,7 @@ func (c *containerLXC) removeDiskDevices() error {
 
 	// Go through all the unix devices
 	for _, f := range dents {
-		// Skip non-Unix devices
+		// Skip non-disk devices
 		if !strings.HasPrefix(f.Name(), "disk.") {
 			continue
 		}
