@@ -42,6 +42,7 @@ func newDaemon(t *testing.T) (*Daemon, func()) {
 
 	// Daemon
 	daemon := NewDaemon(newConfig(), newOS(dir))
+	daemon.Storage = &storageMock{}
 	require.NoError(t, daemon.Init())
 
 	cleanup := func() {
