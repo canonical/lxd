@@ -703,6 +703,8 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 			function:     "snapshot",
 			stop:         false,
 			actionScript: false,
+			dumpDir:      "",
+			preDumpDir:   "",
 		}
 
 		err = sourceContainer.Migrate(&criuMigrationArgs)

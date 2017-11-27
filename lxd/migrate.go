@@ -356,6 +356,65 @@ func snapshotToProtobuf(c container) *Snapshot {
 	}
 }
 
+type preDumpLoopArgs struct {
+	checkpointDir string
+	bwlimit       string
+	preDumpDir    string
+	dumpDir       string
+	final         bool
+}
+
+func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) error {
+	// Do a CRIU pre-dump
+	criuMigrationArgs := CriuMigrationArgs{
+		cmd:          lxc.MIGRATE_PRE_DUMP,
+		stop:         false,
+		actionScript: false,
+		preDumpDir:   args.preDumpDir,
+		dumpDir:      args.dumpDir,
+		stateDir:     args.checkpointDir,
+		function:     "migration",
+	}
+
+	logger.Debugf("Doing another pre-dump in %s", args.preDumpDir)
+
+	err := s.container.Migrate(&criuMigrationArgs)
+	if err != nil {
+		return err
+	}
+
+	// Send the pre-dump.
+	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
+	state := s.container.DaemonState()
+	err = RsyncSend(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.bwlimit, state.OS.ExecPath)
+	if err != nil {
+		return err
+	}
+
+	// If in pre-dump mode, the receiving side
+	// expects a message to know if this was the
+	// last pre-dump
+	logger.Debugf("Sending another header")
+	sync := MigrationSync{
+		FinalPreDump: proto.Bool(args.final),
+	}
+
+	data, err := proto.Marshal(&sync)
+
+	if err != nil {
+		return err
+	}
+
+	err = s.criuConn.WriteMessage(websocket.BinaryMessage, data)
+	if err != nil {
+		s.sendControl(err)
+		return err
+	}
+	logger.Debugf("Sending another header done")
+
+	return nil
+}
+
 func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	<-s.allConnected
 
@@ -605,6 +664,34 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
+			preDumpCounter := 0
+			preDumpDir := ""
+			if use_pre_dumps {
+				do_pre_dumps := true
+				for do_pre_dumps {
+					if preDumpCounter+1 < max_iterations {
+						do_pre_dumps = true
+					} else {
+						do_pre_dumps = false
+					}
+					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
+					loop_args := preDumpLoopArgs{
+						checkpointDir: checkpointDir,
+						bwlimit:       bwlimit,
+						preDumpDir:    preDumpDir,
+						dumpDir:       dumpDir,
+						final:         !do_pre_dumps,
+					}
+					err = s.preDumpLoop(&loop_args)
+					if err != nil {
+						os.RemoveAll(checkpointDir)
+						return abort(err)
+					}
+					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
+					preDumpCounter++
+				}
+			}
+
 			_, err = actionScriptOp.Run()
 			if err != nil {
 				os.RemoveAll(checkpointDir)
@@ -614,12 +701,16 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			go func() {
 				criuMigrationArgs := CriuMigrationArgs{
 					cmd:          lxc.MIGRATE_DUMP,
-					stateDir:     checkpointDir,
-					function:     "migration",
 					stop:         true,
 					actionScript: true,
+					preDumpDir:   preDumpDir,
+					dumpDir:      "final",
+					stateDir:     checkpointDir,
+					function:     "migration",
 				}
 
+				// Do the final CRIU dump. This is needs no special
+				// handling if pre-dumps are used or not
 				dumpSuccess <- s.container.Migrate(&criuMigrationArgs)
 				os.RemoveAll(checkpointDir)
 			}()
@@ -641,6 +732,8 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				function:     "migration",
 				stop:         true,
 				actionScript: false,
+				dumpDir:      "final",
+				preDumpDir:   "",
 			}
 
 			err = s.container.Migrate(&criuMigrationArgs)
@@ -1030,8 +1123,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			}
 
 			sync := &MigrationSync{
-				// temporarily set to 'true' as long as not used
-				FinalPreDump: proto.Bool(true),
+				FinalPreDump: proto.Bool(false),
 			}
 
 			if resp.GetPredump() {
@@ -1069,7 +1161,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				}
 			}
 
-			// CRIU dump
+			// Final CRIU dump
 			err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil)
 			if err != nil {
 				restore <- err
@@ -1090,8 +1182,13 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				function:     "migration",
 				stop:         false,
 				actionScript: false,
+				dumpDir:      "final",
+				preDumpDir:   "",
 			}
 
+			// Currently we only do a single CRIU pre-dump so we
+			// can hardcode "final" here since we know that "final" is the
+			// folder for CRIU's final dump.
 			err = c.src.container.Migrate(&criuMigrationArgs)
 			if err != nil {
 				restore <- err

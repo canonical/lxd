@@ -2181,6 +2181,8 @@ func (c *containerLXC) Start(stateful bool) error {
 			function:     "snapshot",
 			stop:         false,
 			actionScript: false,
+			dumpDir:      "",
+			preDumpDir:   "",
 		}
 
 		err := c.Migrate(&criuMigrationArgs)
@@ -2406,6 +2408,8 @@ func (c *containerLXC) Stop(stateful bool) error {
 			function:     "snapshot",
 			stop:         true,
 			actionScript: false,
+			dumpDir:      "",
+			preDumpDir:   "",
 		}
 
 		// Checkpoint
@@ -2922,6 +2926,8 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 			function:     "snapshot",
 			stop:         false,
 			actionScript: false,
+			dumpDir:      "",
+			preDumpDir:   "",
 		}
 
 		// Checkpoint
@@ -4522,6 +4528,8 @@ type CriuMigrationArgs struct {
 	function     string
 	stop         bool
 	actionScript bool
+	dumpDir      string
+	preDumpDir   string
 }
 
 func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
@@ -4531,6 +4539,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		"used":         c.lastUsedDate,
 		"statedir":     args.stateDir,
 		"actionscript": args.actionScript,
+		"predumpdir":   args.preDumpDir,
 		"stop":         args.stop}
 
 	_, err := exec.LookPath("criu")
@@ -4567,6 +4576,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		preservesInodes = false
 	}
 
+	finalStateDir := args.stateDir
 	var migrateErr error
 
 	/* For restore, we need an extra fork so that we daemonize monitor
@@ -4612,6 +4622,10 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
 
+		if args.dumpDir != "" {
+			finalStateDir = fmt.Sprintf("%s/%s", args.stateDir, args.dumpDir)
+		}
+
 		var out string
 		out, migrateErr = shared.RunCommand(
 			c.state.OS.ExecPath,
@@ -4619,7 +4633,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			c.name,
 			c.state.OS.LxcPath,
 			configPath,
-			args.stateDir,
+			finalStateDir,
 			fmt.Sprintf("%v", preservesInodes))
 
 		if out != "" {
@@ -4639,6 +4653,10 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			script = filepath.Join(args.stateDir, "action.sh")
 		}
 
+		if args.dumpDir != "" {
+			finalStateDir = fmt.Sprintf("%s/%s", args.stateDir, args.dumpDir)
+		}
+
 		// TODO: make this configurable? Ultimately I think we don't
 		// want to do that; what we really want to do is have "modes"
 		// of criu operation where one is "make this succeed" and the
@@ -4649,23 +4667,26 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 
 		opts := lxc.MigrateOptions{
 			Stop:            args.stop,
-			Directory:       args.stateDir,
+			Directory:       finalStateDir,
 			Verbose:         true,
 			PreservesInodes: preservesInodes,
 			ActionScript:    script,
 			GhostLimit:      ghostLimit,
 		}
+		if args.preDumpDir != "" {
+			opts.PredumpDir = fmt.Sprintf("../%s", args.preDumpDir)
+		}
 
 		migrateErr = c.c.Migrate(args.cmd, opts)
 	}
 
-	collectErr := collectCRIULogFile(c, args.stateDir, args.function, prettyCmd)
+	collectErr := collectCRIULogFile(c, finalStateDir, args.function, prettyCmd)
 	if collectErr != nil {
 		logger.Error("Error collecting checkpoint log file", log.Ctx{"err": collectErr})
 	}
 
 	if migrateErr != nil {
-		log, err2 := getCRIULogErrors(args.stateDir, prettyCmd)
+		log, err2 := getCRIULogErrors(finalStateDir, prettyCmd)
 		if err2 == nil {
 			logger.Info("Failed migrating container", ctxMap)
 			migrateErr = fmt.Errorf("%s %s failed\n%s", args.function, prettyCmd, log)
