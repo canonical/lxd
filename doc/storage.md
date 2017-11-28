@@ -272,6 +272,12 @@ lxc storage create pool1 lvm
 lxc storage create pool1 lvm source=my-pool
 ```
 
+ - Use the existing LVM Thinpool called "my-pool" in Volume Group "my-vg".
+
+```bash
+lxc storage create pool1 lvm source=my-vg lvm.thinpool_name=my-pool
+```
+
  - Create a new pool named "pool1" on `/dev/sdX`. The LVM Volume Group will also be called "pool1".
 
 ```bash
