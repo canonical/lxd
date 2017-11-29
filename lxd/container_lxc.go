@@ -1784,7 +1784,15 @@ func (c *containerLXC) Start(stateful bool) error {
 			return fmt.Errorf("Container has no existing state to restore.")
 		}
 
-		err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false, false)
+		criuMigrationArgs := CriuMigrationArgs{
+			cmd:          lxc.MIGRATE_RESTORE,
+			stateDir:     c.StatePath(),
+			function:     "snapshot",
+			stop:         false,
+			actionScript: false,
+		}
+
+		err := c.Migrate(&criuMigrationArgs)
 		if err != nil && !c.IsRunning() {
 			return err
 		}
@@ -1997,8 +2005,16 @@ func (c *containerLXC) Stop(stateful bool) error {
 			return err
 		}
 
+		criuMigrationArgs := CriuMigrationArgs{
+			cmd:          lxc.MIGRATE_DUMP,
+			stateDir:     stateDir,
+			function:     "snapshot",
+			stop:         true,
+			actionScript: false,
+		}
+
 		// Checkpoint
-		err = c.Migrate(lxc.MIGRATE_DUMP, stateDir, "snapshot", true, false)
+		err = c.Migrate(&criuMigrationArgs)
 		if err != nil {
 			op.Done(err)
 			logger.Error("Failed stopping container", ctxMap)
@@ -2444,7 +2460,18 @@ func (c *containerLXC) Restore(sourceContainer container) error {
 	// If the container wasn't running but was stateful, should we restore
 	// it as running?
 	if shared.PathExists(c.StatePath()) {
-		if err := c.Migrate(lxc.MIGRATE_RESTORE, c.StatePath(), "snapshot", false, false); err != nil {
+		criuMigrationArgs := CriuMigrationArgs{
+			cmd:          lxc.MIGRATE_RESTORE,
+			stateDir:     c.StatePath(),
+			function:     "snapshot",
+			stop:         false,
+			actionScript: false,
+		}
+
+		// Checkpoint
+		err := c.Migrate(&criuMigrationArgs)
+
+		if err != nil {
 			return err
 		}
 
@@ -3642,13 +3669,21 @@ func getCRIULogErrors(imagesDir string, method string) (string, error) {
 	return strings.Join(ret, "\n"), nil
 }
 
-func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop bool, actionScript bool) error {
+type CriuMigrationArgs struct {
+	cmd          uint
+	stateDir     string
+	function     string
+	stop         bool
+	actionScript bool
+}
+
+func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 	ctxMap := log.Ctx{"name": c.name,
 		"created":      c.creationDate,
 		"ephemeral":    c.ephemeral,
-		"statedir":     stateDir,
-		"actionscript": actionScript,
-		"stop":         stop}
+		"statedir":     args.stateDir,
+		"actionscript": args.actionScript,
+		"stop":         args.stop}
 
 	_, err := exec.LookPath("criu")
 	if err != nil {
@@ -3658,7 +3693,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 	logger.Info("Migrating container", ctxMap)
 
 	prettyCmd := ""
-	switch cmd {
+	switch args.cmd {
 	case lxc.MIGRATE_PRE_DUMP:
 		prettyCmd = "pre-dump"
 	case lxc.MIGRATE_DUMP:
@@ -3667,7 +3702,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		prettyCmd = "restore"
 	default:
 		prettyCmd = "unknown"
-		logger.Warn("unknown migrate call", log.Ctx{"cmd": cmd})
+		logger.Warn("unknown migrate call", log.Ctx{"cmd": args.cmd})
 	}
 
 	preservesInodes := c.storage.PreservesInodes()
@@ -3684,7 +3719,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 	 * instead of having it be a child of LXD, so let's hijack the command
 	 * here and do the extra fork.
 	 */
-	if cmd == lxc.MIGRATE_RESTORE {
+	if args.cmd == lxc.MIGRATE_RESTORE {
 		// Run the shared start
 		_, err := c.startCommon()
 		if err != nil {
@@ -3708,7 +3743,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 				return err
 			}
 
-			err = idmapset.ShiftRootfs(stateDir)
+			err = idmapset.ShiftRootfs(args.stateDir)
 			err2 := c.StorageStop()
 			if err != nil {
 				return err
@@ -3728,7 +3763,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 			c.name,
 			c.state.OS.LxcPath,
 			configPath,
-			stateDir,
+			args.stateDir,
 			fmt.Sprintf("%v", preservesInodes))
 
 		if string(out) != "" {
@@ -3743,7 +3778,7 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 				c.name,
 				c.state.OS.LxcPath,
 				filepath.Join(c.LogPath(), "lxc.conf"),
-				stateDir,
+				args.stateDir,
 				err,
 				string(out))
 		}
@@ -3755,8 +3790,8 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		}
 
 		script := ""
-		if actionScript {
-			script = filepath.Join(stateDir, "action.sh")
+		if args.actionScript {
+			script = filepath.Join(args.stateDir, "action.sh")
 		}
 
 		// TODO: make this configurable? Ultimately I think we don't
@@ -3768,27 +3803,27 @@ func (c *containerLXC) Migrate(cmd uint, stateDir string, function string, stop 
 		ghostLimit := uint64(256 * 1024 * 1024)
 
 		opts := lxc.MigrateOptions{
-			Stop:            stop,
-			Directory:       stateDir,
+			Stop:            args.stop,
+			Directory:       args.stateDir,
 			Verbose:         true,
 			PreservesInodes: preservesInodes,
 			ActionScript:    script,
 			GhostLimit:      ghostLimit,
 		}
 
-		migrateErr = c.c.Migrate(cmd, opts)
+		migrateErr = c.c.Migrate(args.cmd, opts)
 	}
 
-	collectErr := collectCRIULogFile(c, stateDir, function, prettyCmd)
+	collectErr := collectCRIULogFile(c, args.stateDir, args.function, prettyCmd)
 	if collectErr != nil {
 		logger.Error("Error collecting checkpoint log file", log.Ctx{"err": collectErr})
 	}
 
 	if migrateErr != nil {
-		log, err2 := getCRIULogErrors(stateDir, prettyCmd)
+		log, err2 := getCRIULogErrors(args.stateDir, prettyCmd)
 		if err2 == nil {
 			logger.Info("Failed migrating container", ctxMap)
-			migrateErr = fmt.Errorf("%s %s failed\n%s", function, prettyCmd, log)
+			migrateErr = fmt.Errorf("%s %s failed\n%s", args.function, prettyCmd, log)
 		}
 
 		return migrateErr
