@@ -563,7 +563,15 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			}
 
 			go func() {
-				dumpSuccess <- s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, true)
+				criuMigrationArgs := CriuMigrationArgs{
+					cmd:          lxc.MIGRATE_DUMP,
+					stateDir:     checkpointDir,
+					function:     "migration",
+					stop:         true,
+					actionScript: true,
+				}
+
+				dumpSuccess <- s.container.Migrate(&criuMigrationArgs)
 				os.RemoveAll(checkpointDir)
 			}()
 
@@ -577,7 +585,15 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			}
 		} else {
 			defer os.RemoveAll(checkpointDir)
-			err = s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, false)
+			criuMigrationArgs := CriuMigrationArgs{
+				cmd:          lxc.MIGRATE_DUMP,
+				stateDir:     checkpointDir,
+				function:     "migration",
+				stop:         true,
+				actionScript: false,
+			}
+
+			err = s.container.Migrate(&criuMigrationArgs)
 			if err != nil {
 				return abort(err)
 			}
@@ -968,7 +984,15 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		}
 
 		if live {
-			err = c.src.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false, false)
+			criuMigrationArgs := CriuMigrationArgs{
+				cmd:          lxc.MIGRATE_RESTORE,
+				stateDir:     imagesDir,
+				function:     "migration",
+				stop:         false,
+				actionScript: false,
+			}
+
+			err = c.src.container.Migrate(&criuMigrationArgs)
 			if err != nil {
 				restore <- err
 				return
