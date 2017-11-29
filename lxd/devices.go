@@ -795,13 +795,13 @@ func deviceUSBEvent(s *state.State, usb usbDevice) {
 			}
 
 			if usb.action == "add" {
-				err := c.insertUnixDeviceNum(m, usb.major, usb.minor, usb.path)
+				err := c.insertUnixDeviceNum(name, m, usb.major, usb.minor, usb.path)
 				if err != nil {
 					logger.Error("failed to create usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
 				}
 			} else if usb.action == "remove" {
-				err := c.removeUnixDeviceNum(m, usb.major, usb.minor, usb.path)
+				err := c.removeUnixDeviceNum(name, m, usb.major, usb.minor, usb.path)
 				if err != nil {
 					logger.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return

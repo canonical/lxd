@@ -51,6 +51,7 @@ var patches = []patch{
 	{name: "storage_api_dir_bind_mount", run: patchStorageApiDirBindMount},
 	{name: "fix_uploaded_at", run: patchFixUploadedAt},
 	{name: "storage_api_ceph_size_remove", run: patchStorageApiCephSizeRemove},
+	{name: "devices_new_naming_scheme", run: patchDevicesNewNamingScheme},
 }
 
 type patch struct {
@@ -2498,6 +2499,154 @@ func patchStorageApiCephSizeRemove(name string, d *Daemon) error {
 			pool.Config)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func patchDevicesNewNamingScheme(name string, d *Daemon) error {
+	cts, err := d.db.ContainersList(db.CTypeRegular)
+	if err != nil {
+		logger.Errorf("Failed to retrieve containers from database")
+		return err
+	}
+
+	for _, ct := range cts {
+		devicesPath := shared.VarPath("devices", ct)
+		devDir, err := os.Open(devicesPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				logger.Errorf("Failed to open \"%s\": %s", devicesPath, err)
+				return err
+			}
+			logger.Debugf("Container \"%s\" does not have on-disk devices", ct)
+		}
+
+		onDiskDevices, err := devDir.Readdirnames(-1)
+		if err != nil {
+			logger.Errorf("Failed to read directory entries from \"%s\": %s", devicesPath, err)
+			return err
+		}
+
+		// nothing to do
+		if len(onDiskDevices) == 0 {
+			logger.Debugf("Devices directory \"%s\" is empty", devicesPath)
+			continue
+		}
+
+		hasDeviceEntry := map[string]bool{}
+		for _, v := range onDiskDevices {
+			key := fmt.Sprintf("%s/%s", devicesPath, v)
+			hasDeviceEntry[key] = false
+		}
+
+		// Load the container from the database.
+		c, err := containerLoadByName(d.State(), ct)
+		if err != nil {
+			logger.Errorf("Failed to load container %s: %s", ct, err)
+			return err
+		}
+
+		if !c.IsRunning() {
+			for wipe := range hasDeviceEntry {
+				syscall.Unmount(wipe, syscall.MNT_DETACH)
+				err := os.Remove(wipe)
+				if err != nil {
+					logger.Errorf("Failed to remove device \"%s\": %s", wipe, err)
+					return err
+				}
+			}
+
+			continue
+		}
+
+		// go through all devices for each container
+		expandedDevices := c.ExpandedDevices()
+		for _, name := range expandedDevices.DeviceNames() {
+			d := expandedDevices[name]
+
+			// We only care about unix-{char,block} and disk devices
+			// since other devices don't create on-disk files.
+			if d["type"] != "disk" && !shared.StringInSlice(d["type"], []string{"unix-char", "unix-block"}) {
+				continue
+			}
+
+			if d["type"] == "disk" {
+				relativeDestPath := strings.TrimPrefix(d["path"], "/")
+				hyphenatedDevName := strings.Replace(relativeDestPath, "/", "-", -1)
+				devNameLegacy := fmt.Sprintf("disk.%s", hyphenatedDevName)
+				devPathLegacy := filepath.Join(devicesPath, devNameLegacy)
+
+				if !shared.PathExists(devPathLegacy) {
+					logger.Debugf("Device \"%s\" does not exist", devPathLegacy)
+					continue
+				}
+
+				hasDeviceEntry[devPathLegacy] = true
+
+				// Try to unmount disk devices otherwise we get
+				// EBUSY when we try to rename block devices.
+				// But don't error out.
+				syscall.Unmount(devPathLegacy, syscall.MNT_DETACH)
+
+				// Switch device to new device naming scheme.
+				devPathNew := filepath.Join(devicesPath, fmt.Sprintf("disk.%s.%s", name, hyphenatedDevName))
+				err = os.Rename(devPathLegacy, devPathNew)
+				if err != nil {
+					logger.Errorf("Failed to rename device from \"%s\" to \"%s\": %s", devPathLegacy, devPathNew, err)
+					return err
+				}
+			}
+
+			srcPath := d["source"]
+			if srcPath == "" {
+				srcPath = d["path"]
+			}
+
+			relativeSrcPathLegacy := strings.TrimPrefix(srcPath, "/")
+			hyphenatedDevNameLegacy := strings.Replace(relativeSrcPathLegacy, "/", "-", -1)
+			devNameLegacy := fmt.Sprintf("unix.%s", hyphenatedDevNameLegacy)
+			devPathLegacy := filepath.Join(devicesPath, devNameLegacy)
+
+			if !shared.PathExists(devPathLegacy) {
+				logger.Debugf("Device \"%s\" does not exist", devPathLegacy)
+				continue
+			}
+
+			hasDeviceEntry[devPathLegacy] = true
+
+			srcPath = d["path"]
+			if srcPath == "" {
+				srcPath = d["source"]
+			}
+
+			relativeSrcPathNew := strings.TrimPrefix(srcPath, "/")
+			hyphenatedDevNameNew := strings.Replace(relativeSrcPathNew, "/", "-", -1)
+			devPathNew := filepath.Join(devicesPath, fmt.Sprintf("unix.%s.%s", name, hyphenatedDevNameNew))
+			// Switch device to new device naming scheme.
+			err = os.Rename(devPathLegacy, devPathNew)
+			if err != nil {
+				logger.Errorf("Failed to rename device from \"%s\" to \"%s\": %s", devPathLegacy, devPathNew, err)
+				return err
+			}
+		}
+
+		// Wipe any devices not associated with a device entry.
+		for k, v := range hasDeviceEntry {
+			// This device is associated with a device entry.
+			if v {
+				continue
+			}
+
+			// This device is not associated with a device entry, so
+			// wipe it.
+			syscall.Unmount(k, syscall.MNT_DETACH)
+			err := os.Remove(k)
+			if err != nil {
+				logger.Errorf("Failed to remove device \"%s\": %s", k, err)
+				return err
+			}
 		}
 	}
 
