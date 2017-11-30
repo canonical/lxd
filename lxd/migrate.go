@@ -412,6 +412,23 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
+	// TODO: ask CRIU if this system (kernel+criu) supports
+	// pre-copy (dirty memory tracking)
+	// The user should also be enable to influence it from the
+	// command-line.
+
+	// What does the config say about pre-copy
+	tmp := s.container.ExpandedConfig()["migration.incremental.memory"]
+
+	// default to false for pre-dumps as long as libxlc has no
+	// detection for the feature
+	use_pre_dumps := false
+
+	if tmp != "" {
+		use_pre_dumps = shared.IsTrue(tmp)
+	}
+	logger.Debugf("migration.incremental.memory %d", use_pre_dumps)
+
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
 	myType := s.container.Storage().MigrationType()
@@ -421,6 +438,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		Idmap:         idmaps,
 		SnapshotNames: snapshotNames,
 		Snapshots:     snapshots,
+		Predump:       proto.Bool(use_pre_dumps),
 	}
 
 	err = s.send(&header)
@@ -452,6 +470,15 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		if poolwritable.Config != nil {
 			bwlimit = poolwritable.Config["rsync.bwlimit"]
 		}
+	}
+
+	// Check if the other side knows about pre-dumping and
+	// the associated rsync protocol
+	use_pre_dumps = header.GetPredump()
+	if use_pre_dumps {
+		logger.Debugf("The other side does support pre-copy")
+	} else {
+		logger.Debugf("The other side does not support pre-copy")
 	}
 
 	// All failure paths need to do a few things to correctly handle errors before returning.
@@ -873,6 +900,15 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		mySink = rsyncMigrationSink
 		myType = MigrationFSType_RSYNC
 		resp.Fs = &myType
+	}
+
+	if header.GetPredump() == true {
+		// If the other side wants pre-dump and if
+		// this side supports it, let's use it.
+		// TODO: check kernel+criu (and config?)
+		resp.Predump = proto.Bool(true)
+	} else {
+		resp.Predump = proto.Bool(false)
 	}
 
 	err = sender(&resp)

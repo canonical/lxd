@@ -47,6 +47,7 @@ message MigrationHeader {
 	repeated IDMapType	 		idmap		= 3;
 	repeated string				snapshotNames	= 4;
 	repeated Snapshot			snapshots	= 5;
+	optional bool				predump		= 7;
 }
 
 message MigrationControl {
