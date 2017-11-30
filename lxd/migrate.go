@@ -1006,6 +1006,47 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				criuConn = c.src.criuConn
 			}
 
+			sync := &MigrationSync{
+				// temporarily set to 'true' as long as not used
+				FinalPreDump: proto.Bool(true),
+			}
+
+			if resp.GetPredump() {
+				logger.Debugf("Before the receive loop %s", sync.GetFinalPreDump())
+				for !sync.GetFinalPreDump() {
+					logger.Debugf("About to receive rsync")
+					// Transfer a CRIU pre-dump
+					err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil)
+					if err != nil {
+						restore <- err
+						return
+					}
+					logger.Debugf("rsync receive done")
+
+					logger.Debugf("About to receive header")
+					// Check if this was the last pre-dump
+					// Only the FinalPreDump element if of interest
+					mtype, data, err := criuConn.ReadMessage()
+					if err != nil {
+						logger.Debugf("err %s", err)
+						restore <- err
+						return
+					}
+					if mtype != websocket.BinaryMessage {
+						restore <- err
+						return
+					}
+					err = proto.Unmarshal(data, sync)
+					if err != nil {
+						logger.Debugf("err %s", err)
+						restore <- err
+						return
+					}
+					logger.Debugf("At the end of the receive loop %s", sync.GetFinalPreDump())
+				}
+			}
+
+			// CRIU dump
 			err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil)
 			if err != nil {
 				restore <- err

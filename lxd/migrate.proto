@@ -56,3 +56,7 @@ message MigrationControl {
 	/* optional failure message if sending a failure */
 	optional string		message		= 2;
 }
+
+message MigrationSync {
+	required bool		finalPreDump	= 1;
+}
