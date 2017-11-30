@@ -497,6 +497,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				logger.Debugf("Dump finished, continuing with restore...")
 			}
 		} else {
+			logger.Debugf("liblxc version is older than 2.0.4 and the live migration will probably fail")
 			defer os.RemoveAll(checkpointDir)
 			err = s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, false)
 			if err != nil {
