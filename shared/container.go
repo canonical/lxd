@@ -167,6 +167,8 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 
 	"linux.kernel_modules": IsAny,
 
+	"migration.incremental.memory": IsBool,
+
 	"security.nesting":    IsBool,
 	"security.privileged": IsBool,
 	"security.devlxd":     IsBool,
