@@ -70,6 +70,10 @@ This also means that access to cached data will not be affected by the limit.
  - Uses LVs for images, then LV snapshots for containers and container snapshots.
  - The filesystem used for the LVs is ext4 (can be configured to use xfs instead).
  - LVs are created with a default size of 10GiB (can be configured through).
+ - For environments with high container turn over (e.g continuous integration)
+   it may be important to tweak the archival `retain_min` and `retain_days`
+   settings in `/etc/lvm/lvm.conf` to avoid slowdowns when interacting with
+   LXD.
 
 ### ZFS
 
