@@ -7,11 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-14 18:02-0500\n"
+"POT-Creation-Date: 2017-11-30 21:51-0800\n"
 "PO-Revision-Date: 2017-10-26 15:46+0000\n"
 "Last-Translator: Alban Vidal <alban.vidal@zordhak.fr>\n"
-"Language-Team: French <https://hosted.weblate.org/projects/linux-"
-"containers/lxd/fr/>\n"
+"Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
+"lxd/fr/>\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -517,11 +517,11 @@ msgstr "le serveur distant %s existe déjà"
 msgid "Directory import is not available on this platform"
 msgstr ""
 
-#: lxc/exec.go:65
+#: lxc/exec.go:71
 msgid "Disable pseudo-terminal allocation"
 msgstr "Désactiver l'allocation pseudo-terminal"
 
-#: lxc/exec.go:66
+#: lxc/exec.go:72
 msgid "Disable stdin (reads from /dev/null)"
 msgstr "Désactiver stdin (lecture à partir de /dev/null)"
 
@@ -546,7 +546,7 @@ msgstr "Activer le mode de débogage"
 msgid "Enable verbose mode"
 msgstr "Activer le mode verbeux"
 
-#: lxc/exec.go:62
+#: lxc/exec.go:68
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "Variable d'environnement (de la forme HOME=/home/foo) à positionner"
 
@@ -634,7 +634,7 @@ msgstr ""
 msgid "Fingerprint: %s"
 msgstr "Empreinte : %s"
 
-#: lxc/exec.go:64
+#: lxc/exec.go:70
 msgid "Force pseudo-terminal allocation"
 msgstr "Forcer l'allocation de pseudo-terminal "
 
@@ -919,7 +919,7 @@ msgstr "Le réseau %s a été supprimé"
 msgid "Options:"
 msgstr "Options :"
 
-#: lxc/exec.go:63
+#: lxc/exec.go:69
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "Surcharger le mode terminal (auto, interactif ou non-interactif)"
 
@@ -1647,6 +1647,14 @@ msgid ""
 "interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>\n"
 "\n"
 "Execute commands in containers.\n"
+"\n"
+"The command is executed directly using exec, so there is no shell and shell "
+"patterns (variables, file redirects, ...)\n"
+"won't be understood. If you need a shell environment you need to execute the "
+"shell executeable, passing the shell commands\n"
+"as arguments, for example:\n"
+"\n"
+"    lxc exec <container> -- sh -c \"cd /tmp && pwd\"\n"
 "\n"
 "Mode defaults to non-interactive, interactive mode is selected if both stdin "
 "AND stdout are terminals (stderr is ignored)."
@@ -2751,11 +2759,11 @@ msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur
 msgid "YES"
 msgstr "OUI"
 
-#: lxc/exec.go:126
+#: lxc/exec.go:132
 msgid "You can't pass -t and -T at the same time"
 msgstr "Il est impossible de passer -t et -T simultanément"
 
-#: lxc/exec.go:130
+#: lxc/exec.go:136
 #, fuzzy
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "impossible de copier vers le même nom de conteneur"
