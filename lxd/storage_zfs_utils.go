@@ -49,7 +49,7 @@ func zfsPoolVolumeCreate(dataset string, properties ...string) (string, error) {
 
 func zfsPoolCheck(pool string) error {
 	output, err := shared.RunCommand(
-		"zfs", "get", "type", "-H", "-o", "value", pool)
+		"zfs", "get", "-H", "-o", "value", "type", pool)
 	if err != nil {
 		return fmt.Errorf(strings.Split(output, "\n")[0])
 	}
@@ -521,10 +521,10 @@ func zfsFilesystemEntityExists(pool string, path string) bool {
 	output, err := shared.RunCommand(
 		"zfs",
 		"get",
-		"type",
 		"-H",
 		"-o",
 		"name",
+		"type",
 		vdev)
 	if err != nil {
 		return false
