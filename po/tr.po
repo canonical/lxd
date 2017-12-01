@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-14 18:02-0500\n"
+"POT-Creation-Date: 2017-11-30 21:51-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -412,11 +412,11 @@ msgstr ""
 msgid "Directory import is not available on this platform"
 msgstr ""
 
-#: lxc/exec.go:65
+#: lxc/exec.go:71
 msgid "Disable pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/exec.go:66
+#: lxc/exec.go:72
 msgid "Disable stdin (reads from /dev/null)"
 msgstr ""
 
@@ -440,7 +440,7 @@ msgstr ""
 msgid "Enable verbose mode"
 msgstr ""
 
-#: lxc/exec.go:62
+#: lxc/exec.go:68
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
@@ -525,7 +525,7 @@ msgstr ""
 msgid "Fingerprint: %s"
 msgstr ""
 
-#: lxc/exec.go:64
+#: lxc/exec.go:70
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
@@ -798,7 +798,7 @@ msgstr ""
 msgid "Options:"
 msgstr ""
 
-#: lxc/exec.go:63
+#: lxc/exec.go:69
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
@@ -1431,6 +1431,14 @@ msgid ""
 "interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>\n"
 "\n"
 "Execute commands in containers.\n"
+"\n"
+"The command is executed directly using exec, so there is no shell and shell "
+"patterns (variables, file redirects, ...)\n"
+"won't be understood. If you need a shell environment you need to execute the "
+"shell executeable, passing the shell commands\n"
+"as arguments, for example:\n"
+"\n"
+"    lxc exec <container> -- sh -c \"cd /tmp && pwd\"\n"
 "\n"
 "Mode defaults to non-interactive, interactive mode is selected if both stdin "
 "AND stdout are terminals (stderr is ignored)."
@@ -2146,11 +2154,11 @@ msgstr ""
 msgid "YES"
 msgstr ""
 
-#: lxc/exec.go:126
+#: lxc/exec.go:132
 msgid "You can't pass -t and -T at the same time"
 msgstr ""
 
-#: lxc/exec.go:130
+#: lxc/exec.go:136
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
