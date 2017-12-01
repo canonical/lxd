@@ -7,6 +7,7 @@ package main
 
 import (
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -356,6 +357,45 @@ func snapshotToProtobuf(c container) *Snapshot {
 	}
 }
 
+// The function readCriuStatsDump() reads the CRIU 'stats-dump' file
+// in path and returns the pages_written, pages_skipped_parent, error.
+func readCriuStatsDump(path string) (uint64, uint64, error) {
+	statsDump := shared.AddSlash(path) + "stats-dump"
+	in, err := ioutil.ReadFile(statsDump)
+	if err != nil {
+		logger.Errorf("Error reading CRIU's 'stats-dump' file: %s", err.Error())
+		return 0, 0, err
+	}
+
+	// According to the CRIU file image format it starts with two magic values.
+	// First magic IMG_SERVICE: 1427134784
+	if binary.LittleEndian.Uint32(in[0:4]) != 1427134784 {
+		msg := "IMG_SERVICE(1427134784) criu magic not found"
+		logger.Errorf(msg)
+		return 0, 0, fmt.Errorf(msg)
+	}
+	// Second magic STATS: 1460220678
+	if binary.LittleEndian.Uint32(in[4:8]) != 1460220678 {
+		msg := "STATS(1460220678) criu magic not found"
+		logger.Errorf(msg)
+		return 0, 0, fmt.Errorf(msg)
+	}
+
+	// Next, read the size of the image payload
+	size := binary.LittleEndian.Uint32(in[8:12])
+	logger.Debugf("stats-dump payload size %d", size)
+
+	statsEntry := &StatsEntry{}
+	if err = proto.Unmarshal(in[12:12+size], statsEntry); err != nil {
+		logger.Errorf("Failed to parse CRIU's 'stats-dump' file: %s", err.Error())
+		return 0, 0, err
+	}
+
+	written := statsEntry.GetDump().GetPagesWritten()
+	skipped := statsEntry.GetDump().GetPagesSkippedParent()
+	return written, skipped, nil
+}
+
 type preDumpLoopArgs struct {
 	checkpointDir string
 	bwlimit       string
@@ -364,7 +404,11 @@ type preDumpLoopArgs struct {
 	final         bool
 }
 
-func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) error {
+// The function preDumpLoop is the main logic behind the pre-copy migration.
+// This function contains the actual pre-dump, the corresponding rsync
+// transfer and it tells the outer loop to abort if the threshold
+// of memory pages transferred by pre-dumping has been reached.
+func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	// Do a CRIU pre-dump
 	criuMigrationArgs := CriuMigrationArgs{
 		cmd:          lxc.MIGRATE_PRE_DUMP,
@@ -378,9 +422,11 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) error {
 
 	logger.Debugf("Doing another pre-dump in %s", args.preDumpDir)
 
+	final := args.final
+
 	err := s.container.Migrate(&criuMigrationArgs)
 	if err != nil {
-		return err
+		return final, err
 	}
 
 	// Send the pre-dump.
@@ -388,7 +434,41 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) error {
 	state := s.container.DaemonState()
 	err = RsyncSend(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.bwlimit, state.OS.ExecPath)
 	if err != nil {
-		return err
+		return final, err
+	}
+
+	// Read the CRIU's 'stats-dump' file
+	dumpPath := shared.AddSlash(args.checkpointDir)
+	dumpPath += shared.AddSlash(args.dumpDir)
+	written, skipped_parent, err := readCriuStatsDump(dumpPath)
+	if err != nil {
+		return final, err
+	}
+
+	logger.Debugf("CRIU pages written %d", written)
+	logger.Debugf("CRIU pages skipped %d", skipped_parent)
+
+	total_pages := written + skipped_parent
+
+	percentage_skipped := int(100 - ((100 * written) / total_pages))
+
+	logger.Debugf("CRIU pages skipped percentage %d%%", percentage_skipped)
+
+	// threshold is the percentage of memory pages that needs
+	// to be pre-copied for the pre-copy migration to stop.
+	var threshold int
+	tmp := s.container.ExpandedConfig()["migration.incremental.memory.goal"]
+	if tmp != "" {
+		threshold, _ = strconv.Atoi(tmp)
+	} else {
+		// defaults to 70%
+		threshold = 70
+	}
+
+	if percentage_skipped > threshold {
+		logger.Debugf("Memory pages skipped (%d%%) due to pre-copy is larger than threshold (%d%%)", percentage_skipped, threshold)
+		logger.Debugf("This was the last pre-dump; next dump is the final dump")
+		final = true
 	}
 
 	// If in pre-dump mode, the receiving side
@@ -396,23 +476,23 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) error {
 	// last pre-dump
 	logger.Debugf("Sending another header")
 	sync := MigrationSync{
-		FinalPreDump: proto.Bool(args.final),
+		FinalPreDump: proto.Bool(final),
 	}
 
 	data, err := proto.Marshal(&sync)
 
 	if err != nil {
-		return err
+		return final, err
 	}
 
 	err = s.criuConn.WriteMessage(websocket.BinaryMessage, data)
 	if err != nil {
 		s.sendControl(err)
-		return err
+		return final, err
 	}
 	logger.Debugf("Sending another header done")
 
-	return nil
+	return final, nil
 }
 
 func (s *migrationSourceWs) Do(migrateOp *operation) error {
@@ -667,12 +747,13 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			preDumpCounter := 0
 			preDumpDir := ""
 			if use_pre_dumps {
-				do_pre_dumps := true
-				for do_pre_dumps {
-					if preDumpCounter+1 < max_iterations {
-						do_pre_dumps = true
+				final := false
+				for !final {
+					preDumpCounter++
+					if preDumpCounter < max_iterations {
+						final = false
 					} else {
-						do_pre_dumps = false
+						final = true
 					}
 					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
 					loop_args := preDumpLoopArgs{
@@ -680,9 +761,9 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 						bwlimit:       bwlimit,
 						preDumpDir:    preDumpDir,
 						dumpDir:       dumpDir,
-						final:         !do_pre_dumps,
+						final:         final,
 					}
-					err = s.preDumpLoop(&loop_args)
+					final, err = s.preDumpLoop(&loop_args)
 					if err != nil {
 						os.RemoveAll(checkpointDir)
 						return abort(err)
