@@ -76,7 +76,7 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 		}
 	}
 
-	output, err := shared.RunCommand("zfs", "get", "version", "-H", "-o", "value", s.zfsPool)
+	output, err := shared.RunCommand("zfs", "get", "-H", "-o", "value", "version", s.zfsPool)
 	if err != nil {
 		return s, fmt.Errorf("The 'zfs' tool isn't working properly")
 	}
@@ -86,7 +86,7 @@ func (s *storageZfs) Init(config map[string]interface{}) (storage, error) {
 		return s, fmt.Errorf("The 'zfs' tool isn't working properly")
 	}
 
-	output, err = shared.RunCommand("zfs", "get", "mountpoint", "-H", "-o", "source", s.zfsPool)
+	output, err = shared.RunCommand("zfs", "get", "-H", "-o", "source", "mountpoint", s.zfsPool)
 	if err != nil {
 		return s, fmt.Errorf("Unable to query ZFS mountpoint")
 	}
@@ -701,7 +701,7 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 // Helper functions
 func (s *storageZfs) zfsCheckPool(pool string) error {
 	output, err := shared.RunCommand(
-		"zfs", "get", "type", "-H", "-o", "value", pool)
+		"zfs", "get", "-H", "-o", "value", "type", pool)
 	if err != nil {
 		return fmt.Errorf(strings.Split(string(output), "\n")[0])
 	}
