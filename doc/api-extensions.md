@@ -364,3 +364,6 @@ This adds support for SR-IOV enabled network devices.
 
 ## console
 This adds support to interact with the container console device and console log.
+
+## migration\_pre\_copy
+This adds support for optimized memory transfer during live migration.

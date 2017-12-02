@@ -81,4 +81,5 @@ var APIExtensions = []string{
 	"network_sriov",
 	"console",
 	"restrict_devlxd",
+	"migration_pre_copy",
 }
