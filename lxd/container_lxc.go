@@ -3239,7 +3239,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			} else if m["type"] == "disk" && m["path"] != "/" {
 				diskDevices[k] = m
 			} else if m["type"] == "nic" {
-				err = c.insertNetworkDevice(k, m)
+				_, err = c.insertNetworkDevice(k, m)
 				if err != nil {
 					return err
 				}
@@ -5236,41 +5236,41 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	return newDevice, nil
 }
 
-func (c *containerLXC) insertNetworkDevice(name string, m types.Device) error {
+func (c *containerLXC) insertNetworkDevice(name string, m types.Device) (types.Device, error) {
 	// Load the go-lxc struct
 	err := c.initLXC(false)
 	if err != nil {
-		return nil
+		return m, nil
 	}
 
 	// Fill in some fields from volatile
 	m, err = c.fillNetworkDevice(name, m)
 	if err != nil {
-		return nil
+		return m, nil
 	}
 
 	if m["parent"] != "" && !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["parent"])) {
-		return fmt.Errorf("Parent device '%s' doesn't exist", m["parent"])
+		return nil, fmt.Errorf("Parent device '%s' doesn't exist", m["parent"])
 	}
 
 	// Return empty list if not running
 	if !c.IsRunning() {
-		return fmt.Errorf("Can't insert device into stopped container")
+		return nil, fmt.Errorf("Can't insert device into stopped container")
 	}
 
 	// Create the interface
 	devName, err := c.createNetworkDevice(name, m)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Add the interface to the container
 	err = c.c.AttachInterface(devName, m["name"])
 	if err != nil {
-		return fmt.Errorf("Failed to attach interface: %s: %s", devName, err)
+		return nil, fmt.Errorf("Failed to attach interface: %s: %s", devName, err)
 	}
 
-	return nil
+	return m, nil
 }
 
 func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
