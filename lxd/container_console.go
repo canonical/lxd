@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -326,53 +326,29 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	expandedConfig := c.ExpandedConfig()
-	rawLxc := expandedConfig["raw.lxc"]
-
-	consoleLogpath := ""
-	for _, line := range strings.Split(rawLxc, "\n") {
-		key, val, err := lxcParseRawLXC(line)
-		if err != nil {
-			return SmartError(err)
-		}
-
-		if key != "lxc.console.logfile" {
-			continue
-		}
-
-		consoleLogpath = val
-		break
+	if util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+		return BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
-
-	logContents := ""
-	console := lxc.ConsoleLogOptions{}
 
 	ent := fileResponseEntry{}
 	if !c.IsRunning() {
-		if consoleLogpath == "" {
-			return SmartError(fmt.Errorf("The container does not keep a console log"))
-		}
-
-		// Hand back the contents of the on-disk logfile.
-		ent.path = consoleLogpath
-		ent.filename = consoleLogpath
+		// Hand back the contents of the console ringbuffer logfile.
+		consoleBufferLogPath := c.ConsoleBufferLogPath()
+		ent.path = consoleBufferLogPath
+		ent.filename = consoleBufferLogPath
 		return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 	}
 
-	// Container keeps an on-disk logfile so keep sync it here.
-	if consoleLogpath != "" {
-		console.WriteToLogFile = true
-	} else {
-		console.WriteToLogFile = false
+	// Query the container's console ringbuffer.
+	console := lxc.ConsoleLogOptions{
+		ClearLog:       false,
+		ReadLog:        true,
+		ReadMax:        0,
+		WriteToLogFile: true,
 	}
 
-	// Query the container's console ringbuffer.
-	console.ClearLog = false
-	console.ReadLog = true
-	console.ReadMax = 0
-
 	// Send a ringbuffer request to the container.
-	logContents, err = c.ConsoleLog(console)
+	logContents, err := c.ConsoleLog(console)
 	if err != nil {
 		errno, isErrno := shared.GetErrno(err)
 		if !isErrno {
@@ -383,18 +359,10 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 			return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 		}
 
-		if errno == syscall.EFAULT && consoleLogpath != "" {
-			// Hand back the contents of the on-disk logfile.
-			ent.path = consoleLogpath
-			ent.filename = consoleLogpath
-			return FileResponse(r, []fileResponseEntry{ent}, nil, false)
-		}
-
 		return SmartError(err)
 	}
 
 	ent.buffer = []byte(logContents)
-
 	return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 }
 
@@ -405,35 +373,14 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	expandedConfig := c.ExpandedConfig()
-	rawLxc := expandedConfig["raw.lxc"]
-
-	consoleLogpath := ""
-	for _, line := range strings.Split(rawLxc, "\n") {
-		key, val, err := lxcParseRawLXC(line)
-		if err != nil {
-			return SmartError(err)
-		}
-
-		if key != "lxc.console.logfile" {
-			continue
-		}
-
-		consoleLogpath = val
-		break
-	}
-
-	console := lxc.ConsoleLogOptions{
-		ClearLog:       true,
-		ReadLog:        false,
-		ReadMax:        0,
-		WriteToLogFile: false,
+	if util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+		return BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
 	}
 
 	truncateConsoleLogFile := func(path string) error {
 		// Check that this is a regular file. We don't want to try and unlink
 		// /dev/stderr or /dev/null or something.
-		st, err := os.Stat(consoleLogpath)
+		st, err := os.Stat(path)
 		if err != nil {
 			return err
 		}
@@ -442,21 +389,26 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 			return fmt.Errorf("The console log is not a regular file")
 		}
 
-		if consoleLogpath == "" {
+		if path == "" {
 			return fmt.Errorf("Container does not keep a console logfile")
 		}
 
-		return os.Truncate(consoleLogpath, 0)
+		return os.Truncate(path, 0)
 	}
 
 	if !c.IsRunning() {
-		if consoleLogpath == "" {
-			return SmartError(fmt.Errorf("The container does not keep a console log"))
-		}
+		consoleLogpath := c.ConsoleBufferLogPath()
 		return SmartError(truncateConsoleLogFile(consoleLogpath))
 	}
 
 	// Send a ringbuffer request to the container.
+	console := lxc.ConsoleLogOptions{
+		ClearLog:       true,
+		ReadLog:        false,
+		ReadMax:        0,
+		WriteToLogFile: false,
+	}
+
 	_, err = c.ConsoleLog(console)
 	if err != nil {
 		errno, isErrno := shared.GetErrno(err)
@@ -466,14 +418,6 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 
 		if errno == syscall.ENODATA {
 			return SmartError(nil)
-		}
-
-		if errno == syscall.EFAULT {
-			if consoleLogpath == "" {
-				return SmartError(fmt.Errorf("The container does not keep a console log"))
-			}
-
-			return SmartError(truncateConsoleLogFile(consoleLogpath))
 		}
 
 		return SmartError(err)
