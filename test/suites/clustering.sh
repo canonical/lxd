@@ -98,6 +98,9 @@ test_clustering_membership() {
   rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
 
 test_clustering_containers() {
@@ -160,4 +163,7 @@ test_clustering_containers() {
   rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
 }
