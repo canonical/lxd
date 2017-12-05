@@ -205,3 +205,22 @@ func TestUpdateFromV2(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), n)
 }
+
+func TestUpdateFromV3(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(4, nil)
+	require.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'c1', '', '1.1.1.1', 666, 999, ?)", time.Now())
+	require.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO storage_pools VALUES (1, 'p1', 'zfs', '', 0)")
+	require.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO storage_pools_nodes VALUES (1, 1, 1)")
+	require.NoError(t, err)
+
+	// Unique constraint on storage_pool_id/node_id
+	_, err = db.Exec("INSERT INTO storage_pools_nodes VALUES (1, 1, 1)")
+	require.Error(t, err)
+}
