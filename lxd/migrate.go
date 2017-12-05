@@ -7,6 +7,7 @@ package main
 
 import (
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -355,6 +357,144 @@ func snapshotToProtobuf(c container) *Snapshot {
 	}
 }
 
+// The function readCriuStatsDump() reads the CRIU 'stats-dump' file
+// in path and returns the pages_written, pages_skipped_parent, error.
+func readCriuStatsDump(path string) (uint64, uint64, error) {
+	statsDump := shared.AddSlash(path) + "stats-dump"
+	in, err := ioutil.ReadFile(statsDump)
+	if err != nil {
+		logger.Errorf("Error reading CRIU's 'stats-dump' file: %s", err.Error())
+		return 0, 0, err
+	}
+
+	// According to the CRIU file image format it starts with two magic values.
+	// First magic IMG_SERVICE: 1427134784
+	if binary.LittleEndian.Uint32(in[0:4]) != 1427134784 {
+		msg := "IMG_SERVICE(1427134784) criu magic not found"
+		logger.Errorf(msg)
+		return 0, 0, fmt.Errorf(msg)
+	}
+	// Second magic STATS: 1460220678
+	if binary.LittleEndian.Uint32(in[4:8]) != 1460220678 {
+		msg := "STATS(1460220678) criu magic not found"
+		logger.Errorf(msg)
+		return 0, 0, fmt.Errorf(msg)
+	}
+
+	// Next, read the size of the image payload
+	size := binary.LittleEndian.Uint32(in[8:12])
+	logger.Debugf("stats-dump payload size %d", size)
+
+	statsEntry := &StatsEntry{}
+	if err = proto.Unmarshal(in[12:12+size], statsEntry); err != nil {
+		logger.Errorf("Failed to parse CRIU's 'stats-dump' file: %s", err.Error())
+		return 0, 0, err
+	}
+
+	written := statsEntry.GetDump().GetPagesWritten()
+	skipped := statsEntry.GetDump().GetPagesSkippedParent()
+	return written, skipped, nil
+}
+
+type preDumpLoopArgs struct {
+	checkpointDir string
+	bwlimit       string
+	preDumpDir    string
+	dumpDir       string
+	final         bool
+}
+
+// The function preDumpLoop is the main logic behind the pre-copy migration.
+// This function contains the actual pre-dump, the corresponding rsync
+// transfer and it tells the outer loop to abort if the threshold
+// of memory pages transferred by pre-dumping has been reached.
+func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
+	// Do a CRIU pre-dump
+	criuMigrationArgs := CriuMigrationArgs{
+		cmd:          lxc.MIGRATE_PRE_DUMP,
+		stop:         false,
+		actionScript: false,
+		preDumpDir:   args.preDumpDir,
+		dumpDir:      args.dumpDir,
+		stateDir:     args.checkpointDir,
+		function:     "migration",
+	}
+
+	logger.Debugf("Doing another pre-dump in %s", args.preDumpDir)
+
+	final := args.final
+
+	err := s.container.Migrate(&criuMigrationArgs)
+	if err != nil {
+		return final, err
+	}
+
+	// Send the pre-dump.
+	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
+	state := s.container.DaemonState()
+	err = RsyncSend(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.bwlimit, state.OS.ExecPath)
+	if err != nil {
+		return final, err
+	}
+
+	// Read the CRIU's 'stats-dump' file
+	dumpPath := shared.AddSlash(args.checkpointDir)
+	dumpPath += shared.AddSlash(args.dumpDir)
+	written, skipped_parent, err := readCriuStatsDump(dumpPath)
+	if err != nil {
+		return final, err
+	}
+
+	logger.Debugf("CRIU pages written %d", written)
+	logger.Debugf("CRIU pages skipped %d", skipped_parent)
+
+	total_pages := written + skipped_parent
+
+	percentage_skipped := int(100 - ((100 * written) / total_pages))
+
+	logger.Debugf("CRIU pages skipped percentage %d%%", percentage_skipped)
+
+	// threshold is the percentage of memory pages that needs
+	// to be pre-copied for the pre-copy migration to stop.
+	var threshold int
+	tmp := s.container.ExpandedConfig()["migration.incremental.memory.goal"]
+	if tmp != "" {
+		threshold, _ = strconv.Atoi(tmp)
+	} else {
+		// defaults to 70%
+		threshold = 70
+	}
+
+	if percentage_skipped > threshold {
+		logger.Debugf("Memory pages skipped (%d%%) due to pre-copy is larger than threshold (%d%%)", percentage_skipped, threshold)
+		logger.Debugf("This was the last pre-dump; next dump is the final dump")
+		final = true
+	}
+
+	// If in pre-dump mode, the receiving side
+	// expects a message to know if this was the
+	// last pre-dump
+	logger.Debugf("Sending another header")
+	sync := MigrationSync{
+		FinalPreDump: proto.Bool(final),
+	}
+
+	data, err := proto.Marshal(&sync)
+
+	if err != nil {
+		return final, err
+	}
+
+	err = s.criuConn.WriteMessage(websocket.BinaryMessage, data)
+	if err != nil {
+		s.sendControl(err)
+		return final, err
+	}
+	logger.Debugf("Sending another header done")
+
+	return final, nil
+}
+
 func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	<-s.allConnected
 
@@ -412,6 +552,44 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
+	// TODO: ask CRIU if this system (kernel+criu) supports
+	// pre-copy (dirty memory tracking)
+	// The user should also be enable to influence it from the
+	// command-line.
+
+	// What does the config say about pre-copy
+	tmp := s.container.ExpandedConfig()["migration.incremental.memory"]
+
+	// default to false for pre-dumps as long as libxlc has no
+	// detection for the feature
+	use_pre_dumps := false
+
+	if tmp != "" {
+		use_pre_dumps = shared.IsTrue(tmp)
+	}
+	logger.Debugf("migration.incremental.memory %d", use_pre_dumps)
+
+	// migration.incremental.memory.iterations is the value after which the
+	// container will be definitely migrated, even if the remaining number
+	// of memory pages is below the defined threshold.
+	// TODO: implement threshold (needs reading of CRIU output files)
+	var max_iterations int
+	tmp = s.container.ExpandedConfig()["migration.incremental.memory.iterations"]
+	if tmp != "" {
+		max_iterations, _ = strconv.Atoi(tmp)
+	} else {
+		// default to 10
+		max_iterations = 10
+	}
+	if max_iterations > 999 {
+		// the pre-dump directory is hardcoded to a string
+		// with maximal 3 digits. 999 pre-dumps makes no
+		// sense at all, but let's make sure the number
+		// is not higher than this.
+		max_iterations = 999
+	}
+	logger.Debugf("using maximal %d iterations for pre-dumping", max_iterations)
+
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
 	myType := s.container.Storage().MigrationType()
@@ -421,6 +599,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		Idmap:         idmaps,
 		SnapshotNames: snapshotNames,
 		Snapshots:     snapshots,
+		Predump:       proto.Bool(use_pre_dumps),
 	}
 
 	err = s.send(&header)
@@ -452,6 +631,15 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		if poolwritable.Config != nil {
 			bwlimit = poolwritable.Config["rsync.bwlimit"]
 		}
+	}
+
+	// Check if the other side knows about pre-dumping and
+	// the associated rsync protocol
+	use_pre_dumps = header.GetPredump()
+	if use_pre_dumps {
+		logger.Debugf("The other side does support pre-copy")
+	} else {
+		logger.Debugf("The other side does not support pre-copy")
 	}
 
 	// All failure paths need to do a few things to correctly handle errors before returning.
@@ -556,6 +744,35 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				return abort(err)
 			}
 
+			preDumpCounter := 0
+			preDumpDir := ""
+			if use_pre_dumps {
+				final := false
+				for !final {
+					preDumpCounter++
+					if preDumpCounter < max_iterations {
+						final = false
+					} else {
+						final = true
+					}
+					dumpDir := fmt.Sprintf("%03d", preDumpCounter)
+					loop_args := preDumpLoopArgs{
+						checkpointDir: checkpointDir,
+						bwlimit:       bwlimit,
+						preDumpDir:    preDumpDir,
+						dumpDir:       dumpDir,
+						final:         final,
+					}
+					final, err = s.preDumpLoop(&loop_args)
+					if err != nil {
+						os.RemoveAll(checkpointDir)
+						return abort(err)
+					}
+					preDumpDir = fmt.Sprintf("%03d", preDumpCounter)
+					preDumpCounter++
+				}
+			}
+
 			_, err = actionScriptOp.Run()
 			if err != nil {
 				os.RemoveAll(checkpointDir)
@@ -563,7 +780,19 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			}
 
 			go func() {
-				dumpSuccess <- s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, true)
+				criuMigrationArgs := CriuMigrationArgs{
+					cmd:          lxc.MIGRATE_DUMP,
+					stop:         true,
+					actionScript: true,
+					preDumpDir:   preDumpDir,
+					dumpDir:      "final",
+					stateDir:     checkpointDir,
+					function:     "migration",
+				}
+
+				// Do the final CRIU dump. This is needs no special
+				// handling if pre-dumps are used or not
+				dumpSuccess <- s.container.Migrate(&criuMigrationArgs)
 				os.RemoveAll(checkpointDir)
 			}()
 
@@ -576,8 +805,19 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				logger.Debugf("Dump finished, continuing with restore...")
 			}
 		} else {
+			logger.Debugf("liblxc version is older than 2.0.4 and the live migration will probably fail")
 			defer os.RemoveAll(checkpointDir)
-			err = s.container.Migrate(lxc.MIGRATE_DUMP, checkpointDir, "migration", true, false)
+			criuMigrationArgs := CriuMigrationArgs{
+				cmd:          lxc.MIGRATE_DUMP,
+				stateDir:     checkpointDir,
+				function:     "migration",
+				stop:         true,
+				actionScript: false,
+				dumpDir:      "final",
+				preDumpDir:   "",
+			}
+
+			err = s.container.Migrate(&criuMigrationArgs)
 			if err != nil {
 				return abort(err)
 			}
@@ -859,6 +1099,15 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		resp.Fs = &myType
 	}
 
+	if header.GetPredump() == true {
+		// If the other side wants pre-dump and if
+		// this side supports it, let's use it.
+		// TODO: check kernel+criu (and config?)
+		resp.Predump = proto.Bool(true)
+	} else {
+		resp.Predump = proto.Bool(false)
+	}
+
 	err = sender(&resp)
 	if err != nil {
 		controller(err)
@@ -954,6 +1203,46 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				criuConn = c.src.criuConn
 			}
 
+			sync := &MigrationSync{
+				FinalPreDump: proto.Bool(false),
+			}
+
+			if resp.GetPredump() {
+				logger.Debugf("Before the receive loop %s", sync.GetFinalPreDump())
+				for !sync.GetFinalPreDump() {
+					logger.Debugf("About to receive rsync")
+					// Transfer a CRIU pre-dump
+					err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil)
+					if err != nil {
+						restore <- err
+						return
+					}
+					logger.Debugf("rsync receive done")
+
+					logger.Debugf("About to receive header")
+					// Check if this was the last pre-dump
+					// Only the FinalPreDump element if of interest
+					mtype, data, err := criuConn.ReadMessage()
+					if err != nil {
+						logger.Debugf("err %s", err)
+						restore <- err
+						return
+					}
+					if mtype != websocket.BinaryMessage {
+						restore <- err
+						return
+					}
+					err = proto.Unmarshal(data, sync)
+					if err != nil {
+						logger.Debugf("err %s", err)
+						restore <- err
+						return
+					}
+					logger.Debugf("At the end of the receive loop %s", sync.GetFinalPreDump())
+				}
+			}
+
+			// Final CRIU dump
 			err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil)
 			if err != nil {
 				restore <- err
@@ -968,7 +1257,20 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		}
 
 		if live {
-			err = c.src.container.Migrate(lxc.MIGRATE_RESTORE, imagesDir, "migration", false, false)
+			criuMigrationArgs := CriuMigrationArgs{
+				cmd:          lxc.MIGRATE_RESTORE,
+				stateDir:     imagesDir,
+				function:     "migration",
+				stop:         false,
+				actionScript: false,
+				dumpDir:      "final",
+				preDumpDir:   "",
+			}
+
+			// Currently we only do a single CRIU pre-dump so we
+			// can hardcode "final" here since we know that "final" is the
+			// folder for CRIU's final dump.
+			err = c.src.container.Migrate(&criuMigrationArgs)
 			if err != nil {
 				restore <- err
 				return
