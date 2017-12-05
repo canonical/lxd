@@ -12,7 +12,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-var argCount = gnuflag.Int("count", 100, "Number of containers to create")
+var argCount = gnuflag.Int("count", 1, "Number of containers to create")
 var argParallel = gnuflag.Int("parallel", -1, "Number of threads to use")
 var argImage = gnuflag.String("image", "ubuntu:", "Image to use for the test")
 var argPrivileged = gnuflag.Bool("privileged", false, "Use privileged containers")
