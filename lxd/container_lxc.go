@@ -3663,6 +3663,23 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				if err != nil {
 					return err
 				}
+			} else if key == "security.devlxd" {
+				if value == "" || shared.IsTrue(value) {
+					err = c.insertMount(shared.VarPath("devlxd"), "/dev/lxd", "none", syscall.MS_BIND)
+					if err != nil {
+						return err
+					}
+				} else if c.FileExists("/dev/lxd") == nil {
+					err = c.removeMount("/dev/lxd")
+					if err != nil {
+						return err
+					}
+
+					err = c.FileRemove("/dev/lxd")
+					if err != nil {
+						return err
+					}
+				}
 			} else if key == "linux.kernel_modules" && value != "" {
 				for _, module := range strings.Split(value, ",") {
 					module = strings.TrimPrefix(module, " ")

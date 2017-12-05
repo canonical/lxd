@@ -48,12 +48,12 @@ raw.apparmor                            | blob      | -             | yes       
 raw.idmap                               | blob      | -             | no            | id\_map                              | Raw idmap configuration (e.g. "both 1000 1000")
 raw.lxc                                 | blob      | -             | no            | -                                    | Raw LXC configuration to be appended to the generated one
 raw.seccomp                             | blob      | -             | no            | container\_syscall\_filtering        | Raw Seccomp configuration
+security.devlxd                         | boolean   | true          | no            | restrict\_devlxd                     | Controls the presence of /dev/lxd in the container
 security.idmap.base                     | integer   | -             | no            | id\_map\_base                        | The base host ID to use for the allocation (overrides auto-detection)
 security.idmap.isolated                 | boolean   | false         | no            | id\_map                              | Use an idmap for this container that is unique among containers with isolated set.
 security.idmap.size                     | integer   | -             | no            | id\_map                              | The size of the idmap to use
 security.nesting                        | boolean   | false         | yes           | -                                    | Support running lxd (nested) inside the container
 security.privileged                     | boolean   | false         | no            | -                                    | Runs the container in privileged mode
-security.devlxd                         | boolean   | true          | no            | -                                    | Controls the presence of /dev/lxd in the container
 security.syscalls.blacklist             | string    | -             | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to blacklist
 security.syscalls.blacklist\_compat     | boolean   | false         | no            | container\_syscall\_filtering        | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
 security.syscalls.blacklist\_default    | boolean   | true          | no            | container\_syscall\_filtering        | Enables the default syscall blacklist
