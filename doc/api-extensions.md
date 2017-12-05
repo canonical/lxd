@@ -433,3 +433,4 @@ This includes the following new endpoints:
 The following existing endpoints have been modified:
 
  * `POST /1.0/containers` accepts a new targetNode query parameter
+ * `POST /1.0/storage-pools` accepts a new targetNode query parameter

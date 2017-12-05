@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
@@ -88,12 +89,50 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No driver provided"))
 	}
 
-	err = storagePoolCreateInternal(d.State(), req.Name, req.Description, req.Driver, req.Config)
-	if err != nil {
-		return InternalError(err)
+	url := fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, req.Name)
+	response := SyncResponseLocation(true, nil, url)
+
+	targetNode := r.FormValue("targetNode")
+	if targetNode == "" {
+		count, err := cluster.Count(d.State())
+		if err != nil {
+			return SmartError(err)
+		}
+
+		if count == 1 {
+			// No targetNode was specified and we're either a single-node
+			// cluster or not clustered at all, so create the storage
+			// pool immediately.
+			err = storagePoolCreateInternal(
+				d.State(), req.Name, req.Description, req.Driver, req.Config)
+			if err != nil {
+				return InternalError(err)
+			}
+			return response
+		}
+
+		// No targetNode was specified and we're clustered. Check that
+		// the storage pool has been defined on all nodes and, if so,
+		// actually create it on all of them.
+		panic("TODO")
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, req.Name))
+	// A targetNode was specified, let's just define the node's storage
+	// without actually creating it. The only legal key value for the
+	// storage config is 'source'.
+	for key := range req.Config {
+		if key != "source" {
+			return SmartError(fmt.Errorf("Invalid config key '%s'", key))
+		}
+	}
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.StoragePoolCreatePending(targetNode, req.Name, req.Driver, req.Config)
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return response
 }
 
 var storagePoolsCmd = Command{name: "storage-pools", get: storagePoolsGet, post: storagePoolsPost}

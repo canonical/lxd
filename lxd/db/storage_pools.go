@@ -328,10 +328,11 @@ func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, erro
 	var poolDriver string
 	poolID := int64(-1)
 	description := sql.NullString{}
+	var state int
 
-	query := "SELECT id, driver, description FROM storage_pools WHERE name=?"
+	query := "SELECT id, driver, description, state FROM storage_pools WHERE name=?"
 	inargs := []interface{}{poolName}
-	outargs := []interface{}{&poolID, &poolDriver, &description}
+	outargs := []interface{}{&poolID, &poolDriver, &description, &state}
 
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
@@ -352,6 +353,15 @@ func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, erro
 	}
 	storagePool.Description = description.String
 	storagePool.Config = config
+
+	switch state {
+	case storagePoolPending:
+		storagePool.State = "PENDING"
+	case storagePoolCreated:
+		storagePool.State = "CREATED"
+	default:
+		storagePool.State = "UNKNOWN"
+	}
 
 	return poolID, &storagePool, nil
 }
