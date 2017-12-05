@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"unsafe"
 
 	"github.com/gorilla/mux"
@@ -180,7 +181,8 @@ type ucred struct {
 }
 
 type ConnPidMapper struct {
-	m map[*net.UnixConn]*ucred
+	m     map[*net.UnixConn]*ucred
+	mLock sync.Mutex
 }
 
 func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
@@ -191,7 +193,9 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 		if err != nil {
 			logger.Debugf("Error getting ucred for conn %s", err)
 		} else {
+			m.mLock.Lock()
 			m.m[unixConn] = cred
+			m.mLock.Unlock()
 		}
 	case http.StateActive:
 		return
@@ -206,9 +210,13 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 		 * more. Whatever the case, we want to forget about it since we
 		 * won't see it either.
 		 */
+		m.mLock.Lock()
 		delete(m.m, unixConn)
+		m.mLock.Unlock()
 	case http.StateClosed:
+		m.mLock.Lock()
 		delete(m.m, unixConn)
+		m.mLock.Unlock()
 	default:
 		logger.Debugf("Unknown state for connection %s", state)
 	}
