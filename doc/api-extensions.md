@@ -32,11 +32,6 @@ A number of new syscalls related container configuration keys were introduced.
 
 See [configuration.md](Configuration) for how to use them.
 
-## restrict\_devlxd
-A new security.devlxd container configuration key was introduced.
-The key controls whether the /dev/lxd interface is made available to the container.
-If set to false, this effectively prevents the container from interacting with the LXD daemon.
-
 ## auth\_pki
 This indicates support for PKI authentication mode.
 
@@ -364,6 +359,11 @@ This adds support for SR-IOV enabled network devices.
 
 ## console
 This adds support to interact with the container console device and console log.
+
+## restrict\_devlxd
+A new security.devlxd container configuration key was introduced.
+The key controls whether the /dev/lxd interface is made available to the container.
+If set to false, this effectively prevents the container from interacting with the LXD daemon.
 
 ## migration\_pre\_copy
 This adds support for optimized memory transfer during live migration.
