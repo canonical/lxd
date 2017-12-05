@@ -209,6 +209,10 @@ func lxcValidConfig(rawLxc string) error {
 			return fmt.Errorf("Setting lxc.logfile is not allowed")
 		}
 
+		if key == "lxc.console.logfile" {
+			return fmt.Errorf("Setting lxc.console.logfile is not allowed")
+		}
+
 		if key == "lxc.syslog" || key == "lxc.log.syslog" {
 			return fmt.Errorf("Setting lxc.syslog is not allowed")
 		}
@@ -870,6 +874,22 @@ func (c *containerLXC) initLXC(config bool) error {
 	err = lxcSetConfigItem(cc, "lxc.log.level", logLevel)
 	if err != nil {
 		return err
+	}
+
+	if util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+		// 128 kB console ringbuffer.
+		err = lxcSetConfigItem(cc, "lxc.console.buffer.size", "auto")
+		if err != nil {
+			return err
+		}
+
+		// File to dump ringbuffer contents to when requested or
+		// container shutdown.
+		consoleBufferLogFile := c.ConsoleBufferLogPath()
+		err = lxcSetConfigItem(cc, "lxc.console.buffer.logfile", consoleBufferLogFile)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Allow for lightweight init
@@ -7254,6 +7274,10 @@ func (c *containerLXC) LogPath() string {
 
 func (c *containerLXC) LogFilePath() string {
 	return filepath.Join(c.LogPath(), "lxc.log")
+}
+
+func (c *containerLXC) ConsoleBufferLogPath() string {
+	return filepath.Join(c.LogPath(), "console.log")
 }
 
 func (c *containerLXC) RootfsPath() string {
