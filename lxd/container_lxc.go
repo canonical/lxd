@@ -1054,9 +1054,11 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup devlxd
-	err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", shared.VarPath("devlxd")))
-	if err != nil {
-		return err
+	if c.expandedConfig["security.devlxd"] == "" || shared.IsTrue(c.expandedConfig["security.devlxd"]) {
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/lxd none bind,create=dir 0 0", shared.VarPath("devlxd")))
+		if err != nil {
+			return err
+		}
 	}
 
 	// Setup AppArmor
