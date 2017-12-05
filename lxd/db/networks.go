@@ -21,7 +21,7 @@ func (c *ClusterTx) NetworkConfigs() (map[string]map[string]string, error) {
 	networks := make(map[string]map[string]string, len(names))
 	for _, name := range names {
 		table := "networks_config JOIN networks ON networks.id=networks_config.network_id"
-		config, err := query.SelectConfig(c.tx, table, fmt.Sprintf("networks.name='%s'", name))
+		config, err := query.SelectConfig(c.tx, table, "networks.name=?", name)
 		if err != nil {
 			return nil, err
 		}
