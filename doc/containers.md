@@ -360,18 +360,18 @@ supported limit on their system. Some common limits are:
 
 Key                      | Resource          | Description
 :--                      | :---              | :----------
-limits.kernel.as         | RLIMIT_AS         | Maximum size of the process's virtual memory
-limits.kernel.core       | RLIMIT_CORE       | Maximum size of the process's coredump file
-limits.kernel.cpu        | RLIMIT_CPU        | Limit in seconds on the amount of cpu time the process can consume
-limits.kernel.data       | RLIMIT_DATA       | Maximum size of the process's data segment
-limits.kernel.fsize      | RLIMIT_FSIZE      | Maximum size of files the process may create
-limits.kernel.locks      | RLIMIT_LOCKS      | Limit on the number of file locks that this process may establish
-limits.kernel.memlock    | RLIMIT_MEMLOCK    | Limit on the number of bytes of memory that the process may lock in RAM
-limits.kernel.nice       | RLIMIT_NICE       | Maximum value to which the process's nice value can be raised
-limits.kernel.nofile     | RLIMIT_NOFILE     | Maximum number of open files for the process
-limits.kernel.nproc      | RLIMIT_NPROC      | Maximum number of processes that can be created for the user of the calling process
-limits.kernel.rtprio     | RLIMIT_RTPRIO     | Maximum value on the real-time-priority that maybe set for this process
-limits.kernel.sigpending | RLIMIT_SIGPENDING | Maximum number of signals that maybe queued for the user of the calling process
+limits.kernel.as         | RLIMIT\_AS         | Maximum size of the process's virtual memory
+limits.kernel.core       | RLIMIT\_CORE       | Maximum size of the process's coredump file
+limits.kernel.cpu        | RLIMIT\_CPU        | Limit in seconds on the amount of cpu time the process can consume
+limits.kernel.data       | RLIMIT\_DATA       | Maximum size of the process's data segment
+limits.kernel.fsize      | RLIMIT\_FSIZE      | Maximum size of files the process may create
+limits.kernel.locks      | RLIMIT\_LOCKS      | Limit on the number of file locks that this process may establish
+limits.kernel.memlock    | RLIMIT\_MEMLOCK    | Limit on the number of bytes of memory that the process may lock in RAM
+limits.kernel.nice       | RLIMIT\_NICE       | Maximum value to which the process's nice value can be raised
+limits.kernel.nofile     | RLIMIT\_NOFILE     | Maximum number of open files for the process
+limits.kernel.nproc      | RLIMIT\_NPROC      | Maximum number of processes that can be created for the user of the calling process
+limits.kernel.rtprio     | RLIMIT\_RTPRIO     | Maximum value on the real-time-priority that maybe set for this process
+limits.kernel.sigpending | RLIMIT\_SIGPENDING | Maximum number of signals that maybe queued for the user of the calling process
 
 A full list of all available limits can be found in the manpages for the
 `getrlimit(2)`/`setrlimit(2)` system calls. To specify a limit within the
