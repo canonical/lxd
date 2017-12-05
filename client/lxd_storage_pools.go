@@ -71,7 +71,11 @@ func (r *ProtocolLXD) CreateStoragePool(pool api.StoragePoolsPost) error {
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", "/storage-pools", pool, "")
+	path := "/storage-pools"
+	if r.targetNode != "" {
+		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	}
+	_, _, err := r.query("POST", path, pool, "")
 	if err != nil {
 		return err
 	}
