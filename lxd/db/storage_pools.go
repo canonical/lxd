@@ -22,8 +22,7 @@ func (c *ClusterTx) StoragePoolConfigs() (map[string]map[string]string, error) {
 		table := `
 storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config.storage_pool_id
 `
-		filter := fmt.Sprintf("storage_pools.name='%s'", name)
-		config, err := query.SelectConfig(c.tx, table, filter)
+		config, err := query.SelectConfig(c.tx, table, "storage_pools.name=?", name)
 		if err != nil {
 			return nil, err
 		}
