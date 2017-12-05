@@ -11,7 +11,6 @@ test_devlxd() {
 
   ! lxc exec devlxd -- test -S /dev/lxd/sock
   lxc config unset devlxd security.devlxd
-  lxc restart devlxd --force
   lxc exec devlxd -- test -S /dev/lxd/sock
   lxc file push "${TEST_DIR}/devlxd-client" devlxd/bin/
 
