@@ -700,20 +700,34 @@ func (c *storageCmd) doStoragePoolsList(conf *config.Config, args []string) erro
 	data := [][]string{}
 	for _, pool := range pools {
 		usedby := strconv.Itoa(len(pool.UsedBy))
-
-		data = append(data, []string{pool.Name, pool.Description, pool.Driver, pool.Config["source"], usedby})
+		details := []string{pool.Name, pool.Description, pool.Driver}
+		if client.IsClustered() {
+			details = append(details, pool.State)
+		} else {
+			details = append(details, pool.Config["source"])
+		}
+		details = append(details, usedby)
+		data = append(data, details)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(true)
-	table.SetHeader([]string{
+
+	header := []string{
 		i18n.G("NAME"),
 		i18n.G("DESCRIPTION"),
 		i18n.G("DRIVER"),
-		i18n.G("SOURCE"),
-		i18n.G("USED BY")})
+	}
+	if client.IsClustered() {
+		header = append(header, i18n.G("STATE"))
+	} else {
+		header = append(header, i18n.G("SOURCE"))
+	}
+	header = append(header, i18n.G("USED BY"))
+	table.SetHeader(header)
+
 	sort.Sort(byName(data))
 	table.AppendBulk(data)
 	table.Render()
