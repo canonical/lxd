@@ -12,6 +12,10 @@ import (
 
 // StoragePoolConfigs returns a map associating each storage pool name to its
 // config values.
+//
+// The config values are the ones defined for the node this function is run
+// on. They are used by cluster.Join when a new node joins the cluster and its
+// configuration needs to be migrated to the cluster database.
 func (c *ClusterTx) StoragePoolConfigs() (map[string]map[string]string, error) {
 	names, err := query.SelectStrings(c.tx, "SELECT name FROM storage_pools")
 	if err != nil {
@@ -22,7 +26,9 @@ func (c *ClusterTx) StoragePoolConfigs() (map[string]map[string]string, error) {
 		table := `
 storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config.storage_pool_id
 `
-		config, err := query.SelectConfig(c.tx, table, "storage_pools.name=?", name)
+		config, err := query.SelectConfig(
+			c.tx, table, "storage_pools.name=? AND storage_pools_config.storage_pool_id=?",
+			name, c.nodeID)
 		if err != nil {
 			return nil, err
 		}
@@ -54,6 +60,18 @@ func (c *ClusterTx) StoragePoolIDs() (map[string]int64, error) {
 		ids[pool.name] = pool.id
 	}
 	return ids, nil
+}
+
+// StoragePoolNodeJoin adds a new entry in the storage_pools_nodes table.
+//
+// It should only be used when a new node joins the cluster, when it's safe to
+// assume that the relevant pool has already been created on the joining node,
+// and we just need to track it.
+func (c *ClusterTx) StoragePoolNodeJoin(poolID, nodeID int64) error {
+	columns := []string{"storage_pool_id", "node_id"}
+	values := []interface{}{poolID, nodeID}
+	_, err := query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
+	return err
 }
 
 // StoragePoolConfigAdd adds a new entry in the storage_pools_config table
