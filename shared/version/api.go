@@ -80,4 +80,5 @@ var APIExtensions = []string{
 	"macaroon_authentication",
 	"network_sriov",
 	"console",
+	"restrict_devlxd",
 }

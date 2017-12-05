@@ -169,6 +169,7 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 
 	"security.nesting":    IsBool,
 	"security.privileged": IsBool,
+	"security.devlxd":     IsBool,
 
 	"security.idmap.base":     IsUint32,
 	"security.idmap.isolated": IsBool,
