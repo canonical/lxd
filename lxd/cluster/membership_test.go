@@ -127,6 +127,10 @@ func TestBootstrap(t *testing.T) {
 	conn, err := driver.Open("test.db")
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
+
+	count, err := cluster.Count(state)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
 }
 
 // If pre-conditions are not met, a descriptive error is returned.
@@ -306,6 +310,11 @@ func TestJoin(t *testing.T) {
 	assert.True(t, flags[1])
 	assert.True(t, flags[2])
 
+	// The Count function returns the number of nodes.
+	count, err := cluster.Count(state)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
 	// Leave the cluster.
 	leaving, err := cluster.Leave(state, gateway, "rusp", false /* force */)
 	require.NoError(t, err)
@@ -325,6 +334,10 @@ func TestJoin(t *testing.T) {
 	future := raft.GetConfiguration()
 	require.NoError(t, future.Error())
 	assert.Len(t, future.Configuration().Servers, 1)
+
+	count, err = cluster.Count(state)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
 }
 
 // Helper for setting fixtures for Bootstrap tests.
