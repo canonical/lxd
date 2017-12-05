@@ -1304,7 +1304,7 @@ func (c *containerLXC) initLXC(config bool) error {
 			devPath := filepath.Join(c.DevicesPath(), devName)
 
 			// Set the bind-mount entry
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", shared.EscapePathFstab(devPath), shared.EscapePathFstab(tgtPath)))
 			if err != nil {
 				return err
 			}
@@ -1454,7 +1454,7 @@ func (c *containerLXC) initLXC(config bool) error {
 					options = append(options, "create=dir")
 				}
 
-				err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none %sbind,%s", devPath, tgtPath, rbind, strings.Join(options, ",")))
+				err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none %sbind,%s", shared.EscapePathFstab(devPath), shared.EscapePathFstab(tgtPath), rbind, strings.Join(options, ",")))
 				if err != nil {
 					return err
 				}
