@@ -3,10 +3,12 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -35,6 +37,23 @@ storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config
 		pools[name] = config
 	}
 	return pools, nil
+}
+
+// StoragePoolID returns the ID of the pool with the given name.
+func (c *ClusterTx) StoragePoolID(name string) (int64, error) {
+	stmt := "SELECT id FROM storage_pools WHERE name=?"
+	ids, err := query.SelectIntegers(c.tx, stmt, name)
+	if err != nil {
+		return -1, err
+	}
+	switch len(ids) {
+	case 0:
+		return -1, NoSuchObjectError
+	case 1:
+		return int64(ids[0]), nil
+	default:
+		return -1, fmt.Errorf("more than one pool has the given name")
+	}
 }
 
 // StoragePoolIDs returns a map associating each storage pool name to its ID.
@@ -83,7 +102,161 @@ func (c *ClusterTx) StoragePoolConfigAdd(poolID, nodeID int64, config map[string
 const (
 	storagePoolPending int = iota // Storage pool defined but not yet created.
 	storagePoolCreated            // Storage pool created on all nodes.
+	storagePoolErrored            // Storage pool creation failed on some nodes
 )
+
+// StoragePoolCreatePending creates a new pending storage pool on the node with
+// the given name.
+func (c *ClusterTx) StoragePoolCreatePending(node, name, driver string, conf map[string]string) error {
+	// First check if a storage pool with the given name exists, and, if
+	// so, that it has a matching driver and it's in the pending state.
+	pool := struct {
+		id     int64
+		driver string
+		state  int
+	}{}
+
+	var errConsistency error
+	dest := func(i int) []interface{} {
+		// Sanity check that there is at most one pool with the given name.
+		if i != 0 {
+			errConsistency = fmt.Errorf("more than one pool exists with the given name")
+		}
+		return []interface{}{&pool.id, &pool.driver, &pool.state}
+	}
+	stmt := "SELECT id, driver, state FROM storage_pools WHERE name=?"
+	err := query.SelectObjects(c.tx, dest, stmt, name)
+	if err != nil {
+		return err
+	}
+	if errConsistency != nil {
+		return errConsistency
+	}
+
+	var poolID = pool.id
+	if poolID == 0 {
+		// No existing pool with the given name was found, let's create
+		// one.
+		columns := []string{"name", "driver"}
+		values := []interface{}{name, driver}
+		poolID, err = query.UpsertObject(c.tx, "storage_pools", columns, values)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Check that the existing pools matches the given driver and
+		// is in the pending state.
+		if pool.driver != driver {
+			return fmt.Errorf("pool already exists with a different driver")
+		}
+		if pool.state != storagePoolPending {
+			return fmt.Errorf("pool is not in pending state")
+		}
+	}
+
+	// Get the ID of the node with the given name.
+	nodeInfo, err := c.NodeByName(node)
+	if err != nil {
+		return err
+	}
+
+	// Check that no storage_pool entry of this node and pool exists yet.
+	count, err := query.Count(
+		c.tx, "storage_pools_nodes", "storage_pool_id=? AND node_id=?", poolID, nodeInfo.ID)
+	if err != nil {
+		return err
+	}
+	if count != 0 {
+		return DbErrAlreadyDefined
+	}
+
+	// Insert the node-specific configuration.
+	columns := []string{"storage_pool_id", "node_id"}
+	values := []interface{}{poolID, nodeInfo.ID}
+	_, err = query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
+	if err != nil {
+		return err
+	}
+	err = c.StoragePoolConfigAdd(poolID, nodeInfo.ID, conf)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// StoragePoolCreated sets the state of the given pool to "CREATED".
+func (c *ClusterTx) StoragePoolCreated(name string) error {
+	return c.storagePoolState(name, storagePoolCreated)
+}
+
+// StoragePoolErrored sets the state of the given pool to "ERRORED".
+func (c *ClusterTx) StoragePoolErrored(name string) error {
+	return c.storagePoolState(name, storagePoolErrored)
+}
+
+func (c *ClusterTx) storagePoolState(name string, state int) error {
+	stmt := "UPDATE storage_pools SET state=? WHERE name=?"
+	result, err := c.tx.Exec(stmt, state, name)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return NoSuchObjectError
+	}
+	return nil
+}
+
+// StoragePoolNodeConfigs returns the node-specific configuration of all
+// nodes grouped by node name, for the given poolID.
+//
+// If the storage pool is not defined on all nodes, an error is returned.
+func (c *ClusterTx) StoragePoolNodeConfigs(poolID int64) (map[string]map[string]string, error) {
+	// Fetch all nodes.
+	nodes, err := c.Nodes()
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the names of the nodes where the storage pool is defined.
+	stmt := `
+SELECT nodes.name FROM nodes
+  LEFT JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id
+  LEFT JOIN storage_pools ON storage_pools_nodes.storage_pool_id = storage_pools.id
+WHERE storage_pools.id = ? AND storage_pools.state = ?
+`
+	defined, err := query.SelectStrings(c.tx, stmt, poolID, storagePoolPending)
+	if err != nil {
+		return nil, err
+	}
+
+	// Figure which nodes are missing
+	missing := []string{}
+	for _, node := range nodes {
+		if !shared.StringInSlice(node.Name, defined) {
+			missing = append(missing, node.Name)
+		}
+	}
+
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("Pool not defined on nodes: %s", strings.Join(missing, ", "))
+	}
+
+	configs := map[string]map[string]string{}
+	for _, node := range nodes {
+		config, err := query.SelectConfig(c.tx, "storage_pools_config", "node_id=?", node.ID)
+		if err != nil {
+			return nil, err
+		}
+		configs[node.Name] = config
+	}
+
+	return configs, nil
+}
 
 // Get all storage pools.
 func (c *Cluster) StoragePools() ([]string, error) {
