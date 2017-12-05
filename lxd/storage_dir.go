@@ -56,7 +56,7 @@ func (s *storageDir) StoragePoolCreate() error {
 
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 
-	source := s.pool.Config["source"]
+	source := shared.HostPath(s.pool.Config["source"])
 	if source == "" {
 		source = filepath.Join(shared.VarPath("storage-pools"), s.pool.Name)
 		s.pool.Config["source"] = source
@@ -128,7 +128,7 @@ func (s *storageDir) StoragePoolCreate() error {
 func (s *storageDir) StoragePoolDelete() error {
 	logger.Infof("Deleting DIR storage pool \"%s\".", s.pool.Name)
 
-	source := s.pool.Config["source"]
+	source := shared.HostPath(s.pool.Config["source"])
 	if source == "" {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
@@ -163,7 +163,7 @@ func (s *storageDir) StoragePoolDelete() error {
 }
 
 func (s *storageDir) StoragePoolMount() (bool, error) {
-	source := s.pool.Config["source"]
+	source := shared.HostPath(s.pool.Config["source"])
 	if source == "" {
 		return false, fmt.Errorf("no \"source\" property found for the storage pool")
 	}
