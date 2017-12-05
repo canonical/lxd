@@ -495,6 +495,7 @@ type container interface {
 	TemplatesPath() string
 	StatePath() string
 	LogFilePath() string
+	ConsoleBufferLogPath() string
 	LogPath() string
 
 	StoragePool() (string, error)
