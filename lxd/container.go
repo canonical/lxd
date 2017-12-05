@@ -416,7 +416,7 @@ type container interface {
 	/* actionScript here is a script called action.sh in the stateDir, to
 	 * be passed to CRIU as --action-script
 	 */
-	Migrate(cmd uint, stateDir string, function string, stop bool, actionScript bool) error
+	Migrate(args *CriuMigrationArgs) error
 	Snapshots() ([]container, error)
 
 	// Config handling
@@ -697,7 +697,17 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 		 * after snapshotting will fail.
 		 */
 
-		err = sourceContainer.Migrate(lxc.MIGRATE_DUMP, stateDir, "snapshot", false, false)
+		criuMigrationArgs := CriuMigrationArgs{
+			cmd:          lxc.MIGRATE_DUMP,
+			stateDir:     stateDir,
+			function:     "snapshot",
+			stop:         false,
+			actionScript: false,
+			dumpDir:      "",
+			preDumpDir:   "",
+		}
+
+		err = sourceContainer.Migrate(&criuMigrationArgs)
 		if err != nil {
 			os.RemoveAll(sourceContainer.StatePath())
 			return nil, err
