@@ -11,13 +11,13 @@ import (
 // additional WHERE filters can be specified.
 //
 // Returns a map of key names to their associated values.
-func SelectConfig(tx *sql.Tx, table string, filters ...string) (map[string]string, error) {
+func SelectConfig(tx *sql.Tx, table string, where string, args ...interface{}) (map[string]string, error) {
 	query := fmt.Sprintf("SELECT key, value FROM %s", table)
-	if len(filters) > 0 {
-		query += " WHERE " + strings.Join(filters, " ")
+	if where != "" {
+		query += fmt.Sprintf(" WHERE %s", where)
 	}
 
-	rows, err := tx.Query(query)
+	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
