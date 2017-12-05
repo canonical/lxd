@@ -25,6 +25,7 @@ import (
 type storageCmd struct {
 	resources bool
 	byteflag  bool
+	target    string
 }
 
 func (c *storageCmd) showByDefault() bool {
@@ -78,7 +79,7 @@ lxc storage show [<remote>:]<pool> [--resources]
 lxc storage info [<remote>:]<pool> [--bytes]
     Show information of a storage pool in yaml format.
 
-lxc storage create [<remote>:]<pool> <driver> [key=value]...
+lxc storage create [<remote>:]<pool> <driver> [key=value]... [--target <node>]
     Create a storage pool.
 
 lxc storage get [<remote>:]<pool> <key>
@@ -161,6 +162,7 @@ lxc storage volume show default container/data
 func (c *storageCmd) flags() {
 	gnuflag.BoolVar(&c.resources, "resources", false, i18n.G("Show the resources available to the storage pool"))
 	gnuflag.BoolVar(&c.byteflag, "bytes", false, i18n.G("Show the used and free space in bytes"))
+	gnuflag.StringVar(&c.target, "target", "", i18n.G("Node name"))
 }
 
 func (c *storageCmd) run(conf *config.Config, args []string) error {
@@ -518,13 +520,23 @@ func (c *storageCmd) doStoragePoolCreate(client lxd.ContainerServer, name string
 		pool.Config[entry[0]] = entry[1]
 	}
 
+	// If a target node was specified the API won't actually create the
+	// pool, but only define it as pending in the database.
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
+	}
+
 	// Create the pool
 	err := client.CreateStoragePool(pool)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Storage pool %s created")+"\n", name)
+	if c.target != "" {
+		fmt.Printf(i18n.G("Storage pool %s pending on node %s")+"\n", name, c.target)
+	} else {
+		fmt.Printf(i18n.G("Storage pool %s created")+"\n", name)
+	}
 
 	return nil
 }

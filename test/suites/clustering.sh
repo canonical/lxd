@@ -195,6 +195,14 @@ test_clustering_storage() {
   # The state of the preseeded storage pool is still CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
 
+  # Trying to pass config values other than 'source' results in an error
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1
+
+  # Create a new storage pool
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep state: | grep -q PENDING
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2
