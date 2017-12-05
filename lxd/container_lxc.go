@@ -1348,7 +1348,10 @@ func (c *containerLXC) initLXC(config bool) error {
 			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("unix.%s.%s", k, strings.Replace(relativeDestPath, "/", "-", -1)))
 
 			// inform liblxc about the mount
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", sourceDevPath, relativeDestPath))
+			err = lxcSetConfigItem(cc, "lxc.mount.entry",
+				fmt.Sprintf("%s %s none bind,create=file",
+					shared.EscapePathFstab(sourceDevPath),
+					shared.EscapePathFstab(relativeDestPath)))
 			if err != nil {
 				return err
 			}
@@ -1528,7 +1531,11 @@ func (c *containerLXC) initLXC(config bool) error {
 					options = append(options, "create=dir")
 				}
 
-				err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none %sbind,%s", sourceDevPath, relativeDestPath, rbind, strings.Join(options, ",")))
+				err = lxcSetConfigItem(cc, "lxc.mount.entry",
+					fmt.Sprintf("%s %s none %sbind,%s",
+						shared.EscapePathFstab(sourceDevPath),
+						shared.EscapePathFstab(relativeDestPath), rbind,
+						strings.Join(options, ",")))
 				if err != nil {
 					return err
 				}
@@ -1661,7 +1668,9 @@ func (c *containerLXC) setupUnixDevice(name string, dev types.Device, major int,
 	devPath := paths[0]
 	tgtPath := paths[1]
 
-	err = lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath))
+	err = lxcSetConfigItem(c.c, "lxc.mount.entry",
+		fmt.Sprintf("%s %s none bind,create=file",
+			shared.EscapePathFstab(devPath), shared.EscapePathFstab(tgtPath)))
 	if err != nil {
 		return err
 	}
