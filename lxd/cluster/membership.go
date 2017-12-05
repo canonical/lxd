@@ -482,6 +482,18 @@ func List(state *state.State) ([]db.NodeInfo, map[int64]bool, error) {
 	return nodes, flags, nil
 }
 
+// Count is a convenience for checking the current number of nodes in the
+// cluster.
+func Count(state *state.State) (int, error) {
+	var count int
+	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		count, err = tx.NodesCount()
+		return err
+	})
+	return count, err
+}
+
 // Check that node-related preconditions are met for bootstrapping or joining a
 // cluster.
 func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) error {

@@ -37,6 +37,22 @@ func TestNodeAdd(t *testing.T) {
 	assert.Equal(t, "buzz", node.Name)
 }
 
+func TestNodesCount(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	count, err := tx.NodesCount()
+	require.NoError(t, err)
+	assert.Equal(t, 1, count) // There's always at least one node.
+
+	_, err = tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	count, err = tx.NodesCount()
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+}
+
 // Rename a node
 func TestNodeRename(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)

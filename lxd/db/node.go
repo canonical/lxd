@@ -69,6 +69,18 @@ func (c *ClusterTx) Nodes() ([]NodeInfo, error) {
 	return c.nodes("")
 }
 
+// NodesCount returns the number of nodes in the LXD cluster.
+//
+// Since there's always at least one node row, even when not-clustered, the
+// return value is greater than zero
+func (c *ClusterTx) NodesCount() (int, error) {
+	count, err := query.Count(c.tx, "nodes", "")
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to count existing nodes")
+	}
+	return count, nil
+}
+
 // NodeRename changes the name of an existing node.
 //
 // Return an error if a node with the same name already exists.
