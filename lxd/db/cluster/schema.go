@@ -193,6 +193,7 @@ CREATE TABLE storage_pools (
     name TEXT NOT NULL,
     driver TEXT NOT NULL,
     description TEXT,
+    state INTEGER NOT NULL DEFAULT 0,
     UNIQUE (name)
 );
 CREATE TABLE storage_pools_config (
@@ -202,6 +203,14 @@ CREATE TABLE storage_pools_config (
     key TEXT NOT NULL,
     value TEXT,
     UNIQUE (storage_pool_id, node_id, key),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
+CREATE TABLE storage_pools_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    UNIQUE (storage_pool_id, node_id),
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
@@ -225,5 +234,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (3, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (4, strftime("%s"))
 `

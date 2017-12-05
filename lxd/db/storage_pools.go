@@ -62,6 +62,12 @@ func (c *ClusterTx) StoragePoolConfigAdd(poolID, nodeID int64, config map[string
 	return storagePoolConfigAdd(c.tx, poolID, nodeID, config)
 }
 
+// Storage pools state.
+const (
+	storagePoolPending int = iota // Storage pool defined but not yet created.
+	storagePoolCreated            // Storage pool created on all nodes.
+)
+
 // Get all storage pools.
 func (c *Cluster) StoragePools() ([]string, error) {
 	var name string
@@ -191,7 +197,7 @@ func (c *Cluster) StoragePoolCreate(poolName string, poolDescription string, poo
 		return -1, err
 	}
 
-	result, err := tx.Exec("INSERT INTO storage_pools (name, description, driver) VALUES (?, ?, ?)", poolName, poolDescription, poolDriver)
+	result, err := tx.Exec("INSERT INTO storage_pools (name, description, driver, state) VALUES (?, ?, ?, ?)", poolName, poolDescription, poolDriver, storagePoolCreated)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -200,6 +206,14 @@ func (c *Cluster) StoragePoolCreate(poolName string, poolDescription string, poo
 	id, err := result.LastInsertId()
 	if err != nil {
 		tx.Rollback()
+		return -1, err
+	}
+
+	// Insert a node-specific entry pointing to ourselves.
+	columns := []string{"storage_pool_id", "node_id"}
+	values := []interface{}{id, c.nodeID}
+	_, err = query.UpsertObject(tx, "storage_pools_nodes", columns, values)
+	if err != nil {
 		return -1, err
 	}
 

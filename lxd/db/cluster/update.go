@@ -26,6 +26,24 @@ var updates = map[int]schema.Update{
 	1: updateFromV0,
 	2: updateFromV1,
 	3: updateFromV2,
+	4: updateFromV3,
+}
+
+func updateFromV3(tx *sql.Tx) error {
+	stmt := `
+CREATE TABLE storage_pools_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    UNIQUE (storage_pool_id, node_id),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
+ALTER TABLE storage_pools ADD COLUMN state INTEGER NOT NULL DEFAULT 0;
+UPDATE storage_pools SET state = 1;
+`
+	_, err := tx.Exec(stmt)
+	return err
 }
 
 func updateFromV2(tx *sql.Tx) error {

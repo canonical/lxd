@@ -209,6 +209,7 @@ kill_lxd() {
         check_empty_table "${daemon_dir}/raft/db.bin" "profiles_devices"
         check_empty_table "${daemon_dir}/raft/db.bin" "profiles_devices_config"
         check_empty_table "${daemon_dir}/raft/db.bin" "storage_pools"
+        check_empty_table "${daemon_dir}/raft/db.bin" "storage_pools_nodes"
         check_empty_table "${daemon_dir}/raft/db.bin" "storage_pools_config"
         check_empty_table "${daemon_dir}/raft/db.bin" "storage_volumes"
         check_empty_table "${daemon_dir}/raft/db.bin" "storage_volumes_config"
