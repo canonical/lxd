@@ -890,3 +890,15 @@ func WriteTempFile(dir string, prefix string, content string) (string, error) {
 	_, err = f.WriteString(content)
 	return f.Name(), err
 }
+
+// EscapePathFstab escapes a path fstab-style.
+// This ensures that getmntent_r() and friends can correctly parse stuff like
+// /some/wacky path with spaces /some/wacky target with spaces
+func EscapePathFstab(path string) string {
+	r := strings.NewReplacer(
+		" ", "\\040",
+		"\t", "\\011",
+		"\n", "\\012",
+		"\\", "\\\\")
+	return r.Replace(path)
+}
