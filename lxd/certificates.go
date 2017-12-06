@@ -33,6 +33,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 			resp := api.Certificate{}
 			resp.Fingerprint = baseCert.Fingerprint
 			resp.Certificate = baseCert.Certificate
+			resp.Name = baseCert.Name
 			if baseCert.Type == 1 {
 				resp.Type = "client"
 			} else {
