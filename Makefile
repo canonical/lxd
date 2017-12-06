@@ -9,7 +9,7 @@ POTFILE=po/$(DOMAIN).pot
 # TODO: use git describe for versioning
 VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
-TAGS=$(shell test -e /usr/include/sqlite3.h && echo "-tags libsqlite3")
+TAGS=$(shell printf "\#include <sqlite3.h>\nvoid main(){}" | gcc -o /dev/null -xc - >/dev/null 2>&1 && echo "-tags libsqlite3")
 
 .PHONY: default
 default:

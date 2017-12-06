@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/lxc/lxd/shared/api"
@@ -51,7 +52,7 @@ func (r *ProtocolLXD) GetStoragePool(name string) (*api.StoragePool, string, err
 	pool := api.StoragePool{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s", name), nil, "", &pool)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s", url.QueryEscape(name)), nil, "", &pool)
 	if err != nil {
 		return nil, "", err
 	}
@@ -81,7 +82,7 @@ func (r *ProtocolLXD) CreateStoragePool(pool api.StoragePoolsPost) error {
 // UpdateStoragePool updates the pool to match the provided StoragePool struct
 func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s", name), pool, ETag)
+	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s", url.QueryEscape(name)), pool, ETag)
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ func (r *ProtocolLXD) UpdateStoragePool(name string, pool api.StoragePoolPut, ET
 // DeleteStoragePool deletes a storage pool
 func (r *ProtocolLXD) DeleteStoragePool(name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s", name), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s", url.QueryEscape(name)), nil, "")
 	if err != nil {
 		return err
 	}
@@ -109,7 +110,7 @@ func (r *ProtocolLXD) GetStoragePoolResources(name string) (*api.ResourcesStorag
 	res := api.ResourcesStoragePool{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/resources", name), nil, "", &res)
+	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/resources", url.QueryEscape(name)), nil, "", &res)
 	if err != nil {
 		return nil, err
 	}

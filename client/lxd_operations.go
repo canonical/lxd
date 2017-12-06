@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -55,7 +56,7 @@ func (r *ProtocolLXD) GetOperation(uuid string) (*api.Operation, string, error) 
 	op := api.Operation{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/operations/%s", uuid), nil, "", &op)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/operations/%s", url.QueryEscape(uuid)), nil, "", &op)
 	if err != nil {
 		return nil, "", err
 	}
@@ -65,9 +66,9 @@ func (r *ProtocolLXD) GetOperation(uuid string) (*api.Operation, string, error) 
 
 // GetOperationWebsocket returns a websocket connection for the provided operation
 func (r *ProtocolLXD) GetOperationWebsocket(uuid string, secret string) (*websocket.Conn, error) {
-	path := fmt.Sprintf("/operations/%s/websocket", uuid)
+	path := fmt.Sprintf("/operations/%s/websocket", url.QueryEscape(uuid))
 	if secret != "" {
-		path = fmt.Sprintf("%s?secret=%s", path, secret)
+		path = fmt.Sprintf("%s?secret=%s", path, url.QueryEscape(secret))
 	}
 
 	return r.websocket(path)
@@ -76,7 +77,7 @@ func (r *ProtocolLXD) GetOperationWebsocket(uuid string, secret string) (*websoc
 // DeleteOperation deletes (cancels) a running operation
 func (r *ProtocolLXD) DeleteOperation(uuid string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/operations/%s", uuid), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/operations/%s", url.QueryEscape(uuid)), nil, "")
 	if err != nil {
 		return err
 	}
