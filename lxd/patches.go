@@ -2521,6 +2521,7 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 				return err
 			}
 			logger.Debugf("Container \"%s\" does not have on-disk devices", ct)
+			continue
 		}
 
 		onDiskDevices, err := devDir.Readdirnames(-1)
