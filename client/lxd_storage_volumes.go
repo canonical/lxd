@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/lxc/lxd/shared/api"
@@ -18,15 +19,15 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNames(pool string) ([]string, error) {
 	urls := []string{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes", pool), nil, "", &urls)
+	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes", url.QueryEscape(pool)), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
 	// Parse it
 	names := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, fmt.Sprintf("/storage-pools/%s/volumes/", pool))
+	for _, uri := range urls {
+		fields := strings.Split(uri, fmt.Sprintf("/storage-pools/%s/volumes/", url.QueryEscape(pool)))
 		names = append(names, fields[len(fields)-1])
 	}
 
@@ -38,7 +39,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumes(pool string) ([]api.StorageVolume, e
 	volumes := []api.StorageVolume{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes?recursion=1", pool), nil, "", &volumes)
+	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes?recursion=1", url.QueryEscape(pool)), nil, "", &volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +52,7 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name str
 	volume := api.StorageVolume{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", pool, volType, name), nil, "", &volume)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), nil, "", &volume)
 	if err != nil {
 		return nil, "", err
 	}
@@ -62,7 +63,7 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name str
 // CreateStoragePoolVolume defines a new storage volume
 func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) error {
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s", pool, volume.Type), volume, "")
+	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type)), volume, "")
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 // UpdateStoragePoolVolume updates the volume to match the provided StoragePoolVolume struct
 func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", pool, volType, name), volume, ETag)
+	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), volume, ETag)
 	if err != nil {
 		return err
 	}
@@ -84,7 +85,7 @@ func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name 
 // DeleteStoragePoolVolume deletes a storage pool
 func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", pool, volType, name), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), nil, "")
 	if err != nil {
 		return err
 	}
@@ -99,7 +100,7 @@ func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name 
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", pool, volType, name), volume, "")
+	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), volume, "")
 	if err != nil {
 		return err
 	}

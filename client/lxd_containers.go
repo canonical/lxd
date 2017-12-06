@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -53,7 +54,7 @@ func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) 
 	container := api.Container{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s", name), nil, "", &container)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s", url.QueryEscape(name)), nil, "", &container)
 	if err != nil {
 		return nil, "", err
 	}
@@ -97,7 +98,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 			if operation == "" {
 				req.Source.Server = serverURL
 			} else {
-				req.Source.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, operation)
+				req.Source.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.QueryEscape(operation))
 			}
 
 			op, err := r.CreateContainer(req)
@@ -462,7 +463,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *Operation, targetSecrets map[stri
 // UpdateContainer updates the container definition
 func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, ETag string) (*Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s", name), container, ETag)
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s", url.QueryEscape(name)), container, ETag)
 	if err != nil {
 		return nil, err
 	}
@@ -478,7 +479,7 @@ func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) 
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", name), container, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", url.QueryEscape(name)), container, "")
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +503,7 @@ func (r *ProtocolLXD) tryMigrateContainer(source ContainerServer, name string, r
 		success := false
 		errors := []string{}
 		for _, serverURL := range urls {
-			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, operation)
+			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.QueryEscape(operation))
 
 			op, err := source.MigrateContainer(name, req)
 			if err != nil {
@@ -550,7 +551,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", name), container, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", url.QueryEscape(name)), container, "")
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +562,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 // DeleteContainer requests that LXD deletes the container
 func (r *ProtocolLXD) DeleteContainer(name string) (*Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s", name), nil, "")
+	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s", url.QueryEscape(name)), nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -578,7 +579,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/exec", containerName), exec, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/exec", url.QueryEscape(containerName)), exec, "")
 	if err != nil {
 		return nil, err
 	}
@@ -701,7 +702,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.ReadCloser, *ContainerFileResponse, error) {
 	// Prepare the HTTP request
 	requestURL, err := shared.URLEncode(
-		fmt.Sprintf("%s/1.0/containers/%s/files", r.httpHost, containerName),
+		fmt.Sprintf("%s/1.0/containers/%s/files", r.httpHost, url.QueryEscape(containerName)),
 		map[string]string{"path": path})
 	if err != nil {
 		return nil, nil, err
@@ -786,13 +787,7 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Prepare the HTTP request
-	requestURL, err := shared.URLEncode(
-		fmt.Sprintf("%s/1.0/containers/%s/files", r.httpHost, containerName),
-		map[string]string{"path": path})
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequest("POST", requestURL, args.Content)
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/1.0/containers/%s/files?path=%s", r.httpHost, url.QueryEscape(containerName), url.QueryEscape(path)), args.Content)
 	if err != nil {
 		return err
 	}
@@ -845,7 +840,7 @@ func (r *ProtocolLXD) DeleteContainerFile(containerName string, path string) err
 	}
 
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/files?path=%s", containerName, path), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/files?path=%s", url.QueryEscape(containerName), url.QueryEscape(path)), nil, "")
 	if err != nil {
 		return err
 	}
@@ -858,15 +853,15 @@ func (r *ProtocolLXD) GetContainerSnapshotNames(containerName string) ([]string,
 	urls := []string{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/snapshots", containerName), nil, "", &urls)
+	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/snapshots", url.QueryEscape(containerName)), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
 	// Parse it
 	names := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, fmt.Sprintf("/containers/%s/snapshots/", containerName))
+	for _, uri := range urls {
+		fields := strings.Split(uri, fmt.Sprintf("/containers/%s/snapshots/", url.QueryEscape(containerName)))
 		names = append(names, fields[len(fields)-1])
 	}
 
@@ -878,7 +873,7 @@ func (r *ProtocolLXD) GetContainerSnapshots(containerName string) ([]api.Contain
 	snapshots := []api.ContainerSnapshot{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/snapshots?recursion=1", containerName), nil, "", &snapshots)
+	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/snapshots?recursion=1", url.QueryEscape(containerName)), nil, "", &snapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -891,7 +886,7 @@ func (r *ProtocolLXD) GetContainerSnapshot(containerName string, name string) (*
 	snapshot := api.ContainerSnapshot{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/snapshots/%s", containerName, name), nil, "", &snapshot)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/snapshots/%s", url.QueryEscape(containerName), url.QueryEscape(name)), nil, "", &snapshot)
 	if err != nil {
 		return nil, "", err
 	}
@@ -902,7 +897,7 @@ func (r *ProtocolLXD) GetContainerSnapshot(containerName string, name string) (*
 // CreateContainerSnapshot requests that LXD creates a new snapshot for the container
 func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api.ContainerSnapshotsPost) (*Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots", containerName), snapshot, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots", url.QueryEscape(containerName)), snapshot, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1100,7 +1095,7 @@ func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string,
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots/%s", containerName, name), container, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots/%s", url.QueryEscape(containerName), url.QueryEscape(name)), container, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1124,7 +1119,7 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source ContainerServer, contai
 		success := false
 		errors := []string{}
 		for _, serverURL := range urls {
-			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, operation)
+			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.QueryEscape(operation))
 
 			op, err := source.MigrateContainerSnapshot(containerName, name, req)
 			if err != nil {
@@ -1166,7 +1161,7 @@ func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots/%s", containerName, name), container, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots/%s", url.QueryEscape(containerName), url.QueryEscape(name)), container, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1177,7 +1172,7 @@ func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string
 // DeleteContainerSnapshot requests that LXD deletes the container snapshot
 func (r *ProtocolLXD) DeleteContainerSnapshot(containerName string, name string) (*Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s/snapshots/%s", containerName, name), nil, "")
+	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s/snapshots/%s", url.QueryEscape(containerName), url.QueryEscape(name)), nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1190,7 +1185,7 @@ func (r *ProtocolLXD) GetContainerState(name string) (*api.ContainerState, strin
 	state := api.ContainerState{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/state", name), nil, "", &state)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/state", url.QueryEscape(name)), nil, "", &state)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1201,7 +1196,7 @@ func (r *ProtocolLXD) GetContainerState(name string) (*api.ContainerState, strin
 // UpdateContainerState updates the container to match the requested state
 func (r *ProtocolLXD) UpdateContainerState(name string, state api.ContainerStatePut, ETag string) (*Operation, error) {
 	// Send the request
-	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s/state", name), state, ETag)
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s/state", url.QueryEscape(name)), state, ETag)
 	if err != nil {
 		return nil, err
 	}
@@ -1214,15 +1209,15 @@ func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
 	urls := []string{}
 
 	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/logs", name), nil, "", &urls)
+	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/logs", url.QueryEscape(name)), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
 	// Parse it
 	logfiles := []string{}
-	for _, url := range logfiles {
-		fields := strings.Split(url, fmt.Sprintf("/containers/%s/logs/", name))
+	for _, uri := range logfiles {
+		fields := strings.Split(uri, fmt.Sprintf("/containers/%s/logs/", url.QueryEscape(name)))
 		logfiles = append(logfiles, fields[len(fields)-1])
 	}
 
@@ -1234,7 +1229,7 @@ func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
 // Note that it's the caller's responsibility to close the returned ReadCloser
 func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.ReadCloser, error) {
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0/containers/%s/logs/%s", r.httpHost, name, filename)
+	url := fmt.Sprintf("%s/1.0/containers/%s/logs/%s", r.httpHost, url.QueryEscape(name), url.QueryEscape(filename))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -1265,7 +1260,7 @@ func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.Read
 // DeleteContainerLogfile deletes the requested logfile
 func (r *ProtocolLXD) DeleteContainerLogfile(name string, filename string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/logs/%s", name, filename), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/logs/%s", url.QueryEscape(name), url.QueryEscape(filename)), nil, "")
 	if err != nil {
 		return err
 	}
@@ -1281,7 +1276,7 @@ func (r *ProtocolLXD) GetContainerMetadata(name string) (*api.ImageMetadata, str
 
 	metadata := api.ImageMetadata{}
 
-	url := fmt.Sprintf("/containers/%s/metadata", name)
+	url := fmt.Sprintf("/containers/%s/metadata", url.QueryEscape(name))
 	etag, err := r.queryStruct("GET", url, nil, "", &metadata)
 	if err != nil {
 		return nil, "", err
@@ -1296,7 +1291,7 @@ func (r *ProtocolLXD) SetContainerMetadata(name string, metadata api.ImageMetada
 		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
 
-	url := fmt.Sprintf("/containers/%s/metadata", name)
+	url := fmt.Sprintf("/containers/%s/metadata", url.QueryEscape(name))
 	_, _, err := r.query("PUT", url, metadata, ETag)
 	if err != nil {
 		return err
@@ -1313,7 +1308,7 @@ func (r *ProtocolLXD) GetContainerTemplateFiles(containerName string) ([]string,
 
 	templates := []string{}
 
-	url := fmt.Sprintf("/containers/%s/metadata/templates", containerName)
+	url := fmt.Sprintf("/containers/%s/metadata/templates", url.QueryEscape(containerName))
 	_, err := r.queryStruct("GET", url, nil, "", &templates)
 	if err != nil {
 		return nil, err
@@ -1328,7 +1323,7 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 		return nil, fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
 
-	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, containerName, templateName)
+	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, url.QueryEscape(containerName), url.QueryEscape(templateName))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -1371,7 +1366,7 @@ func (r *ProtocolLXD) setContainerTemplateFile(containerName string, templateNam
 		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
 
-	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, containerName, templateName)
+	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, url.QueryEscape(containerName), url.QueryEscape(templateName))
 	req, err := http.NewRequest(httpMethod, url, content)
 	if err != nil {
 		return err
@@ -1400,7 +1395,7 @@ func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName stri
 	if !r.HasExtension("container_edit_metadata") {
 		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
-	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/metadata/templates?path=%s", name, templateName), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/metadata/templates?path=%s", url.QueryEscape(name), url.QueryEscape(templateName)), nil, "")
 	return err
 }
 
@@ -1411,7 +1406,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/console", containerName), console, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/console", url.QueryEscape(containerName)), console, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1482,7 +1477,7 @@ func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *Contain
 	}
 
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0/containers/%s/console", r.httpHost, containerName)
+	url := fmt.Sprintf("%s/1.0/containers/%s/console", r.httpHost, url.QueryEscape(containerName))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -1517,7 +1512,7 @@ func (r *ProtocolLXD) DeleteContainerConsoleLog(containerName string, args *Cont
 	}
 
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/console", containerName), nil, "")
+	_, _, err := r.query("DELETE", fmt.Sprintf("/containers/%s/console", url.QueryEscape(containerName)), nil, "")
 	if err != nil {
 		return err
 	}
