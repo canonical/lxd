@@ -36,13 +36,15 @@ func (r *ProtocolLXD) BootstrapCluster(name string) (*Operation, error) {
 }
 
 // AcceptNode requests to accept a new node into the cluster.
-func (r *ProtocolLXD) AcceptNode(targetPassword, name, address string, schema, apiExt int) (*api.ClusterNodeAccepted, error) {
+func (r *ProtocolLXD) AcceptNode(targetPassword, name, address string, schema, apiExt int, pools []api.StoragePool, networks []api.Network) (*api.ClusterNodeAccepted, error) {
 	cluster := api.ClusterPost{
 		Name:           name,
 		Address:        address,
 		Schema:         schema,
 		API:            apiExt,
 		TargetPassword: targetPassword,
+		StoragePools:   pools,
+		Networks:       networks,
 	}
 	info := &api.ClusterNodeAccepted{}
 	_, err := r.queryStruct("POST", "/cluster/nodes", cluster, "", &info)

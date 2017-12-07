@@ -227,11 +227,11 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		return err
 	}
 
-	// Get the local config keys for the cluster networks. It assumes that
-	// the local storage pools and networks match the cluster networks, if
-	// not an error will be returned. Also get any outstanding operation,
-	// typically there will be just one, created by the POST /cluster/nodes
-	// request which triggered this code.
+	// Get the local config keys for the cluster pools and networks. It
+	// assumes that the local storage pools and networks match the cluster
+	// networks, if not an error will be returned. Also get any outstanding
+	// operation, typically there will be just one, created by the POST
+	// /cluster/nodes request which triggered this code.
 	var pools map[string]map[string]string
 	var networks map[string]map[string]string
 	var operations []string
@@ -345,6 +345,10 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's to the network")
 			}
+			// We only need to add the bridge.external_interfaces
+			// key, since the other keys are global and are already
+			// there.
+			config = map[string]string{"bridge.external_interfaces": config["bridge.external_interfaces"]}
 			err = tx.NetworkConfigAdd(id, node.ID, config)
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's network config")

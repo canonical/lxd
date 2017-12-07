@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -870,17 +869,13 @@ func (cmd *CmdInit) askClusteringNetworks(cluster *api.Cluster) ([]api.NetworksP
 		post.Config = network.Config
 		post.Type = network.Type
 		post.Managed = true
+		// The only config key to ask is 'bridge.external_interfaces',
+		// which is the only one node-specific.
+		key := "bridge.external_interfaces"
 		// Sort config keys to get a stable ordering (expecially for tests)
-		keys := []string{}
-		for key := range post.Config {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			question := fmt.Sprintf(
-				`Enter local value for key "%s" of network "%s": `, key, post.Name)
-			post.Config[key] = cmd.Context.AskString(question, "", nil)
-		}
+		question := fmt.Sprintf(
+			`Enter local value for key "%s" of network "%s": `, key, post.Name)
+		post.Config[key] = cmd.Context.AskString(question, "", nil)
 		networks[i] = post
 	}
 	return networks, nil
