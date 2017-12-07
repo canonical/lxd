@@ -211,7 +211,14 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 		}
 		dbStoragePoolDeleteAndUpdateCache(state.Cluster, poolName)
 	}()
+	err = doStoragePoolCreateInternal(state, poolName, poolDescription, driver, config)
+	tryUndo = err != nil
+	return err
+}
 
+// This performs all non-db related work needed to create the pool.
+func doStoragePoolCreateInternal(state *state.State, poolName, poolDescription string, driver string, config map[string]string) error {
+	tryUndo := true
 	s, err := storagePoolInit(state, poolName)
 	if err != nil {
 		return err
