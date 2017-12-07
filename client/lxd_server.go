@@ -105,3 +105,8 @@ func (r *ProtocolLXD) ClusterTargetNode(name string) ContainerServer {
 		targetNode:           name,
 	}
 }
+
+// ClusterNodeName returns the name of the node this client is pointing to.
+func (r *ProtocolLXD) ClusterNodeName() string {
+	return r.server.Environment.NodeName
+}
