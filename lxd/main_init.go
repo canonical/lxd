@@ -492,6 +492,11 @@ func (cmd *CmdInit) askStorage(client lxd.ContainerServer, availableBackends []s
 		storage.LoopSize = -1
 		question := fmt.Sprintf("Create a new %s pool (yes/no) [default=yes]? ", strings.ToUpper(storage.Backend))
 		if cmd.Context.AskBool(question, "yes") {
+			if storage.Backend == "zfs" {
+				question := fmt.Sprintf("Name of the new %s pool or dataset [default=lxd]: ", strings.ToUpper(storage.Backend))
+				storage.Pool = cmd.Context.AskString(question, "lxd", nil)
+			}
+
 			if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
 				deviceExists := func(path string) error {
 					if !shared.IsBlockdevPath(path) {
