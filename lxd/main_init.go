@@ -148,9 +148,11 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 	defaultPrivileged := cmd.askDefaultPrivileged()
 	networking := cmd.askNetworking()
 
-	err = cmd.fillDataWithStorage(data, storage)
-	if err != nil {
-		return err
+	if storage != nil && storage.Backend == "zfs" {
+		err = cmd.fillDataWithStorage(data, storage)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = cmd.fillDataWithDefaultPrivileged(data, defaultPrivileged)
@@ -227,8 +229,6 @@ func (cmd *CmdInit) fillDataWithStorage(data *cmdInitData, storage *cmdInitStora
 		if err != nil {
 			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 		}
-	} else {
-		logger.Warnf("Did not find profile \"default\" so no default storage pool will be set. Manual intervention needed.")
 	}
 
 	data.Config["storage.zfs_pool_name"] = storage.Pool
