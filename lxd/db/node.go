@@ -61,6 +61,23 @@ func (c *ClusterTx) NodeByName(name string) (NodeInfo, error) {
 	}
 }
 
+// NodeName returns the name of the node this method is invoked on.
+func (c *ClusterTx) NodeName() (string, error) {
+	stmt := "SELECT name FROM nodes WHERE id=?"
+	names, err := query.SelectStrings(c.tx, stmt, c.nodeID)
+	if err != nil {
+		return "", err
+	}
+	switch len(names) {
+	case 0:
+		return "", nil
+	case 1:
+		return names[0], nil
+	default:
+		return "", fmt.Errorf("inconsistency: non-unique node ID")
+	}
+}
+
 // Nodes returns all LXD nodes part of the cluster.
 //
 // If this LXD instance is not clustered, a list with a single node whose
