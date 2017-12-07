@@ -195,11 +195,8 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClusteringJoin() {
 		ClusterAcceptFingerprint: true,
 		ClusterConfirmLosingData: true,
 		ClusterConfig: []string{
-			"",               // storage source
-			"10.23.189.2/24", // ipv4.address
-			"true",           // ipv4.nat
-			"aaaa:bbbb:cccc:dddd::1/64", // ipv6.address
-			"true", // ipv6.nat
+			"", // storage source
+			"", // bridge.external_interfaces
 		},
 	}
 	answers.Render(suite.streams)
