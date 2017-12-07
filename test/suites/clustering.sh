@@ -198,10 +198,17 @@ test_clustering_storage() {
   # Trying to pass config values other than 'source' results in an error
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1
 
-  # Create a new storage pool
+  # Define storage pools on the two nodes
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node2
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep state: | grep -q PENDING
+
+  # The source config key is not legal for the final pool creation
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo
+
+  # Create the storage pool
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep state: | grep -q CREATED
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown

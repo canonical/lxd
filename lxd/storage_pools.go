@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
@@ -92,6 +93,18 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 	url := fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, req.Name)
 	response := SyncResponseLocation(true, nil, url)
 
+	if isClusterNotification(r) {
+		// This is an internal request which triggers the actual
+		// creation of the pool across all nodes, after they have been
+		// previously defined.
+		err = doStoragePoolCreateInternal(
+			d.State(), req.Name, req.Description, req.Driver, req.Config)
+		if err != nil {
+			return SmartError(err)
+		}
+		return response
+	}
+
 	targetNode := r.FormValue("targetNode")
 	if targetNode == "" {
 		count, err := cluster.Count(d.State())
@@ -105,16 +118,16 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 			// pool immediately.
 			err = storagePoolCreateInternal(
 				d.State(), req.Name, req.Description, req.Driver, req.Config)
-			if err != nil {
-				return InternalError(err)
-			}
-			return response
+		} else {
+			// No targetNode was specified and we're clustered, so finalize the
+			// config in the db and actually create the pool on all nodes.
+			err = storagePoolsPostCluster(d, req)
 		}
+		if err != nil {
+			return InternalError(err)
+		}
+		return response
 
-		// No targetNode was specified and we're clustered. Check that
-		// the storage pool has been defined on all nodes and, if so,
-		// actually create it on all of them.
-		panic("TODO")
 	}
 
 	// A targetNode was specified, let's just define the node's storage
@@ -133,6 +146,89 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 	}
 
 	return response
+}
+
+func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
+	// Check that no 'source' config key has been defined, since
+	// that's node-specific.
+	for key := range req.Config {
+		if key == "source" {
+			return fmt.Errorf("Config key 'source' is node-specific")
+		}
+	}
+
+	// Check that the pool is properly defined, fetch the node-specific
+	// configs and insert the global config.
+	var configs map[string]map[string]string
+	var nodeName string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Check that the pool was defined at all.
+		poolID, err := tx.StoragePoolID(req.Name)
+		if err != nil {
+			return err
+		}
+
+		// Fetch the node-specific configs.
+		configs, err = tx.StoragePoolNodeConfigs(poolID)
+		if err != nil {
+			return err
+		}
+
+		// Take note of the name of this node
+		nodeName, err = tx.NodeName()
+		if err != nil {
+			return err
+		}
+
+		// Insert the global config keys.
+		return tx.StoragePoolConfigAdd(poolID, 0, req.Config)
+	})
+	if err != nil {
+		return err
+	}
+
+	// Create the pool on this node.
+	nodeReq := req
+	for key, value := range configs[nodeName] {
+		nodeReq.Config[key] = value
+	}
+	err = doStoragePoolCreateInternal(
+		d.State(), req.Name, req.Description, req.Driver, req.Config)
+	if err != nil {
+		return err
+	}
+
+	// Notify all other nodes to create the pool.
+	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+	if err != nil {
+		return err
+	}
+	notifyErr := notifier(func(client lxd.ContainerServer) error {
+		_, _, err := client.GetServer()
+		if err != nil {
+			return err
+		}
+		nodeReq := req
+		for key, value := range configs[client.ClusterNodeName()] {
+			nodeReq.Config[key] = value
+		}
+		return client.CreateStoragePool(nodeReq)
+	})
+
+	errored := notifyErr != nil
+
+	// Finally update the storage pool state.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		if errored {
+			return tx.StoragePoolErrored(req.Name)
+		}
+		return tx.StoragePoolCreated(req.Name)
+	})
+	if err != nil {
+		return err
+	}
+
+	return notifyErr
 }
 
 var storagePoolsCmd = Command{name: "storage-pools", get: storagePoolsGet, post: storagePoolsPost}
