@@ -30,6 +30,7 @@ func TestCluster_Bootstrap(t *testing.T) {
 	_, _, err = client.GetServer()
 	require.NoError(t, err)
 	assert.True(t, client.IsClustered())
+	assert.Equal(t, "buzz", client.ClusterNodeName())
 }
 
 // A LXD node which is already configured for networking can join an existing

@@ -53,6 +53,17 @@ func TestNodesCount(t *testing.T) {
 	assert.Equal(t, 2, count)
 }
 
+func TestNodeName(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	name, err := tx.NodeName()
+	require.NoError(t, err)
+
+	// The default node 1 has a conventional name 'none'.
+	assert.Equal(t, "none", name)
+}
+
 // Rename a node
 func TestNodeRename(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
