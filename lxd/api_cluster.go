@@ -195,6 +195,18 @@ func clusterNodesPostAccept(d *Daemon, req api.ClusterPost) Response {
 	if util.PasswordCheck(secret, req.TargetPassword) != nil {
 		return Forbidden
 	}
+
+	// Check that the pools and networks provided by the joining node have
+	// configs that match the cluster ones.
+	err = clusterCheckStoragePoolsMatch(d.cluster, req.StoragePools)
+	if err != nil {
+		return SmartError(err)
+	}
+	err = clusterCheckNetworksMatch(d.cluster, req.Networks)
+	if err != nil {
+		return SmartError(err)
+	}
+
 	nodes, err := cluster.Accept(d.State(), d.gateway, req.Name, req.Address, req.Schema, req.API)
 	if err != nil {
 		return BadRequest(err)
@@ -210,6 +222,71 @@ func clusterNodesPostAccept(d *Daemon, req api.ClusterPost) Response {
 	return SyncResponse(true, accepted)
 }
 
+func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
+	poolNames, err := cluster.StoragePools()
+	if err != nil && err != db.NoSuchObjectError {
+		return err
+	}
+	for _, name := range poolNames {
+		found := false
+		for _, reqPool := range reqPools {
+			if reqPool.Name != name {
+				continue
+			}
+			found = true
+			_, pool, err := cluster.StoragePoolGet(name)
+			if err != nil {
+				return err
+			}
+			if pool.Driver != reqPool.Driver {
+				return fmt.Errorf("Mismatching driver for storage pool %s", name)
+			}
+			// Exclude the "source" key, which is node-specific.
+			delete(pool.Config, "source")
+			delete(reqPool.Config, "source")
+			if !util.CompareConfigs(pool.Config, reqPool.Config) {
+				return fmt.Errorf("Mismatching config for storage pool %s", name)
+			}
+			break
+		}
+		if !found {
+			return fmt.Errorf("Missing storage pool %s", name)
+		}
+	}
+	return nil
+}
+
+func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) error {
+	networkNames, err := cluster.Networks()
+	if err != nil && err != db.NoSuchObjectError {
+		return err
+	}
+	for _, name := range networkNames {
+		found := false
+		for _, reqNetwork := range reqNetworks {
+			if reqNetwork.Name != name {
+				continue
+			}
+			found = true
+			_, network, err := cluster.NetworkGet(name)
+			if err != nil {
+				return err
+			}
+			// Exclude the "bridge.external_interfaces" key, which is node-specific.
+			delete(network.Config, "bridge.external_interfaces")
+			delete(reqNetwork.Config, "bridge.external_interfaces")
+			if !util.CompareConfigs(network.Config, reqNetwork.Config) {
+				return fmt.Errorf("Mismatching config for network %s", name)
+			}
+			break
+		}
+		if !found {
+			return fmt.Errorf("Missing network %s", name)
+		}
+	}
+	return nil
+}
+
 func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 	// Make sure basic pre-conditions are ment.
 	if len(req.TargetCert) == 0 {
@@ -217,10 +294,37 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 	}
 	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
-		return InternalError(err)
+		return SmartError(err)
 	}
 	if address == "" {
 		return BadRequest(fmt.Errorf("No core.https_address config key is set on this node"))
+	}
+
+	// Get all defined storage pools and networks, so they can be compared
+	// to the ones in the cluster.
+	pools := []api.StoragePool{}
+	poolNames, err := d.cluster.StoragePools()
+	if err != nil && err != db.NoSuchObjectError {
+		return SmartError(err)
+	}
+	for _, name := range poolNames {
+		_, pool, err := d.cluster.StoragePoolGet(name)
+		if err != nil {
+			return SmartError(err)
+		}
+		pools = append(pools, *pool)
+	}
+	networks := []api.Network{}
+	networkNames, err := d.cluster.Networks()
+	if err != nil && err != db.NoSuchObjectError {
+		return SmartError(err)
+	}
+	for _, name := range networkNames {
+		_, network, err := d.cluster.NetworkGet(name)
+		if err != nil {
+			return SmartError(err)
+		}
+		networks = append(networks, *network)
 	}
 
 	// Client parameters to connect to the target cluster node.
@@ -239,7 +343,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 		}
 		info, err := client.AcceptNode(
 			req.TargetPassword, req.Name, address, cluster.SchemaVersion,
-			len(version.APIExtensions))
+			len(version.APIExtensions), pools, networks)
 		if err != nil {
 			return errors.Wrap(err, "failed to request to add node")
 		}

@@ -11,14 +11,16 @@ type Cluster struct {
 //
 // API extension: cluster
 type ClusterPost struct {
-	Name           string `json:"name" yaml:"name"`
-	Address        string `json:"address" yaml:"address"`
-	Schema         int    `json:"schema" yaml:"schema"`
-	API            int    `json:"api" yaml:"api"`
-	TargetAddress  string `json:"target_address" yaml:"target_address"`
-	TargetCert     string `json:"target_cert" yaml:"target_cert"`
-	TargetCA       []byte `json:"target_ca" yaml:"target_ca"`
-	TargetPassword string `json:"target_password" yaml:"target_password"`
+	Name           string        `json:"name" yaml:"name"`
+	Address        string        `json:"address" yaml:"address"`
+	Schema         int           `json:"schema" yaml:"schema"`
+	API            int           `json:"api" yaml:"api"`
+	TargetAddress  string        `json:"target_address" yaml:"target_address"`
+	TargetCert     string        `json:"target_cert" yaml:"target_cert"`
+	TargetCA       []byte        `json:"target_ca" yaml:"target_ca"`
+	TargetPassword string        `json:"target_password" yaml:"target_password"`
+	StoragePools   []StoragePool `json:"storage_pools" yaml:"storage_pools"`
+	Networks       []Network     `json:"networks" yaml:"networks"`
 }
 
 // ClusterNodeAccepted represents the response of a request to join a cluster.

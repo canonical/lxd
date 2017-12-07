@@ -168,7 +168,7 @@ func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
             key, value
         FROM networks_config
 		WHERE network_id=?
-                AND node_id=?`
+                AND (node_id=? OR node_id IS NULL)`
 	inargs := []interface{}{id, c.nodeID}
 	outfmt := []interface{}{key, value}
 	results, err := queryScan(c.db, query, inargs, outfmt)
@@ -295,8 +295,14 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 		if v == "" {
 			continue
 		}
+		var nodeIDValue interface{}
+		if k != "bridge.external_interfaces" {
+			nodeIDValue = nil
+		} else {
+			nodeIDValue = nodeID
+		}
 
-		_, err = stmt.Exec(networkID, nodeID, k, v)
+		_, err = stmt.Exec(networkID, nodeIDValue, k, v)
 		if err != nil {
 			return err
 		}

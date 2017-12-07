@@ -98,6 +98,16 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 			case "containers":
 				fallthrough
 			case "networks_config":
+				// The "bridge.external_interfaces" config key
+				// is the only one which is not global to the
+				// cluster, so all other keys will have a NULL
+				// node_id.
+				for i, column := range columns {
+					if column == "key" && row[i] != "bridge.external_interfaces" {
+						nullNodeID = true
+						break
+					}
+				}
 				appendNodeID()
 			case "storage_pools_config":
 				// The "source" config key is the only one
