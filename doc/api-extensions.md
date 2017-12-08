@@ -367,3 +367,6 @@ If set to false, this effectively prevents the container from interacting with t
 
 ## migration\_pre\_copy
 This adds support for optimized memory transfer during live migration.
+
+## infiniband
+This adds support to use infiniband network devices.

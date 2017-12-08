@@ -82,4 +82,5 @@ var APIExtensions = []string{
 	"console",
 	"restrict_devlxd",
 	"migration_pre_copy",
+	"infiniband",
 }
