@@ -199,6 +199,21 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		default:
 			return false
 		}
+	case "infiniband":
+		switch k {
+		case "hwaddr":
+			return true
+		case "mtu":
+			return true
+		case "name":
+			return true
+		case "nictype":
+			return true
+		case "parent":
+			return true
+		default:
+			return false
+		}
 	case "none":
 		return false
 	default:
@@ -290,7 +305,7 @@ func containerValidDevices(db *db.Node, devices types.Devices, profile bool, exp
 			return fmt.Errorf("Missing device type for device '%s'", name)
 		}
 
-		if !shared.StringInSlice(m["type"], []string{"none", "nic", "disk", "unix-char", "unix-block", "usb", "gpu"}) {
+		if !shared.StringInSlice(m["type"], []string{"disk", "gpu", "infiniband", "nic", "none", "unix-block", "unix-char", "usb"}) {
 			return fmt.Errorf("Invalid device type for device '%s'", name)
 		}
 
@@ -310,6 +325,18 @@ func containerValidDevices(db *db.Node, devices types.Devices, profile bool, exp
 			}
 
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "physical", "sriov"}) && m["parent"] == "" {
+				return fmt.Errorf("Missing parent for %s type nic", m["nictype"])
+			}
+		} else if m["type"] == "infiniband" {
+			if m["nictype"] == "" {
+				return fmt.Errorf("Missing nic type")
+			}
+
+			if !shared.StringInSlice(m["nictype"], []string{"physical", "sriov"}) {
+				return fmt.Errorf("Bad nic type: %s", m["nictype"])
+			}
+
+			if m["parent"] == "" {
 				return fmt.Errorf("Missing parent for %s type nic", m["nictype"])
 			}
 		} else if m["type"] == "disk" {
