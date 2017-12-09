@@ -6663,10 +6663,16 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			}
 		}
 
-		// Find a free ethX device
 		i := 0
+		name := ""
 		for {
-			name := fmt.Sprintf("eth%d", i)
+			if m["type"] == "infiniband" {
+				name = fmt.Sprintf("ib%d", i)
+			} else {
+				name = fmt.Sprintf("eth%d", i)
+			}
+
+			// Find a free device name
 			if !shared.StringInSlice(name, devNames) {
 				return name, nil
 			}
