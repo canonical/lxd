@@ -6885,7 +6885,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	// Fill in some fields from volatile
 	m, err := c.fillNetworkDevice(name, m)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// Return empty list if not running
