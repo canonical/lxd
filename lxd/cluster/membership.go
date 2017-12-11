@@ -502,6 +502,21 @@ func Count(state *state.State) (int, error) {
 	return count, err
 }
 
+// Enabled is a convenience that returns true if clustering is enabled on this
+// node.
+func Enabled(node *db.Node) (bool, error) {
+	enabled := false
+	err := node.Transaction(func(tx *db.NodeTx) error {
+		addresses, err := tx.RaftNodeAddresses()
+		if err != nil {
+			return err
+		}
+		enabled = len(addresses) > 0
+		return nil
+	})
+	return enabled, err
+}
+
 // Check that node-related preconditions are met for bootstrapping or joining a
 // cluster.
 func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) error {

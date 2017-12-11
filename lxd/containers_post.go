@@ -526,17 +526,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 
 	targetNode := r.FormValue("targetNode")
 	if targetNode != "" {
-		address := ""
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			node, err := tx.NodeByName(targetNode)
-			if err != nil {
-				return err
-			}
-			if node.Address != d.endpoints.NetworkAddress() {
-				address = node.Address
-			}
-			return nil
-		})
+		address, err := cluster.ResolveTarget(d.cluster, targetNode)
 		if err != nil {
 			return SmartError(err)
 		}

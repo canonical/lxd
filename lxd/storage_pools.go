@@ -251,6 +251,38 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 	}
 	pool.UsedBy = poolUsedBy
 
+	targetNode := r.FormValue("targetNode")
+
+	// If no target node is specified and the client is clustered, we omit
+	// the node-specific fields, namely "source"
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+	if targetNode == "" && clustered {
+		delete(pool.Config, "source")
+	}
+
+	// If a target was specified, forward the request to the relevant node.
+	if targetNode != "" {
+		address, err := cluster.ResolveTarget(d.cluster, targetNode)
+		if err != nil {
+			return SmartError(err)
+		}
+		if address != "" {
+			cert := d.endpoints.NetworkCert()
+			client, err := cluster.Connect(address, cert, true)
+			if err != nil {
+				return SmartError(err)
+			}
+			client = client.ClusterTargetNode(targetNode)
+			pool, _, err = client.GetStoragePool(poolName)
+			if err != nil {
+				return SmartError(err)
+			}
+		}
+	}
+
 	etag := []interface{}{pool.Name, pool.Driver, pool.Config}
 
 	return SyncResponseETag(true, &pool, etag)
