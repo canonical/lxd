@@ -110,15 +110,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	clustered := false
-	err = d.db.Transaction(func(tx *db.NodeTx) error {
-		addresses, err := tx.RaftNodeAddresses()
-		if err != nil {
-			return err
-		}
-		clustered = len(addresses) > 0
-		return nil
-	})
+	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return SmartError(err)
 	}

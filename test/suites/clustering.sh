@@ -210,6 +210,13 @@ test_clustering_storage() {
   LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep state: | grep -q CREATED
 
+  # The 'source' config key is omitted when showing the cluster
+  # configuration, and included when showing the node-specific one.
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q source
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep source | grep -q "$(basename "${LXD_ONE_DIR}")"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node2 | grep source | grep -q "$(basename "${LXD_TWO_DIR}")"
+
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2
