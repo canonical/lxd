@@ -72,7 +72,7 @@ Manage storage pools and volumes.
 lxc storage list [<remote>:]
     List available storage pools.
 
-lxc storage show [<remote>:]<pool> [--resources]
+lxc storage show [<remote>:]<pool> [--resources] [--target <node>]
     Show details of a storage pool.
 
 lxc storage info [<remote>:]<pool> [--bytes]
@@ -767,6 +767,11 @@ func (c *storageCmd) doStoragePoolSet(client lxd.ContainerServer, name string, a
 func (c *storageCmd) doStoragePoolShow(client lxd.ContainerServer, name string) error {
 	if name == "" {
 		return errArgs
+	}
+
+	// If a target node was specified, we return also node-specific config values.
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
 	}
 
 	if c.resources {

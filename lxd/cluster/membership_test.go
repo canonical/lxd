@@ -131,6 +131,10 @@ func TestBootstrap(t *testing.T) {
 	count, err := cluster.Count(state)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
+
+	enabled, err := cluster.Enabled(state.Node)
+	require.NoError(t, err)
+	assert.True(t, enabled)
 }
 
 // If pre-conditions are not met, a descriptive error is returned.
