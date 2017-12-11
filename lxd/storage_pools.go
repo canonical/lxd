@@ -417,6 +417,34 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
+	// If this is a cluster notification, we're done, any database work
+	// will be done by the node that is originally serving the request.
+	if isClusterNotification(r) {
+		return EmptySyncResponse
+	}
+
+	// If we are clustered, also notify all other nodes, if any.
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+	if clustered {
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+		if err != nil {
+			return SmartError(err)
+		}
+		err = notifier(func(client lxd.ContainerServer) error {
+			_, _, err := client.GetServer()
+			if err != nil {
+				return err
+			}
+			return client.DeleteStoragePool(poolName)
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+	}
+
 	err = dbStoragePoolDeleteAndUpdateCache(d.cluster, poolName)
 	if err != nil {
 		return SmartError(err)
