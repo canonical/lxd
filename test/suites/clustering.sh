@@ -216,6 +216,9 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep source | grep -q "$(basename "${LXD_ONE_DIR}")"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node2 | grep source | grep -q "$(basename "${LXD_TWO_DIR}")"
 
+  # Delete the storage pool
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -q pool1
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
