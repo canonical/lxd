@@ -143,6 +143,11 @@ test_clustering_containers() {
   # A Node: field indicates on which node the container is running
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Node: node2"
 
+  # Delete the container via node1 and create it again.
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete foo
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -q foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
+
   # Start and stop the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
   LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: Running"
