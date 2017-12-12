@@ -363,7 +363,32 @@ func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, erro
 		storagePool.State = "UNKNOWN"
 	}
 
+	nodes, err := c.storagePoolNodes(poolID)
+	if err != nil {
+		return -1, nil, err
+	}
+	storagePool.Nodes = nodes
+
 	return poolID, &storagePool, nil
+}
+
+// Return the names of the nodes the given pool is defined on.
+func (c *Cluster) storagePoolNodes(poolID int64) ([]string, error) {
+	stmt := `
+SELECT nodes.name FROM nodes
+  JOIN storage_pools_nodes ON storage_pools_nodes.node_id = nodes.id
+  WHERE storage_pools_nodes.storage_pool_id = ?
+`
+	var nodes []string
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		nodes, err = query.SelectStrings(tx.tx, stmt, poolID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 // Get config of a storage pool.
