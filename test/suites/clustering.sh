@@ -205,6 +205,8 @@ test_clustering_storage() {
 
   # Define storage pools on the two nodes
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node1
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node2
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node2
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep state: | grep -q PENDING
 

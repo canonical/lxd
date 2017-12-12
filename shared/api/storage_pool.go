@@ -21,7 +21,8 @@ type StoragePool struct {
 	UsedBy []string `json:"used_by" yaml:"used_by"`
 
 	// API extension: clustering
-	State string `json:"state" yaml:"state"`
+	State string   `json:"state" yaml:"state"`
+	Nodes []string `json:"nodes" yaml:"nodes"`
 }
 
 // StoragePoolPut represents the modifiable fields of a LXD storage pool.
