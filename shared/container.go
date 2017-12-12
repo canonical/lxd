@@ -94,6 +94,7 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"boot.autostart":             IsBool,
 	"boot.autostart.delay":       IsInt64,
 	"boot.autostart.priority":    IsInt64,
+	"boot.stop.priority":         IsInt64,
 	"boot.host_shutdown_timeout": IsInt64,
 
 	"limits.cpu": IsAny,
