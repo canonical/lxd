@@ -78,6 +78,23 @@ func (c *ClusterTx) NodeName() (string, error) {
 	}
 }
 
+// NodeAddress returns the address of the node this method is invoked on.
+func (c *ClusterTx) NodeAddress() (string, error) {
+	stmt := "SELECT address FROM nodes WHERE id=?"
+	addresses, err := query.SelectStrings(c.tx, stmt, c.nodeID)
+	if err != nil {
+		return "", err
+	}
+	switch len(addresses) {
+	case 0:
+		return "", nil
+	case 1:
+		return addresses[0], nil
+	default:
+		return "", fmt.Errorf("inconsistency: non-unique node ID")
+	}
+}
+
 // Nodes returns all LXD nodes part of the cluster.
 //
 // If this LXD instance is not clustered, a list with a single node whose
@@ -247,5 +264,9 @@ func (c *ClusterTx) NodeClear(id int64) error {
 }
 
 func nodeIsDown(heartbeat time.Time) bool {
-	return heartbeat.Before(time.Now().Add(-20 * time.Second))
+	return heartbeat.Before(time.Now().Add(-time.Duration(nodeDownThreshold) * time.Second))
 }
+
+// How many seconds to wait before considering a node offline after no
+// heartbeat was received.
+var nodeDownThreshold = 20
