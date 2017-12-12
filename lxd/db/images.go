@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -301,6 +302,59 @@ func (c *Cluster) ImageGet(fingerprint string, public bool, strictMatching bool)
 	}
 
 	return id, &image, nil
+}
+
+// ImageLocate returns the address of an online node that has a local copy of
+// the given image, or an empty string if the image is already available on this
+// node.
+//
+// If the image is not available on any online node, an error is returned.
+func (c *Cluster) ImageLocate(fingerprint string) (string, error) {
+	stmt := `
+SELECT nodes.address FROM nodes
+  LEFT JOIN images_nodes ON images_nodes.node_id = nodes.id
+  LEFT JOIN images ON images_nodes.image_id = images.id
+WHERE images.fingerprint = ?
+`
+	var localAddress string // Address of this node
+	var addresses []string  // Addresses of online nodes with the image
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		localAddress, err = tx.NodeAddress()
+		if err != nil {
+			return err
+		}
+		allAddresses, err := query.SelectStrings(tx.tx, stmt, fingerprint)
+		if err != nil {
+			return err
+		}
+		for _, address := range allAddresses {
+			node, err := tx.NodeByAddress(address)
+			if err != nil {
+				return err
+			}
+			if node.IsDown() {
+				continue
+			}
+			addresses = append(addresses, address)
+		}
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(addresses) == 0 {
+		return "", fmt.Errorf("image not available on any online node")
+	}
+
+	for _, address := range addresses {
+		if address == localAddress {
+			return "", nil
+		}
+	}
+
+	return addresses[0], nil
 }
 
 func (c *Cluster) ImageDelete(id int) error {
