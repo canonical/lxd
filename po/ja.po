@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-03 19:19-0400\n"
+"POT-Creation-Date: 2017-12-13 16:42-0500\n"
 "PO-Revision-Date: 2017-10-10 14:59+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -272,7 +272,7 @@ msgstr "デバッグモードを有効にします"
 msgid "Enable verbose mode"
 msgstr "詳細モードを有効にします"
 
-#: lxc/exec.go:56
+#: lxc/exec.go:62
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "環境変数を HOME=/home/foo の形式で指定します"
 
@@ -414,12 +414,12 @@ msgstr "不正な証明書"
 msgid "Invalid configuration key"
 msgstr "正しくない設定項目 (key) です"
 
-#: lxc/file.go:219
+#: lxc/file.go:221
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:70
+#: lxc/file.go:71
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -473,7 +473,7 @@ msgstr "メモリ消費量:"
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
-#: lxc/file.go:207
+#: lxc/file.go:209
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -524,7 +524,7 @@ msgstr "リモートイメージのインポートは https:// のみをサポ�
 msgid "Options:"
 msgstr "オプション:"
 
-#: lxc/exec.go:57
+#: lxc/exec.go:63
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
@@ -702,15 +702,15 @@ msgstr "サーバが我々の証明書を追加した後我々を信頼してい
 msgid "Server protocol (lxd or simplestreams)"
 msgstr "サーバのプロトコル (lxd or simplestreams)"
 
-#: lxc/file.go:57
+#: lxc/file.go:58
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:58
+#: lxc/file.go:59
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:56
+#: lxc/file.go:57
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -1090,11 +1090,20 @@ msgstr ""
 "コンテナとコンテナのスナップショットを消去します。"
 
 #: lxc/exec.go:47
+#, fuzzy
 msgid ""
 "Usage: lxc exec [<remote>:]<container> [--mode=auto|interactive|non-"
 "interactive] [--env KEY=VALUE...] [--] <command line>\n"
 "\n"
 "Execute commands in containers.\n"
+"\n"
+"The command is executed directly using exec, so there is no shell and shell "
+"patterns (variables, file redirects, ...)\n"
+"won't be understood. If you need a shell environment you need to execute the "
+"shell executeable, passing the shell commands\n"
+"as arguments, for example:\n"
+"\n"
+"    lxc exec <container> -- sh -c \"cd /tmp && pwd\"\n"
 "\n"
 "Mode defaults to non-interactive, interactive mode is selected if both stdin "
 "AND stdout are terminals (stderr is ignored)."
@@ -1108,7 +1117,7 @@ msgstr ""
 "ル\n"
 "の場合は interactive モードが選択されます (標準エラー出力は無視されます)。"
 
-#: lxc/file.go:33
+#: lxc/file.go:34
 msgid ""
 "Usage: lxc file <subcommand> [options]\n"
 "\n"

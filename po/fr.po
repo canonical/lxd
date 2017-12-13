@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-03 19:19-0400\n"
+"POT-Creation-Date: 2017-12-13 16:42-0500\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -278,7 +278,7 @@ msgstr "Active le mode de déboguage."
 msgid "Enable verbose mode"
 msgstr "Active le mode verbeux."
 
-#: lxc/exec.go:56
+#: lxc/exec.go:62
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
@@ -425,12 +425,12 @@ msgstr "Gérer la configuration.\n"
 msgid "Invalid configuration key"
 msgstr "Gérer la configuration.\n"
 
-#: lxc/file.go:219
+#: lxc/file.go:221
 #, c-format
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:70
+#: lxc/file.go:71
 #, c-format
 msgid "Invalid target %s"
 msgstr "Destination invalide %s"
@@ -484,7 +484,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "Sommaire manquant."
 
-#: lxc/file.go:207
+#: lxc/file.go:209
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger mais la destination n'est pas un dossier"
@@ -536,7 +536,7 @@ msgstr ""
 msgid "Options:"
 msgstr "Opération %s"
 
-#: lxc/exec.go:57
+#: lxc/exec.go:63
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
@@ -719,15 +719,15 @@ msgstr "Identification refuse après l'ajout du certificat client"
 msgid "Server protocol (lxd or simplestreams)"
 msgstr ""
 
-#: lxc/file.go:57
+#: lxc/file.go:58
 msgid "Set the file's gid on push"
 msgstr "Définit le gid lors de l'envoi"
 
-#: lxc/file.go:58
+#: lxc/file.go:59
 msgid "Set the file's perms on push"
 msgstr "Définit les permissions lors de l'envoi"
 
-#: lxc/file.go:56
+#: lxc/file.go:57
 msgid "Set the file's uid on push"
 msgstr "Définit le uid lors de l'envoi"
 
@@ -1026,11 +1026,19 @@ msgid ""
 "\n"
 "Execute commands in containers.\n"
 "\n"
+"The command is executed directly using exec, so there is no shell and shell "
+"patterns (variables, file redirects, ...)\n"
+"won't be understood. If you need a shell environment you need to execute the "
+"shell executeable, passing the shell commands\n"
+"as arguments, for example:\n"
+"\n"
+"    lxc exec <container> -- sh -c \"cd /tmp && pwd\"\n"
+"\n"
 "Mode defaults to non-interactive, interactive mode is selected if both stdin "
 "AND stdout are terminals (stderr is ignored)."
 msgstr "Exécute la commande spécifiée dans un conteneur.\n"
 
-#: lxc/file.go:33
+#: lxc/file.go:34
 msgid ""
 "Usage: lxc file <subcommand> [options]\n"
 "\n"
