@@ -120,7 +120,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return err
 		}
 
-		_, err = containerCreateFromImage(d.State(), args, info.Fingerprint)
+		_, err = containerCreateFromImage(d, args, info.Fingerprint)
 		return err
 	}
 
@@ -323,7 +323,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		}
 
 		if ps.MigrationType() == migration.MigrationFSType_RSYNC {
-			c, err = containerCreateFromImage(d.State(), args, req.Source.BaseImage)
+			c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
 			if err != nil {
 				return InternalError(err)
 			}
