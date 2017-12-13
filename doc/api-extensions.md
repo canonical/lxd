@@ -22,6 +22,15 @@ to stop before killing it.
 
 Its value is only used on clean LXD daemon shutdown. It defaults to 30s.
 
+## container\_stop\_priority
+A `boot.stop.priority` container configuration key was introduced.
+
+It's an integer which indicates the priority of a container during shutdown.
+
+Containers will shutdown starting with the highest priority level.
+
+Containers with the same priority will shutdown in parallel.  It defaults to 0.
+
 ## container\_syscall\_filtering
 A number of new syscalls related container configuration keys were introduced.
 

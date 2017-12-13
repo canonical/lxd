@@ -28,6 +28,7 @@ boot.autostart                          | boolean   | -             | n/a       
 boot.autostart.delay                    | integer   | 0             | n/a           | -                                    | Number of seconds to wait after the container started before starting the next one
 boot.autostart.priority                 | integer   | 0             | n/a           | -                                    | What order to start the containers in (starting with highest)
 boot.host\_shutdown\_timeout            | integer   | 30            | yes           | container\_host\_shutdown\_timeout   | Seconds to wait for container to shutdown before it is force stopped
+boot.stop.priority                      | integer   | 0             | n/a           | container\_stop\_priority            | What order to shutdown the containers (starting with highest)
 environment.\*                          | string    | -             | yes (exec)    | -                                    | key/value environment variables to export to the container and set on exec
 limits.cpu                              | string    | - (all)       | yes           | -                                    | Number or range of CPUs to expose to the container
 limits.cpu.allowance                    | string    | 100%          | yes           | -                                    | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
