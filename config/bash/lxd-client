@@ -72,7 +72,8 @@ _have lxc && {
       images.compression_algorithm images.remote_cache_expiry"
 
     container_keys="boot.autostart boot.autostart.delay \
-      boot.autostart.priority boot.host_shutdown_timeout environment. \
+      boot.autostart.priority boot.stop.priority \
+      boot.host_shutdown_timeout environment. \
       limits.cpu limits.cpu.allowance limits.cpu.priority \
       limits.disk.priority limits.memory limits.memory.enforce \
       limits.memory.swap limits.memory.swap.priority limits.network.priority \

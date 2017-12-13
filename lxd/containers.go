@@ -149,6 +149,29 @@ func containersRestart(s *state.State) error {
 	return nil
 }
 
+type containerStopList []container
+
+func (slice containerStopList) Len() int {
+	return len(slice)
+}
+
+func (slice containerStopList) Less(i, j int) bool {
+	iOrder := slice[i].ExpandedConfig()["boot.stop.priority"]
+	jOrder := slice[j].ExpandedConfig()["boot.stop.priority"]
+
+	if iOrder != jOrder {
+		iOrderInt, _ := strconv.Atoi(iOrder)
+		jOrderInt, _ := strconv.Atoi(jOrder)
+		return iOrderInt > jOrderInt // check this line (prob <)
+	}
+
+	return slice[i].Name() < slice[j].Name()
+}
+
+func (slice containerStopList) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
 func containersShutdown(s *state.State) error {
 	var wg sync.WaitGroup
 
@@ -158,21 +181,44 @@ func containersShutdown(s *state.State) error {
 		return err
 	}
 
+	containers := []container{}
+
+	for _, name := range results {
+		c, err := containerLoadByName(s, name)
+		if err != nil {
+			return err
+		}
+
+		containers = append(containers, c)
+	}
+
+	sort.Sort(containerStopList(containers))
+
 	// Reset all container states
 	err = s.DB.ContainersResetState()
 	if err != nil {
 		return err
 	}
 
-	for _, r := range results {
-		// Load the container
-		c, err := containerLoadByName(s, r)
-		if err != nil {
-			return err
-		}
+	var lastPriority int = 0
+
+	if len(containers) != 0 {
+		lastPriority, _ = strconv.Atoi(containers[0].ExpandedConfig()["boot.stop.priority"])
+	}
+
+	for _, c := range containers {
+		priority, _ := strconv.Atoi(c.ExpandedConfig()["boot.stop.priority"])
 
 		// Record the current state
 		lastState := c.State()
+
+		// Enforce shutdown priority
+		if priority != lastPriority {
+			lastPriority = priority
+
+			// Wait for containers with higher priority to finish
+			wg.Wait()
+		}
 
 		// Stop the container
 		if c.IsRunning() {

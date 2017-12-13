@@ -18,6 +18,7 @@ var APIVersion = "1.0"
 var APIExtensions = []string{
 	"storage_zfs_remove_snapshots",
 	"container_host_shutdown_timeout",
+	"container_stop_priority",
 	"container_syscall_filtering",
 	"auth_pki",
 	"container_last_used_at",
