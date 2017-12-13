@@ -90,13 +90,21 @@ func (c *Cluster) Networks() ([]string, error) {
 	return response, nil
 }
 
+// Network state.
+const (
+	networkPending int = iota // Network defined but not yet created.
+	networkCreated            // Network created on all nodes.
+	networkErrored            // Network creation failed on some nodes
+)
+
 func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
+	state := 0
 
-	q := "SELECT id, description FROM networks WHERE name=?"
+	q := "SELECT id, description, state FROM networks WHERE name=?"
 	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id, &description}
+	arg2 := []interface{}{&id, &description, &state}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
@@ -115,7 +123,41 @@ func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
 	network.Description = description.String
 	network.Config = config
 
+	switch state {
+	case networkPending:
+		network.State = "PENDING"
+	case networkCreated:
+		network.State = "CREATED"
+	default:
+		network.State = "UNKNOWN"
+	}
+
+	nodes, err := c.networkNodes(id)
+	if err != nil {
+		return -1, nil, err
+	}
+	network.Nodes = nodes
+
 	return id, &network, nil
+}
+
+// Return the names of the nodes the given network is defined on.
+func (c *Cluster) networkNodes(networkID int64) ([]string, error) {
+	stmt := `
+SELECT nodes.name FROM nodes
+  JOIN networks_nodes ON networks_nodes.node_id = nodes.id
+  WHERE networks_nodes.network_id = ?
+`
+	var nodes []string
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		nodes, err = query.SelectStrings(tx.tx, stmt, networkID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return nodes, nil
 }
 
 func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, error) {

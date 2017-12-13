@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 )
 
@@ -122,6 +123,11 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 				appendNodeID()
 			case "storage_volumes_config":
 				appendNodeID()
+			case "networks":
+				fallthrough
+			case "storage_pools":
+				columns = append(columns, "state")
+				row = append(row, storagePoolCreated)
 			}
 			stmt := fmt.Sprintf("INSERT INTO %s(%s)", table, strings.Join(columns, ", "))
 			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
@@ -138,30 +144,36 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 			}
 
 			// Also insert the image ID -> node ID association.
-			if table == "images" {
-				stmt := "INSERT INTO images_nodes(image_id, node_id) VALUES(?, 1)"
-				var imageID int64
-				for i, column := range columns {
-					if column == "id" {
-						imageID = row[i].(int64)
-						if err != nil {
-							return err
-						}
-						break
-					}
-				}
-				if imageID == 0 {
-					return fmt.Errorf("image has invalid ID")
-				}
-				_, err := tx.Exec(stmt, row...)
-				if err != nil {
-					return errors.Wrapf(err, "failed to associate image to node")
-				}
+			if shared.StringInSlice(table, []string{"images", "networks", "storage_pools"}) {
+				entity := table[:len(table)-1]
+				importNodeAssociation(entity, columns, row, tx)
 			}
 		}
 	}
 
 	return tx.Commit()
+}
+
+// Insert a row in one of the nodes association tables (storage_pools_nodes,
+// networks_nodes, images_nodes).
+func importNodeAssociation(entity string, columns []string, row []interface{}, tx *sql.Tx) error {
+	stmt := fmt.Sprintf(
+		"INSERT INTO %ss_nodes(%s_id, node_id) VALUES(?, 1)", entity, entity)
+	var id int64
+	for i, column := range columns {
+		if column == "id" {
+			id = row[i].(int64)
+			break
+		}
+	}
+	if id == 0 {
+		return fmt.Errorf("entity %s has invalid ID", entity)
+	}
+	_, err := tx.Exec(stmt, row...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to associate %s to node", entity)
+	}
+	return nil
 }
 
 // Dump is a dump of all the user data in lxd.db prior the migration to the
