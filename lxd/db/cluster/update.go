@@ -27,6 +27,13 @@ var updates = map[int]schema.Update{
 	2: updateFromV1,
 	3: updateFromV2,
 	4: updateFromV3,
+	5: updateFromV4,
+}
+
+func updateFromV4(tx *sql.Tx) error {
+	stmt := "UPDATE networks SET state = 1"
+	_, err := tx.Exec(stmt)
+	return err
 }
 
 func updateFromV3(tx *sql.Tx) error {
