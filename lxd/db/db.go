@@ -65,6 +65,7 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 	legacyHook := legacyPatchHook(db, legacyPatches)
 	hook := func(version int, tx *sql.Tx) error {
 		if version == node.UpdateFromPreClustering {
+			logger.Debug("Loading pre-clustering sqlite data")
 			var err error
 			dump, err = LoadPreClusteringData(tx)
 			if err != nil {
