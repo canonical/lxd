@@ -439,6 +439,7 @@ func (c *Cluster) StoragePoolCreate(poolName string, poolDescription string, poo
 	values := []interface{}{id, c.nodeID}
 	_, err = query.UpsertObject(tx, "storage_pools_nodes", columns, values)
 	if err != nil {
+		tx.Rollback()
 		return -1, err
 	}
 
