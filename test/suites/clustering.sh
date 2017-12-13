@@ -143,17 +143,22 @@ test_clustering_containers() {
   # A Node: field indicates on which node the container is running
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Node: node2"
 
-  # Delete the container via node1 and create it again.
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete foo
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -q foo
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage foo
-
   # Start and stop the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
   LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: Running"
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
   LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
 
+  # Create a container on node1 using the image that was stored on
+  # node2.
+  LXD_DIR="${LXD_TWO_DIR}" lxc init --target node1 testimage bar
+  LXD_DIR="${LXD_ONE_DIR}" lxc start bar
+  LXD_DIR="${LXD_TWO_DIR}" lxc stop bar
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q bar
+
+  # Delete the network now, since we're going to shutdown node2 and it
+  # won't be possible afterwise.
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   # Shutdown node 2, wait for it to be considered offline, and list

@@ -334,7 +334,7 @@ WHERE images.fingerprint = ?
 			if err != nil {
 				return err
 			}
-			if node.IsDown() {
+			if address != localAddress && node.IsDown() {
 				continue
 			}
 			addresses = append(addresses, address)
@@ -355,6 +355,21 @@ WHERE images.fingerprint = ?
 	}
 
 	return addresses[0], nil
+}
+
+// ImageAssociateNode creates a new entry in the images_nodes table for
+// tracking that the current node has the given image.
+func (c *Cluster) ImageAssociateNode(fingerprint string) error {
+	imageID, _, err := c.ImageGet(fingerprint, false, true)
+	if err != nil {
+		return err
+	}
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec("INSERT INTO images_nodes(image_id, node_id) VALUES(?, ?)", imageID, c.nodeID)
+		return err
+	})
+	return err
 }
 
 func (c *Cluster) ImageDelete(id int) error {

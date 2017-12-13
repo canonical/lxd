@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -1573,6 +1574,62 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	}
 
 	return OperationResponse(op)
+}
+
+func imageImportFromNode(imagesDir string, client lxd.ContainerServer, fingerprint string) error {
+	// Prepare the temp files
+	buildDir, err := ioutil.TempDir(imagesDir, "lxd_build_")
+	if err != nil {
+		return errors.Wrap(err, "failed to create temporary directory for download")
+	}
+	defer os.RemoveAll(buildDir)
+
+	metaFile, err := ioutil.TempFile(buildDir, "lxd_tar_")
+	if err != nil {
+		return err
+	}
+	defer metaFile.Close()
+
+	rootfsFile, err := ioutil.TempFile(buildDir, "lxd_tar_")
+	if err != nil {
+		return err
+	}
+	defer rootfsFile.Close()
+
+	getReq := lxd.ImageFileRequest{
+		MetaFile:   io.WriteSeeker(metaFile),
+		RootfsFile: io.WriteSeeker(rootfsFile),
+	}
+	getResp, err := client.GetImageFile(fingerprint, getReq)
+	if err != nil {
+		return err
+	}
+	metaFile.Close()
+	rootfsFile.Close()
+
+	if getResp.RootfsSize == 0 {
+		// This is a unified image.
+		rootfsPath := filepath.Join(imagesDir, fingerprint)
+		err := shared.FileMove(metaFile.Name(), rootfsPath)
+		if err != nil {
+			return err
+		}
+	} else {
+		// This is a split image.
+		metaPath := filepath.Join(imagesDir, fingerprint)
+		rootfsPath := filepath.Join(imagesDir, fingerprint+".rootfs")
+
+		err := shared.FileMove(metaFile.Name(), metaPath)
+		if err != nil {
+			return nil
+		}
+		err = shared.FileMove(rootfsFile.Name(), rootfsPath)
+		if err != nil {
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func imageRefresh(d *Daemon, r *http.Request) Response {

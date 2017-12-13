@@ -11,6 +11,7 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
@@ -18,6 +19,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
@@ -605,11 +607,36 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 	return c, nil
 }
 
-func containerCreateFromImage(s *state.State, args db.ContainerArgs, hash string) (container, error) {
+func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (container, error) {
+	s := d.State()
+
 	// Get the image properties
 	_, img, err := s.Cluster.ImageGet(hash, false, false)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if the image is available locally or it's on another node.
+	nodeAddress, err := s.Cluster.ImageLocate(hash)
+	if err != nil {
+		return nil, err
+	}
+	if nodeAddress != "" {
+		// The image is available from another node, let's try to
+		// import it.
+		logger.Debugf("Transfering image %s from node %s", hash, nodeAddress)
+		client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
+		if err != nil {
+			return nil, err
+		}
+		err = imageImportFromNode(filepath.Join(d.os.VarDir, "images"), client, hash)
+		if err != nil {
+			return nil, err
+		}
+		err = d.cluster.ImageAssociateNode(hash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Set the "image.*" keys
