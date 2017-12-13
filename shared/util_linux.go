@@ -336,6 +336,13 @@ func GetFileStat(p string) (uid int, gid int, major int, minor int,
 }
 
 func parseMountinfo(name string) int {
+	// In case someone uses symlinks we need to look for the actual
+	// mountpoint.
+	actualPath, err := filepath.EvalSymlinks(name)
+	if err != nil {
+		return -1
+	}
+
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return -1
@@ -350,8 +357,7 @@ func parseMountinfo(name string) int {
 			return -1
 		}
 		cleanPath := filepath.Clean(tokens[4])
-		cleanName := filepath.Clean(name)
-		if cleanPath == cleanName {
+		if cleanPath == actualPath {
 			return 1
 		}
 	}
@@ -361,8 +367,8 @@ func parseMountinfo(name string) int {
 
 func IsMountPoint(name string) bool {
 	ret := parseMountinfo(name)
-	if ret >= 0 {
-		return (ret == 1)
+	if ret == 1 {
+		return true
 	}
 
 	stat, err := os.Stat(name)
