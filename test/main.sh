@@ -197,6 +197,7 @@ run_test test_proxy_device "proxy device"
 run_test test_clustering_membership "clustering membership"
 run_test test_clustering_containers "clustering containers"
 run_test test_clustering_storage "clustering storage"
+run_test test_clustering_network "clustering network"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success
