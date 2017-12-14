@@ -213,7 +213,7 @@ func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]stri
 }
 
 func (c *Cluster) Networks() ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM networks")
+	q := "SELECT name FROM networks"
 	inargs := []interface{}{}
 	var name string
 	outfmt := []interface{}{name}
