@@ -142,6 +142,10 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		return tx.StoragePoolCreatePending(targetNode, req.Name, req.Driver, req.Config)
 	})
 	if err != nil {
+		if err == db.DbErrAlreadyDefined {
+			return BadRequest(
+				fmt.Errorf("The storage pool already defined on node %s", targetNode))
+		}
 		return SmartError(err)
 	}
 
