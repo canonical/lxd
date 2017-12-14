@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-30 21:51-0800\n"
+"POT-Creation-Date: 2017-12-15 12:26+0100\n"
 "PO-Revision-Date: 2017-09-05 16:48+0000\n"
 "Last-Translator: Ilya Yakimavets <ilya.yakimavets@backend.expert>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -314,6 +314,10 @@ msgstr "Авто-обновление: %s"
 msgid "Bad property: %s"
 msgstr ""
 
+#: lxc/action.go:133
+msgid "Both --all and container name given"
+msgstr ""
+
 #: lxc/info.go:215
 msgid "Bytes received"
 msgstr "Получено байтов"
@@ -618,7 +622,7 @@ msgstr ""
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/action.go:46 lxc/action.go:47
+#: lxc/action.go:47 lxc/action.go:48
 msgid "Force the container to shutdown"
 msgstr ""
 
@@ -662,7 +666,7 @@ msgstr ""
 msgid "Ignore aliases when determining what command to run"
 msgstr ""
 
-#: lxc/action.go:50
+#: lxc/action.go:51
 msgid "Ignore the container state (only for start)"
 msgstr ""
 
@@ -802,7 +806,7 @@ msgstr ""
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:72
+#: lxc/action.go:74
 msgid "Must supply container name for: "
 msgstr ""
 
@@ -1077,6 +1081,10 @@ msgstr ""
 msgid "Retrieving image: %s"
 msgstr ""
 
+#: lxc/action.go:52
+msgid "Run command against all containers"
+msgstr ""
+
 #: lxc/image.go:236
 msgid "SIZE"
 msgstr ""
@@ -1166,7 +1174,7 @@ msgstr ""
 msgid "Snapshots:"
 msgstr ""
 
-#: lxc/action.go:142
+#: lxc/action.go:163
 #, fuzzy, c-format
 msgid "Some containers failed to %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -1230,7 +1238,7 @@ msgstr ""
 msgid "Storage volume %s deleted"
 msgstr ""
 
-#: lxc/action.go:49
+#: lxc/action.go:50
 msgid "Store the container state (only for stop)"
 msgstr ""
 
@@ -1274,7 +1282,7 @@ msgstr ""
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
 
-#: lxc/action.go:34
+#: lxc/action.go:35
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
@@ -1298,7 +1306,7 @@ msgid ""
 "For help with any of those, simply call them with --help."
 msgstr ""
 
-#: lxc/action.go:45
+#: lxc/action.go:46
 msgid "Time to wait for the container before killing it"
 msgstr ""
 
@@ -1336,7 +1344,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/action.go:106 lxc/launch.go:77
+#: lxc/action.go:108 lxc/launch.go:77
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -1375,10 +1383,10 @@ msgstr ""
 msgid "Uploaded: %s"
 msgstr ""
 
-#: lxc/action.go:37
+#: lxc/action.go:38
 #, fuzzy, c-format
 msgid ""
-"Usage: lxc %s [<remote>:]<container> [[<remote>:]<container>...]\n"
+"Usage: lxc %s [--all] [<remote>:]<container> [[<remote>:]<container>...]\n"
 "\n"
 "%s%s"
 msgstr ""
@@ -2297,7 +2305,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:134 lxc/main.go:33 lxc/main.go:191
+#: lxc/action.go:155 lxc/main.go:33 lxc/main.go:191
 #, c-format
 msgid "error: %v"
 msgstr ""
