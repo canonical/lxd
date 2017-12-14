@@ -61,7 +61,11 @@ func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) error {
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", "/networks", network, "")
+	path := "/networks"
+	if r.targetNode != "" {
+		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	}
+	_, _, err := r.query("POST", path, network, "")
 	if err != nil {
 		return err
 	}
