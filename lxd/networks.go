@@ -103,6 +103,28 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		req.Config = map[string]string{}
 	}
 
+	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
+	response := SyncResponseLocation(true, nil, url)
+
+	targetNode := r.FormValue("targetNode")
+	if targetNode != "" {
+		// A targetNode was specified, let's just define the node's
+		// network without actually creating it. The only legal key
+		// value for the storage config is 'bridge.external_interfaces'.
+		for key := range req.Config {
+			if key != "bridge.external_interfaces" {
+				return SmartError(fmt.Errorf("Invalid config key '%s'", key))
+			}
+		}
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			return tx.NetworkCreatePending(targetNode, req.Name, req.Config)
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+		return response
+	}
+
 	err = networkValidateConfig(req.Name, req.Config)
 	if err != nil {
 		return BadRequest(err)
@@ -157,7 +179,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return InternalError(err)
 	}
 
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name))
+	return response
 }
 
 var networksCmd = Command{name: "networks", get: networksGet, post: networksPost}
@@ -232,6 +254,11 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 		} else {
 			n.Type = "unknown"
 		}
+	}
+
+	if dbInfo != nil {
+		n.State = dbInfo.State
+		n.Nodes = dbInfo.Nodes
 	}
 
 	return n, nil
