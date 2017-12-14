@@ -436,6 +436,19 @@ test_basic_usage() {
   # Cleanup the containers
   lxc delete --force c1 c2 c3
 
+  # Test --all flag
+  lxc init testimage c1
+  lxc init testimage c2
+  lxc start --all
+  lxc list | grep c1 | grep RUNNING
+  lxc list | grep c2 | grep RUNNING
+  ! lxc stop --all c1 || false
+  lxc stop --all
+  lxc list | grep c1 | grep STOPPED
+  lxc list | grep c2 | grep STOPPED
+  # Cleanup the containers
+  lxc delete --force c1 c2
+
   # Ephemeral
   lxc launch testimage foo -e
 
