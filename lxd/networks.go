@@ -125,6 +125,24 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
+	err = networkFillConfig(&req)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Check if we're clustered
+	count, err := cluster.Count(d.State())
+	if err != nil {
+		return SmartError(err)
+	}
+
+	if count > 1 {
+		panic("TODO")
+	}
+
+	// No targetNode was specified and we're either a single-node
+	// cluster or not clustered at all, so create the storage
+	// pool immediately.
 	networks, err := networkGetInterfaces(d.cluster)
 	if err != nil {
 		return InternalError(err)
@@ -134,6 +152,21 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("The network already exists"))
 	}
 
+	// Create the database entry
+	_, err = d.cluster.NetworkCreate(req.Name, req.Description, req.Config)
+	if err != nil {
+		return SmartError(fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
+	}
+
+	err = doNetworksCreate(d, req)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return response
+}
+
+func networkFillConfig(req *api.NetworksPost) error {
 	// Set some default values where needed
 	if req.Config["bridge.mode"] == "fan" {
 		if req.Config["fan.underlay_subnet"] == "" {
@@ -159,31 +192,27 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Replace "auto" by actual values
-	err = networkFillAuto(req.Config)
+	err := networkFillAuto(req.Config)
 	if err != nil {
-		return InternalError(err)
+		return err
 	}
+	return nil
+}
 
-	// Create the database entry
-	_, err = d.cluster.NetworkCreate(req.Name, req.Description, req.Config)
-	if err != nil {
-		return InternalError(
-			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
-	}
-
+func doNetworksCreate(d *Daemon, req api.NetworksPost) error {
 	// Start the network
 	n, err := networkLoadByName(d.State(), req.Name)
 	if err != nil {
-		return InternalError(err)
+		return err
 	}
 
 	err = n.Start()
 	if err != nil {
 		n.Delete()
-		return InternalError(err)
+		return err
 	}
 
-	return response
+	return nil
 }
 
 var networksCmd = Command{name: "networks", get: networksGet, post: networksPost}
@@ -278,7 +307,7 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 	if isClusterNotification(r) {
-		n.db = nil // We just want to delete the network from the system
+		n.state = nil // We just want to delete the network from the system
 	} else {
 		// Sanity checks
 		if n.IsUsed() {
@@ -287,7 +316,7 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	// If we're just handling a notification, we're done.
-	if n.db == nil {
+	if n.state == nil {
 		return EmptySyncResponse
 	}
 
@@ -581,7 +610,7 @@ func networkLoadByName(s *state.State, name string) (*network, error) {
 		return nil, err
 	}
 
-	n := network{db: s.Node, state: s, id: id, name: name, description: dbInfo.Description, config: dbInfo.Config}
+	n := network{state: s, id: id, name: name, description: dbInfo.Description, config: dbInfo.Config}
 
 	return &n, nil
 }
@@ -685,7 +714,7 @@ func (n *network) Delete() error {
 		if err != nil {
 			return err
 		}
-		if n.db == nil {
+		if n.state == nil {
 			return nil
 		}
 	}
