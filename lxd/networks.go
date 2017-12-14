@@ -90,17 +90,13 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Only 'bridge' type networks can be created"))
 	}
 
-	networks, err := networkGetInterfaces(d.cluster)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	if shared.StringInSlice(req.Name, networks) {
-		return BadRequest(fmt.Errorf("The network already exists"))
-	}
-
 	if req.Config == nil {
 		req.Config = map[string]string{}
+	}
+
+	err = networkValidateConfig(req.Name, req.Config)
+	if err != nil {
+		return BadRequest(err)
 	}
 
 	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
@@ -120,14 +116,22 @@ func networksPost(d *Daemon, r *http.Request) Response {
 			return tx.NetworkCreatePending(targetNode, req.Name, req.Config)
 		})
 		if err != nil {
+			if err == db.DbErrAlreadyDefined {
+				return BadRequest(
+					fmt.Errorf("The network already defined on node %s", targetNode))
+			}
 			return SmartError(err)
 		}
 		return response
 	}
 
-	err = networkValidateConfig(req.Name, req.Config)
+	networks, err := networkGetInterfaces(d.cluster)
 	if err != nil {
-		return BadRequest(err)
+		return InternalError(err)
+	}
+
+	if shared.StringInSlice(req.Name, networks) {
+		return BadRequest(fmt.Errorf("The network already exists"))
 	}
 
 	// Set some default values where needed
