@@ -209,9 +209,6 @@ func containersShutdown(s *state.State) error {
 	for _, c := range containers {
 		priority, _ := strconv.Atoi(c.ExpandedConfig()["boot.stop.priority"])
 
-		// Record the current state
-		lastState := c.State()
-
 		// Enforce shutdown priority
 		if priority != lastPriority {
 			lastPriority = priority
@@ -220,8 +217,11 @@ func containersShutdown(s *state.State) error {
 			wg.Wait()
 		}
 
+		// Record the current state
+		lastState := c.State()
+
 		// Stop the container
-		if c.IsRunning() {
+		if lastState != "BROKEN" && lastState != "STOPPED" {
 			// Determinate how long to wait for the container to shutdown cleanly
 			var timeoutSeconds int
 			value, ok := c.ExpandedConfig()["boot.host_shutdown_timeout"]
