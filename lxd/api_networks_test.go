@@ -35,3 +35,36 @@ func TestNetworksCreate_TargetNode(t *testing.T) {
 	assert.Equal(t, "PENDING", network.State)
 	assert.Equal(t, []string{"rusp-0"}, network.Nodes)
 }
+
+// An error is returned when trying to create a new network in a cluster where
+// the network was not defined on all nodes.
+func TestNetworksCreate_MissingNodes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping networks targetNode test in short mode.")
+	}
+	daemons, cleanup := newDaemons(t, 2)
+	defer cleanup()
+
+	f := clusterFixture{t: t}
+	f.FormCluster(daemons)
+
+	// Define the network on rusp-0.
+	daemon := daemons[0]
+	client := f.ClientUnix(daemon).ClusterTargetNode("rusp-0")
+
+	networkPost := api.NetworksPost{
+		Name: "mynetwork",
+	}
+
+	err := client.CreateNetwork(networkPost)
+	require.NoError(t, err)
+
+	// Trying to create the network now results in an error, since it's not
+	// defined on all nodes.
+	networkPost = api.NetworksPost{
+		Name: "mynetwork",
+	}
+	client = f.ClientUnix(daemon)
+	err = client.CreateNetwork(networkPost)
+	require.EqualError(t, err, "Network not defined on nodes: buzz")
+}

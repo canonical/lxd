@@ -212,6 +212,32 @@ func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]stri
 	return nil
 }
 
+// NetworkCreated sets the state of the given network to "CREATED".
+func (c *ClusterTx) NetworkCreated(name string) error {
+	return c.networkState(name, networkCreated)
+}
+
+// NetworkErrored sets the state of the given network to "ERRORED".
+func (c *ClusterTx) NetworkErrored(name string) error {
+	return c.networkState(name, networkErrored)
+}
+
+func (c *ClusterTx) networkState(name string, state int) error {
+	stmt := "UPDATE networks SET state=? WHERE name=?"
+	result, err := c.tx.Exec(stmt, state, name)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return NoSuchObjectError
+	}
+	return nil
+}
+
 func (c *Cluster) Networks() ([]string, error) {
 	q := "SELECT name FROM networks"
 	inargs := []interface{}{}
