@@ -196,6 +196,10 @@ func daemonConfigInit(db *sql.DB) error {
 		"images.compression_algorithm": {valueType: "string", validator: daemonConfigValidateCompression, defaultValue: "gzip"},
 		"images.remote_cache_expiry":   {valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
 
+		"maas.api.key": {valueType: "string"},
+		"maas.api.url": {valueType: "string"},
+		"maas.machine": {valueType: "string"},
+
 		// Keys deprecated since the implementation of the storage api.
 		"storage.lvm_fstype":           {valueType: "string", defaultValue: "ext4", validValues: []string{"btrfs", "ext4", "xfs"}, validator: storageDeprecatedKeys},
 		"storage.lvm_mount_options":    {valueType: "string", defaultValue: "discard", validator: storageDeprecatedKeys},

@@ -195,6 +195,8 @@ vlan                    | integer   | -                 | no        | macvlan, p
 ipv4.address            | string    | -                 | no        | bridged                           | network                                | An IPv4 address to assign to the container through DHCP
 ipv6.address            | string    | -                 | no        | bridged                           | network                                | An IPv6 address to assign to the container through DHCP
 security.mac\_filtering | boolean   | false             | no        | bridged                           | network                                | Prevent the container from spoofing another's MAC address
+maas.subnet.ipv4        | string    | -                 | no        | bridged, macvlan, physical, sriov | maas\_network                          | MAAS IPv4 subnet to register the container in
+maas.subnet.ipv6        | string    | -                 | no        | bridged, macvlan, physical, sriov | maas\_network                          | MAAS IPv6 subnet to register the container in
 
 #### bridged or macvlan for connection to physical network
 The `bridged` and `macvlan` interface types can both be used to connect
@@ -236,6 +238,23 @@ lxc config device add <container> <device-name> nic nictype=sriov parent=<sriov-
 
 To tell LXD to use a specific unused VF add the `host_name` property and pass
 it the name of the enabled VF.
+
+
+#### MAAS integration
+If you're using MAAS to manage the physical network under your LXD host
+and want to attach your containers directly to a MAAS managed network,
+LXD can be configured to interact with MAAS so that it can track your
+containers.
+
+At the daemon level, you must configure `maas.api.url` and
+`maas.api.key`, then set the `maas.subnet.ipv4` and/or
+`maas.subnet.ipv6` keys on the container or profile's `nic` entry.
+
+This will have LXD register all your containers with MAAS, giving them
+proper DHCP leases and DNS records.
+
+If you set the `ipv4.address` or `ipv6.address` keys on the nic, then
+those will be registered as static assignments in MAAS too.
 
 ### Type: infiniband
 LXD supports two different kind of network types for infiniband devices:
