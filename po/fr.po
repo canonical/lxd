@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-11-30 21:51-0800\n"
+"POT-Creation-Date: 2017-12-15 12:26+0100\n"
 "PO-Revision-Date: 2017-10-26 15:46+0000\n"
 "Last-Translator: Alban Vidal <alban.vidal@zordhak.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -328,6 +328,10 @@ msgstr "Mise à jour auto. : %s"
 msgid "Bad property: %s"
 msgstr ""
 
+#: lxc/action.go:133
+msgid "Both --all and container name given"
+msgstr ""
+
 #: lxc/info.go:215
 msgid "Bytes received"
 msgstr "Octets reçus"
@@ -638,7 +642,7 @@ msgstr "Empreinte : %s"
 msgid "Force pseudo-terminal allocation"
 msgstr "Forcer l'allocation de pseudo-terminal "
 
-#: lxc/action.go:46 lxc/action.go:47
+#: lxc/action.go:47 lxc/action.go:48
 msgid "Force the container to shutdown"
 msgstr "Forcer le conteneur à s'arrêter"
 
@@ -687,7 +691,7 @@ msgstr ""
 msgid "Ignore aliases when determining what command to run"
 msgstr "Ignorer les alias pour déterminer la commande à exécuter"
 
-#: lxc/action.go:50
+#: lxc/action.go:51
 msgid "Ignore the container state (only for start)"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
 
@@ -831,7 +835,7 @@ msgstr "Forcer le conteneur à s'arrêter"
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:72
+#: lxc/action.go:74
 msgid "Must supply container name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
@@ -1111,6 +1115,10 @@ msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
 
+#: lxc/action.go:52
+msgid "Run command against all containers"
+msgstr ""
+
 #: lxc/image.go:236
 msgid "SIZE"
 msgstr "TAILLE"
@@ -1203,7 +1211,7 @@ msgstr "Taille : %.2f Mo"
 msgid "Snapshots:"
 msgstr "Instantanés :"
 
-#: lxc/action.go:142
+#: lxc/action.go:163
 #, fuzzy, c-format
 msgid "Some containers failed to %s"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -1269,7 +1277,7 @@ msgstr "Profil %s créé"
 msgid "Storage volume %s deleted"
 msgstr "Profil %s supprimé"
 
-#: lxc/action.go:49
+#: lxc/action.go:50
 msgid "Store the container state (only for stop)"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
@@ -1318,7 +1326,7 @@ msgstr "Le périphérique n'existe pas"
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 
-#: lxc/action.go:34
+#: lxc/action.go:35
 #, fuzzy
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "Le pendant de `lxc pause` est `lxc start`."
@@ -1348,7 +1356,7 @@ msgstr ""
 "commandes ci-dessous.\n"
 "Pour de l'aide avec l'une des commandes, simplement les utiliser avec --help."
 
-#: lxc/action.go:45
+#: lxc/action.go:46
 msgid "Time to wait for the container before killing it"
 msgstr "Temps d'attente du conteneur avant de le tuer"
 
@@ -1387,7 +1395,7 @@ msgstr "Transfert de l'image : %s"
 msgid "Transferring image: %s"
 msgstr "Transfert de l'image : %s"
 
-#: lxc/action.go:106 lxc/launch.go:77
+#: lxc/action.go:108 lxc/launch.go:77
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
@@ -1426,10 +1434,10 @@ msgstr ""
 msgid "Uploaded: %s"
 msgstr "Publié : %s"
 
-#: lxc/action.go:37
+#: lxc/action.go:38
 #, fuzzy, c-format
 msgid ""
-"Usage: lxc %s [<remote>:]<container> [[<remote>:]<container>...]\n"
+"Usage: lxc %s [--all] [<remote>:]<container> [[<remote>:]<container>...]\n"
 "\n"
 "%s%s"
 msgstr ""
@@ -2803,7 +2811,7 @@ msgstr "désactivé"
 msgid "enabled"
 msgstr "activé"
 
-#: lxc/action.go:134 lxc/main.go:33 lxc/main.go:191
+#: lxc/action.go:155 lxc/main.go:33 lxc/main.go:191
 #, c-format
 msgid "error: %v"
 msgstr "erreur : %v"
