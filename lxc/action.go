@@ -22,6 +22,7 @@ type actionCmd struct {
 	force       bool
 	stateful    bool
 	stateless   bool
+	all         bool
 }
 
 func (c *actionCmd) showByDefault() bool {
@@ -35,7 +36,7 @@ func (c *actionCmd) usage() string {
 	}
 
 	return fmt.Sprintf(i18n.G(
-		`Usage: lxc %s [<remote>:]<container> [[<remote>:]<container>...]
+		`Usage: lxc %s [--all] [<remote>:]<container> [[<remote>:]<container>...]
 
 %s%s`), c.name, c.description, extra)
 }
@@ -48,6 +49,7 @@ func (c *actionCmd) flags() {
 	}
 	gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Store the container state (only for stop)"))
 	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only for start)"))
+	gnuflag.BoolVar(&c.all, "all", false, i18n.G("Run command against all containers"))
 }
 
 func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
@@ -110,12 +112,31 @@ func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
 }
 
 func (c *actionCmd) run(conf *config.Config, args []string) error {
+	var names []string
 	if len(args) == 0 {
-		return errArgs
+		if !c.all {
+			return errArgs
+		}
+		d, err := conf.GetContainerServer(conf.DefaultRemote)
+		if err != nil {
+			return err
+		}
+		ctslist, err := d.GetContainers()
+		if err != nil {
+			return err
+		}
+		for _, ct := range ctslist {
+			names = append(names, ct.Name)
+		}
+	} else {
+		if c.all {
+			return fmt.Errorf(i18n.G("Both --all and container name given"))
+		}
+		names = args
 	}
 
 	// Run the action for every listed container
-	results := runBatch(args, func(name string) error { return c.doAction(conf, name) })
+	results := runBatch(names, func(name string) error { return c.doAction(conf, name) })
 
 	// Single container is easy
 	if len(results) == 1 {
