@@ -152,7 +152,7 @@ func containersShutdown(s *state.State, storage storage) error {
 		lastState := c.State()
 
 		// Stop the container
-		if c.IsRunning() {
+		if lastState != "BROKEN" && lastState != "STOPPED" {
 			wg.Add(1)
 			go func() {
 				c.Shutdown(time.Second * 30)
