@@ -283,6 +283,13 @@ test_clustering_network() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep state: | grep -q PENDING
 
+  # The bridge.external_interfaces config key is not legal for the final network creation
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo
+
+  # Create the network
+  LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep state: | grep -q CREATED
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2

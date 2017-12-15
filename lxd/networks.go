@@ -102,6 +102,17 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
 	response := SyncResponseLocation(true, nil, url)
 
+	if isClusterNotification(r) {
+		// This is an internal request which triggers the actual
+		// creation of the network across all nodes, after they have
+		// been previously defined.
+		err = doNetworksCreate(d, req)
+		if err != nil {
+			return SmartError(err)
+		}
+		return response
+	}
+
 	targetNode := r.FormValue("targetNode")
 	if targetNode != "" {
 		// A targetNode was specified, let's just define the node's
@@ -137,7 +148,11 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if count > 1 {
-		panic("TODO")
+		err = networksPostCluster(d, req)
+		if err != nil {
+			return SmartError(err)
+		}
+		return response
 	}
 
 	// No targetNode was specified and we're either a single-node
@@ -164,6 +179,88 @@ func networksPost(d *Daemon, r *http.Request) Response {
 	}
 
 	return response
+}
+
+func networksPostCluster(d *Daemon, req api.NetworksPost) error {
+	// Check that no 'bridge.external_interfaces' config key has been
+	// defined, since that's node-specific.
+	for key := range req.Config {
+		if key == "bridge.external_interfaces" {
+			return fmt.Errorf("Config key 'bridge.external_interfaces' is node-specific")
+		}
+	}
+
+	// Check that the network is properly defined, fetch the node-specific
+	// configs and insert the global config.
+	var configs map[string]map[string]string
+	var nodeName string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Check that the network was defined at all.
+		networkID, err := tx.NetworkID(req.Name)
+		if err != nil {
+			return err
+		}
+
+		// Fetch the node-specific configs.
+		configs, err = tx.NetworkNodeConfigs(networkID)
+		if err != nil {
+			return err
+		}
+
+		// Take note of the name of this node
+		nodeName, err = tx.NodeName()
+		if err != nil {
+			return err
+		}
+
+		// Insert the global config keys.
+		return tx.NetworkConfigAdd(networkID, 0, req.Config)
+	})
+	if err != nil {
+		return err
+	}
+
+	// Create the network on this node.
+	nodeReq := req
+	for key, value := range configs[nodeName] {
+		nodeReq.Config[key] = value
+	}
+	err = doNetworksCreate(d, nodeReq)
+	if err != nil {
+		return err
+	}
+
+	// Notify all other nodes to create the network.
+	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
+	if err != nil {
+		return err
+	}
+	notifyErr := notifier(func(client lxd.ContainerServer) error {
+		_, _, err := client.GetServer()
+		if err != nil {
+			return err
+		}
+		nodeReq := req
+		for key, value := range configs[client.ClusterNodeName()] {
+			nodeReq.Config[key] = value
+		}
+		return client.CreateNetwork(nodeReq)
+	})
+
+	errored := notifyErr != nil
+
+	// Finally update the storage network state.
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		if errored {
+			return tx.NetworkErrored(req.Name)
+		}
+		return tx.NetworkCreated(req.Name)
+	})
+	if err != nil {
+		return err
+	}
+
+	return notifyErr
 }
 
 func networkFillConfig(req *api.NetworksPost) error {
