@@ -681,6 +681,41 @@ void forkgetnet(char *buf, char *cur, ssize_t size) {
 	// The rest happens in Go
 }
 
+void proxydevstart(char *buf, char *cur, ssize_t size) {
+	int cmdline, listen_pid, connect_pid, fdnum;
+
+	// Get the arguments
+	ADVANCE_ARG_REQUIRED();
+	listen_pid = atoi(cur);
+	ADVANCE_ARG_REQUIRED();
+	ADVANCE_ARG_REQUIRED();
+	connect_pid = atoi(cur);
+	ADVANCE_ARG_REQUIRED();
+	ADVANCE_ARG_REQUIRED();
+	fdnum = atoi(cur);
+
+	// Cannot pass through -1 to runCommand since it is interpreted as a flag
+	fdnum = fdnum == 0 ? -1 : fdnum;
+	
+	char fdpath[80];
+	sprintf(fdpath, "/proc/self/fd/%d", fdnum);
+
+	// Join the listener ns if not already setup
+	if (access(fdpath, F_OK) < 0) {
+		// Attach to the network namespace of the listener
+		if (dosetns(listen_pid, "net") < 0) {
+			fprintf(stderr, "Failed setns to listener network namespace: %s\n", strerror(errno));
+			_exit(1);
+		}
+	} else {
+		// Join the connector ns now
+		if (dosetns(connect_pid, "net") < 0) {
+			fprintf(stderr, "Failed setns to connector network namespace: %s\n", strerror(errno));
+			_exit(1);
+		}
+	}
+}
+
 __attribute__((constructor)) void init(void) {
 	int cmdline;
 	char buf[CMDLINE_SIZE];
@@ -723,6 +758,8 @@ __attribute__((constructor)) void init(void) {
 		forkumount(buf, cur, size);
 	} else if (strcmp(cur, "forkgetnet") == 0) {
 		forkgetnet(buf, cur, size);
+	} else if (strcmp(cur, "proxydevstart") == 0) {
+		proxydevstart(buf, cur, size);
 	}
 }
 */

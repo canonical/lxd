@@ -218,6 +218,17 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		default:
 			return false
 		}
+	case "proxy":
+		switch k {
+		case "listen":
+			return true
+		case "connect":
+			return true
+		case "bind":
+			return true
+		default:
+			return false
+		}
 	case "none":
 		return false
 	default:
@@ -309,7 +320,7 @@ func containerValidDevices(db *db.Node, devices types.Devices, profile bool, exp
 			return fmt.Errorf("Missing device type for device '%s'", name)
 		}
 
-		if !shared.StringInSlice(m["type"], []string{"disk", "gpu", "infiniband", "nic", "none", "unix-block", "unix-char", "usb"}) {
+		if !shared.StringInSlice(m["type"], []string{"disk", "gpu", "infiniband", "nic", "none", "proxy", "unix-block", "unix-char", "usb"}) {
 			return fmt.Errorf("Invalid device type for device '%s'", name)
 		}
 
@@ -415,6 +426,18 @@ func containerValidDevices(db *db.Node, devices types.Devices, profile bool, exp
 		} else if m["type"] == "gpu" {
 			// Probably no checks needed, since we allow users to
 			// pass in all GPUs.
+		} else if m["type"] == "proxy" {
+			if m["listen"] == "" {
+				return fmt.Errorf("Proxy device entry is missing the required \"listen\" property.")
+			}
+
+			if m["connect"] == "" {
+				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property.")
+			}
+
+			if m["bind"] == "" {
+				return fmt.Errorf("Proxy device entry is missing the required \"bind\" property.")
+			}
 		} else if m["type"] == "none" {
 			continue
 		} else {

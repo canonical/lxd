@@ -843,6 +843,24 @@ func RunCommand(name string, arg ...string) (string, error) {
 	return string(output), nil
 }
 
+func RunCommandGetPid(name string, arg ...string) (int, error) {
+	cmd := exec.Command(name, arg...)
+	cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+	err := cmd.Start()
+	go cmd.Wait()
+	if err != nil {
+		err := RunError{
+			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " ")),
+			Err: err,
+		}
+		return -1, err
+	}
+	
+	processPid := cmd.Process.Pid
+	return processPid, nil
+}
+
 func TryRunCommand(name string, arg ...string) (string, error) {
 	var err error
 	var output string
