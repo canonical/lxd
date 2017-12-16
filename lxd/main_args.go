@@ -133,4 +133,6 @@ Internal commands (don't call these directly):
         Indicate that a migration dump was successful
     netcat
         Mirror a unix socket to stdin/stdout
+    proxydevstart
+        Start proxy device process for a container
 `
