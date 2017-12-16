@@ -290,6 +290,10 @@ test_clustering_network() {
   LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}"
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep state: | grep -q CREATED
 
+  # Delete the networks
+  LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${net}"
+  LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2

@@ -106,7 +106,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		// This is an internal request which triggers the actual
 		// creation of the network across all nodes, after they have
 		// been previously defined.
-		err = doNetworksCreate(d, req)
+		err = doNetworksCreate(d, req, true)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -173,7 +173,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return SmartError(fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
 	}
 
-	err = doNetworksCreate(d, req)
+	err = doNetworksCreate(d, req, true)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -225,7 +225,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 	for key, value := range configs[nodeName] {
 		nodeReq.Config[key] = value
 	}
-	err = doNetworksCreate(d, nodeReq)
+	err = doNetworksCreate(d, nodeReq, false)
 	if err != nil {
 		return err
 	}
@@ -296,7 +296,9 @@ func networkFillConfig(req *api.NetworksPost) error {
 	return nil
 }
 
-func doNetworksCreate(d *Daemon, req api.NetworksPost) error {
+// Create the network on the system. The withDatabase flag is used to decide
+// whether to cleanup the database if an error occurs.
+func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error {
 	// Start the network
 	n, err := networkLoadByName(d.State(), req.Name)
 	if err != nil {
@@ -305,6 +307,9 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost) error {
 
 	err = n.Start()
 	if err != nil {
+		if !withDatabase {
+			n.state = nil
+		}
 		n.Delete()
 		return err
 	}
@@ -413,22 +418,16 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	// If we're just handling a notification, we're done.
-	if n.state == nil {
-		return EmptySyncResponse
-	}
-
-	// Notify all other nodes. If any node is down, an error will be returned.
-	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
-	if err != nil {
-		return SmartError(err)
-	}
-	err = notifier(func(client lxd.ContainerServer) error {
-		_, _, err := client.GetServer()
+	if n.state != nil {
+		// Notify all other nodes. If any node is down, an error will be returned.
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
 		if err != nil {
-			return err
+			return SmartError(err)
 		}
-		return client.DeleteNetwork(name)
-	})
+		err = notifier(func(client lxd.ContainerServer) error {
+			return client.DeleteNetwork(name)
+		})
+	}
 	if err != nil {
 		return SmartError(err)
 	}
@@ -811,9 +810,12 @@ func (n *network) Delete() error {
 		if err != nil {
 			return err
 		}
-		if n.state == nil {
-			return nil
-		}
+	}
+
+	// If state is nil, this is a cluster notification, and we don't want
+	// to perform any database work.
+	if n.state == nil {
+		return nil
 	}
 
 	// Remove the network from the database
