@@ -360,29 +360,43 @@ func snapshotToProtobuf(c container) *Snapshot {
 // Check if CRIU supports pre-dumping and number of
 // pre-dump iterations
 func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
-	// TODO: ask CRIU if this system (kernel+criu) supports
-	// pre-copy (dirty memory tracking)
-	// The user should also be enable to influence it from the
-	// command-line.
+	// Ask CRIU if this architecture/kernel/criu combination
+	// supports pre-copy (dirty memory tracking)
+	criuMigrationArgs := CriuMigrationArgs{
+		cmd:          lxc.MIGRATE_FEATURE_CHECK,
+		stateDir:     "",
+		function:     "feature-check",
+		stop:         false,
+		actionScript: false,
+		dumpDir:      "",
+		preDumpDir:   "",
+		features:     lxc.FEATURE_MEM_TRACK,
+	}
+	err := s.container.Migrate(&criuMigrationArgs)
+
+	if err != nil {
+		// CRIU says it does not know about dirty memory tracking.
+		// This means the rest of this function is irrelevant.
+		return false, 0
+	}
+
+	// CRIU says it can actually do pre-dump. Let's set it to true
+	// unless the user wants something else.
+	use_pre_dumps := true
 
 	// What does the configuration say about pre-copy
 	tmp := s.container.ExpandedConfig()["migration.incremental.memory"]
-
-	// default to false for pre-dumps as long as libxlc has no
-	// detection for the feature
-	use_pre_dumps := false
 
 	if tmp != "" {
 		use_pre_dumps = shared.IsTrue(tmp)
 	}
 	logger.Debugf("migration.incremental.memory %d", use_pre_dumps)
 
+	var max_iterations int
 
 	// migration.incremental.memory.iterations is the value after which the
 	// container will be definitely migrated, even if the remaining number
 	// of memory pages is below the defined threshold.
-	// TODO: implement threshold (needs reading of CRIU output files)
-	var max_iterations int
 	tmp = s.container.ExpandedConfig()["migration.incremental.memory.iterations"]
 	if tmp != "" {
 		max_iterations, _ = strconv.Atoi(tmp)
