@@ -95,7 +95,7 @@ Now that you have LXD running on your system you can read the [getting started g
 Bug reports can be filed at: <https://github.com/lxc/lxd/issues/new>
 
 ## Contributing
-Fixes and new features are greatly appreciated but please read our [contributing guidelines](contributing.md) first.
+Fixes and new features are greatly appreciated but please read our [contributing guidelines](doc/contributing.md) first.
 
 ## Support and discussions
 ### Forum
