@@ -1102,7 +1102,6 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	if header.GetPredump() == true {
 		// If the other side wants pre-dump and if
 		// this side supports it, let's use it.
-		// TODO: check kernel+criu (and config?)
 		resp.Predump = proto.Bool(true)
 	} else {
 		resp.Predump = proto.Bool(false)
