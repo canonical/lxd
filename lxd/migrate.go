@@ -357,6 +357,51 @@ func snapshotToProtobuf(c container) *Snapshot {
 	}
 }
 
+// Check if CRIU supports pre-dumping and number of
+// pre-dump iterations
+func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
+	// TODO: ask CRIU if this system (kernel+criu) supports
+	// pre-copy (dirty memory tracking)
+	// The user should also be enable to influence it from the
+	// command-line.
+
+	// What does the configuration say about pre-copy
+	tmp := s.container.ExpandedConfig()["migration.incremental.memory"]
+
+	// default to false for pre-dumps as long as libxlc has no
+	// detection for the feature
+	use_pre_dumps := false
+
+	if tmp != "" {
+		use_pre_dumps = shared.IsTrue(tmp)
+	}
+	logger.Debugf("migration.incremental.memory %d", use_pre_dumps)
+
+
+	// migration.incremental.memory.iterations is the value after which the
+	// container will be definitely migrated, even if the remaining number
+	// of memory pages is below the defined threshold.
+	// TODO: implement threshold (needs reading of CRIU output files)
+	var max_iterations int
+	tmp = s.container.ExpandedConfig()["migration.incremental.memory.iterations"]
+	if tmp != "" {
+		max_iterations, _ = strconv.Atoi(tmp)
+	} else {
+		// default to 10
+		max_iterations = 10
+	}
+	if max_iterations > 999 {
+		// the pre-dump directory is hardcoded to a string
+		// with maximal 3 digits. 999 pre-dumps makes no
+		// sense at all, but let's make sure the number
+		// is not higher than this.
+		max_iterations = 999
+	}
+	logger.Debugf("using maximal %d iterations for pre-dumping", max_iterations)
+
+	return use_pre_dumps, max_iterations
+}
+
 // The function readCriuStatsDump() reads the CRIU 'stats-dump' file
 // in path and returns the pages_written, pages_skipped_parent, error.
 func readCriuStatsDump(path string) (uint64, uint64, error) {
@@ -552,43 +597,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
-	// TODO: ask CRIU if this system (kernel+criu) supports
-	// pre-copy (dirty memory tracking)
-	// The user should also be enable to influence it from the
-	// command-line.
-
-	// What does the config say about pre-copy
-	tmp := s.container.ExpandedConfig()["migration.incremental.memory"]
-
-	// default to false for pre-dumps as long as libxlc has no
-	// detection for the feature
-	use_pre_dumps := false
-
-	if tmp != "" {
-		use_pre_dumps = shared.IsTrue(tmp)
-	}
-	logger.Debugf("migration.incremental.memory %d", use_pre_dumps)
-
-	// migration.incremental.memory.iterations is the value after which the
-	// container will be definitely migrated, even if the remaining number
-	// of memory pages is below the defined threshold.
-	// TODO: implement threshold (needs reading of CRIU output files)
-	var max_iterations int
-	tmp = s.container.ExpandedConfig()["migration.incremental.memory.iterations"]
-	if tmp != "" {
-		max_iterations, _ = strconv.Atoi(tmp)
-	} else {
-		// default to 10
-		max_iterations = 10
-	}
-	if max_iterations > 999 {
-		// the pre-dump directory is hardcoded to a string
-		// with maximal 3 digits. 999 pre-dumps makes no
-		// sense at all, but let's make sure the number
-		// is not higher than this.
-		max_iterations = 999
-	}
-	logger.Debugf("using maximal %d iterations for pre-dumping", max_iterations)
+	use_pre_dumps, max_iterations := s.checkForPreDumpSupport()
 
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
