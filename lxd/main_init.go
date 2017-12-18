@@ -812,7 +812,8 @@ func (cmd *CmdInit) askClustering() (*cmdInitClusteringParams, error) {
 
 	// Target node address, password and certificate.
 join:
-	params.TargetAddress = cmd.Context.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
+	targetAddress := cmd.Context.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
+	params.TargetAddress = util.CanonicalNetworkAddress(targetAddress)
 	params.TargetPassword = cmd.Context.AskPassword(
 		"Trust password for the existing cluster: ", cmd.PasswordReader)
 
