@@ -259,13 +259,7 @@ func dbStoragePoolCreateAndUpdateCache(db *db.Node, poolName string, poolDescrip
 	}
 
 	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheLock.Lock()
-	drivers := readStoragePoolDriversCache()
-	if !shared.StringInSlice(poolDriver, drivers) {
-		drivers = append(drivers, poolDriver)
-	}
-	storagePoolDriversCacheVal.Store(drivers)
-	storagePoolDriversCacheLock.Unlock()
+	storagePoolDriversCacheUpdate(db)
 
 	return id, nil
 }
@@ -273,24 +267,13 @@ func dbStoragePoolCreateAndUpdateCache(db *db.Node, poolName string, poolDescrip
 // Helper around the low-level DB API, which also updates the driver names
 // cache.
 func dbStoragePoolDeleteAndUpdateCache(db *db.Node, poolName string) error {
-	pool, err := db.StoragePoolDelete(poolName)
+	_, err := db.StoragePoolDelete(poolName)
 	if err != nil {
 		return err
 	}
 
 	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheLock.Lock()
-	drivers := readStoragePoolDriversCache()
-	for i := 0; i < len(drivers); i++ {
-		if drivers[i] == pool.Driver {
-			drivers[i] = drivers[len(drivers)-1]
-			drivers[len(drivers)-1] = ""
-			drivers = drivers[:len(drivers)-1]
-			break
-		}
-	}
-	storagePoolDriversCacheVal.Store(drivers)
-	storagePoolDriversCacheLock.Unlock()
+	storagePoolDriversCacheUpdate(db)
 
 	return err
 }
