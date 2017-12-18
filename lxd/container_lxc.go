@@ -4646,6 +4646,7 @@ type CriuMigrationArgs struct {
 	actionScript bool
 	dumpDir      string
 	preDumpDir   string
+	features     lxc.CriuFeatures
 }
 
 func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
@@ -4656,6 +4657,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		"statedir":     args.stateDir,
 		"actionscript": args.actionScript,
 		"predumpdir":   args.preDumpDir,
+		"features":     args.features,
 		"stop":         args.stop}
 
 	_, err := exec.LookPath("criu")
@@ -4679,6 +4681,8 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		prettyCmd = "dump"
 	case lxc.MIGRATE_RESTORE:
 		prettyCmd = "restore"
+	case lxc.MIGRATE_FEATURE_CHECK:
+		prettyCmd = "feature-check"
 	default:
 		prettyCmd = "unknown"
 		logger.Warn("unknown migrate call", log.Ctx{"cmd": args.cmd})
@@ -4757,7 +4761,17 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 				logger.Debugf("forkmigrate: %s", line)
 			}
 		}
+	} else if args.cmd == lxc.MIGRATE_FEATURE_CHECK {
 
+		opts := lxc.MigrateOptions{
+			FeaturesToCheck: args.features,
+		}
+		migrateErr = c.c.Migrate(args.cmd, opts)
+		if migrateErr != nil {
+			logger.Info("CRIU feature check failed", ctxMap)
+			return migrateErr
+		}
+		return nil
 	} else {
 		err := c.initLXC(true)
 		if err != nil {
