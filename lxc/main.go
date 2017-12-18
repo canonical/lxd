@@ -155,7 +155,7 @@ func run() error {
 	// and this is the first time the client has been run by the user, then check to see
 	// if LXD has been properly configured.  Don't display the message if the var path
 	// does not exist (LXD not installed), as the user may be targeting a remote daemon.
-	if os.Args[0] != "help" && os.Args[0] != "version" && shared.PathExists(shared.VarPath("")) && !shared.PathExists(conf.ConfigDir) {
+	if os.Args[0] != "help" && os.Args[0] != "version" && shared.PathExists(shared.VarPath("")) && !shared.PathExists(configPath) {
 		// Create the config dir so that we don't get in here again for this user.
 		err = os.MkdirAll(conf.ConfigDir, 0750)
 		if err != nil {
