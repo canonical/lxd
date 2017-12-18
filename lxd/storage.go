@@ -63,17 +63,16 @@ func getCustomUmountLockID(poolName string, volumeName string) string {
 
 // Simply cache used to storage the activated drivers on this LXD instance. This
 // allows us to avoid querying the database everytime and API call is made.
-var storagePoolDriversCacheInitialized bool
 var storagePoolDriversCacheVal atomic.Value
 var storagePoolDriversCacheLock sync.Mutex
 
-func readStoragePoolDriversCache() []string {
+func readStoragePoolDriversCache() map[string]string {
 	drivers := storagePoolDriversCacheVal.Load()
 	if drivers == nil {
-		return []string{}
+		return map[string]string{}
 	}
 
-	return drivers.([]string)
+	return drivers.(map[string]string)
 }
 
 // storageType defines the type of a storage
@@ -854,6 +853,12 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 		}
 	}
 
+	// Update the storage drivers cache in api_1.0.go.
+	storagePoolDriversCacheUpdate(s.DB)
+	return nil
+}
+
+func storagePoolDriversCacheUpdate(dbNode *db.Node) {
 	// Get a list of all storage drivers currently in use
 	// on this LXD instance. Only do this when we do not already have done
 	// this once to avoid unnecessarily querying the db. All subsequent
@@ -863,18 +868,27 @@ func SetupStorageDriver(s *state.State, forceCheck bool) error {
 	// copy-on-write semantics without locking in the read case seems
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
-	if !storagePoolDriversCacheInitialized {
-		tmp, err := s.DB.StoragePoolsGetDrivers()
-		if err != nil && err != db.NoSuchObjectError {
-			return nil
-		}
 
-		storagePoolDriversCacheLock.Lock()
-		storagePoolDriversCacheVal.Store(tmp)
-		storagePoolDriversCacheLock.Unlock()
-
-		storagePoolDriversCacheInitialized = true
+	drivers, err := dbNode.StoragePoolsGetDrivers()
+	if err != nil && err != db.NoSuchObjectError {
+		return
 	}
 
-	return nil
+	data := map[string]string{}
+	for _, driver := range drivers {
+		// Initialize a core storage interface for the given driver.
+		sCore, err := storageCoreInit(driver)
+		if err != nil {
+			continue
+		}
+
+		// Grab the version
+		data[driver] = sCore.GetStorageTypeVersion()
+	}
+
+	storagePoolDriversCacheLock.Lock()
+	storagePoolDriversCacheVal.Store(data)
+	storagePoolDriversCacheLock.Unlock()
+
+	return
 }

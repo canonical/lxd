@@ -137,7 +137,10 @@ func containersRestart(s *state.State) error {
 				continue
 			}
 
-			c.Start(false)
+			err = c.Start(false)
+			if err != nil {
+				logger.Errorf("Failed to start container '%s': %v", c.Name(), err)
+			}
 
 			autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
 			if err == nil {
