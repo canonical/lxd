@@ -872,10 +872,11 @@ func (cmd *CmdInit) askClusteringNetworks(cluster *api.Cluster) ([]api.NetworksP
 		// The only config key to ask is 'bridge.external_interfaces',
 		// which is the only one node-specific.
 		key := "bridge.external_interfaces"
-		// Sort config keys to get a stable ordering (expecially for tests)
 		question := fmt.Sprintf(
 			`Enter local value for key "%s" of network "%s": `, key, post.Name)
-		post.Config[key] = cmd.Context.AskString(question, "", nil)
+		// Dummy validator for allowing empty strings.
+		validator := func(string) error { return nil }
+		post.Config[key] = cmd.Context.AskString(question, "", validator)
 		networks[i] = post
 	}
 	return networks, nil
