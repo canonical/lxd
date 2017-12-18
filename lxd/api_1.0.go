@@ -123,13 +123,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		ServerVersion:          version.Version}
 
 	drivers := readStoragePoolDriversCache()
-	for _, driver := range drivers {
-		// Initialize a core storage interface for the given driver.
-		sCore, err := storageCoreInit(driver)
-		if err != nil {
-			continue
-		}
-
+	for driver, version := range drivers {
 		if env.Storage != "" {
 			env.Storage = env.Storage + " | " + driver
 		} else {
@@ -137,11 +131,10 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		}
 
 		// Get the version of the storage drivers in use.
-		sVersion := sCore.GetStorageTypeVersion()
 		if env.StorageVersion != "" {
-			env.StorageVersion = env.StorageVersion + " | " + sVersion
+			env.StorageVersion = env.StorageVersion + " | " + version
 		} else {
-			env.StorageVersion = sVersion
+			env.StorageVersion = version
 		}
 	}
 
