@@ -379,3 +379,9 @@ This adds support for optimized memory transfer during live migration.
 
 ## infiniband
 This adds support to use infiniband network devices.
+
+## maas\_network
+This adds support for MAAS network integration.
+
+When configured at the daemon level, it's then possible to attach a "nic"
+device to a particular MAAS subnet.

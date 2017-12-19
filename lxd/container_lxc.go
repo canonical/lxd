@@ -25,6 +25,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
@@ -424,6 +425,14 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 
 	// Re-run init to update the idmap
 	err = c.init()
+	if err != nil {
+		c.Delete()
+		logger.Error("Failed creating container", ctxMap)
+		return nil, err
+	}
+
+	// Update MAAS
+	err = c.maasUpdate(false)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -3093,6 +3102,13 @@ func (c *containerLXC) Delete() error {
 				}
 			}
 		}
+
+		// Delete the MAAS entry
+		err = c.maasDelete()
+		if err != nil {
+			logger.Error("Failed deleting container MAAS record", log.Ctx{"name": c.Name(), "err": err})
+			return err
+		}
 	}
 
 	// Remove the database record
@@ -3162,6 +3178,12 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Clean things up
 	c.cleanup()
+
+	// Rename the MAAS entry
+	err = c.maasRename(newName)
+	if err != nil {
+		return err
+	}
 
 	// Rename the logging path
 	os.RemoveAll(shared.LogPath(newName))
@@ -3716,6 +3738,22 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	// Update MAAS
+	updateMAAS := false
+	for _, key := range []string{"maas.subnet.ipv4", "maas.subnet.ipv6", "ipv4.address", "ipv6.address"} {
+		if shared.StringInSlice(key, updateDiff) {
+			updateMAAS = true
+			break
+		}
+	}
+
+	if updateMAAS {
+		err = c.maasUpdate(true)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -7729,4 +7767,146 @@ func (c *containerLXC) StoragePool() (string, error) {
 	}
 
 	return poolName, nil
+}
+
+func (c *containerLXC) maasInterfaces() ([]maas.ContainerInterface, error) {
+	interfaces := []maas.ContainerInterface{}
+	for k, m := range c.expandedDevices {
+		if m["type"] != "nic" {
+			continue
+		}
+
+		if m["maas.subnet.ipv4"] == "" && m["maas.subnet.ipv6"] == "" {
+			continue
+		}
+
+		m, err := c.fillNetworkDevice(k, m)
+		if err != nil {
+			return nil, err
+		}
+
+		subnets := []maas.ContainerInterfaceSubnet{}
+
+		// IPv4
+		if m["maas.subnet.ipv4"] != "" {
+			subnet := maas.ContainerInterfaceSubnet{
+				Name:    m["maas.subnet.ipv4"],
+				Address: m["ipv4.address"],
+			}
+
+			subnets = append(subnets, subnet)
+		}
+
+		// IPv6
+		if m["maas.subnet.ipv6"] != "" {
+			subnet := maas.ContainerInterfaceSubnet{
+				Name:    m["maas.subnet.ipv6"],
+				Address: m["ipv6.address"],
+			}
+
+			subnets = append(subnets, subnet)
+		}
+
+		iface := maas.ContainerInterface{
+			Name:       m["name"],
+			MACAddress: m["hwaddr"],
+			Subnets:    subnets,
+		}
+
+		interfaces = append(interfaces, iface)
+	}
+
+	return interfaces, nil
+}
+
+func (c *containerLXC) maasConnected() bool {
+	for _, m := range c.expandedDevices {
+		if m["type"] != "nic" {
+			continue
+		}
+
+		if m["maas.subnet.ipv4"] != "" || m["maas.subnet.ipv6"] != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *containerLXC) maasUpdate(force bool) error {
+	if c.state.MAAS == nil {
+		return nil
+	}
+
+	if !c.maasConnected() {
+		if force {
+			exists, err := c.state.MAAS.DefinedContainer(c.name)
+			if err != nil {
+				return err
+			}
+
+			if exists {
+				return c.state.MAAS.DeleteContainer(c.name)
+			}
+		}
+		return nil
+	}
+
+	interfaces, err := c.maasInterfaces()
+	if err != nil {
+		return err
+	}
+
+	exists, err := c.state.MAAS.DefinedContainer(c.name)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		return c.state.MAAS.UpdateContainer(c.name, interfaces)
+	}
+
+	return c.state.MAAS.CreateContainer(c.name, interfaces)
+}
+
+func (c *containerLXC) maasRename(newName string) error {
+	if c.state.MAAS == nil {
+		return nil
+	}
+
+	if !c.maasConnected() {
+		return nil
+	}
+
+	exists, err := c.state.MAAS.DefinedContainer(c.name)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return c.maasUpdate(false)
+	}
+
+	return c.state.MAAS.RenameContainer(c.name, newName)
+}
+
+func (c *containerLXC) maasDelete() error {
+	if c.state.MAAS == nil {
+		return nil
+	}
+
+	if !c.maasConnected() {
+		return nil
+	}
+
+	exists, err := c.state.MAAS.DefinedContainer(c.name)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return nil
+	}
+
+	return c.state.MAAS.DeleteContainer(c.name)
 }

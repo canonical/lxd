@@ -27,6 +27,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/endpoints"
+	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
@@ -43,6 +44,7 @@ type Daemon struct {
 	clientCerts  []x509.Certificate
 	os           *sys.OS
 	db           *db.Node
+	maas         *maas.Controller
 	readyChan    chan bool
 	shutdownChan chan bool
 
@@ -172,7 +174,7 @@ func isJSONRequest(r *http.Request) bool {
 
 // State creates a new State instance liked to our internal db and os.
 func (d *Daemon) State() *state.State {
-	return state.NewState(d.db, d.os)
+	return state.NewState(d.db, d.maas, d.os)
 }
 
 // UnixSocket returns the full path to the unix.socket file that this daemon is
@@ -418,6 +420,14 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	err = d.setupMAASController(
+		daemonConfig["maas.api.url"].Get(),
+		daemonConfig["maas.api.key"].Get(),
+		daemonConfig["maas.machine"].Get())
+	if err != nil {
+		return err
+	}
+
 	/* Setup the web server */
 	certInfo, err := shared.KeyPairAndCA(d.os.VarDir, "server", shared.CertServer)
 	if err != nil {
@@ -584,6 +594,35 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string) error {
 		endpoint: authEndpoint,
 		bakery:   bakery,
 	}
+	return nil
+}
+
+// Setup MAAS
+func (d *Daemon) setupMAASController(server string, key string, machine string) error {
+	var err error
+	d.maas = nil
+
+	// Default the machine name to the hostname
+	if machine == "" {
+		machine, err = os.Hostname()
+		if err != nil {
+			return err
+		}
+	}
+
+	// We need both URL and key, otherwise disable MAAS
+	if server == "" || key == "" {
+		return nil
+	}
+
+	// Get a new controller struct
+	controller, err := maas.NewController(server, key, machine)
+	if err != nil {
+		d.maas = nil
+		return err
+	}
+
+	d.maas = controller
 	return nil
 }
 

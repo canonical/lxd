@@ -196,6 +196,10 @@ func daemonConfigInit(db *sql.DB) error {
 		"images.compression_algorithm": {valueType: "string", validator: daemonConfigValidateCompression, defaultValue: "gzip"},
 		"images.remote_cache_expiry":   {valueType: "int", defaultValue: "10", trigger: daemonConfigTriggerExpiry},
 
+		"maas.api.key": {valueType: "string", setter: daemonConfigSetMAAS},
+		"maas.api.url": {valueType: "string", setter: daemonConfigSetMAAS},
+		"maas.machine": {valueType: "string", setter: daemonConfigSetMAAS},
+
 		// Keys deprecated since the implementation of the storage api.
 		"storage.lvm_fstype":           {valueType: "string", defaultValue: "ext4", validValues: []string{"btrfs", "ext4", "xfs"}, validator: storageDeprecatedKeys},
 		"storage.lvm_mount_options":    {valueType: "string", defaultValue: "discard", validator: storageDeprecatedKeys},
@@ -311,6 +315,30 @@ func daemonConfigSetProxy(d *Daemon, key string, value string) (string, error) {
 		delete(imageStreamCache, k)
 	}
 	imageStreamCacheLock.Unlock()
+
+	return value, nil
+}
+
+func daemonConfigSetMAAS(d *Daemon, key string, value string) (string, error) {
+	maasUrl := daemonConfig["maas.api.url"].Get()
+	if key == "maas.api.url" {
+		maasUrl = value
+	}
+
+	maasKey := daemonConfig["maas.api.key"].Get()
+	if key == "maas.api.key" {
+		maasKey = value
+	}
+
+	maasMachine := daemonConfig["maas.machine"].Get()
+	if key == "maas.machine" {
+		maasMachine = value
+	}
+
+	err := d.setupMAASController(maasUrl, maasKey, maasMachine)
+	if err != nil {
+		return "", err
+	}
 
 	return value, nil
 }

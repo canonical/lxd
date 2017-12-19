@@ -69,7 +69,8 @@ _have lxc && {
       core.https_allowed_origin core.macaroon.endpoint core.proxy_https \
       core.proxy_http core.proxy_ignore_hosts core.trust_password \
       images.auto_update_cached images.auto_update_interval \
-      images.compression_algorithm images.remote_cache_expiry"
+      images.compression_algorithm images.remote_cache_expiry \
+      maas.api.url maas.api.key maas.machine"
 
     container_keys="boot.autostart boot.autostart.delay \
       boot.autostart.priority boot.stop.priority \
