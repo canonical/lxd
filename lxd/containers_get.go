@@ -54,15 +54,15 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	resultList := []*api.Container{}
 	resultMu := sync.Mutex{}
 
-	resultAppend := func(name string, c *api.Container, err error) {
+	resultAppend := func(name string, c api.Container, err error) {
 		if err != nil {
-			c = &api.Container{
+			c = api.Container{
 				Name:       name,
 				Status:     api.Error.String(),
 				StatusCode: api.Error}
 		}
 		resultMu.Lock()
-		resultList = append(resultList, c)
+		resultList = append(resultList, &c)
 		resultMu.Unlock()
 	}
 
@@ -71,8 +71,15 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		// Mark containers on unavailable nodes as down
 		if recursion && address == "0.0.0.0" {
 			for _, container := range containers {
-				resultAppend(container, nil, fmt.Errorf("unavailable"))
+				resultAppend(container, api.Container{}, fmt.Errorf("unavailable"))
 			}
+		}
+
+		// If this is an internal request from another cluster node,
+		// ignore containers from other nodes, and return only the ones
+		// on this node
+		if isClusterNotification(r) && address != "" {
+			continue
 		}
 
 		// For recursion requests we need to fetch the state of remote
@@ -83,7 +90,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				cert := d.endpoints.NetworkCert()
 				cs, err := doContainersGetFromNode(address, cert)
 				for _, c := range cs {
-					resultAppend(c.Name, &c, err)
+					resultAppend(c.Name, c, err)
 				}
 				wg.Done()
 			}(address)
@@ -98,7 +105,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			}
 
 			c, err := doContainerGet(d.State(), container)
-			resultAppend(container, c, err)
+			resultAppend(container, *c, err)
 		}
 	}
 	wg.Wait()
