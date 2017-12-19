@@ -9,6 +9,7 @@ import (
 	"github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
@@ -161,6 +162,26 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 	db, err := cluster.Open(name, dialer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database")
+	}
+
+	// Test that the cluster database is operational. We wait up to 10
+	// minutes, in case there's no quorum of nodes online yet.
+	timeout := time.After(10 * time.Minute)
+	for {
+		err = db.Ping()
+		if err == nil {
+			break
+		}
+		cause := errors.Cause(err)
+		if cause != context.DeadlineExceeded {
+			return nil, err
+		}
+		time.Sleep(10 * time.Second)
+		select {
+		case <-timeout:
+			return nil, fmt.Errorf("failed to connect to cluster database")
+		default:
+		}
 	}
 
 	_, err = cluster.EnsureSchema(db, address)
