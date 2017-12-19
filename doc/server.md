@@ -6,6 +6,7 @@ currently supported:
 
  - `core` (core daemon configuration)
  - `images` (image configuration)
+ - `maas` (MAAS integration)
 
 Key                             | Type      | Default   | API extension            | Description
 :--                             | :---      | :------   | :------------            | :----------
@@ -23,6 +24,9 @@ images.auto\_update\_cached     | boolean   | true      | -                     
 images.auto\_update\_interval   | integer   | 6         | -                        | Interval in hours at which to look for update to cached images (0 disables it)
 images.compression\_algorithm   | string    | gzip      | -                        | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
 images.remote\_cache\_expiry    | integer   | 10        | -                        | Number of days after which an unused cached remote image will be flushed
+maas.api.key                    | string    | -         | maas\_network            | API key to manage MAAS
+maas.api.url                    | string    | -         | maas\_network            | URL of the MAAS server
+maas.machine                    | string    | hostname  | maas\_network            | Name of this LXD host in MAAS
 
 Those keys can be set using the lxc tool with:
 
