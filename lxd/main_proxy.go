@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"	
+	"os"
 	"os/signal"
-	"strings"
 	"strconv"
-	"syscall"	
+	"strings"
+	"syscall"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -25,7 +25,7 @@ func cmdProxyDevStart(args *Args) error {
 }
 
 func run(args *Args) error {
-	if (len(args.Params) != 5) {
+	if len(args.Params) != 5 {
 		return fmt.Errorf("Invalid number of arguments")
 	}
 
@@ -38,8 +38,8 @@ func run(args *Args) error {
 	fd := -1
 	if args.Params[4] != "0" {
 		fd, _ = strconv.Atoi(args.Params[4])
-	}	
-	
+	}
+
 	// Check where we are in initialization
 	if !shared.PathExists(fmt.Sprintf("/proc/self/fd/%d", fd)) {
 		fmt.Fprintf(os.Stdout, "Listening on %s in %s, forwarding to %s from %s\n", listenAddr, listenPid, connectAddr, connectPid)
@@ -55,12 +55,15 @@ func run(args *Args) error {
 			return fmt.Errorf("failed to duplicate the listener fd: %v", err)
 		}
 
-		newFd, _ := syscall.Dup(int(listenerFd))
+		newFd, err := syscall.Dup(int(listenerFd))
+		if err != nil {
+			return fmt.Errorf("failed to dup fd: %v,", err)
+		}
 
 		fmt.Fprintf(os.Stdout, "Re-executing ourselves\n")
 
 		args.Params[4] = strconv.Itoa(int(newFd))
-		execArgs := append([]string{"lxd" ,"proxydevstart"}, args.Params...)
+		execArgs := append([]string{"lxd", "proxy_dev_start"}, args.Params...)
 
 		err = syscall.Exec("/proc/self/exe", execArgs, []string{})
 		if err != nil {
@@ -68,7 +71,6 @@ func run(args *Args) error {
 		}
 	}
 
-	
 	// Re-create listener from fd
 	listenFile := os.NewFile(uintptr(fd), "listener")
 	listener, err := net.FileListener(listenFile)
@@ -89,7 +91,7 @@ func run(args *Args) error {
 			continue
 		}
 		fmt.Printf("Accepted a new connection\n")
-		
+
 		// Connect to the target
 		dstConn, err := getDestConn(connectAddr)
 		if err != nil {
@@ -101,8 +103,6 @@ func run(args *Args) error {
 		go io.Copy(srcConn, dstConn)
 		go io.Copy(dstConn, srcConn)
 	}
-
-	return nil
 }
 
 func getListenerFile(listenAddr string) (os.File, error) {
@@ -162,4 +162,3 @@ func handleSignal(listenAddr string) {
 		os.Exit(0)
 	}()
 }
-

@@ -6522,13 +6522,13 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 	}
 
 	proxyPid, err := shared.RunCommandGetPid(
-											c.state.OS.ExecPath,
-											"proxydevstart",
-											proxyValues.listenPid,
-											proxyValues.listenAddr,
-											proxyValues.connectPid,
-											proxyValues.connectAddr,
-											"0")
+		c.state.OS.ExecPath,
+		"proxy_dev_start",
+		proxyValues.listenPid,
+		proxyValues.listenAddr,
+		proxyValues.connectPid,
+		proxyValues.connectAddr,
+		"0")
 	if err != nil {
 		return fmt.Errorf("Error occurred when starting proxy device: %s", err)
 	}
@@ -6566,7 +6566,7 @@ func (c *containerLXC) removeProxyDevices() error {
 
 	// Load the directory listing
 	devFiles, err := ioutil.ReadDir(c.DevicesPath())
-			if err != nil {
+	if err != nil {
 		return err
 	}
 
@@ -6574,7 +6574,7 @@ func (c *containerLXC) removeProxyDevices() error {
 		// Skip non-proxy devices
 		if !strings.HasPrefix(f.Name(), "proxy.") {
 			continue
-			}
+		}
 
 		// Kill the process
 		devicePath := filepath.Join(c.DevicesPath(), f.Name())
@@ -6583,7 +6583,7 @@ func (c *containerLXC) removeProxyDevices() error {
 			logger.Error("failed removing proxy device", log.Ctx{"err": err, "path": devicePath})
 		}
 	}
-	
+
 	return nil
 }
 
@@ -6607,13 +6607,13 @@ func (c *containerLXC) updateProxyDevice(devName string, m types.Device) error {
 	}
 
 	proxyPid, err := shared.RunCommandGetPid(
-											c.state.OS.ExecPath,
-											"proxydevstart",
-											proxyValues.listenPid,
-											proxyValues.listenAddr,
-											proxyValues.connectPid,
-											proxyValues.connectAddr,
-											"0")
+		c.state.OS.ExecPath,
+		"proxy_dev_start",
+		proxyValues.listenPid,
+		proxyValues.listenAddr,
+		proxyValues.connectPid,
+		proxyValues.connectAddr,
+		"0")
 	if err != nil {
 		return fmt.Errorf("Error occurred when starting new proxy device")
 	}

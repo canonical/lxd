@@ -681,8 +681,9 @@ void forkgetnet(char *buf, char *cur, ssize_t size) {
 	// The rest happens in Go
 }
 
-void proxydevstart(char *buf, char *cur, ssize_t size) {
-	int cmdline, listen_pid, connect_pid, fdnum;
+void proxy_dev_start(char *buf, char *cur, ssize_t size) {
+	int cmdline, listen_pid, connect_pid, fdnum, ret;
+	char fdpath[80];
 
 	// Get the arguments
 	ADVANCE_ARG_REQUIRED();
@@ -696,9 +697,12 @@ void proxydevstart(char *buf, char *cur, ssize_t size) {
 
 	// Cannot pass through -1 to runCommand since it is interpreted as a flag
 	fdnum = fdnum == 0 ? -1 : fdnum;
-	
-	char fdpath[80];
-	sprintf(fdpath, "/proc/self/fd/%d", fdnum);
+
+	ret = snprintf(fdpath, sizeof(fdpath), "/proc/self/fd/%d", fdnum);
+	if (ret < 0 || (size_t)ret >= sizeof(fdpath)) {
+		fprintf(stderr, "Failed to format file descriptor path\n");
+		_exit(1);
+	}
 
 	// Join the listener ns if not already setup
 	if (access(fdpath, F_OK) < 0) {
@@ -758,8 +762,8 @@ __attribute__((constructor)) void init(void) {
 		forkumount(buf, cur, size);
 	} else if (strcmp(cur, "forkgetnet") == 0) {
 		forkgetnet(buf, cur, size);
-	} else if (strcmp(cur, "proxydevstart") == 0) {
-		proxydevstart(buf, cur, size);
+	} else if (strcmp(cur, "proxy_dev_start") == 0) {
+		proxy_dev_start(buf, cur, size);
 	}
 }
 */
