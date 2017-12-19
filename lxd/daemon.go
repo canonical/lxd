@@ -625,7 +625,7 @@ func (d *Daemon) Stop() error {
 	trackError(d.tasks.Stop(time.Second)) // Give tasks at most a second to cleanup.
 
 	shouldUnmount := false
-	if d.db != nil {
+	if d.cluster != nil {
 		// It might be that database nodes are all down, in that case
 		// we don't want to wait too much.
 		//
