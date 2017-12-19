@@ -11,10 +11,10 @@ import (
 )
 
 type proxyProcInfo struct {
-	listenPid		string
-	connectPid		string
-	connectAddr		string
-	listenAddr		string
+	listenPid   string
+	connectPid  string
+	connectAddr string
+	listenAddr  string
 }
 
 func createProxyDevInfoFile(devicesPath string, proxyDev string, proxyPid int) error {
@@ -23,7 +23,7 @@ func createProxyDevInfoFile(devicesPath string, proxyDev string, proxyPid int) e
 	f, err := os.Create(filePath)
 
 	if err != nil {
-		return err 
+		return err
 	}
 
 	defer f.Close()
@@ -34,7 +34,7 @@ func createProxyDevInfoFile(devicesPath string, proxyDev string, proxyPid int) e
 	return err
 }
 
-func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, error) {	
+func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, error) {
 	pid := c.InitPID()
 	containerPid := strconv.Itoa(int(pid))
 	lxdPid := strconv.Itoa(os.Getpid())
@@ -55,10 +55,10 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 	listenPid := "-1"
 	connectPid := "-1"
 
-	if (device["bind"] == "container") {
+	if device["bind"] == "container" {
 		listenPid = containerPid
 		connectPid = lxdPid
-	} else if (device["bind"] == "host") {
+	} else if device["bind"] == "host" {
 		listenPid = lxdPid
 		connectPid = containerPid
 	} else {
@@ -66,10 +66,10 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 	}
 
 	p := &proxyProcInfo{
-		listenPid:		listenPid,
-		connectPid:		connectPid,
-		connectAddr:	connectAddr,
-		listenAddr:		listenAddr,
+		listenPid:   listenPid,
+		connectPid:  connectPid,
+		connectAddr: connectAddr,
+		listenAddr:  listenAddr,
 	}
 
 	return p, nil
@@ -85,9 +85,9 @@ func killProxyProc(devPath string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	syscall.Kill(pid, syscall.SIGINT)
-	os.Remove(devPath)	
-	
+	os.Remove(devPath)
+
 	return nil
 }
