@@ -39,6 +39,7 @@ authentication support in the `/dev/lxd/sock` API.
    * /1.0
      * /1.0/config
        * /1.0/config/{key}
+     * /1.0/events
      * /1.0/meta-data
 
 ## API details
@@ -94,6 +95,46 @@ Return value:
 Return value:
 
     blah
+
+### `/1.0/events`
+#### GET
+ * Description: websocket upgrade
+ * Return: none (never ending flow of events)
+
+Supported arguments are:
+
+ * type: comma separated list of notifications to subscribe to (defaults to all)
+
+The notification types are:
+
+ * config (changes to any of the user.\* config keys)
+ * device (any device addition, change or removal)
+
+This never returns. Each notification is sent as a separate JSON dict:
+
+    {
+        "timestamp": "2017-12-21T18:28:26.846603815-05:00",
+        "type": "device",
+        "metadata": {
+            "name": "kvm",
+            "action": "added",
+            "config": {
+                "type": "unix-char",
+                "path": "/dev/kvm"
+            }
+        }
+    }
+
+    {
+        "timestamp": "2017-12-21T18:28:26.846603815-05:00",
+        "type": "config",
+        "metadata": {
+            "key": "user.foo",
+            "old_value": "",
+            "value": "bar"
+        }
+    }
+
 
 ### `/1.0/meta-data`
 #### GET

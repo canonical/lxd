@@ -4415,6 +4415,67 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		networkUpdateStatic(c.state, "")
 	}
 
+	// Send devlxd notifications
+	if isRunning {
+		// Config changes (only for user.* keys
+		for _, key := range changedConfig {
+			if !strings.HasPrefix(key, "user.") {
+				continue
+			}
+
+			msg := map[string]string{
+				"key":       key,
+				"old_value": oldExpandedConfig[key],
+				"value":     c.expandedConfig[key],
+			}
+
+			err = devlxdEventSend(c, "config", msg)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Device changes
+		for k, m := range removeDevices {
+			msg := map[string]interface{}{
+				"action": "removed",
+				"name":   k,
+				"config": m,
+			}
+
+			err = devlxdEventSend(c, "device", msg)
+			if err != nil {
+				return err
+			}
+		}
+
+		for k, m := range updateDevices {
+			msg := map[string]interface{}{
+				"action": "updated",
+				"name":   k,
+				"config": m,
+			}
+
+			err = devlxdEventSend(c, "device", msg)
+			if err != nil {
+				return err
+			}
+		}
+
+		for k, m := range addDevices {
+			msg := map[string]interface{}{
+				"action": "added",
+				"name":   k,
+				"config": m,
+			}
+
+			err = devlxdEventSend(c, "device", msg)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
 
