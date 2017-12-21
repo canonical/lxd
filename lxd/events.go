@@ -68,8 +68,6 @@ func (r *eventsServe) String() string {
 }
 
 func eventsSocket(r *http.Request, w http.ResponseWriter) error {
-	listener := eventListener{}
-
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
 		typeStr = "logging,operation"
@@ -80,16 +78,18 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 		return err
 	}
 
-	listener.active = make(chan bool, 1)
-	listener.connection = c
-	listener.id = uuid.NewRandom().String()
-	listener.messageTypes = strings.Split(typeStr, ",")
+	listener := eventListener{
+		active:       make(chan bool, 1),
+		connection:   c,
+		id:           uuid.NewRandom().String(),
+		messageTypes: strings.Split(typeStr, ","),
+	}
 
 	eventsLock.Lock()
 	eventListeners[listener.id] = &listener
 	eventsLock.Unlock()
 
-	logger.Debugf("New events listener: %s", listener.id)
+	logger.Debugf("New event listener: %s", listener.id)
 
 	<-listener.active
 
@@ -146,7 +146,7 @@ func eventSend(eventType string, eventMessage interface{}) error {
 				listener.connection.Close()
 				listener.active <- false
 				listener.done = true
-				logger.Debugf("Disconnected events listener: %s", listener.id)
+				logger.Debugf("Disconnected event listener: %s", listener.id)
 			}
 		}(listener, body)
 	}
