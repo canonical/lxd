@@ -45,7 +45,7 @@ func main() {
 // Index of SubCommand functions by command line name
 //
 // "forkputfile", "forkgetfile", "forkmount" and "forkumount" are handled specially in main_nsexec.go
-// "forkgetnet" is partially handled in nsexec.go (setns)
+// "forkgetnet" is partially handled in main_nsexec.go (setns)
 var subcommands = map[string]SubCommand{
 	// Main commands
 	"activateifneeded": cmdActivateIfNeeded,
