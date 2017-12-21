@@ -73,7 +73,7 @@ func run() error {
 	// Process sub-commands
 	if args.Subcommand != "" {
 		// "forkputfile", "forkgetfile", "forkmount" and "forkumount" are handled specially in main_nsexec.go
-		// "forkgetnet" is partially handled in nsexec.go (setns)
+		// "forkgetnet" is partially handled in main_nsexec.go (setns)
 		switch args.Subcommand {
 		// Main commands
 		case "activateifneeded":
