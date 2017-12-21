@@ -7564,7 +7564,7 @@ func (c *containerLXC) setNetworkLimits(name string, m types.Device) error {
 			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
 		}
 
-		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop", "flowid", ":1")
+		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop")
 		if err != nil {
 			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
 		}
