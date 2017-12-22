@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
+
+	"github.com/lxc/lxd/shared"
 )
 
 type proxyProcInfo struct {
@@ -46,23 +49,25 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 	listenerType := strings.SplitN(listenAddr, ":", 2)[0]
 
 	if connectionType != "tcp" {
-		return nil, fmt.Errorf("Proxy device currently doesnt support the connection type: %s", connectionType)
+		return nil, fmt.Errorf("Proxy device doesn't support the connection type: %s", connectionType)
 	}
 	if listenerType != "tcp" {
-		return nil, fmt.Errorf("Proxy device currently doesnt support the listener type: %s", listenerType)
+		return nil, fmt.Errorf("Proxy device doesn't support the listener type: %s", listenerType)
 	}
 
 	listenPid := "-1"
 	connectPid := "-1"
 
-	if device["bind"] == "container" {
-		listenPid = containerPid
-		connectPid = lxdPid
-	} else if device["bind"] == "host" {
+	bindVal, exists := device["bind"]
+
+	if bindVal == "host" || !exists {
 		listenPid = lxdPid
 		connectPid = containerPid
+	} else if bindVal == "container" {
+		listenPid = containerPid
+		connectPid = lxdPid
 	} else {
-		return nil, fmt.Errorf("No indicated binding side")
+		return nil, fmt.Errorf("Invalid binding side given. Must be \"host\" or \"container\".")
 	}
 
 	p := &proxyProcInfo{
@@ -75,19 +80,65 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 	return p, nil
 }
 
-func killProxyProc(devPath string) error {
-	contents, err := ioutil.ReadFile(devPath)
+func killProxyProc(pidPath string) error {
+	// Get the contents of the pid file
+	contents, err := ioutil.ReadFile(pidPath)
+	if err != nil {
+		return err
+	}
+	pidString := strings.TrimSpace(string(contents))
+
+	// Check if the process still exists
+	if !shared.PathExists(fmt.Sprintf("/proc/%s", pidString)) {
+		os.Remove(pidPath)
+		return nil
+	}
+
+	// Check if it's a proxy process
+	cmdPath, err := os.Readlink(fmt.Sprintf("/proc/%s/exe", pidString))
+	if err != nil {
+		cmdPath = ""
+	}
+
+	// Deal with deleted paths
+	cmdName := filepath.Base(strings.Split(cmdPath, " ")[0])
+	if cmdName != "lxd" {
+		os.Remove(pidPath)
+		return nil
+	}
+
+	// Parse the pid
+	pidInt, _ := strconv.Atoi(pidString)
 	if err != nil {
 		return err
 	}
 
-	pid, _ := strconv.Atoi(string(contents))
+	err = syscall.Kill(pidInt, syscall.SIGTERM)
 	if err != nil {
-		return err
+		go func() {
+			time.Sleep(3000 * time.Millisecond)
+			// Check if the process still exists
+			if !shared.PathExists(fmt.Sprintf("/proc/%s", pidString)) {
+				return
+			}
+
+			// Check if it's a proxy process
+			cmdPath, err := os.Readlink(fmt.Sprintf("/proc/%s/exe", pidString))
+			if err != nil {
+				cmdPath = ""
+			}
+
+			// Deal with deleted paths
+			cmdName := filepath.Base(strings.Split(cmdPath, " ")[0])
+			if cmdName != "lxd" {
+				return
+			}
+
+			syscall.Kill(pidInt, syscall.SIGKILL)
+		}()
 	}
 
-	syscall.Kill(pid, syscall.SIGINT)
-	os.Remove(devPath)
-
+	// Cleanup
+	os.Remove(pidPath)
 	return nil
 }

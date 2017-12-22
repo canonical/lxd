@@ -11,20 +11,10 @@ import (
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func cmdProxyDevStart(args *Args) error {
-	err := run(args)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
-
-	os.Exit(0)
-	return nil
-}
-
-func run(args *Args) error {
 	if len(args.Params) != 5 {
 		return fmt.Errorf("Invalid number of arguments")
 	}
@@ -42,7 +32,7 @@ func run(args *Args) error {
 
 	// Check where we are in initialization
 	if !shared.PathExists(fmt.Sprintf("/proc/self/fd/%d", fd)) {
-		fmt.Fprintf(os.Stdout, "Listening on %s in %s, forwarding to %s from %s\n", listenAddr, listenPid, connectAddr, connectPid)
+		logger.Debugf("Listening on %s in %s, forwarding to %s from %s", listenAddr, listenPid, connectAddr, connectPid)
 
 		file, err := getListenerFile(listenAddr)
 		if err != nil {
@@ -57,13 +47,13 @@ func run(args *Args) error {
 
 		newFd, err := syscall.Dup(int(listenerFd))
 		if err != nil {
-			return fmt.Errorf("failed to dup fd: %v,", err)
+			return fmt.Errorf("failed to dup fd: %v", err)
 		}
 
-		fmt.Fprintf(os.Stdout, "Re-executing ourselves\n")
+		logger.Debugf("Re-executing proxy process")
 
 		args.Params[4] = strconv.Itoa(int(newFd))
-		execArgs := append([]string{"lxd", "proxy_dev_start"}, args.Params...)
+		execArgs := append([]string{"lxd", "forkproxy"}, args.Params...)
 
 		err = syscall.Exec("/proc/self/exe", execArgs, []string{})
 		if err != nil {
@@ -80,22 +70,22 @@ func run(args *Args) error {
 
 	defer listener.Close()
 
-	fmt.Fprintf(os.Stdout, "Starting to proxy\n")
+	logger.Debugf("Starting to proxy")
 
 	// begin proxying
 	for {
 		// Accept a new client
 		srcConn, err := listener.Accept()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: Failed to accept new connection: %v\n", err)
+			logger.Debugf("error: Failed to accept new connection: %v", err)
 			continue
 		}
-		fmt.Printf("Accepted a new connection\n")
+		logger.Debugf("Accepted a new connection")
 
 		// Connect to the target
 		dstConn, err := getDestConn(connectAddr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: Failed to connect to target: %v\n", err)
+			logger.Debugf("error: Failed to connect to target: %v", err)
 			srcConn.Close()
 			continue
 		}
@@ -125,7 +115,7 @@ func getListenerFile(listenAddr string) (os.File, error) {
 	}
 
 	if err != nil {
-		return os.File{}, fmt.Errorf("Failed to get file from listener: %v\n", err)
+		return os.File{}, fmt.Errorf("Failed to get file from listener: %v", err)
 	}
 
 	return *file, nil
@@ -149,14 +139,14 @@ func cleanupUnixSocket(listenAddr string) error {
 
 func handleSignal(listenAddr string) {
 	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, os.Interrupt, syscall.SIGINT)
+	signal.Notify(sigc, syscall.SIGTERM)
 	go func() {
-		// Wait for a SIGINT
+		// Wait for a SIGTERM
 		sig := <-sigc
-		fmt.Fprintf(os.Stdout, "Caught signal %s: cleaning up...", sig)
+		logger.Debugf("Caught signal %s: cleaning up...", sig)
 		err := cleanupUnixSocket(listenAddr)
 		if err != nil {
-			fmt.Fprintf(os.Stdout, "Error unlinking unix socket: %v", err)
+			logger.Debugf("Error unlinking unix socket: %v", err)
 		}
 		// And we're done:
 		os.Exit(0)

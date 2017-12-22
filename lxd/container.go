@@ -434,10 +434,6 @@ func containerValidDevices(db *db.Node, devices types.Devices, profile bool, exp
 			if m["connect"] == "" {
 				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property.")
 			}
-
-			if m["bind"] == "" {
-				return fmt.Errorf("Proxy device entry is missing the required \"bind\" property.")
-			}
 		} else if m["type"] == "none" {
 			continue
 		} else {

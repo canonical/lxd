@@ -681,7 +681,7 @@ void forkgetnet(char *buf, char *cur, ssize_t size) {
 	// The rest happens in Go
 }
 
-void proxy_dev_start(char *buf, char *cur, ssize_t size) {
+void forkproxy(char *buf, char *cur, ssize_t size) {
 	int cmdline, listen_pid, connect_pid, fdnum, ret;
 	char fdpath[80];
 
@@ -762,8 +762,8 @@ __attribute__((constructor)) void init(void) {
 		forkumount(buf, cur, size);
 	} else if (strcmp(cur, "forkgetnet") == 0) {
 		forkgetnet(buf, cur, size);
-	} else if (strcmp(cur, "proxy_dev_start") == 0) {
-		proxy_dev_start(buf, cur, size);
+	} else if (strcmp(cur, "forkproxy") == 0) {
+		forkproxy(buf, cur, size);
 	}
 }
 */

@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -6521,9 +6522,11 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 		return err
 	}
 
-	proxyPid, err := shared.RunCommandGetPid(
+	output := bytes.Buffer{}
+	cmd, err := shared.SpawnCommand(
+		&output,
 		c.state.OS.ExecPath,
-		"proxy_dev_start",
+		"forkproxy",
 		proxyValues.listenPid,
 		proxyValues.listenAddr,
 		proxyValues.connectPid,
@@ -6533,10 +6536,11 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 		return fmt.Errorf("Error occurred when starting proxy device: %s", err)
 	}
 
+	go cmd.Wait()
+	proxyPid := cmd.Process.Pid
 	err = createProxyDevInfoFile(c.DevicesPath(), devName, proxyPid)
 	if err != nil {
-		process, _ := os.FindProcess(proxyPid)
-		process.Kill()
+		syscall.Kill(proxyPid, syscall.SIGTERM)
 		return fmt.Errorf("Error occurred when writing metadata for proxy process: %s", err)
 	}
 
@@ -6606,9 +6610,11 @@ func (c *containerLXC) updateProxyDevice(devName string, m types.Device) error {
 		return fmt.Errorf("Error occurred when removing old proxy device")
 	}
 
-	proxyPid, err := shared.RunCommandGetPid(
+	output := bytes.Buffer{}
+	cmd, err := shared.SpawnCommand(
+		&output,
 		c.state.OS.ExecPath,
-		"proxy_dev_start",
+		"forkproxy",
 		proxyValues.listenPid,
 		proxyValues.listenAddr,
 		proxyValues.connectPid,
@@ -6618,11 +6624,12 @@ func (c *containerLXC) updateProxyDevice(devName string, m types.Device) error {
 		return fmt.Errorf("Error occurred when starting new proxy device")
 	}
 
+	go cmd.Wait()
+	proxyPid := cmd.Process.Pid
 	err = createProxyDevInfoFile(c.DevicesPath(), devName, proxyPid)
 	if err != nil {
-		process, _ := os.FindProcess(proxyPid)
-		process.Kill()
-		return fmt.Errorf("Error occurred when writing metadata for proxy process")
+		syscall.Kill(proxyPid, syscall.SIGTERM)
+		return fmt.Errorf("Error occurred when writing metadata for updated proxy process: %s", err)
 	}
 
 	return nil

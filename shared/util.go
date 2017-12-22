@@ -831,34 +831,35 @@ func (e RunError) Error() string {
 }
 
 func RunCommand(name string, arg ...string) (string, error) {
-	output, err := exec.Command(name, arg...).CombinedOutput()
+	output := bytes.Buffer{}
+	cmd, err := SpawnCommand(&output, name, arg...)
 	if err != nil {
-		err := RunError{
-			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(output))),
-			Err: err,
-		}
-		return string(output), err
+		return "", err
 	}
 
-	return string(output), nil
+	err = cmd.Wait()
+	if err != nil {
+		err := RunError{
+			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(output.String())),
+			Err: err,
+		}
+		return output.String(), err
+	}
+
+	return output.String(), nil
 }
 
-func RunCommandGetPid(name string, arg ...string) (int, error) {
+func SpawnCommand(output *bytes.Buffer, name string, arg ...string) (*exec.Cmd, error) {
 	cmd := exec.Command(name, arg...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = output
+	cmd.Stderr = output
+
 	err := cmd.Start()
-	go cmd.Wait()
 	if err != nil {
-		err := RunError{
-			msg: fmt.Sprintf("Failed to run: %s %s", name, strings.Join(arg, " ")),
-			Err: err,
-		}
-		return -1, err
+		return nil, err
 	}
 
-	processPid := cmd.Process.Pid
-	return processPid, nil
+	return cmd, nil
 }
 
 func TryRunCommand(name string, arg ...string) (string, error) {
