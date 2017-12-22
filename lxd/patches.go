@@ -2569,10 +2569,11 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 
 			// We only care about unix-{char,block} and disk devices
 			// since other devices don't create on-disk files.
-			if d["type"] != "disk" && !shared.StringInSlice(d["type"], []string{"unix-char", "unix-block"}) {
+			if !shared.StringInSlice(d["type"], []string{"disk", "unix-char", "unix-block"}) {
 				continue
 			}
 
+			// Handle disks
 			if d["type"] == "disk" {
 				relativeDestPath := strings.TrimPrefix(d["path"], "/")
 				hyphenatedDevName := strings.Replace(relativeDestPath, "/", "-", -1)
@@ -2592,14 +2593,17 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 				syscall.Unmount(devPathLegacy, syscall.MNT_DETACH)
 
 				// Switch device to new device naming scheme.
-				devPathNew := filepath.Join(devicesPath, fmt.Sprintf("disk.%s.%s", name, hyphenatedDevName))
+				devPathNew := filepath.Join(devicesPath, fmt.Sprintf("disk.%s.%s", strings.Replace(name, "/", "-", -1), hyphenatedDevName))
 				err = os.Rename(devPathLegacy, devPathNew)
 				if err != nil {
 					logger.Errorf("Failed to rename device from \"%s\" to \"%s\": %s", devPathLegacy, devPathNew, err)
 					return err
 				}
+
+				continue
 			}
 
+			// Handle unix devices
 			srcPath := d["source"]
 			if srcPath == "" {
 				srcPath = d["path"]
@@ -2624,7 +2628,7 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 
 			relativeSrcPathNew := strings.TrimPrefix(srcPath, "/")
 			hyphenatedDevNameNew := strings.Replace(relativeSrcPathNew, "/", "-", -1)
-			devPathNew := filepath.Join(devicesPath, fmt.Sprintf("unix.%s.%s", name, hyphenatedDevNameNew))
+			devPathNew := filepath.Join(devicesPath, fmt.Sprintf("unix.%s.%s", strings.Replace(name, "/", "-", -1), hyphenatedDevNameNew))
 			// Switch device to new device naming scheme.
 			err = os.Rename(devPathLegacy, devPathNew)
 			if err != nil {
