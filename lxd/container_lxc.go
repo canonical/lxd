@@ -1376,7 +1376,7 @@ func (c *containerLXC) initLXC(config bool) error {
 				destPath = m["source"]
 			}
 			relativeDestPath := strings.TrimPrefix(destPath, "/")
-			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("unix.%s.%s", k, strings.Replace(relativeDestPath, "/", "-", -1)))
+			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("unix.%s.%s", strings.Replace(k, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1)))
 
 			// inform liblxc about the mount
 			err = lxcSetConfigItem(cc, "lxc.mount.entry",
@@ -1495,7 +1495,7 @@ func (c *containerLXC) initLXC(config bool) error {
 			destPath := m["path"]
 			relativeDestPath := strings.TrimPrefix(destPath, "/")
 
-			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("disk.%s.%s", k, strings.Replace(relativeDestPath, "/", "-", -1)))
+			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("disk.%s.%s", strings.Replace(k, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1)))
 
 			// Various option checks
 			isOptional := shared.IsTrue(m["optional"])
@@ -5909,7 +5909,7 @@ func (c *containerLXC) removeMount(mount string) error {
 // Check if the unix device already exists.
 func (c *containerLXC) deviceExists(prefix string, path string) bool {
 	relativeDestPath := strings.TrimPrefix(path, "/")
-	devName := fmt.Sprintf("%s.%s", prefix, strings.Replace(relativeDestPath, "/", "-", -1))
+	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	return shared.PathExists(devPath)
@@ -6003,7 +6003,7 @@ func (c *containerLXC) createUnixDevice(prefix string, m types.Device) ([]string
 		destPath = m["source"]
 	}
 	relativeDestPath := strings.TrimPrefix(destPath, "/")
-	devName := fmt.Sprintf("%s.%s", prefix, strings.Replace(relativeDestPath, "/", "-", -1))
+	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// Create the new entry
@@ -6163,7 +6163,7 @@ func (c *containerLXC) removeUnixDevice(prefix string, m types.Device, eject boo
 		destPath = m["source"]
 	}
 	relativeDestPath := strings.TrimPrefix(destPath, "/")
-	devName := fmt.Sprintf("%s.%s", prefix, strings.Replace(relativeDestPath, "/", "-", -1))
+	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	if dType == "" || dMajor < 0 || dMinor < 0 {
@@ -7048,7 +7048,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, error) {
 	// source paths
 	relativeDestPath := strings.TrimPrefix(m["path"], "/")
-	devName := fmt.Sprintf("disk.%s.%s", name, strings.Replace(relativeDestPath, "/", "-", -1))
+	devName := fmt.Sprintf("disk.%s.%s", strings.Replace(name, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 	srcPath := shared.HostPath(m["source"])
 
@@ -7251,7 +7251,7 @@ func (c *containerLXC) removeDiskDevice(name string, m types.Device) error {
 
 	// Figure out the paths
 	destPath := strings.TrimPrefix(m["path"], "/")
-	devName := fmt.Sprintf("disk.%s.%s", name, strings.Replace(destPath, "/", "-", -1))
+	devName := fmt.Sprintf("disk.%s.%s", strings.Replace(name, "/", "-", -1), strings.Replace(destPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)
 
 	// The disk device doesn't exist.
