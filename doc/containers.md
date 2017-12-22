@@ -191,7 +191,7 @@ ID (database)   | Name                              | Description
 5               | [usb](#type-usb)                  | USB device
 6               | [gpu](#type-gpu)                  | GPU device
 7               | [infiniband](#type-infiniband)    | Infiniband device
-8               | [proxy] (#type-proxy)             | Proxy device
+8               | [proxy](#type-proxy)             | Proxy device
 
 ### Type: none
 A none type device doesn't have any property and doesn't create anything inside the container.
@@ -412,19 +412,14 @@ mode        | int       | 0660              | no        | Mode of the device in 
 Proxy devices are processes that forward data to/from ports in the container and
 ports in host. Used to communicate easily between two network namespaces.
 
-There will eventually be three supported connection types:
- - `TCP`
- - `UDP`
- - `Unix`
-
-Current supported connection types:
+Currently supported connection types:
  - `TCP - TCP`
 
 Key         | Type      | Default           | Required  | Description                             
 :--         | :--       | :--               | :--       | :--                                     
-listen      | string    | -                 | yes       | the address and port to bind and listen
-connect     | string    | -                 | yes       | the address and port to connect to
-bind        | string    | -                 | yes       | which side to bind on (host/container)
+listen      | string    | -                 | yes       | The address and port to bind and listen
+connect     | string    | -                 | yes       | The address and port to connect to
+bind        | string    | host              | no        | Which side to bind on (host/container)
 
 ```
 lxc config device add <container_name> <device-name> proxy listen=<type>:<addr>:<port> listen=<type>:<addr>:<port> bind=<host/container>

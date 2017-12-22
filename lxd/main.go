@@ -65,5 +65,5 @@ var subcommands = map[string]SubCommand{
 	"forkexec":           cmdForkExec,
 	"netcat":             cmdNetcat,
 	"migratedumpsuccess": cmdMigrateDumpSuccess,
-	"proxy_dev_start":    cmdProxyDevStart,
+	"forkproxy":          cmdProxyDevStart,
 }
