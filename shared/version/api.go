@@ -85,4 +85,5 @@ var APIExtensions = []string{
 	"migration_pre_copy",
 	"infiniband",
 	"maas_network",
+	"devlxd_events",
 }

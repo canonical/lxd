@@ -12,6 +12,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+
+	"github.com/gorilla/websocket"
+	"gopkg.in/yaml.v2"
 )
 
 type devLxdDialer struct {
@@ -34,6 +37,38 @@ func (d devLxdDialer) devLxdDial(network, path string) (net.Conn, error) {
 
 var devLxdTransport = &http.Transport{
 	Dial: devLxdDialer{"/dev/lxd/sock"}.devLxdDial,
+}
+
+func devlxdMonitor(c http.Client) {
+	dialer := websocket.Dialer{
+		NetDial: devLxdTransport.Dial,
+	}
+
+	conn, _, err := dialer.Dial("ws://unix.socket/1.0/events", nil)
+	if err != nil {
+		return
+	}
+
+	for {
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+
+		message := make(map[string]interface{})
+		err = json.Unmarshal(data, &message)
+		if err != nil {
+			return
+		}
+		message["timestamp"] = nil
+
+		msg, err := yaml.Marshal(&message)
+		if err != nil {
+			return
+		}
+
+		fmt.Printf("%s\n", msg)
+	}
 }
 
 func main() {
@@ -65,6 +100,11 @@ func main() {
 	}
 
 	if len(os.Args) > 1 {
+		if os.Args[1] == "monitor" {
+			devlxdMonitor(c)
+			os.Exit(0)
+		}
+
 		raw, err := c.Get(fmt.Sprintf("http://meshuggah-rocks/1.0/config/%s", os.Args[1]))
 		if err != nil {
 			fmt.Println(err)
