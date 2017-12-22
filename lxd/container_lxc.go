@@ -4415,6 +4415,67 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		networkUpdateStatic(c.state, "")
 	}
 
+	// Send devlxd notifications
+	if isRunning {
+		// Config changes (only for user.* keys
+		for _, key := range changedConfig {
+			if !strings.HasPrefix(key, "user.") {
+				continue
+			}
+
+			msg := map[string]string{
+				"key":       key,
+				"old_value": oldExpandedConfig[key],
+				"value":     c.expandedConfig[key],
+			}
+
+			err = devlxdEventSend(c, "config", msg)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Device changes
+		for k, m := range removeDevices {
+			msg := map[string]interface{}{
+				"action": "removed",
+				"name":   k,
+				"config": m,
+			}
+
+			err = devlxdEventSend(c, "device", msg)
+			if err != nil {
+				return err
+			}
+		}
+
+		for k, m := range updateDevices {
+			msg := map[string]interface{}{
+				"action": "updated",
+				"name":   k,
+				"config": m,
+			}
+
+			err = devlxdEventSend(c, "device", msg)
+			if err != nil {
+				return err
+			}
+		}
+
+		for k, m := range addDevices {
+			msg := map[string]interface{}{
+				"action": "added",
+				"name":   k,
+				"config": m,
+			}
+
+			err = devlxdEventSend(c, "device", msg)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
 
@@ -7564,7 +7625,7 @@ func (c *containerLXC) setNetworkLimits(name string, m types.Device) error {
 			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
 		}
 
-		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop", "flowid", ":1")
+		out, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop")
 		if err != nil {
 			return fmt.Errorf("Failed to create ingress tc qdisc: %s", out)
 		}

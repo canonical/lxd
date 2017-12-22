@@ -385,3 +385,9 @@ This adds support for MAAS network integration.
 
 When configured at the daemon level, it's then possible to attach a "nic"
 device to a particular MAAS subnet.
+
+## devlxd\_events
+This adds a websocket API to the devlxd socket.
+
+When connecting to /1.0/events over the devlxd socket, you will now be
+getting a stream of events over websocket.
