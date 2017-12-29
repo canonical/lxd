@@ -831,35 +831,16 @@ func (e RunError) Error() string {
 }
 
 func RunCommand(name string, arg ...string) (string, error) {
-	output := bytes.Buffer{}
-	cmd, err := SpawnCommand(&output, name, arg...)
-	if err != nil {
-		return "", err
-	}
-
-	err = cmd.Wait()
+	output, err := exec.Command(name, arg...).CombinedOutput()
 	if err != nil {
 		err := RunError{
-			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(output.String())),
+			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(output))),
 			Err: err,
 		}
-		return output.String(), err
+		return string(output), err
 	}
 
-	return output.String(), nil
-}
-
-func SpawnCommand(output *bytes.Buffer, name string, arg ...string) (*exec.Cmd, error) {
-	cmd := exec.Command(name, arg...)
-	cmd.Stdout = output
-	cmd.Stderr = output
-
-	err := cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-
-	return cmd, nil
+	return string(output), nil
 }
 
 func TryRunCommand(name string, arg ...string) (string, error) {

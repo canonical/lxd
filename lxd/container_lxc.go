@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -6522,26 +6521,24 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 		return err
 	}
 
-	output := bytes.Buffer{}
-	cmd, err := shared.SpawnCommand(
-		&output,
+	devFileName := fmt.Sprintf("proxy.%s", devName)
+	pidPath := filepath.Join(c.DevicesPath(), devFileName)
+	logFileName := fmt.Sprintf("proxy.%s.log", devName)
+	logPath := filepath.Join(c.LogPath(), logFileName)
+
+	_, err = shared.RunCommand(
 		c.state.OS.ExecPath,
 		"forkproxy",
 		proxyValues.listenPid,
 		proxyValues.listenAddr,
 		proxyValues.connectPid,
 		proxyValues.connectAddr,
-		"0")
+		"0",
+		"0",
+		logPath,
+		pidPath)
 	if err != nil {
 		return fmt.Errorf("Error occurred when starting proxy device: %s", err)
-	}
-
-	go cmd.Wait()
-	proxyPid := cmd.Process.Pid
-	err = createProxyDevInfoFile(c.DevicesPath(), devName, proxyPid)
-	if err != nil {
-		syscall.Kill(proxyPid, syscall.SIGTERM)
-		return fmt.Errorf("Error occurred when writing metadata for proxy process: %s", err)
 	}
 
 	return nil
@@ -6596,40 +6593,34 @@ func (c *containerLXC) updateProxyDevice(devName string, m types.Device) error {
 		return fmt.Errorf("Can't update proxy device in stopped container")
 	}
 
-	fmt.Printf("updating the proxy device")
 	proxyValues, err := setupProxyProcInfo(c, m)
 	if err != nil {
 		return err
 	}
 
 	devFileName := fmt.Sprintf("proxy.%s", devName)
-	devPath := filepath.Join(c.DevicesPath(), devFileName)
-	err = killProxyProc(devPath)
+	pidPath := filepath.Join(c.DevicesPath(), devFileName)
+	logFileName := fmt.Sprintf("proxy.%s.log", devName)
+	logPath := filepath.Join(c.LogPath(), logFileName)
 
+	err = killProxyProc(pidPath)
 	if err != nil {
 		return fmt.Errorf("Error occurred when removing old proxy device")
 	}
 
-	output := bytes.Buffer{}
-	cmd, err := shared.SpawnCommand(
-		&output,
+	_, err = shared.RunCommand(
 		c.state.OS.ExecPath,
 		"forkproxy",
 		proxyValues.listenPid,
 		proxyValues.listenAddr,
 		proxyValues.connectPid,
 		proxyValues.connectAddr,
-		"0")
+		"0",
+		"0",
+		logPath,
+		pidPath)
 	if err != nil {
 		return fmt.Errorf("Error occurred when starting new proxy device")
-	}
-
-	go cmd.Wait()
-	proxyPid := cmd.Process.Pid
-	err = createProxyDevInfoFile(c.DevicesPath(), devName, proxyPid)
-	if err != nil {
-		syscall.Kill(proxyPid, syscall.SIGTERM)
-		return fmt.Errorf("Error occurred when writing metadata for updated proxy process: %s", err)
 	}
 
 	return nil

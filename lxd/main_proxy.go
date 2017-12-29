@@ -11,11 +11,10 @@ import (
 	"syscall"
 
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 func cmdProxyDevStart(args *Args) error {
-	if len(args.Params) != 5 {
+	if len(args.Params) != 8 {
 		return fmt.Errorf("Invalid number of arguments")
 	}
 
@@ -30,9 +29,12 @@ func cmdProxyDevStart(args *Args) error {
 		fd, _ = strconv.Atoi(args.Params[4])
 	}
 
+	// At this point we have already forked and should set this flag to 1
+	args.Params[5] = "1"
+
 	// Check where we are in initialization
 	if !shared.PathExists(fmt.Sprintf("/proc/self/fd/%d", fd)) {
-		logger.Debugf("Listening on %s in %s, forwarding to %s from %s", listenAddr, listenPid, connectAddr, connectPid)
+		fmt.Printf("Listening on %s in %s, forwarding to %s from %s\n", listenAddr, listenPid, connectAddr, connectPid)
 
 		file, err := getListenerFile(listenAddr)
 		if err != nil {
@@ -50,7 +52,7 @@ func cmdProxyDevStart(args *Args) error {
 			return fmt.Errorf("failed to dup fd: %v", err)
 		}
 
-		logger.Debugf("Re-executing proxy process")
+		fmt.Printf("Re-executing proxy process\n")
 
 		args.Params[4] = strconv.Itoa(int(newFd))
 		execArgs := append([]string{"lxd", "forkproxy"}, args.Params...)
@@ -70,22 +72,22 @@ func cmdProxyDevStart(args *Args) error {
 
 	defer listener.Close()
 
-	logger.Debugf("Starting to proxy")
+	fmt.Printf("Starting to proxy\n")
 
 	// begin proxying
 	for {
 		// Accept a new client
 		srcConn, err := listener.Accept()
 		if err != nil {
-			logger.Debugf("error: Failed to accept new connection: %v", err)
+			fmt.Printf("error: Failed to accept new connection: %v\n", err)
 			continue
 		}
-		logger.Debugf("Accepted a new connection")
+		fmt.Printf("Accepted a new connection\n")
 
 		// Connect to the target
 		dstConn, err := getDestConn(connectAddr)
 		if err != nil {
-			logger.Debugf("error: Failed to connect to target: %v", err)
+			fmt.Printf("error: Failed to connect to target: %v\n", err)
 			srcConn.Close()
 			continue
 		}
@@ -143,10 +145,10 @@ func handleSignal(listenAddr string) {
 	go func() {
 		// Wait for a SIGTERM
 		sig := <-sigc
-		logger.Debugf("Caught signal %s: cleaning up...", sig)
+		fmt.Printf("Caught signal %s: cleaning up...\n", sig)
 		err := cleanupUnixSocket(listenAddr)
 		if err != nil {
-			logger.Debugf("Error unlinking unix socket: %v", err)
+			fmt.Printf("Error unlinking unix socket: %v\n", err)
 		}
 		// And we're done:
 		os.Exit(0)
