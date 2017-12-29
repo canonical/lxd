@@ -154,7 +154,7 @@ func run() error {
 		}
 
 		if shared.PathExists("/var/lib/lxd/") {
-			fmt.Fprintf(os.Stderr, i18n.G("If this is your first time using LXD, you should also run: sudo lxd init")+"\n")
+			fmt.Fprintf(os.Stderr, i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")+"\n")
 			fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:16.04")+"\n\n")
 		}
 	}
