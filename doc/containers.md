@@ -191,7 +191,7 @@ ID (database)   | Name                              | Description
 5               | [usb](#type-usb)                  | USB device
 6               | [gpu](#type-gpu)                  | GPU device
 7               | [infiniband](#type-infiniband)    | Infiniband device
-8               | [proxy](#type-proxy)             | Proxy device
+8               | [proxy](#type-proxy)              | Proxy device
 
 ### Type: none
 A none type device doesn't have any property and doesn't create anything inside the container.

@@ -115,8 +115,12 @@ func killProxyProc(pidPath string) error {
 
 	err = syscall.Kill(pidInt, syscall.SIGTERM)
 	if err != nil {
-		go func() {
-			time.Sleep(3000 * time.Millisecond)
+		return err
+	}
+
+	go func() {
+		for i := 0; i < 6; i++ {
+			time.Sleep(500 * time.Millisecond)
 			// Check if the process still exists
 			if !shared.PathExists(fmt.Sprintf("/proc/%s", pidString)) {
 				return
@@ -133,10 +137,9 @@ func killProxyProc(pidPath string) error {
 			if cmdName != "lxd" {
 				return
 			}
-
-			syscall.Kill(pidInt, syscall.SIGKILL)
-		}()
-	}
+		}
+		syscall.Kill(pidInt, syscall.SIGKILL)
+	}()
 
 	// Cleanup
 	os.Remove(pidPath)
