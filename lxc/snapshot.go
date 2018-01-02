@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/lxc/lxd/lxc/config"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -46,11 +43,6 @@ func (c *snapshotCmd) run(conf *config.Config, args []string) error {
 		snapname = ""
 	} else {
 		snapname = args[1]
-	}
-
-	// we don't allow '/' in snapshot names
-	if shared.IsSnapshot(snapname) {
-		return fmt.Errorf(i18n.G("'/' not allowed in snapshot name"))
 	}
 
 	remote, name, err := conf.ParseRemote(args[0])
