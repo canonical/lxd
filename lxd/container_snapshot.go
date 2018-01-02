@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -80,6 +81,11 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		// come up with a name
 		i := d.db.ContainerNextSnapshot(name)
 		req.Name = fmt.Sprintf("snap%d", i)
+	}
+
+	// Validate the name
+	if strings.Contains(req.Name, "/") {
+		return BadRequest(fmt.Errorf("Snapshot names may not contain slashes"))
 	}
 
 	fullName := name +
@@ -180,6 +186,11 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	newName, err := raw.GetString("name")
 	if err != nil {
 		return BadRequest(err)
+	}
+
+	// Validate the name
+	if strings.Contains(newName, "/") {
+		return BadRequest(fmt.Errorf("Snapshot names may not contain slashes"))
 	}
 
 	fullName := containerName + shared.SnapshotDelimiter + newName
