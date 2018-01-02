@@ -73,6 +73,10 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
+	if strings.Contains(req.Name, "/") {
+		return BadRequest(fmt.Errorf("Storage pool names may not contain slashes"))
+	}
+
 	if req.Driver == "" {
 		return BadRequest(fmt.Errorf("No driver provided"))
 	}
