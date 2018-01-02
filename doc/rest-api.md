@@ -200,6 +200,7 @@ won't work and PUT needs to be used instead.
        * `/1.0/images/<fingerprint>`
          * `/1.0/images/<fingerprint>/export`
          * `/1.0/images/<fingerprint>/refresh`
+         * `/1.0/images/<fingerprint>/secret`
        * `/1.0/images/aliases`
          * `/1.0/images/aliases/<name>`
      * `/1.0/networks`
