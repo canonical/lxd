@@ -181,6 +181,7 @@ have to then poll for their status.
      * `/1.0/images`
        * `/1.0/images/<fingerprint>`
          * `/1.0/images/<fingerprint>/export`
+         * `/1.0/images/<fingerprint>/secret`
        * `/1.0/images/aliases`
          * `/1.0/images/aliases/<name>`
      * `/1.0/networks`
