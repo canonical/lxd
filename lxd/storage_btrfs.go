@@ -108,7 +108,12 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
 
 	isBlockDev := false
-	source := shared.HostPath(s.pool.Config["source"])
+
+	source := s.pool.Config["source"]
+	if strings.HasPrefix(source, "/") {
+		source = shared.HostPath(s.pool.Config["source"])
+	}
+
 	if source == "" {
 		source = filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
 		s.pool.Config["source"] = source
@@ -259,7 +264,11 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 func (s *storageBtrfs) StoragePoolDelete() error {
 	logger.Infof("Deleting BTRFS storage pool \"%s\".", s.pool.Name)
 
-	source := shared.HostPath(s.pool.Config["source"])
+	source := s.pool.Config["source"]
+	if strings.HasPrefix(source, "/") {
+		source = shared.HostPath(s.pool.Config["source"])
+	}
+
 	if source == "" {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
@@ -324,7 +333,11 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 	logger.Debugf("Mounting BTRFS storage pool \"%s\".", s.pool.Name)
 
-	source := shared.HostPath(s.pool.Config["source"])
+	source := s.pool.Config["source"]
+	if strings.HasPrefix(source, "/") {
+		source = shared.HostPath(s.pool.Config["source"])
+	}
+
 	if source == "" {
 		return false, fmt.Errorf("no \"source\" property found for the storage pool")
 	}
