@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-12-19 19:32-0500\n"
+"POT-Creation-Date: 2018-01-02 17:49+0000\n"
 "PO-Revision-Date: 2017-08-18 14:22+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -186,10 +186,6 @@ msgstr "%v (interrompi altre due volte per forzare)"
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr "'%s' non è un tipo di file supportato."
-
-#: lxc/snapshot.go:53
-msgid "'/' not allowed in snapshot name"
-msgstr "'/' non è permesso nel nome di uno snapshot"
 
 #: lxc/profile.go:337
 msgid "(none)"
@@ -2043,7 +2039,7 @@ msgid ""
 "    Restore the snapshot."
 msgstr ""
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:19
 msgid ""
 "Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
 "\n"
@@ -2180,7 +2176,7 @@ msgid ""
 "available)"
 msgstr ""
 
-#: lxc/snapshot.go:36
+#: lxc/snapshot.go:33
 msgid "Whether or not to snapshot the container's running state"
 msgstr ""
 
@@ -2295,6 +2291,9 @@ msgstr "numero errato di argomenti del sottocomando"
 #: lxc/delete.go:45 lxc/image.go:207 lxc/image.go:585 lxc/image.go:590
 msgid "yes"
 msgstr "si"
+
+#~ msgid "'/' not allowed in snapshot name"
+#~ msgstr "'/' non è permesso nel nome di uno snapshot"
 
 #~ msgid "not all the profiles from the source exist on the target"
 #~ msgstr "non tutti i profili dell'origine esistono nella destinazione"

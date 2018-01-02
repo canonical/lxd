@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-12-19 19:32-0500\n"
+"POT-Creation-Date: 2018-01-02 17:49+0000\n"
 "PO-Revision-Date: 2017-09-28 20:29+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -166,10 +166,6 @@ msgstr ""
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr "'%s' はサポートされないタイプのファイルです。"
-
-#: lxc/snapshot.go:53
-msgid "'/' not allowed in snapshot name"
-msgstr "'/' はスナップショットの名前には使用できません"
 
 #: lxc/profile.go:337
 msgid "(none)"
@@ -2634,7 +2630,7 @@ msgstr ""
 "lxc restore u1 snap0\n"
 "    スナップショットからリストアします。"
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:19
 msgid ""
 "Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
 "\n"
@@ -2877,7 +2873,7 @@ msgid ""
 msgstr ""
 "スナップショットからコンテナの稼動状態をリストアするかどうか (取得可能な場合)"
 
-#: lxc/snapshot.go:36
+#: lxc/snapshot.go:33
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
@@ -2995,6 +2991,9 @@ msgstr "サブコマンドの引数の数が正しくありません"
 #: lxc/delete.go:45 lxc/image.go:207 lxc/image.go:585 lxc/image.go:590
 msgid "yes"
 msgstr ""
+
+#~ msgid "'/' not allowed in snapshot name"
+#~ msgstr "'/' はスナップショットの名前には使用できません"
 
 #, fuzzy
 #~ msgid "Could not create config dir"
