@@ -3,11 +3,9 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
-	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 
@@ -236,21 +234,12 @@ func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
 		nodeID: c.nodeID,
 	}
 
-	// FIXME: the retry loop should be configurable.
-	var err error
-	for i := 0; i < 20; i++ {
-		err = query.Transaction(c.db, func(tx *sql.Tx) error {
+	return query.Retry(func() error {
+		return query.Transaction(c.db, func(tx *sql.Tx) error {
 			clusterTx.tx = tx
 			return f(clusterTx)
 		})
-		if err != nil && IsRetriableError(err) {
-			logger.Debugf("Retry failed transaction")
-			time.Sleep(250 * time.Millisecond)
-			continue
-		}
-		break
-	}
-	return err
+	})
 }
 
 // NodeID sets the the node NodeID associated with this cluster instance. It's used for
@@ -296,31 +285,6 @@ func UpdateSchemasDotGo() error {
 	return nil
 }
 
-// IsRetriableError returns true if the given error might be transient and the
-// interaction can be safely retried.
-func IsRetriableError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if err == sqlite3.ErrLocked || err == sqlite3.ErrBusy {
-		return true
-	}
-	if err.Error() == "database is locked" {
-		return true
-	}
-
-	// FIXME: we should bubble errors using errors.Wrap()
-	// instead, and check for err.Cause() == sql.ErrBadConnection.
-	if strings.Contains(err.Error(), "bad connection") {
-		return true
-	}
-	if strings.Contains(err.Error(), "leadership lost") {
-		return true
-	}
-
-	return false
-}
-
 func isNoMatchError(err error) bool {
 	if err == nil {
 		return false
@@ -337,7 +301,7 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 		if err == nil {
 			return tx, nil
 		}
-		if !IsRetriableError(err) {
+		if !query.IsRetriableError(err) {
 			logger.Debugf("DbBegin: error %q", err)
 			return nil, err
 		}
@@ -352,10 +316,10 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 func TxCommit(tx *sql.Tx) error {
 	for i := 0; i < 1000; i++ {
 		err := tx.Commit()
-		if err == nil {
+		if err == nil || err == sql.ErrTxDone { // Ignore duplicate commits/rollbacks
 			return nil
 		}
-		if !IsRetriableError(err) {
+		if !query.IsRetriableError(err) {
 			logger.Debugf("Txcommit: error %q", err)
 			return err
 		}
@@ -376,7 +340,7 @@ func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interfac
 		if isNoMatchError(err) {
 			return err
 		}
-		if !IsRetriableError(err) {
+		if !query.IsRetriableError(err) {
 			return err
 		}
 		time.Sleep(30 * time.Millisecond)
@@ -393,7 +357,7 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 		if err == nil {
 			return result, nil
 		}
-		if !IsRetriableError(err) {
+		if !query.IsRetriableError(err) {
 			logger.Debugf("DbQuery: query %q error %q", q, err)
 			return nil, err
 		}
@@ -478,7 +442,7 @@ func queryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{})
 		if err == nil {
 			return result, nil
 		}
-		if !IsRetriableError(err) {
+		if !query.IsRetriableError(err) {
 			logger.Debugf("DbQuery: query %q error %q", q, err)
 			return nil, err
 		}
@@ -496,7 +460,7 @@ func exec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
 		if err == nil {
 			return result, nil
 		}
-		if !IsRetriableError(err) {
+		if !query.IsRetriableError(err) {
 			logger.Debugf("DbExec: query %q error %q", q, err)
 			return nil, err
 		}
