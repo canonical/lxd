@@ -39,6 +39,29 @@ func TestContainersListByNodeAddress(t *testing.T) {
 		}, result)
 }
 
+// Containers are associated with their node name.
+func TestContainersByNodeName(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	nodeID1 := int64(1) // This is the default local node
+
+	nodeID2, err := tx.NodeAdd("node2", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	addContainer(t, tx, nodeID2, "c1")
+	addContainer(t, tx, nodeID1, "c2")
+
+	result, err := tx.ContainersByNodeName()
+	require.NoError(t, err)
+	assert.Equal(
+		t,
+		map[string]string{
+			"c1": "node2",
+			"c2": "none",
+		}, result)
+}
+
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 	stmt := `
 INSERT INTO containers(node_id, name, architecture, type) VALUES (?, ?, 1, ?)
