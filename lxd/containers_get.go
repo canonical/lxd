@@ -40,11 +40,22 @@ func containersGet(d *Daemon, r *http.Request) Response {
 }
 
 func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
-	var result map[string][]string
+	var result map[string][]string // Containers by node address
+	var nodes map[string]string    // Node names by container
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
+
 		result, err = tx.ContainersListByNodeAddress()
-		return err
+		if err != nil {
+			return err
+		}
+
+		nodes, err = tx.ContainersByNodeName()
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return []string{}, err
@@ -60,7 +71,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			c = api.Container{
 				Name:       name,
 				Status:     api.Error.String(),
-				StatusCode: api.Error}
+				StatusCode: api.Error,
+				Node:       nodes[name],
+			}
 		}
 		resultMu.Lock()
 		resultList = append(resultList, &c)
@@ -74,6 +87,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			for _, container := range containers {
 				resultAppend(container, api.Container{}, fmt.Errorf("unavailable"))
 			}
+			continue
 		}
 
 		// If this is an internal request from another cluster node,
@@ -87,14 +101,20 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		// containers from their respective nodes.
 		if recursion && address != "" && !isClusterNotification(r) {
 			wg.Add(1)
-			go func(address string) {
+			go func(address string, containers []string) {
+				defer wg.Done()
 				cert := d.endpoints.NetworkCert()
 				cs, err := doContainersGetFromNode(address, cert)
-				for _, c := range cs {
-					resultAppend(c.Name, c, err)
+				if err != nil {
+					for _, name := range containers {
+						resultAppend(name, api.Container{}, err)
+					}
+					return
 				}
-				wg.Done()
-			}(address)
+				for _, c := range cs {
+					resultAppend(c.Name, c, nil)
+				}
+			}(address, containers)
 			continue
 		}
 
