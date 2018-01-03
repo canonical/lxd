@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
@@ -72,8 +73,7 @@ func EnsureSchema(db *sql.DB, address string) (bool, error) {
 		// Update the schema and api_extension columns of ourselves.
 		err = updateNodeVersion(tx, address, apiExtensions)
 		if err != nil {
-			return errors.Wrap(err, "failed to update node version")
-
+			return err
 		}
 
 		err = checkClusterIsUpgradable(tx, [2]int{len(updates), apiExtensions})
@@ -87,7 +87,12 @@ func EnsureSchema(db *sql.DB, address string) (bool, error) {
 	schema := Schema()
 	schema.Check(check)
 
-	initial, err := schema.Ensure(db)
+	var initial int
+	err := query.Retry(func() error {
+		var err error
+		initial, err = schema.Ensure(db)
+		return err
+	})
 	if someNodesAreBehind {
 		return false, nil
 	}

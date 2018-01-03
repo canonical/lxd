@@ -9,6 +9,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -24,7 +25,7 @@ func containersGet(d *Daemon, r *http.Request) Response {
 		if err == nil {
 			return SyncResponse(true, result)
 		}
-		if !db.IsRetriableError(err) {
+		if !query.IsRetriableError(err) {
 			logger.Debugf("DBERR: containersGet: error %q", err)
 			return SmartError(err)
 		}
