@@ -107,7 +107,8 @@ SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
 	result := map[string][]string{}
 
 	for i := 0; rows.Next(); i++ {
-		var name, nodeAddress string
+		var name string
+		var nodeAddress string
 		var nodeID int64
 		var nodeHeartbeat time.Time
 		err := rows.Scan(&name, &nodeID, &nodeAddress, &nodeHeartbeat)
@@ -120,6 +121,39 @@ SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
 			nodeAddress = "0.0.0.0"
 		}
 		result[nodeAddress] = append(result[nodeAddress], name)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// ContainersByNodeName returns a map associating each container to the name of
+// its node.
+func (c *ClusterTx) ContainersByNodeName() (map[string]string, error) {
+	stmt := `
+SELECT containers.name, nodes.name
+  FROM containers JOIN nodes ON nodes.id = containers.node_id
+  WHERE containers.type=?
+`
+	rows, err := c.tx.Query(stmt, CTypeRegular)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := map[string]string{}
+
+	for i := 0; rows.Next(); i++ {
+		var name string
+		var nodeName string
+		err := rows.Scan(&name, &nodeName)
+		if err != nil {
+			return nil, err
+		}
+		result[name] = nodeName
 	}
 
 	err = rows.Err()
