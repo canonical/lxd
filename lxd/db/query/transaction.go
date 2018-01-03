@@ -2,8 +2,8 @@ package query
 
 import (
 	"database/sql"
-	"fmt"
 
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 
@@ -19,7 +19,11 @@ func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
 		return rollback(tx, err)
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err == sql.ErrTxDone {
+		err = nil // Ignore duplicate commits/rollbacks
+	}
+	return err
 }
 
 // Rollback a transaction after the given error occurred. If the rollback
@@ -28,7 +32,7 @@ func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
 func rollback(tx *sql.Tx, reason error) error {
 	err := tx.Rollback()
 	if err != nil {
-		return fmt.Errorf("failed to rollback transaction after error (%v)", reason)
+		logger.Warnf("failed to rollback transaction after error (%v): %v", reason, err)
 	}
 
 	return reason
