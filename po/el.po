@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-12-19 19:32-0500\n"
+"POT-Creation-Date: 2018-01-02 17:49+0000\n"
 "PO-Revision-Date: 2017-02-14 08:00+0000\n"
 "Last-Translator: Simos Xenitellis <simos.65@gmail.com>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -164,10 +164,6 @@ msgstr ""
 #: lxc/file.go:132
 #, c-format
 msgid "'%s' isn't a supported file type."
-msgstr ""
-
-#: lxc/snapshot.go:53
-msgid "'/' not allowed in snapshot name"
 msgstr ""
 
 #: lxc/profile.go:337
@@ -2024,7 +2020,7 @@ msgid ""
 "    Restore the snapshot."
 msgstr ""
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:19
 msgid ""
 "Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
 "\n"
@@ -2161,7 +2157,7 @@ msgid ""
 "available)"
 msgstr ""
 
-#: lxc/snapshot.go:36
+#: lxc/snapshot.go:33
 msgid "Whether or not to snapshot the container's running state"
 msgstr ""
 

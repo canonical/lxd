@@ -161,6 +161,7 @@ func (c *Context) invalidInput() {
 func (c *Context) readAnswer(defaultAnswer string) string {
 	answer, _ := c.stdin.ReadString('\n')
 	answer = strings.TrimSuffix(answer, "\n")
+	answer = strings.TrimSpace(answer)
 	if answer == "" {
 		answer = defaultAnswer
 	}
