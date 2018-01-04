@@ -151,8 +151,7 @@ test_clustering_containers() {
 
   # Create a container on node1 using the image that was stored on
   # node2.
-  LXD_DIR="${LXD_TWO_DIR}" lxc init --target node1 testimage bar
-  LXD_DIR="${LXD_ONE_DIR}" lxc start bar
+  LXD_DIR="${LXD_TWO_DIR}" lxc launch --target node1 testimage bar
   LXD_DIR="${LXD_TWO_DIR}" lxc stop bar
   LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
   ! LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q bar
