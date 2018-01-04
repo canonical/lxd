@@ -65,7 +65,7 @@ export GOPATH=~/go
 And then download it as usual:
 
 ```bash
-go get github.com/lxc/lxd
+go get -d -v github.com/lxc/lxd/lxd
 cd $GOPATH/src/github.com/lxc/lxd
 make
 ```
