@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-12-19 19:32-0500\n"
+"POT-Creation-Date: 2018-01-02 17:49+0000\n"
 "PO-Revision-Date: 2017-09-05 16:48+0000\n"
 "Last-Translator: Ilya Yakimavets <ilya.yakimavets@backend.expert>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -247,10 +247,6 @@ msgstr ""
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr ""
-
-#: lxc/snapshot.go:53
-msgid "'/' not allowed in snapshot name"
-msgstr "Нельзя использовать '/' в имени снимка"
 
 #: lxc/profile.go:337
 msgid "(none)"
@@ -2120,7 +2116,7 @@ msgid ""
 "    Restore the snapshot."
 msgstr ""
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:19
 msgid ""
 "Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
 "\n"
@@ -2257,7 +2253,7 @@ msgid ""
 "available)"
 msgstr ""
 
-#: lxc/snapshot.go:36
+#: lxc/snapshot.go:33
 msgid "Whether or not to snapshot the container's running state"
 msgstr ""
 
@@ -2372,6 +2368,9 @@ msgstr ""
 #: lxc/delete.go:45 lxc/image.go:207 lxc/image.go:585 lxc/image.go:590
 msgid "yes"
 msgstr "да"
+
+#~ msgid "'/' not allowed in snapshot name"
+#~ msgstr "Нельзя использовать '/' в имени снимка"
 
 #, fuzzy
 #~ msgid "Could not create config dir"

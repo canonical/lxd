@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-12-19 19:32-0500\n"
+"POT-Creation-Date: 2018-01-02 17:49+0000\n"
 "PO-Revision-Date: 2017-10-26 15:46+0000\n"
 "Last-Translator: Alban Vidal <alban.vidal@zordhak.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -260,10 +260,6 @@ msgstr "%v (interrompre encore deux fois pour forcer)"
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr "'%s' n'est pas un format de fichier pris en charge."
-
-#: lxc/snapshot.go:53
-msgid "'/' not allowed in snapshot name"
-msgstr "'/' n'est pas autorisé dans le nom d'un instantané"
 
 #: lxc/profile.go:337
 msgid "(none)"
@@ -2600,7 +2596,7 @@ msgstr ""
 "Restaurer un instantané :\n"
 "    lxc restore u1 snap0"
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:19
 #, fuzzy
 msgid ""
 "Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
@@ -2759,7 +2755,7 @@ msgstr ""
 "Restaurer ou pas l'état de fonctionnement du conteneur depuis l'instantané "
 "(s'il est disponible)"
 
-#: lxc/snapshot.go:36
+#: lxc/snapshot.go:33
 msgid "Whether or not to snapshot the container's running state"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
 
@@ -2878,6 +2874,9 @@ msgstr "nombre d'arguments incorrect pour la sous-comande"
 #: lxc/delete.go:45 lxc/image.go:207 lxc/image.go:585 lxc/image.go:590
 msgid "yes"
 msgstr "oui"
+
+#~ msgid "'/' not allowed in snapshot name"
+#~ msgstr "'/' n'est pas autorisé dans le nom d'un instantané"
 
 #, fuzzy
 #~ msgid "Could not create config dir"

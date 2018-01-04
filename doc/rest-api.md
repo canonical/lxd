@@ -200,6 +200,7 @@ won't work and PUT needs to be used instead.
        * `/1.0/images/<fingerprint>`
          * `/1.0/images/<fingerprint>/export`
          * `/1.0/images/<fingerprint>/refresh`
+         * `/1.0/images/<fingerprint>/secret`
        * `/1.0/images/aliases`
          * `/1.0/images/aliases/<name>`
      * `/1.0/networks`
@@ -210,6 +211,11 @@ won't work and PUT needs to be used instead.
          * `/1.0/operations/<uuid>/websocket`
      * `/1.0/profiles`
        * `/1.0/profiles/<name>`
+     * `/1.0/storage-pools`
+       * `/1.0/storage-pools/<name>`
+         * `/1.0/storage-pools/<name>/resources`
+         * `/1.0/storage-pools/<name>/volumes`
+           * `/1.0/storage-pools/<name>/volumes/<volume type>/<volume>`
      * `/1.0/resources`
 
 # API details
@@ -2262,57 +2268,6 @@ Input (none at present):
         "/1.0/storage-pools/default/volumes/containers/alp9",
         "/1.0/storage-pools/default/volumes/images/62e850a334bb9d99cac00b2e618e0291e5e7bb7db56c4246ecaf8e46fa0631a6"
     ]
-
-## `/1.0/storage-pools/<pool>/volumes`
-### GET
- * Description: list all storage volumes on a storage pool
- * Introduced: with API extension `storage`
- * Authentication: trusted
- * Operation: sync
- * Return: standard return value or standard error
-
-    {
-        "type": "sync",
-        "status": "Success",
-        "status_code": 200,
-        "error_code": 0,
-        "error": "",
-        "metadata": [
-            {
-                "type": "container",
-                "used_by": [],
-                "name": "alp1",
-                "config": {
-                "size": "0"
-                }
-            },
-            {
-                "type": "container",
-                "used_by": [],
-                "name": "alp1/snap0",
-                "config": {
-                    "size": "0"
-                }
-            },
-            {
-                "type": "image",
-                "used_by": [],
-                "name": "ade3a9bcd7ba27456673611304238c424ced1772f69d7c6b031356831d94e8ee",
-                "config": {
-                    "size": "0"
-                }
-            },
-            {
-                "type": "custom",
-                "used_by": [],
-                "name": "bla",
-                "config": {
-                    "size": "0"
-                }
-            }
-        ]
-    }
-
 
 ### POST
  * Description: create a new storage volume on a given storage pool

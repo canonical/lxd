@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/db"
@@ -154,6 +155,10 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
+	if strings.Contains(req.Name, "/") {
+		return BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
+	}
+
 	// Check that the user gave use a storage volume type for the storage
 	// volume we are about to create.
 	if req.Type == "" {
@@ -211,6 +216,10 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 	// Sanity checks.
 	if req.Name == "" {
 		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	if strings.Contains(req.Name, "/") {
+		return BadRequest(fmt.Errorf("Storage volume names may not contain slashes"))
 	}
 
 	// We currently only allow to create storage volumes of type
