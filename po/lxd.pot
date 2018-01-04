@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2018-01-02 18:33+0100\n"
+        "POT-Creation-Date: 2018-01-04 11:36-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -557,7 +557,7 @@ msgid   "ISSUE DATE"
 msgstr  ""
 
 #: lxc/main.go:171
-msgid   "If this is your first time using LXD, you should also run: lxd init"
+msgid   "If this is your first time running LXD on this machine, you should also run: lxd init"
 msgstr  ""
 
 #: lxc/main.go:54
@@ -1922,7 +1922,7 @@ msgid   "Usage: lxc restore [<remote>:]<container> <snapshot> [--stateful]\n"
         "    Restore the snapshot."
 msgstr  ""
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:19
 msgid   "Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
         "\n"
         "Create container snapshots.\n"
@@ -2043,7 +2043,7 @@ msgstr  ""
 msgid   "Whether or not to restore the container's running state from snapshot (if available)"
 msgstr  ""
 
-#: lxc/snapshot.go:36
+#: lxc/snapshot.go:33
 msgid   "Whether or not to snapshot the container's running state"
 msgstr  ""
 
