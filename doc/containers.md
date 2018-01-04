@@ -104,6 +104,37 @@ The raw keys allow direct interaction with the backend features that LXD
 itself uses, setting those may very well break LXD in non-obvious ways
 and should whenever possible be avoided.
 
+### CPU limits
+The CPU limits are implemented through a mix of the `cpuset` and `cpu` CGroup controllers.
+
+`limits.cpu` results in CPU pinning through the `cpuset` controller.
+A set of CPUs (e.g. `1,2,3`) or a CPU range (e.g. `0-3`) can be specified.
+
+When a number of CPUs is specified instead (e.g. `4`), LXD will do
+dynamic load-balancing of all containers that aren't pinned to specific
+CPUs, trying to spread the load on the machine. Containers will then be
+re-balanced every time a container starts or stops as well as whenever a
+CPU is added to the system.
+
+To pin to a single CPU, you have to use the range syntax (e.g. `1-1`) to
+differentiate it from a number of CPUs.
+
+`limits.cpu.allowance` drives either the CFS scheduler quotas when
+passed a time constraint, or the generic CPU shares mechanism when
+passed a percentage value.
+
+The time constraint (e.g. `20ms/50ms`) is relative to one CPU worth of
+time, so to restrict to two CPUs worth of time, something like
+100ms/50ms should be used.
+
+When using a percentage value, the limit will only be applied when under
+load and will be used to calculate the scheduler priority for the
+container, relative to any other container which is using the same CPU(s).
+
+`limits.cpu.priority` is another knob which is used to compute that
+scheduler priority score when a number of containers sharing a set of
+CPUs have the same percentage of CPU assigned to them.
+
 # Devices configuration
 LXD will always provide the container with the basic devices which are required
 for a standard POSIX system to work. These aren't visible in container or
