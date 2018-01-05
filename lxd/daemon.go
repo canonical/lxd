@@ -412,6 +412,16 @@ func (d *Daemon) init() error {
 	if !d.os.MockMode {
 		/* Start the scheduler */
 		go deviceEventListener(d.State())
+
+		_, err := deviceInotifyInit(d.State())
+		if err != nil {
+			return err
+		}
+
+		deviceInotifyDirRescan(d.State())
+
+		go deviceInotifyHandler(d.State())
+
 		readSavedClientCAList(d)
 	}
 
