@@ -1375,11 +1375,19 @@ func (c *containerLXC) initLXC(config bool) error {
 			relativeDestPath := strings.TrimPrefix(destPath, "/")
 			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("unix.%s.%s", strings.Replace(k, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1)))
 
+			// Do not fail to start when the device doesn't need to
+			// exist.
+			opts := "none bind,create=file"
+			if m["required"] != "" && !shared.IsTrue(m["required"]) {
+				opts = "none bind,create=file,optional"
+			}
+
 			// inform liblxc about the mount
 			err = lxcSetConfigItem(cc, "lxc.mount.entry",
-				fmt.Sprintf("%s %s none bind,create=file",
+				fmt.Sprintf("%s %s %s",
 					shared.EscapePathFstab(sourceDevPath),
-					shared.EscapePathFstab(relativeDestPath)))
+					shared.EscapePathFstab(relativeDestPath),
+					opts))
 			if err != nil {
 				return err
 			}
@@ -1743,6 +1751,14 @@ func (c *containerLXC) startCommon() (string, error) {
 			if m["path"] != "" && m["major"] == "" && m["minor"] == "" && !shared.PathExists(srcPath) {
 				return "", fmt.Errorf("Missing source '%s' for device '%s'", srcPath, name)
 			}
+
+			if m["required"] != "" && !shared.IsTrue(m["required"]) {
+				err = deviceInotifyAddClosestLivingAncestor(c.state, srcPath)
+				if err != nil {
+					logger.Errorf("Failed to add \"%s\" to inotify targets", srcPath)
+					return "", err
+				}
+			}
 		}
 	}
 
@@ -1896,19 +1912,37 @@ func (c *containerLXC) startCommon() (string, error) {
 			// Unix device
 			paths, err := c.createUnixDevice(fmt.Sprintf("unix.%s", k), m)
 			if err != nil {
-				return "", err
+				// Deal with device hotplug
+				if m["required"] == "" || shared.IsTrue(m["required"]) {
+					return "", err
+				}
+
+				srcPath := m["source"]
+				if srcPath == "" {
+					srcPath = m["path"]
+				}
+				srcPath = shared.HostPath(srcPath)
+
+				err = deviceInotifyAddClosestLivingAncestor(c.state, srcPath)
+				if err != nil {
+					logger.Errorf("Failed to add \"%s\" to inotify targets", srcPath)
+					return "", err
+				}
+				continue
 			}
 			devPath := paths[0]
 			if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 				// Add the new device cgroup rule
 				dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
 				if err != nil {
-					return "", err
-				}
-
-				err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
-				if err != nil {
-					return "", fmt.Errorf("Failed to add cgroup rule for device")
+					if m["required"] == "" || shared.IsTrue(m["required"]) {
+						return "", err
+					}
+				} else {
+					err = lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
+					if err != nil {
+						return "", fmt.Errorf("Failed to add cgroup rule for device")
+					}
 				}
 			}
 		} else if m["type"] == "usb" {
@@ -4053,6 +4087,16 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		// Live update the devices
 		for k, m := range removeDevices {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
+				prefix := fmt.Sprintf("unix.%s", k)
+				destPath := m["path"]
+				if destPath == "" {
+					destPath = m["source"]
+				}
+
+				if !c.deviceExistsInDevicesFolder(prefix, destPath) && (m["required"] != "" && !shared.IsTrue(m["required"])) {
+					continue
+				}
+
 				err = c.removeUnixDevice(fmt.Sprintf("unix.%s", k), m, true)
 				if err != nil {
 					return err
@@ -4127,7 +4171,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				nvidiaExists := false
 				for _, gpu := range gpus {
 					if gpu.nvidia.path != "" {
-						if c.deviceExists(k, gpu.path) {
+						if c.deviceExistsInDevicesFolder(fmt.Sprintf("unix.%s", k), gpu.path) {
 							nvidiaExists = true
 							break
 						}
@@ -4136,7 +4180,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 				if !nvidiaExists {
 					for _, gpu := range nvidiaDevices {
-						if !c.deviceExists(k, gpu.path) {
+						if !c.deviceExistsInDevicesFolder(fmt.Sprintf("unix.%s", k), gpu.path) {
 							continue
 						}
 						err = c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path)
@@ -4159,7 +4203,9 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 				err = c.insertUnixDevice(fmt.Sprintf("unix.%s", k), m)
 				if err != nil {
-					return err
+					if m["required"] == "" || shared.IsTrue(m["required"]) {
+						return err
+					}
 				}
 			} else if m["type"] == "disk" && m["path"] != "/" {
 				diskDevices[k] = m
@@ -4254,7 +4300,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 				if sawNvidia {
 					for _, gpu := range nvidiaDevices {
-						if c.deviceExists(k, gpu.path) {
+						if c.deviceExistsInDevicesFolder(k, gpu.path) {
 							continue
 						}
 						err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path)
@@ -5944,7 +5990,7 @@ func (c *containerLXC) removeMount(mount string) error {
 }
 
 // Check if the unix device already exists.
-func (c *containerLXC) deviceExists(prefix string, path string) bool {
+func (c *containerLXC) deviceExistsInDevicesFolder(prefix string, path string) bool {
 	relativeDestPath := strings.TrimPrefix(path, "/")
 	devName := fmt.Sprintf("%s.%s", strings.Replace(prefix, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1))
 	devPath := filepath.Join(c.DevicesPath(), devName)

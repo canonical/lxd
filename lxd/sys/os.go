@@ -2,6 +2,7 @@ package sys
 
 import (
 	"path/filepath"
+	"sync"
 
 	log "github.com/lxc/lxd/shared/log15"
 
@@ -10,6 +11,22 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+// InotifyTargetInfo records the inotify information associated with a given
+// inotify target
+type InotifyTargetInfo struct {
+	Mask uint32
+	Wd   int
+	Path string
+}
+
+// InotifyInfo records the inotify information associated with a given
+// inotify instance
+type InotifyInfo struct {
+	Fd int
+	sync.RWMutex
+	Targets map[string]*InotifyTargetInfo
+}
 
 // OS is a high-level facade for accessing all operating-system
 // level functionality that LXD uses.
@@ -39,17 +56,21 @@ type OS struct {
 	CGroupNetPrioController bool
 	CGroupPidsController    bool
 	CGroupSwapAccounting    bool
+	InotifyWatch            InotifyInfo
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
 func DefaultOS() *OS {
-	return &OS{
+	newOS := &OS{
 		VarDir:   shared.VarPath(),
 		CacheDir: shared.CachePath(),
 		LogDir:   shared.LogPath(),
 	}
+	newOS.InotifyWatch.Fd = -1
+	newOS.InotifyWatch.Targets = make(map[string]*InotifyTargetInfo)
+	return newOS
 }
 
 // Init our internal data structures.

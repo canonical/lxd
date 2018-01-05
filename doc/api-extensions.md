@@ -405,3 +405,6 @@ This makes it possible to retrieve symlinks using the file API.
 ## network\_leases
 Adds a new /1.0/networks/NAME/leases API endpoint to query the lease database on
 bridges which run a LXD-managed DHCP server.
+
+## unix\_device\_hotplug
+This adds support for the "required" property for unix devices.

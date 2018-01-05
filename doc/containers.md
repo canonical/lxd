@@ -360,6 +360,7 @@ minor       | int       | device on host    |                                   
 uid         | int       | 0                 |                                   | no        | UID of the device owner in the container
 gid         | int       | 0                 |                                   | no        | GID of the device owner in the container
 mode        | int       | 0660              |                                   | no        | Mode of the device in the container
+required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the container.
 
 ### Type: unix-block
 Unix block device entries simply make the requested block device
@@ -376,6 +377,7 @@ minor       | int       | device on host    |                                   
 uid         | int       | 0                 |                                   | no        | UID of the device owner in the container
 gid         | int       | 0                 |                                   | no        | GID of the device owner in the container
 mode        | int       | 0660              |                                   | no        | Mode of the device in the container
+required    | boolean   | true              | unix\_device\_hotplug             | no        | Whether or not this device is required to start the container.
 
 ### Type: usb
 USB device entries simply make the requested USB device appear in the
