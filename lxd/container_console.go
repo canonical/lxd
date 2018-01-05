@@ -320,14 +320,14 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 }
 
 func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
+	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+		return BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
+	}
+
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
-	}
-
-	if util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
-		return BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
 	ent := fileResponseEntry{}
@@ -367,14 +367,14 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
+	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+		return BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
+	}
+
 	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
-	}
-
-	if util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
-		return BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
 	}
 
 	truncateConsoleLogFile := func(path string) error {
