@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-12-22 17:15-0500\n"
+"POT-Creation-Date: 2018-01-05 14:27-0500\n"
 "PO-Revision-Date: 2017-10-10 14:59+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -78,10 +78,6 @@ msgstr "%s (他%d個)"
 msgid "%v (interrupt two more times to force)"
 msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
-
-#: lxc/snapshot.go:53
-msgid "'/' not allowed in snapshot name"
-msgstr "'/' はスナップショットの名前には使用できません。"
 
 #: lxc/profile.go:289
 msgid "(none)"
@@ -372,8 +368,10 @@ msgid "ISSUE DATE"
 msgstr ""
 
 #: lxc/main.go:157
+#, fuzzy
 msgid ""
-"If this is your first time using LXD, you should also run: sudo lxd init"
+"If this is your first time running LXD on this machine, you should also run: "
+"lxd init"
 msgstr "初めて LXD を使う場合、sudo lxd init と実行する必要があります"
 
 #: lxc/main.go:50
@@ -1847,7 +1845,7 @@ msgstr ""
 "lxc restore u1 snap0\n"
 "    スナップショットからリストアします。"
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:19
 msgid ""
 "Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
 "\n"
@@ -1900,7 +1898,7 @@ msgid ""
 msgstr ""
 "スナップショットからコンテナの稼動状態をリストアするかどうか (取得可能な場合)"
 
-#: lxc/snapshot.go:36
+#: lxc/snapshot.go:33
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
@@ -2001,6 +1999,9 @@ msgstr "サブコマンドの引数の数が正しくありません"
 #: lxc/delete.go:45 lxc/image.go:398 lxc/image.go:403 lxc/image.go:860
 msgid "yes"
 msgstr ""
+
+#~ msgid "'/' not allowed in snapshot name"
+#~ msgstr "'/' はスナップショットの名前には使用できません。"
 
 #~ msgid "Unable to read remote TLS certificate"
 #~ msgstr "リモートの TLS 証明書を読めません"

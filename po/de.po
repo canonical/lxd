@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-12-22 17:15-0500\n"
+"POT-Creation-Date: 2018-01-05 14:27-0500\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -120,11 +120,6 @@ msgstr ""
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
-
-#: lxc/snapshot.go:53
-#, fuzzy
-msgid "'/' not allowed in snapshot name"
-msgstr "'/' ist kein gültiges Zeichen im Namen eines Sicherungspunktes\n"
 
 #: lxc/profile.go:289
 msgid "(none)"
@@ -428,7 +423,8 @@ msgstr ""
 
 #: lxc/main.go:157
 msgid ""
-"If this is your first time using LXD, you should also run: sudo lxd init"
+"If this is your first time running LXD on this machine, you should also run: "
+"lxd init"
 msgstr ""
 
 #: lxc/main.go:50
@@ -1579,7 +1575,7 @@ msgid ""
 "    Restore the snapshot."
 msgstr ""
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:19
 msgid ""
 "Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
 "\n"
@@ -1622,7 +1618,7 @@ msgstr ""
 "Laufenden Zustand des Containers aus dem Sicherungspunkt (falls vorhanden) "
 "wiederherstellen oder nicht"
 
-#: lxc/snapshot.go:36
+#: lxc/snapshot.go:33
 msgid "Whether or not to snapshot the container's running state"
 msgstr "Zustand des laufenden Containers sichern oder nicht"
 
@@ -1723,6 +1719,10 @@ msgstr "falsche Anzahl an Parametern für Unterbefehl"
 #: lxc/delete.go:45 lxc/image.go:398 lxc/image.go:403 lxc/image.go:860
 msgid "yes"
 msgstr ""
+
+#, fuzzy
+#~ msgid "'/' not allowed in snapshot name"
+#~ msgstr "'/' ist kein gültiges Zeichen im Namen eines Sicherungspunktes\n"
 
 #~ msgid "can't copy to the same container name"
 #~ msgstr "kann nicht zum selben Container Namen kopieren"

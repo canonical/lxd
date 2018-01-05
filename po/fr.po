@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2017-12-22 17:15-0500\n"
+"POT-Creation-Date: 2018-01-05 14:27-0500\n"
 "PO-Revision-Date: 2015-02-26 02:05-0600\n"
 "Last-Translator: Stéphane Graber <stgraber@ubuntu.com\n"
 "Language-Team: French <fr@li.org>\n"
@@ -77,11 +77,6 @@ msgstr ""
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
-
-#: lxc/snapshot.go:53
-#, fuzzy
-msgid "'/' not allowed in snapshot name"
-msgstr "'/' n'est pas autorisé dans le nom d'un instantané (snapshot)\n"
 
 #: lxc/profile.go:289
 msgid "(none)"
@@ -381,7 +376,8 @@ msgstr ""
 
 #: lxc/main.go:157
 msgid ""
-"If this is your first time using LXD, you should also run: sudo lxd init"
+"If this is your first time running LXD on this machine, you should also run: "
+"lxd init"
 msgstr ""
 
 #: lxc/main.go:50
@@ -1428,7 +1424,7 @@ msgid ""
 "    Restore the snapshot."
 msgstr ""
 
-#: lxc/snapshot.go:22
+#: lxc/snapshot.go:19
 msgid ""
 "Usage: lxc snapshot [<remote>:]<container> <snapshot name> [--stateful]\n"
 "\n"
@@ -1469,7 +1465,7 @@ msgstr ""
 "Est-ce que l'état de fonctionement du conteneur doit être inclus dans "
 "l'instantané (snapshot)"
 
-#: lxc/snapshot.go:36
+#: lxc/snapshot.go:33
 msgid "Whether or not to snapshot the container's running state"
 msgstr ""
 "Est-ce que l'état de fonctionement du conteneur doit être inclus dans "
@@ -1572,6 +1568,10 @@ msgstr "nombre d'argument incorrect pour la sous-comande"
 #: lxc/delete.go:45 lxc/image.go:398 lxc/image.go:403 lxc/image.go:860
 msgid "yes"
 msgstr ""
+
+#, fuzzy
+#~ msgid "'/' not allowed in snapshot name"
+#~ msgstr "'/' n'est pas autorisé dans le nom d'un instantané (snapshot)\n"
 
 #, fuzzy
 #~ msgid "bad number of things scanned from image, container or snapshot"
