@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-01-04 11:36-0500\n"
+"POT-Creation-Date: 2018-01-07 23:53-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -179,7 +179,7 @@ msgstr ""
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:461
+#: lxc/list.go:463
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -256,7 +256,7 @@ msgstr ""
 msgid "CREATED"
 msgstr ""
 
-#: lxc/list.go:462
+#: lxc/list.go:464
 msgid "CREATED AT"
 msgstr ""
 
@@ -301,7 +301,7 @@ msgstr ""
 msgid "Client certificate stored at server: "
 msgstr ""
 
-#: lxc/image.go:174 lxc/image.go:175 lxc/list.go:128 lxc/list.go:129
+#: lxc/image.go:174 lxc/image.go:175 lxc/list.go:130 lxc/list.go:131
 msgid "Columns"
 msgstr ""
 
@@ -380,7 +380,7 @@ msgstr ""
 msgid "Creating the container"
 msgstr ""
 
-#: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:463 lxc/network.go:525
+#: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:525
 #: lxc/storage.go:682 lxc/storage.go:793
 msgid "DESCRIPTION"
 msgstr ""
@@ -424,7 +424,7 @@ msgstr ""
 msgid "Disk usage:"
 msgstr ""
 
-#: lxc/list.go:619
+#: lxc/list.go:622
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -512,7 +512,7 @@ msgstr ""
 msgid "Failed to walk path for %s: %s"
 msgstr ""
 
-#: lxc/list.go:131
+#: lxc/list.go:133
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
@@ -541,7 +541,7 @@ msgstr ""
 msgid "Force using the local unix socket"
 msgstr ""
 
-#: lxc/image.go:180 lxc/list.go:130
+#: lxc/image.go:180 lxc/list.go:132
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
@@ -553,11 +553,11 @@ msgstr ""
 msgid "ID"
 msgstr ""
 
-#: lxc/list.go:459
+#: lxc/list.go:461
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:460
+#: lxc/list.go:462
 msgid "IPV6"
 msgstr ""
 
@@ -649,7 +649,7 @@ msgstr ""
 msgid "Keep the image up to date after initial copy"
 msgstr ""
 
-#: lxc/list.go:464
+#: lxc/list.go:466
 msgid "LAST USED AT"
 msgstr ""
 
@@ -718,7 +718,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr ""
 
-#: lxc/list.go:465 lxc/network.go:522 lxc/profile.go:573 lxc/remote.go:409
+#: lxc/list.go:467 lxc/network.go:522 lxc/profile.go:573 lxc/remote.go:409
 #: lxc/storage.go:681 lxc/storage.go:792
 msgid "NAME"
 msgstr ""
@@ -804,15 +804,19 @@ msgstr ""
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:621
+#: lxc/list.go:624
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:466
+#: lxc/list.go:469
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:467
+#: lxc/list.go:468
+msgid "PROCESSES"
+msgstr ""
+
+#: lxc/list.go:470
 msgid "PROFILES"
 msgstr ""
 
@@ -996,7 +1000,7 @@ msgstr ""
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:468
+#: lxc/list.go:471
 msgid "SNAPSHOTS"
 msgstr ""
 
@@ -1004,7 +1008,7 @@ msgstr ""
 msgid "SOURCE"
 msgstr ""
 
-#: lxc/list.go:469
+#: lxc/list.go:472
 msgid "STATE"
 msgstr ""
 
@@ -1016,7 +1020,7 @@ msgstr ""
 msgid "STATUS"
 msgstr ""
 
-#: lxc/list.go:471
+#: lxc/list.go:474
 msgid "STORAGE POOL"
 msgstr ""
 
@@ -1157,7 +1161,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/list.go:470 lxc/network.go:523 lxc/operation.go:153 lxc/storage.go:791
+#: lxc/list.go:473 lxc/network.go:523 lxc/operation.go:153 lxc/storage.go:791
 msgid "TYPE"
 msgstr ""
 
@@ -1705,6 +1709,8 @@ msgid ""
 "\tl - Last used date\n"
 "\n"
 "\tn - Name\n"
+"\n"
+"\tN - Number of Processes\n"
 "\n"
 "\tp - PID of the container's init process\n"
 "\n"
