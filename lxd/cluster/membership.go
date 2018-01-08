@@ -85,7 +85,10 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 
 	// Shutdown the gateway. This will trash any gRPC SQL connection
 	// against our in-memory dqlite driver and shutdown the associated raft
-	// instance.
+	// instance. We also lock regular access to the cluster database since
+	// we don't want any other database code to run while we're
+	// reconfiguring raft.
+	state.Cluster.EnterExclusive()
 	err = gateway.Shutdown()
 	if err != nil {
 		return errors.Wrap(err, "failed to shutdown gRPC SQL gateway")
@@ -116,10 +119,11 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	}
 
 	// Make sure we can actually connect to the cluster database through
-	// the network endpoint. This also makes the Go SQL pooling system
-	// invalidate the old connection, so new queries will be executed over
-	// the new gRPC network connection.
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	// the network endpoint. This also releases the previously acquired
+	// lock and makes the Go SQL pooling system invalidate the old
+	// connection, so new queries will be executed over the new gRPC
+	// network connection.
+	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
 		_, err := tx.Nodes()
 		return err
 	})
@@ -268,7 +272,10 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 	// Re-initialize the gateway. This will create a new raft factory an
 	// dqlite driver instance, which will be exposed over gRPC by the
-	// gateway handlers.
+	// gateway handlers. We also lock regular access to the cluster database since
+	// we don't want any other database code to run while we're
+	// reconfiguring raft.
+	state.Cluster.EnterExclusive()
 	gateway.cert = cert
 	err = gateway.init()
 	if err != nil {
@@ -297,11 +304,12 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	}
 
 	// Make sure we can actually connect to the cluster database through
-	// the network endpoint. This also makes the Go SQL pooling system
-	// invalidate the old connection, so new queries will be executed over
-	// the new gRPC network connection. Also, update the storage_pools and
-	// networks tables with our local configuration.
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	// the network endpoint. This also releases the previously acquired
+	// lock and makes the Go SQL pooling system invalidate the old
+	// connection, so new queries will be executed over the new gRPC
+	// network connection. Also, update the storage_pools and networks
+	// tables with our local configuration.
+	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
 		node, err := tx.NodeByAddress(address)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ID of joining node")

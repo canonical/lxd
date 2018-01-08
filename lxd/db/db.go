@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
@@ -142,6 +143,7 @@ func (n *Node) Begin() (*sql.Tx, error) {
 type Cluster struct {
 	db     *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
 	nodeID int64   // Node ID of this LXD instance.
+	mu     sync.RWMutex
 }
 
 // OpenCluster creates a new Cluster object for interacting with the dqlite
@@ -229,7 +231,29 @@ func ForLocalInspection(db *sql.DB) *Cluster {
 // cluster database interactions invoked by the given function. If the function
 // returns no error, all database changes are committed to the cluster database
 // database, otherwise they are rolled back.
+//
+// If EnterExclusive has been called before, calling Transaction will block
+// until ExitExclusive has been called as well to release the lock.
 func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.transaction(f)
+}
+
+// EnterExclusive acquires a lock on the cluster db, so any successive call to
+// Transaction will block until ExitExclusive has been called.
+func (c *Cluster) EnterExclusive() {
+	c.mu.Lock()
+}
+
+// ExitExclusive runs the given transation and then releases the lock acquired
+// with EnterExclusive.
+func (c *Cluster) ExitExclusive(f func(*ClusterTx) error) error {
+	defer c.mu.Unlock()
+	return c.transaction(f)
+}
+
+func (c *Cluster) transaction(f func(*ClusterTx) error) error {
 	clusterTx := &ClusterTx{
 		nodeID: c.nodeID,
 	}
