@@ -3,8 +3,6 @@
 set -xe
 export DEBIAN_FRONTEND=noninteractive
 
-which add-apt-repository || (sudo apt-get update ; sudo apt-get install -y software-properties-common)
-sudo add-apt-repository ppa:ubuntu-lxc/lxd-git-master
 sudo apt-get update
 which go || sudo apt-get install -y golang
 
