@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-01-07 23:53-0500\n"
-"PO-Revision-Date: 2017-10-26 15:46+0000\n"
-"Last-Translator: Alban Vidal <alban.vidal@zordhak.fr>\n"
+"POT-Creation-Date: 2018-01-08 01:36-0500\n"
+"PO-Revision-Date: 2018-01-02 10:52+0000\n"
+"Last-Translator: Bruno Perel <brunoperel@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/fr/>\n"
 "Language: fr\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2.17\n"
+"X-Generator: Weblate 2.19-dev\n"
 
 #: lxc/storage.go:33
 msgid ""
@@ -312,7 +312,7 @@ msgstr "Architecture : %s"
 #: lxc/remote.go:259
 #, c-format
 msgid "Authentication type '%s' not supported by server"
-msgstr ""
+msgstr "Le type d'authentification '%s' n'est pas supporté par le serveur"
 
 #: lxc/image.go:631
 #, c-format
@@ -898,7 +898,8 @@ msgstr "Aucune empreinte n'a été indiquée."
 
 #: lxc/storage.go:355 lxc/storage.go:448
 msgid "Only \"custom\" volumes can be attached to containers."
-msgstr "Seul les volumes \"personnalisés\" peuvent être attaché aux conteneurs"
+msgstr ""
+"Seuls les volumes \"personnalisés\" peuvent être attachés aux conteneurs."
 
 #: lxc/remote.go:101
 msgid "Only https URLs are supported for simplestreams"
