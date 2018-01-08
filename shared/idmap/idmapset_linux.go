@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -667,8 +668,13 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 	newuidmap, _ := exec.LookPath("newuidmap")
 	newgidmap, _ := exec.LookPath("newgidmap")
 	if newuidmap != "" && newgidmap != "" && shared.PathExists("/etc/subuid") && shared.PathExists("/etc/subgid") {
+		currentUser, err := user.Current()
+		if err != nil {
+			return nil, err
+		}
+
 		// Parse the shadow uidmap
-		entries, err := getFromShadow("/etc/subuid", "root")
+		entries, err := getFromShadow("/etc/subuid", currentUser.Username)
 		if err != nil {
 			return nil, err
 		}
@@ -687,7 +693,7 @@ func DefaultIdmapSet() (*IdmapSet, error) {
 		}
 
 		// Parse the shadow gidmap
-		entries, err = getFromShadow("/etc/subgid", "root")
+		entries, err = getFromShadow("/etc/subgid", currentUser.Username)
 		if err != nil {
 			return nil, err
 		}
