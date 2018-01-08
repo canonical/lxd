@@ -1777,6 +1777,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 			LastUsedDate: c.LastUsedDate(),
 			Name:         c.Name(),
 			Profiles:     c.Profiles(),
+			Description:  c.Description(),
 		}
 
 		if c.IsSnapshot() {
