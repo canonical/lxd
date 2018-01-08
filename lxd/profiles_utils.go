@@ -114,7 +114,9 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 			Ephemeral:    c.IsEphemeral(),
 			Config:       c.LocalConfig(),
 			Devices:      c.LocalDevices(),
-			Profiles:     c.Profiles()}, true)
+			Profiles:     c.Profiles(),
+			Description:  c.Description(),
+		}, true)
 
 		if err != nil {
 			failures[c.Name()] = err
