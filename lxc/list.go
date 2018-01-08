@@ -93,6 +93,8 @@ Pre-defined column shorthand chars:
 
 	n - Name
 
+	N - Number of Processes
+
 	p - PID of the container's init process
 
 	P - Profiles
@@ -463,6 +465,7 @@ func (c *listCmd) parseColumns() ([]column, error) {
 		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData, false, false},
 		'l': {i18n.G("LAST USED AT"), c.LastUsedColumnData, false, false},
 		'n': {i18n.G("NAME"), c.nameColumnData, false, false},
+		'N': {i18n.G("PROCESSES"), c.NumberOfProcessesColumnData, true, false},
 		'p': {i18n.G("PID"), c.PIDColumnData, true, false},
 		'P': {i18n.G("PROFILES"), c.ProfilesColumnData, false, false},
 		'S': {i18n.G("SNAPSHOTS"), c.numberSnapshotsColumnData, false, true},
@@ -674,4 +677,13 @@ func (c *listCmd) LastUsedColumnData(cInfo api.Container, cState *api.ContainerS
 	}
 
 	return ""
+}
+
+func (c *listCmd) NumberOfProcessesColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+	if cInfo.IsActive() && cState != nil {
+		return fmt.Sprintf("%d", cState.Processes)
+	}
+
+	return ""
+
 }
