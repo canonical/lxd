@@ -7,6 +7,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 
@@ -24,6 +25,7 @@ func LoadPreClusteringData(tx *sql.Tx) (*Dump, error) {
 		Data:   map[string][][]interface{}{},
 	}
 	for _, table := range preClusteringTables {
+		logger.Debugf("Loading data from table %s", table)
 		data := [][]interface{}{}
 		stmt := fmt.Sprintf("SELECT * FROM %s", table)
 		rows, err := tx.Query(stmt)
@@ -74,6 +76,7 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 	}
 
 	for _, table := range preClusteringTables {
+		logger.Debugf("Migrating data for table %s", table)
 		for i, row := range dump.Data[table] {
 			for i, element := range row {
 				// Convert []byte columns to string. This is safe to do since
@@ -191,6 +194,9 @@ var preClusteringTables = []string{
 	"certificates",
 	"config",
 	"profiles",
+	"profiles_config",
+	"profiles_devices",
+	"profiles_devices_config",
 	"containers",
 	"containers_config",
 	"containers_devices",
