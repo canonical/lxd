@@ -28,3 +28,8 @@ type ClusterTx struct {
 	tx     *sql.Tx // Handle to a transaction in the cluster dqlite database.
 	nodeID int64   // Node ID of this LXD instance.
 }
+
+// NodeID sets the the node NodeID associated with this cluster transaction.
+func (c *ClusterTx) NodeID(id int64) {
+	c.nodeID = id
+}

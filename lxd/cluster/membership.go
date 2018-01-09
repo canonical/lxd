@@ -315,6 +315,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return errors.Wrap(err, "failed to get ID of joining node")
 		}
 		state.Cluster.NodeID(node.ID)
+		tx.NodeID(node.ID)
 
 		// Storage pools.
 		ids, err := tx.StoragePoolIDs()
@@ -367,7 +368,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		for _, uuid := range operations {
 			_, err := tx.OperationAdd(uuid)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "failed to migrate operation %s", uuid)
 			}
 		}
 		return nil
