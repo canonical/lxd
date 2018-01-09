@@ -409,20 +409,22 @@ gid         | int       | 0                 | no        | GID of the device owne
 mode        | int       | 0660              | no        | Mode of the device in the container
 
 ### Type: proxy
-Proxy devices are processes that forward data to/from ports in the container and
-ports in host. Used to communicate easily between two network namespaces.
+Proxy devices allow forwarding network connections between host and container.
+This makes it possible to forward traffic hitting one of the host's
+addresses to an address inside the container or to do the reverse and
+have an address in the container connect through the host.
 
-Currently supported connection types:
+The supported connection types are:
  - `TCP - TCP`
 
-Key         | Type      | Default           | Required  | Description                             
-:--         | :--       | :--               | :--       | :--                                     
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :
 listen      | string    | -                 | yes       | The address and port to bind and listen
 connect     | string    | -                 | yes       | The address and port to connect to
 bind        | string    | host              | no        | Which side to bind on (host/container)
 
 ```
-lxc config device add <container_name> <device-name> proxy listen=<type>:<addr>:<port> listen=<type>:<addr>:<port> bind=<host/container>
+lxc config device add <container> <device-name> proxy listen=<type>:<addr>:<port> listen=<type>:<addr>:<port> bind=<host/container>
 ```
 
 ## Instance types
