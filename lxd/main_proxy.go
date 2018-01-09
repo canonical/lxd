@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
@@ -127,30 +126,4 @@ func getDestConn(connectAddr string) (net.Conn, error) {
 	fields := strings.SplitN(connectAddr, ":", 2)
 	addr := strings.Join(fields[1:], "")
 	return net.Dial(fields[0], addr)
-}
-
-func cleanupUnixSocket(listenAddr string) error {
-	fields := strings.SplitN(listenAddr, ":", 2)
-	addr := strings.Join(fields[1:], "")
-	if fields[0] == "unix" {
-		err := syscall.Unlink(addr)
-		return err
-	}
-	return nil
-}
-
-func handleSignal(listenAddr string) {
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, syscall.SIGTERM)
-	go func() {
-		// Wait for a SIGTERM
-		sig := <-sigc
-		fmt.Printf("Caught signal %s: cleaning up...\n", sig)
-		err := cleanupUnixSocket(listenAddr)
-		if err != nil {
-			fmt.Printf("Error unlinking unix socket: %v\n", err)
-		}
-		// And we're done:
-		os.Exit(0)
-	}()
 }

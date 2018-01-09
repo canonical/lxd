@@ -20,23 +20,6 @@ type proxyProcInfo struct {
 	listenAddr  string
 }
 
-func createProxyDevInfoFile(devicesPath string, proxyDev string, proxyPid int) error {
-	devFileName := fmt.Sprintf("proxy.%s", proxyDev)
-	filePath := filepath.Join(devicesPath, devFileName)
-	f, err := os.Create(filePath)
-
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	info := fmt.Sprintf("%d", proxyPid)
-	_, err = f.WriteString(info)
-
-	return err
-}
-
 func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, error) {
 	pid := c.InitPID()
 	containerPid := strconv.Itoa(int(pid))
