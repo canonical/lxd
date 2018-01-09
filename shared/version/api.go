@@ -86,4 +86,5 @@ var APIExtensions = []string{
 	"infiniband",
 	"maas_network",
 	"devlxd_events",
+	"proxy",
 }

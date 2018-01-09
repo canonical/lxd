@@ -191,6 +191,7 @@ ID (database)   | Name                              | Description
 5               | [usb](#type-usb)                  | USB device
 6               | [gpu](#type-gpu)                  | GPU device
 7               | [infiniband](#type-infiniband)    | Infiniband device
+8               | [proxy](#type-proxy)              | Proxy device
 
 ### Type: none
 A none type device doesn't have any property and doesn't create anything inside the container.
@@ -406,6 +407,25 @@ pci         | string    | -                 | no        | The pci address of the
 uid         | int       | 0                 | no        | UID of the device owner in the container
 gid         | int       | 0                 | no        | GID of the device owner in the container
 mode        | int       | 0660              | no        | Mode of the device in the container
+
+### Type: proxy
+Proxy devices allow forwarding network connections between host and container.
+This makes it possible to forward traffic hitting one of the host's
+addresses to an address inside the container or to do the reverse and
+have an address in the container connect through the host.
+
+The supported connection types are:
+ - `TCP - TCP`
+
+Key         | Type      | Default           | Required  | Description
+:--         | :--       | :--               | :--       | :
+listen      | string    | -                 | yes       | The address and port to bind and listen
+connect     | string    | -                 | yes       | The address and port to connect to
+bind        | string    | host              | no        | Which side to bind on (host/container)
+
+```
+lxc config device add <container> <device-name> proxy listen=<type>:<addr>:<port> listen=<type>:<addr>:<port> bind=<host/container>
+```
 
 ## Instance types
 LXD supports simple instance types. Those are represented as a string
