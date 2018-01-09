@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 	log "github.com/lxc/lxd/shared/log15"
@@ -23,6 +24,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
+
+// Lock to prevent concurent networks creation
+var networkCreateLock sync.Mutex
 
 // API endpoints
 func networksGet(d *Daemon, r *http.Request) Response {
@@ -59,6 +63,9 @@ func networksGet(d *Daemon, r *http.Request) Response {
 }
 
 func networksPost(d *Daemon, r *http.Request) Response {
+	networkCreateLock.Lock()
+	defer networkCreateLock.Unlock()
+
 	req := api.NetworksPost{}
 
 	// Parse the request
