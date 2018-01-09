@@ -17,9 +17,11 @@ func TestLoadPreClusteringData(t *testing.T) {
 
 	// config
 	assert.Equal(t, []string{"id", "key", "value"}, dump.Schema["config"])
-	assert.Len(t, dump.Data["config"], 1)
+	assert.Len(t, dump.Data["config"], 2)
 	rows := []interface{}{int64(1), []byte("core.https_address"), []byte("1.2.3.4:666")}
 	assert.Equal(t, rows, dump.Data["config"][0])
+	rows = []interface{}{int64(2), []byte("core.trust_password"), []byte("sekret")}
+	assert.Equal(t, rows, dump.Data["config"][1])
 
 	// networks
 	assert.Equal(t, []string{"id", "name", "description"}, dump.Schema["networks"])
@@ -55,7 +57,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := tx.Config()
 		require.NoError(t, err)
-		values := map[string]string{"core.https_address": "1.2.3.4:666"}
+		values := map[string]string{"core.trust_password": "sekret"}
 		assert.Equal(t, values, config)
 		return nil
 	})
@@ -129,6 +131,7 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 		preClusteringNodeSchema,
 		"INSERT INTO certificates VALUES (1, 'abcd:efgh', 1, 'foo', 'FOO')",
 		"INSERT INTO config VALUES(1, 'core.https_address', '1.2.3.4:666')",
+		"INSERT INTO config VALUES(2, 'core.trust_password', 'sekret')",
 		"INSERT INTO profiles VALUES(1, 'default', 'Default LXD profile')",
 		"INSERT INTO profiles VALUES(2, 'users', '')",
 		"INSERT INTO profiles_config VALUES(2, 2, 'boot.autostart', 'false')",
