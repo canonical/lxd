@@ -50,7 +50,7 @@ func GetIdmapSet() *idmap.IdmapSet {
 		if err == nil {
 			logger.Infof("Kernel uid/gid map:")
 			for _, lxcmap := range kernelIdmapSet.ToLxcString() {
-				logger.Infof(strings.TrimRight(" - "+lxcmap, "\n"))
+				logger.Infof(" - " + lxcmap)
 			}
 		}
 
@@ -68,7 +68,7 @@ func GetIdmapSet() *idmap.IdmapSet {
 				}
 
 				for _, lxcEntry := range lxcmap.ToLxcString() {
-					logger.Infof(" - %s%s", strings.TrimRight(lxcEntry, "\n"), suffix)
+					logger.Infof(" - %s%s", lxcEntry, suffix)
 				}
 			}
 
