@@ -1135,7 +1135,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	if idmapset != nil {
 		lines := idmapset.ToLxcString()
 		for _, line := range lines {
-			err := lxcSetConfigItem(cc, "lxc.idmap", strings.TrimSuffix(line, "\n"))
+			err := lxcSetConfigItem(cc, "lxc.idmap", line)
 			if err != nil {
 				return err
 			}
