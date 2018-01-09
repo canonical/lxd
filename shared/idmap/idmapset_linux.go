@@ -402,8 +402,8 @@ func (m IdmapSet) ToLxcString() []string {
 	var lines []string
 	for _, e := range m.Idmap {
 		for _, l := range e.ToLxcString() {
-			if !shared.StringInSlice(l+"\n", lines) {
-				lines = append(lines, l+"\n")
+			if !shared.StringInSlice(l, lines) {
+				lines = append(lines, l)
 			}
 		}
 	}
