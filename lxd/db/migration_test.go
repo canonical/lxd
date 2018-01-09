@@ -87,6 +87,33 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, volumes, 1)
 	assert.Equal(t, "/foo/bar", volumes[0].Config["source"])
+
+	// profiles
+	profiles, err := cluster.Profiles()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"default", "users"}, profiles)
+	_, profile, err := cluster.ProfileGet("default")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{}, profile.Config)
+	assert.Equal(t,
+		map[string]map[string]string{
+			"root": {
+				"path": "/",
+				"pool": "default",
+				"type": "nic"},
+			"eth0": {
+				"type":    "nic",
+				"nictype": "bridged",
+				"parent":  "lxdbr0"}},
+		profile.Devices)
+	_, profile, err = cluster.ProfileGet("users")
+	require.NoError(t, err)
+	assert.Equal(t,
+		map[string]string{
+			"boot.autostart": "false",
+			"limits.cpu":     "50%"},
+		profile.Config)
+	assert.Equal(t, map[string]map[string]string{}, profile.Devices)
 }
 
 // Return a sql.Tx against a memory database populated with pre-clustering
@@ -102,6 +129,16 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 		preClusteringNodeSchema,
 		"INSERT INTO certificates VALUES (1, 'abcd:efgh', 1, 'foo', 'FOO')",
 		"INSERT INTO config VALUES(1, 'core.https_address', '1.2.3.4:666')",
+		"INSERT INTO profiles VALUES(1, 'default', 'Default LXD profile')",
+		"INSERT INTO profiles VALUES(2, 'users', '')",
+		"INSERT INTO profiles_config VALUES(2, 2, 'boot.autostart', 'false')",
+		"INSERT INTO profiles_config VALUES(3, 2, 'limits.cpu', '50%')",
+		"INSERT INTO profiles_devices VALUES(1, 1, 'eth0', 1)",
+		"INSERT INTO profiles_devices VALUES(2, 1, 'root', 1)",
+		"INSERT INTO profiles_devices_config VALUES(1, 1, 'nictype', 'bridged')",
+		"INSERT INTO profiles_devices_config VALUES(2, 1, 'parent', 'lxdbr0')",
+		"INSERT INTO profiles_devices_config VALUES(3, 2, 'path', '/')",
+		"INSERT INTO profiles_devices_config VALUES(4, 2, 'pool', 'default')",
 		"INSERT INTO images VALUES(1, 'abc', 'x.gz', 16, 0, 1, 0, 0, strftime('%d-%m-%Y', 'now'), 0, 0, 0)",
 		"INSERT INTO networks VALUES(1, 'lxcbr0', 'LXD bridge')",
 		"INSERT INTO networks_config VALUES(1, 1, 'ipv4.nat', 'true')",

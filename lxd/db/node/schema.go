@@ -18,30 +18,6 @@ CREATE TABLE patches (
     applied_at DATETIME NOT NULL,
     UNIQUE (name)
 );
-CREATE TABLE profiles_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    profile_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value VARCHAR(255),
-    UNIQUE (profile_id, key),
-    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
-);
-CREATE TABLE profiles_devices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    profile_id INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    type INTEGER NOT NULL default 0,
-    UNIQUE (profile_id, name),
-    FOREIGN KEY (profile_id) REFERENCES profiles (id) ON DELETE CASCADE
-);
-CREATE TABLE profiles_devices_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    profile_device_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    UNIQUE (profile_device_id, key),
-    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id) ON DELETE CASCADE
-);
 CREATE TABLE raft_nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     address TEXT NOT NULL,
