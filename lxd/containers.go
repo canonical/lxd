@@ -157,13 +157,13 @@ func containersShutdown(s *state.State, storage storage) error {
 		// Stop the container
 		if lastState != "BROKEN" && lastState != "STOPPED" {
 			wg.Add(1)
-			go func() {
+			go func(c container, lastState string) {
 				c.Shutdown(time.Second * 30)
 				c.Stop(false)
 				c.ConfigKeySet("volatile.last_state.power", lastState)
 
 				wg.Done()
-			}()
+			}(c, lastState)
 		} else {
 			c.ConfigKeySet("volatile.last_state.power", lastState)
 		}
