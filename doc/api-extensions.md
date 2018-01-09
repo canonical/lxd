@@ -391,3 +391,7 @@ This adds a websocket API to the devlxd socket.
 
 When connecting to /1.0/events over the devlxd socket, you will now be
 getting a stream of events over websocket.
+
+## proxy
+This adds a new `proxy` device type to containers, allowing forwarding
+of connections between the host and container.
