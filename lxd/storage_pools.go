@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/db"
@@ -13,6 +14,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
+
+// Lock to prevent concurent storage pools creation
+var storagePoolCreateLock sync.Mutex
 
 // /1.0/storage-pools
 // List all storage pools.
@@ -60,6 +64,9 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 // /1.0/storage-pools
 // Create a storage pool.
 func storagePoolsPost(d *Daemon, r *http.Request) Response {
+	storagePoolCreateLock.Lock()
+	defer storagePoolCreateLock.Unlock()
+
 	req := api.StoragePoolsPost{}
 
 	// Parse the request.
