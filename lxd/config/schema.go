@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,7 @@ func (s Schema) Keys() []string {
 		keys[i] = key
 		i++
 	}
+	sort.Strings(keys)
 	return keys
 }
 

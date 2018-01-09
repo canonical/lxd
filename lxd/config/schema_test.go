@@ -21,6 +21,6 @@ func TestSchema_Keys(t *testing.T) {
 		"foo": {},
 		"bar": {Default: "x"},
 	}
-	keys := []string{"foo", "bar"}
+	keys := []string{"bar", "foo"}
 	assert.Equal(t, keys, schema.Keys())
 }
