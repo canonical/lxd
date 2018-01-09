@@ -99,6 +99,19 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 			}
 
 			switch table {
+			case "config":
+				// Don't migrate the core.https_address config key,
+				// which is node-specific and must remain in the node
+				// database.
+				isCoreHTTPSAddress := false
+				for i, column := range columns {
+					if column == "key" && row[i] == "core.https_address" {
+						isCoreHTTPSAddress = true
+					}
+				}
+				if isCoreHTTPSAddress {
+					continue
+				}
 			case "containers":
 				fallthrough
 			case "networks_config":
