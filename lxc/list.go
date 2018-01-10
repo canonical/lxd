@@ -105,7 +105,7 @@ Pre-defined column shorthand chars:
 
 	t - Type (persistent or ephemeral)
 
-	N - Node hosting the container
+	H - Node hosting the container
 
 Custom columns are defined with "key[:name][:maxWidth]":
 
@@ -128,7 +128,7 @@ lxc list -c ns,user.comment:comment
 	List images with their running state and user comment. `)
 }
 
-const defaultColumns = "ns46tSN"
+const defaultColumns = "ns46tSNH"
 
 func (c *listCmd) flags() {
 	gnuflag.StringVar(&c.columnsRaw, "c", defaultColumns, i18n.G("Columns"))
@@ -488,15 +488,15 @@ func (c *listCmd) parseColumns(clustered bool) ([]column, error) {
 	}
 
 	if clustered {
-		columnsShorthandMap['N'] = column{
+		columnsShorthandMap['H'] = column{
 			i18n.G("NODE"), c.nodeColumnData, false, false}
 	} else {
 		if c.columnsRaw != defaultColumns {
-			if strings.ContainsAny(c.columnsRaw, "N") {
-				return nil, fmt.Errorf("Can't specify column N when not clustered")
+			if strings.ContainsAny(c.columnsRaw, "H") {
+				return nil, fmt.Errorf("Can't specify column H when not clustered")
 			}
 		}
-		c.columnsRaw = strings.Replace(c.columnsRaw, "N", "", -1)
+		c.columnsRaw = strings.Replace(c.columnsRaw, "H", "", -1)
 	}
 
 	columnList := strings.Split(c.columnsRaw, ",")
