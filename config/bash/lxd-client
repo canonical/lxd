@@ -6,11 +6,11 @@ _have lxc && {
       local state=$1
       local keys=$2
 
-      local cmd="lxc list --fast"
-      [ -n "$state" ] && cmd="$cmd | grep -E '$state'"
+      local cmd="lxc list --format=csv --columns=ns"
+      [ -n "$state" ] && cmd="$cmd | grep -E '$state$'"
 
       COMPREPLY=( $( compgen -W \
-        "$( eval $cmd | grep -Ev '(\+--|NAME)' | awk '{print $2}' ) $keys" "$cur" )
+        "$( eval $cmd | cut -d, -f1 ) $keys" "$cur" )
       )
     }
 
