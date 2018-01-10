@@ -82,18 +82,18 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 	wg := sync.WaitGroup{}
 	for address, containers := range result {
+		// If this is an internal request from another cluster node,
+		// ignore containers from other nodes, and return only the ones
+		// on this node
+		if isClusterNotification(r) && address != "" {
+			continue
+		}
+
 		// Mark containers on unavailable nodes as down
 		if recursion && address == "0.0.0.0" {
 			for _, container := range containers {
 				resultAppend(container, api.Container{}, fmt.Errorf("unavailable"))
 			}
-			continue
-		}
-
-		// If this is an internal request from another cluster node,
-		// ignore containers from other nodes, and return only the ones
-		// on this node
-		if isClusterNotification(r) && address != "" {
 			continue
 		}
 
