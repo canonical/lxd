@@ -283,7 +283,7 @@ func (c *fileCmd) edit(conf *config.Config, args []string) error {
 	fname := f.Name()
 	f.Close()
 	os.Remove(fname)
-	defer os.Remove(fname)
+	defer os.Remove(shared.HostPath(fname))
 
 	// Extract current value
 	err = c.pull(conf, append([]string{args[0]}, fname))
@@ -291,7 +291,7 @@ func (c *fileCmd) edit(conf *config.Config, args []string) error {
 		return err
 	}
 
-	_, err = shared.TextEditor(fname, []byte{})
+	_, err = shared.TextEditor(shared.HostPath(fname), []byte{})
 	if err != nil {
 		return err
 	}
