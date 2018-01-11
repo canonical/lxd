@@ -178,6 +178,7 @@ type ContainerServer interface {
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
+	RawOperation(method string, path string, data interface{}, queryETag string) (op *Operation, ETag string, err error)
 }
 
 // The ConnectionInfo struct represents general information for a connection

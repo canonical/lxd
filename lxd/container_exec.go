@@ -16,6 +16,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -331,6 +333,26 @@ func (s *execWs) Do(op *operation) error {
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+
+	post := api.ContainerExecPost{}
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	if err := json.Unmarshal(buf, &post); err != nil {
+		return BadRequest(err)
+	}
+
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, name, cert)
+	if err != nil {
+		return SmartError(err)
+	}
+	if client != nil {
+		return containerExecPostCluster(client, name, post)
+	}
+
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
@@ -342,16 +364,6 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 	if c.IsFrozen() {
 		return BadRequest(fmt.Errorf("Container is frozen."))
-	}
-
-	post := api.ContainerExecPost{}
-	buf, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	if err := json.Unmarshal(buf, &post); err != nil {
-		return BadRequest(err)
 	}
 
 	env := map[string]string{}
@@ -493,4 +505,10 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	}
 
 	return OperationResponse(op)
+}
+
+// Perform an exec request for a container running on a different cluster node.
+func containerExecPostCluster(client lxd.ContainerServer, name string, req api.ContainerExecPost) Response {
+	op, _, err := client.RawOperation("POST", fmt.Sprintf("/containers/%s/exec", name), req, "")
+	return ForwardedOperationResponse(&op.Operation)
 }

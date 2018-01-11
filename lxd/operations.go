@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
@@ -605,14 +606,67 @@ func (r *operationWebSocket) String() string {
 	return md.ID
 }
 
+type forwardedOperationWebSocket struct {
+	req    *http.Request
+	id     string
+	source *websocket.Conn // Connection to the node were the operation is running
+}
+
+func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
+	target, err := shared.WebsocketUpgrader.Upgrade(w, r.req, nil)
+	if err != nil {
+		return err
+	}
+	<-shared.WebsocketProxy(r.source, target)
+	return nil
+}
+
+func (r *forwardedOperationWebSocket) String() string {
+	return r.id
+}
+
 func operationAPIWebsocketGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
+
+	// First check if the websocket is for a local operation from this
+	// node.
 	op, err := operationGet(id)
-	if err != nil {
-		return NotFound
+	if err == nil {
+		return &operationWebSocket{r, op}
 	}
 
-	return &operationWebSocket{r, op}
+	// Secondly check if the websocket is from an operation on another
+	// node, and, if so, proxy it.
+	secret := r.FormValue("secret")
+	if secret == "" {
+		return BadRequest(fmt.Errorf("missing secret"))
+	}
+
+	var address string
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		operation, err := tx.OperationByUUID(id)
+		if err != nil {
+			return err
+		}
+		address = operation.NodeAddress
+		return nil
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.Connect(address, cert, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	logger.Debugf("Forward operation websocket from node %s", address)
+	source, err := client.GetOperationWebsocket(id, secret)
+	if err != nil {
+		return SmartError(err)
+	}
+	return &forwardedOperationWebSocket{req: r, id: id, source: source}
 }
 
 var operationWebsocket = Command{name: "operations/{id}/websocket", untrustedGet: true, get: operationAPIWebsocketGet}
