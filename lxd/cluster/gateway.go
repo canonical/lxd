@@ -33,12 +33,19 @@ import (
 // After creation, the Daemon is expected to expose whatever http handlers the
 // HandlerFuncs method returns and to access the dqlite cluster using the gRPC
 // dialer returned by the Dialer method.
-func NewGateway(db *db.Node, cert *shared.CertInfo, latency float64) (*Gateway, error) {
+func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	o := newOptions()
+	for _, option := range options {
+		option(o)
+
+	}
+
 	gateway := &Gateway{
 		db:      db,
 		cert:    cert,
-		latency: latency,
+		options: o,
 		ctx:     ctx,
 		cancel:  cancel,
 	}
@@ -57,7 +64,7 @@ func NewGateway(db *db.Node, cert *shared.CertInfo, latency float64) (*Gateway, 
 type Gateway struct {
 	db      *db.Node
 	cert    *shared.CertInfo
-	latency float64
+	options *options
 
 	// The raft instance to use for creating the dqlite driver. It's nil if
 	// this LXD node is not supposed to be part of the raft cluster.
@@ -364,7 +371,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 // Initialize the gateway, creating a new raft factory and gRPC server (if this
 // node is a database node), and a gRPC dialer.
 func (g *Gateway) init() error {
-	raft, err := newRaft(g.db, g.cert, g.latency)
+	raft, err := newRaft(g.db, g.cert, g.options.latency)
 	if err != nil {
 		return errors.Wrap(err, "failed to create raft factory")
 	}
@@ -373,7 +380,11 @@ func (g *Gateway) init() error {
 	// should serve as database node, so create a dqlite driver to be
 	// exposed it over gRPC.
 	if raft != nil {
-		driver, err := dqlite.NewDriver(raft.FSM(), raft.Raft(), dqlite.LogFunc(dqliteLog))
+		driver, err := dqlite.NewDriver(
+			raft.FSM(),
+			raft.Raft(),
+			dqlite.LogFunc(dqliteLog(g.options.logLevel)),
+			dqlite.LogLevel(g.options.logLevel))
 		if err != nil {
 			return errors.Wrap(err, "failed to create dqlite driver")
 		}
@@ -517,24 +528,29 @@ func grpcMemoryDial(dial func() net.Conn) func() (*grpc.ClientConn, error) {
 const grpcEndpoint = "/protocol.SQL/Conn"
 
 // Redirect dqlite's logs to our own logger
-func dqliteLog(level, message string) {
-	if level == "TRACE" {
-		// Ignore TRACE level.
-		//
-		// TODO: lxd has no TRACE level, which is quite verbose in dqlite,
-		//       we'll need to take this level into account if we need to
-		//       do some deep debugging.
-		return
-	}
+func dqliteLog(configuredLevel string) func(level, message string) {
+	return func(level, message string) {
+		if level == "TRACE" {
+			// TODO: lxd has no TRACE level, so let's map it to
+			// DEBUG. However, ignore it altogether if the
+			// configured level is not TRACE, to save some CPU
+			// (since TRACE is quite verbose in dqlite).
+			if configuredLevel != "TRACE" {
+				return
+			}
+			level = "DEBUG"
+		}
 
-	switch level {
-	case "DEBUG":
-		logger.Debug(message)
-	case "INFO":
-		logger.Info(message)
-	case "WARN":
-		logger.Warn(message)
-	default:
-		// Ignore any other log level.
+		message = fmt.Sprintf("DQLite: %s", message)
+		switch level {
+		case "DEBUG":
+			logger.Debug(message)
+		case "INFO":
+			logger.Info(message)
+		case "WARN":
+			logger.Warn(message)
+		default:
+			// Ignore any other log level.
+		}
 	}
 }
