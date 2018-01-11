@@ -143,10 +143,15 @@ test_clustering_containers() {
   # A Node: field indicates on which node the container is running
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Node: node2"
 
-  # Start and stop the container via node1
+  # Star an the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
   LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: Running"
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
+
+  # Exec a command in the container via node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec foo ls / | grep -q linuxrc
+
+  # Stop the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
 
   # Create a container on node1 using the image that was stored on
