@@ -41,7 +41,7 @@ Commands:
         Start the main LXD daemon
     init [--auto] [--network-address=IP] [--network-port=8443] [--storage-backend=dir]
          [--storage-create-device=DEVICE] [--storage-create-loop=SIZE] [--storage-pool=POOL]
-         [--trust-password=] [--preseed]
+         [--trust-password=]
         Setup storage and networking
     ready
         Tells LXD that any setup-mode configuration has been done and that it can start containers.
