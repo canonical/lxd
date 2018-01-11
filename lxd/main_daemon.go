@@ -40,6 +40,7 @@ func cmdDaemon(args *Args) error {
 
 	c := DefaultDaemonConfig()
 	c.Group = args.Group
+	c.Trace = args.Trace
 	d := NewDaemon(c, sys.DefaultOS())
 	err = d.Init()
 	if err != nil {

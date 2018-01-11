@@ -79,6 +79,7 @@ type externalAuth struct {
 // DaemonConfig holds configuration values for Daemon.
 type DaemonConfig struct {
 	Group       string  // Group name the local unix socket should be chown'ed to
+	Trace       string  // Comma separated list of sub-systems to trace
 	RaftLatency float64 // Coarse grain measure of the cluster latency
 }
 
@@ -382,6 +383,9 @@ func (d *Daemon) init() error {
 			log.Ctx{"path": shared.VarPath("")})
 	}
 
+	/* List of sub-systems to trace */
+	trace := strings.Split(d.config.Trace, ",")
+
 	/* Initialize the operating system facade */
 	err = d.os.Init()
 	if err != nil {
@@ -401,7 +405,15 @@ func (d *Daemon) init() error {
 	}
 
 	/* Setup dqlite */
-	d.gateway, err = cluster.NewGateway(d.db, certInfo, d.config.RaftLatency)
+	clusterLogLevel := "ERROR"
+	if shared.StringInSlice("dqlite", trace) {
+		clusterLogLevel = "TRACE"
+	}
+	d.gateway, err = cluster.NewGateway(
+		d.db,
+		certInfo,
+		cluster.Latency(d.config.RaftLatency),
+		cluster.LogLevel(clusterLogLevel))
 	if err != nil {
 		return err
 	}
