@@ -20,6 +20,7 @@ func TestParse_ArgsDefaults(t *testing.T) {
 	assert.Equal(t, false, args.Preseed)
 	assert.Equal(t, "", args.CPUProfile)
 	assert.Equal(t, false, args.Debug)
+	assert.Equal(t, "", args.Trace)
 	assert.Equal(t, "", args.Group)
 	assert.Equal(t, false, args.Help)
 	assert.Equal(t, "", args.Logfile)
@@ -49,6 +50,7 @@ func TestParse_ArgsCustom(t *testing.T) {
 		"--preseed",
 		"--cpuprofile", "lxd.cpu",
 		"--debug",
+		"--trace", "dqlite,raft",
 		"--group", "lxd",
 		"--help",
 		"--logfile", "lxd.log",
@@ -75,6 +77,7 @@ func TestParse_ArgsCustom(t *testing.T) {
 	assert.Equal(t, true, args.Preseed)
 	assert.Equal(t, "lxd.cpu", args.CPUProfile)
 	assert.Equal(t, true, args.Debug)
+	assert.Equal(t, "dqlite,raft", args.Trace)
 	assert.Equal(t, "lxd", args.Group)
 	assert.Equal(t, true, args.Help)
 	assert.Equal(t, "lxd.log", args.Logfile)
