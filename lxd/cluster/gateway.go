@@ -384,7 +384,8 @@ func (g *Gateway) init() error {
 			raft.FSM(),
 			raft.Raft(),
 			dqlite.LogFunc(dqliteLog(g.options.logLevel)),
-			dqlite.LogLevel(g.options.logLevel))
+			dqlite.LogLevel(g.options.logLevel),
+			dqlite.AutoCheckpoint(10000000))
 		if err != nil {
 			return errors.Wrap(err, "failed to create dqlite driver")
 		}
