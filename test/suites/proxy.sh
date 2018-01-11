@@ -18,7 +18,7 @@ test_proxy_device() {
 
   rm -f proxyTest.out
 
-  lxc restart proxyTester
+  lxc restart -f proxyTester
   nsenter -n -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- nc -6 -l 4321 > proxyTest.out &
   sleep 2
 
@@ -45,7 +45,6 @@ test_proxy_device() {
   fi
 
   rm -f proxyTest.out
-  lxc stop proxyTester
-  lxc delete proxyTester
+  lxc delete -f proxyTester
 }
 
