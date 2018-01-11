@@ -326,7 +326,7 @@ func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
 		return BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
@@ -373,7 +373,7 @@ func containerConsoleLogDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
 		return BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
 	}
 
