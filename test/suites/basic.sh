@@ -443,7 +443,7 @@ test_basic_usage() {
   lxc list | grep c1 | grep RUNNING
   lxc list | grep c2 | grep RUNNING
   ! lxc stop --all c1 || false
-  lxc stop --all
+  lxc stop --all -f
   lxc list | grep c1 | grep STOPPED
   lxc list | grep c2 | grep STOPPED
   # Cleanup the containers
