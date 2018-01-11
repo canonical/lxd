@@ -113,6 +113,13 @@ func (r *ProtocolLXD) RawWebsocket(path string) (*websocket.Conn, error) {
 	return r.websocket(path)
 }
 
+// RawOperation allows direct creation of LXD API operations.
+//
+// This should only be used by internal LXD tools.
+func (r *ProtocolLXD) RawOperation(method string, path string, data interface{}, ETag string) (*Operation, string, error) {
+	return r.queryOperation(method, path, data, ETag)
+}
+
 // Internal functions
 func (r *ProtocolLXD) parseResponse(resp *http.Response) (*api.Response, string, error) {
 	// Get the ETag
