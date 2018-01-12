@@ -543,7 +543,7 @@ func (cmd *CmdInit) askDefaultPrivileged() int {
 	// Detect lack of uid/gid
 	defaultPrivileged := -1
 	needPrivileged := false
-	idmapset, err := idmap.DefaultIdmapSet()
+	idmapset, err := idmap.DefaultIdmapSet("")
 	if err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil {
 		needPrivileged = true
 	}
