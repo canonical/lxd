@@ -67,11 +67,11 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 		// Try over http
 		url := fmt.Sprintf("http://%s/%s", strings.TrimPrefix(r.httpHost, "https://"), path)
 
-		size, err := downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)
+		size, err := shared.DownloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)
 		if err != nil {
 			// Try over https
 			url = fmt.Sprintf("%s/%s", r.httpHost, path)
-			size, err = downloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)
+			size, err = shared.DownloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)
 			if err != nil {
 				return -1, err
 			}
