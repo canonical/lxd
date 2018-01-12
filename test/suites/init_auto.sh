@@ -19,7 +19,7 @@ test_init_auto() {
 
     kill_lxd "${LXD_INIT_DIR}"
     zpool destroy "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool"
-    sed -i "\|^${loop_device_1}|d" "${TEST_DIR}/loops"
+    sed -i "\\|^${loop_device_1}|d" "${TEST_DIR}/loops"
 
     # lxd init --auto --storage-backend zfs --storage-pool <name>/<existing-dataset>
     LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -34,7 +34,7 @@ test_init_auto() {
 
     kill_lxd "${LXD_INIT_DIR}"
     zpool destroy "lxdtest-$(basename "${LXD_DIR}")-pool1-existing-pool"
-    sed -i "\|^${loop_device_1}|d" "${TEST_DIR}/loops"
+    sed -i "\\|^${loop_device_1}|d" "${TEST_DIR}/loops"
 
     # lxd init --storage-backend zfs --storage-create-loop 1 --storage-pool <name> --auto
     LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)

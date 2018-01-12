@@ -180,7 +180,7 @@ test_basic_usage() {
   lxc image delete foo
 
   # test basic alias support
-  printf "aliases:\n  ls: list" >> "${LXD_CONF}/config.yml"
+  printf "aliases:\\n  ls: list" >> "${LXD_CONF}/config.yml"
   lxc ls
 
   # Delete the bar container we've used for several tests
