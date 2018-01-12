@@ -45,7 +45,7 @@ func cmdActivateIfNeeded(args *Args) error {
 	}
 
 	// Load the idmap for unprivileged containers
-	d.os.IdmapSet, err = idmap.DefaultIdmapSet()
+	d.os.IdmapSet, err = idmap.DefaultIdmapSet("")
 	if err != nil {
 		return err
 	}
