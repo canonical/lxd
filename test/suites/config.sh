@@ -89,7 +89,7 @@ testloopmounts() {
   ensure_fs_unmounted "removed fs re-appeared after restart"
   lxc stop foo --force
   losetup -d "${lpath}"
-  sed -i "\|^${lpath}|d" "${TEST_DIR}/loops"
+  sed -i "\\|^${lpath}|d" "${TEST_DIR}/loops"
 }
 
 test_mount_order() {
@@ -295,7 +295,7 @@ test_container_metadata() {
     # template content can be updated
     echo "some content" | lxc config template edit c my.tpl
     lxc config template show c my.tpl | grep -q "some content"
-    
+
     # templates can be removed
     lxc config template delete c my.tpl
     ! lxc config template list c | grep -q my.tpl || false
