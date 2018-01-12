@@ -143,13 +143,29 @@ test_clustering_containers() {
   # A Node: field indicates on which node the container is running
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Node: node2"
 
-  # Star an the container via node1
+  # Start the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
   LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: Running"
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
 
   # Exec a command in the container via node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc exec foo ls / | grep -q linuxrc
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec foo ls / | grep -q linuxrc
+
+  # Pull, push and delete files from the container via node1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/non-existing-file "${TEST_DIR}/non-existing-file"
+  mkdir "${TEST_DIR}/hello-world"
+  echo "hello world" > "${TEST_DIR}/hello-world/text"
+  LXD_DIR="${LXD_ONE_DIR}" lxc file push "${TEST_DIR}/hello-world/text" foo/hello-world-text
+  LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world-text "${TEST_DIR}/hello-world-text"
+  grep -q "hello world" "${TEST_DIR}/hello-world-text"
+  rm "${TEST_DIR}/hello-world-text"
+  LXD_DIR="${LXD_ONE_DIR}" lxc file push --recursive "${TEST_DIR}/hello-world" foo/
+  rm -r "${TEST_DIR}/hello-world"
+  LXD_DIR="${LXD_ONE_DIR}" lxc file pull --recursive foo/hello-world "${TEST_DIR}"
+  grep -q "hello world" "${TEST_DIR}/hello-world/text"
+  rm -r "${TEST_DIR}/hello-world"
+  LXD_DIR="${LXD_ONE_DIR}" lxc file delete foo/hello-world/text
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world/text "${TEST_DIR}/hello-world-text"
 
   # Stop the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
