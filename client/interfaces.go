@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
+	"github.com/lxc/lxd/shared/ioprogress"
 )
 
 // The Server type represents a generic read-only server.
@@ -171,21 +172,6 @@ type ConnectionInfo struct {
 	Protocol    string
 }
 
-// The ProgressData struct represents new progress information on an operation
-type ProgressData struct {
-	// Preferred string repreentation of progress (always set)
-	Text string
-
-	// Progress in percent
-	Percentage int
-
-	// Number of bytes transferred (for files)
-	TransferredBytes int64
-
-	// Total number of bytes (for files)
-	TotalBytes int64
-}
-
 // The ImageCreateArgs struct is used for direct image upload
 type ImageCreateArgs struct {
 	// Reader for the meta file
@@ -201,7 +187,7 @@ type ImageCreateArgs struct {
 	RootfsName string
 
 	// Progress handler (called with upload progress)
-	ProgressHandler func(progress ProgressData)
+	ProgressHandler func(progress ioprogress.ProgressData)
 }
 
 // The ImageFileRequest struct is used for an image download request
@@ -213,7 +199,7 @@ type ImageFileRequest struct {
 	RootfsFile io.WriteSeeker
 
 	// Progress handler (called whenever some progress is made)
-	ProgressHandler func(progress ProgressData)
+	ProgressHandler func(progress ioprogress.ProgressData)
 
 	// A canceler that can be used to interrupt some part of the image download request
 	Canceler *cancel.Canceler

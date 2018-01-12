@@ -145,7 +145,7 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 			Tracker: &ioprogress.ProgressTracker{
 				Length: response.ContentLength,
 				Handler: func(percent int64, speed int64) {
-					req.ProgressHandler(ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+					req.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
 				},
 			},
 		}
@@ -363,7 +363,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 			Tracker: &ioprogress.ProgressTracker{
 				Length: size,
 				Handler: func(percent int64, speed int64) {
-					args.ProgressHandler(ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+					args.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
 				},
 			},
 		}

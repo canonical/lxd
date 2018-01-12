@@ -303,7 +303,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	defer cleanup()
 
 	// Setup a progress handler
-	progress := func(progress lxd.ProgressData) {
+	progress := func(progress ioprogress.ProgressData) {
 		if op == nil {
 			return
 		}
@@ -422,7 +422,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 			Tracker: &ioprogress.ProgressTracker{
 				Length: raw.ContentLength,
 				Handler: func(percent int64, speed int64) {
-					progress(lxd.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+					progress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
 				},
 			},
 		}
