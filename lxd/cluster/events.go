@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Events starts a task that continuosly monitors the list of cluster nodes and
+// Events starts a task that continuously monitors the list of cluster nodes and
 // maintains a pool of websocket connections against all of them, in order to
 // get notified about events.
 //

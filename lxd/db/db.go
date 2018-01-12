@@ -246,7 +246,7 @@ func (c *Cluster) EnterExclusive() {
 	c.mu.Lock()
 }
 
-// ExitExclusive runs the given transation and then releases the lock acquired
+// ExitExclusive runs the given transaction and then releases the lock acquired
 // with EnterExclusive.
 func (c *Cluster) ExitExclusive(f func(*ClusterTx) error) error {
 	defer c.mu.Unlock()
@@ -269,7 +269,7 @@ func (c *Cluster) transaction(f func(*ClusterTx) error) error {
 // NodeID sets the the node NodeID associated with this cluster instance. It's used for
 // backward-compatibility of all db-related APIs that were written before
 // clustering and don't accept a node NodeID, so in those cases we automatically
-// use this value as implict node NodeID.
+// use this value as implicit node NodeID.
 func (c *Cluster) NodeID(id int64) {
 	c.nodeID = id
 }
