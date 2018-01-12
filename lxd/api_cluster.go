@@ -441,6 +441,9 @@ func clusterNodeGet(d *Daemon, r *http.Request) Response {
 		}
 		return nil
 	})
+	if err != nil {
+		return SmartError(err)
+	}
 
 	return SyncResponse(true, node)
 }
