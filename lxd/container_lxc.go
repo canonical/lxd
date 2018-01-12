@@ -1168,7 +1168,7 @@ func (c *containerLXC) initLXC(config bool) error {
 					return err
 				}
 
-				memoryTotal, err := deviceTotalMemory()
+				memoryTotal, err := shared.DeviceTotalMemory()
 				if err != nil {
 					return err
 				}
@@ -3846,7 +3846,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 
-					memoryTotal, err := deviceTotalMemory()
+					memoryTotal, err := shared.DeviceTotalMemory()
 					if err != nil {
 						return err
 					}
