@@ -427,9 +427,9 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 		err = notifier(func(client lxd.ContainerServer) error {
 			return client.DeleteNetwork(name)
 		})
-	}
-	if err != nil {
-		return SmartError(err)
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	// Delete the network
