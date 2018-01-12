@@ -147,6 +147,14 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	containerName := mux.Vars(r)["name"]
 	snapshotName := mux.Vars(r)["snapshotName"]
 
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, containerName)
+	if err != nil {
+		return SmartError(err)
+	}
+	if response != nil {
+		return response
+	}
+
 	sc, err := containerLoadByName(
 		d.State(),
 		containerName+
