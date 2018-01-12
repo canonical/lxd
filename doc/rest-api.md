@@ -217,6 +217,9 @@ won't work and PUT needs to be used instead.
          * `/1.0/storage-pools/<name>/volumes`
            * `/1.0/storage-pools/<name>/volumes/<volume type>/<volume>`
      * `/1.0/resources`
+     * `/1.0/cluster`
+       * `/1.0/cluster/nodes`
+         * `/1.0/cluster/nodes/<name>`
 
 # API details
 ## `/`
