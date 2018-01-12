@@ -622,7 +622,7 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 	if nodeAddress != "" {
 		// The image is available from another node, let's try to
 		// import it.
-		logger.Debugf("Transfering image %s from node %s", hash, nodeAddress)
+		logger.Debugf("Transferring image %s from node %s", hash, nodeAddress)
 		client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
 		if err != nil {
 			return nil, err
