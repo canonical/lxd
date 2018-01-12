@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/ioprogress"
 )
 
 // Lists
@@ -119,7 +120,7 @@ func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
 	fmt.Print(msg)
 }
 
-func (p *ProgressRenderer) UpdateProgress(progress lxd.ProgressData) {
+func (p *ProgressRenderer) UpdateProgress(progress ioprogress.ProgressData) {
 	p.Update(progress.Text)
 }
 
