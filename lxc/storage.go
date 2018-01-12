@@ -772,6 +772,10 @@ func (c *storageCmd) doStoragePoolVolumesList(conf *config.Config, remote string
 		return err
 	}
 
+	if pool == "" {
+		return errArgs
+	}
+
 	volumes, err := client.GetStoragePoolVolumes(pool)
 	if err != nil {
 		return err
