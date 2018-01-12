@@ -170,6 +170,10 @@ test_clustering_containers() {
   # Stop the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
 
+  # Create a snapshot of the container via node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
+  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak
+
   # Create a container on node1 using the image that was stored on
   # node2.
   LXD_DIR="${LXD_TWO_DIR}" lxc launch --target node1 testimage bar
