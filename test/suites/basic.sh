@@ -197,24 +197,24 @@ test_basic_usage() {
   #   1. Basic built-in alias functionality
   [ "$(lxc ls)" = "$(lxc list)" ]
   #   2. Basic user-defined alias functionality
-  printf "aliases:\n  l: list\n" >> "${LXD_CONF}/config.yml"
+  printf "aliases:\\n  l: list\\n" >> "${LXD_CONF}/config.yml"
   [ "$(lxc l)" = "$(lxc list)" ]
   #   3. Built-in aliases and user-defined aliases can coexist
   [ "$(lxc ls)" = "$(lxc l)" ]
   #   4. Multi-argument alias keys and values
-  printf "  i ls: image list\n" >> "${LXD_CONF}/config.yml"
+  echo "  i ls: image list" >> "${LXD_CONF}/config.yml"
   [ "$(lxc i ls)" = "$(lxc image list)" ]
   #   5. Aliases where len(keys) != len(values) (expansion/contraction of number of arguments)
-  printf "  ils: image list\n  container ls: list\n" >> "${LXD_CONF}/config.yml"
+  printf "  ils: image list\\n  container ls: list\\n" >> "${LXD_CONF}/config.yml"
   [ "$(lxc ils)" = "$(lxc image list)" ]
   [ "$(lxc container ls)" = "$(lxc list)" ]
   #   6. User-defined aliases override built-in aliases
-  printf "  cp: list\n" >> "${LXD_CONF}/config.yml"
+  echo "  cp: list" >> "${LXD_CONF}/config.yml"
   [ "$(lxc ls)" = "$(lxc cp)" ]
   #   7. User-defined aliases override commands and don't recurse
   lxc init testimage foo
   LXC_CONFIG_SHOW=$(lxc config show foo --expanded)
-  printf "  config show: config show --expanded\n" >> "${LXD_CONF}/config.yml"
+  echo "  config show: config show --expanded" >> "${LXD_CONF}/config.yml"
   [ "$(lxc config show foo)" = "$LXC_CONFIG_SHOW" ]
   lxc delete foo
 
