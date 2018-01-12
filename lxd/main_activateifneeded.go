@@ -74,6 +74,9 @@ func cmdActivateIfNeeded(args *Args) error {
 
 	d.cluster = db.ForLocalInspection(sqldb)
 	result, err := d.cluster.ContainersList(db.CTypeRegular)
+	if err != nil {
+		return err
+	}
 
 	for _, name := range result {
 		c, err := containerLoadByName(d.State(), name)

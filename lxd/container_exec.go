@@ -510,5 +510,8 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 // Perform an exec request for a container running on a different cluster node.
 func containerExecPostCluster(client lxd.ContainerServer, name string, req api.ContainerExecPost) Response {
 	op, _, err := client.RawOperation("POST", fmt.Sprintf("/containers/%s/exec", name), req, "")
+	if err != nil {
+		return SmartError(err)
+	}
 	return ForwardedOperationResponse(&op.Operation)
 }
