@@ -15,7 +15,10 @@ spawn_lxd() {
     shift
 
     # Link to local sqlite with replication patch for dqlite
-    sqlite="$(pwd)/../lxd/sqlite/.libs"
+    sqlite="$(pwd)/../lxd/sqlite"
+    if [ -e "/lxc-ci/build/cache/sqlite" ]; then
+	sqlite="/lxc-ci/build/cache/sqlite"
+    fi
 
     # shellcheck disable=SC2153
     if [ "$LXD_BACKEND" = "random" ]; then
@@ -41,10 +44,10 @@ spawn_lxd() {
     # shellcheck disable=SC2086
 
     if [ "${LXD_NETNS}" = "" ]; then
-	LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+	LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
 	pid="$(lxc-info -n "${LXD_NETNS}" -p | cut -f 2 -d : | tr -d " ")"
-	LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" nsenter --all --target="${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+	LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter --all --target="${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
@@ -96,11 +99,14 @@ respawn_lxd() {
     shift
 
     # Link to local sqlite with replication patch for dqlite
-    sqlite="$(pwd)/../lxd/sqlite/.libs"
+    sqlite="$(pwd)/../lxd/sqlite"
+    if [ -e "/lxc-ci/build/cache/sqlite" ]; then
+	sqlite="/lxc-ci/build/cache/sqlite"
+    fi
 
     echo "==> Spawning lxd in ${lxddir}"
     # shellcheck disable=SC2086
-    LD_LIBRARY_PATH="${sqlite}" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
