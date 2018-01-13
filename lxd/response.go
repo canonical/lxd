@@ -13,6 +13,8 @@ import (
 
 	"github.com/mattn/go-sqlite3"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -105,6 +107,72 @@ func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]
 }
 
 var EmptySyncResponse = &syncResponse{success: true, metadata: make(map[string]interface{})}
+
+type forwardedResponse struct {
+	client  lxd.ContainerServer
+	request *http.Request
+}
+
+func (r *forwardedResponse) Render(w http.ResponseWriter) error {
+	host, err := r.client.GetServerHost()
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("%s%s", host, r.request.URL.RequestURI())
+	forwarded, err := http.NewRequest(r.request.Method, url, r.request.Body)
+	if err != nil {
+		return err
+	}
+	for key := range r.request.Header {
+		forwarded.Header.Set(key, r.request.Header.Get(key))
+	}
+
+	httpClient, err := r.client.GetHTTPClient()
+	if err != nil {
+		return err
+	}
+	response, err := httpClient.Do(forwarded)
+	if err != nil {
+		return err
+	}
+
+	for key := range response.Header {
+		w.Header().Set(key, response.Header.Get(key))
+	}
+
+	w.WriteHeader(response.StatusCode)
+	_, err = io.Copy(w, response.Body)
+	return err
+}
+
+func (r *forwardedResponse) String() string {
+	return fmt.Sprintf("request to %s", r.request.URL)
+}
+
+// ForwardedResponse takes a request directed to a node and forwards it to
+// another node, writing back the response it gegs.
+func ForwardedResponse(client lxd.ContainerServer, request *http.Request) Response {
+	return &forwardedResponse{
+		client:  client,
+		request: request,
+	}
+}
+
+// ForwardedResponseIfContainerIsRemote redirects a request to the node running
+// the container with the given name. If the container is local, nothing gets
+// done and nil is returned.
+func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, name string) (Response, error) {
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, name, cert)
+	if err != nil {
+		return nil, err
+	}
+	if client == nil {
+		return nil, nil
+	}
+	return ForwardedResponse(client, r), nil
+}
 
 // File transfer response
 type fileResponseEntry struct {
