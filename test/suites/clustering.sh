@@ -170,11 +170,17 @@ test_clustering_containers() {
   # Stop the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
 
-  # Create and delete a snapshot of the container via node1
+  # Rename the container via node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc rename foo foo2
+  LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q foo2
+  LXD_DIR="${LXD_ONE_DIR}" lxc rename foo2 foo
+
+  # Create, rename and delete a snapshot of the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete foo/foo-bak
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak
+  LXD_DIR="${LXD_ONE_DIR}" lxc rename foo/foo-bak foo/foo-bak-2
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete foo/foo-bak-2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak-2
 
   # Create a container on node1 using the image that was stored on
   # node2.
