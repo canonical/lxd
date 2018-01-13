@@ -175,6 +175,9 @@ test_clustering_containers() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q foo2
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo2 foo
 
+  # Show lxc.log via node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --show-log foo | grep -q Log
+
   # Create, rename and delete a snapshot of the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak
