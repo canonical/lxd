@@ -18,13 +18,23 @@ import (
 )
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
+	cname := mux.Vars(r)["name"]
+
+	// Handle requests targeted to a container on a different node
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, cname)
+	if err != nil {
+		return SmartError(err)
+	}
+	if response != nil {
+		return response
+	}
+
 	recursionStr := r.FormValue("recursion")
 	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
 		recursion = 0
 	}
 
-	cname := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d.State(), cname)
 	if err != nil {
 		return SmartError(err)
