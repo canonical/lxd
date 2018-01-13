@@ -1510,6 +1510,21 @@ func imageExport(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
+	// Check if the image is only available on another node.
+	address, err := d.cluster.ImageLocate(imgInfo.Fingerprint)
+	if err != nil {
+		return SmartError(err)
+	}
+	if address != "" {
+		// Forward the request to the other node
+		cert := d.endpoints.NetworkCert()
+		client, err := cluster.Connect(address, cert, false)
+		if err != nil {
+			return SmartError(err)
+		}
+		return ForwardedResponse(client, r)
+	}
+
 	imagePath := shared.VarPath("images", imgInfo.Fingerprint)
 	rootfsPath := imagePath + ".rootfs"
 

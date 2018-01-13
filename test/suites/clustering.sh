@@ -185,6 +185,10 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc delete foo/foo-bak-2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak-2
 
+  # Export from node1 the image that was imported on node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc image export testimage "${TEST_DIR}/testimage"
+  rm "${TEST_DIR}/testimage.tar.xz"
+
   # Create a container on node1 using the image that was stored on
   # node2.
   LXD_DIR="${LXD_TWO_DIR}" lxc launch --target node1 testimage bar
