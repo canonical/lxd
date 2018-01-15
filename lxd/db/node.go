@@ -28,6 +28,12 @@ func (n NodeInfo) IsOffline(threshold time.Duration) bool {
 	return nodeIsOffline(threshold, n.Heartbeat)
 }
 
+// Version returns the node's version, composed by its schema level and
+// number of extensions.
+func (n NodeInfo) Version() [2]int {
+	return [2]int{n.Schema, n.APIExtensions}
+}
+
 // NodeByAddress returns the node with the given network address.
 func (c *ClusterTx) NodeByAddress(address string) (NodeInfo, error) {
 	null := NodeInfo{}
