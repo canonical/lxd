@@ -8,6 +8,9 @@ type StorageVolumesPost struct {
 
 	Name string `json:"name" yaml:"name"`
 	Type string `json:"type" yaml:"type"`
+
+	// API extension: storage_api_local_volume_handling
+	Source StorageVolumeSource `json:"source" yaml:"source"`
 }
 
 // StorageVolumePost represents the fields required to rename a LXD storage pool volume
@@ -15,6 +18,9 @@ type StorageVolumesPost struct {
 // API extension: storage_api_volume_rename
 type StorageVolumePost struct {
 	Name string `json:"name" yaml:"name"`
+
+	// API extension: storage_api_local_volume_handling
+	Pool string `json:"pool,omitempty" yaml:"pool,omitempty"`
 }
 
 // StorageVolume represents the fields of a LXD storage volume.
@@ -35,6 +41,15 @@ type StorageVolumePut struct {
 
 	// API extension: entity_description
 	Description string `json:"description" yaml:"description"`
+}
+
+// StorageVolumeSource represents the creation source for a new storage volume.
+//
+// API extension: storage_api_local_volume_handling
+type StorageVolumeSource struct {
+	Name string `json:"name" yaml:"name"`
+	Type string `json:"type" yaml:"type"`
+	Pool string `json:"pool" yaml:"pool"`
 }
 
 // Writable converts a full StorageVolume struct into a StorageVolumePut struct
