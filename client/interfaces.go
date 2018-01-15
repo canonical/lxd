@@ -161,6 +161,8 @@ type ContainerServer interface {
 	UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) (err error)
 	DeleteStoragePoolVolume(pool string, volType string, name string) (err error)
 	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (err error)
+	CopyStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (op *RemoteOperation, err error)
+	MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (op *RemoteOperation, err error)
 
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)
@@ -239,6 +241,19 @@ type ImageCopyArgs struct {
 
 	// Whether this image is to be made available to unauthenticated users
 	Public bool
+}
+
+// The StoragePoolVolumeCopyArgs struct is used to pass additional options
+// during storage volume copy
+type StoragePoolVolumeCopyArgs struct {
+	// New name for the target
+	Name string
+}
+
+// The StoragePoolVolumeMoveArgs struct is used to pass additional options
+// during storage volume move
+type StoragePoolVolumeMoveArgs struct {
+	StoragePoolVolumeCopyArgs
 }
 
 // The ContainerCopyArgs struct is used to pass additional options during container copy
