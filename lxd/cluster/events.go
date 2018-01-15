@@ -20,79 +20,94 @@ import (
 func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, interface{})) (task.Func, task.Schedule) {
 	listeners := map[int64]*lxd.EventListener{}
 
-	// Update our pool of event listeners.
+	// Update our pool of event listeners. Since database queries are
+	// blocking, we spawn the actual logic in a goroutine, to abort
+	// immediately when we receive the stop signal.
 	update := func(ctx context.Context) {
-		// Get the current cluster nodes.
-		var nodes []db.NodeInfo
-		var offlineThreshold time.Duration
-
-		err := cluster.Transaction(func(tx *db.ClusterTx) error {
-			var err error
-
-			nodes, err = tx.Nodes()
-			if err != nil {
-				return err
-			}
-
-			offlineThreshold, err = tx.NodeOfflineThreshold()
-			if err != nil {
-				return err
-			}
-
-			return nil
-		})
-		if err != nil {
-			logger.Warnf("Failed to get current cluster nodes: %v", err)
-			return
-		}
-		if len(nodes) == 1 {
-			return // Either we're not clustered or this is a single-node cluster
+		ch := make(chan struct{})
+		go func() {
+			eventsUpdateListeners(endpoints, cluster, listeners, f)
+			ch <- struct{}{}
+		}()
+		select {
+		case <-ch:
+		case <-ctx.Done():
 		}
 
-		address := endpoints.NetworkAddress()
-
-		ids := make([]int, len(nodes))
-		for i, node := range nodes {
-			ids[i] = int(node.ID)
-
-			// Don't bother trying to connect to offline nodes, or to ourselves.
-			if node.IsOffline(offlineThreshold) || node.Address == address {
-				continue
-			}
-
-			_, ok := listeners[node.ID]
-
-			// The node has already a listener associated to it.
-			if ok {
-				// Double check that the listener is still
-				// connected. If it is, just move on, other
-				// we'll try to connect again.
-				if listeners[node.ID].Active() {
-					continue
-				}
-				delete(listeners, node.ID)
-			}
-
-			listener, err := eventsConnect(node.Address, endpoints.NetworkCert())
-			if err != nil {
-				logger.Warnf("Failed to get events from node %s: %v", node.Address, err)
-				continue
-			}
-			logger.Debugf("Listening for events on node %s", node.Address)
-			listener.AddHandler(nil, func(event interface{}) { f(node.ID, event) })
-			listeners[node.ID] = listener
-		}
-		for id, listener := range listeners {
-			if !shared.IntInSlice(int(id), ids) {
-				listener.Disconnect()
-				delete(listeners, id)
-			}
-		}
 	}
 
 	schedule := task.Every(time.Second)
 
 	return update, schedule
+}
+
+func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, listeners map[int64]*lxd.EventListener, f func(int64, interface{})) {
+	// Get the current cluster nodes.
+	var nodes []db.NodeInfo
+	var offlineThreshold time.Duration
+
+	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+
+		nodes, err = tx.Nodes()
+		if err != nil {
+			return err
+		}
+
+		offlineThreshold, err = tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		logger.Warnf("Failed to get current cluster nodes: %v", err)
+		return
+	}
+	if len(nodes) == 1 {
+		return // Either we're not clustered or this is a single-node cluster
+	}
+
+	address := endpoints.NetworkAddress()
+
+	ids := make([]int, len(nodes))
+	for i, node := range nodes {
+		ids[i] = int(node.ID)
+
+		// Don't bother trying to connect to offline nodes, or to ourselves.
+		if node.IsOffline(offlineThreshold) || node.Address == address {
+			continue
+		}
+
+		_, ok := listeners[node.ID]
+
+		// The node has already a listener associated to it.
+		if ok {
+			// Double check that the listener is still
+			// connected. If it is, just move on, other
+			// we'll try to connect again.
+			if listeners[node.ID].Active() {
+				continue
+			}
+			delete(listeners, node.ID)
+		}
+
+		listener, err := eventsConnect(node.Address, endpoints.NetworkCert())
+		if err != nil {
+			logger.Warnf("Failed to get events from node %s: %v", node.Address, err)
+			continue
+		}
+		logger.Debugf("Listening for events on node %s", node.Address)
+		listener.AddHandler(nil, func(event interface{}) { f(node.ID, event) })
+		listeners[node.ID] = listener
+	}
+	for id, listener := range listeners {
+		if !shared.IntInSlice(int(id), ids) {
+			listener.Disconnect()
+			delete(listeners, id)
+		}
+	}
 }
 
 // Establish a client connection to get events from the given node.
