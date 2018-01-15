@@ -92,6 +92,11 @@ SELECT nodes.id, nodes.address
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
 func (c *ClusterTx) ContainersListByNodeAddress() (map[string][]string, error) {
+	offlineThreshold, err := c.NodeOfflineThreshold()
+	if err != nil {
+		return nil, err
+	}
+
 	stmt := `
 SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
   FROM containers JOIN nodes ON nodes.id = containers.node_id
@@ -117,7 +122,7 @@ SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
 		}
 		if nodeID == c.nodeID {
 			nodeAddress = ""
-		} else if nodeIsDown(nodeHeartbeat) {
+		} else if nodeIsOffline(offlineThreshold, nodeHeartbeat) {
 			nodeAddress = "0.0.0.0"
 		}
 		result[nodeAddress] = append(result[nodeAddress], name)

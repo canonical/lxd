@@ -44,6 +44,11 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 
 	peers := []string{}
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		offlineThreshold, err := tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		nodes, err := tx.Nodes()
 		if err != nil {
 			return err
@@ -52,7 +57,7 @@ func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolic
 			if node.Address == address || node.Address == "0.0.0.0" {
 				continue // Exclude ourselves
 			}
-			if node.IsDown() {
+			if node.IsOffline(offlineThreshold) {
 				switch policy {
 				case NotifyAll:
 					return fmt.Errorf("peer node %s is down", node.Address)

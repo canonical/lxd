@@ -18,6 +18,8 @@ func TestConfigLoad_Initial(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]interface{}{}, config.Dump())
+
+	assert.Equal(t, float64(20), config.OfflineThreshold().Seconds())
 }
 
 // If the database contains invalid keys, they are ignored.
@@ -47,6 +49,19 @@ func TestConfigLoad_Triggers(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]interface{}{}, config.Dump())
+}
+
+// Offline threshold must be greater than the heartbeat interval.
+func TestConfigLoad_OfflineThresholdValidator(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	config, err := cluster.ConfigLoad(tx)
+	require.NoError(t, err)
+
+	_, err = config.Patch(map[string]interface{}{"cluster.offline_threshold": "2"})
+	require.EqualError(t, err, "cannot set 'cluster.offline_threshold' to '2': value must be greater than '3'")
+
 }
 
 // If some previously set values are missing from the ones passed to Replace(),

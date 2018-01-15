@@ -24,10 +24,22 @@ func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, i
 	update := func(ctx context.Context) {
 		// Get the current cluster nodes.
 		var nodes []db.NodeInfo
+		var offlineThreshold time.Duration
+
 		err := cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
+
 			nodes, err = tx.Nodes()
-			return err
+			if err != nil {
+				return err
+			}
+
+			offlineThreshold, err = tx.NodeOfflineThreshold()
+			if err != nil {
+				return err
+			}
+
+			return nil
 		})
 		if err != nil {
 			logger.Warnf("Failed to get current cluster nodes: %v", err)
@@ -44,7 +56,7 @@ func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, i
 			ids[i] = int(node.ID)
 
 			// Don't bother trying to connect to offline nodes, or to ourselves.
-			if node.IsDown() || node.Address == address {
+			if node.IsOffline(offlineThreshold) || node.Address == address {
 				continue
 			}
 

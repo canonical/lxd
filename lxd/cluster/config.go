@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/scrypt"
@@ -103,6 +104,14 @@ func (c *Config) MAASController() (string, string, string) {
 	return url, key, machine
 }
 
+// OfflineThreshold returns the configured heartbeat threshold, i.e. the
+// number of seconds before after which an unresponsive node is considered
+// offline..
+func (c *Config) OfflineThreshold() time.Duration {
+	n := c.m.GetInt64("cluster.offline_threshold")
+	return time.Duration(n) * time.Second
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]interface{} {
@@ -192,6 +201,7 @@ func configGet(cluster *db.Cluster) (*Config, error) {
 
 // ConfigSchema defines available server configuration keys.
 var ConfigSchema = config.Schema{
+	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
 	"core.https_allowed_headers":     {},
 	"core.https_allowed_methods":     {},
 	"core.https_allowed_origin":      {},
@@ -218,6 +228,23 @@ var ConfigSchema = config.Schema{
 	"storage.zfs_pool_name":        {Setter: deprecatedStorage},
 	"storage.zfs_remove_snapshots": {Setter: deprecatedStorage, Type: config.Bool},
 	"storage.zfs_use_refquota":     {Setter: deprecatedStorage, Type: config.Bool},
+}
+
+func offlineThresholdDefault() string {
+	return strconv.Itoa(db.DefaultOfflineThreshold)
+}
+
+func offlineThresholdValidator(value string) error {
+	// Ensure that the given value is greater than the heartbeat interval,
+	// which is the lower bound granularity of the offline check.
+	threshold, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("offline threshold is not a number")
+	}
+	if threshold <= heartbeatInterval {
+		return fmt.Errorf("value must be greater than '%d'", heartbeatInterval)
+	}
+	return nil
 }
 
 func passwordSetter(value string) (string, error) {

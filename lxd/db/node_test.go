@@ -30,7 +30,7 @@ func TestNodeAdd(t *testing.T) {
 	assert.Equal(t, "1.2.3.4:666", node.Address)
 	assert.Equal(t, cluster.SchemaVersion, node.Schema)
 	assert.Equal(t, len(version.APIExtensions), node.APIExtensions)
-	assert.False(t, node.IsDown())
+	assert.False(t, node.IsOffline(20*time.Second))
 
 	node, err = tx.NodeByName("buzz")
 	require.NoError(t, err)
@@ -120,7 +120,7 @@ func TestNodeHeartbeat(t *testing.T) {
 	require.Len(t, nodes, 2)
 
 	node := nodes[1]
-	assert.True(t, node.IsDown())
+	assert.True(t, node.IsOffline(20*time.Second))
 }
 
 // A node is considered empty only if it has no containers and no images.
