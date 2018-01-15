@@ -320,7 +320,11 @@ WHERE images.fingerprint = ?
 	var addresses []string  // Addresses of online nodes with the image
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		var err error
+		offlineThreshold, err := tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		localAddress, err = tx.NodeAddress()
 		if err != nil {
 			return err
@@ -334,7 +338,7 @@ WHERE images.fingerprint = ?
 			if err != nil {
 				return err
 			}
-			if address != localAddress && node.IsDown() {
+			if address != localAddress && node.IsOffline(offlineThreshold) {
 				continue
 			}
 			addresses = append(addresses, address)

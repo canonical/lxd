@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -21,10 +22,10 @@ type NodeInfo struct {
 	Heartbeat     time.Time // Timestamp of the last heartbeat
 }
 
-// IsDown returns true if the last heartbeat time of the node is older than 20
-// seconds.
-func (n NodeInfo) IsDown() bool {
-	return nodeIsDown(n.Heartbeat)
+// IsOffline returns true if the last successful heartbeat time of the node is
+// older than the given threshold.
+func (n NodeInfo) IsOffline(threshold time.Duration) bool {
+	return nodeIsOffline(threshold, n.Heartbeat)
 }
 
 // NodeByAddress returns the node with the given network address.
@@ -263,10 +264,30 @@ func (c *ClusterTx) NodeClear(id int64) error {
 	return nil
 }
 
-func nodeIsDown(heartbeat time.Time) bool {
-	return heartbeat.Before(time.Now().Add(-time.Duration(nodeDownThreshold) * time.Second))
+// NodeOfflineThreshold returns the amount of time that needs to elapse after
+// which a series of unsuccessful heartbeat will make the node be considered
+// offline.
+func (c *ClusterTx) NodeOfflineThreshold() (time.Duration, error) {
+	threshold := time.Duration(DefaultOfflineThreshold) * time.Second
+	values, err := query.SelectStrings(
+		c.tx, "SELECT value FROM config WHERE key='cluster.offline_threshold'")
+	if err != nil {
+		return -1, err
+	}
+	if len(values) > 0 {
+		seconds, err := strconv.Atoi(values[0])
+		if err != nil {
+			return -1, err
+		}
+		threshold = time.Duration(seconds) * time.Second
+	}
+	return threshold, nil
 }
 
-// How many seconds to wait before considering a node offline after no
-// heartbeat was received.
-var nodeDownThreshold = 20
+func nodeIsOffline(threshold time.Duration, heartbeat time.Time) bool {
+	return heartbeat.Before(time.Now().Add(-threshold))
+}
+
+// DefaultOfflineThreshold is the default value for the
+// cluster.offline_threshold configuration key, expressed in seconds.
+const DefaultOfflineThreshold = 20

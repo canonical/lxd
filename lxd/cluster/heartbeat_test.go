@@ -60,8 +60,12 @@ func TestHeartbeat(t *testing.T) {
 	err = state0.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err := tx.Nodes()
 		require.NoError(t, err)
+
+		offlineThreshold, err := tx.NodeOfflineThreshold()
+		require.NoError(t, err)
+
 		for _, node := range nodes {
-			assert.False(t, node.IsDown())
+			assert.False(t, node.IsOffline(offlineThreshold))
 		}
 		return nil
 	})
@@ -101,7 +105,11 @@ func TestHeartbeat_MarkAsDown(t *testing.T) {
 	err = state0.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err := tx.Nodes()
 		require.NoError(t, err)
-		assert.True(t, nodes[1].IsDown())
+
+		offlineThreshold, err := tx.NodeOfflineThreshold()
+		require.NoError(t, err)
+
+		assert.True(t, nodes[1].IsOffline(offlineThreshold))
 		return nil
 	})
 	require.NoError(t, err)
