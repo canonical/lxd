@@ -177,7 +177,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 			`storage volumes of type %s`, req.Type))
 	}
 
-	err = storagePoolVolumeCreateInternal(d.State(), poolName, req.Name, req.Description, req.Type, req.Config)
+	err = storagePoolVolumeCreateInternal(d.State(), poolName, &req)
 	if err != nil {
 		return InternalError(err)
 	}

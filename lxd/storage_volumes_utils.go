@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -339,7 +340,12 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 	return nil
 }
 
-func storagePoolVolumeCreateInternal(state *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeConfig map[string]string) error {
+func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost) error {
+	volumeName := vol.Name
+	volumeDescription := vol.Description
+	volumeTypeName := vol.Type
+	volumeConfig := vol.Config
+
 	err := storagePoolVolumeDBCreate(state, poolName, volumeName, volumeDescription, volumeTypeName, volumeConfig)
 	if err != nil {
 		return err
