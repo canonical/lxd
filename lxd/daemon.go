@@ -653,20 +653,22 @@ func (d *Daemon) Stop() error {
 		case <-time.After(2 * time.Second):
 			shouldUnmount = true
 		}
+
 		logger.Infof("Closing the database")
-		trackError(d.db.Close())
-	}
-	if d.cluster != nil {
 		err := d.cluster.Close()
 		// If we got io.EOF the network connection was interrupted and
-		// it's likely that the other node shutdown. Let's just log a
-		// warning.
+		// it's likely that the other node shutdown. Let's just log the
+		// event and return cleanly.
 		if errors.Cause(err) == driver.ErrBadConn {
-			logger.Warnf("Could not close remote database: %v", err)
+			logger.Debugf("Could not close remote database cleanly: %v", err)
 		} else {
 			trackError(err)
 		}
 	}
+	if d.db != nil {
+		trackError(d.db.Close())
+	}
+
 	if d.gateway != nil {
 		trackError(d.gateway.Shutdown())
 	}
