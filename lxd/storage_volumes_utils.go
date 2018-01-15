@@ -203,6 +203,183 @@ func storagePoolVolumeUsedByContainersGet(s *state.State, volumeName string,
 	return ctsUsingVolume, nil
 }
 
+func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
+	oldVolumeName string, newPoolName string, newVolumeName string) error {
+
+	s := d.State()
+	// update all containers
+	cts, err := s.DB.ContainersList(db.CTypeRegular)
+	if err != nil {
+		return err
+	}
+
+	for _, ct := range cts {
+		c, err := containerLoadByName(s, ct)
+		if err != nil {
+			continue
+		}
+
+		devices := c.LocalDevices()
+		for k := range devices {
+			if devices[k]["type"] != "disk" {
+				continue
+			}
+
+			// Can't be a storage volume.
+			if filepath.IsAbs(devices[k]["source"]) {
+				continue
+			}
+
+			if filepath.Clean(devices[k]["pool"]) != oldPoolName {
+				continue
+			}
+
+			dir, file := filepath.Split(devices[k]["source"])
+			dir = filepath.Clean(dir)
+			if dir != storagePoolVolumeTypeNameCustom {
+				continue
+			}
+
+			file = filepath.Clean(file)
+			if file != oldVolumeName {
+				continue
+			}
+
+			// found entry
+
+			if oldPoolName != newPoolName {
+				devices[k]["pool"] = newPoolName
+			}
+
+			if oldVolumeName != newVolumeName {
+				newSource := newVolumeName
+				if dir != "" {
+					newSource = fmt.Sprintf("%s/%s", storagePoolVolumeTypeNameCustom, newVolumeName)
+				}
+				devices[k]["source"] = newSource
+			}
+		}
+
+		args := db.ContainerArgs{
+			Architecture: c.Architecture(),
+			Description:  c.Description(),
+			Config:       c.LocalConfig(),
+			Devices:      devices,
+			Ephemeral:    c.IsEphemeral(),
+			Profiles:     c.Profiles()}
+
+		err = c.Update(args, false)
+		if err != nil {
+			return err
+		}
+	}
+
+	// update all profiles
+	profiles, err := s.DB.Profiles()
+	if err != nil {
+		return err
+	}
+
+	for _, pName := range profiles {
+		id, profile, err := s.DB.ProfileGet(pName)
+		if err != nil {
+			return err
+		}
+
+		for k := range profile.Devices {
+			if profile.Devices[k]["type"] != "disk" {
+				continue
+			}
+
+			// Can't be a storage volume.
+			if filepath.IsAbs(profile.Devices[k]["source"]) {
+				continue
+			}
+
+			if filepath.Clean(profile.Devices[k]["pool"]) != oldPoolName {
+				continue
+			}
+
+			dir, file := filepath.Split(profile.Devices[k]["source"])
+			dir = filepath.Clean(dir)
+			if dir != storagePoolVolumeTypeNameCustom {
+				continue
+			}
+
+			file = filepath.Clean(file)
+			if file != oldVolumeName {
+				continue
+			}
+
+			// found entry
+
+			if oldPoolName != newPoolName {
+				profile.Devices[k]["pool"] = newPoolName
+			}
+
+			if oldVolumeName != newVolumeName {
+				newSource := newVolumeName
+				if dir != "" {
+					newSource = fmt.Sprintf("%s/%s", storagePoolVolumeTypeNameCustom, newVolumeName)
+				}
+				profile.Devices[k]["source"] = newSource
+			}
+		}
+
+		pUpdate := api.ProfilePut{}
+		pUpdate.Config = profile.Config
+		pUpdate.Description = profile.Description
+		pUpdate.Devices = profile.Devices
+		err = doProfileUpdate(d, pName, id, profile, pUpdate)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
+	poolName string, volumeName string, volumeTypeName string,
+	runningOnly bool) ([]string, error) {
+	cts, err := s.DB.ContainersList(db.CTypeRegular)
+	if err != nil {
+		return []string{}, err
+	}
+
+	ctsUsingVolume := []string{}
+	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
+	for _, ct := range cts {
+		c, err := containerLoadByName(s, ct)
+		if err != nil {
+			continue
+		}
+
+		if runningOnly && !c.IsRunning() {
+			continue
+		}
+
+		for _, dev := range c.ExpandedDevices() {
+			if dev["type"] != "disk" {
+				continue
+			}
+
+			if dev["pool"] != poolName {
+				continue
+			}
+
+			// Make sure that we don't compare against stuff like
+			// "container////bla" but only against "container/bla".
+			cleanSource := filepath.Clean(dev["source"])
+			if cleanSource == volumeName || cleanSource == volumeNameWithType {
+				ctsUsingVolume = append(ctsUsingVolume, ct)
+			}
+		}
+	}
+
+	return ctsUsingVolume, nil
+}
+
 // volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
 func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeName string) ([]string, error) {
 	// Handle container volumes
@@ -346,26 +523,54 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 	volumeTypeName := vol.Type
 	volumeConfig := vol.Config
 
+	if vol.Source.Name != "" {
+		// Initialize instance of new pool to translate properties
+		// between storage drivers.
+		s, err := storagePoolInit(state, poolName)
+		if err != nil {
+			return err
+		}
+
+		driver := s.GetStorageTypeName()
+		newConfig, err := storageVolumePropertiesTranslate(vol.Config, driver)
+		if err != nil {
+			return err
+		}
+
+		vol.Config = newConfig
+		volumeConfig = newConfig
+	}
+
+	// Create database entry for new storage volume.
 	err := storagePoolVolumeDBCreate(state, poolName, volumeName, volumeDescription, volumeTypeName, volumeConfig)
 	if err != nil {
 		return err
 	}
 
 	// Convert the volume type name to our internal integer representation.
+	poolID, err := state.DB.StoragePoolGetID(poolName)
+	if err != nil {
+		return err
+	}
+
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
 	if err != nil {
+		state.DB.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
 		return err
 	}
 
+	// Initialize new storage volume on the target storage pool.
 	s, err := storagePoolVolumeInit(state, poolName, volumeName, volumeType)
 	if err != nil {
+		state.DB.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
 		return err
 	}
 
-	poolID, _, _ := s.GetContainerPoolInfo()
-
-	// Create storage volume.
-	err = s.StoragePoolVolumeCreate()
+	if vol.Source.Name == "" {
+		err = s.StoragePoolVolumeCreate()
+	} else {
+		err = s.StoragePoolVolumeCopy(&vol.Source)
+	}
 	if err != nil {
 		state.DB.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
 		return err
