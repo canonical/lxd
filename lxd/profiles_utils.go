@@ -8,16 +8,16 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req api.ProfilePut) Response {
+func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Sanity checks
 	err := containerValidConfig(d.os, req.Config, true, false)
 	if err != nil {
-		return BadRequest(err)
+		return err
 	}
 
 	err = containerValidDevices(d.db, req.Devices, true, false)
 	if err != nil {
-		return BadRequest(err)
+		return err
 	}
 
 	containers := getContainersWithProfile(d.State(), name)
@@ -40,7 +40,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 			for i := len(profiles) - 1; i >= 0; i-- {
 				_, profile, err := d.db.ProfileGet(profiles[i])
 				if err != nil {
-					return SmartError(err)
+					return err
 				}
 
 				// Check if we find a match for the device
@@ -49,7 +49,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 					// Found the profile
 					if profiles[i] == name {
 						// If it's the current profile, then we can't modify that root device
-						return BadRequest(fmt.Errorf("At least one container relies on this profile's root disk device."))
+						return fmt.Errorf("At least one container relies on this profile's root disk device.")
 					} else {
 						// If it's not, then move on to the next container
 						break
@@ -62,14 +62,14 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	// Update the database
 	tx, err := d.db.Begin()
 	if err != nil {
-		return SmartError(err)
+		return err
 	}
 
 	if profile.Description != req.Description {
 		err = db.ProfileDescriptionUpdate(tx, id, req.Description)
 		if err != nil {
 			tx.Rollback()
-			return SmartError(err)
+			return err
 		}
 	}
 
@@ -77,33 +77,33 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	if reflect.DeepEqual(profile.Config, req.Config) && reflect.DeepEqual(profile.Devices, req.Devices) {
 		err = db.TxCommit(tx)
 		if err != nil {
-			return SmartError(err)
+			return err
 		}
 
-		return EmptySyncResponse
+		return nil
 	}
 
 	err = db.ProfileConfigClear(tx, id)
 	if err != nil {
 		tx.Rollback()
-		return SmartError(err)
+		return err
 	}
 
 	err = db.ProfileConfigAdd(tx, id, req.Config)
 	if err != nil {
 		tx.Rollback()
-		return SmartError(err)
+		return err
 	}
 
 	err = db.DevicesAdd(tx, "profile", id, req.Devices)
 	if err != nil {
 		tx.Rollback()
-		return SmartError(err)
+		return err
 	}
 
 	err = db.TxCommit(tx)
 	if err != nil {
-		return SmartError(err)
+		return err
 	}
 
 	// Update all the containers using the profile. Must be done after db.TxCommit due to DB lock.
@@ -128,8 +128,8 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		for cname, err := range failures {
 			msg += fmt.Sprintf(" - %s: %s\n", cname, err)
 		}
-		return SmartError(fmt.Errorf("%s", msg))
+		return fmt.Errorf("%s", msg)
 	}
 
-	return EmptySyncResponse
+	return nil
 }
