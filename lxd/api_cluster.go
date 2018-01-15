@@ -380,7 +380,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 }
 
 func clusterNodesGet(d *Daemon, r *http.Request) Response {
-	dbNodes, flags, err := cluster.List(d.State())
+	dbNodes, flags, offlineThreshold, err := cluster.List(d.State())
 	if err != nil {
 		return SmartError(err)
 	}
@@ -390,7 +390,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) Response {
 		nodes[i].Name = dbNode.Name
 		nodes[i].URL = fmt.Sprintf("https://%s", dbNode.Address)
 		nodes[i].Database = flags[dbNode.ID]
-		if dbNode.IsDown() {
+		if dbNode.IsOffline(offlineThreshold) {
 			nodes[i].State = "OFFLINE"
 		} else {
 			nodes[i].State = "ONLINE"
@@ -413,13 +413,18 @@ func clusterNodeGet(d *Daemon, r *http.Request) Response {
 	node.Name = name
 	address := ""
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		offlineThreshold, err := tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		dbNode, err := tx.NodeByName(name)
 		if err != nil {
 			return err
 		}
 		address = dbNode.Address
 		node.URL = fmt.Sprintf("https://%s", dbNode.Address)
-		if dbNode.IsDown() {
+		if dbNode.IsOffline(offlineThreshold) {
 			node.State = "OFFLINE"
 		} else {
 			node.State = "ONLINE"

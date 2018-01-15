@@ -462,9 +462,10 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 
 // List the nodes of the cluster.
 //
-// Upon success return a list of the current nodes and a map that for each ID
-// tells if the node is part of the database cluster or not.
-func List(state *state.State) ([]db.NodeInfo, map[int64]bool, error) {
+// Upon success return a list of the current nodes, a map that for each ID
+// tells if the node is part of the database cluster or not, and the configured
+// offline threshold.
+func List(state *state.State) ([]db.NodeInfo, map[int64]bool, time.Duration, error) {
 	addresses := []string{} // Addresses of database nodes
 	err := state.Node.Transaction(func(tx *db.NodeTx) error {
 		nodes, err := tx.RaftNodes()
@@ -477,26 +478,33 @@ func List(state *state.State) ([]db.NodeInfo, map[int64]bool, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, -1, err
 	}
 
 	var nodes []db.NodeInfo
+	var offlineThreshold time.Duration
+
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err = tx.Nodes()
 		if err != nil {
 			return err
 		}
+		offlineThreshold, err = tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, -1, err
 	}
 	flags := make(map[int64]bool) // Whether a node is a database node
 	for _, node := range nodes {
 		flags[node.ID] = shared.StringInSlice(node.Address, addresses)
 	}
 
-	return nodes, flags, nil
+	return nodes, flags, offlineThreshold, nil
 }
 
 // Count is a convenience for checking the current number of nodes in the
