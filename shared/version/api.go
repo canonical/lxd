@@ -91,4 +91,5 @@ var APIExtensions = []string{
 	"file_get_symlink",
 	"network_leases",
 	"unix_device_hotplug",
+	"storage_api_local_volume_handling",
 }
