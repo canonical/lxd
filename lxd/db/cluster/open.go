@@ -49,7 +49,7 @@ func Open(name string, dialer grpcsql.Dialer) (*sql.DB, error) {
 // till they get upgraded and restarted).
 func EnsureSchema(db *sql.DB, address string) (bool, error) {
 	someNodesAreBehind := false
-	apiExtensions := len(version.APIExtensions)
+	apiExtensions := version.APIExtensionsCount()
 
 	check := func(current int, tx *sql.Tx) error {
 		// If we're bootstrapping a fresh schema, skip any check, since
