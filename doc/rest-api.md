@@ -2273,7 +2273,7 @@ Input (none at present):
  * Description: create a new storage volume on a given storage pool
  * Introduced: with API extension `storage`
  * Authentication: trusted
- * Operation: sync
+ * Operation: sync or async (when copying an existing volume)
  * Return: standard return value or standard error
 
 Input:
@@ -2285,19 +2285,33 @@ Input:
         "type": "custom"
     }
 
+Input (when copying a volume):
+
+    {
+        "config": {},
+        "pool": "pool1",
+        "name": "vol1",
+        "type": "custom"
+        "source": {
+            "pool": "pool2",
+            "name": "vol2",
+            "type": "custom"
+        }
+    }
 
 ## `/1.0/storage-pools/<pool>/volumes/<type>/<name>`
 ### POST
  * Description: rename a storage volume on a given storage pool
  * Introduced: with API extension `storage_api_volume_rename`
  * Authentication: trusted
- * Operation: sync
+ * Operation: sync or async (when moving to a different pool)
  * Return: standard return value or standard error
 
 Input:
 
     {
         "name": "vol1",
+        "pool": "pool3"
     }
 
 ### GET
