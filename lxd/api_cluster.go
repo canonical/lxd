@@ -380,21 +380,9 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 }
 
 func clusterNodesGet(d *Daemon, r *http.Request) Response {
-	dbNodes, flags, offlineThreshold, err := cluster.List(d.State())
+	nodes, err := cluster.List(d.State())
 	if err != nil {
 		return SmartError(err)
-	}
-
-	nodes := make([]api.Node, len(dbNodes))
-	for i, dbNode := range dbNodes {
-		nodes[i].Name = dbNode.Name
-		nodes[i].URL = fmt.Sprintf("https://%s", dbNode.Address)
-		nodes[i].Database = flags[dbNode.ID]
-		if dbNode.IsOffline(offlineThreshold) {
-			nodes[i].State = "OFFLINE"
-		} else {
-			nodes[i].State = "ONLINE"
-		}
 	}
 
 	return SyncResponse(true, nodes)
@@ -409,48 +397,19 @@ var clusterNodeCmd = Command{
 
 func clusterNodeGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
-	node := api.Node{}
-	node.Name = name
-	address := ""
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		offlineThreshold, err := tx.NodeOfflineThreshold()
-		if err != nil {
-			return err
-		}
 
-		dbNode, err := tx.NodeByName(name)
-		if err != nil {
-			return err
-		}
-		address = dbNode.Address
-		node.URL = fmt.Sprintf("https://%s", dbNode.Address)
-		if dbNode.IsOffline(offlineThreshold) {
-			node.State = "OFFLINE"
-		} else {
-			node.State = "ONLINE"
-		}
-		return nil
-	})
+	nodes, err := cluster.List(d.State())
 	if err != nil {
 		return SmartError(err)
 	}
 
-	// Figure out if this node is currently a database node.
-	err = d.db.Transaction(func(tx *db.NodeTx) error {
-		addresses, err := tx.RaftNodeAddresses()
-		if err != nil {
-			return err
+	for _, node := range nodes {
+		if node.Name == name {
+			return SyncResponse(true, node)
 		}
-		if shared.StringInSlice(address, addresses) {
-			node.Database = true
-		}
-		return nil
-	})
-	if err != nil {
-		return SmartError(err)
 	}
 
-	return SyncResponse(true, node)
+	return NotFound
 }
 
 func clusterNodePost(d *Daemon, r *http.Request) Response {

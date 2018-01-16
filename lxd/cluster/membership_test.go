@@ -308,12 +308,13 @@ func TestJoin(t *testing.T) {
 	assert.Equal(t, address, raftNodes[1].Address)
 
 	// The List function returns all nodes in the cluster.
-	nodes, flags, offlineThreshold, err := cluster.List(state)
+	nodes, err := cluster.List(state)
 	require.NoError(t, err)
 	assert.Len(t, nodes, 2)
-	assert.True(t, flags[1])
-	assert.True(t, flags[2])
-	assert.Equal(t, float64(20), offlineThreshold.Seconds())
+	assert.Equal(t, "ONLINE", nodes[0].State)
+	assert.Equal(t, "ONLINE", nodes[1].State)
+	assert.True(t, nodes[0].Database)
+	assert.True(t, nodes[1].Database)
 
 	// The Count function returns the number of nodes.
 	count, err := cluster.Count(state)

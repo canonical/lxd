@@ -14,7 +14,9 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
@@ -461,11 +463,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 }
 
 // List the nodes of the cluster.
-//
-// Upon success return a list of the current nodes, a map that for each ID
-// tells if the node is part of the database cluster or not, and the configured
-// offline threshold.
-func List(state *state.State) ([]db.NodeInfo, map[int64]bool, time.Duration, error) {
+func List(state *state.State) ([]api.Node, error) {
 	addresses := []string{} // Addresses of database nodes
 	err := state.Node.Transaction(func(tx *db.NodeTx) error {
 		nodes, err := tx.RaftNodes()
@@ -478,7 +476,7 @@ func List(state *state.State) ([]db.NodeInfo, map[int64]bool, time.Duration, err
 		return nil
 	})
 	if err != nil {
-		return nil, nil, -1, err
+		return nil, err
 	}
 
 	var nodes []db.NodeInfo
@@ -497,14 +495,57 @@ func List(state *state.State) ([]db.NodeInfo, map[int64]bool, time.Duration, err
 		return nil
 	})
 	if err != nil {
-		return nil, nil, -1, err
-	}
-	flags := make(map[int64]bool) // Whether a node is a database node
-	for _, node := range nodes {
-		flags[node.ID] = shared.StringInSlice(node.Address, addresses)
+		return nil, err
 	}
 
-	return nodes, flags, offlineThreshold, nil
+	result := make([]api.Node, len(nodes))
+	now := time.Now()
+	version := nodes[0].Version()
+	for i, node := range nodes {
+		result[i].Name = node.Name
+		result[i].URL = fmt.Sprintf("https://%s", node.Address)
+		result[i].Database = shared.StringInSlice(node.Address, addresses)
+		if node.IsOffline(offlineThreshold) {
+			result[i].State = "OFFLINE"
+			result[i].Message = fmt.Sprintf(
+				"no heartbeat since %s", now.Sub(node.Heartbeat))
+		} else {
+			result[i].State = "ONLINE"
+			result[i].Message = "fully operational"
+		}
+
+		n, err := util.CompareVersions(version, node.Version())
+		if err != nil {
+			result[i].State = "BROKEN"
+			result[i].Message = "inconsistent version"
+			continue
+		}
+
+		if n == 1 {
+			// This node's version is lower, which means the
+			// version that the previous node in the loop has been
+			// upgraded.
+			version = node.Version()
+		}
+	}
+
+	// Update the state of online nodes that have been upgraded and whose
+	// schema is more recent than the rest of the nodes.
+	for i, node := range nodes {
+		if result[i].State != "ONLINE" {
+			continue
+		}
+		n, err := util.CompareVersions(version, node.Version())
+		if err != nil {
+			continue
+		}
+		if n == 2 {
+			result[i].State = "BLOCKED"
+			result[i].Message = "waiting for other nodes to be upgraded"
+		}
+	}
+
+	return result, nil
 }
 
 // Count is a convenience for checking the current number of nodes in the
