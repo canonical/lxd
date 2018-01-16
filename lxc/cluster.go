@@ -170,7 +170,8 @@ func (c *clusterCmd) doClusterList(conf *config.Config, args []string) error {
 		if node.Database {
 			database = "YES"
 		}
-		data = append(data, []string{node.Name, node.URL, database, node.State})
+		line := []string{node.Name, node.URL, database, node.State, node.Message}
+		data = append(data, line)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -181,7 +182,9 @@ func (c *clusterCmd) doClusterList(conf *config.Config, args []string) error {
 		i18n.G("NAME"),
 		i18n.G("URL"),
 		i18n.G("DATABASE"),
-		i18n.G("STATE")})
+		i18n.G("STATE"),
+		i18n.G("MESSAGE"),
+	})
 	sort.Sort(byName(data))
 	table.AppendBulk(data)
 	table.Render()
