@@ -180,7 +180,7 @@ SELECT id, name, address, description, schema, api_extensions, heartbeat FROM no
 // cluster. It returns the ID of the newly inserted row.
 func (c *ClusterTx) NodeAdd(name string, address string) (int64, error) {
 	columns := []string{"name", "address", "schema", "api_extensions"}
-	values := []interface{}{name, address, cluster.SchemaVersion, len(version.APIExtensions)}
+	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount()}
 	return query.UpsertObject(c.tx, "nodes", columns, values)
 }
 
