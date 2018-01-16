@@ -184,7 +184,7 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 		}
 	}
 
-	_, err = cluster.EnsureSchema(db, address)
+	nodesVersionsMatch, err := cluster.EnsureSchema(db, address)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure schema")
 	}
@@ -217,8 +217,16 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 		return nil, err
 	}
 
-	return cluster, nil
+	if !nodesVersionsMatch {
+		err = ErrSomeNodesAreBehind
+	}
+
+	return cluster, err
 }
+
+// ErrSomeNodesAreBehind is returned by OpenCluster if some of the nodes in the
+// cluster have a schema or API version that is less recent than this node.
+var ErrSomeNodesAreBehind = fmt.Errorf("some nodes are behind this node's version")
 
 // ForLocalInspection is a aid for the hack in initializeDbObject, which
 // sets the db-related Deamon attributes upfront, to be backward compatible

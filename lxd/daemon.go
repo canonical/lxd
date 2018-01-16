@@ -450,9 +450,37 @@ func (d *Daemon) init() error {
 	}
 
 	/* Open the cluster database */
-	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
-	if err != nil {
+	for {
+		d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
+		if err == nil {
+			break
+		}
+		// If some other nodes have schema or API versions less recent
+		// than this node, we block until we receive a notification
+		// from the last node being upgraded that everything should be
+		// now fine, and then retry
+		if err == db.ErrSomeNodesAreBehind {
+			logger.Info("Wait for other cluster nodes to upgrade their versions")
+
+			// The only thing we want to still do on this node is
+			// to run the heartbeat task, in case we are the raft
+			// leader.
+			stop, _ := task.Start(cluster.Heartbeat(d.gateway, d.cluster))
+			d.gateway.WaitUpgradeNotification()
+			stop(time.Second)
+
+			d.cluster.Close()
+
+			continue
+		}
 		return errors.Wrap(err, "failed to open cluster database")
+	}
+	err = cluster.NotifyUpgradeCompleted(d.State(), certInfo)
+	if err != nil {
+		// Ignore the error, since it's not fatal for this particular
+		// node. In most cases it just means that some nodes are
+		// offline.
+		logger.Debugf("Could not notify all nodes of database upgrade: %v", err)
 	}
 
 	/* Migrate the node local data to the cluster database, if needed */
