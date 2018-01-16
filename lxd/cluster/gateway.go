@@ -43,11 +43,12 @@ func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway
 	}
 
 	gateway := &Gateway{
-		db:      db,
-		cert:    cert,
-		options: o,
-		ctx:     ctx,
-		cancel:  cancel,
+		db:        db,
+		cert:      cert,
+		options:   o,
+		ctx:       ctx,
+		cancel:    cancel,
+		upgradeCh: make(chan struct{}, 16),
 	}
 
 	err := gateway.init()
@@ -87,6 +88,10 @@ type Gateway struct {
 	// dialing attempt.
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// Used to unblock nodes that are waiting for other nodes to upgrade
+	// their version.
+	upgradeCh chan struct{}
 }
 
 // HandlerFuncs returns the HTTP handlers that should be added to the REST API
@@ -126,6 +131,15 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 		// From here on we require that this node is part of the raft cluster.
 		if g.server == nil || g.memoryDial != nil {
 			http.NotFound(w, r)
+			return
+		}
+
+		// Handle database upgrade notifications.
+		if r.Method == "PATCH" {
+			select {
+			case g.upgradeCh <- struct{}{}:
+			default:
+			}
 			return
 		}
 
@@ -193,6 +207,13 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 		grpcEndpoint: grpc,
 		raftEndpoint: raft,
 	}
+}
+
+// WaitUpgradeNotification waits for a notification from another node that all
+// nodes in the cluster should now have been upgraded and have matching schema
+// and API versions.
+func (g *Gateway) WaitUpgradeNotification() {
+	<-g.upgradeCh
 }
 
 // Dialer returns a gRPC dial function that can be used to connect to one of
