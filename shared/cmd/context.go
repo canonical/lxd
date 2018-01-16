@@ -138,6 +138,16 @@ func (c *Context) AskPassword(question string, reader func(int) ([]byte, error))
 	}
 }
 
+// AskPasswordOnce asks the user to enter a password.
+//
+// It's the same as AskPassword, but it won't ask to enter it again.
+func (c *Context) AskPasswordOnce(question string, reader func(int) ([]byte, error)) string {
+	fmt.Fprintf(c.stdout, question)
+	pwd, _ := reader(0)
+	fmt.Fprintf(c.stdout, "\n")
+	return string(pwd)
+}
+
 // InputYAML treats stdin as YAML content and returns the unmarshalled
 // structure
 func (c *Context) InputYAML(out interface{}) error {

@@ -166,6 +166,20 @@ func TestAskPassword(t *testing.T) {
 	}
 }
 
+// AskPasswordOnce returns the password entered once by the user.
+func TestAskPasswordOnce(t *testing.T) {
+	streams := cmd.NewMemoryStreams("")
+	context := cmd.NewMemoryContext(streams)
+
+	reader := func(int) ([]byte, error) {
+		return []byte("pwd"), nil
+	}
+
+	result := context.AskPassword("Pass?", reader)
+
+	assert.Equal(t, "pwd", result, "Unexpected answer result")
+}
+
 // InputYAML parses the YAML content passed via stdin.
 func TestInputYAML(t *testing.T) {
 	streams := cmd.NewMemoryStreams("field: foo")
