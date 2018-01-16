@@ -814,7 +814,7 @@ func (cmd *CmdInit) askClustering() (*cmdInitClusteringParams, error) {
 join:
 	targetAddress := cmd.Context.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
 	params.TargetAddress = util.CanonicalNetworkAddress(targetAddress)
-	params.TargetPassword = cmd.Context.AskPassword(
+	params.TargetPassword = cmd.Context.AskPasswordOnce(
 		"Trust password for the existing cluster: ", cmd.PasswordReader)
 
 	url := fmt.Sprintf("https://%s", params.TargetAddress)
