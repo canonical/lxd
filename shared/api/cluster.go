@@ -54,4 +54,5 @@ type Node struct {
 	URL      string `json:"url" yaml:"url"`
 	Database bool   `json:"database" yaml:"database"`
 	State    string `json:"state" yaml:"state"`
+	Message  string `json:"message" yaml:"message"`
 }
