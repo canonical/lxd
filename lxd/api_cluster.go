@@ -343,7 +343,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 		}
 		info, err := client.AcceptNode(
 			req.TargetPassword, req.Name, address, cluster.SchemaVersion,
-			len(version.APIExtensions), pools, networks)
+			version.APIExtensionsCount(), pools, networks)
 		if err != nil {
 			return errors.Wrap(err, "failed to request to add node")
 		}
