@@ -278,7 +278,7 @@ test_basic_usage() {
     LD_LIBRARY_PATH="${sqlite}/.libs" lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
 
     # shellcheck disable=SC2031
-    respawn_lxd "${LXD_DIR}"
+    respawn_lxd "${LXD_DIR}" true
 
     lxc list --force-local autostart | grep -q RUNNING
 

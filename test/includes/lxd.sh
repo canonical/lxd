@@ -98,6 +98,9 @@ respawn_lxd() {
     lxddir=${1}
     shift
 
+    wait=${1}
+    shift
+
     # Link to local sqlite with replication patch for dqlite
     sqlite="$(pwd)/../lxd/sqlite"
     if [ -e "/lxc-ci/build/cache/sqlite" ]; then
@@ -106,13 +109,19 @@ respawn_lxd() {
 
     echo "==> Spawning lxd in ${lxddir}"
     # shellcheck disable=SC2086
-    LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    if [ "${LXD_NETNS}" = "" ]; then
+	LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    else
+	pid="$(lxc-info -n "${LXD_NETNS}" -p | cut -f 2 -d : | tr -d " ")"
+	LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter --all --target="${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &    fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
-    echo "==> Confirming lxd is responsive"
-    LXD_DIR="${lxddir}" lxd waitready --timeout=300
+    if [ "${wait}" = true ]; then
+	echo "==> Confirming lxd is responsive"
+	LXD_DIR="${lxddir}" lxd waitready --timeout=300
+    fi
 }
 
 kill_lxd() {
