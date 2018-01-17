@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	lxd "github.com/lxc/lxd/client"
@@ -31,6 +33,34 @@ func TestCluster_Bootstrap(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, client.IsClustered())
 	assert.Equal(t, "buzz", client.ClusterNodeName())
+}
+
+func TestCluster_Get(t *testing.T) {
+	daemon, cleanup := newDaemon(t)
+	defer cleanup()
+
+	client, err := lxd.ConnectLXDUnix(daemon.UnixSocket(), nil)
+	require.NoError(t, err)
+
+	// Create a pool and check that the information returned by GetCluster
+	// does not contain node-specific keys.
+	os.Setenv("LXD_DIR", filepath.Join(daemon.State().OS.VarDir))
+	pool := api.StoragePoolsPost{
+		Name:   "mypool",
+		Driver: "dir",
+	}
+	pool.Config = map[string]string{
+		"source": "",
+	}
+	err = client.CreateStoragePool(pool)
+	require.NoError(t, err)
+
+	cluster, err := client.GetCluster("")
+	require.NoError(t, err)
+	assert.Len(t, cluster.StoragePools, 1)
+
+	_, ok := cluster.StoragePools[0].Config["source"]
+	assert.False(t, ok, "should have not contained the node-specific 'source' key")
 }
 
 // A LXD node which is already configured for networking can join an existing
