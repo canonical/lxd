@@ -435,7 +435,7 @@ func operationCreate(cluster *db.Cluster, opClass operationClass, opResources ma
 		return err
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to add operation to database")
+		return nil, errors.Wrapf(err, "failed to add operation %s to database", op.id)
 	}
 
 	logger.Debugf("New %s operation: %s", op.class.String(), op.id)
