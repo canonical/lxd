@@ -127,14 +127,21 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 				}
 				appendNodeID()
 			case "storage_pools_config":
-				// The "source" config key is the only one
-				// which is not global to the cluster, so all
-				// other keys will have a NULL node_id.
+				// The keys listed in StoragePoolNodeConfigKeys
+				// are the only ones which are not global to the
+				// cluster, so all other keys will have a NULL
+				// node_id.
+				index := 0
 				for i, column := range columns {
-					if column == "key" && row[i] != "source" {
-						nullNodeID = true
+					if column == "key" {
+						index = i
 						break
 					}
+				}
+				key := row[index].(string)
+				if !shared.StringInSlice(key, StoragePoolNodeConfigKeys) {
+					nullNodeID = true
+					break
 				}
 				appendNodeID()
 			case "storage_volumes_config":

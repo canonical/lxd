@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -83,12 +84,32 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "/foo/bar", pool.Config["source"])
 	assert.Equal(t, "123", pool.Config["size"])
+	assert.Equal(t, "/foo/bar", pool.Config["volatile.initial_source"])
 	assert.Equal(t, "CREATED", pool.State)
 	assert.Equal(t, []string{"none"}, pool.Nodes)
 	volumes, err := cluster.StoragePoolVolumesGet(id, []int{1})
 	require.NoError(t, err)
 	assert.Len(t, volumes, 1)
 	assert.Equal(t, "/foo/bar", volumes[0].Config["source"])
+
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		// The size config got a NULL node_id, since it's cluster global.
+		config, err := query.SelectConfig(tx.Tx(), "storage_pools_config", "node_id IS NULL")
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"size": "123"}, config)
+
+		// The other config keys are node-specific.
+		config, err = query.SelectConfig(tx.Tx(), "storage_pools_config", "node_id=?", 1)
+		require.NoError(t, err)
+		assert.Equal(t,
+			map[string]string{
+				"volatile.initial_source": "/foo/bar",
+				"source":                  "/foo/bar",
+			}, config)
+
+		return nil
+	})
+	require.NoError(t, err)
 
 	// profiles
 	profiles, err := cluster.Profiles()
@@ -148,6 +169,7 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 		"INSERT INTO storage_pools VALUES (1, 'default', 'dir', '')",
 		"INSERT INTO storage_pools_config VALUES(1, 1, 'source', '/foo/bar')",
 		"INSERT INTO storage_pools_config VALUES(2, 1, 'size', '123')",
+		"INSERT INTO storage_pools_config VALUES(3, 1, 'volatile.initial_source', '/foo/bar')",
 		"INSERT INTO storage_volumes VALUES (1, 'dev', 1, 1, '')",
 		"INSERT INTO storage_volumes_config VALUES(1, 1, 'source', '/foo/bar')",
 	}

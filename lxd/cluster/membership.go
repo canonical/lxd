@@ -333,9 +333,13 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's to the pool")
 			}
-			// We only need to add the source key, since the other keys are global and
-			// are already there.
-			config = map[string]string{"source": config["source"]}
+			// We only need to add the node-specific keys, since
+			// the other keys are global and are already there.
+			for key := range config {
+				if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
+					delete(config, key)
+				}
+			}
 			err = tx.StoragePoolConfigAdd(id, node.ID, config)
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's pool config")
