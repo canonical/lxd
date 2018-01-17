@@ -366,7 +366,32 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 			nodes[i].ID = node.ID
 			nodes[i].Address = node.Address
 		}
-		return cluster.Join(d.State(), d.gateway, cert, req.Name, nodes)
+
+		err = cluster.Join(d.State(), d.gateway, cert, req.Name, nodes)
+		if err != nil {
+			return err
+		}
+
+		// FIXME: special case handling MAAS connection if the config
+		// in the cluster is different than what we had locally before
+		// joining. Ideally this should be something transparent or
+		// more generic, perhaps triggering some parts of Daemon.Init.
+		var config *cluster.Config
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			config, err = cluster.ConfigLoad(tx)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		url, key, machine := config.MAASController()
+		err = d.setupMAASController(url, key, machine)
+		if err != nil {
+			return err
+		}
+		return nil
+
 	}
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
