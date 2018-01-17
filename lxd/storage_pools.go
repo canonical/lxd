@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -131,10 +132,10 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// A targetNode was specified, let's just define the node's storage
-	// without actually creating it. The only legal key value for the
-	// storage config is 'source'.
+	// without actually creating it. The only legal key values for the
+	// storage config are the ones in StoragePoolNodeConfigKeys.
 	for key := range req.Config {
-		if key != "source" {
+		if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
 			return SmartError(fmt.Errorf("Invalid config key '%s'", key))
 		}
 	}
@@ -153,11 +154,10 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 }
 
 func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
-	// Check that no 'source' config key has been defined, since
-	// that's node-specific.
+	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
-		if key == "source" {
-			return fmt.Errorf("Config key 'source' is node-specific")
+		if shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
+			return fmt.Errorf("Config key '%s' is node-specific", key)
 		}
 	}
 
@@ -257,14 +257,17 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 
 	targetNode := r.FormValue("targetNode")
 
-	// If no target node is specified and the client is clustered, we omit
-	// the node-specific fields, namely "source"
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return SmartError(err)
 	}
+
+	// If no target node is specified and the client is clustered, we omit
+	// the node-specific fields.
 	if targetNode == "" && clustered {
-		delete(pool.Config, "source")
+		for _, key := range db.StoragePoolNodeConfigKeys {
+			delete(pool.Config, key)
+		}
 	}
 
 	// If a target was specified, forward the request to the relevant node.

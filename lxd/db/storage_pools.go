@@ -471,7 +471,7 @@ func storagePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[strin
 			continue
 		}
 		var nodeIDValue interface{}
-		if k != "source" {
+		if !shared.StringInSlice(k, StoragePoolNodeConfigKeys) {
 			nodeIDValue = nil
 		} else {
 			nodeIDValue = nodeID
@@ -788,6 +788,13 @@ const (
 	StoragePoolVolumeTypeNameImage     string = "image"
 	StoragePoolVolumeTypeNameCustom    string = "custom"
 )
+
+// StoragePoolNodeConfigKeys lists all storage pool config keys which are
+// node-specific.
+var StoragePoolNodeConfigKeys = []string{
+	"source",
+	"volatile.initial_source",
+}
 
 // StoragePoolVolumeTypeToName converts a volume integer type code to its
 // human-readable name.

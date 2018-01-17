@@ -241,8 +241,8 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 			if pool.Driver != reqPool.Driver {
 				return fmt.Errorf("Mismatching driver for storage pool %s", name)
 			}
-			// Exclude the "source" key, which is node-specific.
-			exclude := []string{"source"}
+			// Exclude the keys which are node-specific.
+			exclude := db.StoragePoolNodeConfigKeys
 			err = util.CompareConfigs(pool.Config, reqPool.Config, exclude)
 			if err != nil {
 				return fmt.Errorf("Mismatching config for storage pool %s: %v", name, err)
