@@ -203,7 +203,7 @@ kill_lxd() {
     wipe "${daemon_dir}"
 
     # Remove the daemon from the list
-    sed "\|^${daemon_dir}|d" -i "${TEST_DIR}/daemons"
+    sed "\\|^${daemon_dir}|d" -i "${TEST_DIR}/daemons"
 }
 
 shutdown_lxd() {
