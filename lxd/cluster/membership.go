@@ -651,12 +651,12 @@ func membershipCheckClusterStateForAccept(tx *db.ClusterTx, name string, address
 // Check that cluster-related preconditions are met for leaving a cluster.
 func membershipCheckClusterStateForLeave(tx *db.ClusterTx, nodeID int64) error {
 	// Check that it has no containers or images.
-	empty, err := tx.NodeIsEmpty(nodeID)
+	message, err := tx.NodeIsEmpty(nodeID)
 	if err != nil {
 		return err
 	}
-	if !empty {
-		return fmt.Errorf("node has containers or images")
+	if message != "" {
+		return fmt.Errorf(message)
 	}
 
 	// Check that it's not the last node.

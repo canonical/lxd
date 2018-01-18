@@ -124,31 +124,63 @@ func TestNodeHeartbeat(t *testing.T) {
 	assert.True(t, node.IsOffline(20*time.Second))
 }
 
-// A node is considered empty only if it has no containers and no images.
-func TestNodeIsEmpty(t *testing.T) {
+// A node is considered empty only if it has no containers.
+func TestNodeIsEmpty_Containers(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
 	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
 	require.NoError(t, err)
 
-	empty, err := tx.NodeIsEmpty(id)
+	message, err := tx.NodeIsEmpty(id)
 	require.NoError(t, err)
-	assert.True(t, empty)
+	assert.Equal(t, "", message)
 
 	_, err = tx.Tx().Exec(`
 INSERT INTO containers (id, node_id, name, architecture, type) VALUES (1, ?, 'foo', 1, 1)
 `, id)
 	require.NoError(t, err)
 
-	empty, err = tx.NodeIsEmpty(id)
+	message, err = tx.NodeIsEmpty(id)
 	require.NoError(t, err)
-	assert.False(t, empty)
+	assert.Equal(t, "node still has the following containers: foo", message)
 
 	err = tx.NodeClear(id)
 	require.NoError(t, err)
 
-	empty, err = tx.NodeIsEmpty(id)
+	message, err = tx.NodeIsEmpty(id)
 	require.NoError(t, err)
-	assert.True(t, empty)
+	assert.Equal(t, "", message)
+}
+
+// A node is considered empty only if it has no images that are available only
+// on that node.
+func TestNodeIsEmpty_Images(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	_, err = tx.Tx().Exec(`
+INSERT INTO images (id, fingerprint, filename, size, architecture, upload_date)
+  VALUES (1, 'abc', 'foo', 123, 1, ?)`, time.Now())
+	require.NoError(t, err)
+
+	_, err = tx.Tx().Exec(`
+INSERT INTO images_nodes(image_id, node_id) VALUES(1, ?)`, id)
+	require.NoError(t, err)
+
+	message, err := tx.NodeIsEmpty(id)
+	require.NoError(t, err)
+	assert.Equal(t, "node still has the following images: abc", message)
+
+	// Insert a new image entry for node 1 (the default node).
+	_, err = tx.Tx().Exec(`
+INSERT INTO images_nodes(image_id, node_id) VALUES(1, 1)`)
+	require.NoError(t, err)
+
+	message, err = tx.NodeIsEmpty(id)
+	require.NoError(t, err)
+	assert.Equal(t, "", message)
 }
