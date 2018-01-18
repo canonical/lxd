@@ -121,7 +121,7 @@ msgstr "自動更新: %s"
 #: lxc/image.go:519
 #, c-format
 msgid "Bad property: %s"
-msgstr "不正なプロパティ: %s\n"
+msgstr "不正なプロパティ: %s"
 
 #: lxc/info.go:186
 msgid "Bytes received"
