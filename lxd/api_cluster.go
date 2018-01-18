@@ -77,6 +77,12 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 
 // Disable clustering on a node.
 func clusterDelete(d *Daemon, r *http.Request) Response {
+	// Close the cluster database
+	err := d.cluster.Close()
+	if err != nil {
+		return SmartError(err)
+	}
+
 	// Update our TLS configuration using our original certificate.
 	for _, suffix := range []string{"crt", "key", "ca"} {
 		path := filepath.Join(d.os.VarDir, "cluster."+suffix)
@@ -96,6 +102,16 @@ func clusterDelete(d *Daemon, r *http.Request) Response {
 	// Reset the cluster database and make it local to this node.
 	d.endpoints.NetworkUpdateCert(cert)
 	err = d.gateway.Reset(cert)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Re-open the cluster database
+	address, err := node.HTTPSAddress(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
 	if err != nil {
 		return SmartError(err)
 	}
