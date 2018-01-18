@@ -200,6 +200,15 @@ func TestCluster_Leave(t *testing.T) {
 	client := f.ClientUnix(daemons[1])
 	err := client.LeaveCluster("rusp-0", false)
 	require.NoError(t, err)
+
+	_, _, err = client.GetServer()
+	require.NoError(t, err)
+	assert.False(t, client.IsClustered())
+
+	nodes, err := client.GetNodes()
+	require.NoError(t, err)
+	assert.Len(t, nodes, 1)
+	assert.Equal(t, "none", nodes[0].Name)
 }
 
 // A LXD node can be renamed.

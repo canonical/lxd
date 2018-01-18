@@ -88,6 +88,7 @@ test_clustering_membership() {
 
   # Remove a node gracefully.
   LXD_DIR="${LXD_FOUR_DIR}" lxc cluster delete node5
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list | grep -q "https://0.0.0.0"
 
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
