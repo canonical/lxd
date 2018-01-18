@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
@@ -209,6 +210,65 @@ func TestCluster_Leave(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)
 	assert.Equal(t, "none", nodes[0].Name)
+}
+
+// A node can't leave a cluster gracefully if it still has images associated
+// with it.
+func TestCluster_LeaveWithImages(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cluster leave test in short mode.")
+	}
+	daemons, cleanup := newDaemons(t, 2)
+	defer cleanup()
+
+	f := clusterFixture{t: t}
+	f.FormCluster(daemons)
+
+	daemon := daemons[1]
+	err := daemon.State().Cluster.ImageInsert(
+		"abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil)
+	require.NoError(t, err)
+
+	client := f.ClientUnix(daemons[1])
+	err = client.LeaveCluster("rusp-0", false)
+	assert.EqualError(t, err, "node still has the following images: abc")
+
+	// If we now associate the image with the other node as well, leaving
+	// the cluster is fine.
+	daemon = daemons[0]
+	err = daemon.State().Cluster.ImageAssociateNode("abc")
+	require.NoError(t, err)
+
+	err = client.LeaveCluster("rusp-0", false)
+	assert.NoError(t, err)
+}
+
+// The force flag makes a node leave also if it still has images.
+func TestCluster_LeaveForce(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cluster leave test in short mode.")
+	}
+	daemons, cleanup := newDaemons(t, 2)
+	defer cleanup()
+
+	f := clusterFixture{t: t}
+	f.FormCluster(daemons)
+
+	daemon := daemons[1]
+	err := daemon.State().Cluster.ImageInsert(
+		"abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil)
+	require.NoError(t, err)
+
+	client := f.ClientUnix(daemons[1])
+	err = client.LeaveCluster("rusp-0", true)
+	assert.NoError(t, err)
+
+	// The image is gone, since the deleted node was the only one having a
+	// copy of it.
+	daemon = daemons[0]
+	images, err := daemon.State().Cluster.ImagesGet(false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{}, images)
 }
 
 // A LXD node can be renamed.

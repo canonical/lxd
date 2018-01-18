@@ -238,6 +238,7 @@ func (c *ClusterTx) NodeHeartbeat(address string, heartbeat time.Time) error {
 // containers or images associated with it. Otherwise, it returns a message
 // say what's left.
 func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
+	// Check if the node has any containers.
 	containers, err := query.SelectStrings(c.tx, "SELECT name FROM containers WHERE node_id=?", id)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get containers for node %d", id)
@@ -248,6 +249,7 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 		return message, nil
 	}
 
+	// Check if the node has any images available only in.
 	images := []struct {
 		fingerprint string
 		nodeID      int64
@@ -296,9 +298,31 @@ func (c *ClusterTx) NodeClear(id int64) error {
 		return err
 	}
 
+	// Get the IDs of the images this node is hosting.
+	ids, err := query.SelectIntegers(c.tx, "SELECT image_id FROM images_nodes WHERE node_id=?", id)
+	if err != nil {
+		return err
+	}
+
+	// Delete the association
 	_, err = c.tx.Exec("DELETE FROM images_nodes WHERE node_id=?", id)
 	if err != nil {
 		return err
+	}
+
+	// Delete the image as well if this was the only node with it.
+	for _, id := range ids {
+		count, err := query.Count(c.tx, "images_nodes", "image_id=?", id)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			continue
+		}
+		_, err = c.tx.Exec("DELETE FROM images WHERE id=?", id)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
