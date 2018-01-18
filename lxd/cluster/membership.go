@@ -388,12 +388,17 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 // Leave a cluster.
 //
-// If the force flag is true, the node will be removed even if it still has
+// If the force flag is true, the node will leave even if it still has
 // containers and images.
+//
+// The node will only leave the raft cluster, and won't be removed from the
+// database. That's done by Purge().
 //
 // Upon success, return the address of the leaving node.
 func Leave(state *state.State, gateway *Gateway, name string, force bool) (string, error) {
-	// Delete the node from the cluster and track its address.
+	logger.Debugf("Make node %s leave the cluster", name)
+
+	// Check if the node can be deleted and track its address.
 	var address string
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Get the node (if it doesn't exists an error is returned).
@@ -409,16 +414,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 				return err
 			}
 		}
-		err = tx.NodeClear(node.ID)
-		if err != nil {
-			return err
-		}
 
-		// Actually remove the node from the cluster database.
-		err = tx.NodeRemove(node.ID)
-		if err != nil {
-			return err
-		}
 		address = node.Address
 		return nil
 	})
@@ -466,6 +462,30 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	}
 
 	return address, nil
+}
+
+// Purge removes a node entirely from the cluster database.
+func Purge(cluster *db.Cluster, name string) error {
+	logger.Debugf("Remove node %s from the database", name)
+
+	return cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the node (if it doesn't exists an error is returned).
+		node, err := tx.NodeByName(name)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get node %s", name)
+		}
+
+		err = tx.NodeClear(node.ID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to clear node %s", name)
+		}
+
+		err = tx.NodeRemove(node.ID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to remove node %s", name)
+		}
+		return nil
+	})
 }
 
 // List the nodes of the cluster.

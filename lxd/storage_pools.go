@@ -410,7 +410,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if len(profiles) > 0 {
+	if len(profiles) > 0 && !isClusterNotification(r) {
 		return BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
 	}
 

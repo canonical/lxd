@@ -484,38 +484,64 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 		force = 0
 	}
 
+	// First check that the node is clear from containers and images and
+	// make it leave the database cluster, if it's part of it.
 	name := mux.Vars(r)["name"]
 	address, err := cluster.Leave(d.State(), d.gateway, name, force == 1)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	var run func(op *operation) error
-
-	if force == 1 {
-		// If the force flag is on, the returned operation is a no-op.
-		run = func(op *operation) error {
-			return nil
-		}
-
-	} else {
-		// Try to gracefully disable clustering on the target node.
+	if force != 1 {
+		// Try to gracefully delete all networks and storage pools on it.
+		// Delete all networks on this node
 		cert := d.endpoints.NetworkCert()
-		run = func(op *operation) error {
-			// First request for this node to be added to the list of
-			// cluster nodes.
-			client, err := cluster.Connect(address, cert, false)
+		client, err := cluster.Connect(address, cert, true)
+		if err != nil {
+			return SmartError(err)
+		}
+		networks, err := d.cluster.Networks()
+		if err != nil {
+			return SmartError(err)
+		}
+		for _, name := range networks {
+			err := client.DeleteNetwork(name)
 			if err != nil {
-				return err
+				return SmartError(err)
 			}
-			_, _, err = client.RawQuery("DELETE", "/1.0/cluster", nil, "")
-			return err
+		}
+
+		// Delete all the pools on this node
+		pools, err := d.cluster.StoragePools()
+		if err != nil && err != db.NoSuchObjectError {
+			return SmartError(err)
+		}
+		for _, name := range pools {
+			err := client.DeleteStoragePool(name)
+			if err != nil {
+				return SmartError(err)
+			}
 		}
 	}
 
-	err = run(nil)
+	// Remove node from the database
+	err = cluster.Purge(d.cluster, name)
 	if err != nil {
-		return SmartError(err)
+		return SmartError(errors.Wrap(err, "failed to remove node from database"))
 	}
+
+	if force != 1 {
+		// Try to gracefully reset the database on the node.
+		cert := d.endpoints.NetworkCert()
+		client, err := cluster.Connect(address, cert, false)
+		if err != nil {
+			return SmartError(err)
+		}
+		_, _, err = client.RawQuery("DELETE", "/1.0/cluster", nil, "")
+		if err != nil {
+			SmartError(errors.Wrap(err, "failed to cleanup the node"))
+		}
+	}
+
 	return EmptySyncResponse
 }
