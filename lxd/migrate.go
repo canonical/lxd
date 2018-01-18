@@ -611,7 +611,11 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
-	use_pre_dumps, max_iterations := s.checkForPreDumpSupport()
+	use_pre_dumps := false
+	max_iterations := 0
+	if s.live {
+		use_pre_dumps, max_iterations = s.checkForPreDumpSupport()
+	}
 
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
