@@ -4884,6 +4884,10 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			}
 		}
 	} else if args.cmd == lxc.MIGRATE_FEATURE_CHECK {
+		err := c.initLXC(true)
+		if err != nil {
+			return err
+		}
 
 		opts := lxc.MigrateOptions{
 			FeaturesToCheck: args.features,
