@@ -404,10 +404,12 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 
 		// Check that the node is eligeable for leaving.
 		if !force {
-			err = membershipCheckClusterStateForLeave(tx, node.ID)
-		} else {
-			err = tx.NodeClear(node.ID)
+			err := membershipCheckClusterStateForLeave(tx, node.ID)
+			if err != nil {
+				return err
+			}
 		}
+		err = tx.NodeClear(node.ID)
 		if err != nil {
 			return err
 		}
