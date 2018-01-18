@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	grpcsql "github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/mattn/go-sqlite3"
+	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/logger"
@@ -25,12 +28,14 @@ var (
 	 * already do.
 	 */
 	NoSuchObjectError = fmt.Errorf("No such object")
+
+	Upgrading = fmt.Errorf("The cluster database is upgrading")
 )
 
 // Node mediates access to LXD's data stored in the node-local SQLite database.
 type Node struct {
-	db *sql.DB // Handle to the node-local SQLite database file.
-
+	db  *sql.DB // Handle to the node-local SQLite database file.
+	dir string  // Reference to the directory where the database file lives.
 }
 
 // OpenNode creates a new Node object.
@@ -54,7 +59,8 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 	}
 
 	node := &Node{
-		db: db,
+		db:  db,
+		dir: dir,
 	}
 
 	if initial == 0 {
@@ -89,6 +95,11 @@ func (n *Node) DB() *sql.DB {
 	return n.db
 }
 
+// Dir returns the directory of the underlying SQLite database file.
+func (n *Node) Dir() string {
+	return n.dir
+}
+
 // Transaction creates a new NodeTx object and transactionally executes the
 // node-level database interactions invoked by the given function. If the
 // function returns no error, all database changes are committed to the
@@ -111,12 +122,68 @@ func (n *Node) Begin() (*sql.Tx, error) {
 	return begin(n.db)
 }
 
+// Cluster mediates access to LXD's data stored in the cluster dqlite database.
+type Cluster struct {
+	db *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
+}
+
+// OpenCluster creates a new Cluster object for interacting with the dqlite
+// database.
+//
+// - name: Basename of the database file holding the data. Typically "db.bin".
+// - dialer: Function used to connect to the dqlite backend via gRPC SQL.
+// - address: Network address of this node (or empty string).
+// - api: Number of API extensions that this node supports.
+//
+// The address and api parameters will be used to determine if the cluster
+// database matches our version, and possibly trigger a schema update. If the
+// schema update can't be performed right now, because some nodes are still
+// behind, an Upgrading error is returned.
+func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, error) {
+	db, err := cluster.Open(name, dialer)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open database")
+	}
+
+	_, err = cluster.EnsureSchema(db, address)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to ensure schema")
+	}
+
+	cluster := &Cluster{
+		db: db,
+	}
+
+	return cluster, nil
+}
+
+// Transaction creates a new ClusterTx object and transactionally executes the
+// cluster database interactions invoked by the given function. If the function
+// returns no error, all database changes are committed to the cluster database
+// database, otherwise they are rolled back.
+func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
+	clusterTx := &ClusterTx{}
+	return query.Transaction(c.db, func(tx *sql.Tx) error {
+		clusterTx.tx = tx
+		return f(clusterTx)
+	})
+}
+
+// Close the database facade.
+func (c *Cluster) Close() error {
+	return c.db.Close()
+}
+
 // UpdateSchemasDotGo updates the schema.go files in the local/ and cluster/
 // sub-packages.
 func UpdateSchemasDotGo() error {
 	err := node.SchemaDotGo()
 	if err != nil {
-		return fmt.Errorf("failed to update local schema.go: %v", err)
+		return fmt.Errorf("failed to update node schema.go: %v", err)
+	}
+	err = cluster.SchemaDotGo()
+	if err != nil {
+		return fmt.Errorf("failed to update cluster schema.go: %v", err)
 	}
 
 	return nil
