@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -233,26 +234,59 @@ func (c *ClusterTx) NodeHeartbeat(address string, heartbeat time.Time) error {
 	return nil
 }
 
-// NodeIsEmpty returns true if the node with the given ID has no containers or
-// images associated with it.
-func (c *ClusterTx) NodeIsEmpty(id int64) (bool, error) {
-	n, err := query.Count(c.tx, "containers", "node_id=?", id)
+// NodeIsEmpty returns an empty string if the node with the given ID has no
+// containers or images associated with it. Otherwise, it returns a message
+// say what's left.
+func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
+	containers, err := query.SelectStrings(c.tx, "SELECT name FROM containers WHERE node_id=?", id)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to get containers count for node %d", id)
+		return "", errors.Wrapf(err, "failed to get containers for node %d", id)
 	}
-	if n > 0 {
-		return false, nil
+	if len(containers) > 0 {
+		message := fmt.Sprintf(
+			"node still has the following containers: %s", strings.Join(containers, ", "))
+		return message, nil
 	}
 
-	n, err = query.Count(c.tx, "images_nodes", "node_id=?", id)
-	if err != nil {
-		return false, errors.Wrapf(err, "failed to get images count for node %d", id)
+	images := []struct {
+		fingerprint string
+		nodeID      int64
+	}{}
+	dest := func(i int) []interface{} {
+		images = append(images, struct {
+			fingerprint string
+			nodeID      int64
+		}{})
+		return []interface{}{&images[i].fingerprint, &images[i].nodeID}
+
 	}
-	if n > 0 {
-		return false, nil
+	err = query.SelectObjects(c.tx, dest, `
+SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_nodes.image_id`)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get image list for node %d", id)
+	}
+	index := map[string][]int64{} // Map fingerprints to IDs of nodes
+	for _, image := range images {
+		index[image.fingerprint] = append(index[image.fingerprint], image.nodeID)
 	}
 
-	return true, nil
+	fingerprints := []string{}
+	for fingerprint, ids := range index {
+		if len(ids) > 1 {
+			continue
+		}
+		if ids[0] == id {
+			fingerprints = append(fingerprints, fingerprint)
+		}
+	}
+
+	if len(fingerprints) > 0 {
+		message := fmt.Sprintf(
+			"node still has the following images: %s", strings.Join(fingerprints, ", "))
+		return message, nil
+	}
+
+	return "", nil
 }
 
 // NodeClear removes any container or image associated with this node.
