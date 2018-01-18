@@ -86,6 +86,12 @@ test_clustering_membership() {
   # Rename a node using the pre-existing name.
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster rename node4 node5
 
+  # Trying to delete a container which is the only one with a copy of
+  # an image results in an error
+  LXD_DIR="${LXD_FOUR_DIR}" ensure_import_testimage
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster delete node5
+  LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
+
   # Remove a node gracefully.
   LXD_DIR="${LXD_FOUR_DIR}" lxc cluster delete node5
   LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list | grep -q "https://0.0.0.0"
@@ -149,6 +155,9 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
   LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: Running"
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
+
+  # Trying to delete a node which has container results in an error
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster delete node2
 
   # Exec a command in the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc exec foo ls / | grep -q linuxrc
