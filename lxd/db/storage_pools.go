@@ -591,8 +591,9 @@ func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) (int, error) {
 	return len(result), nil
 }
 
-// Get all storage volumes attached to a given storage pool.
-func (c *Cluster) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
+// Get all storage volumes attached to a given storage pool on the current
+// node.
+func (c *Cluster) StoragePoolNodeVolumesGet(poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	// Get all storage volumes of all types attached to a given storage
 	// pool.
 	result := []*api.StorageVolume{}
