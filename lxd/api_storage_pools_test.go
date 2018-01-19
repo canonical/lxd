@@ -10,9 +10,6 @@ import (
 
 // Create a new pending storage pool using the targetNode query paramenter.
 func TestStoragePoolsCreate_TargetNode(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping storage-pools targetNode test in short mode.")
-	}
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -40,11 +37,28 @@ func TestStoragePoolsCreate_TargetNode(t *testing.T) {
 }
 
 // An error is returned when trying to create a new storage pool in a cluster
+// where the pool was not defined on any node nodes.
+func TestStoragePoolsCreate_NotDefined(t *testing.T) {
+	daemons, cleanup := newDaemons(t, 2)
+	defer cleanup()
+
+	f := clusterFixture{t: t}
+	f.FormCluster(daemons)
+
+	// Trying to create the pool now results in an error, since it's not
+	// defined on any node.
+	poolPost := api.StoragePoolsPost{
+		Name:   "mypool",
+		Driver: "dir",
+	}
+	client := f.ClientUnix(daemons[0])
+	err := client.CreateStoragePool(poolPost)
+	require.EqualError(t, err, "Pool not pending on any node (use --target <node> first)")
+}
+
+// An error is returned when trying to create a new storage pool in a cluster
 // where the pool was not defined on all nodes.
 func TestStoragePoolsCreate_MissingNodes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping storage-pools targetNode test in short mode.")
-	}
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 

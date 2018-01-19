@@ -36,6 +36,25 @@ func TestNetworksCreate_TargetNode(t *testing.T) {
 	assert.Equal(t, []string{"rusp-0"}, network.Nodes)
 }
 
+// An error is returned when trying to create a new network in a cluster
+// where the network was not defined on any node nodes.
+func TestNetworksCreate_NotDefined(t *testing.T) {
+	daemons, cleanup := newDaemons(t, 2)
+	defer cleanup()
+
+	f := clusterFixture{t: t}
+	f.FormCluster(daemons)
+
+	// Trying to create the pool now results in an error, since it's not
+	// defined on any node.
+	networkPost := api.NetworksPost{
+		Name: "mynetwork",
+	}
+	client := f.ClientUnix(daemons[0])
+	err := client.CreateNetwork(networkPost)
+	require.EqualError(t, err, "Network not pending on any node (use --target <node> first)")
+}
+
 // An error is returned when trying to create a new network in a cluster where
 // the network was not defined on all nodes.
 func TestNetworksCreate_MissingNodes(t *testing.T) {
