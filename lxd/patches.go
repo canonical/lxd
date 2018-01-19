@@ -2050,7 +2050,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 		}
 
 		// Get all storage volumes on the storage pool.
-		volumes, err := d.cluster.StoragePoolVolumesGet(poolID, supportedVolumeTypes)
+		volumes, err := d.cluster.StoragePoolNodeVolumesGet(poolID, supportedVolumeTypes)
 		if err != nil {
 			if err == db.NoSuchObjectError {
 				continue
@@ -2206,7 +2206,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 		}
 
 		// Get all storage volumes on the storage pool.
-		volumes, err := d.cluster.StoragePoolVolumesGet(poolID, supportedVolumeTypes)
+		volumes, err := d.cluster.StoragePoolNodeVolumesGet(poolID, supportedVolumeTypes)
 		if err != nil {
 			if err == db.NoSuchObjectError {
 				continue
@@ -2355,7 +2355,7 @@ func patchStorageZFSVolumeSize(name string, d *Daemon) error {
 		}
 
 		// Get all storage volumes on the storage pool.
-		volumes, err := d.cluster.StoragePoolVolumesGet(poolID, supportedVolumeTypes)
+		volumes, err := d.cluster.StoragePoolNodeVolumesGet(poolID, supportedVolumeTypes)
 		if err != nil {
 			if err == db.NoSuchObjectError {
 				continue
