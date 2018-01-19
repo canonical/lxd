@@ -98,6 +98,10 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		// This is an internal request which triggers the actual
 		// creation of the pool across all nodes, after they have been
 		// previously defined.
+		err = storagePoolValidate(req.Name, req.Driver, req.Config)
+		if err != nil {
+			return BadRequest(err)
+		}
 		err = doStoragePoolCreateInternal(
 			d.State(), req.Name, req.Description, req.Driver, req.Config)
 		if err != nil {
@@ -139,6 +143,12 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 			return SmartError(fmt.Errorf("Invalid config key '%s'", key))
 		}
 	}
+
+	err = storagePoolValidate(req.Name, req.Driver, req.Config)
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		return tx.StoragePoolCreatePending(targetNode, req.Name, req.Driver, req.Config)
 	})
@@ -198,6 +208,10 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 	nodeReq := req
 	for key, value := range configs[nodeName] {
 		nodeReq.Config[key] = value
+	}
+	err = storagePoolValidate(req.Name, req.Driver, req.Config)
+	if err != nil {
+		return err
 	}
 	err = doStoragePoolCreateInternal(
 		d.State(), req.Name, req.Description, req.Driver, req.Config)
