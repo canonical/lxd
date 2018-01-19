@@ -117,7 +117,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 			}
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume))
 		} else {
-			_, vol, err := d.cluster.StoragePoolVolumeGetType(volume, volumeType, poolID)
+			_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volume, volumeType, poolID)
 			if err != nil {
 				continue
 			}
@@ -361,7 +361,7 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// Get the storage volume.
-	_, volume, err := d.cluster.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -405,7 +405,7 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Get the existing storage volume.
-	_, volume, err := d.cluster.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -467,7 +467,7 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Get the existing storage volume.
-	_, volume, err := d.cluster.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return SmartError(err)
 	}

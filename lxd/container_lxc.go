@@ -3429,7 +3429,7 @@ func writeBackupFile(c container) error {
 		return err
 	}
 
-	_, volume, err := s.Cluster.StoragePoolVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
+	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		return err
 	}

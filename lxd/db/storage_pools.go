@@ -603,7 +603,7 @@ func (c *Cluster) StoragePoolNodeVolumesGet(poolID int64, volumeTypes []int) ([]
 			return nil, errors.Wrap(err, "failed to fetch volume types")
 		}
 		for _, volumeName := range volumeNames {
-			_, volume, err := c.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+			_, volume, err := c.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to fetch volume type")
 			}
@@ -640,7 +640,7 @@ func (c *Cluster) StoragePoolNodeVolumesGetType(volumeType int, poolID int64) ([
 }
 
 // Get a single storage volume attached to a given storage pool of a given type.
-func (c *Cluster) StoragePoolVolumeGetType(volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
+func (c *Cluster) StoragePoolNodeVolumeGetType(volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
 	volumeID, err := c.StoragePoolVolumeGetTypeID(volumeName, volumeType, poolID)
 	if err != nil {
 		return -1, nil, err
@@ -673,7 +673,7 @@ func (c *Cluster) StoragePoolVolumeGetType(volumeName string, volumeType int, po
 
 // Update storage volume attached to a given storage pool.
 func (c *Cluster) StoragePoolVolumeUpdate(volumeName string, volumeType int, poolID int64, volumeDescription string, volumeConfig map[string]string) error {
-	volumeID, _, err := c.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+	volumeID, _, err := c.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
@@ -706,7 +706,7 @@ func (c *Cluster) StoragePoolVolumeUpdate(volumeName string, volumeType int, poo
 
 // Delete storage volume attached to a given storage pool.
 func (c *Cluster) StoragePoolVolumeDelete(volumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := c.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+	volumeID, _, err := c.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
@@ -721,7 +721,7 @@ func (c *Cluster) StoragePoolVolumeDelete(volumeName string, volumeType int, poo
 
 // Rename storage volume attached to a given storage pool.
 func (c *Cluster) StoragePoolVolumeRename(oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := c.StoragePoolVolumeGetType(oldVolumeName, volumeType, poolID)
+	volumeID, _, err := c.StoragePoolNodeVolumeGetType(oldVolumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}

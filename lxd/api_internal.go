@@ -574,7 +574,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if a storage volume entry for the container already exists.
-	_, volume, ctVolErr := d.cluster.StoragePoolVolumeGetType(
+	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetType(
 		req.Name, storagePoolVolumeTypeContainer, poolID)
 	if ctVolErr != nil {
 		if ctVolErr != db.NoSuchObjectError {
@@ -657,7 +657,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.cluster.StoragePoolVolumeGetType(snap.Name,
+		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetType(snap.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
 			if csVolErr != db.NoSuchObjectError {
