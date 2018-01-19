@@ -31,8 +31,10 @@ func (c *ClusterTx) NetworkConfigs() (map[string]map[string]string, error) {
 	return networks, nil
 }
 
-// NetworkIDs returns a map associating each network name to its ID.
-func (c *ClusterTx) NetworkIDs() (map[string]int64, error) {
+// NetworkIDsNotPending returns a map associating each network name to its ID.
+//
+// Pending networks are skipped.
+func (c *ClusterTx) NetworkIDsNotPending() (map[string]int64, error) {
 	networks := []struct {
 		id   int64
 		name string
@@ -45,7 +47,8 @@ func (c *ClusterTx) NetworkIDs() (map[string]int64, error) {
 		return []interface{}{&networks[i].id, &networks[i].name}
 
 	}
-	err := query.SelectObjects(c.tx, dest, "SELECT id, name FROM networks")
+	stmt := "SELECT id, name FROM networks WHERE NOT state=?"
+	err := query.SelectObjects(c.tx, dest, stmt, networkPending)
 	if err != nil {
 		return nil, err
 	}
@@ -239,8 +242,27 @@ func (c *ClusterTx) networkState(name string, state int) error {
 }
 
 func (c *Cluster) Networks() ([]string, error) {
+	return c.networks("")
+}
+
+// NetworksNotPending returns the names of all networks that are not
+// pending.
+func (c *Cluster) NetworksNotPending() ([]string, error) {
+	return c.networks("NOT state=?", networkPending)
+}
+
+// Get all networks matching the given WHERE filter (if given).
+func (c *Cluster) networks(where string, args ...interface{}) ([]string, error) {
 	q := "SELECT name FROM networks"
 	inargs := []interface{}{}
+
+	if where != "" {
+		q += fmt.Sprintf(" WHERE %s", where)
+		for _, arg := range args {
+			inargs = append(inargs, arg)
+		}
+	}
+
 	var name string
 	outfmt := []interface{}{name}
 	result, err := queryScan(c.db, q, inargs, outfmt)
