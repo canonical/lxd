@@ -598,7 +598,7 @@ func (c *Cluster) StoragePoolNodeVolumesGet(poolID int64, volumeTypes []int) ([]
 	// pool.
 	result := []*api.StorageVolume{}
 	for _, volumeType := range volumeTypes {
-		volumeNames, err := c.StoragePoolVolumesGetType(volumeType, poolID)
+		volumeNames, err := c.StoragePoolNodeVolumesGetType(volumeType, poolID)
 		if err != nil && err != sql.ErrNoRows {
 			return nil, errors.Wrap(err, "failed to fetch volume types")
 		}
@@ -619,8 +619,8 @@ func (c *Cluster) StoragePoolNodeVolumesGet(poolID int64, volumeTypes []int) ([]
 }
 
 // Get all storage volumes attached to a given storage pool of a given volume
-// type.
-func (c *Cluster) StoragePoolVolumesGetType(volumeType int, poolID int64) ([]string, error) {
+// type, on the current node.
+func (c *Cluster) StoragePoolNodeVolumesGetType(volumeType int, poolID int64) ([]string, error) {
 	var poolName string
 	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND node_id=? AND type=?"
 	inargs := []interface{}{poolID, c.nodeID, volumeType}
