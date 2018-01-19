@@ -114,12 +114,6 @@ func TestUpdateFromV1_ConfigTables(t *testing.T) {
 		_, err := db.Exec("INSERT INTO storage_pools VALUES (1, 'default', 'dir', '')")
 		require.NoError(t, err)
 	})
-	testConfigTable(t, "storage_volumes", func(db *sql.DB) {
-		_, err := db.Exec("INSERT INTO storage_pools VALUES (1, 'default', 'dir', '')")
-		require.NoError(t, err)
-		_, err = db.Exec("INSERT INTO storage_volumes VALUES (1, 'dev', 1, 1, '')")
-		require.NoError(t, err)
-	})
 }
 
 func testConfigTable(t *testing.T, table string, setup func(db *sql.DB)) {
