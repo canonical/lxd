@@ -405,6 +405,20 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		}
 	}
 
+	// Check if the pool is pending, if so we just need to delete it from
+	// the database.
+	_, pool, err := d.cluster.StoragePoolGet(poolName)
+	if err != nil {
+		return SmartError(err)
+	}
+	if pool.State == "PENDING" {
+		_, err := d.cluster.StoragePoolDelete(poolName)
+		if err != nil {
+			return SmartError(err)
+		}
+		return EmptySyncResponse
+	}
+
 	s, err := storagePoolInit(d.State(), poolName)
 	if err != nil {
 		return InternalError(err)
