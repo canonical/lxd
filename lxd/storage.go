@@ -807,7 +807,7 @@ func StorageProgressWriter(op *operation, key string, description string) func(i
 }
 
 func SetupStorageDriver(s *state.State, forceCheck bool) error {
-	pools, err := s.Cluster.StoragePools()
+	pools, err := s.Cluster.StoragePoolsNotPending()
 	if err != nil {
 		if err == db.NoSuchObjectError {
 			logger.Debugf("No existing storage pools detected.")
