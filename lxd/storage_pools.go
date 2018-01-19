@@ -188,6 +188,9 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		return tx.StoragePoolConfigAdd(poolID, 0, req.Config)
 	})
 	if err != nil {
+		if err == db.NoSuchObjectError {
+			return fmt.Errorf("Pool not pending on any node (use --target <node> first)")
+		}
 		return err
 	}
 
