@@ -28,6 +28,12 @@ test_clustering_membership() {
   ip netns exec "${ns1}" ip link show "${bridge}" > /dev/null
   ip netns exec "${ns2}" ip link show "${bridge}" > /dev/null
 
+  # Create a pending network and pool, to show that they are not
+  # considered when checking if the joining node has all the required
+  # networks and pools.
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create net1 --target node2
+  
   # Spawn a third node, using the non-leader node2 as join target.
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)

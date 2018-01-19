@@ -57,8 +57,10 @@ func (c *ClusterTx) StoragePoolID(name string) (int64, error) {
 	}
 }
 
-// StoragePoolIDs returns a map associating each storage pool name to its ID.
-func (c *ClusterTx) StoragePoolIDs() (map[string]int64, error) {
+// StoragePoolIDsNotPending returns a map associating each storage pool name to its ID.
+//
+// Pending storage pools are skipped.
+func (c *ClusterTx) StoragePoolIDsNotPending() (map[string]int64, error) {
 	pools := []struct {
 		id   int64
 		name string
@@ -71,7 +73,8 @@ func (c *ClusterTx) StoragePoolIDs() (map[string]int64, error) {
 		return []interface{}{&pools[i].id, &pools[i].name}
 
 	}
-	err := query.SelectObjects(c.tx, dest, "SELECT id, name FROM storage_pools")
+	stmt := "SELECT id, name FROM storage_pools WHERE NOT state=?"
+	err := query.SelectObjects(c.tx, dest, stmt, storagePoolPending)
 	if err != nil {
 		return nil, err
 	}
@@ -261,12 +264,30 @@ WHERE storage_pools.id = ? AND storage_pools.state = ?
 
 // Get all storage pools.
 func (c *Cluster) StoragePools() ([]string, error) {
+	return c.storagePools("")
+}
+
+// StoragePoolsNotPending returns the names of all storage pools that are not
+// pending.
+func (c *Cluster) StoragePoolsNotPending() ([]string, error) {
+	return c.storagePools("NOT state=?", storagePoolPending)
+}
+
+// Get all storage pools matching the given WHERE filter (if given).
+func (c *Cluster) storagePools(where string, args ...interface{}) ([]string, error) {
 	var name string
-	query := "SELECT name FROM storage_pools"
+	stmt := "SELECT name FROM storage_pools"
 	inargs := []interface{}{}
 	outargs := []interface{}{name}
 
-	result, err := queryScan(c.db, query, inargs, outargs)
+	if where != "" {
+		stmt += fmt.Sprintf(" WHERE %s", where)
+		for _, arg := range args {
+			inargs = append(inargs, arg)
+		}
+	}
+
+	result, err := queryScan(c.db, stmt, inargs, outargs)
 	if err != nil {
 		return []string{}, err
 	}
