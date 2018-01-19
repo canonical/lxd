@@ -159,14 +159,8 @@ func profilesUsingPoolGetNames(db *db.Cluster, poolName string) ([]string, error
 }
 
 func storagePoolDBCreate(s *state.State, poolName, poolDescription string, driver string, config map[string]string) error {
-	// Check if the storage pool name is valid.
-	err := storageValidName(poolName)
-	if err != nil {
-		return err
-	}
-
 	// Check that the storage pool does not already exist.
-	_, err = s.Cluster.StoragePoolGetID(poolName)
+	_, err := s.Cluster.StoragePoolGetID(poolName)
 	if err == nil {
 		return fmt.Errorf("The storage pool already exists")
 	}
@@ -175,9 +169,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	if config == nil {
 		config = map[string]string{}
 	}
-
-	// Validate the requested storage pool configuration.
-	err = storagePoolValidateConfig(poolName, driver, config, nil)
+	err = storagePoolValidate(poolName, driver, config)
 	if err != nil {
 		return err
 	}
@@ -192,6 +184,22 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	_, err = dbStoragePoolCreateAndUpdateCache(s.Cluster, poolName, poolDescription, driver, config)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
+	}
+
+	return nil
+}
+
+func storagePoolValidate(poolName string, driver string, config map[string]string) error {
+	// Check if the storage pool name is valid.
+	err := storageValidName(poolName)
+	if err != nil {
+		return err
+	}
+
+	// Validate the requested storage pool configuration.
+	err = storagePoolValidateConfig(poolName, driver, config, nil)
+	if err != nil {
+		return err
 	}
 
 	return nil
