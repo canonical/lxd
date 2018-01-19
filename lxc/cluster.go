@@ -59,9 +59,9 @@ func (c *clusterCmd) run(conf *config.Config, args []string) error {
 		return c.doClusterNodeRename(conf, args)
 	case "delete":
 		return c.doClusterNodeDelete(conf, args)
+	default:
+		return errArgs
 	}
-
-	return nil
 }
 
 func (c *clusterCmd) doClusterNodeShow(conf *config.Config, args []string) error {
