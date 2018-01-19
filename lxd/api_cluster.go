@@ -43,7 +43,7 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 	cluster := api.Cluster{}
 
 	// Fill the Networks attribute
-	networks, err := d.cluster.Networks()
+	networks, err := d.cluster.NetworksNotPending()
 	if err != nil {
 		return SmartError(err)
 	}
@@ -56,7 +56,7 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// Fill the StoragePools attribute
-	pools, err := d.cluster.StoragePools()
+	pools, err := d.cluster.StoragePoolsNotPending()
 	if err != nil && err != db.NoSuchObjectError {
 		return SmartError(err)
 	}
@@ -243,7 +243,7 @@ func clusterNodesPostAccept(d *Daemon, req api.ClusterPost) Response {
 }
 
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
-	poolNames, err := cluster.StoragePools()
+	poolNames, err := cluster.StoragePoolsNotPending()
 	if err != nil && err != db.NoSuchObjectError {
 		return err
 	}
@@ -277,7 +277,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 }
 
 func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) error {
-	networkNames, err := cluster.Networks()
+	networkNames, err := cluster.NetworksNotPending()
 	if err != nil && err != db.NoSuchObjectError {
 		return err
 	}

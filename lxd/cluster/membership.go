@@ -320,7 +320,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		tx.NodeID(node.ID)
 
 		// Storage pools.
-		ids, err := tx.StoragePoolIDs()
+		ids, err := tx.StoragePoolIDsNotPending()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster storage pool IDs")
 		}
@@ -347,7 +347,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Networks.
-		ids, err = tx.NetworkIDs()
+		ids, err = tx.NetworkIDsNotPending()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster network IDs")
 		}
