@@ -792,6 +792,7 @@ const (
 // StoragePoolNodeConfigKeys lists all storage pool config keys which are
 // node-specific.
 var StoragePoolNodeConfigKeys = []string{
+	"size",
 	"source",
 	"volatile.initial_source",
 }
