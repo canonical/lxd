@@ -111,7 +111,7 @@ func internalSQL(d *Daemon, r *http.Request) Response {
 	}
 	db := d.cluster.DB()
 	result := internalSQLResult{}
-	if strings.HasPrefix(req.Query, "SELECT") {
+	if strings.HasPrefix(strings.ToUpper(req.Query), "SELECT") {
 		rows, err := db.Query(req.Query)
 		if err != nil {
 			return SmartError(err)
