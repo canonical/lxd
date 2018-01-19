@@ -11,8 +11,8 @@ import (
 // Get config of a storage volume.
 func (c *Cluster) StorageVolumeConfigGet(volumeID int64) (map[string]string, error) {
 	var key, value string
-	query := "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=? AND node_id=?"
-	inargs := []interface{}{volumeID, c.nodeID}
+	query := "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
+	inargs := []interface{}{volumeID}
 	outargs := []interface{}{key, value}
 
 	results, err := queryScan(c.db, query, inargs, outargs)
@@ -56,8 +56,8 @@ func StorageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description stri
 }
 
 // Add new storage volume config into database.
-func StorageVolumeConfigAdd(tx *sql.Tx, volumeID, nodeID int64, volumeConfig map[string]string) error {
-	str := "INSERT INTO storage_volumes_config (storage_volume_id, node_id, key, value) VALUES(?, ?, ?, ?)"
+func StorageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]string) error {
+	str := "INSERT INTO storage_volumes_config (storage_volume_id, key, value) VALUES(?, ?, ?)"
 	stmt, err := tx.Prepare(str)
 	defer stmt.Close()
 	if err != nil {
@@ -69,7 +69,7 @@ func StorageVolumeConfigAdd(tx *sql.Tx, volumeID, nodeID int64, volumeConfig map
 			continue
 		}
 
-		_, err = stmt.Exec(volumeID, nodeID, k, v)
+		_, err = stmt.Exec(volumeID, k, v)
 		if err != nil {
 			return err
 		}
@@ -79,8 +79,8 @@ func StorageVolumeConfigAdd(tx *sql.Tx, volumeID, nodeID int64, volumeConfig map
 }
 
 // Delete storage volume config.
-func StorageVolumeConfigClear(tx *sql.Tx, volumeID, nodeID int64) error {
-	_, err := tx.Exec("DELETE FROM storage_volumes_config WHERE storage_volume_id=? AND node_id", volumeID, nodeID)
+func StorageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
+	_, err := tx.Exec("DELETE FROM storage_volumes_config WHERE storage_volume_id=?", volumeID)
 	if err != nil {
 		return err
 	}

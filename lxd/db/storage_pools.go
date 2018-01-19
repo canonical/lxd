@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
@@ -553,8 +554,8 @@ func (c *Cluster) StoragePoolDelete(poolName string) (*api.StoragePool, error) {
 // Get the names of all storage volumes attached to a given storage pool.
 func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) (int, error) {
 	var volumeName string
-	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=?"
-	inargs := []interface{}{poolID}
+	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND node_id=?"
+	inargs := []interface{}{poolID, c.nodeID}
 	outargs := []interface{}{volumeName}
 
 	result, err := queryScan(c.db, query, inargs, outargs)
@@ -577,12 +578,12 @@ func (c *Cluster) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api
 	for _, volumeType := range volumeTypes {
 		volumeNames, err := c.StoragePoolVolumesGetType(volumeType, poolID)
 		if err != nil && err != sql.ErrNoRows {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to fetch volume types")
 		}
 		for _, volumeName := range volumeNames {
 			_, volume, err := c.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to fetch volume type")
 			}
 			result = append(result, volume)
 		}
@@ -599,8 +600,8 @@ func (c *Cluster) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api
 // type.
 func (c *Cluster) StoragePoolVolumesGetType(volumeType int, poolID int64) ([]string, error) {
 	var poolName string
-	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND type=?"
-	inargs := []interface{}{poolID, volumeType}
+	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND node_id=? AND type=?"
+	inargs := []interface{}{poolID, c.nodeID, volumeType}
 	outargs := []interface{}{poolName}
 
 	result, err := queryScan(c.db, query, inargs, outargs)
@@ -660,13 +661,13 @@ func (c *Cluster) StoragePoolVolumeUpdate(volumeName string, volumeType int, poo
 		return err
 	}
 
-	err = StorageVolumeConfigClear(tx, volumeID, c.nodeID)
+	err = StorageVolumeConfigClear(tx, volumeID)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	err = StorageVolumeConfigAdd(tx, volumeID, c.nodeID, volumeConfig)
+	err = StorageVolumeConfigAdd(tx, volumeID, volumeConfig)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -724,8 +725,8 @@ func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, 
 		return -1, err
 	}
 
-	result, err := tx.Exec("INSERT INTO storage_volumes (storage_pool_id, type, name, description) VALUES (?, ?, ?, ?)",
-		poolID, volumeType, volumeName, volumeDescription)
+	result, err := tx.Exec("INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description) VALUES (?, ?, ?, ?, ?)",
+		poolID, c.nodeID, volumeType, volumeName, volumeDescription)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -737,7 +738,7 @@ func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, 
 		return -1, err
 	}
 
-	err = StorageVolumeConfigAdd(tx, volumeID, c.nodeID, volumeConfig)
+	err = StorageVolumeConfigAdd(tx, volumeID, volumeConfig)
 	if err != nil {
 		tx.Rollback()
 		return -1, err
@@ -759,9 +760,9 @@ func (c *Cluster) StoragePoolVolumeGetTypeID(volumeName string, volumeType int, 
 FROM storage_volumes
 JOIN storage_pools
 ON storage_volumes.storage_pool_id = storage_pools.id
-WHERE storage_volumes.storage_pool_id=?
+WHERE storage_volumes.storage_pool_id=? AND storage_volumes.node_id=?
 AND storage_volumes.name=? AND storage_volumes.type=?`
-	inargs := []interface{}{poolID, volumeName, volumeType}
+	inargs := []interface{}{poolID, c.nodeID, volumeName, volumeType}
 	outargs := []interface{}{&volumeID}
 
 	err := dbQueryRowScan(c.db, query, inargs, outargs)

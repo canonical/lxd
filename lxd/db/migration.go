@@ -88,7 +88,7 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 			}
 			columns := dump.Schema[table]
 
-			nullNodeID := false // Whether config-related rows should have a NULL node ID
+			nullNodeID := false // Whether node-related rows should have a NULL node ID
 			appendNodeID := func() {
 				columns = append(columns, "node_id")
 				if nullNodeID {
@@ -113,7 +113,7 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 					continue
 				}
 			case "containers":
-				fallthrough
+				appendNodeID()
 			case "networks_config":
 				// The "bridge.external_interfaces" config key
 				// is the only one which is not global to the
@@ -144,13 +144,13 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 					break
 				}
 				appendNodeID()
-			case "storage_volumes_config":
-				appendNodeID()
 			case "networks":
 				fallthrough
 			case "storage_pools":
 				columns = append(columns, "state")
 				row = append(row, storagePoolCreated)
+			case "storage_volumes":
+				appendNodeID()
 			}
 			stmt := fmt.Sprintf("INSERT INTO %s(%s)", table, strings.Join(columns, ", "))
 			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
