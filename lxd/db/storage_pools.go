@@ -639,9 +639,10 @@ func (c *Cluster) StoragePoolNodeVolumesGetType(volumeType int, poolID int64) ([
 	return response, nil
 }
 
-// Get a single storage volume attached to a given storage pool of a given type.
+// Get a single storage volume attached to a given storage pool of a given
+// type, on the current node.
 func (c *Cluster) StoragePoolNodeVolumeGetType(volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
-	volumeID, err := c.StoragePoolVolumeGetTypeID(volumeName, volumeType, poolID)
+	volumeID, err := c.StoragePoolNodeVolumeGetTypeID(volumeName, volumeType, poolID)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -776,7 +777,7 @@ func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, 
 
 // Get ID of a storage volume on a given storage pool of a given storage volume
 // type.
-func (c *Cluster) StoragePoolVolumeGetTypeID(volumeName string, volumeType int, poolID int64) (int64, error) {
+func (c *Cluster) StoragePoolNodeVolumeGetTypeID(volumeName string, volumeType int, poolID int64) (int64, error) {
 	volumeID := int64(-1)
 	query := `SELECT storage_volumes.id
 FROM storage_volumes
