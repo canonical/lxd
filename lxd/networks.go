@@ -406,11 +406,26 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	state := d.State()
 
+	// Check if the network is pending, if so we just need to delete it from
+	// the database.
+	_, network, err := d.cluster.NetworkGet(name)
+	if err != nil {
+		return SmartError(err)
+	}
+	if network.State == "PENDING" {
+		err := d.cluster.NetworkDelete(name)
+		if err != nil {
+			return SmartError(err)
+		}
+		return EmptySyncResponse
+	}
+
 	// Get the existing network
 	n, err := networkLoadByName(state, name)
 	if err != nil {
 		return NotFound
 	}
+
 	if isClusterNotification(r) {
 		n.state = nil // We just want to delete the network from the system
 	} else {
