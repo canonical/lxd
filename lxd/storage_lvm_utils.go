@@ -497,7 +497,7 @@ func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) erro
 		var imgerr error
 		ok, _ := storageLVExists(imageLvmDevPath)
 		if ok {
-			_, volume, err := s.s.Cluster.StoragePoolVolumeGetType(fp, db.StoragePoolVolumeTypeImage, s.poolID)
+			_, volume, err := s.s.Cluster.StoragePoolNodeVolumeGetType(fp, db.StoragePoolVolumeTypeImage, s.poolID)
 			if err != nil {
 				return err
 			}

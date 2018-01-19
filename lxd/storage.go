@@ -298,7 +298,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
 	if volumeName != "" && volumeType >= 0 {
-		_, volume, err = s.Cluster.StoragePoolVolumeGetType(volumeName, volumeType, poolID)
+		_, volume, err = s.Cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
