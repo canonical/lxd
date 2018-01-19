@@ -418,7 +418,7 @@ The supported connection types are:
  - `TCP - TCP`
 
 Key         | Type      | Default           | Required  | Description
-:--         | :--       | :--               | :--       | :
+:--         | :--       | :--               | :--       | :--
 listen      | string    | -                 | yes       | The address and port to bind and listen
 connect     | string    | -                 | yes       | The address and port to connect to
 bind        | string    | host              | no        | Which side to bind on (host/container)
