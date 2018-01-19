@@ -392,7 +392,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the container.")
 			err := d.cluster.StoragePoolVolumeUpdate(ct, storagePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
@@ -480,7 +480,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 				return err
 			}
 
-			_, err = d.cluster.StoragePoolVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
+			_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
 			if err == nil {
 				logger.Warnf("Storage volumes database already contains an entry for the snapshot.")
 				err := d.cluster.StoragePoolVolumeUpdate(cs, storagePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
@@ -561,7 +561,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the image.")
 			err := d.cluster.StoragePoolVolumeUpdate(img, storagePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
@@ -679,7 +679,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the container.")
 			err := d.cluster.StoragePoolVolumeUpdate(ct, storagePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
@@ -796,7 +796,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the snapshot.")
 			err := d.cluster.StoragePoolVolumeUpdate(cs, storagePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
@@ -826,7 +826,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the image.")
 			err := d.cluster.StoragePoolVolumeUpdate(img, storagePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
@@ -988,7 +988,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the container.")
 			err := d.cluster.StoragePoolVolumeUpdate(ct, storagePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
@@ -1143,7 +1143,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				return err
 			}
 
-			_, err = d.cluster.StoragePoolVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
+			_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
 			if err == nil {
 				logger.Warnf("Storage volumes database already contains an entry for the snapshot.")
 				err := d.cluster.StoragePoolVolumeUpdate(cs, storagePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
@@ -1314,7 +1314,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the image.")
 			err := d.cluster.StoragePoolVolumeUpdate(img, storagePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
@@ -1505,7 +1505,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(ct, storagePoolVolumeTypeContainer, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the container.")
 			err := d.cluster.StoragePoolVolumeUpdate(ct, storagePoolVolumeTypeContainer, poolID, "", containerPoolVolumeConfig)
@@ -1591,7 +1591,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 				return err
 			}
 
-			_, err = d.cluster.StoragePoolVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
+			_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(cs, storagePoolVolumeTypeContainer, poolID)
 			if err == nil {
 				logger.Warnf("Storage volumes database already contains an entry for the snapshot.")
 				err := d.cluster.StoragePoolVolumeUpdate(cs, storagePoolVolumeTypeContainer, poolID, "", snapshotPoolVolumeConfig)
@@ -1647,7 +1647,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			return err
 		}
 
-		_, err = d.cluster.StoragePoolVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
+		_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(img, storagePoolVolumeTypeImage, poolID)
 		if err == nil {
 			logger.Warnf("Storage volumes database already contains an entry for the image.")
 			err := d.cluster.StoragePoolVolumeUpdate(img, storagePoolVolumeTypeImage, poolID, "", imagePoolVolumeConfig)
