@@ -393,25 +393,13 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
-	// Check if the storage pool has any volumes associated with it, if so
-	// error out.
-	volumeCount, err := d.cluster.StoragePoolVolumesGetNames(poolID)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	if volumeCount > 0 {
-		return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
-	}
-
-	// Check if the storage pool is still referenced in any profiles.
-	profiles, err := profilesUsingPoolGetNames(d.cluster, poolName)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	if len(profiles) > 0 && !isClusterNotification(r) {
-		return BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
+	// If this is not an internal cluster request, check if the storage
+	// pool has any volumes associated with it, if so error out.
+	if !isClusterNotification(r) {
+		response := storagePoolDeleteCheckPreconditions(d.cluster, poolName, poolID)
+		if response != nil {
+			return response
+		}
 	}
 
 	s, err := storagePoolInit(d.State(), poolName)
@@ -458,6 +446,29 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	return EmptySyncResponse
+}
+
+func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, poolID int64) Response {
+	volumeCount, err := cluster.StoragePoolVolumesGetNames(poolID)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if volumeCount > 0 {
+		return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
+	}
+
+	// Check if the storage pool is still referenced in any profiles.
+	profiles, err := profilesUsingPoolGetNames(cluster, poolName)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	if len(profiles) > 0 {
+		return BadRequest(fmt.Errorf("Storage pool \"%s\" has profiles using it:\n%s", poolName, strings.Join(profiles, "\n")))
+	}
+
+	return nil
 }
 
 var storagePoolCmd = Command{name: "storage-pools/{name}", get: storagePoolGet, put: storagePoolPut, patch: storagePoolPatch, delete: storagePoolDelete}
