@@ -34,6 +34,14 @@ func TestNetworksCreate_TargetNode(t *testing.T) {
 
 	assert.Equal(t, "PENDING", network.State)
 	assert.Equal(t, []string{"rusp-0"}, network.Nodes)
+
+	// If a network is pending, deleting it just means removing the
+	// relevant rows from the database.
+	err = client.DeleteNetwork("mynetwork")
+	require.NoError(t, err)
+
+	_, _, err = client.GetNetwork("mynetwork")
+	require.EqualError(t, err, "not found")
 }
 
 // An error is returned when trying to create a new network in a cluster
