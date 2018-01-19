@@ -655,8 +655,8 @@ func (c *Cluster) ContainerPool(containerName string) (string, error) {
 	poolName := ""
 	query := `SELECT storage_pools.name FROM storage_pools
 JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
-WHERE storage_volumes.name=? AND storage_volumes.type=?`
-	inargs := []interface{}{containerName, StoragePoolVolumeTypeContainer}
+WHERE storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type=?`
+	inargs := []interface{}{c.nodeID, containerName, StoragePoolVolumeTypeContainer}
 	outargs := []interface{}{&poolName}
 
 	err := dbQueryRowScan(c.db, query, inargs, outargs)

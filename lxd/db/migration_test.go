@@ -109,6 +109,12 @@ func TestImportPreClusteringData(t *testing.T) {
 				"volatile.initial_source": "/foo/bar",
 			}, config)
 
+		// Storage volumes have now a node_id key set to 1 (the ID of
+		// the default node).
+		ids, err := query.SelectIntegers(tx.Tx(), "SELECT node_id FROM storage_volumes")
+		require.NoError(t, err)
+		assert.Equal(t, []int{1}, ids)
+
 		return nil
 	})
 	require.NoError(t, err)
