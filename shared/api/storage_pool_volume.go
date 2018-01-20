@@ -25,6 +25,7 @@ type StorageVolume struct {
 	Name             string   `json:"name" yaml:"name"`
 	Type             string   `json:"type" yaml:"type"`
 	UsedBy           []string `json:"used_by" yaml:"used_by"`
+	Node             string   `json:"node" yaml:"node"`
 }
 
 // StorageVolumePut represents the modifiable fields of a LXD storage volume.

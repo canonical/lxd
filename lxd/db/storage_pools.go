@@ -591,6 +591,31 @@ func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) (int, error) {
 	return len(result), nil
 }
 
+// StoragePoolVolumesGet returns all storage volumes attached to a given
+// storage pool on any node.
+func (c *Cluster) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
+	var nodeIDs []int
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		nodeIDs, err = query.SelectIntegers(tx.tx, "SELECT DISTINCT node_id FROM storage_volumes WHERE storage_pool_id=?", poolID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	volumes := []*api.StorageVolume{}
+
+	for _, nodeID := range nodeIDs {
+		nodeVolumes, err := c.storagePoolVolumesGet(poolID, int64(nodeID), volumeTypes)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, nodeVolumes...)
+	}
+	return volumes, nil
+}
+
 // Get all storage volumes attached to a given storage pool on the current
 // node.
 func (c *Cluster) StoragePoolNodeVolumesGet(poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
@@ -659,6 +684,11 @@ func (c *Cluster) StoragePoolVolumeGetType(volumeName string, volumeType int, po
 		return -1, nil, err
 	}
 
+	volumeNode, err := c.StorageVolumeNodeGet(volumeID)
+	if err != nil {
+		return -1, nil, err
+	}
+
 	volumeConfig, err := c.StorageVolumeConfigGet(volumeID)
 	if err != nil {
 		return -1, nil, err
@@ -680,6 +710,7 @@ func (c *Cluster) StoragePoolVolumeGetType(volumeName string, volumeType int, po
 	storageVolume.Name = volumeName
 	storageVolume.Description = volumeDescription
 	storageVolume.Config = volumeConfig
+	storageVolume.Node = volumeNode
 
 	return volumeID, &storageVolume, nil
 }

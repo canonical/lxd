@@ -899,18 +899,27 @@ func (c *storageCmd) doStoragePoolVolumesList(conf *config.Config, remote string
 	data := [][]string{}
 	for _, volume := range volumes {
 		usedby := strconv.Itoa(len(volume.UsedBy))
-		data = append(data, []string{volume.Type, volume.Name, volume.Description, usedby})
+		entry := []string{volume.Type, volume.Name, volume.Description, usedby}
+		if client.IsClustered() {
+			entry = append(entry, volume.Node)
+		}
+		data = append(data, entry)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(true)
-	table.SetHeader([]string{
+	header := []string{
 		i18n.G("TYPE"),
 		i18n.G("NAME"),
 		i18n.G("DESCRIPTION"),
-		i18n.G("USED BY")})
+		i18n.G("USED BY"),
+	}
+	if client.IsClustered() {
+		header = append(header, i18n.G("NODE"))
+	}
+	table.SetHeader(header)
 	sort.Sort(byNameAndType(data))
 	table.AppendBulk(data)
 	table.Render()
