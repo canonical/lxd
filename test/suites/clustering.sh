@@ -289,6 +289,11 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -q pool1
 
+  # Create a volume on node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data web
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -q node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep -q node1
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2
