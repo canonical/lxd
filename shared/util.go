@@ -139,7 +139,7 @@ func HostPath(path string) string {
 
 	// Check if the path is already snap-aware
 	for _, prefix := range []string{"/dev", "/snap", "/var/snap", "/var/lib/snapd"} {
-		if strings.HasPrefix(path, prefix) {
+		if path == prefix || strings.HasPrefix(path, fmt.Sprintf("%s/", prefix)) {
 			return path
 		}
 	}
