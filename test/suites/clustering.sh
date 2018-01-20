@@ -285,6 +285,12 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep source | grep -q "$(basename "${LXD_ONE_DIR}")"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node2 | grep source | grep -q "$(basename "${LXD_TWO_DIR}")"
 
+  # Update the storage pool
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 rsync.bwlimit 10
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep rsync.bwlimit | grep -q 10
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage unset pool1 rsync.bwlimit
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -q rsync.bwlimit
+
   # Delete the storage pool
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -q pool1
@@ -333,7 +339,7 @@ test_clustering_network() {
 
   # Trying to pass config values other than
   # 'bridge.external_interfaces' results in an error
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create network foo ipv4.address=auto --target node1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc create network foo ipv4.address=auto --target node1
 
   net="${bridge}x"
 
