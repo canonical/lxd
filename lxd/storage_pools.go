@@ -323,17 +323,31 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	req := api.StoragePoolPut{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	config := dbInfo.Config
+	if clustered {
+		err := storagePoolValidateClusterConfig(req.Config)
+		if err != nil {
+			return BadRequest(err)
+		}
+		config = storagePoolClusterConfigForEtag(config)
+	}
+
 	// Validate the ETag
-	etag := []interface{}{dbInfo.Name, dbInfo.Driver, dbInfo.Config}
+	etag := []interface{}{dbInfo.Name, dbInfo.Driver, config}
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
-	}
-
-	req := api.StoragePoolPut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
 	}
 
 	// Validate the configuration
@@ -342,7 +356,30 @@ func storagePoolPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = storagePoolUpdate(d.State(), poolName, req.Description, req.Config)
+	config = req.Config
+	if clustered {
+		// For clustered requests, we need to complement the request's config
+		// with our node-specific values.
+		config = storagePoolClusterFillWithNodeConfig(dbInfo.Config, config)
+	}
+
+	// Notify the other nodes, unless this is itself a notification.
+	if clustered && !isClusterNotification(r) {
+		cert := d.endpoints.NetworkCert()
+		notifier, err := cluster.NewNotifier(d.State(), cert, cluster.NotifyAll)
+		if err != nil {
+			return SmartError(err)
+		}
+		err = notifier(func(client lxd.ContainerServer) error {
+			return client.UpdateStoragePool(poolName, req, r.Header.Get("If-Match"))
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+	}
+
+	withDB := !isClusterNotification(r)
+	err = storagePoolUpdate(d.State(), poolName, req.Description, config, withDB)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -361,17 +398,31 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	req := api.StoragePoolPut{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest(err)
+	}
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	config := dbInfo.Config
+	if clustered {
+		err := storagePoolValidateClusterConfig(req.Config)
+		if err != nil {
+			return BadRequest(err)
+		}
+		config = storagePoolClusterConfigForEtag(config)
+	}
+
 	// Validate the ETag
-	etag := []interface{}{dbInfo.Name, dbInfo.Driver, dbInfo.Config}
+	etag := []interface{}{dbInfo.Name, dbInfo.Driver, config}
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
-	}
-
-	req := api.StoragePoolPut{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return BadRequest(err)
 	}
 
 	// Config stacking
@@ -392,12 +443,70 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = storagePoolUpdate(d.State(), poolName, req.Description, req.Config)
+	config = req.Config
+	if clustered {
+		// For clustered requests, we need to complement the request's config
+		// with our node-specific values.
+		config = storagePoolClusterFillWithNodeConfig(dbInfo.Config, config)
+	}
+
+	// Notify the other nodes, unless this is itself a notification.
+	if clustered && !isClusterNotification(r) {
+		cert := d.endpoints.NetworkCert()
+		notifier, err := cluster.NewNotifier(d.State(), cert, cluster.NotifyAll)
+		if err != nil {
+			return SmartError(err)
+		}
+		err = notifier(func(client lxd.ContainerServer) error {
+			return client.UpdateStoragePool(poolName, req, r.Header.Get("If-Match"))
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+	}
+
+	withDB := !isClusterNotification(r)
+	err = storagePoolUpdate(d.State(), poolName, req.Description, config, withDB)
 	if err != nil {
 		return InternalError(err)
 	}
 
 	return EmptySyncResponse
+}
+
+// This helper makes sure that, when clustered, we're not changing
+// node-specific values.
+//
+// POSSIBLY TODO: for now we don't have any node-specific values that can be
+// modified. If we ever get some, we'll need to extend the PUT/PATCH APIs to
+// accept a targetNode query parameter.
+func storagePoolValidateClusterConfig(reqConfig map[string]string) error {
+	for key := range reqConfig {
+		if shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
+			return fmt.Errorf("node-specific config key %s can't be changed", key)
+		}
+	}
+	return nil
+}
+
+// This helper deletes any node-specific values from the config object, since
+// they should not be part of the calculated etag.
+func storagePoolClusterConfigForEtag(dbConfig map[string]string) map[string]string {
+	config := util.CopyConfig(dbConfig)
+	for _, key := range db.StoragePoolNodeConfigKeys {
+		delete(config, key)
+	}
+	return config
+}
+
+// This helper complements a PUT/PATCH request config with node-specific value,
+// as taken from the db.
+func storagePoolClusterFillWithNodeConfig(dbConfig, reqConfig map[string]string) map[string]string {
+	config := util.CopyConfig(reqConfig)
+	for _, key := range db.StoragePoolNodeConfigKeys {
+		config[key] = dbConfig[key]
+	}
+	return config
 }
 
 // /1.0/storage-pools/{name}

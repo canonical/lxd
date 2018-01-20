@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string) error {
+func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string, withDB bool) error {
 	s, err := storagePoolInit(state, name)
 	if err != nil {
 		return err
@@ -60,8 +60,9 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 		s.SetStoragePoolWritable(&newWritable)
 	}
 
-	// Update the database if something changed
-	if len(changedConfig) != 0 || newDescription != oldDescription {
+	// Update the database if something changed and the withDB flag is true
+	// (i.e. this is not a clustering notification.
+	if withDB && (len(changedConfig) != 0 || newDescription != oldDescription) {
 		err = state.Cluster.StoragePoolUpdate(name, newDescription, newConfig)
 		if err != nil {
 			return err
