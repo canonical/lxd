@@ -8,6 +8,27 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// StorageVolumeNodeGet returns the name of the node a storage volume is on.
+func (c *Cluster) StorageVolumeNodeGet(volumeID int64) (string, error) {
+	name := ""
+	query := `
+SELECT nodes.name FROM storage_volumes
+  JOIN nodes ON nodes.id=storage_volumes.node_id
+   WHERE storage_volumes.id=?
+`
+	inargs := []interface{}{volumeID}
+	outargs := []interface{}{&name}
+
+	err := dbQueryRowScan(c.db, query, inargs, outargs)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", NoSuchObjectError
+		}
+	}
+
+	return name, nil
+}
+
 // Get config of a storage volume.
 func (c *Cluster) StorageVolumeConfigGet(volumeID int64) (map[string]string, error) {
 	var key, value string

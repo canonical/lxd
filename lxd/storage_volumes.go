@@ -35,7 +35,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 
 	// Get all volumes currently attached to the storage pool by ID of the
 	// pool.
-	volumes, err := d.cluster.StoragePoolNodeVolumesGet(poolID, supportedVolumeTypes)
+	volumes, err := d.cluster.StoragePoolVolumesGet(poolID, supportedVolumeTypes)
 	if err != nil && err != db.NoSuchObjectError {
 		return SmartError(err)
 	}
