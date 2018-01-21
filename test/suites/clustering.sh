@@ -304,6 +304,18 @@ test_clustering_storage() {
   # the volume without specifying the --target parameter.
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -q "node: node1"
 
+  # Create another volume on node2 with the same name of the one on
+  # node1.
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume create data web
+
+  # Trying to show the web volume without --target fails, because it's
+  # not unique
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web
+
+  # Specifying the --target parameter gets the proper volume
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -q "node: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -q "node: node2"
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2

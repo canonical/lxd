@@ -101,8 +101,8 @@ lxc storage edit [<remote>:]<pool>
 lxc storage volume list [<remote>:]<pool>
     List available storage volumes on a storage pool.
 
-lxc storage volume show [<remote>:]<pool> <volume>
-    Show details of a storage volume on a storage pool.
+lxc storage volume show [<remote>:]<pool> <volume> [--target <node>]
+   Show details of a storage volume on a storage pool.
 
 lxc storage volume create [<remote>:]<pool> <volume> [key=value]...
     Create a storage volume on a storage pool.
@@ -1059,6 +1059,12 @@ func (c *storageCmd) doStoragePoolVolumeSet(client lxd.ContainerServer, pool str
 func (c *storageCmd) doStoragePoolVolumeShow(client lxd.ContainerServer, pool string, volume string) error {
 	// Parse the input
 	volName, volType := c.parseVolume("custom", volume)
+
+	// If a target node was specified, get the volume with the matching
+	// name on that node, if any.
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
+	}
 
 	// Get the storage volume entry
 	vol, _, err := client.GetStoragePoolVolume(pool, volType, volName)
