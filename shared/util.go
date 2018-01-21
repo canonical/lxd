@@ -120,7 +120,8 @@ func HostPath(path string) string {
 
 	// Check if we're running in a snap package
 	snap := os.Getenv("SNAP")
-	if snap == "" {
+	snapName := os.Getenv("SNAP_NAME")
+	if snap == "" || snapName != "lxd" {
 		return path
 	}
 
@@ -142,7 +143,7 @@ func HostPath(path string) string {
 
 	// Check if the path is already snap-aware
 	for _, prefix := range []string{"/dev", "/snap", "/var/snap", "/var/lib/snapd"} {
-		if strings.HasPrefix(path, prefix) {
+		if path == prefix || strings.HasPrefix(path, fmt.Sprintf("%s/", prefix)) {
 			return path
 		}
 	}
