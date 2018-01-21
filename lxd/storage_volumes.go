@@ -286,6 +286,22 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	targetNode := r.FormValue("targetNode")
+	if targetNode == "" {
+		// If not target node is specified, check if we need to forward
+		// the request to the appropriate node (as long as there's only
+		// one match).
+		response, err := ForwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+		if err != nil {
+			return SmartError(err)
+		}
+		if response != nil {
+			return response
+		}
+		// The specified target node is the current node, so just go
+		// ahead normally.
+	}
+
 	// Get the storage volume.
 	_, volume, err := d.cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
 	if err != nil {
