@@ -159,6 +159,48 @@ func ForwardedResponse(client lxd.ContainerServer, request *http.Request) Respon
 	}
 }
 
+// ForwardedResponseIfTargetIsRemote redirects a request to the request has a
+// targetNode parameter pointing to a node which is not the local one.
+func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Response {
+	targetNode := request.FormValue("targetNode")
+	if targetNode == "" {
+		return nil
+	}
+
+	// Figure out the address of the target node (which is possibly
+	// this very same node).
+	var address string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		localNode, err := tx.NodeName()
+		if err != nil {
+			return err
+		}
+		if targetNode == localNode {
+			return nil
+		}
+		node, err := tx.NodeByName(targetNode)
+		if err != nil {
+			return err
+		}
+		address = node.Address
+		return nil
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+	if address != "" {
+		// Forward the response.
+		cert := d.endpoints.NetworkCert()
+		client, err := cluster.Connect(address, cert, false)
+		if err != nil {
+			return SmartError(err)
+		}
+		return ForwardedResponse(client, request)
+	}
+
+	return nil
+}
+
 // ForwardedResponseIfContainerIsRemote redirects a request to the node running
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
