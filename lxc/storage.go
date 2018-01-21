@@ -74,6 +74,9 @@ lxc storage list [<remote>:]
 lxc storage show [<remote>:]<pool> [--resources]
 	Show details of a storage pool.
 
+lxc storage info [<remote>:]<pool> [--bytes]
+	Show information of a storage pool in yaml format.
+
 lxc storage create [<remote>:]<pool> <driver> [key=value]...
     Create a storage pool.
 
