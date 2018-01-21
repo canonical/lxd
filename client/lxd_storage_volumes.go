@@ -52,7 +52,13 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name str
 	volume := api.StorageVolume{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), nil, "", &volume)
+	path := fmt.Sprintf(
+		"/storage-pools/%s/volumes/%s/%s",
+		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
+	if r.targetNode != "" {
+		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	}
+	etag, err := r.queryStruct("GET", path, nil, "", &volume)
 	if err != nil {
 		return nil, "", err
 	}

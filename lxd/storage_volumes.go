@@ -286,6 +286,11 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	response := ForwardedResponseIfTargetIsRemote(d, r)
+	if response != nil {
+		return response
+	}
+
 	targetNode := r.FormValue("targetNode")
 	if targetNode == "" {
 		// If not target node is specified, check if we need to forward
