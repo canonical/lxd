@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-01-21 03:03+0100\n"
+"POT-Creation-Date: 2018-01-21 03:14+0100\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -293,7 +293,7 @@ msgstr "キー '%s' が設定されていないので削除できません"
 msgid "Can't unset key '%s', it's not currently set."
 msgstr "キー '%s' が指定されていないので削除できません。"
 
-#: lxc/profile.go:546 lxc/storage.go:660
+#: lxc/profile.go:546 lxc/storage.go:663
 msgid "Cannot provide container name to list"
 msgstr "コンテナ名を取得できません"
 
@@ -319,7 +319,7 @@ msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
 #: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1190
-#: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:611 lxc/storage.go:1064
+#: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -386,11 +386,11 @@ msgid "Creating the container"
 msgstr "コンテナを作成中"
 
 #: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:525
-#: lxc/storage.go:689 lxc/storage.go:878
+#: lxc/storage.go:692 lxc/storage.go:881
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/storage.go:690
+#: lxc/storage.go:693
 msgid "DRIVER"
 msgstr ""
 
@@ -704,7 +704,7 @@ msgstr "メモリ消費量:"
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
-#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:409 lxc/storage.go:529
+#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:412 lxc/storage.go:532
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
@@ -727,7 +727,7 @@ msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
 #: lxc/list.go:467 lxc/network.go:522 lxc/profile.go:573 lxc/remote.go:409
-#: lxc/storage.go:688 lxc/storage.go:877
+#: lxc/storage.go:691 lxc/storage.go:880
 msgid "NAME"
 msgstr ""
 
@@ -775,7 +775,7 @@ msgstr "追加すべき証明書が提供されていません"
 msgid "No device found for this network"
 msgstr "このネットワークに対するデバイスがありません"
 
-#: lxc/storage.go:418 lxc/storage.go:538
+#: lxc/storage.go:421 lxc/storage.go:541
 msgid "No device found for this storage volume."
 msgstr "このストレージボリュームに対するデバイスがありません。"
 
@@ -783,7 +783,7 @@ msgstr "このストレージボリュームに対するデバイスがありま
 msgid "No fingerprint specified."
 msgstr "フィンガープリントが指定されていません。"
 
-#: lxc/storage.go:362 lxc/storage.go:455
+#: lxc/storage.go:365 lxc/storage.go:458
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr "\"カスタム\" のボリュームのみがコンテナにアタッチできます。"
 
@@ -865,7 +865,7 @@ msgstr "アクセスが拒否されました。lxd グループに所属して�
 msgid "Pid: %d"
 msgstr "Pid: %d"
 
-#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:612 lxc/storage.go:1065
+#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:615 lxc/storage.go:1068
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
@@ -974,7 +974,7 @@ msgstr "リモート名: %s"
 msgid "Remove %s (yes/no): "
 msgstr "%s を消去しますか (yes/no): "
 
-#: lxc/storage.go:1096
+#: lxc/storage.go:1099
 #, c-format
 msgid "Renamed storage volume from \"%s\" to \"%s\""
 msgstr "ストレージボリューム名 \"%s\" を \"%s\" に変更しました"
@@ -1012,7 +1012,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:691
+#: lxc/storage.go:694
 msgid "SOURCE"
 msgstr ""
 
@@ -1080,11 +1080,11 @@ msgstr "拡張した設定を表示する"
 msgid "Show the resources available to the server"
 msgstr "サーバで使用可能なリソースを表示します"
 
-#: lxc/storage.go:152
+#: lxc/storage.go:155
 msgid "Show the resources available to the storage pool"
 msgstr "ストレージプールで利用可能なリソースを表示します"
 
-#: lxc/storage.go:153
+#: lxc/storage.go:156
 msgid "Show the used and free space in bytes"
 msgstr ""
 
@@ -1137,12 +1137,12 @@ msgstr "コンテナの停止に失敗しました！"
 msgid "Stopping the container failed: %s"
 msgstr "コンテナの停止に失敗しました: %s"
 
-#: lxc/storage.go:503
+#: lxc/storage.go:506
 #, c-format
 msgid "Storage pool %s created"
 msgstr "ストレージプール %s を作成しました"
 
-#: lxc/storage.go:562
+#: lxc/storage.go:565
 #, c-format
 msgid "Storage pool %s deleted"
 msgstr "ストレージプール %s を削除しました"
@@ -1151,12 +1151,12 @@ msgstr "ストレージプール %s を削除しました"
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
-#: lxc/storage.go:911
+#: lxc/storage.go:914
 #, c-format
 msgid "Storage volume %s created"
 msgstr "ストレージボリューム %s を作成しました"
 
-#: lxc/storage.go:926
+#: lxc/storage.go:929
 #, c-format
 msgid "Storage volume %s deleted"
 msgstr "ストレージボリューム %s を削除しました"
@@ -1173,7 +1173,7 @@ msgstr "Swap (現在値)"
 msgid "Swap (peak)"
 msgstr "Swap (ピーク)"
 
-#: lxc/list.go:473 lxc/network.go:523 lxc/operation.go:153 lxc/storage.go:876
+#: lxc/list.go:473 lxc/network.go:523 lxc/operation.go:153 lxc/storage.go:879
 msgid "TYPE"
 msgstr ""
 
@@ -1212,7 +1212,7 @@ msgstr ""
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
-#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:423 lxc/storage.go:543
+#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:426 lxc/storage.go:546
 msgid "The specified device doesn't exist"
 msgstr "指定したデバイスが存在しません"
 
@@ -1301,7 +1301,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:692 lxc/storage.go:879
+#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:695 lxc/storage.go:882
 msgid "USED BY"
 msgstr ""
 
@@ -2703,6 +2703,9 @@ msgid ""
 "lxc storage show [<remote>:]<pool> [--resources]\n"
 "\tShow details of a storage pool.\n"
 "\n"
+"lxc storage info [<remote>:]<pool> [--bytes]\n"
+"\tShow information of a storage pool in yaml format.\n"
+"\n"
 "lxc storage create [<remote>:]<pool> <driver> [key=value]...\n"
 "    Create a storage pool.\n"
 "\n"
@@ -2948,7 +2951,7 @@ msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません
 msgid "default"
 msgstr ""
 
-#: lxc/storage.go:801
+#: lxc/storage.go:804
 msgid "description"
 msgstr ""
 
@@ -2962,7 +2965,7 @@ msgstr ""
 msgid "disabled"
 msgstr "無効"
 
-#: lxc/storage.go:800
+#: lxc/storage.go:803
 msgid "driver"
 msgstr ""
 
@@ -2980,11 +2983,11 @@ msgstr "エラー: %v"
 msgid "error: unknown command: %s"
 msgstr "エラー: 未知のコマンド: %s"
 
-#: lxc/storage.go:798
+#: lxc/storage.go:801
 msgid "info"
 msgstr ""
 
-#: lxc/storage.go:799
+#: lxc/storage.go:802
 msgid "name"
 msgstr ""
 
@@ -3025,7 +3028,7 @@ msgstr "リモート %s は <%s> として存在します"
 msgid "remote %s is static and cannot be modified"
 msgstr "リモート %s は static ですので変更できません"
 
-#: lxc/storage.go:803
+#: lxc/storage.go:806
 msgid "space used"
 msgstr ""
 
@@ -3042,11 +3045,11 @@ msgstr "ステートレス"
 msgid "taken at %s"
 msgstr "%s に取得しました"
 
-#: lxc/storage.go:802
+#: lxc/storage.go:805
 msgid "total space"
 msgstr ""
 
-#: lxc/storage.go:797
+#: lxc/storage.go:800
 msgid "used by"
 msgstr ""
 
