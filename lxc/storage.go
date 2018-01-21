@@ -23,6 +23,7 @@ import (
 
 type storageCmd struct {
 	resources bool
+	byteflag bool
 }
 
 func (c *storageCmd) showByDefault() bool {
@@ -71,7 +72,7 @@ lxc storage list [<remote>:]
     List available storage pools.
 
 lxc storage show [<remote>:]<pool> [--resources]
-    Show details of a storage pool.
+	Show details of a storage pool.
 
 lxc storage create [<remote>:]<pool> <driver> [key=value]...
     Create a storage pool.
@@ -149,6 +150,7 @@ lxc storage volume show default container/data
 
 func (c *storageCmd) flags() {
 	gnuflag.BoolVar(&c.resources, "resources", false, i18n.G("Show the resources available to the storage pool"))
+	gnuflag.BoolVar(&c.byteflag, "bytes", false, i18n.G("Show the used and free space in bytes"))
 }
 
 func (c *storageCmd) run(conf *config.Config, args []string) error {
@@ -316,6 +318,11 @@ func (c *storageCmd) run(conf *config.Config, args []string) error {
 				return errArgs
 			}
 			return c.doStoragePoolShow(client, pool)
+		case "info":
+			if len(args) < 2 {
+				return errArgs
+			}
+			return c.doStoragePoolInfo(client, pool)
 		default:
 			return errArgs
 		}
@@ -763,6 +770,80 @@ func (c *storageCmd) doStoragePoolShow(client lxd.ContainerServer, name string) 
 
 	fmt.Printf("%s", data)
 
+	return nil
+}
+
+func (c *storageCmd) doStoragePoolInfo(client lxd.ContainerServer, name string) error {
+	if name == "" {
+		return errArgs
+	}
+
+	pool, _, err := client.GetStoragePool(name)
+	if err != nil {
+		return err
+	}
+
+	res, err := client.GetStoragePoolResources(name)
+	
+	if err != nil {
+		return err
+	}
+	
+	//Declare the poolinfo map of maps in order to build up the yaml.
+	poolinfo := make(map[string]map[string]string)
+	poolusedby := make(map[string]map[string][]string)
+	
+	//Translations
+	usedbystring := i18n.G("used by")
+	infostring := i18n.G("info")
+	namestring := i18n.G("name")
+	driverstring := i18n.G("driver")
+	descriptionstring := i18n.G("description")
+	totalspacestring := i18n.G("total space")
+	spaceusedstring := i18n.G("space used")
+
+	//Initialize the usedby map
+	poolusedby[usedbystring] = map[string][]string{}
+
+	/* Build up the usedby map
+	/1.0/{containers,images,profiles}/storagepoolname
+	remove the /1.0/ and build the map based on the resources name as key
+	and resources details as value */
+	for _,v := range pool.UsedBy {
+		bytype := string(strings.Split(v[5:], "/")[0])
+		bywhat := string(strings.Split(v[5:], "/")[1])
+		
+		poolusedby[usedbystring][bytype] = append(poolusedby[usedbystring][bytype], bywhat)
+	}
+
+	//Initialize the info map
+	poolinfo[infostring] = map[string]string{}
+	
+	//Build up the info map
+	poolinfo[infostring][namestring] = pool.Name
+	poolinfo[infostring][driverstring] = pool.Driver
+	poolinfo[infostring][descriptionstring] = pool.Description
+	if c.byteflag {
+		poolinfo[infostring][totalspacestring] = strconv.FormatUint(res.Space.Total, 10)
+		poolinfo[infostring][spaceusedstring] = strconv.FormatUint(res.Space.Used, 10)
+	} else {
+		poolinfo[infostring][totalspacestring] = shared.GetByteSizeString(int64(res.Space.Total), 2)
+		poolinfo[infostring][spaceusedstring] = shared.GetByteSizeString(int64(res.Space.Used), 2)
+	}
+
+	poolinfodata, err := yaml.Marshal(poolinfo)
+	if err != nil {
+		return err
+	}
+	
+	poolusedbydata, err := yaml.Marshal(poolusedby)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", poolinfodata)
+	fmt.Printf("%s", poolusedbydata)
+	
 	return nil
 }
 
