@@ -300,6 +300,10 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -q node1
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep -q node1
 
+  # Since the volume name is unique to node1, it's possible to show
+  # the volume without specifying the --target parameter.
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -q "node: node1"
+
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2
