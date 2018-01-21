@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
@@ -24,6 +25,9 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/lxc/lxd/shared/cancel"
+	"github.com/lxc/lxd/shared/ioprogress"
 )
 
 const SnapshotDelimiter = "/"
@@ -901,4 +905,62 @@ func EscapePathFstab(path string) string {
 		"\n", "\\012",
 		"\\", "\\\\")
 	return r.Replace(path)
+}
+
+func DownloadFileSha256(httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, target io.WriteSeeker) (int64, error) {
+	// Always seek to the beginning
+	target.Seek(0, 0)
+
+	// Prepare the download request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return -1, err
+	}
+
+	if useragent != "" {
+		req.Header.Set("User-Agent", useragent)
+	}
+
+	// Perform the request
+	r, doneCh, err := cancel.CancelableDownload(canceler, httpClient, req)
+	if err != nil {
+		return -1, err
+	}
+	defer r.Body.Close()
+	defer close(doneCh)
+
+	if r.StatusCode != http.StatusOK {
+		return -1, fmt.Errorf("Unable to fetch %s: %s", url, r.Status)
+	}
+
+	// Handle the data
+	body := r.Body
+	if progress != nil {
+		body = &ioprogress.ProgressReader{
+			ReadCloser: r.Body,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: r.ContentLength,
+				Handler: func(percent int64, speed int64) {
+					if filename != "" {
+						progress(ioprogress.ProgressData{Text: fmt.Sprintf("%s: %d%% (%s/s)", filename, percent, GetByteSizeString(speed, 2))})
+					} else {
+						progress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, GetByteSizeString(speed, 2))})
+					}
+				},
+			},
+		}
+	}
+
+	sha256 := sha256.New()
+	size, err := io.Copy(io.MultiWriter(target, sha256), body)
+	if err != nil {
+		return -1, err
+	}
+
+	result := fmt.Sprintf("%x", sha256.Sum(nil))
+	if result != hash {
+		return -1, fmt.Errorf("Hash mismatch for %s: %s != %s", url, result, hash)
+	}
+
+	return size, nil
 }

@@ -870,3 +870,37 @@ func Statvfs(path string) (*syscall.Statfs_t, error) {
 
 	return &st, nil
 }
+
+func DeviceTotalMemory() (int64, error) {
+	// Open /proc/meminfo
+	f, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return -1, err
+	}
+	defer f.Close()
+
+	// Read it line by line
+	scan := bufio.NewScanner(f)
+	for scan.Scan() {
+		line := scan.Text()
+
+		// We only care about MemTotal
+		if !strings.HasPrefix(line, "MemTotal:") {
+			continue
+		}
+
+		// Extract the before last (value) and last (unit) fields
+		fields := strings.Split(line, " ")
+		value := fields[len(fields)-2] + fields[len(fields)-1]
+
+		// Feed the result to shared.ParseByteSizeString to get an int value
+		valueBytes, err := ParseByteSizeString(value)
+		if err != nil {
+			return -1, err
+		}
+
+		return valueBytes, nil
+	}
+
+	return -1, fmt.Errorf("Couldn't find MemTotal")
+}
