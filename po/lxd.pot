@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2018-01-21 03:03+0100\n"
+        "POT-Creation-Date: 2018-01-21 03:14+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -281,7 +281,7 @@ msgstr  ""
 msgid   "Can't unset key '%s', it's not currently set."
 msgstr  ""
 
-#: lxc/profile.go:546 lxc/storage.go:660
+#: lxc/profile.go:546 lxc/storage.go:663
 msgid   "Cannot provide container name to list"
 msgstr  ""
 
@@ -306,7 +306,7 @@ msgstr  ""
 msgid   "Config key/value to apply to the new container"
 msgstr  ""
 
-#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1190 lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:611 lxc/storage.go:1064
+#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1190 lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
 #, c-format
 msgid   "Config parsing error: %s"
 msgstr  ""
@@ -372,11 +372,11 @@ msgstr  ""
 msgid   "Creating the container"
 msgstr  ""
 
-#: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:525 lxc/storage.go:689 lxc/storage.go:878
+#: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:525 lxc/storage.go:692 lxc/storage.go:881
 msgid   "DESCRIPTION"
 msgstr  ""
 
-#: lxc/storage.go:690
+#: lxc/storage.go:693
 msgid   "DRIVER"
 msgstr  ""
 
@@ -687,7 +687,7 @@ msgstr  ""
 msgid   "Missing summary."
 msgstr  ""
 
-#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:409 lxc/storage.go:529
+#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:412 lxc/storage.go:532
 msgid   "More than one device matches, specify the device name."
 msgstr  ""
 
@@ -707,7 +707,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/list.go:467 lxc/network.go:522 lxc/profile.go:573 lxc/remote.go:409 lxc/storage.go:688 lxc/storage.go:877
+#: lxc/list.go:467 lxc/network.go:522 lxc/profile.go:573 lxc/remote.go:409 lxc/storage.go:691 lxc/storage.go:880
 msgid   "NAME"
 msgstr  ""
 
@@ -755,7 +755,7 @@ msgstr  ""
 msgid   "No device found for this network"
 msgstr  ""
 
-#: lxc/storage.go:418 lxc/storage.go:538
+#: lxc/storage.go:421 lxc/storage.go:541
 msgid   "No device found for this storage volume."
 msgstr  ""
 
@@ -763,7 +763,7 @@ msgstr  ""
 msgid   "No fingerprint specified."
 msgstr  ""
 
-#: lxc/storage.go:362 lxc/storage.go:455
+#: lxc/storage.go:365 lxc/storage.go:458
 msgid   "Only \"custom\" volumes can be attached to containers."
 msgstr  ""
 
@@ -845,7 +845,7 @@ msgstr  ""
 msgid   "Pid: %d"
 msgstr  ""
 
-#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:612 lxc/storage.go:1065
+#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:615 lxc/storage.go:1068
 msgid   "Press enter to open the editor again"
 msgstr  ""
 
@@ -953,7 +953,7 @@ msgstr  ""
 msgid   "Remove %s (yes/no): "
 msgstr  ""
 
-#: lxc/storage.go:1096
+#: lxc/storage.go:1099
 #, c-format
 msgid   "Renamed storage volume from \"%s\" to \"%s\""
 msgstr  ""
@@ -991,7 +991,7 @@ msgstr  ""
 msgid   "SNAPSHOTS"
 msgstr  ""
 
-#: lxc/storage.go:691
+#: lxc/storage.go:694
 msgid   "SOURCE"
 msgstr  ""
 
@@ -1059,11 +1059,11 @@ msgstr  ""
 msgid   "Show the resources available to the server"
 msgstr  ""
 
-#: lxc/storage.go:152
+#: lxc/storage.go:155
 msgid   "Show the resources available to the storage pool"
 msgstr  ""
 
-#: lxc/storage.go:153
+#: lxc/storage.go:156
 msgid   "Show the used and free space in bytes"
 msgstr  ""
 
@@ -1116,12 +1116,12 @@ msgstr  ""
 msgid   "Stopping the container failed: %s"
 msgstr  ""
 
-#: lxc/storage.go:503
+#: lxc/storage.go:506
 #, c-format
 msgid   "Storage pool %s created"
 msgstr  ""
 
-#: lxc/storage.go:562
+#: lxc/storage.go:565
 #, c-format
 msgid   "Storage pool %s deleted"
 msgstr  ""
@@ -1130,12 +1130,12 @@ msgstr  ""
 msgid   "Storage pool name"
 msgstr  ""
 
-#: lxc/storage.go:911
+#: lxc/storage.go:914
 #, c-format
 msgid   "Storage volume %s created"
 msgstr  ""
 
-#: lxc/storage.go:926
+#: lxc/storage.go:929
 #, c-format
 msgid   "Storage volume %s deleted"
 msgstr  ""
@@ -1152,7 +1152,7 @@ msgstr  ""
 msgid   "Swap (peak)"
 msgstr  ""
 
-#: lxc/list.go:473 lxc/network.go:523 lxc/operation.go:153 lxc/storage.go:876
+#: lxc/list.go:473 lxc/network.go:523 lxc/operation.go:153 lxc/storage.go:879
 msgid   "TYPE"
 msgstr  ""
 
@@ -1185,7 +1185,7 @@ msgstr  ""
 msgid   "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr  ""
 
-#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:423 lxc/storage.go:543
+#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:426 lxc/storage.go:546
 msgid   "The specified device doesn't exist"
 msgstr  ""
 
@@ -1263,7 +1263,7 @@ msgstr  ""
 msgid   "URL"
 msgstr  ""
 
-#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:692 lxc/storage.go:879
+#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:695 lxc/storage.go:882
 msgid   "USED BY"
 msgstr  ""
 
@@ -1957,6 +1957,9 @@ msgid   "Usage: lxc storage <subcommand> [options]\n"
         "lxc storage show [<remote>:]<pool> [--resources]\n"
         "	Show details of a storage pool.\n"
         "\n"
+        "lxc storage info [<remote>:]<pool> [--bytes]\n"
+        "	Show information of a storage pool in yaml format.\n"
+        "\n"
         "lxc storage create [<remote>:]<pool> <driver> [key=value]...\n"
         "    Create a storage pool.\n"
         "\n"
@@ -2089,7 +2092,7 @@ msgstr  ""
 msgid   "default"
 msgstr  ""
 
-#: lxc/storage.go:801
+#: lxc/storage.go:804
 msgid   "description"
 msgstr  ""
 
@@ -2101,7 +2104,7 @@ msgstr  ""
 msgid   "disabled"
 msgstr  ""
 
-#: lxc/storage.go:800
+#: lxc/storage.go:803
 msgid   "driver"
 msgstr  ""
 
@@ -2119,11 +2122,11 @@ msgstr  ""
 msgid   "error: unknown command: %s"
 msgstr  ""
 
-#: lxc/storage.go:798
+#: lxc/storage.go:801
 msgid   "info"
 msgstr  ""
 
-#: lxc/storage.go:799
+#: lxc/storage.go:802
 msgid   "name"
 msgstr  ""
 
@@ -2164,7 +2167,7 @@ msgstr  ""
 msgid   "remote %s is static and cannot be modified"
 msgstr  ""
 
-#: lxc/storage.go:803
+#: lxc/storage.go:806
 msgid   "space used"
 msgstr  ""
 
@@ -2181,11 +2184,11 @@ msgstr  ""
 msgid   "taken at %s"
 msgstr  ""
 
-#: lxc/storage.go:802
+#: lxc/storage.go:805
 msgid   "total space"
 msgstr  ""
 
-#: lxc/storage.go:797
+#: lxc/storage.go:800
 msgid   "used by"
 msgstr  ""
 
