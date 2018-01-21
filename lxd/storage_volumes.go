@@ -142,6 +142,11 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 // /1.0/storage-pools/{name}/volumes/{type}
 // Create a storage volume of a given volume type in a given storage pool.
 func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
+	response := ForwardedResponseIfTargetIsRemote(d, r)
+	if response != nil {
+		return response
+	}
+
 	req := api.StorageVolumesPost{}
 
 	// Parse the request.

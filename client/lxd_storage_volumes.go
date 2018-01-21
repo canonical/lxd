@@ -81,7 +81,12 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type)), volume, "")
+	path := fmt.Sprintf(
+		"/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type))
+	if r.targetNode != "" {
+		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	}
+	_, _, err := r.query("POST", path, volume, "")
 	if err != nil {
 		return err
 	}

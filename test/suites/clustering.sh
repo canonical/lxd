@@ -306,7 +306,7 @@ test_clustering_storage() {
 
   # Create another volume on node2 with the same name of the one on
   # node1.
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume create data web
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create --target node2 data web
 
   # Trying to show the web volume without --target fails, because it's
   # not unique
