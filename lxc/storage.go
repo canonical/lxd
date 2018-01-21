@@ -103,7 +103,7 @@ lxc storage volume list [<remote>:]<pool>
 lxc storage volume show [<remote>:]<pool> <volume> [--target <node>]
    Show details of a storage volume on a storage pool.
 
-lxc storage volume create [<remote>:]<pool> <volume> [key=value]...
+lxc storage volume create [<remote>:]<pool> <volume> [key=value]... [--target <node>]
     Create a storage volume on a storage pool.
 
 lxc storage volume rename [<remote>:]<pool> <old name> <new name>
@@ -944,6 +944,11 @@ func (c *storageCmd) doStoragePoolVolumeCreate(client lxd.ContainerServer, pool 
 		}
 
 		vol.Config[entry[0]] = entry[1]
+	}
+
+	// If a target was specified, create the volume on the given node.
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
 	}
 
 	err := client.CreateStoragePoolVolume(pool, vol)

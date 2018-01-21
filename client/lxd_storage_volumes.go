@@ -69,7 +69,12 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name str
 // CreateStoragePoolVolume defines a new storage volume
 func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) error {
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type)), volume, "")
+	path := fmt.Sprintf(
+		"/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type))
+	if r.targetNode != "" {
+		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	}
+	_, _, err := r.query("POST", path, volume, "")
 	if err != nil {
 		return err
 	}
