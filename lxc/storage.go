@@ -23,7 +23,7 @@ import (
 
 type storageCmd struct {
 	resources bool
-	byteflag bool
+	byteflag  bool
 }
 
 func (c *storageCmd) showByDefault() bool {
@@ -787,15 +787,15 @@ func (c *storageCmd) doStoragePoolInfo(client lxd.ContainerServer, name string) 
 	}
 
 	res, err := client.GetStoragePoolResources(name)
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	//Declare the poolinfo map of maps in order to build up the yaml.
 	poolinfo := make(map[string]map[string]string)
 	poolusedby := make(map[string]map[string][]string)
-	
+
 	//Translations
 	usedbystring := i18n.G("used by")
 	infostring := i18n.G("info")
@@ -812,16 +812,16 @@ func (c *storageCmd) doStoragePoolInfo(client lxd.ContainerServer, name string) 
 	/1.0/{containers,images,profiles}/storagepoolname
 	remove the /1.0/ and build the map based on the resources name as key
 	and resources details as value */
-	for _,v := range pool.UsedBy {
+	for _, v := range pool.UsedBy {
 		bytype := string(strings.Split(v[5:], "/")[0])
 		bywhat := string(strings.Split(v[5:], "/")[1])
-		
+
 		poolusedby[usedbystring][bytype] = append(poolusedby[usedbystring][bytype], bywhat)
 	}
 
 	//Initialize the info map
 	poolinfo[infostring] = map[string]string{}
-	
+
 	//Build up the info map
 	poolinfo[infostring][namestring] = pool.Name
 	poolinfo[infostring][driverstring] = pool.Driver
@@ -838,7 +838,7 @@ func (c *storageCmd) doStoragePoolInfo(client lxd.ContainerServer, name string) 
 	if err != nil {
 		return err
 	}
-	
+
 	poolusedbydata, err := yaml.Marshal(poolusedby)
 	if err != nil {
 		return err
@@ -846,7 +846,7 @@ func (c *storageCmd) doStoragePoolInfo(client lxd.ContainerServer, name string) 
 
 	fmt.Printf("%s", poolinfodata)
 	fmt.Printf("%s", poolusedbydata)
-	
+
 	return nil
 }
 
