@@ -57,13 +57,13 @@ Manage and attach containers to networks.
 lxc network list [<remote>:]
     List available networks.
 
-lxc network show [<remote>:]<network>
+lxc network show [<remote>:]<network> [--target <node>]
     Show details of a network.
 
 lxc network create [<remote>:]<network> [key=value...] [--target <node>]
     Create a network.
 
-lxc network get [<remote>:]<network> <key>
+lxc network get [<remote>:]<network> <key> [--target <node>]
     Get network configuration.
 
 lxc network set [<remote>:]<network> <key> <value>
@@ -472,6 +472,10 @@ func (c *networkCmd) doNetworkGet(client lxd.ContainerServer, name string, args 
 		return errArgs
 	}
 
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
+	}
+
 	resp, _, err := client.GetNetwork(name)
 	if err != nil {
 		return err
@@ -593,6 +597,10 @@ func (c *networkCmd) doNetworkSet(client lxd.ContainerServer, name string, args 
 func (c *networkCmd) doNetworkShow(client lxd.ContainerServer, name string) error {
 	if name == "" {
 		return errArgs
+	}
+
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
 	}
 
 	network, _, err := client.GetNetwork(name)

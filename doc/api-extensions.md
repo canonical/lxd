@@ -417,3 +417,9 @@ The following existing endpoints have been modified:
  * `GET /1.0/storage-pool/<name>` accepts a new targetNode query parameter
  * `POST /1.0/storage-pool/<pool>/volumes/<type>` accepts a new targetNode query parameter
  * `GET /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `POST /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `PUT /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `PATCH /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `DELETE /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `POST /1.0/networks` accepts a new targetNode query parameter
+ * `GET /1.0/networks/<name>` accepts a new targetNode query parameter

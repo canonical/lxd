@@ -368,7 +368,7 @@ test_clustering_network() {
 
   # Trying to pass config values other than
   # 'bridge.external_interfaces' results in an error
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc create network foo ipv4.address=auto --target node1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create foo ipv4.address=auto --target node1
 
   net="${bridge}x"
 
@@ -386,6 +386,7 @@ test_clustering_network() {
   # Create the network
   LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}"
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep state: | grep -q CREATED
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" --target node2 | grep state: | grep -q CREATED
 
   # Delete the networks
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${net}"
