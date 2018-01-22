@@ -292,8 +292,8 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) e
 			if err != nil {
 				return err
 			}
-			// Exclude the "bridge.external_interfaces" key, which is node-specific.
-			exclude := []string{"bridge.external_interfaces"}
+			// Exclude the keys which are node-specific.
+			exclude := db.NetworkNodeConfigKeys
 			err = util.CompareConfigs(network.Config, reqNetwork.Config, exclude)
 			if err != nil {
 				return fmt.Errorf("Mismatching config for network %s: %v", name, err)
