@@ -310,10 +310,7 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error 
 
 	err = n.Start()
 	if err != nil {
-		if !withDatabase {
-			n.state = nil
-		}
-		n.Delete()
+		n.Delete(withDatabase)
 		return err
 	}
 
@@ -444,17 +441,15 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 		return NotFound
 	}
 
+	withDatabase := true
 	if isClusterNotification(r) {
-		n.state = nil // We just want to delete the network from the system
+		withDatabase = false // We just want to delete the network from the system
 	} else {
 		// Sanity checks
 		if n.IsUsed() {
 			return BadRequest(fmt.Errorf("The network is currently in use"))
 		}
-	}
 
-	// If we're just handling a notification, we're done.
-	if n.state != nil {
 		// Notify all other nodes. If any node is down, an error will be returned.
 		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAll)
 		if err != nil {
@@ -469,7 +464,7 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	// Delete the network
-	err = n.Delete()
+	err = n.Delete(withDatabase)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -483,12 +478,27 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 }
 
 func networkPost(d *Daemon, r *http.Request) Response {
+	// FIXME: renaming a network is currently not supported in clustering
+	//        mode. The difficulty is that network.Start() depends on the
+	//        network having already been renamed in the database, which is
+	//        a chicken-and-egg problem for cluster notifications (the
+	//        serving node should typically do the database job, so the
+	//        network is not yet renamed inthe db when the notified node
+	//        runs network.Start).
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+	if clustered {
+		return BadRequest(fmt.Errorf("Renaming a network not supported in LXD clusters"))
+	}
+
 	name := mux.Vars(r)["name"]
 	req := api.NetworkPost{}
 	state := d.State()
 
 	// Parse the request
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return BadRequest(err)
 	}
@@ -839,7 +849,7 @@ func (n *network) IsUsed() bool {
 	return false
 }
 
-func (n *network) Delete() error {
+func (n *network) Delete(withDatabase bool) error {
 	// Bring the network down
 	if n.IsRunning() {
 		err := n.Stop()
@@ -848,9 +858,9 @@ func (n *network) Delete() error {
 		}
 	}
 
-	// If state is nil, this is a cluster notification, and we don't want
-	// to perform any database work.
-	if n.state == nil {
+	// If withDatabase is false, this is a cluster notification, and we
+	// don't want to perform any database work.
+	if !withDatabase {
 		return nil
 	}
 
