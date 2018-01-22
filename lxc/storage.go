@@ -106,22 +106,22 @@ lxc storage volume show [<remote>:]<pool> <volume> [--target <node>]
 lxc storage volume create [<remote>:]<pool> <volume> [key=value]... [--target <node>]
     Create a storage volume on a storage pool.
 
-lxc storage volume rename [<remote>:]<pool> <old name> <new name>
+lxc storage volume rename [<remote>:]<pool> <old name> <new name> [--target <node>]
     Rename a storage volume on a storage pool.
 
-lxc storage volume get [<remote>:]<pool> <volume> <key>
+lxc storage volume get [<remote>:]<pool> <volume> <key> [--target <node>]
     Get storage volume configuration on a storage pool.
 
-lxc storage volume set [<remote>:]<pool> <volume> <key> <value>
+lxc storage volume set [<remote>:]<pool> <volume> <key> <value> [--target <node>]
     Set storage volume configuration on a storage pool.
 
-lxc storage volume unset [<remote>:]<pool> <volume> <key>
+lxc storage volume unset [<remote>:]<pool> <volume> <key> [--target <node>]
     Unset storage volume configuration on a storage pool.
 
-lxc storage volume delete [<remote>:]<pool> <volume>
+lxc storage volume delete [<remote>:]<pool> <volume> [--target <node>]
     Delete a storage volume on a storage pool.
 
-lxc storage volume edit [<remote>:]<pool> <volume>
+lxc storage volume edit [<remote>:]<pool> <volume> [--target <node>]
     Edit storage volume, either by launching external editor or reading STDIN.
 
 lxc storage volume attach [<remote>:]<pool> <volume> <container> [device name] <path>
@@ -965,6 +965,11 @@ func (c *storageCmd) doStoragePoolVolumeDelete(client lxd.ContainerServer, pool 
 	// Parse the input
 	volName, volType := c.parseVolume(volume)
 
+	// If a target was specified, create the volume on the given node.
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
+	}
+
 	// Delete the volume
 	err := client.DeleteStoragePoolVolume(pool, volType, volName)
 	if err != nil {
@@ -983,6 +988,11 @@ func (c *storageCmd) doStoragePoolVolumeGet(client lxd.ContainerServer, pool str
 
 	// Parse input
 	volName, volType := c.parseVolume(volume)
+
+	// If a target was specified, create the volume on the given node.
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
+	}
 
 	// Get the storage volume entry
 	resp, _, err := client.GetStoragePoolVolume(pool, volType, volName)
@@ -1006,6 +1016,11 @@ func (c *storageCmd) doStoragePoolVolumeSet(client lxd.ContainerServer, pool str
 
 	// Parse the input
 	volName, volType := c.parseVolume(volume)
+
+	// If a target was specified, create the volume on the given node.
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
+	}
 
 	// Get the storage volume entry
 	vol, etag, err := client.GetStoragePoolVolume(pool, volType, volName)
@@ -1088,6 +1103,11 @@ func (c *storageCmd) doStoragePoolVolumeEdit(client lxd.ContainerServer, pool st
 		return client.UpdateStoragePoolVolume(pool, volType, volName, newdata, "")
 	}
 
+	// If a target was specified, create the volume on the given node.
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
+	}
+
 	// Extract the current value
 	vol, etag, err := client.GetStoragePoolVolume(pool, volType, volName)
 	if err != nil {
@@ -1141,6 +1161,12 @@ func (c *storageCmd) doStoragePoolVolumeRename(client lxd.ContainerServer, pool 
 	// Create the storage volume entry
 	vol := api.StorageVolumePost{}
 	vol.Name = args[4]
+
+	// If a target node was specified, get the volume with the matching
+	// name on that node, if any.
+	if c.target != "" {
+		client = client.ClusterTargetNode(c.target)
+	}
 
 	err := client.RenameStoragePoolVolume(pool, volType, volName, vol)
 	if err != nil {

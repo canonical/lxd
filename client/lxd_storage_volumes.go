@@ -85,7 +85,13 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 // UpdateStoragePoolVolume updates the volume to match the provided StoragePoolVolume struct
 func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) error {
 	// Send the request
-	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), volume, ETag)
+	path := fmt.Sprintf(
+		"/storage-pools/%s/volumes/%s/%s",
+		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
+	if r.targetNode != "" {
+		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	}
+	_, _, err := r.query("PUT", path, volume, ETag)
 	if err != nil {
 		return err
 	}
@@ -96,7 +102,13 @@ func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name 
 // DeleteStoragePoolVolume deletes a storage pool
 func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name string) error {
 	// Send the request
-	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), nil, "")
+	path := fmt.Sprintf(
+		"/storage-pools/%s/volumes/%s/%s",
+		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
+	if r.targetNode != "" {
+		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	}
+	_, _, err := r.query("DELETE", path, nil, "")
 	if err != nil {
 		return err
 	}
@@ -109,9 +121,15 @@ func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name 
 	if !r.HasExtension("storage_api_volume_rename") {
 		return fmt.Errorf("The server is missing the required \"storage_api_volume_rename\" API extension")
 	}
+	path := fmt.Sprintf(
+		"/storage-pools/%s/volumes/%s/%s",
+		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
+	if r.targetNode != "" {
+		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	}
 
 	// Send the request
-	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), volume, "")
+	_, _, err := r.query("POST", path, volume, "")
 	if err != nil {
 		return err
 	}

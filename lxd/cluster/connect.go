@@ -67,6 +67,7 @@ func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName strin
 	if err != nil {
 		return nil, err
 	}
+
 	if len(addresses) > 1 {
 		return nil, fmt.Errorf("more than one node has a volume named %s", volumeName)
 	}
