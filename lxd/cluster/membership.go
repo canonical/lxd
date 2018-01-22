@@ -360,10 +360,13 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's to the network")
 			}
-			// We only need to add the bridge.external_interfaces
-			// key, since the other keys are global and are already
-			// there.
-			config = map[string]string{"bridge.external_interfaces": config["bridge.external_interfaces"]}
+			// We only need to add the node-specific keys, since
+			// the other keys are global and are already there.
+			for key := range config {
+				if !shared.StringInSlice(key, db.NetworkNodeConfigKeys) {
+					delete(config, key)
+				}
+			}
 			err = tx.NetworkConfigAdd(id, node.ID, config)
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's network config")

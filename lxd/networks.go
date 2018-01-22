@@ -119,7 +119,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		// network without actually creating it. The only legal key
 		// value for the storage config is 'bridge.external_interfaces'.
 		for key := range req.Config {
-			if key != "bridge.external_interfaces" {
+			if !shared.StringInSlice(key, db.NetworkNodeConfigKeys) {
 				return SmartError(fmt.Errorf("Invalid config key '%s'", key))
 			}
 		}
@@ -182,11 +182,10 @@ func networksPost(d *Daemon, r *http.Request) Response {
 }
 
 func networksPostCluster(d *Daemon, req api.NetworksPost) error {
-	// Check that no 'bridge.external_interfaces' config key has been
-	// defined, since that's node-specific.
+	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
-		if key == "bridge.external_interfaces" {
-			return fmt.Errorf("Config key 'bridge.external_interfaces' is node-specific")
+		if shared.StringInSlice(key, db.NetworkNodeConfigKeys) {
+			return fmt.Errorf("Config key '%s' is node-specific", key)
 		}
 	}
 
@@ -342,7 +341,9 @@ func networkGet(d *Daemon, r *http.Request) Response {
 	// If no target node is specified and the daemon is clustered, we omit
 	// the node-specific fields.
 	if targetNode == "" && clustered {
-		delete(n.Config, "bridge.external_interfaces")
+		for _, key := range db.NetworkNodeConfigKeys {
+			delete(n.Config, key)
+		}
 	}
 
 	etag := []interface{}{n.Name, n.Managed, n.Type, n.Description, n.Config}
