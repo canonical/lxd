@@ -388,6 +388,9 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep state: | grep -q CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" --target node2 | grep state: | grep -q CREATED
 
+  # FIXME: rename the network is not supported with clustering
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc network rename "${net}" "${net}-foo"
+
   # Delete the networks
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${net}"
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
