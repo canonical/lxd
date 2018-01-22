@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -136,11 +137,26 @@ func (f *heartbeatFixture) Bootstrap() *cluster.Gateway {
 
 // Grow adds a new node to the cluster.
 func (f *heartbeatFixture) Grow() *cluster.Gateway {
+	// Figure out the current leader
+	var target *cluster.Gateway
+	for {
+		for _, gateway := range f.gateways {
+			if gateway.Raft().State() == raft.Leader {
+				target = gateway
+				break
+			}
+		}
+		if target != nil {
+			break
+		}
+		// Wait a bit for election to take place
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	targetState := f.states[target]
+
 	state, gateway, address := f.node()
 	name := address
-
-	target := f.gateways[0]
-	targetState := f.states[target]
 
 	nodes, err := cluster.Accept(
 		targetState, target, name, address, cluster.SchemaVersion, len(version.APIExtensions))
