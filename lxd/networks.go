@@ -731,7 +731,7 @@ func networkLoadByName(s *state.State, name string) (*network, error) {
 
 func networkStartup(s *state.State) error {
 	// Get a list of managed networks
-	networks, err := s.Cluster.Networks()
+	networks, err := s.Cluster.NetworksNotPending()
 	if err != nil {
 		return err
 	}
