@@ -220,16 +220,23 @@ func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, name strin
 // the volume with the given pool ID, name and type. If the container is local,
 // nothing gets done and nil is returned. If more than one node has a matching
 // volume, an error is returned.
-func ForwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) (Response, error) {
+//
+// This is used when no targetNode is specified, and saves users some typing
+// when the volume name/type is unique to a node.
+func ForwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) Response {
+	if r.FormValue("targetNode") != "" {
+		return nil
+	}
+
 	cert := d.endpoints.NetworkCert()
 	client, err := cluster.ConnectIfVolumeIsRemote(d.cluster, poolID, volumeName, volumeType, cert)
 	if err != nil {
-		return nil, err
+		return SmartError(err)
 	}
 	if client == nil {
-		return nil, nil
+		return nil
 	}
-	return ForwardedResponse(client, r), nil
+	return ForwardedResponse(client, r)
 }
 
 // File transfer response

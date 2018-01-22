@@ -300,21 +300,34 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -q node1
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep -q node1
 
-  # Since the volume name is unique to node1, it's possible to show
-  # the volume without specifying the --target parameter.
+  # Since the volume name is unique to node1, it's possible to show, rename,
+  # get the volume without specifying the --target parameter.
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -q "node: node1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume rename data web webbaz
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data webbaz web
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get data web size
 
   # Create another volume on node2 with the same name of the one on
   # node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create --target node2 data web
 
-  # Trying to show the web volume without --target fails, because it's
-  # not unique
+  # Trying to show, rename or delete the web volume without --target
+  # fails, because it's not unique.
   ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data web webbaz
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data web
 
-  # Specifying the --target parameter gets the proper volume
+  # Specifying the --target parameter shows, renames and deletes the
+  # proper volume.
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -q "node: node1"
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -q "node: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data web webbaz
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz
+
+  # Since now there's only one volume in the pool left named webbaz,
+  # it's possible to delete it without specifying --target.
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data webbaz
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
