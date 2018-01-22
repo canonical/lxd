@@ -323,11 +323,29 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error 
 var networksCmd = Command{name: "networks", get: networksGet, post: networksPost}
 
 func networkGet(d *Daemon, r *http.Request) Response {
+	// If a target was specified, forward the request to the relevant node.
+	response := ForwardedResponseIfTargetIsRemote(d, r)
+	if response != nil {
+		return response
+	}
+
 	name := mux.Vars(r)["name"]
 
 	n, err := doNetworkGet(d, name)
 	if err != nil {
 		return SmartError(err)
+	}
+
+	targetNode := r.FormValue("targetNode")
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// If no target node is specified and the daemon is clustered, we omit
+	// the node-specific fields.
+	if targetNode == "" && clustered {
+		delete(n.Config, "bridge.external_interfaces")
 	}
 
 	etag := []interface{}{n.Name, n.Managed, n.Type, n.Description, n.Config}

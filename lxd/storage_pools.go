@@ -257,6 +257,12 @@ var storagePoolsCmd = Command{name: "storage-pools", get: storagePoolsGet, post:
 // /1.0/storage-pools/{name}
 // Get a single storage pool.
 func storagePoolGet(d *Daemon, r *http.Request) Response {
+	// If a target was specified, forward the request to the relevant node.
+	response := ForwardedResponseIfTargetIsRemote(d, r)
+	if response != nil {
+		return response
+	}
+
 	poolName := mux.Vars(r)["name"]
 
 	// Get the existing storage pool.
@@ -279,31 +285,11 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	// If no target node is specified and the client is clustered, we omit
+	// If no target node is specified and the daemon is clustered, we omit
 	// the node-specific fields.
 	if targetNode == "" && clustered {
 		for _, key := range db.StoragePoolNodeConfigKeys {
 			delete(pool.Config, key)
-		}
-	}
-
-	// If a target was specified, forward the request to the relevant node.
-	if targetNode != "" {
-		address, err := cluster.ResolveTarget(d.cluster, targetNode)
-		if err != nil {
-			return SmartError(err)
-		}
-		if address != "" {
-			cert := d.endpoints.NetworkCert()
-			client, err := cluster.Connect(address, cert, true)
-			if err != nil {
-				return SmartError(err)
-			}
-			client = client.ClusterTargetNode(targetNode)
-			pool, _, err = client.GetStoragePool(poolName)
-			if err != nil {
-				return SmartError(err)
-			}
 		}
 	}
 
