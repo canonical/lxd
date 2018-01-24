@@ -195,14 +195,11 @@ run_test test_macaroon_auth "macaroon authentication"
 run_test test_console "console"
 run_test test_proxy_device "proxy device"
 run_test test_storage_local_volume_handling "storage local volume handling"
-# FIXME: clustering tests are currently not working on CI
-if ! [ -e "/lxc-ci/build/cache/sqlite" ]; then
-    run_test test_clustering_membership "clustering membership"
-    run_test test_clustering_containers "clustering containers"
-    run_test test_clustering_storage "clustering storage"
-    run_test test_clustering_network "clustering network"
-    run_test test_clustering_upgrade "clustering upgrade"
-fi
+run_test test_clustering_membership "clustering membership"
+run_test test_clustering_containers "clustering containers"
+run_test test_clustering_storage "clustering storage"
+run_test test_clustering_network "clustering network"
+run_test test_clustering_upgrade "clustering upgrade"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success
