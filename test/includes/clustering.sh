@@ -97,7 +97,6 @@ lxc.hook.autodev = mknod /dev/loop4 c 7 4
 lxc.hook.autodev = mknod /dev/loop5 c 7 5
 lxc.hook.autodev = mknod /dev/loop6 c 7 6
 lxc.hook.autodev = mknod /dev/loop7 c 7 7
-lxc.hook.autodev = mknod /dev/console c 5 1
 EOF
   lxc-execute -n "${ns}" --rcfile "${rcfile}" -- sh -c 'while true; do sleep 1; done' &
   sleep 1
