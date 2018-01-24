@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -56,7 +57,7 @@ func cmdProxyDevStart(args *Args) error {
 		args.Params[4] = strconv.Itoa(int(newFd))
 		execArgs := append([]string{"lxd", "forkproxy"}, args.Params...)
 
-		err = syscall.Exec("/proc/self/exe", execArgs, []string{})
+		err = syscall.Exec(util.GetExecPath(), execArgs, os.Environ())
 		if err != nil {
 			return fmt.Errorf("failed to re-exec: %v", err)
 		}
