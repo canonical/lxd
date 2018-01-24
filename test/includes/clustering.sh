@@ -5,9 +5,8 @@ setup_clustering_bridge() {
 
   echo "==> Setup clustering bridge ${name}"
 
-  brctl addbr "${name}"
+  ip link add "${name}" up type bridge
   ip addr add 10.1.1.1/16 dev "${name}"
-  ip link set dev "${name}" up
 
   iptables -t nat -A POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
   echo 1 > /proc/sys/net/ipv4/ip_forward
@@ -16,13 +15,11 @@ setup_clustering_bridge() {
 teardown_clustering_bridge() {
   name="br$$"
 
-  if brctl show | grep -q "${name}" ; then
+  if [ -e "/sys/class/net/${name}" ]; then
       echo "==> Teardown clustering bridge ${name}"
       echo 0 > /proc/sys/net/ipv4/ip_forward
       iptables -t nat -D POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
-      ip link set dev "${name}" down
-      ip addr del 10.1.1.1/16 dev "${name}"
-      brctl delbr "${name}"
+      ip link del dev "${name}"
   fi
 }
 
@@ -115,7 +112,7 @@ EOF
   ip link set "${veth2}" netns "${ns}"
 
   nsbridge="br$$"
-  brctl addif "${nsbridge}" "${veth1}"
+  ip link set dev "${veth1}" master "${nsbridge}" up
 
   ip link set "${veth1}" up
   (
@@ -139,9 +136,7 @@ teardown_clustering_netns() {
       veth2="v${ns}2"
       nsenter --all --target="${pid}" ip link set eth0 down
       nsenter --all --target="${pid}" ip link set lo down
-      ip link set "${veth1}" down
-      brctl delif "${nsbridge}" "${veth1}"
-      ip link delete "${veth1}" type veth
+      ip link del "${veth1}"
       umount "/run/netns/${ns}"
       rm "/run/netns/${ns}"
       lxc-stop -n "${ns}"
