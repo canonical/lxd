@@ -37,6 +37,7 @@ setup_clustering_netns() {
   echo "==> Setup clustering netns ${ns}"
 
   cat > "${rcfile}" <<EOF
+lxc.console.path=none
 lxc.mount.entry = cgroup                 sys/fs/cgroup                  tmpfs   rw,nosuid,nodev,noexec,mode=755,create=dir                                   0 0
 lxc.mount.entry = cgroup2                sys/fs/cgroup/unified          cgroup2 rw,nosuid,nodev,noexec,relatime,create=dir                                   0 0
 lxc.mount.entry = name=systemd           sys/fs/cgroup/systemd          cgroup  rw,nosuid,nodev,noexec,relatime,xattr,clone_children,name=systemd,create=dir 0 0
