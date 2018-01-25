@@ -46,8 +46,8 @@ spawn_lxd() {
     if [ "${LXD_NETNS}" = "" ]; then
         LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
-        pid="$(lxc-info -n "${LXD_NETNS}" -p | cut -f 2 -d : | tr -d " ")"
-        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter --all --target="${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
+        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter -n -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
@@ -112,8 +112,8 @@ respawn_lxd() {
     if [ "${LXD_NETNS}" = "" ]; then
         LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
-        pid="$(lxc-info -n "${LXD_NETNS}" -p | cut -f 2 -d : | tr -d " ")"
-        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter --all --target="${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &    fi
+        pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
+        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter -n -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &    fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
@@ -310,12 +310,12 @@ cleanup_lxds() {
         ip link del lxdt$$
     fi
 
+    # Cleanup clustering networking, if any
+    teardown_clustering_netns
+    teardown_clustering_bridge
+
     # Wipe the test environment
     wipe "$test_dir"
 
     umount_loops "$test_dir"
-
-    # Cleanup clustering networking, if any
-    teardown_clustering_netns
-    teardown_clustering_bridge
 }
