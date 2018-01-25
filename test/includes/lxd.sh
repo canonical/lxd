@@ -17,7 +17,7 @@ spawn_lxd() {
     # Link to local sqlite with replication patch for dqlite
     sqlite="$(pwd)/../lxd/sqlite"
     if [ -e "/lxc-ci/build/cache/sqlite" ]; then
-	sqlite="/lxc-ci/build/cache/sqlite"
+        sqlite="/lxc-ci/build/cache/sqlite"
     fi
 
     # shellcheck disable=SC2153
@@ -44,10 +44,10 @@ spawn_lxd() {
     # shellcheck disable=SC2086
 
     if [ "${LXD_NETNS}" = "" ]; then
-	LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
-	pid="$(lxc-info -n "${LXD_NETNS}" -p | cut -f 2 -d : | tr -d " ")"
-	LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter --all --target="${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        pid="$(lxc-info -n "${LXD_NETNS}" -p | cut -f 2 -d : | tr -d " ")"
+        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter --all --target="${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
@@ -59,15 +59,15 @@ spawn_lxd() {
     LXD_DIR="${lxddir}" lxd waitready --timeout=300
 
     if [ "${LXD_NETNS}" = "" ]; then
-	echo "==> Binding to network"
-	# shellcheck disable=SC2034
-	for i in $(seq 10); do
+        echo "==> Binding to network"
+        # shellcheck disable=SC2034
+        for i in $(seq 10); do
             addr="127.0.0.1:$(local_tcp_port)"
             LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}" || continue
             echo "${addr}" > "${lxddir}/lxd.addr"
             echo "==> Bound to ${addr}"
             break
-	done
+        done
     fi
 
     echo "==> Setting trust password"
@@ -77,8 +77,8 @@ spawn_lxd() {
     fi
 
     if [ "${LXD_NETNS}" = "" ]; then
-	echo "==> Setting up networking"
-	LXD_DIR="${lxddir}" lxc profile device add default eth0 nic nictype=p2p name=eth0
+        echo "==> Setting up networking"
+        LXD_DIR="${lxddir}" lxc profile device add default eth0 nic nictype=p2p name=eth0
     fi
 
     if [ "${storage}" = true ]; then
@@ -104,23 +104,23 @@ respawn_lxd() {
     # Link to local sqlite with replication patch for dqlite
     sqlite="$(pwd)/../lxd/sqlite"
     if [ -e "/lxc-ci/build/cache/sqlite" ]; then
-	sqlite="/lxc-ci/build/cache/sqlite"
+        sqlite="/lxc-ci/build/cache/sqlite"
     fi
 
     echo "==> Spawning lxd in ${lxddir}"
     # shellcheck disable=SC2086
     if [ "${LXD_NETNS}" = "" ]; then
-	LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
-	pid="$(lxc-info -n "${LXD_NETNS}" -p | cut -f 2 -d : | tr -d " ")"
-	LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter --all --target="${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &    fi
+        pid="$(lxc-info -n "${LXD_NETNS}" -p | cut -f 2 -d : | tr -d " ")"
+        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter --all --target="${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &    fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
     if [ "${wait}" = true ]; then
-	echo "==> Confirming lxd is responsive"
-	LXD_DIR="${lxddir}" lxd waitready --timeout=300
+        echo "==> Confirming lxd is responsive"
+        LXD_DIR="${lxddir}" lxd waitready --timeout=300
     fi
 }
 
@@ -206,7 +206,7 @@ kill_lxd() {
         check_empty "${daemon_dir}/snapshots/"
 
         echo "==> Checking for leftover cluster DB entries"
-	# FIXME: we should not use the command line sqlite client, since it's
+        # FIXME: we should not use the command line sqlite client, since it's
         #        not compatible with dqlite
         check_empty_table "${daemon_dir}/raft/db.bin" "containers"
         check_empty_table "${daemon_dir}/raft/db.bin" "containers_config"
