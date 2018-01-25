@@ -17,8 +17,6 @@ import (
 	"strings"
 	"syscall"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"

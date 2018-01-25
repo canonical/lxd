@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/CanonicalLtd/go-sqlite3"
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )

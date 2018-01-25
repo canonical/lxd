@@ -19,7 +19,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/juju/idmclient"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"gopkg.in/macaroon-bakery.v2/bakery"
