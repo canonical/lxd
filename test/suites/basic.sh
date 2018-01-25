@@ -252,7 +252,7 @@ test_basic_usage() {
     # Link to local sqlite with replication patch for dqlite
     sqlite="$(pwd)/../lxd/sqlite"
     if [ -e "/lxc-ci/build/cache/sqlite" ]; then
-	sqlite="/lxc-ci/build/cache/sqlite"
+        sqlite="/lxc-ci/build/cache/sqlite"
     fi
 
     set -e
