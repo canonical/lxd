@@ -25,8 +25,10 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'images.auto_update_interval: "10"'
 
   # The preseeded network bridge exists on all nodes.
-  ip netns exec "${ns1}" ip link show "${bridge}" > /dev/null
-  ip netns exec "${ns2}" ip link show "${bridge}" > /dev/null
+  ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
+  ns2_pid="$(cat "${TEST_DIR}/ns/${ns2}/PID")"
+  nsenter -n -t "${ns1_pid}" -- ip link show "${bridge}" > /dev/null
+  nsenter -n -t "${ns2_pid}" -- ip link show "${bridge}" > /dev/null
 
   # Create a pending network and pool, to show that they are not
   # considered when checking if the joining node has all the required
