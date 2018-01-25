@@ -24,10 +24,10 @@ test_static_analysis() {
     # Go static analysis
     sqlite="$(pwd)/lxd/sqlite"
     if [ -e "/lxc-ci/build/cache/sqlite" ]; then
-	sqlite="/lxc-ci/build/cache/sqlite"
-	ls "/lxc-ci/build/cache/sqlite"
+        sqlite="/lxc-ci/build/cache/sqlite"
+        ls "/lxc-ci/build/cache/sqlite"
     fi
-    
+
     CGO_CFLAGS="-I${sqlite}"
     CGO_LDFLAGS="-L${sqlite}/.libs"
     LD_LIBRARY_PATH="${sqlite}/.libs"
