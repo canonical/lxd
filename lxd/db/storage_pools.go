@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/query"

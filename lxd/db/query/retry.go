@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CanonicalLtd/go-sqlite3"
 	"github.com/lxc/lxd/shared/logger"
-	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
 // Retry wraps a function that interacts with the database, and retries it in

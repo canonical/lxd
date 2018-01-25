@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"

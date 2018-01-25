@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/lxc/lxd/lxd/types"
 )
 

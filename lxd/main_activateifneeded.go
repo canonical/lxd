@@ -6,14 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/CanonicalLtd/go-sqlite3x"
+	"github.com/CanonicalLtd/go-sqlite3"
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/mattn/go-sqlite3"
 )
 
 func init() {
@@ -114,7 +113,7 @@ func cmdActivateIfNeeded(args *Args) error {
 func sqliteDirectAccess(conn *sqlite3.SQLiteConn) error {
 	// Ensure journal mode is set to WAL, as this is a requirement for
 	// replication.
-	err := sqlite3x.JournalModePragma(conn, sqlite3x.JournalWal)
+	err := sqlite3.JournalModePragma(conn, sqlite3.JournalWal)
 	if err != nil {
 		return err
 	}
@@ -122,11 +121,11 @@ func sqliteDirectAccess(conn *sqlite3.SQLiteConn) error {
 	// Ensure we don't truncate or checkpoint the WAL on exit, as this
 	// would bork replication which must be in full control of the WAL
 	// file.
-	err = sqlite3x.JournalSizeLimitPragma(conn, -1)
+	err = sqlite3.JournalSizeLimitPragma(conn, -1)
 	if err != nil {
 		return err
 	}
-	err = sqlite3x.DatabaseNoCheckpointOnClose(conn)
+	err = sqlite3.DatabaseNoCheckpointOnClose(conn)
 	if err != nil {
 		return err
 	}
