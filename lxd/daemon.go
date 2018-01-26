@@ -96,7 +96,7 @@ func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 // DefaultDaemonConfig returns a DaemonConfig object with default values/
 func DefaultDaemonConfig() *DaemonConfig {
 	return &DaemonConfig{
-		RaftLatency: 1.0,
+		RaftLatency: 3.0,
 	}
 }
 
