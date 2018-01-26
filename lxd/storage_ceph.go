@@ -520,7 +520,7 @@ func (s *storageCeph) StoragePoolVolumeDelete() error {
 			s.volume.Name, s.pool.Name)
 	}
 
-	err = s.db.StoragePoolVolumeDelete(
+	err = s.s.Cluster.StoragePoolVolumeDelete(
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -760,7 +760,7 @@ func (s *storageCeph) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renamed CEPH storage volume on OSD storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	return s.db.StoragePoolVolumeRename(s.volume.Name, newName,
+	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, newName,
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 
@@ -972,7 +972,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 			fingerprint, storagePoolVolumeTypeNameImage, s.UserName)
 
 		if ok {
-			_, volume, err := s.s.DB.StoragePoolVolumeGetType(fingerprint, db.StoragePoolVolumeTypeImage, s.poolID)
+			_, volume, err := s.s.Cluster.StoragePoolNodeVolumeGetType(fingerprint, db.StoragePoolVolumeTypeImage, s.poolID)
 			if err != nil {
 				return err
 			}
@@ -2758,7 +2758,7 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 
 	// Update the database
 	s.volume.Config["size"] = shared.GetByteSizeString(size, 0)
-	err = s.db.StoragePoolVolumeUpdate(
+	err = s.s.Cluster.StoragePoolVolumeUpdate(
 		s.volume.Name,
 		volumeType,
 		s.poolID,

@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string) error {
+func storagePoolUpdate(state *state.State, name, newDescription string, newConfig map[string]string, withDB bool) error {
 	s, err := storagePoolInit(state, name)
 	if err != nil {
 		return err
@@ -60,9 +60,10 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 		s.SetStoragePoolWritable(&newWritable)
 	}
 
-	// Update the database if something changed
-	if len(changedConfig) != 0 || newDescription != oldDescription {
-		err = state.DB.StoragePoolUpdate(name, newDescription, newConfig)
+	// Update the database if something changed and the withDB flag is true
+	// (i.e. this is not a clustering notification.
+	if withDB && (len(changedConfig) != 0 || newDescription != oldDescription) {
+		err = state.Cluster.StoragePoolUpdate(name, newDescription, newConfig)
 		if err != nil {
 			return err
 		}
@@ -80,15 +81,15 @@ func storagePoolUpdate(state *state.State, name, newDescription string, newConfi
 // /1.0/containers/alp1/snapshots/snap0
 // /1.0/images/cedce20b5b236f1071134beba7a5fd2aa923fda49eea4c66454dd559a5d6e906
 // /1.0/profiles/default
-func storagePoolUsedByGet(dbObj *db.Node, poolID int64, poolName string) ([]string, error) {
+func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]string, error) {
 	// Retrieve all non-custom volumes that exist on this storage pool.
-	volumes, err := dbObj.StoragePoolVolumesGet(poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom})
+	volumes, err := state.Cluster.StoragePoolNodeVolumesGet(poolID, []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom})
 	if err != nil && err != db.NoSuchObjectError {
 		return []string{}, err
 	}
 
 	// Retrieve all profiles that exist on this storage pool.
-	profiles, err := profilesUsingPoolGetNames(dbObj, poolName)
+	profiles, err := profilesUsingPoolGetNames(state.Cluster, poolName)
 
 	if err != nil {
 		return []string{}, err
@@ -128,7 +129,7 @@ func storagePoolUsedByGet(dbObj *db.Node, poolID int64, poolName string) ([]stri
 	return poolUsedBy, err
 }
 
-func profilesUsingPoolGetNames(db *db.Node, poolName string) ([]string, error) {
+func profilesUsingPoolGetNames(db *db.Cluster, poolName string) ([]string, error) {
 	usedBy := []string{}
 
 	profiles, err := db.Profiles()
@@ -157,14 +158,8 @@ func profilesUsingPoolGetNames(db *db.Node, poolName string) ([]string, error) {
 }
 
 func storagePoolDBCreate(s *state.State, poolName, poolDescription string, driver string, config map[string]string) error {
-	// Check if the storage pool name is valid.
-	err := storageValidName(poolName)
-	if err != nil {
-		return err
-	}
-
 	// Check that the storage pool does not already exist.
-	_, err = s.DB.StoragePoolGetID(poolName)
+	_, err := s.Cluster.StoragePoolGetID(poolName)
 	if err == nil {
 		return fmt.Errorf("The storage pool already exists")
 	}
@@ -173,9 +168,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	if config == nil {
 		config = map[string]string{}
 	}
-
-	// Validate the requested storage pool configuration.
-	err = storagePoolValidateConfig(poolName, driver, config, nil)
+	err = storagePoolValidate(poolName, driver, config)
 	if err != nil {
 		return err
 	}
@@ -187,9 +180,25 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	}
 
 	// Create the database entry for the storage pool.
-	_, err = dbStoragePoolCreateAndUpdateCache(s.DB, poolName, poolDescription, driver, config)
+	_, err = dbStoragePoolCreateAndUpdateCache(s.Cluster, poolName, poolDescription, driver, config)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
+	}
+
+	return nil
+}
+
+func storagePoolValidate(poolName string, driver string, config map[string]string) error {
+	// Check if the storage pool name is valid.
+	err := storageValidName(poolName)
+	if err != nil {
+		return err
+	}
+
+	// Validate the requested storage pool configuration.
+	err = storagePoolValidateConfig(poolName, driver, config, nil)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -209,9 +218,16 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 		if !tryUndo {
 			return
 		}
-		dbStoragePoolDeleteAndUpdateCache(state.DB, poolName)
+		dbStoragePoolDeleteAndUpdateCache(state.Cluster, poolName)
 	}()
+	err = doStoragePoolCreateInternal(state, poolName, poolDescription, driver, config)
+	tryUndo = err != nil
+	return err
+}
 
+// This performs all non-db related work needed to create the pool.
+func doStoragePoolCreateInternal(state *state.State, poolName, poolDescription string, driver string, config map[string]string) error {
+	tryUndo := true
 	s, err := storagePoolInit(state, poolName)
 	if err != nil {
 		return err
@@ -238,7 +254,7 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 	configDiff, _ := storageConfigDiff(config, postCreateConfig)
 	if len(configDiff) > 0 {
 		// Create the database entry for the storage pool.
-		err = state.DB.StoragePoolUpdate(poolName, poolDescription, postCreateConfig)
+		err = state.Cluster.StoragePoolUpdate(poolName, poolDescription, postCreateConfig)
 		if err != nil {
 			return fmt.Errorf("Error inserting %s into database: %s", poolName, err)
 		}
@@ -252,7 +268,7 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 
 // Helper around the low-level DB API, which also updates the driver names
 // cache.
-func dbStoragePoolCreateAndUpdateCache(db *db.Node, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
+func dbStoragePoolCreateAndUpdateCache(db *db.Cluster, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
 	id, err := db.StoragePoolCreate(poolName, poolDescription, poolDriver, poolConfig)
 	if err != nil {
 		return id, err
@@ -266,7 +282,7 @@ func dbStoragePoolCreateAndUpdateCache(db *db.Node, poolName string, poolDescrip
 
 // Helper around the low-level DB API, which also updates the driver names
 // cache.
-func dbStoragePoolDeleteAndUpdateCache(db *db.Node, poolName string) error {
+func dbStoragePoolDeleteAndUpdateCache(db *db.Cluster, poolName string) error {
 	_, err := db.StoragePoolDelete(poolName)
 	if err != nil {
 		return err

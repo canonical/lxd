@@ -2,7 +2,6 @@ package endpoints
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net"
 	"sync"
@@ -21,6 +20,23 @@ func (e *Endpoints) NetworkPublicKey() []byte {
 	defer e.mu.RUnlock()
 
 	return e.cert.PublicKey()
+}
+
+// NetworkPrivateKey returns the private key of the TLS certificate used by the
+// network endpoint.
+func (e *Endpoints) NetworkPrivateKey() []byte {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return e.cert.PrivateKey()
+}
+
+// NetworkCert returns the full TLS certificate information for this endpoint.
+func (e *Endpoints) NetworkCert() *shared.CertInfo {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return e.cert
 }
 
 // NetworkAddress returns the network addresss of the network endpoint, or an
@@ -137,22 +153,10 @@ func (l *networkListener) Accept() (net.Conn, error) {
 
 // Config safely swaps the underlying TLS configuration.
 func (l *networkListener) Config(cert *shared.CertInfo) {
-	config := shared.InitTLSConfig()
-	config.ClientAuth = tls.RequestClientCert
-	config.Certificates = []tls.Certificate{cert.KeyPair()}
-
-	if cert.CA() != nil {
-		pool := x509.NewCertPool()
-		pool.AddCert(cert.CA())
-		config.RootCAs = pool
-		config.ClientCAs = pool
-
-		logger.Infof("LXD is in CA mode, only CA-signed certificates will be allowed")
-	}
-
-	config.BuildNameToCertificate()
+	config := util.ServerTLSConfig(cert)
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
 	l.config = config
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -20,7 +21,7 @@ func mockStartDaemon() (*Daemon, error) {
 	// Setup test certificates. We re-use the ones already on disk under
 	// the test/ directory, to avoid generating new ones, which is
 	// expensive.
-	err := setupTestCerts(shared.VarPath())
+	err := sys.SetupTestCerts(shared.VarPath())
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +63,6 @@ func (suite *lxdTestSuite) SetupTest() {
 		suite.T().Fatalf("failed to start daemon: %v", err)
 	}
 
-	daemonConfigInit(suite.d.db.DB())
-
 	// Create default storage pool. Make sure that we don't pass a nil to
 	// the next function.
 	poolConfig := map[string]string{}
@@ -71,7 +70,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	mockStorage, _ := storageTypeToString(storageTypeMock)
 	// Create the database entry for the storage pool.
 	poolDescription := fmt.Sprintf("%s storage pool", lxdTestSuiteDefaultStoragePool)
-	_, err = dbStoragePoolCreateAndUpdateCache(suite.d.db, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
+	_, err = dbStoragePoolCreateAndUpdateCache(suite.d.cluster, lxdTestSuiteDefaultStoragePool, poolDescription, mockStorage, poolConfig)
 	if err != nil {
 		suite.T().Fatalf("failed to create default storage pool: %v", err)
 	}
@@ -83,12 +82,12 @@ func (suite *lxdTestSuite) SetupTest() {
 	devicesMap := map[string]map[string]string{}
 	devicesMap["root"] = rootDev
 
-	defaultID, _, err := suite.d.db.ProfileGet("default")
+	defaultID, _, err := suite.d.cluster.ProfileGet("default")
 	if err != nil {
 		suite.T().Fatalf("failed to get default profile: %v", err)
 	}
 
-	tx, err := suite.d.db.Begin()
+	tx, err := suite.d.cluster.Begin()
 	if err != nil {
 		suite.T().Fatalf("failed to begin transaction: %v", err)
 	}
@@ -107,8 +106,11 @@ func (suite *lxdTestSuite) SetupTest() {
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
-	suite.d.Stop()
-	err := os.RemoveAll(suite.tmpdir)
+	err := suite.d.Stop()
+	if err != nil {
+		suite.T().Fatalf("failed to stop daemon: %v", err)
+	}
+	err = os.RemoveAll(suite.tmpdir)
 	if err != nil {
 		suite.T().Fatalf("failed to remove temp dir: %v", err)
 	}

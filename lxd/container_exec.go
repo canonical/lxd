@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -331,6 +332,32 @@ func (s *execWs) Do(op *operation) error {
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+
+	post := api.ContainerExecPost{}
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	if err := json.Unmarshal(buf, &post); err != nil {
+		return BadRequest(err)
+	}
+
+	// Forward the request if the container is remote.
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, name, cert)
+	if err != nil {
+		return SmartError(err)
+	}
+	if client != nil {
+		url := fmt.Sprintf("/containers/%s/exec", name)
+		op, _, err := client.RawOperation("POST", url, post, "")
+		if err != nil {
+			return SmartError(err)
+		}
+		return ForwardedOperationResponse(&op.Operation)
+	}
+
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
@@ -342,16 +369,6 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 	if c.IsFrozen() {
 		return BadRequest(fmt.Errorf("Container is frozen."))
-	}
-
-	post := api.ContainerExecPost{}
-	buf, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	if err := json.Unmarshal(buf, &post); err != nil {
-		return BadRequest(err)
 	}
 
 	env := map[string]string{}
@@ -435,7 +452,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.container.Name()}
 
-		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operationCreate(d.cluster, operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -487,7 +504,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

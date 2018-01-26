@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/subtest"
@@ -49,6 +49,18 @@ func TestIntegers(t *testing.T) {
 	values, err := query.SelectIntegers(tx, "SELECT id FROM test ORDER BY id")
 	assert.Nil(t, err)
 	assert.Equal(t, []int{0, 1}, values)
+}
+
+// Insert new rows in bulk.
+func TestInsertStrings(t *testing.T) {
+	tx := newTxForSlices(t)
+
+	err := query.InsertStrings(tx, "INSERT INTO test(name) VALUES %s", []string{"xx", "yy"})
+	require.NoError(t, err)
+
+	values, err := query.SelectStrings(tx, "SELECT name FROM test ORDER BY name DESC LIMIT 2")
+	require.NoError(t, err)
+	assert.Equal(t, values, []string{"yy", "xx"})
 }
 
 // Return a new transaction against an in-memory SQLite database with a single

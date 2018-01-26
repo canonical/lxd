@@ -22,8 +22,21 @@ test_static_analysis() {
     fi
 
     # Go static analysis
+    sqlite="$(pwd)/lxd/sqlite"
+    if [ -e "/lxc-ci/build/cache/sqlite" ]; then
+        sqlite="/lxc-ci/build/cache/sqlite"
+        ls "/lxc-ci/build/cache/sqlite"
+    fi
+
+    CGO_CFLAGS="-I${sqlite}"
+    CGO_LDFLAGS="-L${sqlite}/.libs"
+    LD_LIBRARY_PATH="${sqlite}/.libs"
+    export CGO_CFLAGS
+    export CGO_LDFLAGS
+    export LD_LIBRARY_PATH
+
     ## Functions starting by empty line
-    OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" || true)
+    OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: Functions must not start with an empty line: ${OUT}"
       false

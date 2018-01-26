@@ -3,16 +3,11 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/lxc/lxd/lxd/db/node"
-	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -20,7 +15,7 @@ import (
 )
 
 const DB_FIXTURES string = `
-    INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
+    INSERT INTO containers (node_id, name, architecture, type) VALUES (1, 'thename', 1, 1);
     INSERT INTO profiles (name) VALUES ('theprofile');
     INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
     INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
@@ -37,23 +32,23 @@ const DB_FIXTURES string = `
 type dbTestSuite struct {
 	suite.Suite
 
-	dir string
-	db  *Node
+	dir     string
+	db      *Cluster
+	cleanup func()
 }
 
 func (s *dbTestSuite) SetupTest() {
-	s.db = s.CreateTestDb()
+	s.db, s.cleanup = s.CreateTestDb()
 	_, err := s.db.DB().Exec(DB_FIXTURES)
 	s.Nil(err)
 }
 
 func (s *dbTestSuite) TearDownTest() {
-	s.db.DB().Close()
-	os.RemoveAll(s.dir)
+	s.cleanup()
 }
 
 // Initialize a test in-memory DB.
-func (s *dbTestSuite) CreateTestDb() *Node {
+func (s *dbTestSuite) CreateTestDb() (*Cluster, func()) {
 	var err error
 
 	// Setup logging if main() hasn't been called/when testing
@@ -62,12 +57,8 @@ func (s *dbTestSuite) CreateTestDb() *Node {
 		s.Nil(err)
 	}
 
-	s.dir, err = ioutil.TempDir("", "lxd-db-test")
-	s.Nil(err)
-
-	db, err := OpenNode(s.dir, nil, nil)
-	s.Nil(err)
-	return db
+	db, cleanup := NewTestCluster(s.T())
+	return db, cleanup
 }
 
 func TestDBTestSuite(t *testing.T) {
@@ -167,155 +158,6 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 	err = s.db.DB().QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting an image didn't delete the related images_properties!")
-}
-
-func (s *dbTestSuite) Test_running_UpdateFromV6_adds_on_delete_cascade() {
-	// Upgrading the database schema with updateFromV6 adds ON DELETE CASCADE
-	// to sqlite tables that require it, and conserve the data.
-
-	var err error
-	var count int
-
-	db := s.CreateTestDb()
-	defer db.DB().Close()
-
-	statements := `
-CREATE TABLE IF NOT EXISTS containers (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    architecture INTEGER NOT NULL,
-    type INTEGER NOT NULL,
-    power_state INTEGER NOT NULL DEFAULT 0,
-    ephemeral INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (name)
-);
-CREATE TABLE IF NOT EXISTS containers_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    FOREIGN KEY (container_id) REFERENCES containers (id),
-    UNIQUE (container_id, key)
-);
-
-INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
-INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
-
-	_, err = db.DB().Exec(statements)
-	s.Nil(err)
-
-	// Run the upgrade from V6 code
-	err = query.Transaction(db.DB(), node.UpdateFromV16)
-	s.Nil(err)
-
-	// Make sure the inserted data is still there.
-	statements = `SELECT count(*) FROM containers_config;`
-	err = db.DB().QueryRow(statements).Scan(&count)
-	s.Nil(err)
-	s.Equal(count, 1, "There should be exactly one entry in containers_config!")
-
-	// Drop the container.
-	statements = `DELETE FROM containers WHERE name = 'thename';`
-
-	_, err = db.DB().Exec(statements)
-	s.Nil(err)
-
-	// Make sure there are 0 container_profiles entries left.
-	statements = `SELECT count(*) FROM containers_profiles;`
-	err = db.DB().QueryRow(statements).Scan(&count)
-	s.Nil(err)
-	s.Equal(count, 0, "Deleting a container didn't delete the profile association!")
-}
-
-func (s *dbTestSuite) Test_run_database_upgrades_with_some_foreign_keys_inconsistencies() {
-	var db *sql.DB
-	var err error
-	var count int
-	var statements string
-
-	dir, err := ioutil.TempDir("", "lxd-db-test-")
-	s.Nil(err)
-	defer os.RemoveAll(dir)
-	path := filepath.Join(dir, "lxd.db")
-	db, err = sql.Open("sqlite3", path)
-	defer db.Close()
-	s.Nil(err)
-
-	// This schema is a part of schema rev 1.
-	statements = `
-CREATE TABLE containers (
-    id INTEGER primary key AUTOINCREMENT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    architecture INTEGER NOT NULL,
-    type INTEGER NOT NULL,
-    UNIQUE (name)
-);
-CREATE TABLE containers_config (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    container_id INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    FOREIGN KEY (container_id) REFERENCES containers (id),
-    UNIQUE (container_id, key)
-);
-CREATE TABLE schema (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    version INTEGER NOT NULL,
-    updated_at DATETIME NOT NULL,
-    UNIQUE (version)
-);
-CREATE TABLE images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    fingerprint VARCHAR(255) NOT NULL,
-    filename VARCHAR(255) NOT NULL,
-    size INTEGER NOT NULL,
-    public INTEGER NOT NULL DEFAULT 0,
-    architecture INTEGER NOT NULL,
-    creation_date DATETIME,
-    expiry_date DATETIME,
-    upload_date DATETIME NOT NULL,
-    UNIQUE (fingerprint)
-);
-CREATE TABLE images_properties (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    image_id INTEGER NOT NULL,
-    type INTEGER NOT NULL,
-    key VARCHAR(255) NOT NULL,
-    value TEXT,
-    FOREIGN KEY (image_id) REFERENCES images (id)
-);
-CREATE TABLE certificates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    fingerprint VARCHAR(255) NOT NULL,
-    type INTEGER NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    certificate TEXT NOT NULL,
-    UNIQUE (fingerprint)
-);
-INSERT INTO schema (version, updated_at) values (1, "now");
-INSERT INTO containers (name, architecture, type) VALUES ('thename', 1, 1);
-INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');`
-
-	_, err = db.Exec(statements)
-	s.Nil(err)
-
-	// Now that we have a consistent schema, let's remove the container entry
-	// *without* the ON DELETE CASCADE in place.
-	statements = `DELETE FROM containers;`
-	_, err = db.Exec(statements)
-	s.Nil(err)
-
-	// The "foreign key" on containers_config now points to nothing.
-	// Let's run the schema upgrades.
-	schema := node.Schema()
-	_, err = schema.Ensure(db)
-	s.Nil(err)
-
-	// Make sure there are 0 containers_config entries left.
-	statements = `SELECT count(*) FROM containers_config;`
-	err = db.QueryRow(statements).Scan(&count)
-	s.Nil(err)
-	s.Equal(count, 0, "updateDb did not delete orphaned child entries after adding ON DELETE CASCADE!")
 }
 
 func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {

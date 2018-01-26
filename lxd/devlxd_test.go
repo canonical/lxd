@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lxc/lxd/lxd/sys"
 )
 
 var testDir string
@@ -38,7 +40,7 @@ func setupDir() error {
 	if err != nil {
 		return err
 	}
-	err = setupTestCerts(testDir)
+	err = sys.SetupTestCerts(testDir)
 	if err != nil {
 		return err
 	}
@@ -129,9 +131,7 @@ func TestCredsSendRecv(t *testing.T) {
  * point where it realizes the pid isn't in a container without crashing).
  */
 func TestHttpRequest(t *testing.T) {
-	if err := setupDir(); err != nil {
-		t.Fatal(err)
-	}
+	setupDir()
 	defer os.RemoveAll(testDir)
 
 	d := DefaultDaemon()

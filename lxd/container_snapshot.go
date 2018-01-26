@@ -18,13 +18,23 @@ import (
 )
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
+	cname := mux.Vars(r)["name"]
+
+	// Handle requests targeted to a container on a different node
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, cname)
+	if err != nil {
+		return SmartError(err)
+	}
+	if response != nil {
+		return response
+	}
+
 	recursionStr := r.FormValue("recursion")
 	recursion, err := strconv.Atoi(recursionStr)
 	if err != nil {
 		recursion = 0
 	}
 
-	cname := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d.State(), cname)
 	if err != nil {
 		return SmartError(err)
@@ -63,6 +73,15 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
+	// Handle requests targeted to a container on a different node
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	if err != nil {
+		return SmartError(err)
+	}
+	if response != nil {
+		return response
+	}
+
 	/*
 	 * snapshot is a three step operation:
 	 * 1. choose a new name
@@ -89,7 +108,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	if req.Name == "" {
 		// come up with a name
-		i := d.db.ContainerNextSnapshot(name)
+		i := d.cluster.ContainerNextSnapshot(name)
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
@@ -126,7 +145,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, snapshot, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, snapshot, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -137,6 +156,14 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 func snapshotHandler(d *Daemon, r *http.Request) Response {
 	containerName := mux.Vars(r)["name"]
 	snapshotName := mux.Vars(r)["snapshotName"]
+
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, containerName)
+	if err != nil {
+		return SmartError(err)
+	}
+	if response != nil {
+		return response
+	}
 
 	sc, err := containerLoadByName(
 		d.State(),
@@ -228,7 +255,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 				return InternalError(err)
 			}
 
-			op, err := operationCreate(operationClassTask, resources, nil, ws.Do, nil, nil)
+			op, err := operationCreate(d.cluster, operationClassTask, resources, nil, ws.Do, nil, nil)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -237,7 +264,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 		}
 
 		// Pull mode
-		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operationCreate(d.cluster, operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -258,7 +285,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := d.db.ContainerId(fullName)
+	id, _ := d.cluster.ContainerId(fullName)
 	if id > 0 {
 		return Conflict
 	}
@@ -270,7 +297,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	resources := map[string][]string{}
 	resources["containers"] = []string{containerName}
 
-	op, err := operationCreate(operationClassTask, resources, nil, rename, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, rename, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -286,7 +313,8 @@ func snapshotDelete(sc container, name string) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{sc.Name()}
 
-	op, err := operationCreate(operationClassTask, resources, nil, remove, nil, nil)
+	state := sc.DaemonState()
+	op, err := operationCreate(state.Cluster, operationClassTask, resources, nil, remove, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

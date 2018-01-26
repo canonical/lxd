@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -252,6 +253,33 @@ func (s *consoleWs) Do(op *operation) error {
 
 func containerConsolePost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+
+	post := api.ContainerConsolePost{}
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	err = json.Unmarshal(buf, &post)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	// Forward the request if the container is remote.
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, name, cert)
+	if err != nil {
+		return SmartError(err)
+	}
+	if client != nil {
+		url := fmt.Sprintf("/containers/%s/console", name)
+		op, _, err := client.RawOperation("POST", url, post, "")
+		if err != nil {
+			return SmartError(err)
+		}
+		return ForwardedOperationResponse(&op.Operation)
+	}
+
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
@@ -264,17 +292,6 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 
 	err = fmt.Errorf("Container is frozen")
 	if c.IsFrozen() {
-		return BadRequest(err)
-	}
-
-	post := api.ContainerConsolePost{}
-	buf, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	err = json.Unmarshal(buf, &post)
-	if err != nil {
 		return BadRequest(err)
 	}
 
@@ -310,7 +327,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{ws.container.Name()}
 
-	op, err := operationCreate(operationClassWebsocket, resources,
+	op, err := operationCreate(d.cluster, operationClassWebsocket, resources,
 		ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
 		return InternalError(err)
@@ -320,11 +337,21 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 }
 
 func containerConsoleLogGet(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+
+	// Forward the request if the container is remote.
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	if err != nil {
+		return SmartError(err)
+	}
+	if response != nil {
+		return response
+	}
+
 	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
 		return BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
-	name := mux.Vars(r)["name"]
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)

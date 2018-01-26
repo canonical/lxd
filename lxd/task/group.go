@@ -1,6 +1,9 @@
 package task
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,9 +14,11 @@ import (
 //
 // All tasks in a group will be started and stopped at the same time.
 type Group struct {
-	cancel func()
-	wg     sync.WaitGroup
-	tasks  []Task
+	cancel  func()
+	wg      sync.WaitGroup
+	tasks   []Task
+	running map[int]bool
+	mu      sync.Mutex
 }
 
 // Add a new task to the group, returning its index.
@@ -32,12 +37,17 @@ func (g *Group) Start() {
 	ctx := context.Background()
 	ctx, g.cancel = context.WithCancel(ctx)
 	g.wg.Add(len(g.tasks))
+	g.running = make(map[int]bool)
 	for i := range g.tasks {
 		task := g.tasks[i] // Local variable for the closure below.
-		go func() {
+		g.running[i] = true
+		go func(i int) {
 			task.loop(ctx)
 			g.wg.Done()
-		}()
+			g.mu.Lock()
+			defer g.mu.Unlock()
+			g.running[i] = false
+		}(i)
 	}
 }
 
@@ -73,7 +83,13 @@ func (g *Group) Stop(timeout time.Duration) error {
 	defer cancel()
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		running := []string{}
+		for i, value := range g.running {
+			if value {
+				running = append(running, strconv.Itoa(i))
+			}
+		}
+		return fmt.Errorf("tasks %s are still running", strings.Join(running, ", "))
 	case <-graceful:
 		return nil
 

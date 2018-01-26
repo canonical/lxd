@@ -39,6 +39,11 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 	return &server, etag, nil
 }
 
+// GetServerHost returns the URL of the LXD host this client points to.
+func (r *ProtocolLXD) GetServerHost() (string, error) {
+	return r.httpHost, nil
+}
+
 // UpdateServer updates the server status to match the provided Server struct
 func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 	// Send the request
@@ -61,6 +66,11 @@ func (r *ProtocolLXD) HasExtension(extension string) bool {
 	return false
 }
 
+// IsClustered returns true if the server is part of a LXD cluster.
+func (r *ProtocolLXD) IsClustered() bool {
+	return r.server.Environment.Clustered
+}
+
 // GetServerResources returns the resources available to a given LXD server
 func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	if !r.HasExtension("resources") {
@@ -76,4 +86,27 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	}
 
 	return &resources, nil
+}
+
+// ClusterTargetNode returns a client that will target the given node for
+// node-specific operations such as creating containers, modifying storage
+// configuration etc.
+func (r *ProtocolLXD) ClusterTargetNode(name string) ContainerServer {
+	return &ProtocolLXD{
+		server:               r.server,
+		http:                 r.http,
+		httpCertificate:      r.httpCertificate,
+		httpHost:             r.httpHost,
+		httpProtocol:         r.httpProtocol,
+		httpUserAgent:        r.httpUserAgent,
+		bakeryClient:         r.bakeryClient,
+		bakeryInteractor:     r.bakeryInteractor,
+		requireAuthenticated: r.requireAuthenticated,
+		targetNode:           name,
+	}
+}
+
+// ClusterNodeName returns the name of the node this client is pointing to.
+func (r *ProtocolLXD) ClusterNodeName() string {
+	return r.server.Environment.NodeName
 }

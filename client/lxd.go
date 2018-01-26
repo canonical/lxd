@@ -35,6 +35,9 @@ type ProtocolLXD struct {
 	bakeryClient         *httpbakery.Client
 	bakeryInteractor     httpbakery.Interactor
 	requireAuthenticated bool
+
+	// Name of the node that node-specific operations will target.
+	targetNode string
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server
@@ -108,6 +111,13 @@ func (r *ProtocolLXD) RawQuery(method string, path string, data interface{}, ETa
 // This should only be used by internal LXD tools.
 func (r *ProtocolLXD) RawWebsocket(path string) (*websocket.Conn, error) {
 	return r.websocket(path)
+}
+
+// RawOperation allows direct creation of LXD API operations.
+//
+// This should only be used by internal LXD tools.
+func (r *ProtocolLXD) RawOperation(method string, path string, data interface{}, ETag string) (*Operation, string, error) {
+	return r.queryOperation(method, path, data, ETag)
 }
 
 // Internal functions

@@ -11,6 +11,7 @@ import (
 
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
@@ -18,6 +19,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 )
 
@@ -307,7 +309,7 @@ func containerGetRootDiskDevice(devices types.Devices) (string, types.Device, er
 	return "", types.Device{}, fmt.Errorf("No root device could be found.")
 }
 
-func containerValidDevices(db *db.Node, devices types.Devices, profile bool, expanded bool) error {
+func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -572,7 +574,7 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 	// Now create the empty storage
 	err = c.Storage().ContainerCreate(c)
 	if err != nil {
-		d.db.ContainerRemove(args.Name)
+		d.cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -596,18 +598,43 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 	// Now create the empty snapshot
 	err = c.Storage().ContainerSnapshotCreateEmpty(c)
 	if err != nil {
-		s.DB.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
 	return c, nil
 }
 
-func containerCreateFromImage(s *state.State, args db.ContainerArgs, hash string) (container, error) {
+func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (container, error) {
+	s := d.State()
+
 	// Get the image properties
-	_, img, err := s.DB.ImageGet(hash, false, false)
+	_, img, err := s.Cluster.ImageGet(hash, false, false)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if the image is available locally or it's on another node.
+	nodeAddress, err := s.Cluster.ImageLocate(hash)
+	if err != nil {
+		return nil, err
+	}
+	if nodeAddress != "" {
+		// The image is available from another node, let's try to
+		// import it.
+		logger.Debugf("Transferring image %s from node %s", hash, nodeAddress)
+		client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), false)
+		if err != nil {
+			return nil, err
+		}
+		err = imageImportFromNode(filepath.Join(d.os.VarDir, "images"), client, hash)
+		if err != nil {
+			return nil, err
+		}
+		err = d.cluster.ImageAssociateNode(hash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Set the "image.*" keys
@@ -626,16 +653,16 @@ func containerCreateFromImage(s *state.State, args db.ContainerArgs, hash string
 		return nil, err
 	}
 
-	err = s.DB.ImageLastAccessUpdate(hash, time.Now().UTC())
+	err = s.Cluster.ImageLastAccessUpdate(hash, time.Now().UTC())
 	if err != nil {
-		s.DB.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
 	// Now create the storage from an image
 	err = c.Storage().ContainerCreateFromImage(c, hash)
 	if err != nil {
-		s.DB.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -660,7 +687,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	if !containerOnly {
 		snapshots, err := sourceContainer.Snapshots()
 		if err != nil {
-			s.DB.ContainerRemove(args.Name)
+			s.Cluster.ContainerRemove(args.Name)
 			return nil, err
 		}
 
@@ -692,9 +719,9 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	err = ct.Storage().ContainerCopy(ct, sourceContainer, containerOnly)
 	if err != nil {
 		for _, v := range csList {
-			s.DB.ContainerRemove((*v).Name())
+			s.Cluster.ContainerRemove((*v).Name())
 		}
-		s.DB.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -773,7 +800,7 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 	// Clone the container
 	err = sourceContainer.Storage().ContainerSnapshotCreate(c, sourceContainer)
 	if err != nil {
-		s.DB.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -836,7 +863,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate container devices
-	err = containerValidDevices(s.DB, args.Devices, false, false)
+	err = containerValidDevices(s.Cluster, args.Devices, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -852,7 +879,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate profiles
-	profiles, err := s.DB.Profiles()
+	profiles, err := s.Cluster.Profiles()
 	if err != nil {
 		return nil, err
 	}
@@ -864,7 +891,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Create the container entry
-	id, err := s.DB.ContainerCreate(args)
+	id, err := s.Cluster.ContainerCreate(args)
 	if err != nil {
 		if err == db.DbErrAlreadyDefined {
 			thing := "Container"
@@ -882,9 +909,9 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	args.Id = id
 
 	// Read the timestamp from the database
-	dbArgs, err := s.DB.ContainerGet(args.Name)
+	dbArgs, err := s.Cluster.ContainerGet(args.Name)
 	if err != nil {
-		s.DB.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 	args.CreationDate = dbArgs.CreationDate
@@ -893,7 +920,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Setup the container struct and finish creation (storage and idmap)
 	c, err := containerLXCCreate(s, args)
 	if err != nil {
-		s.DB.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Name)
 		return nil, err
 	}
 
@@ -948,7 +975,7 @@ func containerConfigureInternal(c container) error {
 
 func containerLoadById(s *state.State, id int) (container, error) {
 	// Get the DB record
-	name, err := s.DB.ContainerName(id)
+	name, err := s.Cluster.ContainerName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -958,7 +985,7 @@ func containerLoadById(s *state.State, id int) (container, error) {
 
 func containerLoadByName(s *state.State, name string) (container, error) {
 	// Get the DB record
-	args, err := s.DB.ContainerGet(name)
+	args, err := s.Cluster.ContainerGet(name)
 	if err != nil {
 		return nil, err
 	}

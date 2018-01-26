@@ -217,6 +217,9 @@ won't work and PUT needs to be used instead.
          * `/1.0/storage-pools/<name>/volumes`
            * `/1.0/storage-pools/<name>/volumes/<volume type>/<volume>`
      * `/1.0/resources`
+     * `/1.0/cluster`
+       * `/1.0/cluster/nodes`
+         * `/1.0/cluster/nodes/<name>`
 
 # API details
 ## `/`
@@ -2409,4 +2412,237 @@ Input (none at present):
                 "total": 8271765504
             }
         }
+    }
+## `/1.0/storage-pools`
+### GET
+ * Description: list of storage pools
+ * Introduced: with API extension `storage`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of storage pools that are currently defined on the host
+
+    [
+        "/1.0/storage-pools/default",
+        "/1.0/storage-pools/pool1"
+        "/1.0/storage-pools/pool2"
+        "/1.0/storage-pools/pool3"
+        "/1.0/storage-pools/pool4"
+    ]
+
+### POST
+ * Description: create a new storage pool
+ * Introduced: with API extension `storage`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "config": {
+            "size": "10GB"
+        },
+        "driver": "zfs",
+        "name": "pool1"
+    }
+
+## `/1.0/cluster`
+### GET (optional `?password=<trust-password>`)
+ * Description: information about a cluster (such as networks and storage pools)
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted or untrusted
+ * Operation: sync
+ * Return: dict representing a cluster
+
+    {
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "operation": "",
+        "error_code": 0,
+        "error": "",
+        "metadata": {
+            "storage_pools": [
+                {
+                    "name": "default",
+                    "description": "",
+                    "config": {
+                        "source": "/var/lib/lxd/storage-pools/default"
+                    },
+                    "driver": "dir",
+                    "used_by": null
+                }
+            ],
+            "networks": [
+                {
+                    "name": "lxdbr0",
+                    "description": "",
+                    "type": "bridge",
+                    "config": {
+                        "ipv4.address": "10.8.219.1/24",
+                        "ipv4.nat": "true",
+                        "ipv6.address": "fd42:f5a2:e47e:2185::1/64",
+                        "ipv6.nat": "true"
+                    },
+                    "used_by": null,
+                    "managed": true
+                }
+            ]
+    	}
+    }
+
+### DELETE
+ * Description: disable clustering
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+    {
+    }
+
+## `/1.0/cluster/nodes`
+### GET
+ * Description: list of LXD nodes in the cluster
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of dicts with information about each node
+
+	{
+		"type": "sync",
+		"status": "Success",
+		"status_code": 200,
+		"operation": "",
+		"error_code": 0,
+		"error": "",
+		"metadata": [
+			{
+				"name": "lxd1",
+				"url": "https://10.1.1.101:8443",
+				"database": true,
+				"state": "ONLINE"
+			},
+			{
+				"name": "lxd2",
+				"url": "https://10.1.1.102:8443",
+				"database": true,
+				"state": "ONLINE"
+			},
+		]
+	} 
+
+### POST
+ * Description: bootstrap, join, or accept a node in the cluster
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted or untrusted
+ * Operation: sync or async
+ * Return: various payloads depending on the input
+
+Input (bootstrap a new cluster):
+
+    {
+		"name": "lxd1",
+	}
+
+Return background operation or standard error.
+
+Input (request to join an existing cluster):
+
+	{
+		"name": "node2",
+		"target_address": "10.1.1.101:8443",
+		"target_cert": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
+		"target_password": "sekret"
+	}
+
+Return background operation or standard error.
+
+Input (accept a node requesting to join the cluster):
+
+	{
+		"name": "node2",
+		"address": "10.1.1.102:8443",
+		"schema": 2,
+		"api": 63,
+		"target_password": "sekret"
+	}
+
+Return information about raft nodes in the cluster and the private key
+of the cluster certificate:
+
+	{
+		"type": "sync",
+		"status": "Success",
+		"status_code": 200,
+		"operation": "",
+		"error_code": 0,
+		"error": "",
+		"metadata": {
+			"raft_nodes": [
+				{
+					"id": 1,
+					"address": "10.1.1.101:8443"
+				},
+				{
+					"id": 2,
+					"address": "10.1.1.102:8443"
+				}
+			],
+			"private_key": "LS0tLS1CRU"
+		}
+	}
+
+## `/1.0/cluster/nodes/<name>`
+### GET
+ * Description: retrieve the node's information and status
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the node
+
+    {
+        "type": "sync",
+        "status": "Success",
+        "status_code": 200,
+        "error_code": 0,
+        "error": "",
+        "metadata": {
+            "type": "custom",
+            "used_by": [],
+            "name": "vol1",
+            "config": {
+                "block.filesystem": "ext4",
+                "block.mount_options": "discard",
+                "size": "10737418240"
+            }
+        }
+    }
+
+## `/1.0/cluster/nodes/<name>`
+### POST
+ * Description: rename a cluster node
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "name": "node1",
+    }
+
+### DELETE (optional `?force=1`)
+ * Description: remove a node from the cluster
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input (none at present):
+
+    {
     }

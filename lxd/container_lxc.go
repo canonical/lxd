@@ -271,7 +271,6 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
-		db:           s.DB,
 		id:           args.Id,
 		name:         args.Name,
 		description:  args.Description,
@@ -307,7 +306,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		return nil, err
 	}
 
-	err = containerValidDevices(s.DB, c.expandedDevices, false, true)
+	err = containerValidDevices(s.Cluster, c.expandedDevices, false, true)
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
@@ -329,7 +328,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	storagePool := rootDiskDevice["pool"]
 
 	// Get the storage pool ID for the container
-	poolID, pool, err := s.DB.StoragePoolGet(storagePool)
+	poolID, pool, err := s.Cluster.StoragePoolGet(storagePool)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -343,7 +342,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	}
 
 	// Create a new database entry for the container's storage volume
-	_, err = s.DB.StoragePoolVolumeCreate(args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
+	_, err = s.Cluster.StoragePoolVolumeCreate(args.Name, "", storagePoolVolumeTypeContainer, poolID, volumeConfig)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -353,7 +352,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	cStorage, err := storagePoolVolumeContainerCreateInit(s, storagePool, args.Name)
 	if err != nil {
 		c.Delete()
-		s.DB.StoragePoolVolumeDelete(args.Name, storagePoolVolumeTypeContainer, poolID)
+		s.Cluster.StoragePoolVolumeDelete(args.Name, storagePoolVolumeTypeContainer, poolID)
 		logger.Error("Failed to initialize container storage", ctxMap)
 		return nil, err
 	}
@@ -447,7 +446,6 @@ func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) 
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
-		db:           s.DB,
 		id:           args.Id,
 		name:         args.Name,
 		description:  args.Description,
@@ -460,6 +458,7 @@ func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) 
 		localConfig:  args.Config,
 		localDevices: args.Devices,
 		stateful:     args.Stateful,
+		node:         args.Node,
 	}
 
 	// Load the config.
@@ -493,14 +492,17 @@ type containerLXC struct {
 	profiles        []string
 
 	// Cache
-	c        *lxc.Container
-	cConfig  bool
-	db       *db.Node
+	c       *lxc.Container
+	cConfig bool
+
 	state    *state.State
 	idmapset *idmap.IdmapSet
 
 	// Storage
 	storage storage
+
+	// Clustering
+	node string
 }
 
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
@@ -733,7 +735,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
-	cs, err := state.DB.ContainersList(db.CTypeRegular)
+	cs, err := state.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1623,7 +1625,7 @@ func (c *containerLXC) expandConfig() error {
 
 	// Apply all the profiles
 	for _, name := range c.profiles {
-		profileConfig, err := c.db.ProfileConfig(name)
+		profileConfig, err := c.state.Cluster.ProfileConfig(name)
 		if err != nil {
 			return err
 		}
@@ -1647,7 +1649,7 @@ func (c *containerLXC) expandDevices() error {
 
 	// Apply all the profiles
 	for _, p := range c.profiles {
-		profileDevices, err := c.db.Devices(p, true)
+		profileDevices, err := c.state.Cluster.Devices(p, true)
 		if err != nil {
 			return err
 		}
@@ -1775,7 +1777,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 
 		// Remove the volatile key from the DB
-		err = c.db.ContainerConfigRemove(c.id, "volatile.apply_quota")
+		err = c.state.Cluster.ContainerConfigRemove(c.id, "volatile.apply_quota")
 		if err != nil {
 			return "", err
 		}
@@ -2199,7 +2201,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	// Update time container was last started
-	err = c.db.ContainerLastUsedUpdate(c.id, time.Now().UTC())
+	err = c.state.Cluster.ContainerLastUsedUpdate(c.id, time.Now().UTC())
 	if err != nil {
 		return "", fmt.Errorf("Error updating last used: %v", err)
 	}
@@ -2267,7 +2269,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		os.RemoveAll(c.StatePath())
 		c.stateful = false
 
-		err = c.db.ContainerSetStateful(c.id, false)
+		err = c.state.Cluster.ContainerSetStateful(c.id, false)
 		if err != nil {
 			logger.Error("Failed starting container", ctxMap)
 			return err
@@ -2284,7 +2286,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 
 		c.stateful = false
-		err = c.db.ContainerSetStateful(c.id, false)
+		err = c.state.Cluster.ContainerSetStateful(c.id, false)
 		if err != nil {
 			return err
 		}
@@ -2379,7 +2381,7 @@ func (c *containerLXC) OnStart() error {
 		}
 
 		// Remove the volatile key from the DB
-		err := c.db.ContainerConfigRemove(c.id, key)
+		err := c.state.Cluster.ContainerConfigRemove(c.id, key)
 		if err != nil {
 			AADestroy(c)
 			if ourStart {
@@ -2433,7 +2435,7 @@ func (c *containerLXC) OnStart() error {
 	}
 
 	// Record current state
-	err = c.db.ContainerSetState(c.id, "RUNNING")
+	err = c.state.Cluster.ContainerSetState(c.id, "RUNNING")
 	if err != nil {
 		return err
 	}
@@ -2497,7 +2499,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 		}
 
 		c.stateful = true
-		err = c.db.ContainerSetStateful(c.id, true)
+		err = c.state.Cluster.ContainerSetStateful(c.id, true)
 		if err != nil {
 			op.Done(err)
 			logger.Error("Failed stopping container", ctxMap)
@@ -2687,7 +2689,7 @@ func (c *containerLXC) OnStop(target string) error {
 		deviceTaskSchedulerTrigger("container", c.name, "stopped")
 
 		// Record current state
-		err = c.db.ContainerSetState(c.id, "STOPPED")
+		err = c.state.Cluster.ContainerSetState(c.id, "STOPPED")
 		if err != nil {
 			logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
 		}
@@ -2839,6 +2841,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 			Name:            c.name,
 			Status:          statusCode.String(),
 			StatusCode:      statusCode,
+			Node:            c.node,
 		}
 
 		ct.Description = c.Description()
@@ -2881,7 +2884,7 @@ func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 
 func (c *containerLXC) Snapshots() ([]container, error) {
 	// Get all the snapshots
-	snaps, err := c.db.ContainerGetSnapshots(c.name)
+	snaps, err := c.state.Cluster.ContainerGetSnapshots(c.name)
 	if err != nil {
 		return nil, err
 	}
@@ -3119,7 +3122,7 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Remove the database record
-	if err := c.db.ContainerRemove(c.Name()); err != nil {
+	if err := c.state.Cluster.ContainerRemove(c.Name()); err != nil {
 		logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
 		return err
 	}
@@ -3132,7 +3135,7 @@ func (c *containerLXC) Delete() error {
 		poolID, _, _ := c.storage.GetContainerPoolInfo()
 
 		// Remove volume from storage pool.
-		err := c.db.StoragePoolVolumeDelete(c.Name(), storagePoolVolumeTypeContainer, poolID)
+		err := c.state.Cluster.StoragePoolVolumeDelete(c.Name(), storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return err
 		}
@@ -3218,7 +3221,7 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	// Rename the database entry
-	err = c.db.ContainerRename(oldName, newName)
+	err = c.state.Cluster.ContainerRename(oldName, newName)
 	if err != nil {
 		logger.Error("Failed renaming container", ctxMap)
 		return err
@@ -3226,7 +3229,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Rename storage volume for the container.
 	poolID, _, _ := c.storage.GetContainerPoolInfo()
-	err = c.db.StoragePoolVolumeRename(oldName, newName, storagePoolVolumeTypeContainer, poolID)
+	err = c.state.Cluster.StoragePoolVolumeRename(oldName, newName, storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		logger.Error("Failed renaming storage volume", ctxMap)
 		return err
@@ -3234,7 +3237,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	if !c.IsSnapshot() {
 		// Rename all the snapshots
-		results, err := c.db.ContainerGetSnapshots(oldName)
+		results, err := c.state.Cluster.ContainerGetSnapshots(oldName)
 		if err != nil {
 			logger.Error("Failed renaming container", ctxMap)
 			return err
@@ -3244,14 +3247,14 @@ func (c *containerLXC) Rename(newName string) error {
 			// Rename the snapshot
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
-			err := c.db.ContainerRename(sname, newSnapshotName)
+			err := c.state.Cluster.ContainerRename(sname, newSnapshotName)
 			if err != nil {
 				logger.Error("Failed renaming container", ctxMap)
 				return err
 			}
 
 			// Rename storage volume for the snapshot.
-			err = c.db.StoragePoolVolumeRename(sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
+			err = c.state.Cluster.StoragePoolVolumeRename(sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				logger.Error("Failed renaming storage volume", ctxMap)
 				return err
@@ -3380,12 +3383,12 @@ func writeBackupFile(c container) error {
 	}
 
 	s := c.DaemonState()
-	poolID, pool, err := s.DB.StoragePoolGet(poolName)
+	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
 	if err != nil {
 		return err
 	}
 
-	_, volume, err := s.DB.StoragePoolVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
+	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		return err
 	}
@@ -3444,13 +3447,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Validate the new devices
-	err = containerValidDevices(c.db, args.Devices, false, false)
+	err = containerValidDevices(c.state.Cluster, args.Devices, false, false)
 	if err != nil {
 		return err
 	}
 
 	// Validate the new profiles
-	profiles, err := c.db.Profiles()
+	profiles, err := c.state.Cluster.Profiles()
 	if err != nil {
 		return err
 	}
@@ -3605,7 +3608,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Do some validation of the devices diff
-	err = containerValidDevices(c.db, c.expandedDevices, false, true)
+	err = containerValidDevices(c.state.Cluster, c.expandedDevices, false, true)
 	if err != nil {
 		return err
 	}
@@ -4375,7 +4378,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database
-	tx, err := c.db.Begin()
+	tx, err := c.state.Cluster.Begin()
 	if err != nil {
 		return err
 	}
@@ -6949,7 +6952,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	updateKey := func(key string, value string) error {
-		tx, err := c.db.Begin()
+		tx, err := c.state.Cluster.Begin()
 		if err != nil {
 			return err
 		}
@@ -6983,7 +6986,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			err = updateKey(configKey, volatileHwaddr)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := c.db.ContainerConfigGet(c.id, configKey)
+				value, err1 := c.state.Cluster.ContainerConfigGet(c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
@@ -7013,7 +7016,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			err = updateKey(configKey, volatileName)
 			if err != nil {
 				// Check if something else filled it in behind our back
-				value, err1 := c.db.ContainerConfigGet(c.id, configKey)
+				value, err1 := c.state.Cluster.ContainerConfigGet(c.id, configKey)
 				if err1 != nil || value == "" {
 					return nil, err
 				}
@@ -7976,7 +7979,7 @@ func (c *containerLXC) StatePath() string {
 }
 
 func (c *containerLXC) StoragePool() (string, error) {
-	poolName, err := c.db.ContainerPool(c.Name())
+	poolName, err := c.state.Cluster.ContainerPool(c.Name())
 	if err != nil {
 		return "", err
 	}

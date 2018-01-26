@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/pem"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -131,19 +133,72 @@ func (cmd *CmdInit) fillDataAuto(data *cmdInitData, client lxd.ContainerServer, 
 // Fill the given configuration data with parameters collected with
 // interactive questions.
 func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerServer, backendsAvailable []string, existingPools []string) error {
-	storage, err := cmd.askStorage(client, existingPools, backendsAvailable)
+	clustering, err := cmd.askClustering()
 	if err != nil {
 		return err
 	}
-	defaultPrivileged := cmd.askDefaultPrivileged()
-	networking := cmd.askNetworking()
-	imagesAutoUpdate := cmd.askImages()
-	bridge := cmd.askBridge(client)
+
+	// Ask to create basic entities only if we are not joining an existing
+	// cluster.
+	var storage *cmdInitStorageParams
+	var defaultPrivileged int
+	var networking *cmdInitNetworkingParams
+	var imagesAutoUpdate bool
+	var bridge *cmdInitBridgeParams
+
+	if clustering == nil || clustering.TargetAddress == "" {
+		storage, err = cmd.askStorage(client, existingPools, backendsAvailable)
+		if err != nil {
+			return err
+		}
+		defaultPrivileged = cmd.askDefaultPrivileged()
+
+		// Ask about networking only if we skipped the clustering questions.
+		if clustering == nil {
+			networking = cmd.askNetworking()
+		}
+
+		imagesAutoUpdate = cmd.askImages()
+		bridge = cmd.askBridge(client)
+	}
+	if clustering != nil {
+		// Re-use the answers to the clustering questions.
+		networking = &cmdInitNetworkingParams{
+			Address:       clustering.Address,
+			Port:          clustering.Port,
+			TrustPassword: clustering.TrustPassword,
+		}
+		if clustering.TargetAddress != "" {
+			// Client parameters to connect to the target cluster node.
+			args := &lxd.ConnectionArgs{
+				TLSServerCert: string(clustering.TargetCert),
+			}
+			url := fmt.Sprintf("https://%s", clustering.TargetAddress)
+			client, err := lxd.ConnectLXD(url, args)
+			if err != nil {
+				return err
+			}
+			cluster, err := client.GetCluster(clustering.TargetPassword)
+			if err != nil {
+				return err
+			}
+			data.Pools, err = cmd.askClusteringStoragePools(cluster)
+			if err != nil {
+				return err
+			}
+			data.Networks, err = cmd.askClusteringNetworks(cluster)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	_, err = exec.LookPath("dnsmasq")
 	if err != nil && bridge != nil {
 		return fmt.Errorf("LXD managed bridges require \"dnsmasq\". Install it and try again.")
 	}
+
+	cmd.fillDataWithClustering(data, clustering)
 
 	err = cmd.fillDataWithStorage(data, storage, existingPools)
 	if err != nil {
@@ -196,6 +251,18 @@ func (cmd *CmdInit) fillDataWithCurrentDefaultProfile(data *cmdInitData, client 
 		data.Profiles = []api.ProfilesPost{{Name: "default"}}
 		data.Profiles[0].ProfilePut = defaultProfile.ProfilePut
 	}
+}
+
+// Fill the given init data with clustering details matching the given
+// clustering parameters.
+func (cmd *CmdInit) fillDataWithClustering(data *cmdInitData, clustering *cmdInitClusteringParams) {
+	if clustering == nil {
+		return
+	}
+	data.Cluster.Name = clustering.Name
+	data.Cluster.TargetAddress = clustering.TargetAddress
+	data.Cluster.TargetCert = string(clustering.TargetCert)
+	data.Cluster.TargetPassword = clustering.TargetPassword
 }
 
 // Fill the given init data with a new storage pool structure matching the
@@ -406,6 +473,13 @@ func (cmd *CmdInit) apply(client lxd.ContainerServer, data *cmdInitData) error {
 		})
 	}
 
+	// Cluster changers
+	if data.Cluster.Name != "" {
+		changers = append(changers, func() (reverter, error) {
+			return cmd.initCluster(client, data.Cluster)
+		})
+	}
+
 	// Apply all changes. If anything goes wrong at any iteration
 	// of the loop, we'll try to revert any change performed in
 	// earlier iterations.
@@ -462,6 +536,30 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 
 	// Updating the server was successful, so return the reverter function
 	// in case it's needed later.
+	return reverter, nil
+}
+
+// Turn on clustering.
+func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterPost) (reverter, error) {
+	var reverter func() error
+	var op *lxd.Operation
+	var err error
+	if cluster.TargetAddress == "" {
+		op, err = client.BootstrapCluster(cluster.Name)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		op, err = client.JoinCluster(
+			cluster.TargetAddress, cluster.TargetPassword, cluster.TargetCert, cluster.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = op.Wait()
+	if err != nil {
+		return nil, err
+	}
 	return reverter, nil
 }
 
@@ -667,6 +765,122 @@ func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.ProfilesPost, device
 		return fmt.Errorf("Device already exists: %s", deviceName)
 	}
 	return nil
+}
+
+// Ask if the user wants to enable clustering
+func (cmd *CmdInit) askClustering() (*cmdInitClusteringParams, error) {
+	askWants := "Would you like to use LXD clustering? (yes/no) [default=no]: "
+	if !cmd.Context.AskBool(askWants, "no") {
+		return nil, nil
+	}
+
+	params := &cmdInitClusteringParams{}
+
+	// Node name
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "lxd"
+	}
+	askName := fmt.Sprintf(
+		"What name should be used to identify this node in the cluster? [default=%s]: ",
+		hostname)
+	params.Name = cmd.Context.AskString(askName, hostname, nil)
+
+	// Network address
+	address := util.NetworkInterfaceAddress()
+	askAddress := fmt.Sprintf(
+		"What IP address or DNS name should be used to reach this node? [default=%s]: ",
+		address)
+	address = util.CanonicalNetworkAddress(cmd.Context.AskString(askAddress, address, nil))
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+	portN, err := strconv.Atoi(port)
+	if err != nil {
+		return nil, err
+	}
+	params.Address = host
+	params.Port = int64(portN)
+
+	// Join existing cluster
+	if !cmd.Context.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no") {
+		params.TrustPassword = cmd.Context.AskPassword(
+			"Trust password for new clients: ", cmd.PasswordReader)
+		return params, nil
+	}
+
+	// Target node address, password and certificate.
+join:
+	targetAddress := cmd.Context.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
+	params.TargetAddress = util.CanonicalNetworkAddress(targetAddress)
+	params.TargetPassword = cmd.Context.AskPasswordOnce(
+		"Trust password for the existing cluster: ", cmd.PasswordReader)
+
+	url := fmt.Sprintf("https://%s", params.TargetAddress)
+	certificate, err := shared.GetRemoteCertificate(url)
+	if err != nil {
+		cmd.Context.Output("Error connecting to existing cluster node: %v\n", err)
+		goto join
+	}
+	digest := shared.CertFingerprint(certificate)
+	askFingerprint := fmt.Sprintf("Remote node fingerprint: %s ok (yes/no)? ", digest)
+	if !cmd.Context.AskBool(askFingerprint, "") {
+		return nil, fmt.Errorf("Cluster certificate NACKed by user")
+	}
+	params.TargetCert = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+
+	// Confirm wipe this node
+	askConfirm := ("All existing data is lost when joining a cluster, " +
+		"continue? (yes/no) [default=no] ")
+	if !cmd.Context.AskBool(askConfirm, "") {
+		return nil, fmt.Errorf("User did not confirm erasing data")
+	}
+
+	return params, nil
+}
+
+func (cmd *CmdInit) askClusteringStoragePools(cluster *api.Cluster) ([]api.StoragePoolsPost, error) {
+	pools := make([]api.StoragePoolsPost, len(cluster.StoragePools))
+	for i, pool := range cluster.StoragePools {
+		post := api.StoragePoolsPost{}
+		post.Name = pool.Name
+		post.Driver = pool.Driver
+		post.Config = pool.Config
+		// The only config key to ask is 'source', which is the only one node-specific.
+		key := "source"
+		question := fmt.Sprintf(
+			`Enter local value for key "%s" of storage pool "%s": `, key, post.Name)
+		// Dummy validator for allowing empty strings.
+		validator := func(string) error { return nil }
+		post.Config[key] = cmd.Context.AskString(question, "", validator)
+		pools[i] = post
+	}
+	return pools, nil
+}
+
+func (cmd *CmdInit) askClusteringNetworks(cluster *api.Cluster) ([]api.NetworksPost, error) {
+	networks := make([]api.NetworksPost, len(cluster.Networks))
+	for i, network := range cluster.Networks {
+		if !network.Managed {
+			continue
+		}
+		post := api.NetworksPost{}
+		post.Name = network.Name
+		post.Config = network.Config
+		post.Type = network.Type
+		post.Managed = true
+		// The only config key to ask is 'bridge.external_interfaces',
+		// which is the only one node-specific.
+		key := "bridge.external_interfaces"
+		question := fmt.Sprintf(
+			`Enter local value for key "%s" of network "%s": `, key, post.Name)
+		// Dummy validator for allowing empty strings.
+		validator := func(string) error { return nil }
+		post.Config[key] = cmd.Context.AskString(question, "", validator)
+		networks[i] = post
+	}
+	return networks, nil
 }
 
 // Ask if the user wants to create a new storage pool, and return
@@ -939,6 +1153,18 @@ type cmdInitData struct {
 	Pools         []api.StoragePoolsPost `yaml:"storage_pools"`
 	Networks      []api.NetworksPost
 	Profiles      []api.ProfilesPost
+	Cluster       api.ClusterPost
+}
+
+// Parameters needed when enbling clustering in interactive mode.
+type cmdInitClusteringParams struct {
+	Name           string // Name of the new node
+	Address        string // Network address of the new node
+	Port           int64  // Network port of the new node
+	TrustPassword  string // Trust password
+	TargetAddress  string // Network address of cluster node to join.
+	TargetCert     []byte // Public key of the cluster to join.
+	TargetPassword string // Trust password of the cluster to join.
 }
 
 // Parameters needed when creating a storage pool in interactive or auto

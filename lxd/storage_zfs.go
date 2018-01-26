@@ -436,7 +436,7 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 		}
 	}
 
-	err := s.db.StoragePoolVolumeDelete(
+	err := s.s.Cluster.StoragePoolVolumeDelete(
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -640,7 +640,7 @@ func (s *storageZfs) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renamed ZFS storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	return s.db.StoragePoolVolumeRename(s.volume.Name, newName,
+	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, newName,
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 

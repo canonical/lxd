@@ -11,6 +11,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -25,7 +27,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 	if recursion {
 		certResponses := []api.Certificate{}
 
-		baseCerts, err := d.db.CertificatesGet()
+		baseCerts, err := d.cluster.CertificatesGet()
 		if err != nil {
 			return SmartError(err)
 		}
@@ -56,7 +58,7 @@ func certificatesGet(d *Daemon, r *http.Request) Response {
 func readSavedClientCAList(d *Daemon) {
 	d.clientCerts = []x509.Certificate{}
 
-	dbCerts, err := d.db.CertificatesGet()
+	dbCerts, err := d.cluster.CertificatesGet()
 	if err != nil {
 		logger.Infof("Error reading certificates from database: %s", err)
 		return
@@ -78,7 +80,7 @@ func readSavedClientCAList(d *Daemon) {
 	}
 }
 
-func saveCert(dbObj *db.Node, host string, cert *x509.Certificate) error {
+func saveCert(dbObj *db.Cluster, host string, cert *x509.Certificate) error {
 	baseCert := new(db.CertInfo)
 	baseCert.Fingerprint = shared.CertFingerprint(cert)
 	baseCert.Type = 1
@@ -98,7 +100,10 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Access check
-	secret := daemonConfig["core.trust_password"].Get()
+	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
+	if err != nil {
+		return SmartError(err)
+	}
 	if d.checkTrustedClient(r) != nil && util.PasswordCheck(secret, req.Password) != nil {
 		return Forbidden
 	}
@@ -144,9 +149,31 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	err := saveCert(d.db, name, cert)
-	if err != nil {
-		return SmartError(err)
+	if !isClusterNotification(r) {
+		// Store the certificate in the cluster database.
+		err = saveCert(d.cluster, name, cert)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		// Notify other nodes about the new certificate.
+		notifier, err := cluster.NewNotifier(
+			d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		if err != nil {
+			return SmartError(err)
+		}
+		req := api.CertificatesPost{
+			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+		}
+		req.Name = name
+		req.Type = "client"
+
+		err = notifier(func(client lxd.ContainerServer) error {
+			return client.CreateCertificate(req)
+		})
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	d.clientCerts = append(d.clientCerts, *cert)
@@ -159,7 +186,7 @@ var certificatesCmd = Command{name: "certificates", untrustedPost: true, get: ce
 func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	cert, err := doCertificateGet(d.db, fingerprint)
+	cert, err := doCertificateGet(d.cluster, fingerprint)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -167,7 +194,7 @@ func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, cert, cert)
 }
 
-func doCertificateGet(db *db.Node, fingerprint string) (api.Certificate, error) {
+func doCertificateGet(db *db.Cluster, fingerprint string) (api.Certificate, error) {
 	resp := api.Certificate{}
 
 	dbCertInfo, err := db.CertificateGet(fingerprint)
@@ -190,7 +217,7 @@ func doCertificateGet(db *db.Node, fingerprint string) (api.Certificate, error) 
 func certificateFingerprintPut(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	oldEntry, err := doCertificateGet(d.db, fingerprint)
+	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -212,7 +239,7 @@ func certificateFingerprintPut(d *Daemon, r *http.Request) Response {
 func certificateFingerprintPatch(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	oldEntry, err := doCertificateGet(d.db, fingerprint)
+	oldEntry, err := doCertificateGet(d.cluster, fingerprint)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -249,7 +276,7 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 		return BadRequest(fmt.Errorf("Unknown request type %s", req.Type))
 	}
 
-	err := d.db.CertUpdate(fingerprint, req.Name, 1)
+	err := d.cluster.CertUpdate(fingerprint, req.Name, 1)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -260,12 +287,12 @@ func doCertificateUpdate(d *Daemon, fingerprint string, req api.CertificatePut) 
 func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	certInfo, err := d.db.CertificateGet(fingerprint)
+	certInfo, err := d.cluster.CertificateGet(fingerprint)
 	if err != nil {
 		return NotFound
 	}
 
-	err = d.db.CertDelete(certInfo.Fingerprint)
+	err = d.cluster.CertDelete(certInfo.Fingerprint)
 	if err != nil {
 		return SmartError(err)
 	}

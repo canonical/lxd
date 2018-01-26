@@ -395,3 +395,31 @@ getting a stream of events over websocket.
 ## proxy
 This adds a new `proxy` device type to containers, allowing forwarding
 of connections between the host and container.
+
+## clustering
+Clustering API for LXD.
+
+This includes the following new endpoints:
+
+* `GET /1.0/cluster`
+* `DELETE /1.0/cluster` (see [RESTful API](rest-api.md) for details)
+
+* `GET /1.0/cluster/nodes`
+* `POST /1.0/cluster/nodes` (see [RESTful API](rest-api.md) for details)
+
+* `GET /1.0/cluster/nodes/<name>` (see [RESTful API](rest-api.md) for details)
+* `DELETE /1.0/cluster/nodes/<name>` (see [RESTful API](rest-api.md) for details)
+
+The following existing endpoints have been modified:
+
+ * `POST /1.0/containers` accepts a new targetNode query parameter
+ * `POST /1.0/storage-pools` accepts a new targetNode query parameter
+ * `GET /1.0/storage-pool/<name>` accepts a new targetNode query parameter
+ * `POST /1.0/storage-pool/<pool>/volumes/<type>` accepts a new targetNode query parameter
+ * `GET /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `POST /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `PUT /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `PATCH /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `DELETE /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new targetNode query parameter
+ * `POST /1.0/networks` accepts a new targetNode query parameter
+ * `GET /1.0/networks/<name>` accepts a new targetNode query parameter

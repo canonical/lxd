@@ -164,7 +164,7 @@ const imagesDirMode os.FileMode = 0700
 const snapshotsDirMode os.FileMode = 0700
 
 // Detect whether LXD already uses the given storage pool.
-func lxdUsesPool(dbObj *db.Node, onDiskPoolName string, driver string, onDiskProperty string) (bool, string, error) {
+func lxdUsesPool(dbObj *db.Cluster, onDiskPoolName string, driver string, onDiskProperty string) (bool, string, error) {
 	pools, err := dbObj.StoragePools()
 	if err != nil && err != db.NoSuchObjectError {
 		return false, "", err

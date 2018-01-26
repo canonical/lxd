@@ -14,6 +14,16 @@ import (
 
 func containerPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+
+	// Handle requests targeted to a container on a different node
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	if err != nil {
+		return SmartError(err)
+	}
+	if response != nil {
+		return response
+	}
+
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
@@ -62,7 +72,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 				return InternalError(err)
 			}
 
-			op, err := operationCreate(operationClassTask, resources, nil, ws.Do, nil, nil)
+			op, err := operationCreate(d.cluster, operationClassTask, resources, nil, ws.Do, nil, nil)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -71,7 +81,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		}
 
 		// Pull mode
-		op, err := operationCreate(operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operationCreate(d.cluster, operationClassWebsocket, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -80,7 +90,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _ := d.db.ContainerId(req.Name)
+	id, _ := d.cluster.ContainerId(req.Name)
 	if id > 0 {
 		return Conflict
 	}
@@ -92,7 +102,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

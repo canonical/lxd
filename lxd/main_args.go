@@ -6,6 +6,7 @@ type Args struct {
 	Preseed              bool   `flag:"preseed"`
 	CPUProfile           string `flag:"cpuprofile"`
 	Debug                bool   `flag:"debug"`
+	Trace                string `flag:"trace"`
 	Group                string `flag:"group"`
 	Help                 bool   `flag:"help"`
 	Logfile              string `flag:"logfile"`
@@ -58,6 +59,8 @@ Commands:
 Common options:
     --debug
         Enable debug mode
+    --trace SUBSYSTEMS
+        Enable trace logging for the given comma-separated list of sub-systems (e.g. dqlite,raft)
     --help
         Print this help message
     --logfile FILE

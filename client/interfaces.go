@@ -45,9 +45,13 @@ type ContainerServer interface {
 	// Server functions
 	GetServer() (server *api.Server, ETag string, err error)
 	GetServerResources() (resources *api.Resources, err error)
+	GetServerHost() (host string, err error)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) (exists bool)
 	RequireAuthenticated(authenticated bool)
+	IsClustered() (clustered bool)
+	ClusterTargetNode(name string) (client ContainerServer)
+	ClusterNodeName() (name string)
 
 	// Certificate functions
 	GetCertificateFingerprints() (fingerprints []string, err error)
@@ -161,9 +165,20 @@ type ContainerServer interface {
 	DeleteStoragePoolVolume(pool string, volType string, name string) (err error)
 	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (err error)
 
+	// Cluster functions ("cluster" API extensions)
+	GetCluster(password string) (cluster *api.Cluster, err error)
+	BootstrapCluster(name string) (op *Operation, err error)
+	AcceptNode(targetPassword, name, address string, schema, api int, pools []api.StoragePool, networks []api.Network) (info *api.ClusterNodeAccepted, err error)
+	JoinCluster(targetAddress, targetPassword, targetCert, name string) (op *Operation, err error)
+	LeaveCluster(name string, force bool) (err error)
+	GetNodes() (nodes []api.Node, err error)
+	GetNode(name string) (node *api.Node, err error)
+	RenameNode(name string, node api.NodePost) (err error)
+
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
+	RawOperation(method string, path string, data interface{}, queryETag string) (op *Operation, ETag string, err error)
 }
 
 // The ConnectionInfo struct represents general information for a connection

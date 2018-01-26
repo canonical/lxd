@@ -101,6 +101,16 @@ func (c *CertInfo) PublicKey() []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: data})
 }
 
+// PrivateKey is a convenience to encode the underlying private key.
+func (c *CertInfo) PrivateKey() []byte {
+	key, ok := c.KeyPair().PrivateKey.(*rsa.PrivateKey)
+	if !ok {
+		return nil
+	}
+	data := x509.MarshalPKCS1PrivateKey(key)
+	return pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: data})
+}
+
 // CertKind defines the kind of certificate to generate from scratch in
 // KeyPairAndCA when it's not there.
 //

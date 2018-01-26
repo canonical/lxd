@@ -37,7 +37,7 @@ func TestGroup_StopUngracefully(t *testing.T) {
 
 	assertRecv(t, ok)
 
-	assert.Equal(t, context.DeadlineExceeded, group.Stop(time.Millisecond))
+	assert.EqualError(t, group.Stop(time.Millisecond), "tasks 0 are still running")
 }
 
 // Assert that the given channel receives an object within a second.
