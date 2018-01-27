@@ -168,7 +168,7 @@ test_clustering_containers() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster delete node2
 
   # Exec a command in the container via node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc exec foo ls / | grep -q linuxrc
+  LXD_DIR="${LXD_ONE_DIR}" lxc exec foo ls / | grep -q proc
 
   # Pull, push and delete files from the container via node1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/non-existing-file "${TEST_DIR}/non-existing-file"
