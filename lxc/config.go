@@ -1321,9 +1321,10 @@ func (c *configCmd) doContainerMetadataEdit(client lxd.ContainerServer, name str
 	}
 
 	for {
+		metadata := api.ImageMetadata{}
 		err = yaml.Unmarshal(content, &metadata)
 		if err == nil {
-			err = client.SetContainerMetadata(name, *metadata, etag)
+			err = client.SetContainerMetadata(name, metadata, etag)
 		}
 
 		// Respawn the editor
