@@ -27,8 +27,8 @@ test_clustering_membership() {
   # The preseeded network bridge exists on all nodes.
   ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
   ns2_pid="$(cat "${TEST_DIR}/ns/${ns2}/PID")"
-  nsenter -n -t "${ns1_pid}" -- ip link show "${bridge}" > /dev/null
-  nsenter -n -t "${ns2_pid}" -- ip link show "${bridge}" > /dev/null
+  nsenter -m -n -t "${ns1_pid}" -- ip link show "${bridge}" > /dev/null
+  nsenter -m -n -t "${ns2_pid}" -- ip link show "${bridge}" > /dev/null
 
   # Create a pending network and pool, to show that they are not
   # considered when checking if the joining node has all the required

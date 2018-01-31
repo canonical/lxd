@@ -47,7 +47,7 @@ spawn_lxd() {
         LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
         pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
-        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter -n -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
@@ -113,7 +113,7 @@ respawn_lxd() {
         LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
         pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
-        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter -n -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &    fi
+        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &    fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
