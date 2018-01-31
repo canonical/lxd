@@ -38,6 +38,13 @@ set -e
 mkdir -p "${TEST_DIR}/ns/${ns}"
 touch "${TEST_DIR}/ns/${ns}/net"
 mount -o bind /proc/self/ns/net "${TEST_DIR}/ns/${ns}/net"
+mount --move /sys /mnt
+umount -l /proc
+mount -t sysfs sysfs /sys
+mount --move /mnt/fs/cgroup /sys/fs/cgroup
+mount -t proc proc /proc
+mount -t securityfs securityfs /sys/kernel/security
+umount -l /mnt
 sleep 300&
 echo \$! > "${TEST_DIR}/ns/${ns}/PID"
 EOF
@@ -62,7 +69,7 @@ ip link set eth0 up
 ip addr add "10.1.1.10${id}/16" dev eth0
 ip route add default via 10.1.1.1
 EOF
-  ) | nsenter -n -t "${nspid}" /bin/sh
+  ) | nsenter -n -m -t "${nspid}" /bin/sh
 }
 
 teardown_clustering_netns() {
