@@ -499,10 +499,10 @@ func grpcNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) (*
 		return nil, err
 	}
 
-	// The whole attempt should not take more than a second. If the context
-	// gets cancelled, calling code will typically try against another
-	// database node, in round robin.
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	// The whole attempt should not take more than a few seconds. If the
+	// context gets cancelled, calling code will typically try against
+	// another database node, in round robin.
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	// Make a probe HEAD request to check if the target node is the leader.
