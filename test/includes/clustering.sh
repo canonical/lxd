@@ -78,6 +78,7 @@ teardown_clustering_netns() {
 
   [ ! -d "${TEST_DIR}/ns/" ] && return
 
+  # shellcheck disable=SC2045
   for ns in $(ls -1 "${TEST_DIR}/ns/"); do
       echo "==> Teardown clustering netns ${ns}"
 

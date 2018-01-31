@@ -46,6 +46,7 @@ spawn_lxd() {
     if [ "${LXD_NETNS}" = "" ]; then
         LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
+	# shellcheck disable=SC2153
         pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
         LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
