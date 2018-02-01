@@ -21,16 +21,6 @@ test_static_analysis() {
       echo "shellcheck not found, shell static analysis disabled"
     fi
 
-    # Go static analysis
-    sqlite="$(pwd)/lxd/sqlite"
-    if [ -e "/lxc-ci/build/cache/sqlite" ]; then
-        sqlite="/lxc-ci/build/cache/sqlite"
-        ls "/lxc-ci/build/cache/sqlite"
-    fi
-
-    LD_LIBRARY_PATH="${sqlite}/.libs"
-    export LD_LIBRARY_PATH
-
     ## Functions starting by empty line
     OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
     if [ -n "${OUT}" ]; then

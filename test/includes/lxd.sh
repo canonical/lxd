@@ -14,12 +14,6 @@ spawn_lxd() {
     storage=${1}
     shift
 
-    # Link to local sqlite with replication patch for dqlite
-    sqlite="$(pwd)/../lxd/sqlite"
-    if [ -e "/lxc-ci/build/cache/sqlite" ]; then
-        sqlite="/lxc-ci/build/cache/sqlite"
-    fi
-
     # shellcheck disable=SC2153
     if [ "$LXD_BACKEND" = "random" ]; then
         lxd_backend="$(random_storage_backend)"
@@ -44,11 +38,11 @@ spawn_lxd() {
     # shellcheck disable=SC2086
 
     if [ "${LXD_NETNS}" = "" ]; then
-        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
         # shellcheck disable=SC2153
         pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
-        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
@@ -102,19 +96,14 @@ respawn_lxd() {
     wait=${1}
     shift
 
-    # Link to local sqlite with replication patch for dqlite
-    sqlite="$(pwd)/../lxd/sqlite"
-    if [ -e "/lxc-ci/build/cache/sqlite" ]; then
-        sqlite="/lxc-ci/build/cache/sqlite"
-    fi
-
     echo "==> Spawning lxd in ${lxddir}"
     # shellcheck disable=SC2086
     if [ "${LXD_NETNS}" = "" ]; then
-        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
     else
         pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
-        LD_LIBRARY_PATH="${sqlite}/.libs" LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &    fi
+        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
