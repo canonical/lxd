@@ -1,4 +1,0 @@
-[submodule "lxd/sqlite"]
-	path = lxd/sqlite
-	url = https://github.com/CanonicalLtd/sqlite.git
-	ignore = dirty

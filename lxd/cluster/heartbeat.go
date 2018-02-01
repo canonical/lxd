@@ -38,6 +38,8 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 			logger.Warnf("Failed to get current raft nodes: %v", err)
 			return
 		}
+		logger.Debugf("Heartbeat updating raft nodes to %+v", raftNodes)
+
 		var nodes []db.NodeInfo
 		err = cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error

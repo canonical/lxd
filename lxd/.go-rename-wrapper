@@ -1,7 +1,0 @@
-#!/bin/sh
-
-export CGO_CFLAGS="-I$(realpath $(dirname $0))/sqlite/"
-export CGO_LDFLAGS="-L$(realpath $(dirname $0))/sqlite/.libs"
-export LD_LIBRARY_PATH="$(realpath $(dirname $0))/sqlite/.libs"
-
-gorename $@

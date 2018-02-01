@@ -5,14 +5,4 @@
      (eval
       . (set
 	 (make-local-variable 'flycheck-go-build-tags)
-	 '("libsqlite3")))
-     (eval
-      . (let* ((locals-path
-     		(let ((d (dir-locals-find-file ".")))
-     		  (if (stringp d) (file-name-directory d) (car d))))
-	       (go-wrapper (s-concat locals-path ".go-wrapper"))
-	       (go-rename-wrapper (s-concat locals-path ".go-rename-wrapper")))
-     	  (progn
-	    (set (make-local-variable 'go-command) go-wrapper)
-	    (set (make-local-variable 'flycheck-go-build-executable) go-wrapper)
-	    (set (make-local-variable 'go-rename-command) go-rename-wrapper)))))))
+	 '("libsqlite3"))))))

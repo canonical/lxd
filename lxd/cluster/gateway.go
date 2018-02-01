@@ -118,6 +118,7 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 				http.Error(w, "400 invalid raft nodes payload", http.StatusBadRequest)
 				return
 			}
+			logger.Debugf("Replace current raft nodes with %+v", nodes)
 			err = g.db.Transaction(func(tx *db.NodeTx) error {
 				return tx.RaftNodesReplace(nodes)
 			})
