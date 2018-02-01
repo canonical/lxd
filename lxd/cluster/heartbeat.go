@@ -38,7 +38,19 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 			logger.Warnf("Failed to get current raft nodes: %v", err)
 			return
 		}
-		logger.Debugf("Heartbeat updating raft nodes to %+v", raftNodes)
+
+		// Replace the local raft_nodes table immediately because it
+		// might miss a row containing ourselves, since we might have
+		// been elected leader before the former leader had chance to
+		// send us a fresh update through the heartbeat pool.
+		logger.Debugf("Heartbeat updating local raft nodes to %+v", raftNodes)
+		err = gateway.db.Transaction(func(tx *db.NodeTx) error {
+			return tx.RaftNodesReplace(raftNodes)
+		})
+		if err != nil {
+			logger.Warnf("Failed to replace local raft nodes: %v", err)
+			return
+		}
 
 		var nodes []db.NodeInfo
 		err = cluster.Transaction(func(tx *db.ClusterTx) error {
