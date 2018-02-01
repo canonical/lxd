@@ -6,6 +6,7 @@ import (
 
 	"github.com/CanonicalLtd/go-sqlite3"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
 )
 
 // Retry wraps a function that interacts with the database, and retries it in
@@ -30,6 +31,8 @@ func Retry(f func() error) error {
 // IsRetriableError returns true if the given error might be transient and the
 // interaction can be safely retried.
 func IsRetriableError(err error) bool {
+	err = errors.Cause(err)
+
 	if err == nil {
 		return false
 	}
@@ -40,8 +43,6 @@ func IsRetriableError(err error) bool {
 		return true
 	}
 
-	// FIXME: we should bubble errors using errors.Wrap()
-	// instead, and check for err.Cause() == sql.ErrBadConnection.
 	if strings.Contains(err.Error(), "bad connection") {
 		return true
 	}

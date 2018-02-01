@@ -70,6 +70,6 @@ func newDaemons(t *testing.T, n int) ([]*Daemon, func()) {
 // Create a new DaemonConfig object for testing purposes.
 func newConfig() *DaemonConfig {
 	return &DaemonConfig{
-		RaftLatency: 0.2,
+		RaftLatency: 0.8,
 	}
 }

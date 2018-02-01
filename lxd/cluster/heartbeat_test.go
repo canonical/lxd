@@ -24,11 +24,10 @@ func TestHeartbeat(t *testing.T) {
 	defer f.Cleanup()
 
 	gateway0 := f.Bootstrap()
-	gateway1 := f.Grow()
+	f.Grow()
 	f.Grow()
 
 	state0 := f.State(gateway0)
-	state1 := f.State(gateway1)
 
 	// Artificially mark all nodes as down
 	err := state0.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -46,16 +45,6 @@ func TestHeartbeat(t *testing.T) {
 	heartbeat, _ := cluster.Heartbeat(gateway0, state0.Cluster)
 	ctx := context.Background()
 	heartbeat(ctx)
-
-	// The second node that initially did not know about the third, now
-	// does.
-	err = state1.Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.RaftNodes()
-		require.NoError(t, err)
-		assert.Len(t, nodes, 3)
-		return nil
-	})
-	require.NoError(t, err)
 
 	// The heartbeat timestamps of all nodes got updated
 	err = state0.Cluster.Transaction(func(tx *db.ClusterTx) error {

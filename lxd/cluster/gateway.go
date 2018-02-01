@@ -227,7 +227,7 @@ func (g *Gateway) Dialer() grpcsql.Dialer {
 		}
 
 		// TODO: should the timeout be configurable?
-		ctx, cancel := context.WithTimeout(g.ctx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(g.ctx, 10*time.Second)
 		defer cancel()
 		var err error
 		for {

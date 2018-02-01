@@ -661,7 +661,7 @@ func (d *Daemon) Stop() error {
 		trackError(d.endpoints.Down())
 	}
 
-	trackError(d.tasks.Stop(time.Second)) // Give tasks at most a second to cleanup.
+	trackError(d.tasks.Stop(3 * time.Second)) // Give tasks a bit of time to cleanup.
 
 	shouldUnmount := false
 	if d.cluster != nil {

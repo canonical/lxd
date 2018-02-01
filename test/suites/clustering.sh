@@ -76,9 +76,9 @@ test_clustering_membership() {
 
   # Shutdown a non-database node, and wait a few seconds so it will be
   # detected as down.
-  LXD_DIR="${LXD_FOUR_DIR}" lxc config set cluster.offline_threshold 4
+  LXD_DIR="${LXD_FOUR_DIR}" lxc config set cluster.offline_threshold 5
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
-  sleep 6
+  sleep 8
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node5" | grep -q "OFFLINE"
 
   # Trying to delete the preseeded network now fails, because a node is degraded.
@@ -221,9 +221,9 @@ test_clustering_containers() {
 
   # Shutdown node 2, wait for it to be considered offline, and list
   # containers.
-  LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 4
+  LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 5
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 6
+  sleep 8
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
