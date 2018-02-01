@@ -64,7 +64,7 @@ func TestHeartbeat(t *testing.T) {
 
 // If a certain node does not successfully respond to the heartbeat, its
 // timestamp does not get updated.
-func TestHeartbeat_MarkAsDown(t *testing.T) {
+func DISABLE_TestHeartbeat_MarkAsDown(t *testing.T) {
 	f := heartbeatFixture{t: t}
 	defer f.Cleanup()
 

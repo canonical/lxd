@@ -154,7 +154,7 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClustering() {
 }
 
 // Enable clustering interactively, joining an existing cluser.
-func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClusteringJoin() {
+func (suite *cmdInitTestSuite) DISABLED_TestCmdInit_InteractiveClusteringJoin() {
 	leader, cleanup := newDaemon(suite.T())
 	defer cleanup()
 

@@ -169,7 +169,7 @@ func TestCluster_JoinWrongTrustPassword(t *testing.T) {
 
 // In a cluster for 3 nodes, if the leader goes down another one is elected the
 // other two nodes continue to operate fine.
-func TestCluster_Failover(t *testing.T) {
+func DISABLED_TestCluster_Failover(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping cluster failover test in short mode.")
 	}
