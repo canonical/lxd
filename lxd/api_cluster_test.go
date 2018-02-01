@@ -91,16 +91,23 @@ func TestCluster_Join(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
-	// Both nodes are listed as database nodes in the second node's sqlite
-	// database.
+	// At least the leader node is listed as database node in the second
+	// node's sqlite database. Depending on the timing of the join request
+	// and of the heartbeat update from the leader, there might be a second
+	// entry for the joining node itself.
 	state := daemons[1].State()
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
 		nodes, err := tx.RaftNodes()
 		require.NoError(t, err)
-		require.Len(t, nodes, 2)
+		require.True(t, len(nodes) >= 1, "no rows in raft_nodes table")
 		assert.Equal(t, int64(1), nodes[0].ID)
-		assert.Equal(t, int64(2), nodes[1].ID)
 		assert.Equal(t, daemons[0].endpoints.NetworkAddress(), nodes[0].Address)
+
+		if len(nodes) == 1 {
+			return nil
+		}
+		require.Len(t, nodes, 2)
+		assert.Equal(t, int64(2), nodes[1].ID)
 		assert.Equal(t, daemons[1].endpoints.NetworkAddress(), nodes[1].Address)
 		return nil
 	})
