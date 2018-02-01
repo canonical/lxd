@@ -28,11 +28,7 @@ test_static_analysis() {
         ls "/lxc-ci/build/cache/sqlite"
     fi
 
-    CGO_CFLAGS="-I${sqlite}"
-    CGO_LDFLAGS="-L${sqlite}/.libs"
     LD_LIBRARY_PATH="${sqlite}/.libs"
-    export CGO_CFLAGS
-    export CGO_LDFLAGS
     export LD_LIBRARY_PATH
 
     ## Functions starting by empty line

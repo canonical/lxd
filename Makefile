@@ -3,19 +3,18 @@ POFILES=$(wildcard po/*.po)
 MOFILES=$(patsubst %.po,%.mo,$(POFILES))
 LINGUAS=$(basename $(POFILES))
 POTFILE=po/$(DOMAIN).pot
-GO_SERVER=./lxd/.go-wrapper
 
 # dist is primarily for use when packaging; for development we still manage
 # dependencies via `go get` explicitly.
 # TODO: use git describe for versioning
 VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
-TAGS=$(shell printf "\#include <sqlite3.h>\nvoid main(){}" | $(CC) -o /dev/null -xc - >/dev/null 2>&1 && echo "-tags libsqlite3")
+TAGS=$(shell printf "\#include <sqlite3.h>\nvoid main(){int n = SQLITE_REPLICATION;}" | $(CC) -o /dev/null -xc - >/dev/null 2>&1 && echo "-tags libsqlite3")
 
 .PHONY: default
 default:
-	$(GO_SERVER) get -t -v -d ./...
-	$(GO_SERVER) install -v $(TAGS) $(DEBUG) ./...
+	go get -t -v -d ./...
+	go install -v $(TAGS) $(DEBUG) ./...
 	@echo "LXD built successfully"
 
 .PHONY: client
