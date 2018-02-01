@@ -101,13 +101,27 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 		}
 	}
 
+	// Since the database APIs are blocking we need to wrap the core logic
+	// and run it in a goroutine, so we can abort as soon as the context expires.
+	heartbeatWrapper := func(ctx context.Context) {
+		ch := make(chan struct{})
+		go func() {
+			heartbeat(ctx)
+			ch <- struct{}{}
+		}()
+		select {
+		case <-ch:
+		case <-ctx.Done():
+		}
+	}
+
 	schedule := task.Every(time.Duration(heartbeatInterval) * time.Second)
 
-	return heartbeat, schedule
+	return heartbeatWrapper, schedule
 }
 
 // Number of seconds to wait between to heartbeat rounds.
-const heartbeatInterval = 3
+const heartbeatInterval = 4
 
 // Perform a single heartbeat request against the node with the given address.
 func heartbeatNode(ctx context.Context, address string, cert *shared.CertInfo, raftNodes []db.RaftNode) error {
