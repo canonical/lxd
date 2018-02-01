@@ -433,13 +433,15 @@ func (g *Gateway) init() error {
 // Wait for the raft node to become leader. Should only be used by Bootstrap,
 // since we know that we'll self elect.
 func (g *Gateway) waitLeadership() error {
-	for i := 0; i < 60; i++ {
+	n := 80
+	sleep := 250 * time.Millisecond
+	for i := 0; i < n; i++ {
 		if g.raft.raft.State() == raft.Leader {
 			return nil
 		}
-		time.Sleep(250 * time.Millisecond)
+		time.Sleep(sleep)
 	}
-	return fmt.Errorf("raft node did not self-elect within 15 seconds")
+	return fmt.Errorf("raft node did not self-elect within %s", time.Duration(n)*sleep)
 }
 
 // Return information about the LXD nodes that a currently part of the raft
