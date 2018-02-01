@@ -249,12 +249,6 @@ test_basic_usage() {
   chmod +x "${LXD_ACTIVATION_DIR}"
   spawn_lxd "${LXD_ACTIVATION_DIR}" true
   (
-    # Link to local sqlite with replication patch for dqlite
-    sqlite="$(pwd)/../lxd/sqlite"
-    if [ -e "/lxc-ci/build/cache/sqlite" ]; then
-        sqlite="/lxc-ci/build/cache/sqlite"
-    fi
-
     set -e
     # shellcheck disable=SC2030
     LXD_DIR=${LXD_ACTIVATION_DIR}
@@ -265,7 +259,7 @@ test_basic_usage() {
     lxc init testimage autostart --force-local
     lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
     lxc config set autostart boot.autostart true --force-local
-    LD_LIBRARY_PATH="${sqlite}/.libs" lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
 
     lxc config unset autostart boot.autostart --force-local
     lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
@@ -275,7 +269,7 @@ test_basic_usage() {
     shutdown_lxd "${LXD_DIR}"
     [ -d "/proc/${PID}" ] && false
 
-    LD_LIBRARY_PATH="${sqlite}/.libs" lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started containers, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
