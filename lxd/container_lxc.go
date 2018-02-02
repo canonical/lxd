@@ -2519,17 +2519,23 @@ func (c *containerLXC) Stop(stateful bool) error {
 		return err
 	}
 
-	// Attempt to freeze the container first, helps massively with fork bombs
-	freezer := make(chan bool, 1)
-	go func() {
-		c.Freeze()
-		freezer <- true
-	}()
+	// Fork-bomb mitigation, prevent forking from this point on
+	if c.state.OS.CGroupPidsController {
+		// Attempt to disable forking new processes
+		c.CGroupSet("pids.max", "0")
+	} else {
+		// Attempt to freeze the container
+		freezer := make(chan bool, 1)
+		go func() {
+			c.Freeze()
+			freezer <- true
+		}()
 
-	select {
-	case <-freezer:
-	case <-time.After(time.Second * 5):
-		c.Unfreeze()
+		select {
+		case <-freezer:
+		case <-time.After(time.Second * 5):
+			c.Unfreeze()
+		}
 	}
 
 	if err := c.c.Stop(); err != nil {
