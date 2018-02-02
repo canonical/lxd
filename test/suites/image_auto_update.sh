@@ -41,9 +41,9 @@ test_image_auto_update() {
   retries=600
   while [ "${retries}" != "0" ]; do
     if lxc image info "${fp1}" > /dev/null 2>&1; then
-	sleep 2
-	retries=$((retries-1))
-	continue
+        sleep 2
+        retries=$((retries-1))
+        continue
     fi
     break
   done
