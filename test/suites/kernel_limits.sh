@@ -20,7 +20,7 @@ test_kernel_limits() {
   soft=$(grep ^"Max open files" /proc/"${pid}"/limits | awk '{print $4}')
   hard=$(grep ^"Max open files" /proc/"${pid}"/limits | awk '{print $5}')
 
-  lxc delete --force limits 
+  lxc delete --force limits
 
   [ "${soft}" = "3000" ] && [ "${hard}" = "3000" ]
 }

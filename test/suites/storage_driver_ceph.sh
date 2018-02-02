@@ -2,7 +2,7 @@ test_storage_driver_ceph() {
   ensure_import_testimage
 
   # shellcheck disable=2039
-  local LXD_STORAGE_DIR lxd_backend  
+  local LXD_STORAGE_DIR lxd_backend
 
   lxd_backend=$(storage_backend "$LXD_DIR")
   LXD_STORAGE_DIR=$(mktemp -d -p "${TEST_DIR}" XXXXXXXXX)
