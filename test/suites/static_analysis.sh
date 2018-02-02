@@ -29,6 +29,20 @@ test_static_analysis() {
       false
     fi
 
+    ## Mixed tabs/spaces in scripts
+    OUT=$(grep -Pr "\t" . | grep "\.sh:" || true)
+    if [ -n "${OUT}" ]; then
+      echo "ERROR: mixed tabs and spaces in script: ${OUT}"
+      false
+    fi
+
+    ## Trailing whitespace in scripts
+    OUT=$(grep -r " $" . | grep "\.sh:" || true)
+    if [ -n "${OUT}" ]; then
+      echo "ERROR: trailing whitespace in script: ${OUT}"
+      false
+    fi
+
     ## go vet, if it exists
     if go help vet >/dev/null 2>&1; then
       go vet ./...
