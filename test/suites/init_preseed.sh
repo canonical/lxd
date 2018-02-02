@@ -59,7 +59,7 @@ profiles:
       parent: lxdt$$
       type: nic
 EOF
-  
+
     lxc info | grep -q 'core.https_address: 127.0.0.1:9999'
     lxc info | grep -q 'images.auto_update_interval: "15"'
     lxc network list | grep -q "lxdt$$"

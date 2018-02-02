@@ -1,5 +1,4 @@
 test_proxy_device() {
-  
   MESSAGE="Proxy device test string"
   HOST_TCP_PORT=$(local_tcp_port)
 
