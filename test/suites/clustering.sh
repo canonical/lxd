@@ -215,6 +215,11 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
   ! LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q bar
 
+  # Create a container on node1 using a snapshot from node2.
+  LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
+  LXD_DIR="${LXD_TWO_DIR}" lxc copy foo/foo-bak bar --target node1
+  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Node: node1"
+
   # Delete the network now, since we're going to shutdown node2 and it
   # won't be possible afterwise.
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
