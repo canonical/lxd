@@ -960,7 +960,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 	}
 
 	// Optimization for the local copy case
-	if r == source {
+	if r == source && r.targetNode == "" {
 		// Local copy source fields
 		req.Source.Type = "copy"
 		req.Source.Source = snapshot.Name
