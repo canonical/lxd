@@ -88,4 +88,5 @@ var APIExtensions = []string{
 	"devlxd_events",
 	"proxy",
 	"network_dhcp_gateway",
+	"file_get_symlink",
 }

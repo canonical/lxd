@@ -65,7 +65,7 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 		"X-LXD-type": type_,
 	}
 
-	if type_ == "file" {
+	if type_ == "file" || type_ == "symlink" {
 		// Make a file response struct
 		files := make([]fileResponseEntry, 1)
 		files[0].identifier = filepath.Base(path)
