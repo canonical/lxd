@@ -811,6 +811,10 @@ func (n *network) Start() error {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-no-override", "--dhcp-authoritative", fmt.Sprintf("--dhcp-leasefile=%s", shared.VarPath("networks", n.name, "dnsmasq.leases")), fmt.Sprintf("--dhcp-hostsfile=%s", shared.VarPath("networks", n.name, "dnsmasq.hosts"))}...)
 			}
 
+			if n.config["ipv4.dhcp.gateway"] != "" {
+				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option=3,%s", n.config["ipv4.dhcp.gateway"]))
+			}
+
 			expiry := "1h"
 			if n.config["ipv4.dhcp.expiry"] != "" {
 				expiry = n.config["ipv4.dhcp.expiry"]

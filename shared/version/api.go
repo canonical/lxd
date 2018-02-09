@@ -87,4 +87,5 @@ var APIExtensions = []string{
 	"maas_network",
 	"devlxd_events",
 	"proxy",
+	"network_dhcp_gateway",
 }
