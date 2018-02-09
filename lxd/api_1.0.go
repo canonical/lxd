@@ -208,7 +208,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
-		err = doApi10UpdateTriggers(d, changed, config)
+		err = doApi10UpdateTriggers(d, nil, changed, nil, config)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -250,26 +250,31 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 }
 
 func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
-	// The HTTPS address is the only config key that we want to save in the
-	// node-level database, so handle it here.
+	// The HTTPS address and maas machine are the only config keys that we
+	// want to save in the node-level database, so handle it here.
 	nodeValues := map[string]interface{}{}
-	address, ok := req.Config["core.https_address"]
-	if ok {
-		nodeValues["core.https_address"] = address
-		delete(req.Config, "core.https_address")
-	}
-	err := d.db.Transaction(func(tx *db.NodeTx) error {
-		trigger := config.Trigger{
-			Key: "core.https_address",
-			Func: func(value string) error {
-				return d.endpoints.NetworkUpdateAddress(value)
-			},
+
+	for key := range node.ConfigSchema {
+		value, ok := req.Config[key]
+		if ok {
+			nodeValues[key] = value
+			delete(req.Config, key)
 		}
-		config, err := node.ConfigLoad(tx, trigger)
+	}
+
+	nodeChanged := map[string]string{}
+	var newNodeConfig *node.Config
+	err := d.db.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		newNodeConfig, err = node.ConfigLoad(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed to load node config")
 		}
-		err = config.Replace(nodeValues)
+		if patch {
+			nodeChanged, err = newNodeConfig.Patch(nodeValues)
+		} else {
+			nodeChanged, err = newNodeConfig.Replace(nodeValues)
+		}
 		return err
 	})
 	if err != nil {
@@ -281,18 +286,18 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 	}
 
-	var changed map[string]string
-	var newConfig *cluster.Config
+	var clusterChanged map[string]string
+	var newClusterConfig *cluster.Config
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		newConfig, err = cluster.ConfigLoad(tx)
+		newClusterConfig, err = cluster.ConfigLoad(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed to load cluster config")
 		}
 		if patch {
-			changed, err = newConfig.Patch(req.Config)
+			clusterChanged, err = newClusterConfig.Patch(req.Config)
 		} else {
-			changed, err = newConfig.Replace(req.Config)
+			clusterChanged, err = newClusterConfig.Replace(req.Config)
 		}
 		return err
 	})
@@ -316,7 +321,8 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 		serverPut := server.Writable()
 		serverPut.Config = make(map[string]interface{})
-		for key, value := range changed {
+		// Only propagated cluster-wide changes
+		for key, value := range clusterChanged {
 			serverPut.Config[key] = value
 		}
 		return client.UpdateServer(serverPut, etag)
@@ -325,7 +331,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		return SmartError(err)
 	}
 
-	err = doApi10UpdateTriggers(d, changed, newConfig)
+	err = doApi10UpdateTriggers(d, nodeChanged, clusterChanged, newNodeConfig, newClusterConfig)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -333,22 +339,20 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 	return EmptySyncResponse
 }
 
-func doApi10UpdateTriggers(d *Daemon, changed map[string]string, config *cluster.Config) error {
-	maasControllerChanged := false
-	for key, value := range changed {
+func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *cluster.Config) error {
+	maasChanged := false
+	for key, value := range clusterChanged {
 		switch key {
 		case "core.proxy_http":
 			fallthrough
 		case "core.proxy_https":
 			fallthrough
 		case "core.proxy_ignore_hosts":
-			daemonConfigSetProxy(d, config)
+			daemonConfigSetProxy(d, clusterConfig)
 		case "maas.api.url":
 			fallthrough
 		case "maas.api.key":
-			fallthrough
-		case "maas.machine":
-			maasControllerChanged = true
+			maasChanged = true
 		case "core.macaroon.endpoint":
 			err := d.setupExternalAuthentication(value)
 			if err != nil {
@@ -364,8 +368,20 @@ func doApi10UpdateTriggers(d *Daemon, changed map[string]string, config *cluster
 			}
 		}
 	}
-	if maasControllerChanged {
-		url, key, machine := config.MAASController()
+	for key, value := range nodeChanged {
+		switch key {
+		case "maas.machine":
+			maasChanged = true
+		case "core.https_address":
+			err := d.endpoints.NetworkUpdateAddress(value)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if maasChanged {
+		url, key := clusterConfig.MAASController()
+		machine := nodeConfig.MAASMachine()
 		err := d.setupMAASController(url, key, machine)
 		if err != nil {
 			return err

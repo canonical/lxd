@@ -96,12 +96,11 @@ func (c *Config) ProxyIgnoreHosts() string {
 	return c.m.GetString("core.proxy_ignore_hosts")
 }
 
-// MAASController the configured MAAS url, key and machine.
-func (c *Config) MAASController() (string, string, string) {
+// MAASController the configured MAAS url and key, if any.
+func (c *Config) MAASController() (string, string) {
 	url := c.m.GetString("maas.api.url")
 	key := c.m.GetString("maas.api.key")
-	machine := c.m.GetString("maas.machine")
-	return url, key, machine
+	return url, key
 }
 
 // OfflineThreshold returns the configured heartbeat threshold, i.e. the
@@ -217,7 +216,6 @@ var ConfigSchema = config.Schema{
 	"images.remote_cache_expiry":     {Type: config.Int64, Default: "10"},
 	"maas.api.key":                   {},
 	"maas.api.url":                   {},
-	"maas.machine":                   {},
 
 	// Keys deprecated since the implementation of the storage api.
 	"storage.lvm_fstype":           {Setter: deprecatedStorage, Default: "ext4"},

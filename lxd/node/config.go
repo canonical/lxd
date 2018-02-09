@@ -37,6 +37,12 @@ func (c *Config) HTTPSAddress() string {
 	return c.m.GetString("core.https_address")
 }
 
+// MAASMachine returns the MAAS machine this instance is associated with, if
+// any.
+func (c *Config) MAASMachine() string {
+	return c.m.GetString("maas.machine")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]interface{} {
@@ -44,12 +50,12 @@ func (c *Config) Dump() map[string]interface{} {
 }
 
 // Replace the current configuration with the given values.
-func (c *Config) Replace(values map[string]interface{}) error {
+func (c *Config) Replace(values map[string]interface{}) (map[string]string, error) {
 	return c.update(values)
 }
 
 // Patch changes only the configuration keys in the given map.
-func (c *Config) Patch(patch map[string]interface{}) error {
+func (c *Config) Patch(patch map[string]interface{}) (map[string]string, error) {
 	values := c.Dump() // Use current values as defaults
 	for name, value := range patch {
 		values[name] = value
@@ -72,22 +78,25 @@ func HTTPSAddress(node *db.Node) (string, error) {
 	return config.HTTPSAddress(), nil
 }
 
-func (c *Config) update(values map[string]interface{}) error {
+func (c *Config) update(values map[string]interface{}) (map[string]string, error) {
 	changed, err := c.m.Change(values)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = c.tx.UpdateConfig(changed)
 	if err != nil {
-		return fmt.Errorf("cannot persist confiuration changes: %v", err)
+		return nil, fmt.Errorf("cannot persist confiuration changes: %v", err)
 	}
 
-	return nil
+	return changed, nil
 }
 
 // ConfigSchema defines available server configuration keys.
 var ConfigSchema = config.Schema{
 	// Network address for this LXD server.
 	"core.https_address": {},
+
+	// MAAS machine this LXD instance is associated with.
+	"maas.machine": {},
 }

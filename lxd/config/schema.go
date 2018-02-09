@@ -12,6 +12,17 @@ import (
 // and options for their values, expressed using Key objects.
 type Schema map[string]Key
 
+// Keys returns all keys defined in the schema
+func (s Schema) Keys() []string {
+	keys := make([]string, len(s))
+	i := 0
+	for key := range s {
+		keys[i] = key
+		i++
+	}
+	return keys
+}
+
 // Defaults returns a map of all key names in the schema along with their default
 // values.
 func (s Schema) Defaults() map[string]interface{} {

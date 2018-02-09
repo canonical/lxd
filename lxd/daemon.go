@@ -523,6 +523,17 @@ func (d *Daemon) init() error {
 	maasAPIURL := ""
 	maasAPIKey := ""
 	maasMachine := ""
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		config, err := node.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+		maasMachine = config.MAASMachine()
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {
@@ -532,7 +543,7 @@ func (d *Daemon) init() error {
 			config.ProxyHTTPS(), config.ProxyHTTP(), config.ProxyIgnoreHosts(),
 		)
 		macaroonEndpoint = config.MacaroonEndpoint()
-		maasAPIURL, maasAPIKey, maasMachine = config.MAASController()
+		maasAPIURL, maasAPIKey = config.MAASController()
 		return nil
 	})
 	if err != nil {

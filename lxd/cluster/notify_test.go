@@ -136,7 +136,8 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 		require.NoError(h.t, err)
 		address := servers[0].Listener.Addr().String()
 		values := map[string]interface{}{"core.https_address": address}
-		require.NoError(h.t, config.Patch(values))
+		_, err = config.Patch(values)
+		require.NoError(h.t, err)
 		return nil
 	})
 	require.NoError(h.t, err)
