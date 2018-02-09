@@ -397,6 +397,121 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 
 var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete, post: networkPost, put: networkPut, patch: networkPatch}
 
+func networkLeasesGet(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+	leaseFile := shared.VarPath("networks", name, "dnsmasq.leases")
+
+	// Try to get the network
+	n, err := doNetworkGet(d, name)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Validate that we do have leases for it
+	if !n.Managed || n.Type != "bridge" {
+		return NotFound
+	}
+
+	if !shared.PathExists(leaseFile) {
+		return BadRequest(fmt.Errorf("No lease file for network"))
+	}
+
+	// Read all the leases
+	content, err := ioutil.ReadFile(leaseFile)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	leases := []api.NetworkLease{}
+
+	// Get all the containers
+	containers, err := d.db.ContainersList(db.CTypeRegular)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Get static leases
+	for _, cName := range containers {
+		// Load the container
+		c, err := containerLoadByName(d.State(), cName)
+		if err != nil {
+			continue
+		}
+
+		// Go through all its devices (including profiles
+		for k, d := range c.ExpandedDevices() {
+			// Skip uninteresting entries
+			if d["type"] != "nic" || d["nictype"] != "bridged" || d["parent"] != name {
+				continue
+			}
+
+			// Fill in the hwaddr from volatile
+			d, err = c.(*containerLXC).fillNetworkDevice(k, d)
+			if err != nil {
+				continue
+			}
+
+			// Add the lease
+			if d["ipv4.address"] != "" {
+				leases = append(leases, api.NetworkLease{
+					Hostname: cName,
+					Address:  d["ipv4.address"],
+					Hwaddr:   d["hwaddr"],
+					Type:     "static",
+				})
+			}
+
+			if d["ipv6.address"] != "" {
+				leases = append(leases, api.NetworkLease{
+					Hostname: cName,
+					Address:  d["ipv6.address"],
+					Hwaddr:   d["hwaddr"],
+					Type:     "static",
+				})
+			}
+		}
+	}
+
+	// Get dynamic leases
+	for _, lease := range strings.Split(string(content), "\n") {
+		fields := strings.Fields(lease)
+		if len(fields) >= 5 {
+			// Parse the MAC
+			mac := networkGetMacSlice(fields[1])
+			macStr := strings.Join(mac, ":")
+
+			if len(macStr) < 17 && fields[4] != "" {
+				macStr = fields[4][len(fields[4])-17:]
+			}
+
+			// Look for an existing static entry
+			found := false
+			for _, entry := range leases {
+				if entry.Hwaddr == macStr && entry.Address == fields[2] {
+					found = true
+					break
+				}
+			}
+
+			if found {
+				continue
+			}
+
+			// Add the lease to the list
+			leases = append(leases, api.NetworkLease{
+				Hostname: fields[3],
+				Address:  fields[2],
+				Hwaddr:   macStr,
+				Type:     "dynamic",
+			})
+		}
+	}
+
+	return SyncResponse(true, leases)
+}
+
+var networkLeasesCmd = Command{name: "networks/{name}/leases", get: networkLeasesGet}
+
 // The network structs and functions
 func networkLoadByName(s *state.State, name string) (*network, error) {
 	id, dbInfo, err := s.DB.NetworkGet(name)
