@@ -33,7 +33,7 @@ func (c *storageCmd) showByDefault() bool {
 func (c *storageCmd) storagePoolEditHelp() string {
 	return i18n.G(
 		`### This is a yaml representation of a storage pool.
-### Any line starting with a '# will be ignored.
+### Any line starting with a '#' will be ignored.
 ###
 ### A storage pool consists of a set of configuration items.
 ###
