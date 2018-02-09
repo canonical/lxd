@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/lxc/lxd/lxc/config"
@@ -14,6 +15,7 @@ type moveCmd struct {
 	containerOnly bool
 	mode          string
 	stateless     bool
+	target        string
 }
 
 func (c *moveCmd) showByDefault() bool {
@@ -22,7 +24,7 @@ func (c *moveCmd) showByDefault() bool {
 
 func (c *moveCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]] [--container-only]
+		`Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]] [--container-only] [--target <node>]
 
 Move containers within or in between LXD instances.
 
@@ -40,6 +42,7 @@ func (c *moveCmd) flags() {
 	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
 	gnuflag.StringVar(&c.mode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay."))
 	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
+	gnuflag.StringVar(&c.target, "target", "", i18n.G("Node name"))
 }
 
 func (c *moveCmd) run(conf *config.Config, args []string) error {
@@ -63,12 +66,17 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 		return err
 	}
 
+	// Target node and destination remote can't be used together.
+	if c.target != "" && sourceRemote != destRemote {
+		return fmt.Errorf(i18n.G("You must use the same source and destination remote when using --target"))
+	}
+
 	// As an optimization, if the source an destination are the same, do
 	// this via a simple rename. This only works for containers that aren't
 	// running, containers that are running should be live migrated (of
 	// course, this changing of hostname isn't supported right now, so this
 	// simply won't work).
-	if sourceRemote == destRemote {
+	if sourceRemote == destRemote && c.target == "" {
 		source, err := conf.GetContainerServer(sourceRemote)
 		if err != nil {
 			return err
@@ -97,6 +105,7 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 	}
 
 	cpy := copyCmd{}
+	cpy.target = c.target
 
 	stateful := !c.stateless
 

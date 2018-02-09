@@ -225,7 +225,12 @@ test_clustering_containers() {
   # node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar --target node3
   LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node3"
-  LXD_DIR="${LXD_THREE_DIR}" lxc delete bar
+
+  # Move the container on node3 to node1, using a client connected to
+  # node2.
+  LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node1"
+  LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
   # Delete the network now, since we're going to shutdown node2 and it
   # won't be possible afterwise.
