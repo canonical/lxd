@@ -55,6 +55,9 @@ Manage and attach containers to networks.
 lxc network list [<remote>:]
     List available networks.
 
+lxc network list-leases [<remote>:]<network>
+    List the DHCP leases for the network
+
 lxc network show [<remote>:]<network>
     Show details of a network.
 
@@ -143,6 +146,8 @@ func (c *networkCmd) run(conf *config.Config, args []string) error {
 		return c.doNetworkRename(client, network, args[2])
 	case "get":
 		return c.doNetworkGet(client, network, args[2:])
+	case "list-leases":
+		return c.doNetworkListLeases(client, network)
 	case "set":
 		return c.doNetworkSet(client, network, args[2:])
 	case "unset":
@@ -468,6 +473,33 @@ func (c *networkCmd) doNetworkGet(client lxd.ContainerServer, name string, args 
 			fmt.Printf("%s\n", v)
 		}
 	}
+	return nil
+}
+
+func (c *networkCmd) doNetworkListLeases(client lxd.ContainerServer, name string) error {
+	leases, err := client.GetNetworkLeases(name)
+	if err != nil {
+		return err
+	}
+
+	data := [][]string{}
+	for _, lease := range leases {
+		data = append(data, []string{lease.Hostname, lease.Hwaddr, lease.Address, strings.ToUpper(lease.Type)})
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetRowLine(true)
+	table.SetHeader([]string{
+		i18n.G("HOSTNAME"),
+		i18n.G("MAC ADDRESS"),
+		i18n.G("IP ADDRESS"),
+		i18n.G("TYPE")})
+	sort.Sort(byName(data))
+	table.AppendBulk(data)
+	table.Render()
+
 	return nil
 }
 
