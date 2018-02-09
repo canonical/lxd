@@ -13,9 +13,8 @@ import (
 //
 // Each legal key is declared in a config Schema using a Key object.
 type Map struct {
-	schema   Schema
-	values   map[string]string               // Key/value pairs stored in the map.
-	triggers map[string][]func(string) error // Per-key config change triggers.
+	schema Schema
+	values map[string]string // Key/value pairs stored in the map.
 }
 
 // Load creates a new configuration Map with the given schema and initial
@@ -24,15 +23,9 @@ type Map struct {
 //
 // If one or more keys fail to be loaded, return an ErrorList describing what
 // went wrong. Non-failing keys are still loaded in the returned Map.
-func Load(schema Schema, values map[string]string, triggers ...Trigger) (Map, error) {
+func Load(schema Schema, values map[string]string) (Map, error) {
 	m := Map{
-		schema:   schema,
-		triggers: make(map[string][]func(string) error),
-	}
-
-	// Set the triggers.
-	for _, trigger := range triggers {
-		m.triggers[trigger.Key] = append(m.triggers[trigger.Key], trigger.Func)
+		schema: schema,
 	}
 
 	// Populate the initial values.
@@ -175,19 +168,6 @@ func (m *Map) update(values map[string]string) ([]string, error) {
 		}
 	}
 	sort.Strings(names)
-
-	// If this isn't initial load, run all triggers.
-	if !initial {
-		for _, name := range names {
-			for _, trigger := range m.triggers[name] {
-				value := m.GetRaw(name)
-				err := trigger(value)
-				if err != nil {
-					errors.add(name, value, err.Error())
-				}
-			}
-		}
-	}
 
 	var err error
 	if errors.Len() > 0 {
