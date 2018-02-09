@@ -156,8 +156,8 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q node2
   LXD_DIR="${LXD_TWO_DIR}" lxc list | grep foo | grep -q STOPPED
 
-  # A Node: field indicates on which node the container is running
-  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Node: node2"
+  # A Location: field indicates on which node the container is running
+  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Location: node2"
 
   # Start the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
@@ -218,13 +218,13 @@ test_clustering_containers() {
   # Create a container on node1 using a snapshot from node2.
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
   LXD_DIR="${LXD_TWO_DIR}" lxc copy foo/foo-bak bar --target node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Node: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node1"
   LXD_DIR="${LXD_THREE_DIR}" lxc delete bar
 
   # Copy the container on node2 to node3, using a client connected to
   # node1.
   LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar --target node3
-  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Node: node3"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node3"
   LXD_DIR="${LXD_THREE_DIR}" lxc delete bar
 
   # Delete the network now, since we're going to shutdown node2 and it

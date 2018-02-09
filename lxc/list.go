@@ -105,7 +105,7 @@ Pre-defined column shorthand chars:
 
 	t - Type (persistent or ephemeral)
 
-	H - Node hosting the container
+	L - Location of the container (e.g. its node)
 
 Custom columns are defined with "key[:name][:maxWidth]":
 
@@ -128,7 +128,7 @@ lxc list -c ns,user.comment:comment
 	List images with their running state and user comment. `)
 }
 
-const defaultColumns = "ns46tSNH"
+const defaultColumns = "ns46tSL"
 
 func (c *listCmd) flags() {
 	gnuflag.StringVar(&c.columnsRaw, "c", defaultColumns, i18n.G("Columns"))
@@ -488,15 +488,15 @@ func (c *listCmd) parseColumns(clustered bool) ([]column, error) {
 	}
 
 	if clustered {
-		columnsShorthandMap['H'] = column{
-			i18n.G("NODE"), c.nodeColumnData, false, false}
+		columnsShorthandMap['L'] = column{
+			i18n.G("LOCATION"), c.locationColumnData, false, false}
 	} else {
 		if c.columnsRaw != defaultColumns {
-			if strings.ContainsAny(c.columnsRaw, "H") {
-				return nil, fmt.Errorf("Can't specify column H when not clustered")
+			if strings.ContainsAny(c.columnsRaw, "L") {
+				return nil, fmt.Errorf("Can't specify column L when not clustered")
 			}
 		}
-		c.columnsRaw = strings.Replace(c.columnsRaw, "H", "", -1)
+		c.columnsRaw = strings.Replace(c.columnsRaw, "L", "", -1)
 	}
 
 	columnList := strings.Split(c.columnsRaw, ",")
@@ -703,6 +703,6 @@ func (c *listCmd) NumberOfProcessesColumnData(cInfo api.Container, cState *api.C
 	return ""
 }
 
-func (c *listCmd) nodeColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
-	return cInfo.Node
+func (c *listCmd) locationColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+	return cInfo.Location
 }

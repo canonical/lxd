@@ -72,7 +72,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				Name:       name,
 				Status:     api.Error.String(),
 				StatusCode: api.Error,
-				Node:       nodes[name],
+				Location:   nodes[name],
 			}
 		}
 		resultMu.Lock()
