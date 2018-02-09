@@ -395,3 +395,6 @@ getting a stream of events over websocket.
 ## proxy
 This adds a new `proxy` device type to containers, allowing forwarding
 of connections between the host and container.
+
+## network\_dhcp\_gateway
+Introduces a new ipv4.dhcp.gateway network config key to set an alternate gateway.
