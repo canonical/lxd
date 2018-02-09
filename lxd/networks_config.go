@@ -60,13 +60,14 @@ var networkConfigKeys = map[string]func(value string) error{
 
 		return networkValidAddressCIDRV4(value)
 	},
-	"ipv4.firewall":    shared.IsBool,
-	"ipv4.nat":         shared.IsBool,
-	"ipv4.dhcp":        shared.IsBool,
-	"ipv4.dhcp.expiry": shared.IsAny,
-	"ipv4.dhcp.ranges": shared.IsAny,
-	"ipv4.routes":      shared.IsAny,
-	"ipv4.routing":     shared.IsBool,
+	"ipv4.firewall":     shared.IsBool,
+	"ipv4.nat":          shared.IsBool,
+	"ipv4.dhcp":         shared.IsBool,
+	"ipv4.dhcp.gateway": networkValidAddressV4,
+	"ipv4.dhcp.expiry":  shared.IsAny,
+	"ipv4.dhcp.ranges":  shared.IsAny,
+	"ipv4.routes":       shared.IsAny,
+	"ipv4.routing":      shared.IsBool,
 
 	"ipv6.address": func(value string) error {
 		if shared.IsOneOf(value, []string{"none", "auto"}) == nil {
