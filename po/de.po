@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-01-21 21:48+0000\n"
+"POT-Creation-Date: 2018-02-09 18:53-0500\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -23,7 +23,7 @@ msgstr ""
 #, fuzzy
 msgid ""
 "### This is a yaml representation of a storage pool.\n"
-"### Any line starting with a '# will be ignored.\n"
+"### Any line starting with a '#' will be ignored.\n"
 "###\n"
 "### A storage pool consists of a set of configuration items.\n"
 "###\n"
@@ -260,7 +260,7 @@ msgstr ""
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/utils.go:375
+#: lxc/utils.go:376
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
@@ -428,7 +428,7 @@ msgstr ""
 msgid "Config key/value to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1190
+#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1332 lxc/image.go:1190
 #: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
@@ -520,7 +520,7 @@ msgstr "Gerät %s wurde zu %s hinzugefügt\n"
 msgid "Device %s removed from %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
-#: lxc/utils.go:307 lxc/utils.go:331
+#: lxc/utils.go:308 lxc/utils.go:332
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "entfernte Instanz %s existiert bereits"
@@ -572,7 +572,7 @@ msgstr ""
 msgid "Ephemeral container"
 msgstr "Flüchtiger Container"
 
-#: lxc/config.go:1381
+#: lxc/config.go:1382
 #, fuzzy, c-format
 msgid "Error updating template file: %s"
 msgstr "Fehler beim hinzufügen des Alias %s\n"
@@ -603,7 +603,7 @@ msgstr ""
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/utils.go:413
+#: lxc/utils.go:414
 #, c-format
 msgid "Failed to create alias %s"
 msgstr ""
@@ -623,7 +623,7 @@ msgstr ""
 msgid "Failed to get the new container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/utils.go:403
+#: lxc/utils.go:404
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr ""
@@ -823,7 +823,7 @@ msgstr ""
 msgid "Memory usage:"
 msgstr ""
 
-#: lxc/utils.go:258
+#: lxc/utils.go:259
 msgid "Missing summary."
 msgstr "Fehlende Zusammenfassung."
 
@@ -1000,7 +1000,7 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1332 lxc/config.go:1382
+#: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1333 lxc/config.go:1383
 #: lxc/image.go:1191
 msgid "Press enter to start the editor again"
 msgstr ""
@@ -1093,7 +1093,7 @@ msgstr ""
 msgid "Remote admin password"
 msgstr "Entferntes Administrator Passwort"
 
-#: lxc/utils.go:366
+#: lxc/utils.go:367
 #, fuzzy
 msgid "Remote operation canceled by user"
 msgstr "Server Zertifikat vom Benutzer nicht akzeptiert"
@@ -2469,7 +2469,7 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr ""
 
-#: lxc/utils.go:371
+#: lxc/utils.go:372
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."
