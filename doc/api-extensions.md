@@ -398,3 +398,6 @@ of connections between the host and container.
 
 ## network\_dhcp\_gateway
 Introduces a new ipv4.dhcp.gateway network config key to set an alternate gateway.
+
+## file\_get\_symlink
+This makes it possible to retrieve symlinks using the file API.
