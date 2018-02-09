@@ -52,7 +52,7 @@ func TestShouldShow(t *testing.T) {
 }
 
 // Used by TestColumns and TestInvalidColumns
-const shorthand = "46abcdlnNpPsStH"
+const shorthand = "46abcdlnNpPsStL"
 const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 func TestColumns(t *testing.T) {
@@ -160,7 +160,7 @@ func TestColumns(t *testing.T) {
 
 			list := listCmd{columnsRaw: raw}
 
-			clustered := strings.Contains(raw, "H")
+			clustered := strings.Contains(raw, "L")
 			columns, err := list.parseColumns(clustered)
 			if err != nil {
 				t.Errorf("Failed to parse columns string.  Input: %s, Error: %s", raw, err)
