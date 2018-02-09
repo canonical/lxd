@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-10 13:42-0500\n"
+"POT-Creation-Date: 2018-02-10 15:56-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -171,7 +171,7 @@ msgstr "'%s' はサポートされないタイプのファイルです。"
 msgid "(none)"
 msgstr ""
 
-#: lxc/image.go:230 lxc/image.go:1135
+#: lxc/alias.go:84 lxc/image.go:230 lxc/image.go:1135
 msgid "ALIAS"
 msgstr ""
 
@@ -868,7 +868,7 @@ msgstr "別のクライアント用設定ディレクトリ"
 msgid "Path to an alternate server directory"
 msgstr "別のサーバ用設定ディレクトリ"
 
-#: lxc/main.go:238
+#: lxc/main.go:239
 msgid "Pause containers."
 msgstr "コンテナを一時停止します。"
 
@@ -1007,7 +1007,7 @@ msgstr "ユーザの確認を要求する"
 msgid "Resources:"
 msgstr "リソース:"
 
-#: lxc/main.go:246
+#: lxc/main.go:247
 msgid "Restart containers."
 msgstr "コンテナを再起動します。"
 
@@ -1126,7 +1126,7 @@ msgstr "一部のコンテナで %s が失敗しました"
 msgid "Source:"
 msgstr "取得元:"
 
-#: lxc/main.go:256
+#: lxc/main.go:257
 msgid "Start containers."
 msgstr "コンテナを起動します。"
 
@@ -1140,7 +1140,7 @@ msgstr "%s を起動中"
 msgid "Status: %s"
 msgstr "状態: %s"
 
-#: lxc/main.go:262
+#: lxc/main.go:263
 msgid "Stop containers."
 msgstr "コンテナを停止します。"
 
@@ -1192,6 +1192,10 @@ msgstr "Swap (現在値)"
 #: lxc/info.go:202
 msgid "Swap (peak)"
 msgstr "Swap (ピーク)"
+
+#: lxc/alias.go:85
+msgid "TARGET"
+msgstr ""
 
 #: lxc/list.go:473 lxc/network.go:498 lxc/network.go:555 lxc/operation.go:153
 #: lxc/storage.go:879
@@ -1354,6 +1358,25 @@ msgstr ""
 #: lxc/help.go:45
 msgid "Usage: lxc <command> [options]"
 msgstr "使い方: lxc <コマンド> [オプション]"
+
+#: lxc/alias.go:22
+msgid ""
+"Usage: lxc alias <subcommand> [options]\n"
+"\n"
+"Manage command aliases.\n"
+"\n"
+"lxc alias add <alias> <target>\n"
+"    Add a new alias <alias> pointing to <target>.\n"
+"\n"
+"lxc alias remove <alias>\n"
+"    Remove the alias <alias>.\n"
+"\n"
+"lxc alias list\n"
+"    List all the aliases.\n"
+"\n"
+"lxc alias rename <old alias> <new alias>\n"
+"    Rename remote <old alias> to <new alias>."
+msgstr ""
 
 #: lxc/config.go:85
 msgid ""
@@ -2968,6 +2991,16 @@ msgstr "コピー元のコンテナ名を指定してください"
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr "`lxc config profile` は廃止されました。`lxc profile` を使ってください"
 
+#: lxc/alias.go:56 lxc/alias.go:102
+#, fuzzy, c-format
+msgid "alias %s already exists"
+msgstr "リモート %s は既に存在します"
+
+#: lxc/alias.go:68 lxc/alias.go:97
+#, fuzzy, c-format
+msgid "alias %s doesn't exist"
+msgstr "リモート %s は存在しません"
+
 #: lxc/remote.go:370
 msgid "can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
@@ -3028,7 +3061,7 @@ msgstr ""
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:366 lxc/main.go:370
+#: lxc/main.go:367 lxc/main.go:371
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
@@ -3082,7 +3115,7 @@ msgstr ""
 msgid "used by"
 msgstr ""
 
-#: lxc/main.go:297
+#: lxc/main.go:298
 msgid "wrong number of subcommand arguments"
 msgstr "サブコマンドの引数の数が正しくありません"
 

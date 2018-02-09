@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-10 13:42-0500\n"
+"POT-Creation-Date: 2018-02-10 15:56-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: Bruno Perel <brunoperel@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -266,7 +266,7 @@ msgstr "'%s' n'est pas un format de fichier pris en charge."
 msgid "(none)"
 msgstr "(aucun)"
 
-#: lxc/image.go:230 lxc/image.go:1135
+#: lxc/alias.go:84 lxc/image.go:230 lxc/image.go:1135
 msgid "ALIAS"
 msgstr "ALIAS"
 
@@ -984,7 +984,7 @@ msgstr "Chemin vers un dossier de configuration client alternatif"
 msgid "Path to an alternate server directory"
 msgstr "Chemin vers un dossier de configuration serveur alternatif"
 
-#: lxc/main.go:238
+#: lxc/main.go:239
 #, fuzzy
 msgid "Pause containers."
 msgstr "Création du conteneur"
@@ -1125,7 +1125,7 @@ msgstr "Requérir une confirmation de l'utilisateur"
 msgid "Resources:"
 msgstr "Ressources :"
 
-#: lxc/main.go:246
+#: lxc/main.go:247
 #, fuzzy
 msgid "Restart containers."
 msgstr "Création du conteneur"
@@ -1249,7 +1249,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Source:"
 msgstr "Source :"
 
-#: lxc/main.go:256
+#: lxc/main.go:257
 #, fuzzy
 msgid "Start containers."
 msgstr "Création du conteneur"
@@ -1264,7 +1264,7 @@ msgstr "Démarrage de %s"
 msgid "Status: %s"
 msgstr "État : %s"
 
-#: lxc/main.go:262
+#: lxc/main.go:263
 #, fuzzy
 msgid "Stop containers."
 msgstr "L'arrêt du conteneur a échoué !"
@@ -1317,6 +1317,10 @@ msgstr "Swap (courant)"
 #: lxc/info.go:202
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
+
+#: lxc/alias.go:85
+msgid "TARGET"
+msgstr ""
 
 #: lxc/list.go:473 lxc/network.go:498 lxc/network.go:555 lxc/operation.go:153
 #: lxc/storage.go:879
@@ -1478,6 +1482,25 @@ msgstr ""
 #: lxc/help.go:45
 msgid "Usage: lxc <command> [options]"
 msgstr "Utilisation : lxc <commande> [options]"
+
+#: lxc/alias.go:22
+msgid ""
+"Usage: lxc alias <subcommand> [options]\n"
+"\n"
+"Manage command aliases.\n"
+"\n"
+"lxc alias add <alias> <target>\n"
+"    Add a new alias <alias> pointing to <target>.\n"
+"\n"
+"lxc alias remove <alias>\n"
+"    Remove the alias <alias>.\n"
+"\n"
+"lxc alias list\n"
+"    List all the aliases.\n"
+"\n"
+"lxc alias rename <old alias> <new alias>\n"
+"    Rename remote <old alias> to <new alias>."
+msgstr ""
 
 #: lxc/config.go:85
 #, fuzzy
@@ -2828,6 +2851,16 @@ msgstr ""
 "La commande `lxc config profile` est dépréciée, merci d'utiliser `lxc "
 "profile`"
 
+#: lxc/alias.go:56 lxc/alias.go:102
+#, fuzzy, c-format
+msgid "alias %s already exists"
+msgstr "le serveur distant %s existe déjà"
+
+#: lxc/alias.go:68 lxc/alias.go:97
+#, fuzzy, c-format
+msgid "alias %s doesn't exist"
+msgstr "le serveur distant %s n'existe pas"
+
 #: lxc/remote.go:370
 msgid "can't remove the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
@@ -2886,7 +2919,7 @@ msgstr "non"
 msgid "ok (y/n)?"
 msgstr "ok (y/n) ?"
 
-#: lxc/main.go:366 lxc/main.go:370
+#: lxc/main.go:367 lxc/main.go:371
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "l'analyse des alias a échoué %s\n"
@@ -2940,7 +2973,7 @@ msgstr ""
 msgid "used by"
 msgstr ""
 
-#: lxc/main.go:297
+#: lxc/main.go:298
 msgid "wrong number of subcommand arguments"
 msgstr "nombre d'arguments incorrect pour la sous-comande"
 
