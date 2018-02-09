@@ -110,6 +110,16 @@ func (c *fileCmd) recursivePullFile(d lxd.ContainerServer, container string, p s
 		if err != nil {
 			return err
 		}
+	} else if resp.Type == "symlink" {
+		linkTarget, err := ioutil.ReadAll(buf)
+		if err != nil {
+			return err
+		}
+
+		err = os.Symlink(strings.TrimSpace(string(linkTarget)), target)
+		if err != nil {
+			return err
+		}
 	} else {
 		return fmt.Errorf(i18n.G("Unknown file type '%s'"), resp.Type)
 	}
@@ -504,6 +514,20 @@ func (c *fileCmd) pull(conf *config.Config, args []string) error {
 		if targetPath == "-" {
 			f = os.Stdout
 		} else {
+			if resp.Type == "symlink" {
+				linkTarget, err := ioutil.ReadAll(buf)
+				if err != nil {
+					return err
+				}
+
+				err = os.Symlink(strings.TrimSpace(string(linkTarget)), targetPath)
+				if err != nil {
+					return err
+				}
+
+				continue
+			}
+
 			f, err = os.Create(targetPath)
 			if err != nil {
 				return err

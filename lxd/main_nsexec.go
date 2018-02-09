@@ -188,6 +188,8 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 	int exists = 1;
 	bool is_dir_manip = type != NULL && !strcmp(type, "directory");
 	bool is_symlink_manip = type != NULL && !strcmp(type, "symlink");
+	char link_target[PATH_MAX];
+	ssize_t link_length;
 
 	if (!is_dir_manip && !is_symlink_manip) {
 		host_fd = open(host, O_RDWR);
@@ -268,7 +270,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		return 0;
 	}
 
-	if (stat(container, &st) < 0)
+	if (fstatat(AT_FDCWD, container, &st, AT_SYMLINK_NOFOLLOW) < 0)
 		exists = 0;
 
 	container_open_flags = O_RDWR;
@@ -282,6 +284,23 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 
 	if (exists && S_ISDIR(st.st_mode))
 		container_open_flags = O_DIRECTORY;
+
+	if (!is_put && exists && S_ISLNK(st.st_mode)) {
+		fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
+		fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
+		fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+		fprintf(stderr, "type: symlink\n");
+
+		link_length = readlink(container, link_target, PATH_MAX);
+		if (link_length < 0 || link_length >= PATH_MAX) {
+			error("error: readlink");
+			goto close_host;
+		}
+		link_target[link_length] = '\0';
+
+		dprintf(host_fd, "%s\n", link_target);
+		goto close_container;
+	}
 
 	umask(0);
 	container_fd = open(container, container_open_flags, 0);
@@ -321,7 +340,6 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		}
 		ret = 0;
 	} else {
-
 		if (fstat(container_fd, &st) < 0) {
 			error("error: stat");
 			goto close_container;
