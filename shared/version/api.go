@@ -89,4 +89,5 @@ var APIExtensions = []string{
 	"proxy",
 	"network_dhcp_gateway",
 	"file_get_symlink",
+	"network_leases",
 }
