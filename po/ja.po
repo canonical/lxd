@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-09 20:13-0500\n"
+"POT-Creation-Date: 2018-02-10 13:42-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -274,7 +274,7 @@ msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
 
-#: lxc/config.go:207 lxc/network.go:560
+#: lxc/config.go:207 lxc/network.go:592
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
@@ -319,7 +319,7 @@ msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
 #: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1332 lxc/image.go:1190
-#: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
+#: lxc/network.go:431 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
@@ -385,7 +385,7 @@ msgstr "%s を作成中"
 msgid "Creating the container"
 msgstr "コンテナを作成中"
 
-#: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:525
+#: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:557
 #: lxc/storage.go:692 lxc/storage.go:881
 msgid "DESCRIPTION"
 msgstr ""
@@ -521,7 +521,7 @@ msgstr "パス %s にアクセスできませんでした: %s"
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Fast モード (--columns=nsacPt と同じ)"
 
-#: lxc/network.go:486 lxc/operation.go:121
+#: lxc/network.go:518 lxc/operation.go:121
 msgid "Filtering isn't supported yet"
 msgstr "情報表示のフィルタリングはまだサポートされていません"
 
@@ -554,9 +554,17 @@ msgstr "フォーマット (csv|json|table|yaml)"
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
+#: lxc/network.go:495
+msgid "HOSTNAME"
+msgstr ""
+
 #: lxc/operation.go:152
 msgid "ID"
 msgstr "ID"
+
+#: lxc/network.go:497
+msgid "IP ADDRESS"
+msgstr ""
 
 #: lxc/list.go:461
 msgid "IPV4"
@@ -676,7 +684,11 @@ msgstr "最終使用: 未使用"
 msgid "Log:"
 msgstr "ログ:"
 
-#: lxc/network.go:524
+#: lxc/network.go:496
+msgid "MAC ADDRESS"
+msgstr ""
+
+#: lxc/network.go:556
 msgid "MANAGED"
 msgstr ""
 
@@ -708,7 +720,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
-#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:412 lxc/storage.go:532
+#: lxc/network.go:289 lxc/network.go:342 lxc/storage.go:412 lxc/storage.go:532
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
@@ -730,12 +742,12 @@ msgstr "ディレクトリからのインポートは root で実行する必要
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
-#: lxc/list.go:467 lxc/network.go:522 lxc/profile.go:573 lxc/remote.go:409
+#: lxc/list.go:467 lxc/network.go:554 lxc/profile.go:573 lxc/remote.go:409
 #: lxc/storage.go:691 lxc/storage.go:880
 msgid "NAME"
 msgstr ""
 
-#: lxc/network.go:508 lxc/operation.go:139 lxc/remote.go:380 lxc/remote.go:385
+#: lxc/network.go:540 lxc/operation.go:139 lxc/remote.go:380 lxc/remote.go:385
 msgid "NO"
 msgstr ""
 
@@ -744,17 +756,17 @@ msgstr ""
 msgid "Name: %s"
 msgstr "コンテナ名: %s"
 
-#: lxc/network.go:258
+#: lxc/network.go:263
 #, c-format
 msgid "Network %s created"
 msgstr "ネットワーク %s を作成しました"
 
-#: lxc/network.go:374
+#: lxc/network.go:379
 #, c-format
 msgid "Network %s deleted"
 msgstr "ネットワーク %s を削除しました"
 
-#: lxc/network.go:451
+#: lxc/network.go:456
 #, c-format
 msgid "Network %s renamed to %s"
 msgstr "ネットワーク名 %s を %s に変更しました"
@@ -775,7 +787,7 @@ msgstr "新しいエイリアスを定義する"
 msgid "No certificate provided to add"
 msgstr "追加すべき証明書が提供されていません"
 
-#: lxc/network.go:293 lxc/network.go:346
+#: lxc/network.go:298 lxc/network.go:351
 msgid "No device found for this network"
 msgstr "このネットワークに対するデバイスがありません"
 
@@ -799,7 +811,7 @@ msgstr "simplestreams は https の URL のみサポートします"
 msgid "Only https:// is supported for remote image import."
 msgstr "リモートイメージのインポートは https:// のみをサポートします。"
 
-#: lxc/network.go:402 lxc/network.go:546
+#: lxc/network.go:407 lxc/network.go:578
 msgid "Only managed networks can be modified."
 msgstr "管理対象のネットワークのみ変更できます。"
 
@@ -869,7 +881,7 @@ msgstr "アクセスが拒否されました。lxd グループに所属して�
 msgid "Pid: %d"
 msgstr "Pid: %d"
 
-#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:615 lxc/storage.go:1068
+#: lxc/network.go:432 lxc/profile.go:276 lxc/storage.go:615 lxc/storage.go:1068
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
@@ -1181,7 +1193,8 @@ msgstr "Swap (現在値)"
 msgid "Swap (peak)"
 msgstr "Swap (ピーク)"
 
-#: lxc/list.go:473 lxc/network.go:523 lxc/operation.go:153 lxc/storage.go:879
+#: lxc/list.go:473 lxc/network.go:498 lxc/network.go:555 lxc/operation.go:153
+#: lxc/storage.go:879
 msgid "TYPE"
 msgstr ""
 
@@ -1220,11 +1233,11 @@ msgstr ""
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
-#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:426 lxc/storage.go:546
+#: lxc/network.go:303 lxc/network.go:356 lxc/storage.go:426 lxc/storage.go:546
 msgid "The specified device doesn't exist"
 msgstr "指定したデバイスが存在しません"
 
-#: lxc/network.go:302 lxc/network.go:355
+#: lxc/network.go:307 lxc/network.go:360
 msgid "The specified device doesn't match the network"
 msgstr "指定したデバイスはネットワークとマッチしません"
 
@@ -1309,7 +1322,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:695 lxc/storage.go:882
+#: lxc/network.go:558 lxc/profile.go:574 lxc/storage.go:695 lxc/storage.go:882
 msgid "USED BY"
 msgstr ""
 
@@ -2241,6 +2254,7 @@ msgstr ""
 "    スナップショットをリネームします。"
 
 #: lxc/network.go:50
+#, fuzzy
 msgid ""
 "Usage: lxc network <subcommand> [options]\n"
 "\n"
@@ -2248,6 +2262,9 @@ msgid ""
 "\n"
 "lxc network list [<remote>:]\n"
 "    List available networks.\n"
+"\n"
+"lxc network list-leases [<remote>:]<network>\n"
+"    List the DHCP leases for the network\n"
 "\n"
 "lxc network show [<remote>:]<network>\n"
 "    Show details of a network.\n"
@@ -2930,7 +2947,7 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
-#: lxc/network.go:510 lxc/operation.go:141 lxc/remote.go:382 lxc/remote.go:387
+#: lxc/network.go:542 lxc/operation.go:141 lxc/remote.go:382 lxc/remote.go:387
 msgid "YES"
 msgstr ""
 
