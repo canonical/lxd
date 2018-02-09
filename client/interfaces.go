@@ -122,6 +122,7 @@ type ContainerServer interface {
 	GetNetworkNames() (names []string, err error)
 	GetNetworks() (networks []api.Network, err error)
 	GetNetwork(name string) (network *api.Network, ETag string, err error)
+	GetNetworkLeases(name string) (leases []api.NetworkLease, err error)
 	CreateNetwork(network api.NetworksPost) (err error)
 	UpdateNetwork(name string, network api.NetworkPut, ETag string) (err error)
 	RenameNetwork(name string, network api.NetworkPost) (err error)
