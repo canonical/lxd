@@ -100,16 +100,21 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 
 			switch table {
 			case "config":
-				// Don't migrate the core.https_address config key,
+				// Don't migrate the core.https_address and maas.machine config keys,
 				// which is node-specific and must remain in the node
 				// database.
-				isCoreHTTPSAddress := false
+				keys := []string{"core.https_address", "maas.machine"}
+				skip := false
 				for i, column := range columns {
-					if column == "key" && row[i] == "core.https_address" {
-						isCoreHTTPSAddress = true
+					value, ok := row[i].(string)
+					if !ok {
+						continue
+					}
+					if column == "key" && shared.StringInSlice(value, keys) {
+						skip = true
 					}
 				}
-				if isCoreHTTPSAddress {
+				if skip {
 					continue
 				}
 			case "containers":

@@ -396,16 +396,26 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 		// in the cluster is different than what we had locally before
 		// joining. Ideally this should be something transparent or
 		// more generic, perhaps triggering some parts of Daemon.Init.
-		var config *cluster.Config
+		var clusterConfig *cluster.Config
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			config, err = cluster.ConfigLoad(tx)
+			clusterConfig, err = cluster.ConfigLoad(tx)
 			return err
 		})
 		if err != nil {
 			return err
 		}
-		url, key, machine := config.MAASController()
+		var nodeConfig *node.Config
+		err = d.db.Transaction(func(tx *db.NodeTx) error {
+			var err error
+			nodeConfig, err = node.ConfigLoad(tx)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		url, key := clusterConfig.MAASController()
+		machine := nodeConfig.MAASMachine()
 		err = d.setupMAASController(url, key, machine)
 		if err != nil {
 			return err
