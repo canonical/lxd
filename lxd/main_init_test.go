@@ -192,7 +192,6 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClusteringJoin() {
 		ClusterAddress:           fmt.Sprintf("127.0.0.1:%d", port),
 		WantJoinCluster:          true,
 		ClusterTargetNodeAddress: leader.endpoints.NetworkAddress(),
-		ClusterAcceptFingerprint: true,
 		ClusterConfirmLosingData: true,
 		ClusterConfig: []string{
 			"", // storage source
@@ -774,7 +773,6 @@ type cmdInitAnswers struct {
 	ClusterAddress           string
 	WantJoinCluster          bool
 	ClusterTargetNodeAddress string
-	ClusterAcceptFingerprint bool
 	ClusterConfirmLosingData bool
 	ClusterConfig            []string
 	WantStoragePool          bool
@@ -798,7 +796,6 @@ func (answers *cmdInitAnswers) Render(streams *cmd.MemoryStreams) {
 		streams.InputAppendBoolAnswer(answers.WantJoinCluster)
 		if answers.WantJoinCluster {
 			streams.InputAppendLine(answers.ClusterTargetNodeAddress)
-			streams.InputAppendBoolAnswer(answers.ClusterAcceptFingerprint)
 			streams.InputAppendBoolAnswer(answers.ClusterConfirmLosingData)
 			for _, value := range answers.ClusterConfig {
 				streams.InputAppendLine(value)

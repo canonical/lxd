@@ -814,8 +814,6 @@ func (cmd *CmdInit) askClustering() (*cmdInitClusteringParams, error) {
 join:
 	targetAddress := cmd.Context.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
 	params.TargetAddress = util.CanonicalNetworkAddress(targetAddress)
-	params.TargetPassword = cmd.Context.AskPasswordOnce(
-		"Trust password for the existing cluster: ", cmd.PasswordReader)
 
 	url := fmt.Sprintf("https://%s", params.TargetAddress)
 	certificate, err := shared.GetRemoteCertificate(url)
@@ -824,10 +822,10 @@ join:
 		goto join
 	}
 	digest := shared.CertFingerprint(certificate)
-	askFingerprint := fmt.Sprintf("Remote node fingerprint: %s ok (yes/no)? ", digest)
-	if !cmd.Context.AskBool(askFingerprint, "") {
-		return nil, fmt.Errorf("Cluster certificate NACKed by user")
-	}
+
+	params.TargetPassword = cmd.Context.AskPasswordOnce(
+		fmt.Sprintf("Trust password for node with fingerprint %s: ", digest), cmd.PasswordReader)
+
 	params.TargetCert = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
 
 	// Confirm wipe this node
