@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-01-21 21:48+0000\n"
+"POT-Creation-Date: 2018-02-09 18:53-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -22,7 +22,7 @@ msgstr ""
 #: lxc/storage.go:34
 msgid ""
 "### This is a yaml representation of a storage pool.\n"
-"### Any line starting with a '# will be ignored.\n"
+"### Any line starting with a '#' will be ignored.\n"
 "###\n"
 "### A storage pool consists of a set of configuration items.\n"
 "###\n"
@@ -156,7 +156,7 @@ msgstr "%s (他%d個)"
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
 
-#: lxc/utils.go:375
+#: lxc/utils.go:376
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
@@ -318,7 +318,7 @@ msgstr "コマンド:"
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
-#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1190
+#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1332 lxc/image.go:1190
 #: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
 #, c-format
 msgid "Config parsing error: %s"
@@ -408,7 +408,7 @@ msgstr "デバイス %s が %s に追加されました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
-#: lxc/utils.go:307 lxc/utils.go:331
+#: lxc/utils.go:308 lxc/utils.go:332
 #, c-format
 msgid "Device already exists: %s"
 msgstr "デバイスは既に存在します: %s"
@@ -457,7 +457,7 @@ msgstr "環境変数:"
 msgid "Ephemeral container"
 msgstr "Ephemeral コンテナ"
 
-#: lxc/config.go:1381
+#: lxc/config.go:1382
 #, c-format
 msgid "Error updating template file: %s"
 msgstr "テンプレートファイル更新のエラー: %s"
@@ -488,7 +488,7 @@ msgstr ""
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/utils.go:413
+#: lxc/utils.go:414
 #, c-format
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
@@ -507,7 +507,7 @@ msgstr "'lxc.1' の生成が失敗しました: %v"
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナ名が取得できません"
 
-#: lxc/utils.go:403
+#: lxc/utils.go:404
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
@@ -700,7 +700,7 @@ msgstr "メモリ (ピーク)"
 msgid "Memory usage:"
 msgstr "メモリ消費量:"
 
-#: lxc/utils.go:258
+#: lxc/utils.go:259
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
@@ -869,7 +869,7 @@ msgstr "Pid: %d"
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
-#: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1332 lxc/config.go:1382
+#: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1333 lxc/config.go:1383
 #: lxc/image.go:1191
 msgid "Press enter to start the editor again"
 msgstr "再度エディタを起動するには Enter キーを押します"
@@ -960,7 +960,7 @@ msgstr "イメージの更新中: %s"
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
-#: lxc/utils.go:366
+#: lxc/utils.go:367
 msgid "Remote operation canceled by user"
 msgstr "リモート操作がユーザによってキャンセルされました"
 
@@ -2895,7 +2895,7 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr "ユーザが削除操作を中断しました。"
 
-#: lxc/utils.go:371
+#: lxc/utils.go:372
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-01-21 21:48+0000\n"
+"POT-Creation-Date: 2018-02-09 18:53-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: Bruno Perel <brunoperel@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -20,9 +20,10 @@ msgstr ""
 "X-Generator: Weblate 2.19-dev\n"
 
 #: lxc/storage.go:34
+#, fuzzy
 msgid ""
 "### This is a yaml representation of a storage pool.\n"
-"### Any line starting with a '# will be ignored.\n"
+"### Any line starting with a '#' will be ignored.\n"
 "###\n"
 "### A storage pool consists of a set of configuration items.\n"
 "###\n"
@@ -251,7 +252,7 @@ msgstr "%s (%d de plus)"
 msgid "%s is not a directory"
 msgstr "%s n'est pas un répertoire"
 
-#: lxc/utils.go:375
+#: lxc/utils.go:376
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrompre encore deux fois pour forcer)"
@@ -417,7 +418,7 @@ msgstr "Commandes :"
 msgid "Config key/value to apply to the new container"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
-#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1331 lxc/image.go:1190
+#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1332 lxc/image.go:1190
 #: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
 #, c-format
 msgid "Config parsing error: %s"
@@ -508,7 +509,7 @@ msgstr "Périphérique %s ajouté à %s"
 msgid "Device %s removed from %s"
 msgstr "Périphérique %s retiré de %s"
 
-#: lxc/utils.go:307 lxc/utils.go:331
+#: lxc/utils.go:308 lxc/utils.go:332
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "le serveur distant %s existe déjà"
@@ -558,7 +559,7 @@ msgstr "Environnement :"
 msgid "Ephemeral container"
 msgstr "Conteneur éphémère"
 
-#: lxc/config.go:1381
+#: lxc/config.go:1382
 #, fuzzy, c-format
 msgid "Error updating template file: %s"
 msgstr "Import de l'image : %s"
@@ -590,7 +591,7 @@ msgstr "NOM"
 msgid "FINGERPRINT"
 msgstr "EMPREINTE"
 
-#: lxc/utils.go:413
+#: lxc/utils.go:414
 #, fuzzy, c-format
 msgid "Failed to create alias %s"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -610,7 +611,7 @@ msgstr "Échec lors de la génération de 'lxc.1': %v"
 msgid "Failed to get the new container name"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/utils.go:403
+#: lxc/utils.go:404
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr ""
@@ -811,7 +812,7 @@ msgstr "Mémoire (pointe)"
 msgid "Memory usage:"
 msgstr "  Mémoire utilisée :"
 
-#: lxc/utils.go:258
+#: lxc/utils.go:259
 msgid "Missing summary."
 msgstr "Résumé manquant."
 
@@ -984,7 +985,7 @@ msgstr "Pid : %d"
 msgid "Press enter to open the editor again"
 msgstr "Appuyer sur Entrée pour ouvrir à nouveau l'éditeur"
 
-#: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1332 lxc/config.go:1382
+#: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1333 lxc/config.go:1383
 #: lxc/image.go:1191
 msgid "Press enter to start the editor again"
 msgstr "Appuyer sur Entrée pour lancer à nouveau l'éditeur"
@@ -1075,7 +1076,7 @@ msgstr "Récupération de l'image : %s"
 msgid "Remote admin password"
 msgstr "Mot de passe de l'administrateur distant"
 
-#: lxc/utils.go:366
+#: lxc/utils.go:367
 #, fuzzy
 msgid "Remote operation canceled by user"
 msgstr "Certificat serveur rejeté par l'utilisateur"
@@ -2753,7 +2754,7 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr "L'utilisateur a annulé l'opération de suppression."
 
-#: lxc/utils.go:371
+#: lxc/utils.go:372
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."
