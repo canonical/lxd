@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // lxdStorageLockMap is a hashmap that allows functions to check whether the
@@ -885,6 +886,14 @@ func storagePoolDriversCacheUpdate(dbNode *db.Node) {
 		// Grab the version
 		data[driver] = sCore.GetStorageTypeVersion()
 	}
+
+	backends := []string{}
+	for k, v := range data {
+		backends = append(backends, fmt.Sprintf("%s %s", k, v))
+	}
+
+	// Update the agent
+	version.UserAgentStorageBackends(backends)
 
 	storagePoolDriversCacheLock.Lock()
 	storagePoolDriversCacheVal.Store(data)
