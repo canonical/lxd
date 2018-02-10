@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-09 18:53-0500\n"
+"POT-Creation-Date: 2018-02-09 20:13-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -151,7 +151,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
 
-#: lxc/file.go:195
+#: lxc/file.go:205
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
@@ -162,7 +162,7 @@ msgid "%v (interrupt two more times to force)"
 msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
-#: lxc/file.go:132
+#: lxc/file.go:142
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr "'%s' はサポートされないタイプのファイルです。"
@@ -269,7 +269,7 @@ msgstr ""
 msgid "Cached: %s"
 msgstr "キャッシュ済: %s"
 
-#: lxc/file.go:491
+#: lxc/file.go:501
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
@@ -462,7 +462,7 @@ msgstr "Ephemeral コンテナ"
 msgid "Error updating template file: %s"
 msgstr "テンプレートファイル更新のエラー: %s"
 
-#: lxc/monitor.go:56
+#: lxc/monitor.go:69
 msgid "Event type to listen for"
 msgstr "Listenするイベントタイプ"
 
@@ -512,7 +512,7 @@ msgstr "新しいコンテナ名が取得できません"
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
 
-#: lxc/file.go:127
+#: lxc/file.go:137
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
@@ -627,7 +627,7 @@ msgstr "不正な証明書です"
 msgid "Invalid configuration key"
 msgstr "正しくない設定項目 (key) です"
 
-#: lxc/file.go:536
+#: lxc/file.go:560
 #, c-format
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
@@ -637,12 +637,12 @@ msgstr "不正なパス %s"
 msgid "Invalid protocol: %s"
 msgstr "不正なプロトコル: %s"
 
-#: lxc/file.go:463
+#: lxc/file.go:473
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:240
+#: lxc/file.go:250
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -700,6 +700,10 @@ msgstr "メモリ (ピーク)"
 msgid "Memory usage:"
 msgstr "メモリ消費量:"
 
+#: lxc/monitor.go:70
+msgid "Minimum level for log messages"
+msgstr ""
+
 #: lxc/utils.go:259
 msgid "Missing summary."
 msgstr "サマリーはありません。"
@@ -708,7 +712,7 @@ msgstr "サマリーはありません。"
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
 
-#: lxc/file.go:450
+#: lxc/file.go:460
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -873,6 +877,10 @@ msgstr "再度エディタを開くためには Enter キーを押します"
 #: lxc/image.go:1191
 msgid "Press enter to start the editor again"
 msgstr "再度エディタを起動するには Enter キーを押します"
+
+#: lxc/monitor.go:68
+msgid "Pretty rendering"
+msgstr ""
 
 #: lxc/help.go:73
 msgid "Print debug information"
@@ -1309,7 +1317,7 @@ msgstr ""
 msgid "Unable to find help2man."
 msgstr "help2man が見つかりません。"
 
-#: lxc/file.go:114
+#: lxc/file.go:124
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
@@ -2169,9 +2177,10 @@ msgstr ""
 "\n"
 "LXD の manpage をすべて生成します。"
 
-#: lxc/monitor.go:41
+#: lxc/monitor.go:49
+#, fuzzy
 msgid ""
-"Usage: lxc monitor [<remote>:] [--type=TYPE...]\n"
+"Usage: lxc monitor [<remote>:] [--type=TYPE...] [--pretty]\n"
 "\n"
 "Monitor a local or remote LXD server.\n"
 "\n"
@@ -2181,7 +2190,10 @@ msgid ""
 "\n"
 "*Examples*\n"
 "lxc monitor --type=logging\n"
-"    Only show log message."
+"    Only show log messages.\n"
+"\n"
+"lxc monitor --pretty --type=logging --loglevel=info\n"
+"    Show a pretty log of messages with info level or higher.\n"
 msgstr ""
 "使い方: lxc monitor [<remote>:] [--type=TYPE...]\n"
 "\n"
@@ -2943,7 +2955,7 @@ msgstr "`lxc config profile` は廃止されました。`lxc profile` を使っ�
 msgid "can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/file.go:286
+#: lxc/file.go:296
 msgid "can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -3004,7 +3016,7 @@ msgstr "ok (y/n)?"
 msgid "processing aliases failed %s\n"
 msgstr "エイリアスの処理が失敗しました %s\n"
 
-#: lxc/file.go:564
+#: lxc/file.go:588
 msgid "recursive edit doesn't make sense :("
 msgstr "再帰的な edit は意味がありません :("
 
