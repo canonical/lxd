@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/version"
 
 	log "github.com/lxc/lxd/shared/log15"
 )
@@ -759,30 +760,39 @@ func SetupStorageDriver(d *Daemon) error {
 	lvmVgName := daemonConfig["storage.lvm_vg_name"].Get()
 	zfsPoolName := daemonConfig["storage.zfs_pool_name"].Get()
 
+	setup := false
 	if lvmVgName != "" {
 		d.Storage, err = newStorage(d, storageTypeLvm)
 		if err != nil {
 			logger.Errorf("Could not initialize storage type LVM: %s - falling back to dir", err)
 		} else {
-			return nil
+			setup = true
 		}
 	} else if zfsPoolName != "" {
 		d.Storage, err = newStorage(d, storageTypeZfs)
 		if err != nil {
 			logger.Errorf("Could not initialize storage type ZFS: %s - falling back to dir", err)
 		} else {
-			return nil
+			setup = true
 		}
 	} else if d.os.BackingFS == "btrfs" {
 		d.Storage, err = newStorage(d, storageTypeBtrfs)
 		if err != nil {
 			logger.Errorf("Could not initialize storage type btrfs: %s - falling back to dir", err)
 		} else {
-			return nil
+			setup = true
 		}
 	}
 
-	d.Storage, err = newStorage(d, storageTypeDir)
+	if !setup {
+		d.Storage, err = newStorage(d, storageTypeDir)
+		if err != nil {
+			return err
+		}
+	}
 
-	return err
+	// Update the agent
+	version.UserAgentStorageBackends([]string{fmt.Sprintf("%s %s", d.Storage.GetStorageTypeName(), d.Storage.GetStorageTypeVersion())})
+
+	return nil
 }
