@@ -81,7 +81,7 @@ func run() error {
 		os.Args = []string{os.Args[0], "help", "--all"}
 	}
 
-	if shared.StringInSlice("--version", os.Args) {
+	if shared.StringInSlice("--version", os.Args) && !shared.StringInSlice("--", os.Args) {
 		os.Args = []string{os.Args[0], "version"}
 	}
 
