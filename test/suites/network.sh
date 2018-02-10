@@ -40,6 +40,9 @@ test_network() {
   grep -q "${v6_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts/nettest"
   lxc start nettest
 
+  lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v4_addr}"
+  lxc network list-leases lxdt$$ | grep STATIC | grep -q "${v6_addr}"
+
   SUCCESS=0
   # shellcheck disable=SC2034
   for i in $(seq 10); do

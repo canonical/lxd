@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-09 20:13-0500\n"
+"POT-Creation-Date: 2018-02-10 13:42-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: Bruno Perel <brunoperel@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -372,7 +372,7 @@ msgstr "Créé : %s"
 msgid "Can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
 
-#: lxc/config.go:207 lxc/network.go:560
+#: lxc/config.go:207 lxc/network.go:592
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "Impossible de lire depuis stdin : %s"
@@ -419,7 +419,7 @@ msgid "Config key/value to apply to the new container"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
 #: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1332 lxc/image.go:1190
-#: lxc/network.go:426 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
+#: lxc/network.go:431 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
 #, c-format
 msgid "Config parsing error: %s"
 msgstr "Erreur lors de la lecture de la configuration : %s"
@@ -486,7 +486,7 @@ msgstr "Création de %s"
 msgid "Creating the container"
 msgstr "Création du conteneur"
 
-#: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:525
+#: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:557
 #: lxc/storage.go:692 lxc/storage.go:881
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
@@ -626,7 +626,7 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Mode rapide (identique à --columns=nsacPt"
 
-#: lxc/network.go:486 lxc/operation.go:121
+#: lxc/network.go:518 lxc/operation.go:121
 msgid "Filtering isn't supported yet"
 msgstr ""
 
@@ -660,10 +660,19 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Génération d'un certificat client. Ceci peut prendre une minute…"
 
+#: lxc/network.go:495
+#, fuzzy
+msgid "HOSTNAME"
+msgstr "NOM"
+
 #: lxc/operation.go:152
 #, fuzzy
 msgid "ID"
 msgstr "PID"
+
+#: lxc/network.go:497
+msgid "IP ADDRESS"
+msgstr ""
 
 #: lxc/list.go:461
 msgid "IPV4"
@@ -787,7 +796,11 @@ msgstr "Dernière utilisation : jamais"
 msgid "Log:"
 msgstr "Journal : "
 
-#: lxc/network.go:524
+#: lxc/network.go:496
+msgid "MAC ADDRESS"
+msgstr ""
+
+#: lxc/network.go:556
 msgid "MANAGED"
 msgstr "GÉRÉ"
 
@@ -820,7 +833,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "Résumé manquant."
 
-#: lxc/network.go:284 lxc/network.go:337 lxc/storage.go:412 lxc/storage.go:532
+#: lxc/network.go:289 lxc/network.go:342 lxc/storage.go:412 lxc/storage.go:532
 msgid "More than one device matches, specify the device name."
 msgstr "Plus d'un périphérique correspond, spécifier le nom du périphérique."
 
@@ -842,12 +855,12 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/list.go:467 lxc/network.go:522 lxc/profile.go:573 lxc/remote.go:409
+#: lxc/list.go:467 lxc/network.go:554 lxc/profile.go:573 lxc/remote.go:409
 #: lxc/storage.go:691 lxc/storage.go:880
 msgid "NAME"
 msgstr "NOM"
 
-#: lxc/network.go:508 lxc/operation.go:139 lxc/remote.go:380 lxc/remote.go:385
+#: lxc/network.go:540 lxc/operation.go:139 lxc/remote.go:380 lxc/remote.go:385
 msgid "NO"
 msgstr "NON"
 
@@ -856,17 +869,17 @@ msgstr "NON"
 msgid "Name: %s"
 msgstr "Nom : %s"
 
-#: lxc/network.go:258
+#: lxc/network.go:263
 #, c-format
 msgid "Network %s created"
 msgstr "Le réseau %s a été créé"
 
-#: lxc/network.go:374
+#: lxc/network.go:379
 #, c-format
 msgid "Network %s deleted"
 msgstr "Le réseau %s a été supprimé"
 
-#: lxc/network.go:451
+#: lxc/network.go:456
 #, fuzzy, c-format
 msgid "Network %s renamed to %s"
 msgstr "Le réseau %s a été créé"
@@ -888,7 +901,7 @@ msgstr "Nouvel alias à définir sur la cible"
 msgid "No certificate provided to add"
 msgstr "Un certificat à ajouter n'a pas été fourni"
 
-#: lxc/network.go:293 lxc/network.go:346
+#: lxc/network.go:298 lxc/network.go:351
 msgid "No device found for this network"
 msgstr "Aucun périphérique existant pour ce réseau"
 
@@ -914,7 +927,7 @@ msgstr "Seules les URLs https sont supportées par simplestreams"
 msgid "Only https:// is supported for remote image import."
 msgstr "Seul https:// est supporté par l'import d'images distantes."
 
-#: lxc/network.go:402 lxc/network.go:546
+#: lxc/network.go:407 lxc/network.go:578
 msgid "Only managed networks can be modified."
 msgstr "Seuls les réseaux gérés par LXD peuvent être modifiés."
 
@@ -985,7 +998,7 @@ msgstr "Permission refusée, êtes-vous dans le groupe lxd ?"
 msgid "Pid: %d"
 msgstr "Pid : %d"
 
-#: lxc/network.go:427 lxc/profile.go:276 lxc/storage.go:615 lxc/storage.go:1068
+#: lxc/network.go:432 lxc/profile.go:276 lxc/storage.go:615 lxc/storage.go:1068
 msgid "Press enter to open the editor again"
 msgstr "Appuyer sur Entrée pour ouvrir à nouveau l'éditeur"
 
@@ -1305,7 +1318,8 @@ msgstr "Swap (courant)"
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
 
-#: lxc/list.go:473 lxc/network.go:523 lxc/operation.go:153 lxc/storage.go:879
+#: lxc/list.go:473 lxc/network.go:498 lxc/network.go:555 lxc/operation.go:153
+#: lxc/storage.go:879
 msgid "TYPE"
 msgstr "TYPE"
 
@@ -1347,11 +1361,11 @@ msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "Le pendant de `lxc pause` est `lxc start`."
 
-#: lxc/network.go:298 lxc/network.go:351 lxc/storage.go:426 lxc/storage.go:546
+#: lxc/network.go:303 lxc/network.go:356 lxc/storage.go:426 lxc/storage.go:546
 msgid "The specified device doesn't exist"
 msgstr "Le périphérique indiqué n'existe pas"
 
-#: lxc/network.go:302 lxc/network.go:355
+#: lxc/network.go:307 lxc/network.go:360
 msgid "The specified device doesn't match the network"
 msgstr "le périphérique indiqué ne correspond pas au réseau"
 
@@ -1432,7 +1446,7 @@ msgstr "DATE DE PUBLICATION"
 msgid "URL"
 msgstr "URL"
 
-#: lxc/network.go:526 lxc/profile.go:574 lxc/storage.go:695 lxc/storage.go:882
+#: lxc/network.go:558 lxc/profile.go:574 lxc/storage.go:695 lxc/storage.go:882
 msgid "USED BY"
 msgstr "UTILISÉ PAR"
 
@@ -2264,6 +2278,9 @@ msgid ""
 "lxc network list [<remote>:]\n"
 "    List available networks.\n"
 "\n"
+"lxc network list-leases [<remote>:]<network>\n"
+"    List the DHCP leases for the network\n"
+"\n"
 "lxc network show [<remote>:]<network>\n"
 "    Show details of a network.\n"
 "\n"
@@ -2787,7 +2804,7 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "Réaliser ou pas l'instantané de l'état de fonctionnement du conteneur"
 
-#: lxc/network.go:510 lxc/operation.go:141 lxc/remote.go:382 lxc/remote.go:387
+#: lxc/network.go:542 lxc/operation.go:141 lxc/remote.go:382 lxc/remote.go:387
 msgid "YES"
 msgstr "OUI"
 

@@ -9,7 +9,6 @@ test_pki() {
   (
     set -e
     cd "${TEST_DIR}/pki"
-    ls
     # shellcheck disable=SC1091
     . ./vars
     ./clean-all

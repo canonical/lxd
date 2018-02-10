@@ -54,6 +54,19 @@ func (r *ProtocolLXD) GetNetwork(name string) (*api.Network, string, error) {
 	return &network, etag, nil
 }
 
+// GetNetworkLeases returns a list of Network struct
+func (r *ProtocolLXD) GetNetworkLeases(name string) ([]api.NetworkLease, error) {
+	leases := []api.NetworkLease{}
+
+	// Fetch the raw value
+	_, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s/leases", url.QueryEscape(name)), nil, "", &leases)
+	if err != nil {
+		return nil, err
+	}
+
+	return leases, nil
+}
+
 // CreateNetwork defines a new network using the provided Network struct
 func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) error {
 	if !r.HasExtension("network") {

@@ -44,3 +44,13 @@ type Network struct {
 func (network *Network) Writable() NetworkPut {
 	return network.NetworkPut
 }
+
+// NetworkLease represents a DHCP lease
+//
+// API extension: network_leases
+type NetworkLease struct {
+	Hostname string `json:"hostname" yaml:"hostname"`
+	Hwaddr   string `json:"hwaddr" yaml:"hwaddr"`
+	Address  string `json:"address" yaml:"address"`
+	Type     string `json:"type" yaml:"type"`
+}
