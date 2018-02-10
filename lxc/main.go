@@ -213,6 +213,7 @@ type command interface {
 }
 
 var commands = map[string]command{
+	"alias":     &aliasCmd{},
 	"config":    &configCmd{},
 	"console":   &consoleCmd{},
 	"copy":      &copyCmd{},
