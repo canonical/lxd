@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2018-02-09 18:53-0500\n"
+        "POT-Creation-Date: 2018-02-09 20:13-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -141,7 +141,7 @@ msgstr  ""
 msgid   "%s (%d more)"
 msgstr  ""
 
-#: lxc/file.go:195
+#: lxc/file.go:205
 #, c-format
 msgid   "%s is not a directory"
 msgstr  ""
@@ -151,7 +151,7 @@ msgstr  ""
 msgid   "%v (interrupt two more times to force)"
 msgstr  ""
 
-#: lxc/file.go:132
+#: lxc/file.go:142
 #, c-format
 msgid   "'%s' isn't a supported file type."
 msgstr  ""
@@ -258,7 +258,7 @@ msgstr  ""
 msgid   "Cached: %s"
 msgstr  ""
 
-#: lxc/file.go:491
+#: lxc/file.go:501
 msgid   "Can't pull a directory without --recursive"
 msgstr  ""
 
@@ -448,7 +448,7 @@ msgstr  ""
 msgid   "Error updating template file: %s"
 msgstr  ""
 
-#: lxc/monitor.go:56
+#: lxc/monitor.go:69
 msgid   "Event type to listen for"
 msgstr  ""
 
@@ -498,7 +498,7 @@ msgstr  ""
 msgid   "Failed to remove alias %s"
 msgstr  ""
 
-#: lxc/file.go:127
+#: lxc/file.go:137
 #, c-format
 msgid   "Failed to walk path for %s: %s"
 msgstr  ""
@@ -610,7 +610,7 @@ msgstr  ""
 msgid   "Invalid configuration key"
 msgstr  ""
 
-#: lxc/file.go:536
+#: lxc/file.go:560
 #, c-format
 msgid   "Invalid path %s"
 msgstr  ""
@@ -620,12 +620,12 @@ msgstr  ""
 msgid   "Invalid protocol: %s"
 msgstr  ""
 
-#: lxc/file.go:463
+#: lxc/file.go:473
 #, c-format
 msgid   "Invalid source %s"
 msgstr  ""
 
-#: lxc/file.go:240
+#: lxc/file.go:250
 #, c-format
 msgid   "Invalid target %s"
 msgstr  ""
@@ -683,6 +683,10 @@ msgstr  ""
 msgid   "Memory usage:"
 msgstr  ""
 
+#: lxc/monitor.go:70
+msgid   "Minimum level for log messages"
+msgstr  ""
+
 #: lxc/utils.go:259
 msgid   "Missing summary."
 msgstr  ""
@@ -691,7 +695,7 @@ msgstr  ""
 msgid   "More than one device matches, specify the device name."
 msgstr  ""
 
-#: lxc/file.go:450
+#: lxc/file.go:460
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
@@ -851,6 +855,10 @@ msgstr  ""
 
 #: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1333 lxc/config.go:1383 lxc/image.go:1191
 msgid   "Press enter to start the editor again"
+msgstr  ""
+
+#: lxc/monitor.go:68
+msgid   "Pretty rendering"
 msgstr  ""
 
 #: lxc/help.go:73
@@ -1271,7 +1279,7 @@ msgstr  ""
 msgid   "Unable to find help2man."
 msgstr  ""
 
-#: lxc/file.go:114
+#: lxc/file.go:124
 #, c-format
 msgid   "Unknown file type '%s'"
 msgstr  ""
@@ -1689,8 +1697,8 @@ msgid   "Usage: lxc manpage <directory>\n"
         "Generate all the LXD manpages."
 msgstr  ""
 
-#: lxc/monitor.go:41
-msgid   "Usage: lxc monitor [<remote>:] [--type=TYPE...]\n"
+#: lxc/monitor.go:49
+msgid   "Usage: lxc monitor [<remote>:] [--type=TYPE...] [--pretty]\n"
         "\n"
         "Monitor a local or remote LXD server.\n"
         "\n"
@@ -1700,7 +1708,10 @@ msgid   "Usage: lxc monitor [<remote>:] [--type=TYPE...]\n"
         "\n"
         "*Examples*\n"
         "lxc monitor --type=logging\n"
-        "    Only show log message."
+        "    Only show log messages.\n"
+        "\n"
+        "lxc monitor --pretty --type=logging --loglevel=info\n"
+        "    Show a pretty log of messages with info level or higher.\n"
 msgstr  ""
 
 #: lxc/move.go:24
@@ -2084,7 +2095,7 @@ msgstr  ""
 msgid   "can't remove the default remote"
 msgstr  ""
 
-#: lxc/file.go:286
+#: lxc/file.go:296
 msgid   "can't supply uid/gid/mode in recursive mode"
 msgstr  ""
 
@@ -2143,7 +2154,7 @@ msgstr  ""
 msgid   "processing aliases failed %s\n"
 msgstr  ""
 
-#: lxc/file.go:564
+#: lxc/file.go:588
 msgid   "recursive edit doesn't make sense :("
 msgstr  ""
 
