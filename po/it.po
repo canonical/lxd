@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-10 13:42-0500\n"
+"POT-Creation-Date: 2018-02-10 15:56-0500\n"
 "PO-Revision-Date: 2017-08-18 14:22+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -192,7 +192,7 @@ msgstr "'%s' non è un tipo di file supportato."
 msgid "(none)"
 msgstr "(nessuno)"
 
-#: lxc/image.go:230 lxc/image.go:1135
+#: lxc/alias.go:84 lxc/image.go:230 lxc/image.go:1135
 msgid "ALIAS"
 msgstr "ALIAS"
 
@@ -887,7 +887,7 @@ msgstr ""
 msgid "Path to an alternate server directory"
 msgstr ""
 
-#: lxc/main.go:238
+#: lxc/main.go:239
 msgid "Pause containers."
 msgstr ""
 
@@ -1026,7 +1026,7 @@ msgstr ""
 msgid "Resources:"
 msgstr ""
 
-#: lxc/main.go:246
+#: lxc/main.go:247
 msgid "Restart containers."
 msgstr ""
 
@@ -1145,7 +1145,7 @@ msgstr ""
 msgid "Source:"
 msgstr ""
 
-#: lxc/main.go:256
+#: lxc/main.go:257
 msgid "Start containers."
 msgstr ""
 
@@ -1159,7 +1159,7 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/main.go:262
+#: lxc/main.go:263
 msgid "Stop containers."
 msgstr ""
 
@@ -1210,6 +1210,10 @@ msgstr ""
 
 #: lxc/info.go:202
 msgid "Swap (peak)"
+msgstr ""
+
+#: lxc/alias.go:85
+msgid "TARGET"
 msgstr ""
 
 #: lxc/list.go:473 lxc/network.go:498 lxc/network.go:555 lxc/operation.go:153
@@ -1356,6 +1360,25 @@ msgstr ""
 
 #: lxc/help.go:45
 msgid "Usage: lxc <command> [options]"
+msgstr ""
+
+#: lxc/alias.go:22
+msgid ""
+"Usage: lxc alias <subcommand> [options]\n"
+"\n"
+"Manage command aliases.\n"
+"\n"
+"lxc alias add <alias> <target>\n"
+"    Add a new alias <alias> pointing to <target>.\n"
+"\n"
+"lxc alias remove <alias>\n"
+"    Remove the alias <alias>.\n"
+"\n"
+"lxc alias list\n"
+"    List all the aliases.\n"
+"\n"
+"lxc alias rename <old alias> <new alias>\n"
+"    Rename remote <old alias> to <new alias>."
 msgstr ""
 
 #: lxc/config.go:85
@@ -2243,6 +2266,16 @@ msgstr "Occorre specificare un nome di container come origine"
 msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr ""
 
+#: lxc/alias.go:56 lxc/alias.go:102
+#, fuzzy, c-format
+msgid "alias %s already exists"
+msgstr "il remote %s esiste già"
+
+#: lxc/alias.go:68 lxc/alias.go:97
+#, fuzzy, c-format
+msgid "alias %s doesn't exist"
+msgstr "il remote %s non esiste"
+
 #: lxc/remote.go:370
 msgid "can't remove the default remote"
 msgstr ""
@@ -2301,7 +2334,7 @@ msgstr "no"
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
-#: lxc/main.go:366 lxc/main.go:370
+#: lxc/main.go:367 lxc/main.go:371
 #, c-format
 msgid "processing aliases failed %s\n"
 msgstr "errore di processamento degli alias %s\n"
@@ -2355,7 +2388,7 @@ msgstr ""
 msgid "used by"
 msgstr ""
 
-#: lxc/main.go:297
+#: lxc/main.go:298
 msgid "wrong number of subcommand arguments"
 msgstr "numero errato di argomenti del sottocomando"
 
