@@ -13,6 +13,7 @@ import (
 	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -36,10 +37,10 @@ func logContextMap(ctx []interface{}) map[string]string {
 }
 
 func (h eventsHandler) Log(r *log.Record) error {
-	eventSend("logging", shared.Jmap{
-		"message": r.Msg,
-		"level":   r.Lvl.String(),
-		"context": logContextMap(r.Ctx)})
+	eventSend("logging", api.EventLogging{
+		Message: r.Msg,
+		Level:   r.Lvl.String(),
+		Context: logContextMap(r.Ctx)})
 	return nil
 }
 
