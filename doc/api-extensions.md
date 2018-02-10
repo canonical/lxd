@@ -401,3 +401,7 @@ Introduces a new ipv4.dhcp.gateway network config key to set an alternate gatewa
 
 ## file\_get\_symlink
 This makes it possible to retrieve symlinks using the file API.
+
+## network\_leases
+Adds a new /1.0/networks/NAME/leases API endpoint to query the lease database on
+bridges which run a LXD-managed DHCP server.

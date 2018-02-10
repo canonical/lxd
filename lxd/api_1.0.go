@@ -43,6 +43,7 @@ var api10 = []Command{
 	operationWebsocket,
 	networksCmd,
 	networkCmd,
+	networkLeasesCmd,
 	api10Cmd,
 	certificatesCmd,
 	certificateFingerprintCmd,
