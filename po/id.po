@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-10 15:56-0500\n"
+"POT-Creation-Date: 2018-02-11 00:08-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -240,7 +240,7 @@ msgstr ""
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config.go:400
+#: lxc/config.go:403
 msgid "COMMON NAME"
 msgstr ""
 
@@ -269,7 +269,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
-#: lxc/config.go:207 lxc/network.go:592
+#: lxc/config.go:210 lxc/network.go:592
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr ""
@@ -278,12 +278,12 @@ msgstr ""
 msgid "Can't specify a different remote for rename."
 msgstr ""
 
-#: lxc/config.go:220
+#: lxc/config.go:223
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
 
-#: lxc/config.go:262 lxc/config.go:288
+#: lxc/config.go:265 lxc/config.go:291
 #, c-format
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
@@ -313,7 +313,7 @@ msgstr ""
 msgid "Config key/value to apply to the new container"
 msgstr ""
 
-#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1332 lxc/image.go:1190
+#: lxc/config.go:821 lxc/config.go:886 lxc/config.go:1396 lxc/image.go:1190
 #: lxc/network.go:431 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
 #, c-format
 msgid "Config parsing error: %s"
@@ -393,12 +393,17 @@ msgstr ""
 msgid "Define a compression algorithm: for image or none"
 msgstr ""
 
-#: lxc/config.go:972
+#: lxc/config.go:977
 #, c-format
 msgid "Device %s added to %s"
 msgstr ""
 
-#: lxc/config.go:1208
+#: lxc/config.go:1272
+#, c-format
+msgid "Device %s overridden for %s"
+msgstr ""
+
+#: lxc/config.go:1213
 #, c-format
 msgid "Device %s removed from %s"
 msgstr ""
@@ -428,7 +433,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/config.go:402
+#: lxc/config.go:405
 msgid "EXPIRY DATE"
 msgstr ""
 
@@ -452,7 +457,7 @@ msgstr ""
 msgid "Ephemeral container"
 msgstr ""
 
-#: lxc/config.go:1382
+#: lxc/config.go:1446
 #, c-format
 msgid "Error updating template file: %s"
 msgstr ""
@@ -475,11 +480,11 @@ msgstr ""
 msgid "Exporting the image: %s"
 msgstr ""
 
-#: lxc/config.go:756
+#: lxc/config.go:761
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config.go:399 lxc/image.go:232 lxc/image.go:1136
+#: lxc/config.go:402 lxc/image.go:232 lxc/image.go:1136
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -569,7 +574,7 @@ msgstr ""
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config.go:401
+#: lxc/config.go:404
 msgid "ISSUE DATE"
 msgstr ""
 
@@ -621,7 +626,7 @@ msgstr ""
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr ""
 
-#: lxc/config.go:380
+#: lxc/config.go:383
 msgid "Invalid certificate"
 msgstr ""
 
@@ -775,7 +780,7 @@ msgstr ""
 msgid "New alias to define at target"
 msgstr ""
 
-#: lxc/config.go:411
+#: lxc/config.go:414
 msgid "No certificate provided to add"
 msgstr ""
 
@@ -787,7 +792,7 @@ msgstr ""
 msgid "No device found for this storage volume."
 msgstr ""
 
-#: lxc/config.go:443
+#: lxc/config.go:446
 msgid "No fingerprint specified."
 msgstr ""
 
@@ -877,7 +882,7 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1333 lxc/config.go:1383
+#: lxc/config.go:822 lxc/config.go:887 lxc/config.go:1397 lxc/config.go:1447
 #: lxc/image.go:1191
 msgid "Press enter to start the editor again"
 msgstr ""
@@ -1208,12 +1213,12 @@ msgstr ""
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 
-#: lxc/config.go:939 lxc/config.go:956
+#: lxc/config.go:944 lxc/config.go:961 lxc/config.go:1240
 msgid "The device already exists"
 msgstr ""
 
-#: lxc/config.go:1002 lxc/config.go:1014 lxc/config.go:1050 lxc/config.go:1068
-#: lxc/config.go:1114 lxc/config.go:1131 lxc/config.go:1174 lxc/config.go:1192
+#: lxc/config.go:1007 lxc/config.go:1019 lxc/config.go:1055 lxc/config.go:1073
+#: lxc/config.go:1119 lxc/config.go:1136 lxc/config.go:1179 lxc/config.go:1197
 msgid "The device doesn't exist"
 msgstr ""
 
@@ -1224,6 +1229,10 @@ msgstr ""
 
 #: lxc/action.go:35
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
+msgstr ""
+
+#: lxc/config.go:1245
+msgid "The profile device doesn't exist"
 msgstr ""
 
 #: lxc/network.go:303 lxc/network.go:356 lxc/storage.go:426 lxc/storage.go:546
@@ -1419,6 +1428,9 @@ msgid ""
 "\n"
 "lxc config device unset [<remote>:]<container> <device> <key>\n"
 "    Unset a device property.\n"
+"\n"
+"lxc config device override [<remote>:]<container> <device> [key=value...]\n"
+"    Copy a profile inherited device into local container config.\n"
 "\n"
 "lxc config device list [<remote>:]<container>\n"
 "    List devices for container.\n"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-10 15:56-0500\n"
+"POT-Creation-Date: 2018-02-11 00:08-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: Bruno Perel <brunoperel@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -341,7 +341,7 @@ msgstr "Octets émis"
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config.go:400
+#: lxc/config.go:403
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
@@ -372,7 +372,7 @@ msgstr "Créé : %s"
 msgid "Can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
 
-#: lxc/config.go:207 lxc/network.go:592
+#: lxc/config.go:210 lxc/network.go:592
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "Impossible de lire depuis stdin : %s"
@@ -381,13 +381,13 @@ msgstr "Impossible de lire depuis stdin : %s"
 msgid "Can't specify a different remote for rename."
 msgstr ""
 
-#: lxc/config.go:220
+#: lxc/config.go:223
 #, fuzzy, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
 "Impossible de désaffecter la clé '%s', elle n'est pas définie actuellement."
 
-#: lxc/config.go:262 lxc/config.go:288
+#: lxc/config.go:265 lxc/config.go:291
 #, c-format
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
@@ -418,7 +418,7 @@ msgstr "Commandes :"
 msgid "Config key/value to apply to the new container"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
-#: lxc/config.go:816 lxc/config.go:881 lxc/config.go:1332 lxc/image.go:1190
+#: lxc/config.go:821 lxc/config.go:886 lxc/config.go:1396 lxc/image.go:1190
 #: lxc/network.go:431 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
 #, c-format
 msgid "Config parsing error: %s"
@@ -499,12 +499,17 @@ msgstr "PILOTE"
 msgid "Define a compression algorithm: for image or none"
 msgstr "Définir un algorithme de compression : pour image ou aucun"
 
-#: lxc/config.go:972
+#: lxc/config.go:977
 #, c-format
 msgid "Device %s added to %s"
 msgstr "Périphérique %s ajouté à %s"
 
-#: lxc/config.go:1208
+#: lxc/config.go:1272
+#, fuzzy, c-format
+msgid "Device %s overridden for %s"
+msgstr "Périphérique %s retiré de %s"
+
+#: lxc/config.go:1213
 #, c-format
 msgid "Device %s removed from %s"
 msgstr "Périphérique %s retiré de %s"
@@ -535,7 +540,7 @@ msgstr "  Disque utilisé :"
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
-#: lxc/config.go:402
+#: lxc/config.go:405
 msgid "EXPIRY DATE"
 msgstr "DATE D'EXPIRATION"
 
@@ -559,7 +564,7 @@ msgstr "Environnement :"
 msgid "Ephemeral container"
 msgstr "Conteneur éphémère"
 
-#: lxc/config.go:1382
+#: lxc/config.go:1446
 #, fuzzy, c-format
 msgid "Error updating template file: %s"
 msgstr "Import de l'image : %s"
@@ -582,12 +587,12 @@ msgstr "N'expire jamais"
 msgid "Exporting the image: %s"
 msgstr "Import de l'image : %s"
 
-#: lxc/config.go:756
+#: lxc/config.go:761
 #, fuzzy
 msgid "FILENAME"
 msgstr "NOM"
 
-#: lxc/config.go:399 lxc/image.go:232 lxc/image.go:1136
+#: lxc/config.go:402 lxc/image.go:232 lxc/image.go:1136
 msgid "FINGERPRINT"
 msgstr "EMPREINTE"
 
@@ -682,7 +687,7 @@ msgstr "IPv4"
 msgid "IPV6"
 msgstr "IPv6"
 
-#: lxc/config.go:401
+#: lxc/config.go:404
 msgid "ISSUE DATE"
 msgstr "DATE D'ÉMISSION"
 
@@ -739,7 +744,7 @@ msgstr ""
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "Schème d'URL invalide \"%s\" in \"%s\""
 
-#: lxc/config.go:380
+#: lxc/config.go:383
 msgid "Invalid certificate"
 msgstr "Certificat invalide"
 
@@ -897,7 +902,7 @@ msgstr "  Réseau utilisé :"
 msgid "New alias to define at target"
 msgstr "Nouvel alias à définir sur la cible"
 
-#: lxc/config.go:411
+#: lxc/config.go:414
 msgid "No certificate provided to add"
 msgstr "Un certificat à ajouter n'a pas été fourni"
 
@@ -910,7 +915,7 @@ msgstr "Aucun périphérique existant pour ce réseau"
 msgid "No device found for this storage volume."
 msgstr "Aucun périphérique existant pour ce réseau"
 
-#: lxc/config.go:443
+#: lxc/config.go:446
 msgid "No fingerprint specified."
 msgstr "Aucune empreinte n'a été indiquée."
 
@@ -1002,7 +1007,7 @@ msgstr "Pid : %d"
 msgid "Press enter to open the editor again"
 msgstr "Appuyer sur Entrée pour ouvrir à nouveau l'éditeur"
 
-#: lxc/config.go:817 lxc/config.go:882 lxc/config.go:1333 lxc/config.go:1383
+#: lxc/config.go:822 lxc/config.go:887 lxc/config.go:1397 lxc/config.go:1447
 #: lxc/image.go:1191
 msgid "Press enter to start the editor again"
 msgstr "Appuyer sur Entrée pour lancer à nouveau l'éditeur"
@@ -1345,13 +1350,13 @@ msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 "Le conteneur que vous démarrez n'est attaché à aucune interface réseau."
 
-#: lxc/config.go:939 lxc/config.go:956
+#: lxc/config.go:944 lxc/config.go:961 lxc/config.go:1240
 #, fuzzy
 msgid "The device already exists"
 msgstr "Le périphérique n'existe pas"
 
-#: lxc/config.go:1002 lxc/config.go:1014 lxc/config.go:1050 lxc/config.go:1068
-#: lxc/config.go:1114 lxc/config.go:1131 lxc/config.go:1174 lxc/config.go:1192
+#: lxc/config.go:1007 lxc/config.go:1019 lxc/config.go:1055 lxc/config.go:1073
+#: lxc/config.go:1119 lxc/config.go:1136 lxc/config.go:1179 lxc/config.go:1197
 msgid "The device doesn't exist"
 msgstr "Le périphérique n'existe pas"
 
@@ -1364,6 +1369,11 @@ msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 #, fuzzy
 msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "Le pendant de `lxc pause` est `lxc start`."
+
+#: lxc/config.go:1245
+#, fuzzy
+msgid "The profile device doesn't exist"
+msgstr "Le périphérique indiqué n'existe pas"
 
 #: lxc/network.go:303 lxc/network.go:356 lxc/storage.go:426 lxc/storage.go:546
 msgid "The specified device doesn't exist"
@@ -1568,6 +1578,9 @@ msgid ""
 "\n"
 "lxc config device unset [<remote>:]<container> <device> <key>\n"
 "    Unset a device property.\n"
+"\n"
+"lxc config device override [<remote>:]<container> <device> [key=value...]\n"
+"    Copy a profile inherited device into local container config.\n"
 "\n"
 "lxc config device list [<remote>:]<container>\n"
 "    List devices for container.\n"
