@@ -144,6 +144,9 @@ lxc config device set [<remote>:]<container> <device> <key> <value>
 lxc config device unset [<remote>:]<container> <device> <key>
     Unset a device property.
 
+lxc config device override [<remote>:]<container> <device> [key=value...]
+    Copy a profile inherited device into local container config.
+
 lxc config device list [<remote>:]<container>
     List devices for container.
 
@@ -602,6 +605,8 @@ func (c *configCmd) run(conf *config.Config, args []string) error {
 			return c.deviceSet(conf, "container", args)
 		case "unset":
 			return c.deviceUnset(conf, "container", args)
+		case "override":
+			return c.deviceOverride(conf, args)
 		case "show":
 			return c.deviceShow(conf, "container", args)
 		default:
@@ -1206,6 +1211,65 @@ func (c *configCmd) deviceRm(conf *config.Config, which string, args []string) e
 	}
 
 	fmt.Printf(i18n.G("Device %s removed from %s")+"\n", strings.Join(args[3:], ", "), name)
+	return nil
+}
+
+func (c *configCmd) deviceOverride(conf *config.Config, args []string) error {
+	if len(args) < 4 {
+		return errArgs
+	}
+
+	remote, name, err := conf.ParseRemote(args[2])
+	if err != nil {
+		return err
+	}
+
+	client, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	container, etag, err := client.GetContainer(name)
+	if err != nil {
+		return err
+	}
+
+	devname := args[3]
+	_, ok := container.Devices[devname]
+	if ok {
+		return fmt.Errorf(i18n.G("The device already exists"))
+	}
+
+	device, ok := container.ExpandedDevices[devname]
+	if !ok {
+		return fmt.Errorf(i18n.G("The profile device doesn't exist"))
+	}
+
+	if len(args) > 4 {
+		for _, prop := range args[4:] {
+			results := strings.SplitN(prop, "=", 2)
+			if len(results) != 2 {
+				return fmt.Errorf("No value found in %q", prop)
+			}
+			k := results[0]
+			v := results[1]
+			device[k] = v
+		}
+	}
+
+	container.Devices[devname] = device
+
+	op, err := client.UpdateContainer(name, container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Device %s overridden for %s")+"\n", devname, name)
 	return nil
 }
 
