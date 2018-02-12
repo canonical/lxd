@@ -153,7 +153,7 @@ test_config_profiles() {
   lxc profile device add onenic eth0 nic nictype=p2p
   lxc profile assign foo onenic
   lxc profile create unconfined
-  lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
+  lxc profile set unconfined raw.lxc "lxc.apparmor.profile=unconfined"
   lxc profile assign foo onenic,unconfined
   # test profile rename
   lxc profile create foo
