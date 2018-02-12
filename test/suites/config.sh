@@ -129,7 +129,7 @@ test_config_profiles() {
   lxc profile device add onenic eth0 nic nictype=bridged parent=lxdbr0
   lxc profile apply foo onenic
   lxc profile create unconfined
-  lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
+  lxc profile set unconfined raw.lxc "lxc.apparmor.profile=unconfined"
   lxc profile apply foo onenic,unconfined
 
   lxc config device list foo | grep mnt1
