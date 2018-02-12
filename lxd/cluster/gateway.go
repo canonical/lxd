@@ -402,21 +402,15 @@ func (g *Gateway) init() error {
 	// should serve as database node, so create a dqlite driver to be
 	// exposed it over gRPC.
 	if raft != nil {
-		options := []dqlite.Option{
-			dqlite.LogFunc(dqliteLog(g.options.logLevel)),
-			dqlite.LogLevel(g.options.logLevel),
-		}
+		config := dqlite.DriverConfig{}
 		if raft.HandlerFunc() == nil {
 			// FIXME enable auto-checkpoint to avoid WAL growing
 			// indefinitely. This should be disabled when proper
 			// checkpoint support is added for multi-node
 			// deployments.
-			options = append(options, dqlite.AutoCheckpoint(1000))
+			config.AutoCheckpoint = 1000
 		}
-		driver, err := dqlite.NewDriver(
-			raft.FSM(),
-			raft.Raft(),
-			options...)
+		driver, err := dqlite.NewDriver(raft.FSM(), raft.Raft(), config)
 		if err != nil {
 			return errors.Wrap(err, "failed to create dqlite driver")
 		}
