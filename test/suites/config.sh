@@ -129,7 +129,18 @@ test_config_profiles() {
   lxc profile device add onenic eth0 nic nictype=bridged parent=lxdbr0
   lxc profile apply foo onenic
   lxc profile create unconfined
-  lxc profile set unconfined raw.lxc "lxc.apparmor.profile=unconfined"
+
+  # Look at the LXC version to decide whether to use the new
+  # or the new config key for apparmor.
+  lxc_version=$(lxc info | grep "driver_version: " | cut -d' ' -f4)
+  lxc_major=$(echo "${lxc_version}" | cut -d. -f1)
+  lxc_minor=$(echo "${lxc_version}" | cut -d. -f2)
+  if [ "${lxc_major}" -lt 2 ] || ([ "${lxc_major}" = "2" ] && [ "${lxc_minor}" -lt "1" ]); then
+      lxc profile set unconfined raw.lxc "lxc.aa_profile=unconfined"
+  else
+      lxc profile set unconfined raw.lxc "lxc.apparmor.profile=unconfined"
+  fi
+
   lxc profile apply foo onenic,unconfined
 
   lxc config device list foo | grep mnt1
