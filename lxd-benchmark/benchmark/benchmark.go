@@ -51,7 +51,7 @@ func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image stri
 		return duration, err
 	}
 
-	startContainer := func(index int, wg *sync.WaitGroup) {
+	batchStart := func(index int, wg *sync.WaitGroup) {
 		defer wg.Done()
 
 		name := getContainerName(count, index)
@@ -79,7 +79,7 @@ func LaunchContainers(c lxd.ContainerServer, count int, parallel int, image stri
 		}
 	}
 
-	duration = processBatch(count, batchSize, startContainer)
+	duration = processBatch(count, batchSize, batchStart)
 	return duration, nil
 }
 
@@ -92,7 +92,7 @@ func CreateContainers(c lxd.ContainerServer, count int, parallel int, fingerprin
 		return duration, err
 	}
 
-	createContainer := func(index int, wg *sync.WaitGroup) {
+	batchCreate := func(index int, wg *sync.WaitGroup) {
 		defer wg.Done()
 
 		name := getContainerName(count, index)
@@ -104,7 +104,7 @@ func CreateContainers(c lxd.ContainerServer, count int, parallel int, fingerprin
 		}
 	}
 
-	duration = processBatch(count, batchSize, createContainer)
+	duration = processBatch(count, batchSize, batchCreate)
 
 	return duration, nil
 }
@@ -139,7 +139,7 @@ func StartContainers(c lxd.ContainerServer, containers []api.Container, parallel
 	count := len(containers)
 	logf("Starting %d containers", count)
 
-	startContainer := func(index int, wg *sync.WaitGroup) {
+	batchStart := func(index int, wg *sync.WaitGroup) {
 		defer wg.Done()
 
 		container := containers[index]
@@ -152,7 +152,7 @@ func StartContainers(c lxd.ContainerServer, containers []api.Container, parallel
 		}
 	}
 
-	duration = processBatch(count, batchSize, startContainer)
+	duration = processBatch(count, batchSize, batchStart)
 	return duration, nil
 }
 
@@ -168,7 +168,7 @@ func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel 
 	count := len(containers)
 	logf("Stopping %d containers", count)
 
-	stopContainer := func(index int, wg *sync.WaitGroup) {
+	batchStop := func(index int, wg *sync.WaitGroup) {
 		defer wg.Done()
 
 		container := containers[index]
@@ -181,7 +181,7 @@ func StopContainers(c lxd.ContainerServer, containers []api.Container, parallel 
 		}
 	}
 
-	duration = processBatch(count, batchSize, stopContainer)
+	duration = processBatch(count, batchSize, batchStop)
 	return duration, nil
 }
 
@@ -197,7 +197,7 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 	count := len(containers)
 	logf("Deleting %d containers", count)
 
-	deleteContainer := func(index int, wg *sync.WaitGroup) {
+	batchDelete := func(index int, wg *sync.WaitGroup) {
 		defer wg.Done()
 
 		container := containers[index]
@@ -217,7 +217,7 @@ func DeleteContainers(c lxd.ContainerServer, containers []api.Container, paralle
 		}
 	}
 
-	duration = processBatch(count, batchSize, deleteContainer)
+	duration = processBatch(count, batchSize, batchDelete)
 	return duration, nil
 }
 
