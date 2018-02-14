@@ -76,7 +76,7 @@ test_clustering_membership() {
 
   # Shutdown a non-database node, and wait a few seconds so it will be
   # detected as down.
-  LXD_DIR="${LXD_FOUR_DIR}" lxc config set cluster.offline_threshold 5
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 5
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   sleep 8
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node5" | grep -q "OFFLINE"
