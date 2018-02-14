@@ -290,7 +290,8 @@ func (c *initCmd) guessImage(conf *config.Config, d lxd.ContainerServer, remote 
 		return iremote, image
 	}
 
-	_, ok := conf.Remotes[image]
+	fields := strings.SplitN(image, "/", 2)
+	_, ok := conf.Remotes[fields[0]]
 	if !ok {
 		return iremote, image
 	}
@@ -305,6 +306,11 @@ func (c *initCmd) guessImage(conf *config.Config, d lxd.ContainerServer, remote 
 		return iremote, image
 	}
 
-	fmt.Fprintf(os.Stderr, i18n.G("The local image '%s' couldn't be found, trying '%s:' instead.")+"\n", image, image)
-	return image, "default"
+	if len(fields) == 1 {
+		fmt.Fprintf(os.Stderr, i18n.G("The local image '%s' couldn't be found, trying '%s:' instead.")+"\n", image, fields[0])
+		return fields[0], "default"
+	}
+
+	fmt.Fprintf(os.Stderr, i18n.G("The local image '%s' couldn't be found, trying '%s:%s' instead.")+"\n", image, fields[0], fields[1])
+	return fields[0], fields[1]
 }
