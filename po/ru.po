@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-11 00:08-0500\n"
+"POT-Creation-Date: 2018-02-13 23:12-0500\n"
 "PO-Revision-Date: 2017-09-05 16:48+0000\n"
 "Last-Translator: Ilya Yakimavets <ilya.yakimavets@backend.expert>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1301,7 +1301,7 @@ msgid ""
 "restarted."
 msgstr ""
 
-#: lxc/init.go:362
+#: lxc/init.go:368
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -1314,7 +1314,12 @@ msgstr ""
 msgid "The device doesn't exist"
 msgstr ""
 
-#: lxc/init.go:346
+#: lxc/init.go:352
+#, c-format
+msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
+msgstr ""
+
+#: lxc/init.go:348
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -1355,11 +1360,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:364
+#: lxc/init.go:370
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:363
+#: lxc/init.go:369
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
