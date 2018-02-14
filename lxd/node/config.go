@@ -86,7 +86,7 @@ func (c *Config) update(values map[string]interface{}) (map[string]string, error
 
 	err = c.tx.UpdateConfig(changed)
 	if err != nil {
-		return nil, fmt.Errorf("cannot persist confiuration changes: %v", err)
+		return nil, fmt.Errorf("cannot persist configuration changes: %v", err)
 	}
 
 	return changed, nil
