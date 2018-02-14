@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-01-05 14:27-0500\n"
+"POT-Creation-Date: 2018-02-15 17:06-0500\n"
 "PO-Revision-Date: 2015-06-13 06:10+0200\n"
 "Last-Translator: Felix Engelmann <felix-lxd@nlogn.org>\n"
 "Language-Team: \n"
@@ -116,7 +116,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/utils.go:324
+#: lxc/utils.go:325
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
@@ -353,7 +353,7 @@ msgstr ""
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/utils.go:362
+#: lxc/utils.go:363
 #, c-format
 msgid "Failed to create alias %s"
 msgstr ""
@@ -373,7 +373,7 @@ msgstr ""
 msgid "Failed to get the new container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/utils.go:352
+#: lxc/utils.go:353
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr ""
@@ -523,7 +523,7 @@ msgstr ""
 msgid "Memory usage:"
 msgstr ""
 
-#: lxc/utils.go:256
+#: lxc/utils.go:257
 msgid "Missing summary."
 msgstr "Fehlende Zusammenfassung."
 
@@ -703,7 +703,7 @@ msgstr "Öffentlich: %s\n"
 msgid "Remote admin password"
 msgstr "Entferntes Administrator Passwort"
 
-#: lxc/utils.go:315
+#: lxc/utils.go:316
 #, fuzzy
 msgid "Remote operation canceled by user"
 msgstr "Server Zertifikat vom Benutzer nicht akzeptiert"
@@ -882,7 +882,12 @@ msgstr "entfernte Instanz %s existiert bereits"
 msgid "The device doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/init.go:308
+#: lxc/init.go:314
+#, c-format
+msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
+msgstr ""
+
+#: lxc/init.go:310
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -1604,7 +1609,7 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr ""
 
-#: lxc/utils.go:320
+#: lxc/utils.go:321
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."

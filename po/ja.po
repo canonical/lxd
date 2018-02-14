@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-01-05 14:27-0500\n"
+"POT-Creation-Date: 2018-02-15 17:06-0500\n"
 "PO-Revision-Date: 2017-10-10 14:59+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <lxd-ja-language-team@googlegroups.com>\n"
@@ -73,7 +73,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
 
-#: lxc/utils.go:324
+#: lxc/utils.go:325
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
@@ -302,7 +302,7 @@ msgstr "イメージのエクスポート中: %s"
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/utils.go:362
+#: lxc/utils.go:363
 #, c-format
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
@@ -321,7 +321,7 @@ msgstr "'lxc.1' の生成が失敗しました: %v"
 msgid "Failed to get the new container name"
 msgstr "コピー先のコンテナ名が取得できませんでした"
 
-#: lxc/utils.go:352
+#: lxc/utils.go:353
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
@@ -467,7 +467,7 @@ msgstr "メモリ (ピーク)"
 msgid "Memory usage:"
 msgstr "メモリ消費量:"
 
-#: lxc/utils.go:256
+#: lxc/utils.go:257
 msgid "Missing summary."
 msgstr "サマリーはありません。"
 
@@ -641,7 +641,7 @@ msgstr "パブリック: %s"
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
-#: lxc/utils.go:315
+#: lxc/utils.go:316
 msgid "Remote operation canceled by user"
 msgstr "リモート操作がユーザによってキャンセルされました"
 
@@ -814,7 +814,13 @@ msgstr "デバイス %s は既に存在します"
 msgid "The device doesn't exist"
 msgstr "デバイスが存在しません"
 
-#: lxc/init.go:308
+#: lxc/init.go:314
+#, fuzzy, c-format
+msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
+msgstr ""
+"ローカルイメージ '%s' が見つかりません。代わりに '%s:' を試してみてください。"
+
+#: lxc/init.go:310
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -1883,7 +1889,7 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr "ユーザが削除操作を中断しました。"
 
-#: lxc/utils.go:320
+#: lxc/utils.go:321
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."
