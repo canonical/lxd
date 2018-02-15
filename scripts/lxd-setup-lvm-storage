@@ -187,12 +187,12 @@ def do_main():
 
     try:
         check_output("type vgcreate", shell=True)
-    except:
+    except Exception:
         sys.exit("lvm2 tools not found. try 'apt-get install lvm2 "
                  "thin-provisioning-tools'")
     try:
         check_output("type thin_check", shell=True)
-    except:
+    except Exception:
         sys.exit("lvm thin provisioning tools are required. "
                  "try 'apt-get install thin-provisioning-tools'")
 
@@ -212,13 +212,13 @@ def do_main():
     else:
         try:
             create_image(args)
-        except:
+        except Exception:
             sys.stderr.write("Stopping.\n")
         else:
             try:
                 print("Configuring LXD")
                 lxd.set_lvm_vgname(DEFAULT_VGNAME)
-            except:
+            except Exception:
                 sys.stderr.write("Error configuring LXD, "
                                  "removing backing file\n")
                 destroy_image(args, lxd)
