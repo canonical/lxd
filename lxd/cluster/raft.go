@@ -263,6 +263,7 @@ func (i *raftInstance) Shutdown() error {
 			return errors.Wrap(err, "failed to shutdown raft")
 		}
 	case <-ctx.Done():
+		logger.Debug("Timeout waiting for raft to shutdown")
 		return fmt.Errorf("raft did not shutdown within %s", timeout)
 
 	}
