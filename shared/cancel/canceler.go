@@ -6,12 +6,13 @@ import (
 	"sync"
 )
 
-// A struct to track canceleation
+// Canceler tracks a cancelable operation
 type Canceler struct {
 	reqChCancel map[*http.Request]chan struct{}
 	lock        sync.Mutex
 }
 
+// NewCanceler returns a new Canceler struct
 func NewCanceler() *Canceler {
 	c := Canceler{}
 
@@ -22,6 +23,7 @@ func NewCanceler() *Canceler {
 	return &c
 }
 
+// Cancelable indicates whether there are operations that support cancelation
 func (c *Canceler) Cancelable() bool {
 	c.lock.Lock()
 	length := len(c.reqChCancel)
@@ -30,9 +32,10 @@ func (c *Canceler) Cancelable() bool {
 	return length > 0
 }
 
+// Cancel will attempt to cancel all ongoing operations
 func (c *Canceler) Cancel() error {
 	if !c.Cancelable() {
-		return fmt.Errorf("This operation cannot be canceled at this time")
+		return fmt.Errorf("This operation can't be canceled at this time")
 	}
 
 	c.lock.Lock()
@@ -45,6 +48,7 @@ func (c *Canceler) Cancel() error {
 	return nil
 }
 
+// CancelableDownload performs an http request and allows for it to be canceled at any time
 func CancelableDownload(c *Canceler, client *http.Client, req *http.Request) (*http.Response, chan bool, error) {
 	chDone := make(chan bool)
 	chCancel := make(chan struct{})
