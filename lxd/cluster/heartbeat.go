@@ -32,6 +32,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 
 		raftNodes, err := gateway.currentRaftNodes()
 		if err == raft.ErrNotLeader {
+			logger.Debugf("Skipping heartbeat since we're not leader")
 			return
 		}
 		if err != nil {

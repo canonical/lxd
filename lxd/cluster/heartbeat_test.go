@@ -23,14 +23,15 @@ func TestHeartbeat(t *testing.T) {
 	f := heartbeatFixture{t: t}
 	defer f.Cleanup()
 
-	gateway0 := f.Bootstrap()
+	f.Bootstrap()
 	f.Grow()
 	f.Grow()
 
-	state0 := f.State(gateway0)
+	leader := f.Leader()
+	leaderState := f.State(leader)
 
 	// Artificially mark all nodes as down
-	err := state0.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := leaderState.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err := tx.Nodes()
 		require.NoError(t, err)
 		for _, node := range nodes {
@@ -42,12 +43,12 @@ func TestHeartbeat(t *testing.T) {
 	require.NoError(t, err)
 
 	// Perform the heartbeat requests.
-	heartbeat, _ := cluster.Heartbeat(gateway0, state0.Cluster)
+	heartbeat, _ := cluster.Heartbeat(leader, leaderState.Cluster)
 	ctx := context.Background()
 	heartbeat(ctx)
 
 	// The heartbeat timestamps of all nodes got updated
-	err = state0.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = leaderState.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err := tx.Nodes()
 		require.NoError(t, err)
 
@@ -68,13 +69,15 @@ func DISABLE_TestHeartbeat_MarkAsDown(t *testing.T) {
 	f := heartbeatFixture{t: t}
 	defer f.Cleanup()
 
-	gateway0 := f.Bootstrap()
-	gateway1 := f.Grow()
+	f.Bootstrap()
+	f.Grow()
 
-	state0 := f.State(gateway0)
+	leader := f.Leader()
+	leaderState := f.State(leader)
 
 	// Artificially mark all nodes as down
-	err := state0.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	t.Logf("marking all nodes as down")
+	err := leaderState.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err := tx.Nodes()
 		require.NoError(t, err)
 		for _, node := range nodes {
@@ -85,21 +88,24 @@ func DISABLE_TestHeartbeat_MarkAsDown(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Shutdown the second node and perform the heartbeat requests.
-	f.Server(gateway1).Close()
-	heartbeat, _ := cluster.Heartbeat(gateway0, state0.Cluster)
+	follower := f.Follower()
+
+	// Shutdown the follower node and perform the heartbeat requests.
+	f.Server(follower).Close()
+	heartbeat, _ := cluster.Heartbeat(leader, leaderState.Cluster)
 	ctx := context.Background()
 	heartbeat(ctx)
 
 	// The heartbeat timestamp of the second node did not get updated
-	err = state0.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = leaderState.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodes, err := tx.Nodes()
 		require.NoError(t, err)
 
 		offlineThreshold, err := tx.NodeOfflineThreshold()
 		require.NoError(t, err)
 
-		assert.True(t, nodes[1].IsOffline(offlineThreshold))
+		i := f.Index(follower)
+		assert.True(t, nodes[i].IsOffline(offlineThreshold))
 		return nil
 	})
 	require.NoError(t, err)
@@ -116,6 +122,7 @@ type heartbeatFixture struct {
 
 // Bootstrap the first node of the cluster.
 func (f *heartbeatFixture) Bootstrap() *cluster.Gateway {
+	f.t.Logf("create bootstrap node for test cluster")
 	state, gateway, _ := f.node()
 
 	err := cluster.Bootstrap(state, gateway, "buzz")
@@ -127,21 +134,8 @@ func (f *heartbeatFixture) Bootstrap() *cluster.Gateway {
 // Grow adds a new node to the cluster.
 func (f *heartbeatFixture) Grow() *cluster.Gateway {
 	// Figure out the current leader
-	var target *cluster.Gateway
-	for {
-		for _, gateway := range f.gateways {
-			if gateway.Raft().State() == raft.Leader {
-				target = gateway
-				break
-			}
-		}
-		if target != nil {
-			break
-		}
-		// Wait a bit for election to take place
-		time.Sleep(10 * time.Millisecond)
-	}
-
+	f.t.Logf("adding another node to the test cluster")
+	target := f.Leader()
 	targetState := f.states[target]
 
 	state, gateway, address := f.node()
@@ -155,6 +149,64 @@ func (f *heartbeatFixture) Grow() *cluster.Gateway {
 	require.NoError(f.t, err)
 
 	return gateway
+}
+
+// Return the leader gateway in the cluster.
+func (f *heartbeatFixture) Leader() *cluster.Gateway {
+	timeout := time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	for {
+		for _, gateway := range f.gateways {
+			if gateway.Raft().State() == raft.Leader {
+				return gateway
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			f.t.Fatalf("no leader was elected within %s", timeout)
+		default:
+		}
+
+		// Wait a bit for election to take place
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// Return a follower gateway in the cluster.
+func (f *heartbeatFixture) Follower() *cluster.Gateway {
+	timeout := time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	for {
+		for _, gateway := range f.gateways {
+			if gateway.Raft().State() == raft.Follower {
+				return gateway
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			f.t.Fatalf("no node running as follower")
+		default:
+		}
+
+		// Wait a bit for election to take place
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// Return the cluster index of the given gateway.
+func (f *heartbeatFixture) Index(gateway *cluster.Gateway) int {
+	for i := range f.gateways {
+		if f.gateways[i] == gateway {
+			return i
+		}
+	}
+	return -1
 }
 
 // Return the state associated with the given gateway.
