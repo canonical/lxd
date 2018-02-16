@@ -107,7 +107,7 @@ spawn_lxd_and_bootstrap_cluster() {
 config:
   core.trust_password: sekret
   core.https_address: 10.1.1.101:8443
-  images.auto_update_interval: 15
+  images.auto_update_interval: 0
 storage_pools:
 - name: data
   driver: dir
@@ -147,7 +147,7 @@ spawn_lxd_and_join_cluster() {
     cat <<EOF | lxd init --preseed
 config:
   core.https_address: 10.1.1.10${index}:8443
-  images.auto_update_interval: 15
+  images.auto_update_interval: 0
 storage_pools:
 - name: data
   driver: dir
