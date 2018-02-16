@@ -166,6 +166,7 @@ func (e *Endpoints) up(config *Config) error {
 			logger.Infof("Replacing inherited TCP socket with configured one")
 			listener.Close()
 		}
+
 		// Errors here are not fatal and are just logged.
 		e.listeners[network] = networkCreateListener(config.NetworkAddress, e.cert)
 	}
