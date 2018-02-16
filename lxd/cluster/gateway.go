@@ -269,6 +269,7 @@ func (g *Gateway) Kill() {
 
 // Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
 func (g *Gateway) Shutdown() error {
+	logger.Info("Stop database gateway")
 	if g.server != nil {
 		g.server.Stop()
 		// Unset the memory dial, since Shutdown() is also called for
@@ -393,6 +394,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 // Initialize the gateway, creating a new raft factory and gRPC server (if this
 // node is a database node), and a gRPC dialer.
 func (g *Gateway) init() error {
+	logger.Info("Initializing database gateway")
 	raft, err := newRaft(g.db, g.cert, g.options.latency)
 	if err != nil {
 		return errors.Wrap(err, "failed to create raft factory")

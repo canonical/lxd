@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/CanonicalLtd/dqlite"
 	"github.com/CanonicalLtd/raft-http"
 	"github.com/CanonicalLtd/raft-membership"
@@ -245,12 +247,26 @@ func (i *raftInstance) MembershipChanger() raftmembership.Changer {
 
 // Shutdown raft and any raft-related resource we have instantiated.
 func (i *raftInstance) Shutdown() error {
-	logger.Info("Stop database node")
-	err := i.raft.Shutdown().Error()
-	if err != nil {
-		return errors.Wrap(err, "failed to shutdown raft")
+	logger.Info("Stop raft instance")
+
+	// Stop raft asynchronously to allow for a timeout.
+	errCh := make(chan error)
+	timeout := 10 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	go func() {
+		errCh <- i.raft.Shutdown().Error()
+	}()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return errors.Wrap(err, "failed to shutdown raft")
+		}
+	case <-ctx.Done():
+		return fmt.Errorf("raft did not shutdown within %s", timeout)
+
 	}
-	err = i.logs.Close()
+	err := i.logs.Close()
 	if err != nil {
 		return errors.Wrap(err, "failed to close boltdb logs store")
 	}
