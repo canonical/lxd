@@ -303,6 +303,8 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		if err != nil {
 			return err
 		}
+	} else {
+		logger.Info("Joining cluster as non-database node")
 	}
 
 	// Make sure we can actually connect to the cluster database through
@@ -311,6 +313,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// connection, so new queries will be executed over the new gRPC
 	// network connection. Also, update the storage_pools and networks
 	// tables with our local configuration.
+	logger.Info("Migrate local data to cluster database")
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
 		node, err := tx.NodeByAddress(address)
 		if err != nil {
