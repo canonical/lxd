@@ -20,13 +20,14 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/flosch/pongo2.v3"
+	"github.com/flosch/pongo2"
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -4998,12 +4999,12 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 	}
 
 	// Go through the templates
-	for templatePath, template := range metadata.Templates {
+	for tplPath, tpl := range metadata.Templates {
 		var w *os.File
 
 		// Check if the template should be applied now
 		found := false
-		for _, tplTrigger := range template.When {
+		for _, tplTrigger := range tpl.When {
 			if tplTrigger == trigger {
 				found = true
 				break
@@ -5015,9 +5016,9 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		}
 
 		// Open the file to template, create if needed
-		fullpath := filepath.Join(c.RootfsPath(), strings.TrimLeft(templatePath, "/"))
+		fullpath := filepath.Join(c.RootfsPath(), strings.TrimLeft(tplPath, "/"))
 		if shared.PathExists(fullpath) {
-			if template.CreateOnly {
+			if tpl.CreateOnly {
 				continue
 			}
 
@@ -5059,12 +5060,15 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		defer w.Close()
 
 		// Read the template
-		tplString, err := ioutil.ReadFile(filepath.Join(c.TemplatesPath(), template.Template))
+		tplString, err := ioutil.ReadFile(filepath.Join(c.TemplatesPath(), tpl.Template))
 		if err != nil {
 			return err
 		}
 
-		tpl, err := pongo2.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
+		// Restrict filesystem access to within the container's rootfs
+		tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", c.name, tpl.Template), template.ChrootLoader{Path: c.RootfsPath()})
+
+		tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 		if err != nil {
 			return err
 		}
@@ -5105,12 +5109,12 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		}
 
 		// Render the template
-		tpl.ExecuteWriter(pongo2.Context{"trigger": trigger,
-			"path":       templatePath,
+		tplRender.ExecuteWriter(pongo2.Context{"trigger": trigger,
+			"path":       tplPath,
 			"container":  containerMeta,
 			"config":     c.expandedConfig,
 			"devices":    c.expandedDevices,
-			"properties": template.Properties,
+			"properties": tpl.Properties,
 			"config_get": configGet}, w)
 	}
 
