@@ -478,9 +478,9 @@ func (c *listCmd) parseColumns() ([]column, error) {
 		if c.columnsRaw != "ns46tS" {
 			// --columns was specified too
 			return nil, fmt.Errorf("Can't specify --fast with --columns")
-		} else {
-			c.columnsRaw = "nsacPt"
 		}
+
+		c.columnsRaw = "nsacPt"
 	}
 
 	columnList := strings.Split(c.columnsRaw, ",")
@@ -587,9 +587,9 @@ func (c *listCmd) IP4ColumnData(cInfo api.Container, cState *api.ContainerState,
 		}
 		sort.Sort(sort.Reverse(sort.StringSlice(ipv4s)))
 		return strings.Join(ipv4s, "\n")
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 func (c *listCmd) IP6ColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
@@ -612,17 +612,17 @@ func (c *listCmd) IP6ColumnData(cInfo api.Container, cState *api.ContainerState,
 		}
 		sort.Sort(sort.Reverse(sort.StringSlice(ipv6s)))
 		return strings.Join(ipv6s, "\n")
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 func (c *listCmd) typeColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	if cInfo.Ephemeral {
 		return i18n.G("EPHEMERAL")
-	} else {
-		return i18n.G("PERSISTENT")
 	}
+
+	return i18n.G("PERSISTENT")
 }
 
 func (c *listCmd) numberSnapshotsColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {

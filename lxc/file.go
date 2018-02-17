@@ -238,7 +238,7 @@ func (c *fileCmd) recursiveMkdir(d lxd.ContainerServer, container string, p stri
 	return nil
 }
 
-func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string) error {
+func (c *fileCmd) push(conf *config.Config, sendFilePerms bool, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
@@ -369,14 +369,14 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 				return err
 			}
 
-			_, dUid, dGid := shared.GetOwnerMode(finfo)
+			_, dUID, dGID := shared.GetOwnerMode(finfo)
 			if c.uid == -1 || c.gid == -1 {
 				if c.uid == -1 {
-					uid = dUid
+					uid = dUID
 				}
 
 				if c.gid == -1 {
-					gid = dGid
+					gid = dGID
 				}
 			}
 
@@ -393,14 +393,14 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 			Mode:    -1,
 		}
 
-		if send_file_perms {
+		if sendFilePerms {
 			if c.mode == "" || c.uid == -1 || c.gid == -1 {
 				finfo, err := f.Stat()
 				if err != nil {
 					return err
 				}
 
-				fMode, fUid, fGid := shared.GetOwnerMode(finfo)
+				fMode, fUID, fGID := shared.GetOwnerMode(finfo)
 				if err != nil {
 					return err
 				}
@@ -410,11 +410,11 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 				}
 
 				if c.uid == -1 {
-					uid = fUid
+					uid = fUID
 				}
 
 				if c.gid == -1 {
-					gid = fGid
+					gid = fGID
 				}
 			}
 
