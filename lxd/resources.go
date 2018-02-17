@@ -14,7 +14,7 @@ import (
 func serverResourcesGet(d *Daemon, r *http.Request) Response {
 	res := api.Resources{}
 
-	cpu, err := util.CpuResource()
+	cpu, err := util.CPUResource()
 	if err != nil {
 		return SmartError(err)
 	}

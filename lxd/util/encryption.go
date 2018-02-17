@@ -8,7 +8,8 @@ import (
 	"golang.org/x/crypto/scrypt"
 )
 
-func PasswordCheck(secret, password string) error {
+// PasswordCheck validates the provided password against the encoded secret
+func PasswordCheck(secret string, password string) error {
 	// No password set
 	if secret == "" {
 		return fmt.Errorf("No password is set")
