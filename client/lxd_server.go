@@ -68,7 +68,7 @@ func (r *ProtocolLXD) HasExtension(extension string) bool {
 
 // IsClustered returns true if the server is part of a LXD cluster.
 func (r *ProtocolLXD) IsClustered() bool {
-	return r.server.Environment.Clustered
+	return r.server.Environment.ServerClustered
 }
 
 // GetServerResources returns the resources available to a given LXD server
