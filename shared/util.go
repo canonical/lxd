@@ -308,11 +308,9 @@ func ReadStdin() ([]byte, error) {
 	return line, nil
 }
 
-func WriteAll(w io.Writer, buf []byte) error {
-	return WriteAllBuf(w, bytes.NewBuffer(buf))
-}
+func WriteAll(w io.Writer, data []byte) error {
+	buf := bytes.NewBuffer(data)
 
-func WriteAllBuf(w io.Writer, buf *bytes.Buffer) error {
 	toWrite := int64(buf.Len())
 	for {
 		n, err := io.Copy(w, buf)
@@ -404,19 +402,6 @@ func IsSnapshot(name string) bool {
 
 func ExtractSnapshotName(name string) string {
 	return strings.SplitN(name, SnapshotDelimiter, 2)[1]
-}
-
-func ReadDir(p string) ([]string, error) {
-	ents, err := ioutil.ReadDir(p)
-	if err != nil {
-		return []string{}, err
-	}
-
-	var ret []string
-	for _, ent := range ents {
-		ret = append(ret, ent.Name())
-	}
-	return ret, nil
 }
 
 func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
