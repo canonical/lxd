@@ -14,7 +14,7 @@ type flags struct {
 func main() {
 	flags := parseFlags()
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
-	s := NewAuthService(flags.Endpoint, logger)
+	s := newAuthService(flags.Endpoint, logger)
 	if err := s.Checker.LoadCreds(flags.CredsFile); err != nil {
 		panic(err)
 	}

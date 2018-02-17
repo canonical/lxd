@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// WriteJSON encodes the body as JSON and sends it back to the client
 func WriteJSON(w http.ResponseWriter, body interface{}, debug bool) error {
 	var output io.Writer
 	var captured *bytes.Buffer
@@ -44,6 +45,7 @@ func WriteJSON(w http.ResponseWriter, body interface{}, debug bool) error {
 	return err
 }
 
+// EtagHash hashes the provided data and returns the sha256
 func EtagHash(data interface{}) (string, error) {
 	etag := sha256.New()
 	err := json.NewEncoder(etag).Encode(data)
@@ -54,6 +56,8 @@ func EtagHash(data interface{}) (string, error) {
 	return fmt.Sprintf("%x", etag.Sum(nil)), nil
 }
 
+// EtagCheck validates the hash of the current state with the hash
+// provided by the client
 func EtagCheck(r *http.Request, data interface{}) error {
 	match := r.Header.Get("If-Match")
 	if match == "" {
@@ -157,6 +161,8 @@ func IsRecursionRequest(r *http.Request) bool {
 	return recursion == 1
 }
 
+// ListenAddresses returns a list of host:port combinations at which
+// this machine can be reached
 func ListenAddresses(value string) ([]string, error) {
 	addresses := make([]string, 0)
 

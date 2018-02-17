@@ -24,29 +24,29 @@ type loginResponse struct {
 }
 
 // AuthService is an HTTP service for authentication using macaroons.
-type AuthService struct {
-	HTTPService
+type authService struct {
+	httpService
 
 	KeyPair *bakery.KeyPair
-	Checker CredentialsChecker
+	Checker credentialsChecker
 
 	userTokens    map[string]string // map user token to username
 	uuidGenerator *fastuuid.Generator
 }
 
 // NewAuthService returns an AuthService
-func NewAuthService(listenAddr string, logger *log.Logger) *AuthService {
+func newAuthService(listenAddr string, logger *log.Logger) *authService {
 	key := bakery.MustGenerateKey()
 	mux := http.NewServeMux()
-	s := AuthService{
-		HTTPService: HTTPService{
+	s := authService{
+		httpService: httpService{
 			Name:       "auth",
 			ListenAddr: listenAddr,
 			Logger:     logger,
 			Mux:        mux,
 		},
 		KeyPair:       key,
-		Checker:       NewCredentialsChecker(),
+		Checker:       newCredentialsChecker(),
 		uuidGenerator: fastuuid.MustNewGenerator(),
 		userTokens:    map[string]string{},
 	}
@@ -61,7 +61,7 @@ func NewAuthService(listenAddr string, logger *log.Logger) *AuthService {
 	return &s
 }
 
-func (s *AuthService) thirdPartyChecker(ctx context.Context, req *http.Request, info *bakery.ThirdPartyCaveatInfo, token *httpbakery.DischargeToken) ([]checkers.Caveat, error) {
+func (s *authService) thirdPartyChecker(ctx context.Context, req *http.Request, info *bakery.ThirdPartyCaveatInfo, token *httpbakery.DischargeToken) ([]checkers.Caveat, error) {
 	if token == nil {
 		err := httpbakery.NewInteractionRequiredError(nil, req)
 		err.SetInteraction("form", form.InteractionInfo{URL: formURL})
@@ -84,7 +84,7 @@ func (s *AuthService) thirdPartyChecker(ctx context.Context, req *http.Request, 
 	}, nil
 }
 
-func (s *AuthService) formHandler(w http.ResponseWriter, req *http.Request) {
+func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 	s.LogRequest(req)
 	switch req.Method {
 	case "GET":
@@ -130,7 +130,7 @@ func (s *AuthService) formHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *AuthService) getRandomToken() string {
+func (s *authService) getRandomToken() string {
 	uuid := make([]byte, 24)
 	for i, b := range s.uuidGenerator.Next() {
 		uuid[i] = b
@@ -138,6 +138,6 @@ func (s *AuthService) getRandomToken() string {
 	return base64.StdEncoding.EncodeToString(uuid)
 }
 
-func (s *AuthService) bakeryFail(w http.ResponseWriter, msg string, args ...interface{}) {
+func (s *authService) bakeryFail(w http.ResponseWriter, msg string, args ...interface{}) {
 	httpbakery.WriteError(context.TODO(), w, fmt.Errorf(msg, args...))
 }
