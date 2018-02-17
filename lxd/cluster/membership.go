@@ -90,7 +90,11 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	// instance. We also lock regular access to the cluster database since
 	// we don't want any other database code to run while we're
 	// reconfiguring raft.
-	state.Cluster.EnterExclusive()
+	err = state.Cluster.EnterExclusive()
+	if err != nil {
+		return errors.Wrap(err, "failed to acquire cluster database lock")
+	}
+
 	err = gateway.Shutdown()
 	if err != nil {
 		return errors.Wrap(err, "failed to shutdown gRPC SQL gateway")
@@ -268,6 +272,13 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		return err
 	}
 
+	// Lock regular access to the cluster database since we don't want any
+	// other database code to run while we're reconfiguring raft.
+	err = state.Cluster.EnterExclusive()
+	if err != nil {
+		return errors.Wrap(err, "failed to acquire cluster database lock")
+	}
+
 	// Shutdown the gateway and wipe any raft data. This will trash any
 	// gRPC SQL connection against our in-memory dqlite driver and shutdown
 	// the associated raft instance.
@@ -282,10 +293,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 	// Re-initialize the gateway. This will create a new raft factory an
 	// dqlite driver instance, which will be exposed over gRPC by the
-	// gateway handlers. We also lock regular access to the cluster database since
-	// we don't want any other database code to run while we're
-	// reconfiguring raft.
-	state.Cluster.EnterExclusive()
+	// gateway handlers.
 	gateway.cert = cert
 	err = gateway.init()
 	if err != nil {
