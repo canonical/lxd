@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-type HTTPService struct {
+type httpService struct {
 	Name       string
 	ListenAddr string
 	Logger     *log.Logger
@@ -16,7 +16,7 @@ type HTTPService struct {
 	listener net.Listener
 }
 
-func (s *HTTPService) Endpoint() string {
+func (s *httpService) Endpoint() string {
 	if s.listener == nil {
 		return ""
 	}
@@ -24,7 +24,7 @@ func (s *HTTPService) Endpoint() string {
 	return "http://" + s.listener.Addr().String()
 }
 
-func (s *HTTPService) Start(background bool) error {
+func (s *httpService) Start(background bool) error {
 	listener, err := net.Listen("tcp", s.ListenAddr)
 	if err != nil {
 		return err
@@ -47,11 +47,11 @@ func (s *HTTPService) Start(background bool) error {
 	return nil
 }
 
-func (s *HTTPService) LogRequest(req *http.Request) {
+func (s *httpService) LogRequest(req *http.Request) {
 	s.Logger.Printf("%s - %s %s", s.Name, req.Method, req.URL.Path)
 }
 
 // Fail returns an HTTP error with the specified message
-func (s *HTTPService) Fail(w http.ResponseWriter, code int, msg string, args ...interface{}) {
+func (s *httpService) Fail(w http.ResponseWriter, code int, msg string, args ...interface{}) {
 	http.Error(w, fmt.Sprintf(msg, args...), code)
 }
