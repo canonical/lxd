@@ -57,7 +57,7 @@ func run(args []string) error {
 			return nil
 		}
 
-		return fmt.Errorf("A valid action (launch, start, stop, delete) must be passed.")
+		return fmt.Errorf("A valid action (launch, start, stop, delete) must be passed")
 	}
 
 	gnuflag.Parse(true)
