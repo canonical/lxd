@@ -83,6 +83,8 @@ func GetIdmapSet() *idmap.IdmapSet {
 	return idmapSet
 }
 
+// RuntimeLiblxcVersionAtLeast checks if the system's liblxc matches the
+// provided version requirement
 func RuntimeLiblxcVersionAtLeast(major int, minor int, micro int) bool {
 	version := golxc.Version()
 	version = strings.Replace(version, " (devel)", "-devel", 1)
@@ -151,6 +153,7 @@ func RuntimeLiblxcVersionAtLeast(major int, minor int, micro int) bool {
 	return true
 }
 
+// GetExecPath returns the path to the current binary
 func GetExecPath() string {
 	execPath := os.Getenv("LXD_EXEC_PATH")
 	if execPath != "" {
