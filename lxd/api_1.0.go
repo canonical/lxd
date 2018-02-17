@@ -156,7 +156,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		Server:                 "lxd",
 		ServerPid:              os.Getpid(),
 		ServerVersion:          version.Version,
-		Clustered:              clustered,
+		ServerClustered:        clustered,
 		NodeName:               nodeName,
 	}
 
