@@ -84,7 +84,7 @@ Examples:
     lxc init ubuntu:16.04 u1`)
 }
 
-func (c *initCmd) is_ephem(s string) bool {
+func (c *initCmd) isEphemeral(s string) bool {
 	switch s {
 	case "-e":
 		return true
@@ -94,7 +94,7 @@ func (c *initCmd) is_ephem(s string) bool {
 	return false
 }
 
-func (c *initCmd) is_profile(s string) bool {
+func (c *initCmd) isProfile(s string) bool {
 	switch s {
 	case "-p":
 		return true
@@ -104,13 +104,13 @@ func (c *initCmd) is_profile(s string) bool {
 	return false
 }
 
-func (c *initCmd) massage_args() {
+func (c *initCmd) massageArgs() {
 	l := len(os.Args)
 	if l < 2 {
 		return
 	}
 
-	if c.is_profile(os.Args[l-1]) {
+	if c.isProfile(os.Args[l-1]) {
 		initRequestedEmptyProfiles = true
 		os.Args = os.Args[0 : l-1]
 		return
@@ -121,7 +121,7 @@ func (c *initCmd) massage_args() {
 	}
 
 	/* catch "lxc init ubuntu -p -e */
-	if c.is_ephem(os.Args[l-1]) && c.is_profile(os.Args[l-2]) {
+	if c.isEphemeral(os.Args[l-1]) && c.isProfile(os.Args[l-2]) {
 		initRequestedEmptyProfiles = true
 		newargs := os.Args[0 : l-2]
 		newargs = append(newargs, os.Args[l-1])
@@ -131,7 +131,7 @@ func (c *initCmd) massage_args() {
 }
 
 func (c *initCmd) flags() {
-	c.massage_args()
+	c.massageArgs()
 	gnuflag.Var(&c.confArgs, "config", i18n.G("Config key/value to apply to the new container"))
 	gnuflag.Var(&c.confArgs, "c", i18n.G("Config key/value to apply to the new container"))
 	gnuflag.Var(&c.profArgs, "profile", i18n.G("Profile to apply to the new container"))
@@ -251,7 +251,7 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 	}
 
 	// Watch the background operation
-	progress := ProgressRenderer{Format: i18n.G("Retrieving image: %s")}
+	progress := progressRenderer{Format: i18n.G("Retrieving image: %s")}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")

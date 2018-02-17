@@ -152,7 +152,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string, dest
 	}
 
 	// Watch the background operation
-	progress := ProgressRenderer{Format: i18n.G("Transferring container: %s")}
+	progress := progressRenderer{Format: i18n.G("Transferring container: %s")}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")

@@ -349,7 +349,7 @@ func (c *configCmd) run(conf *config.Config, args []string) error {
 				i18n.G("COMMON NAME"),
 				i18n.G("ISSUE DATE"),
 				i18n.G("EXPIRY DATE")})
-			sort.Sort(SortImage(data))
+			sort.Sort(stringList(data))
 			table.AppendBulk(data)
 			table.Render()
 

@@ -401,7 +401,7 @@ func (c *listCmd) run(conf *config.Config, args []string) error {
 		cts = append(cts, cinfo)
 	}
 
-	columns_map := map[rune]column{
+	columnsMap := map[rune]column{
 		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
 		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
 		'a': {i18n.G("ARCHITECTURE"), c.ArchitectureColumnData, false, false},
@@ -418,17 +418,17 @@ func (c *listCmd) run(conf *config.Config, args []string) error {
 		if c.chosenColumnRunes != "ns46tS" {
 			// --columns was specified too
 			return fmt.Errorf("Can't specify --fast with --columns")
-		} else {
-			c.chosenColumnRunes = "nsacPt"
 		}
+
+		c.chosenColumnRunes = "nsacPt"
 	}
 
 	columns := []column{}
 	for _, columnRune := range c.chosenColumnRunes {
-		if column, ok := columns_map[columnRune]; ok {
+		if column, ok := columnsMap[columnRune]; ok {
 			columns = append(columns, column)
 		} else {
-			return fmt.Errorf("%s does contain invalid column characters\n", c.chosenColumnRunes)
+			return fmt.Errorf("%s contains invalid column characters", c.chosenColumnRunes)
 		}
 	}
 
@@ -463,9 +463,9 @@ func (c *listCmd) IP4ColumnData(cInfo api.Container, cState *api.ContainerState,
 		}
 		sort.Sort(sort.Reverse(sort.StringSlice(ipv4s)))
 		return strings.Join(ipv4s, "\n")
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 func (c *listCmd) IP6ColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
@@ -488,17 +488,17 @@ func (c *listCmd) IP6ColumnData(cInfo api.Container, cState *api.ContainerState,
 		}
 		sort.Sort(sort.Reverse(sort.StringSlice(ipv6s)))
 		return strings.Join(ipv6s, "\n")
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 func (c *listCmd) typeColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	if cInfo.Ephemeral {
 		return i18n.G("EPHEMERAL")
-	} else {
-		return i18n.G("PERSISTENT")
 	}
+
+	return i18n.G("PERSISTENT")
 }
 
 func (c *listCmd) numberSnapshotsColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {

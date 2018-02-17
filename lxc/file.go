@@ -59,7 +59,7 @@ func (c *fileCmd) flags() {
 	gnuflag.StringVar(&c.mode, "mode", "", i18n.G("Set the file's perms on push"))
 }
 
-func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string) error {
+func (c *fileCmd) push(conf *config.Config, sendFilePerms bool, args []string) error {
 	if len(args) < 2 {
 		return errArgs
 	}
@@ -149,9 +149,9 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 			Mode:    -1,
 		}
 
-		if send_file_perms {
+		if sendFilePerms {
 			if c.mode == "" || c.uid == -1 || c.gid == -1 {
-				fMode, fUid, fGid, err := c.getOwner(f)
+				fMode, fUID, fGID, err := c.getOwner(f)
 				if err != nil {
 					return err
 				}
@@ -161,11 +161,11 @@ func (c *fileCmd) push(conf *config.Config, send_file_perms bool, args []string)
 				}
 
 				if c.uid == -1 {
-					uid = fUid
+					uid = fUID
 				}
 
 				if c.gid == -1 {
-					gid = fGid
+					gid = fGID
 				}
 			}
 
