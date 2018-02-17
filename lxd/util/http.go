@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// WriteJSON encodes the body as JSON and sends it back to the client
 func WriteJSON(w http.ResponseWriter, body interface{}, debug bool) error {
 	var output io.Writer
 	var captured *bytes.Buffer
@@ -149,6 +150,8 @@ func IsRecursionRequest(r *http.Request) bool {
 	return recursion == 1
 }
 
+// ListenAddresses returns a list of host:port combinations at which
+// this machine can be reached
 func ListenAddresses(value string) ([]string, error) {
 	addresses := make([]string, 0)
 
