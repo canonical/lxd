@@ -3942,7 +3942,14 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 			return err
 		}
 
-		tpl, err := pongo2.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
+		// Block all file related tags
+		tplSet := pongo2.NewSet(template.Template)
+		tplSet.BanTag("extends")
+		tplSet.BanTag("import")
+		tplSet.BanTag("include")
+		tplSet.BanTag("ssi")
+
+		tpl, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 		if err != nil {
 			return err
 		}
