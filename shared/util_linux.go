@@ -384,35 +384,6 @@ func IsMountPoint(name string) bool {
 	return stat.Sys().(*syscall.Stat_t).Dev != rootStat.Sys().(*syscall.Stat_t).Dev
 }
 
-func ReadLastNLines(f *os.File, lines int) (string, error) {
-	if lines <= 0 {
-		return "", fmt.Errorf("invalid line count")
-	}
-
-	stat, err := f.Stat()
-	if err != nil {
-		return "", err
-	}
-
-	data, err := syscall.Mmap(int(f.Fd()), 0, int(stat.Size()), syscall.PROT_READ, syscall.MAP_SHARED)
-	if err != nil {
-		return "", err
-	}
-	defer syscall.Munmap(data)
-
-	for i := len(data) - 1; i >= 0; i-- {
-		if data[i] == '\n' {
-			lines--
-		}
-
-		if lines < 0 {
-			return string(data[i+1:]), nil
-		}
-	}
-
-	return string(data), nil
-}
-
 func SetSize(fd int, width int, height int) (err error) {
 	var dimensions [4]uint16
 	dimensions[0] = uint16(height)
@@ -735,45 +706,6 @@ func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 
 	lastSlash := strings.LastIndex(uuid, "/")
 	return uuid[lastSlash+1:], nil
-}
-
-func LookupBlockDevByUUID(uuid string) (string, error) {
-	detectedPath := ""
-	readPath := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if (info.Mode() & os.ModeSymlink) == os.ModeSymlink {
-			link, err := os.Readlink(path)
-			if err != nil {
-				return err
-			}
-
-			if info.Name() == uuid {
-				// filepath.Join() will call Clean() on the
-				// result and thus resolve those ugly "../../"
-				// parts that make it hard to compare the
-				// strings.
-				detectedPath = filepath.Join("/dev/disk/by-uuid", link)
-				// Will allows us to avoid needlessly travers
-				// the whole directory.
-				return ObjectFound
-			}
-		}
-		return nil
-	}
-
-	err := filepath.Walk("/dev/disk/by-uuid", readPath)
-	if err != nil && err != ObjectFound {
-		return "", fmt.Errorf("Failed to detect disk device: %s.", err)
-	}
-
-	if detectedPath == "" {
-		return "", fmt.Errorf("Failed to detect disk device.")
-	}
-
-	return detectedPath, nil
 }
 
 // Detect whether err is an errno.
