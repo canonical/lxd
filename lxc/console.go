@@ -67,12 +67,12 @@ func (c *consoleCmd) sendTermSize(control *websocket.Conn) error {
 	return err
 }
 
-type ReadWriteCloser struct {
+type readWriteCloser struct {
 	io.Reader
 	io.WriteCloser
 }
 
-type StdinMirror struct {
+type stdinMirror struct {
 	r                 io.Reader
 	consoleDisconnect chan<- bool
 	foundEscape       *bool
@@ -80,7 +80,7 @@ type StdinMirror struct {
 
 // The pty has been switched to raw mode so we will only ever read a single
 // byte. The buffer size is therefore uninteresting to us.
-func (er StdinMirror) Read(p []byte) (int, error) {
+func (er stdinMirror) Read(p []byte) (int, error) {
 	n, err := er.r.Read(p)
 
 	v := rune(p[0])
@@ -159,7 +159,7 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 	sendDisconnect := make(chan bool)
 	defer close(sendDisconnect)
 	consoleArgs := lxd.ContainerConsoleArgs{
-		Terminal: &ReadWriteCloser{StdinMirror{os.Stdin,
+		Terminal: &readWriteCloser{stdinMirror{os.Stdin,
 			sendDisconnect, new(bool)}, os.Stdout},
 		Control:           handler,
 		ConsoleDisconnect: consoleDisconnect,
