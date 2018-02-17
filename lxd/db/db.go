@@ -250,9 +250,22 @@ func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
 
 // EnterExclusive acquires a lock on the cluster db, so any successive call to
 // Transaction will block until ExitExclusive has been called.
-func (c *Cluster) EnterExclusive() {
+func (c *Cluster) EnterExclusive() error {
 	logger.Debug("Acquiring exclusive lock on cluster db")
-	c.mu.Lock()
+
+	ch := make(chan struct{})
+	go func() {
+		c.mu.Lock()
+		ch <- struct{}{}
+	}()
+
+	timeout := 20 * time.Second
+	select {
+	case <-ch:
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("timeout (%s)", timeout)
+	}
 }
 
 // ExitExclusive runs the given transaction and then releases the lock acquired
