@@ -6,15 +6,15 @@ import (
 	"os"
 )
 
-type CredentialsChecker struct {
+type credentialsChecker struct {
 	creds map[string]string
 }
 
-func NewCredentialsChecker() CredentialsChecker {
-	return CredentialsChecker{creds: map[string]string{}}
+func newCredentialsChecker() credentialsChecker {
+	return credentialsChecker{creds: map[string]string{}}
 }
 
-func (c *CredentialsChecker) Check(form interface{}) bool {
+func (c *credentialsChecker) Check(form interface{}) bool {
 	m := form.(map[string]interface{})
 	username := m["username"].(string)
 	password := m["password"].(string)
@@ -22,13 +22,13 @@ func (c *CredentialsChecker) Check(form interface{}) bool {
 	return ok && pass == password
 }
 
-func (c *CredentialsChecker) AddCreds(creds map[string]string) {
+func (c *credentialsChecker) AddCreds(creds map[string]string) {
 	for user, pass := range creds {
 		c.creds[user] = pass
 	}
 }
 
-func (c *CredentialsChecker) LoadCreds(csvFile string) error {
+func (c *credentialsChecker) LoadCreds(csvFile string) error {
 	f, err := os.Open(csvFile)
 	if err != nil {
 		return err

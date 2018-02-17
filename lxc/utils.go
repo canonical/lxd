@@ -27,7 +27,7 @@ const (
 )
 
 // Progress tracking
-type ProgressRenderer struct {
+type progressRenderer struct {
 	Format string
 
 	maxLength int
@@ -36,7 +36,7 @@ type ProgressRenderer struct {
 	lock      sync.Mutex
 }
 
-func (p *ProgressRenderer) Done(msg string) {
+func (p *progressRenderer) Done(msg string) {
 	// Acquire rendering lock
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -64,7 +64,7 @@ func (p *ProgressRenderer) Done(msg string) {
 	fmt.Print(msg)
 }
 
-func (p *ProgressRenderer) Update(status string) {
+func (p *progressRenderer) Update(status string) {
 	// Wait if needed
 	timeout := p.wait.Sub(time.Now())
 	if timeout.Seconds() > 0 {
@@ -97,7 +97,7 @@ func (p *ProgressRenderer) Update(status string) {
 	fmt.Print(msg)
 }
 
-func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
+func (p *progressRenderer) Warn(status string, timeout time.Duration) {
 	// Acquire rendering lock
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -120,11 +120,11 @@ func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
 	fmt.Print(msg)
 }
 
-func (p *ProgressRenderer) UpdateProgress(progress ioprogress.ProgressData) {
+func (p *progressRenderer) UpdateProgress(progress ioprogress.ProgressData) {
 	p.Update(progress.Text)
 }
 
-func (p *ProgressRenderer) UpdateOp(op api.Operation) {
+func (p *progressRenderer) UpdateOp(op api.Operation) {
 	if op.Metadata == nil {
 		return
 	}
@@ -138,17 +138,17 @@ func (p *ProgressRenderer) UpdateOp(op api.Operation) {
 	}
 }
 
-type StringList [][]string
+type stringList [][]string
 
-func (a StringList) Len() int {
+func (a stringList) Len() int {
 	return len(a)
 }
 
-func (a StringList) Swap(i, j int) {
+func (a stringList) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-func (a StringList) Less(i, j int) bool {
+func (a stringList) Less(i, j int) bool {
 	x := 0
 	for x = range a[i] {
 		if a[i][x] != a[j][x] {
@@ -344,7 +344,7 @@ func profileDeviceAdd(client lxd.ContainerServer, name string, devName string, d
 }
 
 // Wait for an operation and cancel it on SIGINT/SIGTERM
-func cancelableWait(op *lxd.RemoteOperation, progress *ProgressRenderer) error {
+func cancelableWait(op *lxd.RemoteOperation, progress *progressRenderer) error {
 	// Signal handling
 	chSignal := make(chan os.Signal)
 	signal.Notify(chSignal, os.Interrupt)
@@ -365,16 +365,16 @@ func cancelableWait(op *lxd.RemoteOperation, progress *ProgressRenderer) error {
 			err := op.CancelTarget()
 			if err == nil {
 				return fmt.Errorf(i18n.G("Remote operation canceled by user"))
-			} else {
-				count++
+			}
 
-				if count == 3 {
-					return fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running."))
-				}
+			count++
 
-				if progress != nil {
-					progress.Warn(fmt.Sprintf(i18n.G("%v (interrupt two more times to force)"), err), time.Second*5)
-				}
+			if count == 3 {
+				return fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running."))
+			}
+
+			if progress != nil {
+				progress.Warn(fmt.Sprintf(i18n.G("%v (interrupt two more times to force)"), err), time.Second*5)
 			}
 		}
 	}

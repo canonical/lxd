@@ -157,7 +157,7 @@ func parseCpuinfo() ([]thread, error) {
 	return threads, err
 }
 
-func parseSysDevSystemCpu() ([]thread, error) {
+func parseSysDevSystemCPU() ([]thread, error) {
 	ents, err := ioutil.ReadDir("/sys/devices/system/cpu/")
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func getThreads() ([]thread, error) {
 		return threads, nil
 	}
 
-	threads, err = parseSysDevSystemCpu()
+	threads, err = parseSysDevSystemCPU()
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,8 @@ func getThreads() ([]thread, error) {
 	return threads, nil
 }
 
-func CpuResource() (*api.ResourcesCPU, error) {
+// CPUResource returns the system CPU information
+func CPUResource() (*api.ResourcesCPU, error) {
 	c := api.ResourcesCPU{}
 
 	threads, err := getThreads()
@@ -271,6 +272,7 @@ func CpuResource() (*api.ResourcesCPU, error) {
 	return &c, nil
 }
 
+// MemoryResource returns the system memory information
 func MemoryResource() (*api.ResourcesMemory, error) {
 	var buffers uint64
 	var cached uint64

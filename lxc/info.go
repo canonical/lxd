@@ -64,9 +64,9 @@ func (c *infoCmd) run(conf *config.Config, args []string) error {
 
 	if cName == "" {
 		return c.remoteInfo(d)
-	} else {
-		return c.containerInfo(d, conf.Remotes[remote], cName, c.showLog)
 	}
+
+	return c.containerInfo(d, conf.Remotes[remote], cName, c.showLog)
 }
 
 func (c *infoCmd) remoteInfo(d lxd.ContainerServer) error {
@@ -226,14 +226,14 @@ func (c *infoCmd) containerInfo(d lxd.ContainerServer, remote config.Remote, nam
 	}
 
 	// List snapshots
-	first_snapshot := true
+	firstSnapshot := true
 	snaps, err := d.GetContainerSnapshots(name)
 	if err != nil {
 		return nil
 	}
 
 	for _, snap := range snaps {
-		if first_snapshot {
+		if firstSnapshot {
 			fmt.Println(i18n.G("Snapshots:"))
 		}
 
@@ -251,7 +251,7 @@ func (c *infoCmd) containerInfo(d lxd.ContainerServer, remote config.Remote, nam
 		}
 		fmt.Printf("\n")
 
-		first_snapshot = false
+		firstSnapshot = false
 	}
 
 	if showLog {
