@@ -284,6 +284,7 @@ CREATE TABLE nodes (
     schema INTEGER NOT NULL,
     api_extensions INTEGER NOT NULL,
     heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
+    pending INTEGER NOT NULL DEFAULT 0,
     UNIQUE (name),
     UNIQUE (address)
 );

@@ -159,9 +159,17 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 			return err
 		}
 		// Add the new node
-		_, err = tx.NodeAdd(name, address)
+		id, err := tx.NodeAdd(name, address)
 		if err != nil {
-			return errors.Wrap(err, "failed to insert first raft node")
+			return errors.Wrap(err, "failed to insert new node")
+		}
+
+		// Mark the node as pending, so it will be skipped when
+		// performing heartbeats or sending cluster
+		// notifications.
+		err = tx.NodePending(id, true)
+		if err != nil {
+			return errors.Wrap(err, "failed to mark new node as pending")
 		}
 
 		return nil
@@ -315,7 +323,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// tables with our local configuration.
 	logger.Info("Migrate local data to cluster database")
 	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
-		node, err := tx.NodeByAddress(address)
+		node, err := tx.NodePendingByAddress(address)
 		if err != nil {
 			return errors.Wrap(err, "failed to get ID of joining node")
 		}
@@ -383,6 +391,14 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 				return errors.Wrapf(err, "failed to migrate operation %s", uuid)
 			}
 		}
+
+		// Remove the pending flag for ourselves
+		// notifications.
+		err = tx.NodePending(node.ID, false)
+		if err != nil {
+			return errors.Wrapf(err, "failed to unmark the node as pending")
+		}
+
 		return nil
 	})
 	if err != nil {

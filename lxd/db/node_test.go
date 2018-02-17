@@ -105,6 +105,38 @@ func TestNodeRemove(t *testing.T) {
 	assert.Equal(t, db.NoSuchObjectError, err)
 }
 
+// Mark a node has pending.
+func TestNodePending(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	// Add the pending flag
+	err = tx.NodePending(id, true)
+	require.NoError(t, err)
+
+	// Pending nodes are skipped from regular listing
+	_, err = tx.NodeByName("buzz")
+	assert.Equal(t, db.NoSuchObjectError, err)
+	nodes, err := tx.Nodes()
+	require.NoError(t, err)
+	assert.Len(t, nodes, 1)
+
+	// But the key be retrieved with NodePendingByAddress
+	node, err := tx.NodePendingByAddress("1.2.3.4:666")
+	require.NoError(t, err)
+	assert.Equal(t, id, node.ID)
+
+	// Remove the pending flag
+	err = tx.NodePending(id, false)
+	require.NoError(t, err)
+	node, err = tx.NodeByName("buzz")
+	require.NoError(t, err)
+	assert.Equal(t, id, node.ID)
+}
+
 // Update the heartbeat of a node.
 func TestNodeHeartbeat(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)

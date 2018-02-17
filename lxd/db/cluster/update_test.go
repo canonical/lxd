@@ -16,17 +16,17 @@ func TestUpdateFromV0(t *testing.T) {
 	db, err := schema.ExerciseUpdate(1, nil)
 	require.NoError(t, err)
 
-	stmt := "INSERT INTO nodes VALUES (1, 'foo', 'blah', '1.2.3.4:666', 1, 32, ?)"
+	stmt := "INSERT INTO nodes VALUES (1, 'foo', 'blah', '1.2.3.4:666', 1, 32, ?, 0)"
 	_, err = db.Exec(stmt, time.Now())
 	require.NoError(t, err)
 
 	// Unique constraint on name
-	stmt = "INSERT INTO nodes VALUES (2, 'foo', 'gosh', '5.6.7.8:666', 5, 20, ?)"
+	stmt = "INSERT INTO nodes VALUES (2, 'foo', 'gosh', '5.6.7.8:666', 5, 20, ?, 0)"
 	_, err = db.Exec(stmt, time.Now())
 	require.Error(t, err)
 
 	// Unique constraint on address
-	stmt = "INSERT INTO nodes VALUES (3, 'bar', 'gasp', '1.2.3.4:666', 9, 11), ?)"
+	stmt = "INSERT INTO nodes VALUES (3, 'bar', 'gasp', '1.2.3.4:666', 9, 11), ?, 0)"
 	_, err = db.Exec(stmt, time.Now())
 	require.Error(t, err)
 }
@@ -62,10 +62,10 @@ func TestUpdateFromV1_Containers(t *testing.T) {
 	db, err := schema.ExerciseUpdate(2, nil)
 	require.NoError(t, err)
 
-	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'one', '', '1.1.1.1', 666, 999, ?)", time.Now())
+	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'one', '', '1.1.1.1', 666, 999, ?, 0)", time.Now())
 	require.NoError(t, err)
 
-	_, err = db.Exec("INSERT INTO nodes VALUES (2, 'two', '', '2.2.2.2', 666, 999, ?)", time.Now())
+	_, err = db.Exec("INSERT INTO nodes VALUES (2, 'two', '', '2.2.2.2', 666, 999, ?, 0)", time.Now())
 	require.NoError(t, err)
 
 	_, err = db.Exec(`
@@ -121,10 +121,10 @@ func testConfigTable(t *testing.T, table string, setup func(db *sql.DB)) {
 	db, err := schema.ExerciseUpdate(2, nil)
 	require.NoError(t, err)
 
-	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'one', '', '1.1.1.1', 666, 999, ?)", time.Now())
+	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'one', '', '1.1.1.1', 666, 999, ?, 0)", time.Now())
 	require.NoError(t, err)
 
-	_, err = db.Exec("INSERT INTO nodes VALUES (2, 'two', '', '2.2.2.2', 666, 999, ?)", time.Now())
+	_, err = db.Exec("INSERT INTO nodes VALUES (2, 'two', '', '2.2.2.2', 666, 999, ?, 0)", time.Now())
 	require.NoError(t, err)
 
 	stmt := func(format string) string {
@@ -180,7 +180,7 @@ func TestUpdateFromV2(t *testing.T) {
 	db, err := schema.ExerciseUpdate(3, nil)
 	require.NoError(t, err)
 
-	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'one', '', '1.1.1.1', 666, 999, ?)", time.Now())
+	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'one', '', '1.1.1.1', 666, 999, ?, 0)", time.Now())
 	require.NoError(t, err)
 
 	_, err = db.Exec("INSERT INTO operations VALUES (1, 'abcd', 1)")
@@ -205,7 +205,7 @@ func TestUpdateFromV3(t *testing.T) {
 	db, err := schema.ExerciseUpdate(4, nil)
 	require.NoError(t, err)
 
-	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'c1', '', '1.1.1.1', 666, 999, ?)", time.Now())
+	_, err = db.Exec("INSERT INTO nodes VALUES (1, 'c1', '', '1.1.1.1', 666, 999, ?, 0)", time.Now())
 	require.NoError(t, err)
 
 	_, err = db.Exec("INSERT INTO storage_pools VALUES (1, 'p1', 'zfs', '', 0)")
