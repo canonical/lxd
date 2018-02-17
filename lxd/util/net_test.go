@@ -1,6 +1,7 @@
 package util_test
 
 import (
+	"io"
 	"testing"
 
 	"github.com/lxc/lxd/lxd/util"
@@ -24,6 +25,14 @@ func TestInMemoryNetwork(t *testing.T) {
 
 	assert.Equal(t, 5, n)
 	assert.Equal(t, []byte("hello"), buffer)
+
+	// Closing the server makes all further client reads and
+	// writes fail.
+	server.Close()
+	_, err = client.Read(buffer)
+	assert.Equal(t, io.EOF, err)
+	_, err = client.Write([]byte("hello"))
+	assert.EqualError(t, err, "io: read/write on closed pipe")
 }
 
 func TestCanonicalNetworkAddress(t *testing.T) {

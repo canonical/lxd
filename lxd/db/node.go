@@ -38,7 +38,24 @@ func (n NodeInfo) Version() [2]int {
 // NodeByAddress returns the node with the given network address.
 func (c *ClusterTx) NodeByAddress(address string) (NodeInfo, error) {
 	null := NodeInfo{}
-	nodes, err := c.nodes("address=?", address)
+	nodes, err := c.nodes(false /* not pending */, "address=?", address)
+	if err != nil {
+		return null, err
+	}
+	switch len(nodes) {
+	case 0:
+		return null, NoSuchObjectError
+	case 1:
+		return nodes[0], nil
+	default:
+		return null, fmt.Errorf("more than one node matches")
+	}
+}
+
+// NodePendingByAddress returns the pending node with the given network address.
+func (c *ClusterTx) NodePendingByAddress(address string) (NodeInfo, error) {
+	null := NodeInfo{}
+	nodes, err := c.nodes(true /*pending */, "address=?", address)
 	if err != nil {
 		return null, err
 	}
@@ -55,7 +72,7 @@ func (c *ClusterTx) NodeByAddress(address string) (NodeInfo, error) {
 // NodeByName returns the node with the given name.
 func (c *ClusterTx) NodeByName(name string) (NodeInfo, error) {
 	null := NodeInfo{}
-	nodes, err := c.nodes("name=?", name)
+	nodes, err := c.nodes(false /* not pending */, "name=?", name)
 	if err != nil {
 		return null, err
 	}
@@ -108,7 +125,7 @@ func (c *ClusterTx) NodeAddress() (string, error) {
 // If this LXD instance is not clustered, a list with a single node whose
 // address is 0.0.0.0 is returned.
 func (c *ClusterTx) Nodes() ([]NodeInfo, error) {
-	return c.nodes("")
+	return c.nodes(false /* not pending */, "")
 }
 
 // NodesCount returns the number of nodes in the LXD cluster.
@@ -150,7 +167,7 @@ func (c *ClusterTx) NodeRename(old, new string) error {
 }
 
 // Nodes returns all LXD nodes part of the cluster.
-func (c *ClusterTx) nodes(where string, args ...interface{}) ([]NodeInfo, error) {
+func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]NodeInfo, error) {
 	nodes := []NodeInfo{}
 	dest := func(i int) []interface{} {
 		nodes = append(nodes, NodeInfo{})
@@ -164,10 +181,15 @@ func (c *ClusterTx) nodes(where string, args ...interface{}) ([]NodeInfo, error)
 			&nodes[i].Heartbeat,
 		}
 	}
+	if pending {
+		args = append([]interface{}{1}, args...)
+	} else {
+		args = append([]interface{}{0}, args...)
+	}
 	stmt := `
-SELECT id, name, address, description, schema, api_extensions, heartbeat FROM nodes `
+SELECT id, name, address, description, schema, api_extensions, heartbeat FROM nodes WHERE pending=? `
 	if where != "" {
-		stmt += fmt.Sprintf("WHERE %s ", where)
+		stmt += fmt.Sprintf("AND %s ", where)
 	}
 	stmt += "ORDER BY id"
 	err := query.SelectObjects(c.tx, dest, stmt, args...)
@@ -183,6 +205,27 @@ func (c *ClusterTx) NodeAdd(name string, address string) (int64, error) {
 	columns := []string{"name", "address", "schema", "api_extensions"}
 	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount()}
 	return query.UpsertObject(c.tx, "nodes", columns, values)
+}
+
+// NodePending toggles the pending flag for the node. A node is pending when
+// it's been accepted in the cluster, but has not yet actually joined it.
+func (c *ClusterTx) NodePending(id int64, pending bool) error {
+	value := 0
+	if pending {
+		value = 1
+	}
+	result, err := c.tx.Exec("UPDATE nodes SET pending=? WHERE id=?", value, id)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf("query updated %d rows instead of 1", n)
+	}
+	return nil
 }
 
 // NodeUpdate updates the name an address of a node.
