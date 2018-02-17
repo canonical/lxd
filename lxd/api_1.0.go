@@ -115,13 +115,22 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	nodeName := ""
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodeName, err = tx.NodeName()
-		return err
-	})
-	if err != nil {
-		return SmartError(err)
+	// When clustered, use the node name, otherwise use the hostname.
+	var serverName string
+	if clustered {
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			serverName, err = tx.NodeName()
+			return err
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+	} else {
+		hostname, err := os.Hostname()
+		if err != nil {
+			return SmartError(err)
+		}
+		serverName = hostname
 	}
 
 	certificate := string(d.endpoints.NetworkPublicKey())
@@ -157,7 +166,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		ServerPid:              os.Getpid(),
 		ServerVersion:          version.Version,
 		ServerClustered:        clustered,
-		NodeName:               nodeName,
+		ServerName:             serverName,
 	}
 
 	drivers := readStoragePoolDriversCache()
