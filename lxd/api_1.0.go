@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
@@ -204,6 +205,7 @@ func api10Put(d *Daemon, r *http.Request) Response {
 	// If this is a notification from a cluster node, just run the triggers
 	// for reacting to the values that changed.
 	if isClusterNotification(r) {
+		logger.Debugf("Handling config changed notification")
 		changed := make(map[string]string)
 		for key, value := range req.Config {
 			changed[key] = value.(string)
@@ -337,6 +339,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		return client.UpdateServer(serverPut, etag)
 	})
 	if err != nil {
+		logger.Debugf("Failed to notify other nodes about config change: %v", err)
 		return SmartError(err)
 	}
 
