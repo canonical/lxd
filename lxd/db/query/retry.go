@@ -43,10 +43,10 @@ func IsRetriableError(err error) bool {
 	if err == sqlite3.ErrLocked || err == sqlite3.ErrBusy {
 		return true
 	}
-	if err.Error() == "database is locked" {
+
+	if strings.Contains(err.Error(), "database is locked") {
 		return true
 	}
-
 	if strings.Contains(err.Error(), "bad connection") {
 		return true
 	}

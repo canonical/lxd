@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/pkg/errors"
 )
 
 // Config holds cluster-wide configuration values.
@@ -143,7 +144,7 @@ func (c *Config) update(values map[string]interface{}) (map[string]string, error
 
 	err = c.tx.UpdateConfig(changed)
 	if err != nil {
-		return nil, fmt.Errorf("cannot persist configuration changes: %v", err)
+		return nil, errors.Wrap(err, "cannot persist configuration changes: %v")
 	}
 
 	return changed, nil
