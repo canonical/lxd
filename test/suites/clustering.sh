@@ -78,8 +78,9 @@ test_clustering_membership() {
   # detected as down.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 5
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
-  sleep 8
+  sleep 10
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node5" | grep -q "OFFLINE"
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 20
 
   # Trying to delete the preseeded network now fails, because a node is degraded.
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
@@ -240,8 +241,9 @@ test_clustering_containers() {
   # containers.
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 5
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 8
+  sleep 10
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
