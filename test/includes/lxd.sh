@@ -225,6 +225,7 @@ kill_lxd() {
     "$lxd_backend"_teardown "${daemon_dir}"
 
     # Wipe the daemon directory
+    sleep 2
     wipe "${daemon_dir}"
 
     # Remove the daemon from the list
@@ -246,6 +247,10 @@ shutdown_lxd() {
 
     # Kill the daemon
     lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
+
+    # Wait for any cleanup activity that might be happening right
+    # after the websocket is closed.
+    sleep 2
 }
 
 wait_for() {
