@@ -82,6 +82,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 
 		// If the context has been cancelled, return immediately.
 		if ctx.Err() != nil {
+			logger.Debugf("Aborting heartbeat round")
 			return
 		}
 
@@ -100,6 +101,7 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 		if err != nil {
 			logger.Warnf("Failed to update heartbeat: %v", err)
 		}
+		logger.Debugf("Completed heartbeat round")
 	}
 
 	// Since the database APIs are blocking we need to wrap the core logic
@@ -125,7 +127,9 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 const heartbeatInterval = 4
 
 // Perform a single heartbeat request against the node with the given address.
-func heartbeatNode(ctx context.Context, address string, cert *shared.CertInfo, raftNodes []db.RaftNode) error {
+func heartbeatNode(taskCtx context.Context, address string, cert *shared.CertInfo, raftNodes []db.RaftNode) error {
+	logger.Debugf("Sending heartbeat request to %s", address)
+
 	config, err := tlsClientConfig(cert)
 	if err != nil {
 		return err
@@ -143,16 +147,31 @@ func heartbeatNode(ctx context.Context, address string, cert *shared.CertInfo, r
 	if err != nil {
 		return err
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 	request = request.WithContext(ctx)
 	request.Close = true // Immediately close the connection after the request is done
 
-	response, err := client.Do(request)
-	if err != nil {
-		return errors.Wrap(err, "failed to send HTTP request")
+	// Perform the request asynchronously, so we can abort it if the task context is done.
+	errCh := make(chan error)
+	go func() {
+		response, err := client.Do(request)
+		if err != nil {
+			errCh <- errors.Wrap(err, "failed to send HTTP request")
+			return
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			errCh <- fmt.Errorf("HTTP request failed: %s", response.Status)
+			return
+		}
+		errCh <- nil
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-taskCtx.Done():
+		return taskCtx.Err()
 	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP request failed: %s", response.Status)
-	}
-	return nil
 }

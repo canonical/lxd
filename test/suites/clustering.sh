@@ -20,9 +20,9 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
   # Configuration keys can be changed on any node.
-  LXD_DIR="${LXD_TWO_DIR}" lxc config set images.auto_update_interval 10
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'images.auto_update_interval: "10"'
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'images.auto_update_interval: "10"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 30
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "30"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "30"'
 
   # The preseeded network bridge exists on all nodes.
   ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
