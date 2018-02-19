@@ -54,10 +54,18 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 		}
 
 		var nodes []db.NodeInfo
+		var nodeAddress string // Address of this node
 		err = cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
 			nodes, err = tx.Nodes()
-			return err
+			if err != nil {
+				return err
+			}
+			nodeAddress, err = tx.NodeAddress()
+			if err != nil {
+				return err
+			}
+			return nil
 		})
 		if err != nil {
 			logger.Warnf("Failed to get current cluster nodes: %v", err)
@@ -69,7 +77,11 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 		for i, node := range nodes {
 			go func(i int, address string) {
 				defer wg.Done()
-				err := heartbeatNode(ctx, address, gateway.cert, raftNodes)
+				var err error
+				// Only send actual requests to other nodes
+				if address != nodeAddress {
+					err = heartbeatNode(ctx, address, gateway.cert, raftNodes)
+				}
 				if err == nil {
 					logger.Debugf("Successful heartbeat for %s", address)
 					heartbeats[i] = time.Now()
