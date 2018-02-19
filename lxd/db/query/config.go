@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // SelectConfig executes a query statement against a "config" table, which must
@@ -60,12 +62,12 @@ func UpdateConfig(tx *sql.Tx, table string, values map[string]string) error {
 
 	err := upsertConfig(tx, table, changes)
 	if err != nil {
-		return fmt.Errorf("updating values failed: %s", err)
+		return errors.Wrap(err, "updating values failed")
 	}
 
 	err = deleteConfig(tx, table, deletes)
 	if err != nil {
-		return fmt.Errorf("deleting values failed: %s", err)
+		return errors.Wrap(err, "deleting values failed")
 	}
 
 	return nil
