@@ -44,7 +44,7 @@ func TestCluster_Get(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a pool and check that the information returned by GetCluster
-	// does not contain node-specific keys.
+	// contains it.
 	os.Setenv("LXD_DIR", filepath.Join(daemon.State().OS.VarDir))
 	pool := api.StoragePoolsPost{
 		Name:   "mypool",
@@ -59,9 +59,6 @@ func TestCluster_Get(t *testing.T) {
 	cluster, err := client.GetCluster("")
 	require.NoError(t, err)
 	assert.Len(t, cluster.StoragePools, 1)
-
-	_, ok := cluster.StoragePools[0].Config["source"]
-	assert.False(t, ok, "should have not contained the node-specific 'source' key")
 }
 
 // A LXD node which is already configured for networking can join an existing

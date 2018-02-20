@@ -845,13 +845,16 @@ func (cmd *CmdInit) askClusteringStoragePools(cluster *api.Cluster) ([]api.Stora
 		post.Name = pool.Name
 		post.Driver = pool.Driver
 		post.Config = pool.Config
-		// The only config key to ask is 'source', which is the only one node-specific.
-		key := "source"
-		question := fmt.Sprintf(
-			`Enter local value for key "%s" of storage pool "%s": `, key, post.Name)
-		// Dummy validator for allowing empty strings.
-		validator := func(string) error { return nil }
-		post.Config[key] = cmd.Context.AskString(question, "", validator)
+		// Only ask for the node-specific "source" key if it's defined
+		// in the target node.
+		if pool.Config["source"] != "" {
+			key := "source"
+			question := fmt.Sprintf(
+				`Enter local value for key "%s" of storage pool "%s": `, key, post.Name)
+			// Dummy validator for allowing empty strings.
+			validator := func(string) error { return nil }
+			post.Config[key] = cmd.Context.AskString(question, "", validator)
+		}
 		pools[i] = post
 	}
 	return pools, nil
@@ -868,14 +871,16 @@ func (cmd *CmdInit) askClusteringNetworks(cluster *api.Cluster) ([]api.NetworksP
 		post.Config = network.Config
 		post.Type = network.Type
 		post.Managed = true
-		// The only config key to ask is 'bridge.external_interfaces',
-		// which is the only one node-specific.
-		key := "bridge.external_interfaces"
-		question := fmt.Sprintf(
-			`Enter local value for key "%s" of network "%s": `, key, post.Name)
-		// Dummy validator for allowing empty strings.
-		validator := func(string) error { return nil }
-		post.Config[key] = cmd.Context.AskString(question, "", validator)
+		// Only ask for the node-specific "bridge.external_interfaces"
+		// key if it's defined in the target node.
+		if network.Config["bridge.external_interfaces"] != "" {
+			key := "bridge.external_interfaces"
+			question := fmt.Sprintf(
+				`Enter local value for key "%s" of network "%s": `, key, post.Name)
+			// Dummy validator for allowing empty strings.
+			validator := func(string) error { return nil }
+			post.Config[key] = cmd.Context.AskString(question, "", validator)
+		}
 		networks[i] = post
 	}
 	return networks, nil

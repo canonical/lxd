@@ -65,10 +65,6 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
-		// Remove node-specific keys
-		for _, key := range db.StoragePoolNodeConfigKeys {
-			delete(pool.Config, key)
-		}
 		cluster.StoragePools = append(cluster.StoragePools, *pool)
 	}
 
