@@ -36,6 +36,10 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNames(pool string) ([]string, error) {
 
 // GetStoragePoolVolumes returns a list of StorageVolume entries for the provided pool
 func (r *ProtocolLXD) GetStoragePoolVolumes(pool string) ([]api.StorageVolume, error) {
+	if !r.HasExtension("storage") {
+		return nil, fmt.Errorf("The server is missing the required \"storage\" API extension")
+	}
+
 	volumes := []api.StorageVolume{}
 
 	// Fetch the raw value
@@ -49,6 +53,10 @@ func (r *ProtocolLXD) GetStoragePoolVolumes(pool string) ([]api.StorageVolume, e
 
 // GetStoragePoolVolume returns a StorageVolume entry for the provided pool and volume name
 func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name string) (*api.StorageVolume, string, error) {
+	if !r.HasExtension("storage") {
+		return nil, "", fmt.Errorf("The server is missing the required \"storage\" API extension")
+	}
+
 	volume := api.StorageVolume{}
 
 	// Fetch the raw value
@@ -62,6 +70,10 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name str
 
 // CreateStoragePoolVolume defines a new storage volume
 func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) error {
+	if !r.HasExtension("storage") {
+		return fmt.Errorf("The server is missing the required \"storage\" API extension")
+	}
+
 	// Send the request
 	_, _, err := r.query("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type)), volume, "")
 	if err != nil {
@@ -73,6 +85,10 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 
 // UpdateStoragePoolVolume updates the volume to match the provided StoragePoolVolume struct
 func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) error {
+	if !r.HasExtension("storage") {
+		return fmt.Errorf("The server is missing the required \"storage\" API extension")
+	}
+
 	// Send the request
 	_, _, err := r.query("PUT", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), volume, ETag)
 	if err != nil {
@@ -84,6 +100,10 @@ func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name 
 
 // DeleteStoragePoolVolume deletes a storage pool
 func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name string) error {
+	if !r.HasExtension("storage") {
+		return fmt.Errorf("The server is missing the required \"storage\" API extension")
+	}
+
 	// Send the request
 	_, _, err := r.query("DELETE", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name)), nil, "")
 	if err != nil {
