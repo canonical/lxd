@@ -102,6 +102,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "path":
 			return true
+		case "required":
+			return true
 		case "uid":
 			return true
 		default:
@@ -397,7 +399,7 @@ func containerValidDevices(db *db.Node, devices types.Devices, profile bool, exp
 				return fmt.Errorf("Unix device entry is missing the required \"source\" or \"path\" property.")
 			}
 
-			if m["major"] == "" || m["minor"] == "" {
+			if (m["required"] == "" || shared.IsTrue(m["required"])) && (m["major"] == "" || m["minor"] == "") {
 				srcPath, exist := m["source"]
 				if !exist {
 					srcPath = m["path"]
