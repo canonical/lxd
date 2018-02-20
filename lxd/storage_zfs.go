@@ -1948,7 +1948,7 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 
 	if zfsFilesystemEntityExists(poolName, fs) {
 		removable, err := zfsPoolVolumeSnapshotRemovable(poolName, fs, "readonly")
-		if err != nil {
+		if err != nil && zfsFilesystemEntityExists(poolName, fmt.Sprintf("%s@readonly", fs)) {
 			return err
 		}
 
