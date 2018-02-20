@@ -90,4 +90,5 @@ var APIExtensions = []string{
 	"network_dhcp_gateway",
 	"file_get_symlink",
 	"network_leases",
+	"unix_device_hotplug",
 }
