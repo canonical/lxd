@@ -133,7 +133,13 @@ lxc storage volume detach [<remote>:]<pool> <volume> <container> [device name]
     Detach a storage volume from the specified container.
 
 lxc storage volume detach-profile [<remote:>]<pool> <volume> <profile> [device name]
-    Detach a storage volume from the specified profile.
+	Detach a storage volume from the specified profile.
+
+lxc storage volume copy <pool>/<volume> <pool>/<volume> [--config|-c <key=value>...]
+    Copy an existing volume to a new volume at the specified pool.
+
+lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>
+    Move an existing volume to the specified pool.
 
 Unless specified through a prefix, all volume operations affect "custom" (user created) volumes.
 
@@ -275,6 +281,22 @@ func (c *storageCmd) run(conf *config.Config, args []string) error {
 			pool := sub
 			volume := args[3]
 			return c.doStoragePoolVolumeShow(client, pool, volume)
+		case "copy":
+			// only support non remote for now
+			if len(args) != 4 {
+				return errArgs
+			}
+			src := sub
+			dst := args[3]
+			return c.doStoragePoolVolumeCopy(client, src, dst, false)
+		case "move":
+			// only support non remote for now
+			if len(args) != 4 {
+				return errArgs
+			}
+			src := sub
+			dst := args[3]
+			return c.doStoragePoolVolumeCopy(client, src, dst, true)
 		default:
 			return errArgs
 		}
@@ -332,9 +354,7 @@ func (c *storageCmd) run(conf *config.Config, args []string) error {
 	}
 }
 
-func (c *storageCmd) parseVolume(name string) (string, string) {
-	defaultType := "custom"
-
+func (c *storageCmd) parseVolume(defaultType string, name string) (string, string) {
 	fields := strings.SplitN(name, "/", 2)
 	if len(fields) == 1 {
 		return fields[0], defaultType
@@ -360,7 +380,7 @@ func (c *storageCmd) doStoragePoolVolumeAttach(client lxd.ContainerServer, pool 
 		devPath = args[2]
 	}
 
-	volName, volType := c.parseVolume(volume)
+	volName, volType := c.parseVolume("custom", volume)
 	if volType != "custom" {
 		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers."))
 	}
@@ -453,7 +473,7 @@ func (c *storageCmd) doStoragePoolVolumeAttachProfile(client lxd.ContainerServer
 		devPath = args[2]
 	}
 
-	volName, volType := c.parseVolume(volume)
+	volName, volType := c.parseVolume("custom", volume)
 	if volType != "custom" {
 		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers."))
 	}
@@ -889,7 +909,7 @@ func (c *storageCmd) doStoragePoolVolumesList(conf *config.Config, remote string
 
 func (c *storageCmd) doStoragePoolVolumeCreate(client lxd.ContainerServer, pool string, volume string, args []string) error {
 	// Parse the input
-	volName, volType := c.parseVolume(volume)
+	volName, volType := c.parseVolume("custom", volume)
 
 	// Create the storage volume entry
 	vol := api.StorageVolumesPost{}
@@ -918,7 +938,7 @@ func (c *storageCmd) doStoragePoolVolumeCreate(client lxd.ContainerServer, pool 
 
 func (c *storageCmd) doStoragePoolVolumeDelete(client lxd.ContainerServer, pool string, volume string) error {
 	// Parse the input
-	volName, volType := c.parseVolume(volume)
+	volName, volType := c.parseVolume("custom", volume)
 
 	// Delete the volume
 	err := client.DeleteStoragePoolVolume(pool, volType, volName)
@@ -937,7 +957,7 @@ func (c *storageCmd) doStoragePoolVolumeGet(client lxd.ContainerServer, pool str
 	}
 
 	// Parse input
-	volName, volType := c.parseVolume(volume)
+	volName, volType := c.parseVolume("custom", volume)
 
 	// Get the storage volume entry
 	resp, _, err := client.GetStoragePoolVolume(pool, volType, volName)
@@ -960,7 +980,7 @@ func (c *storageCmd) doStoragePoolVolumeSet(client lxd.ContainerServer, pool str
 	}
 
 	// Parse the input
-	volName, volType := c.parseVolume(volume)
+	volName, volType := c.parseVolume("custom", volume)
 
 	// Get the storage volume entry
 	vol, etag, err := client.GetStoragePoolVolume(pool, volType, volName)
@@ -997,7 +1017,7 @@ func (c *storageCmd) doStoragePoolVolumeSet(client lxd.ContainerServer, pool str
 
 func (c *storageCmd) doStoragePoolVolumeShow(client lxd.ContainerServer, pool string, volume string) error {
 	// Parse the input
-	volName, volType := c.parseVolume(volume)
+	volName, volType := c.parseVolume("custom", volume)
 
 	// Get the storage volume entry
 	vol, _, err := client.GetStoragePoolVolume(pool, volType, volName)
@@ -1017,9 +1037,59 @@ func (c *storageCmd) doStoragePoolVolumeShow(client lxd.ContainerServer, pool st
 	return nil
 }
 
+func (c *storageCmd) doStoragePoolVolumeCopy(client lxd.ContainerServer, src string, dst string, move bool) error {
+	// validate both src and dst string
+	dstVolName, dstVolPool := c.parseVolume("", dst)
+	srcVolName, srcVolPool := c.parseVolume("", src)
+	if dstVolPool == "" || srcVolPool == "" {
+		return fmt.Errorf("No storage pool for source or target volume specified")
+	}
+
+	// Check if the requested storage volume actually exists
+	srcVol, _, err := client.GetStoragePoolVolume(srcVolPool, "custom", srcVolName)
+	if err != nil {
+		return err
+	}
+
+	op := &lxd.RemoteOperation{}
+	opMsg := ""
+	finalMsg := ""
+	if move {
+		args := &lxd.StoragePoolVolumeMoveArgs{}
+		args.Name = dstVolName
+		op, err = client.MoveStoragePoolVolume(dstVolPool, client, srcVolPool, *srcVol, args)
+		opMsg = i18n.G("Moving the storage volume: %s")
+		finalMsg = i18n.G("Storage volume moved successfully!")
+	} else {
+		args := &lxd.StoragePoolVolumeCopyArgs{}
+		args.Name = dstVolName
+		op, err = client.CopyStoragePoolVolume(dstVolPool, client, srcVolPool, *srcVol, args)
+		opMsg = i18n.G("Copying the storage volume: %s")
+		finalMsg = i18n.G("Storage volume copied successfully!")
+	}
+	if err != nil {
+		return err
+	}
+	// Register progress handler
+	progress := progressRenderer{Format: opMsg}
+	_, err = op.AddHandler(progress.UpdateOp)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	progress.Done(finalMsg)
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *storageCmd) doStoragePoolVolumeEdit(client lxd.ContainerServer, pool string, volume string) error {
 	// Parse the input
-	volName, volType := c.parseVolume(volume)
+	volName, volType := c.parseVolume("custom", volume)
 
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
@@ -1085,7 +1155,7 @@ func (c *storageCmd) doStoragePoolVolumeEdit(client lxd.ContainerServer, pool st
 
 func (c *storageCmd) doStoragePoolVolumeRename(client lxd.ContainerServer, pool string, volume string, args []string) error {
 	// Parse the input
-	volName, volType := c.parseVolume(volume)
+	volName, volType := c.parseVolume("custom", volume)
 
 	// Create the storage volume entry
 	vol := api.StorageVolumePost{}

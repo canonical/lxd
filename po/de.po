@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-13 23:12-0500\n"
+"POT-Creation-Date: 2018-02-19 18:13+0100\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -260,7 +260,7 @@ msgstr ""
 msgid "%s is not a directory"
 msgstr ""
 
-#: lxc/utils.go:376
+#: lxc/utils.go:377
 #, c-format
 msgid "%v (interrupt two more times to force)"
 msgstr ""
@@ -402,7 +402,7 @@ msgstr ""
 msgid "Can't unset key '%s', it's not currently set."
 msgstr ""
 
-#: lxc/profile.go:546 lxc/storage.go:663
+#: lxc/profile.go:546 lxc/storage.go:683
 msgid "Cannot provide container name to list"
 msgstr ""
 
@@ -429,7 +429,7 @@ msgid "Config key/value to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/config.go:821 lxc/config.go:886 lxc/config.go:1396 lxc/image.go:1190
-#: lxc/network.go:431 lxc/profile.go:275 lxc/storage.go:614 lxc/storage.go:1067
+#: lxc/network.go:431 lxc/profile.go:275 lxc/storage.go:634 lxc/storage.go:1137
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
 msgstr "YAML Analyse Fehler %v\n"
@@ -474,6 +474,11 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Copying the image: %s"
 msgstr ""
 
+#: lxc/storage.go:1067
+#, fuzzy, c-format
+msgid "Copying the storage volume: %s"
+msgstr "Anhalten des Containers fehlgeschlagen!"
+
 #: lxc/remote.go:218
 msgid "Could not create server cert dir"
 msgstr "Kann Verzeichnis für Zertifikate auf dem Server nicht erstellen"
@@ -498,11 +503,11 @@ msgid "Creating the container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:557
-#: lxc/storage.go:692 lxc/storage.go:881
+#: lxc/storage.go:712 lxc/storage.go:901
 msgid "DESCRIPTION"
 msgstr ""
 
-#: lxc/storage.go:693
+#: lxc/storage.go:713
 msgid "DRIVER"
 msgstr ""
 
@@ -848,7 +853,7 @@ msgstr ""
 msgid "Missing summary."
 msgstr "Fehlende Zusammenfassung."
 
-#: lxc/network.go:289 lxc/network.go:342 lxc/storage.go:412 lxc/storage.go:532
+#: lxc/network.go:289 lxc/network.go:342 lxc/storage.go:432 lxc/storage.go:552
 msgid "More than one device matches, specify the device name."
 msgstr ""
 
@@ -862,6 +867,11 @@ msgstr ""
 msgid "Move the container without its snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
 
+#: lxc/storage.go:1061
+#, fuzzy, c-format
+msgid "Moving the storage volume: %s"
+msgstr "Kein Zertifikat für diese Verbindung"
+
 #: lxc/image.go:1291
 msgid "Must run as root to import from directory"
 msgstr ""
@@ -872,7 +882,7 @@ msgid "Must supply container name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
 #: lxc/list.go:467 lxc/network.go:554 lxc/profile.go:573 lxc/remote.go:409
-#: lxc/storage.go:691 lxc/storage.go:880
+#: lxc/storage.go:711 lxc/storage.go:900
 msgid "NAME"
 msgstr ""
 
@@ -923,7 +933,7 @@ msgstr "Kein Zertifikat zum hinzufügen bereitgestellt"
 msgid "No device found for this network"
 msgstr "Kein Zertifikat für diese Verbindung"
 
-#: lxc/storage.go:421 lxc/storage.go:541
+#: lxc/storage.go:441 lxc/storage.go:561
 #, fuzzy
 msgid "No device found for this storage volume."
 msgstr "Kein Zertifikat für diese Verbindung"
@@ -932,7 +942,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid "No fingerprint specified."
 msgstr "Kein Fingerabdruck angegeben."
 
-#: lxc/storage.go:365 lxc/storage.go:458
+#: lxc/storage.go:385 lxc/storage.go:478
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr ""
 
@@ -961,7 +971,7 @@ msgstr ""
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:624
+#: lxc/list.go:625
 msgid "PERSISTENT"
 msgstr ""
 
@@ -1017,7 +1027,7 @@ msgstr ""
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/network.go:432 lxc/profile.go:276 lxc/storage.go:615 lxc/storage.go:1068
+#: lxc/network.go:432 lxc/profile.go:276 lxc/storage.go:635 lxc/storage.go:1138
 msgid "Press enter to open the editor again"
 msgstr ""
 
@@ -1133,7 +1143,7 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
-#: lxc/storage.go:1099
+#: lxc/storage.go:1169
 #, c-format
 msgid "Renamed storage volume from \"%s\" to \"%s\""
 msgstr ""
@@ -1173,7 +1183,7 @@ msgstr ""
 msgid "SNAPSHOTS"
 msgstr ""
 
-#: lxc/storage.go:694
+#: lxc/storage.go:714
 msgid "SOURCE"
 msgstr ""
 
@@ -1243,11 +1253,11 @@ msgstr ""
 msgid "Show the resources available to the server"
 msgstr ""
 
-#: lxc/storage.go:155
+#: lxc/storage.go:161
 msgid "Show the resources available to the storage pool"
 msgstr ""
 
-#: lxc/storage.go:156
+#: lxc/storage.go:162
 msgid "Show the used and free space in bytes"
 msgstr ""
 
@@ -1302,12 +1312,12 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Stopping the container failed: %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/storage.go:506
+#: lxc/storage.go:526
 #, fuzzy, c-format
 msgid "Storage pool %s created"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/storage.go:565
+#: lxc/storage.go:585
 #, fuzzy, c-format
 msgid "Storage pool %s deleted"
 msgstr "Profil %s gelöscht\n"
@@ -1317,15 +1327,25 @@ msgstr "Profil %s gelöscht\n"
 msgid "Storage pool name"
 msgstr "Profilname kann nicht geändert werden"
 
-#: lxc/storage.go:914
+#: lxc/storage.go:934
 #, fuzzy, c-format
 msgid "Storage volume %s created"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/storage.go:929
+#: lxc/storage.go:949
 #, fuzzy, c-format
 msgid "Storage volume %s deleted"
 msgstr "Profil %s gelöscht\n"
+
+#: lxc/storage.go:1068
+#, fuzzy
+msgid "Storage volume copied successfully!"
+msgstr "Profil %s erstellt\n"
+
+#: lxc/storage.go:1062
+#, fuzzy
+msgid "Storage volume moved successfully!"
+msgstr "Profil %s erstellt\n"
 
 #: lxc/action.go:50
 #, fuzzy
@@ -1345,7 +1365,7 @@ msgid "TARGET"
 msgstr ""
 
 #: lxc/list.go:473 lxc/network.go:498 lxc/network.go:555 lxc/operation.go:153
-#: lxc/storage.go:879
+#: lxc/storage.go:899
 msgid "TYPE"
 msgstr ""
 
@@ -1393,7 +1413,7 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/network.go:303 lxc/network.go:356 lxc/storage.go:426 lxc/storage.go:546
+#: lxc/network.go:303 lxc/network.go:356 lxc/storage.go:446 lxc/storage.go:566
 #, fuzzy
 msgid "The specified device doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
@@ -1476,7 +1496,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:558 lxc/profile.go:574 lxc/storage.go:695 lxc/storage.go:882
+#: lxc/network.go:558 lxc/profile.go:574 lxc/storage.go:715 lxc/storage.go:902
 msgid "USED BY"
 msgstr ""
 
@@ -2501,7 +2521,14 @@ msgid ""
 "\n"
 "lxc storage volume detach-profile [<remote:>]<pool> <volume> <profile> "
 "[device name]\n"
-"    Detach a storage volume from the specified profile.\n"
+"\tDetach a storage volume from the specified profile.\n"
+"\n"
+"lxc storage volume copy <pool>/<volume> <pool>/<volume> [--config|-c "
+"<key=value>...]\n"
+"    Copy an existing volume to a new volume at the specified pool.\n"
+"\n"
+"lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
+"    Move an existing volume to the specified pool.\n"
 "\n"
 "Unless specified through a prefix, all volume operations affect \"custom"
 "\" (user created) volumes.\n"
@@ -2537,7 +2564,7 @@ msgstr ""
 msgid "User aborted delete operation."
 msgstr ""
 
-#: lxc/utils.go:372
+#: lxc/utils.go:373
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep "
 "running."
@@ -2603,7 +2630,7 @@ msgstr ""
 msgid "default"
 msgstr ""
 
-#: lxc/storage.go:804
+#: lxc/storage.go:824
 msgid "description"
 msgstr ""
 
@@ -2615,7 +2642,7 @@ msgstr ""
 msgid "disabled"
 msgstr ""
 
-#: lxc/storage.go:803
+#: lxc/storage.go:823
 msgid "driver"
 msgstr ""
 
@@ -2633,11 +2660,11 @@ msgstr "Fehler: %v\n"
 msgid "error: unknown command: %s"
 msgstr "Fehler: unbekannter Befehl: %s\n"
 
-#: lxc/storage.go:801
+#: lxc/storage.go:821
 msgid "info"
 msgstr ""
 
-#: lxc/storage.go:802
+#: lxc/storage.go:822
 msgid "name"
 msgstr ""
 
@@ -2679,7 +2706,7 @@ msgstr "entfernte Instanz %s existiert als <%s>"
 msgid "remote %s is static and cannot be modified"
 msgstr ""
 
-#: lxc/storage.go:806
+#: lxc/storage.go:826
 msgid "space used"
 msgstr ""
 
@@ -2696,11 +2723,11 @@ msgstr ""
 msgid "taken at %s"
 msgstr ""
 
-#: lxc/storage.go:805
+#: lxc/storage.go:825
 msgid "total space"
 msgstr ""
 
-#: lxc/storage.go:800
+#: lxc/storage.go:820
 msgid "used by"
 msgstr ""
 

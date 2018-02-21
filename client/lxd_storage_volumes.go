@@ -83,6 +83,81 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 	return nil
 }
 
+// CopyStoragePoolVolume copies an existing storage volume
+func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (*RemoteOperation, error) {
+	if !r.HasExtension("storage_api_local_volume_handling") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_api_local_volume_handling\" API extension")
+	}
+
+	if r != source {
+		return nil, fmt.Errorf("Copying storage volumes between remotes is not implemented")
+	}
+
+	req := api.StorageVolumesPost{
+		Name: args.Name,
+		Type: volume.Type,
+		Source: api.StorageVolumeSource{
+			Name: volume.Name,
+			Type: volume.Type,
+			Pool: sourcePool,
+		},
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type)), req, "")
+	if err != nil {
+		return nil, err
+	}
+
+	rop := RemoteOperation{
+		targetOp: op,
+		chDone:   make(chan bool),
+	}
+
+	// Forward targetOp to remote op
+	go func() {
+		rop.err = rop.targetOp.Wait()
+		close(rop.chDone)
+	}()
+
+	return &rop, nil
+}
+
+// MoveStoragePoolVolume renames or moves an existing storage volume
+func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (*RemoteOperation, error) {
+	if !r.HasExtension("storage_api_local_volume_handling") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_api_local_volume_handling\" API extension")
+	}
+
+	if r != source {
+		return nil, fmt.Errorf("Moving storage volumes between remotes is not implemented")
+	}
+
+	req := api.StorageVolumePost{
+		Name: args.Name,
+		Pool: pool,
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(sourcePool), url.QueryEscape(volume.Type), volume.Name), req, "")
+	if err != nil {
+		return nil, err
+	}
+
+	rop := RemoteOperation{
+		targetOp: op,
+		chDone:   make(chan bool),
+	}
+
+	// Forward targetOp to remote op
+	go func() {
+		rop.err = rop.targetOp.Wait()
+		close(rop.chDone)
+	}()
+
+	return &rop, nil
+}
+
 // UpdateStoragePoolVolume updates the volume to match the provided StoragePoolVolume struct
 func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) error {
 	if !r.HasExtension("storage") {

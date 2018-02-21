@@ -176,7 +176,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	return doProfileUpdate(d, name, id, profile, req)
+	return SmartError(doProfileUpdate(d, name, id, profile, req))
 }
 
 func profilePatch(d *Daemon, r *http.Request) Response {
@@ -242,7 +242,7 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	return doProfileUpdate(d, name, id, profile, req)
+	return SmartError(doProfileUpdate(d, name, id, profile, req))
 }
 
 // The handler for the post operation.

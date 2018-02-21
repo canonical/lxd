@@ -2289,3 +2289,65 @@ func (s *storageBtrfs) StoragePoolResources() (*api.ResourcesStoragePool, error)
 
 	return storageResource(poolMntPoint)
 }
+
+func (s *storageBtrfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) error {
+	logger.Infof("Copying BTRFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
+	successMsg := fmt.Sprintf("Copied BTRFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
+
+	srcMountPoint := getStoragePoolVolumeMountPoint(source.Pool, source.Name)
+	dstMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+
+	if s.pool.Name == source.Pool {
+		// Ensure that the directories immediately preceding the subvolume directory exist.
+		customDir := getStoragePoolVolumeMountPoint(s.pool.Name, "")
+		if !shared.PathExists(customDir) {
+			err := os.MkdirAll(customDir, 0700)
+			if err != nil {
+				logger.Errorf("Failed to create directory \"%s\" for storage volume \"%s\" on storage pool \"%s\": %s", customDir, s.volume.Name, s.pool.Name, err)
+				return err
+			}
+		}
+
+		err := s.btrfsPoolVolumesSnapshot(srcMountPoint, dstMountPoint, false)
+		if err != nil {
+			logger.Errorf("Failed to create BTRFS snapshot for storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+			return err
+		}
+
+		logger.Infof(successMsg)
+		return nil
+	}
+
+	// setup storage for the source volume
+	srcStorage, err := storagePoolVolumeInit(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	if err != nil {
+		logger.Errorf("Failed to initialize storage for BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	ourMount, err := srcStorage.StoragePoolVolumeMount()
+	if err != nil {
+		logger.Errorf("Failed to mount BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	if ourMount {
+		defer srcStorage.StoragePoolVolumeUmount()
+	}
+
+	err = s.StoragePoolVolumeCreate()
+	if err != nil {
+		logger.Errorf("Failed to create BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit)
+	if err != nil {
+		s.StoragePoolVolumeDelete()
+		logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	logger.Infof(successMsg)
+	return nil
+}
