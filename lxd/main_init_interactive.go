@@ -586,7 +586,7 @@ your Linux distribution and run "lxd init" again afterwards.
 
 func (c *cmdInit) askDaemon(config *initData, d lxd.ContainerServer) error {
 	// Detect lack of uid/gid
-	idmapset, err := idmap.DefaultIdmapSet("")
+	idmapset, err := idmap.DefaultIdmapSet("", "")
 	if (err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil) && shared.RunningInUserNS() {
 		fmt.Printf(`
 We detected that you are running inside an unprivileged container.
