@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-19 18:13+0100\n"
+"POT-Creation-Date: 2018-02-21 15:21-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: Bruno Perel <brunoperel@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -337,7 +337,7 @@ msgstr "Octets reçus"
 msgid "Bytes sent"
 msgstr "Octets émis"
 
-#: lxc/operation.go:155
+#: lxc/operation.go:156
 msgid "CANCELABLE"
 msgstr ""
 
@@ -353,7 +353,7 @@ msgstr "CPU utilisé (en secondes)"
 msgid "CPU usage:"
 msgstr "CPU utilisé :"
 
-#: lxc/operation.go:156
+#: lxc/operation.go:157
 #, fuzzy
 msgid "CREATED"
 msgstr "CRÉÉ À"
@@ -492,7 +492,7 @@ msgid "Creating the container"
 msgstr "Création du conteneur"
 
 #: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:557
-#: lxc/storage.go:712 lxc/storage.go:901
+#: lxc/operation.go:154 lxc/storage.go:712 lxc/storage.go:901
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
 
@@ -1179,7 +1179,7 @@ msgstr "ÉTAT"
 msgid "STATIC"
 msgstr "STATIQUE"
 
-#: lxc/operation.go:154
+#: lxc/operation.go:155
 #, fuzzy
 msgid "STATUS"
 msgstr "ÉTAT"
