@@ -85,7 +85,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load the idmap for unprivileged containers
-	d.os.IdmapSet, err = idmap.DefaultIdmapSet("")
+	d.os.IdmapSet, err = idmap.DefaultIdmapSet("", "")
 	if err != nil {
 		return err
 	}
