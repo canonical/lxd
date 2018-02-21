@@ -92,4 +92,5 @@ var APIExtensions = []string{
 	"network_leases",
 	"unix_device_hotplug",
 	"storage_api_local_volume_handling",
+	"operation_description",
 }
