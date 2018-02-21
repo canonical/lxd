@@ -8,6 +8,36 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+func storageVolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolDriver string) (map[string]string, error) {
+	newConfig := make(map[string]string, len(targetConfig))
+	for key, val := range targetConfig {
+		// User keys are not validated.
+		if strings.HasPrefix(key, "user.") {
+			continue
+		}
+
+		// Validate storage volume config keys.
+		validator, ok := storageVolumeConfigKeys[key]
+		if !ok {
+			return nil, fmt.Errorf("Invalid storage volume configuration key: %s", key)
+		}
+
+		validStorageDrivers, err := validator(val)
+		if err != nil {
+			return nil, err
+		}
+
+		// Drop invalid keys.
+		if !shared.StringInSlice(targetParentPoolDriver, validStorageDrivers) {
+			continue
+		}
+
+		newConfig[key] = val
+	}
+
+	return newConfig, nil
+}
+
 func updateStoragePoolVolumeError(unchangeable []string, driverName string) error {
 	return fmt.Errorf(`The %v properties cannot be changed for "%s" `+
 		`storage volumes`, unchangeable, driverName)
@@ -37,23 +67,53 @@ var changeableStoragePoolVolumeProperties = map[string][]string{
 		"zfs.use_refquota"},
 }
 
-var storageVolumeConfigKeys = map[string]func(value string) error{
-	"block.filesystem": func(value string) error {
-		return shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
+// btrfs, ceph, dir, lvm, zfs
+var storageVolumeConfigKeys = map[string]func(value string) ([]string, error){
+	"block.filesystem": func(value string) ([]string, error) {
+		err := shared.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
+		if err != nil {
+			return nil, err
+		}
+
+		return []string{"ceph", "lvm"}, nil
 	},
-	"block.mount_options": shared.IsAny,
-	"size": func(value string) error {
+	"block.mount_options": func(value string) ([]string, error) {
+		return []string{"ceph", "lvm"}, shared.IsAny(value)
+	},
+	"size": func(value string) ([]string, error) {
 		if value == "" {
-			return nil
+			return []string{"btrfs", "ceph", "lvm", "zfs"}, nil
 		}
 
 		_, err := shared.ParseByteSizeString(value)
-		return err
+		if err != nil {
+			return nil, err
+		}
+
+		return []string{"btrfs", "ceph", "lvm", "zfs"}, nil
 	},
-	"volatile.idmap.last":  shared.IsAny,
-	"volatile.idmap.next":  shared.IsAny,
-	"zfs.remove_snapshots": shared.IsBool,
-	"zfs.use_refquota":     shared.IsBool,
+	"volatile.idmap.last": func(value string) ([]string, error) {
+		return supportedPoolTypes, shared.IsAny(value)
+	},
+	"volatile.idmap.next": func(value string) ([]string, error) {
+		return supportedPoolTypes, shared.IsAny(value)
+	},
+	"zfs.remove_snapshots": func(value string) ([]string, error) {
+		err := shared.IsBool(value)
+		if err != nil {
+			return nil, err
+		}
+
+		return []string{"zfs"}, nil
+	},
+	"zfs.use_refquota": func(value string) ([]string, error) {
+		err := shared.IsBool(value)
+		if err != nil {
+			return nil, err
+		}
+
+		return []string{"zfs"}, nil
+	},
 }
 
 func storageVolumeValidateConfig(name string, config map[string]string, parentPool *api.StoragePool) error {
@@ -69,7 +129,7 @@ func storageVolumeValidateConfig(name string, config map[string]string, parentPo
 			return fmt.Errorf("Invalid storage volume configuration key: %s", key)
 		}
 
-		err := validator(val)
+		_, err := validator(val)
 		if err != nil {
 			return err
 		}

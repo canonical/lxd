@@ -226,3 +226,7 @@ func (s *storageMock) StorageEntitySetQuota(volumeType int, size int64, data int
 func (s *storageMock) StoragePoolResources() (*api.ResourcesStoragePool, error) {
 	return &api.ResourcesStoragePool{}, nil
 }
+
+func (s *storageMock) StoragePoolVolumeCopy(source *api.StorageVolumeSource) error {
+	return nil
+}

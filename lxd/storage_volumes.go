@@ -177,17 +177,33 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 			`storage volumes of type %s`, req.Type))
 	}
 
-	err = storagePoolVolumeCreateInternal(d.State(), poolName, req.Name, req.Description, req.Type, req.Config)
+	doWork := func() error {
+		err = storagePoolVolumeCreateInternal(d.State(), poolName, &req)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if req.Source.Name == "" {
+		err = doWork()
+		if err != nil {
+			return SmartError(err)
+		}
+
+		return EmptySyncResponse
+	}
+
+	run := func(op *operation) error {
+		return doWork()
+	}
+
+	op, err := operationCreate(operationClassTask, nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	apiEndpoint, err := storagePoolVolumeTypeNameToAPIEndpoint(req.Type)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, apiEndpoint))
+	return OperationResponse(op)
 }
 
 var storagePoolVolumesTypeCmd = Command{name: "storage-pools/{name}/volumes/{type}", get: storagePoolVolumesTypeGet, post: storagePoolVolumesTypePost}
@@ -231,7 +247,12 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 
 	// Retrieve ID of the storage pool (and check if the storage pool
 	// exists).
-	poolID, err := d.db.StoragePoolGetID(poolName)
+	var poolID int64
+	if req.Pool != "" {
+		poolID, err = d.db.StoragePoolGetID(req.Pool)
+	} else {
+		poolID, err = d.db.StoragePoolGetID(poolName)
+	}
 	if err != nil {
 		return SmartError(err)
 	}
@@ -243,17 +264,70 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 		return Conflict
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, storagePoolVolumeTypeCustom)
-	if err != nil {
-		return SmartError(err)
+	doWork := func() error {
+		s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, storagePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, volumeName, storagePoolVolumeTypeNameCustom, true)
+		if err != nil {
+			return err
+		}
+		if len(ctsUsingVolume) > 0 {
+			return fmt.Errorf("Volume is still in use by running containers")
+		}
+
+		err = storagePoolVolumeUpdateUsers(d, poolName, volumeName, req.Pool, req.Name)
+		if err != nil {
+			return err
+		}
+
+		if req.Pool == "" || req.Pool == poolName {
+			err := s.StoragePoolVolumeRename(req.Name)
+			if err != nil {
+				storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
+				return err
+			}
+		} else {
+			moveReq := api.StorageVolumesPost{}
+			moveReq.Name = req.Name
+			moveReq.Type = "custom"
+			moveReq.Source.Name = volumeName
+			moveReq.Source.Pool = poolName
+			err := storagePoolVolumeCreateInternal(d.State(), req.Pool, &moveReq)
+			if err != nil {
+				storagePoolVolumeUpdateUsers(d, req.Pool, req.Name, poolName, volumeName)
+				return err
+			}
+			err = s.StoragePoolVolumeDelete()
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
-	err = s.StoragePoolVolumeRename(req.Name)
+	if req.Pool == "" {
+		err = doWork()
+		if err != nil {
+			return SmartError(err)
+		}
+
+		return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s", version.APIVersion, poolName, storagePoolVolumeAPIEndpointCustom))
+	}
+
+	run := func(op *operation) error {
+		return doWork()
+	}
+
+	op, err := operationCreate(operationClassTask, nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	return EmptySyncResponse
+	return OperationResponse(op)
 }
 
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}

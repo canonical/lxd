@@ -186,7 +186,7 @@ lxc storage create pool2 dir source=/data/lxd
   storage entities is not recommended by Ceph upstream. You may see unexpected
   and erratic failures which are unrelated to LXD itself.
 
-#### The following commands can be used to create ZFS storage pools
+#### The following commands can be used to create Ceph storage pools
 
 - Create a osd storage pool named "pool1" in the CEPH cluster "ceph".
 

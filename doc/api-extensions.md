@@ -408,3 +408,7 @@ bridges which run a LXD-managed DHCP server.
 
 ## unix\_device\_hotplug
 This adds support for the "required" property for unix devices.
+
+## storage\_api\_local\_volume\_handling
+This add the ability to copy and move custom storage volumes locally in the
+same and between storage pools.
