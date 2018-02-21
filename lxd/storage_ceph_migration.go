@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
@@ -169,8 +170,8 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 	return nil
 }
 
-func (s *storageCeph) MigrationType() MigrationFSType {
-	return MigrationFSType_RBD
+func (s *storageCeph) MigrationType() migration.MigrationFSType {
+	return migration.MigrationFSType_RBD
 }
 
 func (s *storageCeph) PreservesInodes() bool {
@@ -240,7 +241,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 }
 
 func (s *storageCeph) MigrationSink(live bool, c container,
-	snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet,
+	snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet,
 	op *operation, containerOnly bool) error {
 	// Check that we received a valid root disk device with a pool property
 	// set.

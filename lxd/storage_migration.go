@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
@@ -96,7 +97,7 @@ func rsyncMigrationSource(c container, containerOnly bool) (MigrationStorageSour
 	return rsyncStorageSourceDriver{c, snapshots}, nil
 }
 
-func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) db.ContainerArgs {
+func snapshotProtobufToContainerArgs(containerName string, snap *migration.Snapshot) db.ContainerArgs {
 	config := map[string]string{}
 
 	for _, ent := range snap.LocalConfig {
@@ -126,7 +127,7 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) db.Co
 	}
 }
 
-func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
+func rsyncMigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
 	ourStart, err := container.StorageStart()
 	if err != nil {
 		return err

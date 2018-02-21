@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -196,7 +197,7 @@ type storage interface {
 	StorageEntitySetQuota(volumeType int, size int64, data interface{}) error
 
 	// Functions dealing with migration.
-	MigrationType() MigrationFSType
+	MigrationType() migration.MigrationFSType
 	// Does this storage backend preserve inodes when it is moved across LXD
 	// hosts?
 	PreservesInodes() bool
@@ -222,7 +223,7 @@ type storage interface {
 	MigrationSink(
 		live bool,
 		c container,
-		objects []*Snapshot,
+		objects []*migration.Snapshot,
 		conn *websocket.Conn,
 		srcIdmap *idmap.IdmapSet,
 		op *operation,
