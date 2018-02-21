@@ -73,7 +73,6 @@ test_static_analysis() {
       golint -set_exit_status lxd/endpoints
       golint -set_exit_status lxd/maas
       golint -set_exit_status lxd/node
-      golint -set_exit_status lxd/sqlite
       golint -set_exit_status lxd/state
       golint -set_exit_status lxd/sys
       golint -set_exit_status lxd/task
