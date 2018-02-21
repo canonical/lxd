@@ -6,9 +6,9 @@ import (
 	"net"
 	"os"
 	"sync"
-	"syscall"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/eagain"
 )
 
 // Netcat is called with:
@@ -50,7 +50,7 @@ func cmdNetcat(args *Args) error {
 	wg.Add(1)
 
 	go func() {
-		_, err := io.Copy(eagainWriter{os.Stdout}, eagainReader{conn})
+		_, err := io.Copy(eagain.Writer{Writer: os.Stdout}, eagain.Reader{Reader: conn})
 		if err != nil {
 			logFile.WriteString(fmt.Sprintf("Error while copying from stdout to unix domain socket \"%s\": %s.\n", args.Params[0], err))
 		}
@@ -59,7 +59,7 @@ func cmdNetcat(args *Args) error {
 	}()
 
 	go func() {
-		_, err := io.Copy(eagainWriter{conn}, eagainReader{os.Stdin})
+		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: os.Stdin})
 		if err != nil {
 			logFile.WriteString(fmt.Sprintf("Error while copying from unix domain socket \"%s\" to stdin: %s.\n", args.Params[0], err))
 		}
@@ -68,44 +68,4 @@ func cmdNetcat(args *Args) error {
 	wg.Wait()
 
 	return nil
-}
-
-type eagainReader struct {
-	r io.Reader
-}
-
-func (er eagainReader) Read(p []byte) (int, error) {
-again:
-	n, err := er.r.Read(p)
-	if err == nil {
-		return n, nil
-	}
-
-	// keep retrying on EAGAIN
-	errno, ok := shared.GetErrno(err)
-	if ok && errno == syscall.EAGAIN {
-		goto again
-	}
-
-	return n, err
-}
-
-type eagainWriter struct {
-	w io.Writer
-}
-
-func (ew eagainWriter) Write(p []byte) (int, error) {
-again:
-	n, err := ew.w.Write(p)
-	if err == nil {
-		return n, nil
-	}
-
-	// keep retrying on EAGAIN
-	errno, ok := shared.GetErrno(err)
-	if ok && errno == syscall.EAGAIN {
-		goto again
-	}
-
-	return n, err
 }
