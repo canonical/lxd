@@ -69,6 +69,7 @@ test_static_analysis() {
       golint -set_exit_status lxd/db/schema
       golint -set_exit_status lxd/debug
       golint -set_exit_status lxd/endpoints
+      golint -set_exit_status lxd/migration
       golint -set_exit_status lxd/node
       golint -set_exit_status lxd/state
       golint -set_exit_status lxd/sys

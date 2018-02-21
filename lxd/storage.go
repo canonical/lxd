@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
@@ -149,7 +150,7 @@ type storage interface {
 	ImageCreate(fingerprint string) error
 	ImageDelete(fingerprint string) error
 
-	MigrationType() MigrationFSType
+	MigrationType() migration.MigrationFSType
 	/* does this storage backend preserve inodes when it is moved across
 	 * LXD hosts?
 	 */
@@ -173,7 +174,7 @@ type storage interface {
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
 	MigrationSource(container container) (MigrationStorageSourceDriver, error)
-	MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error
+	MigrationSink(live bool, container container, objects []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error
 }
 
 func newStorage(d *Daemon, sType storageType) (storage, error) {
@@ -545,7 +546,7 @@ func (lw *storageLogWrapper) ImageDelete(fingerprint string) error {
 
 }
 
-func (lw *storageLogWrapper) MigrationType() MigrationFSType {
+func (lw *storageLogWrapper) MigrationType() migration.MigrationFSType {
 	return lw.w.MigrationType()
 }
 
@@ -558,7 +559,7 @@ func (lw *storageLogWrapper) MigrationSource(container container) (MigrationStor
 	return lw.w.MigrationSource(container)
 }
 
-func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
+func (lw *storageLogWrapper) MigrationSink(live bool, container container, objects []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
 	objNames := []string{}
 	for _, obj := range objects {
 		objNames = append(objNames, obj.GetName())
@@ -654,7 +655,7 @@ func rsyncMigrationSource(container container) (MigrationStorageSourceDriver, er
 	return rsyncStorageSourceDriver{container, snapshots}, nil
 }
 
-func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) db.ContainerArgs {
+func snapshotProtobufToContainerArgs(containerName string, snap *migration.Snapshot) db.ContainerArgs {
 	config := map[string]string{}
 
 	for _, ent := range snap.LocalConfig {
@@ -684,7 +685,7 @@ func snapshotProtobufToContainerArgs(containerName string, snap *Snapshot) db.Co
 	}
 }
 
-func rsyncMigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
+func rsyncMigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
 	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
 
 	if isDirBackend {

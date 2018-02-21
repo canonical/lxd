@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -203,7 +204,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * socket. Anyway, it'll happen later :)
 	 */
 	_, _, err = d.db.ImageGet(req.Source.BaseImage, false, true)
-	if err == nil && d.Storage.MigrationType() == MigrationFSType_RSYNC {
+	if err == nil && d.Storage.MigrationType() == migration.MigrationFSType_RSYNC {
 		c, err = containerCreateFromImage(d.State(), d.Storage, args, req.Source.BaseImage)
 		if err != nil {
 			return InternalError(err)

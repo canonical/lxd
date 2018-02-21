@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
@@ -967,8 +968,8 @@ func (s *storageLvm) renameLV(oldName string, newName string) (string, error) {
 	return string(output), err
 }
 
-func (s *storageLvm) MigrationType() MigrationFSType {
-	return MigrationFSType_RSYNC
+func (s *storageLvm) MigrationType() migration.MigrationFSType {
+	return migration.MigrationFSType_RSYNC
 }
 
 func (s *storageLvm) PreservesInodes() bool {
@@ -979,6 +980,6 @@ func (s *storageLvm) MigrationSource(container container) (MigrationStorageSourc
 	return rsyncMigrationSource(container)
 }
 
-func (s *storageLvm) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
+func (s *storageLvm) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
 	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap)
 }
