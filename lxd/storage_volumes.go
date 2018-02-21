@@ -204,7 +204,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 		return doWork()
 	}
 
-	op, err := operationCreate(operationClassTask, "Copying storage volume", nil, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, "Copying storage volume", nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -353,7 +353,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 		return doWork()
 	}
 
-	op, err := operationCreate(operationClassTask, "Moving storage volume", nil, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, "Moving storage volume", nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

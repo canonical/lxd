@@ -208,7 +208,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 
 	s := d.State()
 	// update all containers
-	cts, err := s.DB.ContainersList(db.CTypeRegular)
+	cts, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -275,13 +275,13 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 	}
 
 	// update all profiles
-	profiles, err := s.DB.Profiles()
+	profiles, err := s.Cluster.Profiles()
 	if err != nil {
 		return err
 	}
 
 	for _, pName := range profiles {
-		id, profile, err := s.DB.ProfileGet(pName)
+		id, profile, err := s.Cluster.ProfileGet(pName)
 		if err != nil {
 			return err
 		}
@@ -342,7 +342,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 	poolName string, volumeName string, volumeTypeName string,
 	runningOnly bool) ([]string, error) {
-	cts, err := s.DB.ContainersList(db.CTypeRegular)
+	cts, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return []string{}, err
 	}
@@ -548,21 +548,21 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 	}
 
 	// Convert the volume type name to our internal integer representation.
-	poolID, err := state.DB.StoragePoolGetID(poolName)
+	poolID, err := state.Cluster.StoragePoolGetID(poolName)
 	if err != nil {
 		return err
 	}
 
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
 	if err != nil {
-		state.DB.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
+		state.Cluster.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
 		return err
 	}
 
 	// Initialize new storage volume on the target storage pool.
 	s, err := storagePoolVolumeInit(state, poolName, volumeName, volumeType)
 	if err != nil {
-		state.DB.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
+		state.Cluster.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
 		return err
 	}
 

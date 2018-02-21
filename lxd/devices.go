@@ -1786,7 +1786,7 @@ func deviceInotifyDirDeleteEvent(s *state.State, target *sys.InotifyTargetInfo) 
 }
 
 func deviceInotifyDirRescan(s *state.State) {
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
@@ -1851,7 +1851,7 @@ func deviceInotifyDirCreateEvent(s *state.State, target *sys.InotifyTargetInfo) 
 		return
 	}
 
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
@@ -1954,7 +1954,7 @@ func deviceInotifyFileEvent(s *state.State, target *sys.InotifyTargetInfo) {
 		return
 	}
 
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
