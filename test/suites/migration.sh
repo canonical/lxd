@@ -230,7 +230,7 @@ migration() {
   lxc_remote launch testimage l1:migratee
 
   # let the container do some interesting things
-  sleep 1s
+  sleep 1
 
   lxc_remote stop --stateful l1:migratee
   lxc_remote start l1:migratee
