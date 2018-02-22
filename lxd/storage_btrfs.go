@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1972,12 +1973,12 @@ func (s *btrfsMigrationSourceDriver) Cleanup() {
 	}
 }
 
-func (s *storageBtrfs) MigrationType() MigrationFSType {
+func (s *storageBtrfs) MigrationType() migration.MigrationFSType {
 	if s.s.OS.RunningInUserNS {
-		return MigrationFSType_RSYNC
+		return migration.MigrationFSType_RSYNC
 	}
 
-	return MigrationFSType_BTRFS
+	return migration.MigrationFSType_BTRFS
 }
 
 func (s *storageBtrfs) PreservesInodes() bool {
@@ -2023,7 +2024,7 @@ func (s *storageBtrfs) MigrationSource(c container, containerOnly bool) (Migrati
 	return driver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
+func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
 	if s.s.OS.RunningInUserNS {
 		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
 	}

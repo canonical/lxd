@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -1030,8 +1031,8 @@ func (s *storageDir) ImageUmount(fingerprint string) (bool, error) {
 	return true, nil
 }
 
-func (s *storageDir) MigrationType() MigrationFSType {
-	return MigrationFSType_RSYNC
+func (s *storageDir) MigrationType() migration.MigrationFSType {
+	return migration.MigrationFSType_RSYNC
 }
 
 func (s *storageDir) PreservesInodes() bool {
@@ -1042,7 +1043,7 @@ func (s *storageDir) MigrationSource(container container, containerOnly bool) (M
 	return rsyncMigrationSource(container, containerOnly)
 }
 
-func (s *storageDir) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
+func (s *storageDir) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
 	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
 }
 

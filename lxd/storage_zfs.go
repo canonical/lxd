@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -2160,8 +2161,8 @@ func (s *zfsMigrationSourceDriver) Cleanup() {
 	}
 }
 
-func (s *storageZfs) MigrationType() MigrationFSType {
-	return MigrationFSType_ZFS
+func (s *storageZfs) MigrationType() migration.MigrationFSType {
+	return migration.MigrationFSType_ZFS
 }
 
 func (s *storageZfs) PreservesInodes() bool {
@@ -2219,7 +2220,7 @@ func (s *storageZfs) MigrationSource(ct container, containerOnly bool) (Migratio
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
+func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
 	poolName := s.getOnDiskPoolName()
 	zfsRecv := func(zfsName string, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 		zfsFsName := fmt.Sprintf("%s/%s", poolName, zfsName)

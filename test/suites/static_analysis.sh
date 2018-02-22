@@ -61,9 +61,12 @@ test_static_analysis() {
 
       golint -set_exit_status lxc/
       golint -set_exit_status lxc/config/
+      golint -set_exit_status lxc/utils/
 
       golint -set_exit_status lxd-benchmark
       golint -set_exit_status lxd-benchmark/benchmark
+
+      golint -set_exit_status lxd-p2c
 
       golint -set_exit_status lxd/config
       golint -set_exit_status lxd/db/node
@@ -72,6 +75,7 @@ test_static_analysis() {
       golint -set_exit_status lxd/debug
       golint -set_exit_status lxd/endpoints
       golint -set_exit_status lxd/maas
+      golint -set_exit_status lxd/migration
       golint -set_exit_status lxd/node
       golint -set_exit_status lxd/state
       golint -set_exit_status lxd/sys
@@ -83,6 +87,7 @@ test_static_analysis() {
       golint -set_exit_status shared/api/
       golint -set_exit_status shared/cancel/
       golint -set_exit_status shared/cmd/
+      golint -set_exit_status shared/eagain/
       golint -set_exit_status shared/gnuflag/
       golint -set_exit_status shared/i18n/
       golint -set_exit_status shared/ioprogress/

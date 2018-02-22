@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -195,7 +196,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	// Watch the background operation
-	progress := progressRenderer{Format: i18n.G("Transferring container: %s")}
+	progress := utils.ProgressRenderer{Format: i18n.G("Transferring container: %s")}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
