@@ -7,6 +7,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
 	"github.com/lxc/lxd/shared/i18n"
@@ -251,14 +252,14 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 	}
 
 	// Watch the background operation
-	progress := progressRenderer{Format: i18n.G("Retrieving image: %s")}
+	progress := utils.ProgressRenderer{Format: i18n.G("Retrieving image: %s")}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
 		return nil, "", err
 	}
 
-	err = cancelableWait(op, &progress)
+	err = utils.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return nil, "", err
