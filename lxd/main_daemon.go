@@ -25,11 +25,11 @@ func cmdDaemon(args *Args) error {
 		dbg.Memory(args.MemProfile),
 		dbg.Goroutines(args.PrintGoroutinesEvery),
 	)
-	defer stop()
 	if err != nil {
-		fmt.Printf("%v\n", err)
-		return nil
+		return err
 	}
+
+	defer stop()
 
 	neededPrograms := []string{"setfacl", "rsync", "tar", "unsquashfs", "xz"}
 	for _, p := range neededPrograms {
@@ -37,12 +37,13 @@ func cmdDaemon(args *Args) error {
 		if err != nil {
 			return err
 		}
-
 	}
+
 	c := &DaemonConfig{
 		Group:     args.Group,
 		SetupMode: shared.PathExists(shared.VarPath(".setup_mode")),
 	}
+
 	d := NewDaemon(c, sys.DefaultOS())
 	err = d.Init()
 	if err != nil {
@@ -58,7 +59,6 @@ func cmdDaemon(args *Args) error {
 	s := d.State()
 	select {
 	case sig := <-ch:
-
 		if sig == syscall.SIGPWR {
 			logger.Infof("Received '%s signal', shutting down containers.", sig)
 			containersShutdown(s, d.Storage)
