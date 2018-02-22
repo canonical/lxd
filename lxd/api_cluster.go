@@ -173,7 +173,7 @@ func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPost) Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, "Creating bootstrap node", resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -422,7 +422,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operationCreate(d.cluster, operationClassTask, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, "Joining node", resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
