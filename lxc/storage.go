@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/gnuflag"
@@ -1071,7 +1072,7 @@ func (c *storageCmd) doStoragePoolVolumeCopy(client lxd.ContainerServer, src str
 		return err
 	}
 	// Register progress handler
-	progress := progressRenderer{Format: opMsg}
+	progress := utils.ProgressRenderer{Format: opMsg}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
