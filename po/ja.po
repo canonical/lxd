@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-19 18:13+0100\n"
+"POT-Creation-Date: 2018-02-21 15:21-0500\n"
 "PO-Revision-Date: 2018-01-02 10:52+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -240,7 +240,7 @@ msgstr "受信バイト数"
 msgid "Bytes sent"
 msgstr "送信バイト数"
 
-#: lxc/operation.go:155
+#: lxc/operation.go:156
 msgid "CANCELABLE"
 msgstr ""
 
@@ -256,7 +256,7 @@ msgstr "CPU使用量（秒）"
 msgid "CPU usage:"
 msgstr "CPU使用量:"
 
-#: lxc/operation.go:156
+#: lxc/operation.go:157
 msgid "CREATED"
 msgstr ""
 
@@ -391,7 +391,7 @@ msgid "Creating the container"
 msgstr "コンテナを作成中"
 
 #: lxc/image.go:234 lxc/image.go:1137 lxc/list.go:465 lxc/network.go:557
-#: lxc/storage.go:712 lxc/storage.go:901
+#: lxc/operation.go:154 lxc/storage.go:712 lxc/storage.go:901
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -1059,7 +1059,7 @@ msgstr ""
 msgid "STATIC"
 msgstr ""
 
-#: lxc/operation.go:154
+#: lxc/operation.go:155
 msgid "STATUS"
 msgstr ""
 

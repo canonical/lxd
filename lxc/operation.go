@@ -141,7 +141,7 @@ func (c *operationCmd) doOperationList(conf *config.Config, args []string) error
 			cancelable = i18n.G("YES")
 		}
 
-		data = append(data, []string{op.ID, strings.ToUpper(op.Class), strings.ToUpper(op.Status), cancelable, op.CreatedAt.UTC().Format("2006/01/02 15:04 UTC")})
+		data = append(data, []string{op.ID, strings.ToUpper(op.Class), op.Description, strings.ToUpper(op.Status), cancelable, op.CreatedAt.UTC().Format("2006/01/02 15:04 UTC")})
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -151,6 +151,7 @@ func (c *operationCmd) doOperationList(conf *config.Config, args []string) error
 	table.SetHeader([]string{
 		i18n.G("ID"),
 		i18n.G("TYPE"),
+		i18n.G("DESCRIPTION"),
 		i18n.G("STATUS"),
 		i18n.G("CANCELABLE"),
 		i18n.G("CREATED")})

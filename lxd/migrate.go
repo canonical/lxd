@@ -728,6 +728,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 			actionScriptOp, err := operationCreate(
 				operationClassWebsocket,
+				"Live-migrating container",
 				nil,
 				nil,
 				func(op *operation) error {
