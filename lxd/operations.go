@@ -39,17 +39,18 @@ func (t operationClass) String() string {
 }
 
 type operation struct {
-	id        string
-	class     operationClass
-	createdAt time.Time
-	updatedAt time.Time
-	status    api.StatusCode
-	url       string
-	resources map[string][]string
-	metadata  map[string]interface{}
-	err       string
-	readonly  bool
-	canceler  *cancel.Canceler
+	id          string
+	class       operationClass
+	createdAt   time.Time
+	updatedAt   time.Time
+	status      api.StatusCode
+	url         string
+	resources   map[string][]string
+	metadata    map[string]interface{}
+	err         string
+	readonly    bool
+	canceler    *cancel.Canceler
+	description string
 
 	// Those functions are called at various points in the operation lifecycle
 	onRun     func(*operation) error
@@ -285,16 +286,17 @@ func (op *operation) Render() (string, *api.Operation, error) {
 	}
 
 	return op.url, &api.Operation{
-		ID:         op.id,
-		Class:      op.class.String(),
-		CreatedAt:  op.createdAt,
-		UpdatedAt:  op.updatedAt,
-		Status:     op.status.String(),
-		StatusCode: op.status,
-		Resources:  resources,
-		Metadata:   op.metadata,
-		MayCancel:  op.mayCancel(),
-		Err:        op.err,
+		ID:          op.id,
+		Class:       op.class.String(),
+		Description: op.description,
+		CreatedAt:   op.createdAt,
+		UpdatedAt:   op.updatedAt,
+		Status:      op.status.String(),
+		StatusCode:  op.status,
+		Resources:   resources,
+		Metadata:    op.metadata,
+		MayCancel:   op.mayCancel(),
+		Err:         op.err,
 	}, nil
 }
 
@@ -372,10 +374,11 @@ func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 	return nil
 }
 
-func operationCreate(opClass operationClass, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
+func operationCreate(opClass operationClass, description string, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
 	// Main attributes
 	op := operation{}
 	op.id = uuid.NewRandom().String()
+	op.description = description
 	op.class = opClass
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
