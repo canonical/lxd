@@ -5,17 +5,13 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/signal"
 	"sort"
 	"strings"
-	"sync"
 	"syscall"
-	"time"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
-	"github.com/lxc/lxd/shared/ioprogress"
 )
 
 // Lists
@@ -25,118 +21,6 @@ const (
 	listFormatTable = "table"
 	listFormatYAML  = "yaml"
 )
-
-// Progress tracking
-type progressRenderer struct {
-	Format string
-
-	maxLength int
-	wait      time.Time
-	done      bool
-	lock      sync.Mutex
-}
-
-func (p *progressRenderer) Done(msg string) {
-	// Acquire rendering lock
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	// Check if we're already done
-	if p.done {
-		return
-	}
-
-	// Mark this renderer as done
-	p.done = true
-
-	// Print the new message
-	if msg != "" {
-		msg += "\n"
-	}
-
-	if len(msg) > p.maxLength {
-		p.maxLength = len(msg)
-	} else {
-		fmt.Printf("\r%s", strings.Repeat(" ", p.maxLength))
-	}
-
-	fmt.Print("\r")
-	fmt.Print(msg)
-}
-
-func (p *progressRenderer) Update(status string) {
-	// Wait if needed
-	timeout := p.wait.Sub(time.Now())
-	if timeout.Seconds() > 0 {
-		time.Sleep(timeout)
-	}
-
-	// Acquire rendering lock
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	// Check if we're already done
-	if p.done {
-		return
-	}
-
-	// Print the new message
-	msg := "%s"
-	if p.Format != "" {
-		msg = p.Format
-	}
-
-	msg = fmt.Sprintf("\r"+msg, status)
-
-	if len(msg) > p.maxLength {
-		p.maxLength = len(msg)
-	} else {
-		fmt.Printf("\r%s", strings.Repeat(" ", p.maxLength))
-	}
-
-	fmt.Print(msg)
-}
-
-func (p *progressRenderer) Warn(status string, timeout time.Duration) {
-	// Acquire rendering lock
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	// Check if we're already done
-	if p.done {
-		return
-	}
-
-	// Render the new message
-	p.wait = time.Now().Add(timeout)
-	msg := fmt.Sprintf("\r%s", status)
-
-	if len(msg) > p.maxLength {
-		p.maxLength = len(msg)
-	} else {
-		fmt.Printf("\r%s", strings.Repeat(" ", p.maxLength))
-	}
-
-	fmt.Print(msg)
-}
-
-func (p *progressRenderer) UpdateProgress(progress ioprogress.ProgressData) {
-	p.Update(progress.Text)
-}
-
-func (p *progressRenderer) UpdateOp(op api.Operation) {
-	if op.Metadata == nil {
-		return
-	}
-
-	for _, key := range []string{"fs_progress", "download_progress"} {
-		value, ok := op.Metadata[key]
-		if ok {
-			p.Update(value.(string))
-			break
-		}
-	}
-}
 
 type stringList [][]string
 
@@ -341,43 +225,6 @@ func profileDeviceAdd(client lxd.ContainerServer, name string, devName string, d
 	}
 
 	return nil
-}
-
-// Wait for an operation and cancel it on SIGINT/SIGTERM
-func cancelableWait(op *lxd.RemoteOperation, progress *progressRenderer) error {
-	// Signal handling
-	chSignal := make(chan os.Signal)
-	signal.Notify(chSignal, os.Interrupt)
-
-	// Operation handling
-	chOperation := make(chan error)
-	go func() {
-		chOperation <- op.Wait()
-		close(chOperation)
-	}()
-
-	count := 0
-	for {
-		select {
-		case err := <-chOperation:
-			return err
-		case <-chSignal:
-			err := op.CancelTarget()
-			if err == nil {
-				return fmt.Errorf(i18n.G("Remote operation canceled by user"))
-			}
-
-			count++
-
-			if count == 3 {
-				return fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running."))
-			}
-
-			if progress != nil {
-				progress.Warn(fmt.Sprintf(i18n.G("%v (interrupt two more times to force)"), err), time.Second*5)
-			}
-		}
-	}
 }
 
 // Create the specified image alises, updating those that already exist
