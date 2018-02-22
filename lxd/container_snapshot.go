@@ -313,7 +313,7 @@ func snapshotDelete(sc container, name string) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{sc.Name()}
 
-	op, err := operationCreate(d.cluster, operationClassTask, "Deleting snapshot", resources, nil, remove, nil, nil)
+	op, err := operationCreate(sc.DaemonState().Cluster, operationClassTask, "Deleting snapshot", resources, nil, remove, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
