@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/websocket"
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -63,36 +64,17 @@ func (c *migrationFields) send(m proto.Message) error {
 	 */
 	c.controlLock.Lock()
 	defer c.controlLock.Unlock()
-	w, err := c.controlConn.NextWriter(websocket.BinaryMessage)
-	if err != nil {
-		return err
-	}
-	defer w.Close()
 
-	data, err := proto.Marshal(m)
+	err := migration.ProtoSend(c.controlConn, m)
 	if err != nil {
 		return err
 	}
 
-	return shared.WriteAll(w, data)
+	return nil
 }
 
 func (c *migrationFields) recv(m proto.Message) error {
-	mt, r, err := c.controlConn.NextReader()
-	if err != nil {
-		return err
-	}
-
-	if mt != websocket.BinaryMessage {
-		return fmt.Errorf("Only binary messages allowed")
-	}
-
-	buf, err := ioutil.ReadAll(r)
-	if err != nil {
-		return err
-	}
-
-	return proto.Unmarshal(buf, m)
+	return migration.ProtoRecv(c.controlConn, m)
 }
 
 func (c *migrationFields) disconnect() {
@@ -123,26 +105,20 @@ func (c *migrationFields) disconnect() {
 }
 
 func (c *migrationFields) sendControl(err error) {
-	message := ""
-	if err != nil {
-		message = err.Error()
-	}
+	c.controlLock.Lock()
+	defer c.controlLock.Unlock()
 
-	msg := MigrationControl{
-		Success: proto.Bool(err == nil),
-		Message: proto.String(message),
-	}
-	c.send(&msg)
+	migration.ProtoSendControl(c.controlConn, err)
 
 	if err != nil {
 		c.disconnect()
 	}
 }
 
-func (c *migrationFields) controlChannel() <-chan MigrationControl {
-	ch := make(chan MigrationControl)
+func (c *migrationFields) controlChannel() <-chan migration.MigrationControl {
+	ch := make(chan migration.MigrationControl)
 	go func() {
-		msg := MigrationControl{}
+		msg := migration.MigrationControl{}
 		err := c.recv(&msg)
 		if err != nil {
 			logger.Debugf("Got error reading migration control socket %s", err)
@@ -321,24 +297,24 @@ fi
 	return err
 }
 
-func snapshotToProtobuf(c container) *Snapshot {
-	config := []*Config{}
+func snapshotToProtobuf(c container) *migration.Snapshot {
+	config := []*migration.Config{}
 	for k, v := range c.LocalConfig() {
 		kCopy := string(k)
 		vCopy := string(v)
-		config = append(config, &Config{Key: &kCopy, Value: &vCopy})
+		config = append(config, &migration.Config{Key: &kCopy, Value: &vCopy})
 	}
 
-	devices := []*Device{}
+	devices := []*migration.Device{}
 	for name, d := range c.LocalDevices() {
-		props := []*Config{}
+		props := []*migration.Config{}
 		for k, v := range d {
 			kCopy := string(k)
 			vCopy := string(v)
-			props = append(props, &Config{Key: &kCopy, Value: &vCopy})
+			props = append(props, &migration.Config{Key: &kCopy, Value: &vCopy})
 		}
 
-		devices = append(devices, &Device{Name: &name, Config: props})
+		devices = append(devices, &migration.Device{Name: &name, Config: props})
 	}
 
 	parts := strings.SplitN(c.Name(), shared.SnapshotDelimiter, 2)
@@ -346,7 +322,7 @@ func snapshotToProtobuf(c container) *Snapshot {
 	arch := int32(c.Architecture())
 	stateful := c.IsStateful()
 
-	return &Snapshot{
+	return &migration.Snapshot{
 		Name:         &parts[len(parts)-1],
 		LocalConfig:  config,
 		Profiles:     c.Profiles(),
@@ -444,7 +420,7 @@ func readCriuStatsDump(path string) (uint64, uint64, error) {
 	size := binary.LittleEndian.Uint32(in[8:12])
 	logger.Debugf("stats-dump payload size %d", size)
 
-	statsEntry := &StatsEntry{}
+	statsEntry := &migration.StatsEntry{}
 	if err = proto.Unmarshal(in[12:12+size], statsEntry); err != nil {
 		logger.Errorf("Failed to parse CRIU's 'stats-dump' file: %s", err.Error())
 		return 0, 0, err
@@ -534,7 +510,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	// expects a message to know if this was the
 	// last pre-dump
 	logger.Debugf("Sending another header")
-	sync := MigrationSync{
+	sync := migration.MigrationSync{
 		FinalPreDump: proto.Bool(final),
 	}
 
@@ -557,11 +533,11 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	<-s.allConnected
 
-	criuType := CRIUType_CRIU_RSYNC.Enum()
+	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
 	if !s.live {
 		criuType = nil
 		if s.container.IsRunning() {
-			criuType = CRIUType_NONE.Enum()
+			criuType = migration.CRIUType_NONE.Enum()
 		}
 	}
 
@@ -575,7 +551,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		defer s.container.StorageStop()
 	}
 
-	idmaps := make([]*IDMapType, 0)
+	idmaps := make([]*migration.IDMapType, 0)
 
 	idmapset, err := s.container.IdmapSet()
 	if err != nil {
@@ -584,7 +560,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	if idmapset != nil {
 		for _, ctnIdmap := range idmapset.Idmap {
-			idmap := IDMapType{
+			idmap := migration.IDMapType{
 				Isuid:    proto.Bool(ctnIdmap.Isuid),
 				Isgid:    proto.Bool(ctnIdmap.Isgid),
 				Hostid:   proto.Int32(int32(ctnIdmap.Hostid)),
@@ -598,7 +574,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	driver, fsErr := s.container.Storage().MigrationSource(s.container, s.containerOnly)
 
-	snapshots := []*Snapshot{}
+	snapshots := []*migration.Snapshot{}
 	snapshotNames := []string{}
 	// Only send snapshots when requested.
 	if !s.containerOnly {
@@ -620,7 +596,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
 	myType := s.container.Storage().MigrationType()
-	header := MigrationHeader{
+	header := migration.MigrationHeader{
 		Fs:            &myType,
 		Criu:          criuType,
 		Idmap:         idmaps,
@@ -648,7 +624,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	bwlimit := ""
 	if *header.Fs != myType {
-		myType = MigrationFSType_RSYNC
+		myType = migration.MigrationFSType_RSYNC
 		header.Fs = &myType
 
 		driver, _ = rsyncMigrationSource(s.container, s.containerOnly)
@@ -693,7 +669,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	if s.live {
 		if header.Criu == nil {
 			return abort(fmt.Errorf("Got no CRIU socket type for live migration"))
-		} else if *header.Criu != CRIUType_CRIU_RSYNC {
+		} else if *header.Criu != migration.CRIUType_CRIU_RSYNC {
 			return abort(fmt.Errorf("Formats other than criu rsync not understood"))
 		}
 
@@ -866,7 +842,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
-	if s.live || (header.Criu != nil && *header.Criu == CRIUType_NONE) {
+	if s.live || (header.Criu != nil && *header.Criu == migration.CRIUType_NONE) {
 		err = driver.SendAfterCheckpoint(s.fsConn, bwlimit)
 		if err != nil {
 			return abort(err)
@@ -875,7 +851,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	driver.Cleanup()
 
-	msg := MigrationControl{}
+	msg := migration.MigrationControl{}
 	err = s.recv(&msg)
 	if err != nil {
 		s.disconnect()
@@ -1092,7 +1068,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		controller = c.dest.sendControl
 	}
 
-	header := MigrationHeader{}
+	header := migration.MigrationHeader{}
 	if err := receiver(&header); err != nil {
 		controller(err)
 		return err
@@ -1103,9 +1079,9 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		live = c.dest.live
 	}
 
-	criuType := CRIUType_CRIU_RSYNC.Enum()
-	if header.Criu != nil && *header.Criu == CRIUType_NONE {
-		criuType = CRIUType_NONE.Enum()
+	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
+	if header.Criu != nil && *header.Criu == migration.CRIUType_NONE {
+		criuType = migration.CRIUType_NONE.Enum()
 	} else {
 		if !live {
 			criuType = nil
@@ -1114,7 +1090,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 	mySink := c.src.container.Storage().MigrationSink
 	myType := c.src.container.Storage().MigrationType()
-	resp := MigrationHeader{
+	resp := migration.MigrationHeader{
 		Fs:   &myType,
 		Criu: criuType,
 	}
@@ -1123,7 +1099,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	// we have to use rsync.
 	if *header.Fs != *resp.Fs {
 		mySink = rsyncMigrationSink
-		myType = MigrationFSType_RSYNC
+		myType = migration.MigrationFSType_RSYNC
 		resp.Fs = &myType
 	}
 
@@ -1164,7 +1140,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		 */
 		fsTransfer := make(chan error)
 		go func() {
-			snapshots := []*Snapshot{}
+			snapshots := []*migration.Snapshot{}
 
 			/* Legacy: we only sent the snapshot names, so we just
 			 * copy the container's config over, same as we used to
@@ -1192,7 +1168,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				sendFinalFsDelta = true
 			}
 
-			if criuType != nil && *criuType == CRIUType_NONE {
+			if criuType != nil && *criuType == migration.CRIUType_NONE {
 				sendFinalFsDelta = true
 			}
 
@@ -1230,7 +1206,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				criuConn = c.src.criuConn
 			}
 
-			sync := &MigrationSync{
+			sync := &migration.MigrationSync{
 				FinalPreDump: proto.Bool(false),
 			}
 
@@ -1308,7 +1284,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		restore <- nil
 	}(c)
 
-	var source <-chan MigrationControl
+	var source <-chan migration.MigrationControl
 	if c.push {
 		source = c.dest.controlChannel()
 	} else {
