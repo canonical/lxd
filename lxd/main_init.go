@@ -178,7 +178,7 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 			if err != nil {
 				return err
 			}
-			cluster, err := client.GetCluster(clustering.TargetPassword)
+			cluster, _, err := client.GetCluster(clustering.TargetPassword)
 			if err != nil {
 				return err
 			}

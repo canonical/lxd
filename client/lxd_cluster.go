@@ -9,19 +9,18 @@ import (
 // GetCluster returns information about a cluster.
 //
 // If this client is not trusted, the password must be supplied.
-func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, error) {
+func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, string, error) {
 	cluster := &api.Cluster{}
 	path := "/cluster"
 	if password != "" {
 		path += fmt.Sprintf("?password=%s", password)
 	}
-	_, err := r.queryStruct("GET", path, nil, "", &cluster)
-
+	etag, err := r.queryStruct("GET", path, nil, "", &cluster)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return cluster, nil
+	return cluster, etag, nil
 }
 
 // BootstrapCluster requests to bootstrap a new cluster.
@@ -114,13 +113,13 @@ func (r *ProtocolLXD) GetClusterMembers() ([]api.ClusterMember, error) {
 func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string, error) {
 	node := api.ClusterMember{}
 	path := fmt.Sprintf("/cluster/members/%s", name)
-	_, err := r.queryStruct("GET", path, nil, "", &node)
+	etag, err := r.queryStruct("GET", path, nil, "", &node)
 
 	if err != nil {
 		return nil, "", err
 	}
 
-	return &node, "", nil
+	return &node, etag, nil
 }
 
 // RenameNode changes the name of an existing node

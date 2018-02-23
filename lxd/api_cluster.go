@@ -68,7 +68,7 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 		cluster.StoragePools = append(cluster.StoragePools, *pool)
 	}
 
-	return SyncResponse(true, cluster)
+	return SyncResponseETag(true, cluster, cluster)
 }
 
 // Disable clustering on a node.
@@ -470,7 +470,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) Response {
 
 	for _, node := range nodes {
 		if node.Name == name {
-			return SyncResponse(true, node)
+			return SyncResponseETag(true, node, node)
 		}
 	}
 
