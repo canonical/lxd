@@ -170,10 +170,10 @@ To upgrade a single node, simply upgrade the lxd/lxc binaries on the
 host (via snap or other packaging systems) and restart the lxd daemon.
 
 If the new version of the daemon has database schema or API changes,
-the restarted node might transition into a BLOCKED state. That happens
+the restarted node might transition into a Blocked state. That happens
 if there are still nodes in the cluster that have not been upgraded
 and that are running a less recent version. When a node is in the
-BLOCKED state it will not serve any LXD API request (in particular,
+Blocked state it will not serve any LXD API request (in particular,
 lxc commands on that node will not work, although any running
 container will continue to run).
 
@@ -181,7 +181,7 @@ You can see if some nodes are blocked by running `lxc cluster list` on
 a node which is not blocked.
 
 As you proceed upgrading the rest of the nodes, they will all
-transition to the BLOCKED state, until you upgrade the very last
+transition to the Blocked state, until you upgrade the very last
 one. At that point the blocked nodes will notice that there is no
 out-of-date node left and will become operational again.
 
@@ -229,7 +229,7 @@ lxc storage create --target node2 data zfs source=/dev/vdc1
 ```
 
 At this point the pool hasn't been actually created yet, but just
-defined (it's state is marked as PENDING if you run `lxc storage list`).
+defined (it's state is marked as Pending if you run `lxc storage list`).
 
 Now run:
 

@@ -213,12 +213,12 @@ func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]stri
 	return nil
 }
 
-// NetworkCreated sets the state of the given network to "CREATED".
+// NetworkCreated sets the state of the given network to "Created".
 func (c *ClusterTx) NetworkCreated(name string) error {
 	return c.networkState(name, networkCreated)
 }
 
-// NetworkErrored sets the state of the given network to "ERRORED".
+// NetworkErrored sets the state of the given network to "Errored".
 func (c *ClusterTx) NetworkErrored(name string) error {
 	return c.networkState(name, networkErrored)
 }
@@ -311,11 +311,11 @@ func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
 
 	switch state {
 	case networkPending:
-		network.Status = "PENDING"
+		network.Status = "Pending"
 	case networkCreated:
-		network.Status = "CREATED"
+		network.Status = "Created"
 	default:
-		network.Status = "UNKNOWN"
+		network.Status = "Unknown"
 	}
 
 	nodes, err := c.networkNodes(id)
