@@ -134,7 +134,7 @@ func (c *clusterCmd) doClusterNodeDelete(conf *config.Config, args []string) err
 		return err
 	}
 
-	err = client.LeaveCluster(name, c.force)
+	err = client.DeleteClusterMember(name, c.force)
 	if err != nil {
 		return err
 	}
