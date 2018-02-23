@@ -87,7 +87,7 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			// Double check that the listener is still
 			// connected. If it is, just move on, other
 			// we'll try to connect again.
-			if listeners[node.ID].Active() {
+			if listeners[node.ID].IsActive() {
 				continue
 			}
 			delete(listeners, node.ID)
