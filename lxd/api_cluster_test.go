@@ -210,7 +210,7 @@ func TestCluster_Leave(t *testing.T) {
 	f.FormCluster(daemons)
 
 	client := f.ClientUnix(daemons[1])
-	err := client.LeaveCluster("rusp-0", false)
+	err := client.DeleteClusterMember("rusp-0", false)
 	require.NoError(t, err)
 
 	_, _, err = client.GetServer()
@@ -241,7 +241,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 	require.NoError(t, err)
 
 	client := f.ClientUnix(daemons[1])
-	err = client.LeaveCluster("rusp-0", false)
+	err = client.DeleteClusterMember("rusp-0", false)
 	assert.EqualError(t, err, "node still has the following images: abc")
 
 	// If we now associate the image with the other node as well, leaving
@@ -250,7 +250,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 	err = daemon.State().Cluster.ImageAssociateNode("abc")
 	require.NoError(t, err)
 
-	err = client.LeaveCluster("rusp-0", false)
+	err = client.DeleteClusterMember("rusp-0", false)
 	assert.NoError(t, err)
 }
 
@@ -271,7 +271,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 	require.NoError(t, err)
 
 	client := f.ClientUnix(daemons[1])
-	err = client.LeaveCluster("rusp-0", true)
+	err = client.DeleteClusterMember("rusp-0", true)
 	assert.NoError(t, err)
 
 	// The image is gone, since the deleted node was the only one having a

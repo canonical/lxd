@@ -72,9 +72,9 @@ func (r *ProtocolLXD) JoinCluster(targetAddress, targetPassword, targetCert, nam
 	return op, nil
 }
 
-// LeaveCluster makes the given node leave the cluster (gracefully or not,
+// DeleteClusterMember makes the given node leave the cluster (gracefully or not,
 // depending on the force flag).
-func (r *ProtocolLXD) LeaveCluster(name string, force bool) error {
+func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 	params := ""
 	if force {
 		params += "?force=1"

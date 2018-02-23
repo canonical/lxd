@@ -173,7 +173,7 @@ type ContainerServer interface {
 	BootstrapCluster(name string) (op *Operation, err error)
 	AcceptNode(targetPassword, name, address string, schema, api int, pools []api.StoragePool, networks []api.Network) (info *api.ClusterNodeAccepted, err error)
 	JoinCluster(targetAddress, targetPassword, targetCert, name string) (op *Operation, err error)
-	LeaveCluster(name string, force bool) (err error)
+	DeleteClusterMember(name string, force bool) (err error)
 	GetClusterMemberNames() (names []string, err error)
 	GetClusterMembers() (nodes []api.Node, err error)
 	GetClusterMember(name string) (node *api.Node, ETag string, err error)
