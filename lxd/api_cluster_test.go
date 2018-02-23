@@ -296,7 +296,7 @@ func TestCluster_NodeRename(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
-	node := api.NodePost{Name: "rusp"}
+	node := api.ClusterMemberPost{Name: "rusp"}
 	err = client.RenameNode("buzz", node)
 	require.NoError(t, err)
 

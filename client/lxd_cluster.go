@@ -124,7 +124,7 @@ func (r *ProtocolLXD) GetClusterMember(name string) (*api.Node, string, error) {
 }
 
 // RenameNode changes the name of an existing node
-func (r *ProtocolLXD) RenameNode(name string, node api.NodePost) error {
+func (r *ProtocolLXD) RenameNode(name string, node api.ClusterMemberPost) error {
 	url := fmt.Sprintf("/cluster/members/%s", name)
 	_, _, err := r.query("POST", url, node, "")
 	return err

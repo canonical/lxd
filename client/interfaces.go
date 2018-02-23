@@ -177,7 +177,7 @@ type ContainerServer interface {
 	GetClusterMemberNames() (names []string, err error)
 	GetClusterMembers() (nodes []api.Node, err error)
 	GetClusterMember(name string) (node *api.Node, ETag string, err error)
-	RenameNode(name string, node api.NodePost) (err error)
+	RenameNode(name string, node api.ClusterMemberPost) (err error)
 
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)

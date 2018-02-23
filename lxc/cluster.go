@@ -110,7 +110,7 @@ func (c *clusterCmd) doClusterNodeRename(conf *config.Config, args []string) err
 		return err
 	}
 
-	err = client.RenameNode(name, api.NodePost{Name: newName})
+	err = client.RenameNode(name, api.ClusterMemberPost{Name: newName})
 	if err != nil {
 		return err
 	}
