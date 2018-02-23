@@ -46,10 +46,10 @@ type ClusterMemberPost struct {
 	Name string `json:"name" yaml:"name"`
 }
 
-// Node represents the a LXD node in the cluster.
+// ClusterMember represents the a LXD node in the cluster.
 //
 // API extension: clustering
-type Node struct {
+type ClusterMember struct {
 	Name     string `json:"name" yaml:"name"`
 	URL      string `json:"url" yaml:"url"`
 	Database bool   `json:"database" yaml:"database"`

@@ -98,8 +98,8 @@ func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 }
 
 // GetClusterMembers returns the current nodes in the cluster.
-func (r *ProtocolLXD) GetClusterMembers() ([]api.Node, error) {
-	nodes := []api.Node{}
+func (r *ProtocolLXD) GetClusterMembers() ([]api.ClusterMember, error) {
+	nodes := []api.ClusterMember{}
 	path := "/cluster/members"
 	_, err := r.queryStruct("GET", path, nil, "", &nodes)
 
@@ -111,8 +111,8 @@ func (r *ProtocolLXD) GetClusterMembers() ([]api.Node, error) {
 }
 
 // GetClusterMember returns information about the given node.
-func (r *ProtocolLXD) GetClusterMember(name string) (*api.Node, string, error) {
-	node := api.Node{}
+func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string, error) {
+	node := api.ClusterMember{}
 	path := fmt.Sprintf("/cluster/members/%s", name)
 	_, err := r.queryStruct("GET", path, nil, "", &node)
 

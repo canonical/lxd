@@ -175,8 +175,8 @@ type ContainerServer interface {
 	JoinCluster(targetAddress, targetPassword, targetCert, name string) (op *Operation, err error)
 	DeleteClusterMember(name string, force bool) (err error)
 	GetClusterMemberNames() (names []string, err error)
-	GetClusterMembers() (nodes []api.Node, err error)
-	GetClusterMember(name string) (node *api.Node, ETag string, err error)
+	GetClusterMembers() (nodes []api.ClusterMember, err error)
+	GetClusterMember(name string) (node *api.ClusterMember, ETag string, err error)
 	RenameNode(name string, node api.ClusterMemberPost) (err error)
 
 	// Internal functions (for internal use)
