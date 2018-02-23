@@ -1,72 +1,60 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
-	"github.com/lxc/lxd/shared/idmap"
+	"github.com/spf13/cobra"
+
+	"github.com/lxc/lxd/shared/version"
 )
 
-func help(me string, status int) {
-	fmt.Printf("Usage: %s directory [-t] [-r] <range1> [<range2> ...]\n", me)
-	fmt.Printf("  -t implies test mode.  No file ownerships will be changed.\n")
-	fmt.Printf("  -r means reverse, that is shift the uids out of the container.\n")
-	fmt.Printf("\n")
-	fmt.Printf("  A range is [u|b|g]:<first_container_id:first_host_id:range>.\n")
-	fmt.Printf("  where u means shift uids, g means shift gids, b means shift both.\n")
-	fmt.Printf("  For example: %s directory b:0:100000:65536 u:10000:1000:1\n", me)
-	os.Exit(status)
+type cmdGlobal struct {
+	flagVersion bool
+	flagHelp    bool
 }
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Printf("Error: %q\n", err)
-		help(os.Args[0], 1)
-	}
-}
+	app := &cobra.Command{}
+	app.Use = "fuidshift"
+	app.Short = "UID/GID shifter"
+	app.Long = `Description:
+  UID/GID shifter
 
-func run() error {
-	if len(os.Args) < 3 {
-		if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help") {
-			help(os.Args[0], 0)
-		} else {
-			help(os.Args[0], 1)
-		}
-	}
+  This tool lets you remap a filesystem tree, switching it from one
+  set of UID/GID ranges to another.
 
-	directory := os.Args[1]
-	idmapSet := idmap.IdmapSet{}
-	testmode := false
-	reverse := false
+  This is mostly useful when retrieving a wrongly shifted filesystem tree
+  from a backup or broken system and having to remap everything either to
+  the host UID/GID range (uid/gid 0 is root) or to an existing container's
+  range.
 
-	for pos := 2; pos < len(os.Args); pos++ {
 
-		switch os.Args[pos] {
-		case "-r", "--reverse":
-			reverse = true
-		case "t", "-t", "--test", "test":
-			testmode = true
-		default:
-			var err error
-			idmapSet, err = idmapSet.Append(os.Args[pos])
-			if err != nil {
-				return err
-			}
-		}
-	}
+  A range is represented as <u|b|g>:<first_container_id>:<first_host_id>:<size>.
+  Where "u" means shift uid, "g" means shift gid and "b" means shift uid and gid.
+`
+	app.Example = `  fuidshift my-dir/ b:0:100000:65536 u:10000:1000:1`
+	app.SilenceUsage = true
 
-	if idmapSet.Len() == 0 {
-		fmt.Printf("No idmaps given\n")
-		help(os.Args[0], 1)
-	}
+	// Global flags
+	globalCmd := cmdGlobal{}
+	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
+	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
 
-	if !testmode && os.Geteuid() != 0 {
-		fmt.Printf("This must be run as root\n")
+	// Version handling
+	app.SetVersionTemplate("{{.Version}}\n")
+	app.Version = version.Version
+
+	// shift command (main)
+	shiftCmd := cmdShift{global: &globalCmd}
+	app.Flags().BoolVarP(&shiftCmd.flagTestMode, "test", "t", false, "Test mode (no change to files)")
+	app.Flags().BoolVarP(&shiftCmd.flagReverse, "reverse", "r", false, "Perform a reverse mapping")
+	app.Use = "fuidshift <directory> <range> [<range>...]"
+	app.RunE = shiftCmd.Run
+	app.Args = cobra.ArbitraryArgs
+
+	// Run the main command and handle errors
+	err := app.Execute()
+	if err != nil {
 		os.Exit(1)
 	}
-
-	if reverse {
-		return idmapSet.UidshiftFromContainer(directory, testmode)
-	}
-	return idmapSet.UidshiftIntoContainer(directory, testmode)
 }
