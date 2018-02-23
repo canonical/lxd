@@ -79,7 +79,7 @@ func (c *clusterCmd) doClusterNodeShow(conf *config.Config, args []string) error
 		return err
 	}
 
-	node, err := client.GetNode(name)
+	node, _, err := client.GetClusterMember(name)
 	if err != nil {
 		return err
 	}
