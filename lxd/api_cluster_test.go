@@ -128,8 +128,8 @@ func TestCluster_Join(t *testing.T) {
 	assert.Len(t, nodes, 2)
 	assert.Equal(t, "buzz", nodes[0].Name)
 	assert.Equal(t, "rusp", nodes[1].Name)
-	assert.Equal(t, "ONLINE", nodes[0].State)
-	assert.Equal(t, "ONLINE", nodes[1].State)
+	assert.Equal(t, "Online", nodes[0].State)
+	assert.Equal(t, "Online", nodes[1].State)
 
 	// The GetClusterMemberNames client method returns the URLs of both
 	// nodes.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -170,7 +171,7 @@ func (c *clusterCmd) doClusterList(conf *config.Config, args []string) error {
 		if node.Database {
 			database = "YES"
 		}
-		line := []string{node.Name, node.URL, database, node.Status, node.Message}
+		line := []string{node.Name, node.URL, database, strings.ToUpper(node.Status), node.Message}
 		data = append(data, line)
 	}
 

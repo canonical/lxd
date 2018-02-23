@@ -188,12 +188,12 @@ func (c *ClusterTx) StoragePoolCreatePending(node, name, driver string, conf map
 	return nil
 }
 
-// StoragePoolCreated sets the state of the given pool to "CREATED".
+// StoragePoolCreated sets the state of the given pool to "Created".
 func (c *ClusterTx) StoragePoolCreated(name string) error {
 	return c.storagePoolState(name, storagePoolCreated)
 }
 
-// StoragePoolErrored sets the state of the given pool to "ERRORED".
+// StoragePoolErrored sets the state of the given pool to "Errored".
 func (c *ClusterTx) StoragePoolErrored(name string) error {
 	return c.storagePoolState(name, storagePoolErrored)
 }
@@ -377,11 +377,11 @@ func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, erro
 
 	switch state {
 	case storagePoolPending:
-		storagePool.Status = "PENDING"
+		storagePool.Status = "Pending"
 	case storagePoolCreated:
-		storagePool.Status = "CREATED"
+		storagePool.Status = "Created"
 	default:
-		storagePool.Status = "UNKNOWN"
+		storagePool.Status = "Unknown"
 	}
 
 	nodes, err := c.storagePoolNodes(poolID)

@@ -33,7 +33,7 @@ func TestStoragePoolsCreate_TargetNode(t *testing.T) {
 	pool, _, err := client.GetStoragePool("mypool")
 	require.NoError(t, err)
 
-	assert.Equal(t, "PENDING", pool.State)
+	assert.Equal(t, "Pending", pool.State)
 
 	// If a storage pool is pending, deleting it just means removing the
 	// relevant rows from the database.

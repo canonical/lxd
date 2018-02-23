@@ -562,17 +562,17 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 		result[i].URL = fmt.Sprintf("https://%s", node.Address)
 		result[i].Database = shared.StringInSlice(node.Address, addresses)
 		if node.IsOffline(offlineThreshold) {
-			result[i].Status = "OFFLINE"
+			result[i].Status = "Offline"
 			result[i].Message = fmt.Sprintf(
 				"no heartbeat since %s", now.Sub(node.Heartbeat))
 		} else {
-			result[i].Status = "ONLINE"
+			result[i].Status = "Online"
 			result[i].Message = "fully operational"
 		}
 
 		n, err := util.CompareVersions(version, node.Version())
 		if err != nil {
-			result[i].Status = "BROKEN"
+			result[i].Status = "Broken"
 			result[i].Message = "inconsistent version"
 			continue
 		}
@@ -588,7 +588,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 	// Update the state of online nodes that have been upgraded and whose
 	// schema is more recent than the rest of the nodes.
 	for i, node := range nodes {
-		if result[i].Status != "ONLINE" {
+		if result[i].Status != "Online" {
 			continue
 		}
 		n, err := util.CompareVersions(version, node.Version())
@@ -596,7 +596,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 			continue
 		}
 		if n == 2 {
-			result[i].Status = "BLOCKED"
+			result[i].Status = "Blocked"
 			result[i].Message = "waiting for other nodes to be upgraded"
 		}
 	}

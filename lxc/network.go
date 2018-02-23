@@ -563,7 +563,7 @@ func (c *networkCmd) doNetworkList(conf *config.Config, args []string) error {
 		strUsedBy := fmt.Sprintf("%d", len(network.UsedBy))
 		details := []string{network.Name, network.Type, strManaged, network.Description, strUsedBy}
 		if client.IsClustered() {
-			details = append(details, network.Status)
+			details = append(details, strings.ToUpper(network.Status))
 		}
 		data = append(data, details)
 	}

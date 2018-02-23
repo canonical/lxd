@@ -74,7 +74,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "true", network.Config["ipv4.nat"])
-	assert.Equal(t, "CREATED", network.State)
+	assert.Equal(t, "Created", network.State)
 	assert.Equal(t, []string{"none"}, network.Location)
 
 	// storage
@@ -88,7 +88,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, "123", pool.Config["size"])
 	assert.Equal(t, "/foo/bar", pool.Config["volatile.initial_source"])
 	assert.Equal(t, "mypool", pool.Config["zfs.pool_name"])
-	assert.Equal(t, "CREATED", pool.State)
+	assert.Equal(t, "Created", pool.State)
 	assert.Equal(t, []string{"none"}, pool.Location)
 	volumes, err := cluster.StoragePoolNodeVolumesGet(id, []int{1})
 	require.NoError(t, err)

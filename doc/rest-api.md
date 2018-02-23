@@ -2523,13 +2523,13 @@ Input (none at present):
                 "name": "lxd1",
                 "url": "https://10.1.1.101:8443",
                 "database": true,
-                "state": "ONLINE"
+                "state": "Online"
             },
             {
                 "name": "lxd2",
                 "url": "https://10.1.1.102:8443",
                 "database": true,
-                "state": "ONLINE"
+                "state": "Online"
             },
         ]
     } 

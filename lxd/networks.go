@@ -423,7 +423,7 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	if network.Status == "PENDING" {
+	if network.Status == "Pending" {
 		err := d.cluster.NetworkDelete(name)
 		if err != nil {
 			return SmartError(err)
