@@ -291,14 +291,14 @@ test_clustering_storage() {
   LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node1
   ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node2
   LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep state: | grep -q Pending
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Pending
 
   # The source config key is not legal for the final pool creation
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo
 
   # Create the storage pool
   LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep state: | grep -q Created
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Created
 
   # The 'source' config key is omitted when showing the cluster
   # configuration, and included when showing the node-specific one.
@@ -399,15 +399,15 @@ test_clustering_network() {
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network show "${net}" | grep -q node2
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep state: | grep -q Pending
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Pending
 
   # The bridge.external_interfaces config key is not legal for the final network creation
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo
 
   # Create the network
   LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep state: | grep -q Created
-  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" --target node2 | grep state: | grep -q Created
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Created
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" --target node2 | grep status: | grep -q Created
 
   # FIXME: rename the network is not supported with clustering
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network rename "${net}" "${net}-foo"
