@@ -75,7 +75,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "true", network.Config["ipv4.nat"])
 	assert.Equal(t, "CREATED", network.State)
-	assert.Equal(t, []string{"none"}, network.Nodes)
+	assert.Equal(t, []string{"none"}, network.Location)
 
 	// storage
 	pools, err := cluster.StoragePools()
