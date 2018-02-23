@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
@@ -29,11 +29,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	recursionStr := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		recursion = 0
-	}
+	recursion := util.IsRecursionRequest(r)
 
 	c, err := containerLoadByName(d.State(), cname)
 	if err != nil {
@@ -50,7 +46,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	for _, snap := range snaps {
 		_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
-		if recursion == 0 {
+		if !recursion {
 			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cname, snapName)
 			resultString = append(resultString, url)
 		} else {
@@ -63,7 +59,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if recursion == 0 {
+	if !recursion {
 		return SyncResponse(true, resultString)
 	}
 

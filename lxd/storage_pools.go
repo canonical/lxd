@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -24,11 +23,7 @@ var storagePoolCreateLock sync.Mutex
 // /1.0/storage-pools
 // List all storage pools.
 func storagePoolsGet(d *Daemon, r *http.Request) Response {
-	recursionStr := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		recursion = 0
-	}
+	recursion := util.IsRecursionRequest(r)
 
 	pools, err := d.cluster.StoragePools()
 	if err != nil && err != db.NoSuchObjectError {
@@ -38,7 +33,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 	resultString := []string{}
 	resultMap := []api.StoragePool{}
 	for _, pool := range pools {
-		if recursion == 0 {
+		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, pool))
 		} else {
 			plID, pl, err := d.cluster.StoragePoolGet(pool)
@@ -57,7 +52,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if recursion == 0 {
+	if !recursion {
 		return SyncResponse(true, resultString)
 	}
 
