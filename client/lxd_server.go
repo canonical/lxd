@@ -39,11 +39,6 @@ func (r *ProtocolLXD) GetServer() (*api.Server, string, error) {
 	return &server, etag, nil
 }
 
-// GetServerHost returns the URL of the LXD host this client points to.
-func (r *ProtocolLXD) GetServerHost() (string, error) {
-	return r.httpHost, nil
-}
-
 // UpdateServer updates the server status to match the provided Server struct
 func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 	// Send the request

@@ -114,12 +114,12 @@ type forwardedResponse struct {
 }
 
 func (r *forwardedResponse) Render(w http.ResponseWriter) error {
-	host, err := r.client.GetServerHost()
+	info, err := r.client.GetConnectionInfo()
 	if err != nil {
 		return err
 	}
 
-	url := fmt.Sprintf("%s%s", host, r.request.URL.RequestURI())
+	url := fmt.Sprintf("%s%s", info.Addresses[0], r.request.URL.RequestURI())
 	forwarded, err := http.NewRequest(r.request.Method, url, r.request.Body)
 	if err != nil {
 		return err
