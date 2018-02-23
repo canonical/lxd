@@ -105,14 +105,6 @@ update-pot:
 
 build-mo: $(MOFILES)
 
-.PHONY: build-sqlite
-build-sqlite:
-	cd lxd/sqlite && \
-	    git log -1 --format=format:%ci%n | sed -e 's/ [-+].*//;s/ /T/;s/^/D /' > manifest && \
-	    echo $(shell git log -1 --format=format:%H) > manifest.uuid && \
-	    ./configure && \
-	    make
-
 static-analysis:
 	(cd test;  /bin/sh -x -c ". suites/static_analysis.sh; test_static_analysis")
 
