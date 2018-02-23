@@ -36,7 +36,6 @@ type ProtocolLXD struct {
 	bakeryInteractor     httpbakery.Interactor
 	requireAuthenticated bool
 
-	// Name of the node that node-specific operations will target.
 	clusterTarget string
 }
 

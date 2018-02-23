@@ -6,9 +6,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// GetCluster returns information about a cluster.
+// GetCluster returns information about a cluster
 //
-// If this client is not trusted, the password must be supplied.
+// If this client is not trusted, the password must be supplied
 func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, string, error) {
 	cluster := &api.Cluster{}
 	path := "/cluster"
@@ -23,7 +23,7 @@ func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, string, error) 
 	return cluster, etag, nil
 }
 
-// BootstrapCluster requests to bootstrap a new cluster.
+// BootstrapCluster requests to bootstrap a new cluster
 func (r *ProtocolLXD) BootstrapCluster(name string) (*Operation, error) {
 	cluster := api.ClusterPost{Name: name}
 	op, _, err := r.queryOperation("POST", "/cluster/members", cluster, "")
@@ -34,8 +34,8 @@ func (r *ProtocolLXD) BootstrapCluster(name string) (*Operation, error) {
 	return op, nil
 }
 
-// AcceptNode requests to accept a new node into the cluster.
-func (r *ProtocolLXD) AcceptNode(targetPassword, name, address string, schema, apiExt int, pools []api.StoragePool, networks []api.Network) (*api.ClusterMemberPostResponse, error) {
+// AcceptMember requests to accept a new member into the cluster
+func (r *ProtocolLXD) AcceptMember(targetPassword, name, address string, schema, apiExt int, pools []api.StoragePool, networks []api.Network) (*api.ClusterMemberPostResponse, error) {
 	cluster := api.ClusterPost{
 		Name:           name,
 		Address:        address,
@@ -55,7 +55,7 @@ func (r *ProtocolLXD) AcceptNode(targetPassword, name, address string, schema, a
 	return info, nil
 }
 
-// JoinCluster requests to join an existing cluster.
+// JoinCluster requests to join an existing cluster
 func (r *ProtocolLXD) JoinCluster(targetAddress, targetPassword, targetCert, name string) (*Operation, error) {
 	cluster := api.ClusterPost{
 		TargetAddress:  targetAddress,
@@ -71,8 +71,8 @@ func (r *ProtocolLXD) JoinCluster(targetAddress, targetPassword, targetCert, nam
 	return op, nil
 }
 
-// DeleteClusterMember makes the given node leave the cluster (gracefully or not,
-// depending on the force flag).
+// DeleteClusterMember makes the given member leave the cluster (gracefully or not,
+// depending on the force flag)
 func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 	params := ""
 	if force {
@@ -83,7 +83,7 @@ func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 	return err
 }
 
-// GetClusterMemberNames returns the URLs of the current nodes in the cluster.
+// GetClusterMemberNames returns the URLs of the current members in the cluster
 func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 	urls := []string{}
 	path := "/cluster/members"
@@ -96,35 +96,35 @@ func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 	return urls, nil
 }
 
-// GetClusterMembers returns the current nodes in the cluster.
+// GetClusterMembers returns the current members of the cluster
 func (r *ProtocolLXD) GetClusterMembers() ([]api.ClusterMember, error) {
-	nodes := []api.ClusterMember{}
+	members := []api.ClusterMember{}
 	path := "/cluster/members?recursion=1"
-	_, err := r.queryStruct("GET", path, nil, "", &nodes)
+	_, err := r.queryStruct("GET", path, nil, "", &members)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return nodes, nil
+	return members, nil
 }
 
-// GetClusterMember returns information about the given node.
+// GetClusterMember returns information about the given member
 func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string, error) {
-	node := api.ClusterMember{}
+	member := api.ClusterMember{}
 	path := fmt.Sprintf("/cluster/members/%s", name)
-	etag, err := r.queryStruct("GET", path, nil, "", &node)
+	etag, err := r.queryStruct("GET", path, nil, "", &member)
 
 	if err != nil {
 		return nil, "", err
 	}
 
-	return &node, etag, nil
+	return &member, etag, nil
 }
 
-// RenameNode changes the name of an existing node
-func (r *ProtocolLXD) RenameNode(name string, node api.ClusterMemberPost) error {
+// RenameClusterMember changes the name of an existing member
+func (r *ProtocolLXD) RenameClusterMember(name string, member api.ClusterMemberPost) error {
 	url := fmt.Sprintf("/cluster/members/%s", name)
-	_, _, err := r.query("POST", url, node, "")
+	_, _, err := r.query("POST", url, member, "")
 	return err
 }
