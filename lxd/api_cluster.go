@@ -116,7 +116,7 @@ func clusterDelete(d *Daemon, r *http.Request) Response {
 }
 
 var clusterNodesCmd = Command{
-	name: "cluster/nodes",
+	name: "cluster/members",
 	post: clusterNodesPost, untrustedPost: true,
 	get: clusterNodesGet,
 }
@@ -196,7 +196,7 @@ func clusterNodesPostAccept(d *Daemon, req api.ClusterPost) Response {
 		logger.Debugf("Redirect node accept request to %s", leader)
 		url := &url.URL{
 			Scheme: "https",
-			Path:   "/1.0/cluster/nodes",
+			Path:   "/1.0/cluster/members",
 			Host:   leader,
 		}
 		return SyncResponseRedirect(url.String())
@@ -440,7 +440,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) Response {
 }
 
 var clusterNodeCmd = Command{
-	name:   "cluster/nodes/{name}",
+	name:   "cluster/members/{name}",
 	get:    clusterNodeGet,
 	post:   clusterNodePost,
 	delete: clusterNodeDelete,
