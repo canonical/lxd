@@ -523,7 +523,7 @@ func (c *storageCmd) doStoragePoolCreate(client lxd.ContainerServer, name string
 	// If a target node was specified the API won't actually create the
 	// pool, but only define it as pending in the database.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	// Create the pool
@@ -792,7 +792,7 @@ func (c *storageCmd) doStoragePoolShow(client lxd.ContainerServer, name string) 
 
 	// If a target node was specified, we return also node-specific config values.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	if c.resources {
@@ -969,7 +969,7 @@ func (c *storageCmd) doStoragePoolVolumeCreate(client lxd.ContainerServer, pool 
 
 	// If a target was specified, create the volume on the given node.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	err := client.CreateStoragePoolVolume(pool, vol)
@@ -988,7 +988,7 @@ func (c *storageCmd) doStoragePoolVolumeDelete(client lxd.ContainerServer, pool 
 
 	// If a target was specified, create the volume on the given node.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	// Delete the volume
@@ -1012,7 +1012,7 @@ func (c *storageCmd) doStoragePoolVolumeGet(client lxd.ContainerServer, pool str
 
 	// If a target was specified, create the volume on the given node.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	// Get the storage volume entry
@@ -1040,7 +1040,7 @@ func (c *storageCmd) doStoragePoolVolumeSet(client lxd.ContainerServer, pool str
 
 	// If a target was specified, create the volume on the given node.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	// Get the storage volume entry
@@ -1083,7 +1083,7 @@ func (c *storageCmd) doStoragePoolVolumeShow(client lxd.ContainerServer, pool st
 	// If a target node was specified, get the volume with the matching
 	// name on that node, if any.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	// Get the storage volume entry
@@ -1176,7 +1176,7 @@ func (c *storageCmd) doStoragePoolVolumeEdit(client lxd.ContainerServer, pool st
 
 	// If a target was specified, create the volume on the given node.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	// Extract the current value
@@ -1236,7 +1236,7 @@ func (c *storageCmd) doStoragePoolVolumeRename(client lxd.ContainerServer, pool 
 	// If a target node was specified, get the volume with the matching
 	// name on that node, if any.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	err := client.RenameStoragePoolVolume(pool, volType, volName, vol)
