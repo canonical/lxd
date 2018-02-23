@@ -218,8 +218,8 @@ won't work and PUT needs to be used instead.
            * `/1.0/storage-pools/<name>/volumes/<volume type>/<volume>`
      * `/1.0/resources`
      * `/1.0/cluster`
-       * `/1.0/cluster/nodes`
-         * `/1.0/cluster/nodes/<name>`
+       * `/1.0/cluster/members`
+         * `/1.0/cluster/members/<name>`
 
 # API details
 ## `/`
@@ -2535,13 +2535,13 @@ Input (none at present):
     {
     }
 
-## `/1.0/cluster/nodes`
+## `/1.0/cluster/members`
 ### GET
- * Description: list of LXD nodes in the cluster
+ * Description: list of LXD members in the cluster
  * Introduced: with API extension `clustering`
  * Authentication: trusted
  * Operation: sync
- * Return: list of dicts with information about each node
+ * Return: list of dicts with information about each member
 
 	{
 		"type": "sync",
@@ -2567,7 +2567,7 @@ Input (none at present):
 	} 
 
 ### POST
- * Description: bootstrap, join, or accept a node in the cluster
+ * Description: bootstrap, join, or accept a member in the cluster
  * Introduced: with API extension `clustering`
  * Authentication: trusted or untrusted
  * Operation: sync or async
@@ -2627,13 +2627,13 @@ of the cluster certificate:
 		}
 	}
 
-## `/1.0/cluster/nodes/<name>`
+## `/1.0/cluster/members/<name>`
 ### GET
- * Description: retrieve the node's information and status
+ * Description: retrieve the member's information and status
  * Introduced: with API extension `clustering`
  * Authentication: trusted
  * Operation: sync
- * Return: dict representing the node
+ * Return: dict representing the member
 
     {
         "type": "sync",
@@ -2653,9 +2653,9 @@ of the cluster certificate:
         }
     }
 
-## `/1.0/cluster/nodes/<name>`
+## `/1.0/cluster/members/<name>`
 ### POST
- * Description: rename a cluster node
+ * Description: rename a cluster member
  * Introduced: with API extension `clustering`
  * Authentication: trusted
  * Operation: sync
@@ -2668,7 +2668,7 @@ Input:
     }
 
 ### DELETE (optional `?force=1`)
- * Description: remove a node from the cluster
+ * Description: remove a member of the cluster
  * Introduced: with API extension `clustering`
  * Authentication: trusted
  * Operation: async

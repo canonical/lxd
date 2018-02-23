@@ -27,7 +27,7 @@ func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, error) {
 // BootstrapCluster requests to bootstrap a new cluster.
 func (r *ProtocolLXD) BootstrapCluster(name string) (*Operation, error) {
 	cluster := api.ClusterPost{Name: name}
-	op, _, err := r.queryOperation("POST", "/cluster/nodes", cluster, "")
+	op, _, err := r.queryOperation("POST", "/cluster/members", cluster, "")
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (r *ProtocolLXD) AcceptNode(targetPassword, name, address string, schema, a
 		Networks:       networks,
 	}
 	info := &api.ClusterNodeAccepted{}
-	_, err := r.queryStruct("POST", "/cluster/nodes", cluster, "", &info)
+	_, err := r.queryStruct("POST", "/cluster/members", cluster, "", &info)
 
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func (r *ProtocolLXD) JoinCluster(targetAddress, targetPassword, targetCert, nam
 		TargetCert:     targetCert,
 		Name:           name,
 	}
-	op, _, err := r.queryOperation("POST", "/cluster/nodes", cluster, "")
+	op, _, err := r.queryOperation("POST", "/cluster/members", cluster, "")
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (r *ProtocolLXD) LeaveCluster(name string, force bool) error {
 	if force {
 		params += "?force=1"
 	}
-	url := fmt.Sprintf("/cluster/nodes/%s%s", name, params)
+	url := fmt.Sprintf("/cluster/members/%s%s", name, params)
 	_, err := r.queryStruct("DELETE", url, nil, "", nil)
 	return err
 }
@@ -87,7 +87,7 @@ func (r *ProtocolLXD) LeaveCluster(name string, force bool) error {
 // GetNodes returns the current nodes in the cluster.
 func (r *ProtocolLXD) GetNodes() ([]api.Node, error) {
 	nodes := []api.Node{}
-	path := "/cluster/nodes"
+	path := "/cluster/members"
 	_, err := r.queryStruct("GET", path, nil, "", &nodes)
 
 	if err != nil {
@@ -100,7 +100,7 @@ func (r *ProtocolLXD) GetNodes() ([]api.Node, error) {
 // GetNode returns information about the given node.
 func (r *ProtocolLXD) GetNode(name string) (*api.Node, error) {
 	node := api.Node{}
-	path := fmt.Sprintf("/cluster/nodes/%s", name)
+	path := fmt.Sprintf("/cluster/members/%s", name)
 	_, err := r.queryStruct("GET", path, nil, "", &node)
 
 	if err != nil {
@@ -112,7 +112,7 @@ func (r *ProtocolLXD) GetNode(name string) (*api.Node, error) {
 
 // RenameNode changes the name of an existing node
 func (r *ProtocolLXD) RenameNode(name string, node api.NodePost) error {
-	url := fmt.Sprintf("/cluster/nodes/%s", name)
+	url := fmt.Sprintf("/cluster/members/%s", name)
 	_, _, err := r.query("POST", url, node, "")
 	return err
 }
