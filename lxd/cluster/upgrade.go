@@ -20,12 +20,12 @@ func NotifyUpgradeCompleted(state *state.State, cert *shared.CertInfo) error {
 		return err
 	}
 	return notifier(func(client lxd.ContainerServer) error {
-		host, err := client.GetServerHost()
+		info, err := client.GetConnectionInfo()
 		if err != nil {
 			return errors.Wrap(err, "failed to get connection info")
 		}
 
-		url := fmt.Sprintf("%s%s", host, grpcEndpoint)
+		url := fmt.Sprintf("%s%s", info.Addresses[0], grpcEndpoint)
 		request, err := http.NewRequest("PATCH", url, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to create database notify upgrade request")
