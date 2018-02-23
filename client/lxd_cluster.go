@@ -87,7 +87,7 @@ func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 // GetClusterMemberNames returns the URLs of the current nodes in the cluster.
 func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 	urls := []string{}
-	path := "/cluster/members?recursion=1"
+	path := "/cluster/members"
 	_, err := r.queryStruct("GET", path, nil, "", &urls)
 
 	if err != nil {
@@ -100,7 +100,7 @@ func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 // GetClusterMembers returns the current nodes in the cluster.
 func (r *ProtocolLXD) GetClusterMembers() ([]api.ClusterMember, error) {
 	nodes := []api.ClusterMember{}
-	path := "/cluster/members"
+	path := "/cluster/members?recursion=1"
 	_, err := r.queryStruct("GET", path, nil, "", &nodes)
 
 	if err != nil {
