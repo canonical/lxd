@@ -40,7 +40,7 @@ type Network struct {
 	Managed bool `json:"managed" yaml:"managed"`
 
 	// API extension: clustering
-	State     string   `json:"state" yaml:"state"`
+	Status    string   `json:"status" yaml:"status"`
 	Locations []string `json:"locations" yaml:"locations"`
 }
 

@@ -170,7 +170,7 @@ func (c *clusterCmd) doClusterList(conf *config.Config, args []string) error {
 		if node.Database {
 			database = "YES"
 		}
-		line := []string{node.Name, node.URL, database, node.State, node.Message}
+		line := []string{node.Name, node.URL, database, node.Status, node.Message}
 		data = append(data, line)
 	}
 

@@ -406,7 +406,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	}
 
 	if dbInfo != nil {
-		n.State = dbInfo.State
+		n.Status = dbInfo.Status
 		n.Locations = dbInfo.Locations
 	}
 
@@ -423,7 +423,7 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	if network.State == "PENDING" {
+	if network.Status == "PENDING" {
 		err := d.cluster.NetworkDelete(name)
 		if err != nil {
 			return SmartError(err)

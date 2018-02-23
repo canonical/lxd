@@ -377,11 +377,11 @@ func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, erro
 
 	switch state {
 	case storagePoolPending:
-		storagePool.State = "PENDING"
+		storagePool.Status = "PENDING"
 	case storagePoolCreated:
-		storagePool.State = "CREATED"
+		storagePool.Status = "CREATED"
 	default:
-		storagePool.State = "UNKNOWN"
+		storagePool.Status = "UNKNOWN"
 	}
 
 	nodes, err := c.storagePoolNodes(poolID)

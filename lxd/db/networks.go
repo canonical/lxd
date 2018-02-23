@@ -311,11 +311,11 @@ func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
 
 	switch state {
 	case networkPending:
-		network.State = "PENDING"
+		network.Status = "PENDING"
 	case networkCreated:
-		network.State = "CREATED"
+		network.Status = "CREATED"
 	default:
-		network.State = "UNKNOWN"
+		network.Status = "UNKNOWN"
 	}
 
 	nodes, err := c.networkNodes(id)
