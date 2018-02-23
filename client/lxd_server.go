@@ -52,9 +52,9 @@ func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 
 // HasExtension returns true if the server supports a given API extension
 func (r *ProtocolLXD) HasExtension(extension string) bool {
-	// Skip the check for internal cluster notifications, since r.server is
-	// usually nil.
-	if r.httpUserAgent == "lxd-cluster-notifier" {
+	// If no cached API information, just assume we're good
+	// This is needed for those rare cases where we must avoid a GetServer call
+	if r.server == nil {
 		return true
 	}
 
