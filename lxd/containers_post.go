@@ -524,7 +524,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	targetNode := r.FormValue("targetNode")
+	targetNode := r.FormValue("target")
 	if targetNode != "" {
 		address, err := cluster.ResolveTarget(d.cluster, targetNode)
 		if err != nil {

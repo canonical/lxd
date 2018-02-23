@@ -103,7 +103,7 @@ func (r *ProtocolLXD) UseTarget(name string) ContainerServer {
 		bakeryClient:         r.bakeryClient,
 		bakeryInteractor:     r.bakeryInteractor,
 		requireAuthenticated: r.requireAuthenticated,
-		targetNode:           name,
+		clusterTarget:        name,
 	}
 }
 

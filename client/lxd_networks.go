@@ -59,8 +59,8 @@ func (r *ProtocolLXD) GetNetwork(name string) (*api.Network, string, error) {
 
 	// Fetch the raw value
 	path := fmt.Sprintf("/networks/%s", url.QueryEscape(name))
-	if r.targetNode != "" {
-		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
 	}
 	etag, err := r.queryStruct("GET", path, nil, "", &network)
 	if err != nil {
@@ -95,8 +95,8 @@ func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) error {
 
 	// Send the request
 	path := "/networks"
-	if r.targetNode != "" {
-		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
 	}
 	_, _, err := r.query("POST", path, network, "")
 	if err != nil {

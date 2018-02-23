@@ -105,7 +105,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	targetNode := r.FormValue("targetNode")
+	targetNode := r.FormValue("target")
 	if targetNode == "" {
 		count, err := cluster.Count(d.State())
 		if err != nil {
@@ -273,7 +273,7 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 	}
 	pool.UsedBy = poolUsedBy
 
-	targetNode := r.FormValue("targetNode")
+	targetNode := r.FormValue("target")
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
