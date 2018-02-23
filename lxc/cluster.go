@@ -159,7 +159,7 @@ func (c *clusterCmd) doClusterList(conf *config.Config, args []string) error {
 		return err
 	}
 
-	nodes, err := client.GetNodes()
+	nodes, err := client.GetClusterMembers()
 	if err != nil {
 		return err
 	}
