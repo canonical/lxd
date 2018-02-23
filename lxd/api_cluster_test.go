@@ -30,7 +30,7 @@ func TestCluster_Bootstrap(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
-	server, _, err = client.GetServer()
+	server, _, err := client.GetServer()
 	require.NoError(t, err)
 	assert.True(t, client.IsClustered())
 	assert.Equal(t, "buzz", server.Environment.ServerName)
@@ -128,8 +128,8 @@ func TestCluster_Join(t *testing.T) {
 	assert.Len(t, nodes, 2)
 	assert.Equal(t, "buzz", nodes[0].Name)
 	assert.Equal(t, "rusp", nodes[1].Name)
-	assert.Equal(t, "Online", nodes[0].State)
-	assert.Equal(t, "Online", nodes[1].State)
+	assert.Equal(t, "Online", nodes[0].Status)
+	assert.Equal(t, "Online", nodes[1].Status)
 
 	// The GetClusterMemberNames client method returns the URLs of both
 	// nodes.
@@ -298,7 +298,7 @@ func TestCluster_NodeRename(t *testing.T) {
 	require.NoError(t, op.Wait())
 
 	node := api.ClusterMemberPost{Name: "rusp"}
-	err = client.RenameNode("buzz", node)
+	err = client.RenameClusterMember("buzz", node)
 	require.NoError(t, err)
 
 	_, _, err = client.GetClusterMember("rusp")

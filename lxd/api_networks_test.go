@@ -32,8 +32,8 @@ func TestNetworksCreate_TargetNode(t *testing.T) {
 	network, _, err := client.GetNetwork("mynetwork")
 	require.NoError(t, err)
 
-	assert.Equal(t, "Pending", network.State)
-	assert.Equal(t, []string{"rusp-0"}, network.Location)
+	assert.Equal(t, "Pending", network.Status)
+	assert.Equal(t, []string{"rusp-0"}, network.Locations)
 
 	// If a network is pending, deleting it just means removing the
 	// relevant rows from the database.
