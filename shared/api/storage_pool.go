@@ -21,7 +21,7 @@ type StoragePool struct {
 	UsedBy []string `json:"used_by" yaml:"used_by"`
 
 	// API extension: clustering
-	State     string   `json:"state" yaml:"state"`
+	Status    string   `json:"status" yaml:"status"`
 	Locations []string `json:"locations" yaml:"locations"`
 }
 

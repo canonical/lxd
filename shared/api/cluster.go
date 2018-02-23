@@ -53,6 +53,6 @@ type ClusterMember struct {
 	Name     string `json:"name" yaml:"name"`
 	URL      string `json:"url" yaml:"url"`
 	Database bool   `json:"database" yaml:"database"`
-	State    string `json:"state" yaml:"state"`
+	Status   string `json:"status" yaml:"status"`
 	Message  string `json:"message" yaml:"message"`
 }

@@ -515,7 +515,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	if pool.State == "PENDING" {
+	if pool.Status == "PENDING" {
 		_, err := d.cluster.StoragePoolDelete(poolName)
 		if err != nil {
 			return SmartError(err)

@@ -714,7 +714,7 @@ func (c *storageCmd) doStoragePoolsList(conf *config.Config, args []string) erro
 		usedby := strconv.Itoa(len(pool.UsedBy))
 		details := []string{pool.Name, pool.Description, pool.Driver}
 		if client.IsClustered() {
-			details = append(details, pool.State)
+			details = append(details, pool.Status)
 		} else {
 			details = append(details, pool.Config["source"])
 		}
