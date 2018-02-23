@@ -30,10 +30,10 @@ func TestCluster_Bootstrap(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
-	_, _, err = client.GetServer()
+	server, _, err = client.GetServer()
 	require.NoError(t, err)
 	assert.True(t, client.IsClustered())
-	assert.Equal(t, "buzz", client.GetServerName())
+	assert.Equal(t, "buzz", server.Environment.ServerName)
 }
 
 func TestCluster_Get(t *testing.T) {
