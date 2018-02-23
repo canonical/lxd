@@ -388,7 +388,7 @@ func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, erro
 	if err != nil {
 		return -1, nil, err
 	}
-	storagePool.Location = nodes
+	storagePool.Locations = nodes
 
 	return poolID, &storagePool, nil
 }

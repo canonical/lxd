@@ -407,7 +407,7 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 	if dbInfo != nil {
 		n.State = dbInfo.State
-		n.Location = dbInfo.Location
+		n.Locations = dbInfo.Locations
 	}
 
 	return n, nil
