@@ -922,7 +922,7 @@ func (c *storageCmd) doStoragePoolVolumesList(conf *config.Config, remote string
 		usedby := strconv.Itoa(len(volume.UsedBy))
 		entry := []string{volume.Type, volume.Name, volume.Description, usedby}
 		if client.IsClustered() {
-			entry = append(entry, volume.Node)
+			entry = append(entry, volume.Location)
 		}
 		data = append(data, entry)
 	}

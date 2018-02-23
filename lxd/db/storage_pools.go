@@ -709,7 +709,7 @@ func (c *Cluster) StoragePoolVolumeGetType(volumeName string, volumeType int, po
 	storageVolume.Name = volumeName
 	storageVolume.Description = volumeDescription
 	storageVolume.Config = volumeConfig
-	storageVolume.Node = volumeNode
+	storageVolume.Location = volumeNode
 
 	return volumeID, &storageVolume, nil
 }
