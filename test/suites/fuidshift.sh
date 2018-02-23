@@ -1,8 +1,6 @@
 test_common_fuidshift() {
   # test some bad arguments
   fail=0
-  fuidshift > /dev/null 2>&1 && fail=1
-  fuidshift -t > /dev/null 2>&1 && fail=1
   fuidshift /tmp -t b:0 > /dev/null 2>&1 && fail=1
   fuidshift /tmp -t x:0:0:0 > /dev/null 2>&1 && fail=1
   [ "${fail}" -ne 1 ]
