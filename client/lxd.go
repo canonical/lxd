@@ -37,7 +37,7 @@ type ProtocolLXD struct {
 	requireAuthenticated bool
 
 	// Name of the node that node-specific operations will target.
-	targetNode string
+	clusterTarget string
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server

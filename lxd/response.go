@@ -162,7 +162,7 @@ func ForwardedResponse(client lxd.ContainerServer, request *http.Request) Respon
 // ForwardedResponseIfTargetIsRemote redirects a request to the request has a
 // targetNode parameter pointing to a node which is not the local one.
 func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Response {
-	targetNode := request.FormValue("targetNode")
+	targetNode := request.FormValue("target")
 	if targetNode == "" {
 		return nil
 	}
@@ -224,7 +224,7 @@ func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, name strin
 // This is used when no targetNode is specified, and saves users some typing
 // when the volume name/type is unique to a node.
 func ForwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) Response {
-	if r.FormValue("targetNode") != "" {
+	if r.FormValue("target") != "" {
 		return nil
 	}
 

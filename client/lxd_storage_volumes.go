@@ -63,8 +63,8 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name str
 	path := fmt.Sprintf(
 		"/storage-pools/%s/volumes/%s/%s",
 		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
-	if r.targetNode != "" {
-		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
 	}
 	etag, err := r.queryStruct("GET", path, nil, "", &volume)
 	if err != nil {
@@ -83,8 +83,8 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 	// Send the request
 	path := fmt.Sprintf(
 		"/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type))
-	if r.targetNode != "" {
-		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
 	}
 	_, _, err := r.query("POST", path, volume, "")
 	if err != nil {
@@ -179,8 +179,8 @@ func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name 
 	path := fmt.Sprintf(
 		"/storage-pools/%s/volumes/%s/%s",
 		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
-	if r.targetNode != "" {
-		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
 	}
 	_, _, err := r.query("PUT", path, volume, ETag)
 	if err != nil {
@@ -200,8 +200,8 @@ func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name 
 	path := fmt.Sprintf(
 		"/storage-pools/%s/volumes/%s/%s",
 		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
-	if r.targetNode != "" {
-		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
 	}
 	_, _, err := r.query("DELETE", path, nil, "")
 	if err != nil {
@@ -219,8 +219,8 @@ func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name 
 	path := fmt.Sprintf(
 		"/storage-pools/%s/volumes/%s/%s",
 		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
-	if r.targetNode != "" {
-		path += fmt.Sprintf("?targetNode=%s", r.targetNode)
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
 	}
 
 	// Send the request
