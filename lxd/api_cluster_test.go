@@ -134,6 +134,7 @@ func TestCluster_Join(t *testing.T) {
 	// The GetClusterMemberNames client method returns the URLs of both
 	// nodes.
 	urls, err := client.GetClusterMemberNames()
+	require.NoError(t, err)
 	assert.Len(t, urls, 2)
 	assert.Equal(t, "/1.0/cluster/members/buzz", urls[0])
 	assert.Equal(t, "/1.0/cluster/members/rusp", urls[1])
