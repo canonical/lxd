@@ -89,9 +89,9 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	return &resources, nil
 }
 
-// UseTarget returns a client that will target the given node for
-// node-specific operations such as creating containers, modifying storage
-// configuration etc.
+// UseTarget returns a client that will target a specific cluster member.
+// Use this member-specific operations such as specific container
+// placement, preparing a new storage pool or network, ...
 func (r *ProtocolLXD) UseTarget(name string) ContainerServer {
 	return &ProtocolLXD{
 		server:               r.server,

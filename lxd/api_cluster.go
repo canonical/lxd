@@ -357,7 +357,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 		if err != nil {
 			return err
 		}
-		info, err := client.AcceptNode(
+		info, err := client.AcceptMember(
 			req.TargetPassword, req.Name, address, cluster.SchemaVersion,
 			version.APIExtensionsCount(), pools, networks)
 		if err != nil {
