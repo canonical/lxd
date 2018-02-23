@@ -23,10 +23,10 @@ type ClusterPost struct {
 	Networks       []Network     `json:"networks" yaml:"networks"`
 }
 
-// ClusterNodeAccepted represents the response of a request to join a cluster.
+// ClusterMemberPostResponse represents the response of a request to join a cluster.
 //
 // API extension: cluster
-type ClusterNodeAccepted struct {
+type ClusterMemberPostResponse struct {
 	RaftNodes  []RaftNode `json:"raft_nodes" yaml:"raft_nodes"`
 	PrivateKey []byte     `json:"private_key" yaml:"private_key"`
 }

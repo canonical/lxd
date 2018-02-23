@@ -227,7 +227,7 @@ func clusterNodesPostAccept(d *Daemon, req api.ClusterPost) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
-	accepted := api.ClusterNodeAccepted{
+	accepted := api.ClusterMemberPostResponse{
 		RaftNodes:  make([]api.RaftNode, len(nodes)),
 		PrivateKey: d.endpoints.NetworkPrivateKey(),
 	}
