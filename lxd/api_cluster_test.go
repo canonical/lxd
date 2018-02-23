@@ -132,7 +132,7 @@ func TestCluster_Join(t *testing.T) {
 	assert.Equal(t, "ONLINE", nodes[1].State)
 
 	// The GetNode method returns the requested node.
-	node, err := client.GetNode("buzz")
+	node, _, err := client.GetClusterMember("buzz")
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", node.Name)
 }
@@ -293,7 +293,7 @@ func TestCluster_NodeRename(t *testing.T) {
 	err = client.RenameNode("buzz", node)
 	require.NoError(t, err)
 
-	_, err = client.GetNode("rusp")
+	_, _, err = client.GetClusterMember("rusp")
 	require.NoError(t, err)
 }
 

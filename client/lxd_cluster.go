@@ -97,17 +97,17 @@ func (r *ProtocolLXD) GetNodes() ([]api.Node, error) {
 	return nodes, nil
 }
 
-// GetNode returns information about the given node.
-func (r *ProtocolLXD) GetNode(name string) (*api.Node, error) {
+// GetClusterMember returns information about the given node.
+func (r *ProtocolLXD) GetClusterMember(name string) (*api.Node, string, error) {
 	node := api.Node{}
 	path := fmt.Sprintf("/cluster/members/%s", name)
 	_, err := r.queryStruct("GET", path, nil, "", &node)
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return &node, nil
+	return &node, "", nil
 }
 
 // RenameNode changes the name of an existing node
