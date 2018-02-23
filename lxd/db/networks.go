@@ -322,7 +322,7 @@ func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
 	if err != nil {
 		return -1, nil, err
 	}
-	network.Nodes = nodes
+	network.Location = nodes
 
 	return id, &network, nil
 }
