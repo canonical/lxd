@@ -2445,38 +2445,6 @@ Return:
             }
         }
     }
-## `/1.0/storage-pools`
-### GET
- * Description: list of storage pools
- * Introduced: with API extension `storage`
- * Authentication: trusted
- * Operation: sync
- * Return: list of storage pools that are currently defined on the host
-
-    [
-        "/1.0/storage-pools/default",
-        "/1.0/storage-pools/pool1"
-        "/1.0/storage-pools/pool2"
-        "/1.0/storage-pools/pool3"
-        "/1.0/storage-pools/pool4"
-    ]
-
-### POST
- * Description: create a new storage pool
- * Introduced: with API extension `storage`
- * Authentication: trusted
- * Operation: sync
- * Return: standard return value or standard error
-
-Input:
-
-    {
-        "config": {
-            "size": "10GB"
-        },
-        "driver": "zfs",
-        "name": "pool1"
-    }
 
 ## `/1.0/cluster`
 ### GET (optional `?password=<trust-password>`)
