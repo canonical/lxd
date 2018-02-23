@@ -220,14 +220,16 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		return err
 	}
 	notifyErr := notifier(func(client lxd.ContainerServer) error {
-		_, _, err := client.GetServer()
+		server, _, err := client.GetServer()
 		if err != nil {
 			return err
 		}
+
 		nodeReq := req
-		for key, value := range configs[client.GetServerName()] {
+		for key, value := range configs[server.Environment.ServerName] {
 			nodeReq.Config[key] = value
 		}
+
 		return client.CreateStoragePool(nodeReq)
 	})
 

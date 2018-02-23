@@ -106,8 +106,3 @@ func (r *ProtocolLXD) UseTarget(name string) ContainerServer {
 		clusterTarget:        name,
 	}
 }
-
-// GetServerName returns the name of the node this client is pointing to.
-func (r *ProtocolLXD) GetServerName() string {
-	return r.server.Environment.ServerName
-}
