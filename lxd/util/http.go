@@ -158,7 +158,7 @@ func IsRecursionRequest(r *http.Request) bool {
 		return false
 	}
 
-	return recursion == 1
+	return recursion != 0
 }
 
 // ListenAddresses returns a list of host:port combinations at which
