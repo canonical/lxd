@@ -422,6 +422,7 @@ Clustering API for LXD.
 This includes the following new endpoints:
 
 * `GET /1.0/cluster`
+* `UPDATE /1.0/cluster`
 * `DELETE /1.0/cluster` (see [RESTful API](rest-api.md) for details)
 
 * `GET /1.0/cluster/nodes`
