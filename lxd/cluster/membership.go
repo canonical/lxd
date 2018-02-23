@@ -519,7 +519,7 @@ func Purge(cluster *db.Cluster, name string) error {
 }
 
 // List the nodes of the cluster.
-func List(state *state.State) ([]api.Node, error) {
+func List(state *state.State) ([]api.ClusterMember, error) {
 	addresses := []string{} // Addresses of database nodes
 	err := state.Node.Transaction(func(tx *db.NodeTx) error {
 		nodes, err := tx.RaftNodes()
@@ -554,7 +554,7 @@ func List(state *state.State) ([]api.Node, error) {
 		return nil, err
 	}
 
-	result := make([]api.Node, len(nodes))
+	result := make([]api.ClusterMember, len(nodes))
 	now := time.Now()
 	version := nodes[0].Version()
 	for i, node := range nodes {
