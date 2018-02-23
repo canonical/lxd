@@ -323,7 +323,7 @@ test_clustering_storage() {
 
   # Since the volume name is unique to node1, it's possible to show, rename,
   # get the volume without specifying the --target parameter.
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -q "node: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -q "location: node1"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage volume rename data web webbaz
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data webbaz web
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get data web size
@@ -340,8 +340,8 @@ test_clustering_storage() {
 
   # Specifying the --target parameter shows, renames and deletes the
   # proper volume.
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -q "node: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -q "node: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -q "location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -q "location: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data web webbaz
   LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz
