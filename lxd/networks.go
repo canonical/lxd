@@ -243,7 +243,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 			return err
 		}
 		nodeReq := req
-		for key, value := range configs[client.ClusterNodeName()] {
+		for key, value := range configs[client.GetServerName()] {
 			nodeReq.Config[key] = value
 		}
 		return client.CreateNetwork(nodeReq)

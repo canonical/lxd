@@ -46,12 +46,12 @@ type ContainerServer interface {
 	GetServer() (server *api.Server, ETag string, err error)
 	GetServerResources() (resources *api.Resources, err error)
 	GetServerHost() (host string, err error)
+	GetServerName() (name string)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) (exists bool)
 	RequireAuthenticated(authenticated bool)
 	IsClustered() (clustered bool)
 	UseTarget(name string) (client ContainerServer)
-	ClusterNodeName() (name string)
 
 	// Certificate functions
 	GetCertificateFingerprints() (fingerprints []string, err error)

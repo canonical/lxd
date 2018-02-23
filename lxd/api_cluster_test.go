@@ -33,7 +33,7 @@ func TestCluster_Bootstrap(t *testing.T) {
 	_, _, err = client.GetServer()
 	require.NoError(t, err)
 	assert.True(t, client.IsClustered())
-	assert.Equal(t, "buzz", client.ClusterNodeName())
+	assert.Equal(t, "buzz", client.GetServerName())
 }
 
 func TestCluster_Get(t *testing.T) {
