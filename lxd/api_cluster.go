@@ -431,11 +431,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 }
 
 func clusterNodesGet(d *Daemon, r *http.Request) Response {
-	recursionStr := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		recursion = 0
-	}
+	recursion := util.IsRecursionRequest(r)
 
 	nodes, err := cluster.List(d.State())
 	if err != nil {
@@ -443,7 +439,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	var result interface{}
-	if recursion == 0 {
+	if recursion {
 		result = nodes
 	} else {
 		urls := []string{}

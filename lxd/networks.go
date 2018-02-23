@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -32,11 +31,7 @@ var networkCreateLock sync.Mutex
 
 // API endpoints
 func networksGet(d *Daemon, r *http.Request) Response {
-	recursionStr := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		recursion = 0
-	}
+	recursion := util.IsRecursionRequest(r)
 
 	ifs, err := networkGetInterfaces(d.cluster)
 	if err != nil {
@@ -46,7 +41,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 	resultString := []string{}
 	resultMap := []api.Network{}
 	for _, iface := range ifs {
-		if recursion == 0 {
+		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, iface))
 		} else {
 			net, err := doNetworkGet(d, iface)
@@ -57,7 +52,7 @@ func networksGet(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if recursion == 0 {
+	if !recursion {
 		return SyncResponse(true, resultString)
 	}
 

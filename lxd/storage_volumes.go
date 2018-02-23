@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -21,11 +20,7 @@ import (
 func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 	poolName := mux.Vars(r)["name"]
 
-	recursionStr := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		recursion = 0
-	}
+	recursion := util.IsRecursionRequest(r)
 
 	// Retrieve ID of the storage pool (and check if the storage pool
 	// exists).
@@ -48,7 +43,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
-		if recursion == 0 {
+		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume.Name))
 		} else {
 			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), volume.Name, volume.Type)
@@ -59,7 +54,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if recursion == 0 {
+	if !recursion {
 		return SyncResponse(true, resultString)
 	}
 
@@ -75,11 +70,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 	// attached to.
 	poolName := mux.Vars(r)["name"]
 
-	recursionStr := r.FormValue("recursion")
-	recursion, err := strconv.Atoi(recursionStr)
-	if err != nil {
-		recursion = 0
-	}
+	recursion := util.IsRecursionRequest(r)
 
 	// Get the name of the volume type.
 	volumeTypeName := mux.Vars(r)["type"]
@@ -111,7 +102,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 	resultString := []string{}
 	resultMap := []*api.StorageVolume{}
 	for _, volume := range volumes {
-		if recursion == 0 {
+		if !recursion {
 			apiEndpoint, err := storagePoolVolumeTypeToAPIEndpoint(volumeType)
 			if err != nil {
 				return InternalError(err)
@@ -133,7 +124,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	if recursion == 0 {
+	if !recursion {
 		return SyncResponse(true, resultString)
 	}
 
