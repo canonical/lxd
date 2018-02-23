@@ -39,10 +39,10 @@ type RaftNode struct {
 	Address string `json:"address" yaml:"address"`
 }
 
-// NodePost represents the fields required to rename a LXD node.
+// ClusterMemberPost represents the fields required to rename a LXD node.
 //
 // API extension: clustering
-type NodePost struct {
+type ClusterMemberPost struct {
 	Name string `json:"name" yaml:"name"`
 }
 

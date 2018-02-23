@@ -484,7 +484,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) Response {
 func clusterNodePost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	req := api.NodePost{}
+	req := api.ClusterMemberPost{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
