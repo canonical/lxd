@@ -84,8 +84,21 @@ func (r *ProtocolLXD) LeaveCluster(name string, force bool) error {
 	return err
 }
 
-// GetNodes returns the current nodes in the cluster.
-func (r *ProtocolLXD) GetNodes() ([]api.Node, error) {
+// GetClusterMemberNames returns the URLs of the current nodes in the cluster.
+func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
+	urls := []string{}
+	path := "/cluster/members?recursion=1"
+	_, err := r.queryStruct("GET", path, nil, "", &urls)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return urls, nil
+}
+
+// GetClusterMembers returns the current nodes in the cluster.
+func (r *ProtocolLXD) GetClusterMembers() ([]api.Node, error) {
 	nodes := []api.Node{}
 	path := "/cluster/members"
 	_, err := r.queryStruct("GET", path, nil, "", &nodes)

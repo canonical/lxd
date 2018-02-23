@@ -122,14 +122,21 @@ func TestCluster_Join(t *testing.T) {
 		assert.NotNil(t, daemon.externalAuth)
 	}
 
-	// The GetNodes client method returns both nodes.
-	nodes, err := client.GetNodes()
+	// The GetClusterMembers client method returns both nodes.
+	nodes, err := client.GetClusterMembers()
 	require.NoError(t, err)
 	assert.Len(t, nodes, 2)
 	assert.Equal(t, "buzz", nodes[0].Name)
 	assert.Equal(t, "rusp", nodes[1].Name)
 	assert.Equal(t, "ONLINE", nodes[0].State)
 	assert.Equal(t, "ONLINE", nodes[1].State)
+
+	// The GetClusterMemberNames client method returns the URLs of both
+	// nodes.
+	urls, err := client.GetClusterMemberNames()
+	assert.Len(t, urls, 2)
+	assert.Equal(t, "/1.0/cluster/members/buzz", urls[0])
+	assert.Equal(t, "/1.0/cluster/members/rusp", urls[1])
 
 	// The GetNode method returns the requested node.
 	node, _, err := client.GetClusterMember("buzz")
@@ -210,7 +217,7 @@ func TestCluster_Leave(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, client.IsClustered())
 
-	nodes, err := client.GetNodes()
+	nodes, err := client.GetClusterMembers()
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)
 	assert.Equal(t, "none", nodes[0].Name)

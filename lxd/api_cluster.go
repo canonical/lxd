@@ -431,12 +431,30 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 }
 
 func clusterNodesGet(d *Daemon, r *http.Request) Response {
+	recursionStr := r.FormValue("recursion")
+	recursion, err := strconv.Atoi(recursionStr)
+	if err != nil {
+		recursion = 0
+	}
+
 	nodes, err := cluster.List(d.State())
 	if err != nil {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, nodes)
+	var result interface{}
+	if recursion == 0 {
+		result = nodes
+	} else {
+		urls := []string{}
+		for _, node := range nodes {
+			url := fmt.Sprintf("/%s/cluster/members/%s", version.APIVersion, node.Name)
+			urls = append(urls, url)
+		}
+		result = urls
+	}
+
+	return SyncResponse(true, result)
 }
 
 var clusterNodeCmd = Command{
