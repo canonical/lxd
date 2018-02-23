@@ -20,7 +20,7 @@ func TestNetworksCreate_TargetNode(t *testing.T) {
 	f.FormCluster(daemons)
 
 	daemon := daemons[0]
-	client := f.ClientUnix(daemon).ClusterTargetNode("rusp-0")
+	client := f.ClientUnix(daemon).UseTarget("rusp-0")
 
 	networkPost := api.NetworksPost{
 		Name: "mynetwork",
@@ -77,7 +77,7 @@ func TestNetworksCreate_MissingNodes(t *testing.T) {
 
 	// Define the network on rusp-0.
 	daemon := daemons[0]
-	client := f.ClientUnix(daemon).ClusterTargetNode("rusp-0")
+	client := f.ClientUnix(daemon).UseTarget("rusp-0")
 
 	networkPost := api.NetworksPost{
 		Name: "mynetwork",

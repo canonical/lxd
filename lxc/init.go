@@ -183,7 +183,7 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 	if err != nil {
 		return nil, "", err
 	}
-	d = d.ClusterTargetNode(c.target)
+	d = d.UseTarget(c.target)
 
 	/*
 	 * initRequestedEmptyProfiles means user requested empty

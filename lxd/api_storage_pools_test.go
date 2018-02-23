@@ -17,7 +17,7 @@ func TestStoragePoolsCreate_TargetNode(t *testing.T) {
 	f.FormCluster(daemons)
 
 	daemon := daemons[0]
-	client := f.ClientUnix(daemon).ClusterTargetNode("rusp-0")
+	client := f.ClientUnix(daemon).UseTarget("rusp-0")
 
 	poolPost := api.StoragePoolsPost{
 		Name:   "mypool",
@@ -75,7 +75,7 @@ func TestStoragePoolsCreate_MissingNodes(t *testing.T) {
 
 	// Define the pool on rusp-0.
 	daemon := daemons[0]
-	client := f.ClientUnix(daemon).ClusterTargetNode("rusp-0")
+	client := f.ClientUnix(daemon).UseTarget("rusp-0")
 
 	poolPost := api.StoragePoolsPost{
 		Name:   "mypool",

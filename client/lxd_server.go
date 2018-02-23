@@ -94,10 +94,10 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	return &resources, nil
 }
 
-// ClusterTargetNode returns a client that will target the given node for
+// UseTarget returns a client that will target the given node for
 // node-specific operations such as creating containers, modifying storage
 // configuration etc.
-func (r *ProtocolLXD) ClusterTargetNode(name string) ContainerServer {
+func (r *ProtocolLXD) UseTarget(name string) ContainerServer {
 	return &ProtocolLXD{
 		server:               r.server,
 		http:                 r.http,

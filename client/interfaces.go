@@ -50,7 +50,7 @@ type ContainerServer interface {
 	HasExtension(extension string) (exists bool)
 	RequireAuthenticated(authenticated bool)
 	IsClustered() (clustered bool)
-	ClusterTargetNode(name string) (client ContainerServer)
+	UseTarget(name string) (client ContainerServer)
 	ClusterNodeName() (name string)
 
 	// Certificate functions

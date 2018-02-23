@@ -86,7 +86,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 	if err != nil {
 		return err
 	}
-	source = source.ClusterTargetNode(c.target)
+	source = source.UseTarget(c.target)
 
 	// Connect to the destination host
 	var dest lxd.ContainerServer

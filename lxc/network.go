@@ -262,7 +262,7 @@ func (c *networkCmd) doNetworkCreate(client lxd.ContainerServer, name string, ar
 	// If a target node was specified the API won't actually create the
 	// network, but only define it as pending in the database.
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	err := client.CreateNetwork(network)
@@ -478,7 +478,7 @@ func (c *networkCmd) doNetworkGet(client lxd.ContainerServer, name string, args 
 	}
 
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	resp, _, err := client.GetNetwork(name)
@@ -632,7 +632,7 @@ func (c *networkCmd) doNetworkShow(client lxd.ContainerServer, name string) erro
 	}
 
 	if c.target != "" {
-		client = client.ClusterTargetNode(c.target)
+		client = client.UseTarget(c.target)
 	}
 
 	network, _, err := client.GetNetwork(name)
