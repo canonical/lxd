@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared/idmap"
 
 	log "github.com/lxc/lxd/shared/log15"
@@ -129,8 +130,8 @@ func (s *storageMock) ImageDelete(fingerprint string) error {
 	return nil
 }
 
-func (s *storageMock) MigrationType() MigrationFSType {
-	return MigrationFSType_RSYNC
+func (s *storageMock) MigrationType() migration.MigrationFSType {
+	return migration.MigrationFSType_RSYNC
 }
 
 func (s *storageMock) PreservesInodes() bool {
@@ -140,6 +141,7 @@ func (s *storageMock) PreservesInodes() bool {
 func (s *storageMock) MigrationSource(container container) (MigrationStorageSourceDriver, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (s *storageMock) MigrationSink(live bool, container container, snapshots []*Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
+
+func (s *storageMock) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet) error {
 	return nil
 }

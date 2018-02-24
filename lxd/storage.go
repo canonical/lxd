@@ -793,7 +793,9 @@ func SetupStorageDriver(d *Daemon) error {
 	}
 
 	// Update the agent
-	version.UserAgentStorageBackends([]string{fmt.Sprintf("%s %s", d.Storage.GetStorageTypeName(), d.Storage.GetStorageTypeVersion())})
+	if d.Storage != nil {
+		version.UserAgentStorageBackends([]string{fmt.Sprintf("%s %s", d.Storage.GetStorageTypeName(), d.Storage.GetStorageTypeVersion())})
+	}
 
 	return nil
 }
