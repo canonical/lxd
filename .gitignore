@@ -4,6 +4,7 @@ po/*.po~
 lxd-*.tar.gz
 .vagrant
 test/deps/devlxd-client
+test/macaroon-identity/macaroon-identity
 *~
 tags
 
