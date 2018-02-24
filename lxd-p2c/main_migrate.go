@@ -17,6 +17,7 @@ import (
 )
 
 type cmdMigrate struct {
+	cmd    *cobra.Command
 	global *cmdGlobal
 
 	flagConfig     []string
@@ -25,6 +26,34 @@ type cmdMigrate struct {
 	flagStorage    string
 	flagType       string
 	flagNoProfiles bool
+}
+
+func (c *cmdMigrate) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "lxd-p2c <target URL> <container name> <filesystem root> [<filesystem mounts>...]"
+	cmd.Short = "Physical to container migration tool"
+	cmd.Long = `Description:
+  Physical to container migration tool
+
+  This tool lets you turn any Linux filesystem (including your current one)
+  into a LXD container on a remote LXD host.
+
+  It will setup a clean mount tree made of the root filesystem and any
+  additional mount you list, then transfer this through LXD's migration
+  API to create a new container from it.
+
+  The same set of options as ` + "`lxc launch`" + ` are also supported.
+`
+	cmd.RunE = c.Run
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, "Configuration key and value to set on the container"+"``")
+	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", "Network to use for the container"+"``")
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, "Profile to apply to the container"+"``")
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", "Storage pool to use for the container"+"``")
+	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", "Instance type to use for the container"+"``")
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the container with no profiles applied")
+
+	c.cmd = cmd
+	return cmd
 }
 
 func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
