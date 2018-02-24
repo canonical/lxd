@@ -13,7 +13,20 @@ import (
 )
 
 type cmdNetcat struct {
+	cmd    *cobra.Command
 	global *cmdGlobal
+}
+
+func (c *cmdNetcat) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+
+	cmd.Use = "netcat <address>"
+	cmd.Short = "Sends stdin data to a unix socket"
+	cmd.RunE = c.Run
+	cmd.Hidden = true
+
+	c.cmd = cmd
+	return cmd
 }
 
 func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
