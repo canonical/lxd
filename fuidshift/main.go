@@ -15,7 +15,6 @@ type cmdGlobal struct {
 
 func main() {
 	app := &cobra.Command{}
-	app.Use = "fuidshift"
 	app.Short = "UID/GID shifter"
 	app.Long = `Description:
   UID/GID shifter
