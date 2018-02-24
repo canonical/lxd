@@ -15,7 +15,6 @@ type cmdGlobal struct {
 
 func main() {
 	app := &cobra.Command{}
-	app.Use = "lxd-p2c"
 	app.Short = "Physical to container migration tool"
 	app.Long = `Description:
   Physical to container migration tool
