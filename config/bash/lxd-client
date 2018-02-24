@@ -200,5 +200,5 @@ _have lxc && {
     return 0
   }
 
-  complete -o default -F _lxd_complete lxc
+  complete -o default -F _lxd_complete lxc lxd.lxc
 }
