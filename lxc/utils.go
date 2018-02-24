@@ -30,19 +30,17 @@ func (a stringList) Less(i, j int) bool {
 		if a[i][x] != a[j][x] {
 			break
 		}
-
-		return a[i][3] < a[j][3]
 	}
 
-	if a[i][0] == "" {
+	if a[i][x] == "" {
 		return false
 	}
 
-	if a[j][0] == "" {
+	if a[j][x] == "" {
 		return true
 	}
 
-	return a[i][0] < a[j][0]
+	return a[i][x] < a[j][x]
 }
 
 // Container name sorting
