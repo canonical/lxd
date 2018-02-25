@@ -1402,6 +1402,8 @@ Input (none at present):
  * Operation: sync
  * Return: list of URLs for networks that are current defined on the host
 
+Return:
+
     [
         "/1.0/networks/eth0",,
         "/1.0/networks/lxdbr0"
@@ -1413,6 +1415,8 @@ Input (none at present):
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing a network
+
+Return:
 
     {
         "name": "lxdbr0",
@@ -1428,6 +1432,8 @@ Input (none at present):
  * Authentication: trusted
  * Operation: sync
  * Return: list of URLs for operations that are currently going on/queued
+
+Return:
 
     [
         "/1.0/operations/c0fc0d0d-a997-462b-842b-f8bd0df82507",
