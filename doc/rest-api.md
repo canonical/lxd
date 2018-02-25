@@ -1755,6 +1755,8 @@ Input (none at present):
  * Operation: sync
  * Return: list of URLs for networks that are current defined on the host
 
+Return:
+
     [
         "/1.0/networks/eth0",
         "/1.0/networks/lxdbr0"
@@ -1785,6 +1787,8 @@ Input:
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing a network
+
+Return:
 
     {
         "config": {},
@@ -1869,6 +1873,8 @@ HTTP code for this should be 202 (Accepted).
  * Authentication: trusted
  * Operation: sync
  * Return: list of URLs for operations that are currently going on/queued
+
+Return:
 
     [
         "/1.0/operations/c0fc0d0d-a997-462b-842b-f8bd0df82507",
@@ -2086,6 +2092,8 @@ HTTP code for this should be 202 (Accepted).
  * Operation: sync
  * Return: list of storage pools that are currently defined on the host
 
+Return:
+
     [
         "/1.0/storage-pools/default",
         "/1.0/storage-pools/pool1"
@@ -2118,6 +2126,8 @@ Input:
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing a storage pool
+
+Return:
 
     {
         "type": "sync",
@@ -2217,6 +2227,8 @@ Input (none at present):
  * Operation: sync
  * Return: dict representing the storage pool resources
 
+Return:
+
     {
         "type": "sync",
         "status": "Success",
@@ -2244,6 +2256,8 @@ Input (none at present):
  * Authentication: trusted
  * Operation: sync
  * Return: list of storage volumes that currently exist on a given storage pool
+
+Return:
 
     [
         "/1.0/storage-pools/default/volumes/containers/alp1",
@@ -2321,6 +2335,8 @@ Input:
  * Operation: sync
  * Return: dict representing a storage volume
 
+Return:
+
     {
         "type": "sync",
         "status": "Success",
@@ -2396,6 +2412,8 @@ Input (none at present):
  * Authentication: guest, untrusted or trusted
  * Operation: sync
  * Return: dict representing the system resources
+
+Return:
 
     {
         "type": "sync",
