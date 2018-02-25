@@ -25,28 +25,21 @@ log_message() {
 
 run_benchmark() {
     # shellcheck disable=SC2039
-    local label description opts
+    local label description
     label="$1"
     description="$2"
     shift 2
 
     log_message "Benchmark start: $label - $description"
-    lxd_benchmark "$@" --report-file "$PERF_LOG_CSV" --report-label "$label"
+    lxd-benchmark "$@" --report-file "$PERF_LOG_CSV" --report-label "$label"
     log_message "Benchmark completed: $label"
-}
-
-lxd_benchmark() {
-    # shellcheck disable=SC2039
-    local opts
-    [ "${LXD_TEST_IMAGE:-}" ] && opts="--image $LXD_TEST_IMAGE" || opts=""
-    lxd-benchmark "$@" $opts
 }
 
 cleanup() {
     if [ "$TEST_RESULT" != "success" ]; then
         rm -f "$PERF_LOG_CSV"
     fi
-    lxd_benchmark delete  # ensure all test containers have been deleted
+    lxd-benchmark delete  # ensure all test containers have been deleted
     kill_lxd "$LXD_DIR"
     cleanup_lxds "$TEST_DIR"
     log_message "Performance tests result: $TEST_RESULT"
@@ -77,11 +70,11 @@ ensure_import_testimage
 # shellcheck disable=SC2034
 TEST_RESULT=failure
 
-run_benchmark "create-one" "create 1 container" launch --count 1 --start=false --image=testimage
+run_benchmark "create-one" "create 1 container" init --count 1 "${LXD_TEST_IMAGE:-"testimage"}"
 run_benchmark "start-one" "start 1 container" start
 run_benchmark "stop-one" "stop 1 container" stop
 run_benchmark "delete-one" "delete 1 container" delete
-run_benchmark "create-128" "create 128 containers" launch --count 128 --start=false --image=testimage
+run_benchmark "create-128" "create 128 containers" init --count 128 "${LXD_TEST_IMAGE:-"testimage"}"
 run_benchmark "start-128" "start 128 containers" start
 run_benchmark "delete-128" "delete 128 containers" delete
 
