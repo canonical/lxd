@@ -7,12 +7,50 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/spf13/cobra"
+
 	dbg "github.com/lxc/lxd/lxd/debug"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func cmdDaemon(args *Args) error {
+type cmdDaemon struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+
+	// Common options
+	flagGroup string
+
+	// Debug options
+	flagCPUProfile      string
+	flagMemoryProfile   string
+	flagPrintGoroutines int
+}
+
+func (c *cmdDaemon) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "lxd"
+	cmd.Short = "The LXD container manager (daemon)"
+	cmd.Long = `Description:
+  The LXD container manager (daemon)
+
+  This is the LXD daemon command line. It's typically started directly by your
+  init system and interacted with through a tool like ` + "`lxc`" + `.
+
+  There are however a number of subcommands that let you interact directly with
+  the local LXD daemon and which may not be performed through the REST API alone.
+`
+	cmd.RunE = c.Run
+	cmd.Flags().StringVar(&c.flagGroup, "group", "", "The group of users that will be allowed to talk to LXD"+"``")
+	cmd.Flags().StringVar(&c.flagCPUProfile, "cpu-profile", "", "Enable CPU profiling, writing into the specified file"+"``")
+	cmd.Flags().StringVar(&c.flagMemoryProfile, "memory-profile", "", "Enable memory profiling, writing into the specified file"+"``")
+	cmd.Flags().IntVar(&c.flagPrintGoroutines, "print-goroutines", 0, "How often to print all the goroutines"+"``")
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")
@@ -20,9 +58,9 @@ func cmdDaemon(args *Args) error {
 
 	// Start debug activities as per command line flags, if any.
 	stop, err := dbg.Start(
-		dbg.CPU(args.CPUProfile),
-		dbg.Memory(args.MemProfile),
-		dbg.Goroutines(args.PrintGoroutinesEvery),
+		dbg.CPU(c.flagCPUProfile),
+		dbg.Memory(c.flagMemoryProfile),
+		dbg.Goroutines(c.flagPrintGoroutines),
 	)
 	if err != nil {
 		return err
@@ -38,10 +76,11 @@ func cmdDaemon(args *Args) error {
 		}
 	}
 
-	c := DefaultDaemonConfig()
-	c.Group = args.Group
-	c.Trace = args.Trace
-	d := NewDaemon(c, sys.DefaultOS())
+	conf := DefaultDaemonConfig()
+	conf.Group = c.flagGroup
+	conf.Trace = c.global.flagLogTrace
+	d := NewDaemon(conf, sys.DefaultOS())
+
 	err = d.Init()
 	if err != nil {
 		return err
