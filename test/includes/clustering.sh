@@ -187,8 +187,8 @@ profiles:
 cluster:
   name: node${index}
   target_address: 10.1.1.10${target}:8443
-  target_password: sekret
   target_cert: "$cert"
+cluster_password: sekret
 EOF
   )
 }

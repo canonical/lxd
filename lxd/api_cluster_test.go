@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -81,10 +83,11 @@ func TestCluster_Join(t *testing.T) {
 	require.NoError(t, op.Wait())
 
 	// Make the second node join the cluster.
+	f.RegisterCertificate(daemons[1], daemons[0], "rusp", "sekret")
 	address := daemons[0].endpoints.NetworkAddress()
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
-	op, err = client.JoinCluster(address, "sekret", cert, "rusp")
+	op, err = client.JoinCluster(address, cert, "rusp")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
@@ -145,8 +148,9 @@ func TestCluster_Join(t *testing.T) {
 	assert.Equal(t, "buzz", node.Name)
 }
 
-// If the wrong trust password is given, the join request fails.
-func TestCluster_JoinWrongTrustPassword(t *testing.T) {
+// If the joining node hasn't added its certificate as trusted client
+// certificate, an authorization error is returned.
+func TestCluster_JoinUnauthorized(t *testing.T) {
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -167,7 +171,7 @@ func TestCluster_JoinWrongTrustPassword(t *testing.T) {
 	address := daemons[0].endpoints.NetworkAddress()
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
-	op, err = client.JoinCluster(address, "noop", cert, "rusp")
+	op, err = client.JoinCluster(address, cert, "rusp")
 	require.NoError(t, err)
 	assert.EqualError(t, op.Wait(), "failed to request to add node: not authorized")
 }
@@ -331,8 +335,10 @@ func (f *clusterFixture) FormCluster(daemons []*Daemon) {
 	address := daemons[0].endpoints.NetworkAddress()
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	for i, daemon := range daemons[1:] {
+		name := fmt.Sprintf("rusp-%d", i)
+		f.RegisterCertificate(daemon, daemons[0], name, "sekret")
 		client = f.ClientUnix(daemon)
-		op, err := client.JoinCluster(address, "sekret", cert, fmt.Sprintf("rusp-%d", i))
+		op, err := client.JoinCluster(address, cert, name)
 		require.NoError(f.t, err)
 		require.NoError(f.t, op.Wait())
 	}
@@ -354,6 +360,27 @@ func (f *clusterFixture) EnableNetworking(daemon *Daemon, password string) {
 	serverPut.Config["core.trust_password"] = password
 
 	require.NoError(f.t, client.UpdateServer(serverPut, ""))
+}
+
+// Register daemon1's server certificate as daemon2's trusted certificate,
+// using password authentication.
+func (f *clusterFixture) RegisterCertificate(daemon1, daemon2 *Daemon, name, password string) {
+	client1 := f.ClientUnix(daemon1)
+	server, _, err := client1.GetServer()
+	require.NoError(f.t, err)
+	block, _ := pem.Decode([]byte(server.Environment.Certificate))
+	require.NotNil(f.t, block)
+	certificate := base64.StdEncoding.EncodeToString(block.Bytes)
+	post := api.CertificatesPost{
+		Password:    password,
+		Certificate: certificate,
+	}
+	post.Name = fmt.Sprintf("lxd.cluster.%s", name)
+	post.Type = "client"
+
+	client2 := f.ClientUnix(daemon2)
+	err = client2.CreateCertificate(post)
+	require.NoError(f.t, err)
 }
 
 // Get a client for the given daemon connected via UNIX socket, creating one if

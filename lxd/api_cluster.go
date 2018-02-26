@@ -117,8 +117,8 @@ func clusterDelete(d *Daemon, r *http.Request) Response {
 
 var clusterNodesCmd = Command{
 	name: "cluster/members",
-	post: clusterNodesPost, untrustedPost: true,
-	get: clusterNodesGet,
+	post: clusterNodesPost,
+	get:  clusterNodesGet,
 }
 
 // Depending on the parameters passed and on local state this endpoint will
@@ -145,25 +145,12 @@ func clusterNodesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Depending on the provided parameters we either bootstrap a brand new
-	// cluster with this node as first node, or accept a node into our
-	// cluster, or perform a request to join a given cluster.
-	trusted := d.checkTrustedClient(r) == nil
+	// cluster with this node as first node, or perform a request to join a
+	// given cluster.
 	if req.Address == "" && req.TargetAddress == "" {
-		// Bootstrapping a node requires the client to be trusted.
-		if !trusted {
-			return Forbidden
-		}
 		return clusterNodesPostBootstrap(d, req)
-	} else if req.TargetAddress == "" {
-		return clusterNodesPostAccept(d, req)
-	} else {
-		// Joining an existing cluster requires the client to be
-		// trusted.
-		if !trusted {
-			return Forbidden
-		}
-		return clusterNodesPostJoin(d, req)
 	}
+	return clusterNodesPostJoin(d, req)
 }
 
 func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPost) Response {
@@ -179,128 +166,6 @@ func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPost) Response {
 	}
 
 	return OperationResponse(op)
-}
-
-func clusterNodesPostAccept(d *Daemon, req api.ClusterPost) Response {
-	// Redirect all requests to the leader, which is the one with
-	// knowning what nodes are part of the raft cluster.
-	address, err := node.HTTPSAddress(d.db)
-	if err != nil {
-		return SmartError(err)
-	}
-	leader, err := d.gateway.LeaderAddress()
-	if err != nil {
-		return InternalError(err)
-	}
-	if address != leader {
-		logger.Debugf("Redirect node accept request to %s", leader)
-		url := &url.URL{
-			Scheme: "https",
-			Path:   "/1.0/cluster/members",
-			Host:   leader,
-		}
-		return SyncResponseRedirect(url.String())
-	}
-
-	// Accepting a node requires the client to provide the correct
-	// trust password.
-	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
-	if err != nil {
-		return SmartError(err)
-	}
-	if util.PasswordCheck(secret, req.TargetPassword) != nil {
-		return Forbidden
-	}
-
-	// Check that the pools and networks provided by the joining node have
-	// configs that match the cluster ones.
-	err = clusterCheckStoragePoolsMatch(d.cluster, req.StoragePools)
-	if err != nil {
-		return SmartError(err)
-	}
-	err = clusterCheckNetworksMatch(d.cluster, req.Networks)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	nodes, err := cluster.Accept(d.State(), d.gateway, req.Name, req.Address, req.Schema, req.API)
-	if err != nil {
-		return BadRequest(err)
-	}
-	accepted := api.ClusterMemberPostResponse{
-		RaftNodes:  make([]api.RaftNode, len(nodes)),
-		PrivateKey: d.endpoints.NetworkPrivateKey(),
-	}
-	for i, node := range nodes {
-		accepted.RaftNodes[i].ID = node.ID
-		accepted.RaftNodes[i].Address = node.Address
-	}
-	return SyncResponse(true, accepted)
-}
-
-func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
-	poolNames, err := cluster.StoragePoolsNotPending()
-	if err != nil && err != db.NoSuchObjectError {
-		return err
-	}
-	for _, name := range poolNames {
-		found := false
-		for _, reqPool := range reqPools {
-			if reqPool.Name != name {
-				continue
-			}
-			found = true
-			_, pool, err := cluster.StoragePoolGet(name)
-			if err != nil {
-				return err
-			}
-			if pool.Driver != reqPool.Driver {
-				return fmt.Errorf("Mismatching driver for storage pool %s", name)
-			}
-			// Exclude the keys which are node-specific.
-			exclude := db.StoragePoolNodeConfigKeys
-			err = util.CompareConfigs(pool.Config, reqPool.Config, exclude)
-			if err != nil {
-				return fmt.Errorf("Mismatching config for storage pool %s: %v", name, err)
-			}
-			break
-		}
-		if !found {
-			return fmt.Errorf("Missing storage pool %s", name)
-		}
-	}
-	return nil
-}
-
-func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) error {
-	networkNames, err := cluster.NetworksNotPending()
-	if err != nil && err != db.NoSuchObjectError {
-		return err
-	}
-	for _, name := range networkNames {
-		found := false
-		for _, reqNetwork := range reqNetworks {
-			if reqNetwork.Name != name {
-				continue
-			}
-			found = true
-			_, network, err := cluster.NetworkGet(name)
-			if err != nil {
-				return err
-			}
-			// Exclude the keys which are node-specific.
-			exclude := db.NetworkNodeConfigKeys
-			err = util.CompareConfigs(network.Config, reqNetwork.Config, exclude)
-			if err != nil {
-				return fmt.Errorf("Mismatching config for network %s: %v", name, err)
-			}
-			break
-		}
-		if !found {
-			return fmt.Errorf("Missing network %s", name)
-		}
-	}
-	return nil
 }
 
 func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
@@ -344,13 +209,17 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 	}
 
 	// Client parameters to connect to the target cluster node.
+	cert := d.endpoints.NetworkCert()
 	args := &lxd.ConnectionArgs{
+		TLSClientCert: string(cert.PublicKey()),
+		TLSClientKey:  string(cert.PrivateKey()),
 		TLSServerCert: string(req.TargetCert),
 		TLSCA:         string(req.TargetCA),
 	}
 
 	// Asynchronously join the cluster.
 	run := func(op *operation) error {
+		logger.Debug("Running cluster join operation")
 		// First request for this node to be added to the list of
 		// cluster nodes.
 		client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", req.TargetAddress), args)
@@ -358,7 +227,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 			return err
 		}
 		info, err := client.AcceptMember(
-			req.TargetPassword, req.Name, address, cluster.SchemaVersion,
+			"", req.Name, address, cluster.SchemaVersion,
 			version.APIExtensionsCount(), pools, networks)
 		if err != nil {
 			return errors.Wrap(err, "failed to request to add node")
@@ -422,7 +291,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
-	op, err := operationCreate(d.cluster, operationClassTask, "Joining node", resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, "Joining cluster", resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -564,4 +433,131 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	return EmptySyncResponse
+}
+
+var internalClusterAcceptCmd = Command{name: "cluster/accept", post: internalClusterPostAccept}
+
+func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
+	req := api.ClusterPost{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	// Sanity checks
+	if req.Name == "" {
+		return BadRequest(fmt.Errorf("No name provided"))
+	}
+
+	// Redirect all requests to the leader, which is the one with
+	// knowning what nodes are part of the raft cluster.
+	address, err := node.HTTPSAddress(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return InternalError(err)
+	}
+	if address != leader {
+		logger.Debugf("Redirect node accept request to %s", leader)
+		url := &url.URL{
+			Scheme: "https",
+			Path:   "/internal/cluster/accept",
+			Host:   leader,
+		}
+		return SyncResponseRedirect(url.String())
+	}
+
+	// Check that the pools and networks provided by the joining node have
+	// configs that match the cluster ones.
+	err = clusterCheckStoragePoolsMatch(d.cluster, req.StoragePools)
+	if err != nil {
+		return SmartError(err)
+	}
+	err = clusterCheckNetworksMatch(d.cluster, req.Networks)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	nodes, err := cluster.Accept(d.State(), d.gateway, req.Name, req.Address, req.Schema, req.API)
+	if err != nil {
+		return BadRequest(err)
+	}
+	accepted := api.ClusterMemberPostResponse{
+		RaftNodes:  make([]api.RaftNode, len(nodes)),
+		PrivateKey: d.endpoints.NetworkPrivateKey(),
+	}
+	for i, node := range nodes {
+		accepted.RaftNodes[i].ID = node.ID
+		accepted.RaftNodes[i].Address = node.Address
+	}
+	return SyncResponse(true, accepted)
+}
+
+func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
+	poolNames, err := cluster.StoragePoolsNotPending()
+	if err != nil && err != db.NoSuchObjectError {
+		return err
+	}
+	for _, name := range poolNames {
+		found := false
+		for _, reqPool := range reqPools {
+			if reqPool.Name != name {
+				continue
+			}
+			found = true
+			_, pool, err := cluster.StoragePoolGet(name)
+			if err != nil {
+				return err
+			}
+			if pool.Driver != reqPool.Driver {
+				return fmt.Errorf("Mismatching driver for storage pool %s", name)
+			}
+			// Exclude the keys which are node-specific.
+			exclude := db.StoragePoolNodeConfigKeys
+			err = util.CompareConfigs(pool.Config, reqPool.Config, exclude)
+			if err != nil {
+				return fmt.Errorf("Mismatching config for storage pool %s: %v", name, err)
+			}
+			break
+		}
+		if !found {
+			return fmt.Errorf("Missing storage pool %s", name)
+		}
+	}
+	return nil
+}
+
+func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) error {
+	networkNames, err := cluster.NetworksNotPending()
+	if err != nil && err != db.NoSuchObjectError {
+		return err
+	}
+	for _, name := range networkNames {
+		found := false
+		for _, reqNetwork := range reqNetworks {
+			if reqNetwork.Name != name {
+				continue
+			}
+			found = true
+			_, network, err := cluster.NetworkGet(name)
+			if err != nil {
+				return err
+			}
+			// Exclude the keys which are node-specific.
+			exclude := db.NetworkNodeConfigKeys
+			err = util.CompareConfigs(network.Config, reqNetwork.Config, exclude)
+			if err != nil {
+				return fmt.Errorf("Mismatching config for network %s: %v", name, err)
+			}
+			break
+		}
+		if !found {
+			return fmt.Errorf("Missing network %s", name)
+		}
+	}
+	return nil
 }
