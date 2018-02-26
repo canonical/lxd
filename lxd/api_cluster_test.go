@@ -28,7 +28,7 @@ func TestCluster_Bootstrap(t *testing.T) {
 
 	client := f.ClientUnix(daemon)
 
-	op, err := client.BootstrapCluster("buzz")
+	op, err := client.UpdateCluster("buzz")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
@@ -78,7 +78,7 @@ func TestCluster_Join(t *testing.T) {
 
 	// Bootstrap the cluster using the first node.
 	client := f.ClientUnix(daemons[0])
-	op, err := client.BootstrapCluster("buzz")
+	op, err := client.UpdateCluster("buzz")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
@@ -163,7 +163,7 @@ func TestCluster_JoinUnauthorized(t *testing.T) {
 
 	// Bootstrap the cluster using the first node.
 	client := f.ClientUnix(daemons[0])
-	op, err := client.BootstrapCluster("buzz")
+	op, err := client.UpdateCluster("buzz")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
@@ -297,7 +297,7 @@ func TestCluster_NodeRename(t *testing.T) {
 
 	client := f.ClientUnix(daemon)
 
-	op, err := client.BootstrapCluster("buzz")
+	op, err := client.UpdateCluster("buzz")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
@@ -327,7 +327,7 @@ func (f *clusterFixture) FormCluster(daemons []*Daemon) {
 
 	// Bootstrap the cluster using the first node.
 	client := f.ClientUnix(daemons[0])
-	op, err := client.BootstrapCluster("buzz")
+	op, err := client.UpdateCluster("buzz")
 	require.NoError(f.t, err)
 	require.NoError(f.t, op.Wait())
 

@@ -547,7 +547,7 @@ func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterP
 	var op *lxd.Operation
 	var err error
 	if cluster.TargetAddress == "" {
-		op, err = client.BootstrapCluster(cluster.Name)
+		op, err = client.UpdateCluster(cluster.Name)
 		if err != nil {
 			return nil, err
 		}
