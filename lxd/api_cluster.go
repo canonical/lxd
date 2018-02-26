@@ -226,8 +226,8 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 		if err != nil {
 			return err
 		}
-		info, err := client.AcceptMember(
-			"", req.Name, address, cluster.SchemaVersion,
+		info, err := clusterAcceptMember(
+			client, req.Name, address, cluster.SchemaVersion,
 			version.APIExtensionsCount(), pools, networks)
 		if err != nil {
 			return errors.Wrap(err, "failed to request to add node")
@@ -297,6 +297,36 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
 	}
 
 	return OperationResponse(op)
+}
+
+// Perform a request to the /internal/cluster/accept endpoint to check if a new
+// mode can be accepted into the cluster and obtain joining information such as
+// the cluster private certificate.
+func clusterAcceptMember(
+	client lxd.ContainerServer,
+	name, address string, schema, apiExt int,
+	pools []api.StoragePool, networks []api.Network) (*api.ClusterMemberPostResponse, error) {
+
+	cluster := api.ClusterPost{
+		Name:         name,
+		Address:      address,
+		Schema:       schema,
+		API:          apiExt,
+		StoragePools: pools,
+		Networks:     networks,
+	}
+	info := &api.ClusterMemberPostResponse{}
+	resp, _, err := client.RawQuery("POST", "/internal/cluster/accept", cluster, "")
+	if err != nil {
+		return nil, err
+	}
+
+	err = resp.MetadataAsStruct(&info)
+	if err != nil {
+		return nil, err
+	}
+
+	return info, nil
 }
 
 func clusterNodesGet(d *Daemon, r *http.Request) Response {
