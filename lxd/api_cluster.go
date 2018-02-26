@@ -169,6 +169,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		TLSServerCert: string(req.TargetCert),
 		TLSCA:         string(req.TargetCA),
 	}
+	fingerprint := cert.Fingerprint()
 
 	// Asynchronously join the cluster.
 	run := func(op *operation) error {
@@ -208,6 +209,16 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		err = cluster.Join(d.State(), d.gateway, cert, req.Name, nodes)
 		if err != nil {
 			return err
+		}
+
+		// Remove the our old server certificate from the trust store,
+		// since it's not needed anymore.
+		_, err = d.cluster.CertificateGet(fingerprint)
+		if err == nil {
+			err := d.cluster.CertDelete(fingerprint)
+			if err != nil {
+				return errors.Wrap(err, "failed to delete joining node's certificate")
+			}
 		}
 
 		// FIXME: special case handling MAAS connection if the config
