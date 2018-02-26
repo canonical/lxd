@@ -169,7 +169,6 @@ type ContainerServer interface {
 	// Cluster functions ("cluster" API extensions)
 	GetCluster(password string) (cluster *api.Cluster, ETag string, err error)
 	BootstrapCluster(name string) (op *Operation, err error)
-	AcceptMember(targetPassword, name, address string, schema, api int, pools []api.StoragePool, networks []api.Network) (info *api.ClusterMemberPostResponse, err error)
 	JoinCluster(targetAddress, targetCert, name string) (op *Operation, err error)
 	DeleteClusterMember(name string, force bool) (err error)
 	GetClusterMemberNames() (names []string, err error)
