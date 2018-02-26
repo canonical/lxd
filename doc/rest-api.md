@@ -2491,6 +2491,33 @@ Return:
         }
     }
 
+### PUT
+ * Description: bootstrap or join a cluster, or disable clustering on this node
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync or async
+ * Return: various payloads depending on the input
+
+Input (bootstrap a new cluster):
+
+    {
+        "name": "lxd1",
+    }
+
+Return background operation or standard error.
+
+Input (request to join an existing cluster):
+
+    {
+        "name": "node2",
+        "target_address": "10.1.1.101:8443",
+        "target_cert": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
+        "target_password": "sekret"
+    }
+
+Return background operation or standard error.
+
+
 ### DELETE
  * Description: disable clustering
  * Introduced: with API extension `clustering`
@@ -2533,67 +2560,6 @@ Input (none at present):
             },
         ]
     } 
-
-### POST
- * Description: bootstrap, join, or accept a member in the cluster
- * Introduced: with API extension `clustering`
- * Authentication: trusted or untrusted
- * Operation: sync or async
- * Return: various payloads depending on the input
-
-Input (bootstrap a new cluster):
-
-    {
-        "name": "lxd1",
-    }
-
-Return background operation or standard error.
-
-Input (request to join an existing cluster):
-
-    {
-        "name": "node2",
-        "target_address": "10.1.1.101:8443",
-        "target_cert": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
-        "target_password": "sekret"
-    }
-
-Return background operation or standard error.
-
-Input (accept a node requesting to join the cluster):
-
-    {
-        "name": "node2",
-        "address": "10.1.1.102:8443",
-        "schema": 2,
-        "api": 63,
-        "target_password": "sekret"
-    }
-
-Return information about raft nodes in the cluster and the private key
-of the cluster certificate:
-
-    {
-        "type": "sync",
-        "status": "Success",
-        "status_code": 200,
-        "operation": "",
-        "error_code": 0,
-        "error": "",
-        "metadata": {
-            "raft_nodes": [
-                {
-                    "id": 1,
-                    "address": "10.1.1.101:8443"
-                },
-                {
-                    "id": 2,
-                    "address": "10.1.1.102:8443"
-                }
-            ],
-            "private_key": "LS0tLS1CRU"
-        }
-    }
 
 ## `/1.0/cluster/members/<name>`
 ### GET
