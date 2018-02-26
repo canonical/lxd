@@ -131,7 +131,7 @@ var clusterNodesCmd = Command{
 // The client is required to be trusted when bootstrapping a cluster or request
 // to join an existing cluster.
 func clusterNodesPost(d *Daemon, r *http.Request) Response {
-	req := api.ClusterPost{}
+	req := api.ClusterPut{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -153,7 +153,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) Response {
 	return clusterNodesPostJoin(d, req)
 }
 
-func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPost) Response {
+func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPut) Response {
 	run := func(op *operation) error {
 		return cluster.Bootstrap(d.State(), d.gateway, req.Name)
 	}
@@ -168,7 +168,7 @@ func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPost) Response {
 	return OperationResponse(op)
 }
 
-func clusterNodesPostJoin(d *Daemon, req api.ClusterPost) Response {
+func clusterNodesPostJoin(d *Daemon, req api.ClusterPut) Response {
 	// Make sure basic pre-conditions are ment.
 	if len(req.TargetCert) == 0 {
 		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
@@ -307,7 +307,7 @@ func clusterAcceptMember(
 	name, address string, schema, apiExt int,
 	pools []api.StoragePool, networks []api.Network) (*api.ClusterMemberPostResponse, error) {
 
-	cluster := api.ClusterPost{
+	cluster := api.ClusterPut{
 		Name:         name,
 		Address:      address,
 		Schema:       schema,
@@ -468,7 +468,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 var internalClusterAcceptCmd = Command{name: "cluster/accept", post: internalClusterPostAccept}
 
 func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
-	req := api.ClusterPost{}
+	req := api.ClusterPut{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)

@@ -6,11 +6,11 @@ type Cluster struct {
 	Networks     []Network     `json:"networks" yaml:"networks"`
 }
 
-// ClusterPost represents the fields required to bootstrap or join a LXD
+// ClusterPut represents the fields required to bootstrap or join a LXD
 // cluster.
 //
 // API extension: cluster
-type ClusterPost struct {
+type ClusterPut struct {
 	Name          string        `json:"name" yaml:"name"`
 	Address       string        `json:"address" yaml:"address"`
 	Schema        int           `json:"schema" yaml:"schema"`

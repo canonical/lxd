@@ -542,7 +542,7 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 }
 
 // Turn on clustering.
-func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterPost, password string) (reverter, error) {
+func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterPut, password string) (reverter, error) {
 	var reverter func() error
 	var op *lxd.Operation
 	var err error
@@ -1190,7 +1190,7 @@ type cmdInitData struct {
 	Pools           []api.StoragePoolsPost `yaml:"storage_pools"`
 	Networks        []api.NetworksPost
 	Profiles        []api.ProfilesPost
-	Cluster         api.ClusterPost
+	Cluster         api.ClusterPut
 	ClusterPassword string `yaml:"cluster_password"`
 }
 
