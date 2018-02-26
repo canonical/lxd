@@ -37,17 +37,20 @@ func (r *ProtocolLXD) BootstrapCluster(name string) (*Operation, error) {
 // AcceptMember requests to accept a new member into the cluster
 func (r *ProtocolLXD) AcceptMember(targetPassword, name, address string, schema, apiExt int, pools []api.StoragePool, networks []api.Network) (*api.ClusterMemberPostResponse, error) {
 	cluster := api.ClusterPost{
-		Name:           name,
-		Address:        address,
-		Schema:         schema,
-		API:            apiExt,
-		TargetPassword: targetPassword,
-		StoragePools:   pools,
-		Networks:       networks,
+		Name:         name,
+		Address:      address,
+		Schema:       schema,
+		API:          apiExt,
+		StoragePools: pools,
+		Networks:     networks,
 	}
 	info := &api.ClusterMemberPostResponse{}
-	_, err := r.queryStruct("POST", "/cluster/members", cluster, "", &info)
+	resp, _, err := r.RawQuery("POST", "/internal/cluster/accept", cluster, "")
+	if err != nil {
+		return nil, err
+	}
 
+	err = resp.MetadataAsStruct(&info)
 	if err != nil {
 		return nil, err
 	}
@@ -56,12 +59,11 @@ func (r *ProtocolLXD) AcceptMember(targetPassword, name, address string, schema,
 }
 
 // JoinCluster requests to join an existing cluster
-func (r *ProtocolLXD) JoinCluster(targetAddress, targetPassword, targetCert, name string) (*Operation, error) {
+func (r *ProtocolLXD) JoinCluster(targetAddress, targetCert, name string) (*Operation, error) {
 	cluster := api.ClusterPost{
-		TargetAddress:  targetAddress,
-		TargetPassword: targetPassword,
-		TargetCert:     targetCert,
-		Name:           name,
+		TargetAddress: targetAddress,
+		TargetCert:    targetCert,
+		Name:          name,
 	}
 	op, _, err := r.queryOperation("POST", "/cluster/members", cluster, "")
 	if err != nil {

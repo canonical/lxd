@@ -5,6 +5,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/sys"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,6 +57,11 @@ func newDaemons(t *testing.T, n int) ([]*Daemon, func()) {
 
 	for i := 0; i < n; i++ {
 		daemons[i], cleanups[i] = newDaemon(t)
+		if i > 0 {
+			// Use a different server certificate
+			cert := shared.TestingAltKeyPair()
+			daemons[i].endpoints.NetworkUpdateCert(cert)
+		}
 	}
 
 	cleanup := func() {

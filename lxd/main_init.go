@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -262,7 +264,7 @@ func (cmd *CmdInit) fillDataWithClustering(data *cmdInitData, clustering *cmdIni
 	data.Cluster.Name = clustering.Name
 	data.Cluster.TargetAddress = clustering.TargetAddress
 	data.Cluster.TargetCert = string(clustering.TargetCert)
-	data.Cluster.TargetPassword = clustering.TargetPassword
+	data.ClusterPassword = clustering.TargetPassword
 }
 
 // Fill the given init data with a new storage pool structure matching the
@@ -476,7 +478,7 @@ func (cmd *CmdInit) apply(client lxd.ContainerServer, data *cmdInitData) error {
 	// Cluster changers
 	if data.Cluster.Name != "" {
 		changers = append(changers, func() (reverter, error) {
-			return cmd.initCluster(client, data.Cluster)
+			return cmd.initCluster(client, data.Cluster, data.ClusterPassword)
 		})
 	}
 
@@ -540,7 +542,7 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 }
 
 // Turn on clustering.
-func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterPost) (reverter, error) {
+func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterPost, password string) (reverter, error) {
 	var reverter func() error
 	var op *lxd.Operation
 	var err error
@@ -550,8 +552,40 @@ func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterP
 			return nil, err
 		}
 	} else {
-		op, err = client.JoinCluster(
-			cluster.TargetAddress, cluster.TargetPassword, cluster.TargetCert, cluster.Name)
+		// Connect to the target cluster node.
+		args := &lxd.ConnectionArgs{
+			TLSServerCert: cluster.TargetCert,
+		}
+		target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", cluster.TargetAddress), args)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to connect to target cluster node")
+		}
+
+		// If a password was provided, try to make the joining node's
+		// certificate trusted by the cluster.
+		if password != "" {
+			server, _, err := client.GetServer()
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get joining node's server info")
+			}
+			block, _ := pem.Decode([]byte(server.Environment.Certificate))
+			if block == nil {
+				return nil, errors.Wrap(err, "failed to decode joining node's public certificate")
+			}
+			certificate := base64.StdEncoding.EncodeToString(block.Bytes)
+			post := api.CertificatesPost{
+				Password:    password,
+				Certificate: certificate,
+			}
+			post.Name = fmt.Sprintf("lxd.cluster.%s", cluster.Name)
+			post.Type = "client"
+			err = target.CreateCertificate(post)
+			if err != nil && err.Error() != "Certificate already in trust store" {
+				return nil, errors.Wrap(err, "failed to register joining node's certificate")
+			}
+		}
+
+		op, err = client.JoinCluster(cluster.TargetAddress, cluster.TargetCert, cluster.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -1152,11 +1186,12 @@ func (cmd *CmdInit) askBridge(client lxd.ContainerServer) *cmdInitBridgeParams {
 // lxd init command, either directly fed via --preseed or populated by
 // the auto/interactive modes.
 type cmdInitData struct {
-	api.ServerPut `yaml:",inline"`
-	Pools         []api.StoragePoolsPost `yaml:"storage_pools"`
-	Networks      []api.NetworksPost
-	Profiles      []api.ProfilesPost
-	Cluster       api.ClusterPost
+	api.ServerPut   `yaml:",inline"`
+	Pools           []api.StoragePoolsPost `yaml:"storage_pools"`
+	Networks        []api.NetworksPost
+	Profiles        []api.ProfilesPost
+	Cluster         api.ClusterPost
+	ClusterPassword string `yaml:"cluster_password"`
 }
 
 // Parameters needed when enbling clustering in interactive mode.

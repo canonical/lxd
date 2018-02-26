@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -123,7 +124,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 
 		cert, err = x509.ParseCertificate(data)
 		if err != nil {
-			return BadRequest(err)
+			return BadRequest(errors.Wrap(err, "invalid certificate material"))
 		}
 		name = req.Name
 	} else if r.TLS != nil {
@@ -143,14 +144,19 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	fingerprint := shared.CertFingerprint(cert)
-	for _, existingCert := range d.clientCerts {
-		if fingerprint == shared.CertFingerprint(&existingCert) {
-			return BadRequest(fmt.Errorf("Certificate already in trust store"))
-		}
-	}
 
 	if !isClusterNotification(r) {
 		// Store the certificate in the cluster database.
+		existingCerts, err := d.cluster.CertificatesGet()
+		if err != nil {
+			return SmartError(err)
+		}
+		for _, existingCert := range existingCerts {
+			if fingerprint == existingCert.Fingerprint {
+				return BadRequest(fmt.Errorf("Certificate already in trust store"))
+			}
+		}
+
 		err = saveCert(d.cluster, name, cert)
 		if err != nil {
 			return SmartError(err)

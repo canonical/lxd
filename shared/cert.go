@@ -111,6 +111,17 @@ func (c *CertInfo) PrivateKey() []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: data})
 }
 
+// Fingerprint returns the fingerprint of the public key.
+func (c *CertInfo) Fingerprint() string {
+	fingerprint, err := CertFingerprintStr(string(c.PublicKey()))
+	// Parsing should never fail, since we generated the cert ourselves,
+	// but let's check the error for good measure.
+	if err != nil {
+		panic("invalid public key material")
+	}
+	return fingerprint
+}
+
 // CertKind defines the kind of certificate to generate from scratch in
 // KeyPairAndCA when it's not there.
 //
