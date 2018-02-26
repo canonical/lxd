@@ -2515,17 +2515,7 @@ Input (request to join an existing cluster):
         "target_password": "sekret"
     }
 
-Return background operation or standard error.
-
-
-### DELETE
- * Description: disable clustering
- * Introduced: with API extension `clustering`
- * Authentication: trusted
- * Operation: sync
- * Return: standard return value or standard error
-
-Input (none at present):
+Input (disable clustering on the node):
 
     {
     }

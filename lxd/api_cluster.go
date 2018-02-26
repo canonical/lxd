@@ -25,8 +25,7 @@ import (
 var clusterCmd = Command{
 	name: "cluster",
 	get:  clusterGet, untrustedGet: true,
-	put:    clusterPut,
-	delete: clusterDelete,
+	put: clusterPut,
 }
 
 // Return information about the cluster, such as the current networks and
@@ -81,10 +80,9 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 //
 // - bootstrap a new cluster (if this node is not clustered yet)
 // - request to join an existing cluster
-// - accept the request of a node to join the cluster
+// - disable clustering on a node
 //
-// The client is required to be trusted when bootstrapping a cluster or request
-// to join an existing cluster.
+// The client is required to be trusted.
 func clusterPut(d *Daemon, r *http.Request) Response {
 	req := api.ClusterPut{}
 
@@ -94,9 +92,9 @@ func clusterPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	// Sanity checks
+	// Disable clustering.
 	if req.Name == "" {
-		return BadRequest(fmt.Errorf("No name provided"))
+		return clusterPutDisable(d)
 	}
 
 	// Depending on the provided parameters we either bootstrap a brand new
@@ -254,38 +252,8 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	return OperationResponse(op)
 }
 
-// Perform a request to the /internal/cluster/accept endpoint to check if a new
-// mode can be accepted into the cluster and obtain joining information such as
-// the cluster private certificate.
-func clusterAcceptMember(
-	client lxd.ContainerServer,
-	name, address string, schema, apiExt int,
-	pools []api.StoragePool, networks []api.Network) (*internalClusterPostAcceptResponse, error) {
-
-	cluster := api.ClusterPut{
-		Name:         name,
-		Address:      address,
-		Schema:       schema,
-		API:          apiExt,
-		StoragePools: pools,
-		Networks:     networks,
-	}
-	info := &internalClusterPostAcceptResponse{}
-	resp, _, err := client.RawQuery("POST", "/internal/cluster/accept", cluster, "")
-	if err != nil {
-		return nil, err
-	}
-
-	err = resp.MetadataAsStruct(&info)
-	if err != nil {
-		return nil, err
-	}
-
-	return info, nil
-}
-
 // Disable clustering on a node.
-func clusterDelete(d *Daemon, r *http.Request) Response {
+func clusterPutDisable(d *Daemon) Response {
 	// Close the cluster database
 	err := d.cluster.Close()
 	if err != nil {
@@ -326,6 +294,36 @@ func clusterDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	return EmptySyncResponse
+}
+
+// Perform a request to the /internal/cluster/accept endpoint to check if a new
+// mode can be accepted into the cluster and obtain joining information such as
+// the cluster private certificate.
+func clusterAcceptMember(
+	client lxd.ContainerServer,
+	name, address string, schema, apiExt int,
+	pools []api.StoragePool, networks []api.Network) (*internalClusterPostAcceptResponse, error) {
+
+	cluster := api.ClusterPut{
+		Name:         name,
+		Address:      address,
+		Schema:       schema,
+		API:          apiExt,
+		StoragePools: pools,
+		Networks:     networks,
+	}
+	info := &internalClusterPostAcceptResponse{}
+	resp, _, err := client.RawQuery("POST", "/internal/cluster/accept", cluster, "")
+	if err != nil {
+		return nil, err
+	}
+
+	err = resp.MetadataAsStruct(&info)
+	if err != nil {
+		return nil, err
+	}
+
+	return info, nil
 }
 
 var clusterNodesCmd = Command{
@@ -460,7 +458,8 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
-		_, _, err = client.RawQuery("DELETE", "/1.0/cluster", nil, "")
+		put := api.ClusterPut{}
+		_, err = client.UpdateCluster(put, "")
 		if err != nil {
 			SmartError(errors.Wrap(err, "failed to cleanup the node"))
 		}
