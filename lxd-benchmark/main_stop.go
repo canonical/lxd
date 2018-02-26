@@ -22,12 +22,6 @@ func (c *cmdStop) Command() *cobra.Command {
 }
 
 func (c *cmdStop) Run(cmd *cobra.Command, args []string) error {
-	// Run shared setup code
-	err := c.global.Setup()
-	if err != nil {
-		return err
-	}
-
 	// Get the containers
 	containers, err := benchmark.GetContainers(c.global.srv)
 	if err != nil {
@@ -40,11 +34,7 @@ func (c *cmdStop) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Run shared reporting and teardown code
-	err = c.global.Teardown("stop", duration)
-	if err != nil {
-		return err
-	}
+	c.global.reportDuration = duration
 
 	return nil
 }
