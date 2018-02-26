@@ -2479,9 +2479,8 @@ Input (request to join an existing cluster):
 
     {
         "server_name": "node2",
-        "target_address": "10.1.1.101:8443",
-        "target_cert": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
-        "target_password": "sekret"
+        "cluster_address": "10.1.1.101:8443",
+        "cluster_cert": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
     }
 
 Input (disable clustering on the node):
@@ -2532,7 +2531,7 @@ Return:
 Input:
 
     {
-        "name": "node1",
+        "server_name": "node1",
     }
 
 ### DELETE (optional `?force=1`)

@@ -75,9 +75,9 @@ func TestCluster_Join(t *testing.T) {
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
 	cluster = api.ClusterPut{
-		ServerName:    "rusp",
-		TargetAddress: address,
-		TargetCert:    cert,
+		ServerName:     "rusp",
+		ClusterAddress: address,
+		ClusterCert:    cert,
 	}
 	op, err = client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
@@ -165,9 +165,9 @@ func TestCluster_JoinUnauthorized(t *testing.T) {
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
 	cluster = api.ClusterPut{
-		ServerName:    "rusp",
-		TargetAddress: address,
-		TargetCert:    cert,
+		ServerName:     "rusp",
+		ClusterAddress: address,
+		ClusterCert:    cert,
 	}
 	op, err = client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
@@ -339,9 +339,9 @@ func (f *clusterFixture) FormCluster(daemons []*Daemon) {
 		f.RegisterCertificate(daemon, daemons[0], name, "sekret")
 		client = f.ClientUnix(daemon)
 		cluster := api.ClusterPut{
-			ServerName:    name,
-			TargetAddress: address,
-			TargetCert:    cert,
+			ServerName:     name,
+			ClusterAddress: address,
+			ClusterCert:    cert,
 		}
 		op, err = client.UpdateCluster(cluster, "")
 		require.NoError(f.t, err)
