@@ -305,7 +305,7 @@ func clusterNodesPostJoin(d *Daemon, req api.ClusterPut) Response {
 func clusterAcceptMember(
 	client lxd.ContainerServer,
 	name, address string, schema, apiExt int,
-	pools []api.StoragePool, networks []api.Network) (*api.ClusterMemberPostResponse, error) {
+	pools []api.StoragePool, networks []api.Network) (*internalClusterPostAcceptResponse, error) {
 
 	cluster := api.ClusterPut{
 		Name:         name,
@@ -315,7 +315,7 @@ func clusterAcceptMember(
 		StoragePools: pools,
 		Networks:     networks,
 	}
-	info := &api.ClusterMemberPostResponse{}
+	info := &internalClusterPostAcceptResponse{}
 	resp, _, err := client.RawQuery("POST", "/internal/cluster/accept", cluster, "")
 	if err != nil {
 		return nil, err
@@ -516,8 +516,8 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
-	accepted := api.ClusterMemberPostResponse{
-		RaftNodes:  make([]api.RaftNode, len(nodes)),
+	accepted := internalClusterPostAcceptResponse{
+		RaftNodes:  make([]internalRaftNode, len(nodes)),
 		PrivateKey: d.endpoints.NetworkPrivateKey(),
 	}
 	for i, node := range nodes {
@@ -525,6 +525,18 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
 		accepted.RaftNodes[i].Address = node.Address
 	}
 	return SyncResponse(true, accepted)
+}
+
+// A Response for the /internal/cluster/accept endpoint.
+type internalClusterPostAcceptResponse struct {
+	RaftNodes  []internalRaftNode `json:"raft_nodes" yaml:"raft_nodes"`
+	PrivateKey []byte             `json:"private_key" yaml:"private_key"`
+}
+
+// Represent a LXD node that is part of the dqlite raft cluster.
+type internalRaftNode struct {
+	ID      int64  `json:"id" yaml:"id"`
+	Address string `json:"address" yaml:"address"`
 }
 
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {

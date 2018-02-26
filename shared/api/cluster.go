@@ -22,22 +22,6 @@ type ClusterPut struct {
 	Networks      []Network     `json:"networks" yaml:"networks"`
 }
 
-// ClusterMemberPostResponse represents the response of a request to join a cluster.
-//
-// API extension: cluster
-type ClusterMemberPostResponse struct {
-	RaftNodes  []RaftNode `json:"raft_nodes" yaml:"raft_nodes"`
-	PrivateKey []byte     `json:"private_key" yaml:"private_key"`
-}
-
-// RaftNode represents the a LXD node that is part of the dqlite raft cluster.
-//
-// API extension: cluster
-type RaftNode struct {
-	ID      int64  `json:"id" yaml:"id"`
-	Address string `json:"address" yaml:"address"`
-}
-
 // ClusterMemberPost represents the fields required to rename a LXD node.
 //
 // API extension: clustering
