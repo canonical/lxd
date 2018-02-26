@@ -334,7 +334,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) Response {
 	} else {
 		urls := []string{}
 		for _, node := range nodes {
-			url := fmt.Sprintf("/%s/cluster/members/%s", version.APIVersion, node.Name)
+			url := fmt.Sprintf("/%s/cluster/members/%s", version.APIVersion, node.ServerName)
 			urls = append(urls, url)
 		}
 		result = urls
@@ -359,7 +359,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) Response {
 	}
 
 	for _, node := range nodes {
-		if node.Name == name {
+		if node.ServerName == name {
 			return SyncResponseETag(true, node, node)
 		}
 	}
@@ -379,7 +379,7 @@ func clusterNodePost(d *Daemon, r *http.Request) Response {
 	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.NodeRename(name, req.Name)
+		return tx.NodeRename(name, req.ServerName)
 	})
 	if err != nil {
 		return SmartError(err)

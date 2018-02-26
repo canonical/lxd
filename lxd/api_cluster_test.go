@@ -121,8 +121,8 @@ func TestCluster_Join(t *testing.T) {
 	nodes, err := client.GetClusterMembers()
 	require.NoError(t, err)
 	assert.Len(t, nodes, 2)
-	assert.Equal(t, "buzz", nodes[0].Name)
-	assert.Equal(t, "rusp", nodes[1].Name)
+	assert.Equal(t, "buzz", nodes[0].ServerName)
+	assert.Equal(t, "rusp", nodes[1].ServerName)
 	assert.Equal(t, "Online", nodes[0].Status)
 	assert.Equal(t, "Online", nodes[1].Status)
 
@@ -137,7 +137,7 @@ func TestCluster_Join(t *testing.T) {
 	// The GetNode method returns the requested node.
 	node, _, err := client.GetClusterMember("buzz")
 	require.NoError(t, err)
-	assert.Equal(t, "buzz", node.Name)
+	assert.Equal(t, "buzz", node.ServerName)
 }
 
 // If the joining node hasn't added its certificate as trusted client
@@ -223,7 +223,7 @@ func TestCluster_Leave(t *testing.T) {
 	nodes, err := client.GetClusterMembers()
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)
-	assert.Equal(t, "none", nodes[0].Name)
+	assert.Equal(t, "none", nodes[0].ServerName)
 }
 
 // A node can't leave a cluster gracefully if it still has images associated
@@ -300,7 +300,7 @@ func TestCluster_NodeRename(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
-	node := api.ClusterMemberPost{Name: "rusp"}
+	node := api.ClusterMemberPost{ServerName: "rusp"}
 	err = client.RenameClusterMember("buzz", node)
 	require.NoError(t, err)
 

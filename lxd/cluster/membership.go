@@ -558,7 +558,7 @@ func List(state *state.State) ([]api.ClusterMember, error) {
 	now := time.Now()
 	version := nodes[0].Version()
 	for i, node := range nodes {
-		result[i].Name = node.Name
+		result[i].ServerName = node.Name
 		result[i].URL = fmt.Sprintf("https://%s", node.Address)
 		result[i].Database = shared.StringInSlice(node.Address, addresses)
 		if node.IsOffline(offlineThreshold) {
