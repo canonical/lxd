@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -14,6 +13,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/pkg/errors"
 
@@ -542,26 +542,17 @@ func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]int
 }
 
 // Turn on clustering.
-func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterPut, password string) (reverter, error) {
+func (cmd *CmdInit) initCluster(client lxd.ContainerServer, put api.ClusterPut, password string) (reverter, error) {
 	var reverter func() error
 	var op *lxd.Operation
 	var err error
-	if cluster.TargetAddress == "" {
-		cluster := api.ClusterPut{Name: cluster.Name}
-		op, err = client.UpdateCluster(cluster, "")
+	if put.TargetAddress == "" {
+		put = api.ClusterPut{Name: put.Name}
+		op, err = client.UpdateCluster(put, "")
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		// Connect to the target cluster node.
-		args := &lxd.ConnectionArgs{
-			TLSServerCert: cluster.TargetCert,
-		}
-		target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", cluster.TargetAddress), args)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to connect to target cluster node")
-		}
-
 		// If a password was provided, try to make the joining node's
 		// certificate trusted by the cluster.
 		if password != "" {
@@ -569,27 +560,18 @@ func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterP
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get joining node's server info")
 			}
-			block, _ := pem.Decode([]byte(server.Environment.Certificate))
-			if block == nil {
-				return nil, errors.Wrap(err, "failed to decode joining node's public certificate")
-			}
-			certificate := base64.StdEncoding.EncodeToString(block.Bytes)
-			post := api.CertificatesPost{
-				Password:    password,
-				Certificate: certificate,
-			}
-			post.Name = fmt.Sprintf("lxd.cluster.%s", cluster.Name)
-			post.Type = "client"
-			err = target.CreateCertificate(post)
-			if err != nil && err.Error() != "Certificate already in trust store" {
+			err = cluster.SetupTrust(
+				server.Environment.Certificate, put.TargetAddress, put.TargetCert,
+				password)
+			if err != nil {
 				return nil, errors.Wrap(err, "failed to register joining node's certificate")
 			}
 		}
 
-		put := api.ClusterPut{
-			Name:          cluster.Name,
-			TargetAddress: cluster.TargetAddress,
-			TargetCert:    cluster.TargetCert,
+		put = api.ClusterPut{
+			Name:          put.Name,
+			TargetAddress: put.TargetAddress,
+			TargetCert:    put.TargetCert,
 		}
 		op, err = client.UpdateCluster(put, "")
 		if err != nil {

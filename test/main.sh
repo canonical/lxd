@@ -27,6 +27,9 @@ fi
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
+# shellcheck disable=SC2034
+LXD_ALT_CERT=""
+
 import_subdir_files() {
     test "$1"
     # shellcheck disable=SC2039

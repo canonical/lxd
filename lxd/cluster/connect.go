@@ -1,11 +1,15 @@
 package cluster
 
 import (
+	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/pkg/errors"
 )
 
 // Connect is a convenience around lxd.ConnectLXD that configures the client
@@ -77,4 +81,38 @@ func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName strin
 		return nil, nil
 	}
 	return Connect(address, cert, false)
+}
+
+// SetupTrust is a convenience around ContainerServer.CreateCertificate that
+// adds the given client certificate to the trusted pool of the cluster at the
+// given address, using the given password.
+func SetupTrust(cert, targetAddress, targetCert, targetPassword string) error {
+	// Connect to the target cluster node.
+	args := &lxd.ConnectionArgs{
+		TLSServerCert: targetCert,
+	}
+	target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", targetAddress), args)
+	if err != nil {
+		return errors.Wrap(err, "failed to connect to target cluster node")
+	}
+	block, _ := pem.Decode([]byte(cert))
+	if block == nil {
+		return errors.Wrap(err, "failed to decode certificate")
+	}
+	certificate := base64.StdEncoding.EncodeToString(block.Bytes)
+	post := api.CertificatesPost{
+		Password:    targetPassword,
+		Certificate: certificate,
+	}
+	fingerprint, err := shared.CertFingerprintStr(cert)
+	if err != nil {
+		return errors.Wrap(err, "failed to calculate fingerprint")
+	}
+	post.Name = fmt.Sprintf("lxd.cluster.%s", fingerprint)
+	post.Type = "client"
+	err = target.CreateCertificate(post)
+	if err != nil && err.Error() != "Certificate already in trust store" {
+		return errors.Wrap(err, "failed client cert to cluster")
+	}
+	return nil
 }
