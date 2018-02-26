@@ -2454,6 +2454,8 @@ Return:
  * Operation: sync
  * Return: dict representing a cluster
 
+Return:
+
     {
         "name": "node1",
     }
@@ -2493,21 +2495,13 @@ Input (disable clustering on the node):
  * Introduced: with API extension `clustering`
  * Authentication: trusted
  * Operation: sync
- * Return: list of dicts with information about each member
+ * Return: list of cluster members
+
+Return:
 
     [
-        {
-            "name": "lxd1",
-            "url": "https://10.1.1.101:8443",
-            "database": true,
-            "state": "Online"
-        },
-        {
-            "name": "lxd2",
-            "url": "https://10.1.1.102:8443",
-            "database": true,
-            "state": "Online"
-        },
+        "/1.0/cluster/members/lxd1",
+        "/1.0/cluster/members/lxd2"
     ]
 
 ## `/1.0/cluster/members/<name>`
@@ -2517,6 +2511,8 @@ Input (disable clustering on the node):
  * Authentication: trusted
  * Operation: sync
  * Return: dict representing the member
+
+Return:
 
     {
         "name": "lxd1",
