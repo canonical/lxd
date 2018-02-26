@@ -159,7 +159,7 @@ spawn_lxd_and_join_cluster() {
   target="${5}"
   LXD_DIR="${6}"
 
-  DEBUG="--debug" LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
+  DEBUG="--debug" LXD_ALT_CERT=1 LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
   sleep 1
   (
     set -e
