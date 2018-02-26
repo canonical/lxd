@@ -100,7 +100,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 }
 
 func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
-	// Make sure basic pre-conditions are ment.
+	// Make sure basic pre-conditions are met.
 	if len(req.TargetCert) == 0 {
 		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
 	}
@@ -293,7 +293,7 @@ func clusterAcceptMember(
 	name, address string, schema, apiExt int,
 	pools []api.StoragePool, networks []api.Network) (*internalClusterPostAcceptResponse, error) {
 
-	cluster := api.ClusterPut{
+	req := internalClusterPostAcceptRequest{
 		Name:         name,
 		Address:      address,
 		Schema:       schema,
@@ -302,7 +302,7 @@ func clusterAcceptMember(
 		Networks:     networks,
 	}
 	info := &internalClusterPostAcceptResponse{}
-	resp, _, err := client.RawQuery("POST", "/internal/cluster/accept", cluster, "")
+	resp, _, err := client.RawQuery("POST", "/internal/cluster/accept", req, "")
 	if err != nil {
 		return nil, err
 	}
@@ -460,7 +460,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 var internalClusterAcceptCmd = Command{name: "cluster/accept", post: internalClusterPostAccept}
 
 func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
-	req := api.ClusterPut{}
+	req := internalClusterPostAcceptRequest{}
 
 	// Parse the request
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -517,6 +517,16 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
 		accepted.RaftNodes[i].Address = node.Address
 	}
 	return SyncResponse(true, accepted)
+}
+
+// A request for the /internal/cluster/accept endpoint.
+type internalClusterPostAcceptRequest struct {
+	Name         string            `json:"name" yaml:"name"`
+	Address      string            `json:"address" yaml:"address"`
+	Schema       int               `json:"schema" yaml:"schema"`
+	API          int               `json:"api" yaml:"api"`
+	StoragePools []api.StoragePool `json:"storage_pools" yaml:"storage_pools"`
+	Networks     []api.Network     `json:"networks" yaml:"networks"`
 }
 
 // A Response for the /internal/cluster/accept endpoint.
