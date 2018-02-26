@@ -28,35 +28,26 @@ var clusterCmd = Command{
 	put:  clusterPut,
 }
 
-// Return information about the cluster, such as the current networks and
-// storage pools, typically needed when a new node is joining.
+// Return information about the cluster.
 func clusterGet(d *Daemon, r *http.Request) Response {
-	cluster := api.Cluster{}
-
-	// Fill the Networks attribute
-	networks, err := d.cluster.NetworksNotPending()
+	name := ""
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		name, err = tx.NodeName()
+		return err
+	})
 	if err != nil {
 		return SmartError(err)
 	}
-	for _, name := range networks {
-		_, network, err := d.cluster.NetworkGet(name)
-		if err != nil {
-			return SmartError(err)
-		}
-		cluster.Networks = append(cluster.Networks, *network)
+
+	// If the name is set to the hard-coded default node name, then
+	// clustering is not enabled.
+	if name == "none" {
+		name = ""
 	}
 
-	// Fill the StoragePools attribute
-	pools, err := d.cluster.StoragePoolsNotPending()
-	if err != nil && err != db.NoSuchObjectError {
-		return SmartError(err)
-	}
-	for _, name := range pools {
-		_, pool, err := d.cluster.StoragePoolGet(name)
-		if err != nil {
-			return SmartError(err)
-		}
-		cluster.StoragePools = append(cluster.StoragePools, *pool)
+	cluster := api.Cluster{
+		Name: name,
 	}
 
 	return SyncResponseETag(true, cluster, cluster)

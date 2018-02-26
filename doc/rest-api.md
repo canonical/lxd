@@ -2455,40 +2455,7 @@ Return:
  * Return: dict representing a cluster
 
     {
-        "type": "sync",
-        "status": "Success",
-        "status_code": 200,
-        "operation": "",
-        "error_code": 0,
-        "error": "",
-        "metadata": {
-            "storage_pools": [
-                {
-                    "name": "default",
-                    "description": "",
-                    "config": {
-                        "source": "/var/lib/lxd/storage-pools/default"
-                    },
-                    "driver": "dir",
-                    "used_by": null
-                }
-            ],
-            "networks": [
-                {
-                    "name": "lxdbr0",
-                    "description": "",
-                    "type": "bridge",
-                    "config": {
-                        "ipv4.address": "10.8.219.1/24",
-                        "ipv4.nat": "true",
-                        "ipv6.address": "fd42:f5a2:e47e:2185::1/64",
-                        "ipv6.nat": "true"
-                    },
-                    "used_by": null,
-                    "managed": true
-                }
-            ]
-        }
+        "name": "node1",
     }
 
 ### PUT
@@ -2528,28 +2495,20 @@ Input (disable clustering on the node):
  * Operation: sync
  * Return: list of dicts with information about each member
 
-    {
-        "type": "sync",
-        "status": "Success",
-        "status_code": 200,
-        "operation": "",
-        "error_code": 0,
-        "error": "",
-        "metadata": [
-            {
-                "name": "lxd1",
-                "url": "https://10.1.1.101:8443",
-                "database": true,
-                "state": "Online"
-            },
-            {
-                "name": "lxd2",
-                "url": "https://10.1.1.102:8443",
-                "database": true,
-                "state": "Online"
-            },
-        ]
-    } 
+    [
+        {
+            "name": "lxd1",
+            "url": "https://10.1.1.101:8443",
+            "database": true,
+            "state": "Online"
+        },
+        {
+            "name": "lxd2",
+            "url": "https://10.1.1.102:8443",
+            "database": true,
+            "state": "Online"
+        },
+    ]
 
 ## `/1.0/cluster/members/<name>`
 ### GET
@@ -2560,21 +2519,10 @@ Input (disable clustering on the node):
  * Return: dict representing the member
 
     {
-        "type": "sync",
-        "status": "Success",
-        "status_code": 200,
-        "error_code": 0,
-        "error": "",
-        "metadata": {
-            "type": "custom",
-            "used_by": [],
-            "name": "vol1",
-            "config": {
-                "block.filesystem": "ext4",
-                "block.mount_options": "discard",
-                "size": "10737418240"
-            }
-        }
+        "name": "lxd1",
+        "url": "https://10.1.1.101:8443",
+        "database": true,
+        "state": "Online"
     }
 
 ## `/1.0/cluster/members/<name>`

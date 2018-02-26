@@ -199,15 +199,23 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 			if err != nil {
 				return err
 			}
-			cluster, _, err := client.GetCluster()
+
+			// Get the pools and networks defined on the target cluster
+			targetPools, err := client.GetStoragePools()
+			if err != nil {
+				return errors.Wrap(err, "failed to get cluster storage pools")
+			}
+			targetNetworks, err := client.GetNetworks()
+			if err != nil {
+				return errors.Wrap(err, "failed to get cluster networks")
+			}
+
+			// Ask for node-specific pools and networks config keys.
+			data.Pools, err = cmd.askClusteringStoragePools(targetPools)
 			if err != nil {
 				return err
 			}
-			data.Pools, err = cmd.askClusteringStoragePools(cluster)
-			if err != nil {
-				return err
-			}
-			data.Networks, err = cmd.askClusteringNetworks(cluster)
+			data.Networks, err = cmd.askClusteringNetworks(targetNetworks)
 			if err != nil {
 				return err
 			}
@@ -879,9 +887,12 @@ join:
 	return params, nil
 }
 
-func (cmd *CmdInit) askClusteringStoragePools(cluster *api.Cluster) ([]api.StoragePoolsPost, error) {
-	pools := make([]api.StoragePoolsPost, len(cluster.StoragePools))
-	for i, pool := range cluster.StoragePools {
+func (cmd *CmdInit) askClusteringStoragePools(targetPools []api.StoragePool) ([]api.StoragePoolsPost, error) {
+	pools := make([]api.StoragePoolsPost, len(targetPools))
+	for i, pool := range targetPools {
+		if pool.Status == "PENDING" {
+			continue // Skip pending pools
+		}
 		post := api.StoragePoolsPost{}
 		post.Name = pool.Name
 		post.Driver = pool.Driver
@@ -901,11 +912,11 @@ func (cmd *CmdInit) askClusteringStoragePools(cluster *api.Cluster) ([]api.Stora
 	return pools, nil
 }
 
-func (cmd *CmdInit) askClusteringNetworks(cluster *api.Cluster) ([]api.NetworksPost, error) {
-	networks := make([]api.NetworksPost, len(cluster.Networks))
-	for i, network := range cluster.Networks {
-		if !network.Managed {
-			continue
+func (cmd *CmdInit) askClusteringNetworks(targetNetworks []api.Network) ([]api.NetworksPost, error) {
+	networks := make([]api.NetworksPost, len(targetNetworks))
+	for i, network := range targetNetworks {
+		if !network.Managed || network.Status == "PENDING" {
+			continue // Skip not-managed or pending networks
 		}
 		post := api.NetworksPost{}
 		post.Name = network.Name
