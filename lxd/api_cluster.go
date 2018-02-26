@@ -78,7 +78,7 @@ func clusterPut(d *Daemon, r *http.Request) Response {
 	// Depending on the provided parameters we either bootstrap a brand new
 	// cluster with this node as first node, or perform a request to join a
 	// given cluster.
-	if req.TargetAddress == "" {
+	if req.ClusterAddress == "" {
 		return clusterPutBootstrap(d, req)
 	}
 	return clusterPutJoin(d, req)
@@ -101,7 +101,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 
 func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	// Make sure basic pre-conditions are met.
-	if len(req.TargetCert) == 0 {
+	if len(req.ClusterCert) == 0 {
 		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
 	}
 	address, err := node.HTTPSAddress(d.db)
@@ -144,7 +144,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	args := &lxd.ConnectionArgs{
 		TLSClientCert: string(cert.PublicKey()),
 		TLSClientKey:  string(cert.PrivateKey()),
-		TLSServerCert: string(req.TargetCert),
+		TLSServerCert: string(req.ClusterCert),
 	}
 	fingerprint := cert.Fingerprint()
 
@@ -153,7 +153,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		logger.Debug("Running cluster join operation")
 		// First request for this node to be added to the list of
 		// cluster nodes.
-		client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", req.TargetAddress), args)
+		client, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", req.ClusterAddress), args)
 		if err != nil {
 			return err
 		}
@@ -165,7 +165,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		}
 
 		// Update our TLS configuration using the returned cluster certificate.
-		err = util.WriteCert(d.os.VarDir, "cluster", []byte(req.TargetCert), info.PrivateKey, nil)
+		err = util.WriteCert(d.os.VarDir, "cluster", []byte(req.ClusterCert), info.PrivateKey, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to save cluster certificate")
 		}

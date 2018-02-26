@@ -10,9 +10,9 @@ type Cluster struct {
 //
 // API extension: cluster
 type ClusterPut struct {
-	ServerName    string `json:"server_name" yaml:"server_name"`
-	TargetAddress string `json:"target_address" yaml:"target_address"`
-	TargetCert    string `json:"target_cert" yaml:"target_cert"`
+	ServerName     string `json:"server_name" yaml:"server_name"`
+	ClusterAddress string `json:"cluster_address" yaml:"cluster_address"`
+	ClusterCert    string `json:"cluster_cert" yaml:"cluster_cert"`
 }
 
 // ClusterMemberPost represents the fields required to rename a LXD node.

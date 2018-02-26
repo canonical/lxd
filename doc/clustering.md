@@ -79,7 +79,7 @@ profiles:
       parent: lxdbr0
       type: nic
 cluster:
-  name: node1
+  server_name: node1
 ```
 
 Then run `cat <preseed-file> | lxd init --preseed` and your first node
@@ -120,9 +120,8 @@ profiles:
       type: nic
 cluster:
   name: node2
-  target_address: 10.55.60.171:8443
-  target_password: sekret
-  target_cert: "-----BEGIN CERTIFICATE-----
+  cluster_address: 10.55.60.171:8443
+  cluster_cert: "-----BEGIN CERTIFICATE-----
 
 opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 
@@ -132,6 +131,7 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 
 -----END CERTIFICATE-----
 "
+cluster_password: sekret
 ```
 
 ## Managing a cluster
