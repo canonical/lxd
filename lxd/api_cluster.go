@@ -22,7 +22,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-var clusterCmd = Command{name: "cluster", untrustedGet: true, get: clusterGet, delete: clusterDelete}
+var clusterCmd = Command{
+	name: "cluster",
+	get:  clusterGet, untrustedGet: true,
+	put:    clusterPut,
+	delete: clusterDelete,
+}
 
 // Return information about the cluster, such as the current networks and
 // storage pools, typically needed when a new node is joining.
@@ -71,56 +76,6 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, cluster, cluster)
 }
 
-// Disable clustering on a node.
-func clusterDelete(d *Daemon, r *http.Request) Response {
-	// Close the cluster database
-	err := d.cluster.Close()
-	if err != nil {
-		return SmartError(err)
-	}
-
-	// Update our TLS configuration using our original certificate.
-	for _, suffix := range []string{"crt", "key", "ca"} {
-		path := filepath.Join(d.os.VarDir, "cluster."+suffix)
-		if !shared.PathExists(path) {
-			continue
-		}
-		err := os.Remove(path)
-		if err != nil {
-			return InternalError(err)
-		}
-	}
-	cert, err := util.LoadCert(d.os.VarDir)
-	if err != nil {
-		return InternalError(errors.Wrap(err, "failed to parse node certificate"))
-	}
-
-	// Reset the cluster database and make it local to this node.
-	d.endpoints.NetworkUpdateCert(cert)
-	err = d.gateway.Reset(cert)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	// Re-open the cluster database
-	address, err := node.HTTPSAddress(d.db)
-	if err != nil {
-		return SmartError(err)
-	}
-	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	return EmptySyncResponse
-}
-
-var clusterNodesCmd = Command{
-	name: "cluster/members",
-	post: clusterNodesPost,
-	get:  clusterNodesGet,
-}
-
 // Depending on the parameters passed and on local state this endpoint will
 // either:
 //
@@ -130,7 +85,7 @@ var clusterNodesCmd = Command{
 //
 // The client is required to be trusted when bootstrapping a cluster or request
 // to join an existing cluster.
-func clusterNodesPost(d *Daemon, r *http.Request) Response {
+func clusterPut(d *Daemon, r *http.Request) Response {
 	req := api.ClusterPut{}
 
 	// Parse the request
@@ -148,12 +103,12 @@ func clusterNodesPost(d *Daemon, r *http.Request) Response {
 	// cluster with this node as first node, or perform a request to join a
 	// given cluster.
 	if req.Address == "" && req.TargetAddress == "" {
-		return clusterNodesPostBootstrap(d, req)
+		return clusterPutBootstrap(d, req)
 	}
-	return clusterNodesPostJoin(d, req)
+	return clusterPutJoin(d, req)
 }
 
-func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPut) Response {
+func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 	run := func(op *operation) error {
 		return cluster.Bootstrap(d.State(), d.gateway, req.Name)
 	}
@@ -168,7 +123,7 @@ func clusterNodesPostBootstrap(d *Daemon, req api.ClusterPut) Response {
 	return OperationResponse(op)
 }
 
-func clusterNodesPostJoin(d *Daemon, req api.ClusterPut) Response {
+func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	// Make sure basic pre-conditions are ment.
 	if len(req.TargetCert) == 0 {
 		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
@@ -327,6 +282,55 @@ func clusterAcceptMember(
 	}
 
 	return info, nil
+}
+
+// Disable clustering on a node.
+func clusterDelete(d *Daemon, r *http.Request) Response {
+	// Close the cluster database
+	err := d.cluster.Close()
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Update our TLS configuration using our original certificate.
+	for _, suffix := range []string{"crt", "key", "ca"} {
+		path := filepath.Join(d.os.VarDir, "cluster."+suffix)
+		if !shared.PathExists(path) {
+			continue
+		}
+		err := os.Remove(path)
+		if err != nil {
+			return InternalError(err)
+		}
+	}
+	cert, err := util.LoadCert(d.os.VarDir)
+	if err != nil {
+		return InternalError(errors.Wrap(err, "failed to parse node certificate"))
+	}
+
+	// Reset the cluster database and make it local to this node.
+	d.endpoints.NetworkUpdateCert(cert)
+	err = d.gateway.Reset(cert)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Re-open the cluster database
+	address, err := node.HTTPSAddress(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return EmptySyncResponse
+}
+
+var clusterNodesCmd = Command{
+	name: "cluster/members",
+	get:  clusterNodesGet,
 }
 
 func clusterNodesGet(d *Daemon, r *http.Request) Response {

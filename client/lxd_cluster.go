@@ -25,7 +25,7 @@ func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, string, error) 
 
 // UpdateCluster requests to bootstrap a new cluster
 func (r *ProtocolLXD) UpdateCluster(cluster api.ClusterPut, ETag string) (*Operation, error) {
-	op, _, err := r.queryOperation("POST", "/cluster/members", cluster, "")
+	op, _, err := r.queryOperation("PUT", "/cluster", cluster, "")
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (r *ProtocolLXD) JoinCluster(targetAddress, targetCert, name string) (*Oper
 		TargetCert:    targetCert,
 		Name:          name,
 	}
-	op, _, err := r.queryOperation("POST", "/cluster/members", cluster, "")
+	op, _, err := r.queryOperation("PUT", "/cluster", cluster, "")
 	if err != nil {
 		return nil, err
 	}
