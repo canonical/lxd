@@ -15,8 +15,7 @@ func (r *ProtocolLXD) GetCluster() (*api.Cluster, string, error) {
 	}
 
 	cluster := &api.Cluster{}
-	path := "/cluster"
-	etag, err := r.queryStruct("GET", path, nil, "", &cluster)
+	etag, err := r.queryStruct("GET", "/cluster", nil, "", &cluster)
 	if err != nil {
 		return nil, "", err
 	}
@@ -49,9 +48,13 @@ func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 	if force {
 		params += "?force=1"
 	}
-	url := fmt.Sprintf("/cluster/members/%s%s", name, params)
-	_, err := r.queryStruct("DELETE", url, nil, "", nil)
-	return err
+
+	_, err := r.queryStruct("DELETE", fmt.Sprintf("/cluster/members/%s%s", name, params), nil, "", nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetClusterMemberNames returns the URLs of the current members in the cluster
@@ -61,9 +64,7 @@ func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 	}
 
 	urls := []string{}
-	path := "/cluster/members"
-	_, err := r.queryStruct("GET", path, nil, "", &urls)
-
+	_, err := r.queryStruct("GET", "/cluster/members", nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
@@ -78,9 +79,7 @@ func (r *ProtocolLXD) GetClusterMembers() ([]api.ClusterMember, error) {
 	}
 
 	members := []api.ClusterMember{}
-	path := "/cluster/members?recursion=1"
-	_, err := r.queryStruct("GET", path, nil, "", &members)
-
+	_, err := r.queryStruct("GET", "/cluster/members?recursion=1", nil, "", &members)
 	if err != nil {
 		return nil, err
 	}
@@ -95,9 +94,7 @@ func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string,
 	}
 
 	member := api.ClusterMember{}
-	path := fmt.Sprintf("/cluster/members/%s", name)
-	etag, err := r.queryStruct("GET", path, nil, "", &member)
-
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/cluster/members/%s", name), nil, "", &member)
 	if err != nil {
 		return nil, "", err
 	}
@@ -111,7 +108,10 @@ func (r *ProtocolLXD) RenameClusterMember(name string, member api.ClusterMemberP
 		return fmt.Errorf("The server is missing the required \"clustering\" API extension")
 	}
 
-	url := fmt.Sprintf("/cluster/members/%s", name)
-	_, _, err := r.query("POST", url, member, "")
-	return err
+	_, _, err := r.query("POST", fmt.Sprintf("/cluster/members/%s", name), member, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
