@@ -78,7 +78,7 @@ func clusterPut(d *Daemon, r *http.Request) Response {
 	// Depending on the provided parameters we either bootstrap a brand new
 	// cluster with this node as first node, or perform a request to join a
 	// given cluster.
-	if req.Address == "" && req.TargetAddress == "" {
+	if req.TargetAddress == "" {
 		return clusterPutBootstrap(d, req)
 	}
 	return clusterPutJoin(d, req)
@@ -145,7 +145,6 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		TLSClientCert: string(cert.PublicKey()),
 		TLSClientKey:  string(cert.PrivateKey()),
 		TLSServerCert: string(req.TargetCert),
-		TLSCA:         string(req.TargetCA),
 	}
 	fingerprint := cert.Fingerprint()
 
@@ -166,7 +165,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		}
 
 		// Update our TLS configuration using the returned cluster certificate.
-		err = util.WriteCert(d.os.VarDir, "cluster", []byte(req.TargetCert), info.PrivateKey, req.TargetCA)
+		err = util.WriteCert(d.os.VarDir, "cluster", []byte(req.TargetCert), info.PrivateKey, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to save cluster certificate")
 		}
