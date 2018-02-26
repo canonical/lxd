@@ -1,7 +1,7 @@
 test_cpu_profiling() {
   LXD3_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD3_DIR}"
-  spawn_lxd "${LXD3_DIR}" false --cpuprofile "${LXD3_DIR}/cpu.out"
+  spawn_lxd "${LXD3_DIR}" false --cpu-profile "${LXD3_DIR}/cpu.out"
   lxdpid=$(cat "${LXD3_DIR}/lxd.pid")
   kill -TERM "${lxdpid}"
   wait "${lxdpid}"
@@ -20,7 +20,7 @@ test_cpu_profiling() {
 test_mem_profiling() {
   LXD4_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD4_DIR}"
-  spawn_lxd "${LXD4_DIR}" false --memprofile "${LXD4_DIR}/mem"
+  spawn_lxd "${LXD4_DIR}" false --memory-profile "${LXD4_DIR}/mem"
   lxdpid=$(cat "${LXD4_DIR}/lxd.pid")
 
   if [ -e "${LXD4_DIR}/mem" ]; then
