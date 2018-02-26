@@ -586,7 +586,12 @@ func (cmd *CmdInit) initCluster(client lxd.ContainerServer, cluster api.ClusterP
 			}
 		}
 
-		op, err = client.JoinCluster(cluster.TargetAddress, cluster.TargetCert, cluster.Name)
+		put := api.ClusterPut{
+			Name:          cluster.Name,
+			TargetAddress: cluster.TargetAddress,
+			TargetCert:    cluster.TargetCert,
+		}
+		op, err = client.UpdateCluster(put, "")
 		if err != nil {
 			return nil, err
 		}
