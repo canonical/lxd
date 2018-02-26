@@ -26,7 +26,7 @@ func TestCluster_Bootstrap(t *testing.T) {
 
 	client := f.ClientUnix(daemon)
 
-	cluster := api.ClusterPut{Name: "buzz"}
+	cluster := api.ClusterPut{ServerName: "buzz"}
 	op, err := client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
@@ -46,7 +46,7 @@ func TestCluster_Get(t *testing.T) {
 
 	cluster, _, err := client.GetCluster()
 	require.NoError(t, err)
-	assert.Equal(t, "", cluster.Name)
+	assert.Equal(t, "", cluster.ServerName)
 }
 
 // A LXD node which is already configured for networking can join an existing
@@ -64,7 +64,7 @@ func TestCluster_Join(t *testing.T) {
 
 	// Bootstrap the cluster using the first node.
 	client := f.ClientUnix(daemons[0])
-	cluster := api.ClusterPut{Name: "buzz"}
+	cluster := api.ClusterPut{ServerName: "buzz"}
 	op, err := client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
@@ -75,7 +75,7 @@ func TestCluster_Join(t *testing.T) {
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
 	cluster = api.ClusterPut{
-		Name:          "rusp",
+		ServerName:    "rusp",
 		TargetAddress: address,
 		TargetCert:    cert,
 	}
@@ -155,7 +155,7 @@ func TestCluster_JoinUnauthorized(t *testing.T) {
 
 	// Bootstrap the cluster using the first node.
 	client := f.ClientUnix(daemons[0])
-	cluster := api.ClusterPut{Name: "buzz"}
+	cluster := api.ClusterPut{ServerName: "buzz"}
 	op, err := client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
@@ -165,7 +165,7 @@ func TestCluster_JoinUnauthorized(t *testing.T) {
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
 	cluster = api.ClusterPut{
-		Name:          "rusp",
+		ServerName:    "rusp",
 		TargetAddress: address,
 		TargetCert:    cert,
 	}
@@ -295,7 +295,7 @@ func TestCluster_NodeRename(t *testing.T) {
 
 	client := f.ClientUnix(daemon)
 
-	cluster := api.ClusterPut{Name: "buzz"}
+	cluster := api.ClusterPut{ServerName: "buzz"}
 	op, err := client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
@@ -326,7 +326,7 @@ func (f *clusterFixture) FormCluster(daemons []*Daemon) {
 
 	// Bootstrap the cluster using the first node.
 	client := f.ClientUnix(daemons[0])
-	cluster := api.ClusterPut{Name: "buzz"}
+	cluster := api.ClusterPut{ServerName: "buzz"}
 	op, err := client.UpdateCluster(cluster, "")
 	require.NoError(f.t, err)
 	require.NoError(f.t, op.Wait())
@@ -339,7 +339,7 @@ func (f *clusterFixture) FormCluster(daemons []*Daemon) {
 		f.RegisterCertificate(daemon, daemons[0], name, "sekret")
 		client = f.ClientUnix(daemon)
 		cluster := api.ClusterPut{
-			Name:          name,
+			ServerName:    name,
 			TargetAddress: address,
 			TargetCert:    cert,
 		}

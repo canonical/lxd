@@ -2,7 +2,7 @@ package api
 
 // Cluster represents high-level information about a LXD cluster.
 type Cluster struct {
-	Name string `json:"name" yaml:"name"`
+	ServerName string `json:"server_name" yaml:"server_name"`
 }
 
 // ClusterPut represents the fields required to bootstrap or join a LXD
@@ -10,7 +10,7 @@ type Cluster struct {
 //
 // API extension: cluster
 type ClusterPut struct {
-	Name          string `json:"name" yaml:"name"`
+	ServerName    string `json:"server_name" yaml:"server_name"`
 	Address       string `json:"address" yaml:"address"`
 	TargetAddress string `json:"target_address" yaml:"target_address"`
 	TargetCert    string `json:"target_cert" yaml:"target_cert"`

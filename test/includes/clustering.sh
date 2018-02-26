@@ -145,7 +145,7 @@ profiles:
       pool: data
       type: disk
 cluster:
-  name: node1
+  server_name: node1
 EOF
   )
 }
@@ -185,7 +185,7 @@ profiles:
       pool: data
       type: disk
 cluster:
-  name: node${index}
+  server_name: node${index}
   target_address: 10.1.1.10${target}:8443
   target_cert: "$cert"
 cluster_password: sekret
