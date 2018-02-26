@@ -167,7 +167,7 @@ type ContainerServer interface {
 	MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (op *RemoteOperation, err error)
 
 	// Cluster functions ("cluster" API extensions)
-	GetCluster(password string) (cluster *api.Cluster, ETag string, err error)
+	GetCluster() (cluster *api.Cluster, ETag string, err error)
 	UpdateCluster(cluster api.ClusterPut, ETag string) (op *Operation, err error)
 	DeleteClusterMember(name string, force bool) (err error)
 	GetClusterMemberNames() (names []string, err error)

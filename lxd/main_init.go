@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -29,7 +30,7 @@ type CmdInit struct {
 	Context         *cmd.Context
 	Args            *Args
 	RunningInUserns bool
-	SocketPath      string
+	VarDir          string
 	PasswordReader  func(int) ([]byte, error)
 }
 
@@ -42,7 +43,11 @@ func (cmd *CmdInit) Run() error {
 	}
 
 	// Connect to LXD
-	client, err := lxd.ConnectLXDUnix(cmd.SocketPath, nil)
+	path := ""
+	if cmd.VarDir != "" {
+		path = filepath.Join(cmd.VarDir, "unix.socket")
+	}
+	client, err := lxd.ConnectLXDUnix(path, nil)
 	if err != nil {
 		return fmt.Errorf("Unable to talk to LXD: %s", err)
 	}
@@ -171,8 +176,22 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 			TrustPassword: clustering.TrustPassword,
 		}
 		if clustering.TargetAddress != "" {
+			// Add the joining node's certificate the cluster trust pool
+			cert, err := util.LoadCert(cmd.VarDir)
+			if err != nil {
+				return err
+			}
+			err = cluster.SetupTrust(
+				string(cert.PublicKey()), clustering.TargetAddress,
+				string(clustering.TargetCert), clustering.TargetPassword)
+			if err != nil {
+				return errors.Wrap(err, "failed to add joining node's certificate to cluster")
+			}
+
 			// Client parameters to connect to the target cluster node.
 			args := &lxd.ConnectionArgs{
+				TLSClientCert: string(cert.PublicKey()),
+				TLSClientKey:  string(cert.PrivateKey()),
 				TLSServerCert: string(clustering.TargetCert),
 			}
 			url := fmt.Sprintf("https://%s", clustering.TargetAddress)
@@ -180,7 +199,7 @@ func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerS
 			if err != nil {
 				return err
 			}
-			cluster, _, err := client.GetCluster(clustering.TargetPassword)
+			cluster, _, err := client.GetCluster()
 			if err != nil {
 				return err
 			}
@@ -1231,7 +1250,7 @@ func cmdInit(args *Args) error {
 		Context:         cmd.DefaultContext(),
 		Args:            args,
 		RunningInUserns: shared.RunningInUserNS(),
-		SocketPath:      "",
+		VarDir:          "",
 		PasswordReader:  terminal.ReadPassword,
 	}
 	return command.Run()

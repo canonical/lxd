@@ -24,26 +24,13 @@ import (
 
 var clusterCmd = Command{
 	name: "cluster",
-	get:  clusterGet, untrustedGet: true,
-	put: clusterPut,
+	get:  clusterGet,
+	put:  clusterPut,
 }
 
 // Return information about the cluster, such as the current networks and
 // storage pools, typically needed when a new node is joining.
 func clusterGet(d *Daemon, r *http.Request) Response {
-	// If the client is not trusted, check that it's presenting the trust
-	// password.
-	trusted := d.checkTrustedClient(r) == nil
-	if !trusted {
-		secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
-		if err != nil {
-			return SmartError(err)
-		}
-		if util.PasswordCheck(secret, r.FormValue("password")) != nil {
-			return Forbidden
-		}
-	}
-
 	cluster := api.Cluster{}
 
 	// Fill the Networks attribute

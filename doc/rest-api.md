@@ -2447,7 +2447,7 @@ Return:
     }
 
 ## `/1.0/cluster`
-### GET (optional `?password=<trust-password>`)
+### GET
  * Description: information about a cluster (such as networks and storage pools)
  * Introduced: with API extension `clustering`
  * Authentication: trusted or untrusted

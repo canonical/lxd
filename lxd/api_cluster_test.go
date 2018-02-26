@@ -59,7 +59,7 @@ func TestCluster_Get(t *testing.T) {
 	err = client.CreateStoragePool(pool)
 	require.NoError(t, err)
 
-	cluster, _, err := client.GetCluster("")
+	cluster, _, err := client.GetCluster()
 	require.NoError(t, err)
 	assert.Len(t, cluster.StoragePools, 1)
 }
