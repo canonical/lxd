@@ -111,7 +111,7 @@ func (c *clusterCmd) doClusterNodeRename(conf *config.Config, args []string) err
 		return err
 	}
 
-	err = client.RenameClusterMember(name, api.ClusterMemberPost{Name: newName})
+	err = client.RenameClusterMember(name, api.ClusterMemberPost{ServerName: newName})
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (c *clusterCmd) doClusterList(conf *config.Config, args []string) error {
 		if node.Database {
 			database = "YES"
 		}
-		line := []string{node.Name, node.URL, database, strings.ToUpper(node.Status), node.Message}
+		line := []string{node.ServerName, node.URL, database, strings.ToUpper(node.Status), node.Message}
 		data = append(data, line)
 	}
 

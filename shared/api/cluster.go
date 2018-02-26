@@ -21,16 +21,16 @@ type ClusterPut struct {
 //
 // API extension: clustering
 type ClusterMemberPost struct {
-	Name string `json:"name" yaml:"name"`
+	ServerName string `json:"server_name" yaml:"server_name"`
 }
 
 // ClusterMember represents the a LXD node in the cluster.
 //
 // API extension: clustering
 type ClusterMember struct {
-	Name     string `json:"name" yaml:"name"`
-	URL      string `json:"url" yaml:"url"`
-	Database bool   `json:"database" yaml:"database"`
-	Status   string `json:"status" yaml:"status"`
-	Message  string `json:"message" yaml:"message"`
+	ServerName string `json:"server_name" yaml:"server_name"`
+	URL        string `json:"url" yaml:"url"`
+	Database   bool   `json:"database" yaml:"database"`
+	Status     string `json:"status" yaml:"status"`
+	Message    string `json:"message" yaml:"message"`
 }
