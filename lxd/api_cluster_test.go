@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -46,22 +44,9 @@ func TestCluster_Get(t *testing.T) {
 	client, err := lxd.ConnectLXDUnix(daemon.UnixSocket(), nil)
 	require.NoError(t, err)
 
-	// Create a pool and check that the information returned by GetCluster
-	// contains it.
-	os.Setenv("LXD_DIR", filepath.Join(daemon.State().OS.VarDir))
-	pool := api.StoragePoolsPost{
-		Name:   "mypool",
-		Driver: "dir",
-	}
-	pool.Config = map[string]string{
-		"source": "",
-	}
-	err = client.CreateStoragePool(pool)
-	require.NoError(t, err)
-
 	cluster, _, err := client.GetCluster()
 	require.NoError(t, err)
-	assert.Len(t, cluster.StoragePools, 1)
+	assert.Equal(t, "", cluster.Name)
 }
 
 // A LXD node which is already configured for networking can join an existing

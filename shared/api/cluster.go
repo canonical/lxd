@@ -2,8 +2,7 @@ package api
 
 // Cluster represents high-level information about a LXD cluster.
 type Cluster struct {
-	StoragePools []StoragePool `json:"storage_pools" yaml:"storage_pools"`
-	Networks     []Network     `json:"networks" yaml:"networks"`
+	Name string `json:"name" yaml:"name"`
 }
 
 // ClusterPut represents the fields required to bootstrap or join a LXD
