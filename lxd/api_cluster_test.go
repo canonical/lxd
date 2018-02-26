@@ -89,7 +89,12 @@ func TestCluster_Join(t *testing.T) {
 	address := daemons[0].endpoints.NetworkAddress()
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
-	op, err = client.JoinCluster(address, cert, "rusp")
+	cluster = api.ClusterPut{
+		Name:          "rusp",
+		TargetAddress: address,
+		TargetCert:    cert,
+	}
+	op, err = client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
 	require.NoError(t, op.Wait())
 
@@ -174,7 +179,12 @@ func TestCluster_JoinUnauthorized(t *testing.T) {
 	address := daemons[0].endpoints.NetworkAddress()
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
-	op, err = client.JoinCluster(address, cert, "rusp")
+	cluster = api.ClusterPut{
+		Name:          "rusp",
+		TargetAddress: address,
+		TargetCert:    cert,
+	}
+	op, err = client.UpdateCluster(cluster, "")
 	require.NoError(t, err)
 	assert.EqualError(t, op.Wait(), "failed to request to add node: not authorized")
 }
@@ -343,7 +353,12 @@ func (f *clusterFixture) FormCluster(daemons []*Daemon) {
 		name := fmt.Sprintf("rusp-%d", i)
 		f.RegisterCertificate(daemon, daemons[0], name, "sekret")
 		client = f.ClientUnix(daemon)
-		op, err := client.JoinCluster(address, cert, name)
+		cluster := api.ClusterPut{
+			Name:          name,
+			TargetAddress: address,
+			TargetCert:    cert,
+		}
+		op, err = client.UpdateCluster(cluster, "")
 		require.NoError(f.t, err)
 		require.NoError(f.t, op.Wait())
 	}

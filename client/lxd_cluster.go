@@ -33,21 +33,6 @@ func (r *ProtocolLXD) UpdateCluster(cluster api.ClusterPut, ETag string) (*Opera
 	return op, nil
 }
 
-// JoinCluster requests to join an existing cluster
-func (r *ProtocolLXD) JoinCluster(targetAddress, targetCert, name string) (*Operation, error) {
-	cluster := api.ClusterPut{
-		TargetAddress: targetAddress,
-		TargetCert:    targetCert,
-		Name:          name,
-	}
-	op, _, err := r.queryOperation("PUT", "/cluster", cluster, "")
-	if err != nil {
-		return nil, err
-	}
-
-	return op, nil
-}
-
 // DeleteClusterMember makes the given member leave the cluster (gracefully or not,
 // depending on the force flag)
 func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
