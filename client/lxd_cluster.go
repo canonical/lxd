@@ -25,7 +25,7 @@ func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, string, error) 
 
 // BootstrapCluster requests to bootstrap a new cluster
 func (r *ProtocolLXD) BootstrapCluster(name string) (*Operation, error) {
-	cluster := api.ClusterPost{Name: name}
+	cluster := api.ClusterPut{Name: name}
 	op, _, err := r.queryOperation("POST", "/cluster/members", cluster, "")
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (r *ProtocolLXD) BootstrapCluster(name string) (*Operation, error) {
 
 // JoinCluster requests to join an existing cluster
 func (r *ProtocolLXD) JoinCluster(targetAddress, targetCert, name string) (*Operation, error) {
-	cluster := api.ClusterPost{
+	cluster := api.ClusterPut{
 		TargetAddress: targetAddress,
 		TargetCert:    targetCert,
 		Name:          name,
