@@ -419,17 +419,16 @@ Adds a "description" field to all operations.
 ## clustering
 Clustering API for LXD.
 
-This includes the following new endpoints:
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
 
 * `GET /1.0/cluster`
 * `UPDATE /1.0/cluster`
-* `DELETE /1.0/cluster` (see [RESTful API](rest-api.md) for details)
 
 * `GET /1.0/cluster/members`
-* `POST /1.0/cluster/members` (see [RESTful API](rest-api.md) for details)
 
-* `GET /1.0/cluster/members/<name>` (see [RESTful API](rest-api.md) for details)
-* `DELETE /1.0/cluster/members/<name>` (see [RESTful API](rest-api.md) for details)
+* `GET /1.0/cluster/members/<name>`
+* `POST /1.0/cluster/members/<name>`
+* `DELETE /1.0/cluster/members/<name>`
 
 The following existing endpoints have been modified:
 
