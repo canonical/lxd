@@ -47,7 +47,7 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 	}
 
 	cluster := api.Cluster{
-		Name: name,
+		ServerName: name,
 	}
 
 	return SyncResponseETag(true, cluster, cluster)
@@ -71,7 +71,7 @@ func clusterPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Disable clustering.
-	if req.Name == "" {
+	if req.ServerName == "" {
 		return clusterPutDisable(d)
 	}
 
@@ -86,7 +86,7 @@ func clusterPut(d *Daemon, r *http.Request) Response {
 
 func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 	run := func(op *operation) error {
-		return cluster.Bootstrap(d.State(), d.gateway, req.Name)
+		return cluster.Bootstrap(d.State(), d.gateway, req.ServerName)
 	}
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
@@ -159,7 +159,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			return err
 		}
 		info, err := clusterAcceptMember(
-			client, req.Name, address, cluster.SchemaVersion,
+			client, req.ServerName, address, cluster.SchemaVersion,
 			version.APIExtensionsCount(), pools, networks)
 		if err != nil {
 			return errors.Wrap(err, "failed to request to add node")
@@ -184,7 +184,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			nodes[i].Address = node.Address
 		}
 
-		err = cluster.Join(d.State(), d.gateway, cert, req.Name, nodes)
+		err = cluster.Join(d.State(), d.gateway, cert, req.ServerName, nodes)
 		if err != nil {
 			return err
 		}

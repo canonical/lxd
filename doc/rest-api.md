@@ -2457,7 +2457,7 @@ Return:
 Return:
 
     {
-        "name": "node1",
+        "server_name": "node1",
     }
 
 ### PUT
@@ -2470,7 +2470,7 @@ Return:
 Input (bootstrap a new cluster):
 
     {
-        "name": "lxd1",
+        "server_name": "lxd1",
     }
 
 Return background operation or standard error.
@@ -2478,7 +2478,7 @@ Return background operation or standard error.
 Input (request to join an existing cluster):
 
     {
-        "name": "node2",
+        "server_name": "node2",
         "target_address": "10.1.1.101:8443",
         "target_cert": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
         "target_password": "sekret"
