@@ -43,9 +43,9 @@ func (suite *cmdInitTestSuite) SetupTest() {
 		Context:         suite.context,
 		Args:            suite.args,
 		RunningInUserns: false,
-		SocketPath:      filepath.Join(shared.VarPath(), "unix.socket"),
+		VarDir:          shared.VarPath(),
 	}
-	client, err := lxd.ConnectLXDUnix(suite.command.SocketPath, nil)
+	client, err := lxd.ConnectLXDUnix(filepath.Join(shared.VarPath(), "unix.socket"), nil)
 	suite.Req.Nil(err)
 	suite.client = client
 }

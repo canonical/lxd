@@ -9,12 +9,9 @@ import (
 // GetCluster returns information about a cluster
 //
 // If this client is not trusted, the password must be supplied
-func (r *ProtocolLXD) GetCluster(password string) (*api.Cluster, string, error) {
+func (r *ProtocolLXD) GetCluster() (*api.Cluster, string, error) {
 	cluster := &api.Cluster{}
 	path := "/cluster"
-	if password != "" {
-		path += fmt.Sprintf("?password=%s", password)
-	}
 	etag, err := r.queryStruct("GET", path, nil, "", &cluster)
 	if err != nil {
 		return nil, "", err
