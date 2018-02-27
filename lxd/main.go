@@ -52,7 +52,6 @@ var subcommands = map[string]SubCommand{
 	"daemon":           cmdDaemon,
 	"callhook":         cmdCallHook,
 	"init":             cmdInit,
-	"ready":            cmdReady,
 	"shutdown":         cmdShutdown,
 	"waitready":        cmdWaitReady,
 	"import":           cmdImport,
