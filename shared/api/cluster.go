@@ -13,9 +13,9 @@ type Cluster struct {
 //
 // API extension: clustering
 type ClusterPut struct {
-	Cluster        `yaml:",inline"`
-	ClusterAddress string `json:"cluster_address" yaml:"cluster_address"`
-	ClusterCert    string `json:"cluster_cert" yaml:"cluster_cert"`
+	Cluster            `yaml:",inline"`
+	ClusterAddress     string `json:"cluster_address" yaml:"cluster_address"`
+	ClusterCertificate string `json:"cluster_certificate" yaml:"cluster_certificate"`
 }
 
 // ClusterMemberPost represents the fields required to rename a LXD node.

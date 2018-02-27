@@ -123,7 +123,7 @@ cluster:
   name: node2
   enabled: true
   cluster_address: 10.55.60.171:8443
-  cluster_cert: "-----BEGIN CERTIFICATE-----
+  cluster_certificate: "-----BEGIN CERTIFICATE-----
 
 opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 

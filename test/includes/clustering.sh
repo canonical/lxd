@@ -189,7 +189,7 @@ cluster:
   server_name: node${index}
   enabled: true
   cluster_address: 10.1.1.10${target}:8443
-  cluster_cert: "$cert"
+  cluster_certificate: "$cert"
 cluster_password: sekret
 EOF
   )

@@ -110,7 +110,7 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 
 func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	// Make sure basic pre-conditions are met.
-	if len(req.ClusterCert) == 0 {
+	if len(req.ClusterCertificate) == 0 {
 		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
 	}
 	address, err := node.HTTPSAddress(d.db)
@@ -153,7 +153,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	args := &lxd.ConnectionArgs{
 		TLSClientCert: string(cert.PublicKey()),
 		TLSClientKey:  string(cert.PrivateKey()),
-		TLSServerCert: string(req.ClusterCert),
+		TLSServerCert: string(req.ClusterCertificate),
 	}
 	fingerprint := cert.Fingerprint()
 
@@ -174,7 +174,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		}
 
 		// Update our TLS configuration using the returned cluster certificate.
-		err = util.WriteCert(d.os.VarDir, "cluster", []byte(req.ClusterCert), info.PrivateKey, nil)
+		err = util.WriteCert(d.os.VarDir, "cluster", []byte(req.ClusterCertificate), info.PrivateKey, nil)
 		if err != nil {
 			return errors.Wrap(err, "failed to save cluster certificate")
 		}
