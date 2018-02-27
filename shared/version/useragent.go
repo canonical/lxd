@@ -9,9 +9,11 @@ import (
 )
 
 // UserAgent contains a string suitable as a user-agent
-var UserAgent = getUserAgent(nil)
+var UserAgent = getUserAgent()
+var userAgentStorageBackends []string
+var userAgentFeatures []string
 
-func getUserAgent(storageTokens []string) string {
+func getUserAgent() string {
 	archID, err := osarch.ArchitectureId(runtime.GOARCH)
 	if err != nil {
 		panic(err)
@@ -25,13 +27,20 @@ func getUserAgent(storageTokens []string) string {
 	osTokens := []string{strings.Title(runtime.GOOS), arch}
 	osTokens = append(osTokens, getPlatformVersionStrings()...)
 
+	// Initial version string
 	agent := fmt.Sprintf("LXD %s", Version)
-	if len(osTokens) > 0 {
-		agent = fmt.Sprintf("%s (%s)", agent, strings.Join(osTokens, "; "))
+
+	// OS information
+	agent = fmt.Sprintf("%s (%s)", agent, strings.Join(osTokens, "; "))
+
+	// Storage information
+	if len(userAgentStorageBackends) > 0 {
+		agent = fmt.Sprintf("%s (%s)", agent, strings.Join(userAgentStorageBackends, "; "))
 	}
 
-	if len(storageTokens) > 0 {
-		agent = fmt.Sprintf("%s (%s)", agent, strings.Join(storageTokens, "; "))
+	// Feature information
+	if len(userAgentFeatures) > 0 {
+		agent = fmt.Sprintf("%s (%s)", agent, strings.Join(userAgentFeatures, "; "))
 	}
 
 	return agent
@@ -39,5 +48,12 @@ func getUserAgent(storageTokens []string) string {
 
 // UserAgentStorageBackends updates the list of storage backends to include in the user-agent
 func UserAgentStorageBackends(backends []string) {
-	UserAgent = getUserAgent(backends)
+	userAgentStorageBackends = backends
+	UserAgent = getUserAgent()
+}
+
+// UserAgentFeatures updates the list of advertised features
+func UserAgentFeatures(features []string) {
+	userAgentFeatures = features
+	UserAgent = getUserAgent()
 }
