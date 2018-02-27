@@ -491,6 +491,16 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	// Setup the user-agent
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return err
+	}
+
+	if clustered {
+		version.UserAgentFeatures([]string{"cluster"})
+	}
+
 	/* Read the storage pools */
 	err = SetupStorageDriver(d.State(), false)
 	if err != nil {
