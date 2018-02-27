@@ -2458,7 +2458,7 @@ Return:
 
     {
         "server_name": "node1",
-		"enabled": true,
+        "enabled": true,
     }
 
 ### PUT
@@ -2472,7 +2472,7 @@ Input (bootstrap a new cluster):
 
     {
         "server_name": "lxd1",
-		"enabled": true,
+        "enabled": true,
     }
 
 Return background operation or standard error.
@@ -2481,7 +2481,7 @@ Input (request to join an existing cluster):
 
     {
         "server_name": "node2",
-		"enabled": true,
+        "enabled": true,
         "cluster_address": "10.1.1.101:8443",
         "cluster_cert": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
     }
@@ -2489,7 +2489,7 @@ Input (request to join an existing cluster):
 Input (disable clustering on the node):
 
     {
-		"enabled": false,
+        "enabled": false,
     }
 
 ## `/1.0/cluster/members`
