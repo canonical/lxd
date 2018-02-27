@@ -14,6 +14,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -244,16 +245,20 @@ func (c *listCmd) listContainers(conf *config.Config, remote string, cinfos []ap
 	for i := 0; i < threads; i++ {
 		cStatesWg.Add(1)
 		go func() {
-			d, err := conf.GetContainerServer(remote)
-			if err != nil {
-				cStatesWg.Done()
-				return
-			}
-
+			var d lxd.ContainerServer
+			var err error
 			for {
 				cName, more := <-cStatesQueue
 				if !more {
 					break
+				}
+
+				if d == nil {
+					d, err = conf.GetContainerServer(remote)
+					if err != nil {
+						cStatesWg.Done()
+						return
+					}
 				}
 
 				state, _, err := d.GetContainerState(cName)
@@ -270,16 +275,21 @@ func (c *listCmd) listContainers(conf *config.Config, remote string, cinfos []ap
 
 		cSnapshotsWg.Add(1)
 		go func() {
-			d, err := conf.GetContainerServer(remote)
-			if err != nil {
-				cSnapshotsWg.Done()
-				return
-			}
-
+			var d lxd.ContainerServer
+			var err error
 			for {
 				cName, more := <-cSnapshotsQueue
 				if !more {
 					break
+				}
+
+				if d == nil {
+					d, err = conf.GetContainerServer(remote)
+					if err != nil {
+						cSnapshotsWg.Done()
+						return
+					}
+
 				}
 
 				snaps, err := d.GetContainerSnapshots(cName)
