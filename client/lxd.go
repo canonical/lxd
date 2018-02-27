@@ -35,6 +35,8 @@ type ProtocolLXD struct {
 	bakeryClient         *httpbakery.Client
 	bakeryInteractor     httpbakery.Interactor
 	requireAuthenticated bool
+
+	clusterTarget string
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server
@@ -48,7 +50,7 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 		urls = append(urls, r.httpHost)
 	}
 
-	if len(r.server.Environment.Addresses) > 0 {
+	if r.server != nil && len(r.server.Environment.Addresses) > 0 {
 		for _, addr := range r.server.Environment.Addresses {
 			url := fmt.Sprintf("https://%s", addr)
 			if !shared.StringInSlice(url, urls) {
@@ -108,6 +110,12 @@ func (r *ProtocolLXD) RawQuery(method string, path string, data interface{}, ETa
 // This should only be used by internal LXD tools.
 func (r *ProtocolLXD) RawWebsocket(path string) (*websocket.Conn, error) {
 	return r.websocket(path)
+}
+
+// RawOperation allows direct querying of a LXD API endpoint returning
+// background operations.
+func (r *ProtocolLXD) RawOperation(method string, path string, data interface{}, ETag string) (*Operation, string, error) {
+	return r.queryOperation(method, path, data, ETag)
 }
 
 // Internal functions

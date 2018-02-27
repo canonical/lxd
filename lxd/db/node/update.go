@@ -84,9 +84,65 @@ var updates = map[int]schema.Update{
 	34: updateFromV33,
 	35: updateFromV34,
 	36: updateFromV35,
+	37: updateFromV36,
 }
 
+// UpdateFromPreClustering is the last schema version where clustering support
+// was not available, and hence no cluster dqlite database is used.
+const UpdateFromPreClustering = 36
+
 // Schema updates begin here
+
+// Add a raft_nodes table to be used when running in clustered mode. It lists
+// the current nodes in the LXD cluster that are participating to the dqlite
+// database Raft cluster.
+//
+// The 'id' column contains the raft server ID of the database node, and the
+// 'address' column its network address. Both are used internally by the raft
+// Go package to manage the cluster.
+//
+// Typical setups will have 3 LXD cluster nodes that participate to the dqlite
+// database Raft cluster, and an arbitrary number of additional LXD cluster
+// nodes that don't. Non-database nodes are not tracked in this table, but rather
+// in the nodes table of the cluster database itself.
+//
+// The data in this table must be replicated by LXD on all nodes of the
+// cluster, regardless of whether they are part of the raft cluster or not, and
+// all nodes will consult this table when they need to find out a leader to
+// send SQL queries to.
+func updateFromV36(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE raft_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    address TEXT NOT NULL,
+    UNIQUE (address)
+);
+DELETE FROM config WHERE NOT key='core.https_address';
+DROP TABLE certificates;
+DROP TABLE containers_devices_config;
+DROP TABLE containers_devices;
+DROP TABLE containers_config;
+DROP TABLE containers_profiles;
+DROP TABLE containers;
+DROP TABLE images_aliases;
+DROP TABLE images_properties;
+DROP TABLE images_source;
+DROP TABLE images;
+DROP TABLE networks_config;
+DROP TABLE networks;
+DROP TABLE profiles_devices_config;
+DROP TABLE profiles_devices;
+DROP TABLE profiles_config;
+DROP TABLE profiles;
+DROP TABLE storage_volumes_config;
+DROP TABLE storage_volumes;
+DROP TABLE storage_pools_config;
+DROP TABLE storage_pools;
+`
+	_, err := tx.Exec(stmts)
+	return err
+}
+
 func updateFromV35(tx *sql.Tx) error {
 	stmts := `
 CREATE TABLE tmp (

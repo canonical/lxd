@@ -29,8 +29,8 @@ import (
 
 var networkStaticLock sync.Mutex
 
-func networkAutoAttach(db *db.Node, devName string) error {
-	_, dbInfo, err := db.NetworkGetInterface(devName)
+func networkAutoAttach(cluster *db.Cluster, devName string) error {
+	_, dbInfo, err := cluster.NetworkGetInterface(devName)
 	if err != nil {
 		// No match found, move on
 		return nil
@@ -77,8 +77,8 @@ func networkDetachInterface(netName string, devName string) error {
 	return nil
 }
 
-func networkGetInterfaces(db *db.Node) ([]string, error) {
-	networks, err := db.Networks()
+func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
+	networks, err := cluster.Networks()
 	if err != nil {
 		return nil, err
 	}
@@ -744,7 +744,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	defer networkStaticLock.Unlock()
 
 	// Get all the containers
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -753,7 +753,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	var networks []string
 	if networkName == "" {
 		var err error
-		networks, err = s.DB.Networks()
+		networks, err = s.Cluster.Networks()
 		if err != nil {
 			return err
 		}

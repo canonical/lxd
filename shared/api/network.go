@@ -38,6 +38,10 @@ type Network struct {
 
 	// API extension: network
 	Managed bool `json:"managed" yaml:"managed"`
+
+	// API extension: clustering
+	Status    string   `json:"status" yaml:"status"`
+	Locations []string `json:"locations" yaml:"locations"`
 }
 
 // Writable converts a full Network struct into a NetworkPut struct (filters read-only fields)

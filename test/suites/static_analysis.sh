@@ -21,9 +21,8 @@ test_static_analysis() {
       echo "shellcheck not found, shell static analysis disabled"
     fi
 
-    # Go static analysis
     ## Functions starting by empty line
-    OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" || true)
+    OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: Functions must not start with an empty line: ${OUT}"
       false
@@ -75,7 +74,7 @@ test_static_analysis() {
       golint -set_exit_status lxd/debug
       golint -set_exit_status lxd/endpoints
       golint -set_exit_status lxd/maas
-      golint -set_exit_status lxd/migration
+      #golint -set_exit_status lxd/migration
       golint -set_exit_status lxd/node
       golint -set_exit_status lxd/state
       golint -set_exit_status lxd/sys

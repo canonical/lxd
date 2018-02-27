@@ -6,13 +6,18 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/util"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -26,6 +31,7 @@ type cmdInitTestSuite struct {
 }
 
 func (suite *cmdInitTestSuite) SetupTest() {
+	logging.Testing(suite.T())
 	suite.lxdTestSuite.SetupTest()
 	suite.streams = cmd.NewMemoryStreams("")
 	suite.context = cmd.NewMemoryContext(suite.streams)
@@ -37,9 +43,9 @@ func (suite *cmdInitTestSuite) SetupTest() {
 		Context:         suite.context,
 		Args:            suite.args,
 		RunningInUserns: false,
-		SocketPath:      filepath.Join(shared.VarPath(), "unix.socket"),
+		VarDir:          shared.VarPath(),
 	}
-	client, err := lxd.ConnectLXDUnix(suite.command.SocketPath, nil)
+	client, err := lxd.ConnectLXDUnix(filepath.Join(shared.VarPath(), "unix.socket"), nil)
 	suite.Req.Nil(err)
 	suite.client = client
 }
@@ -87,10 +93,16 @@ func (suite *cmdInitTestSuite) TestCmdInit_PreseedHTTPSAddressAndTrustPassword()
 `, port))
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["core.https_address"]
-	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
-	secret := daemonConfig["core.trust_password"].Get()
-	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
+	address, err := node.HTTPSAddress(suite.d.db)
+	suite.Req.NoError(err)
+	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), address)
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Nil(util.PasswordCheck(config.TrustPassword(), "sekret"))
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // Input network address and trust password interactively.
@@ -109,10 +121,89 @@ func (suite *cmdInitTestSuite) TestCmdInit_InteractiveHTTPSAddressAndTrustPasswo
 
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["core.https_address"]
-	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
-	secret := daemonConfig["core.trust_password"].Get()
-	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
+	address, err := node.HTTPSAddress(suite.d.db)
+	suite.Req.NoError(err)
+	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), address)
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Nil(util.PasswordCheck(config.TrustPassword(), "sekret"))
+		return nil
+	})
+	suite.Req.NoError(err)
+}
+
+// Enable clustering interactively.
+func (suite *cmdInitTestSuite) TestCmdInit_InteractiveClustering() {
+	suite.command.PasswordReader = func(int) ([]byte, error) {
+		return []byte("sekret"), nil
+	}
+	port, err := shared.AllocatePort()
+	suite.Req.Nil(err)
+	answers := &cmdInitAnswers{
+		WantClustering: true,
+		ClusterName:    "buzz",
+		ClusterAddress: fmt.Sprintf("127.0.0.1:%d", port),
+	}
+	answers.Render(suite.streams)
+
+	suite.Req.Nil(suite.command.Run())
+	state := suite.d.State()
+	certfile := filepath.Join(state.OS.VarDir, "cluster.crt")
+	suite.Req.True(shared.PathExists(certfile))
+}
+
+// Enable clustering interactively, joining an existing cluser.
+func (suite *cmdInitTestSuite) DISABLED_TestCmdInit_InteractiveClusteringJoin() {
+	leader, cleanup := newDaemon(suite.T())
+	defer cleanup()
+
+	f := clusterFixture{t: suite.T()}
+	f.FormCluster([]*Daemon{leader})
+
+	network := api.NetworksPost{
+		Name:    "mybr",
+		Type:    "bridge",
+		Managed: true,
+	}
+	network.Config = map[string]string{
+		"ipv4.nat": "true",
+	}
+	client := f.ClientUnix(leader)
+	suite.Req.NoError(client.CreateNetwork(network))
+
+	pool := api.StoragePoolsPost{
+		Name:   "mypool",
+		Driver: "dir",
+	}
+	pool.Config = map[string]string{
+		"source": "",
+	}
+	suite.Req.NoError(client.CreateStoragePool(pool))
+
+	suite.command.PasswordReader = func(int) ([]byte, error) {
+		return []byte("sekret"), nil
+	}
+	port, err := shared.AllocatePort()
+	suite.Req.NoError(err)
+	answers := &cmdInitAnswers{
+		WantClustering:           true,
+		ClusterName:              "rusp",
+		ClusterAddress:           fmt.Sprintf("127.0.0.1:%d", port),
+		WantJoinCluster:          true,
+		ClusterTargetNodeAddress: leader.endpoints.NetworkAddress(),
+		ClusterConfirmLosingData: true,
+		ClusterConfig: []string{
+			"", // storage source
+			"", // bridge.external_interfaces
+		},
+	}
+	answers.Render(suite.streams)
+
+	suite.Req.Nil(suite.command.Run())
+	state := suite.d.State()
+	certfile := filepath.Join(state.OS.VarDir, "cluster.crt")
+	suite.Req.True(shared.PathExists(certfile))
 }
 
 // Pass network address and trust password via command line arguments.
@@ -127,10 +218,16 @@ func (suite *cmdInitTestSuite) TestCmdInit_AutoHTTPSAddressAndTrustPassword() {
 
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["core.https_address"]
-	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), key.Get())
-	secret := daemonConfig["core.trust_password"].Get()
-	suite.Req.Nil(util.PasswordCheck(secret, "sekret"))
+	address, err := node.HTTPSAddress(suite.d.db)
+	suite.Req.NoError(err)
+	suite.Req.Equal(fmt.Sprintf("127.0.0.1:%d", port), address)
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Nil(util.PasswordCheck(config.TrustPassword(), "sekret"))
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // The images auto-update interval can be interactively set by simply accepting
@@ -143,15 +240,25 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateAnswerYes() {
 
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["images.auto_update_interval"]
-	suite.Req.Equal("6", key.Get())
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(6*time.Hour, config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // If the images auto-update interval value is already set to non-zero, it
 // won't be overwritten.
 func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateNoOverwrite() {
-	key, _ := daemonConfig["images.auto_update_interval"]
-	err := key.Set(suite.d, "10")
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		_, err = config.Patch(map[string]interface{}{"images.auto_update_interval": "10"})
+		suite.Req.NoError(err)
+		return nil
+	})
 	suite.Req.Nil(err)
 
 	answers := &cmdInitAnswers{
@@ -161,7 +268,13 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateNoOverwrite() {
 
 	suite.Req.Nil(suite.command.Run())
 
-	suite.Req.Equal("10", key.Get())
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(10*time.Hour, config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // If an invalid backend type is passed with --storage-backend, an
@@ -217,15 +330,26 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateAnswerNo() {
 
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["images.auto_update_interval"]
-	suite.Req.Equal("0", key.Get())
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(time.Duration(0), config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // If the user answers "no" to the images auto-update question, the value will
 // be set to 0, even it was already set to some value.
 func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateOverwriteIfZero() {
-	key, _ := daemonConfig["images.auto_update_interval"]
-	key.Set(suite.d, "10")
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		_, err = config.Patch(map[string]interface{}{"images.auto_update_interval": "10"})
+		suite.Req.NoError(err)
+		return nil
+	})
+	suite.Req.Nil(err)
 
 	answers := &cmdInitAnswers{
 		WantImageAutoUpdate: false,
@@ -233,7 +357,14 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdateOverwriteIfZero() {
 	answers.Render(suite.streams)
 
 	suite.Req.Nil(suite.command.Run())
-	suite.Req.Equal("0", key.Get())
+
+	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(time.Duration(0), config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // Preseed the image auto-update interval.
@@ -244,8 +375,13 @@ func (suite *cmdInitTestSuite) TestCmdInit_ImagesAutoUpdatePreseed() {
 `)
 	suite.Req.Nil(suite.command.Run())
 
-	key, _ := daemonConfig["images.auto_update_interval"]
-	suite.Req.Equal("15", key.Get())
+	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := cluster.ConfigLoad(tx)
+		suite.Req.NoError(err)
+		suite.Req.Equal(15*time.Hour, config.AutoUpdateInterval())
+		return nil
+	})
+	suite.Req.NoError(err)
 }
 
 // If --storage-backend is set to "dir" a storage pool is created.
@@ -313,8 +449,9 @@ storage_pools:
 	_, _, err = suite.client.GetStoragePool("second")
 	suite.Req.Equal("not found", err.Error())
 
-	key, _ := daemonConfig["images.auto_update_interval"]
-	suite.Req.NotEqual("15", key.Get())
+	interval, err := cluster.ConfigGetInt64(suite.d.cluster, "images.auto_update_interval")
+	suite.Req.NoError(err)
+	suite.Req.NotEqual(int64(15), interval)
 }
 
 // Updating a storage pool via preseed will fail, since it's not supported
@@ -631,6 +768,13 @@ func (suite *cmdInitTestSuite) TestCmdInit_ProfilesPreseedUpdate() {
 // Convenience for building the input text a user would enter for a certain
 // sequence of answers.
 type cmdInitAnswers struct {
+	WantClustering           bool
+	ClusterName              string
+	ClusterAddress           string
+	WantJoinCluster          bool
+	ClusterTargetNodeAddress string
+	ClusterConfirmLosingData bool
+	ClusterConfig            []string
 	WantStoragePool          bool
 	WantAvailableOverNetwork bool
 	BindToAddress            string
@@ -645,8 +789,23 @@ type cmdInitAnswers struct {
 // Render the input text the user would type for the desired answers, populating
 // the stdin of the given streams.
 func (answers *cmdInitAnswers) Render(streams *cmd.MemoryStreams) {
+	streams.InputAppendBoolAnswer(answers.WantClustering)
+	if answers.WantClustering {
+		streams.InputAppendLine(answers.ClusterName)
+		streams.InputAppendLine(answers.ClusterAddress)
+		streams.InputAppendBoolAnswer(answers.WantJoinCluster)
+		if answers.WantJoinCluster {
+			streams.InputAppendLine(answers.ClusterTargetNodeAddress)
+			streams.InputAppendBoolAnswer(answers.ClusterConfirmLosingData)
+			for _, value := range answers.ClusterConfig {
+				streams.InputAppendLine(value)
+			}
+		}
+	}
 	streams.InputAppendBoolAnswer(answers.WantStoragePool)
-	streams.InputAppendBoolAnswer(answers.WantAvailableOverNetwork)
+	if !answers.WantClustering {
+		streams.InputAppendBoolAnswer(answers.WantAvailableOverNetwork)
+	}
 	if answers.WantAvailableOverNetwork {
 		streams.InputAppendLine(answers.BindToAddress)
 		streams.InputAppendLine(answers.BindToPort)

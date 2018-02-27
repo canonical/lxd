@@ -70,6 +70,9 @@ type Container struct {
 
 	// API extension: container_last_used_at
 	LastUsedAt time.Time `json:"last_used_at" yaml:"last_used_at"`
+
+	// API extension: clustering
+	Location string `json:"location" yaml:"location"`
 }
 
 // Writable converts a full Container struct into a ContainerPut struct (filters read-only fields)

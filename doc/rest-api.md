@@ -217,6 +217,9 @@ won't work and PUT needs to be used instead.
          * `/1.0/storage-pools/<name>/volumes`
            * `/1.0/storage-pools/<name>/volumes/<volume type>/<volume>`
      * `/1.0/resources`
+     * `/1.0/cluster`
+       * `/1.0/cluster/members`
+         * `/1.0/cluster/members/<name>`
 
 # API details
 ## `/`
@@ -2441,4 +2444,108 @@ Return:
                 "total": 8271765504
             }
         }
+    }
+
+## `/1.0/cluster`
+### GET
+ * Description: information about a cluster (such as networks and storage pools)
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted or untrusted
+ * Operation: sync
+ * Return: dict representing a cluster
+
+Return:
+
+    {
+        "server_name": "node1",
+        "enabled": true,
+    }
+
+### PUT
+ * Description: bootstrap or join a cluster, or disable clustering on this node
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync or async
+ * Return: various payloads depending on the input
+
+Input (bootstrap a new cluster):
+
+    {
+        "server_name": "lxd1",
+        "enabled": true,
+    }
+
+Return background operation or standard error.
+
+Input (request to join an existing cluster):
+
+    {
+        "server_name": "node2",
+        "enabled": true,
+        "cluster_address": "10.1.1.101:8443",
+        "cluster_certificate": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
+    }
+
+Input (disable clustering on the node):
+
+    {
+        "enabled": false,
+    }
+
+## `/1.0/cluster/members`
+### GET
+ * Description: list of LXD members in the cluster
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of cluster members
+
+Return:
+
+    [
+        "/1.0/cluster/members/lxd1",
+        "/1.0/cluster/members/lxd2"
+    ]
+
+## `/1.0/cluster/members/<name>`
+### GET
+ * Description: retrieve the member's information and status
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the member
+
+Return:
+
+    {
+        "name": "lxd1",
+        "url": "https://10.1.1.101:8443",
+        "database": true,
+        "state": "Online"
+    }
+
+## `/1.0/cluster/members/<name>`
+### POST
+ * Description: rename a cluster member
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "server_name": "node1",
+    }
+
+### DELETE (optional `?force=1`)
+ * Description: remove a member of the cluster
+ * Introduced: with API extension `clustering`
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input (none at present):
+
+    {
     }

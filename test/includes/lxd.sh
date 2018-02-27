@@ -26,9 +26,14 @@ spawn_lxd() {
         exit 1
     fi
 
-    # Copy pre generated Certs
-    cp deps/server.crt "${lxddir}"
-    cp deps/server.key "${lxddir}"
+    # Copy pre generated Certs (either the default one or an alternate one)
+    if [ "${LXD_ALT_CERT}" = "" ]; then
+        cp deps/server.crt "${lxddir}"
+        cp deps/server.key "${lxddir}"
+    else
+        cp deps/server-alt.crt "${lxddir}"
+        cp deps/server-alt.key "${lxddir}"
+    fi
 
     # setup storage
     "$lxd_backend"_setup "${lxddir}"
@@ -36,7 +41,14 @@ spawn_lxd() {
 
     echo "==> Spawning lxd in ${lxddir}"
     # shellcheck disable=SC2086
-    LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" ${DEBUG-} "$@" 2>&1 &
+
+    if [ "${LXD_NETNS}" = "" ]; then
+        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    else
+        # shellcheck disable=SC2153
+        pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
+        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     # shellcheck disable=SC2153
@@ -46,15 +58,17 @@ spawn_lxd() {
     echo "==> Confirming lxd is responsive"
     LXD_DIR="${lxddir}" lxd waitready --timeout=300
 
-    echo "==> Binding to network"
-    # shellcheck disable=SC2034
-    for i in $(seq 10); do
-        addr="127.0.0.1:$(local_tcp_port)"
-        LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}" || continue
-        echo "${addr}" > "${lxddir}/lxd.addr"
-        echo "==> Bound to ${addr}"
-        break
-    done
+    if [ "${LXD_NETNS}" = "" ]; then
+        echo "==> Binding to network"
+        # shellcheck disable=SC2034
+        for i in $(seq 10); do
+            addr="127.0.0.1:$(local_tcp_port)"
+            LXD_DIR="${lxddir}" lxc config set core.https_address "${addr}" || continue
+            echo "${addr}" > "${lxddir}/lxd.addr"
+            echo "==> Bound to ${addr}"
+            break
+        done
+    fi
 
     echo "==> Setting trust password"
     LXD_DIR="${lxddir}" lxc config set core.trust_password foo
@@ -62,8 +76,10 @@ spawn_lxd() {
         set -x
     fi
 
-    echo "==> Setting up networking"
-    LXD_DIR="${lxddir}" lxc profile device add default eth0 nic nictype=p2p name=eth0
+    if [ "${LXD_NETNS}" = "" ]; then
+        echo "==> Setting up networking"
+        LXD_DIR="${lxddir}" lxc profile device add default eth0 nic nictype=p2p name=eth0
+    fi
 
     if [ "${storage}" = true ]; then
         echo "==> Configuring storage backend"
@@ -82,15 +98,25 @@ respawn_lxd() {
     lxddir=${1}
     shift
 
+    wait=${1}
+    shift
+
     echo "==> Spawning lxd in ${lxddir}"
     # shellcheck disable=SC2086
-    LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" ${DEBUG-} "$@" 2>&1 &
+    if [ "${LXD_NETNS}" = "" ]; then
+        LXD_DIR="${lxddir}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    else
+        pid="$(cat "${TEST_DIR}/ns/${LXD_NETNS}/PID")"
+        LXD_DIR="${lxddir}" nsenter -n -m -t "${pid}" lxd --logfile "${lxddir}/lxd.log" "${DEBUG-}" "$@" 2>&1 &
+    fi
     LXD_PID=$!
     echo "${LXD_PID}" > "${lxddir}/lxd.pid"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
-    echo "==> Confirming lxd is responsive"
-    LXD_DIR="${lxddir}" lxd waitready --timeout=300
+    if [ "${wait}" = true ]; then
+        echo "==> Confirming lxd is responsive"
+        LXD_DIR="${lxddir}" lxd waitready --timeout=300
+    fi
 }
 
 kill_lxd() {
@@ -174,32 +200,37 @@ kill_lxd() {
         check_empty "${daemon_dir}/shmounts/"
         check_empty "${daemon_dir}/snapshots/"
 
-        echo "==> Checking for leftover DB entries"
-        check_empty_table "${daemon_dir}/lxd.db" "containers"
-        check_empty_table "${daemon_dir}/lxd.db" "containers_config"
-        check_empty_table "${daemon_dir}/lxd.db" "containers_devices"
-        check_empty_table "${daemon_dir}/lxd.db" "containers_devices_config"
-        check_empty_table "${daemon_dir}/lxd.db" "containers_profiles"
-        check_empty_table "${daemon_dir}/lxd.db" "networks"
-        check_empty_table "${daemon_dir}/lxd.db" "networks_config"
-        check_empty_table "${daemon_dir}/lxd.db" "images"
-        check_empty_table "${daemon_dir}/lxd.db" "images_aliases"
-        check_empty_table "${daemon_dir}/lxd.db" "images_properties"
-        check_empty_table "${daemon_dir}/lxd.db" "images_source"
-        check_empty_table "${daemon_dir}/lxd.db" "profiles"
-        check_empty_table "${daemon_dir}/lxd.db" "profiles_config"
-        check_empty_table "${daemon_dir}/lxd.db" "profiles_devices"
-        check_empty_table "${daemon_dir}/lxd.db" "profiles_devices_config"
-        check_empty_table "${daemon_dir}/lxd.db" "storage_pools"
-        check_empty_table "${daemon_dir}/lxd.db" "storage_pools_config"
-        check_empty_table "${daemon_dir}/lxd.db" "storage_volumes"
-        check_empty_table "${daemon_dir}/lxd.db" "storage_volumes_config"
+        echo "==> Checking for leftover cluster DB entries"
+        # FIXME: we should not use the command line sqlite client, since it's
+        #        not compatible with dqlite
+        check_empty_table "${daemon_dir}/raft/db.bin" "containers"
+        check_empty_table "${daemon_dir}/raft/db.bin" "containers_config"
+        check_empty_table "${daemon_dir}/raft/db.bin" "containers_devices"
+        check_empty_table "${daemon_dir}/raft/db.bin" "containers_devices_config"
+        check_empty_table "${daemon_dir}/raft/db.bin" "containers_profiles"
+        check_empty_table "${daemon_dir}/raft/db.bin" "images"
+        check_empty_table "${daemon_dir}/raft/db.bin" "images_aliases"
+        check_empty_table "${daemon_dir}/raft/db.bin" "images_properties"
+        check_empty_table "${daemon_dir}/raft/db.bin" "images_source"
+        check_empty_table "${daemon_dir}/raft/db.bin" "images_nodes"
+        check_empty_table "${daemon_dir}/raft/db.bin" "networks"
+        check_empty_table "${daemon_dir}/raft/db.bin" "networks_config"
+        check_empty_table "${daemon_dir}/raft/db.bin" "profiles"
+        check_empty_table "${daemon_dir}/raft/db.bin" "profiles_config"
+        check_empty_table "${daemon_dir}/raft/db.bin" "profiles_devices"
+        check_empty_table "${daemon_dir}/raft/db.bin" "profiles_devices_config"
+        check_empty_table "${daemon_dir}/raft/db.bin" "storage_pools"
+        check_empty_table "${daemon_dir}/raft/db.bin" "storage_pools_nodes"
+        check_empty_table "${daemon_dir}/raft/db.bin" "storage_pools_config"
+        check_empty_table "${daemon_dir}/raft/db.bin" "storage_volumes"
+        check_empty_table "${daemon_dir}/raft/db.bin" "storage_volumes_config"
     fi
 
     # teardown storage
     "$lxd_backend"_teardown "${daemon_dir}"
 
     # Wipe the daemon directory
+    sleep 2
     wipe "${daemon_dir}"
 
     # Remove the daemon from the list
@@ -221,6 +252,10 @@ shutdown_lxd() {
 
     # Kill the daemon
     lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
+
+    # Wait for any cleanup activity that might be happening right
+    # after the websocket is closed.
+    sleep 2
 }
 
 wait_for() {
@@ -274,6 +309,10 @@ cleanup_lxds() {
     if [ -e "/sys/class/net/lxdt$$" ]; then
         ip link del lxdt$$
     fi
+
+    # Cleanup clustering networking, if any
+    teardown_clustering_netns
+    teardown_clustering_bridge
 
     # Wipe the test environment
     wipe "$test_dir"

@@ -28,6 +28,8 @@ var apiInternal = []Command{
 	internalContainerOnStartCmd,
 	internalContainerOnStopCmd,
 	internalContainersCmd,
+	internalSQLCmd,
+	internalClusterAcceptCmd,
 }
 
 func internalReady(d *Daemon, r *http.Request) Response {
@@ -41,7 +43,7 @@ func internalWaitReady(d *Daemon, r *http.Request) Response {
 }
 
 func internalShutdown(d *Daemon, r *http.Request) Response {
-	d.shutdownChan <- true
+	d.shutdownChan <- struct{}{}
 
 	return EmptySyncResponse
 }
@@ -91,10 +93,78 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
+type internalSQLPost struct {
+	Query string `json:"query" yaml:"query"`
+}
+
+type internalSQLResult struct {
+	Columns      []string        `json:"columns" yaml:"columns"`
+	Rows         [][]interface{} `json:"rows" yaml:"rows"`
+	RowsAffected int64           `json:"rows_affected" yaml:"rows_affected"`
+}
+
+func internalSQL(d *Daemon, r *http.Request) Response {
+	req := &internalSQLPost{}
+	// Parse the request.
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return BadRequest(err)
+	}
+	db := d.cluster.DB()
+	result := internalSQLResult{}
+	if strings.HasPrefix(strings.ToUpper(req.Query), "SELECT") {
+		rows, err := db.Query(req.Query)
+		if err != nil {
+			return SmartError(err)
+		}
+		defer rows.Close()
+		result.Columns, err = rows.Columns()
+		if err != nil {
+			return SmartError(err)
+		}
+		for rows.Next() {
+			row := make([]interface{}, len(result.Columns))
+			rowPointers := make([]interface{}, len(result.Columns))
+			for i := range row {
+				rowPointers[i] = &row[i]
+			}
+			err := rows.Scan(rowPointers...)
+			if err != nil {
+				return SmartError(err)
+			}
+			for i, column := range row {
+				// Convert bytes to string. This is safe as
+				// long as we don't have any BLOB column type.
+				data, ok := column.([]byte)
+				if ok {
+					row[i] = string(data)
+				}
+			}
+			result.Rows = append(result.Rows, row)
+		}
+		err = rows.Err()
+		if err != nil {
+			return SmartError(err)
+		}
+	} else {
+		r, err := db.Exec(req.Query)
+		if err != nil {
+			return SmartError(err)
+		}
+		result.RowsAffected, err = r.RowsAffected()
+		if err != nil {
+			return SmartError(err)
+		}
+
+	}
+	return SyncResponse(true, result)
+}
+
 var internalShutdownCmd = Command{name: "shutdown", put: internalShutdown}
 var internalReadyCmd = Command{name: "ready", put: internalReady, get: internalWaitReady}
 var internalContainerOnStartCmd = Command{name: "containers/{id}/onstart", get: internalContainerOnStart}
 var internalContainerOnStopCmd = Command{name: "containers/{id}/onstop", get: internalContainerOnStop}
+var internalSQLCmd = Command{name: "sql", post: internalSQL}
 
 func slurpBackupFile(path string) (*backupFile, error) {
 	data, err := ioutil.ReadFile(path)
@@ -188,7 +258,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	// Try to retrieve the storage pool the container supposedly lives on.
 	var poolErr error
-	poolID, pool, poolErr := d.db.StoragePoolGet(containerPoolName)
+	poolID, pool, poolErr := d.cluster.StoragePoolGet(containerPoolName)
 	if poolErr != nil {
 		if poolErr != db.NoSuchObjectError {
 			return SmartError(poolErr)
@@ -210,7 +280,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
-		poolID, err = d.db.StoragePoolGetID(containerPoolName)
+		poolID, err = d.cluster.StoragePoolGetID(containerPoolName)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -505,7 +575,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if a storage volume entry for the container already exists.
-	_, volume, ctVolErr := d.db.StoragePoolVolumeGetType(
+	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetType(
 		req.Name, storagePoolVolumeTypeContainer, poolID)
 	if ctVolErr != nil {
 		if ctVolErr != db.NoSuchObjectError {
@@ -520,7 +590,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if an entry for the container already exists in the db.
-	_, containerErr := d.db.ContainerId(req.Name)
+	_, containerErr := d.cluster.ContainerId(req.Name)
 	if containerErr != nil {
 		if containerErr != sql.ErrNoRows {
 			return SmartError(containerErr)
@@ -555,7 +625,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := d.db.StoragePoolVolumeDelete(req.Name,
+		err := d.cluster.StoragePoolVolumeDelete(req.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return SmartError(err)
@@ -565,7 +635,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if containerErr == nil {
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := d.db.ContainerRemove(req.Name)
+		err := d.cluster.ContainerRemove(req.Name)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -573,7 +643,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	for _, snap := range existingSnapshots {
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := d.db.ContainerId(snap.Name)
+		_, snapErr := d.cluster.ContainerId(snap.Name)
 		if snapErr != nil {
 			if snapErr != sql.ErrNoRows {
 				return SmartError(snapErr)
@@ -588,7 +658,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.db.StoragePoolVolumeGetType(snap.Name,
+		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetType(snap.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
 			if csVolErr != db.NoSuchObjectError {
@@ -604,14 +674,14 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		if snapErr == nil {
-			err := d.db.ContainerRemove(snap.Name)
+			err := d.cluster.ContainerRemove(snap.Name)
 			if err != nil {
 				return SmartError(err)
 			}
 		}
 
 		if csVolErr == nil {
-			err := d.db.StoragePoolVolumeDelete(snap.Name,
+			err := d.cluster.StoragePoolVolumeDelete(snap.Name,
 				storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				return SmartError(err)

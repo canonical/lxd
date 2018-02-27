@@ -115,6 +115,9 @@ func (c *infoCmd) containerInfo(d lxd.ContainerServer, remote config.Remote, nam
 	const layout = "2006/01/02 15:04 UTC"
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
+	if ct.Location != "" {
+		fmt.Printf(i18n.G("Location: %s")+"\n", ct.Location)
+	}
 	if remote.Addr != "" {
 		fmt.Printf(i18n.G("Remote: %s")+"\n", remote.Addr)
 	}

@@ -24,6 +24,12 @@ if [ -z "${LXD_BACKEND:-}" ]; then
     LXD_BACKEND="dir"
 fi
 
+# shellcheck disable=SC2034
+LXD_NETNS=""
+
+# shellcheck disable=SC2034
+LXD_ALT_CERT=""
+
 import_subdir_files() {
     test "$1"
     # shellcheck disable=SC2039
@@ -192,6 +198,11 @@ run_test test_macaroon_auth "macaroon authentication"
 run_test test_console "console"
 run_test test_proxy_device "proxy device"
 run_test test_storage_local_volume_handling "storage local volume handling"
+run_test test_clustering_membership "clustering membership"
+run_test test_clustering_containers "clustering containers"
+run_test test_clustering_storage "clustering storage"
+run_test test_clustering_network "clustering network"
+#run_test test_clustering_upgrade "clustering upgrade"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success

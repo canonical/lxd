@@ -71,7 +71,11 @@ func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (*Operation,
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", "/containers", container, "")
+	path := "/containers"
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
+	}
+	op, _, err := r.queryOperation("POST", path, container, "")
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +250,7 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 	}
 
 	// Optimization for the local copy case
-	if r == source {
+	if r == source && r.clusterTarget == "" {
 		// Local copy source fields
 		req.Source.Type = "copy"
 		req.Source.Source = container.Name
@@ -956,7 +960,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 	}
 
 	// Optimization for the local copy case
-	if r == source {
+	if r == source && r.clusterTarget == "" {
 		// Local copy source fields
 		req.Source.Type = "copy"
 		req.Source.Source = snapshot.Name

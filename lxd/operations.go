@@ -9,8 +9,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -62,6 +66,8 @@ type operation struct {
 
 	// Locking for concurent access to the operation
 	lock sync.Mutex
+
+	cluster *db.Cluster
 }
 
 func (op *operation) done() {
@@ -87,6 +93,13 @@ func (op *operation) done() {
 
 		delete(operations, op.id)
 		operationsLock.Unlock()
+
+		err := op.cluster.Transaction(func(tx *db.ClusterTx) error {
+			return tx.OperationRemove(op.id)
+		})
+		if err != nil {
+			logger.Warnf("Failed to delete operation %s: %s", op.id, err)
+		}
 
 		/*
 		 * When we create a new lxc.Container, it adds a finalizer (via
@@ -374,7 +387,7 @@ func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 	return nil
 }
 
-func operationCreate(opClass operationClass, description string, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
+func operationCreate(cluster *db.Cluster, opClass operationClass, description string, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
 	// Main attributes
 	op := operation{}
 	op.id = uuid.NewRandom().String()
@@ -386,6 +399,7 @@ func operationCreate(opClass operationClass, description string, opResources map
 	op.url = fmt.Sprintf("/%s/operations/%s", version.APIVersion, op.id)
 	op.resources = opResources
 	op.chanDone = make(chan error)
+	op.cluster = cluster
 
 	newMetadata, err := shared.ParseMetadata(opMetadata)
 	if err != nil {
@@ -419,6 +433,14 @@ func operationCreate(opClass operationClass, description string, opResources map
 	operations[op.id] = &op
 	operationsLock.Unlock()
 
+	err = op.cluster.Transaction(func(tx *db.ClusterTx) error {
+		_, err := tx.OperationAdd(op.id)
+		return err
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to add operation %s to database", op.id)
+	}
+
 	logger.Debugf("New %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
 	eventSend("operation", md)
@@ -442,14 +464,37 @@ func operationGet(id string) (*operation, error) {
 func operationAPIGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 
-	op, err := operationGet(id)
-	if err != nil {
-		return NotFound
-	}
+	var body *api.Operation
 
-	_, body, err := op.Render()
-	if err != nil {
-		return SmartError(err)
+	// First check the local cache, then the cluster database table.
+	op, err := operationGet(id)
+	if err == nil {
+		_, body, err = op.Render()
+		if err != nil {
+			return SmartError(err)
+		}
+	} else {
+		var address string
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			operation, err := tx.OperationByUUID(id)
+			if err != nil {
+				return err
+			}
+			address = operation.NodeAddress
+			return nil
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+		cert := d.endpoints.NetworkCert()
+		client, err := cluster.Connect(address, cert, false)
+		if err != nil {
+			return SmartError(err)
+		}
+		body, _, err = client.GetOperation(id)
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	return SyncResponse(true, body)
@@ -564,14 +609,67 @@ func (r *operationWebSocket) String() string {
 	return md.ID
 }
 
+type forwardedOperationWebSocket struct {
+	req    *http.Request
+	id     string
+	source *websocket.Conn // Connection to the node were the operation is running
+}
+
+func (r *forwardedOperationWebSocket) Render(w http.ResponseWriter) error {
+	target, err := shared.WebsocketUpgrader.Upgrade(w, r.req, nil)
+	if err != nil {
+		return err
+	}
+	<-shared.WebsocketProxy(r.source, target)
+	return nil
+}
+
+func (r *forwardedOperationWebSocket) String() string {
+	return r.id
+}
+
 func operationAPIWebsocketGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
+
+	// First check if the websocket is for a local operation from this
+	// node.
 	op, err := operationGet(id)
-	if err != nil {
-		return NotFound
+	if err == nil {
+		return &operationWebSocket{r, op}
 	}
 
-	return &operationWebSocket{r, op}
+	// Secondly check if the websocket is from an operation on another
+	// node, and, if so, proxy it.
+	secret := r.FormValue("secret")
+	if secret == "" {
+		return BadRequest(fmt.Errorf("missing secret"))
+	}
+
+	var address string
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		operation, err := tx.OperationByUUID(id)
+		if err != nil {
+			return err
+		}
+		address = operation.NodeAddress
+		return nil
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.Connect(address, cert, false)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	logger.Debugf("Forward operation websocket from node %s", address)
+	source, err := client.GetOperationWebsocket(id, secret)
+	if err != nil {
+		return SmartError(err)
+	}
+	return &forwardedOperationWebSocket{req: r, id: id, source: source}
 }
 
 var operationWebsocket = Command{name: "operations/{id}/websocket", untrustedGet: true, get: operationAPIWebsocketGet}

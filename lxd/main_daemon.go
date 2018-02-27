@@ -38,10 +38,9 @@ func cmdDaemon(args *Args) error {
 		}
 	}
 
-	c := &DaemonConfig{
-		Group: args.Group,
-	}
-
+	c := DefaultDaemonConfig()
+	c.Group = args.Group
+	c.Trace = args.Trace
 	d := NewDaemon(c, sys.DefaultOS())
 	err = d.Init()
 	if err != nil {
@@ -67,6 +66,7 @@ func cmdDaemon(args *Args) error {
 
 	case <-d.shutdownChan:
 		logger.Infof("Asked to shutdown by API, shutting down containers.")
+		d.Kill()
 		containersShutdown(s)
 		networkShutdown(s)
 	}

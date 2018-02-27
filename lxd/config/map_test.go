@@ -94,25 +94,6 @@ func TestLoad_Error(t *testing.T) {
 	}
 }
 
-// The triggers are applied only upon change, not at initial load.
-func TestLoad_ChangeTrigger(t *testing.T) {
-	schema := config.Schema{"foo": {}}
-	values := map[string]string{"foo": "bar"}
-	triggered := false
-	trigger := config.Trigger{
-		Key: "foo",
-		Func: func(value string) error {
-			triggered = true
-			return nil
-		},
-	}
-
-	_, err := config.Load(schema, values, trigger)
-	require.NoError(t, err)
-
-	assert.False(t, triggered)
-}
-
 // Changing a config Map mutates the initial values.
 func TestChange(t *testing.T) {
 	schema := config.Schema{
@@ -280,43 +261,6 @@ func TestMap_ChangeError(t *testing.T) {
 			assert.EqualError(t, err, c.message)
 		})
 	}
-}
-
-// Optional config change triggers can be specified at load time.
-func TestMap_ChangeTrigger(t *testing.T) {
-	schema := config.Schema{"foo": {}}
-	values := []string{}
-	trigger := config.Trigger{
-		Key: "foo",
-		Func: func(value string) error {
-			values = append(values, value)
-			return nil
-		},
-	}
-
-	m, err := config.Load(schema, nil, trigger)
-	require.NoError(t, err)
-
-	_, err = m.Change(map[string]interface{}{"foo": "bar"})
-	require.NoError(t, err)
-
-	assert.Equal(t, []string{"bar"}, values)
-}
-
-// Optional config change triggers can be specified at load time. If a trigger
-// returns an error, it gets added to the error list.
-func TestMap_ChangeTriggerError(t *testing.T) {
-	schema := config.Schema{"foo": {}}
-	trigger := config.Trigger{
-		Key:  "foo",
-		Func: func(value string) error { return fmt.Errorf("boom") },
-	}
-
-	m, err := config.Load(schema, nil, trigger)
-	require.NoError(t, err)
-
-	_, err = m.Change(map[string]interface{}{"foo": "bar"})
-	require.EqualError(t, err, "cannot set 'foo' to 'bar': boom")
 }
 
 // A Map dump contains only values that differ from their default. Hidden

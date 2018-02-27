@@ -16,6 +16,10 @@ type ServerEnvironment struct {
 	ServerVersion          string   `json:"server_version" yaml:"server_version"`
 	Storage                string   `json:"storage" yaml:"storage"`
 	StorageVersion         string   `json:"storage_version" yaml:"storage_version"`
+
+	// API extension: clustering
+	ServerClustered bool   `json:"server_clustered" yaml:"server_clustered"`
+	ServerName      string `json:"server_name" yaml:"server_name"`
 }
 
 // ServerPut represents the modifiable fields of a LXD server configuration
