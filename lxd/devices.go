@@ -817,7 +817,7 @@ func deviceUSBEvent(s *state.State, usb usbDevice) {
 func deviceEventListener(s *state.State) {
 	chNetlinkCPU, chNetlinkNetwork, chUSB, err := deviceNetlinkListener()
 	if err != nil {
-		logger.Errorf("scheduler: couldn't setup netlink listener")
+		logger.Errorf("scheduler: couldn't setup netlink listener: %v", err)
 		return
 	}
 
