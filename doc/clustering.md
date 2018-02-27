@@ -80,6 +80,7 @@ profiles:
       type: nic
 cluster:
   server_name: node1
+  enabled: true
 ```
 
 Then run `cat <preseed-file> | lxd init --preseed` and your first node
@@ -120,6 +121,7 @@ profiles:
       type: nic
 cluster:
   name: node2
+  enabled: true
   cluster_address: 10.55.60.171:8443
   cluster_cert: "-----BEGIN CERTIFICATE-----
 
