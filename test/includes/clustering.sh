@@ -118,7 +118,7 @@ spawn_lxd_and_bootstrap_cluster() {
   ns="${1}"
   bridge="${2}"
   LXD_DIR="${3}"
-  DEBUG="--debug" LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
+  LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
   sleep 1
   (
     set -e
@@ -160,7 +160,7 @@ spawn_lxd_and_join_cluster() {
   target="${5}"
   LXD_DIR="${6}"
 
-  DEBUG="--debug" LXD_ALT_CERT=1 LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
+  LXD_ALT_CERT=1 LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
   sleep 1
   (
     set -e
