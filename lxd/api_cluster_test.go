@@ -80,8 +80,8 @@ func TestCluster_Join(t *testing.T) {
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
 	cluster = api.ClusterPut{
-		ClusterAddress: address,
-		ClusterCert:    cert,
+		ClusterAddress:     address,
+		ClusterCertificate: cert,
 	}
 	cluster.ServerName = "rusp"
 	cluster.Enabled = true
@@ -173,8 +173,8 @@ func TestCluster_JoinUnauthorized(t *testing.T) {
 	cert := string(daemons[0].endpoints.NetworkPublicKey())
 	client = f.ClientUnix(daemons[1])
 	cluster = api.ClusterPut{
-		ClusterAddress: address,
-		ClusterCert:    cert,
+		ClusterAddress:     address,
+		ClusterCertificate: cert,
 	}
 	cluster.ServerName = "rusp"
 	cluster.Enabled = true
@@ -352,8 +352,8 @@ func (f *clusterFixture) FormCluster(daemons []*Daemon) {
 		f.RegisterCertificate(daemon, daemons[0], name, "sekret")
 		client = f.ClientUnix(daemon)
 		cluster := api.ClusterPut{
-			ClusterAddress: address,
-			ClusterCert:    cert,
+			ClusterAddress:     address,
+			ClusterCertificate: cert,
 		}
 		cluster.ServerName = name
 		cluster.Enabled = true

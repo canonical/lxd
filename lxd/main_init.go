@@ -291,7 +291,7 @@ func (cmd *CmdInit) fillDataWithClustering(data *cmdInitData, clustering *cmdIni
 	data.Cluster.ServerName = clustering.Name
 	data.Cluster.Enabled = true
 	data.Cluster.ClusterAddress = clustering.TargetAddress
-	data.Cluster.ClusterCert = string(clustering.TargetCert)
+	data.Cluster.ClusterCertificate = string(clustering.TargetCert)
 	data.ClusterPassword = clustering.TargetPassword
 }
 
@@ -588,7 +588,7 @@ func (cmd *CmdInit) initCluster(client lxd.ContainerServer, put api.ClusterPut, 
 				return nil, errors.Wrap(err, "failed to get joining node's server info")
 			}
 			err = cluster.SetupTrust(
-				server.Environment.Certificate, put.ClusterAddress, put.ClusterCert,
+				server.Environment.Certificate, put.ClusterAddress, put.ClusterCertificate,
 				password)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to register joining node's certificate")
