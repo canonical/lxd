@@ -90,6 +90,7 @@ func clusterPut(d *Daemon, r *http.Request) Response {
 	if req.ClusterAddress == "" {
 		return clusterPutBootstrap(d, req)
 	}
+
 	return clusterPutJoin(d, req)
 }
 
@@ -104,6 +105,9 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 	if err != nil {
 		return InternalError(err)
 	}
+
+	// Add the cluster flag from the agent
+	version.UserAgentFeatures([]string{"cluster"})
 
 	return OperationResponse(op)
 }
@@ -235,9 +239,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		if err != nil {
 			return err
 		}
-		return nil
 
+		// Add the cluster flag from the agent
+		version.UserAgentFeatures([]string{"cluster"})
+
+		return nil
 	}
+
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
@@ -289,6 +297,9 @@ func clusterPutDisable(d *Daemon) Response {
 	if err != nil {
 		return SmartError(err)
 	}
+
+	// Remove the cluster flag from the agent
+	version.UserAgentFeatures(nil)
 
 	return EmptySyncResponse
 }
