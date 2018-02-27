@@ -15,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -231,16 +232,19 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	// server/protocol/alias, regardless of whether it's stale or
 	// not (we can assume that it will be not *too* stale since
 	// auto-update is on).
-	interval := daemonConfig["images.auto_update_interval"].GetInt64()
+	interval, err := cluster.ConfigGetInt64(d.cluster, "images.auto_update_interval")
+	if err != nil {
+		return nil, err
+	}
 	if preferCached && interval > 0 && alias != fp {
-		cachedFingerprint, err := d.db.ImageSourceGetCachedFingerprint(server, protocol, alias)
+		cachedFingerprint, err := d.cluster.ImageSourceGetCachedFingerprint(server, protocol, alias)
 		if err == nil && cachedFingerprint != fp {
 			fp = cachedFingerprint
 		}
 	}
 
 	// Check if the image already exists (partial hash match)
-	_, imgInfo, err := d.db.ImageGet(fp, false, true)
+	_, imgInfo, err := d.cluster.ImageGet(fp, false, true)
 	if err == nil {
 		logger.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		info = imgInfo
@@ -251,13 +255,13 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 
 		// Get the ID of the target storage pool
-		poolID, err := d.db.StoragePoolGetID(storagePool)
+		poolID, err := d.cluster.StoragePoolGetID(storagePool)
 		if err != nil {
 			return nil, err
 		}
 
 		// Check if the image is already in the pool
-		poolIDs, err := d.db.ImageGetPools(info.Fingerprint)
+		poolIDs, err := d.cluster.ImageGetPools(info.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
@@ -294,7 +298,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		<-waitChannel
 
 		// Grab the database entry
-		_, imgInfo, err := d.db.ImageGet(fp, false, true)
+		_, imgInfo, err := d.cluster.ImageGet(fp, false, true)
 		if err != nil {
 			// Other download failed, lets try again
 			logger.Error("Other image download didn't succeed", log.Ctx{"image": fp})
@@ -515,7 +519,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Create the database entry
-	err = d.db.ImageInsert(info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.cluster.ImageInsert(info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
 		return nil, err
 	}
@@ -541,12 +545,12 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := d.db.ImageGet(fp, false, true)
+		id, _, err := d.cluster.ImageGet(fp, false, true)
 		if err != nil {
 			return nil, err
 		}
 
-		err = d.db.ImageSourceInsert(id, server, protocol, certificate, alias)
+		err = d.cluster.ImageSourceInsert(id, server, protocol, certificate, alias)
 		if err != nil {
 			return nil, err
 		}
@@ -562,7 +566,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 
 	// Mark the image as "cached" if downloading for a container
 	if forContainer {
-		err := d.db.ImageLastAccessInit(fp)
+		err := d.cluster.ImageLastAccessInit(fp)
 		if err != nil {
 			return nil, err
 		}

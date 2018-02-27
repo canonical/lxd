@@ -16,14 +16,14 @@ type Config struct {
 // ConfigLoad loads a new Config object with the current node-local configuration
 // values fetched from the database. An optional list of config value triggers
 // can be passed, each config key must have at most one trigger.
-func ConfigLoad(tx *db.NodeTx, triggers ...config.Trigger) (*Config, error) {
+func ConfigLoad(tx *db.NodeTx) (*Config, error) {
 	// Load current raw values from the database, any error is fatal.
 	values, err := tx.Config()
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch node config from database: %v", err)
 	}
 
-	m, err := config.SafeLoad(ConfigSchema, values, triggers...)
+	m, err := config.SafeLoad(ConfigSchema, values)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load node config: %v", err)
 	}
@@ -37,6 +37,12 @@ func (c *Config) HTTPSAddress() string {
 	return c.m.GetString("core.https_address")
 }
 
+// MAASMachine returns the MAAS machine this instance is associated with, if
+// any.
+func (c *Config) MAASMachine() string {
+	return c.m.GetString("maas.machine")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]interface{} {
@@ -44,12 +50,12 @@ func (c *Config) Dump() map[string]interface{} {
 }
 
 // Replace the current configuration with the given values.
-func (c *Config) Replace(values map[string]interface{}) error {
+func (c *Config) Replace(values map[string]interface{}) (map[string]string, error) {
 	return c.update(values)
 }
 
 // Patch changes only the configuration keys in the given map.
-func (c *Config) Patch(patch map[string]interface{}) error {
+func (c *Config) Patch(patch map[string]interface{}) (map[string]string, error) {
 	values := c.Dump() // Use current values as defaults
 	for name, value := range patch {
 		values[name] = value
@@ -57,18 +63,33 @@ func (c *Config) Patch(patch map[string]interface{}) error {
 	return c.update(values)
 }
 
-func (c *Config) update(values map[string]interface{}) error {
+// HTTPSAddress is a convenience for loading the node configuration and
+// returning the value of core.https_address.
+func HTTPSAddress(node *db.Node) (string, error) {
+	var config *Config
+	err := node.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		config, err = ConfigLoad(tx)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	return config.HTTPSAddress(), nil
+}
+
+func (c *Config) update(values map[string]interface{}) (map[string]string, error) {
 	changed, err := c.m.Change(values)
 	if err != nil {
-		return fmt.Errorf("invalid configuration changes: %s", err)
+		return nil, err
 	}
 
 	err = c.tx.UpdateConfig(changed)
 	if err != nil {
-		return fmt.Errorf("cannot persist confiuration changes: %v", err)
+		return nil, fmt.Errorf("cannot persist local configuration changes: %v", err)
 	}
 
-	return nil
+	return changed, nil
 }
 
 // ConfigSchema defines available server configuration keys.
@@ -76,30 +97,6 @@ var ConfigSchema = config.Schema{
 	// Network address for this LXD server.
 	"core.https_address": {},
 
-	// FIXME: Legacy node-level config values. Will be migrated to
-	//        cluster-config, but we need them here just to avoid
-	//        spurious errors in the logs
-	"core.https_allowed_headers":     {},
-	"core.https_allowed_methods":     {},
-	"core.https_allowed_origin":      {},
-	"core.https_allowed_credentials": {},
-	"core.proxy_http":                {},
-	"core.proxy_https":               {},
-	"core.proxy_ignore_hosts":        {},
-	"core.trust_password":            {},
-	"images.auto_update_cached":      {},
-	"images.auto_update_interval":    {},
-	"images.compression_algorithm":   {},
-	"images.remote_cache_expiry":     {},
-	"maas.api.key":                   {},
-	"maas.api.url":                   {},
-	"maas.machine":                   {},
-	"storage.lvm_fstype":             {},
-	"storage.lvm_mount_options":      {},
-	"storage.lvm_thinpool_name":      {},
-	"storage.lvm_vg_name":            {},
-	"storage.lvm_volume_size":        {},
-	"storage.zfs_pool_name":          {},
-	"storage.zfs_remove_snapshots":   {},
-	"storage.zfs_use_refquota":       {},
+	// MAAS machine this LXD instance is associated with.
+	"maas.machine": {},
 }

@@ -1,14 +1,10 @@
 package db
 
-import (
-	"database/sql"
-
-	"github.com/lxc/lxd/lxd/db/query"
-)
+import "github.com/lxc/lxd/lxd/db/query"
 
 // Config fetches all LXD node-level config keys.
 func (n *NodeTx) Config() (map[string]string, error) {
-	return query.SelectConfig(n.tx, "config")
+	return query.SelectConfig(n.tx, "config", "")
 }
 
 // UpdateConfig updates the given LXD node-level configuration keys in the
@@ -17,27 +13,19 @@ func (n *NodeTx) UpdateConfig(values map[string]string) error {
 	return query.UpdateConfig(n.tx, "config", values)
 }
 
-func ConfigValuesGet(db *sql.DB) (map[string]string, error) {
-	q := "SELECT key, value FROM config"
-	rows, err := dbQuery(db, q)
-	if err != nil {
-		return map[string]string{}, err
-	}
-	defer rows.Close()
-
-	results := map[string]string{}
-
-	for rows.Next() {
-		var key, value string
-		rows.Scan(&key, &value)
-		results[key] = value
-	}
-
-	return results, nil
+// Config fetches all LXD cluster config keys.
+func (c *ClusterTx) Config() (map[string]string, error) {
+	return query.SelectConfig(c.tx, "config", "")
 }
 
-func ConfigValueSet(db *sql.DB, key string, value string) error {
-	tx, err := begin(db)
+// UpdateConfig updates the given LXD cluster configuration keys in the
+// config table. Config keys set to empty values will be deleted.
+func (c *ClusterTx) UpdateConfig(values map[string]string) error {
+	return query.UpdateConfig(c.tx, "config", values)
+}
+
+func ConfigValueSet(cluster *Cluster, key string, value string) error {
+	tx, err := begin(cluster.db)
 	if err != nil {
 		return err
 	}

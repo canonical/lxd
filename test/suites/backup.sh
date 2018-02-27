@@ -17,8 +17,8 @@ test_container_import() {
     ! lxd import ctImport
     lxd import ctImport --force
     kill -9 "${pid}"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
     lxd import ctImport --force
     lxc start ctImport
     lxc delete --force ctImport
@@ -39,7 +39,7 @@ test_container_import() {
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill -9 "${pid}"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
@@ -51,7 +51,7 @@ test_container_import() {
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill -9 "${pid}"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
@@ -63,9 +63,9 @@ test_container_import() {
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill -9 "${pid}"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
@@ -77,10 +77,10 @@ test_container_import() {
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill -9 "${pid}"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport/snap0'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport/snap0'"
     lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0
@@ -98,9 +98,9 @@ test_container_import() {
     fi
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill -9 "${pid}"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
-    sqlite3 "${LXD_DIR}/lxd.db" "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
+    lxd sql "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
     ! lxd import ctImport
     lxd import ctImport --force
     lxc info ctImport | grep snap0

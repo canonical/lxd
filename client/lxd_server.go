@@ -52,6 +52,12 @@ func (r *ProtocolLXD) UpdateServer(server api.ServerPut, ETag string) error {
 
 // HasExtension returns true if the server supports a given API extension
 func (r *ProtocolLXD) HasExtension(extension string) bool {
+	// If no cached API information, just assume we're good
+	// This is needed for those rare cases where we must avoid a GetServer call
+	if r.server == nil {
+		return true
+	}
+
 	for _, entry := range r.server.APIExtensions {
 		if entry == extension {
 			return true
@@ -59,6 +65,11 @@ func (r *ProtocolLXD) HasExtension(extension string) bool {
 	}
 
 	return false
+}
+
+// IsClustered returns true if the server is part of a LXD cluster.
+func (r *ProtocolLXD) IsClustered() bool {
+	return r.server.Environment.ServerClustered
 }
 
 // GetServerResources returns the resources available to a given LXD server
@@ -76,4 +87,22 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	}
 
 	return &resources, nil
+}
+
+// UseTarget returns a client that will target a specific cluster member.
+// Use this member-specific operations such as specific container
+// placement, preparing a new storage pool or network, ...
+func (r *ProtocolLXD) UseTarget(name string) ContainerServer {
+	return &ProtocolLXD{
+		server:               r.server,
+		http:                 r.http,
+		httpCertificate:      r.httpCertificate,
+		httpHost:             r.httpHost,
+		httpProtocol:         r.httpProtocol,
+		httpUserAgent:        r.httpUserAgent,
+		bakeryClient:         r.bakeryClient,
+		bakeryInteractor:     r.bakeryInteractor,
+		requireAuthenticated: r.requireAuthenticated,
+		clusterTarget:        name,
+	}
 }

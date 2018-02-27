@@ -415,3 +415,31 @@ same and between storage pools.
 
 ## operation\_description
 Adds a "description" field to all operations.
+
+## clustering
+Clustering API for LXD.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/cluster`
+* `UPDATE /1.0/cluster`
+
+* `GET /1.0/cluster/members`
+
+* `GET /1.0/cluster/members/<name>`
+* `POST /1.0/cluster/members/<name>`
+* `DELETE /1.0/cluster/members/<name>`
+
+The following existing endpoints have been modified:
+
+ * `POST /1.0/containers` accepts a new target query parameter
+ * `POST /1.0/storage-pools` accepts a new target query parameter
+ * `GET /1.0/storage-pool/<name>` accepts a new target query parameter
+ * `POST /1.0/storage-pool/<pool>/volumes/<type>` accepts a new target query parameter
+ * `GET /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
+ * `POST /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
+ * `PUT /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
+ * `PATCH /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
+ * `DELETE /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
+ * `POST /1.0/networks` accepts a new target query parameter
+ * `GET /1.0/networks/<name>` accepts a new target query parameter

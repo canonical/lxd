@@ -18,8 +18,6 @@ import (
 	"syscall"
 	"unsafe"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
@@ -606,7 +604,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the containers
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -732,7 +730,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		return
 	}
 
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return
 	}
@@ -763,7 +761,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 }
 
 func deviceUSBEvent(s *state.State, usb usbDevice) {
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Error("problem loading containers list", log.Ctx{"err": err})
 		return
@@ -849,7 +847,7 @@ func deviceEventListener(s *state.State) {
 
 			logger.Debugf("Scheduler: network: %s has been added: updating network priorities", e[0])
 			deviceNetworkPriority(s, e[0])
-			networkAutoAttach(s.DB, e[0])
+			networkAutoAttach(s.Cluster, e[0])
 		case e := <-chUSB:
 			deviceUSBEvent(s, e)
 		case e := <-deviceSchedRebalance:
@@ -1788,7 +1786,7 @@ func deviceInotifyDirDeleteEvent(s *state.State, target *sys.InotifyTargetInfo) 
 }
 
 func deviceInotifyDirRescan(s *state.State) {
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
@@ -1853,7 +1851,7 @@ func deviceInotifyDirCreateEvent(s *state.State, target *sys.InotifyTargetInfo) 
 		return
 	}
 
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
@@ -1956,7 +1954,7 @@ func deviceInotifyFileEvent(s *state.State, target *sys.InotifyTargetInfo) {
 		return
 	}
 
-	containers, err := s.DB.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return

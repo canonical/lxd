@@ -11,14 +11,14 @@ import (
 
 func TestSelectConfig(t *testing.T) {
 	tx := newTxForConfig(t)
-	values, err := query.SelectConfig(tx, "test")
+	values, err := query.SelectConfig(tx, "test", "")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"foo": "x", "bar": "zz"}, values)
 }
 
 func TestSelectConfig_WithFilters(t *testing.T) {
 	tx := newTxForConfig(t)
-	values, err := query.SelectConfig(tx, "test", "key='bar'")
+	values, err := query.SelectConfig(tx, "test", "key=?", "bar")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"bar": "zz"}, values)
 }
@@ -31,7 +31,7 @@ func TestUpdateConfig_NewKeys(t *testing.T) {
 	err := query.UpdateConfig(tx, "test", values)
 	require.NoError(t, err)
 
-	values, err = query.SelectConfig(tx, "test")
+	values, err = query.SelectConfig(tx, "test", "")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"foo": "y", "bar": "zz"}, values)
 }
@@ -44,7 +44,7 @@ func TestDeleteConfig_Delete(t *testing.T) {
 	err := query.UpdateConfig(tx, "test", values)
 
 	require.NoError(t, err)
-	values, err = query.SelectConfig(tx, "test")
+	values, err = query.SelectConfig(tx, "test", "")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"bar": "zz"}, values)
 }

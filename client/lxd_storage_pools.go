@@ -60,7 +60,11 @@ func (r *ProtocolLXD) GetStoragePool(name string) (*api.StoragePool, string, err
 	pool := api.StoragePool{}
 
 	// Fetch the raw value
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s", url.QueryEscape(name)), nil, "", &pool)
+	path := fmt.Sprintf("/storage-pools/%s", url.QueryEscape(name))
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
+	}
+	etag, err := r.queryStruct("GET", path, nil, "", &pool)
 	if err != nil {
 		return nil, "", err
 	}
@@ -79,7 +83,11 @@ func (r *ProtocolLXD) CreateStoragePool(pool api.StoragePoolsPost) error {
 	}
 
 	// Send the request
-	_, _, err := r.query("POST", "/storage-pools", pool, "")
+	path := "/storage-pools"
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
+	}
+	_, _, err := r.query("POST", path, pool, "")
 	if err != nil {
 		return err
 	}

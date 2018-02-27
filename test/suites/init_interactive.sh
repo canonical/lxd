@@ -16,6 +16,7 @@ test_init_interactive() {
     fi
 
     cat <<EOF | lxd init
+no
 yes
 my-storage-pool
 dir

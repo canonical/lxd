@@ -101,6 +101,27 @@ func (c *CertInfo) PublicKey() []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: data})
 }
 
+// PrivateKey is a convenience to encode the underlying private key.
+func (c *CertInfo) PrivateKey() []byte {
+	key, ok := c.KeyPair().PrivateKey.(*rsa.PrivateKey)
+	if !ok {
+		return nil
+	}
+	data := x509.MarshalPKCS1PrivateKey(key)
+	return pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: data})
+}
+
+// Fingerprint returns the fingerprint of the public key.
+func (c *CertInfo) Fingerprint() string {
+	fingerprint, err := CertFingerprintStr(string(c.PublicKey()))
+	// Parsing should never fail, since we generated the cert ourselves,
+	// but let's check the error for good measure.
+	if err != nil {
+		panic("invalid public key material")
+	}
+	return fingerprint
+}
+
 // CertKind defines the kind of certificate to generate from scratch in
 // KeyPairAndCA when it's not there.
 //

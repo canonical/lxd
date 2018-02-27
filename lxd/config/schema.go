@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -11,6 +12,18 @@ import (
 // Schema defines the available keys of a config Map, along with the types
 // and options for their values, expressed using Key objects.
 type Schema map[string]Key
+
+// Keys returns all keys defined in the schema
+func (s Schema) Keys() []string {
+	keys := make([]string, len(s))
+	i := 0
+	for key := range s {
+		keys[i] = key
+		i++
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 // Defaults returns a map of all key names in the schema along with their default
 // values.

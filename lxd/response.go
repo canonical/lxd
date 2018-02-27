@@ -11,12 +11,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/mattn/go-sqlite3"
+	"github.com/CanonicalLtd/go-sqlite3"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 type Response interface {
@@ -30,6 +33,7 @@ type syncResponse struct {
 	etag     interface{}
 	metadata interface{}
 	location string
+	code     int
 	headers  map[string]string
 }
 
@@ -56,7 +60,11 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 
 	if r.location != "" {
 		w.Header().Set("Location", r.location)
-		w.WriteHeader(201)
+		code := r.code
+		if code == 0 {
+			code = 201
+		}
+		w.WriteHeader(code)
 	}
 
 	resp := api.ResponseRaw{
@@ -90,11 +98,146 @@ func SyncResponseLocation(success bool, metadata interface{}, location string) R
 	return &syncResponse{success: success, metadata: metadata, location: location}
 }
 
+func SyncResponseRedirect(address string) Response {
+	return &syncResponse{success: true, location: address, code: http.StatusPermanentRedirect}
+}
+
 func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]string) Response {
 	return &syncResponse{success: success, metadata: metadata, headers: headers}
 }
 
 var EmptySyncResponse = &syncResponse{success: true, metadata: make(map[string]interface{})}
+
+type forwardedResponse struct {
+	client  lxd.ContainerServer
+	request *http.Request
+}
+
+func (r *forwardedResponse) Render(w http.ResponseWriter) error {
+	info, err := r.client.GetConnectionInfo()
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("%s%s", info.Addresses[0], r.request.URL.RequestURI())
+	forwarded, err := http.NewRequest(r.request.Method, url, r.request.Body)
+	if err != nil {
+		return err
+	}
+	for key := range r.request.Header {
+		forwarded.Header.Set(key, r.request.Header.Get(key))
+	}
+
+	httpClient, err := r.client.GetHTTPClient()
+	if err != nil {
+		return err
+	}
+	response, err := httpClient.Do(forwarded)
+	if err != nil {
+		return err
+	}
+
+	for key := range response.Header {
+		w.Header().Set(key, response.Header.Get(key))
+	}
+
+	w.WriteHeader(response.StatusCode)
+	_, err = io.Copy(w, response.Body)
+	return err
+}
+
+func (r *forwardedResponse) String() string {
+	return fmt.Sprintf("request to %s", r.request.URL)
+}
+
+// ForwardedResponse takes a request directed to a node and forwards it to
+// another node, writing back the response it gegs.
+func ForwardedResponse(client lxd.ContainerServer, request *http.Request) Response {
+	return &forwardedResponse{
+		client:  client,
+		request: request,
+	}
+}
+
+// ForwardedResponseIfTargetIsRemote redirects a request to the request has a
+// targetNode parameter pointing to a node which is not the local one.
+func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Response {
+	targetNode := request.FormValue("target")
+	if targetNode == "" {
+		return nil
+	}
+
+	// Figure out the address of the target node (which is possibly
+	// this very same node).
+	var address string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		localNode, err := tx.NodeName()
+		if err != nil {
+			return err
+		}
+		if targetNode == localNode {
+			return nil
+		}
+		node, err := tx.NodeByName(targetNode)
+		if err != nil {
+			return err
+		}
+		address = node.Address
+		return nil
+	})
+	if err != nil {
+		return SmartError(err)
+	}
+	if address != "" {
+		// Forward the response.
+		cert := d.endpoints.NetworkCert()
+		client, err := cluster.Connect(address, cert, false)
+		if err != nil {
+			return SmartError(err)
+		}
+		return ForwardedResponse(client, request)
+	}
+
+	return nil
+}
+
+// ForwardedResponseIfContainerIsRemote redirects a request to the node running
+// the container with the given name. If the container is local, nothing gets
+// done and nil is returned.
+func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, name string) (Response, error) {
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, name, cert)
+	if err != nil {
+		return nil, err
+	}
+	if client == nil {
+		return nil, nil
+	}
+	return ForwardedResponse(client, r), nil
+}
+
+// ForwardedResponseIfVolumeIsRemote redirects a request to the node hosting
+// the volume with the given pool ID, name and type. If the container is local,
+// nothing gets done and nil is returned. If more than one node has a matching
+// volume, an error is returned.
+//
+// This is used when no targetNode is specified, and saves users some typing
+// when the volume name/type is unique to a node.
+func ForwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) Response {
+	if r.FormValue("target") != "" {
+		return nil
+	}
+
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.ConnectIfVolumeIsRemote(d.cluster, poolID, volumeName, volumeType, cert)
+	if err != nil && err != db.NoSuchObjectError {
+		return SmartError(err)
+	}
+	if client == nil {
+		return nil
+	}
+	return ForwardedResponse(client, r)
+}
 
 // File transfer response
 type fileResponseEntry struct {
@@ -252,6 +395,42 @@ func (r *operationResponse) String() string {
 
 func OperationResponse(op *operation) Response {
 	return &operationResponse{op}
+}
+
+// Forwarded operation response.
+//
+// Returned when the operation has been created on another node
+type forwardedOperationResponse struct {
+	op *api.Operation
+}
+
+func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
+	url := fmt.Sprintf("/%s/operations/%s", version.APIVersion, r.op.ID)
+
+	body := api.ResponseRaw{
+		Response: api.Response{
+			Type:       api.AsyncResponse,
+			Status:     api.OperationCreated.String(),
+			StatusCode: int(api.OperationCreated),
+			Operation:  url,
+		},
+		Metadata: r.op,
+	}
+
+	w.Header().Set("Location", url)
+	w.WriteHeader(202)
+
+	return util.WriteJSON(w, body, debug)
+}
+
+func (r *forwardedOperationResponse) String() string {
+	return r.op.ID
+}
+
+// ForwardedOperationResponse creates a response that forwards the metadata of
+// an operation created on another node.
+func ForwardedOperationResponse(op *api.Operation) Response {
+	return &forwardedOperationResponse{op}
 }
 
 // Error response

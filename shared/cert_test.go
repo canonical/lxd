@@ -43,6 +43,14 @@ func TestKeyPairAndCA(t *testing.T) {
 	if cert.ExtKeyUsage[0] != x509.ExtKeyUsageServerAuth {
 		t.Errorf("expected to find server auth key usage extension")
 	}
+	block, _ := pem.Decode(info.PublicKey())
+	if block == nil {
+		t.Errorf("expected PublicKey to be decodable")
+	}
+	_, err = x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Errorf("failed to parse encoded public x509 key cert: %v", err)
+	}
 }
 
 func TestGenerateMemCert(t *testing.T) {

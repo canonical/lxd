@@ -11,6 +11,7 @@ import (
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/types"
@@ -32,7 +33,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		if req.Source.Server != "" {
 			hash = req.Source.Alias
 		} else {
-			_, alias, err := d.db.ImageAliasGet(req.Source.Alias, true)
+			_, alias, err := d.cluster.ImageAliasGet(req.Source.Alias, true)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -44,7 +45,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
-		hashes, err := d.db.ImagesGet(false)
+		hashes, err := d.cluster.ImagesGet(false)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -52,7 +53,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		var image *api.Image
 
 		for _, imageHash := range hashes {
-			_, img, err := d.db.ImageGet(imageHash, false, true)
+			_, img, err := d.cluster.ImageGet(imageHash, false, true)
 			if err != nil {
 				continue
 			}
@@ -97,14 +98,18 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 		var info *api.Image
 		if req.Source.Server != "" {
+			autoUpdate, err := cluster.ConfigGetBool(d.cluster, "images.auto_update_cached")
+			if err != nil {
+				return err
+			}
 			info, err = d.ImageDownload(
-				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret,
-				hash, true, daemonConfig["images.auto_update_cached"].GetBool(), "", true)
+				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate,
+				req.Source.Secret, hash, true, autoUpdate, "", true)
 			if err != nil {
 				return err
 			}
 		} else {
-			_, info, err = d.db.ImageGet(hash, false, false)
+			_, info, err = d.cluster.ImageGet(hash, false, false)
 			if err != nil {
 				return err
 			}
@@ -115,14 +120,14 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return err
 		}
 
-		_, err = containerCreateFromImage(d.State(), args, info.Fingerprint)
+		_, err = containerCreateFromImage(d, args, info.Fingerprint)
 		return err
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(operationClassTask, "Creating container", resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, "Creating container", resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -156,7 +161,7 @@ func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(operationClassTask, "Creating container", resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, "Creating container", resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -202,7 +207,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 	// Handle copying/moving between two storage-api LXD instances.
 	if storagePool != "" {
-		_, err := d.db.StoragePoolGetID(storagePool)
+		_, err := d.cluster.StoragePoolGetID(storagePool)
 		if err == db.NoSuchObjectError {
 			storagePool = ""
 			// Unset the local root disk device storage pool if not
@@ -214,7 +219,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
 		for _, pName := range req.Profiles {
-			_, p, err := d.db.ProfileGet(pName)
+			_, p, err := d.cluster.ProfileGet(pName)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -231,7 +236,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	logger.Debugf("No valid storage pool in the container's local root disk device and profiles found.")
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
-		pools, err := d.db.StoragePools()
+		pools, err := d.cluster.StoragePools()
 		if err != nil {
 			if err == db.NoSuchObjectError {
 				return BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured."))
@@ -288,7 +293,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
-	_, _, err = d.db.ImageGet(req.Source.BaseImage, false, true)
+	_, _, err = d.cluster.ImageGet(req.Source.BaseImage, false, true)
 	if err != nil {
 		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
@@ -318,7 +323,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		}
 
 		if ps.MigrationType() == migration.MigrationFSType_RSYNC {
-			c, err = containerCreateFromImage(d.State(), args, req.Source.BaseImage)
+			c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -403,12 +408,12 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 	var op *operation
 	if push {
-		op, err = operationCreate(operationClassWebsocket, "Creating container", resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operationCreate(d.cluster, operationClassWebsocket, "Creating container", resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
 	} else {
-		op, err = operationCreate(operationClassTask, "Creating container", resources, nil, run, nil, nil)
+		op, err = operationCreate(d.cluster, operationClassTask, "Creating container", resources, nil, run, nil, nil)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -503,7 +508,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name, req.Source.Source}
 
-	op, err := operationCreate(operationClassTask, "Creating container", resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, "Creating container", resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -519,14 +524,35 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	targetNode := r.FormValue("target")
+	if targetNode != "" {
+		address, err := cluster.ResolveTarget(d.cluster, targetNode)
+		if err != nil {
+			return SmartError(err)
+		}
+		if address != "" {
+			cert := d.endpoints.NetworkCert()
+			client, err := cluster.Connect(address, cert, false)
+			if err != nil {
+				return SmartError(err)
+			}
+			logger.Debugf("Forward container post request to %s", address)
+			op, err := client.CreateContainer(req)
+			if err != nil {
+				return SmartError(err)
+			}
+			return ForwardedOperationResponse(&op.Operation)
+		}
+	}
+
 	// If no storage pool is found, error out.
-	pools, err := d.db.StoragePools()
+	pools, err := d.cluster.StoragePools()
 	if err != nil || len(pools) == 0 {
 		return BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool."))
 	}
 
 	if req.Name == "" {
-		cs, err := d.db.ContainersList(db.CTypeRegular)
+		cs, err := d.cluster.ContainersList(db.CTypeRegular)
 		if err != nil {
 			return SmartError(err)
 		}

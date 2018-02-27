@@ -19,6 +19,7 @@ type copyCmd struct {
 	containerOnly bool
 	mode          string
 	stateless     bool
+	target        string
 }
 
 func (c *copyCmd) showByDefault() bool {
@@ -27,7 +28,7 @@ func (c *copyCmd) showByDefault() bool {
 
 func (c *copyCmd) usage() string {
 	return i18n.G(
-		`Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] [--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--container-only]
+		`Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] [--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--container-only] [--target <node>]
 
 Copy containers within or in between LXD instances.`)
 }
@@ -42,6 +43,7 @@ func (c *copyCmd) flags() {
 	gnuflag.StringVar(&c.mode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay."))
 	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Copy the container without its snapshots"))
 	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
+	gnuflag.StringVar(&c.target, "target", "", i18n.G("Node name"))
 }
 
 func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
@@ -59,9 +61,19 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 		return err
 	}
 
+	// Target node and destination remote can't be used together.
+	if c.target != "" && sourceRemote != destRemote {
+		return fmt.Errorf(i18n.G("You must use the same source and destination remote when using --target"))
+	}
+
 	// Make sure we have a container or snapshot name
 	if sourceName == "" {
 		return fmt.Errorf(i18n.G("You must specify a source container name"))
+	}
+
+	// Check that a destination container was specified, if --target is passed.
+	if destName == "" && c.target != "" {
+		return fmt.Errorf(i18n.G("You must specify a destination container name when using --target"))
 	}
 
 	// If no destination name was provided, use the same as the source
@@ -74,6 +86,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 	if err != nil {
 		return err
 	}
+	source = source.UseTarget(c.target)
 
 	// Connect to the destination host
 	var dest lxd.ContainerServer

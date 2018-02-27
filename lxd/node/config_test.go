@@ -58,11 +58,13 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	config, err := node.ConfigLoad(tx)
 	require.NoError(t, err)
 
-	err = config.Replace(map[string]interface{}{"core.https_address": "127.0.0.1:666"})
+	changed, err := config.Replace(map[string]interface{}{"core.https_address": "127.0.0.1:666"})
 	assert.NoError(t, err)
+	assert.Equal(t, map[string]string{"core.https_address": "127.0.0.1:666"}, changed)
 
-	err = config.Replace(map[string]interface{}{})
+	changed, err = config.Replace(map[string]interface{}{})
 	assert.NoError(t, err)
+	assert.Equal(t, map[string]string{"core.https_address": ""}, changed)
 
 	assert.Equal(t, "", config.HTTPSAddress())
 
@@ -80,10 +82,10 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	config, err := node.ConfigLoad(tx)
 	require.NoError(t, err)
 
-	err = config.Replace(map[string]interface{}{"core.https_address": "127.0.0.1:666"})
+	_, err = config.Replace(map[string]interface{}{"core.https_address": "127.0.0.1:666"})
 	assert.NoError(t, err)
 
-	err = config.Patch(map[string]interface{}{})
+	_, err = config.Patch(map[string]interface{}{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "127.0.0.1:666", config.HTTPSAddress())
@@ -91,4 +93,28 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	values, err := tx.Config()
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"core.https_address": "127.0.0.1:666"}, values)
+}
+
+// The core.https_address config key is fetched from the db with a new
+// transaction.
+func TestHTTPSAddress(t *testing.T) {
+	nodeDB, cleanup := db.NewTestNode(t)
+	defer cleanup()
+
+	address, err := node.HTTPSAddress(nodeDB)
+	require.NoError(t, err)
+	assert.Equal(t, "", address)
+
+	err = nodeDB.Transaction(func(tx *db.NodeTx) error {
+		config, err := node.ConfigLoad(tx)
+		require.NoError(t, err)
+		_, err = config.Replace(map[string]interface{}{"core.https_address": "127.0.0.1:666"})
+		require.NoError(t, err)
+		return nil
+	})
+	require.NoError(t, err)
+
+	address, err = node.HTTPSAddress(nodeDB)
+	require.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:666", address)
 }

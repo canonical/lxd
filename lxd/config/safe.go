@@ -11,8 +11,8 @@ import (
 // SafeLoad is a wrapper around Load() that does not error when invalid keys
 // are found, and just logs warnings instead. Other kinds of errors are still
 // returned.
-func SafeLoad(schema Schema, values map[string]string, triggers ...Trigger) (Map, error) {
-	m, err := Load(schema, values, triggers...)
+func SafeLoad(schema Schema, values map[string]string) (Map, error) {
+	m, err := Load(schema, values)
 	if err != nil {
 		errors, ok := err.(ErrorList)
 		if !ok {

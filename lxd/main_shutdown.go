@@ -8,7 +8,10 @@ import (
 )
 
 func cmdShutdown(args *Args) error {
-	c, err := lxd.ConnectLXDUnix("", nil)
+	connArgs := &lxd.ConnectionArgs{
+		SkipGetServer: true,
+	}
+	c, err := lxd.ConnectLXDUnix("", connArgs)
 	if err != nil {
 		return err
 	}

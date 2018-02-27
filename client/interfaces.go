@@ -48,6 +48,8 @@ type ContainerServer interface {
 	UpdateServer(server api.ServerPut, ETag string) (err error)
 	HasExtension(extension string) (exists bool)
 	RequireAuthenticated(authenticated bool)
+	IsClustered() (clustered bool)
+	UseTarget(name string) (client ContainerServer)
 
 	// Certificate functions
 	GetCertificateFingerprints() (fingerprints []string, err error)
@@ -164,9 +166,19 @@ type ContainerServer interface {
 	CopyStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (op *RemoteOperation, err error)
 	MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (op *RemoteOperation, err error)
 
+	// Cluster functions ("cluster" API extensions)
+	GetCluster() (cluster *api.Cluster, ETag string, err error)
+	UpdateCluster(cluster api.ClusterPut, ETag string) (op *Operation, err error)
+	DeleteClusterMember(name string, force bool) (err error)
+	GetClusterMemberNames() (names []string, err error)
+	GetClusterMembers() (members []api.ClusterMember, err error)
+	GetClusterMember(name string) (member *api.ClusterMember, ETag string, err error)
+	RenameClusterMember(name string, member api.ClusterMemberPost) (err error)
+
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
+	RawOperation(method string, path string, data interface{}, queryETag string) (op *Operation, ETag string, err error)
 }
 
 // The ConnectionInfo struct represents general information for a connection

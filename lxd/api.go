@@ -2,10 +2,13 @@ package main
 
 import (
 	"net/http"
+	"strings"
 
 	log "github.com/lxc/lxd/shared/log15"
 
 	"github.com/gorilla/mux"
+	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -20,6 +23,10 @@ func RestServer(d *Daemon) *http.Server {
 		w.Header().Set("Content-Type", "application/json")
 		SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
+
+	for endpoint, f := range d.gateway.HandlerFuncs() {
+		mux.HandleFunc(endpoint, f)
+	}
 
 	for _, c := range api10 {
 		d.createCmd(mux, "1.0", c)
@@ -44,25 +51,20 @@ type lxdHttpServer struct {
 }
 
 func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	allowedOrigin := daemonConfig["core.https_allowed_origin"].Get()
-	origin := req.Header.Get("Origin")
-	if allowedOrigin != "" && origin != "" {
-		rw.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-	}
-
-	allowedMethods := daemonConfig["core.https_allowed_methods"].Get()
-	if allowedMethods != "" && origin != "" {
-		rw.Header().Set("Access-Control-Allow-Methods", allowedMethods)
-	}
-
-	allowedHeaders := daemonConfig["core.https_allowed_headers"].Get()
-	if allowedHeaders != "" && origin != "" {
-		rw.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
-	}
-
-	allowedCredentials := daemonConfig["core.https_allowed_credentials"].GetBool()
-	if allowedCredentials {
-		rw.Header().Set("Access-Control-Allow-Credentials", "true")
+	// Set CORS headers, unless this is an internal or gRPC request.
+	if !strings.HasPrefix(req.URL.Path, "/internal") && !strings.HasPrefix(req.URL.Path, "/protocol.SQL") {
+		<-s.d.setupChan
+		err := s.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			config, err := cluster.ConfigLoad(tx)
+			if err != nil {
+				return err
+			}
+			setCORSHeaders(rw, req, config)
+			return nil
+		})
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+		}
 	}
 
 	// OPTIONS request don't need any further processing
@@ -72,4 +74,34 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// Call the original server
 	s.r.ServeHTTP(rw, req)
+}
+
+func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *cluster.Config) {
+	allowedOrigin := config.HTTPSAllowedOrigin()
+	origin := req.Header.Get("Origin")
+	if allowedOrigin != "" && origin != "" {
+		rw.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+	}
+
+	allowedMethods := config.HTTPSAllowedMethods()
+	if allowedMethods != "" && origin != "" {
+		rw.Header().Set("Access-Control-Allow-Methods", allowedMethods)
+	}
+
+	allowedHeaders := config.HTTPSAllowedHeaders()
+	if allowedHeaders != "" && origin != "" {
+		rw.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
+	}
+
+	allowedCredentials := config.HTTPSAllowedCredentials()
+	if allowedCredentials {
+		rw.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+}
+
+// Return true if this an API request coming from a cluster node that is
+// notifying us of some user-initiated API request that needs some action to be
+// taken on this node as well.
+func isClusterNotification(r *http.Request) bool {
+	return r.Header.Get("User-Agent") == "lxd-cluster-notifier"
 }

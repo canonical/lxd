@@ -10,17 +10,19 @@ import (
 // and the operating system. It's typically used by model entities such as
 // containers, volumes, etc. in order to perform changes.
 type State struct {
-	DB   *db.Node
-	MAAS *maas.Controller
-	OS   *sys.OS
+	Node    *db.Node
+	Cluster *db.Cluster
+	MAAS    *maas.Controller
+	OS      *sys.OS
 }
 
 // NewState returns a new State object with the given database and operating
 // system components.
-func NewState(db *db.Node, maas *maas.Controller, os *sys.OS) *State {
+func NewState(node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys.OS) *State {
 	return &State{
-		DB:   db,
-		MAAS: maas,
-		OS:   os,
+		Node:    node,
+		Cluster: cluster,
+		MAAS:    maas,
+		OS:      os,
 	}
 }

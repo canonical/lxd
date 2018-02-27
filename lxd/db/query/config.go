@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // SelectConfig executes a query statement against a "config" table, which must
@@ -11,13 +13,13 @@ import (
 // additional WHERE filters can be specified.
 //
 // Returns a map of key names to their associated values.
-func SelectConfig(tx *sql.Tx, table string, filters ...string) (map[string]string, error) {
+func SelectConfig(tx *sql.Tx, table string, where string, args ...interface{}) (map[string]string, error) {
 	query := fmt.Sprintf("SELECT key, value FROM %s", table)
-	if len(filters) > 0 {
-		query += " WHERE " + strings.Join(filters, " ")
+	if where != "" {
+		query += fmt.Sprintf(" WHERE %s", where)
 	}
 
-	rows, err := tx.Query(query)
+	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -60,12 +62,12 @@ func UpdateConfig(tx *sql.Tx, table string, values map[string]string) error {
 
 	err := upsertConfig(tx, table, changes)
 	if err != nil {
-		return fmt.Errorf("updating values failed: %s", err)
+		return errors.Wrap(err, "updating values failed")
 	}
 
 	err = deleteConfig(tx, table, deletes)
 	if err != nil {
-		return fmt.Errorf("deleting values failed: %s", err)
+		return errors.Wrap(err, "deleting values failed")
 	}
 
 	return nil
@@ -98,7 +100,7 @@ func deleteConfig(tx *sql.Tx, table string, keys []string) error {
 		return nil // Nothing to delete.
 	}
 
-	query := fmt.Sprintf("DELETE FROM %s WHERE key IN %s", table, exprParams(n))
+	query := fmt.Sprintf("DELETE FROM %s WHERE key IN %s", table, Params(n))
 	values := make([]interface{}, n)
 	for i, key := range keys {
 		values[i] = key

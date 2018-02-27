@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db/query"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 )
 

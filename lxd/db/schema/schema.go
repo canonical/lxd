@@ -226,7 +226,7 @@ func (s *Schema) Trim(version int) []Update {
 // inspection of the resulting state.
 func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error) {
 	// Create an in-memory database.
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite3", ":memory:?_foreign_keys=1")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open memory database: %v", err)
 	}

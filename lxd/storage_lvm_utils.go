@@ -497,7 +497,7 @@ func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) erro
 		var imgerr error
 		ok, _ := storageLVExists(imageLvmDevPath)
 		if ok {
-			_, volume, err := s.s.DB.StoragePoolVolumeGetType(fp, db.StoragePoolVolumeTypeImage, s.poolID)
+			_, volume, err := s.s.Cluster.StoragePoolNodeVolumeGetType(fp, db.StoragePoolVolumeTypeImage, s.poolID)
 			if err != nil {
 				return err
 			}
@@ -684,7 +684,7 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 func storageLVMGetThinPoolUsers(s *state.State) ([]string, error) {
 	results := []string{}
 
-	cNames, err := s.DB.ContainersList(db.CTypeRegular)
+	cNames, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return results, err
 	}
@@ -702,7 +702,7 @@ func storageLVMGetThinPoolUsers(s *state.State) ([]string, error) {
 		}
 	}
 
-	imageNames, err := s.DB.ImagesGet(false)
+	imageNames, err := s.Cluster.ImagesGet(false)
 	if err != nil {
 		return results, err
 	}
