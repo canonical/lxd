@@ -33,10 +33,6 @@ var apiInternal = []Command{
 	internalClusterContainerMovedCmd,
 }
 
-func internalReady(d *Daemon, r *http.Request) Response {
-	return InternalError(fmt.Errorf("The server does not support setup mode"))
-}
-
 func internalWaitReady(d *Daemon, r *http.Request) Response {
 	<-d.readyChan
 
@@ -162,7 +158,7 @@ func internalSQL(d *Daemon, r *http.Request) Response {
 }
 
 var internalShutdownCmd = Command{name: "shutdown", put: internalShutdown}
-var internalReadyCmd = Command{name: "ready", put: internalReady, get: internalWaitReady}
+var internalReadyCmd = Command{name: "ready", get: internalWaitReady}
 var internalContainerOnStartCmd = Command{name: "containers/{id}/onstart", get: internalContainerOnStart}
 var internalContainerOnStopCmd = Command{name: "containers/{id}/onstop", get: internalContainerOnStop}
 var internalSQLCmd = Command{name: "sql", post: internalSQL}
