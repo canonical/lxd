@@ -48,6 +48,7 @@ func clusterGet(d *Daemon, r *http.Request) Response {
 
 	cluster := api.Cluster{
 		ServerName: name,
+		Enabled:    name != "",
 	}
 
 	return SyncResponseETag(true, cluster, cluster)
@@ -70,8 +71,16 @@ func clusterPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	// Sanity checks
+	if req.ServerName == "" && req.Enabled {
+		return BadRequest(fmt.Errorf("ServerName is required when enabling clustering"))
+	}
+	if req.ServerName != "" && !req.Enabled {
+		return BadRequest(fmt.Errorf("ServerName must be empty when disabling clustering"))
+	}
+
 	// Disable clustering.
-	if req.ServerName == "" {
+	if !req.Enabled {
 		return clusterPutDisable(d)
 	}
 
@@ -447,6 +456,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 		put := api.ClusterPut{}
+		put.Enabled = false
 		_, err = client.UpdateCluster(put, "")
 		if err != nil {
 			SmartError(errors.Wrap(err, "failed to cleanup the node"))

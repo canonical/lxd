@@ -289,6 +289,7 @@ func (cmd *CmdInit) fillDataWithClustering(data *cmdInitData, clustering *cmdIni
 		return
 	}
 	data.Cluster.ServerName = clustering.Name
+	data.Cluster.Enabled = true
 	data.Cluster.ClusterAddress = clustering.TargetAddress
 	data.Cluster.ClusterCert = string(clustering.TargetCert)
 	data.ClusterPassword = clustering.TargetPassword
@@ -574,7 +575,6 @@ func (cmd *CmdInit) initCluster(client lxd.ContainerServer, put api.ClusterPut, 
 	var op *lxd.Operation
 	var err error
 	if put.ClusterAddress == "" {
-		put = api.ClusterPut{ServerName: put.ServerName}
 		op, err = client.UpdateCluster(put, "")
 		if err != nil {
 			return nil, err
@@ -595,11 +595,6 @@ func (cmd *CmdInit) initCluster(client lxd.ContainerServer, put api.ClusterPut, 
 			}
 		}
 
-		put = api.ClusterPut{
-			ServerName:     put.ServerName,
-			ClusterAddress: put.ClusterAddress,
-			ClusterCert:    put.ClusterCert,
-		}
 		op, err = client.UpdateCluster(put, "")
 		if err != nil {
 			return nil, err
