@@ -72,8 +72,10 @@ dist:
 	# Download dependencies
 	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
 
-	# Workaround for gorilla/mux on Go < 1.7
-	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -v -d github.com/gorilla/context
+	# Download the cluster-enabled sqlite
+	git clone https://github.com/CanonicalLtd/sqlite $(TMP)/dist/sqlite
+	cd $(TMP)/dist/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
+	cd $(TMP)/dist/sqlite && git log -1 --format="format:%H" > manifest.uuid
 
 	# Assemble tarball
 	rm $(TMP)/dist/src/github.com/lxc/lxd
