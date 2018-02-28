@@ -120,7 +120,7 @@ profiles:
       parent: lxdbr0
       type: nic
 cluster:
-  name: node2
+  server_name: node2
   enabled: true
   cluster_address: 10.55.60.171:8443
   cluster_certificate: "-----BEGIN CERTIFICATE-----
