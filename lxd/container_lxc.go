@@ -885,8 +885,13 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	if util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
-		// 128 kB console ringbuffer.
+		// Default size log buffer
 		err = lxcSetConfigItem(cc, "lxc.console.buffer.size", "auto")
+		if err != nil {
+			return err
+		}
+
+		err = lxcSetConfigItem(cc, "lxc.console.size", "auto")
 		if err != nil {
 			return err
 		}
@@ -894,7 +899,7 @@ func (c *containerLXC) initLXC(config bool) error {
 		// File to dump ringbuffer contents to when requested or
 		// container shutdown.
 		consoleBufferLogFile := c.ConsoleBufferLogPath()
-		err = lxcSetConfigItem(cc, "lxc.console.buffer.logfile", consoleBufferLogFile)
+		err = lxcSetConfigItem(cc, "lxc.console.logfile", consoleBufferLogFile)
 		if err != nil {
 			return err
 		}
