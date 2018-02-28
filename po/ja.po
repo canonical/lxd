@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-02-26 11:48+0000\n"
-"PO-Revision-Date: 2018-01-02 10:52+0000\n"
+"POT-Creation-Date: 2018-02-27 22:14-0500\n"
+"PO-Revision-Date: 2018-02-27 18:12+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 2.19-dev\n"
+"X-Generator: Weblate 2.20-dev\n"
 
 #: lxc/storage.go:36
 msgid ""
@@ -364,9 +364,9 @@ msgid "Copying the image: %s"
 msgstr "イメージのコピー中: %s"
 
 #: lxc/storage.go:1134
-#, fuzzy, c-format
+#, c-format
 msgid "Copying the storage volume: %s"
-msgstr "イメージのコピー中: %s"
+msgstr "ストレージボリュームのコピー中: %s"
 
 #: lxc/remote.go:218
 msgid "Could not create server cert dir"
@@ -413,9 +413,9 @@ msgid "Device %s added to %s"
 msgstr "デバイス %s が %s に追加されました"
 
 #: lxc/config.go:1272
-#, fuzzy, c-format
+#, c-format
 msgid "Device %s overridden for %s"
-msgstr "デバイス %s が %s から削除されました"
+msgstr "デバイス %s が %s で上書きされました"
 
 #: lxc/config.go:1213
 #, c-format
@@ -597,11 +597,10 @@ msgid "ISSUE DATE"
 msgstr ""
 
 #: lxc/main.go:171
-#, fuzzy
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
-msgstr "初めて LXD を使う場合、lxd init と実行する必要があります"
+msgstr "初めてこのマシンで LXD を使う場合、lxd init と実行する必要があります"
 
 #: lxc/main.go:54
 msgid "Ignore aliases when determining what command to run"
@@ -766,9 +765,9 @@ msgid "Move the container without its snapshots"
 msgstr "コンテナを移動します (スナップショットは移動しません)"
 
 #: lxc/storage.go:1128
-#, fuzzy, c-format
+#, c-format
 msgid "Moving the storage volume: %s"
-msgstr "イメージのコピー中: %s"
+msgstr "ストレージボリュームの移動中: %s"
 
 #: lxc/image.go:1292
 msgid "Must run as root to import from directory"
@@ -1248,14 +1247,12 @@ msgid "Storage volume %s deleted"
 msgstr "ストレージボリューム %s を削除しました"
 
 #: lxc/storage.go:1135
-#, fuzzy
 msgid "Storage volume copied successfully!"
-msgstr "イメージのコピーが成功しました!"
+msgstr "ストレージボリュームのコピーが成功しました!"
 
 #: lxc/storage.go:1129
-#, fuzzy
 msgid "Storage volume moved successfully!"
-msgstr "イメージのエクスポートが成功しました!"
+msgstr "ストレージボリュームの移動が成功しました!"
 
 #: lxc/action.go:50
 msgid "Store the container state (only for stop)"
@@ -1304,10 +1301,11 @@ msgid "The device doesn't exist"
 msgstr "デバイスが存在しません"
 
 #: lxc/init.go:356
-#, fuzzy, c-format
+#, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
-"ローカルイメージ '%s' が見つかりません。代わりに '%s:' を試してみてください。"
+"ローカルイメージ '%s' が見つかりません。代わりに '%s:%s' を試してみてくださ"
+"い。"
 
 #: lxc/init.go:352
 #, c-format
@@ -1320,9 +1318,8 @@ msgid "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
 #: lxc/config.go:1245
-#, fuzzy
 msgid "The profile device doesn't exist"
-msgstr "指定したデバイスが存在しません"
+msgstr "プロファイルのデバイスが存在しません"
 
 #: lxc/network.go:317 lxc/network.go:370 lxc/storage.go:449 lxc/storage.go:579
 msgid "The specified device doesn't exist"
@@ -2231,8 +2228,8 @@ msgid ""
 "lxc list -c ns,user.comment:comment\n"
 "\tList images with their running state and user comment. "
 msgstr ""
-"使い方: lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] "
-"[--fast]\n"
+"使い方: lxc list [<remote>:] [filters] [--format csv|json|table|yaml] [-c "
+"<columns>] [--fast]\n"
 "\n"
 "コンテナを一覧表示します。\n"
 "\n"
@@ -2261,8 +2258,8 @@ msgstr ""
 "\n"
 "*カラム*\n"
 "\n"
-"-c オプションには、表形式で表示する際にどのコンテナの属性を表示するか\n"
-"を指定するコンマ区切りのリストを指定します。\n"
+"-c オプションには、表形式もしくは csv 形式で表示する際にどのコンテナの\n"
+"属性を表示するかを指定するコンマ区切りのリストを指定します。\n"
 "\n"
 "カラムの指定は、定義済みの短縮形 (以下を参照) もしくは (拡張された)\n"
 "設定キーのどちらかを指定します。\n"
@@ -2281,9 +2278,13 @@ msgstr ""
 "\n"
 "    c - 作成日\n"
 "\n"
+"    d - 説明\n"
+"\n"
 "    l - 最終使用日\n"
 "\n"
 "    n - 名前\n"
+"\n"
+"    N - プロセス数\n"
 "\n"
 "    p - コンテナの init プロセスの pid\n"
 "\n"
@@ -2297,14 +2298,13 @@ msgstr ""
 "\n"
 "設定キーの文法: key[:name][:maxWidth]\n"
 "\n"
-"    KEY      - 表示する (拡張された) 設定キー\n"
+"    KEY: 表示する (拡張された) 設定キー\n"
 "\n"
-"    NAME     - カラムのヘッダに表示する名前。指定しない場合、もしくは空\n"
-"               の場合のデフォルトはキー。\n"
-"               (名前を指定せずに maxWidth を指定できます。例: user.key::0)\n"
+"    NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空\n"
+"          の場合のデフォルトはキー。\n"
 "\n"
-"    MAXWIDTH - カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
-"               デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限しま"
+"    MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
+"              デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限しま"
 "す。\n"
 "\n"
 "*例*\n"
@@ -2331,7 +2331,6 @@ msgstr ""
 "LXD の manpage をすべて生成します。"
 
 #: lxc/monitor.go:49
-#, fuzzy
 msgid ""
 "Usage: lxc monitor [<remote>:] [--type=TYPE...] [--pretty]\n"
 "\n"
@@ -2348,17 +2347,20 @@ msgid ""
 "lxc monitor --pretty --type=logging --loglevel=info\n"
 "    Show a pretty log of messages with info level or higher.\n"
 msgstr ""
-"使い方: lxc monitor [<remote>:] [--type=TYPE...]\n"
+"使い方: lxc monitor [<remote>:] [--type=TYPE...] [--pretty]\n"
 "\n"
 "ローカルまたはリモートの LXD サーバの動作をモニタリングします。\n"
 "\n"
-"デフォルトでは全てのタイプをモニタリングします。\n"
+"デフォルトでは全てのメッセージタイプをモニタリングします。\n"
 "\n"
-"--type により、モニタリングするタイプを指定できます。\n"
+"--type により、モニタリングするメッセージタイプを指定できます。\n"
 "\n"
 "*例*\n"
 "lxc monitor --type=logging\n"
-"    ログメッセージのみ表示します。"
+"    ログメッセージのみ表示します。\n"
+"\n"
+"lxc monitor --pretty --type=logging --loglevel=info\n"
+"    info レベルかそれ以上のメッセージの pretty ログを表示します。"
 
 #: lxc/move.go:26
 #, fuzzy
@@ -2977,8 +2979,11 @@ msgstr ""
 "lxc storage list [<remote>:]\n"
 "    利用可能なストレージプールを一覧表示します。\n"
 "\n"
-"lxc storage show [<remote>:]<pool>\n"
+"lxc storage show [<remote>:]<pool> [--resources]\n"
 "    ストレージプールの詳細を表示します。\n"
+"\n"
+"lxc storage info [<remote>:]<pool> [--bytes]\n"
+"    YAML フォーマットでストレージプールの情報を表示します。\n"
 "\n"
 "lxc storage create [<remote>:]<pool> <driver> [key=value]...\n"
 "    ストレージプールを作成します。\n"
@@ -3117,7 +3122,6 @@ msgid "You must specify a destination container name when using --target"
 msgstr "コピー元のコンテナ名を指定してください"
 
 #: lxc/copy.go:71
-#, fuzzy
 msgid "You must specify a source container name"
 msgstr "コピー元のコンテナ名を指定してください"
 
@@ -3130,14 +3134,14 @@ msgid "`lxc config profile` is deprecated, please use `lxc profile`"
 msgstr "`lxc config profile` は廃止されました。`lxc profile` を使ってください"
 
 #: lxc/alias.go:56 lxc/alias.go:102
-#, fuzzy, c-format
+#, c-format
 msgid "alias %s already exists"
-msgstr "リモート %s は既に存在します"
+msgstr "エイリアス %s は既に存在します"
 
 #: lxc/alias.go:68 lxc/alias.go:97
-#, fuzzy, c-format
+#, c-format
 msgid "alias %s doesn't exist"
-msgstr "リモート %s は存在しません"
+msgstr "エイリアス %s は存在しません"
 
 #: lxc/remote.go:370
 msgid "can't remove the default remote"
