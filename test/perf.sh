@@ -7,6 +7,12 @@
 
 PERF_LOG_CSV="perf.csv"
 
+# shellcheck disable=SC2034
+LXD_ALT_CERT=""
+
+# shellcheck disable=SC2034
+LXD_NETNS=""
+
 import_subdir_files() {
     test  "$1"
     # shellcheck disable=SC2039
