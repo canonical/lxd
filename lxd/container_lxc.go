@@ -851,15 +851,17 @@ func (c *containerLXC) initLXC(config bool) error {
 		return nil
 	}
 
-	// Base config
-	toDrop := "sys_time sys_module sys_rawio"
-	if !c.state.OS.AppArmorStacking || c.state.OS.AppArmorStacked {
-		toDrop = toDrop + " mac_admin mac_override"
-	}
+	if c.IsPrivileged() {
+		// Base config
+		toDrop := "sys_time sys_module sys_rawio"
+		if !c.state.OS.AppArmorStacking || c.state.OS.AppArmorStacked {
+			toDrop = toDrop + " mac_admin mac_override"
+		}
 
-	err = lxcSetConfigItem(cc, "lxc.cap.drop", toDrop)
-	if err != nil {
-		return err
+		err = lxcSetConfigItem(cc, "lxc.cap.drop", toDrop)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Set an appropriate /proc, /sys/ and /sys/fs/cgroup
