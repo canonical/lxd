@@ -104,12 +104,12 @@ func RuntimeLiblxcVersionAtLeast(major int, minor int, micro int) bool {
 	mic := -1
 
 	for i, v := range parts {
-		num, err := strconv.Atoi(v)
-		if err != nil {
-			return false
+		if i > 2 {
+			break
 		}
 
-		if i > 2 {
+		num, err := strconv.Atoi(v)
+		if err != nil {
 			return false
 		}
 
