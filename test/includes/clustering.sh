@@ -102,11 +102,11 @@ teardown_clustering_netns() {
   for ns in $(ls -1 "${TEST_DIR}/ns/"); do
       echo "==> Teardown clustering netns ${ns}"
 
-      pid="$(cat "${TEST_DIR}/ns/${ns}/PID")"
-      kill -9 "${pid}"
-
       veth1="v${ns}1"
       ip link del "${veth1}"
+
+      pid="$(cat "${TEST_DIR}/ns/${ns}/PID")"
+      kill -9 "${pid}"
 
       umount -l "${TEST_DIR}/ns/${ns}/net" >/dev/null 2>&1 || true
       rm -Rf "${TEST_DIR}/ns/${ns}"
