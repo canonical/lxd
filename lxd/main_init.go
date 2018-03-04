@@ -883,8 +883,8 @@ join:
 }
 
 func (cmd *CmdInit) askClusteringStoragePools(targetPools []api.StoragePool) ([]api.StoragePoolsPost, error) {
-	pools := make([]api.StoragePoolsPost, len(targetPools))
-	for i, pool := range targetPools {
+	pools := make([]api.StoragePoolsPost, 0)
+	for _, pool := range targetPools {
 		if pool.Status == "PENDING" {
 			continue // Skip pending pools
 		}
@@ -902,14 +902,14 @@ func (cmd *CmdInit) askClusteringStoragePools(targetPools []api.StoragePool) ([]
 			validator := func(string) error { return nil }
 			post.Config[key] = cmd.Context.AskString(question, "", validator)
 		}
-		pools[i] = post
+		pools = append(pools, post)
 	}
 	return pools, nil
 }
 
 func (cmd *CmdInit) askClusteringNetworks(targetNetworks []api.Network) ([]api.NetworksPost, error) {
-	networks := make([]api.NetworksPost, len(targetNetworks))
-	for i, network := range targetNetworks {
+	networks := make([]api.NetworksPost, 0)
+	for _, network := range targetNetworks {
 		if !network.Managed || network.Status == "PENDING" {
 			continue // Skip not-managed or pending networks
 		}
@@ -928,7 +928,7 @@ func (cmd *CmdInit) askClusteringNetworks(targetNetworks []api.Network) ([]api.N
 			validator := func(string) error { return nil }
 			post.Config[key] = cmd.Context.AskString(question, "", validator)
 		}
-		networks[i] = post
+		networks = append(networks, post)
 	}
 	return networks, nil
 }
