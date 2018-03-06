@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/lxc/lxd/client"
@@ -17,7 +18,10 @@ func cmdShutdown(args *Args) error {
 	}
 
 	_, _, err = c.RawQuery("PUT", "/internal/shutdown", nil, "")
-	if err != nil {
+	if err != nil && err != io.EOF {
+		// NOTE: if we got an EOF error here it means that the daemon
+		// has shutdown so quickly that it already closed the unix
+		// socket. We consider the daemon dead in this case.
 		return err
 	}
 
