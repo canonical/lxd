@@ -3,7 +3,9 @@ package cluster
 import (
 	"database/sql"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
+	"github.com/pkg/errors"
 )
 
 // Schema for the cluster database.
@@ -28,6 +30,111 @@ var updates = map[int]schema.Update{
 	3: updateFromV2,
 	4: updateFromV3,
 	5: updateFromV4,
+	6: updateFromV5,
+}
+
+// For ceph volumes, add node-specific rows for all existing nodes, since any
+// node is able to access those volumes.
+func updateFromV5(tx *sql.Tx) error {
+	// Fetch the IDs of all existing nodes.
+	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	if err != nil {
+		return errors.Wrap(err, "failed to get IDs of current nodes")
+	}
+
+	// Fetch the IDs of all existing ceph volumes.
+	volumeIDs, err := query.SelectIntegers(tx, `
+SELECT storage_volumes.id FROM storage_volumes
+    JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
+    WHERE storage_pools.driver='ceph'
+`)
+	if err != nil {
+		return errors.Wrap(err, "failed to get IDs of current volumes")
+	}
+
+	// Fetch all existing ceph volumes.
+	volumes := make([]struct {
+		ID            int
+		Name          string
+		StoragePoolID int
+		NodeID        int
+		Type          int
+		Description   string
+	}, len(volumeIDs))
+	stmt := `
+SELECT
+    storage_volumes.id,
+    storage_volumes.name,
+    storage_volumes.storage_pool_id,
+    storage_volumes.node_id,
+    storage_volumes.type,
+    storage_volumes.description
+FROM storage_volumes
+    JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
+    WHERE storage_pools.driver='ceph'
+`
+	err = query.SelectObjects(tx, func(i int) []interface{} {
+		return []interface{}{
+			&volumes[i].ID,
+			&volumes[i].Name,
+			&volumes[i].StoragePoolID,
+			&volumes[i].NodeID,
+			&volumes[i].Type,
+			&volumes[i].Description,
+		}
+	}, stmt)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch current volumes")
+	}
+
+	// Duplicate each volume row across all nodes, and keep track of the
+	// new volume IDs that we've inserted.
+	created := make(map[int][]int64, 0) // Existing volume ID to new volumes IDs.
+	columns := []string{"name", "storage_pool_id", "node_id", "type", "description"}
+	for _, volume := range volumes {
+		for _, nodeID := range nodeIDs {
+			if volume.NodeID == nodeID {
+				// This node already has the volume row
+				continue
+			}
+			values := []interface{}{
+				volume.Name,
+				volume.StoragePoolID,
+				nodeID,
+				volume.Type,
+				volume.Description,
+			}
+			id, err := query.UpsertObject(tx, "storage_volumes", columns, values)
+			if err != nil {
+				return errors.Wrap(err, "failed to insert new volume")
+			}
+			_, ok := created[volume.ID]
+			if !ok {
+				created[volume.ID] = make([]int64, 0)
+			}
+			created[volume.ID] = append(created[volume.ID], id)
+		}
+	}
+
+	// Duplicate each volume config row across all nodes.
+	for id, newIDs := range created {
+		config, err := query.SelectConfig(tx, "storage_volumes_config", "storage_volume_id=?", id)
+		if err != nil {
+			errors.Wrap(err, "failed to fetch volume config")
+		}
+		for _, newID := range newIDs {
+			for key, value := range config {
+				_, err := tx.Exec(`
+INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?)
+`, newID, key, value)
+				if err != nil {
+					return errors.Wrap(err, "failed to insert new volume config")
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func updateFromV4(tx *sql.Tx) error {
