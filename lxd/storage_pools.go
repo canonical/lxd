@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 
@@ -528,6 +529,21 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	s, err := storagePoolInit(d.State(), poolName)
 	if err != nil {
 		return InternalError(err)
+	}
+
+	// If this is a notification for a ceph pool deletion, we don't want to
+	// actually delete the pool, since that will be done by the node that
+	// notified us. We just need to delete the local mountpoint.
+	if s, ok := s.(*storageCeph); ok && isClusterNotification(r) {
+		// Delete the mountpoint for the storage pool.
+		poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
+		if shared.PathExists(poolMntPoint) {
+			err := os.RemoveAll(poolMntPoint)
+			if err != nil {
+				return SmartError(err)
+			}
+		}
+		return EmptySyncResponse
 	}
 
 	err = s.StoragePoolDelete()
