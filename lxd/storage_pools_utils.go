@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -222,19 +223,28 @@ func storagePoolCreateInternal(state *state.State, poolName, poolDescription str
 		}
 		dbStoragePoolDeleteAndUpdateCache(state.Cluster, poolName)
 	}()
-	err = doStoragePoolCreateInternal(state, poolName, poolDescription, driver, config)
+	err = doStoragePoolCreateInternal(state, poolName, poolDescription, driver, config, false)
 	tryUndo = err != nil
 	return err
 }
 
 // This performs all non-db related work needed to create the pool.
-func doStoragePoolCreateInternal(state *state.State, poolName, poolDescription string, driver string, config map[string]string) error {
+func doStoragePoolCreateInternal(state *state.State, poolName, poolDescription string, driver string, config map[string]string, isNotification bool) error {
 	tryUndo := true
 	s, err := storagePoolInit(state, poolName)
 	if err != nil {
 		return err
 	}
 
+	// If this is a clustering notification for a ceph storage, we don't
+	// want this node to actually create the pool, as it's already been
+	// done by the node that triggered this notification. We just need to
+	// create the storage pool directory.
+	if s, ok := s.(*storageCeph); ok && isNotification {
+		volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		return os.MkdirAll(volumeMntPoint, 0711)
+
+	}
 	err = s.StoragePoolCreate()
 	if err != nil {
 		return err

@@ -98,7 +98,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 			return BadRequest(err)
 		}
 		err = doStoragePoolCreateInternal(
-			d.State(), req.Name, req.Description, req.Driver, req.Config)
+			d.State(), req.Name, req.Description, req.Driver, req.Config, true)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -209,7 +209,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		return err
 	}
 	err = doStoragePoolCreateInternal(
-		d.State(), req.Name, req.Description, req.Driver, req.Config)
+		d.State(), req.Name, req.Description, req.Driver, req.Config, false)
 	if err != nil {
 		return err
 	}
