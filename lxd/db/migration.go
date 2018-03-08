@@ -19,6 +19,29 @@ import (
 // clustering, since in those version all data lives in the cluster database
 // (regardless of whether clustering is actually on or off).
 func LoadPreClusteringData(tx *sql.Tx) (*Dump, error) {
+	// Sanitize broken foreign key references that might be around from the
+	// time where we didn't enforce foreign key constraints.
+	_, err := tx.Exec(`
+DELETE FROM containers_config WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM containers_devices WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM containers_devices_config WHERE container_device_id NOT IN (SELECT id FROM containers_devices);
+DELETE FROM containers_profiles WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM containers_profiles WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM images_aliases WHERE image_id NOT IN (SELECT id FROM images);
+DELETE FROM images_properties WHERE image_id NOT IN (SELECT id FROM images);
+DELETE FROM images_source WHERE image_id NOT IN (SELECT id FROM images);
+DELETE FROM networks_config WHERE network_id NOT IN (SELECT id FROM networks);
+DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FROM profiles_devices);
+DELETE FROM storage_pools_config WHERE storage_pool_id NOT IN (SELECT id FROM storage_pools);
+DELETE FROM storage_volumes WHERE storage_pool_id NOT IN (SELECT id FROM storage_pools);
+DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FROM storage_volumes);
+`)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to sanitize broken foreign key references")
+	}
+
 	// Dump all tables.
 	dump := &Dump{
 		Schema: map[string][]string{},
