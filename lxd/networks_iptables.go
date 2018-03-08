@@ -39,7 +39,7 @@ func networkIptablesPrepend(protocol string, netName string, table string, chain
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for LXD network %s", netName))
 
-	_, err = shared.RunCommand(cmd, args...)
+	_, err = shared.TryRunCommand(cmd, args...)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func networkIptablesClear(protocol string, netName string, table string) error {
 
 	// List the rules
 	args := append(baseArgs, "-S")
-	output, err := shared.RunCommand(cmd, args...)
+	output, err := shared.TryRunCommand(cmd, args...)
 	if err != nil {
 		return fmt.Errorf("Failed to list %s rules for %s (table %s)", protocol, netName, table)
 	}
@@ -86,7 +86,7 @@ func networkIptablesClear(protocol string, netName string, table string) error {
 		fields[0] = "-D"
 
 		args = append(baseArgs, fields...)
-		_, err = shared.RunCommand("sh", "-c", fmt.Sprintf("%s %s", cmd, strings.Join(args, " ")))
+		_, err = shared.TryRunCommand("sh", "-c", fmt.Sprintf("%s %s", cmd, strings.Join(args, " ")))
 		if err != nil {
 			return err
 		}
