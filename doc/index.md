@@ -27,9 +27,9 @@ Project status  | CII Best Practices    | [![CII Best Practices](https://bestpra
 Instructions on installing LXD for a wide variety of Linux distributions and operating systems [can be found on our website](https://linuxcontainers.org/lxd/getting-started-cli/).
 
 ## Installing LXD from source
-We recommend having the latest versions of liblxc (>= 2.0.0 required) and CRIU
-(>= 1.7 recommended) available for LXD development. Additionally, LXD requires
-Golang 1.6 or later to work. On ubuntu, you can get those with:
+We recommend having the latest versions of liblxc (>= 2.0.0 required)
+available for LXD development. Additionally, LXD requires Golang 1.9 or
+later to work. On ubuntu, you can get those with:
 
 ```bash
 sudo apt update
