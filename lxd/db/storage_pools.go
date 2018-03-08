@@ -56,6 +56,23 @@ func (c *ClusterTx) StoragePoolID(name string) (int64, error) {
 	}
 }
 
+// StoragePoolDriver returns the driver of the pool with the given ID.
+func (c *ClusterTx) StoragePoolDriver(id int64) (string, error) {
+	stmt := "SELECT driver FROM storage_pools WHERE id=?"
+	drivers, err := query.SelectStrings(c.tx, stmt, id)
+	if err != nil {
+		return "", err
+	}
+	switch len(drivers) {
+	case 0:
+		return "", NoSuchObjectError
+	case 1:
+		return drivers[0], nil
+	default:
+		return "", fmt.Errorf("more than one pool has the given id")
+	}
+}
+
 // StoragePoolIDsNotPending returns a map associating each storage pool name to its ID.
 //
 // Pending storage pools are skipped.
@@ -93,7 +110,70 @@ func (c *ClusterTx) StoragePoolNodeJoin(poolID, nodeID int64) error {
 	columns := []string{"storage_pool_id", "node_id"}
 	values := []interface{}{poolID, nodeID}
 	_, err := query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
-	return err
+	if err != nil {
+		return errors.Wrap(err, "failed to add storage pools node entry")
+	}
+
+	return nil
+}
+
+func (c *ClusterTx) StoragePoolNodeJoinCeph(poolID, nodeID int64) error {
+	// Get the IDs of the other nodes (they should be all linked to
+	// the pool).
+	stmt := "SELECT node_id FROM storage_pools_nodes WHERE storage_pool_id=?"
+	nodeIDs, err := query.SelectIntegers(c.tx, stmt, poolID)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch IDs of nodes with ceph pool")
+	}
+	if len(nodeIDs) == 0 {
+		return fmt.Errorf("ceph pool is not linked to any node")
+	}
+	otherNodeID := nodeIDs[0]
+
+	// Create entries of all the ceph volumes for the new node.
+	_, err = c.tx.Exec(`
+INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, description)
+  SELECT name, storage_pool_id, ?, type, description
+    FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
+`, nodeID, poolID, otherNodeID)
+	if err != nil {
+		return errors.Wrap(err, "failed to create node ceph volumes")
+	}
+
+	stmt = `
+SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
+  ORDER BY name, type
+`
+
+	// Create entries of all the ceph volumes configs for the new node.
+	volumeIDs, err := query.SelectIntegers(c.tx, stmt, poolID, otherNodeID)
+	if err != nil {
+		return errors.Wrap(err, "failed to get joining node's ceph volume IDs")
+	}
+	otherVolumeIDs, err := query.SelectIntegers(c.tx, stmt, poolID, otherNodeID)
+	if err != nil {
+		return errors.Wrap(err, "failed to get other node's ceph volume IDs")
+	}
+	if len(volumeIDs) != len(otherVolumeIDs) { // Sanity check
+		return fmt.Errorf("not all ceph volumes were copied")
+	}
+	for i, otherVolumeID := range otherVolumeIDs {
+		config, err := query.SelectConfig(
+			c.tx, "storage_volumes_config", "storage_volume_id=?", otherVolumeID)
+		if err != nil {
+			return errors.Wrap(err, "failed to get storage volume config")
+		}
+		for key, value := range config {
+			_, err := c.tx.Exec(`
+INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?)
+`, volumeIDs[i], key, value)
+			if err != nil {
+				return errors.Wrap(err, "failed to copy volume config")
+			}
+		}
+	}
+
+	return nil
 }
 
 // StoragePoolConfigAdd adds a new entry in the storage_pools_config table
