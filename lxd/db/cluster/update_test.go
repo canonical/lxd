@@ -263,8 +263,8 @@ func TestUpdateFromV5(t *testing.T) {
 
 	// Check that a volume row for n2 was added for v1 on p2.
 	tx, err := db.Begin()
-	defer tx.Rollback()
 	require.NoError(t, err)
+	defer tx.Rollback()
 	nodeIDs, err := query.SelectIntegers(tx, `
 SELECT node_id FROM storage_volumes WHERE storage_pool_id=2 AND name='v1' ORDER BY node_id
 `)
@@ -287,5 +287,62 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=2 AND name='v1' ORDER BY id
 	config1, err := query.SelectConfig(tx, "storage_volumes_config", "storage_volume_id=?", volumeIDs[0])
 	require.NoError(t, err)
 	config2, err := query.SelectConfig(tx, "storage_volumes_config", "storage_volume_id=?", volumeIDs[1])
+	require.NoError(t, err)
 	require.Equal(t, config1, config2)
+}
+
+func TestUpdateFromV6(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(7, func(db *sql.DB) {
+		// Create two nodes.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+		_, err = db.Exec(
+			"INSERT INTO nodes VALUES (2, 'n2', '', '5.6.7.8:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+
+		// Create a pool p1 of type zfs.
+		_, err = db.Exec("INSERT INTO storage_pools VALUES (1, 'p1', 'zfs', '', 0)")
+		require.NoError(t, err)
+
+		// Create a pool p2 of type zfs.
+		_, err = db.Exec("INSERT INTO storage_pools VALUES (2, 'p2', 'zfs', '', 0)")
+		require.NoError(t, err)
+
+		// Create a zfs.pool_name config for p1.
+		_, err = db.Exec(`
+INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+  VALUES(1, NULL, 'zfs.pool_name', 'my-pool')
+`)
+		require.NoError(t, err)
+
+		// Create a zfs.clone_copy config for p2.
+		_, err = db.Exec(`
+INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+  VALUES(2, NULL, 'zfs.clone_copy', 'true')
+`)
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+	defer tx.Rollback()
+
+	// Check the zfs.pool_name config is now node-specific.
+	for _, nodeID := range []int{1, 2} {
+		config, err := query.SelectConfig(
+			tx, "storage_pools_config", "storage_pool_id=1 AND node_id=?", nodeID)
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"zfs.pool_name": "my-pool"}, config)
+	}
+
+	// Check the zfs.clone_copy is still global
+	config, err := query.SelectConfig(
+		tx, "storage_pools_config", "storage_pool_id=2 AND node_id IS NULL")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"zfs.clone_copy": "true"}, config)
 }

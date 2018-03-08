@@ -88,6 +88,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, "123", pool.Config["size"])
 	assert.Equal(t, "/foo/bar", pool.Config["volatile.initial_source"])
 	assert.Equal(t, "mypool", pool.Config["zfs.pool_name"])
+	assert.Equal(t, "true", pool.Config["zfs.clone_copy"])
 	assert.Equal(t, "Created", pool.Status)
 	assert.Equal(t, []string{"none"}, pool.Locations)
 	volumes, err := cluster.StoragePoolNodeVolumesGet(id, []int{1})
@@ -96,10 +97,10 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, "/foo/bar", volumes[0].Config["source"])
 
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		// The zfs.pool_name config got a NULL node_id, since it's cluster global.
+		// The zfs.clone_copy config got a NULL node_id, since it's cluster global.
 		config, err := query.SelectConfig(tx.Tx(), "storage_pools_config", "node_id IS NULL")
 		require.NoError(t, err)
-		assert.Equal(t, map[string]string{"zfs.pool_name": "mypool"}, config)
+		assert.Equal(t, map[string]string{"zfs.clone_copy": "true"}, config)
 
 		// The other config keys are node-specific.
 		config, err = query.SelectConfig(tx.Tx(), "storage_pools_config", "node_id=?", 1)
@@ -109,6 +110,7 @@ func TestImportPreClusteringData(t *testing.T) {
 				"source": "/foo/bar",
 				"size":   "123",
 				"volatile.initial_source": "/foo/bar",
+				"zfs.pool_name":           "mypool",
 			}, config)
 
 		// Storage volumes have now a node_id key set to 1 (the ID of
@@ -182,6 +184,7 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 		"INSERT INTO storage_pools_config VALUES(2, 1, 'size', '123')",
 		"INSERT INTO storage_pools_config VALUES(3, 1, 'volatile.initial_source', '/foo/bar')",
 		"INSERT INTO storage_pools_config VALUES(4, 1, 'zfs.pool_name', 'mypool')",
+		"INSERT INTO storage_pools_config VALUES(5, 1, 'zfs.clone_copy', 'true')",
 		"INSERT INTO storage_volumes VALUES (1, 'dev', 1, 1, '')",
 		"INSERT INTO storage_volumes_config VALUES(1, 1, 'source', '/foo/bar')",
 	}
