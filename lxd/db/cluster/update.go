@@ -31,6 +31,59 @@ var updates = map[int]schema.Update{
 	4: updateFromV3,
 	5: updateFromV4,
 	6: updateFromV5,
+	7: updateFromV6,
+}
+
+// The zfs.pool_name config key is node-specific, and needs to be linked to
+// nodes.
+func updateFromV6(tx *sql.Tx) error {
+	// Fetch the IDs of all existing nodes.
+	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	if err != nil {
+		return errors.Wrap(err, "failed to get IDs of current nodes")
+	}
+
+	// Fetch the IDs of all existing zfs pools.
+	poolIDs, err := query.SelectIntegers(tx, `
+SELECT id FROM storage_pools WHERE driver='zfs'
+`)
+	if err != nil {
+		return errors.Wrap(err, "failed to get IDs of current zfs pools")
+	}
+
+	for _, poolID := range poolIDs {
+		// Fetch the config for this zfs pool and check if it has the zfs.pool_name key
+		config, err := query.SelectConfig(
+			tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
+		if err != nil {
+			return errors.Wrap(err, "failed to fetch of zfs pool config")
+		}
+		poolName, ok := config["zfs.pool_name"]
+		if !ok {
+			continue // This zfs storage pool does not have a zfs.pool_name config
+		}
+
+		// Delete the current zfs.pool_name key
+		_, err = tx.Exec(`
+DELETE FROM storage_pools_config WHERE key='zfs.pool_name' AND storage_pool_id=? AND node_id IS NULL
+`, poolID)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete zfs.pool_name config")
+		}
+
+		// Add zfs.pool_name config entry for each node
+		for _, nodeID := range nodeIDs {
+			_, err := tx.Exec(`
+INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+  VALUES(?, ?, 'zfs.pool_name', ?)
+`, poolID, nodeID, poolName)
+			if err != nil {
+				return errors.Wrap(err, "failed to create zfs.pool_name node config")
+			}
+		}
+	}
+
+	return nil
 }
 
 // For ceph volumes, add node-specific rows for all existing nodes, since any
@@ -49,7 +102,7 @@ SELECT storage_volumes.id FROM storage_volumes
     WHERE storage_pools.driver='ceph'
 `)
 	if err != nil {
-		return errors.Wrap(err, "failed to get IDs of current volumes")
+		return errors.Wrap(err, "failed to get IDs of current ceph volumes")
 	}
 
 	// Fetch all existing ceph volumes.

@@ -72,7 +72,7 @@ func TestStoragePoolsCreatePending_NonExistingNode(t *testing.T) {
 }
 
 // If a pool with the given name already exists but has different driver, an
-// error is returned. Likewise, if volume is updated or deleted, it's udpated
+// error is returned. Likewise, if volume is updated or deleted, it's updated
 // or deleted on all nodes.
 func TestStoragePoolVolume_Ceph(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)

@@ -953,6 +953,7 @@ var StoragePoolNodeConfigKeys = []string{
 	"size",
 	"source",
 	"volatile.initial_source",
+	"zfs.pool_name",
 }
 
 // StoragePoolVolumeTypeToName converts a volume integer type code to its
