@@ -1,7 +1,7 @@
 # Requirements
 ## Go
 
-LXD requires Go 1.5 or higher.
+LXD requires Go 1.9 or higher.
 Both the golang and gccgo compilers are supported.
 
 ## Kernel requirements
