@@ -211,6 +211,31 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			}
 		}
 
+		// For ceph pools we have to create the mount points too.
+		poolNames, err := d.cluster.StoragePools()
+		if err != nil && err != db.NoSuchObjectError {
+			return err
+		}
+		for _, name := range poolNames {
+			_, pool, err := d.cluster.StoragePoolGet(name)
+			if err != nil {
+				return err
+			}
+			if pool.Driver != "ceph" {
+				continue
+			}
+			storage, err := storagePoolInit(d.State(), name)
+			if err != nil {
+				return errors.Wrap(err, "failed to init ceph pool for joining node")
+			}
+			volumeMntPoint := getStoragePoolVolumeMountPoint(
+				name, storage.(*storageCeph).volume.Name)
+			err = os.MkdirAll(volumeMntPoint, 0711)
+			if err != nil {
+				return errors.Wrap(err, "failed to create ceph pool mount point")
+			}
+		}
+
 		// FIXME: special case handling MAAS connection if the config
 		// in the cluster is different than what we had locally before
 		// joining. Ideally this should be something transparent or
@@ -589,6 +614,16 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 			break
 		}
 		if !found {
+			_, pool, err := cluster.StoragePoolGet(name)
+			if err != nil {
+				return err
+			}
+			// Ignore missing ceph pools, since they'll be shared
+			// and we don't require them to be defined on the
+			// joining node.
+			if pool.Driver == "ceph" {
+				continue
+			}
 			return fmt.Errorf("Missing storage pool %s", name)
 		}
 	}

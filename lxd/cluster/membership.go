@@ -344,24 +344,40 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 			return errors.Wrap(err, "failed to get cluster storage pool IDs")
 		}
 		for name, id := range ids {
-			config, ok := pools[name]
-			if !ok {
-				return fmt.Errorf("joining node has no config for pool %s", name)
-			}
 			err := tx.StoragePoolNodeJoin(id, node.ID)
 			if err != nil {
 				return errors.Wrap(err, "failed to add joining node's to the pool")
 			}
-			// We only need to add the node-specific keys, since
-			// the other keys are global and are already there.
-			for key := range config {
-				if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-					delete(config, key)
-				}
-			}
-			err = tx.StoragePoolConfigAdd(id, node.ID, config)
+
+			driver, err := tx.StoragePoolDriver(id)
 			if err != nil {
-				return errors.Wrap(err, "failed to add joining node's pool config")
+				return errors.Wrap(err, "failed to get storage pool driver")
+			}
+			if driver == "ceph" {
+				// For ceph pools we have to create volume
+				// entries for the joining node.
+				err := tx.StoragePoolNodeJoinCeph(id, node.ID)
+				if err != nil {
+					return errors.Wrap(err, "failed to create ceph volumes for joining node")
+				}
+
+			} else {
+				// For other pools we add the config provided by the joining node.
+				config, ok := pools[name]
+				if !ok {
+					return fmt.Errorf("joining node has no config for pool %s", name)
+				}
+				// We only need to add the node-specific keys, since
+				// the other keys are global and are already there.
+				for key := range config {
+					if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
+						delete(config, key)
+					}
+				}
+				err = tx.StoragePoolConfigAdd(id, node.ID, config)
+				if err != nil {
+					return errors.Wrap(err, "failed to add joining node's pool config")
+				}
 			}
 		}
 
