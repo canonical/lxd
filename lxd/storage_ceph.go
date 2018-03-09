@@ -472,11 +472,6 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 		}
 	}
 
-	_, err = s.StoragePoolVolumeMount()
-	if err != nil {
-		return err
-	}
-
 	logger.Debugf(`Created RBD storage volume "%s" on storage pool "%s"`,
 		s.volume.Name, s.pool.Name)
 
@@ -2921,6 +2916,14 @@ func (s *storageCeph) StoragePoolVolumeCopy(source *api.StorageVolumeSource) err
 	if err != nil {
 		logger.Errorf("Failed to create RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
+	}
+
+	ourMount, err = s.StoragePoolVolumeMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.StoragePoolVolumeUmount()
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
