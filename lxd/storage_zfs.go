@@ -394,7 +394,11 @@ func (s *storageZfs) StoragePoolVolumeCreate() error {
 	}
 
 	if !shared.IsMountPoint(customPoolVolumeMntPoint) {
-		zfsMount(poolName, fs)
+		err := zfsMount(poolName, fs)
+		if err != nil {
+			return err
+		}
+		defer zfsUmount(poolName, fs, customPoolVolumeMntPoint)
 	}
 
 	// apply quota
@@ -2537,6 +2541,15 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	if err != nil {
 		logger.Errorf("Failed to create ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
+	}
+
+	ourMount, err := s.StoragePoolVolumeMount()
+	if err != nil {
+		logger.Errorf("Failed to mount ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	if ourMount {
+		defer s.StoragePoolVolumeUmount()
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
