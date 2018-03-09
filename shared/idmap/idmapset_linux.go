@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/user"
 	"path"
 	"path/filepath"
@@ -673,10 +672,7 @@ func DefaultIdmapSet(username string) (*IdmapSet, error) {
 		username = currentUser.Username
 	}
 
-	// Check if shadow's uidmap tools are installed
-	newuidmap, _ := exec.LookPath("newuidmap")
-	newgidmap, _ := exec.LookPath("newgidmap")
-	if newuidmap != "" && newgidmap != "" && shared.PathExists("/etc/subuid") && shared.PathExists("/etc/subgid") {
+	if shared.PathExists("/etc/subuid") && shared.PathExists("/etc/subgid") {
 		// Parse the shadow uidmap
 		entries, err := getFromShadow("/etc/subuid", username)
 		if err != nil {
