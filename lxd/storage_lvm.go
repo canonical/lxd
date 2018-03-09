@@ -510,11 +510,6 @@ func (s *storageLvm) StoragePoolVolumeCreate() error {
 		}
 	}
 
-	_, err = s.StoragePoolVolumeMount()
-	if err != nil {
-		return err
-	}
-
 	tryUndo = false
 
 	logger.Infof("Created LVM storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
@@ -1909,6 +1904,14 @@ func (s *storageLvm) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	if err != nil {
 		logger.Errorf("Failed to create LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
+	}
+
+	ourMount, err := s.StoragePoolVolumeMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.StoragePoolVolumeUmount()
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
