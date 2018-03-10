@@ -96,6 +96,10 @@ func main() {
 	forknetCmd := cmdForknet{global: &globalCmd}
 	app.AddCommand(forknetCmd.Command())
 
+	// forkstart sub-command
+	forkstartCmd := cmdForkstart{global: &globalCmd}
+	app.AddCommand(forkstartCmd.Command())
+
 	// import sub-command
 	importCmd := cmdImport{global: &globalCmd}
 	app.AddCommand(importCmd.Command())
