@@ -16,23 +16,14 @@ import (
 /*
 #define _GNU_SOURCE
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#define ADVANCE_ARG_REQUIRED() \
-	do { \
-		while (*cur != 0) \
-			cur++; \
-		cur++; \
-		if (size <= cur - buf) { \
-			fprintf(stderr, "not enough arguments\n"); \
-			_exit(1); \
-		} \
-	} while(0)
-
+extern bool advance_arg(char *buf, char *cur, ssize_t size, bool required);
 extern int dosetns(int pid, char *nstype);
 
 void forkdonetinfo(char *buf, char *cur, ssize_t size, pid_t pid) {
@@ -49,12 +40,13 @@ void forknet(char *buf, char *cur, ssize_t size) {
 	pid_t pid = 0;
 
 	// Get the subcommand
-	ADVANCE_ARG_REQUIRED();
-	command = cur;
+	if (advance_arg(buf, cur, size, false)) {
+		command = cur;
+	}
 
 	// Get the pid
-	ADVANCE_ARG_REQUIRED();
-	if (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0) {
+	advance_arg(buf, cur, size, false);
+	if (command == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
 		return;
 	}
 
@@ -62,7 +54,7 @@ void forknet(char *buf, char *cur, ssize_t size) {
 
 	// Check that we're root
 	if (geteuid() != 0) {
-		fprintf(stderr, "Error: forkfile requires root privileges\n");
+		fprintf(stderr, "Error: forknet requires root privileges\n");
 		_exit(1);
 	}
 

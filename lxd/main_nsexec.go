@@ -27,6 +27,7 @@ package main
 #include <libgen.h>
 #include <linux/limits.h>
 #include <sched.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,19 +38,24 @@ package main
 
 #define CMDLINE_SIZE (8 * PATH_MAX)
 
-#define ADVANCE_ARG_REQUIRED() \
-	do { \
-		while (*cur != 0) \
-			cur++; \
-		cur++; \
-		if (size <= cur - buf) { \
-			fprintf(stderr, "not enough arguments\n"); \
-			_exit(1); \
-		} \
-	} while(0)
-
 extern void forkfile(char *buf, char *cur, ssize_t size);
 extern void forknet(char *buf, char *cur, ssize_t size);
+
+bool advance_arg(char *buf, char *cur, ssize_t size, bool required) {
+	while (*cur != 0)
+		cur++;
+
+	cur++;
+	if (size <= cur - buf) {
+		if (!required)
+			return false;
+
+		fprintf(stderr, "not enough arguments\n");
+		_exit(1);
+	}
+
+	return true;
+}
 
 void error(char *msg)
 {
@@ -224,7 +230,7 @@ void create(char *src, char *dest) {
 void forkmount(char *buf, char *cur, ssize_t size) {
 	char *src, *dest, *opts;
 
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	int pid = atoi(cur);
 
 	attach_userns(pid);
@@ -234,10 +240,10 @@ void forkmount(char *buf, char *cur, ssize_t size) {
 		_exit(1);
 	}
 
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	src = cur;
 
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	dest = cur;
 
 	create(src, dest);
@@ -264,15 +270,17 @@ void forkmount(char *buf, char *cur, ssize_t size) {
 }
 
 void forkumount(char *buf, char *cur, ssize_t size) {
-	ADVANCE_ARG_REQUIRED();
-	int pid = atoi(cur);
+	pid_t pid;
+
+	advance_arg(buf, cur, size, true);
+	pid = atoi(cur);
 
 	if (dosetns(pid, "mnt") < 0) {
 		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
 
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	if (access(cur, F_OK) < 0) {
 		fprintf(stderr, "Mount path doesn't exist: %s\n", strerror(errno));
 		_exit(1);
@@ -292,19 +300,19 @@ void forkproxy(char *buf, char *cur, ssize_t size) {
 	FILE *logFile = NULL, *pidFile = NULL;
 
 	// Get the arguments
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	listen_pid = atoi(cur);
-	ADVANCE_ARG_REQUIRED();
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
+	advance_arg(buf, cur, size, true);
 	connect_pid = atoi(cur);
-	ADVANCE_ARG_REQUIRED();
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
+	advance_arg(buf, cur, size, true);
 	fdnum = atoi(cur);
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	forked = atoi(cur);
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	logPath = cur;
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	pidPath = cur;
 
 	// Check if proxy daemon already forked

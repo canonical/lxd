@@ -18,17 +18,7 @@ import (
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define ADVANCE_ARG_REQUIRED() \
-	do { \
-		while (*cur != 0) \
-			cur++; \
-		cur++; \
-		if (size <= cur - buf) { \
-			fprintf(stderr, "not enough arguments\n"); \
-			_exit(1); \
-		} \
-	} while(0)
-
+extern bool advance_arg(char *buf, char *cur, ssize_t size, bool required);
 extern void error(char *msg);
 extern void attach_userns(int pid);
 extern int dosetns(int pid, char *nstype);
@@ -295,14 +285,14 @@ void forkdofile(char *buf, char *cur, ssize_t size, bool is_put, char *rootfs, p
 	bool append = false;
 
 
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	if (is_put) {
 		source = cur;
 	} else {
 		target = cur;
 	}
 
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	if (is_put) {
 		target = cur;
 	} else {
@@ -310,28 +300,28 @@ void forkdofile(char *buf, char *cur, ssize_t size, bool is_put, char *rootfs, p
 	}
 
 	if (is_put) {
-		ADVANCE_ARG_REQUIRED();
+		advance_arg(buf, cur, size, true);
 		type = cur;
 
-		ADVANCE_ARG_REQUIRED();
+		advance_arg(buf, cur, size, true);
 		uid = atoi(cur);
 
-		ADVANCE_ARG_REQUIRED();
+		advance_arg(buf, cur, size, true);
 		gid = atoi(cur);
 
-		ADVANCE_ARG_REQUIRED();
+		advance_arg(buf, cur, size, true);
 		mode = atoi(cur);
 
-		ADVANCE_ARG_REQUIRED();
+		advance_arg(buf, cur, size, true);
 		defaultUid = atoi(cur);
 
-		ADVANCE_ARG_REQUIRED();
+		advance_arg(buf, cur, size, true);
 		defaultGid = atoi(cur);
 
-		ADVANCE_ARG_REQUIRED();
+		advance_arg(buf, cur, size, true);
 		defaultMode = atoi(cur);
 
-		ADVANCE_ARG_REQUIRED();
+		advance_arg(buf, cur, size, true);
 		if (strcmp(cur, "append") == 0) {
 			append = true;
 		}
@@ -345,7 +335,7 @@ void forkdofile(char *buf, char *cur, ssize_t size, bool is_put, char *rootfs, p
 void forkcheckfile(char *buf, char *cur, ssize_t size, char *rootfs, pid_t pid) {
 	char *path = NULL;
 
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	path = cur;
 
 	if (pid > 0) {
@@ -379,7 +369,7 @@ void forkremovefile(char *buf, char *cur, ssize_t size, char *rootfs, pid_t pid)
 	char *path = NULL;
 	struct stat sb;
 
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	path = cur;
 
 	if (pid > 0) {
@@ -427,19 +417,20 @@ void forkfile(char *buf, char *cur, ssize_t size) {
 	pid_t pid = 0;
 
 	// Get the subcommand
-	ADVANCE_ARG_REQUIRED();
-	command = cur;
+	if (advance_arg(buf, cur, size, false)) {
+		command = cur;
+	}
 
 	// Get the container rootfs
-	ADVANCE_ARG_REQUIRED();
-	if (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0) {
+	advance_arg(buf, cur, size, false);
+	if (command == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
 		return;
 	}
 
 	rootfs = cur;
 
 	// Get the container PID
-	ADVANCE_ARG_REQUIRED();
+	advance_arg(buf, cur, size, true);
 	pid = atoi(cur);
 
 	// Check that we're root
