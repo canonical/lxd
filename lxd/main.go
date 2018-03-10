@@ -104,6 +104,10 @@ func main() {
 	forknetCmd := cmdForknet{global: &globalCmd}
 	app.AddCommand(forknetCmd.Command())
 
+	// forkproxy sub-command
+	forkproxyCmd := cmdForkproxy{global: &globalCmd}
+	app.AddCommand(forkproxyCmd.Command())
+
 	// forkstart sub-command
 	forkstartCmd := cmdForkstart{global: &globalCmd}
 	app.AddCommand(forkstartCmd.Command())

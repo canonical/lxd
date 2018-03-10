@@ -36,6 +36,7 @@ package main
 extern void forkfile(char *buf, char *cur, ssize_t size);
 extern void forkmount(char *buf, char *cur, ssize_t size);
 extern void forknet(char *buf, char *cur, ssize_t size);
+extern void forkproxy(char *buf, char *cur, ssize_t size);
 
 bool advance_arg(char *buf, char *cur, ssize_t size, bool required) {
 	while (*cur != 0)
@@ -131,96 +132,6 @@ void attach_userns(int pid) {
 				_exit(1);
 			}
 
-		}
-	}
-}
-
-void forkproxy(char *buf, char *cur, ssize_t size) {
-	int cmdline, listen_pid, connect_pid, fdnum, forked, childPid, ret;
-	char fdpath[80];
-	char *logPath = NULL, *pidPath = NULL;
-	FILE *logFile = NULL, *pidFile = NULL;
-
-	// Get the arguments
-	advance_arg(buf, cur, size, true);
-	listen_pid = atoi(cur);
-	advance_arg(buf, cur, size, true);
-	advance_arg(buf, cur, size, true);
-	connect_pid = atoi(cur);
-	advance_arg(buf, cur, size, true);
-	advance_arg(buf, cur, size, true);
-	fdnum = atoi(cur);
-	advance_arg(buf, cur, size, true);
-	forked = atoi(cur);
-	advance_arg(buf, cur, size, true);
-	logPath = cur;
-	advance_arg(buf, cur, size, true);
-	pidPath = cur;
-
-	// Check if proxy daemon already forked
-	if (forked == 0) {
-		logFile = fopen(logPath, "w+");
-		if (logFile == NULL) {
-			_exit(1);
-		}
-
-		if (dup2(fileno(logFile), STDOUT_FILENO) < 0) {
-			fprintf(logFile, "Failed to redirect STDOUT to logfile: %s\n", strerror(errno));
-			_exit(1);
-		}
-		if (dup2(fileno(logFile), STDERR_FILENO) < 0) {
-			fprintf(logFile, "Failed to redirect STDERR to logfile: %s\n", strerror(errno));
-			_exit(1);
-		}
-		fclose(logFile);
-
-		pidFile = fopen(pidPath, "w+");
-		if (pidFile == NULL) {
-			fprintf(stderr, "Failed to create pid file for proxy daemon: %s\n", strerror(errno));
-			_exit(1);
-		}
-
-		childPid = fork();
-		if (childPid < 0) {
-			fprintf(stderr, "Failed to fork proxy daemon: %s\n", strerror(errno));
-			_exit(1);
-		} else if (childPid != 0) {
-			fprintf(pidFile, "%d", childPid);
-			fclose(pidFile);
-			fclose(stdin);
-			fclose(stdout);
-			fclose(stderr);
-			_exit(0);
-		} else {
-			ret = setsid();
-			if (ret < 0) {
-				fprintf(stderr, "Failed to setsid in proxy daemon: %s\n", strerror(errno));
-				_exit(1);
-			}
-		}
-	}
-
-	// Cannot pass through -1 to runCommand since it is interpreted as a flag
-	fdnum = fdnum == 0 ? -1 : fdnum;
-
-	ret = snprintf(fdpath, sizeof(fdpath), "/proc/self/fd/%d", fdnum);
-	if (ret < 0 || (size_t)ret >= sizeof(fdpath)) {
-		fprintf(stderr, "Failed to format file descriptor path\n");
-		_exit(1);
-	}
-
-	// Join the listener ns if not already setup
-	if (access(fdpath, F_OK) < 0) {
-		// Attach to the network namespace of the listener
-		if (dosetns(listen_pid, "net") < 0) {
-			fprintf(stderr, "Failed setns to listener network namespace: %s\n", strerror(errno));
-			_exit(1);
-		}
-	} else {
-		// Join the connector ns now
-		if (dosetns(connect_pid, "net") < 0) {
-			fprintf(stderr, "Failed setns to connector network namespace: %s\n", strerror(errno));
-			_exit(1);
 		}
 	}
 }
