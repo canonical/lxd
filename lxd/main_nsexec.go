@@ -20,25 +20,21 @@ package main
 
 /*
 #define _GNU_SOURCE
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
-#include <libgen.h>
 #include <linux/limits.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #define CMDLINE_SIZE (8 * PATH_MAX)
 
 extern void forkfile(char *buf, char *cur, ssize_t size);
+extern void forkmount(char *buf, char *cur, ssize_t size);
 extern void forknet(char *buf, char *cur, ssize_t size);
 
 bool advance_arg(char *buf, char *cur, ssize_t size, bool required) {
@@ -71,29 +67,6 @@ void error(char *msg)
 	fprintf(stderr, "errno: %d\n", old_errno);
 }
 
-int mkdir_p(const char *dir, mode_t mode)
-{
-	const char *tmp = dir;
-	const char *orig = dir;
-	char *makeme;
-
-	do {
-		dir = tmp + strspn(tmp, "/");
-		tmp = dir + strcspn(dir, "/");
-		makeme = strndup(orig, dir - orig);
-		if (*makeme) {
-			if (mkdir(makeme, mode) && errno != EEXIST) {
-				fprintf(stderr, "failed to create directory '%s': %s\n", makeme, strerror(errno));
-				free(makeme);
-				return -1;
-			}
-		}
-		free(makeme);
-	} while(tmp != dir);
-
-	return 0;
-}
-
 int dosetns(int pid, char *nstype) {
 	int mntns;
 	char buf[PATH_MAX];
@@ -117,22 +90,27 @@ int dosetns(int pid, char *nstype) {
 
 void attach_userns(int pid) {
 	char nspath[PATH_MAX];
-	char userns_source[PATH_MAX];
-	char userns_target[PATH_MAX];
+	char userns_source[22];
+	char userns_target[22];
+	ssize_t len = 0;
 
 	sprintf(nspath, "/proc/%d/ns/user", pid);
 	if (access(nspath, F_OK) == 0) {
-		if (readlink("/proc/self/ns/user", userns_source, 18) < 0) {
+		len = readlink("/proc/self/ns/user", userns_source, 21);
+		if (len < 0) {
 			fprintf(stderr, "Failed readlink of source namespace: %s\n", strerror(errno));
 			_exit(1);
 		}
+		userns_source[len] = '\0';
 
-		if (readlink(nspath, userns_target, PATH_MAX) < 0) {
+		len = readlink(nspath, userns_target, 21);
+		if (len < 0) {
 			fprintf(stderr, "Failed readlink of target namespace: %s\n", strerror(errno));
 			_exit(1);
 		}
+		userns_target[len] = '\0';
 
-		if (strncmp(userns_source, userns_target, PATH_MAX) != 0) {
+		if (strcmp(userns_source, userns_target) != 0) {
 			if (dosetns(pid, "user") < 0) {
 				fprintf(stderr, "Failed setns to container user namespace: %s\n", strerror(errno));
 				_exit(1);
@@ -155,142 +133,6 @@ void attach_userns(int pid) {
 
 		}
 	}
-}
-
-void ensure_dir(char *dest) {
-	struct stat sb;
-	if (stat(dest, &sb) == 0) {
-		if ((sb.st_mode & S_IFMT) == S_IFDIR)
-			return;
-		if (unlink(dest) < 0) {
-			fprintf(stderr, "Failed to remove old %s: %s\n", dest, strerror(errno));
-			_exit(1);
-		}
-	}
-	if (mkdir(dest, 0755) < 0) {
-		fprintf(stderr, "Failed to mkdir %s: %s\n", dest, strerror(errno));
-		_exit(1);
-	}
-}
-
-void ensure_file(char *dest) {
-	struct stat sb;
-	int fd;
-
-	if (stat(dest, &sb) == 0) {
-		if ((sb.st_mode & S_IFMT) != S_IFDIR)
-			return;
-		if (rmdir(dest) < 0) {
-			fprintf(stderr, "Failed to remove old %s: %s\n", dest, strerror(errno));
-			_exit(1);
-		}
-	}
-
-	fd = creat(dest, 0755);
-	if (fd < 0) {
-		fprintf(stderr, "Failed to mkdir %s: %s\n", dest, strerror(errno));
-		_exit(1);
-	}
-	close(fd);
-}
-
-void create(char *src, char *dest) {
-	char *dirdup;
-	char *destdirname;
-
-	struct stat sb;
-	if (stat(src, &sb) < 0) {
-		fprintf(stderr, "source %s does not exist\n", src);
-		_exit(1);
-	}
-
-	dirdup = strdup(dest);
-	if (!dirdup)
-		_exit(1);
-
-	destdirname = dirname(dirdup);
-
-	if (mkdir_p(destdirname, 0755) < 0) {
-		fprintf(stderr, "failed to create path: %s\n", destdirname);
-		free(dirdup);
-		_exit(1);
-	}
-	free(dirdup);
-
-	switch (sb.st_mode & S_IFMT) {
-	case S_IFDIR:
-		ensure_dir(dest);
-		return;
-	default:
-		ensure_file(dest);
-		return;
-	}
-}
-
-void forkmount(char *buf, char *cur, ssize_t size) {
-	char *src, *dest, *opts;
-
-	advance_arg(buf, cur, size, true);
-	int pid = atoi(cur);
-
-	attach_userns(pid);
-
-	if (dosetns(pid, "mnt") < 0) {
-		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	advance_arg(buf, cur, size, true);
-	src = cur;
-
-	advance_arg(buf, cur, size, true);
-	dest = cur;
-
-	create(src, dest);
-
-	if (access(src, F_OK) < 0) {
-		fprintf(stderr, "Mount source doesn't exist: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	if (access(dest, F_OK) < 0) {
-		fprintf(stderr, "Mount destination doesn't exist: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	// Here, we always move recursively, because we sometimes allow
-	// recursive mounts. If the mount has no kids then it doesn't matter,
-	// but if it does, we want to move those too.
-	if (mount(src, dest, "none", MS_MOVE | MS_REC, NULL) < 0) {
-		fprintf(stderr, "Failed mounting %s onto %s: %s\n", src, dest, strerror(errno));
-		_exit(1);
-	}
-
-	_exit(0);
-}
-
-void forkumount(char *buf, char *cur, ssize_t size) {
-	pid_t pid;
-
-	advance_arg(buf, cur, size, true);
-	pid = atoi(cur);
-
-	if (dosetns(pid, "mnt") < 0) {
-		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	advance_arg(buf, cur, size, true);
-	if (access(cur, F_OK) < 0) {
-		fprintf(stderr, "Mount path doesn't exist: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	if (umount2(cur, MNT_DETACH) < 0) {
-		fprintf(stderr, "Error unmounting %s: %s\n", cur, strerror(errno));
-		_exit(1);
-	}
-	_exit(0);
 }
 
 void forkproxy(char *buf, char *cur, ssize_t size) {
@@ -417,8 +259,6 @@ __attribute__((constructor)) void init(void) {
 		forkfile(buf, cur, size);
 	} else if (strcmp(cur, "forkmount") == 0) {
 		forkmount(buf, cur, size);
-	} else if (strcmp(cur, "forkumount") == 0) {
-		forkumount(buf, cur, size);
 	} else if (strcmp(cur, "forknet") == 0) {
 		forknet(buf, cur, size);
 	} else if (strcmp(cur, "forkproxy") == 0) {
