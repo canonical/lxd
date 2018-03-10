@@ -8,10 +8,102 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/shared/api"
 )
 
-func cmdForkGetNet(args *Args) error {
+/*
+#define _GNU_SOURCE
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#define ADVANCE_ARG_REQUIRED() \
+	do { \
+		while (*cur != 0) \
+			cur++; \
+		cur++; \
+		if (size <= cur - buf) { \
+			fprintf(stderr, "not enough arguments\n"); \
+			_exit(1); \
+		} \
+	} while(0)
+
+extern int dosetns(int pid, char *nstype);
+
+void forkdonetinfo(char *buf, char *cur, ssize_t size, pid_t pid) {
+	if (dosetns(pid, "net") < 0) {
+		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
+		_exit(1);
+	}
+
+	// Jump back to Go for the rest
+}
+
+void forknet(char *buf, char *cur, ssize_t size) {
+	char *command = NULL;
+	pid_t pid = 0;
+
+	// Get the subcommand
+	ADVANCE_ARG_REQUIRED();
+	command = cur;
+
+	// Get the pid
+	ADVANCE_ARG_REQUIRED();
+	if (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0) {
+		return;
+	}
+
+	pid = atoi(cur);
+
+	// Check that we're root
+	if (geteuid() != 0) {
+		fprintf(stderr, "Error: forkfile requires root privileges\n");
+		_exit(1);
+	}
+
+	// Call the subcommands
+	if (strcmp(command, "info") == 0) {
+		forkdonetinfo(buf, cur, size, pid);
+	}
+}
+*/
+import "C"
+
+type cmdForknet struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+}
+
+func (c *cmdForknet) Command() *cobra.Command {
+	// Main subcommand
+	cmd := &cobra.Command{}
+	cmd.Use = "forknet"
+	cmd.Short = "Perform container network operations"
+	cmd.Long = `Description:
+  Perform container network operations
+
+  This set of internal commands are used for some container network
+  operations which require attaching to the container's network namespace.
+`
+	cmd.Hidden = true
+
+	// pull
+	cmdInfo := &cobra.Command{}
+	cmdInfo.Use = "info <PID>"
+	cmdInfo.Args = cobra.ExactArgs(1)
+	cmdInfo.RunE = c.RunInfo
+	cmd.AddCommand(cmdInfo)
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
 	networks := map[string]api.ContainerStateNetwork{}
 
 	interfaces, err := net.Interfaces()

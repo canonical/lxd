@@ -5704,7 +5704,8 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 	// Get the network state from the container
 	out, err := shared.RunCommand(
 		c.state.OS.ExecPath,
-		"forkgetnet",
+		"forknet",
+		"info",
 		fmt.Sprintf("%d", pid))
 
 	// Process forkgetnet response
