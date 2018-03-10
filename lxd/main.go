@@ -84,6 +84,10 @@ func main() {
 	callhookCmd := cmdCallhook{global: &globalCmd}
 	app.AddCommand(callhookCmd.Command())
 
+	// forkexec sub-command
+	forkexecCmd := cmdForkexec{global: &globalCmd}
+	app.AddCommand(forkexecCmd.Command())
+
 	// forkfile sub-command
 	forkfileCmd := cmdForkfile{global: &globalCmd}
 	app.AddCommand(forkfileCmd.Command())
