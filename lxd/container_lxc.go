@@ -5964,7 +5964,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", pidStr, mntsrc, target)
+	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "mount", pidStr, mntsrc, target)
 
 	if out != "" {
 		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
@@ -5989,7 +5989,7 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	// Remove the mount from the container
 	pidStr := fmt.Sprintf("%d", pid)
-	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkumount", pidStr, mount)
+	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "umount", pidStr, mount)
 
 	if out != "" {
 		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
