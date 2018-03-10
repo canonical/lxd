@@ -96,6 +96,10 @@ func main() {
 	forkfileCmd := cmdForkfile{global: &globalCmd}
 	app.AddCommand(forkfileCmd.Command())
 
+	// forkmigrate sub-command
+	forkmigrateCmd := cmdForkmigrate{global: &globalCmd}
+	app.AddCommand(forkmigrateCmd.Command())
+
 	// forknet sub-command
 	forknetCmd := cmdForknet{global: &globalCmd}
 	app.AddCommand(forknetCmd.Command())
