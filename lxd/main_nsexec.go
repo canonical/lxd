@@ -49,6 +49,7 @@ package main
 	} while(0)
 
 extern void forkfile(char *buf, char *cur, ssize_t size);
+extern void forknet(char *buf, char *cur, ssize_t size);
 
 void error(char *msg)
 {
@@ -284,18 +285,6 @@ void forkumount(char *buf, char *cur, ssize_t size) {
 	_exit(0);
 }
 
-void forkgetnet(char *buf, char *cur, ssize_t size) {
-	ADVANCE_ARG_REQUIRED();
-	int pid = atoi(cur);
-
-	if (dosetns(pid, "net") < 0) {
-		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	// The rest happens in Go
-}
-
 void forkproxy(char *buf, char *cur, ssize_t size) {
 	int cmdline, listen_pid, connect_pid, fdnum, forked, childPid, ret;
 	char fdpath[80];
@@ -422,8 +411,8 @@ __attribute__((constructor)) void init(void) {
 		forkmount(buf, cur, size);
 	} else if (strcmp(cur, "forkumount") == 0) {
 		forkumount(buf, cur, size);
-	} else if (strcmp(cur, "forkgetnet") == 0) {
-		forkgetnet(buf, cur, size);
+	} else if (strcmp(cur, "forknet") == 0) {
+		forknet(buf, cur, size);
 	} else if (strcmp(cur, "forkproxy") == 0) {
 		forkproxy(buf, cur, size);
 	}
