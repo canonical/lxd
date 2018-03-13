@@ -94,6 +94,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			for _, container := range containers {
 				resultAppend(container, api.Container{}, fmt.Errorf("unavailable"))
 			}
+
 			continue
 		}
 
@@ -104,17 +105,21 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			go func(address string, containers []string) {
 				defer wg.Done()
 				cert := d.endpoints.NetworkCert()
+
 				cs, err := doContainersGetFromNode(address, cert)
 				if err != nil {
 					for _, name := range containers {
 						resultAppend(name, api.Container{}, err)
 					}
+
 					return
 				}
+
 				for _, c := range cs {
 					resultAppend(c.Name, c, nil)
 				}
 			}(address, containers)
+
 			continue
 		}
 
@@ -126,7 +131,11 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			}
 
 			c, err := doContainerGet(d.State(), container)
-			resultAppend(container, *c, err)
+			if err != nil {
+				resultAppend(container, api.Container{}, err)
+			} else {
+				resultAppend(container, *c, err)
+			}
 		}
 	}
 	wg.Wait()
