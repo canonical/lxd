@@ -525,6 +525,21 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	targetNode := r.FormValue("target")
+	if targetNode == "" {
+		// If no target node was specified, pick the node with the
+		// least number of containers. If there's just one node, or if
+		// the selected node is the local one, this is effectively a
+		// no-op, since NodeWithLeastContainers() will return an empty
+		// string.
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			targetNode, err = tx.NodeWithLeastContainers()
+			return err
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+	}
 	if targetNode != "" {
 		address, err := cluster.ResolveTarget(d.cluster, targetNode)
 		if err != nil {
@@ -537,7 +552,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 				return SmartError(err)
 			}
 			logger.Debugf("Forward container post request to %s", address)
-			op, err := client.CreateContainer(req)
+			op, err := client.UseTarget(targetNode).CreateContainer(req)
 			if err != nil {
 				return SmartError(err)
 			}
