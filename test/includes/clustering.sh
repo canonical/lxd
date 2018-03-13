@@ -235,7 +235,7 @@ EOF
     # Declare the pool only if the driver is not ceph, because
     # the ceph pool doesn't need to be created on the joining
     # node (it's shared with the bootstrap one).
-    if ! [ "${driver}" = "ceph" ]; then
+    if [ "${driver}" != "ceph" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
 storage_pools:
 - name: data
