@@ -65,6 +65,25 @@ mount --move /mnt/fs/cgroup /sys/fs/cgroup
 mount -t proc proc /proc
 mount -t securityfs securityfs /sys/kernel/security
 umount -l /mnt
+
+# Setup host netns access
+mkdir -p /run/netns
+mount -t tmpfs tmpfs /run/netns
+touch /run/netns/hostns
+mount --bind /proc/1/ns/net /run/netns/hostns
+
+mount -t tmpfs tmpfs /usr/local/bin
+(
+cat << EOE
+#!/bin/sh
+exec ip netns exec hostns /usr/bin/\\\$(basename \\\$0) "\\\$@"
+EOE
+) > /usr/local/bin/in-hostnetns
+chmod +x /usr/local/bin/in-hostnetns
+# Setup ceph
+ln -s in-hostnetns /usr/local/bin/ceph
+ln -s in-hostnetns /usr/local/bin/rbd
+
 sleep 300&
 echo \$! > "${TEST_DIR}/ns/${ns}/PID"
 EOF
@@ -118,19 +137,55 @@ spawn_lxd_and_bootstrap_cluster() {
   ns="${1}"
   bridge="${2}"
   LXD_DIR="${3}"
+  driver="dir"
+  if [ "$#" -eq  "4" ]; then
+      driver="${4}"
+  fi
+
+  echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
+
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
   sleep 1
   (
     set -e
 
-    cat <<EOF | lxd init --preseed
+    cat > "${LXD_DIR}/preseed.yaml" <<EOF
 config:
   core.trust_password: sekret
   core.https_address: 10.1.1.101:8443
   images.auto_update_interval: 0
 storage_pools:
 - name: data
-  driver: dir
+  driver: $driver
+EOF
+    if [ "${driver}" = "btrfs" ]; then
+      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  config:
+    size: 100GB
+EOF
+    fi
+    if [ "${driver}" = "zfs" ]; then
+      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  config:
+    size: 100GB
+    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
+EOF
+    fi
+    if [ "${driver}" = "lvm" ]; then
+      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  config:
+    volume.size: 25MB
+EOF
+    fi
+    if [ "${driver}" = "ceph" ]; then
+      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  config:
+    source: lxdtest-$(basename "${TEST_DIR}")
+    volume.size: 25GB
+    ceph.osd.pg_num: 8
+EOF
+    fi
+    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
 networks:
 - name: $bridge
   type: bridge
@@ -148,6 +203,7 @@ cluster:
   server_name: node1
   enabled: true
 EOF
+  lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )
 }
 
@@ -159,32 +215,59 @@ spawn_lxd_and_join_cluster() {
   index="${4}"
   target="${5}"
   LXD_DIR="${6}"
+  driver="dir"
+  if [ "$#" -eq  "7" ]; then
+      driver="${7}"
+  fi
+
+  echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
 
   LXD_ALT_CERT=1 LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
   sleep 1
   (
     set -e
 
-    cat <<EOF | lxd init --preseed
+    cat > "${LXD_DIR}/preseed.yaml" <<EOF
 config:
   core.https_address: 10.1.1.10${index}:8443
   images.auto_update_interval: 0
+EOF
+    # Declare the pool only if the driver is not ceph, because
+    # the ceph pool doesn't need to be created on the joining
+    # node (it's shared with the bootstrap one).
+    if [ "${driver}" != "ceph" ]; then
+      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
 storage_pools:
 - name: data
-  driver: dir
+  driver: $driver
+EOF
+      if [ "${driver}" = "btrfs" ]; then
+        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  config:
+    size: 100GB
+EOF
+      fi
+      if [ "${driver}" = "zfs" ]; then
+        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  config:
+    size: 100GB
+    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
+EOF
+      fi
+      if [ "${driver}" = "lvm" ]; then
+        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  config:
+    volume.size: 25MB
+EOF
+      fi
+    fi
+    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
 networks:
 - name: $bridge
   type: bridge
   config:
     ipv4.address: none
     ipv6.address: none
-profiles:
-- name: default
-  devices:
-    root:
-      path: /
-      pool: data
-      type: disk
 cluster:
   server_name: node${index}
   enabled: true
@@ -192,5 +275,6 @@ cluster:
   cluster_certificate: "$cert"
 cluster_password: sekret
 EOF
+  lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )
 }

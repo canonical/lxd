@@ -888,6 +888,9 @@ func (cmd *CmdInit) askClusteringStoragePools(targetPools []api.StoragePool) ([]
 		if pool.Status == "PENDING" {
 			continue // Skip pending pools
 		}
+		if pool.Driver == "ceph" {
+			continue // Skip ceph pools since they have no node-specific key
+		}
 		post := api.StoragePoolsPost{}
 		post.Name = pool.Name
 		post.Driver = pool.Driver

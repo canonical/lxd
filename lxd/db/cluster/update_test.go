@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -217,4 +218,131 @@ func TestUpdateFromV3(t *testing.T) {
 	// Unique constraint on storage_pool_id/node_id
 	_, err = db.Exec("INSERT INTO storage_pools_nodes VALUES (1, 1, 1)")
 	require.Error(t, err)
+}
+
+func TestUpdateFromV5(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(6, func(db *sql.DB) {
+		// Create two nodes.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+		_, err = db.Exec(
+			"INSERT INTO nodes VALUES (2, 'n2', '', '5.6.7.8:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+
+		// Create a pool p1 of type zfs.
+		_, err = db.Exec("INSERT INTO storage_pools VALUES (1, 'p1', 'zfs', '', 0)")
+		require.NoError(t, err)
+
+		// Create a pool p2 of type ceph.
+		_, err = db.Exec("INSERT INTO storage_pools VALUES (2, 'p2', 'ceph', '', 0)")
+
+		// Create a volume v1 on pool p1, associated with n1 and a config.
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO storage_volumes VALUES (1, 'v1', 1, 1, 1, '')")
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO storage_volumes_config VALUES (1, 1, 'k', 'v')")
+		require.NoError(t, err)
+
+		// Create a volume v1 on pool p2, associated with n1 and a config.
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO storage_volumes VALUES (2, 'v1', 2, 1, 1, '')")
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO storage_volumes_config VALUES (2, 2, 'k', 'v')")
+		require.NoError(t, err)
+
+		// Create a volume v2 on pool p2, associated with n2 and no config.
+		require.NoError(t, err)
+		_, err = db.Exec("INSERT INTO storage_volumes VALUES (3, 'v2', 2, 2, 1, '')")
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	// Check that a volume row for n2 was added for v1 on p2.
+	tx, err := db.Begin()
+	require.NoError(t, err)
+	defer tx.Rollback()
+	nodeIDs, err := query.SelectIntegers(tx, `
+SELECT node_id FROM storage_volumes WHERE storage_pool_id=2 AND name='v1' ORDER BY node_id
+`)
+	require.NoError(t, err)
+	require.Equal(t, []int{1, 2}, nodeIDs)
+
+	// Check that a volume row for n1 was added for v2 on p2.
+	nodeIDs, err = query.SelectIntegers(tx, `
+SELECT node_id FROM storage_volumes WHERE storage_pool_id=2 AND name='v2' ORDER BY node_id
+`)
+	require.NoError(t, err)
+	require.Equal(t, []int{1, 2}, nodeIDs)
+
+	// Check that the config for volume v1 on p2 was duplicated.
+	volumeIDs, err := query.SelectIntegers(tx, `
+SELECT id FROM storage_volumes WHERE storage_pool_id=2 AND name='v1' ORDER BY id
+`)
+	require.NoError(t, err)
+	require.Equal(t, []int{2, 4}, volumeIDs)
+	config1, err := query.SelectConfig(tx, "storage_volumes_config", "storage_volume_id=?", volumeIDs[0])
+	require.NoError(t, err)
+	config2, err := query.SelectConfig(tx, "storage_volumes_config", "storage_volume_id=?", volumeIDs[1])
+	require.NoError(t, err)
+	require.Equal(t, config1, config2)
+}
+
+func TestUpdateFromV6(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(7, func(db *sql.DB) {
+		// Create two nodes.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+		_, err = db.Exec(
+			"INSERT INTO nodes VALUES (2, 'n2', '', '5.6.7.8:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+
+		// Create a pool p1 of type zfs.
+		_, err = db.Exec("INSERT INTO storage_pools VALUES (1, 'p1', 'zfs', '', 0)")
+		require.NoError(t, err)
+
+		// Create a pool p2 of type zfs.
+		_, err = db.Exec("INSERT INTO storage_pools VALUES (2, 'p2', 'zfs', '', 0)")
+		require.NoError(t, err)
+
+		// Create a zfs.pool_name config for p1.
+		_, err = db.Exec(`
+INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+  VALUES(1, NULL, 'zfs.pool_name', 'my-pool')
+`)
+		require.NoError(t, err)
+
+		// Create a zfs.clone_copy config for p2.
+		_, err = db.Exec(`
+INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+  VALUES(2, NULL, 'zfs.clone_copy', 'true')
+`)
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+	defer tx.Rollback()
+
+	// Check the zfs.pool_name config is now node-specific.
+	for _, nodeID := range []int{1, 2} {
+		config, err := query.SelectConfig(
+			tx, "storage_pools_config", "storage_pool_id=1 AND node_id=?", nodeID)
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"zfs.pool_name": "my-pool"}, config)
+	}
+
+	// Check the zfs.clone_copy is still global
+	config, err := query.SelectConfig(
+		tx, "storage_pools_config", "storage_pool_id=2 AND node_id IS NULL")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"zfs.clone_copy": "true"}, config)
 }

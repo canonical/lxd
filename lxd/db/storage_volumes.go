@@ -154,6 +154,22 @@ func StorageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
 	return nil
 }
 
+// Get the IDs of all volumes with the given name and type associated with the
+// given pool, regardless of their node_id column.
+func storageVolumeIDsGet(tx *sql.Tx, volumeName string, volumeType int, poolID int64) ([]int64, error) {
+	ids, err := query.SelectIntegers(tx, `
+SELECT id FROM storage_volumes WHERE name=? AND type=? AND storage_pool_id=?
+`, volumeName, volumeType, poolID)
+	if err != nil {
+		return nil, err
+	}
+	ids64 := make([]int64, len(ids))
+	for i, id := range ids {
+		ids64[i] = int64(id)
+	}
+	return ids64, nil
+}
+
 func (c *Cluster) StorageVolumeCleanupImages(fingerprints []string) error {
 	stmt := fmt.Sprintf(
 		"DELETE FROM storage_volumes WHERE type=? AND name NOT IN %s",

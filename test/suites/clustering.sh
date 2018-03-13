@@ -275,11 +275,18 @@ test_clustering_storage() {
   prefix="lxd$$"
   bridge="${prefix}"
 
+  # The random storage backend is not supported in clustering tests,
+  # since we need to have the same storage driver on all nodes.
+  driver="${LXD_BACKEND}"
+  if [ "${driver}" = "random" ] || [ "${driver}" = "lvm" ]; then
+    driver="dir"
+  fi
+
   setup_clustering_netns 1
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_ONE_DIR}"
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${driver}"
 
   # The state of the preseeded storage pool shows up as CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
@@ -292,7 +299,7 @@ test_clustering_storage() {
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_TWO_DIR}"
   ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${driver}"
 
   # The state of the preseeded storage pool is still CREATED
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
@@ -301,68 +308,107 @@ test_clustering_storage() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1
 
   # Define storage pools on the two nodes
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node1
+  driver_config=""
+  if [ "${driver}" = "btrfs" ]; then
+      driver_config="size=20GB"
+  fi
+  if [ "${driver}" = "zfs" ]; then
+      driver_config="size=20GB"
+  fi
+  if [ "${driver}" = "ceph" ]; then
+      driver_config="source=pool1-$(basename "${TEST_DIR}")"
+  fi
+  driver_config_node1="${driver_config}"
+  driver_config_node2="${driver_config}"
+  if [ "${driver}" = "zfs" ]; then
+      driver_config_node1="${driver_config_node1} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns1}"
+      driver_config_node2="${driver_config_node1} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns2}"
+  fi
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" "${driver_config_node1}" --target node1
   LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node1
   ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" "${driver_config_node2}" --target node2
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Pending
 
   # The source config key is not legal for the final pool creation
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo
+  if [ "${driver}" = "dir" ]; then
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo
+  fi
 
   # Create the storage pool
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 dir
+  driver_config_global=""
+  if [ "${driver}" = "lvm" ]; then
+      driver_config_global="volume.size=25MB"
+  fi
+  if [ "${driver}" = "ceph" ]; then
+      driver_config_global="${driver_config_global} volume.size=25MB ceph.osd.pg_num=8"
+  fi
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" "${driver_config_global}"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Created
 
   # The 'source' config key is omitted when showing the cluster
   # configuration, and included when showing the node-specific one.
   ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q source
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep source | grep -q "$(basename "${LXD_ONE_DIR}")"
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node2 | grep source | grep -q "$(basename "${LXD_TWO_DIR}")"
+  source1="$(basename "${LXD_ONE_DIR}")"
+  source2="$(basename "${LXD_TWO_DIR}")"
+  if [ "${driver}" = "ceph" ]; then
+    # For ceph volume the source field is the name of the underlying ceph pool
+    source1="pool1-$(basename "${TEST_DIR}")"
+    source2="${source1}"
+  fi
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node1 | grep source | grep -q "${source1}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 --target node2 | grep source | grep -q "${source2}"
 
   # Update the storage pool
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 rsync.bwlimit 10
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep rsync.bwlimit | grep -q 10
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage unset pool1 rsync.bwlimit
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -q rsync.bwlimit
+  if [ "${driver}" = "dir" ]; then
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 rsync.bwlimit 10
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep rsync.bwlimit | grep -q 10
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage unset pool1 rsync.bwlimit
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -q rsync.bwlimit
+  fi
 
   # Delete the storage pool
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -q pool1
 
-  # Create a volume on node1
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data web
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -q node1
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep -q node1
+  if [ "${driver}" != "ceph" ]; then
+    # Create a volume on node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data web
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -q node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep -q node1
 
-  # Since the volume name is unique to node1, it's possible to show, rename,
-  # get the volume without specifying the --target parameter.
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -q "location: node1"
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume rename data web webbaz
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data webbaz web
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get data web size
+    # Since the volume name is unique to node1, it's possible to show, rename,
+    # get the volume without specifying the --target parameter.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web | grep -q "location: node1"
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume rename data web webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data webbaz web
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume get data web size
 
-  # Create another volume on node2 with the same name of the one on
-  # node1.
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create --target node2 data web
+    # Create another volume on node2 with the same name of the one on
+    # node1.
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create --target node2 data web
 
-  # Trying to show, rename or delete the web volume without --target
-  # fails, because it's not unique.
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data web webbaz
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data web
+    # Trying to show, rename or delete the web volume without --target
+    # fails, because it's not unique.
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data web webbaz
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data web
 
-  # Specifying the --target parameter shows, renames and deletes the
-  # proper volume.
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -q "location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -q "location: node2"
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data web webbaz
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz
+    # Specifying the --target parameter shows, renames and deletes the
+    # proper volume.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node1 data web | grep -q "location: node1"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show --target node2 data web | grep -q "location: node2"
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node1 data web webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename --target node2 data web webbaz
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete --target node2 data webbaz
 
-  # Since now there's only one volume in the pool left named webbaz,
-  # it's possible to delete it without specifying --target.
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data webbaz
+    # Since now there's only one volume in the pool left named webbaz,
+    # it's possible to delete it without specifying --target.
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data webbaz
+  fi
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc profile delete default
+  LXD_DIR="${LXD_TWO_DIR}" lxc storage delete data
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
