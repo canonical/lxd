@@ -216,3 +216,47 @@ INSERT INTO images_nodes(image_id, node_id) VALUES(1, 1)`)
 	require.NoError(t, err)
 	assert.Equal(t, "", message)
 }
+
+// If there are 2 online nodes, return the address of the one with the least
+// number of containers.
+func TestNodeWithLeastContainers(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	// Add a container to the default node (ID 1)
+	_, err = tx.Tx().Exec(`
+INSERT INTO containers (id, node_id, name, architecture, type) VALUES (1, 1, 'foo', 1, 1)
+`)
+	require.NoError(t, err)
+
+	name, err := tx.NodeWithLeastContainers()
+	require.NoError(t, err)
+	assert.Equal(t, "buzz", name)
+}
+
+// If there are nodes, and one of them is offline, return the name of the
+// online node, even if the offline one has more containers.
+func TestNodeWithLeastContainers_OfflineNode(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	// Add a container to the newly created node.
+	_, err = tx.Tx().Exec(`
+INSERT INTO containers (id, node_id, name, architecture, type) VALUES (1, ?, 'foo', 1, 1)
+`, id)
+	require.NoError(t, err)
+
+	// Mark the default node has offline.
+	err = tx.NodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+
+	name, err := tx.NodeWithLeastContainers()
+	require.NoError(t, err)
+	assert.Equal(t, "buzz", name)
+}

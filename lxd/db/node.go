@@ -391,6 +391,36 @@ func (c *ClusterTx) NodeOfflineThreshold() (time.Duration, error) {
 	return threshold, nil
 }
 
+// NodeWithLeastContainers returns the name of the non-offline node with
+// with the least number of containers.
+func (c *ClusterTx) NodeWithLeastContainers() (string, error) {
+	threshold, err := c.NodeOfflineThreshold()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get offline threshold")
+	}
+	nodes, err := c.Nodes()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get current nodes")
+	}
+
+	name := ""
+	containers := -1
+	for _, node := range nodes {
+		if node.IsOffline(threshold) {
+			continue
+		}
+		count, err := query.Count(c.tx, "containers", "node_id=?", node.ID)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get containers count")
+		}
+		if containers == -1 || count < containers {
+			containers = count
+			name = node.Name
+		}
+	}
+	return name, nil
+}
+
 func nodeIsOffline(threshold time.Duration, heartbeat time.Time) bool {
 	return heartbeat.Before(time.Now().Add(-threshold))
 }
