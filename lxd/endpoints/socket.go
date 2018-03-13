@@ -26,14 +26,14 @@ func socketUnixListen(path string) (net.Listener, error) {
 
 }
 
-// Check if the socket at the given path is already bound to a running LXD
-// process, and return an error if so.
+// CheckAlreadyRunning checks if the socket at the given path is already
+// bound to a running LXD process, and return an error if so.
 //
 // FIXME: We should probably rather just try a regular unix socket
 //        connection without using the client. However this is the way
 //        this logic has historically behaved, so let's keep it like it
 //        was.
-func socketUnixCheckAlreadyRunning(path string) error {
+func CheckAlreadyRunning(path string) error {
 	// If there's no socket file at all, there's nothing to do.
 	if !shared.PathExists(path) {
 		return nil
