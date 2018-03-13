@@ -245,6 +245,20 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
 
+  # Start a container without specifying any target. It will be placed
+  # on node1 since node2 is offline and both node1 and node3 have zero
+  # containers, but node1 has a lower node ID.
+  LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage bar
+  LXD_DIR="${LXD_THREE_DIR}" lxc info bar | grep -q "Location: node1"
+
+  # Start a container without specifying any target. It will be placed
+  # on node3 since node2 is offline and node1 already has a container.
+  LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage egg
+  LXD_DIR="${LXD_THREE_DIR}" lxc info egg | grep -q "Location: node3"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop egg --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
+
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2
