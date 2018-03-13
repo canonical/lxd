@@ -367,8 +367,14 @@ func (d *Daemon) Init() error {
 }
 
 func (d *Daemon) init() error {
+	// Lets check if there's an existing LXD running
+	err := endpoints.CheckAlreadyRunning(d.UnixSocket())
+	if err != nil {
+		return err
+	}
+
 	/* Set the LVM environment */
-	err := os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
+	err = os.Setenv("LVM_SUPPRESS_FD_WARNINGS", "1")
 	if err != nil {
 		return err
 	}
