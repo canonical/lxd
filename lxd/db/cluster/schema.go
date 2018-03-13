@@ -235,5 +235,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (5, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (7, strftime("%s"))
 `
