@@ -357,7 +357,7 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -q pool1
 
-  if ! [ "${driver}" = "ceph" ]; then
+  if [ "${driver}" != "ceph" ]; then
     # Create a volume on node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data web
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -q node1
