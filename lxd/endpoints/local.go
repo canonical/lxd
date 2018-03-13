@@ -9,7 +9,7 @@ import (
 func localCreateListener(dir string, group string) (net.Listener, error) {
 	path := filepath.Join(dir, "unix.socket")
 
-	err := socketUnixCheckAlreadyRunning(path)
+	err := CheckAlreadyRunning(path)
 	if err != nil {
 		return nil, err
 	}
