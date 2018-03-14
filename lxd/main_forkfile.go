@@ -18,7 +18,7 @@ import (
 #include <sys/stat.h>
 #include <unistd.h>
 
-extern bool advance_arg(char *buf, char *cur, ssize_t size, bool required);
+extern char* advance_arg(bool required);
 extern void error(char *msg);
 extern void attach_userns(int pid);
 extern int dosetns(int pid, char *nstype);
@@ -267,7 +267,9 @@ close_host:
 	return ret;
 }
 
-void forkdofile(char *buf, char *cur, ssize_t size, bool is_put, char *rootfs, pid_t pid) {
+void forkdofile(bool is_put, char *rootfs, pid_t pid) {
+	char *cur = NULL;
+
 	uid_t uid = 0;
 	uid_t defaultUid = 0;
 
@@ -285,14 +287,14 @@ void forkdofile(char *buf, char *cur, ssize_t size, bool is_put, char *rootfs, p
 	bool append = false;
 
 
-	advance_arg(buf, cur, size, true);
+	cur = advance_arg(true);
 	if (is_put) {
 		source = cur;
 	} else {
 		target = cur;
 	}
 
-	advance_arg(buf, cur, size, true);
+	cur = advance_arg(true);
 	if (is_put) {
 		target = cur;
 	} else {
@@ -300,29 +302,15 @@ void forkdofile(char *buf, char *cur, ssize_t size, bool is_put, char *rootfs, p
 	}
 
 	if (is_put) {
-		advance_arg(buf, cur, size, true);
-		type = cur;
+		type = advance_arg(true);
+		uid = atoi(advance_arg(true));
+		gid = atoi(advance_arg(true));
+		mode = atoi(advance_arg(true));
+		defaultUid = atoi(advance_arg(true));
+		defaultGid = atoi(advance_arg(true));
+		defaultMode = atoi(advance_arg(true));
 
-		advance_arg(buf, cur, size, true);
-		uid = atoi(cur);
-
-		advance_arg(buf, cur, size, true);
-		gid = atoi(cur);
-
-		advance_arg(buf, cur, size, true);
-		mode = atoi(cur);
-
-		advance_arg(buf, cur, size, true);
-		defaultUid = atoi(cur);
-
-		advance_arg(buf, cur, size, true);
-		defaultGid = atoi(cur);
-
-		advance_arg(buf, cur, size, true);
-		defaultMode = atoi(cur);
-
-		advance_arg(buf, cur, size, true);
-		if (strcmp(cur, "append") == 0) {
+		if (strcmp(advance_arg(true), "append") == 0) {
 			append = true;
 		}
 	}
@@ -332,11 +320,10 @@ void forkdofile(char *buf, char *cur, ssize_t size, bool is_put, char *rootfs, p
 	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
 }
 
-void forkcheckfile(char *buf, char *cur, ssize_t size, char *rootfs, pid_t pid) {
+void forkcheckfile(char *rootfs, pid_t pid) {
 	char *path = NULL;
 
-	advance_arg(buf, cur, size, true);
-	path = cur;
+	path = advance_arg(true);
 
 	if (pid > 0) {
 		attach_userns(pid);
@@ -365,12 +352,11 @@ void forkcheckfile(char *buf, char *cur, ssize_t size, char *rootfs, pid_t pid) 
 	_exit(0);
 }
 
-void forkremovefile(char *buf, char *cur, ssize_t size, char *rootfs, pid_t pid) {
+void forkremovefile(char *rootfs, pid_t pid) {
 	char *path = NULL;
 	struct stat sb;
 
-	advance_arg(buf, cur, size, true);
-	path = cur;
+	path = advance_arg(true);
 
 	if (pid > 0) {
 		attach_userns(pid);
@@ -411,18 +397,18 @@ void forkremovefile(char *buf, char *cur, ssize_t size, char *rootfs, pid_t pid)
 	_exit(0);
 }
 
-void forkfile(char *buf, char *cur, ssize_t size) {
+void forkfile() {
+	char *cur = NULL;
+
 	char *command = NULL;
 	char *rootfs = NULL;
 	pid_t pid = 0;
 
 	// Get the subcommand
-	if (advance_arg(buf, cur, size, false)) {
-		command = cur;
-	}
+	command = advance_arg(false);
 
 	// Get the container rootfs
-	advance_arg(buf, cur, size, false);
+	cur = advance_arg(false);
 	if (command == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
 		return;
 	}
@@ -430,8 +416,7 @@ void forkfile(char *buf, char *cur, ssize_t size) {
 	rootfs = cur;
 
 	// Get the container PID
-	advance_arg(buf, cur, size, true);
-	pid = atoi(cur);
+	pid = atoi(advance_arg(true));
 
 	// Check that we're root
 	if (geteuid() != 0) {
@@ -441,13 +426,13 @@ void forkfile(char *buf, char *cur, ssize_t size) {
 
 	// Call the subcommands
 	if (strcmp(command, "push") == 0) {
-		forkdofile(buf, cur, size, true, rootfs, pid);
+		forkdofile(true, rootfs, pid);
 	} else if (strcmp(command, "pull") == 0) {
-		forkdofile(buf, cur, size, false, rootfs, pid);
+		forkdofile(false, rootfs, pid);
 	} else if (strcmp(command, "exists") == 0) {
-		forkcheckfile(buf, cur, size, rootfs, pid);
+		forkcheckfile(rootfs, pid);
 	} else if (strcmp(command, "remove") == 0) {
-		forkremovefile(buf, cur, size, rootfs, pid);
+		forkremovefile(rootfs, pid);
 	}
 }
 */

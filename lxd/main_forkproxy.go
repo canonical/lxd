@@ -24,10 +24,10 @@ import (
 #include <string.h>
 #include <unistd.h>
 
-extern bool advance_arg(char *buf, char *cur, ssize_t size, bool required);
+extern char* advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
 
-void forkproxy(char *buf, char *cur, ssize_t size) {
+void forkproxy() {
 	int cmdline, listen_pid, connect_pid, fdnum, forked, childPid, ret;
 	char *logPath = NULL, *pidPath = NULL;
 	FILE *logFile = NULL, *pidFile = NULL;
@@ -36,20 +36,14 @@ void forkproxy(char *buf, char *cur, ssize_t size) {
 	char fdpath[36];
 
 	// Get the arguments
-	advance_arg(buf, cur, size, true);
-	listen_pid = atoi(cur);
-	advance_arg(buf, cur, size, true);
-	advance_arg(buf, cur, size, true);
-	connect_pid = atoi(cur);
-	advance_arg(buf, cur, size, true);
-	advance_arg(buf, cur, size, true);
-	fdnum = atoi(cur);
-	advance_arg(buf, cur, size, true);
-	forked = atoi(cur);
-	advance_arg(buf, cur, size, true);
-	logPath = cur;
-	advance_arg(buf, cur, size, true);
-	pidPath = cur;
+	listen_pid = atoi(advance_arg(true));
+	advance_arg(true);
+	connect_pid = atoi(advance_arg(true));
+	advance_arg(true);
+	fdnum = atoi(advance_arg(true));
+	forked = atoi(advance_arg(true));
+	logPath = advance_arg(true);
+	pidPath = advance_arg(true);
 
 	// Check if proxy daemon already forked
 	if (forked == 0) {

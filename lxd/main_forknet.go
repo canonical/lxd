@@ -23,10 +23,10 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
-extern bool advance_arg(char *buf, char *cur, ssize_t size, bool required);
+extern char *advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
 
-void forkdonetinfo(char *buf, char *cur, ssize_t size, pid_t pid) {
+void forkdonetinfo(pid_t pid) {
 	if (dosetns(pid, "net") < 0) {
 		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
 		_exit(1);
@@ -35,17 +35,16 @@ void forkdonetinfo(char *buf, char *cur, ssize_t size, pid_t pid) {
 	// Jump back to Go for the rest
 }
 
-void forknet(char *buf, char *cur, ssize_t size) {
+void forknet() {
 	char *command = NULL;
+	char *cur = NULL;
 	pid_t pid = 0;
 
 	// Get the subcommand
-	if (advance_arg(buf, cur, size, false)) {
-		command = cur;
-	}
+	command = advance_arg(false);
 
 	// Get the pid
-	advance_arg(buf, cur, size, false);
+	cur = advance_arg(false);
 	if (command == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
 		return;
 	}
@@ -60,7 +59,7 @@ void forknet(char *buf, char *cur, ssize_t size) {
 
 	// Call the subcommands
 	if (strcmp(command, "info") == 0) {
-		forkdonetinfo(buf, cur, size, pid);
+		forkdonetinfo(pid);
 	}
 }
 */
