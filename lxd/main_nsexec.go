@@ -31,27 +31,32 @@ package main
 #include <string.h>
 #include <unistd.h>
 
+// External functions
+extern void forkfile();
+extern void forkmount();
+extern void forknet();
+extern void forkproxy();
+
+// Command line parsing and tracking
 #define CMDLINE_SIZE (8 * PATH_MAX)
+char cmdline_buf[CMDLINE_SIZE];
+char *cmdline_cur = NULL;
+ssize_t cmdline_size = -1;
 
-extern void forkfile(char *buf, char *cur, ssize_t size);
-extern void forkmount(char *buf, char *cur, ssize_t size);
-extern void forknet(char *buf, char *cur, ssize_t size);
-extern void forkproxy(char *buf, char *cur, ssize_t size);
+char* advance_arg(bool required) {
+	while (*cmdline_cur != 0)
+		cmdline_cur++;
 
-bool advance_arg(char *buf, char *cur, ssize_t size, bool required) {
-	while (*cur != 0)
-		cur++;
-
-	cur++;
-	if (size <= cur - buf) {
+	cmdline_cur++;
+	if (cmdline_size <= cmdline_cur - cmdline_buf) {
 		if (!required)
-			return false;
+			return NULL;
 
 		fprintf(stderr, "not enough arguments\n");
 		_exit(1);
 	}
 
-	return true;
+	return cmdline_cur;
 }
 
 void error(char *msg)
@@ -138,9 +143,6 @@ void attach_userns(int pid) {
 
 __attribute__((constructor)) void init(void) {
 	int cmdline;
-	char buf[CMDLINE_SIZE];
-	ssize_t size;
-	char *cur;
 
 	// Extract arguments
 	cmdline = open("/proc/self/cmdline", O_RDONLY);
@@ -149,8 +151,8 @@ __attribute__((constructor)) void init(void) {
 		_exit(232);
 	}
 
-	memset(buf, 0, sizeof(buf));
-	if ((size = read(cmdline, buf, sizeof(buf)-1)) < 0) {
+	memset(cmdline_buf, 0, sizeof(cmdline_buf));
+	if ((cmdline_size = read(cmdline, cmdline_buf, sizeof(cmdline_buf)-1)) < 0) {
 		close(cmdline);
 		error("error: read");
 		_exit(232);
@@ -158,22 +160,22 @@ __attribute__((constructor)) void init(void) {
 	close(cmdline);
 
 	// Skip the first argument (but don't fail on missing second argument)
-	cur = buf;
-	while (*cur != 0)
-		cur++;
-	cur++;
-	if (size <= cur - buf)
+	cmdline_cur = cmdline_buf;
+	while (*cmdline_cur != 0)
+		cmdline_cur++;
+	cmdline_cur++;
+	if (cmdline_size <= cmdline_cur - cmdline_buf)
 		return;
 
 	// Intercepts some subcommands
-	if (strcmp(cur, "forkfile") == 0) {
-		forkfile(buf, cur, size);
-	} else if (strcmp(cur, "forkmount") == 0) {
-		forkmount(buf, cur, size);
-	} else if (strcmp(cur, "forknet") == 0) {
-		forknet(buf, cur, size);
-	} else if (strcmp(cur, "forkproxy") == 0) {
-		forkproxy(buf, cur, size);
+	if (strcmp(cmdline_cur, "forkfile") == 0) {
+		forkfile();
+	} else if (strcmp(cmdline_cur, "forkmount") == 0) {
+		forkmount();
+	} else if (strcmp(cmdline_cur, "forknet") == 0) {
+		forknet();
+	} else if (strcmp(cmdline_cur, "forkproxy") == 0) {
+		forkproxy();
 	}
 }
 */

@@ -20,7 +20,7 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
-extern bool advance_arg(char *buf, char *cur, ssize_t size, bool required);
+extern char* advance_arg(bool required);
 extern void error(char *msg);
 extern void attach_userns(int pid);
 extern int dosetns(int pid, char *nstype);
@@ -118,7 +118,7 @@ void create(char *src, char *dest) {
 	}
 }
 
-void forkdomount(char *buf, char *cur, ssize_t size, pid_t pid) {
+void forkdomount(pid_t pid) {
 	char *src, *dest, *opts;
 
 	attach_userns(pid);
@@ -128,11 +128,8 @@ void forkdomount(char *buf, char *cur, ssize_t size, pid_t pid) {
 		_exit(1);
 	}
 
-	advance_arg(buf, cur, size, true);
-	src = cur;
-
-	advance_arg(buf, cur, size, true);
-	dest = cur;
+	src = advance_arg(true);
+	dest = advance_arg(true);
 
 	create(src, dest);
 
@@ -157,37 +154,39 @@ void forkdomount(char *buf, char *cur, ssize_t size, pid_t pid) {
 	_exit(0);
 }
 
-void forkdoumount(char *buf, char *cur, ssize_t size, pid_t pid) {
+void forkdoumount(pid_t pid) {
+	char *path = NULL;
+
 	if (dosetns(pid, "mnt") < 0) {
 		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
 
-	advance_arg(buf, cur, size, true);
-	if (access(cur, F_OK) < 0) {
+	path = advance_arg(true);
+	if (access(path, F_OK) < 0) {
 		fprintf(stderr, "Mount path doesn't exist: %s\n", strerror(errno));
 		_exit(1);
 	}
 
-	if (umount2(cur, MNT_DETACH) < 0) {
-		fprintf(stderr, "Error unmounting %s: %s\n", cur, strerror(errno));
+	if (umount2(path, MNT_DETACH) < 0) {
+		fprintf(stderr, "Error unmounting %s: %s\n", path, strerror(errno));
 		_exit(1);
 	}
 	_exit(0);
 }
 
-void forkmount(char *buf, char *cur, ssize_t size) {
+void forkmount() {
+	char *cur = NULL;
+
 	char *command = NULL;
 	char *rootfs = NULL;
 	pid_t pid = 0;
 
 	// Get the subcommand
-	if (advance_arg(buf, cur, size, false)) {
-		command = cur;
-	}
+	command = advance_arg(false);
 
 	// Get the pid
-	advance_arg(buf, cur, size, false);
+	cur = advance_arg(false);
 	if (command == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
 		return;
 	}
@@ -202,9 +201,9 @@ void forkmount(char *buf, char *cur, ssize_t size) {
 
 	// Call the subcommands
 	if (strcmp(command, "mount") == 0) {
-		forkdomount(buf, cur, size, pid);
+		forkdomount(pid);
 	} else if (strcmp(command, "umount") == 0) {
-		forkdoumount(buf, cur, size, pid);
+		forkdoumount(pid);
 	}
 }
 */
