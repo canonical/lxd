@@ -28,6 +28,8 @@ extern char* advance_arg(bool required);
 extern int dosetns(int pid, char *nstype);
 
 void forkproxy() {
+	char *cur = NULL;
+
 	int cmdline, listen_pid, connect_pid, fdnum, forked, childPid, ret;
 	char *logPath = NULL, *pidPath = NULL;
 	FILE *logFile = NULL, *pidFile = NULL;
@@ -35,8 +37,14 @@ void forkproxy() {
 	// /proc/self/fd/<num> (14 (path) + 21 (int64) + 1 (null))
 	char fdpath[36];
 
+	// Get the pid
+	cur = advance_arg(false);
+	if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
+		return;
+	}
+	listen_pid = atoi(cur);
+
 	// Get the arguments
-	listen_pid = atoi(advance_arg(true));
 	advance_arg(true);
 	connect_pid = atoi(advance_arg(true));
 	advance_arg(true);
