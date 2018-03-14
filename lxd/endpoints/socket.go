@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -34,12 +35,20 @@ func socketUnixListen(path string) (net.Listener, error) {
 //        this logic has historically behaved, so let's keep it like it
 //        was.
 func CheckAlreadyRunning(path string) error {
+	// If socket activated, nothing to do
+	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
+	if err == nil {
+		if pid == os.Getpid() {
+			return nil
+		}
+	}
+
 	// If there's no socket file at all, there's nothing to do.
 	if !shared.PathExists(path) {
 		return nil
 	}
 
-	_, err := lxd.ConnectLXDUnix(path, nil)
+	_, err = lxd.ConnectLXDUnix(path, nil)
 
 	// If the connection succeeded it means there's another LXD running.
 	if err == nil {
