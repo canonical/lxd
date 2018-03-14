@@ -2126,7 +2126,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 	// retrieve it from the expanded devices.
 	parentStoragePool := ""
 	parentExpandedDevices := container.ExpandedDevices()
-	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := containerGetRootDiskDevice(parentExpandedDevices)
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
@@ -2146,7 +2146,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			// profile on the new instance as well we don't need to
 			// do anything.
 			if args.Devices != nil {
-				snapLocalRootDiskDeviceKey, _, _ := containerGetRootDiskDevice(args.Devices)
+				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(args.Devices)
 				if snapLocalRootDiskDeviceKey != "" {
 					args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 				}
