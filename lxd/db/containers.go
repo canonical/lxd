@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
 
 	log "github.com/lxc/lxd/shared/log15"
 )
@@ -166,6 +168,93 @@ SELECT containers.name, nodes.name
 		return nil, err
 	}
 	return result, nil
+}
+
+// ContainerID returns the ID of the container with the given name.
+func (c *ClusterTx) ContainerID(name string) (int64, error) {
+	stmt := "SELECT id FROM containers WHERE name=?"
+	ids, err := query.SelectIntegers(c.tx, stmt, name)
+	if err != nil {
+		return -1, err
+	}
+	switch len(ids) {
+	case 0:
+		return -1, NoSuchObjectError
+	case 1:
+		return int64(ids[0]), nil
+	default:
+		return -1, fmt.Errorf("more than one container has the given name")
+	}
+}
+
+// ContainerNodeMove changes the node associated with a container.
+//
+// It's meant to be used when moving a non-running container backed by ceph
+// from one cluster node to another.
+func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
+	// First check that the container to be moved is backed by a ceph
+	// volume.
+	poolName, err := c.ContainerPool(oldName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get container's storage pool name")
+	}
+	poolID, err := c.StoragePoolID(poolName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get container's storage pool ID")
+	}
+	poolDriver, err := c.StoragePoolDriver(poolID)
+	if err != nil {
+		return errors.Wrap(err, "failed to get container's storage pool driver")
+	}
+	if poolDriver != "ceph" {
+		return fmt.Errorf("container's storage pool is not of type ceph")
+	}
+
+	// Update the name of the container and the node ID it is associated
+	// with.
+	containerID, err := c.ContainerID(oldName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get container's ID")
+	}
+
+	node, err := c.NodeByName(newNode)
+	if err != nil {
+		return errors.Wrap(err, "failed to get new node's info")
+	}
+
+	stmt := "UPDATE containers SET node_id=?, name=? WHERE id=?"
+	result, err := c.tx.Exec(stmt, node.ID, newName, containerID)
+	if err != nil {
+		return errors.Wrap(err, "failed to update container's name and node ID")
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "failed to get rows affected by container update")
+	}
+	if n != 1 {
+		return fmt.Errorf("unexpected number of updated rows in containers table: %d", n)
+	}
+
+	// Update the container's storage volume name (since this is ceph,
+	// there's a clone of the volume for each node).
+	count, err := c.NodesCount()
+	if err != nil {
+		return errors.Wrap(err, "failed to get node's count")
+	}
+	stmt = "UPDATE storage_volumes SET name=? WHERE storage_pool_id=? AND type=?"
+	result, err = c.tx.Exec(stmt, newName, poolID, StoragePoolVolumeTypeContainer)
+	if err != nil {
+		return errors.Wrap(err, "failed to update container's volume name")
+	}
+	n, err = result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "failed to get rows affected by container volume update")
+	}
+	if n != int64(count) {
+		return fmt.Errorf("unexpected number of updated rows in volumes table: %d", n)
+	}
+
+	return nil
 }
 
 func (c *Cluster) ContainerRemove(name string) error {
@@ -648,7 +737,20 @@ func (c *Cluster) ContainerNextSnapshot(name string) int {
 }
 
 // Get the storage pool of a given container.
+//
+// This is a non-transactional variant of ClusterTx.ContainerPool().
 func (c *Cluster) ContainerPool(containerName string) (string, error) {
+	var poolName string
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		poolName, err = tx.ContainerPool(containerName)
+		return err
+	})
+	return poolName, err
+}
+
+// ContainerPool returns the storage pool of a given container.
+func (c *ClusterTx) ContainerPool(containerName string) (string, error) {
 	// Get container storage volume. Since container names are globally
 	// unique, and their storage volumes carry the same name, their storage
 	// volumes are unique too.
@@ -659,7 +761,7 @@ WHERE storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.t
 	inargs := []interface{}{c.nodeID, containerName, StoragePoolVolumeTypeContainer}
 	outargs := []interface{}{&poolName}
 
-	err := dbQueryRowScan(c.db, query, inargs, outargs)
+	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", NoSuchObjectError
