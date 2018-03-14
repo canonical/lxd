@@ -315,7 +315,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	}
 
 	// Retrieve the container's storage pool
-	_, rootDiskDevice, err := containerGetRootDiskDevice(c.expandedDevices)
+	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.expandedDevices)
 	if err != nil {
 		c.Delete()
 		return nil, err
@@ -1500,7 +1500,7 @@ func (c *containerLXC) initLXC(config bool) error {
 			// bump network index
 			networkidx++
 		} else if m["type"] == "disk" {
-			isRootfs := isRootDiskDevice(m)
+			isRootfs := shared.IsRootDiskDevice(m)
 
 			// source paths
 			srcPath := shared.HostPath(m["source"])
@@ -3719,19 +3719,19 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Retrieve old root disk devices.
-	oldLocalRootDiskDeviceKey, oldLocalRootDiskDevice, _ := containerGetRootDiskDevice(oldLocalDevices)
+	oldLocalRootDiskDeviceKey, oldLocalRootDiskDevice, _ := shared.GetRootDiskDevice(oldLocalDevices)
 	var oldProfileRootDiskDevices []string
 	for k, v := range oldExpandedDevices {
-		if isRootDiskDevice(v) && k != oldLocalRootDiskDeviceKey && !shared.StringInSlice(k, oldProfileRootDiskDevices) {
+		if shared.IsRootDiskDevice(v) && k != oldLocalRootDiskDeviceKey && !shared.StringInSlice(k, oldProfileRootDiskDevices) {
 			oldProfileRootDiskDevices = append(oldProfileRootDiskDevices, k)
 		}
 	}
 
 	// Retrieve new root disk devices.
-	newLocalRootDiskDeviceKey, newLocalRootDiskDevice, _ := containerGetRootDiskDevice(c.localDevices)
+	newLocalRootDiskDeviceKey, newLocalRootDiskDevice, _ := shared.GetRootDiskDevice(c.localDevices)
 	var newProfileRootDiskDevices []string
 	for k, v := range c.expandedDevices {
-		if isRootDiskDevice(v) && k != newLocalRootDiskDeviceKey && !shared.StringInSlice(k, newProfileRootDiskDevices) {
+		if shared.IsRootDiskDevice(v) && k != newLocalRootDiskDeviceKey && !shared.StringInSlice(k, newProfileRootDiskDevices) {
 			newProfileRootDiskDevices = append(newProfileRootDiskDevices, k)
 		}
 	}

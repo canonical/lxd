@@ -247,7 +247,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 	// set.
 	parentStoragePool := ""
 	parentExpandedDevices := c.ExpandedDevices()
-	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := containerGetRootDiskDevice(parentExpandedDevices)
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
 	}
@@ -313,7 +313,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 		// disk device for the snapshot comes from a profile on the new
 		// instance as well we don't need to do anything.
 		if args.Devices != nil {
-			snapLocalRootDiskDeviceKey, _, _ := containerGetRootDiskDevice(args.Devices)
+			snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(args.Devices)
 			if snapLocalRootDiskDeviceKey != "" {
 				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 			}
