@@ -398,22 +398,21 @@ void forkremovefile(char *rootfs, pid_t pid) {
 }
 
 void forkfile() {
-	char *cur = NULL;
-
 	char *command = NULL;
 	char *rootfs = NULL;
 	pid_t pid = 0;
 
 	// Get the subcommand
 	command = advance_arg(false);
-
-	// Get the container rootfs
-	cur = advance_arg(false);
-	if (command == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
+	if (command == NULL || (strcmp(command, "--help") == 0 || strcmp(command, "--version") == 0 || strcmp(command, "-h") == 0)) {
 		return;
 	}
 
-	rootfs = cur;
+	// Get the container rootfs
+	rootfs = advance_arg(false);
+	if (rootfs == NULL || (strcmp(rootfs, "--help") == 0 || strcmp(rootfs, "--version") == 0 || strcmp(rootfs, "-h") == 0)) {
+		return;
+	}
 
 	// Get the container PID
 	pid = atoi(advance_arg(true));
