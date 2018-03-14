@@ -30,6 +30,7 @@ var apiInternal = []Command{
 	internalContainersCmd,
 	internalSQLCmd,
 	internalClusterAcceptCmd,
+	internalClusterContainerMovedCmd,
 }
 
 func internalReady(d *Daemon, r *http.Request) Response {
