@@ -133,7 +133,7 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 
 -----END CERTIFICATE-----
 "
-cluster_password: sekret
+  cluster_password: sekret
 ```
 
 ## Managing a cluster

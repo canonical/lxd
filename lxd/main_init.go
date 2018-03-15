@@ -1,776 +1,125 @@
 package main
 
 import (
-	"encoding/pem"
 	"fmt"
-	"net"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"syscall"
 
-	"golang.org/x/crypto/ssh/terminal"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/cmd"
-	"github.com/lxc/lxd/shared/idmap"
-	"github.com/lxc/lxd/shared/logger"
 )
 
-// CmdInit implements the "lxd init" command line.
-type CmdInit struct {
-	Context         *cmd.Context
-	Args            *Args
-	RunningInUserns bool
-	VarDir          string
-	PasswordReader  func(int) ([]byte, error)
+type initData struct {
+	api.ServerPut `yaml:",inline"`
+	Cluster       *initDataCluster       `json:"cluster" yaml:"cluster"`
+	Networks      []api.NetworksPost     `json:"networks" yaml:"networks"`
+	StoragePools  []api.StoragePoolsPost `json:"storage_pools" yaml:"storage_pools"`
+	Profiles      []api.ProfilesPost     `json:"profiles" yaml:"profiles"`
 }
 
-// Run triggers the execution of the init command.
-func (cmd *CmdInit) Run() error {
-	// Check that command line arguments don't conflict with each other
-	err := cmd.validateArgs()
-	if err != nil {
-		return err
+type initDataCluster struct {
+	api.ClusterPut  `yaml:",inline"`
+	ClusterPassword string `json:"cluster_password" yaml:"cluster_password"`
+}
+
+type cmdInit struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+
+	flagAuto    bool
+	flagPreseed bool
+
+	flagNetworkAddress  string
+	flagNetworkPort     int
+	flagStorageBackend  string
+	flagStorageDevice   string
+	flagStorageLoopSize int
+	flagStoragePool     string
+	flagTrustPassword   string
+}
+
+func (c *cmdInit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "init"
+	cmd.Short = "Configure the LXD daemon"
+	cmd.Long = `Description:
+  Configure the LXD daemon
+`
+	cmd.Example = `  init --preseed
+  init --auto [--network-address=IP] [--network-port=8443] [--storage-backend=dir]
+              [--storage-create-device=DEVICE] [--storage-create-loop=SIZE]
+              [--storage-pool=POOL] [--trust-password=PASSWORD]
+`
+	cmd.RunE = c.Run
+	cmd.Flags().BoolVar(&c.flagAuto, "auto", false, "Automatic (non-interactive) mode")
+	cmd.Flags().BoolVar(&c.flagPreseed, "preseed", false, "Pre-seed mode, expects YAML config from stdin")
+
+	cmd.Flags().StringVar(&c.flagNetworkAddress, "network-address", "", "Address to bind LXD to (default: none)"+"``")
+	cmd.Flags().IntVar(&c.flagNetworkPort, "network-port", -1, "Port to bind LXD to (default: 8443)"+"``")
+	cmd.Flags().StringVar(&c.flagStorageBackend, "storage-backend", "", "Storage backend to use (btrfs, dir, lvm or zfs, default: dir)"+"``")
+	cmd.Flags().StringVar(&c.flagStorageDevice, "storage-create-device", "", "Setup device based storage using DEVICE"+"``")
+	cmd.Flags().IntVar(&c.flagStorageLoopSize, "storage-create-loop", -1, "Setup loop based storage with SIZE in GB"+"``")
+	cmd.Flags().StringVar(&c.flagStoragePool, "storage-pool", "", "Storage pool to use or create"+"``")
+	cmd.Flags().StringVar(&c.flagTrustPassword, "trust-password", "", "Password required to add new clients"+"``")
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	if c.flagAuto && c.flagPreseed {
+		return fmt.Errorf("Can't use --auto and --preseed together")
+	}
+
+	if !c.flagAuto && (c.flagNetworkAddress != "" || c.flagNetworkPort != -1 ||
+		c.flagStorageBackend != "" || c.flagStorageDevice != "" ||
+		c.flagStorageLoopSize != -1 || c.flagStoragePool != "" ||
+		c.flagTrustPassword != "") {
+		return fmt.Errorf("Configuration flags require --auto")
 	}
 
 	// Connect to LXD
-	path := ""
-	if cmd.VarDir != "" {
-		path = filepath.Join(cmd.VarDir, "unix.socket")
-	}
-	client, err := lxd.ConnectLXDUnix(path, nil)
+	d, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
-		return fmt.Errorf("Unable to talk to LXD: %s", err)
+		return errors.Wrap(err, "Failed to connect to local LXD")
 	}
 
-	existingPools, err := client.GetStoragePoolNames()
-	if err != nil {
-		// We should consider this fatal since this means
-		// something's wrong with the daemon.
-		return err
-	}
+	// Prepare the input data
+	var config *initData
 
-	data := &cmdInitData{}
-
-	// Kick off the appropriate way to fill the data (either
-	// preseed, auto or interactive).
-	if cmd.Args.Preseed {
-		err = cmd.fillDataPreseed(data, client)
-	} else {
-		// Copy the data from the current default profile, if it exists.
-		cmd.fillDataWithCurrentServerConfig(data, client)
-
-		// Copy the data from the current server config.
-		cmd.fillDataWithCurrentDefaultProfile(data, client)
-
-		// Figure what storage drivers among the supported ones are actually
-		// available on this system.
-		backendsAvailable := cmd.availableStoragePoolsDrivers()
-
-		if cmd.Args.Auto {
-			err = cmd.fillDataAuto(data, client, backendsAvailable, existingPools)
-		} else {
-			err = cmd.fillDataInteractive(data, client, backendsAvailable, existingPools)
-		}
-	}
-	if err != nil {
-		return err
-	}
-
-	// Apply the desired configuration.
-	err = cmd.apply(client, data)
-	if err != nil {
-		return err
-	}
-
-	cmd.Context.Output("LXD has been successfully configured.\n")
-
-	return nil
-}
-
-// Fill the given configuration data with parameters collected from
-// the --auto command line.
-func (cmd *CmdInit) fillDataAuto(data *cmdInitData, client lxd.ContainerServer, backendsAvailable []string, existingPools []string) error {
-	if cmd.Args.StorageBackend == "" {
-		cmd.Args.StorageBackend = "dir"
-	}
-	err := cmd.validateArgsAuto(backendsAvailable)
-	if err != nil {
-		return err
-	}
-
-	if cmd.Args.NetworkAddress != "" {
-		// If no port was provided, use the default one
-		if cmd.Args.NetworkPort == -1 {
-			cmd.Args.NetworkPort = 8443
-		}
-		networking := &cmdInitNetworkingParams{
-			Address:       cmd.Args.NetworkAddress,
-			Port:          cmd.Args.NetworkPort,
-			TrustPassword: cmd.Args.TrustPassword,
-		}
-		cmd.fillDataWithNetworking(data, networking)
-	}
-
-	if len(existingPools) == 0 {
-		storage := &cmdInitStorageParams{
-			Backend:  cmd.Args.StorageBackend,
-			LoopSize: cmd.Args.StorageCreateLoop,
-			Device:   cmd.Args.StorageCreateDevice,
-			Dataset:  cmd.Args.StorageDataset,
-			Pool:     "default",
-		}
-		err = cmd.fillDataWithStorage(data, storage, existingPools)
+	// Preseed mode
+	if c.flagPreseed {
+		config, err = c.RunPreseed(cmd, args, d)
 		if err != nil {
 			return err
 		}
 	}
-	return nil
-}
 
-// Fill the given configuration data with parameters collected with
-// interactive questions.
-func (cmd *CmdInit) fillDataInteractive(data *cmdInitData, client lxd.ContainerServer, backendsAvailable []string, existingPools []string) error {
-	clustering, err := cmd.askClustering()
-	if err != nil {
-		return err
-	}
-
-	// Ask to create basic entities only if we are not joining an existing
-	// cluster.
-	var storage *cmdInitStorageParams
-	var defaultPrivileged int
-	var networking *cmdInitNetworkingParams
-	var imagesAutoUpdate bool
-	var bridge *cmdInitBridgeParams
-
-	if clustering == nil || clustering.TargetAddress == "" {
-		storage, err = cmd.askStorage(client, existingPools, backendsAvailable)
+	// Auto mode
+	if c.flagAuto {
+		config, err = c.RunAuto(cmd, args, d)
 		if err != nil {
 			return err
 		}
-		defaultPrivileged = cmd.askDefaultPrivileged()
-
-		// Ask about networking only if we skipped the clustering questions.
-		if clustering == nil {
-			networking = cmd.askNetworking()
-		}
-
-		imagesAutoUpdate = cmd.askImages()
-		bridge = cmd.askBridge(client)
-	}
-	if clustering != nil {
-		// Re-use the answers to the clustering questions.
-		networking = &cmdInitNetworkingParams{
-			Address:       clustering.Address,
-			Port:          clustering.Port,
-			TrustPassword: clustering.TrustPassword,
-		}
-		if clustering.TargetAddress != "" {
-			// Add the joining node's certificate the cluster trust pool
-			cert, err := util.LoadCert(cmd.VarDir)
-			if err != nil {
-				return err
-			}
-			err = cluster.SetupTrust(
-				string(cert.PublicKey()), clustering.TargetAddress,
-				string(clustering.TargetCert), clustering.TargetPassword)
-			if err != nil {
-				return errors.Wrap(err, "failed to add joining node's certificate to cluster")
-			}
-
-			// Client parameters to connect to the target cluster node.
-			args := &lxd.ConnectionArgs{
-				TLSClientCert: string(cert.PublicKey()),
-				TLSClientKey:  string(cert.PrivateKey()),
-				TLSServerCert: string(clustering.TargetCert),
-			}
-			url := fmt.Sprintf("https://%s", clustering.TargetAddress)
-			client, err := lxd.ConnectLXD(url, args)
-			if err != nil {
-				return err
-			}
-
-			// Get the pools and networks defined on the target cluster
-			targetPools, err := client.GetStoragePools()
-			if err != nil {
-				return errors.Wrap(err, "failed to get cluster storage pools")
-			}
-			targetNetworks, err := client.GetNetworks()
-			if err != nil {
-				return errors.Wrap(err, "failed to get cluster networks")
-			}
-
-			// Ask for node-specific pools and networks config keys.
-			data.Pools, err = cmd.askClusteringStoragePools(targetPools)
-			if err != nil {
-				return err
-			}
-			data.Networks, err = cmd.askClusteringNetworks(targetNetworks)
-			if err != nil {
-				return err
-			}
-		}
 	}
 
-	_, err = exec.LookPath("dnsmasq")
-	if err != nil && bridge != nil {
-		return fmt.Errorf("LXD managed bridges require \"dnsmasq\". Install it and try again.")
-	}
-
-	cmd.fillDataWithClustering(data, clustering)
-
-	err = cmd.fillDataWithStorage(data, storage, existingPools)
-	if err != nil {
-		return err
-	}
-
-	err = cmd.fillDataWithDefaultPrivileged(data, defaultPrivileged)
-	if err != nil {
-		return err
-	}
-
-	cmd.fillDataWithNetworking(data, networking)
-
-	cmd.fillDataWithImages(data, imagesAutoUpdate)
-
-	err = cmd.fillDataWithBridge(data, bridge)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Fill the given configuration data from the preseed YAML text stream.
-func (cmd *CmdInit) fillDataPreseed(data *cmdInitData, client lxd.ContainerServer) error {
-	err := cmd.Context.InputYAML(data)
-	if err != nil {
-		return fmt.Errorf("Invalid preseed YAML content")
-	}
-
-	return nil
-}
-
-// Fill the given data with the current server configuration.
-func (cmd *CmdInit) fillDataWithCurrentServerConfig(data *cmdInitData, client lxd.ContainerServer) error {
-	server, _, err := client.GetServer()
-	if err != nil {
-		return err
-	}
-	data.ServerPut = server.Writable()
-	return nil
-}
-
-// Fill the given data with the current default profile, if it exists.
-func (cmd *CmdInit) fillDataWithCurrentDefaultProfile(data *cmdInitData, client lxd.ContainerServer) {
-	defaultProfile, _, err := client.GetProfile("default")
-	if err == nil {
-		// Copy the default profile configuration (that we have
-		// possibly modified above).
-		data.Profiles = []api.ProfilesPost{{Name: "default"}}
-		data.Profiles[0].ProfilePut = defaultProfile.ProfilePut
-	}
-}
-
-// Fill the given init data with clustering details matching the given
-// clustering parameters.
-func (cmd *CmdInit) fillDataWithClustering(data *cmdInitData, clustering *cmdInitClusteringParams) {
-	if clustering == nil {
-		return
-	}
-	data.Cluster.ServerName = clustering.Name
-	data.Cluster.Enabled = true
-	data.Cluster.ClusterAddress = clustering.TargetAddress
-	data.Cluster.ClusterCertificate = string(clustering.TargetCert)
-	data.ClusterPassword = clustering.TargetPassword
-}
-
-// Fill the given init data with a new storage pool structure matching the
-// given storage parameters.
-func (cmd *CmdInit) fillDataWithStorage(data *cmdInitData, storage *cmdInitStorageParams, existingPools []string) error {
-	if storage == nil {
-		return nil
-	}
-
-	// Pool configuration
-	storagePoolConfig := map[string]string{}
-	if storage.Config != nil {
-		storagePoolConfig = storage.Config
-	}
-
-	if storage.Device != "" {
-		storagePoolConfig["source"] = storage.Device
-		if storage.Dataset != "" {
-			storage.Pool = storage.Dataset
-		}
-	} else if storage.LoopSize != -1 {
-		if storage.Dataset != "" {
-			storage.Pool = storage.Dataset
-		}
-	} else {
-		storagePoolConfig["source"] = storage.Dataset
-	}
-
-	if storage.LoopSize > 0 {
-		storagePoolConfig["size"] = strconv.FormatInt(storage.LoopSize, 10) + "GB"
-	}
-
-	// Create the requested storage pool.
-	storageStruct := api.StoragePoolsPost{
-		Name:   storage.Pool,
-		Driver: storage.Backend,
-	}
-	storageStruct.Config = storagePoolConfig
-
-	data.Pools = []api.StoragePoolsPost{storageStruct}
-
-	// When lxd init is rerun and there are already storage pools
-	// configured, do not try to set a root disk device in the
-	// default profile again. Let the user figure this out.
-	if len(existingPools) == 0 {
-		if len(data.Profiles) != 0 {
-			defaultProfile := data.Profiles[0]
-			foundRootDiskDevice := false
-			for k, v := range defaultProfile.Devices {
-				if v["path"] == "/" && v["source"] == "" {
-					foundRootDiskDevice = true
-
-					// Unconditionally overwrite because if the user ends up
-					// with a clean LXD but with a pool property key existing in
-					// the default profile it must be empty otherwise it would
-					// not have been possible to delete the storage pool in
-					// the first place.
-					defaultProfile.Devices[k]["pool"] = storage.Pool
-					logger.Debugf("Set pool property of existing root disk device \"%s\" in profile \"default\" to \"%s\".", storage.Pool)
-
-					break
-				}
-			}
-
-			if !foundRootDiskDevice {
-				err := cmd.profileDeviceAlreadyExists(&defaultProfile, "root")
-				if err != nil {
-					return err
-				}
-
-				defaultProfile.Devices["root"] = map[string]string{
-					"type": "disk",
-					"path": "/",
-					"pool": storage.Pool,
-				}
-			}
-		} else {
-			logger.Warnf("Did not find profile \"default\" so no default storage pool will be set. Manual intervention needed.")
-		}
-	}
-
-	return nil
-}
-
-// Fill the default profile in the given init data with options about whether
-// to run in privileged mode.
-func (cmd *CmdInit) fillDataWithDefaultPrivileged(data *cmdInitData, defaultPrivileged int) error {
-	if defaultPrivileged == -1 {
-		return nil
-	}
-	if len(data.Profiles) == 0 {
-		return fmt.Errorf("error: profile 'default' profile not found")
-	}
-	defaultProfile := data.Profiles[0]
-	if defaultPrivileged == 0 {
-		defaultProfile.Config["security.privileged"] = ""
-	} else if defaultPrivileged == 1 {
-		defaultProfile.Config["security.privileged"] = "true"
-	}
-	return nil
-}
-
-// Fill the given init data with server config details matching the
-// given networking parameters.
-func (cmd *CmdInit) fillDataWithNetworking(data *cmdInitData, networking *cmdInitNetworkingParams) {
-	if networking == nil {
-		return
-	}
-	data.Config["core.https_address"] = fmt.Sprintf("%s:%d", networking.Address, networking.Port)
-	if networking.TrustPassword != "" {
-		data.Config["core.trust_password"] = networking.TrustPassword
-	}
-}
-
-// Fill the given init data with server config details matching the
-// given images auto update choice.
-func (cmd *CmdInit) fillDataWithImages(data *cmdInitData, imagesAutoUpdate bool) {
-	if imagesAutoUpdate {
-		if val, ok := data.Config["images.auto_update_interval"]; ok && val == "0" {
-			data.Config["images.auto_update_interval"] = ""
-		}
-	} else {
-		data.Config["images.auto_update_interval"] = "0"
-	}
-}
-
-// Fill the given init data with a new bridge network device structure
-// matching the given storage parameters.
-func (cmd *CmdInit) fillDataWithBridge(data *cmdInitData, bridge *cmdInitBridgeParams) error {
-	if bridge == nil {
-		return nil
-	}
-
-	bridgeConfig := map[string]string{}
-	bridgeConfig["ipv4.address"] = bridge.IPv4
-	bridgeConfig["ipv6.address"] = bridge.IPv6
-
-	if bridge.IPv4Nat {
-		bridgeConfig["ipv4.nat"] = "true"
-	}
-
-	if bridge.IPv6Nat {
-		bridgeConfig["ipv6.nat"] = "true"
-	}
-
-	network := api.NetworksPost{
-		Name: bridge.Name}
-	network.Config = bridgeConfig
-	data.Networks = []api.NetworksPost{network}
-
-	if len(data.Profiles) == 0 {
-		return fmt.Errorf("error: profile 'default' profile not found")
-	}
-
-	// Attach the bridge as eth0 device of the default profile, if such
-	// device doesn't exists yet.
-	defaultProfile := data.Profiles[0]
-	err := cmd.profileDeviceAlreadyExists(&defaultProfile, "eth0")
-	if err != nil {
-		return err
-	}
-	defaultProfile.Devices["eth0"] = map[string]string{
-		"type":    "nic",
-		"nictype": "bridged",
-		"parent":  bridge.Name,
-	}
-
-	return nil
-
-}
-
-// Apply the configuration specified in the given init data.
-func (cmd *CmdInit) apply(client lxd.ContainerServer, data *cmdInitData) error {
-	// Functions that should be invoked to revert back to initial
-	// state any change that was successfully applied, in case
-	// anything goes wrong after that change.
-	reverters := make([]reverter, 0)
-
-	// Functions to apply the desired changes.
-	changers := make([](func() (reverter, error)), 0)
-
-	// Server config changer
-	changers = append(changers, func() (reverter, error) {
-		return cmd.initConfig(client, data.Config)
-	})
-
-	// Storage pool changers
-	for i := range data.Pools {
-		pool := data.Pools[i] // Local variable for the closure
-		changers = append(changers, func() (reverter, error) {
-			return cmd.initPool(client, pool)
-		})
-	}
-
-	// Network changers
-	for i := range data.Networks {
-		network := data.Networks[i] // Local variable for the closure
-		changers = append(changers, func() (reverter, error) {
-			return cmd.initNetwork(client, network)
-		})
-	}
-
-	// Profile changers
-	for i := range data.Profiles {
-		profile := data.Profiles[i] // Local variable for the closure
-		changers = append(changers, func() (reverter, error) {
-			return cmd.initProfile(client, profile)
-		})
-	}
-
-	// Cluster changers
-	if data.Cluster.ServerName != "" {
-		changers = append(changers, func() (reverter, error) {
-			return cmd.initCluster(client, data.Cluster, data.ClusterPassword)
-		})
-	}
-
-	// Apply all changes. If anything goes wrong at any iteration
-	// of the loop, we'll try to revert any change performed in
-	// earlier iterations.
-	for _, changer := range changers {
-		reverter, err := changer()
+	// Interactive mode
+	if !c.flagAuto && !c.flagPreseed {
+		config, err = c.RunInteractive(cmd, args, d)
 		if err != nil {
-			cmd.revert(reverters)
 			return err
 		}
-		// Save the revert function for later.
-		reverters = append(reverters, reverter)
 	}
 
-	return nil
+	return c.ApplyConfig(cmd, args, d, *config)
 }
 
-// Try to revert the state to what it was before running the "lxd init" command.
-func (cmd *CmdInit) revert(reverters []reverter) {
-	for _, reverter := range reverters {
-		err := reverter()
-		if err != nil {
-			logger.Warnf("Reverting to pre-init state failed: %s", err)
-			break
-		}
-	}
-}
-
-// Apply the server-level configuration in the given map.
-func (cmd *CmdInit) initConfig(client lxd.ContainerServer, config map[string]interface{}) (reverter, error) {
-	server, etag, err := client.GetServer()
-	if err != nil {
-		return nil, err
-	}
-
-	// Build a function that can be used to revert the config to
-	// its original values.
-	reverter := func() error {
-		return client.UpdateServer(server.Writable(), "")
-	}
-
-	// The underlying code expects all values to be string, even if when
-	// using preseed the yaml.v2 package unmarshals them as integers.
-	for key, value := range config {
-		if number, ok := value.(int); ok {
-			value = strconv.Itoa(number)
-		}
-		config[key] = value
-	}
-
-	err = client.UpdateServer(api.ServerPut{Config: config}, etag)
-	if err != nil {
-		return nil, err
-	}
-
-	// Updating the server was successful, so return the reverter function
-	// in case it's needed later.
-	return reverter, nil
-}
-
-// Turn on clustering.
-func (cmd *CmdInit) initCluster(client lxd.ContainerServer, put api.ClusterPut, password string) (reverter, error) {
-	var reverter func() error
-	var op *lxd.Operation
-	var err error
-	if put.ClusterAddress == "" {
-		op, err = client.UpdateCluster(put, "")
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// If a password was provided, try to make the joining node's
-		// certificate trusted by the cluster.
-		if password != "" {
-			server, _, err := client.GetServer()
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get joining node's server info")
-			}
-			err = cluster.SetupTrust(
-				server.Environment.Certificate, put.ClusterAddress, put.ClusterCertificate,
-				password)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to register joining node's certificate")
-			}
-		}
-
-		op, err = client.UpdateCluster(put, "")
-		if err != nil {
-			return nil, err
-		}
-	}
-	err = op.Wait()
-	if err != nil {
-		return nil, err
-	}
-	return reverter, nil
-}
-
-// Create or update a single pool, and return a revert function in case of success.
-func (cmd *CmdInit) initPool(client lxd.ContainerServer, pool api.StoragePoolsPost) (reverter, error) {
-	var reverter func() error
-	currentPool, _, err := client.GetStoragePool(pool.Name)
-	if err == nil {
-		reverter, err = cmd.initPoolUpdate(client, pool, currentPool.Writable())
-	} else {
-		reverter, err = cmd.initPoolCreate(client, pool)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return reverter, nil
-}
-
-// Create a single new pool, and return a revert function to delete it.
-func (cmd *CmdInit) initPoolCreate(client lxd.ContainerServer, pool api.StoragePoolsPost) (reverter, error) {
-	reverter := func() error {
-		return client.DeleteStoragePool(pool.Name)
-	}
-	err := client.CreateStoragePool(pool)
-	return reverter, err
-}
-
-// Update a single pool, and return a function that can be used to
-// revert it to its original state.
-func (cmd *CmdInit) initPoolUpdate(client lxd.ContainerServer, pool api.StoragePoolsPost, currentPool api.StoragePoolPut) (reverter, error) {
-	reverter := func() error {
-		return client.UpdateStoragePool(pool.Name, currentPool, "")
-	}
-	err := client.UpdateStoragePool(pool.Name, api.StoragePoolPut{
-		Config: pool.Config,
-	}, "")
-	return reverter, err
-}
-
-// Create or update a single network, and return a revert function in case of success.
-func (cmd *CmdInit) initNetwork(client lxd.ContainerServer, network api.NetworksPost) (reverter, error) {
-	var revert func() error
-	currentNetwork, _, err := client.GetNetwork(network.Name)
-	if err == nil {
-		// Sanity check, make sure the network type being updated
-		// is still "bridge", which is the only type the existing
-		// network can have.
-		if network.Type != "" && network.Type != "bridge" {
-			return nil, fmt.Errorf("Only 'bridge' type networks are supported")
-		}
-		revert, err = cmd.initNetworkUpdate(client, network, currentNetwork.Writable())
-	} else {
-		revert, err = cmd.initNetworkCreate(client, network)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return revert, nil
-}
-
-// Create a single new network, and return a revert function to delete it.
-func (cmd *CmdInit) initNetworkCreate(client lxd.ContainerServer, network api.NetworksPost) (reverter, error) {
-	reverter := func() error {
-		return client.DeleteNetwork(network.Name)
-	}
-	err := client.CreateNetwork(network)
-	return reverter, err
-}
-
-// Update a single network, and return a function that can be used to
-// revert it to its original state.
-func (cmd *CmdInit) initNetworkUpdate(client lxd.ContainerServer, network api.NetworksPost, currentNetwork api.NetworkPut) (reverter, error) {
-	reverter := func() error {
-		return client.UpdateNetwork(network.Name, currentNetwork, "")
-	}
-	err := client.UpdateNetwork(network.Name, api.NetworkPut{
-		Config: network.Config,
-	}, "")
-	return reverter, err
-}
-
-// Create or update a single profile, and return a revert function in case of success.
-func (cmd *CmdInit) initProfile(client lxd.ContainerServer, profile api.ProfilesPost) (reverter, error) {
-	var reverter func() error
-	currentProfile, _, err := client.GetProfile(profile.Name)
-	if err == nil {
-		reverter, err = cmd.initProfileUpdate(client, profile, currentProfile.Writable())
-	} else {
-		reverter, err = cmd.initProfileCreate(client, profile)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return reverter, nil
-}
-
-// Create a single new profile, and return a revert function to delete it.
-func (cmd *CmdInit) initProfileCreate(client lxd.ContainerServer, profile api.ProfilesPost) (reverter, error) {
-	reverter := func() error {
-		return client.DeleteProfile(profile.Name)
-	}
-	err := client.CreateProfile(profile)
-	return reverter, err
-}
-
-// Update a single profile, and return a function that can be used to
-// revert it to its original state.
-func (cmd *CmdInit) initProfileUpdate(client lxd.ContainerServer, profile api.ProfilesPost, currentProfile api.ProfilePut) (reverter, error) {
-	reverter := func() error {
-		return client.UpdateProfile(profile.Name, currentProfile, "")
-	}
-	err := client.UpdateProfile(profile.Name, api.ProfilePut{
-		Config:      profile.Config,
-		Description: profile.Description,
-		Devices:     profile.Devices,
-	}, "")
-	return reverter, err
-}
-
-// Check that the arguments passed via command line are consistent,
-// and no invalid combination is provided.
-func (cmd *CmdInit) validateArgs() error {
-	if cmd.Args.Auto && cmd.Args.Preseed {
-		return fmt.Errorf("Non-interactive mode supported by only one of --auto or --preseed")
-	}
-	if !cmd.Args.Auto {
-		if cmd.Args.StorageBackend != "" || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageDataset != "" || cmd.Args.NetworkAddress != "" || cmd.Args.NetworkPort != -1 || cmd.Args.TrustPassword != "" {
-			return fmt.Errorf("Init configuration is only valid with --auto")
-		}
-	}
-	return nil
-}
-
-// Check that the arguments passed along with --auto are valid and consistent.
-// and no invalid combination is provided.
-func (cmd *CmdInit) validateArgsAuto(availableStoragePoolsDrivers []string) error {
-	if !shared.StringInSlice(cmd.Args.StorageBackend, supportedStoragePoolDrivers) {
-		return fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", cmd.Args.StorageBackend)
-	}
-	if !shared.StringInSlice(cmd.Args.StorageBackend, availableStoragePoolsDrivers) {
-		return fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", cmd.Args.StorageBackend)
-	}
-
-	if cmd.Args.StorageBackend == "dir" {
-		if cmd.Args.StorageCreateLoop != -1 || cmd.Args.StorageCreateDevice != "" || cmd.Args.StorageDataset != "" {
-			return fmt.Errorf("None of --storage-pool, --storage-create-device or --storage-create-loop may be used with the 'dir' backend.")
-		}
-	} else {
-		if cmd.Args.StorageCreateLoop != -1 && cmd.Args.StorageCreateDevice != "" {
-			return fmt.Errorf("Only one of --storage-create-device or --storage-create-loop can be specified.")
-		}
-	}
-
-	if cmd.Args.NetworkAddress == "" {
-		if cmd.Args.NetworkPort != -1 {
-			return fmt.Errorf("--network-port cannot be used without --network-address.")
-		}
-		if cmd.Args.TrustPassword != "" {
-			return fmt.Errorf("--trust-password cannot be used without --network-address.")
-		}
-	}
-
-	return nil
-}
-
-// Return the available storage pools drivers (depending on installed tools).
-func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
+func (c *cmdInit) availableStorageDrivers() []string {
 	drivers := []string{"dir"}
 
 	backingFs, err := util.FilesystemDetect(shared.VarPath())
@@ -786,7 +135,7 @@ func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 
 		// btrfs can work in user namespaces too. (If
 		// source=/some/path/on/btrfs is used.)
-		if cmd.RunningInUserns && (backingFs != "btrfs" || driver != "btrfs") {
+		if shared.RunningInUserNS() && (backingFs != "btrfs" || driver != "btrfs") {
 			continue
 		}
 
@@ -798,469 +147,361 @@ func (cmd *CmdInit) availableStoragePoolsDrivers() []string {
 
 		drivers = append(drivers, driver)
 	}
+
 	return drivers
 }
 
-// Return an error if the given profile has already a device with the
-// given name.
-func (cmd *CmdInit) profileDeviceAlreadyExists(profile *api.ProfilesPost, deviceName string) error {
-	_, ok := profile.Devices[deviceName]
-	if ok {
-		return fmt.Errorf("Device already exists: %s", deviceName)
-	}
-	return nil
-}
-
-// Ask if the user wants to enable clustering
-func (cmd *CmdInit) askClustering() (*cmdInitClusteringParams, error) {
-	askWants := "Would you like to use LXD clustering? (yes/no) [default=no]: "
-	if !cmd.Context.AskBool(askWants, "no") {
-		return nil, nil
-	}
-
-	params := &cmdInitClusteringParams{}
-
-	// Node name
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "lxd"
-	}
-	askName := fmt.Sprintf(
-		"What name should be used to identify this node in the cluster? [default=%s]: ",
-		hostname)
-	params.Name = cmd.Context.AskString(askName, hostname, nil)
-
-	// Network address
-	address := util.NetworkInterfaceAddress()
-	askAddress := fmt.Sprintf(
-		"What IP address or DNS name should be used to reach this node? [default=%s]: ",
-		address)
-	address = util.CanonicalNetworkAddress(cmd.Context.AskString(askAddress, address, nil))
-	host, port, err := net.SplitHostPort(address)
-	if err != nil {
-		return nil, err
-	}
-	portN, err := strconv.Atoi(port)
-	if err != nil {
-		return nil, err
-	}
-	params.Address = host
-	params.Port = int64(portN)
-
-	// Join existing cluster
-	if !cmd.Context.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no") {
-		params.TrustPassword = cmd.Context.AskPassword(
-			"Trust password for new clients: ", cmd.PasswordReader)
-		return params, nil
-	}
-
-	// Target node address, password and certificate.
-join:
-	targetAddress := cmd.Context.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
-	params.TargetAddress = util.CanonicalNetworkAddress(targetAddress)
-
-	url := fmt.Sprintf("https://%s", params.TargetAddress)
-	certificate, err := shared.GetRemoteCertificate(url)
-	if err != nil {
-		cmd.Context.Output("Error connecting to existing cluster node: %v\n", err)
-		goto join
-	}
-	digest := shared.CertFingerprint(certificate)
-
-	params.TargetPassword = cmd.Context.AskPasswordOnce(
-		fmt.Sprintf("Trust password for node with fingerprint %s: ", digest), cmd.PasswordReader)
-
-	params.TargetCert = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
-
-	// Confirm wipe this node
-	askConfirm := ("All existing data is lost when joining a cluster, " +
-		"continue? (yes/no) [default=no] ")
-	if !cmd.Context.AskBool(askConfirm, "") {
-		return nil, fmt.Errorf("User did not confirm erasing data")
-	}
-
-	return params, nil
-}
-
-func (cmd *CmdInit) askClusteringStoragePools(targetPools []api.StoragePool) ([]api.StoragePoolsPost, error) {
-	pools := make([]api.StoragePoolsPost, 0)
-	for _, pool := range targetPools {
-		if pool.Status == "PENDING" {
-			continue // Skip pending pools
-		}
-		if pool.Driver == "ceph" {
-			continue // Skip ceph pools since they have no node-specific key
-		}
-		post := api.StoragePoolsPost{}
-		post.Name = pool.Name
-		post.Driver = pool.Driver
-		post.Config = pool.Config
-		// Only ask for the node-specific "source" key if it's defined
-		// in the target node.
-		if pool.Config["source"] != "" {
-			key := "source"
-			question := fmt.Sprintf(
-				`Enter local value for key "%s" of storage pool "%s": `, key, post.Name)
-			// Dummy validator for allowing empty strings.
-			validator := func(string) error { return nil }
-			post.Config[key] = cmd.Context.AskString(question, "", validator)
-		}
-		pools = append(pools, post)
-	}
-	return pools, nil
-}
-
-func (cmd *CmdInit) askClusteringNetworks(targetNetworks []api.Network) ([]api.NetworksPost, error) {
-	networks := make([]api.NetworksPost, 0)
-	for _, network := range targetNetworks {
-		if !network.Managed || network.Status == "PENDING" {
-			continue // Skip not-managed or pending networks
-		}
-		post := api.NetworksPost{}
-		post.Name = network.Name
-		post.Config = network.Config
-		post.Type = network.Type
-		post.Managed = true
-		// Only ask for the node-specific "bridge.external_interfaces"
-		// key if it's defined in the target node.
-		if network.Config["bridge.external_interfaces"] != "" {
-			key := "bridge.external_interfaces"
-			question := fmt.Sprintf(
-				`Enter local value for key "%s" of network "%s": `, key, post.Name)
-			// Dummy validator for allowing empty strings.
-			validator := func(string) error { return nil }
-			post.Config[key] = cmd.Context.AskString(question, "", validator)
-		}
-		networks = append(networks, post)
-	}
-	return networks, nil
-}
-
-// Ask if the user wants to create a new storage pool, and return
-// the relevant parameters if so.
-func (cmd *CmdInit) askStorage(client lxd.ContainerServer, existingPools []string, availableBackends []string) (*cmdInitStorageParams, error) {
-	if !cmd.Context.AskBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes") {
-		return nil, nil
-	}
-	storage := &cmdInitStorageParams{
-		Config: map[string]string{},
-	}
-
-	backingFs, err := util.FilesystemDetect(shared.VarPath())
-	if err != nil {
-		backingFs = "dir"
-	}
-
-	defaultStorage := "dir"
-	if backingFs == "btrfs" && shared.StringInSlice("btrfs", availableBackends) {
-		defaultStorage = "btrfs"
-	} else if shared.StringInSlice("zfs", availableBackends) {
-		defaultStorage = "zfs"
-	} else if shared.StringInSlice("btrfs", availableBackends) {
-		defaultStorage = "btrfs"
-	}
-
-	for {
-		storage.LoopSize = -1
-		storage.Pool = cmd.Context.AskString("Name of the new storage pool [default=default]: ", "default", nil)
-		if shared.StringInSlice(storage.Pool, existingPools) {
-			fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", storage.Pool)
-			// Ask the user again if hew wants to create a
-			// storage pool.
-			continue
+func (c *cmdInit) ApplyConfig(cmd *cobra.Command, args []string, d lxd.ContainerServer, config initData) error {
+	// Handle reverts
+	revert := true
+	reverts := []func(){}
+	defer func() {
+		if !revert {
+			return
 		}
 
-		storage.Backend = cmd.Context.AskChoice(fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultStorage), supportedStoragePoolDrivers, defaultStorage)
+		// Lets undo things in reverse order
+		for i := len(reverts) - 1; i >= 0; i-- {
+			reverts[i]()
+		}
+	}()
 
-		// XXX The following to checks don't make much sense, since
-		// AskChoice will always re-ask the question if the answer
-		// is not among supportedStoragePoolDrivers. It seems legacy
-		// code that we should drop?
-		if !shared.StringInSlice(storage.Backend, supportedStoragePoolDrivers) {
-			return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init.", storage.Backend)
+	// Apply server configuration
+	if config.Config != nil && len(config.Config) > 0 {
+		// Get current config
+		currentServer, etag, err := d.GetServer()
+		if err != nil {
+			return errors.Wrap(err, "Failed to retrieve current server configuration")
 		}
 
-		// XXX Instead of manually checking if the provided choice is
-		// among availableBackends, we could just pass to askChoice the
-		// availableBackends list instead of supportedStoragePoolDrivers.
-		if !shared.StringInSlice(storage.Backend, availableBackends) {
-			return nil, fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools).", storage.Backend)
+		// Setup reverter
+		reverts = append(reverts, func() {
+			d.UpdateServer(currentServer.Writable(), "")
+		})
+
+		// Prepare the update
+		newServer := api.ServerPut{}
+		err = shared.DeepCopy(currentServer.Writable(), &newServer)
+		if err != nil {
+			return errors.Wrap(err, "Failed to copy server configuration")
 		}
 
-		if storage.Backend == "dir" {
-			break
+		for k, v := range config.Config {
+			newServer.Config[k] = fmt.Sprintf("%v", v)
 		}
 
-		// Optimization for btrfs on btrfs
-		if storage.Backend == "btrfs" && backingFs == "btrfs" {
-			if cmd.Context.AskBool(fmt.Sprintf("Would you like to create a new btrfs subvolume under %s (yes/no) [default=yes]: ", shared.VarPath("")), "yes") {
-				storage.Dataset = shared.VarPath("storage-pools", storage.Pool)
-				break
-			}
+		// Apply it
+		err = d.UpdateServer(newServer, etag)
+		if err != nil {
+			return errors.Wrap(err, "Failed to update server configuration")
+		}
+	}
+
+	// Apply network configuration
+	if config.Networks != nil && len(config.Networks) > 0 {
+		// Get the list of networks
+		networkNames, err := d.GetNetworkNames()
+		if err != nil {
+			return errors.Wrap(err, "Failed to retrieve list of networks")
 		}
 
-		question := fmt.Sprintf("Create a new %s pool (yes/no) [default=yes]? ", strings.ToUpper(storage.Backend))
-		if cmd.Context.AskBool(question, "yes") {
-			if storage.Backend == "ceph" {
-				// Pool configuration
-				if storage.Config != nil {
-					storage.Config = map[string]string{}
-				}
-
-				// ask for the name of the cluster
-				storage.Config["ceph.cluster_name"] = cmd.Context.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
-
-				// ask for the name of the osd pool
-				storage.Config["ceph.osd.pool_name"] = cmd.Context.AskString("Name of the OSD storage pool [default=lxd]: ", "lxd", nil)
-
-				// ask for the number of placement groups
-				storage.Config["ceph.osd.pg_num"] = cmd.Context.AskString("Number of placement groups [default=32]: ", "32", nil)
-			} else if cmd.Context.AskBool("Would you like to use an existing block device (yes/no) [default=no]? ", "no") {
-				deviceExists := func(path string) error {
-					if !shared.IsBlockdevPath(path) {
-						return fmt.Errorf("'%s' is not a block device", path)
-					}
-					return nil
-				}
-				storage.Device = cmd.Context.AskString("Path to the existing block device: ", "", deviceExists)
-			} else {
-				st := syscall.Statfs_t{}
-				err := syscall.Statfs(shared.VarPath(), &st)
-				if err != nil {
-					return nil, fmt.Errorf("couldn't statfs %s: %s", shared.VarPath(), err)
-				}
-
-				/* choose 15 GB < x < 100GB, where x is 20% of the disk size */
-				defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
-				if defaultSize > 100 {
-					defaultSize = 100
-				}
-				if defaultSize < 15 {
-					defaultSize = 15
-				}
-
-				question := fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", defaultSize)
-				storage.LoopSize = cmd.Context.AskInt(question, 1, -1, fmt.Sprintf("%d", defaultSize))
-			}
-		} else {
-			if storage.Backend == "ceph" {
-				// Pool configuration
-				if storage.Config != nil {
-					storage.Config = map[string]string{}
-				}
-
-				// ask for the name of the cluster
-				storage.Config["ceph.cluster_name"] = cmd.Context.AskString("Name of the existing CEPH cluster [default=ceph]: ", "ceph", nil)
-
-				// ask for the name of the existing pool
-				storage.Config["source"] = cmd.Context.AskString("Name of the existing OSD storage pool [default=lxd]: ", "lxd", nil)
-				storage.Config["ceph.osd.pool_name"] = storage.Config["source"]
-			} else {
-				question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(storage.Backend))
-				storage.Dataset = cmd.Context.AskString(question, "", nil)
-			}
-		}
-
-		if storage.Backend == "lvm" {
-			_, err := exec.LookPath("thin_check")
+		// Network creator
+		createNetwork := func(network api.NetworksPost) error {
+			// Create the network if doesn't exist
+			err := d.CreateNetwork(network)
 			if err != nil {
-				fmt.Printf(`
-The LVM thin provisioning tools couldn't be found. LVM can still be used
-without thin provisioning but this will disable over-provisioning,
-increase the space requirements and creation time of images, containers
-and snapshots.
+				return errors.Wrapf(err, "Failed to create network '%s'", network.Name)
+			}
 
-If you wish to use thin provisioning, abort now, install the tools from
-your Linux distribution and run "lxd init" again afterwards.
+			// Setup reverter
+			reverts = append(reverts, func() {
+				d.DeleteNetwork(network.Name)
+			})
 
-`)
-				if !cmd.Context.AskBool("Do you want to continue without thin provisioning? (yes/no) [default=yes]: ", "yes") {
-					return nil, fmt.Errorf("The LVM thin provisioning tools couldn't be found on the system.")
+			return nil
+		}
+
+		// Network updater
+		updateNetwork := func(network api.NetworksPost) error {
+			// Get the current network
+			currentNetwork, etag, err := d.GetNetwork(network.Name)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to retrieve current network '%s'", network.Name)
+			}
+
+			// Setup reverter
+			reverts = append(reverts, func() {
+				d.UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
+			})
+
+			// Prepare the update
+			newNetwork := api.NetworkPut{}
+			err = shared.DeepCopy(currentNetwork.Writable(), &newNetwork)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to copy configuration of network '%s'", network.Name)
+			}
+
+			// Description override
+			if network.Description != "" {
+				newNetwork.Description = network.Description
+			}
+
+			// Config overrides
+			for k, v := range network.Config {
+				newNetwork.Config[k] = fmt.Sprintf("%v", v)
+			}
+
+			// Apply it
+			err = d.UpdateNetwork(currentNetwork.Name, newNetwork, etag)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to update network '%s'", network.Name)
+			}
+
+			return nil
+		}
+
+		for _, network := range config.Networks {
+			// New network
+			if !shared.StringInSlice(network.Name, networkNames) {
+				err := createNetwork(network)
+				if err != nil {
+					return err
 				}
 
-				storage.Config["lvm.use_thinpool"] = "false"
+				continue
+			}
+
+			// Existing network
+			err := updateNetwork(network)
+			if err != nil {
+				return err
 			}
 		}
-
-		break
-	}
-	return storage, nil
-}
-
-// If we detect that we are running inside an unprivileged container,
-// ask if the user wants to the default profile to be a privileged
-// one.
-func (cmd *CmdInit) askDefaultPrivileged() int {
-	// Detect lack of uid/gid
-	defaultPrivileged := -1
-	needPrivileged := false
-	idmapset, err := idmap.DefaultIdmapSet("")
-	if err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil {
-		needPrivileged = true
 	}
 
-	if cmd.RunningInUserns && needPrivileged {
-		fmt.Printf(`
-We detected that you are running inside an unprivileged container.
-This means that unless you manually configured your host otherwise,
-you will not have enough uid and gid to allocate to your containers.
-
-LXD can re-use your container's own allocation to avoid the problem.
-Doing so makes your nested containers slightly less safe as they could
-in theory attack their parent container and gain more privileges than
-they otherwise would.
-
-`)
-
-		if cmd.Context.AskBool("Would you like to have your containers share their parent's allocation (yes/no) [default=yes]? ", "yes") {
-			defaultPrivileged = 1
-		} else {
-			defaultPrivileged = 0
+	// Apply storage configuration
+	if config.StoragePools != nil && len(config.StoragePools) > 0 {
+		// Get the list of storagePools
+		storagePoolNames, err := d.GetStoragePoolNames()
+		if err != nil {
+			return errors.Wrap(err, "Failed to retrieve list of storage pools")
 		}
-	}
-	return defaultPrivileged
-}
 
-// Ask if the user wants to expose LXD over the network, and collect
-// the relevant parameters if so.
-func (cmd *CmdInit) askNetworking() *cmdInitNetworkingParams {
-	if !cmd.Context.AskBool("Would you like LXD to be available over the network (yes/no) [default=no]? ", "no") {
-		return nil
-	}
-	networking := &cmdInitNetworkingParams{}
-
-	isIPAddress := func(s string) error {
-		if s != "all" && net.ParseIP(s) == nil {
-			return fmt.Errorf("'%s' is not an IP address", s)
-		}
-		return nil
-	}
-
-	networking.Address = cmd.Context.AskString("Address to bind LXD to (not including port) [default=all]: ", "all", isIPAddress)
-	if networking.Address == "all" {
-		networking.Address = "::"
-	}
-
-	if net.ParseIP(networking.Address).To4() == nil {
-		networking.Address = fmt.Sprintf("[%s]", networking.Address)
-	}
-	networking.Port = cmd.Context.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
-	networking.TrustPassword = cmd.Context.AskPassword("Trust password for new clients: ", cmd.PasswordReader)
-
-	return networking
-}
-
-// Ask if the user wants images to be automatically refreshed.
-func (cmd *CmdInit) askImages() bool {
-	return cmd.Context.AskBool("Would you like stale cached images to be updated automatically (yes/no) [default=yes]? ", "yes")
-}
-
-// Ask if the user wants to create a new network bridge, and return
-// the relevant parameters if so.
-func (cmd *CmdInit) askBridge(client lxd.ContainerServer) *cmdInitBridgeParams {
-	if !cmd.Context.AskBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
-		return nil
-	}
-
-	bridge := &cmdInitBridgeParams{}
-	for {
-		bridge.Name = cmd.Context.AskString("What should the new bridge be called [default=lxdbr0]? ", "lxdbr0", networkValidName)
-		_, _, err := client.GetNetwork(bridge.Name)
-		if err == nil {
-			fmt.Printf("The requested network bridge \"%s\" already exists. Please choose another name.\n", bridge.Name)
-			// Ask the user again if hew wants to create a
-			// storage pool.
-			continue
-		}
-		bridge.IPv4 = cmd.Context.AskString("What IPv4 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
-			if shared.StringInSlice(value, []string{"auto", "none"}) {
-				return nil
+		// StoragePool creator
+		createStoragePool := func(storagePool api.StoragePoolsPost) error {
+			// Create the storagePool if doesn't exist
+			err := d.CreateStoragePool(storagePool)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create storage pool '%s'", storagePool.Name)
 			}
-			return networkValidAddressCIDRV4(value)
-		})
 
-		if !shared.StringInSlice(bridge.IPv4, []string{"auto", "none"}) {
-			bridge.IPv4Nat = cmd.Context.AskBool("Would you like LXD to NAT IPv4 traffic on your bridge? [default=yes]? ", "yes")
+			// Setup reverter
+			reverts = append(reverts, func() {
+				d.DeleteStoragePool(storagePool.Name)
+			})
+
+			return nil
 		}
 
-		bridge.IPv6 = cmd.Context.AskString("What IPv6 address should be used (CIDR subnet notation, “auto” or “none”) [default=auto]? ", "auto", func(value string) error {
-			if shared.StringInSlice(value, []string{"auto", "none"}) {
-				return nil
+		// StoragePool updater
+		updateStoragePool := func(storagePool api.StoragePoolsPost) error {
+			// Get the current storagePool
+			currentStoragePool, etag, err := d.GetStoragePool(storagePool.Name)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to retrieve current storage pool '%s'", storagePool.Name)
 			}
-			return networkValidAddressCIDRV6(value)
-		})
 
-		if !shared.StringInSlice(bridge.IPv6, []string{"auto", "none"}) {
-			bridge.IPv6Nat = cmd.Context.AskBool("Would you like LXD to NAT IPv6 traffic on your bridge? [default=yes]? ", "yes")
+			// Sanity check
+			if currentStoragePool.Driver != storagePool.Driver {
+				return fmt.Errorf("Storage pool '%s' is of type '%s' instead of '%s'", currentStoragePool.Name, currentStoragePool.Driver, storagePool.Driver)
+			}
+
+			// Setup reverter
+			reverts = append(reverts, func() {
+				d.UpdateStoragePool(currentStoragePool.Name, currentStoragePool.Writable(), "")
+			})
+
+			// Prepare the update
+			newStoragePool := api.StoragePoolPut{}
+			err = shared.DeepCopy(currentStoragePool.Writable(), &newStoragePool)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to copy configuration of storage pool '%s'", storagePool.Name)
+			}
+
+			// Description override
+			if storagePool.Description != "" {
+				newStoragePool.Description = storagePool.Description
+			}
+
+			// Config overrides
+			for k, v := range storagePool.Config {
+				newStoragePool.Config[k] = fmt.Sprintf("%v", v)
+			}
+
+			// Apply it
+			err = d.UpdateStoragePool(currentStoragePool.Name, newStoragePool, etag)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to update storage pool '%s'", storagePool.Name)
+			}
+
+			return nil
 		}
-		break
+
+		for _, storagePool := range config.StoragePools {
+			// New storagePool
+			if !shared.StringInSlice(storagePool.Name, storagePoolNames) {
+				err := createStoragePool(storagePool)
+				if err != nil {
+					return err
+				}
+
+				continue
+			}
+
+			// Existing storagePool
+			err := updateStoragePool(storagePool)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	return bridge
-}
 
-// Defines the schema for all possible configuration knobs supported by the
-// lxd init command, either directly fed via --preseed or populated by
-// the auto/interactive modes.
-type cmdInitData struct {
-	api.ServerPut   `yaml:",inline"`
-	Pools           []api.StoragePoolsPost `yaml:"storage_pools"`
-	Networks        []api.NetworksPost
-	Profiles        []api.ProfilesPost
-	Cluster         api.ClusterPut
-	ClusterPassword string `yaml:"cluster_password"`
-}
+	// Apply profile configuration
+	if config.Profiles != nil && len(config.Profiles) > 0 {
+		// Get the list of profiles
+		profileNames, err := d.GetProfileNames()
+		if err != nil {
+			return errors.Wrap(err, "Failed to retrieve list of profiles")
+		}
 
-// Parameters needed when enbling clustering in interactive mode.
-type cmdInitClusteringParams struct {
-	Name           string // Name of the new node
-	Address        string // Network address of the new node
-	Port           int64  // Network port of the new node
-	TrustPassword  string // Trust password
-	TargetAddress  string // Network address of cluster node to join.
-	TargetCert     []byte // Public key of the cluster to join.
-	TargetPassword string // Trust password of the cluster to join.
-}
+		// Profile creator
+		createProfile := func(profile api.ProfilesPost) error {
+			// Create the profile if doesn't exist
+			err := d.CreateProfile(profile)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to create profile '%s'", profile.Name)
+			}
 
-// Parameters needed when creating a storage pool in interactive or auto
-// mode.
-type cmdInitStorageParams struct {
-	Backend  string            // == supportedStoragePoolDrivers
-	LoopSize int64             // Size in GB
-	Device   string            // Path
-	Pool     string            // pool name
-	Dataset  string            // existing ZFS pool name
-	Config   map[string]string // Additional pool configuration
-}
+			// Setup reverter
+			reverts = append(reverts, func() {
+				d.DeleteProfile(profile.Name)
+			})
 
-// Parameters needed when configuring the LXD server networking options in interactive
-// mode or auto mode.
-type cmdInitNetworkingParams struct {
-	Address       string // Address
-	Port          int64  // Port
-	TrustPassword string // Trust password
-}
+			return nil
+		}
 
-// Parameters needed when creating a bridge network device in interactive
-// mode.
-type cmdInitBridgeParams struct {
-	Name    string // Bridge name
-	IPv4    string // IPv4 address
-	IPv4Nat bool   // IPv4 address
-	IPv6    string // IPv6 address
-	IPv6Nat bool   // IPv6 address
-}
+		// Profile updater
+		updateProfile := func(profile api.ProfilesPost) error {
+			// Get the current profile
+			currentProfile, etag, err := d.GetProfile(profile.Name)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to retrieve current profile '%s'", profile.Name)
+			}
 
-// Shortcut for closure/anonymous functions that are meant to revert
-// some change, and that are passed around as parameters.
-type reverter func() error
+			// Setup reverter
+			reverts = append(reverts, func() {
+				d.UpdateProfile(currentProfile.Name, currentProfile.Writable(), "")
+			})
 
-func cmdInit(args *Args) error {
-	command := &CmdInit{
-		Context:         cmd.DefaultContext(),
-		Args:            args,
-		RunningInUserns: shared.RunningInUserNS(),
-		VarDir:          "",
-		PasswordReader:  terminal.ReadPassword,
+			// Prepare the update
+			newProfile := api.ProfilePut{}
+			err = shared.DeepCopy(currentProfile.Writable(), &newProfile)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to copy configuration of profile '%s'", profile.Name)
+			}
+
+			// Description override
+			if profile.Description != "" {
+				newProfile.Description = profile.Description
+			}
+
+			// Config overrides
+			for k, v := range profile.Config {
+				newProfile.Config[k] = fmt.Sprintf("%v", v)
+			}
+
+			// Device overrides
+			for k, v := range profile.Devices {
+				// New device
+				_, ok := newProfile.Devices[k]
+				if !ok {
+					newProfile.Devices[k] = v
+					continue
+				}
+
+				// Existing device
+				for configKey, configValue := range v {
+					newProfile.Devices[k][configKey] = fmt.Sprintf("%v", configValue)
+				}
+			}
+
+			// Apply it
+			err = d.UpdateProfile(currentProfile.Name, newProfile, etag)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to update profile '%s'", profile.Name)
+			}
+
+			return nil
+		}
+
+		for _, profile := range config.Profiles {
+			// New profile
+			if !shared.StringInSlice(profile.Name, profileNames) {
+				err := createProfile(profile)
+				if err != nil {
+					return err
+				}
+
+				continue
+			}
+
+			// Existing profile
+			err := updateProfile(profile)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	return command.Run()
+
+	// Apply clustering configuration
+	if config.Cluster != nil && config.Cluster.Enabled {
+		// Get the current cluster configuration
+		currentCluster, etag, err := d.GetCluster()
+		if err != nil {
+			return errors.Wrap(err, "Failed to retrieve current cluster config")
+		}
+
+		// Check if already enabled
+		if !currentCluster.Enabled {
+			// Setup trust relationship
+			if config.Cluster.ClusterPassword != "" {
+				// Get our certificate
+				serverConfig, _, err := d.GetServer()
+				if err != nil {
+					return errors.Wrap(err, "Failed to retrieve server configuration")
+				}
+
+				// Try to setup trust
+				err = cluster.SetupTrust(serverConfig.Environment.Certificate, config.Cluster.ClusterAddress,
+					config.Cluster.ClusterCertificate, config.Cluster.ClusterPassword)
+				if err != nil {
+					return errors.Wrap(err, "Failed to setup cluster trust")
+				}
+			}
+
+			// Configure the cluster
+			op, err := d.UpdateCluster(config.Cluster.ClusterPut, etag)
+			if err != nil {
+				return errors.Wrap(err, "Failed to configure cluster")
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return errors.Wrap(err, "Failed to configure cluster")
+			}
+		}
+	}
+
+	revert = false
+	return nil
 }
