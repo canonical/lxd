@@ -36,6 +36,14 @@ sudo apt update
 sudo apt install acl dnsmasq-base git golang liblxc1 lxc-dev libacl1-dev make pkg-config rsync squashfs-tools tar xz-utils
 ```
 
+Note that when building LXC yourself, ensure to build it with the appropriate
+security related libraries installed which our testsuite tests. Again, on
+ubuntu, you can get those with:
+
+```bash
+sudo apt install libapparmor-dev libseccomp-dev libcap-dev
+```
+
 There are a few storage backends for LXD besides the default "directory" backend.
 Installing these tools adds a bit to initramfs and may slow down your
 host boot, but are needed if you'd like to use a particular backend:
