@@ -140,13 +140,12 @@ INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, description)
 		return errors.Wrap(err, "failed to create node ceph volumes")
 	}
 
+	// Create entries of all the ceph volumes configs for the new node.
 	stmt = `
 SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
   ORDER BY name, type
 `
-
-	// Create entries of all the ceph volumes configs for the new node.
-	volumeIDs, err := query.SelectIntegers(c.tx, stmt, poolID, otherNodeID)
+	volumeIDs, err := query.SelectIntegers(c.tx, stmt, poolID, nodeID)
 	if err != nil {
 		return errors.Wrap(err, "failed to get joining node's ceph volume IDs")
 	}
