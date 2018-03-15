@@ -367,6 +367,54 @@ test_clustering_storage() {
     ! LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -q rsync.bwlimit
   fi
 
+  # Test migration of ceph-based containers
+  if [ "${driver}" = "ceph" ]; then
+    LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
+    LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 -s pool1 testimage foo
+
+    # The container can't be moved if it's running
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc move foo --target node1 || false
+
+    # Move the container to node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
+    LXD_DIR="${LXD_TWO_DIR}" lxc move foo --target node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Location: node1"
+
+    # Start and stop the container on its new node1 host
+    LXD_DIR="${LXD_TWO_DIR}" lxc start foo
+    LXD_DIR="${LXD_TWO_DIR}" lxc stop foo
+
+    # Spawn a third node
+    setup_clustering_netns 3
+    LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+    chmod +x "${LXD_THREE_DIR}"
+    ns3="${prefix}3"
+    spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${driver}"
+
+    # Move the container to node3, renaming it
+    LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node3
+    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node3"
+
+    # Shutdown node 3, and wait for it to be considered offline.
+    LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 5
+    LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+    sleep 10
+
+    # Move the container back to node2, even if node3 is offline
+    LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
+    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "Location: node2"
+
+    # Start and stop the container on its new node2 host
+    LXD_DIR="${LXD_TWO_DIR}" lxc start bar
+    LXD_DIR="${LXD_ONE_DIR}" lxc stop bar
+
+    LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
+    LXD_DIR="${LXD_ONE_DIR}" lxc cluster delete node3 --force
+
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
+    LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  fi
+
   # Delete the storage pool
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
   ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -q pool1
