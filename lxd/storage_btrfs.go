@@ -808,7 +808,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	// from the mounted ro image snapshot mounted at
 	// ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>
 	containerSubvolumeName := getContainerMountPoint(s.pool.Name, container.Name())
-	err = s.btrfsPoolVolumesSnapshot(imageMntPoint, containerSubvolumeName, false)
+	err = s.btrfsPoolVolumesSnapshot(imageMntPoint, containerSubvolumeName, false, false)
 	if err != nil {
 		return err
 	}
@@ -898,7 +898,7 @@ func (s *storageBtrfs) copyContainer(target container, source container) error {
 		}
 	}
 
-	err := s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false)
+	err := s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false, true)
 	if err != nil {
 		return err
 	}
@@ -945,7 +945,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 		}
 	}
 
-	err = s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false)
+	err = s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false, true)
 	if err != nil {
 		return err
 	}
@@ -1130,7 +1130,7 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 	_, targetPool, _ := s.GetContainerPoolInfo()
 	if targetPool == sourcePool {
 		// They are on the same storage pool, so we can simply snapshot.
-		err := s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false)
+		err := s.btrfsPoolVolumesSnapshot(sourceContainerSubvolumeName, targetContainerSubvolumeName, false, true)
 		if err != nil {
 			failure = err
 		}
@@ -1209,7 +1209,7 @@ func (s *storageBtrfs) ContainerSnapshotCreate(snapshotContainer container, sour
 
 	srcContainerSubvolumeName := getContainerMountPoint(s.pool.Name, sourceContainer.Name())
 	snapshotSubvolumeName := getSnapshotMountPoint(s.pool.Name, snapshotContainer.Name())
-	err = s.btrfsPoolVolumesSnapshot(srcContainerSubvolumeName, snapshotSubvolumeName, true)
+	err = s.btrfsPoolVolumesSnapshot(srcContainerSubvolumeName, snapshotSubvolumeName, true, true)
 	if err != nil {
 		return err
 	}
@@ -1279,7 +1279,7 @@ func (s *storageBtrfs) ContainerSnapshotStart(container container) (bool, error)
 		return false, err
 	}
 
-	err = s.btrfsPoolVolumesSnapshot(roSnapshotSubvolumeName, snapshotSubvolumeName, false)
+	err = s.btrfsPoolVolumesSnapshot(roSnapshotSubvolumeName, snapshotSubvolumeName, false, true)
 	if err != nil {
 		return false, err
 	}
@@ -1442,7 +1442,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 	// Now create a read-only snapshot of the subvolume.
 	// The path with which we do this is
 	// ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>.
-	err = s.btrfsPoolVolumesSnapshot(tmpImageSubvolumeName, imageSubvolumeName, true)
+	err = s.btrfsPoolVolumesSnapshot(tmpImageSubvolumeName, imageSubvolumeName, true, true)
 	if err != nil {
 		return err
 	}
@@ -1698,36 +1698,38 @@ func (s *storageBtrfs) btrfsPoolVolumeSnapshot(source string, dest string, reado
 	return btrfsSnapshot(source, dest, readonly)
 }
 
-func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, readonly bool) error {
-	// Get a list of subvolumes of the root
-	subsubvols, err := btrfsSubVolumesGet(source)
-	if err != nil {
-		return err
-	}
-	sort.Sort(sort.StringSlice(subsubvols))
-
-	if len(subsubvols) > 0 && readonly {
-		// A root with subvolumes can never be readonly,
-		// also don't make subvolumes readonly.
-		readonly = false
-
-		logger.Warnf("Subvolumes detected, ignoring ro flag.")
-	}
-
+func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, readonly bool, recursive bool) error {
 	// First snapshot the root
-	err = s.btrfsPoolVolumeSnapshot(source, dest, readonly)
+	err := s.btrfsPoolVolumeSnapshot(source, dest, readonly)
 	if err != nil {
 		return err
 	}
 
 	// Now snapshot all subvolumes of the root.
-	for _, subsubvol := range subsubvols {
-		// Clear the target for the subvol to use
-		os.Remove(path.Join(dest, subsubvol))
-
-		err := s.btrfsPoolVolumeSnapshot(path.Join(source, subsubvol), path.Join(dest, subsubvol), readonly)
+	if recursive {
+		// Get a list of subvolumes of the root
+		subsubvols, err := btrfsSubVolumesGet(source)
 		if err != nil {
 			return err
+		}
+		sort.Sort(sort.StringSlice(subsubvols))
+
+		if len(subsubvols) > 0 && readonly {
+			// A root with subvolumes can never be readonly,
+			// also don't make subvolumes readonly.
+			readonly = false
+
+			logger.Warnf("Subvolumes detected, ignoring ro flag.")
+		}
+
+		for _, subsubvol := range subsubvols {
+			// Clear the target for the subvol to use
+			os.Remove(path.Join(dest, subsubvol))
+
+			err := s.btrfsPoolVolumeSnapshot(path.Join(source, subsubvol), path.Join(dest, subsubvol), readonly)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1891,7 +1893,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 
 		migrationSendSnapshot := fmt.Sprintf("%s/.migration-send", tmpContainerMntPoint)
 		snapshotMntPoint := getSnapshotMountPoint(containerPool, containerName)
-		err = s.btrfs.btrfsPoolVolumesSnapshot(snapshotMntPoint, migrationSendSnapshot, true)
+		err = s.btrfs.btrfsPoolVolumesSnapshot(snapshotMntPoint, migrationSendSnapshot, true, true)
 		if err != nil {
 			return err
 		}
@@ -1929,7 +1931,7 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 
 	migrationSendSnapshot := fmt.Sprintf("%s/.migration-send", tmpContainerMntPoint)
 	containerMntPoint := getContainerMountPoint(containerPool, sourceName)
-	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPoint, migrationSendSnapshot, true)
+	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPoint, migrationSendSnapshot, true, true)
 	if err != nil {
 		return err
 	}
@@ -1955,7 +1957,7 @@ func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, b
 	s.stoppedSnapName = fmt.Sprintf("%s/.root", tmpPath)
 	parentName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	containerMntPt := getContainerMountPoint(s.btrfs.pool.Name, parentName)
-	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPt, s.stoppedSnapName, true)
+	err = s.btrfs.btrfsPoolVolumesSnapshot(containerMntPt, s.stoppedSnapName, true, true)
 	if err != nil {
 		return err
 	}
@@ -2080,9 +2082,9 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		}
 		if isSnapshot {
 			receivedSnapshot = fmt.Sprintf("%s/%s", btrfsPath, snapName)
-			err = s.btrfsPoolVolumesSnapshot(receivedSnapshot, targetPath, true)
+			err = s.btrfsPoolVolumesSnapshot(receivedSnapshot, targetPath, true, true)
 		} else {
-			err = s.btrfsPoolVolumesSnapshot(receivedSnapshot, targetPath, false)
+			err = s.btrfsPoolVolumesSnapshot(receivedSnapshot, targetPath, false, true)
 		}
 		if err != nil {
 			logger.Errorf("Problem with btrfs snapshot: %s.", err)
@@ -2309,7 +2311,7 @@ func (s *storageBtrfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) er
 			}
 		}
 
-		err := s.btrfsPoolVolumesSnapshot(srcMountPoint, dstMountPoint, false)
+		err := s.btrfsPoolVolumesSnapshot(srcMountPoint, dstMountPoint, false, true)
 		if err != nil {
 			logger.Errorf("Failed to create BTRFS snapshot for storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 			return err
