@@ -148,6 +148,7 @@ func (c *cmdForkproxy) Command() *cobra.Command {
 }
 
 func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
 	if len(args) != 8 {
 		cmd.Help()
 
@@ -156,6 +157,11 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		return fmt.Errorf("Missing required arguments")
+	}
+
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
 	}
 
 	// Get all our arguments

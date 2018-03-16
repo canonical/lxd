@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -33,6 +34,7 @@ func (c *cmdMigratedumpsuccess) Command() *cobra.Command {
 }
 
 func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
 	if len(args) < 2 {
 		cmd.Help()
 
@@ -41,6 +43,11 @@ func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		return fmt.Errorf("Missing required arguments")
+	}
+
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
 	}
 
 	d, err := lxd.ConnectLXDUnix("", nil)

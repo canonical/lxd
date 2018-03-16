@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -38,6 +39,7 @@ func (c *cmdImport) Command() *cobra.Command {
 }
 
 func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
 	if len(args) < 1 {
 		cmd.Help()
 
@@ -46,6 +48,11 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		return fmt.Errorf("Missing required arguments")
+	}
+
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
 	}
 
 	name := args[0]

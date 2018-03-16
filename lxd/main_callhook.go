@@ -34,6 +34,7 @@ func (c *cmdCallhook) Command() *cobra.Command {
 }
 
 func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
 	if len(args) < 2 {
 		cmd.Help()
 
@@ -48,6 +49,11 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	id := args[1]
 	state := args[2]
 	target := ""
+
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
 
 	// Connect to LXD
 	d, err := lxd.ConnectLXDUnix(fmt.Sprintf("%s/unix.socket", path), nil)
