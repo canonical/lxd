@@ -37,6 +37,7 @@ func (c *cmdForkexec) Command() *cobra.Command {
 }
 
 func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
 	if len(args) < 4 {
 		cmd.Help()
 
@@ -45,6 +46,11 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		return fmt.Errorf("Missing required arguments")
+	}
+
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
 	}
 
 	name := args[0]
