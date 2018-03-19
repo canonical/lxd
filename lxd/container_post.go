@@ -328,7 +328,7 @@ func internalClusterContainerMovedPost(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-// Used after to create the appropriate mount point after a container has been
+// Used after to create the appropriate mounts point after a container has been
 // moved.
 func containerPostCreateContainerMountPoint(d *Daemon, containerName string) error {
 	c, err := containerLoadByName(d.State(), containerName)
@@ -339,11 +339,27 @@ func containerPostCreateContainerMountPoint(d *Daemon, containerName string) err
 	if err != nil {
 		return errors.Wrap(err, "Failed get pool name of moved container on target node")
 	}
-	// This is the target node itself.
+	snapshotNames, err := d.cluster.ContainerGetSnapshots(containerName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create container snapshot names")
+	}
+
 	containerMntPoint := getContainerMountPoint(poolName, containerName)
 	err = createContainerMountpoint(containerMntPoint, c.Path(), c.IsPrivileged())
 	if err != nil {
 		return errors.Wrap(err, "Failed to create container mount point on target node")
 	}
+
+	for _, snapshotName := range snapshotNames {
+		mntPoint := getSnapshotMountPoint(poolName, snapshotName)
+		snapshotsSymlinkTarget := shared.VarPath("storage-pools",
+			poolName, "snapshots", containerName)
+		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
+		err := createSnapshotMountpoint(mntPoint, snapshotsSymlinkTarget, snapshotMntPointSymlink)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create snapshot mount point on target node")
+		}
+	}
+
 	return nil
 }
