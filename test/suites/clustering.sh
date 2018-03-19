@@ -375,14 +375,24 @@ test_clustering_storage() {
     # The container can't be moved if it's running
     ! LXD_DIR="${LXD_TWO_DIR}" lxc move foo --target node1 || false
 
-    # Move the container to node1
+    # Stop the container and create a snapshot
     LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
+    LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo backup
+
+    # Move the container to node1
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo --target node1
     LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Location: node1"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "backup (taken at"
 
     # Start and stop the container on its new node1 host
     LXD_DIR="${LXD_TWO_DIR}" lxc start foo
     LXD_DIR="${LXD_TWO_DIR}" lxc stop foo
+
+    # Init a new container on node2 using the the snapshot on node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc copy foo/backup egg --target node2
+    LXD_DIR="${LXD_TWO_DIR}" lxc start egg
+    LXD_DIR="${LXD_ONE_DIR}" lxc stop egg
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete egg
 
     # Spawn a third node
     setup_clustering_netns 3
@@ -394,6 +404,7 @@ test_clustering_storage() {
     # Move the container to node3, renaming it
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node3
     LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node3"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "backup (taken at"
 
     # Shutdown node 3, and wait for it to be considered offline.
     LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 5
@@ -403,6 +414,7 @@ test_clustering_storage() {
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
     LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "Location: node2"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "backup (taken at"
 
     # Start and stop the container on its new node2 host
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
