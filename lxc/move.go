@@ -121,7 +121,7 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 	// backed by ceph, we want to re-use the same ceph volume. This assumes
 	// that the container is not running.
 	if c.target != "" {
-		moved, err := maybeMoveCephContaner(conf, sourceResource, destResource, c.target)
+		moved, err := maybeMoveCephContainer(conf, sourceResource, destResource, c.target)
 		if err != nil {
 			return err
 		}
@@ -151,7 +151,7 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 // pool, and use the special POST /containers/<name>?target=<node> API if so.
 //
 // It returns false if the container is not backed by ceph, true otherwise.
-func maybeMoveCephContaner(conf *config.Config, sourceResource, destResource, target string) (bool, error) {
+func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, target string) (bool, error) {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
