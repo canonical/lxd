@@ -187,7 +187,7 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 
 	if shared.IsSnapshot(sourceName) {
 		// TODO: implement moving snapshots.
-		return false, fmt.Errorf("Moving ceph snapshots between cluster nodes is not yet implemented")
+		return false, fmt.Errorf("Moving ceph snapshots is not supported")
 	}
 
 	// Check if the container to be moved is backed by ceph.

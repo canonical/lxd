@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
@@ -187,6 +188,34 @@ func (c *ClusterTx) ContainerID(name string) (int64, error) {
 	}
 }
 
+// SnapshotIDsAndNames returns a map of snapshot IDs to snapshot names for the
+// container with the given name.
+func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
+	prefix := name + shared.SnapshotDelimiter
+	length := len(prefix)
+	objects := make([]struct {
+		ID   int
+		Name string
+	}, 0)
+	dest := func(i int) []interface{} {
+		objects = append(objects, struct {
+			ID   int
+			Name string
+		}{})
+		return []interface{}{&objects[i].ID, &objects[i].Name}
+	}
+	stmt := "SELECT id, name FROM containers WHERE SUBSTR(name,1,?)=? AND type=?"
+	err := query.SelectObjects(c.tx, dest, stmt, length, prefix, CTypeSnapshot)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[int]string)
+	for i := range objects {
+		result[objects[i].ID] = strings.Split(objects[i].Name, shared.SnapshotDelimiter)[1]
+	}
+	return result, nil
+}
+
 // ContainerNodeMove changes the node associated with a container.
 //
 // It's meant to be used when moving a non-running container backed by ceph
@@ -210,18 +239,20 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 		return fmt.Errorf("container's storage pool is not of type ceph")
 	}
 
-	// Update the name of the container and the node ID it is associated
-	// with.
+	// Update the name of the container and of its snapshots, and the node
+	// ID they are associated with.
 	containerID, err := c.ContainerID(oldName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's ID")
 	}
-
+	snapshots, err := c.SnapshotIDsAndNames(oldName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get container's snapshots")
+	}
 	node, err := c.NodeByName(newNode)
 	if err != nil {
 		return errors.Wrap(err, "failed to get new node's info")
 	}
-
 	stmt := "UPDATE containers SET node_id=?, name=? WHERE id=?"
 	result, err := c.tx.Exec(stmt, node.ID, newName, containerID)
 	if err != nil {
@@ -234,15 +265,30 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 	if n != 1 {
 		return fmt.Errorf("unexpected number of updated rows in containers table: %d", n)
 	}
+	for snapshotID, snapshotName := range snapshots {
+		newSnapshotName := newName + shared.SnapshotDelimiter + snapshotName
+		stmt := "UPDATE containers SET node_id=?, name=? WHERE id=?"
+		result, err := c.tx.Exec(stmt, node.ID, newSnapshotName, snapshotID)
+		if err != nil {
+			return errors.Wrap(err, "failed to update snapshot's name and node ID")
+		}
+		n, err := result.RowsAffected()
+		if err != nil {
+			return errors.Wrap(err, "failed to get rows affected by snapshot update")
+		}
+		if n != 1 {
+			return fmt.Errorf("unexpected number of updated snapshot rows: %d", n)
+		}
+	}
 
-	// Update the container's storage volume name (since this is ceph,
+	// Update the container's and snapshots' storage volume name (since this is ceph,
 	// there's a clone of the volume for each node).
 	count, err := c.NodesCount()
 	if err != nil {
 		return errors.Wrap(err, "failed to get node's count")
 	}
-	stmt = "UPDATE storage_volumes SET name=? WHERE storage_pool_id=? AND type=?"
-	result, err = c.tx.Exec(stmt, newName, poolID, StoragePoolVolumeTypeContainer)
+	stmt = "UPDATE storage_volumes SET name=? WHERE name=? AND storage_pool_id=? AND type=?"
+	result, err = c.tx.Exec(stmt, newName, oldName, poolID, StoragePoolVolumeTypeContainer)
 	if err != nil {
 		return errors.Wrap(err, "failed to update container's volume name")
 	}
@@ -252,6 +298,23 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 	}
 	if n != int64(count) {
 		return fmt.Errorf("unexpected number of updated rows in volumes table: %d", n)
+	}
+	for _, snapshotName := range snapshots {
+		oldSnapshotName := oldName + shared.SnapshotDelimiter + snapshotName
+		newSnapshotName := newName + shared.SnapshotDelimiter + snapshotName
+		stmt := "UPDATE storage_volumes SET name=? WHERE name=? AND storage_pool_id=? AND type=?"
+		result, err := c.tx.Exec(
+			stmt, newSnapshotName, oldSnapshotName, poolID, StoragePoolVolumeTypeContainer)
+		if err != nil {
+			return errors.Wrap(err, "failed to update snapshot volume")
+		}
+		n, err = result.RowsAffected()
+		if err != nil {
+			return errors.Wrap(err, "failed to get rows affected by snapshot volume update")
+		}
+		if n != int64(count) {
+			return fmt.Errorf("unexpected number of updated snapshots in volumes table: %d", n)
+		}
 	}
 
 	return nil
