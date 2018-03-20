@@ -555,7 +555,12 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 	}
 
 	// Send the request
-	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", url.QueryEscape(name)), container, "")
+	path := fmt.Sprintf("/containers/%s", url.QueryEscape(name))
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
+	}
+
+	op, _, err := r.queryOperation("POST", path, container, "")
 	if err != nil {
 		return nil, err
 	}

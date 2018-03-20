@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -60,6 +61,32 @@ func TestContainersByNodeName(t *testing.T) {
 			"c1": "node2",
 			"c2": "none",
 		}, result)
+}
+
+func TestContainerPool(t *testing.T) {
+	cluster, cleanup := db.NewTestCluster(t)
+	defer cleanup()
+
+	poolID, err := cluster.StoragePoolCreate("default", "", "dir", nil)
+	require.NoError(t, err)
+	_, err = cluster.StoragePoolVolumeCreate("c1", "", db.StoragePoolVolumeTypeContainer, poolID, nil)
+	require.NoError(t, err)
+
+	args := db.ContainerArgs{
+		Name: "c1",
+		Devices: types.Devices{
+			"root": types.Device{
+				"path": "/",
+				"pool": "default",
+				"type": "disk",
+			},
+		},
+	}
+	_, err = cluster.ContainerCreate(args)
+	require.NoError(t, err)
+	poolName, err := cluster.ContainerPool("c1")
+	require.NoError(t, err)
+	assert.Equal(t, "default", poolName)
 }
 
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {

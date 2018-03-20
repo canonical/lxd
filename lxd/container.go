@@ -281,36 +281,6 @@ func containerValidConfig(os *sys.OS, config map[string]string, profile bool, ex
 	return nil
 }
 
-func isRootDiskDevice(device types.Device) bool {
-	if device["type"] == "disk" && device["path"] == "/" && device["source"] == "" {
-		return true
-	}
-
-	return false
-}
-
-func containerGetRootDiskDevice(devices types.Devices) (string, types.Device, error) {
-	var devName string
-	var dev types.Device
-
-	for n, d := range devices {
-		if isRootDiskDevice(d) {
-			if devName != "" {
-				return "", types.Device{}, fmt.Errorf("More than one root device found.")
-			}
-
-			devName = n
-			dev = d
-		}
-	}
-
-	if devName != "" {
-		return devName, dev, nil
-	}
-
-	return "", types.Device{}, fmt.Errorf("No root device could be found.")
-}
-
 func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
@@ -447,7 +417,7 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 
 	// Checks on the expanded config
 	if expanded {
-		_, _, err := containerGetRootDiskDevice(devices)
+		_, _, err := shared.GetRootDiskDevice(devices)
 		if err != nil {
 			return err
 		}
@@ -931,7 +901,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 
 func containerConfigureInternal(c container) error {
 	// Find the root device
-	_, rootDiskDevice, err := containerGetRootDiskDevice(c.ExpandedDevices())
+	_, rootDiskDevice, err := shared.GetRootDiskDevice(c.ExpandedDevices())
 	if err != nil {
 		return err
 	}
