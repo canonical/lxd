@@ -87,6 +87,40 @@ func IsAny(value string) error {
 	return nil
 }
 
+// IsRootDiskDevice returns true if the given device representation is
+// configured as root disk for a container. It typically get passed a specific
+// entry of api.Container.Devices.
+func IsRootDiskDevice(device map[string]string) bool {
+	if device["type"] == "disk" && device["path"] == "/" && device["source"] == "" {
+		return true
+	}
+
+	return false
+}
+
+// GetRootDiskDevice returns the container device that is configured as root disk
+func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string]string, error) {
+	var devName string
+	var dev map[string]string
+
+	for n, d := range devices {
+		if IsRootDiskDevice(d) {
+			if devName != "" {
+				return "", nil, fmt.Errorf("More than one root device found.")
+			}
+
+			devName = n
+			dev = d
+		}
+	}
+
+	if devName != "" {
+		return devName, dev, nil
+	}
+
+	return "", nil, fmt.Errorf("No root device could be found.")
+}
+
 // KnownContainerConfigKeys maps all fully defined, well-known config keys
 // to an appropriate checker function, which validates whether or not a
 // given value is syntactically legal.
