@@ -405,14 +405,7 @@ func (g *Gateway) init() error {
 	// exposed it over gRPC.
 	if raft != nil {
 		config := dqlite.DriverConfig{}
-		if raft.HandlerFunc() == nil {
-			// FIXME enable auto-checkpoint to avoid WAL growing
-			// indefinitely. This should be disabled when proper
-			// checkpoint support is added for multi-node
-			// deployments.
-			config.AutoCheckpoint = 1000
-		}
-		driver, err := dqlite.NewDriver(raft.FSM(), raft.Raft(), config)
+		driver, err := dqlite.NewDriver(raft.Registry(), raft.Raft(), config)
 		if err != nil {
 			return errors.Wrap(err, "failed to create dqlite driver")
 		}

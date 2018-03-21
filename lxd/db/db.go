@@ -193,6 +193,7 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 		db: db,
 	}
 	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	// Figure out the ID of this node.
 	err = cluster.Transaction(func(tx *ClusterTx) error {

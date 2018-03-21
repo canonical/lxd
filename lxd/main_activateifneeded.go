@@ -140,7 +140,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 func sqliteDirectAccess(conn *sqlite3.SQLiteConn) error {
 	// Ensure journal mode is set to WAL, as this is a requirement for
 	// replication.
-	err := sqlite3.JournalModePragma(conn, sqlite3.JournalWal)
+	_, err := conn.Exec("PRAGMA journal_mode=wal", nil)
 	if err != nil {
 		return err
 	}
@@ -148,13 +148,17 @@ func sqliteDirectAccess(conn *sqlite3.SQLiteConn) error {
 	// Ensure we don't truncate or checkpoint the WAL on exit, as this
 	// would bork replication which must be in full control of the WAL
 	// file.
-	err = sqlite3.JournalSizeLimitPragma(conn, -1)
+	_, err = conn.Exec("PRAGMA journal_size_limit=-1", nil)
 	if err != nil {
 		return err
 	}
-	err = sqlite3.DatabaseNoCheckpointOnClose(conn)
+
+	// Ensure WAL autocheckpoint is disabled, since checkpoints are
+	// triggered explicitly by dqlite.
+	_, err = conn.Exec("PRAGMA wal_autocheckpoint=0", nil)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
