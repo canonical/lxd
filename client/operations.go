@@ -22,6 +22,11 @@ type Operation struct {
 	chActive chan bool
 }
 
+// NewOperation creates an operation from provided parameters, used for mocking.
+func NewOperation(op api.Operation, r *ProtocolLXD, listener *EventListener, handlerReady bool, handlerLock sync.Mutex, chActive chan bool) (Operation) {
+        return Operation{op, r, listener, handlerReady, handlerLock, chActive}
+}
+
 // AddHandler adds a function to be called whenever an event is received
 func (op *Operation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
 	// Make sure we have a listener setup
@@ -281,6 +286,11 @@ type RemoteOperation struct {
 	chDone chan bool
 	chPost chan bool
 	err    error
+}
+
+// NewRemoteOperation creates a remote operation from provided parameters, used for mocking.
+func NewRemoteOperation(targetOp *Operation, handlers []func(api.Operation), chDone, chPost chan bool, err error) (RemoteOperation) {
+        return RemoteOperation{targetOp, handlers, chDone, chPost, err}
 }
 
 // AddHandler adds a function to be called whenever an event is received
