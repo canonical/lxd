@@ -155,7 +155,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 
 		if req.Target != nil {
 			// Push mode
-			err := ws.ConnectTarget(*req.Target)
+			err := ws.ConnectContainerTarget(*req.Target)
 			if err != nil {
 				return InternalError(err)
 			}
