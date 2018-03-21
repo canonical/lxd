@@ -7,17 +7,52 @@ import (
 	"strings"
 	"time"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/spf13/cobra"
+
+	"github.com/lxc/lxd/client"
 )
 
-func cmdSQL(args *Args) error {
-	if len(args.Params) != 1 {
-		return fmt.Errorf("Invalid arguments")
+type cmdSql struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+}
+
+func (c *cmdSql) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "sql <query>"
+	cmd.Short = "Execute a SQL query against the LXD database"
+	cmd.Long = `Description:
+  Execute a SQL query against the LXD database
+
+  This internal command is mostly useful for debugging and disaster
+  recovery. The LXD team will occasionally provide hotfixes to users as a
+  set of database queries to fix some data inconsistency.
+
+  This command targets the global LXD database and works in both local
+  and cluster mode.
+`
+	cmd.RunE = c.Run
+	cmd.Hidden = true
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
+	if len(args) != 1 {
+		cmd.Help()
+
+		if len(args) == 0 {
+			return nil
+		}
+
+		return fmt.Errorf("Missing required arguments")
 	}
-	query := args.Params[0]
+
+	query := args[0]
 
 	// Connect to LXD
-	c, err := lxd.ConnectLXDUnix("", nil)
+	d, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return err
 	}
@@ -25,7 +60,7 @@ func cmdSQL(args *Args) error {
 	data := internalSQLPost{
 		Query: query,
 	}
-	response, _, err := c.RawQuery("POST", "/internal/sql", data, "")
+	response, _, err := d.RawQuery("POST", "/internal/sql", data, "")
 	if err != nil {
 		return err
 	}

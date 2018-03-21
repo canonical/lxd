@@ -27,12 +27,6 @@ func (c *cmdInit) Command() *cobra.Command {
 }
 
 func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
-	// Run shared setup code
-	err := c.global.Setup()
-	if err != nil {
-		return err
-	}
-
 	// Choose the image
 	image := "ubuntu:"
 	if len(args) > 0 {
@@ -45,11 +39,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Run shared reporting and teardown code
-	err = c.global.Teardown("init", duration)
-	if err != nil {
-		return err
-	}
+	c.global.reportDuration = duration
 
 	return nil
 }

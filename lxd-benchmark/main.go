@@ -19,11 +19,12 @@ type cmdGlobal struct {
 	flagReportLabel string
 	flagVersion     bool
 
-	srv    lxd.ContainerServer
-	report *benchmark.CSVReport
+	srv            lxd.ContainerServer
+	report         *benchmark.CSVReport
+	reportDuration time.Duration
 }
 
-func (c *cmdGlobal) Setup() error {
+func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	// Connect to LXD
 	srv, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
@@ -48,18 +49,18 @@ func (c *cmdGlobal) Setup() error {
 	return nil
 }
 
-func (c *cmdGlobal) Teardown(action string, duration time.Duration) error {
+func (c *cmdGlobal) Teardown(cmd *cobra.Command, args []string) error {
 	// Nothing to do with not reporting
 	if c.report == nil {
 		return nil
 	}
 
-	label := action
+	label := cmd.Name()
 	if c.flagReportLabel != "" {
 		label = c.flagReportLabel
 	}
 
-	c.report.AddRecord(label, duration)
+	c.report.AddRecord(label, c.reportDuration)
 
 	err := c.report.Write()
 	if err != nil {
@@ -96,6 +97,8 @@ func main() {
 
 	// Global flags
 	globalCmd := cmdGlobal{}
+	app.PersistentPreRunE = globalCmd.Run
+	app.PersistentPostRunE = globalCmd.Teardown
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
 	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, "Print help")
 	app.PersistentFlags().IntVarP(&globalCmd.flagParallel, "parallel", "P", -1, "Number of threads to use"+"``")

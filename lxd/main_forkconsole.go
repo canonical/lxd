@@ -1,45 +1,79 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
-/*
- * This is called by lxd when called as "lxd forkconsole <container> <path> <conf> <tty=<n>> <escape=<n>>"
- */
-func cmdForkConsole(args *Args) error {
-	if len(args.Params) != 5 {
-		return SubCommandErrorf(-1, "Bad params: %q", args.Params)
+type cmdForkconsole struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+}
+
+func (c *cmdForkconsole) Command() *cobra.Command {
+	// Main subcommand
+	cmd := &cobra.Command{}
+	cmd.Use = "forkconsole <container name> <containers path> <config> <tty> <escape>"
+	cmd.Short = "Attach to the console of a container"
+	cmd.Long = `Description:
+  Attach to the console of a container
+
+  This internal command is used to attach to one of the container's tty devices.
+`
+	cmd.RunE = c.Run
+	cmd.Hidden = true
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdForkconsole) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	if len(args) != 5 {
+		cmd.Help()
+
+		if len(args) == 0 {
+			return nil
+		}
+
+		return fmt.Errorf("Missing required arguments")
 	}
 
-	name := args.Params[0]
-	lxcpath := args.Params[1]
-	configPath := args.Params[2]
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
 
-	ttyNum := strings.TrimPrefix(args.Params[3], "tty=")
+	name := args[0]
+	lxcpath := args[1]
+	configPath := args[2]
+
+	ttyNum := strings.TrimPrefix(args[3], "tty=")
 	tty, err := strconv.Atoi(ttyNum)
 	if err != nil {
-		return SubCommandErrorf(-1, "Failed to retrieve tty number: %q", err)
+		return fmt.Errorf("Failed to retrieve tty number: %q", err)
 	}
 
-	escapeNum := strings.TrimPrefix(args.Params[4], "escape=")
+	escapeNum := strings.TrimPrefix(args[4], "escape=")
 	escape, err := strconv.Atoi(escapeNum)
 	if err != nil {
-		return SubCommandErrorf(-1, "Failed to retrieve escape character: %q", err)
+		return fmt.Errorf("Failed to retrieve escape character: %q", err)
 	}
 
-	c, err := lxc.NewContainer(name, lxcpath)
+	d, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
-		return SubCommandErrorf(-1, "Error initializing container: %q", err)
+		return fmt.Errorf("Error initializing container: %q", err)
 	}
 
-	err = c.LoadConfigFile(configPath)
+	err = d.LoadConfigFile(configPath)
 	if err != nil {
-		return SubCommandErrorf(-1, "Error opening config file: %q", err)
+		return fmt.Errorf("Error opening config file: %q", err)
 	}
 
 	opts := lxc.ConsoleOptions{}
@@ -49,9 +83,9 @@ func cmdForkConsole(args *Args) error {
 	opts.StderrFd = uintptr(os.Stderr.Fd())
 	opts.EscapeCharacter = rune(escape)
 
-	err = c.Console(opts)
+	err = d.Console(opts)
 	if err != nil {
-		return SubCommandErrorf(-1, "Failed running forkconsole: %q", err)
+		return fmt.Errorf("Failed running forkconsole: %q", err)
 	}
 
 	return nil

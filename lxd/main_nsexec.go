@@ -20,35 +20,44 @@ package main
 
 /*
 #define _GNU_SOURCE
-#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <linux/limits.h>
+#include <sched.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mount.h>
-#include <sched.h>
-#include <linux/sched.h>
-#include <linux/limits.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <stdbool.h>
+#include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <alloca.h>
-#include <libgen.h>
-#include <ifaddrs.h>
-#include <dirent.h>
-#include <grp.h>
 
-// This expects:
-//  ./lxd forkputfile /source/path <pid> /target/path
-// or
-//  ./lxd forkgetfile /target/path <pid> /soruce/path <uid> <gid> <mode>
-// i.e. 8 arguments, each which have a max length of PATH_MAX.
-// Unfortunately, lseek() and fstat() both fail (EINVAL and 0 size) for
-// procfs. Also, we can't mmap, because procfs doesn't support that, either.
-//
+// External functions
+extern void forkfile();
+extern void forkmount();
+extern void forknet();
+extern void forkproxy();
+
+// Command line parsing and tracking
 #define CMDLINE_SIZE (8 * PATH_MAX)
+char cmdline_buf[CMDLINE_SIZE];
+char *cmdline_cur = NULL;
+ssize_t cmdline_size = -1;
+
+char* advance_arg(bool required) {
+	while (*cmdline_cur != 0)
+		cmdline_cur++;
+
+	cmdline_cur++;
+	if (cmdline_size <= cmdline_cur - cmdline_buf) {
+		if (!required)
+			return NULL;
+
+		fprintf(stderr, "not enough arguments\n");
+		_exit(1);
+	}
+
+	return cmdline_cur;
+}
 
 void error(char *msg)
 {
@@ -62,59 +71,6 @@ void error(char *msg)
 
 	perror(msg);
 	fprintf(stderr, "errno: %d\n", old_errno);
-}
-
-int mkdir_p(const char *dir, mode_t mode)
-{
-	const char *tmp = dir;
-	const char *orig = dir;
-	char *makeme;
-
-	do {
-		dir = tmp + strspn(tmp, "/");
-		tmp = dir + strcspn(dir, "/");
-		makeme = strndup(orig, dir - orig);
-		if (*makeme) {
-			if (mkdir(makeme, mode) && errno != EEXIST) {
-				fprintf(stderr, "failed to create directory '%s': %s\n", makeme, strerror(errno));
-				free(makeme);
-				return -1;
-			}
-		}
-		free(makeme);
-	} while(tmp != dir);
-
-	return 0;
-}
-
-int copy(int target, int source, bool append)
-{
-	ssize_t n;
-	char buf[1024];
-
-	if (!append && ftruncate(target, 0) < 0) {
-		error("error: truncate");
-		return -1;
-	}
-
-	if (append && lseek(target, 0, SEEK_END) < 0) {
-		error("error: seek");
-		return -1;
-	}
-
-	while ((n = read(source, buf, 1024)) > 0) {
-		if (write(target, buf, n) != n) {
-			error("error: write");
-			return -1;
-		}
-	}
-
-	if (n < 0) {
-		error("error: read");
-		return -1;
-	}
-
-	return 0;
 }
 
 int dosetns(int pid, char *nstype) {
@@ -140,22 +96,27 @@ int dosetns(int pid, char *nstype) {
 
 void attach_userns(int pid) {
 	char nspath[PATH_MAX];
-	char userns_source[PATH_MAX];
-	char userns_target[PATH_MAX];
+	char userns_source[22];
+	char userns_target[22];
+	ssize_t len = 0;
 
 	sprintf(nspath, "/proc/%d/ns/user", pid);
 	if (access(nspath, F_OK) == 0) {
-		if (readlink("/proc/self/ns/user", userns_source, 18) < 0) {
+		len = readlink("/proc/self/ns/user", userns_source, 21);
+		if (len < 0) {
 			fprintf(stderr, "Failed readlink of source namespace: %s\n", strerror(errno));
 			_exit(1);
 		}
+		userns_source[len] = '\0';
 
-		if (readlink(nspath, userns_target, PATH_MAX) < 0) {
+		len = readlink(nspath, userns_target, 21);
+		if (len < 0) {
 			fprintf(stderr, "Failed readlink of target namespace: %s\n", strerror(errno));
 			_exit(1);
 		}
+		userns_target[len] = '\0';
 
-		if (strncmp(userns_source, userns_target, PATH_MAX) != 0) {
+		if (strcmp(userns_source, userns_target) != 0) {
 			if (dosetns(pid, "user") < 0) {
 				fprintf(stderr, "Failed setns to container user namespace: %s\n", strerror(errno));
 				_exit(1);
@@ -180,659 +141,41 @@ void attach_userns(int pid) {
 	}
 }
 
-int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
-	int host_fd = -1, container_fd = -1;
-	int ret = -1;
-	int container_open_flags;
-	struct stat st;
-	int exists = 1;
-	bool is_dir_manip = type != NULL && !strcmp(type, "directory");
-	bool is_symlink_manip = type != NULL && !strcmp(type, "symlink");
-	char link_target[PATH_MAX];
-	ssize_t link_length;
-
-	if (!is_dir_manip && !is_symlink_manip) {
-		host_fd = open(host, O_RDWR);
-		if (host_fd < 0) {
-			error("error: open");
-			return -1;
-		}
-	}
-
-	if (pid > 0) {
-		attach_userns(pid);
-
-		if (dosetns(pid, "mnt") < 0) {
-			error("error: setns");
-			goto close_host;
-		}
-	} else {
-		if (chroot(rootfs) < 0) {
-			error("error: chroot");
-			goto close_host;
-		}
-
-		if (chdir("/") < 0) {
-			error("error: chdir");
-			goto close_host;
-		}
-	}
-
-	if (is_put && is_dir_manip) {
-		if (mode == -1) {
-			mode = defaultMode;
-		}
-
-		if (uid == -1) {
-			uid = defaultUid;
-		}
-
-		if (gid == -1) {
-			gid = defaultGid;
-		}
-
-		if (mkdir(container, mode) < 0 && errno != EEXIST) {
-			error("error: mkdir");
-			return -1;
-		}
-
-		if (chown(container, uid, gid) < 0) {
-			error("error: chown");
-			return -1;
-		}
-
-		return 0;
-	}
-
-	if (is_put && is_symlink_manip) {
-		if (mode == -1) {
-			mode = defaultMode;
-		}
-
-		if (uid == -1) {
-			uid = defaultUid;
-		}
-
-		if (gid == -1) {
-			gid = defaultGid;
-		}
-
-		if (symlink(host, container) < 0 && errno != EEXIST) {
-			error("error: symlink");
-			return -1;
-		}
-
-		if (fchownat(0, container, uid, gid, AT_SYMLINK_NOFOLLOW) < 0) {
-			error("error: chown");
-			return -1;
-		}
-
-		return 0;
-	}
-
-	if (fstatat(AT_FDCWD, container, &st, AT_SYMLINK_NOFOLLOW) < 0)
-		exists = 0;
-
-	container_open_flags = O_RDWR;
-	if (is_put)
-		container_open_flags |= O_CREAT;
-
-	if (is_put && !is_dir_manip && exists && S_ISDIR(st.st_mode)) {
-		error("error: Path already exists as a directory");
-		goto close_host;
-	}
-
-	if (exists && S_ISDIR(st.st_mode))
-		container_open_flags = O_DIRECTORY;
-
-	if (!is_put && exists && S_ISLNK(st.st_mode)) {
-		fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
-		fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
-		fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
-		fprintf(stderr, "type: symlink\n");
-
-		link_length = readlink(container, link_target, PATH_MAX);
-		if (link_length < 0 || link_length >= PATH_MAX) {
-			error("error: readlink");
-			goto close_host;
-		}
-		link_target[link_length] = '\0';
-
-		dprintf(host_fd, "%s\n", link_target);
-		goto close_container;
-	}
-
-	umask(0);
-	container_fd = open(container, container_open_flags, 0);
-	if (container_fd < 0) {
-		error("error: open");
-		goto close_host;
-	}
-
-	if (is_put) {
-		if (!exists) {
-			if (mode == -1) {
-				mode = defaultMode;
-			}
-
-			if (uid == -1) {
-				uid = defaultUid;
-			}
-
-			if (gid == -1) {
-				gid = defaultGid;
-			}
-		}
-
-		if (copy(container_fd, host_fd, append) < 0) {
-			error("error: copy");
-			goto close_container;
-		}
-
-		if (mode != -1 && fchmod(container_fd, mode) < 0) {
-			error("error: chmod");
-			goto close_container;
-		}
-
-		if (fchown(container_fd, uid, gid) < 0) {
-			error("error: chown");
-			goto close_container;
-		}
-		ret = 0;
-	} else {
-		if (fstat(container_fd, &st) < 0) {
-			error("error: stat");
-			goto close_container;
-		}
-
-		fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
-		fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
-		fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
-		if (S_ISDIR(st.st_mode)) {
-			DIR *fdir;
-			struct dirent *de;
-
-			fdir = fdopendir(container_fd);
-			if (!fdir) {
-				error("error: fdopendir");
-				goto close_container;
-			}
-
-			fprintf(stderr, "type: directory\n");
-
-			while((de = readdir(fdir))) {
-				int len, i;
-
-				if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
-					continue;
-
-				fprintf(stderr, "entry: ");
-
-				// swap \n to \0 since we split this output by line
-				for (i = 0, len = strlen(de->d_name); i < len; i++) {
-					if (*(de->d_name + i) == '\n')
-						putc(0, stderr);
-					else
-						putc(*(de->d_name + i), stderr);
-				}
-				fprintf(stderr, "\n");
-			}
-
-			closedir(fdir);
-			// container_fd is dead now that we fdopendir'd it
-			goto close_host;
-		} else {
-			fprintf(stderr, "type: file\n");
-			ret = copy(host_fd, container_fd, false);
-		}
-		fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
-	}
-
-close_container:
-	close(container_fd);
-close_host:
-	close(host_fd);
-	return ret;
-}
-
-#define ADVANCE_ARG_REQUIRED()					\
-	do {							\
-		while (*cur != 0)				\
-			cur++;					\
-		cur++;						\
-		if (size <= cur - buf) {			\
-			fprintf(stderr, "not enough arguments\n");	\
-			_exit(1);				\
-		}						\
-	} while(0)
-
-void ensure_dir(char *dest) {
-	struct stat sb;
-	if (stat(dest, &sb) == 0) {
-		if ((sb.st_mode & S_IFMT) == S_IFDIR)
-			return;
-		if (unlink(dest) < 0) {
-			fprintf(stderr, "Failed to remove old %s: %s\n", dest, strerror(errno));
-			_exit(1);
-		}
-	}
-	if (mkdir(dest, 0755) < 0) {
-		fprintf(stderr, "Failed to mkdir %s: %s\n", dest, strerror(errno));
-		_exit(1);
-	}
-}
-
-void ensure_file(char *dest) {
-	struct stat sb;
-	int fd;
-
-	if (stat(dest, &sb) == 0) {
-		if ((sb.st_mode & S_IFMT) != S_IFDIR)
-			return;
-		if (rmdir(dest) < 0) {
-			fprintf(stderr, "Failed to remove old %s: %s\n", dest, strerror(errno));
-			_exit(1);
-		}
-	}
-
-	fd = creat(dest, 0755);
-	if (fd < 0) {
-		fprintf(stderr, "Failed to mkdir %s: %s\n", dest, strerror(errno));
-		_exit(1);
-	}
-	close(fd);
-}
-
-void create(char *src, char *dest) {
-	char *dirdup;
-	char *destdirname;
-
-	struct stat sb;
-	if (stat(src, &sb) < 0) {
-		fprintf(stderr, "source %s does not exist\n", src);
-		_exit(1);
-	}
-
-	dirdup = strdup(dest);
-	if (!dirdup)
-		_exit(1);
-
-	destdirname = dirname(dirdup);
-
-	if (mkdir_p(destdirname, 0755) < 0) {
-		fprintf(stderr, "failed to create path: %s\n", destdirname);
-		free(dirdup);
-		_exit(1);
-	}
-	free(dirdup);
-
-	switch (sb.st_mode & S_IFMT) {
-	case S_IFDIR:
-		ensure_dir(dest);
-		return;
-	default:
-		ensure_file(dest);
-		return;
-	}
-}
-
-void forkmount(char *buf, char *cur, ssize_t size) {
-	char *src, *dest, *opts;
-
-	ADVANCE_ARG_REQUIRED();
-	int pid = atoi(cur);
-
-	attach_userns(pid);
-
-	if (dosetns(pid, "mnt") < 0) {
-		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	ADVANCE_ARG_REQUIRED();
-	src = cur;
-
-	ADVANCE_ARG_REQUIRED();
-	dest = cur;
-
-	create(src, dest);
-
-	if (access(src, F_OK) < 0) {
-		fprintf(stderr, "Mount source doesn't exist: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	if (access(dest, F_OK) < 0) {
-		fprintf(stderr, "Mount destination doesn't exist: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	// Here, we always move recursively, because we sometimes allow
-	// recursive mounts. If the mount has no kids then it doesn't matter,
-	// but if it does, we want to move those too.
-	if (mount(src, dest, "none", MS_MOVE | MS_REC, NULL) < 0) {
-		fprintf(stderr, "Failed mounting %s onto %s: %s\n", src, dest, strerror(errno));
-		_exit(1);
-	}
-
-	_exit(0);
-}
-
-void forkumount(char *buf, char *cur, ssize_t size) {
-	ADVANCE_ARG_REQUIRED();
-	int pid = atoi(cur);
-
-	if (dosetns(pid, "mnt") < 0) {
-		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	ADVANCE_ARG_REQUIRED();
-	if (access(cur, F_OK) < 0) {
-		fprintf(stderr, "Mount path doesn't exist: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	if (umount2(cur, MNT_DETACH) < 0) {
-		fprintf(stderr, "Error unmounting %s: %s\n", cur, strerror(errno));
-		_exit(1);
-	}
-	_exit(0);
-}
-
-void forkdofile(char *buf, char *cur, bool is_put, ssize_t size) {
-	uid_t uid = 0;
-	gid_t gid = 0;
-	mode_t mode = 0;
-	uid_t defaultUid = 0;
-	gid_t defaultGid = 0;
-	mode_t defaultMode = 0;
-	char *command = cur, *rootfs = NULL, *source = NULL, *target = NULL, *writeMode = NULL, *type = NULL;
-	pid_t pid;
-	bool append = false;
-
-	ADVANCE_ARG_REQUIRED();
-	rootfs = cur;
-
-	ADVANCE_ARG_REQUIRED();
-	pid = atoi(cur);
-
-	ADVANCE_ARG_REQUIRED();
-	source = cur;
-
-	ADVANCE_ARG_REQUIRED();
-	target = cur;
-
-	if (is_put) {
-		ADVANCE_ARG_REQUIRED();
-		type = cur;
-
-		ADVANCE_ARG_REQUIRED();
-		uid = atoi(cur);
-
-		ADVANCE_ARG_REQUIRED();
-		gid = atoi(cur);
-
-		ADVANCE_ARG_REQUIRED();
-		mode = atoi(cur);
-
-		ADVANCE_ARG_REQUIRED();
-		defaultUid = atoi(cur);
-
-		ADVANCE_ARG_REQUIRED();
-		defaultGid = atoi(cur);
-
-		ADVANCE_ARG_REQUIRED();
-		defaultMode = atoi(cur);
-
-		ADVANCE_ARG_REQUIRED();
-		if (strcmp(cur, "append") == 0) {
-			append = true;
-		}
-	}
-
-	_exit(manip_file_in_ns(rootfs, pid, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
-}
-
-void forkcheckfile(char *buf, char *cur, bool is_put, ssize_t size) {
-	char *command = cur, *rootfs = NULL, *path = NULL;
-	pid_t pid;
-
-	ADVANCE_ARG_REQUIRED();
-	rootfs = cur;
-
-	ADVANCE_ARG_REQUIRED();
-	pid = atoi(cur);
-
-	ADVANCE_ARG_REQUIRED();
-	path = cur;
-
-	if (pid > 0) {
-		attach_userns(pid);
-
-		if (dosetns(pid, "mnt") < 0) {
-			error("error: setns");
-			_exit(1);
-		}
-	} else {
-		if (chroot(rootfs) < 0) {
-			error("error: chroot");
-			_exit(1);
-		}
-
-		if (chdir("/") < 0) {
-			error("error: chdir");
-			_exit(1);
-		}
-	}
-
-	if (access(path, F_OK) < 0) {
-		fprintf(stderr, "Path doesn't exist: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	_exit(0);
-}
-
-void forkremovefile(char *buf, char *cur, bool is_put, ssize_t size) {
-	char *command = cur, *rootfs = NULL, *path = NULL;
-	pid_t pid;
-	struct stat sb;
-
-	ADVANCE_ARG_REQUIRED();
-	rootfs = cur;
-
-	ADVANCE_ARG_REQUIRED();
-	pid = atoi(cur);
-
-	ADVANCE_ARG_REQUIRED();
-	path = cur;
-
-	if (pid > 0) {
-		attach_userns(pid);
-
-		if (dosetns(pid, "mnt") < 0) {
-			error("error: setns");
-			_exit(1);
-		}
-	} else {
-		if (chroot(rootfs) < 0) {
-			error("error: chroot");
-			_exit(1);
-		}
-
-		if (chdir("/") < 0) {
-			error("error: chdir");
-			_exit(1);
-		}
-	}
-
-	if (stat(path, &sb) < 0) {
-		error("error: stat");
-		_exit(1);
-	}
-
-	if ((sb.st_mode & S_IFMT) == S_IFDIR) {
-		if (rmdir(path) < 0) {
-			fprintf(stderr, "Failed to remove %s: %s\n", path, strerror(errno));
-			_exit(1);
-		}
-	} else {
-		if (unlink(path) < 0) {
-			fprintf(stderr, "Failed to remove %s: %s\n", path, strerror(errno));
-			_exit(1);
-		}
-	}
-
-	_exit(0);
-}
-
-void forkgetnet(char *buf, char *cur, ssize_t size) {
-	ADVANCE_ARG_REQUIRED();
-	int pid = atoi(cur);
-
-	if (dosetns(pid, "net") < 0) {
-		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
-		_exit(1);
-	}
-
-	// The rest happens in Go
-}
-
-void forkproxy(char *buf, char *cur, ssize_t size) {
-	int cmdline, listen_pid, connect_pid, fdnum, forked, childPid, ret;
-	char fdpath[80];
-	char *logPath = NULL, *pidPath = NULL;
-	FILE *logFile = NULL, *pidFile = NULL;
-
-	// Get the arguments
-	ADVANCE_ARG_REQUIRED();
-	listen_pid = atoi(cur);
-	ADVANCE_ARG_REQUIRED();
-	ADVANCE_ARG_REQUIRED();
-	connect_pid = atoi(cur);
-	ADVANCE_ARG_REQUIRED();
-	ADVANCE_ARG_REQUIRED();
-	fdnum = atoi(cur);
-	ADVANCE_ARG_REQUIRED();
-	forked = atoi(cur);
-	ADVANCE_ARG_REQUIRED();
-	logPath = cur;
-	ADVANCE_ARG_REQUIRED();
-	pidPath = cur;
-
-	// Check if proxy daemon already forked
-	if (forked == 0) {
-		logFile = fopen(logPath, "w+");
-		if (logFile == NULL) {
-			_exit(1);
-		}
-
-		if (dup2(fileno(logFile), STDOUT_FILENO) < 0) {
-			fprintf(logFile, "Failed to redirect STDOUT to logfile: %s\n", strerror(errno));
-			_exit(1);
-		}
-		if (dup2(fileno(logFile), STDERR_FILENO) < 0) {
-			fprintf(logFile, "Failed to redirect STDERR to logfile: %s\n", strerror(errno));
-			_exit(1);
-		}
-		fclose(logFile);
-
-		pidFile = fopen(pidPath, "w+");
-		if (pidFile == NULL) {
-			fprintf(stderr, "Failed to create pid file for proxy daemon: %s\n", strerror(errno));
-			_exit(1);
-		}
-
-		childPid = fork();
-		if (childPid < 0) {
-			fprintf(stderr, "Failed to fork proxy daemon: %s\n", strerror(errno));
-			_exit(1);
-		} else if (childPid != 0) {
-			fprintf(pidFile, "%d", childPid);
-			fclose(pidFile);
-			fclose(stdin);
-			fclose(stdout);
-			fclose(stderr);
-			_exit(0);
-		} else {
-			ret = setsid();
-			if (ret < 0) {
-				fprintf(stderr, "Failed to setsid in proxy daemon: %s\n", strerror(errno));
-				_exit(1);
-			}
-		}
-	}
-
-	// Cannot pass through -1 to runCommand since it is interpreted as a flag
-	fdnum = fdnum == 0 ? -1 : fdnum;
-
-	ret = snprintf(fdpath, sizeof(fdpath), "/proc/self/fd/%d", fdnum);
-	if (ret < 0 || (size_t)ret >= sizeof(fdpath)) {
-		fprintf(stderr, "Failed to format file descriptor path\n");
-		_exit(1);
-	}
-
-	// Join the listener ns if not already setup
-	if (access(fdpath, F_OK) < 0) {
-		// Attach to the network namespace of the listener
-		if (dosetns(listen_pid, "net") < 0) {
-			fprintf(stderr, "Failed setns to listener network namespace: %s\n", strerror(errno));
-			_exit(1);
-		}
-	} else {
-		// Join the connector ns now
-		if (dosetns(connect_pid, "net") < 0) {
-			fprintf(stderr, "Failed setns to connector network namespace: %s\n", strerror(errno));
-			_exit(1);
-		}
-	}
-}
-
 __attribute__((constructor)) void init(void) {
 	int cmdline;
-	char buf[CMDLINE_SIZE];
-	ssize_t size;
-	char *cur;
 
+	// Extract arguments
 	cmdline = open("/proc/self/cmdline", O_RDONLY);
 	if (cmdline < 0) {
 		error("error: open");
 		_exit(232);
 	}
 
-	memset(buf, 0, sizeof(buf));
-	if ((size = read(cmdline, buf, sizeof(buf)-1)) < 0) {
+	memset(cmdline_buf, 0, sizeof(cmdline_buf));
+	if ((cmdline_size = read(cmdline, cmdline_buf, sizeof(cmdline_buf)-1)) < 0) {
 		close(cmdline);
 		error("error: read");
 		_exit(232);
 	}
 	close(cmdline);
 
-	cur = buf;
-	// skip argv[0]
-	while (*cur != 0)
-		cur++;
-	cur++;
-	if (size <= cur - buf)
+	// Skip the first argument (but don't fail on missing second argument)
+	cmdline_cur = cmdline_buf;
+	while (*cmdline_cur != 0)
+		cmdline_cur++;
+	cmdline_cur++;
+	if (cmdline_size <= cmdline_cur - cmdline_buf)
 		return;
 
-	if (strcmp(cur, "forkputfile") == 0) {
-		forkdofile(buf, cur, true, size);
-	} else if (strcmp(cur, "forkgetfile") == 0) {
-		forkdofile(buf, cur, false, size);
-	} else if (strcmp(cur, "forkcheckfile") == 0) {
-		forkcheckfile(buf, cur, false, size);
-	} else if (strcmp(cur, "forkremovefile") == 0) {
-		forkremovefile(buf, cur, false, size);
-	} else if (strcmp(cur, "forkmount") == 0) {
-		forkmount(buf, cur, size);
-	} else if (strcmp(cur, "forkumount") == 0) {
-		forkumount(buf, cur, size);
-	} else if (strcmp(cur, "forkgetnet") == 0) {
-		forkgetnet(buf, cur, size);
-	} else if (strcmp(cur, "forkproxy") == 0) {
-		forkproxy(buf, cur, size);
+	// Intercepts some subcommands
+	if (strcmp(cmdline_cur, "forkfile") == 0) {
+		forkfile();
+	} else if (strcmp(cmdline_cur, "forkmount") == 0) {
+		forkmount();
+	} else if (strcmp(cmdline_cur, "forknet") == 0) {
+		forknet();
+	} else if (strcmp(cmdline_cur, "forkproxy") == 0) {
+		forkproxy();
 	}
 }
 */

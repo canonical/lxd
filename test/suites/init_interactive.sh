@@ -20,12 +20,13 @@ no
 yes
 my-storage-pool
 dir
-no
-no
 yes
 lxdt$$
 auto
 none
+no
+no
+yes
 EOF
 
     lxc info | grep -q 'images.auto_update_interval: "0"'

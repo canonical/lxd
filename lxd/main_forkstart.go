@@ -5,31 +5,62 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/spf13/cobra"
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared"
 )
 
-/*
- * This is called by lxd when called as "lxd forkstart <container>"
- * 'forkstart' is used instead of just 'start' in the hopes that people
- * do not accidentally type 'lxd start' instead of 'lxc start'
- */
-func cmdForkStart(args *Args) error {
-	if len(args.Params) != 3 {
-		return fmt.Errorf("Bad arguments: %q", args.Params)
+type cmdForkstart struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+}
+
+func (c *cmdForkstart) Command() *cobra.Command {
+	// Main subcommand
+	cmd := &cobra.Command{}
+	cmd.Use = "forkstart <container name> <containers path> <config>"
+	cmd.Short = "Start the container"
+	cmd.Long = `Description:
+  Start the container
+
+  This internal command is used to start the container as a separate
+  process.
+`
+	cmd.RunE = c.Run
+	cmd.Hidden = true
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdForkstart) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	if len(args) != 3 {
+		cmd.Help()
+
+		if len(args) == 0 {
+			return nil
+		}
+
+		return fmt.Errorf("Missing required arguments")
 	}
 
-	name := args.Params[0]
-	lxcpath := args.Params[1]
-	configPath := args.Params[2]
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
 
-	c, err := lxc.NewContainer(name, lxcpath)
+	name := args[0]
+	lxcpath := args[1]
+	configPath := args[2]
+
+	d, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return fmt.Errorf("Error initializing container for start: %q", err)
 	}
 
-	err = c.LoadConfigFile(configPath)
+	err = d.LoadConfigFile(configPath)
 	if err != nil {
 		return fmt.Errorf("Error opening startup config file: %q", err)
 	}
@@ -55,5 +86,5 @@ func cmdForkStart(args *Args) error {
 		syscall.Dup3(int(logFile.Fd()), 2, 0)
 	}
 
-	return c.Start()
+	return d.Start()
 }

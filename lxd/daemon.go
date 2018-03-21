@@ -77,9 +77,9 @@ type externalAuth struct {
 
 // DaemonConfig holds configuration values for Daemon.
 type DaemonConfig struct {
-	Group       string  // Group name the local unix socket should be chown'ed to
-	Trace       string  // Comma separated list of sub-systems to trace
-	RaftLatency float64 // Coarse grain measure of the cluster latency
+	Group       string   // Group name the local unix socket should be chown'ed to
+	Trace       []string // List of sub-systems to trace
+	RaftLatency float64  // Coarse grain measure of the cluster latency
 }
 
 // NewDaemon returns a new Daemon object with the given configuration.
@@ -389,7 +389,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* List of sub-systems to trace */
-	trace := strings.Split(d.config.Trace, ",")
+	trace := d.config.Trace
 
 	/* Initialize the operating system facade */
 	err = d.os.Init()

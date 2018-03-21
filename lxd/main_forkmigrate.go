@@ -5,41 +5,67 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/spf13/cobra"
+
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
-/*
- * Similar to forkstart, this is called when lxd is invoked as:
- *
- *    lxd forkmigrate <container> <lxcpath> <path_to_config> <path_to_criu_images> <preserves_inodes>
- *
- * liblxc's restore() sets up the processes in such a way that the monitor ends
- * up being a child of the process that calls it, in our case lxd. However, we
- * really want the monitor to be daemonized, so we fork again. Additionally, we
- * want to fork for the same reasons we do forkstart (i.e. reduced memory
- * footprint when we fork tasks that will never free golang's memory, etc.)
- */
-func cmdForkMigrate(args *Args) error {
-	if len(args.Params) != 5 {
-		return fmt.Errorf("Bad arguments %q", args.Params)
+type cmdForkmigrate struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+}
+
+func (c *cmdForkmigrate) Command() *cobra.Command {
+	// Main subcommand
+	cmd := &cobra.Command{}
+	cmd.Use = "forkmigrate <container name> <containers path> <config> <images path> <preserve>"
+	cmd.Short = "Restore the container from saved state"
+	cmd.Long = `Description:
+  Restore the container from saved state
+
+  This internal command is used to start the container as a separate
+  process, restoring its recorded state.
+`
+	cmd.RunE = c.Run
+	cmd.Hidden = true
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	if len(args) != 5 {
+		cmd.Help()
+
+		if len(args) == 0 {
+			return nil
+		}
+
+		return fmt.Errorf("Missing required arguments")
 	}
 
-	name := args.Params[0]
-	lxcpath := args.Params[1]
-	configPath := args.Params[2]
-	imagesDir := args.Params[3]
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
 
-	preservesInodes, err := strconv.ParseBool(args.Params[4])
+	name := args[0]
+	lxcpath := args[1]
+	configPath := args[2]
+	imagesDir := args[3]
+
+	preservesInodes, err := strconv.ParseBool(args[4])
 	if err != nil {
 		return err
 	}
 
-	c, err := lxc.NewContainer(name, lxcpath)
+	d, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return err
 	}
 
-	if err := c.LoadConfigFile(configPath); err != nil {
+	if err := d.LoadConfigFile(configPath); err != nil {
 		return err
 	}
 
@@ -48,7 +74,7 @@ func cmdForkMigrate(args *Args) error {
 	os.Stdout.Close()
 	os.Stderr.Close()
 
-	return c.Migrate(lxc.MIGRATE_RESTORE, lxc.MigrateOptions{
+	return d.Migrate(lxc.MIGRATE_RESTORE, lxc.MigrateOptions{
 		Directory:       imagesDir,
 		Verbose:         true,
 		PreservesInodes: preservesInodes,
