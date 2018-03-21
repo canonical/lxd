@@ -7,23 +7,55 @@ import (
 	"os"
 	"sync"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/eagain"
 )
 
-// Netcat is called with:
-//
-//    lxd netcat /path/to/unix/socket
-//
-// and does unbuffered netcatting of to socket to stdin/stdout. Any arguments
-// after the path to the unix socket are ignored, so that this can be passed
-// directly to rsync as the sync command.
-func cmdNetcat(args *Args) error {
-	if len(args.Params) < 2 {
-		return fmt.Errorf("Bad arguments %q", args.Params)
+type cmdNetcat struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+}
+
+func (c *cmdNetcat) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "netcat <address> <name>"
+	cmd.Short = "Send stdin data to a unix socket"
+	cmd.Long = `Description:
+  Send stdin data to a unix socket
+
+  This internal command is used to forward the output of a program over
+  a websocket by first forwarding it to a unix socket controlled by LXD.
+
+  Its main use is when running rsync or btrfs/zfs send/receive between
+  two machines over the LXD websocket API.
+`
+	cmd.RunE = c.Run
+	cmd.Hidden = true
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	if len(args) < 2 {
+		cmd.Help()
+
+		if len(args) == 0 {
+			return nil
+		}
+
+		return fmt.Errorf("Missing required arguments")
 	}
 
-	logPath := shared.LogPath(args.Params[1], "netcat.log")
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
+
+	logPath := shared.LogPath(args[1], "netcat.log")
 	if shared.PathExists(logPath) {
 		os.Remove(logPath)
 	}
@@ -34,15 +66,15 @@ func cmdNetcat(args *Args) error {
 	}
 	defer logFile.Close()
 
-	uAddr, err := net.ResolveUnixAddr("unix", args.Params[0])
+	uAddr, err := net.ResolveUnixAddr("unix", args[0])
 	if err != nil {
-		logFile.WriteString(fmt.Sprintf("Could not resolve unix domain socket \"%s\": %s.\n", args.Params[0], err))
+		logFile.WriteString(fmt.Sprintf("Could not resolve unix domain socket \"%s\": %s\n", args[0], err))
 		return err
 	}
 
 	conn, err := net.DialUnix("unix", nil, uAddr)
 	if err != nil {
-		logFile.WriteString(fmt.Sprintf("Could not dial unix domain socket \"%s\": %s.\n", args.Params[0], err))
+		logFile.WriteString(fmt.Sprintf("Could not dial unix domain socket \"%s\": %s\n", args[0], err))
 		return err
 	}
 
@@ -52,7 +84,7 @@ func cmdNetcat(args *Args) error {
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: os.Stdout}, eagain.Reader{Reader: conn})
 		if err != nil {
-			logFile.WriteString(fmt.Sprintf("Error while copying from stdout to unix domain socket \"%s\": %s.\n", args.Params[0], err))
+			logFile.WriteString(fmt.Sprintf("Error while copying from stdout to unix domain socket \"%s\": %s\n", args[0], err))
 		}
 		conn.Close()
 		wg.Done()
@@ -61,7 +93,7 @@ func cmdNetcat(args *Args) error {
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: os.Stdin})
 		if err != nil {
-			logFile.WriteString(fmt.Sprintf("Error while copying from unix domain socket \"%s\" to stdin: %s.\n", args.Params[0], err))
+			logFile.WriteString(fmt.Sprintf("Error while copying from unix domain socket \"%s\" to stdin: %s\n", args[0], err))
 		}
 	}()
 

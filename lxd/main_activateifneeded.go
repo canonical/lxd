@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/CanonicalLtd/go-sqlite3"
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
@@ -19,7 +21,32 @@ func init() {
 	sql.Register("dqlite_direct_access", &sqlite3.SQLiteDriver{ConnectHook: sqliteDirectAccess})
 }
 
-func cmdActivateIfNeeded(args *Args) error {
+type cmdActivateifneeded struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+}
+
+func (c *cmdActivateifneeded) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "activateifneeded"
+	cmd.Short = "Check if LXD should be started"
+	cmd.Long = `Description:
+  Check if LXD should be started
+
+  This command will check if LXD has any auto-started containers,
+  containers which were running prior to LXD's last shutdown or if it's
+  configured to listen on the network address.
+
+  If at least one of those is true, then a connection will be attempted to the
+  LXD socket which will cause a socket-activated LXD to be spawned.
+`
+	cmd.RunE = c.Run
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")

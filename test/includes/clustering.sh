@@ -273,7 +273,7 @@ cluster:
   enabled: true
   cluster_address: 10.1.1.10${target}:8443
   cluster_certificate: "$cert"
-cluster_password: sekret
+  cluster_password: sekret
 EOF
   lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )

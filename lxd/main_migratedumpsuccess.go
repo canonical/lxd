@@ -2,30 +2,67 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 )
 
-func cmdMigrateDumpSuccess(args *Args) error {
-	if len(args.Params) != 2 {
-		return fmt.Errorf("bad migrate dump success args %s", args.Params)
+type cmdMigratedumpsuccess struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+}
+
+func (c *cmdMigratedumpsuccess) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "migratedumpsuccess <operation> <secret>"
+	cmd.Short = "Tell LXD that a particular CRIU dump succeeded"
+	cmd.Long = `Description:
+  Tell LXD that a particular CRIU dump succeeded
+
+  This internal command is used from the CRIU dump script and is
+  called as soon as the script is done running.
+`
+	cmd.RunE = c.Run
+	cmd.Hidden = true
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdMigratedumpsuccess) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	if len(args) < 2 {
+		cmd.Help()
+
+		if len(args) == 0 {
+			return nil
+		}
+
+		return fmt.Errorf("Missing required arguments")
 	}
 
-	c, err := lxd.ConnectLXDUnix("", nil)
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
+
+	d, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return err
 	}
 
-	url := fmt.Sprintf("%s/websocket?secret=%s", strings.TrimPrefix(args.Params[0], "/1.0"), args.Params[1])
-	conn, err := c.RawWebsocket(url)
+	url := fmt.Sprintf("%s/websocket?secret=%s", strings.TrimPrefix(args[0], "/1.0"), args[1])
+	conn, err := d.RawWebsocket(url)
 	if err != nil {
 		return err
 	}
 	conn.Close()
 
-	resp, _, err := c.RawQuery("GET", fmt.Sprintf("%s/wait", args.Params[0]), nil, "")
+	resp, _, err := d.RawQuery("GET", fmt.Sprintf("%s/wait", args[0]), nil, "")
 	if err != nil {
 		return err
 	}

@@ -5,22 +5,58 @@ import (
 	"os"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/client"
 )
 
-func cmdCallHook(args *Args) error {
-	// Parse the arguments
-	if len(args.Params) < 3 {
-		return fmt.Errorf("Invalid arguments")
+type cmdCallhook struct {
+	cmd    *cobra.Command
+	global *cmdGlobal
+}
+
+func (c *cmdCallhook) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "callhook <path> <id> <state>"
+	cmd.Short = "Call container lifecycle hook in LXD"
+	cmd.Long = `Description:
+  Call container lifecycle hook in LXD
+
+  This internal command notifies LXD about a container lifecycle event
+  (start, stop, restart) and blocks until LXD has processed it.
+
+`
+	cmd.RunE = c.Run
+	cmd.Hidden = true
+
+	c.cmd = cmd
+	return cmd
+}
+
+func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	if len(args) < 2 {
+		cmd.Help()
+
+		if len(args) == 0 {
+			return nil
+		}
+
+		return fmt.Errorf("Missing required arguments")
 	}
 
-	path := args.Params[0]
-	id := args.Params[1]
-	state := args.Params[2]
+	path := args[0]
+	id := args[1]
+	state := args[2]
 	target := ""
 
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
+
 	// Connect to LXD
-	c, err := lxd.ConnectLXDUnix(fmt.Sprintf("%s/unix.socket", path), nil)
+	d, err := lxd.ConnectLXDUnix(fmt.Sprintf("%s/unix.socket", path), nil)
 	if err != nil {
 		return err
 	}
@@ -38,7 +74,7 @@ func cmdCallHook(args *Args) error {
 	// Setup the request
 	hook := make(chan error, 1)
 	go func() {
-		_, _, err := c.RawQuery("GET", url, nil, "")
+		_, _, err := d.RawQuery("GET", url, nil, "")
 		if err != nil {
 			hook <- err
 			return

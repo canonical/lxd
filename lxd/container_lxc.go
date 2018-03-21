@@ -5191,7 +5191,8 @@ func (c *containerLXC) FileExists(path string) error {
 	// Check if the file exists in the container
 	out, err := shared.RunCommand(
 		c.state.OS.ExecPath,
-		"forkcheckfile",
+		"forkfile",
+		"exists",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
 		path,
@@ -5237,11 +5238,12 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 	// Get the file from the container
 	out, err := shared.RunCommand(
 		c.state.OS.ExecPath,
-		"forkgetfile",
+		"forkfile",
+		"pull",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
-		dstpath,
 		srcpath,
+		dstpath,
 	)
 
 	// Tear down container storage if needed
@@ -5380,7 +5382,8 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 	// Push the file to the container
 	out, err := shared.RunCommand(
 		c.state.OS.ExecPath,
-		"forkputfile",
+		"forkfile",
+		"push",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
 		srcpath,
@@ -5448,7 +5451,8 @@ func (c *containerLXC) FileRemove(path string) error {
 	// Remove the file from the container
 	out, err := shared.RunCommand(
 		c.state.OS.ExecPath,
-		"forkremovefile",
+		"forkfile",
+		"remove",
 		c.RootfsPath(),
 		fmt.Sprintf("%d", c.InitPID()),
 		path,
@@ -5700,7 +5704,8 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 	// Get the network state from the container
 	out, err := shared.RunCommand(
 		c.state.OS.ExecPath,
-		"forkgetnet",
+		"forknet",
+		"info",
 		fmt.Sprintf("%d", pid))
 
 	// Process forkgetnet response
@@ -5959,7 +5964,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
 	pidStr := fmt.Sprintf("%d", pid)
 
-	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", pidStr, mntsrc, target)
+	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "mount", pidStr, mntsrc, target)
 
 	if out != "" {
 		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
@@ -5984,7 +5989,7 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	// Remove the mount from the container
 	pidStr := fmt.Sprintf("%d", pid)
-	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkumount", pidStr, mount)
+	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "umount", pidStr, mount)
 
 	if out != "" {
 		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
