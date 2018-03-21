@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/eagain"
 )
 
 /*
@@ -238,8 +239,8 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		go io.Copy(srcConn, dstConn)
-		go io.Copy(dstConn, srcConn)
+		go io.Copy(eagain.Writer{Writer: srcConn}, eagain.Reader{Reader: dstConn})
+		go io.Copy(eagain.Writer{Writer: dstConn}, eagain.Reader{Reader: srcConn})
 	}
 }
 
