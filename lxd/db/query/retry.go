@@ -50,7 +50,9 @@ func IsRetriableError(err error) bool {
 	if strings.Contains(err.Error(), "bad connection") {
 		return true
 	}
-	if strings.Contains(err.Error(), "leadership lost") {
+
+	// Despite the description this is usually a lost leadership error.
+	if strings.Contains(err.Error(), "disk I/O error") {
 		return true
 	}
 

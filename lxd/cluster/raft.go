@@ -84,6 +84,7 @@ type raftInstance struct {
 	handler           http.HandlerFunc      // Handles join/leave/connect requests
 	membershipChanger func(*raft.Raft)      // Forwards to raft membership requests from handler
 	logs              *raftboltdb.BoltStore // Raft logs store, needs to be closed upon shutdown
+	registry          *dqlite.Registry      // The dqlite Registry linked to the FSM and the Driver
 	fsm               raft.FSM              // The dqlite FSM linked to the raft instance
 	raft              *raft.Raft            // The actual raft instance
 }
@@ -169,8 +170,9 @@ func raftInstanceInit(
 		}
 	}
 
-	// The dqlite FSM.
-	fsm := dqlite.NewFSM(dir)
+	// The dqlite registry and FSM.
+	registry := dqlite.NewRegistry(dir)
+	fsm := dqlite.NewFSM(registry)
 
 	// The actual raft instance.
 	raft, err := raft.NewRaft(config, fsm, logs, logs, snaps, transport)
@@ -192,11 +194,17 @@ func raftInstanceInit(
 		handler:           raftHandler(cert, handler),
 		membershipChanger: membershipChanger,
 		logs:              logs,
+		registry:          registry,
 		fsm:               fsm,
 		raft:              raft,
 	}
 
 	return instance, nil
+}
+
+// Registry returns the dqlite Registry associated with the raft instance.
+func (i *raftInstance) Registry() *dqlite.Registry {
+	return i.registry
 }
 
 // FSM returns the dqlite FSM associated with the raft instance.
