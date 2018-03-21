@@ -212,9 +212,10 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 	if err != nil {
 		return err
 	}
+	opAPI := op.Get()
 
 	// Grab the fingerprint
-	fingerprint := op.Metadata["fingerprint"].(string)
+	fingerprint := opAPI.Metadata["fingerprint"].(string)
 
 	// For remote publish, copy to target now
 	if cRemote != iRemote {

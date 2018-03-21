@@ -68,8 +68,9 @@ func (r *ProtocolLXD) GetImageSecret(fingerprint string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	opAPI := op.Get()
 
-	return op.Metadata["secret"].(string), nil
+	return opAPI.Metadata["secret"].(string), nil
 }
 
 // GetPrivateImage is similar to GetImage but allows passing a secret download token
@@ -280,7 +281,7 @@ func (r *ProtocolLXD) GetImageAlias(name string) (*api.ImageAliasesEntry, string
 }
 
 // CreateImage requests that LXD creates, copies or import a new image
-func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (*Operation, error) {
+func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (Operation, error) {
 	if image.CompressionAlgorithm != "" {
 		if !r.HasExtension("image_compression_algorithm") {
 			return nil, fmt.Errorf("The server is missing the required \"image_compression_algorithm\" API extension")
@@ -423,7 +424,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	}
 
 	// Setup an Operation wrapper
-	op := Operation{
+	op := operation{
 		Operation: *respOperation,
 		r:         r,
 		chActive:  make(chan bool),
@@ -433,12 +434,12 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 }
 
 // tryCopyImage iterates through the source server URLs until one lets it download the image
-func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (*RemoteOperation, error) {
+func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
 	}
 
-	rop := RemoteOperation{
+	rop := remoteOperation{
 		chDone: make(chan bool),
 	}
 
@@ -515,7 +516,7 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (*RemoteOp
 }
 
 // CopyImage copies an image from a remote server. Additional options can be passed using ImageCopyArgs
-func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (*RemoteOperation, error) {
+func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (RemoteOperation, error) {
 	// Sanity checks
 	if r == source {
 		return nil, fmt.Errorf("The source and target servers must be different")
@@ -579,7 +580,7 @@ func (r *ProtocolLXD) UpdateImage(fingerprint string, image api.ImagePut, ETag s
 }
 
 // DeleteImage requests that LXD removes an image from the store
-func (r *ProtocolLXD) DeleteImage(fingerprint string) (*Operation, error) {
+func (r *ProtocolLXD) DeleteImage(fingerprint string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/images/%s", url.QueryEscape(fingerprint)), nil, "")
 	if err != nil {
@@ -590,7 +591,7 @@ func (r *ProtocolLXD) DeleteImage(fingerprint string) (*Operation, error) {
 }
 
 // RefreshImage requests that LXD issues an image refresh
-func (r *ProtocolLXD) RefreshImage(fingerprint string) (*Operation, error) {
+func (r *ProtocolLXD) RefreshImage(fingerprint string) (Operation, error) {
 	if !r.HasExtension("image_force_refresh") {
 		return nil, fmt.Errorf("The server is missing the required \"image_force_refresh\" API extension")
 	}
@@ -605,7 +606,7 @@ func (r *ProtocolLXD) RefreshImage(fingerprint string) (*Operation, error) {
 }
 
 // CreateImageSecret requests that LXD issues a temporary image secret
-func (r *ProtocolLXD) CreateImageSecret(fingerprint string) (*Operation, error) {
+func (r *ProtocolLXD) CreateImageSecret(fingerprint string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("POST", fmt.Sprintf("/images/%s/secret", url.QueryEscape(fingerprint)), nil, "")
 	if err != nil {

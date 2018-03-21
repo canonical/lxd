@@ -63,7 +63,7 @@ func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) 
 }
 
 // CreateContainer requests that LXD creates a new container
-func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (*Operation, error) {
+func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (Operation, error) {
 	if container.Source.ContainerOnly {
 		if !r.HasExtension("container_only_migration") {
 			return nil, fmt.Errorf("The server is missing the required \"container_only_migration\" API extension")
@@ -83,12 +83,12 @@ func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (*Operation,
 	return op, nil
 }
 
-func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) (*RemoteOperation, error) {
+func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The source server isn't listening on the network")
 	}
 
-	rop := RemoteOperation{
+	rop := remoteOperation{
 		chDone: make(chan bool),
 	}
 
@@ -138,7 +138,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 }
 
 // CreateContainerFromImage is a convenience function to make it easier to create a container from an existing image
-func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Image, req api.ContainersPost) (*RemoteOperation, error) {
+func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Image, req api.ContainersPost) (RemoteOperation, error) {
 	// Set the minimal source fields
 	req.Source.Type = "image"
 
@@ -153,7 +153,7 @@ func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Ima
 			return nil, err
 		}
 
-		rop := RemoteOperation{
+		rop := remoteOperation{
 			targetOp: op,
 			chDone:   make(chan bool),
 		}
@@ -201,7 +201,7 @@ func (r *ProtocolLXD) CreateContainerFromImage(source ImageServer, image api.Ima
 }
 
 // CopyContainer copies a container from a remote server. Additional options can be passed using ContainerCopyArgs
-func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Container, args *ContainerCopyArgs) (*RemoteOperation, error) {
+func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Container, args *ContainerCopyArgs) (RemoteOperation, error) {
 	// Base request
 	req := api.ContainersPost{
 		Name:         container.Name,
@@ -261,7 +261,7 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 			return nil, err
 		}
 
-		rop := RemoteOperation{
+		rop := remoteOperation{
 			targetOp: op,
 			chDone:   make(chan bool),
 		}
@@ -298,15 +298,16 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 		if err != nil {
 			return nil, err
 		}
+		opAPI := op.Get()
 
 		targetSecrets := map[string]string{}
-		for k, v := range op.Metadata {
+		for k, v := range opAPI.Metadata {
 			targetSecrets[k] = v.(string)
 		}
 
 		// Prepare the source request
 		target := api.ContainerPostTarget{}
-		target.Operation = op.ID
+		target.Operation = opAPI.ID
 		target.Websockets = targetSecrets
 		target.Certificate = info.Certificate
 		sourceReq.Target = &target
@@ -324,9 +325,10 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 	if err != nil {
 		return nil, err
 	}
+	opAPI := op.Get()
 
 	sourceSecrets := map[string]string{}
-	for k, v := range op.Metadata {
+	for k, v := range opAPI.Metadata {
 		sourceSecrets[k] = v.(string)
 	}
 
@@ -341,21 +343,22 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 		if err != nil {
 			return nil, err
 		}
+		targetOpAPI := targetOp.Get()
 
 		// Extract the websockets
 		targetSecrets := map[string]string{}
-		for k, v := range targetOp.Metadata {
+		for k, v := range targetOpAPI.Metadata {
 			targetSecrets[k] = v.(string)
 		}
 
 		// Launch the relay
-		err = r.proxyMigration(targetOp, targetSecrets, source, op, sourceSecrets)
+		err = r.proxyMigration(targetOp.(*operation), targetSecrets, source, op.(*operation), sourceSecrets)
 		if err != nil {
 			return nil, err
 		}
 
 		// Prepare a tracking operation
-		rop := RemoteOperation{
+		rop := remoteOperation{
 			targetOp: targetOp,
 			chDone:   make(chan bool),
 		}
@@ -372,14 +375,14 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 	// Pull mode migration
 	req.Source.Type = "migration"
 	req.Source.Mode = "pull"
-	req.Source.Operation = op.ID
+	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets
 	req.Source.Certificate = info.Certificate
 
 	return r.tryCreateContainer(req, info.Addresses)
 }
 
-func (r *ProtocolLXD) proxyMigration(targetOp *Operation, targetSecrets map[string]string, source ContainerServer, sourceOp *Operation, sourceSecrets map[string]string) error {
+func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[string]string, source ContainerServer, sourceOp *operation, sourceSecrets map[string]string) error {
 	// Sanity checks
 	for n := range targetSecrets {
 		_, ok := sourceSecrets[n]
@@ -465,7 +468,7 @@ func (r *ProtocolLXD) proxyMigration(targetOp *Operation, targetSecrets map[stri
 }
 
 // UpdateContainer updates the container definition
-func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, ETag string) (*Operation, error) {
+func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, ETag string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s", url.QueryEscape(name)), container, ETag)
 	if err != nil {
@@ -476,7 +479,7 @@ func (r *ProtocolLXD) UpdateContainer(name string, container api.ContainerPut, E
 }
 
 // RenameContainer requests that LXD renames the container
-func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) (*Operation, error) {
+func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) (Operation, error) {
 	// Sanity check
 	if container.Migration {
 		return nil, fmt.Errorf("Can't ask for a migration through RenameContainer")
@@ -491,12 +494,12 @@ func (r *ProtocolLXD) RenameContainer(name string, container api.ContainerPost) 
 	return op, nil
 }
 
-func (r *ProtocolLXD) tryMigrateContainer(source ContainerServer, name string, req api.ContainerPost, urls []string) (*RemoteOperation, error) {
+func (r *ProtocolLXD) tryMigrateContainer(source ContainerServer, name string, req api.ContainerPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The target server isn't listening on the network")
 	}
 
-	rop := RemoteOperation{
+	rop := remoteOperation{
 		chDone: make(chan bool),
 	}
 
@@ -542,7 +545,7 @@ func (r *ProtocolLXD) tryMigrateContainer(source ContainerServer, name string, r
 }
 
 // MigrateContainer requests that LXD prepares for a container migration
-func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost) (*Operation, error) {
+func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost) (Operation, error) {
 	if container.ContainerOnly {
 		if !r.HasExtension("container_only_migration") {
 			return nil, fmt.Errorf("The server is missing the required \"container_only_migration\" API extension")
@@ -569,7 +572,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 }
 
 // DeleteContainer requests that LXD deletes the container
-func (r *ProtocolLXD) DeleteContainer(name string) (*Operation, error) {
+func (r *ProtocolLXD) DeleteContainer(name string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s", url.QueryEscape(name)), nil, "")
 	if err != nil {
@@ -580,7 +583,7 @@ func (r *ProtocolLXD) DeleteContainer(name string) (*Operation, error) {
 }
 
 // ExecContainer requests that LXD spawns a command inside the container
-func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (*Operation, error) {
+func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (Operation, error) {
 	if exec.RecordOutput {
 		if !r.HasExtension("container_exec_recording") {
 			return nil, fmt.Errorf("The server is missing the required \"container_exec_recording\" API extension")
@@ -592,13 +595,14 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 	if err != nil {
 		return nil, err
 	}
+	opAPI := op.Get()
 
 	// Process additional arguments
 	if args != nil {
 		// Parse the fds
 		fds := map[string]string{}
 
-		value, ok := op.Metadata["fds"]
+		value, ok := opAPI.Metadata["fds"]
 		if ok {
 			values := value.(map[string]interface{})
 			for k, v := range values {
@@ -608,7 +612,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 
 		// Call the control handler with a connection to the control socket
 		if args.Control != nil && fds["control"] != "" {
-			conn, err := r.GetOperationWebsocket(op.ID, fds["control"])
+			conn, err := r.GetOperationWebsocket(opAPI.ID, fds["control"])
 			if err != nil {
 				return nil, err
 			}
@@ -620,7 +624,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 			// Handle interactive sections
 			if args.Stdin != nil && args.Stdout != nil {
 				// Connect to the websocket
-				conn, err := r.GetOperationWebsocket(op.ID, fds["0"])
+				conn, err := r.GetOperationWebsocket(opAPI.ID, fds["0"])
 				if err != nil {
 					return nil, err
 				}
@@ -647,7 +651,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 
 			// Handle stdin
 			if fds["0"] != "" {
-				conn, err := r.GetOperationWebsocket(op.ID, fds["0"])
+				conn, err := r.GetOperationWebsocket(opAPI.ID, fds["0"])
 				if err != nil {
 					return nil, err
 				}
@@ -658,7 +662,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 
 			// Handle stdout
 			if fds["1"] != "" {
-				conn, err := r.GetOperationWebsocket(op.ID, fds["1"])
+				conn, err := r.GetOperationWebsocket(opAPI.ID, fds["1"])
 				if err != nil {
 					return nil, err
 				}
@@ -669,7 +673,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 
 			// Handle stderr
 			if fds["2"] != "" {
-				conn, err := r.GetOperationWebsocket(op.ID, fds["2"])
+				conn, err := r.GetOperationWebsocket(opAPI.ID, fds["2"])
 				if err != nil {
 					return nil, err
 				}
@@ -904,7 +908,7 @@ func (r *ProtocolLXD) GetContainerSnapshot(containerName string, name string) (*
 }
 
 // CreateContainerSnapshot requests that LXD creates a new snapshot for the container
-func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api.ContainerSnapshotsPost) (*Operation, error) {
+func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api.ContainerSnapshotsPost) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/snapshots", url.QueryEscape(containerName)), snapshot, "")
 	if err != nil {
@@ -915,7 +919,7 @@ func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api
 }
 
 // CopyContainerSnapshot copies a snapshot from a remote server into a new container. Additional options can be passed using ContainerCopyArgs
-func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (*RemoteOperation, error) {
+func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (RemoteOperation, error) {
 	// Base request
 	fields := strings.SplitN(snapshot.Name, shared.SnapshotDelimiter, 2)
 	cName := fields[0]
@@ -976,7 +980,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 			return nil, err
 		}
 
-		rop := RemoteOperation{
+		rop := remoteOperation{
 			targetOp: op,
 			chDone:   make(chan bool),
 		}
@@ -1015,15 +1019,16 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 		if err != nil {
 			return nil, err
 		}
+		opAPI := op.Get()
 
 		targetSecrets := map[string]string{}
-		for k, v := range op.Metadata {
+		for k, v := range opAPI.Metadata {
 			targetSecrets[k] = v.(string)
 		}
 
 		// Prepare the source request
 		target := api.ContainerPostTarget{}
-		target.Operation = op.ID
+		target.Operation = opAPI.ID
 		target.Websockets = targetSecrets
 		target.Certificate = info.Certificate
 		sourceReq.Target = &target
@@ -1041,9 +1046,10 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 	if err != nil {
 		return nil, err
 	}
+	opAPI := op.Get()
 
 	sourceSecrets := map[string]string{}
-	for k, v := range op.Metadata {
+	for k, v := range opAPI.Metadata {
 		sourceSecrets[k] = v.(string)
 	}
 
@@ -1058,21 +1064,22 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 		if err != nil {
 			return nil, err
 		}
+		targetOpAPI := targetOp.Get()
 
 		// Extract the websockets
 		targetSecrets := map[string]string{}
-		for k, v := range targetOp.Metadata {
+		for k, v := range targetOpAPI.Metadata {
 			targetSecrets[k] = v.(string)
 		}
 
 		// Launch the relay
-		err = r.proxyMigration(targetOp, targetSecrets, source, op, sourceSecrets)
+		err = r.proxyMigration(targetOp.(*operation), targetSecrets, source, op.(*operation), sourceSecrets)
 		if err != nil {
 			return nil, err
 		}
 
 		// Prepare a tracking operation
-		rop := RemoteOperation{
+		rop := remoteOperation{
 			targetOp: targetOp,
 			chDone:   make(chan bool),
 		}
@@ -1089,7 +1096,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 	// Pull mode migration
 	req.Source.Type = "migration"
 	req.Source.Mode = "pull"
-	req.Source.Operation = op.ID
+	req.Source.Operation = opAPI.ID
 	req.Source.Websockets = sourceSecrets
 	req.Source.Certificate = info.Certificate
 
@@ -1097,7 +1104,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 }
 
 // RenameContainerSnapshot requests that LXD renames the snapshot
-func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (*Operation, error) {
+func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
 	// Sanity check
 	if container.Migration {
 		return nil, fmt.Errorf("Can't ask for a migration through RenameContainerSnapshot")
@@ -1112,12 +1119,12 @@ func (r *ProtocolLXD) RenameContainerSnapshot(containerName string, name string,
 	return op, nil
 }
 
-func (r *ProtocolLXD) tryMigrateContainerSnapshot(source ContainerServer, containerName string, name string, req api.ContainerSnapshotPost, urls []string) (*RemoteOperation, error) {
+func (r *ProtocolLXD) tryMigrateContainerSnapshot(source ContainerServer, containerName string, name string, req api.ContainerSnapshotPost, urls []string) (RemoteOperation, error) {
 	if len(urls) == 0 {
 		return nil, fmt.Errorf("The target server isn't listening on the network")
 	}
 
-	rop := RemoteOperation{
+	rop := remoteOperation{
 		chDone: make(chan bool),
 	}
 
@@ -1163,7 +1170,7 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source ContainerServer, contai
 }
 
 // MigrateContainerSnapshot requests that LXD prepares for a snapshot migration
-func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (*Operation, error) {
+func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (Operation, error) {
 	// Sanity check
 	if !container.Migration {
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateContainerSnapshot")
@@ -1179,7 +1186,7 @@ func (r *ProtocolLXD) MigrateContainerSnapshot(containerName string, name string
 }
 
 // DeleteContainerSnapshot requests that LXD deletes the container snapshot
-func (r *ProtocolLXD) DeleteContainerSnapshot(containerName string, name string) (*Operation, error) {
+func (r *ProtocolLXD) DeleteContainerSnapshot(containerName string, name string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s/snapshots/%s", url.QueryEscape(containerName), url.QueryEscape(name)), nil, "")
 	if err != nil {
@@ -1203,7 +1210,7 @@ func (r *ProtocolLXD) GetContainerState(name string) (*api.ContainerState, strin
 }
 
 // UpdateContainerState updates the container to match the requested state
-func (r *ProtocolLXD) UpdateContainerState(name string, state api.ContainerStatePut, ETag string) (*Operation, error) {
+func (r *ProtocolLXD) UpdateContainerState(name string, state api.ContainerStatePut, ETag string) (Operation, error) {
 	// Send the request
 	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s/state", url.QueryEscape(name)), state, ETag)
 	if err != nil {
@@ -1409,7 +1416,7 @@ func (r *ProtocolLXD) DeleteContainerTemplateFile(name string, templateName stri
 }
 
 // ConsoleContainer requests that LXD attaches to the console device of a container.
-func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (*Operation, error) {
+func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (Operation, error) {
 	if !r.HasExtension("console") {
 		return nil, fmt.Errorf("The server is missing the required \"console\" API extension")
 	}
@@ -1419,6 +1426,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	if err != nil {
 		return nil, err
 	}
+	opAPI := op.Get()
 
 	if args == nil || args.Terminal == nil {
 		return nil, fmt.Errorf("A terminal must be set")
@@ -1431,7 +1439,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	// Parse the fds
 	fds := map[string]string{}
 
-	value, ok := op.Metadata["fds"]
+	value, ok := opAPI.Metadata["fds"]
 	if ok {
 		values := value.(map[string]interface{})
 		for k, v := range values {
@@ -1445,7 +1453,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 		return nil, fmt.Errorf("Did not receive a file descriptor for the control channel")
 	}
 
-	controlConn, err = r.GetOperationWebsocket(op.ID, fds["control"])
+	controlConn, err = r.GetOperationWebsocket(opAPI.ID, fds["control"])
 	if err != nil {
 		return nil, err
 	}
@@ -1453,7 +1461,7 @@ func (r *ProtocolLXD) ConsoleContainer(containerName string, console api.Contain
 	go args.Control(controlConn)
 
 	// Connect to the websocket
-	conn, err := r.GetOperationWebsocket(op.ID, fds["0"])
+	conn, err := r.GetOperationWebsocket(opAPI.ID, fds["0"])
 	if err != nil {
 		return nil, err
 	}

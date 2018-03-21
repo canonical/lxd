@@ -551,12 +551,15 @@ func containersPost(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return SmartError(err)
 			}
+
 			logger.Debugf("Forward container post request to %s", address)
 			op, err := client.UseTarget(targetNode).CreateContainer(req)
 			if err != nil {
 				return SmartError(err)
 			}
-			return ForwardedOperationResponse(&op.Operation)
+
+			opAPI := op.Get()
+			return ForwardedOperationResponse(&opAPI)
 		}
 	}
 

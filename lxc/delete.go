@@ -50,7 +50,7 @@ func (c *deleteCmd) promptDelete(name string) error {
 }
 
 func (c *deleteCmd) doDelete(d lxd.ContainerServer, name string) error {
-	var op *lxd.Operation
+	var op lxd.Operation
 	var err error
 
 	if shared.IsSnapshot(name) {

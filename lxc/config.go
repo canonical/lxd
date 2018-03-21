@@ -809,7 +809,7 @@ func (c *configCmd) doContainerConfigEdit(client lxd.ContainerServer, cont strin
 		newdata := api.ContainerPut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			var op *lxd.Operation
+			var op lxd.Operation
 			op, err = client.UpdateContainer(cont, newdata, etag)
 			if err == nil {
 				err = op.Wait()

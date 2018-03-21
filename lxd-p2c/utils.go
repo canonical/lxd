@@ -15,14 +15,16 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func transferRootfs(dst lxd.ContainerServer, op *lxd.Operation, rootfs string) error {
+func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string) error {
+	opAPI := op.Get()
+
 	// Connect to the websockets
-	wsControl, err := dst.GetOperationWebsocket(op.ID, op.Metadata["control"].(string))
+	wsControl, err := op.GetWebsocket(opAPI.Metadata["control"].(string))
 	if err != nil {
 		return err
 	}
 
-	wsFs, err := dst.GetOperationWebsocket(op.ID, op.Metadata["fs"].(string))
+	wsFs, err := op.GetWebsocket(opAPI.Metadata["fs"].(string))
 	if err != nil {
 		return err
 	}

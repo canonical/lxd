@@ -11,7 +11,7 @@ import (
 )
 
 // The Operation type represents an ongoing LXD operation (asynchronous processing)
-type Operation struct {
+type operation struct {
 	api.Operation
 
 	r            *ProtocolLXD
@@ -23,7 +23,7 @@ type Operation struct {
 }
 
 // AddHandler adds a function to be called whenever an event is received
-func (op *Operation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
+func (op *operation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
 	// Make sure we have a listener setup
 	err := op.setupListener()
 	if err != nil {
@@ -53,17 +53,22 @@ func (op *Operation) AddHandler(function func(api.Operation)) (*EventTarget, err
 }
 
 // Cancel will request that LXD cancels the operation (if supported)
-func (op *Operation) Cancel() error {
+func (op *operation) Cancel() error {
 	return op.r.DeleteOperation(op.ID)
 }
 
+// Get returns the API operation struct
+func (op *operation) Get() api.Operation {
+	return op.Operation
+}
+
 // GetWebsocket returns a raw websocket connection from the operation
-func (op *Operation) GetWebsocket(secret string) (*websocket.Conn, error) {
+func (op *operation) GetWebsocket(secret string) (*websocket.Conn, error) {
 	return op.r.GetOperationWebsocket(op.ID, secret)
 }
 
 // RemoveHandler removes a function to be called whenever an event is received
-func (op *Operation) RemoveHandler(target *EventTarget) error {
+func (op *operation) RemoveHandler(target *EventTarget) error {
 	// Make sure we're not racing with ourselves
 	op.handlerLock.Lock()
 	defer op.handlerLock.Unlock()
@@ -77,7 +82,7 @@ func (op *Operation) RemoveHandler(target *EventTarget) error {
 }
 
 // Refresh pulls the current version of the operation and updates the struct
-func (op *Operation) Refresh() error {
+func (op *operation) Refresh() error {
 	// Don't bother with a manual update if we are listening for events
 	if op.handlerReady {
 		return nil
@@ -96,7 +101,7 @@ func (op *Operation) Refresh() error {
 }
 
 // Wait lets you wait until the operation reaches a final state
-func (op *Operation) Wait() error {
+func (op *operation) Wait() error {
 	// Check if not done already
 	if op.StatusCode.IsFinal() {
 		if op.Err != "" {
@@ -122,7 +127,7 @@ func (op *Operation) Wait() error {
 	return nil
 }
 
-func (op *Operation) setupListener() error {
+func (op *operation) setupListener() error {
 	// Make sure we're not racing with ourselves
 	op.handlerLock.Lock()
 	defer op.handlerLock.Unlock()
@@ -245,7 +250,7 @@ func (op *Operation) setupListener() error {
 	return nil
 }
 
-func (op *Operation) extractOperation(data interface{}) *api.Operation {
+func (op *operation) extractOperation(data interface{}) *api.Operation {
 	// Extract the metadata
 	meta, ok := data.(map[string]interface{})["metadata"]
 	if !ok {
@@ -272,9 +277,9 @@ func (op *Operation) extractOperation(data interface{}) *api.Operation {
 	return &newOp
 }
 
-// The RemoteOperation type represents an ongoing LXD operation between two servers
-type RemoteOperation struct {
-	targetOp *Operation
+// The remoteOperation type represents an ongoing LXD operation between two servers
+type remoteOperation struct {
+	targetOp Operation
 
 	handlers []func(api.Operation)
 
@@ -284,7 +289,7 @@ type RemoteOperation struct {
 }
 
 // AddHandler adds a function to be called whenever an event is received
-func (op *RemoteOperation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
+func (op *remoteOperation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
 	var err error
 	var target *EventTarget
 
@@ -309,7 +314,7 @@ func (op *RemoteOperation) AddHandler(function func(api.Operation)) (*EventTarge
 }
 
 // CancelTarget attempts to cancel the target operation
-func (op *RemoteOperation) CancelTarget() error {
+func (op *remoteOperation) CancelTarget() error {
 	if op.targetOp == nil {
 		return fmt.Errorf("No associated target operation")
 	}
@@ -318,16 +323,17 @@ func (op *RemoteOperation) CancelTarget() error {
 }
 
 // GetTarget returns the target operation
-func (op *RemoteOperation) GetTarget() (*api.Operation, error) {
+func (op *remoteOperation) GetTarget() (*api.Operation, error) {
 	if op.targetOp == nil {
 		return nil, fmt.Errorf("No associated target operation")
 	}
 
-	return &op.targetOp.Operation, nil
+	opAPI := op.targetOp.Get()
+	return &opAPI, nil
 }
 
 // Wait lets you wait until the operation reaches a final state
-func (op *RemoteOperation) Wait() error {
+func (op *remoteOperation) Wait() error {
 	<-op.chDone
 
 	if op.chPost != nil {
