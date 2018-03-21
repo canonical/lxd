@@ -92,7 +92,7 @@ func (c *Cluster) ImageSourceInsert(imageId int, server string, protocol string,
 		return fmt.Errorf("Invalid protocol: %s", protocol)
 	}
 
-	_, err := exec(c.db, stmt, imageId, server, protocolInt, certificate, alias)
+	err := exec(c.db, stmt, imageId, server, protocolInt, certificate, alias)
 	return err
 }
 
@@ -375,7 +375,7 @@ func (c *Cluster) ImageAssociateNode(fingerprint string) error {
 }
 
 func (c *Cluster) ImageDelete(id int) error {
-	_, err := exec(c.db, "DELETE FROM images WHERE id=?", id)
+	err := exec(c.db, "DELETE FROM images WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -432,42 +432,42 @@ func (c *Cluster) ImageAliasGet(name string, isTrustedClient bool) (int, api.Ima
 }
 
 func (c *Cluster) ImageAliasRename(id int, name string) error {
-	_, err := exec(c.db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
+	err := exec(c.db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
 	return err
 }
 
 func (c *Cluster) ImageAliasDelete(name string) error {
-	_, err := exec(c.db, "DELETE FROM images_aliases WHERE name=?", name)
+	err := exec(c.db, "DELETE FROM images_aliases WHERE name=?", name)
 	return err
 }
 
 func (c *Cluster) ImageAliasesMove(source int, destination int) error {
-	_, err := exec(c.db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
+	err := exec(c.db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
 	return err
 }
 
 // Insert an alias ento the database.
 func (c *Cluster) ImageAliasAdd(name string, imageID int, desc string) error {
 	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
-	_, err := exec(c.db, stmt, name, imageID, desc)
+	err := exec(c.db, stmt, name, imageID, desc)
 	return err
 }
 
 func (c *Cluster) ImageAliasUpdate(id int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
-	_, err := exec(c.db, stmt, imageID, desc, id)
+	err := exec(c.db, stmt, imageID, desc, id)
 	return err
 }
 
 func (c *Cluster) ImageLastAccessUpdate(fingerprint string, date time.Time) error {
 	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
-	_, err := exec(c.db, stmt, date, fingerprint)
+	err := exec(c.db, stmt, date, fingerprint)
 	return err
 }
 
 func (c *Cluster) ImageLastAccessInit(fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
-	_, err := exec(c.db, stmt, fingerprint)
+	err := exec(c.db, stmt, fingerprint)
 	return err
 }
 
@@ -652,6 +652,6 @@ func (c *Cluster) ImageGetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 
 // ImageUploadedAt updates the upload_date column and an image row.
 func (c *Cluster) ImageUploadedAt(id int, uploadedAt time.Time) error {
-	_, err := exec(c.db, "UPDATE images SET upload_date=? WHERE id=?", uploadedAt, id)
+	err := exec(c.db, "UPDATE images SET upload_date=? WHERE id=?", uploadedAt, id)
 	return err
 }

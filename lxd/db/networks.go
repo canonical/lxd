@@ -556,7 +556,7 @@ func (c *Cluster) NetworkDelete(name string) error {
 		return err
 	}
 
-	_, err = exec(c.db, "DELETE FROM networks WHERE id=?", id)
+	err = exec(c.db, "DELETE FROM networks WHERE id=?", id)
 	if err != nil {
 		return err
 	}

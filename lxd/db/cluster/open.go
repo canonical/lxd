@@ -105,18 +105,28 @@ func EnsureSchema(db *sql.DB, address string) (bool, error) {
 	// 1. This is needed for referential integrity with other tables. Also,
 	// create a default profile.
 	if initial == 0 {
+		tx, err := db.Begin()
+		if err != nil {
+			return false, err
+		}
 		stmt := `
 INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '0.0.0.0', ?, ?)
 `
-		_, err := db.Exec(stmt, SchemaVersion, apiExtensions)
+		_, err = tx.Exec(stmt, SchemaVersion, apiExtensions)
 		if err != nil {
+			tx.Rollback()
 			return false, err
 		}
 
 		stmt = `
 INSERT INTO profiles (name, description) VALUES ('default', 'Default LXD profile')
 `
-		_, err = db.Exec(stmt)
+		_, err = tx.Exec(stmt)
+		if err != nil {
+			tx.Rollback()
+			return false, err
+		}
+		err = tx.Commit()
 		if err != nil {
 			return false, err
 		}
