@@ -12,26 +12,32 @@ type CertInfo struct {
 
 // CertificatesGet returns all certificates from the DB as CertBaseInfo objects.
 func (c *Cluster) CertificatesGet() (certs []*CertInfo, err error) {
-	rows, err := dbQuery(
-		c.db,
-		"SELECT id, fingerprint, type, name, certificate FROM certificates",
-	)
+	err = c.Transaction(func(tx *ClusterTx) error {
+		rows, err := tx.tx.Query(
+			"SELECT id, fingerprint, type, name, certificate FROM certificates",
+		)
+		if err != nil {
+			return err
+		}
+
+		defer rows.Close()
+
+		for rows.Next() {
+			cert := new(CertInfo)
+			rows.Scan(
+				&cert.ID,
+				&cert.Fingerprint,
+				&cert.Type,
+				&cert.Name,
+				&cert.Certificate,
+			)
+			certs = append(certs, cert)
+		}
+
+		return rows.Err()
+	})
 	if err != nil {
 		return certs, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		cert := new(CertInfo)
-		rows.Scan(
-			&cert.ID,
-			&cert.Fingerprint,
-			&cert.Type,
-			&cert.Name,
-			&cert.Certificate,
-		)
-		certs = append(certs, cert)
 	}
 
 	return certs, nil
@@ -104,7 +110,7 @@ func (c *Cluster) CertSave(cert *CertInfo) error {
 
 // CertDelete deletes a certificate from the db.
 func (c *Cluster) CertDelete(fingerprint string) error {
-	_, err := exec(c.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
+	err := exec(c.db, "DELETE FROM certificates WHERE fingerprint=?", fingerprint)
 	if err != nil {
 		return err
 	}

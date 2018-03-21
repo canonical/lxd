@@ -95,6 +95,7 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 	// gets created no matter what.
 	_, err = tx.Exec("DELETE FROM profiles WHERE id=1")
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, "failed to delete default profile")
 	}
 
@@ -190,13 +191,16 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
 			result, err := tx.Exec(stmt, row...)
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrapf(err, "failed to insert row %d into %s", i, table)
 			}
 			n, err := result.RowsAffected()
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrapf(err, "no result count for row %d of %s", i, table)
 			}
 			if n != 1 {
+				tx.Rollback()
 				return fmt.Errorf("could not insert %d int %s", i, table)
 			}
 

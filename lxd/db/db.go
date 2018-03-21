@@ -361,117 +361,85 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 }
 
 func TxCommit(tx *sql.Tx) error {
-	for i := 0; i < 1000; i++ {
-		err := tx.Commit()
-		if err == nil || err == sql.ErrTxDone { // Ignore duplicate commits/rollbacks
-			return nil
-		}
-		if !query.IsRetriableError(err) {
-			logger.Debugf("Txcommit: error %q", err)
-			return err
-		}
-		time.Sleep(30 * time.Millisecond)
+	err := tx.Commit()
+	if err == nil || err == sql.ErrTxDone { // Ignore duplicate commits/rollbacks
+		return nil
 	}
-
-	logger.Debugf("Txcommit: db still locked")
-	logger.Debugf(logger.GetStack())
-	return fmt.Errorf("DB is locked")
+	return err
 }
 
 func dbQueryRowScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) error {
-	for i := 0; i < 1000; i++ {
-		err := db.QueryRow(q, args...).Scan(outargs...)
-		if err == nil {
-			return nil
-		}
-		if isNoMatchError(err) {
-			return err
-		}
-		if !query.IsRetriableError(err) {
-			return err
-		}
-		time.Sleep(30 * time.Millisecond)
-	}
-
-	logger.Debugf("DbQueryRowScan: query %q args %q, DB still locked", q, args)
-	logger.Debugf(logger.GetStack())
-	return fmt.Errorf("DB is locked")
+	return query.Retry(func() error {
+		return query.Transaction(db, func(tx *sql.Tx) error {
+			return tx.QueryRow(q, args...).Scan(outargs...)
+		})
+	})
 }
 
-func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
-	for i := 0; i < 1000; i++ {
-		result, err := db.Query(q, args...)
-		if err == nil {
-			return result, nil
-		}
-		if !query.IsRetriableError(err) {
-			logger.Debugf("DbQuery: query %q error %q", q, err)
-			return nil, err
-		}
-		time.Sleep(30 * time.Millisecond)
-	}
-
-	logger.Debugf("DbQuery: query %q args %q, DB still locked", q, args)
-	logger.Debugf(logger.GetStack())
-	return nil, fmt.Errorf("DB is locked")
-}
-
-func doDbQueryScan(qi queryer, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
-	rows, err := qi.Query(q, args...)
-	if err != nil {
-		return [][]interface{}{}, err
-	}
-	defer rows.Close()
+func doDbQueryScan(db *sql.DB, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
 	result := [][]interface{}{}
-	for rows.Next() {
-		ptrargs := make([]interface{}, len(outargs))
-		for i := range outargs {
-			switch t := outargs[i].(type) {
-			case string:
-				str := ""
-				ptrargs[i] = &str
-			case int:
-				integer := 0
-				ptrargs[i] = &integer
-			case int64:
-				integer := int64(0)
-				ptrargs[i] = &integer
-			default:
-				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s", t)
+
+	err := query.Retry(func() error {
+		return query.Transaction(db, func(tx *sql.Tx) error {
+			rows, err := tx.Query(q, args...)
+			if err != nil {
+				return err
 			}
-		}
-		err = rows.Scan(ptrargs...)
-		if err != nil {
-			return [][]interface{}{}, err
-		}
-		newargs := make([]interface{}, len(outargs))
-		for i := range ptrargs {
-			switch t := outargs[i].(type) {
-			case string:
-				newargs[i] = *ptrargs[i].(*string)
-			case int:
-				newargs[i] = *ptrargs[i].(*int)
-			case int64:
-				newargs[i] = *ptrargs[i].(*int64)
-			default:
-				return [][]interface{}{}, fmt.Errorf("Bad interface type: %s", t)
+			defer rows.Close()
+
+			for rows.Next() {
+				ptrargs := make([]interface{}, len(outargs))
+				for i := range outargs {
+					switch t := outargs[i].(type) {
+					case string:
+						str := ""
+						ptrargs[i] = &str
+					case int:
+						integer := 0
+						ptrargs[i] = &integer
+					case int64:
+						integer := int64(0)
+						ptrargs[i] = &integer
+					default:
+						return fmt.Errorf("Bad interface type: %s", t)
+					}
+				}
+				err = rows.Scan(ptrargs...)
+				if err != nil {
+					return err
+				}
+				newargs := make([]interface{}, len(outargs))
+				for i := range ptrargs {
+					switch t := outargs[i].(type) {
+					case string:
+						newargs[i] = *ptrargs[i].(*string)
+					case int:
+						newargs[i] = *ptrargs[i].(*int)
+					case int64:
+						newargs[i] = *ptrargs[i].(*int64)
+					default:
+						return fmt.Errorf("Bad interface type: %s", t)
+					}
+				}
+				result = append(result, newargs)
 			}
-		}
-		result = append(result, newargs)
-	}
-	err = rows.Err()
+			err = rows.Err()
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+	})
 	if err != nil {
 		return [][]interface{}{}, err
 	}
-	return result, nil
-}
 
-type queryer interface {
-	Query(query string, args ...interface{}) (*sql.Rows, error)
+	return result, nil
+
 }
 
 /*
- * . qi anything implementing the querier interface (i.e. either sql.DB or sql.Tx)
+ * . db a reference to a sql.DB instance
  * . q is the database query
  * . inargs is an array of interfaces containing the query arguments
  * . outfmt is an array of interfaces containing the right types of output
@@ -483,38 +451,16 @@ type queryer interface {
  * The result will be an array (one per output row) of arrays (one per output argument)
  * of interfaces, containing pointers to the actual output arguments.
  */
-func queryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
-	for i := 0; i < 1000; i++ {
-		result, err := doDbQueryScan(qi, q, inargs, outfmt)
-		if err == nil {
-			return result, nil
-		}
-		if !query.IsRetriableError(err) {
-			logger.Debugf("DbQuery: query %q error %q", q, err)
-			return nil, err
-		}
-		time.Sleep(30 * time.Millisecond)
-	}
-
-	logger.Debugf("DbQueryscan: query %q inargs %q, DB still locked", q, inargs)
-	logger.Debugf(logger.GetStack())
-	return nil, fmt.Errorf("DB is locked")
+func queryScan(db *sql.DB, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
+	return doDbQueryScan(db, q, inargs, outfmt)
 }
 
-func exec(db *sql.DB, q string, args ...interface{}) (sql.Result, error) {
-	for i := 0; i < 1000; i++ {
-		result, err := db.Exec(q, args...)
-		if err == nil {
-			return result, nil
-		}
-		if !query.IsRetriableError(err) {
-			logger.Debugf("DbExec: query %q error %q", q, err)
-			return nil, err
-		}
-		time.Sleep(30 * time.Millisecond)
-	}
-
-	logger.Debugf("DbExec: query %q args %q, DB still locked", q, args)
-	logger.Debugf(logger.GetStack())
-	return nil, fmt.Errorf("DB is locked")
+func exec(db *sql.DB, q string, args ...interface{}) error {
+	err := query.Retry(func() error {
+		return query.Transaction(db, func(tx *sql.Tx) error {
+			_, err := tx.Exec(q, args...)
+			return err
+		})
+	})
+	return err
 }

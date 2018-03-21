@@ -326,7 +326,7 @@ func (c *Cluster) ContainerRemove(name string) error {
 		return err
 	}
 
-	_, err = exec(c.db, "DELETE FROM containers WHERE id=?", id)
+	err = exec(c.db, "DELETE FROM containers WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -539,7 +539,7 @@ func (c *Cluster) ContainerConfigGet(id int, key string) (string, error) {
 }
 
 func (c *Cluster) ContainerConfigRemove(id int, name string) error {
-	_, err := exec(c.db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
+	err := exec(c.db, "DELETE FROM containers_config WHERE key=? AND container_id=?", name, id)
 	return err
 }
 
@@ -549,7 +549,7 @@ func (c *Cluster) ContainerSetStateful(id int, stateful bool) error {
 		statefulInt = 1
 	}
 
-	_, err := exec(c.db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
+	err := exec(c.db, "UPDATE containers SET stateful=? WHERE id=?", statefulInt, id)
 	return err
 }
 
@@ -648,7 +648,7 @@ func (c *Cluster) ContainersList(cType ContainerType) ([]string, error) {
 
 func (c *Cluster) ContainersResetState() error {
 	// Reset all container states
-	_, err := exec(c.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
+	err := exec(c.db, "DELETE FROM containers_config WHERE key='volatile.last_state.power'")
 	return err
 }
 
@@ -739,7 +739,7 @@ func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, e
 
 func (c *Cluster) ContainerLastUsedUpdate(id int, date time.Time) error {
 	stmt := `UPDATE containers SET last_use_date=? WHERE id=?`
-	_, err := exec(c.db, stmt, date, id)
+	err := exec(c.db, stmt, date, id)
 	return err
 }
 
