@@ -114,7 +114,7 @@ func (r *ProtocolLXD) RawWebsocket(path string) (*websocket.Conn, error) {
 
 // RawOperation allows direct querying of a LXD API endpoint returning
 // background operations.
-func (r *ProtocolLXD) RawOperation(method string, path string, data interface{}, ETag string) (*Operation, string, error) {
+func (r *ProtocolLXD) RawOperation(method string, path string, data interface{}, ETag string) (Operation, string, error) {
 	return r.queryOperation(method, path, data, ETag)
 }
 
@@ -235,7 +235,7 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data interface{}, 
 	return etag, nil
 }
 
-func (r *ProtocolLXD) queryOperation(method string, path string, data interface{}, ETag string) (*Operation, string, error) {
+func (r *ProtocolLXD) queryOperation(method string, path string, data interface{}, ETag string) (Operation, string, error) {
 	// Attempt to setup an early event listener
 	listener, err := r.GetEvents()
 	if err != nil {
@@ -263,7 +263,7 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data interface{
 	}
 
 	// Setup an Operation wrapper
-	op := Operation{
+	op := operation{
 		Operation: *respOperation,
 		r:         r,
 		listener:  listener,

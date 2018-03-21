@@ -543,10 +543,11 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			if err != nil {
 				return err
 			}
+			opAPI := op.Get()
 
 			// Check if refreshed
 			refreshed := false
-			flag, ok := op.Metadata["refreshed"]
+			flag, ok := opAPI.Metadata["refreshed"]
 			if ok {
 				refreshed = flag.(bool)
 			}
@@ -772,9 +773,10 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			progress.Done("")
 			return err
 		}
+		opAPI := op.Get()
 
 		// Get the fingerprint
-		fingerprint := op.Metadata["fingerprint"].(string)
+		fingerprint := opAPI.Metadata["fingerprint"].(string)
 		progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
 
 		// Add the aliases

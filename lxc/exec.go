@@ -234,6 +234,7 @@ func (c *execCmd) run(conf *config.Config, args []string) error {
 	if err != nil {
 		return err
 	}
+	opAPI := op.Get()
 
 	// Wait for any remaining I/O to be flushed
 	<-execArgs.DataDone
@@ -249,6 +250,6 @@ func (c *execCmd) run(conf *config.Config, args []string) error {
 		termios.Restore(cfd, oldttystate)
 	}
 
-	os.Exit(int(op.Metadata["return"].(float64)))
+	os.Exit(int(opAPI.Metadata["return"].(float64)))
 	return nil
 }

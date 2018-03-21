@@ -11,7 +11,7 @@ import (
 )
 
 // CancelableWait waits for an operation and cancel it on SIGINT/SIGTERM
-func CancelableWait(op *lxd.RemoteOperation, progress *ProgressRenderer) error {
+func CancelableWait(op lxd.RemoteOperation, progress *ProgressRenderer) error {
 	// Signal handling
 	chSignal := make(chan os.Signal)
 	signal.Notify(chSignal, os.Interrupt)

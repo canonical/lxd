@@ -101,7 +101,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 		}
 	}
 
-	var op *lxd.RemoteOperation
+	var op lxd.RemoteOperation
 	if shared.IsSnapshot(sourceName) {
 		// Prepare the container creation request
 		args := lxd.ContainerSnapshotCopyArgs{

@@ -24,7 +24,7 @@ func (r *ProtocolLXD) GetCluster() (*api.Cluster, string, error) {
 }
 
 // UpdateCluster requests to bootstrap a new cluster
-func (r *ProtocolLXD) UpdateCluster(cluster api.ClusterPut, ETag string) (*Operation, error) {
+func (r *ProtocolLXD) UpdateCluster(cluster api.ClusterPut, ETag string) (Operation, error) {
 	if !r.HasExtension("clustering") {
 		return nil, fmt.Errorf("The server is missing the required \"clustering\" API extension")
 	}
