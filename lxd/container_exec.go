@@ -349,13 +349,16 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
+
 	if client != nil {
 		url := fmt.Sprintf("/containers/%s/exec", name)
 		op, _, err := client.RawOperation("POST", url, post, "")
 		if err != nil {
 			return SmartError(err)
 		}
-		return ForwardedOperationResponse(&op.Operation)
+
+		opAPI := op.Get()
+		return ForwardedOperationResponse(&opAPI)
 	}
 
 	c, err := containerLoadByName(d.State(), name)
