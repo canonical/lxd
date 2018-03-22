@@ -298,7 +298,6 @@ var commands = map[string]command{
 		timeout:     -1,
 	},
 	"storage": &storageCmd{},
-	"version": &versionCmd{},
 }
 
 // defaultAliases contains LXC's built-in command line aliases.  The built-in
