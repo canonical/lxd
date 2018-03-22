@@ -20,6 +20,8 @@ type EventLogging struct {
 }
 
 // EventLifecycle represets a lifecycle type event entry
+//
+// API extension: event_lifecycle
 type EventLifecycle struct {
 	Action  string                 `yaml:"action" json:"action"`
 	Source  string                 `yaml:"source" json:"source"`
