@@ -69,6 +69,10 @@ For help with any of those, simply call them with --help.`))
 	app.SetVersionTemplate("{{.Version}}\n")
 	app.Version = version.Version
 
+	// console sub-command
+	consoleCmd := cmdConsole{global: &globalCmd}
+	app.AddCommand(consoleCmd.Command())
+
 	// exec sub-command
 	execCmd := cmdExec{global: &globalCmd}
 	app.AddCommand(execCmd.Command())
@@ -249,7 +253,6 @@ var commands = map[string]command{
 	"alias":     &aliasCmd{},
 	"cluster":   &clusterCmd{},
 	"config":    &configCmd{},
-	"console":   &consoleCmd{},
 	"copy":      &copyCmd{},
 	"delete":    &deleteCmd{},
 	"file":      &fileCmd{},
