@@ -63,7 +63,7 @@ lxc monitor --pretty --type=logging --loglevel=info
     Show a pretty log of messages with info level or higher.
 
 lxc monitor --type=lifecycle
-	Only show lifecycle events.
+    Only show lifecycle events.
 `)
 }
 
