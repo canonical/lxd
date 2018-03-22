@@ -253,7 +253,6 @@ var commands = map[string]command{
 	"copy":      &copyCmd{},
 	"delete":    &deleteCmd{},
 	"file":      &fileCmd{},
-	"finger":    &fingerCmd{},
 	"query":     &queryCmd{},
 	"image":     &imageCmd{},
 	"info":      &infoCmd{},
