@@ -19,7 +19,7 @@ func Retry(f func() error) error {
 	for i := 0; i < 20; i++ {
 		err = f()
 		if err != nil {
-			logger.Debugf("Database error %#v", err)
+			logger.Debugf("Database error: %#v", err)
 
 			if IsRetriableError(err) {
 				logger.Debugf("Retry failed db interaction (%v)", err)
