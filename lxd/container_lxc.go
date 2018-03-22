@@ -439,7 +439,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	networkUpdateStatic(s, "")
 
 	logger.Info("Created container", ctxMap)
-	SendLifecycleEvent("container-created",
+	eventSendLifecycle("container-created",
 		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return c, nil
@@ -2388,7 +2388,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	c.restartProxyDevices()
 
 	logger.Info("Started container", ctxMap)
-	SendLifecycleEvent("container-started",
+	eventSendLifecycle("container-started",
 		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return nil
@@ -2554,7 +2554,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 
 		op.Done(nil)
 		logger.Info("Stopped container", ctxMap)
-		SendLifecycleEvent("container-stopped",
+		eventSendLifecycle("container-stopped",
 			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 		return nil
 	} else if shared.PathExists(c.StatePath()) {
@@ -2601,7 +2601,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	logger.Info("Stopped container", ctxMap)
-	SendLifecycleEvent("container-stopped",
+	eventSendLifecycle("container-stopped",
 		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return nil
@@ -2651,7 +2651,7 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	}
 
 	logger.Info("Shut down container", ctxMap)
-	SendLifecycleEvent("container-shutdown",
+	eventSendLifecycle("container-shutdown",
 		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return nil
@@ -2797,7 +2797,7 @@ func (c *containerLXC) Freeze() error {
 	}
 
 	logger.Info("Froze container", ctxMap)
-	SendLifecycleEvent("container-paused",
+	eventSendLifecycle("container-paused",
 		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return err
@@ -2834,7 +2834,7 @@ func (c *containerLXC) Unfreeze() error {
 	}
 
 	logger.Info("Unfroze container", ctxMap)
-	SendLifecycleEvent("container-resumed",
+	eventSendLifecycle("container-resumed",
 		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return err
@@ -3102,7 +3102,7 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 		return nil
 	}
 
-	SendLifecycleEvent("container-snapshot-restored",
+	eventSendLifecycle("container-snapshot-restored",
 		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	// Restart the container
@@ -3225,10 +3225,10 @@ func (c *containerLXC) Delete() error {
 	logger.Info("Deleted container", ctxMap)
 
 	if c.IsSnapshot() {
-		SendLifecycleEvent("container-snapshot-deleted",
+		eventSendLifecycle("container-snapshot-deleted",
 			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 	} else {
-		SendLifecycleEvent("container-deleted",
+		eventSendLifecycle("container-deleted",
 			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 	}
 
@@ -3353,10 +3353,10 @@ func (c *containerLXC) Rename(newName string) error {
 	logger.Info("Renamed container", ctxMap)
 
 	if c.IsSnapshot() {
-		SendLifecycleEvent("container-snapshot-renamed",
+		eventSendLifecycle("container-snapshot-renamed",
 			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 	} else {
-		SendLifecycleEvent("container-renamed",
+		eventSendLifecycle("container-renamed",
 			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 	}
 
@@ -4599,7 +4599,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
 
-	SendLifecycleEvent("container-updated",
+	eventSendLifecycle("container-updated",
 		fmt.Sprintf("/1.0/containers/%s", c.name), log.Ctx{"name": c.name,
 			"created":         c.creationDate,
 			"ephemeral":       c.ephemeral,
