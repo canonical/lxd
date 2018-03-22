@@ -44,7 +44,7 @@ func (h eventsHandler) Log(r *log.Record) error {
 	return nil
 }
 
-func SendLifecycleEvent(action, source string,
+func eventSendLifecycle(action, source string,
 	context map[string]interface{}) error {
 	eventSend("lifecycle", api.EventLifecycle{
 		Action:  action,
