@@ -439,6 +439,8 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	networkUpdateStatic(s, "")
 
 	logger.Info("Created container", ctxMap)
+	SendLifecycleEvent("container-created",
+		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return c, nil
 }
@@ -2386,6 +2388,8 @@ func (c *containerLXC) Start(stateful bool) error {
 	c.restartProxyDevices()
 
 	logger.Info("Started container", ctxMap)
+	SendLifecycleEvent("container-started",
+		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return nil
 }
@@ -2550,6 +2554,8 @@ func (c *containerLXC) Stop(stateful bool) error {
 
 		op.Done(nil)
 		logger.Info("Stopped container", ctxMap)
+		SendLifecycleEvent("container-stopped",
+			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 		return nil
 	} else if shared.PathExists(c.StatePath()) {
 		os.RemoveAll(c.StatePath())
@@ -2595,6 +2601,9 @@ func (c *containerLXC) Stop(stateful bool) error {
 	}
 
 	logger.Info("Stopped container", ctxMap)
+	SendLifecycleEvent("container-stopped",
+		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
+
 	return nil
 }
 
@@ -2642,6 +2651,8 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 	}
 
 	logger.Info("Shut down container", ctxMap)
+	SendLifecycleEvent("container-shutdown",
+		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return nil
 }
@@ -2786,6 +2797,8 @@ func (c *containerLXC) Freeze() error {
 	}
 
 	logger.Info("Froze container", ctxMap)
+	SendLifecycleEvent("container-paused",
+		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return err
 }
@@ -2821,6 +2834,8 @@ func (c *containerLXC) Unfreeze() error {
 	}
 
 	logger.Info("Unfroze container", ctxMap)
+	SendLifecycleEvent("container-resumed",
+		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
 
 	return err
 }
@@ -3087,6 +3102,9 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 		return nil
 	}
 
+	SendLifecycleEvent("container-snapshot-restored",
+		fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
+
 	// Restart the container
 	if wasRunning {
 		logger.Info("Restored container", ctxMap)
@@ -3205,6 +3223,14 @@ func (c *containerLXC) Delete() error {
 	}
 
 	logger.Info("Deleted container", ctxMap)
+
+	if c.IsSnapshot() {
+		SendLifecycleEvent("container-snapshot-deleted",
+			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
+	} else {
+		SendLifecycleEvent("container-deleted",
+			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
+	}
 
 	return nil
 }
@@ -3325,6 +3351,14 @@ func (c *containerLXC) Rename(newName string) error {
 	networkUpdateStatic(c.state, "")
 
 	logger.Info("Renamed container", ctxMap)
+
+	if c.IsSnapshot() {
+		SendLifecycleEvent("container-snapshot-renamed",
+			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
+	} else {
+		SendLifecycleEvent("container-renamed",
+			fmt.Sprintf("/1.0/containers/%s", c.name), ctxMap)
+	}
 
 	return nil
 }
@@ -4564,6 +4598,20 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
+
+	SendLifecycleEvent("container-updated",
+		fmt.Sprintf("/1.0/containers/%s", c.name), log.Ctx{"name": c.name,
+			"created":         c.creationDate,
+			"ephemeral":       c.ephemeral,
+			"used":            c.lastUsedDate,
+			"description":     c.description,
+			"architecture":    c.architecture,
+			"expandedConfig":  c.expandedConfig,
+			"expandedDevices": c.expandedDevices,
+			"localConfig":     c.localConfig,
+			"localDevices":    c.localDevices,
+			"profiles":        c.profiles,
+		})
 
 	return nil
 }
