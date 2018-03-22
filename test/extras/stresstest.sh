@@ -97,11 +97,7 @@ spawn_lxd() {
   LXD_DIR=$lxddir lxd ${DEBUG} $extraargs $* 2>&1 > $lxddir/lxd.log &
 
   echo "==> Confirming lxd on $addr is responsive"
-  alive=0
-  while [ $alive -eq 0 ]; do
-    [ -e "${lxddir}/unix.socket" ] && LXD_DIR=$lxddir lxc finger && alive=1
-    sleep 1s
-  done
+  LXD_DIR=$lxddir lxd waitready
 
   echo "==> Binding to network"
   LXD_DIR=$lxddir lxc config set core.https_address $addr
