@@ -85,6 +85,10 @@ For help with any of those, simply call them with --help.`))
 	listCmd := cmdList{global: &globalCmd}
 	app.AddCommand(listCmd.Command())
 
+	// query sub-command
+	queryCmd := cmdQuery{global: &globalCmd}
+	app.AddCommand(queryCmd.Command())
+
 	// Deal with --all flag
 	err := app.ParseFlags(os.Args[1:])
 	if err == nil {
@@ -260,7 +264,6 @@ var commands = map[string]command{
 	"copy":      &copyCmd{},
 	"delete":    &deleteCmd{},
 	"file":      &fileCmd{},
-	"query":     &queryCmd{},
 	"image":     &imageCmd{},
 	"init":      &initCmd{},
 	"launch":    &launchCmd{},
