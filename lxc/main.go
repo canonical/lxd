@@ -69,6 +69,10 @@ For help with any of those, simply call them with --help.`))
 	app.SetVersionTemplate("{{.Version}}\n")
 	app.Version = version.Version
 
+	// list sub-command
+	listCmd := cmdList{global: &globalCmd}
+	app.AddCommand(listCmd.Command())
+
 	// Deal with --all flag
 	err := app.ParseFlags(os.Args[1:])
 	if err == nil {
@@ -252,7 +256,6 @@ var commands = map[string]command{
 	"info":      &infoCmd{},
 	"init":      &initCmd{},
 	"launch":    &launchCmd{},
-	"list":      &listCmd{},
 	"manpage":   &manpageCmd{},
 	"monitor":   &monitorCmd{},
 	"rename":    &renameCmd{},
@@ -301,7 +304,6 @@ var defaultAliases = map[string]string{
 	"shell": "exec @ARGS@ -- su -l",
 
 	"cp": "copy",
-	"ls": "list",
 	"mv": "move",
 	"rm": "delete",
 
