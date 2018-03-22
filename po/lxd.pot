@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2018-02-27 22:14-0500\n"
+        "POT-Creation-Date: 2018-03-22 16:04+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -172,7 +172,7 @@ msgstr  ""
 msgid   "ARCH"
 msgstr  ""
 
-#: lxc/list.go:467
+#: lxc/list.go:477
 msgid   "ARCHITECTURE"
 msgstr  ""
 
@@ -249,7 +249,7 @@ msgstr  ""
 msgid   "CREATED"
 msgstr  ""
 
-#: lxc/list.go:468
+#: lxc/list.go:478
 msgid   "CREATED AT"
 msgstr  ""
 
@@ -294,7 +294,7 @@ msgstr  ""
 msgid   "Client certificate stored at server: "
 msgstr  ""
 
-#: lxc/image.go:175 lxc/image.go:176 lxc/list.go:134 lxc/list.go:135
+#: lxc/image.go:175 lxc/image.go:176 lxc/list.go:135 lxc/list.go:136
 msgid   "Columns"
 msgstr  ""
 
@@ -333,7 +333,7 @@ msgstr  ""
 msgid   "Container published with fingerprint: %s"
 msgstr  ""
 
-#: lxc/copy.go:45 lxc/move.go:44
+#: lxc/copy.go:45 lxc/move.go:45
 msgid   "Copy a stateful container stateless"
 msgstr  ""
 
@@ -381,7 +381,7 @@ msgstr  ""
 msgid   "DATABASE"
 msgstr  ""
 
-#: lxc/image.go:235 lxc/image.go:1138 lxc/list.go:469 lxc/network.go:579 lxc/operation.go:154 lxc/storage.go:732 lxc/storage.go:937
+#: lxc/image.go:235 lxc/image.go:1138 lxc/list.go:479 lxc/network.go:579 lxc/operation.go:154 lxc/storage.go:732 lxc/storage.go:937
 msgid   "DESCRIPTION"
 msgstr  ""
 
@@ -429,7 +429,7 @@ msgstr  ""
 msgid   "Disk usage:"
 msgstr  ""
 
-#: lxc/list.go:638
+#: lxc/list.go:648
 msgid   "EPHEMERAL"
 msgstr  ""
 
@@ -462,7 +462,7 @@ msgstr  ""
 msgid   "Error updating template file: %s"
 msgstr  ""
 
-#: lxc/monitor.go:69
+#: lxc/monitor.go:72
 msgid   "Event type to listen for"
 msgstr  ""
 
@@ -517,7 +517,7 @@ msgstr  ""
 msgid   "Failed to walk path for %s: %s"
 msgstr  ""
 
-#: lxc/list.go:137
+#: lxc/list.go:138
 msgid   "Fast mode (same as --columns=nsacPt)"
 msgstr  ""
 
@@ -550,7 +550,7 @@ msgstr  ""
 msgid   "Force using the local unix socket"
 msgstr  ""
 
-#: lxc/image.go:181 lxc/list.go:136
+#: lxc/image.go:181 lxc/list.go:137
 msgid   "Format (csv|json|table|yaml)"
 msgstr  ""
 
@@ -570,11 +570,11 @@ msgstr  ""
 msgid   "IP ADDRESS"
 msgstr  ""
 
-#: lxc/list.go:465
+#: lxc/list.go:475
 msgid   "IPV4"
 msgstr  ""
 
-#: lxc/list.go:466
+#: lxc/list.go:476
 msgid   "IPV6"
 msgstr  ""
 
@@ -664,11 +664,11 @@ msgstr  ""
 msgid   "Keep the image up to date after initial copy"
 msgstr  ""
 
-#: lxc/list.go:470
+#: lxc/list.go:480
 msgid   "LAST USED AT"
 msgstr  ""
 
-#: lxc/list.go:492
+#: lxc/list.go:502
 msgid   "LOCATION"
 msgstr  ""
 
@@ -726,7 +726,7 @@ msgstr  ""
 msgid   "Memory usage:"
 msgstr  ""
 
-#: lxc/monitor.go:70
+#: lxc/monitor.go:73
 msgid   "Minimum level for log messages"
 msgstr  ""
 
@@ -742,7 +742,7 @@ msgstr  ""
 msgid   "More than one file to download, but target is not a directory"
 msgstr  ""
 
-#: lxc/move.go:42
+#: lxc/move.go:43
 msgid   "Move the container without its snapshots"
 msgstr  ""
 
@@ -759,7 +759,7 @@ msgstr  ""
 msgid   "Must supply container name for: "
 msgstr  ""
 
-#: lxc/cluster.go:183 lxc/list.go:471 lxc/network.go:576 lxc/profile.go:573 lxc/remote.go:409 lxc/storage.go:731 lxc/storage.go:936
+#: lxc/cluster.go:183 lxc/list.go:481 lxc/network.go:576 lxc/profile.go:573 lxc/remote.go:409 lxc/storage.go:731 lxc/storage.go:936
 msgid   "NAME"
 msgstr  ""
 
@@ -834,7 +834,7 @@ msgstr  ""
 msgid   "Node %s renamed to %s"
 msgstr  ""
 
-#: lxc/copy.go:46 lxc/init.go:150 lxc/move.go:45 lxc/network.go:105 lxc/storage.go:165
+#: lxc/copy.go:46 lxc/init.go:150 lxc/move.go:46 lxc/network.go:105 lxc/storage.go:165
 msgid   "Node name"
 msgstr  ""
 
@@ -867,19 +867,19 @@ msgstr  ""
 msgid   "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr  ""
 
-#: lxc/list.go:641
+#: lxc/list.go:651
 msgid   "PERSISTENT"
 msgstr  ""
 
-#: lxc/list.go:473
+#: lxc/list.go:483
 msgid   "PID"
 msgstr  ""
 
-#: lxc/list.go:472
+#: lxc/list.go:482
 msgid   "PROCESSES"
 msgstr  ""
 
-#: lxc/list.go:474
+#: lxc/list.go:484
 msgid   "PROFILES"
 msgstr  ""
 
@@ -928,7 +928,7 @@ msgstr  ""
 msgid   "Press enter to start the editor again"
 msgstr  ""
 
-#: lxc/monitor.go:68
+#: lxc/monitor.go:71
 msgid   "Pretty rendering"
 msgstr  ""
 
@@ -1066,7 +1066,7 @@ msgstr  ""
 msgid   "SIZE"
 msgstr  ""
 
-#: lxc/list.go:475
+#: lxc/list.go:485
 msgid   "SNAPSHOTS"
 msgstr  ""
 
@@ -1074,7 +1074,7 @@ msgstr  ""
 msgid   "SOURCE"
 msgstr  ""
 
-#: lxc/cluster.go:186 lxc/list.go:476 lxc/network.go:583 lxc/storage.go:736
+#: lxc/cluster.go:186 lxc/list.go:486 lxc/network.go:583 lxc/storage.go:736
 msgid   "STATE"
 msgstr  ""
 
@@ -1086,7 +1086,7 @@ msgstr  ""
 msgid   "STATUS"
 msgstr  ""
 
-#: lxc/list.go:478
+#: lxc/list.go:488
 msgid   "STORAGE POOL"
 msgstr  ""
 
@@ -1248,7 +1248,7 @@ msgstr  ""
 msgid   "TARGET"
 msgstr  ""
 
-#: lxc/list.go:477 lxc/network.go:516 lxc/network.go:577 lxc/operation.go:153 lxc/storage.go:935
+#: lxc/list.go:487 lxc/network.go:516 lxc/network.go:577 lxc/operation.go:153 lxc/storage.go:935
 msgid   "TYPE"
 msgstr  ""
 
@@ -1333,7 +1333,7 @@ msgstr  ""
 msgid   "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr  ""
 
-#: lxc/copy.go:43 lxc/move.go:43
+#: lxc/copy.go:43 lxc/move.go:44
 msgid   "Transfer mode. One of pull (default), push or relay."
 msgstr  ""
 
@@ -1742,7 +1742,7 @@ msgid   "Usage: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-
         "    lxc launch ubuntu:16.04 u1"
 msgstr  ""
 
-#: lxc/list.go:44
+#: lxc/list.go:45
 msgid   "Usage: lxc list [<remote>:] [filters] [--format csv|json|table|yaml] [-c <columns>] [--fast]\n"
         "\n"
         "List the existing containers.\n"
@@ -1850,9 +1850,12 @@ msgid   "Usage: lxc monitor [<remote>:] [--type=TYPE...] [--pretty]\n"
         "\n"
         "lxc monitor --pretty --type=logging --loglevel=info\n"
         "    Show a pretty log of messages with info level or higher.\n"
+        "\n"
+        "lxc monitor --type=lifecycle\n"
+        "    Only show lifecycle events.\n"
 msgstr  ""
 
-#: lxc/move.go:26
+#: lxc/move.go:27
 msgid   "Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]] [--container-only] [--target <node>]\n"
         "\n"
         "Move containers within or in between LXD instances.\n"
@@ -2234,11 +2237,11 @@ msgstr  ""
 msgid   "You must specify a destination container name when using --target"
 msgstr  ""
 
-#: lxc/copy.go:71
+#: lxc/copy.go:71 lxc/move.go:174
 msgid   "You must specify a source container name"
 msgstr  ""
 
-#: lxc/copy.go:66 lxc/move.go:71
+#: lxc/copy.go:66 lxc/move.go:77 lxc/move.go:169
 msgid   "You must use the same source and destination remote when using --target"
 msgstr  ""
 
