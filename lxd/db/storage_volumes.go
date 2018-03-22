@@ -178,17 +178,17 @@ func (c *Cluster) StorageVolumeCleanupImages(fingerprints []string) error {
 	for _, fingerprint := range fingerprints {
 		args = append(args, fingerprint)
 	}
-	_, err := exec(c.db, stmt, args...)
+	err := exec(c.db, stmt, args...)
 	return err
 }
 
 func (c *Cluster) StorageVolumeMoveToLVMThinPoolNameKey() error {
-	_, err := exec(c.db, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
+	err := exec(c.db, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
 	if err != nil {
 		return err
 	}
 
-	_, err = exec(c.db, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
+	err = exec(c.db, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
 	if err != nil {
 		return err
 	}

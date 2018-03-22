@@ -165,7 +165,7 @@ func (c *Cluster) ProfileDelete(name string) error {
 		return err
 	}
 
-	_, err = exec(c.db, "DELETE FROM profiles WHERE id=?", id)
+	err = exec(c.db, "DELETE FROM profiles WHERE id=?", id)
 	if err != nil {
 		return err
 	}
@@ -263,7 +263,7 @@ DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
 DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
 DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FROM profiles_devices);
 `
-	_, err := c.db.Exec(stmt)
+	err := exec(c.db, stmt)
 	if err != nil {
 		return err
 	}
