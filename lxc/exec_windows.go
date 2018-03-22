@@ -25,15 +25,15 @@ func (wwc *WrappedWriteCloser) Write(p []byte) (int, error) {
 	return wwc.wrapper.Write(p)
 }
 
-func (c *execCmd) getStdout() io.WriteCloser {
+func (c *cmdExec) getStdout() io.WriteCloser {
 	return &WrappedWriteCloser{os.Stdout, colorable.NewColorableStdout()}
 }
 
-func (c *execCmd) getTERM() (string, bool) {
+func (c *cmdExec) getTERM() (string, bool) {
 	return "dumb", true
 }
 
-func (c *execCmd) controlSocketHandler(control *websocket.Conn) {
+func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 	ch := make(chan os.Signal, 10)
 	signal.Notify(ch, os.Interrupt)
 

@@ -12,67 +12,53 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
+	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/termios"
 )
 
-type envList []string
+type cmdExec struct {
+	global *cmdGlobal
 
-func (f *envList) String() string {
-	return fmt.Sprint(*f)
+	flagMode                string
+	flagEnvironment         []string
+	flagForceInteractive    bool
+	flagForceNonInteractive bool
+	flagDisableStdin        bool
 }
 
-func (f *envList) Set(value string) error {
-	if f == nil {
-		*f = make(envList, 1)
-	} else {
-		*f = append(*f, value)
-	}
-	return nil
+func (c *cmdExec) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("exec [<remote>:]<container> [flags] [--] <command line>")
+	cmd.Short = i18n.G("Execute commands in containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Execute commands in containers
+
+The command is executed directly using exec, so there is no shell and
+shell patterns (variables, file redirects, ...) won't be understood.
+If you need a shell environment you need to execute the shell
+executable, passing the shell commands as arguments, for example:
+
+  lxc exec <container> -- sh -c "cd /tmp && pwd"
+
+Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`))
+
+	cmd.RunE = c.Run
+	cmd.Flags().StringArrayVar(&c.flagEnvironment, "env", nil, i18n.G("Environment variable to set (e.g. HOME=/home/foo)")+"``")
+	cmd.Flags().StringVar(&c.flagMode, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)")+"``")
+	cmd.Flags().BoolVarP(&c.flagForceInteractive, "force-interactive", "t", false, i18n.G("Force pseudo-terminal allocation"))
+	cmd.Flags().BoolVarP(&c.flagForceNonInteractive, "force-noninteractive", "T", false, i18n.G("Disable pseudo-terminal allocation"))
+	cmd.Flags().BoolVarP(&c.flagDisableStdin, "disable-stdin", "n", false, i18n.G("Disable stdin (reads from /dev/null)"))
+
+	return cmd
 }
 
-type execCmd struct {
-	modeFlag            string
-	envArgs             envList
-	forceInteractive    bool
-	forceNonInteractive bool
-	disableStdin        bool
-}
-
-func (c *execCmd) showByDefault() bool {
-	return true
-}
-
-func (c *execCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc exec [<remote>:]<container> [-t] [-T] [-n] [--mode=auto|interactive|non-interactive] [--env KEY=VALUE...] [--] <command line>
-
-Execute commands in containers.
-
-The command is executed directly using exec, so there is no shell and shell patterns (variables, file redirects, ...)
-won't be understood. If you need a shell environment you need to execute the shell executable, passing the shell commands
-as arguments, for example:
-
-    lxc exec <container> -- sh -c "cd /tmp && pwd"
-
-Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored).`)
-}
-
-func (c *execCmd) flags() {
-	gnuflag.Var(&c.envArgs, "env", i18n.G("Environment variable to set (e.g. HOME=/home/foo)"))
-	gnuflag.StringVar(&c.modeFlag, "mode", "auto", i18n.G("Override the terminal mode (auto, interactive or non-interactive)"))
-	gnuflag.BoolVar(&c.forceInteractive, "t", false, i18n.G("Force pseudo-terminal allocation"))
-	gnuflag.BoolVar(&c.forceNonInteractive, "T", false, i18n.G("Disable pseudo-terminal allocation"))
-	gnuflag.BoolVar(&c.disableStdin, "n", false, i18n.G("Disable stdin (reads from /dev/null)"))
-}
-
-func (c *execCmd) sendTermSize(control *websocket.Conn) error {
+func (c *cmdExec) sendTermSize(control *websocket.Conn) error {
 	width, height, err := termios.GetSize(int(syscall.Stdout))
 	if err != nil {
 		return err
@@ -101,7 +87,7 @@ func (c *execCmd) sendTermSize(control *websocket.Conn) error {
 	return err
 }
 
-func (c *execCmd) forwardSignal(control *websocket.Conn, sig syscall.Signal) error {
+func (c *cmdExec) forwardSignal(control *websocket.Conn, sig syscall.Signal) error {
 	logger.Debugf("Forwarding signal: %s", sig)
 
 	w, err := control.NextWriter(websocket.TextMessage)
@@ -123,19 +109,24 @@ func (c *execCmd) forwardSignal(control *websocket.Conn, sig syscall.Signal) err
 	return err
 }
 
-func (c *execCmd) run(conf *config.Config, args []string) error {
-	if len(args) < 2 {
-		return errArgs
+func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
 	}
 
-	if c.forceInteractive && c.forceNonInteractive {
+	if c.flagForceInteractive && c.flagForceNonInteractive {
 		return fmt.Errorf(i18n.G("You can't pass -t and -T at the same time"))
 	}
 
-	if c.modeFlag != "auto" && (c.forceInteractive || c.forceNonInteractive) {
+	if c.flagMode != "auto" && (c.flagForceInteractive || c.flagForceNonInteractive) {
 		return fmt.Errorf(i18n.G("You can't pass -t or -T at the same time as --mode"))
 	}
 
+	// Connect to the daemon
 	remote, name, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
@@ -146,15 +137,14 @@ func (c *execCmd) run(conf *config.Config, args []string) error {
 		return err
 	}
 
-	/* FIXME: Default values for HOME and USER are now handled by LXD.
-	   This code should be removed after most users upgraded.
-	*/
-	env := map[string]string{"HOME": "/root", "USER": "root"}
-	if myTerm, ok := c.getTERM(); ok {
+	// Set the environment
+	env := map[string]string{}
+	myTerm, ok := c.getTERM()
+	if ok {
 		env["TERM"] = myTerm
 	}
 
-	for _, arg := range c.envArgs {
+	for _, arg := range c.flagEnvironment {
 		pieces := strings.SplitN(arg, "=", 2)
 		value := ""
 		if len(pieces) > 1 {
@@ -163,14 +153,15 @@ func (c *execCmd) run(conf *config.Config, args []string) error {
 		env[pieces[0]] = value
 	}
 
+	// Configure the terminal
 	cfd := int(syscall.Stdin)
 
 	var interactive bool
-	if c.disableStdin {
+	if c.flagDisableStdin {
 		interactive = false
-	} else if c.modeFlag == "interactive" || c.forceInteractive {
+	} else if c.flagMode == "interactive" || c.flagForceInteractive {
 		interactive = true
-	} else if c.modeFlag == "non-interactive" || c.forceNonInteractive {
+	} else if c.flagMode == "non-interactive" || c.flagForceNonInteractive {
 		interactive = false
 	} else {
 		interactive = termios.IsTerminal(cfd) && termios.IsTerminal(int(syscall.Stdout))
@@ -200,12 +191,13 @@ func (c *execCmd) run(conf *config.Config, args []string) error {
 
 	var stdin io.ReadCloser
 	stdin = os.Stdin
-	if c.disableStdin {
+	if c.flagDisableStdin {
 		stdin = ioutil.NopCloser(bytes.NewReader(nil))
 	}
 
 	stdout := c.getStdout()
 
+	// Prepare the command
 	req := api.ContainerExecPost{
 		Command:     args[1:],
 		WaitForWS:   true,
