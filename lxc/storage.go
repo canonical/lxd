@@ -1118,7 +1118,7 @@ func (c *storageCmd) doStoragePoolVolumeCopy(client lxd.ContainerServer, src str
 		return err
 	}
 
-	op := &lxd.RemoteOperation{}
+	var op lxd.RemoteOperation
 	opMsg := ""
 	finalMsg := ""
 	if move {

@@ -11,6 +11,25 @@ import (
 	"github.com/lxc/lxd/shared/ioprogress"
 )
 
+// The Operation type represents a currently running operation.
+type Operation interface {
+	AddHandler(function func(api.Operation)) (target *EventTarget, err error)
+	Cancel() (err error)
+	Get() (op api.Operation)
+	GetWebsocket(secret string) (conn *websocket.Conn, err error)
+	RemoveHandler(target *EventTarget) (err error)
+	Refresh() (err error)
+	Wait() (err error)
+}
+
+// The RemoteOperation type represents an Operation that may be using multiple servers.
+type RemoteOperation interface {
+	AddHandler(function func(api.Operation)) (target *EventTarget, err error)
+	CancelTarget() (err error)
+	GetTarget() (op *api.Operation, err error)
+	Wait() (err error)
+}
+
 // The Server type represents a generic read-only server.
 type Server interface {
 	GetConnectionInfo() (info *ConnectionInfo, err error)
@@ -63,16 +82,16 @@ type ContainerServer interface {
 	GetContainerNames() (names []string, err error)
 	GetContainers() (containers []api.Container, err error)
 	GetContainer(name string) (container *api.Container, ETag string, err error)
-	CreateContainer(container api.ContainersPost) (op *Operation, err error)
-	CreateContainerFromImage(source ImageServer, image api.Image, imgcontainer api.ContainersPost) (op *RemoteOperation, err error)
-	CopyContainer(source ContainerServer, container api.Container, args *ContainerCopyArgs) (op *RemoteOperation, err error)
-	UpdateContainer(name string, container api.ContainerPut, ETag string) (op *Operation, err error)
-	RenameContainer(name string, container api.ContainerPost) (op *Operation, err error)
-	MigrateContainer(name string, container api.ContainerPost) (op *Operation, err error)
-	DeleteContainer(name string) (op *Operation, err error)
+	CreateContainer(container api.ContainersPost) (op Operation, err error)
+	CreateContainerFromImage(source ImageServer, image api.Image, imgcontainer api.ContainersPost) (op RemoteOperation, err error)
+	CopyContainer(source ContainerServer, container api.Container, args *ContainerCopyArgs) (op RemoteOperation, err error)
+	UpdateContainer(name string, container api.ContainerPut, ETag string) (op Operation, err error)
+	RenameContainer(name string, container api.ContainerPost) (op Operation, err error)
+	MigrateContainer(name string, container api.ContainerPost) (op Operation, err error)
+	DeleteContainer(name string) (op Operation, err error)
 
-	ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (op *Operation, err error)
-	ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (op *Operation, err error)
+	ExecContainer(containerName string, exec api.ContainerExecPost, args *ContainerExecArgs) (op Operation, err error)
+	ConsoleContainer(containerName string, console api.ContainerConsolePost, args *ContainerConsoleArgs) (op Operation, err error)
 	GetContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) (content io.ReadCloser, err error)
 	DeleteContainerConsoleLog(containerName string, args *ContainerConsoleLogArgs) (err error)
 
@@ -83,14 +102,14 @@ type ContainerServer interface {
 	GetContainerSnapshotNames(containerName string) (names []string, err error)
 	GetContainerSnapshots(containerName string) (snapshots []api.ContainerSnapshot, err error)
 	GetContainerSnapshot(containerName string, name string) (snapshot *api.ContainerSnapshot, ETag string, err error)
-	CreateContainerSnapshot(containerName string, snapshot api.ContainerSnapshotsPost) (op *Operation, err error)
-	CopyContainerSnapshot(source ContainerServer, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (op *RemoteOperation, err error)
-	RenameContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (op *Operation, err error)
-	MigrateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (op *Operation, err error)
-	DeleteContainerSnapshot(containerName string, name string) (op *Operation, err error)
+	CreateContainerSnapshot(containerName string, snapshot api.ContainerSnapshotsPost) (op Operation, err error)
+	CopyContainerSnapshot(source ContainerServer, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (op RemoteOperation, err error)
+	RenameContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (op Operation, err error)
+	MigrateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (op Operation, err error)
+	DeleteContainerSnapshot(containerName string, name string) (op Operation, err error)
 
 	GetContainerState(name string) (state *api.ContainerState, ETag string, err error)
-	UpdateContainerState(name string, state api.ContainerStatePut, ETag string) (op *Operation, err error)
+	UpdateContainerState(name string, state api.ContainerStatePut, ETag string) (op Operation, err error)
 
 	GetContainerLogfiles(name string) (logfiles []string, err error)
 	GetContainerLogfile(name string, filename string) (content io.ReadCloser, err error)
@@ -109,12 +128,12 @@ type ContainerServer interface {
 	GetEvents() (listener *EventListener, err error)
 
 	// Image functions
-	CreateImage(image api.ImagesPost, args *ImageCreateArgs) (op *Operation, err error)
-	CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (op *RemoteOperation, err error)
+	CreateImage(image api.ImagesPost, args *ImageCreateArgs) (op Operation, err error)
+	CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (op RemoteOperation, err error)
 	UpdateImage(fingerprint string, image api.ImagePut, ETag string) (err error)
-	DeleteImage(fingerprint string) (op *Operation, err error)
-	RefreshImage(fingerprint string) (op *Operation, err error)
-	CreateImageSecret(fingerprint string) (op *Operation, err error)
+	DeleteImage(fingerprint string) (op Operation, err error)
+	RefreshImage(fingerprint string) (op Operation, err error)
+	CreateImageSecret(fingerprint string) (op Operation, err error)
 	CreateImageAlias(alias api.ImageAliasesPost) (err error)
 	UpdateImageAlias(name string, alias api.ImageAliasesEntryPut, ETag string) (err error)
 	RenameImageAlias(name string, alias api.ImageAliasesEntryPost) (err error)
@@ -163,12 +182,12 @@ type ContainerServer interface {
 	UpdateStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePut, ETag string) (err error)
 	DeleteStoragePoolVolume(pool string, volType string, name string) (err error)
 	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (err error)
-	CopyStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (op *RemoteOperation, err error)
-	MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (op *RemoteOperation, err error)
+	CopyStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (op RemoteOperation, err error)
+	MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (op RemoteOperation, err error)
 
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
-	UpdateCluster(cluster api.ClusterPut, ETag string) (op *Operation, err error)
+	UpdateCluster(cluster api.ClusterPut, ETag string) (op Operation, err error)
 	DeleteClusterMember(name string, force bool) (err error)
 	GetClusterMemberNames() (names []string, err error)
 	GetClusterMembers() (members []api.ClusterMember, err error)
@@ -178,7 +197,7 @@ type ContainerServer interface {
 	// Internal functions (for internal use)
 	RawQuery(method string, path string, data interface{}, queryETag string) (resp *api.Response, ETag string, err error)
 	RawWebsocket(path string) (conn *websocket.Conn, err error)
-	RawOperation(method string, path string, data interface{}, queryETag string) (op *Operation, ETag string, err error)
+	RawOperation(method string, path string, data interface{}, queryETag string) (op Operation, ETag string, err error)
 }
 
 // The ConnectionInfo struct represents general information for a connection

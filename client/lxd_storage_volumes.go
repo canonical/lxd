@@ -95,7 +95,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 }
 
 // CopyStoragePoolVolume copies an existing storage volume
-func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (*RemoteOperation, error) {
+func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (RemoteOperation, error) {
 	if !r.HasExtension("storage_api_local_volume_handling") {
 		return nil, fmt.Errorf("The server is missing the required \"storage_api_local_volume_handling\" API extension")
 	}
@@ -120,7 +120,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source ContainerServer,
 		return nil, err
 	}
 
-	rop := RemoteOperation{
+	rop := remoteOperation{
 		targetOp: op,
 		chDone:   make(chan bool),
 	}
@@ -135,7 +135,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source ContainerServer,
 }
 
 // MoveStoragePoolVolume renames or moves an existing storage volume
-func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (*RemoteOperation, error) {
+func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (RemoteOperation, error) {
 	if !r.HasExtension("storage_api_local_volume_handling") {
 		return nil, fmt.Errorf("The server is missing the required \"storage_api_local_volume_handling\" API extension")
 	}
@@ -155,7 +155,7 @@ func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source ContainerServer,
 		return nil, err
 	}
 
-	rop := RemoteOperation{
+	rop := remoteOperation{
 		targetOp: op,
 		chDone:   make(chan bool),
 	}
