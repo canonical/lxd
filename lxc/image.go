@@ -1231,7 +1231,7 @@ func (c *imageCmd) imageShouldShow(filters []string, state *api.Image) bool {
 			}
 
 			for configKey, configValue := range state.Properties {
-				list := listCmd{}
+				list := cmdList{}
 				if list.dotPrefixMatch(key, configKey) {
 					//try to test filter value as a regexp
 					regexpValue := value
