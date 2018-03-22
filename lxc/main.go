@@ -77,6 +77,10 @@ For help with any of those, simply call them with --help.`))
 	execCmd := cmdExec{global: &globalCmd}
 	app.AddCommand(execCmd.Command())
 
+	// info sub-command
+	infoCmd := cmdInfo{global: &globalCmd}
+	app.AddCommand(infoCmd.Command())
+
 	// list sub-command
 	listCmd := cmdList{global: &globalCmd}
 	app.AddCommand(listCmd.Command())
@@ -258,7 +262,6 @@ var commands = map[string]command{
 	"file":      &fileCmd{},
 	"query":     &queryCmd{},
 	"image":     &imageCmd{},
-	"info":      &infoCmd{},
 	"init":      &initCmd{},
 	"launch":    &launchCmd{},
 	"manpage":   &manpageCmd{},
