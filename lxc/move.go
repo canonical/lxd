@@ -144,8 +144,8 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	cpy := copyCmd{}
-	cpy.target = c.flagTarget
+	cpy := cmdCopy{}
+	cpy.flagTarget = c.flagTarget
 
 	stateful := !c.flagStateless
 

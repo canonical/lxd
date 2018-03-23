@@ -4,49 +4,51 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type copyCmd struct {
-	profArgs      profileList
-	confArgs      configList
-	ephem         bool
-	containerOnly bool
-	mode          string
-	stateless     bool
-	target        string
+type cmdCopy struct {
+	global *cmdGlobal
+
+	flagNoProfiles    bool
+	flagProfile       []string
+	flagConfig        []string
+	flagEphemeral     bool
+	flagContainerOnly bool
+	flagMode          string
+	flagStateless     bool
+	flagTarget        string
 }
 
-func (c *copyCmd) showByDefault() bool {
-	return true
+func (c *cmdCopy) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]")
+	cmd.Aliases = []string{"cp"}
+	cmd.Short = i18n.G("Copy containers within or in between LXD instances")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Copy containers within or in between LXD instances`))
+
+	cmd.RunE = c.Run
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new container")+"``")
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new container")+"``")
+	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, i18n.G("Ephemeral container"))
+	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
+	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Copy the container without its snapshots"))
+	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Node name")+"``")
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the container with no profiles applied")
+
+	return cmd
 }
 
-func (c *copyCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>] [--ephemeral|e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--container-only] [--target <node>]
-
-Copy containers within or in between LXD instances.`)
-}
-
-func (c *copyCmd) flags() {
-	gnuflag.Var(&c.confArgs, "config", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.confArgs, "c", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.profArgs, "profile", i18n.G("Profile to apply to the new container"))
-	gnuflag.Var(&c.profArgs, "p", i18n.G("Profile to apply to the new container"))
-	gnuflag.BoolVar(&c.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
-	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
-	gnuflag.StringVar(&c.mode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay."))
-	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Copy the container without its snapshots"))
-	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
-	gnuflag.StringVar(&c.target, "target", "", i18n.G("Node name"))
-}
-
-func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
+func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	destResource string, keepVolatile bool, ephemeral int, stateful bool,
 	containerOnly bool, mode string) error {
 	// Parse the source
@@ -62,7 +64,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	// Target node and destination remote can't be used together.
-	if c.target != "" && sourceRemote != destRemote {
+	if c.flagTarget != "" && sourceRemote != destRemote {
 		return fmt.Errorf(i18n.G("You must use the same source and destination remote when using --target"))
 	}
 
@@ -72,7 +74,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	// Check that a destination container was specified, if --target is passed.
-	if destName == "" && c.target != "" {
+	if destName == "" && c.flagTarget != "" {
 		return fmt.Errorf(i18n.G("You must specify a destination container name when using --target"))
 	}
 
@@ -86,7 +88,7 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 	if err != nil {
 		return err
 	}
-	source = source.UseTarget(c.target)
+	source = source.UseTarget(c.flagTarget)
 
 	// Connect to the destination host
 	var dest lxd.ContainerServer
@@ -99,6 +101,17 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 		if err != nil {
 			return err
 		}
+	}
+
+	// Parse the config overrides
+	configMap := map[string]string{}
+	for _, entry := range c.flagConfig {
+		if !strings.Contains(entry, "=") {
+			return fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
+		}
+
+		fields := strings.SplitN(entry, "=", 2)
+		configMap[fields[0]] = fields[1]
 	}
 
 	var op lxd.RemoteOperation
@@ -118,8 +131,10 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 		}
 
 		// Allow adding additional profiles
-		if c.profArgs != nil {
-			entry.Profiles = append(entry.Profiles, c.profArgs...)
+		if c.flagProfile != nil {
+			entry.Profiles = append(entry.Profiles, c.flagProfile...)
+		} else if c.flagNoProfiles {
+			entry.Profiles = []string{}
 		}
 
 		// Allow setting additional config keys
@@ -170,8 +185,10 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 		}
 
 		// Allow adding additional profiles
-		if c.profArgs != nil {
-			entry.Profiles = append(entry.Profiles, c.profArgs...)
+		if c.flagProfile != nil {
+			entry.Profiles = append(entry.Profiles, c.flagProfile...)
+		} else if c.flagNoProfiles {
+			entry.Profiles = []string{}
 		}
 
 		// Allow setting additional config keys
@@ -246,33 +263,36 @@ func (c *copyCmd) copyContainer(conf *config.Config, sourceResource string,
 	return nil
 }
 
-func (c *copyCmd) run(conf *config.Config, args []string) error {
-	// We at least need a source container name
-	if len(args) < 1 {
-		return errArgs
+func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
 	}
 
 	// For copies, default to non-ephemeral and allow override (move uses -1)
 	ephem := 0
-	if c.ephem {
+	if c.flagEphemeral {
 		ephem = 1
 	}
 
 	// Parse the mode
 	mode := "pull"
-	if c.mode != "" {
-		mode = c.mode
+	if c.flagMode != "" {
+		mode = c.flagMode
 	}
 
-	stateful := !c.stateless
+	stateful := !c.flagStateless
 
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
 		return c.copyContainer(conf, args[0], "", false, ephem,
-			stateful, c.containerOnly, mode)
+			stateful, c.flagContainerOnly, mode)
 	}
 
 	// Normal copy with a pre-determined name
 	return c.copyContainer(conf, args[0], args[1], false, ephem,
-		stateful, c.containerOnly, mode)
+		stateful, c.flagContainerOnly, mode)
 }
