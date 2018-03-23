@@ -517,7 +517,7 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 	return nil
 }
 
-func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost) error {
+func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost) (storage, error) {
 	volumeName := vol.Name
 	volumeDescription := vol.Description
 	volumeTypeName := vol.Type
@@ -528,13 +528,13 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 		// between storage drivers.
 		s, err := storagePoolInit(state, poolName)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		driver := s.GetStorageTypeName()
 		newConfig, err := storageVolumePropertiesTranslate(vol.Config, driver)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		vol.Config = newConfig
@@ -544,25 +544,34 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 	// Create database entry for new storage volume.
 	err := storagePoolVolumeDBCreate(state, poolName, volumeName, volumeDescription, volumeTypeName, volumeConfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Convert the volume type name to our internal integer representation.
 	poolID, err := state.Cluster.StoragePoolGetID(poolName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
 	if err != nil {
 		state.Cluster.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
-		return err
+		return nil, err
 	}
 
 	// Initialize new storage volume on the target storage pool.
 	s, err := storagePoolVolumeInit(state, poolName, volumeName, volumeType)
 	if err != nil {
 		state.Cluster.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
+		return nil, err
+	}
+
+	return s, nil
+}
+
+func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost) error {
+	s, err := storagePoolVolumeDBCreateInternal(state, poolName, vol)
+	if err != nil {
 		return err
 	}
 
@@ -572,7 +581,11 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 		err = s.StoragePoolVolumeCopy(&vol.Source)
 	}
 	if err != nil {
-		state.Cluster.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
+		poolID, _, _ := s.GetContainerPoolInfo()
+		volumeType, err := storagePoolVolumeTypeNameToType(vol.Type)
+		if err == nil {
+			state.Cluster.StoragePoolVolumeDelete(vol.Name, volumeType, poolID)
+		}
 		return err
 	}
 
