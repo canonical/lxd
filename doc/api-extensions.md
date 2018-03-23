@@ -446,3 +446,6 @@ The following existing endpoints have been modified:
 
 ## event_lifecycle
 This adds a new `lifecycle` message type to the events API.
+
+## storage\_api\_remote\_volume\_handling
+This adds the ability to copy and move custom storage volumes between remote.
