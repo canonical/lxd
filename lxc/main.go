@@ -93,6 +93,10 @@ For help with any of those, simply call them with --help.`))
 	queryCmd := cmdQuery{global: &globalCmd}
 	app.AddCommand(queryCmd.Command())
 
+	// rename sub-command
+	renameCmd := cmdRename{global: &globalCmd}
+	app.AddCommand(renameCmd.Command())
+
 	// Deal with --all flag
 	err := app.ParseFlags(os.Args[1:])
 	if err == nil {
@@ -272,7 +276,6 @@ var commands = map[string]command{
 	"init":      &initCmd{},
 	"launch":    &launchCmd{},
 	"manpage":   &manpageCmd{},
-	"rename":    &renameCmd{},
 	"move":      &moveCmd{},
 	"network":   &networkCmd{},
 	"operation": &operationCmd{},

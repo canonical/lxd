@@ -3,31 +3,37 @@ package main
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxc/config"
+	"github.com/spf13/cobra"
+
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type renameCmd struct {
+type cmdRename struct {
+	global *cmdGlobal
 }
 
-func (c *renameCmd) showByDefault() bool {
-	return true
+func (c *cmdRename) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("rename [<remote>:]<container>[/<snapshot>] <container>[/<snapshot>]")
+	cmd.Short = i18n.G("Rename containers and snapshots")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Rename containers and snapshots`))
+	cmd.RunE = c.Run
+
+	return cmd
 }
 
-func (c *renameCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc rename [<remote>:]<container>[/<snapshot>] [<container>[/<snapshot>]]
+func (c *cmdRename) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
 
-Rename a container or snapshot.`)
-}
-
-func (c *renameCmd) flags() {}
-
-func (c *renameCmd) run(conf *config.Config, args []string) error {
-	if len(args) != 2 {
-		return errArgs
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
 	}
 
+	// Check the remotes
 	sourceRemote, _, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
@@ -37,9 +43,12 @@ func (c *renameCmd) run(conf *config.Config, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	if sourceRemote != destRemote {
 		return fmt.Errorf(i18n.G("Can't specify a different remote for rename."))
 	}
-	move := moveCmd{}
-	return move.run(conf, args)
+
+	// Call move
+	move := cmdMove{global: c.global}
+	return move.Run(cmd, args)
 }
