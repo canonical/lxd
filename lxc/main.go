@@ -93,6 +93,10 @@ For help with any of those, simply call them with --help.`))
 	monitorCmd := cmdMonitor{global: &globalCmd}
 	app.AddCommand(monitorCmd.Command())
 
+	// move sub-command
+	moveCmd := cmdMove{global: &globalCmd}
+	app.AddCommand(moveCmd.Command())
+
 	// query sub-command
 	queryCmd := cmdQuery{global: &globalCmd}
 	app.AddCommand(queryCmd.Command())
@@ -279,7 +283,6 @@ var commands = map[string]command{
 	"init":      &initCmd{},
 	"launch":    &launchCmd{},
 	"manpage":   &manpageCmd{},
-	"move":      &moveCmd{},
 	"network":   &networkCmd{},
 	"operation": &operationCmd{},
 	"pause": &actionCmd{
@@ -323,7 +326,6 @@ var defaultAliases = map[string]string{
 	"shell": "exec @ARGS@ -- su -l",
 
 	"cp": "copy",
-	"mv": "move",
 
 	"image cp": "image copy",
 	"image ls": "image list",
