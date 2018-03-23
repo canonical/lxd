@@ -25,5 +25,5 @@ type EventLogging struct {
 type EventLifecycle struct {
 	Action  string                 `yaml:"action" json:"action"`
 	Source  string                 `yaml:"source" json:"source"`
-	Context map[string]interface{} `yaml:"context" json:"context"`
+	Context map[string]interface{} `yaml:"context,omitempty" json:"context,omitempty"`
 }
