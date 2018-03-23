@@ -443,3 +443,6 @@ The following existing endpoints have been modified:
  * `DELETE /1.0/storage-pool/<pool>/volumes/<type>/<name>` accepts a new target query parameter
  * `POST /1.0/networks` accepts a new target query parameter
  * `GET /1.0/networks/<name>` accepts a new target query parameter
+
+## event_lifecycle
+This adds a new `lifecycle` message type to the events API.

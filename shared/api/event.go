@@ -18,3 +18,12 @@ type EventLogging struct {
 	Level   string            `yaml:"level" json:"level"`
 	Context map[string]string `yaml:"context" json:"context"`
 }
+
+// EventLifecycle represets a lifecycle type event entry
+//
+// API extension: event_lifecycle
+type EventLifecycle struct {
+	Action  string                 `yaml:"action" json:"action"`
+	Source  string                 `yaml:"source" json:"source"`
+	Context map[string]interface{} `yaml:"context,omitempty" json:"context,omitempty"`
+}
