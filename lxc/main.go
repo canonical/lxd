@@ -97,6 +97,10 @@ For help with any of those, simply call them with --help.`))
 	moveCmd := cmdMove{global: &globalCmd}
 	app.AddCommand(moveCmd.Command())
 
+	// publish sub-command
+	publishCmd := cmdPublish{global: &globalCmd}
+	app.AddCommand(publishCmd.Command())
+
 	// query sub-command
 	queryCmd := cmdQuery{global: &globalCmd}
 	app.AddCommand(queryCmd.Command())
@@ -299,7 +303,6 @@ var commands = map[string]command{
 		name:        "pause",
 	},
 	"profile": &profileCmd{},
-	"publish": &publishCmd{},
 	"remote":  &remoteCmd{},
 	"restart": &actionCmd{
 		action:      shared.Restart,
