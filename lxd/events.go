@@ -44,6 +44,15 @@ func (h eventsHandler) Log(r *log.Record) error {
 	return nil
 }
 
+func eventSendLifecycle(action, source string,
+	context map[string]interface{}) error {
+	eventSend("lifecycle", api.EventLifecycle{
+		Action:  action,
+		Source:  source,
+		Context: context})
+	return nil
+}
+
 var eventsLock sync.Mutex
 var eventListeners map[string]*eventListener = make(map[string]*eventListener)
 
@@ -76,7 +85,7 @@ func (r *eventsServe) String() string {
 func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
-		typeStr = "logging,operation"
+		typeStr = "logging,operation,lifecycle"
 	}
 
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)

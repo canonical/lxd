@@ -1392,6 +1392,7 @@ The notification types are:
 
  * operation (notification about creation, updates and termination of all background operations)
  * logging (every log entry from the server)
+ * lifecycle (container lifecycle events)
 
 This never returns. Each notification is sent as a separate JSON dict:
 
@@ -1628,7 +1629,7 @@ GET the image as a guest, passing the secret token.
  * Authentication: trusted
  * Operation: async
  * Return: Background operation or standard error
- 
+
 This creates an operation to refresh the specified image from its origin.
 
 ## `/1.0/images/<fingerprint>/secret`
