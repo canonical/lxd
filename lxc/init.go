@@ -5,161 +5,63 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type profileList []string
+type cmdInit struct {
+	global *cmdGlobal
 
-var configMap map[string]string
-
-func (f *profileList) String() string {
-	return fmt.Sprint(*f)
+	flagConfig     []string
+	flagEphemeral  bool
+	flagNetwork    string
+	flagProfile    []string
+	flagStorage    string
+	flagTarget     string
+	flagType       string
+	flagNoProfiles bool
 }
 
-type configList []string
+func (c *cmdInit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("init [<remote>:]<image> [<remote>:][<name>]")
+	cmd.Short = i18n.G("Create containers from images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Create containers from images`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc init ubuntu:16.04 u1`))
+	cmd.Hidden = true
 
-func (f *configList) String() string {
-	return fmt.Sprint(configMap)
+	cmd.RunE = c.Run
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new container")+"``")
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new container")+"``")
+	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, i18n.G("Ephemeral container"))
+	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", i18n.G("Network name")+"``")
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
+	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", i18n.G("Instance type")+"``")
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Node name")+"``")
+
+	return cmd
 }
 
-func (f *configList) Set(value string) error {
-	if value == "" {
-		return fmt.Errorf(i18n.G("Invalid configuration key"))
+func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
 	}
 
-	items := strings.SplitN(value, "=", 2)
-	if len(items) < 2 {
-		return fmt.Errorf(i18n.G("Invalid configuration key"))
-	}
-
-	if configMap == nil {
-		configMap = map[string]string{}
-	}
-
-	configMap[items[0]] = items[1]
-
-	return nil
-}
-
-func (f *profileList) Set(value string) error {
-	if value == "" {
-		initRequestedEmptyProfiles = true
-		return nil
-	}
-	if f == nil {
-		*f = make(profileList, 1)
-	} else {
-		*f = append(*f, value)
-	}
-	return nil
-}
-
-var initRequestedEmptyProfiles bool
-
-type initCmd struct {
-	profArgs     profileList
-	confArgs     configList
-	ephem        bool
-	network      string
-	storagePool  string
-	instanceType string
-	target       string
-}
-
-func (c *initCmd) showByDefault() bool {
-	return false
-}
-
-func (c *initCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc init [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>] [--type|-t <instance type>] [--target <node>]
-
-Create containers from images.
-
-Not specifying -p will result in the default profile.
-Specifying "-p" with no argument will result in no profile.
-
-Examples:
-    lxc init ubuntu:16.04 u1`)
-}
-
-func (c *initCmd) isEphemeral(s string) bool {
-	switch s {
-	case "-e":
-		return true
-	case "--ephemeral":
-		return true
-	}
-	return false
-}
-
-func (c *initCmd) isProfile(s string) bool {
-	switch s {
-	case "-p":
-		return true
-	case "--profile":
-		return true
-	}
-	return false
-}
-
-func (c *initCmd) massageArgs() {
-	l := len(os.Args)
-	if l < 2 {
-		return
-	}
-
-	if c.isProfile(os.Args[l-1]) {
-		initRequestedEmptyProfiles = true
-		os.Args = os.Args[0 : l-1]
-		return
-	}
-
-	if l < 3 {
-		return
-	}
-
-	/* catch "lxc init ubuntu -p -e */
-	if c.isEphemeral(os.Args[l-1]) && c.isProfile(os.Args[l-2]) {
-		initRequestedEmptyProfiles = true
-		newargs := os.Args[0 : l-2]
-		newargs = append(newargs, os.Args[l-1])
-		os.Args = newargs
-		return
-	}
-}
-
-func (c *initCmd) flags() {
-	c.massageArgs()
-	gnuflag.Var(&c.confArgs, "config", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.confArgs, "c", i18n.G("Config key/value to apply to the new container"))
-	gnuflag.Var(&c.profArgs, "profile", i18n.G("Profile to apply to the new container"))
-	gnuflag.Var(&c.profArgs, "p", i18n.G("Profile to apply to the new container"))
-	gnuflag.BoolVar(&c.ephem, "ephemeral", false, i18n.G("Ephemeral container"))
-	gnuflag.BoolVar(&c.ephem, "e", false, i18n.G("Ephemeral container"))
-	gnuflag.StringVar(&c.network, "network", "", i18n.G("Network name"))
-	gnuflag.StringVar(&c.network, "n", "", i18n.G("Network name"))
-	gnuflag.StringVar(&c.storagePool, "storage", "", i18n.G("Storage pool name"))
-	gnuflag.StringVar(&c.storagePool, "s", "", i18n.G("Storage pool name"))
-	gnuflag.StringVar(&c.instanceType, "t", "", i18n.G("Instance type"))
-	gnuflag.StringVar(&c.target, "target", "", i18n.G("Node name"))
-}
-
-func (c *initCmd) run(conf *config.Config, args []string) error {
-	_, _, err := c.create(conf, args)
+	_, _, err = c.create(c.global.conf, args)
 	return err
 }
 
-func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServer, string, error) {
-	if len(args) > 2 || len(args) < 1 {
-		return nil, "", errArgs
-	}
-
+func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServer, string, error) {
 	iremote, image, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return nil, "", err
@@ -183,14 +85,10 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 	if err != nil {
 		return nil, "", err
 	}
-	d = d.UseTarget(c.target)
+	d = d.UseTarget(c.flagTarget)
 
-	/*
-	 * initRequestedEmptyProfiles means user requested empty
-	 * !initRequestedEmptyProfiles but len(profArgs) == 0 means use profile default
-	 */
 	profiles := []string{}
-	for _, p := range c.profArgs {
+	for _, p := range c.flagProfile {
 		profiles = append(profiles, p)
 	}
 
@@ -201,22 +99,32 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 	}
 
 	devicesMap := map[string]map[string]string{}
-	if c.network != "" {
-		network, _, err := d.GetNetwork(c.network)
+	if c.flagNetwork != "" {
+		network, _, err := d.GetNetwork(c.flagNetwork)
 		if err != nil {
 			return nil, "", err
 		}
 
 		if network.Type == "bridge" {
-			devicesMap[c.network] = map[string]string{"type": "nic", "nictype": "bridged", "parent": c.network}
+			devicesMap[c.flagNetwork] = map[string]string{"type": "nic", "nictype": "bridged", "parent": c.flagNetwork}
 		} else {
-			devicesMap[c.network] = map[string]string{"type": "nic", "nictype": "macvlan", "parent": c.network}
+			devicesMap[c.flagNetwork] = map[string]string{"type": "nic", "nictype": "macvlan", "parent": c.flagNetwork}
 		}
 	}
 
+	configMap := map[string]string{}
+	for _, entry := range c.flagConfig {
+		if !strings.Contains(entry, "=") {
+			return nil, "", fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
+		}
+
+		fields := strings.SplitN(entry, "=", 2)
+		configMap[fields[0]] = fields[1]
+	}
+
 	// Check if the specified storage pool exists.
-	if c.storagePool != "" {
-		_, _, err := d.GetStoragePool(c.storagePool)
+	if c.flagStorage != "" {
+		_, _, err := d.GetStoragePool(c.flagStorage)
 		if err != nil {
 			return nil, "", err
 		}
@@ -224,7 +132,7 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 		devicesMap["root"] = map[string]string{
 			"type": "disk",
 			"path": "/",
-			"pool": c.storagePool,
+			"pool": c.flagStorage,
 		}
 	}
 
@@ -251,16 +159,16 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 	// Setup container creation request
 	req := api.ContainersPost{
 		Name:         name,
-		InstanceType: c.instanceType,
+		InstanceType: c.flagType,
 	}
 	req.Config = configMap
 	req.Devices = devicesMap
-	if !initRequestedEmptyProfiles && len(profiles) == 0 {
+	if !c.flagNoProfiles && len(profiles) == 0 {
 		req.Profiles = nil
 	} else {
 		req.Profiles = profiles
 	}
-	req.Ephemeral = c.ephem
+	req.Ephemeral = c.flagEphemeral
 
 	// Optimisation for simplestreams
 	if conf.Remotes[iremote].Protocol == "simplestreams" {
@@ -327,7 +235,7 @@ func (c *initCmd) create(conf *config.Config, args []string) (lxd.ContainerServe
 	return d, name, nil
 }
 
-func (c *initCmd) guessImage(conf *config.Config, d lxd.ContainerServer, remote string, iremote string, image string) (string, string) {
+func (c *cmdInit) guessImage(conf *config.Config, d lxd.ContainerServer, remote string, iremote string, image string) (string, string) {
 	if remote != iremote {
 		return iremote, image
 	}
@@ -357,7 +265,7 @@ func (c *initCmd) guessImage(conf *config.Config, d lxd.ContainerServer, remote 
 	return fields[0], fields[1]
 }
 
-func (c *initCmd) checkNetwork(d lxd.ContainerServer, name string) {
+func (c *cmdInit) checkNetwork(d lxd.ContainerServer, name string) {
 	ct, _, err := d.GetContainer(name)
 	if err != nil {
 		return
