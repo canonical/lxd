@@ -6,50 +6,51 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type deleteCmd struct {
-	force       bool
-	interactive bool
+type cmdDelete struct {
+	global *cmdGlobal
+
+	flagForce       bool
+	flagInteractive bool
 }
 
-func (c *deleteCmd) showByDefault() bool {
-	return true
+func (c *cmdDelete) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("delete [<remote>:]<container>[/<snapshot>] [[<remote>:]<container>[/<snapshot>]...]")
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete containers and snapshots")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Delete containers and snapshots`))
+
+	cmd.RunE = c.Run
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the removal of running containers"))
+	cmd.Flags().BoolVarP(&c.flagInteractive, "interactive", "i", false, i18n.G("Require user confirmation"))
+
+	return cmd
 }
 
-func (c *deleteCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc delete [<remote>:]<container>[/<snapshot>] [[<remote>:]<container>[/<snapshot>]...]
-
-Delete containers and snapshots.`)
-}
-
-func (c *deleteCmd) flags() {
-	gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the removal of running containers"))
-	gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the removal of running containers"))
-	gnuflag.BoolVar(&c.interactive, "i", false, i18n.G("Require user confirmation"))
-	gnuflag.BoolVar(&c.interactive, "interactive", false, i18n.G("Require user confirmation"))
-}
-
-func (c *deleteCmd) promptDelete(name string) error {
+func (c *cmdDelete) promptDelete(name string) error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf(i18n.G("Remove %s (yes/no): "), name)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSuffix(input, "\n")
+
 	if !shared.StringInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
-		return fmt.Errorf(i18n.G("User aborted delete operation."))
+		return fmt.Errorf(i18n.G("User aborted delete operation"))
 	}
 
 	return nil
 }
 
-func (c *deleteCmd) doDelete(d lxd.ContainerServer, name string) error {
+func (c *cmdDelete) doDelete(d lxd.ContainerServer, name string) error {
 	var op lxd.Operation
 	var err error
 
@@ -68,40 +69,38 @@ func (c *deleteCmd) doDelete(d lxd.ContainerServer, name string) error {
 	return op.Wait()
 }
 
-func (c *deleteCmd) run(conf *config.Config, args []string) error {
-	if len(args) == 0 {
-		return errArgs
+func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
+	if exit {
+		return err
 	}
 
-	for _, nameArg := range args {
-		remote, name, err := conf.ParseRemote(nameArg)
-		if err != nil {
-			return err
-		}
+	// Parse remote
+	resources, err := c.global.ParseServers(args...)
+	if err != nil {
+		return err
+	}
 
-		d, err := conf.GetContainerServer(remote)
-		if err != nil {
-			return err
-		}
-
-		if c.interactive {
-			err := c.promptDelete(name)
+	for _, resource := range resources {
+		if c.flagInteractive {
+			err := c.promptDelete(resource.name)
 			if err != nil {
 				return err
 			}
 		}
 
-		if shared.IsSnapshot(name) {
-			return c.doDelete(d, name)
+		if shared.IsSnapshot(resource.name) {
+			return c.doDelete(resource.server, resource.name)
 		}
 
-		ct, _, err := d.GetContainer(name)
+		ct, _, err := resource.server.GetContainer(resource.name)
 		if err != nil {
 			return err
 		}
 
 		if ct.StatusCode != 0 && ct.StatusCode != api.Stopped {
-			if !c.force {
+			if !c.flagForce {
 				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force."))
 			}
 
@@ -111,7 +110,7 @@ func (c *deleteCmd) run(conf *config.Config, args []string) error {
 				Force:   true,
 			}
 
-			op, err := d.UpdateContainerState(name, req, "")
+			op, err := resource.server.UpdateContainerState(resource.name, req, "")
 			if err != nil {
 				return err
 			}
@@ -126,7 +125,7 @@ func (c *deleteCmd) run(conf *config.Config, args []string) error {
 			}
 		}
 
-		if err := c.doDelete(d, name); err != nil {
+		if err := c.doDelete(resource.server, resource.name); err != nil {
 			return err
 		}
 	}
