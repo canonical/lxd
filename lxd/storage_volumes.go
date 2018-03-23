@@ -2,17 +2,23 @@ package main
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
+
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // /1.0/storage-pools/{name}/volumes
@@ -177,6 +183,8 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 		return doVolumeCreateOrCopy(d, poolName, &req)
 	case "copy":
 		return doVolumeCreateOrCopy(d, poolName, &req)
+	case "migration":
+		return doVolumeMigration(d, poolName, &req)
 	default:
 		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
 	}
@@ -207,6 +215,86 @@ func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPos
 	op, err := operationCreate(d.cluster, operationClassTask, "Copying storage volume", nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
+	}
+
+	return OperationResponse(op)
+}
+
+func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) Response {
+	// Validate migration mode
+	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
+		return NotImplemented
+	}
+
+	storage, err := storagePoolVolumeDBCreateInternal(d.State(), poolName, req)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	// create new certificate
+	var cert *x509.Certificate
+	if req.Source.Certificate != "" {
+		certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
+		if certBlock == nil {
+			return InternalError(fmt.Errorf("Invalid certificate"))
+		}
+
+		cert, err = x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return InternalError(err)
+		}
+	}
+
+	config, err := shared.GetTLSConfig("", "", "", cert)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	push := false
+	if req.Source.Mode == "push" {
+		push = true
+	}
+
+	migrationArgs := MigrationSinkArgs{
+		Url: req.Source.Operation,
+		Dialer: websocket.Dialer{
+			TLSClientConfig: config,
+			NetDial:         shared.RFC3493Dialer},
+		Secrets: req.Source.Websockets,
+		Push:    push,
+		Storage: storage,
+	}
+
+	sink, err := NewStorageMigrationSink(&migrationArgs)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	resources := map[string][]string{}
+	resources["storage_volumes"] = []string{fmt.Sprintf("%s/volumes/custom/%s", poolName, req.Name)}
+
+	run := func(op *operation) error {
+		// And finally run the migration.
+		err = sink.DoStorage(op)
+		if err != nil {
+			logger.Error("Error during migration sink", log.Ctx{"err": err})
+			return fmt.Errorf("Error transferring storage volume: %s", err)
+		}
+
+		return nil
+	}
+
+	var op *operation
+	if push {
+		op, err = operationCreate(d.cluster, operationClassWebsocket, "Creating storage volume", resources, sink.Metadata(), run, nil, sink.Connect)
+		if err != nil {
+			return InternalError(err)
+		}
+	} else {
+		op, err = operationCreate(d.cluster, operationClassTask, "Copying storage volume", resources, nil, run, nil, nil)
+		if err != nil {
+			return InternalError(err)
+		}
 	}
 
 	return OperationResponse(op)
@@ -288,6 +376,45 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
+	s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, storagePoolVolumeTypeCustom)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	// This is a migration request so send back requested secrets
+	if req.Migration {
+		ws, err := NewStorageMigrationSource(s)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		resources := map[string][]string{}
+		resources["storage_volumes"] = []string{fmt.Sprintf("%s/volumes/custom/%s", poolName, volumeName)}
+
+		if req.Target != nil {
+			// Push mode
+			err := ws.ConnectStorageTarget(*req.Target)
+			if err != nil {
+				return InternalError(err)
+			}
+
+			op, err := operationCreate(d.cluster, operationClassTask, "Migrating storage volume", resources, nil, ws.DoStorage, nil, nil)
+			if err != nil {
+				return InternalError(err)
+			}
+
+			return OperationResponse(op)
+		}
+
+		// Pull mode
+		op, err := operationCreate(d.cluster, operationClassWebsocket, "Migrating storage volume", resources, ws.Metadata(), ws.DoStorage, nil, ws.Connect)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		return OperationResponse(op)
+	}
+
 	// Check that the name isn't already in use.
 	_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(req.Name,
 		storagePoolVolumeTypeCustom, poolID)
@@ -296,11 +423,6 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 	}
 
 	doWork := func() error {
-		s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, storagePoolVolumeTypeCustom)
-		if err != nil {
-			return err
-		}
-
 		ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, volumeName, storagePoolVolumeTypeNameCustom, true)
 		if err != nil {
 			return err

@@ -38,6 +38,9 @@ type migrationFields struct {
 	live          bool
 	containerOnly bool
 	container     container
+
+	// storage specific fields
+	storage storage
 }
 
 func (c *migrationFields) send(m proto.Message) error {
@@ -258,6 +261,9 @@ type MigrationSinkArgs struct {
 	Live          bool
 	Container     container
 	ContainerOnly bool
+
+	// storage specific fields
+	Storage storage
 }
 
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {

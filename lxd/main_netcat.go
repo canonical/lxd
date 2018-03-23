@@ -60,21 +60,24 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 		os.Remove(logPath)
 	}
 
-	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
-	if err != nil {
-		return err
+	logFile, logErr := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
+	if logErr == nil {
+		defer logFile.Close()
 	}
-	defer logFile.Close()
 
 	uAddr, err := net.ResolveUnixAddr("unix", args[0])
 	if err != nil {
-		logFile.WriteString(fmt.Sprintf("Could not resolve unix domain socket \"%s\": %s\n", args[0], err))
+		if logErr == nil {
+			logFile.WriteString(fmt.Sprintf("Could not resolve unix domain socket \"%s\": %s\n", args[0], err))
+		}
 		return err
 	}
 
 	conn, err := net.DialUnix("unix", nil, uAddr)
 	if err != nil {
-		logFile.WriteString(fmt.Sprintf("Could not dial unix domain socket \"%s\": %s\n", args[0], err))
+		if logErr == nil {
+			logFile.WriteString(fmt.Sprintf("Could not dial unix domain socket \"%s\": %s\n", args[0], err))
+		}
 		return err
 	}
 
@@ -83,7 +86,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: os.Stdout}, eagain.Reader{Reader: conn})
-		if err != nil {
+		if err != nil && logErr == nil {
 			logFile.WriteString(fmt.Sprintf("Error while copying from stdout to unix domain socket \"%s\": %s\n", args[0], err))
 		}
 		conn.Close()
@@ -92,7 +95,7 @@ func (c *cmdNetcat) Run(cmd *cobra.Command, args []string) error {
 
 	go func() {
 		_, err := io.Copy(eagain.Writer{Writer: conn}, eagain.Reader{Reader: os.Stdin})
-		if err != nil {
+		if err != nil && logErr == nil {
 			logFile.WriteString(fmt.Sprintf("Error while copying from unix domain socket \"%s\" to stdin: %s\n", args[0], err))
 		}
 	}()
