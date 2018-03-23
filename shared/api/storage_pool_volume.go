@@ -21,6 +21,21 @@ type StorageVolumePost struct {
 
 	// API extension: storage_api_local_volume_handling
 	Pool string `json:"pool,omitempty" yaml:"pool,omitempty"`
+
+	// API extension: storage_api_remote_volume_handling
+	Migration bool `json:"migration" yaml:"migration"`
+
+	// API extension: storage_api_remote_volume_handling
+	Target *StorageVolumePostTarget `json:"target" yaml:"target"`
+}
+
+// StorageVolumePostTarget represents the migration target host and operation
+//
+// API extension: storage_api_remote_volume_handling
+type StorageVolumePostTarget struct {
+	Certificate string            `json:"certificate" yaml:"certificate"`
+	Operation   string            `json:"operation,omitempty" yaml:"operation,omitempty"`
+	Websockets  map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
 // StorageVolume represents the fields of a LXD storage volume.
@@ -53,6 +68,12 @@ type StorageVolumeSource struct {
 	Name string `json:"name" yaml:"name"`
 	Type string `json:"type" yaml:"type"`
 	Pool string `json:"pool" yaml:"pool"`
+
+	// API extension: storage_api_remote_volume_handling
+	Certificate string            `json:"certificate" yaml:"certificate"`
+	Mode        string            `json:"mode,omitempty" yaml:"mode,omitempty"`
+	Operation   string            `json:"operation,omitempty" yaml:"operation,omitempty"`
+	Websockets  map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
 // Writable converts a full StorageVolume struct into a StorageVolumePut struct
