@@ -678,7 +678,10 @@ func (c *imageCmd) run(conf *config.Config, args []string) error {
 			imageFile = args[1]
 			properties = properties[1:]
 		}
-		imageFile = shared.HostPath(filepath.Clean(imageFile))
+
+		if shared.PathExists(shared.HostPath(filepath.Clean(imageFile))) {
+			imageFile = shared.HostPath(filepath.Clean(imageFile))
+		}
 
 		d, err := conf.GetContainerServer(remote)
 		if err != nil {
