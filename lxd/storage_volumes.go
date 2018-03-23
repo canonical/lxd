@@ -162,10 +162,6 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("you must provide a storage volume type of the storage volume"))
 	}
 
-	// Check if the user gave us a valid pool name in which the new storage
-	// volume is supposed to be created.
-	poolName := mux.Vars(r)["name"]
-
 	// We currently only allow to create storage volumes of type
 	// storagePoolVolumeTypeCustom. So check, that nothing else was
 	// requested.
@@ -174,8 +170,21 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 			`storage volumes of type %s`, req.Type))
 	}
 
+	poolName := mux.Vars(r)["name"]
+
+	switch req.Source.Type {
+	case "":
+		return doVolumeCreateOrCopy(d, poolName, &req)
+	case "copy":
+		return doVolumeCreateOrCopy(d, poolName, &req)
+	default:
+		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
+	}
+}
+
+func doVolumeCreateOrCopy(d *Daemon, poolName string, req *api.StorageVolumesPost) Response {
 	doWork := func() error {
-		err = storagePoolVolumeCreateInternal(d.State(), poolName, &req)
+		err := storagePoolVolumeCreateInternal(d.State(), poolName, req)
 		if err != nil {
 			return err
 		}
@@ -183,7 +192,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Source.Name == "" {
-		err = doWork()
+		err := doWork()
 		if err != nil {
 			return SmartError(err)
 		}
