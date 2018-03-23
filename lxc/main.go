@@ -85,6 +85,10 @@ For help with any of those, simply call them with --help.`))
 	listCmd := cmdList{global: &globalCmd}
 	app.AddCommand(listCmd.Command())
 
+	// monitor sub-command
+	monitorCmd := cmdMonitor{global: &globalCmd}
+	app.AddCommand(monitorCmd.Command())
+
 	// query sub-command
 	queryCmd := cmdQuery{global: &globalCmd}
 	app.AddCommand(queryCmd.Command())
@@ -268,7 +272,6 @@ var commands = map[string]command{
 	"init":      &initCmd{},
 	"launch":    &launchCmd{},
 	"manpage":   &manpageCmd{},
-	"monitor":   &monitorCmd{},
 	"rename":    &renameCmd{},
 	"move":      &moveCmd{},
 	"network":   &networkCmd{},
