@@ -109,6 +109,10 @@ For help with any of those, simply call them with --help.`))
 	restoreCmd := cmdRestore{global: &globalCmd}
 	app.AddCommand(restoreCmd.Command())
 
+	// snapshot sub-command
+	snapshotCmd := cmdSnapshot{global: &globalCmd}
+	app.AddCommand(snapshotCmd.Command())
+
 	// Deal with --all flag
 	err := app.ParseFlags(os.Args[1:])
 	if err == nil {
@@ -305,7 +309,6 @@ var commands = map[string]command{
 		name:        "restart",
 		timeout:     -1,
 	},
-	"snapshot": &snapshotCmd{},
 	"start": &actionCmd{
 		action:      shared.Start,
 		description: i18n.G("Start containers."),
