@@ -109,7 +109,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source ContainerServer,
 		Type: volume.Type,
 		Source: api.StorageVolumeSource{
 			Name: volume.Name,
-			Type: volume.Type,
+			Type: "copy",
 			Pool: sourcePool,
 		},
 	}

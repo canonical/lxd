@@ -291,7 +291,7 @@ func (c *storageCmd) run(conf *config.Config, args []string) error {
 			}
 			src := sub
 			dst := args[3]
-			return c.doStoragePoolVolumeCopy(client, src, dst, false)
+			return c.doStoragePoolVolumeCopy(client, remote, conf, src, dst, false)
 		case "move":
 			// only support non remote for now
 			if len(args) != 4 {
@@ -299,7 +299,7 @@ func (c *storageCmd) run(conf *config.Config, args []string) error {
 			}
 			src := sub
 			dst := args[3]
-			return c.doStoragePoolVolumeCopy(client, src, dst, true)
+			return c.doStoragePoolVolumeCopy(client, remote, conf, src, dst, true)
 		default:
 			return errArgs
 		}
@@ -1104,18 +1104,42 @@ func (c *storageCmd) doStoragePoolVolumeShow(client lxd.ContainerServer, pool st
 	return nil
 }
 
-func (c *storageCmd) doStoragePoolVolumeCopy(client lxd.ContainerServer, src string, dst string, move bool) error {
-	// validate both src and dst string
-	dstVolName, dstVolPool := c.parseVolume("", dst)
+func (c *storageCmd) doStoragePoolVolumeCopy(source lxd.ContainerServer, sourceRemote string, conf *config.Config, src string, dst string, move bool) error {
+	// get source pool and volume name
 	srcVolName, srcVolPool := c.parseVolume("", src)
-	if dstVolPool == "" || srcVolPool == "" {
-		return fmt.Errorf("No storage pool for source or target volume specified")
+	if srcVolPool == "" {
+		return fmt.Errorf("No storage pool for source volume specified")
 	}
 
-	// Check if the requested storage volume actually exists
-	srcVol, _, err := client.GetStoragePoolVolume(srcVolPool, "custom", srcVolName)
+	// check if requested storage volume exists
+	srcVol, _, err := source.GetStoragePoolVolume(srcVolPool, "custom", srcVolName)
 	if err != nil {
 		return err
+	}
+
+	// parse destination
+	destRemote, destName, err := conf.ParseRemote(dst)
+	if err != nil {
+		return err
+	}
+
+	// get destination pool and volume name
+	dstVolName, dstVolPool := c.parseVolume("", destName)
+	if dstVolPool == "" {
+		return fmt.Errorf("No storage pool for target volume specified")
+	}
+
+	// connect to the destination host
+	var dest lxd.ContainerServer
+	if sourceRemote == destRemote {
+		// source and destination are the same
+		dest = source
+	} else {
+		// destination is different, connect to it
+		dest, err = conf.GetContainerServer(destRemote)
+		if err != nil {
+			return err
+		}
 	}
 
 	var op lxd.RemoteOperation
@@ -1124,13 +1148,13 @@ func (c *storageCmd) doStoragePoolVolumeCopy(client lxd.ContainerServer, src str
 	if move {
 		args := &lxd.StoragePoolVolumeMoveArgs{}
 		args.Name = dstVolName
-		op, err = client.MoveStoragePoolVolume(dstVolPool, client, srcVolPool, *srcVol, args)
+		op, err = dest.MoveStoragePoolVolume(dstVolPool, source, srcVolPool, *srcVol, args)
 		opMsg = i18n.G("Moving the storage volume: %s")
 		finalMsg = i18n.G("Storage volume moved successfully!")
 	} else {
 		args := &lxd.StoragePoolVolumeCopyArgs{}
 		args.Name = dstVolName
-		op, err = client.CopyStoragePoolVolume(dstVolPool, client, srcVolPool, *srcVol, args)
+		op, err = dest.CopyStoragePoolVolume(dstVolPool, source, srcVolPool, *srcVol, args)
 		opMsg = i18n.G("Copying the storage volume: %s")
 		finalMsg = i18n.G("Storage volume copied successfully!")
 	}
