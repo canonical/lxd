@@ -73,6 +73,10 @@ For help with any of those, simply call them with --help.`))
 	consoleCmd := cmdConsole{global: &globalCmd}
 	app.AddCommand(consoleCmd.Command())
 
+	// delete sub-command
+	deleteCmd := cmdDelete{global: &globalCmd}
+	app.AddCommand(deleteCmd.Command())
+
 	// exec sub-command
 	execCmd := cmdExec{global: &globalCmd}
 	app.AddCommand(execCmd.Command())
@@ -270,7 +274,6 @@ var commands = map[string]command{
 	"cluster":   &clusterCmd{},
 	"config":    &configCmd{},
 	"copy":      &copyCmd{},
-	"delete":    &deleteCmd{},
 	"file":      &fileCmd{},
 	"image":     &imageCmd{},
 	"init":      &initCmd{},
@@ -321,7 +324,6 @@ var defaultAliases = map[string]string{
 
 	"cp": "copy",
 	"mv": "move",
-	"rm": "delete",
 
 	"image cp": "image copy",
 	"image ls": "image list",

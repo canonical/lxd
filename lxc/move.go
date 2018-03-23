@@ -142,9 +142,9 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 		return err
 	}
 
-	del := deleteCmd{}
-	del.force = true
-	return del.run(conf, args[:1])
+	del := cmdDelete{}
+	del.flagForce = true
+	return del.Run(nil, args[:1])
 }
 
 // Helper to check if the container to be moved is backed by a ceph storage
