@@ -73,6 +73,10 @@ For help with any of those, simply call them with --help.`))
 	consoleCmd := cmdConsole{global: &globalCmd}
 	app.AddCommand(consoleCmd.Command())
 
+	// copy sub-command
+	copyCmd := cmdCopy{global: &globalCmd}
+	app.AddCommand(copyCmd.Command())
+
 	// delete sub-command
 	deleteCmd := cmdDelete{global: &globalCmd}
 	app.AddCommand(deleteCmd.Command())
@@ -289,7 +293,6 @@ var commands = map[string]command{
 	"alias":     &aliasCmd{},
 	"cluster":   &clusterCmd{},
 	"config":    &configCmd{},
-	"copy":      &copyCmd{},
 	"file":      &fileCmd{},
 	"image":     &imageCmd{},
 	"init":      &initCmd{},
@@ -333,8 +336,6 @@ var commands = map[string]command{
 // aliases are checked only if no user-defined alias was found.
 var defaultAliases = map[string]string{
 	"shell": "exec @ARGS@ -- su -l",
-
-	"cp": "copy",
 
 	"image cp": "image copy",
 	"image ls": "image list",
