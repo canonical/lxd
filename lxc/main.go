@@ -89,6 +89,14 @@ For help with any of those, simply call them with --help.`))
 	infoCmd := cmdInfo{global: &globalCmd}
 	app.AddCommand(infoCmd.Command())
 
+	// init sub-command
+	initCmd := cmdInit{global: &globalCmd}
+	app.AddCommand(initCmd.Command())
+
+	// launch sub-command
+	launchCmd := cmdLaunch{global: &globalCmd, init: &initCmd}
+	app.AddCommand(launchCmd.Command())
+
 	// list sub-command
 	listCmd := cmdList{global: &globalCmd}
 	app.AddCommand(listCmd.Command())
@@ -295,8 +303,6 @@ var commands = map[string]command{
 	"config":    &configCmd{},
 	"file":      &fileCmd{},
 	"image":     &imageCmd{},
-	"init":      &initCmd{},
-	"launch":    &launchCmd{},
 	"manpage":   &manpageCmd{},
 	"network":   &networkCmd{},
 	"operation": &operationCmd{},
