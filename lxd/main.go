@@ -43,7 +43,8 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 		syslog = "lxd"
 	}
 
-	log, err := logging.GetLogger(syslog, c.flagLogFile, c.flagLogVerbose, c.flagLogDebug, nil)
+	handler := eventsHandler{}
+	log, err := logging.GetLogger(syslog, c.flagLogFile, c.flagLogVerbose, c.flagLogDebug, handler)
 	if err != nil {
 		return err
 	}
