@@ -105,6 +105,10 @@ For help with any of those, simply call them with --help.`))
 	renameCmd := cmdRename{global: &globalCmd}
 	app.AddCommand(renameCmd.Command())
 
+	// restore sub-command
+	restoreCmd := cmdRestore{global: &globalCmd}
+	app.AddCommand(restoreCmd.Command())
+
 	// Deal with --all flag
 	err := app.ParseFlags(os.Args[1:])
 	if err == nil {
@@ -301,7 +305,6 @@ var commands = map[string]command{
 		name:        "restart",
 		timeout:     -1,
 	},
-	"restore":  &restoreCmd{},
 	"snapshot": &snapshotCmd{},
 	"start": &actionCmd{
 		action:      shared.Start,
