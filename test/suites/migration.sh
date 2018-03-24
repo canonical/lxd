@@ -227,8 +227,29 @@ migration() {
 
   lxc_remote storage volume create l1:"$remote_pool1" vol1
 
+  # remote storage volume migration in "pull" mode
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2"
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3"
+  ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
+
+  lxc_remote storage volume delete l2:"$remote_pool2" vol2
+  lxc_remote storage volume delete l2:"$remote_pool2" vol3
+
+  # remote storage volume migration in "push" mode
+  lxc_remote storage volume create l1:"$remote_pool1" vol1
+
+  lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=push
+  lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3" --mode=push
+  ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
+
+  lxc_remote storage volume delete l2:"$remote_pool2" vol2
+  lxc_remote storage volume delete l2:"$remote_pool2" vol3
+
+  # remote storage volume migration in "relay" mode
+  lxc_remote storage volume create l1:"$remote_pool1" vol1
+
+  lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=relay
+  lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3" --mode=relay
   ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
