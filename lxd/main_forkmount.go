@@ -212,7 +212,6 @@ void forkmount() {
 import "C"
 
 type cmdForkmount struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -243,7 +242,6 @@ func (c *cmdForkmount) Command() *cobra.Command {
 	cmdUmount.RunE = c.Run
 	cmd.AddCommand(cmdUmount)
 
-	c.cmd = cmd
 	return cmd
 }
 

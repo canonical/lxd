@@ -7,7 +7,6 @@ import (
 )
 
 type cmdDelete struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -17,7 +16,6 @@ func (c *cmdDelete) Command() *cobra.Command {
 	cmd.Short = "Delete containers"
 	cmd.RunE = c.Run
 
-	c.cmd = cmd
 	return cmd
 }
 

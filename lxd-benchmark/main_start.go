@@ -7,7 +7,6 @@ import (
 )
 
 type cmdStart struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -17,7 +16,6 @@ func (c *cmdStart) Command() *cobra.Command {
 	cmd.Short = "Start containers"
 	cmd.RunE = c.Run
 
-	c.cmd = cmd
 	return cmd
 }
 

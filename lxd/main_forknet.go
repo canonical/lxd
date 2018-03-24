@@ -69,7 +69,6 @@ void forknet() {
 import "C"
 
 type cmdForknet struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -93,7 +92,6 @@ func (c *cmdForknet) Command() *cobra.Command {
 	cmdInfo.RunE = c.RunInfo
 	cmd.AddCommand(cmdInfo)
 
-	c.cmd = cmd
 	return cmd
 }
 

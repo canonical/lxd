@@ -10,7 +10,6 @@ import (
 )
 
 type cmdImport struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 
 	flagForce bool
@@ -34,7 +33,6 @@ func (c *cmdImport) Command() *cobra.Command {
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, "Force the import (override existing data or partial restore)")
 
-	c.cmd = cmd
 	return cmd
 }
 

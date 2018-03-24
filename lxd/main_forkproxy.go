@@ -125,7 +125,6 @@ void forkproxy() {
 import "C"
 
 type cmdForkproxy struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -144,7 +143,6 @@ func (c *cmdForkproxy) Command() *cobra.Command {
 	cmd.RunE = c.Run
 	cmd.Hidden = true
 
-	c.cmd = cmd
 	return cmd
 }
 
