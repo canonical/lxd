@@ -376,7 +376,7 @@ test_clustering_storage() {
     ! LXD_DIR="${LXD_TWO_DIR}" lxc move foo --target node1 || false
 
     # Stop the container and create a snapshot
-    LXD_DIR="${LXD_ONE_DIR}" lxc stop foo
+    LXD_DIR="${LXD_ONE_DIR}" lxc stop foo --force
     LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo backup
 
     # Move the container to node1
@@ -386,12 +386,12 @@ test_clustering_storage() {
 
     # Start and stop the container on its new node1 host
     LXD_DIR="${LXD_TWO_DIR}" lxc start foo
-    LXD_DIR="${LXD_TWO_DIR}" lxc stop foo
+    LXD_DIR="${LXD_TWO_DIR}" lxc stop foo --force
 
     # Init a new container on node2 using the the snapshot on node1
     LXD_DIR="${LXD_ONE_DIR}" lxc copy foo/backup egg --target node2
     LXD_DIR="${LXD_TWO_DIR}" lxc start egg
-    LXD_DIR="${LXD_ONE_DIR}" lxc stop egg
+    LXD_DIR="${LXD_ONE_DIR}" lxc stop egg --force
     LXD_DIR="${LXD_ONE_DIR}" lxc delete egg
 
     # Spawn a third node
@@ -418,7 +418,7 @@ test_clustering_storage() {
 
     # Start and stop the container on its new node2 host
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
-    LXD_DIR="${LXD_ONE_DIR}" lxc stop bar
+    LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
 
     LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
     LXD_DIR="${LXD_ONE_DIR}" lxc cluster delete node3 --force

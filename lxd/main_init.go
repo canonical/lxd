@@ -474,7 +474,7 @@ func (c *cmdInit) ApplyConfig(cmd *cobra.Command, args []string, d lxd.Container
 		// Check if already enabled
 		if !currentCluster.Enabled {
 			// Setup trust relationship
-			if config.Cluster.ClusterPassword != "" {
+			if config.Cluster.ClusterAddress != "" && config.Cluster.ClusterPassword != "" {
 				// Get our certificate
 				serverConfig, _, err := d.GetServer()
 				if err != nil {
