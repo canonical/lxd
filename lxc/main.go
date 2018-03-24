@@ -109,6 +109,10 @@ For help with any of those, simply call them with --help.`))
 	moveCmd := cmdMove{global: &globalCmd}
 	app.AddCommand(moveCmd.Command())
 
+	// pause sub-command
+	pauseCmd := cmdPause{global: &globalCmd}
+	app.AddCommand(pauseCmd.Command())
+
 	// publish sub-command
 	publishCmd := cmdPublish{global: &globalCmd}
 	app.AddCommand(publishCmd.Command())
@@ -121,6 +125,10 @@ For help with any of those, simply call them with --help.`))
 	renameCmd := cmdRename{global: &globalCmd}
 	app.AddCommand(renameCmd.Command())
 
+	// restart sub-command
+	restartCmd := cmdRestart{global: &globalCmd}
+	app.AddCommand(restartCmd.Command())
+
 	// restore sub-command
 	restoreCmd := cmdRestore{global: &globalCmd}
 	app.AddCommand(restoreCmd.Command())
@@ -128,6 +136,14 @@ For help with any of those, simply call them with --help.`))
 	// snapshot sub-command
 	snapshotCmd := cmdSnapshot{global: &globalCmd}
 	app.AddCommand(snapshotCmd.Command())
+
+	// start sub-command
+	startCmd := cmdStart{global: &globalCmd}
+	app.AddCommand(startCmd.Command())
+
+	// stop sub-command
+	stopCmd := cmdStop{global: &globalCmd}
+	app.AddCommand(stopCmd.Command())
 
 	// Deal with --all flag
 	err := app.ParseFlags(os.Args[1:])
@@ -306,36 +322,9 @@ var commands = map[string]command{
 	"manpage":   &manpageCmd{},
 	"network":   &networkCmd{},
 	"operation": &operationCmd{},
-	"pause": &actionCmd{
-		action:      shared.Freeze,
-		description: i18n.G("Pause containers."),
-		name:        "pause",
-	},
-	"profile": &profileCmd{},
-	"remote":  &remoteCmd{},
-	"restart": &actionCmd{
-		action:      shared.Restart,
-		description: i18n.G("Restart containers."),
-		hasTimeout:  true,
-		visible:     true,
-		name:        "restart",
-		timeout:     -1,
-	},
-	"start": &actionCmd{
-		action:      shared.Start,
-		description: i18n.G("Start containers."),
-		visible:     true,
-		name:        "start",
-	},
-	"stop": &actionCmd{
-		action:      shared.Stop,
-		description: i18n.G("Stop containers."),
-		hasTimeout:  true,
-		visible:     true,
-		name:        "stop",
-		timeout:     -1,
-	},
-	"storage": &storageCmd{},
+	"profile":   &profileCmd{},
+	"remote":    &remoteCmd{},
+	"storage":   &storageCmd{},
 }
 
 // defaultAliases contains LXC's built-in command line aliases.  The built-in
