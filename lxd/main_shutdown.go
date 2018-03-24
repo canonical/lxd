@@ -11,7 +11,6 @@ import (
 )
 
 type cmdShutdown struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 
 	flagTimeout int
@@ -33,7 +32,6 @@ func (c *cmdShutdown) Command() *cobra.Command {
 	cmd.RunE = c.Run
 	cmd.Flags().IntVarP(&c.flagTimeout, "timeout", "t", 0, "Number of seconds to wait before giving up"+"``")
 
-	c.cmd = cmd
 	return cmd
 }
 

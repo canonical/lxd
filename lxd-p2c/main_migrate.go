@@ -17,7 +17,6 @@ import (
 )
 
 type cmdMigrate struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 
 	flagConfig     []string
@@ -52,7 +51,6 @@ func (c *cmdMigrate) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", "Instance type to use for the container"+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the container with no profiles applied")
 
-	c.cmd = cmd
 	return cmd
 }
 

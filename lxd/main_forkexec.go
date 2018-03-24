@@ -14,7 +14,6 @@ import (
 )
 
 type cmdForkexec struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -32,7 +31,6 @@ func (c *cmdForkexec) Command() *cobra.Command {
 	cmd.RunE = c.Run
 	cmd.Hidden = true
 
-	c.cmd = cmd
 	return cmd
 }
 

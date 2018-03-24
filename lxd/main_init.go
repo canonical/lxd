@@ -27,7 +27,6 @@ type initDataCluster struct {
 }
 
 type cmdInit struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 
 	flagAuto    bool
@@ -66,7 +65,6 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagStoragePool, "storage-pool", "", "Storage pool to use or create"+"``")
 	cmd.Flags().StringVar(&c.flagTrustPassword, "trust-password", "", "Password required to add new clients"+"``")
 
-	c.cmd = cmd
 	return cmd
 }
 

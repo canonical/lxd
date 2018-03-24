@@ -7,7 +7,6 @@ import (
 )
 
 type cmdLaunch struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 	init   *cmdInit
 
@@ -19,10 +18,9 @@ func (c *cmdLaunch) Command() *cobra.Command {
 	cmd.Use = "launch [[<remote>:]<image>]"
 	cmd.Short = "Create and start containers"
 	cmd.RunE = c.Run
-	cmd.Flags().AddFlagSet(c.init.cmd.Flags())
+	cmd.Flags().AddFlagSet(c.init.Command().Flags())
 	cmd.Flags().BoolVarP(&c.flagFreeze, "freeze", "F", false, "Freeze the container right after start")
 
-	c.cmd = cmd
 	return cmd
 }
 
