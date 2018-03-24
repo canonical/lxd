@@ -144,7 +144,7 @@ an individual node is available with `lxc cluster show <node name>`.
 
 ### Deleting nodes
 
-To cleanly delete a node from the cluster use `lxc cluster delete <node name>`.
+To cleanly delete a node from the cluster use `lxc cluster remove <node name>`.
 
 ### Offline nodes and fault tolerance
 
@@ -161,7 +161,7 @@ As soon as the offline node comes back online, operations will be
 available again.
 
 If you can't or don't want to bring the node back online, you can
-delete it from the cluster using `lxc cluster delete --force <node name>`.
+delete it from the cluster using `lxc cluster remove --force <node name>`.
 
 ### Upgrading nodes
 
