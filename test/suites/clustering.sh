@@ -86,7 +86,7 @@ test_clustering_membership() {
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   # Force the removal of the degraded node.
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster delete node5 --force
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster remove node5 --force
 
   # Now the preseeded network can be deleted, and all nodes are
   # notified.
@@ -98,12 +98,12 @@ test_clustering_membership() {
   # Trying to delete a container which is the only one with a copy of
   # an image results in an error
   LXD_DIR="${LXD_FOUR_DIR}" ensure_import_testimage
-  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster delete node5
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node5
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
   # Remove a node gracefully.
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster delete node5
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list | grep -q "https://0.0.0.0"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node5
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list
 
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
@@ -166,7 +166,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
 
   # Trying to delete a node which has container results in an error
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster delete node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2
 
   # Exec a command in the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc exec foo ls / | grep -q proc
@@ -421,7 +421,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
 
     LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
-    LXD_DIR="${LXD_ONE_DIR}" lxc cluster delete node3 --force
+    LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force
 
     LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
     LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage

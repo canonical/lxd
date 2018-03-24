@@ -6,172 +6,108 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/olekukonko/tablewriter"
 )
 
-type clusterCmd struct {
-	force bool
+type cmdCluster struct {
+	global *cmdGlobal
 }
 
-func (c *clusterCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc cluster <subcommand> [options]
+func (c *cmdCluster) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("cluster")
+	cmd.Short = i18n.G("Manage cluster members")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Manage cluster members`))
 
-Manage cluster nodes.
+	// List
+	clusterListCmd := cmdClusterList{global: c.global, cluster: c}
+	cmd.AddCommand(clusterListCmd.Command())
 
-lxc cluster list [<remote>:]
-    List all nodes in the cluster.
+	// Rename
+	clusterRenameCmd := cmdClusterRename{global: c.global, cluster: c}
+	cmd.AddCommand(clusterRenameCmd.Command())
 
-lxc cluster show [<remote>:]<node>
-    Show details of a node.
+	// Remove
+	clusterRemoveCmd := cmdClusterRemove{global: c.global, cluster: c}
+	cmd.AddCommand(clusterRemoveCmd.Command())
 
-lxc cluster rename [<remote>:]<node> <new-name>
-    Rename a cluster node.
+	// Show
+	clusterShowCmd := cmdClusterShow{global: c.global, cluster: c}
+	cmd.AddCommand(clusterShowCmd.Command())
 
-lxc cluster delete [<remote>:]<node> [--force]
-    Delete a node from the cluster.`)
+	return cmd
 }
 
-func (c *clusterCmd) flags() {
-	gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force removing a node, even if degraded"))
+// List
+type cmdClusterList struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
 }
 
-func (c *clusterCmd) showByDefault() bool {
-	return true
+func (c *cmdClusterList) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List all the cluster members")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List all the cluster members`))
+
+	cmd.RunE = c.Run
+
+	return cmd
 }
 
-func (c *clusterCmd) run(conf *config.Config, args []string) error {
-	if len(args) < 1 {
-		return errUsage
+func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
 	}
 
-	switch args[0] {
-	case "list":
-		return c.doClusterList(conf, args)
-	case "show":
-		return c.doClusterNodeShow(conf, args)
-	case "rename":
-		return c.doClusterNodeRename(conf, args)
-	case "delete":
-		return c.doClusterNodeDelete(conf, args)
-	default:
-		return errArgs
-	}
-}
-
-func (c *clusterCmd) doClusterNodeShow(conf *config.Config, args []string) error {
-	if len(args) < 2 {
-		return errArgs
+	// Parse remote
+	remote := ""
+	if len(args) == 1 {
+		remote = args[0]
 	}
 
-	remote, name, err := conf.ParseRemote(args[1])
+	resources, err := c.global.ParseServers(remote)
 	if err != nil {
 		return err
 	}
 
-	client, err := conf.GetContainerServer(remote)
+	resource := resources[0]
+
+	// Check if clustered
+	cluster, _, err := resource.server.GetCluster()
 	if err != nil {
 		return err
 	}
 
-	node, _, err := client.GetClusterMember(name)
+	if !cluster.Enabled {
+		return fmt.Errorf(i18n.G("LXD server isn't part of a cluster"))
+	}
+
+	// Get the cluster members
+	members, err := resource.server.GetClusterMembers()
 	if err != nil {
 		return err
 	}
 
-	data, err := yaml.Marshal(&node)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("%s", data)
-
-	return nil
-}
-
-func (c *clusterCmd) doClusterNodeRename(conf *config.Config, args []string) error {
-	if len(args) < 3 {
-		return errArgs
-	}
-	newName := args[2]
-
-	remote, name, err := conf.ParseRemote(args[1])
-	if err != nil {
-		return err
-	}
-
-	client, err := conf.GetContainerServer(remote)
-	if err != nil {
-		return err
-	}
-
-	err = client.RenameClusterMember(name, api.ClusterMemberPost{ServerName: newName})
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf(i18n.G("Node %s renamed to %s")+"\n", name, newName)
-	return nil
-}
-
-func (c *clusterCmd) doClusterNodeDelete(conf *config.Config, args []string) error {
-	if len(args) < 2 {
-		return errArgs
-	}
-
-	remote, name, err := conf.ParseRemote(args[1])
-	if err != nil {
-		return err
-	}
-
-	client, err := conf.GetContainerServer(remote)
-	if err != nil {
-		return err
-	}
-
-	err = client.DeleteClusterMember(name, c.force)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf(i18n.G("Node %s removed")+"\n", name)
-	return nil
-}
-
-func (c *clusterCmd) doClusterList(conf *config.Config, args []string) error {
-	remote := conf.DefaultRemote
-
-	if len(args) > 1 {
-		var err error
-		remote, _, err = conf.ParseRemote(args[1])
-		if err != nil {
-			return err
-		}
-	}
-
-	client, err := conf.GetContainerServer(remote)
-	if err != nil {
-		return err
-	}
-
-	nodes, err := client.GetClusterMembers()
-	if err != nil {
-		return err
-	}
-
+	// Render the table
 	data := [][]string{}
-	for _, node := range nodes {
+	for _, member := range members {
 		database := "NO"
-		if node.Database {
+		if member.Database {
 			database = "YES"
 		}
-		line := []string{node.ServerName, node.URL, database, strings.ToUpper(node.Status), node.Message}
+		line := []string{member.ServerName, member.URL, database, strings.ToUpper(member.Status), member.Message}
 		data = append(data, line)
 	}
 
@@ -190,5 +126,145 @@ func (c *clusterCmd) doClusterList(conf *config.Config, args []string) error {
 	table.AppendBulk(data)
 	table.Render()
 
+	return nil
+}
+
+// Show
+type cmdClusterShow struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("show [<remote>:]<member>")
+	cmd.Short = i18n.G("Show details of a cluster member")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show details of a cluster member`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Get the member information
+	member, _, err := resource.server.GetClusterMember(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Render as YAML
+	data, err := yaml.Marshal(&member)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+	return nil
+}
+
+// Rename
+type cmdClusterRename struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterRename) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("rename [<remote>:]<member> <new-name>")
+	cmd.Aliases = []string{"mv"}
+	cmd.Short = i18n.G("Rename a cluster member")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Rename a cluster member`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterRename) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Perform the rename
+	err = resource.server.RenameClusterMember(resource.name, api.ClusterMemberPost{ServerName: args[1]})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Node %s renamed to %s")+"\n", resource.name, args[1])
+	return nil
+}
+
+// Remove
+type cmdClusterRemove struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+
+	flagForce bool
+}
+
+func (c *cmdClusterRemove) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("remove [<remote>:]<member>")
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Remove a member from the cluster")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Remove a member from the cluster`))
+
+	cmd.RunE = c.Run
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force removing a member, even if degraded"))
+
+	return cmd
+}
+
+func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Delete the cluster member
+	err = resource.server.DeleteClusterMember(resource.name, c.flagForce)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Node %s removed")+"\n", resource.name)
 	return nil
 }

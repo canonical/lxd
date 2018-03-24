@@ -73,6 +73,10 @@ For help with any of those, simply call them with --help.`))
 	aliasCmd := cmdAlias{global: &globalCmd}
 	app.AddCommand(aliasCmd.Command())
 
+	// cluster sub-command
+	clusterCmd := cmdCluster{global: &globalCmd}
+	app.AddCommand(clusterCmd.Command())
+
 	// console sub-command
 	consoleCmd := cmdConsole{global: &globalCmd}
 	app.AddCommand(consoleCmd.Command())
@@ -322,7 +326,6 @@ type command interface {
 }
 
 var commands = map[string]command{
-	"cluster": &clusterCmd{},
 	"config":  &configCmd{},
 	"file":    &fileCmd{},
 	"image":   &imageCmd{},
