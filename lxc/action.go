@@ -5,58 +5,131 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type actionCmd struct {
-	action      shared.ContainerAction
-	description string
-	hasTimeout  bool
-	visible     bool
-	name        string
-	timeout     int
-	force       bool
-	stateful    bool
-	stateless   bool
-	all         bool
+// Start
+type cmdStart struct {
+	global *cmdGlobal
+	action *cmdAction
 }
 
-func (c *actionCmd) showByDefault() bool {
-	return c.visible
+func (c *cmdStart) Command() *cobra.Command {
+	cmdAction := cmdAction{global: c.global}
+	c.action = &cmdAction
+
+	cmd := c.action.Command("start")
+	cmd.Use = i18n.G("start [<remote>:]<container> [[<remote>:]<container>...]")
+	cmd.Short = i18n.G("Start containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Start containers`))
+
+	return cmd
 }
 
-func (c *actionCmd) usage() string {
-	extra := ""
-	if c.name == "pause" {
-		extra = "\n" + i18n.G("The opposite of \"lxc pause\" is \"lxc start\".")
+// Pause
+type cmdPause struct {
+	global *cmdGlobal
+	action *cmdAction
+}
+
+func (c *cmdPause) Command() *cobra.Command {
+	cmdAction := cmdAction{global: c.global}
+	c.action = &cmdAction
+
+	cmd := c.action.Command("pause")
+	cmd.Use = i18n.G("pause [<remote>:]<container> [[<remote>:]<container>...]")
+	cmd.Short = i18n.G("Pause containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Pause containers`))
+	cmd.Hidden = true
+
+	return cmd
+}
+
+// Restart
+type cmdRestart struct {
+	global *cmdGlobal
+	action *cmdAction
+}
+
+func (c *cmdRestart) Command() *cobra.Command {
+	cmdAction := cmdAction{global: c.global}
+	c.action = &cmdAction
+
+	cmd := c.action.Command("restart")
+	cmd.Use = i18n.G("restart [<remote>:]<container> [[<remote>:]<container>...]")
+	cmd.Short = i18n.G("Restart containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Restart containers
+
+The opposite of "lxc pause" is "lxc start".`))
+	cmd.Hidden = true
+
+	return cmd
+}
+
+// Stop
+type cmdStop struct {
+	global *cmdGlobal
+	action *cmdAction
+}
+
+func (c *cmdStop) Command() *cobra.Command {
+	cmdAction := cmdAction{global: c.global}
+	c.action = &cmdAction
+
+	cmd := c.action.Command("stop")
+	cmd.Use = i18n.G("stop [<remote>:]<container> [[<remote>:]<container>...]")
+	cmd.Short = i18n.G("Stop containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Stop containers`))
+	cmd.Hidden = true
+
+	return cmd
+}
+
+type cmdAction struct {
+	global *cmdGlobal
+
+	flagAll       bool
+	flagForce     bool
+	flagStateful  bool
+	flagStateless bool
+	flagTimeout   int
+}
+
+func (c *cmdAction) Command(action string) *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.RunE = c.Run
+
+	cmd.Flags().BoolVar(&c.flagAll, "all", false, i18n.G("Run command against all containers"))
+
+	if action == "stop" {
+		cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Store the container state"))
+	} else if action == "start" {
+		cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Ignore the container state"))
 	}
 
-	return fmt.Sprintf(i18n.G(
-		`Usage: lxc %s [--all] [<remote>:]<container> [[<remote>:]<container>...]
-
-%s%s`), c.name, c.description, extra)
-}
-
-func (c *actionCmd) flags() {
-	if c.hasTimeout {
-		gnuflag.IntVar(&c.timeout, "timeout", -1, i18n.G("Time to wait for the container before killing it"))
-		gnuflag.BoolVar(&c.force, "f", false, i18n.G("Force the container to shutdown"))
-		gnuflag.BoolVar(&c.force, "force", false, i18n.G("Force the container to shutdown"))
+	if shared.StringInSlice(action, []string{"restart", "stop"}) {
+		cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force the container to shutdown"))
+		cmd.Flags().IntVar(&c.flagTimeout, "timeout", -1, i18n.G("Time to wait for the container before killing it")+"``")
 	}
-	gnuflag.BoolVar(&c.stateful, "stateful", false, i18n.G("Store the container state (only for stop)"))
-	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Ignore the container state (only for start)"))
-	gnuflag.BoolVar(&c.all, "all", false, i18n.G("Run command against all containers"))
+
+	return cmd
 }
 
-func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
+func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string) error {
 	state := false
 
 	// Only store state if asked to
-	if c.action == "stop" && c.stateful {
+	if action == "stop" && c.flagStateful {
 		state = true
 	}
 
@@ -74,7 +147,7 @@ func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
 		return fmt.Errorf(i18n.G("Must supply container name for: ")+"\"%s\"", nameArg)
 	}
 
-	if c.action == shared.Start {
+	if action == "start" {
 		current, _, err := d.GetContainer(name)
 		if err != nil {
 			return err
@@ -82,19 +155,19 @@ func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
 
 		// "start" for a frozen container means "unfreeze"
 		if current.StatusCode == api.Frozen {
-			c.action = shared.Unfreeze
+			action = "unfreeze"
 		}
 
 		// Always restore state (if present) unless asked not to
-		if c.action == shared.Start && current.Stateful && !c.stateless {
+		if action == "start" && current.Stateful && !c.flagStateless {
 			state = true
 		}
 	}
 
 	req := api.ContainerStatePut{
-		Action:   string(c.action),
-		Timeout:  c.timeout,
-		Force:    c.force,
+		Action:   action,
+		Timeout:  c.flagTimeout,
+		Force:    c.flagForce,
 		Stateful: state,
 	}
 
@@ -111,32 +184,38 @@ func (c *actionCmd) doAction(conf *config.Config, nameArg string) error {
 	return nil
 }
 
-func (c *actionCmd) run(conf *config.Config, args []string) error {
+func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
 	var names []string
 	if len(args) == 0 {
-		if !c.all {
-			return errArgs
+		if !c.flagAll {
+			cmd.Help()
+			return nil
 		}
+
 		d, err := conf.GetContainerServer(conf.DefaultRemote)
 		if err != nil {
 			return err
 		}
+
 		ctslist, err := d.GetContainers()
 		if err != nil {
 			return err
 		}
+
 		for _, ct := range ctslist {
 			names = append(names, ct.Name)
 		}
 	} else {
-		if c.all {
+		if c.flagAll {
 			return fmt.Errorf(i18n.G("Both --all and container name given"))
 		}
 		names = args
 	}
 
 	// Run the action for every listed container
-	results := runBatch(names, func(name string) error { return c.doAction(conf, name) })
+	results := runBatch(names, func(name string) error { return c.doAction(cmd.Name(), conf, name) })
 
 	// Single container is easy
 	if len(results) == 1 {
@@ -160,7 +239,7 @@ func (c *actionCmd) run(conf *config.Config, args []string) error {
 
 	if !success {
 		fmt.Fprintln(os.Stderr, "")
-		return fmt.Errorf(i18n.G("Some containers failed to %s"), c.name)
+		return fmt.Errorf(i18n.G("Some containers failed to %s"), cmd.Name())
 	}
 
 	return nil
