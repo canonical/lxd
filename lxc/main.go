@@ -109,6 +109,10 @@ For help with any of those, simply call them with --help.`))
 	moveCmd := cmdMove{global: &globalCmd}
 	app.AddCommand(moveCmd.Command())
 
+	// operation sub-command
+	operationCmd := cmdOperation{global: &globalCmd}
+	app.AddCommand(operationCmd.Command())
+
 	// pause sub-command
 	pauseCmd := cmdPause{global: &globalCmd}
 	app.AddCommand(pauseCmd.Command())
@@ -314,17 +318,16 @@ type command interface {
 }
 
 var commands = map[string]command{
-	"alias":     &aliasCmd{},
-	"cluster":   &clusterCmd{},
-	"config":    &configCmd{},
-	"file":      &fileCmd{},
-	"image":     &imageCmd{},
-	"manpage":   &manpageCmd{},
-	"network":   &networkCmd{},
-	"operation": &operationCmd{},
-	"profile":   &profileCmd{},
-	"remote":    &remoteCmd{},
-	"storage":   &storageCmd{},
+	"alias":   &aliasCmd{},
+	"cluster": &clusterCmd{},
+	"config":  &configCmd{},
+	"file":    &fileCmd{},
+	"image":   &imageCmd{},
+	"manpage": &manpageCmd{},
+	"network": &networkCmd{},
+	"profile": &profileCmd{},
+	"remote":  &remoteCmd{},
+	"storage": &storageCmd{},
 }
 
 // defaultAliases contains LXC's built-in command line aliases.  The built-in
