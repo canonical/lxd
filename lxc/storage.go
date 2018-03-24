@@ -25,6 +25,7 @@ import (
 type storageCmd struct {
 	resources bool
 	byteflag  bool
+	mode      string
 	target    string
 }
 
@@ -162,6 +163,7 @@ lxc storage volume show default container/data
 func (c *storageCmd) flags() {
 	gnuflag.BoolVar(&c.resources, "resources", false, i18n.G("Show the resources available to the storage pool"))
 	gnuflag.BoolVar(&c.byteflag, "bytes", false, i18n.G("Show the used and free space in bytes"))
+	gnuflag.StringVar(&c.mode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay."))
 	gnuflag.StringVar(&c.target, "target", "", i18n.G("Node name"))
 }
 
@@ -1142,18 +1144,26 @@ func (c *storageCmd) doStoragePoolVolumeCopy(source lxd.ContainerServer, sourceR
 		}
 	}
 
+	// Parse the mode
+	mode := "pull"
+	if c.mode != "" {
+		mode = c.mode
+	}
+
 	var op lxd.RemoteOperation
 	opMsg := ""
 	finalMsg := ""
-	if move {
+	if move && sourceRemote == destRemote {
 		args := &lxd.StoragePoolVolumeMoveArgs{}
 		args.Name = dstVolName
+		args.Mode = mode
 		op, err = dest.MoveStoragePoolVolume(dstVolPool, source, srcVolPool, *srcVol, args)
 		opMsg = i18n.G("Moving the storage volume: %s")
 		finalMsg = i18n.G("Storage volume moved successfully!")
 	} else {
 		args := &lxd.StoragePoolVolumeCopyArgs{}
 		args.Name = dstVolName
+		args.Mode = mode
 		op, err = dest.CopyStoragePoolVolume(dstVolPool, source, srcVolPool, *srcVol, args)
 		opMsg = i18n.G("Copying the storage volume: %s")
 		finalMsg = i18n.G("Storage volume copied successfully!")
@@ -1173,6 +1183,13 @@ func (c *storageCmd) doStoragePoolVolumeCopy(source lxd.ContainerServer, sourceR
 	err = op.Wait()
 	if err != nil {
 		return err
+	}
+
+	if move && sourceRemote != destRemote {
+		err := source.DeleteStoragePoolVolume(srcVolPool, srcVol.Type, srcVolName)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

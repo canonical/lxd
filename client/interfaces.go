@@ -184,6 +184,7 @@ type ContainerServer interface {
 	RenameStoragePoolVolume(pool string, volType string, name string, volume api.StorageVolumePost) (err error)
 	CopyStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeCopyArgs) (op RemoteOperation, err error)
 	MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (op RemoteOperation, err error)
+	MigrateStoragePoolVolume(pool string, volume api.StorageVolumePost) (op Operation, err error)
 
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
@@ -279,6 +280,9 @@ type ImageCopyArgs struct {
 type StoragePoolVolumeCopyArgs struct {
 	// New name for the target
 	Name string
+
+	// The transfer mode, can be "pull" (default), "push" or "relay"
+	Mode string
 }
 
 // The StoragePoolVolumeMoveArgs struct is used to pass additional options

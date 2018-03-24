@@ -100,6 +100,7 @@ var APIExtensions = []string{
 	"operation_description",
 	"clustering",
 	"event_lifecycle",
+	"storage_api_remote_volume_handling",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

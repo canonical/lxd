@@ -2313,7 +2313,22 @@ Input (when copying a volume):
         "source": {
             "pool": "pool2",
             "name": "vol2",
-            "type": "custom"
+            "type": "copy"
+        }
+    }
+
+Input (when migrating a volume):
+
+    {
+        "config": {},
+        "pool": "pool1",
+        "name": "vol1",
+        "type": "custom"
+        "source": {
+            "pool": "pool2",
+            "name": "vol2",
+            "type": "migration"
+            "mode": "pull",                                                 # One of "pull" (default), "push", "relay"
         }
     }
 
@@ -2331,6 +2346,26 @@ Input:
         "name": "vol1",
         "pool": "pool3"
     }
+
+Input (migration across lxd instances):
+
+    {
+        "name": "vol1"
+        "pool": "pool3"
+        "migration": true
+    }
+
+The migration does not actually start until someone (i.e. another lxd instance)
+connects to all the websockets and begins negotiation with the source.
+
+Output in metadata section (for migration):
+
+    {
+        "control": "secret1",       # Migration control socket
+        "fs": "secret2"             # Filesystem transfer socket
+    }
+
+These are the secrets that should be passed to the create call.
 
 ### GET
  * Description: information about a storage volume of a given type on a storage pool
