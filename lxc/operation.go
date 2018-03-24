@@ -7,133 +7,132 @@ import (
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type operationCmd struct {
+type cmdOperation struct {
+	global *cmdGlobal
 }
 
-func (c *operationCmd) showByDefault() bool {
-	return true
+func (c *cmdOperation) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("operation")
+	cmd.Short = i18n.G("List, show and delete background operations")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List, show and delete background operations`))
+
+	// Delete
+	operationDeleteCmd := cmdOperationDelete{global: c.global, operation: c}
+	cmd.AddCommand(operationDeleteCmd.Command())
+
+	// List
+	operationListCmd := cmdOperationList{global: c.global, operation: c}
+	cmd.AddCommand(operationListCmd.Command())
+
+	// Show
+	operationShowCmd := cmdOperationShow{global: c.global, operation: c}
+	cmd.AddCommand(operationShowCmd.Command())
+
+	return cmd
 }
 
-func (c *operationCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc operation <subcommand> [options]
-
-List, show and delete background operations.
-
-lxc operation list [<remote>:]
-    List background operations.
-
-lxc operation show [<remote>:]<operation>
-    Show details on a background operation.
-
-lxc operation delete [<remote>:]<operation>
-    Delete a background operation (will attempt to cancel).
-
-*Examples*
-lxc operation show 344a79e4-d88a-45bf-9c39-c72c26f6ab8a
-    Show details on that operation UUID`)
+// Delete
+type cmdOperationDelete struct {
+	global    *cmdGlobal
+	operation *cmdOperation
 }
 
-func (c *operationCmd) flags() {}
+func (c *cmdOperationDelete) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("delete [<remote>:]<operation>")
+	cmd.Aliases = []string{"cancel", "rm"}
+	cmd.Short = i18n.G("Delete a background operation (will attempt to cancel)")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Delete a background operation (will attempt to cancel)`))
 
-func (c *operationCmd) run(conf *config.Config, args []string) error {
-	if len(args) < 1 {
-		return errUsage
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdOperationDelete) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
 	}
 
-	if args[0] == "list" {
-		return c.doOperationList(conf, args)
-	}
-
-	if len(args) < 2 {
-		return errArgs
-	}
-
-	remote, operation, err := conf.ParseRemote(args[1])
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
 
-	client, err := conf.GetContainerServer(remote)
+	resource := resources[0]
+
+	// Delete the operation
+	err = resource.server.DeleteOperation(resource.name)
 	if err != nil {
 		return err
 	}
 
-	switch args[0] {
-	case "delete":
-		return c.doOperationDelete(client, operation)
-	case "show":
-		return c.doOperationShow(client, operation)
-	default:
-		return errArgs
-	}
-}
-
-func (c *operationCmd) doOperationDelete(client lxd.ContainerServer, name string) error {
-	err := client.DeleteOperation(name)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf(i18n.G("Operation %s deleted")+"\n", name)
+	fmt.Printf(i18n.G("Operation %s deleted")+"\n", resource.name)
 	return nil
 }
 
-func (c *operationCmd) doOperationShow(client lxd.ContainerServer, name string) error {
-	if name == "" {
-		return errArgs
-	}
-
-	operation, _, err := client.GetOperation(name)
-	if err != nil {
-		return err
-	}
-
-	data, err := yaml.Marshal(&operation)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("%s", data)
-
-	return nil
+// List
+type cmdOperationList struct {
+	global    *cmdGlobal
+	operation *cmdOperation
 }
 
-func (c *operationCmd) doOperationList(conf *config.Config, args []string) error {
-	var remote string
-	var err error
+func (c *cmdOperationList) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List background operations")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List background operations`))
 
-	if len(args) > 1 {
-		var name string
-		remote, name, err = conf.ParseRemote(args[1])
-		if err != nil {
-			return err
-		}
+	cmd.RunE = c.Run
 
-		if name != "" {
-			return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
-		}
-	} else {
-		remote = conf.DefaultRemote
+	return cmd
+}
+
+func (c *cmdOperationList) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
 	}
 
-	client, err := conf.GetContainerServer(remote)
+	// Parse remote
+	remote := ""
+	if len(args) == 1 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
 	if err != nil {
 		return err
 	}
 
-	operations, err := client.GetOperations()
+	resource := resources[0]
+	if resource.name != "" {
+		return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
+	}
+
+	// Get operations
+	operations, err := resource.server.GetOperations()
 	if err != nil {
 		return err
 	}
 
+	// Render the table
 	data := [][]string{}
 	for _, op := range operations {
 		cancelable := i18n.G("NO")
@@ -158,6 +157,59 @@ func (c *operationCmd) doOperationList(conf *config.Config, args []string) error
 	sort.Sort(byName(data))
 	table.AppendBulk(data)
 	table.Render()
+
+	return nil
+}
+
+// Show
+type cmdOperationShow struct {
+	global    *cmdGlobal
+	operation *cmdOperation
+}
+
+func (c *cmdOperationShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("show [<remote>:]<operation>")
+	cmd.Short = i18n.G("Show details on a background operation")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show details on a background operation`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc operation show 344a79e4-d88a-45bf-9c39-c72c26f6ab8a
+    Show details on that operation UUID`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdOperationShow) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Get the operation
+	op, _, err := resource.server.GetOperation(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Render as YAML
+	data, err := yaml.Marshal(&op)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
 
 	return nil
 }
