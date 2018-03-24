@@ -222,6 +222,18 @@ migration() {
     lxc storage unset "lxdtest-$(basename "${LXD_DIR}")" zfs.clone_copy
   fi
 
+  remote_pool1="lxdtest-$(basename "${LXD_DIR}")"
+  remote_pool2="lxdtest-$(basename "${lxd2_dir}")"
+
+  lxc_remote storage volume create l1:"$remote_pool1" vol1
+
+  lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2"
+  lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3"
+  ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
+
+  lxc_remote storage volume delete l2:"$remote_pool2" vol2
+  lxc_remote storage volume delete l2:"$remote_pool2" vol3
+
   if ! which criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return

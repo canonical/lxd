@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // MigrationStorageSourceDriver defines the functions needed to implement a
@@ -34,6 +35,8 @@ type MigrationStorageSourceDriver interface {
 	 * to clean up any temporary snapshots, etc.
 	 */
 	Cleanup()
+
+	SendStorageVolume(conn *websocket.Conn, op *operation, bwlimit string, storage storage) error
 }
 
 type rsyncStorageSourceDriver struct {
@@ -43,6 +46,26 @@ type rsyncStorageSourceDriver struct {
 
 func (s rsyncStorageSourceDriver) Snapshots() []container {
 	return s.snapshots
+}
+
+func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *operation, bwlimit string, storage storage) error {
+	ourMount, err := storage.StoragePoolVolumeMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer storage.StoragePoolVolumeUmount()
+	}
+
+	pool := storage.GetStoragePool()
+	volume := storage.GetStoragePoolVolume()
+
+	wrapper := StorageProgressReader(op, "fs_progress", volume.Name)
+	state := storage.GetState()
+	path := getStoragePoolVolumeMountPoint(pool.Name, volume.Name)
+	path = shared.AddSlash(path)
+	logger.Debugf("Starting to send storage volume %s on storage pool %s from %s", volume.Name, pool.Name, path)
+	return RsyncSend(volume.Name, path, conn, wrapper, bwlimit, state.OS.ExecPath)
 }
 
 func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
@@ -82,6 +105,10 @@ func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwli
 
 func (s rsyncStorageSourceDriver) Cleanup() {
 	// noop
+}
+
+func rsyncStorageMigrationSource() (MigrationStorageSourceDriver, error) {
+	return rsyncStorageSourceDriver{nil, nil}, nil
 }
 
 func rsyncMigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error) {
@@ -125,6 +152,30 @@ func snapshotProtobufToContainerArgs(containerName string, snap *migration.Snaps
 		Architecture: int(snap.GetArchitecture()),
 		Stateful:     snap.GetStateful(),
 	}
+}
+
+func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, storage storage) error {
+	err := storage.StoragePoolVolumeCreate()
+	if err != nil {
+		return err
+	}
+
+	ourMount, err := storage.StoragePoolVolumeMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer storage.StoragePoolVolumeUmount()
+	}
+
+	pool := storage.GetStoragePool()
+	volume := storage.GetStoragePoolVolume()
+
+	wrapper := StorageProgressWriter(op, "fs_progress", volume.Name)
+	path := getStoragePoolVolumeMountPoint(pool.Name, volume.Name)
+	path = shared.AddSlash(path)
+	logger.Debugf("Starting to receive storage volume %s on storage pool %s into %s", volume.Name, pool.Name, path)
+	return RsyncRecv(path, conn, wrapper)
 }
 
 func rsyncMigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
