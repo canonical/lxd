@@ -69,6 +69,10 @@ For help with any of those, simply call them with --help.`))
 	app.SetVersionTemplate("{{.Version}}\n")
 	app.Version = version.Version
 
+	// alias sub-command
+	aliasCmd := cmdAlias{global: &globalCmd}
+	app.AddCommand(aliasCmd.Command())
+
 	// console sub-command
 	consoleCmd := cmdConsole{global: &globalCmd}
 	app.AddCommand(consoleCmd.Command())
@@ -318,7 +322,6 @@ type command interface {
 }
 
 var commands = map[string]command{
-	"alias":   &aliasCmd{},
 	"cluster": &clusterCmd{},
 	"config":  &configCmd{},
 	"file":    &fileCmd{},
