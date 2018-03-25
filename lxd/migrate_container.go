@@ -101,6 +101,9 @@ func snapshotToProtobuf(c container) *migration.Snapshot {
 	arch := int32(c.Architecture())
 	stateful := c.IsStateful()
 
+	creationDate := c.CreationDate().UTC().Unix()
+	lastUsedDate := c.LastUsedDate().UTC().Unix()
+
 	return &migration.Snapshot{
 		Name:         &parts[len(parts)-1],
 		LocalConfig:  config,
@@ -109,6 +112,8 @@ func snapshotToProtobuf(c container) *migration.Snapshot {
 		LocalDevices: devices,
 		Architecture: &arch,
 		Stateful:     &stateful,
+		CreationDate: &creationDate,
+		LastUsedDate: &lastUsedDate,
 	}
 }
 
