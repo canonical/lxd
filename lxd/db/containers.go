@@ -447,8 +447,13 @@ func (c *Cluster) ContainerCreate(args ContainerArgs) (int, error) {
 		statefulInt = 1
 	}
 
-	args.CreationDate = time.Now().UTC()
-	args.LastUsedDate = time.Unix(0, 0).UTC()
+	if args.CreationDate.IsZero() {
+		args.CreationDate = time.Now().UTC()
+	}
+
+	if args.LastUsedDate.IsZero() {
+		args.LastUsedDate = time.Unix(0, 0).UTC()
+	}
 
 	str := fmt.Sprintf("INSERT INTO containers (node_id, name, architecture, type, ephemeral, creation_date, last_use_date, stateful) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)

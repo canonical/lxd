@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gorilla/websocket"
 
@@ -142,7 +143,7 @@ func snapshotProtobufToContainerArgs(containerName string, snap *migration.Snaps
 	}
 
 	name := containerName + shared.SnapshotDelimiter + snap.GetName()
-	return db.ContainerArgs{
+	args := db.ContainerArgs{
 		Name:         name,
 		Ctype:        db.CTypeSnapshot,
 		Config:       config,
@@ -152,6 +153,16 @@ func snapshotProtobufToContainerArgs(containerName string, snap *migration.Snaps
 		Architecture: int(snap.GetArchitecture()),
 		Stateful:     snap.GetStateful(),
 	}
+
+	if snap.GetCreationDate() != 0 {
+		args.CreationDate = time.Unix(snap.GetCreationDate(), 0)
+	}
+
+	if snap.GetLastUsedDate() != 0 {
+		args.LastUsedDate = time.Unix(snap.GetLastUsedDate(), 0)
+	}
+
+	return args
 }
 
 func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, storage storage) error {
