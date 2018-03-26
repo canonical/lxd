@@ -69,6 +69,7 @@ SELECT nodes.name FROM storage_volumes
 		if err == sql.ErrNoRows {
 			return "", NoSuchObjectError
 		}
+		return "", err
 	}
 
 	return name, nil
@@ -110,6 +111,7 @@ func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 		if err == sql.ErrNoRows {
 			return "", NoSuchObjectError
 		}
+		return "", err
 	}
 
 	return description.String, nil
