@@ -432,65 +432,59 @@ func (c *Cluster) ContainerCreate(args ContainerArgs) (int, error) {
 		return 0, DbErrAlreadyDefined
 	}
 
-	tx, err := begin(c.db)
-	if err != nil {
-		return 0, err
-	}
+	var id int
+	err = c.Transaction(func(tx *ClusterTx) error {
+		ephemInt := 0
+		if args.Ephemeral == true {
+			ephemInt = 1
+		}
 
-	ephemInt := 0
-	if args.Ephemeral == true {
-		ephemInt = 1
-	}
+		statefulInt := 0
+		if args.Stateful == true {
+			statefulInt = 1
+		}
 
-	statefulInt := 0
-	if args.Stateful == true {
-		statefulInt = 1
-	}
+		if args.CreationDate.IsZero() {
+			args.CreationDate = time.Now().UTC()
+		}
 
-	if args.CreationDate.IsZero() {
-		args.CreationDate = time.Now().UTC()
-	}
+		if args.LastUsedDate.IsZero() {
+			args.LastUsedDate = time.Unix(0, 0).UTC()
+		}
 
-	if args.LastUsedDate.IsZero() {
-		args.LastUsedDate = time.Unix(0, 0).UTC()
-	}
+		str := fmt.Sprintf("INSERT INTO containers (node_id, name, architecture, type, ephemeral, creation_date, last_use_date, stateful) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+		stmt, err := tx.tx.Prepare(str)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		result, err := stmt.Exec(c.nodeID, args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix(), args.LastUsedDate.Unix(), statefulInt)
+		if err != nil {
+			return err
+		}
 
-	str := fmt.Sprintf("INSERT INTO containers (node_id, name, architecture, type, ephemeral, creation_date, last_use_date, stateful) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-	defer stmt.Close()
-	result, err := stmt.Exec(c.nodeID, args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix(), args.LastUsedDate.Unix(), statefulInt)
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
+		id64, err := result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("Error inserting %s into database", args.Name)
+		}
+		// TODO: is this really int64? we should fix it everywhere if so
+		id = int(id64)
+		if err := ContainerConfigInsert(tx.tx, id, args.Config); err != nil {
+			return err
+		}
 
-	id64, err := result.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		return 0, fmt.Errorf("Error inserting %s into database", args.Name)
-	}
-	// TODO: is this really int64? we should fix it everywhere if so
-	id := int(id64)
-	if err := ContainerConfigInsert(tx, id, args.Config); err != nil {
-		tx.Rollback()
-		return 0, err
-	}
+		if err := ContainerProfilesInsert(tx.tx, id, args.Profiles); err != nil {
+			return err
+		}
 
-	if err := ContainerProfilesInsert(tx, id, args.Profiles); err != nil {
-		tx.Rollback()
-		return 0, err
-	}
+		if err := DevicesAdd(tx.tx, "container", int64(id), args.Devices); err != nil {
+			return err
+		}
 
-	if err := DevicesAdd(tx, "container", int64(id), args.Devices); err != nil {
-		tx.Rollback()
-		return 0, err
-	}
+		return nil
+	})
 
-	return id, TxCommit(tx)
+	return id, err
 }
 
 func ContainerConfigClear(tx *sql.Tx, id int) error {
@@ -658,68 +652,57 @@ func (c *Cluster) ContainersResetState() error {
 }
 
 func (c *Cluster) ContainerSetState(id int, state string) error {
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
+	err := c.Transaction(func(tx *ClusterTx) error {
+		// Clear any existing entry
+		str := fmt.Sprintf("DELETE FROM containers_config WHERE container_id = ? AND key = 'volatile.last_state.power'")
+		stmt, err := tx.tx.Prepare(str)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
 
-	// Clear any existing entry
-	str := fmt.Sprintf("DELETE FROM containers_config WHERE container_id = ? AND key = 'volatile.last_state.power'")
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt.Close()
+		if _, err := stmt.Exec(id); err != nil {
+			return err
+		}
 
-	if _, err := stmt.Exec(id); err != nil {
-		tx.Rollback()
-		return err
-	}
+		// Insert the new one
+		str = fmt.Sprintf("INSERT INTO containers_config (container_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
+		stmt, err = tx.tx.Prepare(str)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
 
-	// Insert the new one
-	str = fmt.Sprintf("INSERT INTO containers_config (container_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
-	stmt, err = tx.Prepare(str)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt.Close()
-
-	if _, err = stmt.Exec(id, state); err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return TxCommit(tx)
+		if _, err = stmt.Exec(id, state); err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
 }
 
 func (c *Cluster) ContainerRename(oldName string, newName string) error {
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
+	err := c.Transaction(func(tx *ClusterTx) error {
+		str := fmt.Sprintf("UPDATE containers SET name = ? WHERE name = ?")
+		stmt, err := tx.tx.Prepare(str)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
 
-	str := fmt.Sprintf("UPDATE containers SET name = ? WHERE name = ?")
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt.Close()
+		logger.Debug(
+			"Calling SQL Query",
+			log.Ctx{
+				"query":   "UPDATE containers SET name = ? WHERE name = ?",
+				"oldName": oldName,
+				"newName": newName})
+		if _, err := stmt.Exec(newName, oldName); err != nil {
+			return err
+		}
 
-	logger.Debug(
-		"Calling SQL Query",
-		log.Ctx{
-			"query":   "UPDATE containers SET name = ? WHERE name = ?",
-			"oldName": oldName,
-			"newName": newName})
-	if _, err := stmt.Exec(newName, oldName); err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return TxCommit(tx)
+		return nil
+	})
+	return err
 }
 
 func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, ephemeral bool) error {

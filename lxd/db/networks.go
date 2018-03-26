@@ -434,44 +434,37 @@ func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
 }
 
 func (c *Cluster) NetworkCreate(name, description string, config map[string]string) (int64, error) {
-	tx, err := begin(c.db)
-	if err != nil {
-		return -1, err
-	}
+	var id int64
+	err := c.Transaction(func(tx *ClusterTx) error {
+		result, err := tx.tx.Exec("INSERT INTO networks (name, description, state) VALUES (?, ?, ?)", name, description, networkCreated)
+		if err != nil {
+			return err
+		}
 
-	result, err := tx.Exec("INSERT INTO networks (name, description, state) VALUES (?, ?, ?)", name, description, networkCreated)
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
+		// Insert a node-specific entry pointing to ourselves.
+		columns := []string{"network_id", "node_id"}
+		values := []interface{}{id, c.nodeID}
+		_, err = query.UpsertObject(tx.tx, "networks_nodes", columns, values)
+		if err != nil {
+			return err
+		}
 
-	// Insert a node-specific entry pointing to ourselves.
-	columns := []string{"network_id", "node_id"}
-	values := []interface{}{id, c.nodeID}
-	_, err = query.UpsertObject(tx, "networks_nodes", columns, values)
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
+		err = networkConfigAdd(tx.tx, id, c.nodeID, config)
+		if err != nil {
+			return err
+		}
 
-	err = networkConfigAdd(tx, id, c.nodeID, config)
+		return nil
+	})
 	if err != nil {
-		tx.Rollback()
-		return -1, err
+		id = -1
 	}
-
-	err = TxCommit(tx)
-	if err != nil {
-		return -1, err
-	}
-
-	return id, nil
+	return id, err
 }
 
 func (c *Cluster) NetworkUpdate(name, description string, config map[string]string) error {
@@ -480,30 +473,25 @@ func (c *Cluster) NetworkUpdate(name, description string, config map[string]stri
 		return err
 	}
 
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
+	err = c.Transaction(func(tx *ClusterTx) error {
+		err = NetworkUpdateDescription(tx.tx, id, description)
+		if err != nil {
+			return err
+		}
 
-	err = NetworkUpdateDescription(tx, id, description)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = NetworkConfigClear(tx.tx, id, c.nodeID)
+		if err != nil {
+			return err
+		}
 
-	err = NetworkConfigClear(tx, id, c.nodeID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = networkConfigAdd(tx.tx, id, c.nodeID, config)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 
-	err = networkConfigAdd(tx, id, c.nodeID, config)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return TxCommit(tx)
+	return err
 }
 
 func NetworkUpdateDescription(tx *sql.Tx, id int64, description string) error {
@@ -570,18 +558,12 @@ func (c *Cluster) NetworkRename(oldName string, newName string) error {
 		return err
 	}
 
-	tx, err := begin(c.db)
-	if err != nil {
+	err = c.Transaction(func(tx *ClusterTx) error {
+		_, err = tx.tx.Exec("UPDATE networks SET name=? WHERE id=?", newName, id)
 		return err
-	}
+	})
 
-	_, err = tx.Exec("UPDATE networks SET name=? WHERE id=?", newName, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return TxCommit(tx)
+	return err
 }
 
 // NetworkNodeConfigKeys lists all network config keys which are node-specific.
