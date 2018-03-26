@@ -477,60 +477,49 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 		arch = 0
 	}
 
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
+	err = c.Transaction(func(tx *ClusterTx) error {
+		publicInt := 0
+		if public {
+			publicInt = 1
+		}
 
-	publicInt := 0
-	if public {
-		publicInt = 1
-	}
+		autoUpdateInt := 0
+		if autoUpdate {
+			autoUpdateInt = 1
+		}
 
-	autoUpdateInt := 0
-	if autoUpdate {
-		autoUpdateInt = 1
-	}
-
-	stmt, err := tx.Prepare(`UPDATE images SET filename=?, size=?, public=?, auto_update=?, architecture=?, creation_date=?, expiry_date=? WHERE id=?`)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = tx.Exec(`DELETE FROM images_properties WHERE image_id=?`, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	stmt2, err := tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt2.Close()
-
-	for key, value := range properties {
-		_, err = stmt2.Exec(id, 0, key, value)
+		stmt, err := tx.tx.Prepare(`UPDATE images SET filename=?, size=?, public=?, auto_update=?, architecture=?, creation_date=?, expiry_date=? WHERE id=?`)
 		if err != nil {
-			tx.Rollback()
 			return err
 		}
-	}
+		defer stmt.Close()
 
-	if err := TxCommit(tx); err != nil {
-		return err
-	}
+		_, err = stmt.Exec(fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, id)
+		if err != nil {
+			return err
+		}
 
-	return nil
+		_, err = tx.tx.Exec(`DELETE FROM images_properties WHERE image_id=?`, id)
+		if err != nil {
+			return err
+		}
+
+		stmt2, err := tx.tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, ?, ?, ?)`)
+		if err != nil {
+			return err
+		}
+		defer stmt2.Close()
+
+		for key, value := range properties {
+			_, err = stmt2.Exec(id, 0, key, value)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	return err
 }
 
 func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
@@ -539,72 +528,61 @@ func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, au
 		arch = 0
 	}
 
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
+	err = c.Transaction(func(tx *ClusterTx) error {
 
-	publicInt := 0
-	if public {
-		publicInt = 1
-	}
+		publicInt := 0
+		if public {
+			publicInt = 1
+		}
 
-	autoUpdateInt := 0
-	if autoUpdate {
-		autoUpdateInt = 1
-	}
+		autoUpdateInt := 0
+		if autoUpdate {
+			autoUpdateInt = 1
+		}
 
-	stmt, err := tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt.Close()
-
-	result, err := stmt.Exec(fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC())
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	id64, err := result.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	id := int(id64)
-
-	if len(properties) > 0 {
-		pstmt, err := tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, 0, ?, ?)`)
+		stmt, err := tx.tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		if err != nil {
-			tx.Rollback()
 			return err
 		}
-		defer pstmt.Close()
+		defer stmt.Close()
 
-		for k, v := range properties {
-			// we can assume, that there is just one
-			// value per key
-			_, err = pstmt.Exec(id, k, v)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
+		result, err := stmt.Exec(fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC())
+		if err != nil {
+			return err
 		}
 
-	}
+		id64, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		id := int(id64)
 
-	_, err = tx.Exec("INSERT INTO images_nodes(image_id, node_id) VALUES(?, ?)", id, c.nodeID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		if len(properties) > 0 {
+			pstmt, err := tx.tx.Prepare(`INSERT INTO images_properties (image_id, type, key, value) VALUES (?, 0, ?, ?)`)
+			if err != nil {
+				return err
+			}
+			defer pstmt.Close()
 
-	if err := TxCommit(tx); err != nil {
-		return err
-	}
+			for k, v := range properties {
+				// we can assume, that there is just one
+				// value per key
+				_, err = pstmt.Exec(id, k, v)
+				if err != nil {
+					return err
+				}
+			}
 
-	return nil
+		}
+
+		_, err = tx.tx.Exec("INSERT INTO images_nodes(image_id, node_id) VALUES(?, ?)", id, c.nodeID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	return err
 }
 
 // Get the names of all storage pools on which a given image exists.

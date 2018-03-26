@@ -517,41 +517,34 @@ func (c *Cluster) StoragePoolConfigGet(poolID int64) (map[string]string, error) 
 
 // Create new storage pool.
 func (c *Cluster) StoragePoolCreate(poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
-	tx, err := begin(c.db)
-	if err != nil {
-		return -1, err
-	}
+	var id int64
+	err := c.Transaction(func(tx *ClusterTx) error {
+		result, err := tx.tx.Exec("INSERT INTO storage_pools (name, description, driver, state) VALUES (?, ?, ?, ?)", poolName, poolDescription, poolDriver, storagePoolCreated)
+		if err != nil {
+			return err
+		}
 
-	result, err := tx.Exec("INSERT INTO storage_pools (name, description, driver, state) VALUES (?, ?, ?, ?)", poolName, poolDescription, poolDriver, storagePoolCreated)
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
+		id, err = result.LastInsertId()
+		if err != nil {
+			return err
+		}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
+		// Insert a node-specific entry pointing to ourselves.
+		columns := []string{"storage_pool_id", "node_id"}
+		values := []interface{}{id, c.nodeID}
+		_, err = query.UpsertObject(tx.tx, "storage_pools_nodes", columns, values)
+		if err != nil {
+			return err
+		}
 
-	// Insert a node-specific entry pointing to ourselves.
-	columns := []string{"storage_pool_id", "node_id"}
-	values := []interface{}{id, c.nodeID}
-	_, err = query.UpsertObject(tx, "storage_pools_nodes", columns, values)
+		err = storagePoolConfigAdd(tx.tx, id, c.nodeID, poolConfig)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-
-	err = storagePoolConfigAdd(tx, id, c.nodeID, poolConfig)
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-
-	err = TxCommit(tx)
-	if err != nil {
-		return -1, err
+		id = -1
 	}
 
 	return id, nil
@@ -610,30 +603,25 @@ func (c *Cluster) StoragePoolUpdate(poolName, description string, poolConfig map
 		return err
 	}
 
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
+	err = c.Transaction(func(tx *ClusterTx) error {
+		err = StoragePoolUpdateDescription(tx.tx, poolID, description)
+		if err != nil {
+			return err
+		}
 
-	err = StoragePoolUpdateDescription(tx, poolID, description)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = StoragePoolConfigClear(tx.tx, poolID, c.nodeID)
+		if err != nil {
+			return err
+		}
 
-	err = StoragePoolConfigClear(tx, poolID, c.nodeID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = storagePoolConfigAdd(tx.tx, poolID, c.nodeID, poolConfig)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 
-	err = storagePoolConfigAdd(tx, poolID, c.nodeID, poolConfig)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return TxCommit(tx)
+	return err
 }
 
 // Update the storage pool description.
@@ -823,30 +811,27 @@ func (c *Cluster) StoragePoolVolumeUpdate(volumeName string, volumeType int, poo
 		return err
 	}
 
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
+	err = c.Transaction(func(tx *ClusterTx) error {
+		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, volumeName, volumeType, poolID, func(volumeID int64) error {
+			err = StorageVolumeConfigClear(tx.tx, volumeID)
+			if err != nil {
+				return err
+			}
 
-	err = storagePoolVolumeReplicateIfCeph(tx, volumeID, volumeName, volumeType, poolID, func(volumeID int64) error {
-		err = StorageVolumeConfigClear(tx, volumeID)
+			err = StorageVolumeConfigAdd(tx.tx, volumeID, volumeConfig)
+			if err != nil {
+				return err
+			}
+
+			return StorageVolumeDescriptionUpdate(tx.tx, volumeID, volumeDescription)
+		})
 		if err != nil {
 			return err
 		}
-
-		err = StorageVolumeConfigAdd(tx, volumeID, volumeConfig)
-		if err != nil {
-			return err
-		}
-
-		return StorageVolumeDescriptionUpdate(tx, volumeID, volumeDescription)
+		return nil
 	})
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
 
-	return TxCommit(tx)
+	return err
 }
 
 // Delete storage volume attached to a given storage pool.
@@ -856,21 +841,15 @@ func (c *Cluster) StoragePoolVolumeDelete(volumeName string, volumeType int, poo
 		return err
 	}
 
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
-
-	err = storagePoolVolumeReplicateIfCeph(tx, volumeID, volumeName, volumeType, poolID, func(volumeID int64) error {
-		_, err = tx.Exec("DELETE FROM storage_volumes WHERE id=?", volumeID)
+	err = c.Transaction(func(tx *ClusterTx) error {
+		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, volumeName, volumeType, poolID, func(volumeID int64) error {
+			_, err := tx.tx.Exec("DELETE FROM storage_volumes WHERE id=?", volumeID)
+			return err
+		})
 		return err
 	})
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
 
-	return TxCommit(tx)
+	return err
 }
 
 // Rename storage volume attached to a given storage pool.
@@ -880,21 +859,15 @@ func (c *Cluster) StoragePoolVolumeRename(oldVolumeName string, newVolumeName st
 		return err
 	}
 
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
-
-	err = storagePoolVolumeReplicateIfCeph(tx, volumeID, oldVolumeName, volumeType, poolID, func(volumeID int64) error {
-		_, err = tx.Exec("UPDATE storage_volumes SET name=? WHERE id=? AND type=?", newVolumeName, volumeID, volumeType)
+	err = c.Transaction(func(tx *ClusterTx) error {
+		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, oldVolumeName, volumeType, poolID, func(volumeID int64) error {
+			_, err := tx.tx.Exec("UPDATE storage_volumes SET name=? WHERE id=? AND type=?", newVolumeName, volumeID, volumeType)
+			return err
+		})
 		return err
 	})
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
 
-	return TxCommit(tx)
+	return err
 }
 
 // This a convenience to replicate a certain volume change to all nodes if the
@@ -927,60 +900,52 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, volumeName str
 
 // Create new storage volume attached to a given storage pool.
 func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
-	tx, err := begin(c.db)
-	if err != nil {
-		return -1, err
-	}
-
-	nodeIDs := []int{int(c.nodeID)}
-	driver, err := storagePoolDriverGet(tx, poolID)
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-	// If the driver is ceph, create a volume entry for each node.
-	if driver == "ceph" {
-		nodeIDs, err = query.SelectIntegers(tx, "SELECT id FROM nodes")
-		if err != nil {
-			tx.Rollback()
-			return -1, err
-		}
-	}
-
 	var thisVolumeID int64
-	for _, nodeID := range nodeIDs {
-		result, err := tx.Exec(`
+	err := c.Transaction(func(tx *ClusterTx) error {
+		nodeIDs := []int{int(c.nodeID)}
+		driver, err := storagePoolDriverGet(tx.tx, poolID)
+		if err != nil {
+			return err
+		}
+		// If the driver is ceph, create a volume entry for each node.
+		if driver == "ceph" {
+			nodeIDs, err = query.SelectIntegers(tx.tx, "SELECT id FROM nodes")
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, nodeID := range nodeIDs {
+			result, err := tx.tx.Exec(`
 INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description) VALUES (?, ?, ?, ?, ?)
 `,
-			poolID, nodeID, volumeType, volumeName, volumeDescription)
-		if err != nil {
-			tx.Rollback()
-			return -1, err
-		}
+				poolID, nodeID, volumeType, volumeName, volumeDescription)
+			if err != nil {
+				return err
+			}
 
-		volumeID, err := result.LastInsertId()
-		if err != nil {
-			tx.Rollback()
-			return -1, err
-		}
-		if int64(nodeID) == c.nodeID {
-			// Return the ID of the volume created on this node.
-			thisVolumeID = volumeID
-		}
+			volumeID, err := result.LastInsertId()
+			if err != nil {
+				return err
+			}
+			if int64(nodeID) == c.nodeID {
+				// Return the ID of the volume created on this node.
+				thisVolumeID = volumeID
+			}
 
-		err = StorageVolumeConfigAdd(tx, volumeID, volumeConfig)
-		if err != nil {
-			tx.Rollback()
-			return -1, err
+			err = StorageVolumeConfigAdd(tx.tx, volumeID, volumeConfig)
+			if err != nil {
+				tx.tx.Rollback()
+				return err
+			}
 		}
-	}
-
-	err = TxCommit(tx)
+		return nil
+	})
 	if err != nil {
-		return -1, err
+		thisVolumeID = -1
 	}
 
-	return thisVolumeID, nil
+	return thisVolumeID, err
 }
 
 // StoragePoolVolumeGetTypeID returns the ID of a storage volume on a given
@@ -998,7 +963,10 @@ AND storage_volumes.name=? AND storage_volumes.type=?`
 
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
-		return -1, NoSuchObjectError
+		if err == sql.ErrNoRows {
+			return -1, NoSuchObjectError
+		}
+		return -1, err
 	}
 
 	return volumeID, nil

@@ -63,36 +63,30 @@ func (c *Cluster) ProfileGet(name string) (int64, *api.Profile, error) {
 func (c *Cluster) ProfileCreate(profile string, description string, config map[string]string,
 	devices types.Devices) (int64, error) {
 
-	tx, err := begin(c.db)
-	if err != nil {
-		return -1, err
-	}
-	result, err := tx.Exec("INSERT INTO profiles (name, description) VALUES (?, ?)", profile, description)
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
+	var id int64
+	err := c.Transaction(func(tx *ClusterTx) error {
+		result, err := tx.tx.Exec("INSERT INTO profiles (name, description) VALUES (?, ?)", profile, description)
+		if err != nil {
+			return err
+		}
+		id, err = result.LastInsertId()
+		if err != nil {
+			return err
+		}
 
-	err = ProfileConfigAdd(tx, id, config)
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
+		err = ProfileConfigAdd(tx.tx, id, config)
+		if err != nil {
+			return err
+		}
 
-	err = DevicesAdd(tx, "profile", id, devices)
+		err = DevicesAdd(tx.tx, "profile", id, devices)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-
-	err = TxCommit(tx)
-	if err != nil {
-		return -1, err
+		id = -1
 	}
 
 	return id, nil
@@ -174,19 +168,10 @@ func (c *Cluster) ProfileDelete(name string) error {
 }
 
 func (c *Cluster) ProfileUpdate(name string, newName string) error {
-	tx, err := begin(c.db)
-	if err != nil {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec("UPDATE profiles SET name=? WHERE name=?", newName, name)
 		return err
-	}
-
-	_, err = tx.Exec("UPDATE profiles SET name=? WHERE name=?", newName, name)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = TxCommit(tx)
-
+	})
 	return err
 }
 

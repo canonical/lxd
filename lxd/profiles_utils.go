@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -61,48 +62,54 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	}
 
 	// Update the database
-	tx, err := d.cluster.Begin()
-	if err != nil {
-		return err
-	}
+	err = query.Retry(func() error {
+		tx, err := d.cluster.Begin()
+		if err != nil {
+			return err
+		}
 
-	if profile.Description != req.Description {
-		err = db.ProfileDescriptionUpdate(tx, id, req.Description)
+		if profile.Description != req.Description {
+			err = db.ProfileDescriptionUpdate(tx, id, req.Description)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+
+		// Optimize for description-only changes
+		if reflect.DeepEqual(profile.Config, req.Config) && reflect.DeepEqual(profile.Devices, req.Devices) {
+			err = db.TxCommit(tx)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		err = db.ProfileConfigClear(tx, id)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
-	}
 
-	// Optimize for description-only changes
-	if reflect.DeepEqual(profile.Config, req.Config) && reflect.DeepEqual(profile.Devices, req.Devices) {
+		err = db.ProfileConfigAdd(tx, id, req.Config)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		err = db.DevicesAdd(tx, "profile", id, req.Devices)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+
 		err = db.TxCommit(tx)
 		if err != nil {
 			return err
 		}
-
 		return nil
-	}
-
-	err = db.ProfileConfigClear(tx, id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = db.ProfileConfigAdd(tx, id, req.Config)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = db.DevicesAdd(tx, "profile", id, req.Devices)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = db.TxCommit(tx)
+	})
 	if err != nil {
 		return err
 	}

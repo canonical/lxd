@@ -25,6 +25,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/template"
@@ -4481,42 +4482,48 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database
-	tx, err := c.state.Cluster.Begin()
-	if err != nil {
-		return err
-	}
+	err = query.Retry(func() error {
+		tx, err := c.state.Cluster.Begin()
+		if err != nil {
+			return err
+		}
 
-	err = db.ContainerConfigClear(tx, c.id)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = db.ContainerConfigClear(tx, c.id)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 
-	err = db.ContainerConfigInsert(tx, c.id, c.localConfig)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = db.ContainerConfigInsert(tx, c.id, c.localConfig)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 
-	err = db.ContainerProfilesInsert(tx, c.id, c.profiles)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = db.ContainerProfilesInsert(tx, c.id, c.profiles)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 
-	err = db.DevicesAdd(tx, "container", int64(c.id), c.localDevices)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = db.DevicesAdd(tx, "container", int64(c.id), c.localDevices)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 
-	err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
+		err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 
-	if err := db.TxCommit(tx); err != nil {
+		if err := db.TxCommit(tx); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		return err
 	}
 
@@ -7097,7 +7104,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			}
 
 			// Update the database
-			err = updateKey(configKey, volatileHwaddr)
+			err = query.Retry(func() error { return updateKey(configKey, volatileHwaddr) })
 			if err != nil {
 				// Check if something else filled it in behind our back
 				value, err1 := c.state.Cluster.ContainerConfigGet(c.id, configKey)
