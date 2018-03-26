@@ -998,7 +998,10 @@ AND storage_volumes.name=? AND storage_volumes.type=?`
 
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
-		return -1, NoSuchObjectError
+		if err == sql.ErrNoRows {
+			return -1, NoSuchObjectError
+		}
+		return -1, err
 	}
 
 	return volumeID, nil
