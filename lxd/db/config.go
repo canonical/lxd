@@ -24,37 +24,26 @@ func (c *ClusterTx) UpdateConfig(values map[string]string) error {
 	return query.UpdateConfig(c.tx, "config", values)
 }
 
-func ConfigValueSet(cluster *Cluster, key string, value string) error {
-	tx, err := begin(cluster.db)
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("DELETE FROM config WHERE key=?", key)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if value != "" {
-		str := `INSERT INTO config (key, value) VALUES (?, ?);`
-		stmt, err := tx.Prepare(str)
+func ConfigValueSet(c *Cluster, key string, value string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec("DELETE FROM config WHERE key=?", key)
 		if err != nil {
-			tx.Rollback()
 			return err
 		}
-		defer stmt.Close()
-		_, err = stmt.Exec(key, value)
-		if err != nil {
-			tx.Rollback()
-			return err
+
+		if value != "" {
+			str := `INSERT INTO config (key, value) VALUES (?, ?);`
+			stmt, err := tx.tx.Prepare(str)
+			if err != nil {
+				return err
+			}
+			defer stmt.Close()
+			_, err = stmt.Exec(key, value)
+			if err != nil {
+				return err
+			}
 		}
-	}
-
-	err = TxCommit(tx)
-	if err != nil {
-		return err
-	}
-
-	return nil
+		return nil
+	})
+	return err
 }

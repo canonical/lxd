@@ -77,35 +77,31 @@ func (c *Cluster) CertificateGet(fingerprint string) (cert *CertInfo, err error)
 // CertSave stores a CertBaseInfo object in the db,
 // it will ignore the ID field from the CertInfo.
 func (c *Cluster) CertSave(cert *CertInfo) error {
-	tx, err := begin(c.db)
-	if err != nil {
-		return err
-	}
-	stmt, err := tx.Prepare(`
+	err := c.Transaction(func(tx *ClusterTx) error {
+		stmt, err := tx.tx.Prepare(`
 			INSERT INTO certificates (
 				fingerprint,
 				type,
 				name,
 				certificate
 			) VALUES (?, ?, ?, ?)`,
-	)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(
-		cert.Fingerprint,
-		cert.Type,
-		cert.Name,
-		cert.Certificate,
-	)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return TxCommit(tx)
+		)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		_, err = stmt.Exec(
+			cert.Fingerprint,
+			cert.Type,
+			cert.Name,
+			cert.Certificate,
+		)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
 }
 
 // CertDelete deletes a certificate from the db.
@@ -119,18 +115,9 @@ func (c *Cluster) CertDelete(fingerprint string) error {
 }
 
 func (c *Cluster) CertUpdate(fingerprint string, certName string, certType int) error {
-	tx, err := begin(c.db)
-	if err != nil {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec("UPDATE certificates SET name=?, type=? WHERE fingerprint=?", certName, certType, fingerprint)
 		return err
-	}
-
-	_, err = tx.Exec("UPDATE certificates SET name=?, type=? WHERE fingerprint=?", certName, certType, fingerprint)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	err = TxCommit(tx)
-
+	})
 	return err
 }
