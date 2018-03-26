@@ -93,6 +93,10 @@ For help with any of those, simply call them with --help.`))
 	execCmd := cmdExec{global: &globalCmd}
 	app.AddCommand(execCmd.Command())
 
+	// file sub-command
+	fileCmd := cmdFile{global: &globalCmd}
+	app.AddCommand(fileCmd.Command())
+
 	// info sub-command
 	infoCmd := cmdInfo{global: &globalCmd}
 	app.AddCommand(infoCmd.Command())
@@ -327,7 +331,6 @@ type command interface {
 
 var commands = map[string]command{
 	"config":  &configCmd{},
-	"file":    &fileCmd{},
 	"image":   &imageCmd{},
 	"manpage": &manpageCmd{},
 	"network": &networkCmd{},
