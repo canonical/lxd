@@ -862,10 +862,17 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		return nil, err
 	}
 
+	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
 		if !shared.StringInSlice(profile, profiles) {
 			return nil, fmt.Errorf("Requested profile '%s' doesn't exist", profile)
 		}
+
+		if shared.StringInSlice(profile, checkedProfiles) {
+			return nil, fmt.Errorf("Duplicate profile found in request")
+		}
+
+		checkedProfiles = append(checkedProfiles, profile)
 	}
 
 	// Create the container entry
