@@ -121,6 +121,10 @@ For help with any of those, simply call them with --help.`))
 	moveCmd := cmdMove{global: &globalCmd}
 	app.AddCommand(moveCmd.Command())
 
+	// network sub-command
+	networkCmd := cmdNetwork{global: &globalCmd}
+	app.AddCommand(networkCmd.Command())
+
 	// operation sub-command
 	operationCmd := cmdOperation{global: &globalCmd}
 	app.AddCommand(operationCmd.Command())
@@ -337,7 +341,6 @@ var commands = map[string]command{
 	"config":  &configCmd{},
 	"image":   &imageCmd{},
 	"manpage": &manpageCmd{},
-	"network": &networkCmd{},
 	"profile": &profileCmd{},
 	"storage": &storageCmd{},
 }
