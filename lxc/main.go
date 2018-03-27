@@ -145,6 +145,10 @@ For help with any of those, simply call them with --help.`))
 	restartCmd := cmdRestart{global: &globalCmd}
 	app.AddCommand(restartCmd.Command())
 
+	// remote sub-command
+	remoteCmd := cmdRemote{global: &globalCmd}
+	app.AddCommand(remoteCmd.Command())
+
 	// restore sub-command
 	restoreCmd := cmdRestore{global: &globalCmd}
 	app.AddCommand(restoreCmd.Command())
@@ -335,7 +339,6 @@ var commands = map[string]command{
 	"manpage": &manpageCmd{},
 	"network": &networkCmd{},
 	"profile": &profileCmd{},
-	"remote":  &remoteCmd{},
 	"storage": &storageCmd{},
 }
 
@@ -350,10 +353,6 @@ var defaultAliases = map[string]string{
 
 	"image alias ls": "image alias list",
 	"image alias rm": "image alias delete",
-
-	"remote ls": "remote list",
-	"remote mv": "remote rename",
-	"remote rm": "remote remove",
 
 	"config device ls": "config device list",
 	"config device rm": "config device remove",
