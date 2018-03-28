@@ -587,7 +587,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if an entry for the container already exists in the db.
-	_, containerErr := d.cluster.ContainerId(req.Name)
+	_, containerErr := d.cluster.ContainerID(req.Name)
 	if containerErr != nil {
 		if containerErr != sql.ErrNoRows {
 			return SmartError(containerErr)
@@ -640,7 +640,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	for _, snap := range existingSnapshots {
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := d.cluster.ContainerId(snap.Name)
+		_, snapErr := d.cluster.ContainerID(snap.Name)
 		if snapErr != nil {
 			if snapErr != sql.ErrNoRows {
 				return SmartError(snapErr)

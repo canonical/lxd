@@ -281,7 +281,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := d.cluster.ContainerId(fullName)
+	id, _ := d.cluster.ContainerID(fullName)
 	if id > 0 {
 		return Conflict
 	}
