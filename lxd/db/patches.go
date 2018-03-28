@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// Patches returns the names of all patches currently applied on this node.
 func (n *Node) Patches() ([]string, error) {
 	inargs := []interface{}{}
 	outfmt := []interface{}{""}
@@ -22,6 +23,7 @@ func (n *Node) Patches() ([]string, error) {
 	return response, nil
 }
 
+// PatchesMarkApplied marks the patch with the given name as applied on this node.
 func (n *Node) PatchesMarkApplied(patch string) error {
 	stmt := `INSERT INTO patches (name, applied_at) VALUES (?, strftime("%s"));`
 	_, err := n.db.Exec(stmt, patch)
