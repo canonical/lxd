@@ -24,6 +24,8 @@ func (c *ClusterTx) UpdateConfig(values map[string]string) error {
 	return query.UpdateConfig(c.tx, "config", values)
 }
 
+// ConfigValueSet is a convenience to set a cluster-level key/value config pair
+// in a single transaction.
 func ConfigValueSet(c *Cluster, key string, value string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		_, err := tx.tx.Exec("DELETE FROM config WHERE key=?", key)
