@@ -101,6 +101,10 @@ For help with any of those, simply call them with --help.`))
 	infoCmd := cmdInfo{global: &globalCmd}
 	app.AddCommand(infoCmd.Command())
 
+	// image sub-command
+	imageCmd := cmdImage{global: &globalCmd}
+	app.AddCommand(imageCmd.Command())
+
 	// init sub-command
 	initCmd := cmdInit{global: &globalCmd}
 	app.AddCommand(initCmd.Command())
@@ -339,7 +343,6 @@ type command interface {
 
 var commands = map[string]command{
 	"config":  &configCmd{},
-	"image":   &imageCmd{},
 	"manpage": &manpageCmd{},
 	"profile": &profileCmd{},
 	"storage": &storageCmd{},
@@ -349,13 +352,6 @@ var commands = map[string]command{
 // aliases are checked only if no user-defined alias was found.
 var defaultAliases = map[string]string{
 	"shell": "exec @ARGS@ -- su -l",
-
-	"image cp": "image copy",
-	"image ls": "image list",
-	"image rm": "image delete",
-
-	"image alias ls": "image alias list",
-	"image alias rm": "image alias delete",
 
 	"config device ls": "config device list",
 	"config device rm": "config device remove",
