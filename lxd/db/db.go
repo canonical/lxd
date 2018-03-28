@@ -28,8 +28,6 @@ var (
 	// isn't found so we don't abuse sql.ErrNoRows any more than we
 	// already do.
 	ErrNoSuchObject = fmt.Errorf("No such object")
-
-	Upgrading = fmt.Errorf("The cluster database is upgrading")
 )
 
 // Node mediates access to LXD's data stored in the node-local SQLite database.
@@ -360,6 +358,7 @@ func begin(db *sql.DB) (*sql.Tx, error) {
 	return nil, fmt.Errorf("DB is locked")
 }
 
+// TxCommit commits the given transaction.
 func TxCommit(tx *sql.Tx) error {
 	err := tx.Commit()
 	if err == nil || err == sql.ErrTxDone { // Ignore duplicate commits/rollbacks
