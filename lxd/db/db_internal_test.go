@@ -14,7 +14,7 @@ import (
 	"github.com/lxc/lxd/shared/logging"
 )
 
-const DB_FIXTURES string = `
+const fixtures string = `
     INSERT INTO containers (node_id, name, architecture, type) VALUES (1, 'thename', 1, 1);
     INSERT INTO profiles (name) VALUES ('theprofile');
     INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
@@ -39,7 +39,7 @@ type dbTestSuite struct {
 
 func (s *dbTestSuite) SetupTest() {
 	s.db, s.cleanup = s.CreateTestDb()
-	_, err := s.db.DB().Exec(DB_FIXTURES)
+	_, err := s.db.DB().Exec(fixtures)
 	s.Nil(err)
 }
 
