@@ -273,7 +273,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
-		id:           args.Id,
+		id:           args.ID,
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
@@ -450,7 +450,7 @@ func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) 
 	// Create the container struct
 	c := &containerLXC{
 		state:        s,
-		id:           args.Id,
+		id:           args.ID,
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
