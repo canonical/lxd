@@ -122,7 +122,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 			return tx.NetworkCreatePending(targetNode, req.Name, req.Config)
 		})
 		if err != nil {
-			if err == db.DbErrAlreadyDefined {
+			if err == db.ErrAlreadyDefined {
 				return BadRequest(
 					fmt.Errorf("The network already defined on node %s", targetNode))
 			}

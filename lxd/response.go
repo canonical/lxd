@@ -505,7 +505,7 @@ func SmartError(err error) Response {
 		return NotFound
 	case os.ErrPermission:
 		return Forbidden
-	case db.DbErrAlreadyDefined:
+	case db.ErrAlreadyDefined:
 		return Conflict
 	case sqlite3.ErrConstraintUnique:
 		return Conflict

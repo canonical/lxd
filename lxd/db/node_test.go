@@ -81,7 +81,7 @@ func TestNodeRename(t *testing.T) {
 	_, err = tx.NodeAdd("buzz", "5.6.7.8:666")
 	require.NoError(t, err)
 	err = tx.NodeRename("rusp", "buzz")
-	assert.Equal(t, db.DbErrAlreadyDefined, err)
+	assert.Equal(t, db.ErrAlreadyDefined, err)
 }
 
 // Remove a new raft node.

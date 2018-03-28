@@ -149,7 +149,7 @@ func (c *ClusterTx) NodeRename(old, new string) error {
 		return errors.Wrap(err, "failed to check existing nodes")
 	}
 	if count != 0 {
-		return DbErrAlreadyDefined
+		return ErrAlreadyDefined
 	}
 	stmt := `UPDATE nodes SET name=? WHERE name=?`
 	result, err := c.tx.Exec(stmt, new, old)

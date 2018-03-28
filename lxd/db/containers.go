@@ -435,7 +435,7 @@ SELECT containers.id, containers.description, architecture, type, ephemeral, sta
 func (c *Cluster) ContainerCreate(args ContainerArgs) (int, error) {
 	_, err := c.ContainerID(args.Name)
 	if err == nil {
-		return 0, DbErrAlreadyDefined
+		return 0, ErrAlreadyDefined
 	}
 
 	var id int

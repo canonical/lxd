@@ -878,7 +878,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Create the container entry
 	id, err := s.Cluster.ContainerCreate(args)
 	if err != nil {
-		if err == db.DbErrAlreadyDefined {
+		if err == db.ErrAlreadyDefined {
 			thing := "Container"
 			if shared.IsSnapshot(args.Name) {
 				thing = "Snapshot"

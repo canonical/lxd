@@ -249,7 +249,7 @@ func (c *ClusterTx) StoragePoolCreatePending(node, name, driver string, conf map
 		return err
 	}
 	if count != 0 {
-		return DbErrAlreadyDefined
+		return ErrAlreadyDefined
 	}
 
 	// Insert the node-specific configuration.

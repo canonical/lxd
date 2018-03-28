@@ -17,9 +17,9 @@ import (
 )
 
 var (
-	// DbErrAlreadyDefined hapens when the given entry already exists,
+	// ErrAlreadyDefined hapens when the given entry already exists,
 	// for example a container.
-	DbErrAlreadyDefined = fmt.Errorf("The container/snapshot already exists")
+	ErrAlreadyDefined = fmt.Errorf("The container/snapshot already exists")
 
 	/* NoSuchObjectError is in the case of joins (and probably other) queries,
 	 * we don't get back sql.ErrNoRows when no rows are returned, even though we do
