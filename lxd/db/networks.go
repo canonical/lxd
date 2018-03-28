@@ -195,7 +195,7 @@ func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]stri
 		return err
 	}
 	if count != 0 {
-		return DbErrAlreadyDefined
+		return ErrAlreadyDefined
 	}
 
 	// Insert the node-specific configuration.

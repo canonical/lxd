@@ -59,7 +59,7 @@ func TestStoragePoolsCreatePending_AlreadyDefined(t *testing.T) {
 	require.NoError(t, err)
 
 	err = tx.StoragePoolCreatePending("buzz", "pool1", "dir", map[string]string{})
-	require.Equal(t, db.DbErrAlreadyDefined, err)
+	require.Equal(t, db.ErrAlreadyDefined, err)
 }
 
 // If no node with the given name is found, an error is returned.
