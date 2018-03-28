@@ -208,7 +208,7 @@ func (s *dbTestSuite) Test_ImageAliasGet_alias_does_not_exists() {
 	var err error
 
 	_, _, err = s.db.ImageAliasGet("whatever", true)
-	s.Equal(err, NoSuchObjectError)
+	s.Equal(err, ErrNoSuchObject)
 }
 
 func (s *dbTestSuite) Test_ImageAliasAdd() {
@@ -242,7 +242,7 @@ func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint_no_match() {
 	s.Nil(err)
 
 	_, err = s.db.ImageSourceGetCachedFingerprint("server.remote", "lxd", "test")
-	s.Equal(err, NoSuchObjectError)
+	s.Equal(err, ErrNoSuchObject)
 }
 
 func (s *dbTestSuite) Test_ContainerConfig() {

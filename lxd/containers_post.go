@@ -208,7 +208,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	// Handle copying/moving between two storage-api LXD instances.
 	if storagePool != "" {
 		_, err := d.cluster.StoragePoolGetID(storagePool)
-		if err == db.NoSuchObjectError {
+		if err == db.ErrNoSuchObject {
 			storagePool = ""
 			// Unset the local root disk device storage pool if not
 			// found.
@@ -238,7 +238,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	if storagePool == "" {
 		pools, err := d.cluster.StoragePools()
 		if err != nil {
-			if err == db.NoSuchObjectError {
+			if err == db.ErrNoSuchObject {
 				return BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured."))
 			}
 			return SmartError(err)

@@ -380,7 +380,7 @@ func cephRBDSnapshotListClones(clusterName string, poolName string,
 	msg = strings.TrimSpace(msg)
 	clones := strings.Fields(msg)
 	if len(clones) == 0 {
-		return nil, db.NoSuchObjectError
+		return nil, db.ErrNoSuchObject
 	}
 
 	return clones, nil
@@ -523,7 +523,7 @@ func cephRBDVolumeGetParent(clusterName string, poolName string,
 
 	idx := strings.Index(msg, "parent: ")
 	if idx == -1 {
-		return "", db.NoSuchObjectError
+		return "", db.ErrNoSuchObject
 	}
 
 	msg = msg[(idx + len("parent: ")):]
@@ -626,7 +626,7 @@ func cephRBDVolumeListSnapshots(clusterName string, poolName string,
 	}
 
 	if len(snapshots) == 0 {
-		return []string{}, db.NoSuchObjectError
+		return []string{}, db.ErrNoSuchObject
 	}
 
 	return snapshots, nil
@@ -1010,7 +1010,7 @@ func cephContainerDelete(clusterName string, poolName string, volumeName string,
 			return 1
 		}
 	} else {
-		if err != db.NoSuchObjectError {
+		if err != db.ErrNoSuchObject {
 			logger.Errorf(`Failed to retrieve snapshots of RBD `+
 				`storage volume: %s`, err)
 			return -1
@@ -1078,7 +1078,7 @@ func cephContainerDelete(clusterName string, poolName string, volumeName string,
 
 			return 0
 		} else {
-			if err != db.NoSuchObjectError {
+			if err != db.ErrNoSuchObject {
 				logger.Errorf(`Failed to retrieve parent of `+
 					`RBD storage volume "%s"`, logEntry)
 				return -1
@@ -1140,7 +1140,7 @@ func cephContainerSnapshotDelete(clusterName string, poolName string,
 	clones, err := cephRBDSnapshotListClones(clusterName, poolName,
 		volumeName, volumeType, snapshotName, userName)
 	if err != nil {
-		if err != db.NoSuchObjectError {
+		if err != db.ErrNoSuchObject {
 			logger.Errorf(`Failed to list clones of RBD `+
 				`snapshot "%s" of RBD storage volume "%s": %s`,
 				logSnapshotEntry, logImageEntry, err)

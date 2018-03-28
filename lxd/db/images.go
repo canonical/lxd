@@ -108,7 +108,7 @@ func (c *Cluster) ImageSourceGet(imageId int) (int, api.ImageSource, error) {
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, api.ImageSource{}, NoSuchObjectError
+			return -1, api.ImageSource{}, ErrNoSuchObject
 		}
 
 		return -1, api.ImageSource{}, err
@@ -154,7 +154,7 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", NoSuchObjectError
+			return "", ErrNoSuchObject
 		}
 
 		return "", err
@@ -418,7 +418,7 @@ func (c *Cluster) ImageAliasGet(name string, isTrustedClient bool) (int, api.Ima
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, entry, NoSuchObjectError
+			return -1, entry, ErrNoSuchObject
 		}
 
 		return -1, entry, err

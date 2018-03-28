@@ -29,5 +29,5 @@ func TestOperation(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = tx.OperationByUUID("abcd")
-	assert.Equal(t, db.NoSuchObjectError, err)
+	assert.Equal(t, db.ErrNoSuchObject, err)
 }

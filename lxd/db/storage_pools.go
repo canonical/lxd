@@ -48,7 +48,7 @@ func (c *ClusterTx) StoragePoolID(name string) (int64, error) {
 	}
 	switch len(ids) {
 	case 0:
-		return -1, NoSuchObjectError
+		return -1, ErrNoSuchObject
 	case 1:
 		return int64(ids[0]), nil
 	default:
@@ -65,7 +65,7 @@ func (c *ClusterTx) StoragePoolDriver(id int64) (string, error) {
 	}
 	switch len(drivers) {
 	case 0:
-		return "", NoSuchObjectError
+		return "", ErrNoSuchObject
 	case 1:
 		return drivers[0], nil
 	default:
@@ -288,7 +288,7 @@ func (c *ClusterTx) storagePoolState(name string, state int) error {
 		return err
 	}
 	if n != 1 {
-		return NoSuchObjectError
+		return ErrNoSuchObject
 	}
 	return nil
 }
@@ -371,7 +371,7 @@ func (c *Cluster) storagePools(where string, args ...interface{}) ([]string, err
 	}
 
 	if len(result) == 0 {
-		return []string{}, NoSuchObjectError
+		return []string{}, ErrNoSuchObject
 	}
 
 	pools := []string{}
@@ -395,7 +395,7 @@ func (c *Cluster) StoragePoolsGetDrivers() ([]string, error) {
 	}
 
 	if len(result) == 0 {
-		return []string{}, NoSuchObjectError
+		return []string{}, ErrNoSuchObject
 	}
 
 	drivers := []string{}
@@ -416,7 +416,7 @@ func (c *Cluster) StoragePoolGetID(poolName string) (int64, error) {
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, NoSuchObjectError
+			return -1, ErrNoSuchObject
 		}
 	}
 
@@ -437,7 +437,7 @@ func (c *Cluster) StoragePoolGet(poolName string) (int64, *api.StoragePool, erro
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, nil, NoSuchObjectError
+			return -1, nil, ErrNoSuchObject
 		}
 		return -1, nil, err
 	}
@@ -588,7 +588,7 @@ func storagePoolDriverGet(tx *sql.Tx, id int64) (string, error) {
 	}
 	switch len(drivers) {
 	case 0:
-		return "", NoSuchObjectError
+		return "", ErrNoSuchObject
 	case 1:
 		return drivers[0], nil
 	default:
@@ -726,7 +726,7 @@ func (c *Cluster) storagePoolVolumesGet(poolID, nodeID int64, volumeTypes []int)
 	}
 
 	if len(result) == 0 {
-		return result, NoSuchObjectError
+		return result, ErrNoSuchObject
 	}
 
 	return result, nil
@@ -964,7 +964,7 @@ AND storage_volumes.name=? AND storage_volumes.type=?`
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, NoSuchObjectError
+			return -1, ErrNoSuchObject
 		}
 		return -1, err
 	}
