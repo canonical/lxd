@@ -347,7 +347,6 @@ type command interface {
 
 var commands = map[string]command{
 	"config":  &configCmd{},
-	"manpage": &manpageCmd{},
 	"profile": &profileCmd{},
 }
 
