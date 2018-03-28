@@ -891,7 +891,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Wipe any existing log for this container name
 	os.RemoveAll(shared.LogPath(args.Name))
 
-	args.Id = id
+	args.ID = id
 
 	// Read the timestamp from the database
 	dbArgs, err := s.Cluster.ContainerGet(args.Name)
