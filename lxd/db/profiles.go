@@ -137,7 +137,7 @@ func (c *Cluster) ProfileConfig(name string) (map[string]string, error) {
 		}
 
 		if len(results) == 0 {
-			return nil, NoSuchObjectError
+			return nil, ErrNoSuchObject
 		}
 	}
 

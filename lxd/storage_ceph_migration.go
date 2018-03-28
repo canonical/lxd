@@ -210,7 +210,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 		s.OSDPoolName, containerName,
 		storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
-		if err != db.NoSuchObjectError {
+		if err != db.ErrNoSuchObject {
 			logger.Errorf(`Failed to list snapshots for RBD storage volume "%s" on storage pool "%s": %s`, containerName, s.pool.Name, err)
 			return nil, err
 		}

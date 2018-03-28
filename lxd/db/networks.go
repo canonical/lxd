@@ -66,7 +66,7 @@ func (c *ClusterTx) NetworkID(name string) (int64, error) {
 	}
 	switch len(ids) {
 	case 0:
-		return -1, NoSuchObjectError
+		return -1, ErrNoSuchObject
 	case 1:
 		return int64(ids[0]), nil
 	default:
@@ -234,7 +234,7 @@ func (c *ClusterTx) networkState(name string, state int) error {
 		return err
 	}
 	if n != 1 {
-		return NoSuchObjectError
+		return ErrNoSuchObject
 	}
 	return nil
 }
@@ -417,7 +417,7 @@ func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
 		}
 
 		if len(results) == 0 {
-			return nil, NoSuchObjectError
+			return nil, ErrNoSuchObject
 		}
 	}
 

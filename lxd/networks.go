@@ -211,7 +211,7 @@ func networksPostCluster(d *Daemon, req api.NetworksPost) error {
 		return tx.NetworkConfigAdd(networkID, 0, req.Config)
 	})
 	if err != nil {
-		if err == db.NoSuchObjectError {
+		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Network not pending on any node (use --target <node> first)")
 		}
 		return err

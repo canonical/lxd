@@ -2519,7 +2519,7 @@ func (s *storageCeph) ImageDelete(fingerprint string) error {
 		fingerprint, storagePoolVolumeTypeNameImage, "readonly",
 		s.UserName)
 	if err != nil {
-		if err != db.NoSuchObjectError {
+		if err != db.ErrNoSuchObject {
 			logger.Errorf(`Failed to list clones of RBD storage `+
 				`volume for image "%s" on storage pool "%s":
 				%s`, fingerprint, s.pool.Name, err)

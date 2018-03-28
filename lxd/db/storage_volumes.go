@@ -47,7 +47,7 @@ SELECT nodes.id, nodes.address
 	sort.Strings(addresses)
 
 	if len(addresses) == 0 {
-		return nil, NoSuchObjectError
+		return nil, ErrNoSuchObject
 	}
 
 	return addresses, nil
@@ -67,7 +67,7 @@ SELECT nodes.name FROM storage_volumes
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", NoSuchObjectError
+			return "", ErrNoSuchObject
 		}
 		return "", err
 	}
@@ -109,7 +109,7 @@ func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", NoSuchObjectError
+			return "", ErrNoSuchObject
 		}
 		return "", err
 	}

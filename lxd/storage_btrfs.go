@@ -1550,7 +1550,7 @@ func btrfsSubVolumeQGroup(subvol string) (string, error) {
 		"-f")
 
 	if err != nil {
-		return "", db.NoSuchObjectError
+		return "", db.ErrNoSuchObject
 	}
 
 	var qgroup string
@@ -2250,7 +2250,7 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 
 	_, err := btrfsSubVolumeQGroup(subvol)
 	if err != nil {
-		if err != db.NoSuchObjectError {
+		if err != db.ErrNoSuchObject {
 			return err
 		}
 

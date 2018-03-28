@@ -108,7 +108,7 @@ func TestRaftNodeDelete_NonExisting(t *testing.T) {
 	defer cleanup()
 
 	err := tx.RaftNodeDelete(1)
-	assert.Equal(t, db.NoSuchObjectError, err)
+	assert.Equal(t, db.ErrNoSuchObject, err)
 }
 
 // Replace all existing raft nodes.

@@ -64,7 +64,7 @@ SELECT nodes.id, nodes.address
 	defer rows.Close()
 
 	if !rows.Next() {
-		return "", NoSuchObjectError
+		return "", ErrNoSuchObject
 	}
 
 	err = rows.Scan(&id, &address)
@@ -181,7 +181,7 @@ func (c *ClusterTx) ContainerID(name string) (int64, error) {
 	}
 	switch len(ids) {
 	case 0:
-		return -1, NoSuchObjectError
+		return -1, ErrNoSuchObject
 	case 1:
 		return int64(ids[0]), nil
 	default:
@@ -844,7 +844,7 @@ WHERE storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.t
 	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", NoSuchObjectError
+			return "", ErrNoSuchObject
 		}
 
 		return "", err

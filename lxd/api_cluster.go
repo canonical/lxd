@@ -129,7 +129,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	// to the ones in the cluster.
 	pools := []api.StoragePool{}
 	poolNames, err := d.cluster.StoragePools()
-	if err != nil && err != db.NoSuchObjectError {
+	if err != nil && err != db.ErrNoSuchObject {
 		return SmartError(err)
 	}
 	for _, name := range poolNames {
@@ -141,7 +141,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 	}
 	networks := []api.Network{}
 	networkNames, err := d.cluster.Networks()
-	if err != nil && err != db.NoSuchObjectError {
+	if err != nil && err != db.ErrNoSuchObject {
 		return SmartError(err)
 	}
 	for _, name := range networkNames {
@@ -213,7 +213,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 
 		// For ceph pools we have to create the mount points too.
 		poolNames, err := d.cluster.StoragePools()
-		if err != nil && err != db.NoSuchObjectError {
+		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
 		for _, name := range poolNames {
@@ -467,7 +467,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 
 		// Delete all the pools on this node
 		pools, err := d.cluster.StoragePools()
-		if err != nil && err != db.NoSuchObjectError {
+		if err != nil && err != db.ErrNoSuchObject {
 			return SmartError(err)
 		}
 		for _, name := range pools {
@@ -588,7 +588,7 @@ type internalRaftNode struct {
 
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
 	poolNames, err := cluster.StoragePoolsNotPending()
-	if err != nil && err != db.NoSuchObjectError {
+	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
 	for _, name := range poolNames {
@@ -632,7 +632,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 
 func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []api.Network) error {
 	networkNames, err := cluster.NetworksNotPending()
-	if err != nil && err != db.NoSuchObjectError {
+	if err != nil && err != db.ErrNoSuchObject {
 		return err
 	}
 	for _, name := range networkNames {
