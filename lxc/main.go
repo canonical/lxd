@@ -165,6 +165,10 @@ For help with any of those, simply call them with --help.`))
 	snapshotCmd := cmdSnapshot{global: &globalCmd}
 	app.AddCommand(snapshotCmd.Command())
 
+	// storage sub-command
+	storageCmd := cmdStorage{global: &globalCmd}
+	app.AddCommand(storageCmd.Command())
+
 	// start sub-command
 	startCmd := cmdStart{global: &globalCmd}
 	app.AddCommand(startCmd.Command())
@@ -345,7 +349,6 @@ var commands = map[string]command{
 	"config":  &configCmd{},
 	"manpage": &manpageCmd{},
 	"profile": &profileCmd{},
-	"storage": &storageCmd{},
 }
 
 // defaultAliases contains LXC's built-in command line aliases.  The built-in
