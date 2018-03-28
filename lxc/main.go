@@ -141,6 +141,10 @@ For help with any of those, simply call them with --help.`))
 	publishCmd := cmdPublish{global: &globalCmd}
 	app.AddCommand(publishCmd.Command())
 
+	// profile sub-command
+	profileCmd := cmdProfile{global: &globalCmd}
+	app.AddCommand(profileCmd.Command())
+
 	// query sub-command
 	queryCmd := cmdQuery{global: &globalCmd}
 	app.AddCommand(queryCmd.Command())
@@ -346,8 +350,7 @@ type command interface {
 }
 
 var commands = map[string]command{
-	"config":  &configCmd{},
-	"profile": &profileCmd{},
+	"config": &configCmd{},
 }
 
 // defaultAliases contains LXC's built-in command line aliases.  The built-in

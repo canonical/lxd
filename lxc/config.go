@@ -24,6 +24,10 @@ import (
 	"github.com/lxc/lxd/shared/termios"
 )
 
+type cmdConfig struct {
+	global *cmdGlobal
+}
+
 type configCmd struct {
 	expanded bool
 }
