@@ -101,6 +101,7 @@ var APIExtensions = []string{
 	"clustering",
 	"event_lifecycle",
 	"storage_api_remote_volume_handling",
+	"nvidia_runtime",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
