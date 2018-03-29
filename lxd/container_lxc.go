@@ -2045,7 +2045,7 @@ func (c *containerLXC) startCommon() (string, error) {
 				sawNvidia = true
 			}
 
-			if sawNvidia {
+			if sawNvidia && !shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
 				for _, gpu := range nvidiaDevices {
 					err := c.setupUnixDevice(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path, true)
 					if err != nil {
@@ -4265,7 +4265,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 
-				if !nvidiaExists {
+				if !nvidiaExists && !shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
 					for _, gpu := range nvidiaDevices {
 						if !c.deviceExistsInDevicesFolder(fmt.Sprintf("unix.%s", k), gpu.path) {
 							continue
@@ -4385,7 +4385,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					sawNvidia = true
 				}
 
-				if sawNvidia {
+				if sawNvidia && !shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
 					for _, gpu := range nvidiaDevices {
 						if c.deviceExistsInDevicesFolder(k, gpu.path) {
 							continue
