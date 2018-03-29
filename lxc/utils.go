@@ -2,12 +2,7 @@ package main
 
 import (
 	"fmt"
-	"net"
-	"net/url"
-	"os"
 	"sort"
-	"strings"
-	"syscall"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -122,60 +117,6 @@ func runBatch(names []string, action func(name string) error) []batchResult {
 	}
 
 	return results
-}
-
-// summaryLine returns the first line of the help text. Conventionally, this
-// should be a one-line command summary, potentially followed by a longer
-// explanation.
-func summaryLine(usage string) string {
-	for _, line := range strings.Split(usage, "\n") {
-		if strings.HasPrefix(line, "Usage:") {
-			continue
-		}
-
-		if len(line) == 0 {
-			continue
-		}
-
-		return strings.TrimSuffix(line, ".")
-	}
-
-	return i18n.G("Missing summary.")
-}
-
-// Used to return a user friendly error
-func getLocalErr(err error) error {
-	t, ok := err.(*url.Error)
-	if !ok {
-		return nil
-	}
-
-	u, ok := t.Err.(*net.OpError)
-	if !ok {
-		return nil
-	}
-
-	if u.Op == "dial" && u.Net == "unix" {
-		var lxdErr error
-
-		sysErr, ok := u.Err.(*os.SyscallError)
-		if ok {
-			lxdErr = sysErr.Err
-		} else {
-			// syscall.Errno may be returned on some systems, e.g. CentOS
-			lxdErr, ok = u.Err.(syscall.Errno)
-			if !ok {
-				return nil
-			}
-		}
-
-		switch lxdErr {
-		case syscall.ENOENT, syscall.ECONNREFUSED, syscall.EACCES:
-			return lxdErr
-		}
-	}
-
-	return nil
 }
 
 // Add a device to a container
