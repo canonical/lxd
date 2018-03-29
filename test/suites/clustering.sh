@@ -324,10 +324,22 @@ test_clustering_storage() {
       driver_config_node1="${driver_config_node1} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns1}"
       driver_config_node2="${driver_config_node1} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns2}"
   fi
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" "${driver_config_node1}" --target node1
+
+  if [ -n "${driver_config_node1}" ]; then
+    # shellcheck disable=SC2086
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" ${driver_config_node1} --target node1
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" --target node1
+  fi
+
   LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node1
   ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" "${driver_config_node2}" --target node2
+  if [ -n "${driver_config_node2}" ]; then
+    # shellcheck disable=SC2086
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" ${driver_config_node2} --target node2
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" --target node2
+  fi
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Pending
 
   # The source config key is not legal for the final pool creation
@@ -336,14 +348,13 @@ test_clustering_storage() {
   fi
 
   # Create the storage pool
-  driver_config_global=""
   if [ "${driver}" = "lvm" ]; then
-      driver_config_global="volume.size=25MB"
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" volume.size=25MB
+  elif [ "${driver}" = "ceph" ]; then
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" volume.size=25MB ceph.osd.pg_num=8
+  else
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}"
   fi
-  if [ "${driver}" = "ceph" ]; then
-      driver_config_global="${driver_config_global} volume.size=25MB ceph.osd.pg_num=8"
-  fi
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" "${driver_config_global}"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Created
 
   # The 'source' config key is omitted when showing the cluster
