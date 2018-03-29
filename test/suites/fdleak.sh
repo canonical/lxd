@@ -13,7 +13,7 @@ test_fdleak() {
     ensure_import_testimage
 
     for i in $(seq 5); do
-      lxc init "testimage leaktest${i}"
+      lxc init testimage "leaktest${i}"
       lxc info "leaktest${i}"
       lxc start "leaktest${i}"
       lxc exec "leaktest${i}" -- ps -ef

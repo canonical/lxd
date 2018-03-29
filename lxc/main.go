@@ -3,18 +3,17 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"os/user"
 	"path"
 	"path/filepath"
-	"strings"
-	"syscall"
 
+	"github.com/spf13/cobra"
 	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -23,36 +22,195 @@ import (
 	schemaform "gopkg.in/juju/environschema.v1/form"
 )
 
-var configPath string
-var execName string
+type cmdGlobal struct {
+	conf     *config.Config
+	confPath string
+
+	flagForceLocal bool
+	flagHelp       bool
+	flagHelpAll    bool
+	flagLogDebug   bool
+	flagLogVerbose bool
+	flagVersion    bool
+}
 
 func main() {
-	execName = os.Args[0]
+	// Process aliases
+	execIfAliases()
 
-	if err := run(); err != nil {
-		msg := fmt.Sprintf(i18n.G("error: %v"), err)
+	// Setup the parser
+	app := &cobra.Command{}
+	app.Use = "lxc"
+	app.Short = i18n.G("Command line client for LXD")
+	app.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Command line client for LXD
 
-		lxdErr := getLocalErr(err)
-		switch lxdErr {
-		case syscall.ENOENT:
-			msg = i18n.G("LXD socket not found; is LXD installed and running?")
-		case syscall.ECONNREFUSED:
-			msg = i18n.G("Connection refused; is LXD running?")
-		case syscall.EACCES:
-			msg = i18n.G("Permission denied, are you in the lxd group?")
+All of LXD's features can be driven through the various commands below.
+For help with any of those, simply call them with --help.`))
+	app.SilenceUsage = true
+
+	// Global flags
+	globalCmd := cmdGlobal{}
+	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, i18n.G("Print version number"))
+	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, i18n.G("Print help"))
+	app.PersistentFlags().BoolVar(&globalCmd.flagForceLocal, "force-local", false, i18n.G("Force using the local unix socket"))
+	app.PersistentFlags().BoolVarP(&globalCmd.flagLogDebug, "debug", "d", false, i18n.G("Show all debug messages"))
+	app.PersistentFlags().BoolVarP(&globalCmd.flagLogVerbose, "verbose", "v", false, i18n.G("Show all information messages"))
+
+	// Local flags
+	app.Flags().BoolVar(&globalCmd.flagHelpAll, "all", false, i18n.G("Show less common commands"))
+
+	// Wrappers
+	app.PersistentPreRunE = globalCmd.PreRun
+	app.PersistentPostRunE = globalCmd.PostRun
+
+	// Version handling
+	app.SetVersionTemplate("{{.Version}}\n")
+	app.Version = version.Version
+
+	// alias sub-command
+	aliasCmd := cmdAlias{global: &globalCmd}
+	app.AddCommand(aliasCmd.Command())
+
+	// cluster sub-command
+	clusterCmd := cmdCluster{global: &globalCmd}
+	app.AddCommand(clusterCmd.Command())
+
+	// config sub-command
+	configCmd := cmdConfig{global: &globalCmd}
+	app.AddCommand(configCmd.Command())
+
+	// console sub-command
+	consoleCmd := cmdConsole{global: &globalCmd}
+	app.AddCommand(consoleCmd.Command())
+
+	// copy sub-command
+	copyCmd := cmdCopy{global: &globalCmd}
+	app.AddCommand(copyCmd.Command())
+
+	// delete sub-command
+	deleteCmd := cmdDelete{global: &globalCmd}
+	app.AddCommand(deleteCmd.Command())
+
+	// exec sub-command
+	execCmd := cmdExec{global: &globalCmd}
+	app.AddCommand(execCmd.Command())
+
+	// file sub-command
+	fileCmd := cmdFile{global: &globalCmd}
+	app.AddCommand(fileCmd.Command())
+
+	// info sub-command
+	infoCmd := cmdInfo{global: &globalCmd}
+	app.AddCommand(infoCmd.Command())
+
+	// image sub-command
+	imageCmd := cmdImage{global: &globalCmd}
+	app.AddCommand(imageCmd.Command())
+
+	// init sub-command
+	initCmd := cmdInit{global: &globalCmd}
+	app.AddCommand(initCmd.Command())
+
+	// launch sub-command
+	launchCmd := cmdLaunch{global: &globalCmd, init: &initCmd}
+	app.AddCommand(launchCmd.Command())
+
+	// list sub-command
+	listCmd := cmdList{global: &globalCmd}
+	app.AddCommand(listCmd.Command())
+
+	// monitor sub-command
+	monitorCmd := cmdMonitor{global: &globalCmd}
+	app.AddCommand(monitorCmd.Command())
+
+	// move sub-command
+	moveCmd := cmdMove{global: &globalCmd}
+	app.AddCommand(moveCmd.Command())
+
+	// network sub-command
+	networkCmd := cmdNetwork{global: &globalCmd}
+	app.AddCommand(networkCmd.Command())
+
+	// operation sub-command
+	operationCmd := cmdOperation{global: &globalCmd}
+	app.AddCommand(operationCmd.Command())
+
+	// pause sub-command
+	pauseCmd := cmdPause{global: &globalCmd}
+	app.AddCommand(pauseCmd.Command())
+
+	// publish sub-command
+	publishCmd := cmdPublish{global: &globalCmd}
+	app.AddCommand(publishCmd.Command())
+
+	// profile sub-command
+	profileCmd := cmdProfile{global: &globalCmd}
+	app.AddCommand(profileCmd.Command())
+
+	// query sub-command
+	queryCmd := cmdQuery{global: &globalCmd}
+	app.AddCommand(queryCmd.Command())
+
+	// rename sub-command
+	renameCmd := cmdRename{global: &globalCmd}
+	app.AddCommand(renameCmd.Command())
+
+	// restart sub-command
+	restartCmd := cmdRestart{global: &globalCmd}
+	app.AddCommand(restartCmd.Command())
+
+	// remote sub-command
+	remoteCmd := cmdRemote{global: &globalCmd}
+	app.AddCommand(remoteCmd.Command())
+
+	// restore sub-command
+	restoreCmd := cmdRestore{global: &globalCmd}
+	app.AddCommand(restoreCmd.Command())
+
+	// snapshot sub-command
+	snapshotCmd := cmdSnapshot{global: &globalCmd}
+	app.AddCommand(snapshotCmd.Command())
+
+	// storage sub-command
+	storageCmd := cmdStorage{global: &globalCmd}
+	app.AddCommand(storageCmd.Command())
+
+	// start sub-command
+	startCmd := cmdStart{global: &globalCmd}
+	app.AddCommand(startCmd.Command())
+
+	// stop sub-command
+	stopCmd := cmdStop{global: &globalCmd}
+	app.AddCommand(stopCmd.Command())
+
+	// Deal with --all flag
+	err := app.ParseFlags(os.Args[1:])
+	if err == nil {
+		if globalCmd.flagHelpAll {
+			// Show all commands
+			for _, cmd := range app.Commands() {
+				cmd.Hidden = false
+			}
 		}
+	}
 
-		fmt.Fprintln(os.Stderr, fmt.Sprintf("%s", msg))
+	// Run the main command and handle errors
+	err = app.Execute()
+	if err != nil {
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	verbose := gnuflag.Bool("verbose", false, i18n.G("Enable verbose mode"))
-	debug := gnuflag.Bool("debug", false, i18n.G("Enable debug mode"))
-	forceLocal := gnuflag.Bool("force-local", false, i18n.G("Force using the local unix socket"))
-	noAlias := gnuflag.Bool("no-alias", false, i18n.G("Ignore aliases when determining what command to run"))
+func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
+	var err error
 
+	// If calling the help, skip pre-run
+	if cmd.Name() == "help" {
+		return nil
+	}
+
+	// Figure out the config directory and config path
 	var configDir string
 	if os.Getenv("LXD_CONF") != "" {
 		configDir = os.Getenv("LXD_CONF")
@@ -66,104 +224,34 @@ func run() error {
 
 		configDir = path.Join(user.HomeDir, ".config", "lxc")
 	}
-	configPath = os.ExpandEnv(path.Join(configDir, "config.yml"))
 
-	if len(os.Args) >= 3 && os.Args[1] == "config" && os.Args[2] == "profile" {
-		fmt.Fprintf(os.Stderr, i18n.G("`lxc config profile` is deprecated, please use `lxc profile`")+"\n")
-		os.Args = append(os.Args[:1], os.Args[2:]...)
-	}
+	c.confPath = os.ExpandEnv(path.Join(configDir, "config.yml"))
 
-	if len(os.Args) >= 2 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
-		os.Args[1] = "help"
-	}
-
-	if len(os.Args) >= 2 && (os.Args[1] == "--all") {
-		os.Args = []string{os.Args[0], "help", "--all"}
-	}
-
-	if shared.StringInSlice("--version", os.Args) && !shared.StringInSlice("--", os.Args) {
-		os.Args = []string{os.Args[0], "version"}
-	}
-
-	if len(os.Args) < 2 {
-		commands["help"].run(nil, nil)
-		os.Exit(1)
-	}
-
-	var conf *config.Config
-	var err error
-
-	if *forceLocal {
-		conf = config.NewConfig("", true)
-	} else if shared.PathExists(configPath) {
-		conf, err = config.LoadConfig(configPath)
+	// Load the configuration
+	if c.flagForceLocal {
+		c.conf = config.NewConfig("", true)
+	} else if shared.PathExists(c.confPath) {
+		c.conf, err = config.LoadConfig(c.confPath)
 		if err != nil {
 			return err
 		}
 	} else {
-		conf = config.NewConfig(filepath.Dir(configPath), true)
-	}
-
-	// Add interactor for external authentication
-	conf.SetAuthInteractor(form.Interactor{Filler: schemaform.IOFiller{}})
-
-	// Save cookies on exit
-	defer conf.SaveCookies()
-
-	// Set the user agent
-	conf.UserAgent = version.UserAgent
-
-	// This is quite impolite, but it seems gnuflag needs us to shift our
-	// own exename out of the arguments before parsing them. However, this
-	// is useful for execIfAlias, which wants to know exactly the command
-	// line we received, and in some cases is called before this shift, and
-	// in others after. So, let's save the original args.
-	origArgs := os.Args
-	name := os.Args[1]
-
-	/* at this point we haven't parsed the args, so we have to look for
-	 * --no-alias by hand.
-	 */
-	if !shared.StringInSlice("--no-alias", origArgs) {
-		execIfAliases(conf, origArgs)
-	}
-	cmd, ok := commands[name]
-	if !ok {
-		commands["help"].run(nil, nil)
-		fmt.Fprintf(os.Stderr, "\n"+i18n.G("error: unknown command: %s")+"\n", name)
-		os.Exit(1)
-	}
-	cmd.flags()
-	gnuflag.Usage = func() {
-		fmt.Print(cmd.usage())
-		fmt.Printf("\n\n%s\n", i18n.G("Options:"))
-
-		gnuflag.SetOut(os.Stdout)
-		gnuflag.PrintDefaults()
-		os.Exit(0)
-	}
-
-	os.Args = os.Args[1:]
-	gnuflag.Parse(true)
-
-	logger.Log, err = logging.GetLogger("", "", *verbose, *debug, nil)
-	if err != nil {
-		return err
+		c.conf = config.NewConfig(filepath.Dir(c.confPath), true)
 	}
 
 	// If the user is running a command that may attempt to connect to the local daemon
 	// and this is the first time the client has been run by the user, then check to see
 	// if LXD has been properly configured.  Don't display the message if the var path
 	// does not exist (LXD not installed), as the user may be targeting a remote daemon.
-	if os.Args[0] != "help" && os.Args[0] != "version" && shared.PathExists(shared.VarPath("")) && !shared.PathExists(configPath) {
+	if shared.PathExists(shared.VarPath("")) && !shared.PathExists(c.confPath) {
 		// Create the config dir so that we don't get in here again for this user.
-		err = os.MkdirAll(conf.ConfigDir, 0750)
+		err = os.MkdirAll(c.conf.ConfigDir, 0750)
 		if err != nil {
 			return err
 		}
 
 		// And save the initial configuration
-		err = conf.SaveConfig(configPath)
+		err = c.conf.SaveConfig(c.confPath)
 		if err != nil {
 			return err
 		}
@@ -172,203 +260,86 @@ func run() error {
 		fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:16.04")+"\n\n")
 	}
 
-	err = cmd.run(conf, gnuflag.Args())
-	if err == errArgs || err == errUsage {
-		out := os.Stdout
-		if err == errArgs {
-			/* If we got an error about invalid arguments, let's try to
-			 * expand this as an alias
-			 */
-			if !*noAlias {
-				execIfAliases(conf, origArgs)
-			}
-
-			out = os.Stderr
-		}
-		gnuflag.SetOut(out)
-
-		if err == errArgs {
-			fmt.Fprintf(out, i18n.G("error: %v"), err)
-			fmt.Fprintf(out, "\n\n")
-		}
-		fmt.Fprint(out, cmd.usage())
-		fmt.Fprintf(out, "\n\n%s\n", i18n.G("Options:"))
-
-		gnuflag.PrintDefaults()
-
-		if err == errArgs {
-			os.Exit(1)
-		}
-		os.Exit(0)
+	// Only setup macaroons if a config path exists (so the jar can be saved)
+	if shared.PathExists(c.confPath) {
+		// Add interactor for external authentication
+		c.conf.SetAuthInteractor(form.Interactor{Filler: schemaform.IOFiller{}})
 	}
 
-	return err
-}
+	// Set the user agent
+	c.conf.UserAgent = version.UserAgent
 
-type command interface {
-	usage() string
-	flags()
-	showByDefault() bool
-	run(conf *config.Config, args []string) error
-}
-
-var commands = map[string]command{
-	"alias":     &aliasCmd{},
-	"cluster":   &clusterCmd{},
-	"config":    &configCmd{},
-	"console":   &consoleCmd{},
-	"copy":      &copyCmd{},
-	"delete":    &deleteCmd{},
-	"exec":      &execCmd{},
-	"file":      &fileCmd{},
-	"finger":    &fingerCmd{},
-	"query":     &queryCmd{},
-	"help":      &helpCmd{},
-	"image":     &imageCmd{},
-	"info":      &infoCmd{},
-	"init":      &initCmd{},
-	"launch":    &launchCmd{},
-	"list":      &listCmd{},
-	"manpage":   &manpageCmd{},
-	"monitor":   &monitorCmd{},
-	"rename":    &renameCmd{},
-	"move":      &moveCmd{},
-	"network":   &networkCmd{},
-	"operation": &operationCmd{},
-	"pause": &actionCmd{
-		action:      shared.Freeze,
-		description: i18n.G("Pause containers."),
-		name:        "pause",
-	},
-	"profile": &profileCmd{},
-	"publish": &publishCmd{},
-	"remote":  &remoteCmd{},
-	"restart": &actionCmd{
-		action:      shared.Restart,
-		description: i18n.G("Restart containers."),
-		hasTimeout:  true,
-		visible:     true,
-		name:        "restart",
-		timeout:     -1,
-	},
-	"restore":  &restoreCmd{},
-	"snapshot": &snapshotCmd{},
-	"start": &actionCmd{
-		action:      shared.Start,
-		description: i18n.G("Start containers."),
-		visible:     true,
-		name:        "start",
-	},
-	"stop": &actionCmd{
-		action:      shared.Stop,
-		description: i18n.G("Stop containers."),
-		hasTimeout:  true,
-		visible:     true,
-		name:        "stop",
-		timeout:     -1,
-	},
-	"storage": &storageCmd{},
-	"version": &versionCmd{},
-}
-
-// defaultAliases contains LXC's built-in command line aliases.  The built-in
-// aliases are checked only if no user-defined alias was found.
-var defaultAliases = map[string]string{
-	"shell": "exec @ARGS@ -- su -l",
-
-	"cp": "copy",
-	"ls": "list",
-	"mv": "move",
-	"rm": "delete",
-
-	"image cp": "image copy",
-	"image ls": "image list",
-	"image rm": "image delete",
-
-	"image alias ls": "image alias list",
-	"image alias rm": "image alias delete",
-
-	"remote ls": "remote list",
-	"remote mv": "remote rename",
-	"remote rm": "remote remove",
-
-	"config device ls": "config device list",
-	"config device rm": "config device remove",
-}
-
-var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
-var errUsage = fmt.Errorf("show usage")
-
-func findAlias(aliases map[string]string, origArgs []string) ([]string, []string, bool) {
-	foundAlias := false
-	aliasKey := []string{}
-	aliasValue := []string{}
-
-	for k, v := range aliases {
-		foundAlias = true
-		for i, key := range strings.Split(k, " ") {
-			if len(origArgs) <= i+1 || origArgs[i+1] != key {
-				foundAlias = false
-				break
-			}
-		}
-
-		if foundAlias {
-			aliasKey = strings.Split(k, " ")
-			aliasValue = strings.Split(v, " ")
-			break
-		}
-	}
-
-	return aliasKey, aliasValue, foundAlias
-}
-
-func expandAlias(conf *config.Config, origArgs []string) ([]string, bool) {
-	aliasKey, aliasValue, foundAlias := findAlias(conf.Aliases, origArgs)
-	if !foundAlias {
-		aliasKey, aliasValue, foundAlias = findAlias(defaultAliases, origArgs)
-		if !foundAlias {
-			return []string{}, false
-		}
-	}
-
-	newArgs := []string{origArgs[0]}
-	hasReplacedArgsVar := false
-
-	for i, aliasArg := range aliasValue {
-		if aliasArg == "@ARGS@" && len(origArgs) > i {
-			newArgs = append(newArgs, origArgs[i+1:]...)
-			hasReplacedArgsVar = true
-		} else {
-			newArgs = append(newArgs, aliasArg)
-		}
-	}
-
-	if !hasReplacedArgsVar {
-		/* add the rest of the arguments */
-		newArgs = append(newArgs, origArgs[len(aliasKey)+1:]...)
-	}
-
-	/* don't re-do aliases the next time; this allows us to have recursive
-	 * aliases, e.g. `lxc list` to `lxc list -c n`
-	 */
-	newArgs = append(newArgs[:2], append([]string{"--no-alias"}, newArgs[2:]...)...)
-
-	return newArgs, true
-}
-
-func execIfAliases(conf *config.Config, origArgs []string) {
-	newArgs, expanded := expandAlias(conf, origArgs)
-	if !expanded {
-		return
-	}
-
-	path, err := exec.LookPath(origArgs[0])
+	// Setup the logger
+	logger.Log, err = logging.GetLogger("", "", c.flagLogVerbose, c.flagLogDebug, nil)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), err)
-		os.Exit(5)
+		return err
 	}
-	ret := syscall.Exec(path, newArgs, syscall.Environ())
-	fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), ret)
-	os.Exit(5)
+
+	return nil
+}
+
+func (c *cmdGlobal) PostRun(cmd *cobra.Command, args []string) error {
+	// Macaroon teardown
+	if c.conf != nil && shared.PathExists(c.confPath) {
+		// Save cookies on exit
+		c.conf.SaveCookies()
+	}
+
+	return nil
+}
+
+type remoteResource struct {
+	server lxd.ContainerServer
+	name   string
+}
+
+func (c *cmdGlobal) ParseServers(remotes ...string) ([]remoteResource, error) {
+	servers := map[string]lxd.ContainerServer{}
+	resources := []remoteResource{}
+
+	for _, remote := range remotes {
+		// Parse the remote
+		remoteName, name, err := c.conf.ParseRemote(remote)
+		if err != nil {
+			return nil, err
+		}
+
+		// Setup the struct
+		resource := remoteResource{
+			name: name,
+		}
+
+		// Look at our cache
+		_, ok := servers[remoteName]
+		if ok {
+			resource.server = servers[remoteName]
+			resources = append(resources, resource)
+			continue
+		}
+
+		// New connection
+		d, err := c.conf.GetContainerServer(remoteName)
+		if err != nil {
+			return nil, err
+		}
+
+		resource.server = d
+		resources = append(resources, resource)
+	}
+
+	return resources, nil
+}
+
+func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, maxArgs int) (bool, error) {
+	if len(args) < minArgs || (maxArgs != -1 && len(args) > maxArgs) {
+		cmd.Help()
+
+		if len(args) == 0 {
+			return true, nil
+		}
+
+		return true, fmt.Errorf(i18n.G("Invalid number of arguments"))
+	}
+
+	return false, nil
 }

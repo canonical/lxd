@@ -3,38 +3,41 @@ package main
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxc/config"
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/shared/api"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type launchCmd struct {
-	init initCmd
+type cmdLaunch struct {
+	global *cmdGlobal
+	init   *cmdInit
 }
 
-func (c *launchCmd) showByDefault() bool {
-	return true
+func (c *cmdLaunch) Command() *cobra.Command {
+	cmd := c.init.Command()
+	cmd.Use = i18n.G("launch [<remote>:]<image> [<remote>:][<name>]")
+	cmd.Short = i18n.G("Create and start containers from images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Create and start containers from images`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc launch ubuntu:16.04 u1`))
+
+	cmd.RunE = c.Run
+
+	return cmd
 }
 
-func (c *launchCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc launch [<remote>:]<image> [<remote>:][<name>] [--ephemeral|-e] [--profile|-p <profile>...] [--config|-c <key=value>...] [--network|-n <network>] [--storage|-s <pool>] [--type|-t <instance type>] [--target <node>]
+func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
 
-Create and start containers from images.
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
 
-Not specifying -p will result in the default profile.
-Specifying "-p" with no argument will result in no profile.
-
-Examples:
-    lxc launch ubuntu:16.04 u1`)
-}
-
-func (c *launchCmd) flags() {
-	c.init = initCmd{}
-	c.init.flags()
-}
-
-func (c *launchCmd) run(conf *config.Config, args []string) error {
 	// Call the matching code from init
 	d, name, err := c.init.create(conf, args)
 	if err != nil {

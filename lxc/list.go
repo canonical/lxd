@@ -12,13 +12,14 @@ import (
 	"sync"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
@@ -31,42 +32,40 @@ type column struct {
 
 type columnData func(api.Container, *api.ContainerState, []api.ContainerSnapshot) string
 
-type listCmd struct {
-	columnsRaw string
-	fast       bool
-	format     string
+type cmdList struct {
+	global *cmdGlobal
+
+	flagColumns string
+	flagFast    bool
+	flagFormat  string
 }
 
-func (c *listCmd) showByDefault() bool {
-	return true
-}
-
-func (c *listCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc list [<remote>:] [filters] [--format csv|json|table|yaml] [-c <columns>] [--fast]
-
-List the existing containers.
+func (c *cmdList) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("list [<remote>:] [<filter>...]")
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List containers
 
 Default column layout: ns46tS
 Fast column layout: nsacPt
 
-*Filters*
+== Filters ==
 A single keyword like "web" which will list any container with a name starting by "web".
-
 A regular expression on the container name. (e.g. .*web.*01$).
+A key/value pair referring to a configuration item. For those, the
+namespace can be abbreviated to the smallest unambiguous identifier.
 
-A key/value pair referring to a configuration item. For those, the namespace can be abbreviated to the smallest unambiguous identifier.
-	- "user.blah=abc" will list all containers with the "blah" user property set to "abc".
-
-	- "u.blah=abc" will do the same
-
-	- "security.privileged=true" will list all privileged containers
-
-	- "s.privileged=true" will do the same
+Examples:
+  - "user.blah=abc" will list all containers with the "blah" user property set to "abc".
+  - "u.blah=abc" will do the same
+  - "security.privileged=true" will list all privileged containers
+  - "s.privileged=true" will do the same
 
 A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*).
 
-*Columns*
+== Columns ==
 The -c option takes a comma separated list of arguments that control
 which container attributes to output when displaying in table or csv
 format.
@@ -77,69 +76,50 @@ or (extended) config keys.
 Commas between consecutive shorthand chars are optional.
 
 Pre-defined column shorthand chars:
-
-	4 - IPv4 address
-
-	6 - IPv6 address
-
-	a - Architecture
-
-	b - Storage pool
-
-	c - Creation date
-
-	d - Description
-
-	l - Last used date
-
-	n - Name
-
-	N - Number of Processes
-
-	p - PID of the container's init process
-
-	P - Profiles
-
-	s - State
-
-	S - Number of snapshots
-
-	t - Type (persistent or ephemeral)
-
-	L - Location of the container (e.g. its node)
+  4 - IPv4 address
+  6 - IPv6 address
+  a - Architecture
+  b - Storage pool
+  c - Creation date
+  d - Description
+  l - Last used date
+  n - Name
+  N - Number of Processes
+  p - PID of the container's init process
+  P - Profiles
+  s - State
+  S - Number of snapshots
+  t - Type (persistent or ephemeral)
+  L - Location of the container (e.g. its node)
 
 Custom columns are defined with "key[:name][:maxWidth]":
+  KEY: The (extended) config key to display
+  NAME: Name to display in the column header.
+  Defaults to the key if not specified or empty.
 
-	KEY: The (extended) config key to display
+  MAXWIDTH: Max width of the column (longer results are truncated).
+  Defaults to -1 (unlimited). Use 0 to limit to the column header size.`))
 
-	NAME: Name to display in the column header.
-	Defaults to the key if not specified or empty.
-
-	MAXWIDTH: Max width of the column (longer results are truncated).
-	Defaults to -1 (unlimited). Use 0 to limit to the column header size.
-
-*Examples*
-lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC
-	Shows a list of containers using the "NAME", "BASE IMAGE", "STATE", "IPV4",
-	"IPV6" and "MAC" columns.
-
-	"BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC
+  Show containers using the "NAME", "BASE IMAGE", "STATE", "IPV4", "IPV6" and "MAC" columns.
+  "BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.
 
 lxc list -c ns,user.comment:comment
-	List images with their running state and user comment. `)
+  List images with their running state and user comment.`))
+
+	cmd.RunE = c.Run
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultColumns, i18n.G("Columns")+"``")
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().BoolVar(&c.flagFast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
+
+	return cmd
 }
 
 const defaultColumns = "ns46tSL"
 
-func (c *listCmd) flags() {
-	gnuflag.StringVar(&c.columnsRaw, "c", defaultColumns, i18n.G("Columns"))
-	gnuflag.StringVar(&c.columnsRaw, "columns", defaultColumns, i18n.G("Columns"))
-	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (csv|json|table|yaml)"))
-	gnuflag.BoolVar(&c.fast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
-}
-
 // This seems a little excessive.
-func (c *listCmd) dotPrefixMatch(short string, full string) bool {
+func (c *cmdList) dotPrefixMatch(short string, full string) bool {
 	fullMembs := strings.Split(full, ".")
 	shortMembs := strings.Split(short, ".")
 
@@ -156,7 +136,7 @@ func (c *listCmd) dotPrefixMatch(short string, full string) bool {
 	return true
 }
 
-func (c *listCmd) shouldShow(filters []string, state *api.Container) bool {
+func (c *cmdList) shouldShow(filters []string, state *api.Container) bool {
 	for _, filter := range filters {
 		if strings.Contains(filter, "=") {
 			membs := strings.SplitN(filter, "=", 2)
@@ -221,7 +201,7 @@ func (c *listCmd) shouldShow(filters []string, state *api.Container) bool {
 	return true
 }
 
-func (c *listCmd) listContainers(conf *config.Config, remote string, cinfos []api.Container, filters []string, columns []column) error {
+func (c *cmdList) listContainers(conf *config.Config, remote string, cinfos []api.Container, filters []string, columns []column) error {
 	headers := []string{}
 	for _, column := range columns {
 		headers = append(headers, column.Name)
@@ -362,7 +342,7 @@ func (c *listCmd) listContainers(conf *config.Config, remote string, cinfos []ap
 		return data
 	}
 
-	switch c.format {
+	switch c.flagFormat {
 	case listFormatCSV:
 		w := csv.NewWriter(os.Stdout)
 		w.WriteAll(tableData())
@@ -403,7 +383,7 @@ func (c *listCmd) listContainers(conf *config.Config, remote string, cinfos []ap
 		}
 		fmt.Printf("%s", out)
 	default:
-		return fmt.Errorf("invalid format %q", c.format)
+		return fmt.Errorf(i18n.G("Invalid format %q"), c.flagFormat)
 	}
 
 	return nil
@@ -416,10 +396,18 @@ type listContainerItem struct {
 	Snapshots []api.ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
 }
 
-func (c *listCmd) run(conf *config.Config, args []string) error {
-	var remote string
-	name := ""
+func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
 
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
+	if exit {
+		return err
+	}
+
+	// Parse the remote
+	var remote string
+	var name string
 	filters := []string{}
 
 	if len(args) != 0 {
@@ -443,17 +431,20 @@ func (c *listCmd) run(conf *config.Config, args []string) error {
 		remote = conf.DefaultRemote
 	}
 
+	// Connect to LXD
 	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
 	}
 
+	// Get the list of containers
 	var cts []api.Container
 	ctslist, err := d.GetContainers()
 	if err != nil {
 		return err
 	}
 
+	// Apply filters
 	for _, cinfo := range ctslist {
 		if !c.shouldShow(filters, &cinfo) {
 			continue
@@ -462,15 +453,17 @@ func (c *listCmd) run(conf *config.Config, args []string) error {
 		cts = append(cts, cinfo)
 	}
 
+	// Get the list of columns
 	columns, err := c.parseColumns(d.IsClustered())
 	if err != nil {
 		return err
 	}
 
+	// Fetch any remaining data and render the table
 	return c.listContainers(conf, remote, cts, filters, columns)
 }
 
-func (c *listCmd) parseColumns(clustered bool) ([]column, error) {
+func (c *cmdList) parseColumns(clustered bool) ([]column, error) {
 	columnsShorthandMap := map[rune]column{
 		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
 		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
@@ -488,33 +481,33 @@ func (c *listCmd) parseColumns(clustered bool) ([]column, error) {
 		'b': {i18n.G("STORAGE POOL"), c.StoragePoolColumnData, false, false},
 	}
 
-	if c.fast {
-		if c.columnsRaw != defaultColumns {
+	if c.flagFast {
+		if c.flagColumns != defaultColumns {
 			// --columns was specified too
-			return nil, fmt.Errorf("Can't specify --fast with --columns")
+			return nil, fmt.Errorf(i18n.G("Can't specify --fast with --columns"))
 		}
 
-		c.columnsRaw = "nsacPt"
+		c.flagColumns = "nsacPt"
 	}
 
 	if clustered {
 		columnsShorthandMap['L'] = column{
 			i18n.G("LOCATION"), c.locationColumnData, false, false}
 	} else {
-		if c.columnsRaw != defaultColumns {
-			if strings.ContainsAny(c.columnsRaw, "L") {
-				return nil, fmt.Errorf("Can't specify column L when not clustered")
+		if c.flagColumns != defaultColumns {
+			if strings.ContainsAny(c.flagColumns, "L") {
+				return nil, fmt.Errorf(i18n.G("Can't specify column L when not clustered"))
 			}
 		}
-		c.columnsRaw = strings.Replace(c.columnsRaw, "L", "", -1)
+		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)
 	}
 
-	columnList := strings.Split(c.columnsRaw, ",")
+	columnList := strings.Split(c.flagColumns, ",")
 
 	columns := []column{}
 	for _, columnEntry := range columnList {
 		if columnEntry == "" {
-			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in '%s'", c.columnsRaw)
+			return nil, fmt.Errorf(i18n.G("Empty column entry (redundant, leading or trailing command) in '%s'"), c.flagColumns)
 		}
 
 		// Config keys always contain a period, parse anything without a
@@ -524,24 +517,24 @@ func (c *listCmd) parseColumns(clustered bool) ([]column, error) {
 				if column, ok := columnsShorthandMap[columnRune]; ok {
 					columns = append(columns, column)
 				} else {
-					return nil, fmt.Errorf("Unknown column shorthand char '%c' in '%s'", columnRune, columnEntry)
+					return nil, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
 				}
 			}
 		} else {
 			cc := strings.Split(columnEntry, ":")
 			if len(cc) > 3 {
-				return nil, fmt.Errorf("Invalid config key column format (too many fields): '%s'", columnEntry)
+				return nil, fmt.Errorf(i18n.G("Invalid config key column format (too many fields): '%s'"), columnEntry)
 			}
 
 			k := cc[0]
 			if _, err := shared.ConfigKeyChecker(k); err != nil {
-				return nil, fmt.Errorf("Invalid config key '%s' in '%s'", k, columnEntry)
+				return nil, fmt.Errorf(i18n.G("Invalid config key '%s' in '%s'"), k, columnEntry)
 			}
 
 			column := column{Name: k}
 			if len(cc) > 1 {
 				if len(cc[1]) == 0 && len(cc) != 3 {
-					return nil, fmt.Errorf("Invalid name in '%s', empty string is only allowed when defining maxWidth", columnEntry)
+					return nil, fmt.Errorf(i18n.G("Invalid name in '%s', empty string is only allowed when defining maxWidth"), columnEntry)
 				}
 				column.Name = cc[1]
 			}
@@ -550,10 +543,10 @@ func (c *listCmd) parseColumns(clustered bool) ([]column, error) {
 			if len(cc) > 2 {
 				temp, err := strconv.ParseInt(cc[2], 10, 64)
 				if err != nil {
-					return nil, fmt.Errorf("Invalid max width (must be an integer) '%s' in '%s'", cc[2], columnEntry)
+					return nil, fmt.Errorf(i18n.G("Invalid max width (must be an integer) '%s' in '%s'"), cc[2], columnEntry)
 				}
 				if temp < -1 {
-					return nil, fmt.Errorf("Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'", cc[2], columnEntry)
+					return nil, fmt.Errorf(i18n.G("Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"), cc[2], columnEntry)
 				}
 				if temp == 0 {
 					maxWidth = len(column.Name)
@@ -581,19 +574,19 @@ func (c *listCmd) parseColumns(clustered bool) ([]column, error) {
 	return columns, nil
 }
 
-func (c *listCmd) nameColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) nameColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	return cInfo.Name
 }
 
-func (c *listCmd) descriptionColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) descriptionColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	return cInfo.Description
 }
 
-func (c *listCmd) statusColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) statusColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	return strings.ToUpper(cInfo.Status)
 }
 
-func (c *listCmd) IP4ColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) IP4ColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	if cInfo.IsActive() && cState != nil && cState.Network != nil {
 		ipv4s := []string{}
 		for netName, net := range cState.Network {
@@ -618,7 +611,7 @@ func (c *listCmd) IP4ColumnData(cInfo api.Container, cState *api.ContainerState,
 	return ""
 }
 
-func (c *listCmd) IP6ColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) IP6ColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	if cInfo.IsActive() && cState != nil && cState.Network != nil {
 		ipv6s := []string{}
 		for netName, net := range cState.Network {
@@ -643,7 +636,7 @@ func (c *listCmd) IP6ColumnData(cInfo api.Container, cState *api.ContainerState,
 	return ""
 }
 
-func (c *listCmd) typeColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) typeColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	if cInfo.Ephemeral {
 		return i18n.G("EPHEMERAL")
 	}
@@ -651,7 +644,7 @@ func (c *listCmd) typeColumnData(cInfo api.Container, cState *api.ContainerState
 	return i18n.G("PERSISTENT")
 }
 
-func (c *listCmd) numberSnapshotsColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) numberSnapshotsColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	if cSnaps != nil {
 		return fmt.Sprintf("%d", len(cSnaps))
 	}
@@ -659,7 +652,7 @@ func (c *listCmd) numberSnapshotsColumnData(cInfo api.Container, cState *api.Con
 	return ""
 }
 
-func (c *listCmd) PIDColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) PIDColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	if cInfo.IsActive() && cState != nil {
 		return fmt.Sprintf("%d", cState.Pid)
 	}
@@ -667,11 +660,11 @@ func (c *listCmd) PIDColumnData(cInfo api.Container, cState *api.ContainerState,
 	return ""
 }
 
-func (c *listCmd) ArchitectureColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) ArchitectureColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	return cInfo.Architecture
 }
 
-func (c *listCmd) StoragePoolColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) StoragePoolColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	for _, v := range cInfo.ExpandedDevices {
 		if v["type"] == "disk" && v["path"] == "/" {
 			return v["pool"]
@@ -681,11 +674,11 @@ func (c *listCmd) StoragePoolColumnData(cInfo api.Container, cState *api.Contain
 	return ""
 }
 
-func (c *listCmd) ProfilesColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) ProfilesColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	return strings.Join(cInfo.Profiles, "\n")
 }
 
-func (c *listCmd) CreatedColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) CreatedColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	layout := "2006/01/02 15:04 UTC"
 
 	if shared.TimeIsSet(cInfo.CreatedAt) {
@@ -695,7 +688,7 @@ func (c *listCmd) CreatedColumnData(cInfo api.Container, cState *api.ContainerSt
 	return ""
 }
 
-func (c *listCmd) LastUsedColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) LastUsedColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	layout := "2006/01/02 15:04 UTC"
 
 	if !cInfo.LastUsedAt.IsZero() && shared.TimeIsSet(cInfo.LastUsedAt) {
@@ -705,7 +698,7 @@ func (c *listCmd) LastUsedColumnData(cInfo api.Container, cState *api.ContainerS
 	return ""
 }
 
-func (c *listCmd) NumberOfProcessesColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) NumberOfProcessesColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	if cInfo.IsActive() && cState != nil {
 		return fmt.Sprintf("%d", cState.Processes)
 	}
@@ -713,6 +706,6 @@ func (c *listCmd) NumberOfProcessesColumnData(cInfo api.Container, cState *api.C
 	return ""
 }
 
-func (c *listCmd) locationColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) locationColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
 	return cInfo.Location
 }

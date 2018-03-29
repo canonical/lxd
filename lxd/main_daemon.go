@@ -15,7 +15,6 @@ import (
 )
 
 type cmdDaemon struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 
 	// Common options
@@ -46,7 +45,6 @@ func (c *cmdDaemon) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagMemoryProfile, "memory-profile", "", "Enable memory profiling, writing into the specified file"+"``")
 	cmd.Flags().IntVar(&c.flagPrintGoroutines, "print-goroutines", 0, "How often to print all the goroutines"+"``")
 
-	c.cmd = cmd
 	return cmd
 }
 

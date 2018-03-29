@@ -4,49 +4,57 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 
 	"github.com/lxc/lxd/shared"
 )
 
-type publishCmd struct {
-	pAliases             aliasList // aliasList defined in lxc/image.go
-	compressionAlgorithm string
-	makePublic           bool
-	Force                bool
+type cmdPublish struct {
+	global *cmdGlobal
+
+	flagAliases              []string
+	flagCompressionAlgorithm string
+	flagMakePublic           bool
+	flagForce                bool
 }
 
-func (c *publishCmd) showByDefault() bool {
+func (c *cmdPublish) showByDefault() bool {
 	return true
 }
 
-func (c *publishCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc publish [<remote>:]<container>[/<snapshot>] [<remote>:] [--alias=ALIAS...] [prop-key=prop-value...]
+func (c *cmdPublish) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] [key=value...]")
+	cmd.Short = i18n.G("Publish containers as images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Publish containers as images`))
 
-Publish containers as images.`)
+	cmd.RunE = c.Run
+	cmd.Flags().BoolVar(&c.flagMakePublic, "public", false, i18n.G("Make the image public"))
+	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New alias to define at target")+"``")
+	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Stop the container if currently running"))
+	cmd.Flags().StringVar(&c.flagCompressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for image or none")+"``")
+
+	return cmd
 }
 
-func (c *publishCmd) flags() {
-	gnuflag.BoolVar(&c.makePublic, "public", false, i18n.G("Make the image public"))
-	gnuflag.Var(&c.pAliases, "alias", i18n.G("New alias to define at target"))
-	gnuflag.BoolVar(&c.Force, "force", false, i18n.G("Stop the container if currently running"))
-	gnuflag.BoolVar(&c.Force, "f", false, i18n.G("Stop the container if currently running"))
-	gnuflag.StringVar(&c.compressionAlgorithm, "compression", "", i18n.G("Define a compression algorithm: for image or none"))
-}
+func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
 
-func (c *publishCmd) run(conf *config.Config, args []string) error {
 	iName := ""
 	iRemote := ""
 	properties := map[string]string{}
 	firstprop := 1 // first property is arg[2] if arg[1] is image remote, else arg[1]
 
-	if len(args) < 1 {
-		return errArgs
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
+	if exit {
+		return err
 	}
 
 	cRemote, cName, err := conf.ParseRemote(args[0])
@@ -97,7 +105,7 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 		wasEphemeral := ct.Ephemeral
 
 		if wasRunning {
-			if !c.Force {
+			if !c.flagForce {
 				return fmt.Errorf(i18n.G("The container is currently running. Use --force to have it stopped and restarted."))
 			}
 
@@ -164,7 +172,7 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 	for i := firstprop; i < len(args); i++ {
 		entry := strings.SplitN(args[i], "=", 2)
 		if len(entry) < 2 {
-			return errArgs
+			return fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
 		}
 		properties[entry[0]] = entry[1]
 	}
@@ -179,7 +187,7 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 
 	// Reformat aliases
 	aliases := []api.ImageAlias{}
-	for _, entry := range c.pAliases {
+	for _, entry := range c.flagAliases {
 		alias := api.ImageAlias{}
 		alias.Name = entry
 		aliases = append(aliases, alias)
@@ -191,7 +199,7 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 			Type: "container",
 			Name: cName,
 		},
-		CompressionAlgorithm: c.compressionAlgorithm,
+		CompressionAlgorithm: c.flagCompressionAlgorithm,
 	}
 	req.Properties = properties
 
@@ -200,7 +208,7 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 	}
 
 	if cRemote == iRemote {
-		req.Public = c.makePublic
+		req.Public = c.flagMakePublic
 	}
 
 	op, err := s.CreateImage(req, nil)
@@ -229,7 +237,7 @@ func (c *publishCmd) run(conf *config.Config, args []string) error {
 
 		// Image copy arguments
 		args := lxd.ImageCopyArgs{
-			Public: c.makePublic,
+			Public: c.flagMakePublic,
 		}
 
 		// Copy the image to the destination host

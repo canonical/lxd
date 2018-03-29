@@ -438,7 +438,6 @@ void forkfile() {
 import "C"
 
 type cmdForkfile struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -484,7 +483,6 @@ func (c *cmdForkfile) Command() *cobra.Command {
 	cmdRemove.RunE = c.Run
 	cmd.AddCommand(cmdRemove)
 
-	c.cmd = cmd
 	return cmd
 }
 

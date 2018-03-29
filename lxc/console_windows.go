@@ -11,16 +11,16 @@ import (
 	"github.com/mattn/go-colorable"
 )
 
-func (c *consoleCmd) getStdout() io.WriteCloser {
+func (c *cmdConsole) getStdout() io.WriteCloser {
 	// Defined in exec_windows.go
 	return &WrappedWriteCloser{os.Stdout, colorable.NewColorableStdout()}
 }
 
-func (c *consoleCmd) getTERM() (string, bool) {
+func (c *cmdConsole) getTERM() (string, bool) {
 	return "dumb", true
 }
 
-func (c *consoleCmd) controlSocketHandler(control *websocket.Conn) {
+func (c *cmdConsole) controlSocketHandler(control *websocket.Conn) {
 	// TODO: figure out what the equivalent of signal.SIGWINCH is on
 	// windows and use that; for now if you resize your terminal it just
 	// won't work quite correctly.

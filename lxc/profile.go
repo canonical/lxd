@@ -9,24 +9,402 @@ import (
 	"syscall"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
 
-type profileCmd struct {
+type cmdProfile struct {
+	global *cmdGlobal
 }
 
-func (c *profileCmd) showByDefault() bool {
-	return true
+func (c *cmdProfile) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("profile")
+	cmd.Short = i18n.G("Manage profiles")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Manage profiles`))
+
+	// Add
+	profileAddCmd := cmdProfileAdd{global: c.global, profile: c}
+	cmd.AddCommand(profileAddCmd.Command())
+
+	// Assign
+	profileAssignCmd := cmdProfileAssign{global: c.global, profile: c}
+	cmd.AddCommand(profileAssignCmd.Command())
+
+	// Copy
+	profileCopyCmd := cmdProfileCopy{global: c.global, profile: c}
+	cmd.AddCommand(profileCopyCmd.Command())
+
+	// Create
+	profileCreateCmd := cmdProfileCreate{global: c.global, profile: c}
+	cmd.AddCommand(profileCreateCmd.Command())
+
+	// Delete
+	profileDeleteCmd := cmdProfileDelete{global: c.global, profile: c}
+	cmd.AddCommand(profileDeleteCmd.Command())
+
+	// Device
+	profileDeviceCmd := cmdConfigDevice{global: c.global, profile: c}
+	cmd.AddCommand(profileDeviceCmd.Command())
+
+	// Edit
+	profileEditCmd := cmdProfileEdit{global: c.global, profile: c}
+	cmd.AddCommand(profileEditCmd.Command())
+
+	// Get
+	profileGetCmd := cmdProfileGet{global: c.global, profile: c}
+	cmd.AddCommand(profileGetCmd.Command())
+
+	// List
+	profileListCmd := cmdProfileList{global: c.global, profile: c}
+	cmd.AddCommand(profileListCmd.Command())
+
+	// Remove
+	profileRemoveCmd := cmdProfileRemove{global: c.global, profile: c}
+	cmd.AddCommand(profileRemoveCmd.Command())
+
+	// Rename
+	profileRenameCmd := cmdProfileRename{global: c.global, profile: c}
+	cmd.AddCommand(profileRenameCmd.Command())
+
+	// Set
+	profileSetCmd := cmdProfileSet{global: c.global, profile: c}
+	cmd.AddCommand(profileSetCmd.Command())
+
+	// Show
+	profileShowCmd := cmdProfileShow{global: c.global, profile: c}
+	cmd.AddCommand(profileShowCmd.Command())
+
+	// Unset
+	profileUnsetCmd := cmdProfileUnset{global: c.global, profile: c, profileSet: &profileSetCmd}
+	cmd.AddCommand(profileUnsetCmd.Command())
+
+	return cmd
 }
 
-func (c *profileCmd) profileEditHelp() string {
+// Add
+type cmdProfileAdd struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileAdd) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("add [<remote>:]<container> <profile>")
+	cmd.Short = i18n.G("Add profiles to containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Add profiles to containers`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileAdd) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing container.name name"))
+	}
+
+	// Add the profile
+	container, etag, err := resource.server.GetContainer(resource.name)
+	if err != nil {
+		return err
+	}
+
+	container.Profiles = append(container.Profiles, args[1])
+
+	op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Profile %s added to %s")+"\n", args[1], resource.name)
+
+	return nil
+}
+
+// Assign
+type cmdProfileAssign struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileAssign) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("assign [<remote>:]<container> <profiles>")
+	cmd.Aliases = []string{"apply"}
+	cmd.Short = i18n.G("Assign sets of profiles to containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Assign sets of profiles to containers`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc profile assign foo default,bar
+    Set the profiles for "foo" to "default" and "bar".
+
+lxc profile assign foo default
+    Reset "foo" to only using the "default" profile.
+
+lxc profile assign foo ''
+    Remove all profile from "foo"`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Assign the profiles
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing container name"))
+	}
+
+	container, etag, err := resource.server.GetContainer(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if args[1] != "" {
+		container.Profiles = strings.Split(args[1], ",")
+	} else {
+		container.Profiles = nil
+	}
+
+	op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	if args[1] == "" {
+		args[1] = i18n.G("(none)")
+	}
+
+	fmt.Printf(i18n.G("Profiles %s applied to %s")+"\n", args[1], resource.name)
+
+	return nil
+}
+
+// Copy
+type cmdProfileCopy struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileCopy) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("copy [<remote>:]<profile> [<remote>:]<profile>")
+	cmd.Aliases = []string{"cp"}
+	cmd.Short = i18n.G("Copy profiles")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Copy profiles`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args...)
+	if err != nil {
+		return err
+	}
+
+	source := resources[0]
+	dest := resources[1]
+
+	if source.name == "" {
+		return fmt.Errorf(i18n.G("Missing source profile name"))
+	}
+
+	if dest.name == "" {
+		dest.name = source.name
+	}
+
+	// Copy the profile
+	profile, _, err := source.server.GetProfile(source.name)
+	if err != nil {
+		return err
+	}
+
+	newProfile := api.ProfilesPost{
+		ProfilePut: profile.Writable(),
+		Name:       dest.name,
+	}
+
+	return dest.server.CreateProfile(newProfile)
+}
+
+// Create
+type cmdProfileCreate struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileCreate) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("create [<remote>:]<profile>")
+	cmd.Short = i18n.G("Create profiles")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Create profiles`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileCreate) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing profile name"))
+	}
+
+	// Create the profile
+	profile := api.ProfilesPost{}
+	profile.Name = resource.name
+
+	err = resource.server.CreateProfile(profile)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Profile %s created")+"\n", resource.name)
+	return nil
+}
+
+// Delete
+type cmdProfileDelete struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileDelete) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("delete [<remote>:]<profile>")
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete profiles")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Delete profiles`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileDelete) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing profile name"))
+	}
+
+	// Delete the profile
+	err = resource.server.DeleteProfile(resource.name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Profile %s deleted")+"\n", resource.name)
+
+	return nil
+}
+
+// Edit
+type cmdProfileEdit struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileEdit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("edit [<remote>:]<profile>")
+	cmd.Short = i18n.G("Edit profile configurations as YAML")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Edit profile configurations as YAML`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc profile edit <profile> < profile.yaml
+    Update a profile using the content of profile.yaml`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a yaml representation of the profile.
 ### Any line starting with a '# will be ignored.
@@ -47,188 +425,25 @@ func (c *profileCmd) profileEditHelp() string {
 ### Note that the name is shown but cannot be changed`)
 }
 
-func (c *profileCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc profile <subcommand> [options]
-
-Manage container configuration profiles.
-
-*Profile configuration*
-lxc profile list [<remote>:]
-    List available profiles.
-
-lxc profile show [<remote>:]<profile>
-    Show details of a profile.
-
-lxc profile create [<remote>:]<profile>
-    Create a profile.
-
-lxc profile copy [<remote>:]<profile> [<remote>:]<profile>
-    Copy the profile.
-
-lxc profile get [<remote>:]<profile> <key>
-    Get profile configuration.
-
-lxc profile set [<remote>:]<profile> <key> <value>
-    Set profile configuration.
-
-lxc profile unset [<remote>:]<profile> <key>
-    Unset profile configuration.
-
-lxc profile delete [<remote>:]<profile>
-    Delete a profile.
-
-lxc profile edit [<remote>:]<profile>
-    Edit profile, either by launching external editor or reading STDIN.
-
-lxc profile rename [<remote>:]<profile> <new-name>
-    Rename a profile.
-
-*Profile assignment*
-lxc profile assign [<remote>:]<container> <profiles>
-    Replace the current set of profiles for the container by the one provided.
-
-lxc profile add [<remote>:]<container> <profile>
-    Add a profile to a container
-
-lxc profile remove [<remote>:]<container> <profile>
-    Remove the profile from a container
-
-*Device management*
-lxc profile device list [<remote>:]<profile>
-    List devices in the given profile.
-
-lxc profile device show [<remote>:]<profile>
-    Show full device details in the given profile.
-
-lxc profile device remove [<remote>:]<profile> <name>
-    Remove a device from a profile.
-
-lxc profile device get [<remote>:]<profile> <name> <key>
-    Get a device property.
-
-lxc profile device set [<remote>:]<profile> <name> <key> <value>
-    Set a device property.
-
-lxc profile device unset [<remote>:]<profile> <name> <key>
-    Unset a device property.
-
-lxc profile device add [<remote>:]<profile> <device> <type> [key=value...]
-    Add a profile device, such as a disk or a nic, to the containers using the specified profile.
-
-*Examples*
-cat profile.yaml | lxc profile edit <profile>
-    Update a profile using the content of profile.yaml
-
-lxc profile assign foo default,bar
-    Set the profiles for "foo" to "default" and "bar".
-
-lxc profile assign foo default
-    Reset "foo" to only using the "default" profile.
-
-lxc profile assign foo ''
-    Remove all profile from "foo"`)
-}
-
-func (c *profileCmd) flags() {}
-
-func (c *profileCmd) run(conf *config.Config, args []string) error {
-	if len(args) < 1 {
-		return errUsage
+func (c *cmdProfileEdit) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
 	}
 
-	if args[0] == "list" {
-		return c.doProfileList(conf, args)
-	}
-
-	if len(args) < 2 {
-		return errArgs
-	}
-
-	remote, profile, err := conf.ParseRemote(args[1])
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
 
-	client, err := conf.GetContainerServer(remote)
-	if err != nil {
-		return err
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing profile name"))
 	}
 
-	switch args[0] {
-	case "create":
-		return c.doProfileCreate(client, profile)
-	case "delete":
-		return c.doProfileDelete(client, profile)
-	case "device":
-		return c.doProfileDevice(conf, args)
-	case "edit":
-		return c.doProfileEdit(client, profile)
-	case "rename":
-		if len(args) != 3 {
-			return errArgs
-		}
-		return c.doProfileRename(client, profile, args[2])
-	case "apply", "assign":
-		container := profile
-		switch len(args) {
-		case 2:
-			profile = ""
-		case 3:
-			profile = args[2]
-		default:
-			return errArgs
-		}
-		return c.doProfileAssign(client, container, profile)
-	case "add":
-		container := profile
-		switch len(args) {
-		case 2:
-			profile = ""
-		case 3:
-			profile = args[2]
-		default:
-			return errArgs
-		}
-		return c.doProfileAdd(client, container, profile)
-	case "remove":
-		container := profile
-		switch len(args) {
-		case 2:
-			profile = ""
-		case 3:
-			profile = args[2]
-		default:
-			return errArgs
-		}
-		return c.doProfileRemove(client, container, profile)
-	case "get":
-		return c.doProfileGet(client, profile, args[2:])
-	case "set":
-		return c.doProfileSet(client, profile, args[2:])
-	case "unset":
-		return c.doProfileUnset(client, profile, args[2:])
-	case "copy":
-		return c.doProfileCopy(conf, client, profile, args[2:])
-	case "show":
-		return c.doProfileShow(client, profile)
-	default:
-		return errArgs
-	}
-}
-
-func (c *profileCmd) doProfileCreate(client lxd.ContainerServer, p string) error {
-	profile := api.ProfilesPost{}
-	profile.Name = p
-
-	err := client.CreateProfile(profile)
-	if err == nil {
-		fmt.Printf(i18n.G("Profile %s created")+"\n", p)
-	}
-	return err
-}
-
-func (c *profileCmd) doProfileEdit(client lxd.ContainerServer, p string) error {
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -242,11 +457,11 @@ func (c *profileCmd) doProfileEdit(client lxd.ContainerServer, p string) error {
 			return err
 		}
 
-		return client.UpdateProfile(p, newdata, "")
+		return resource.server.UpdateProfile(resource.name, newdata, "")
 	}
 
 	// Extract the current value
-	profile, etag, err := client.GetProfile(p)
+	profile, etag, err := resource.server.GetProfile(resource.name)
 	if err != nil {
 		return err
 	}
@@ -257,7 +472,7 @@ func (c *profileCmd) doProfileEdit(client lxd.ContainerServer, p string) error {
 	}
 
 	// Spawn the editor
-	content, err := shared.TextEditor("", []byte(c.profileEditHelp()+"\n\n"+string(data)))
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
 	if err != nil {
 		return err
 	}
@@ -267,7 +482,7 @@ func (c *profileCmd) doProfileEdit(client lxd.ContainerServer, p string) error {
 		newdata := api.ProfilePut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.UpdateProfile(p, newdata, etag)
+			err = resource.server.UpdateProfile(resource.name, newdata, etag)
 		}
 
 		// Respawn the editor
@@ -288,201 +503,49 @@ func (c *profileCmd) doProfileEdit(client lxd.ContainerServer, p string) error {
 		}
 		break
 	}
-	return nil
-}
-
-func (c *profileCmd) doProfileRename(client lxd.ContainerServer, p string, newName string) error {
-	err := client.RenameProfile(p, api.ProfilePost{Name: newName})
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf(i18n.G("Profile %s renamed to %s")+"\n", p, newName)
-	return nil
-}
-
-func (c *profileCmd) doProfileDelete(client lxd.ContainerServer, p string) error {
-	err := client.DeleteProfile(p)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf(i18n.G("Profile %s deleted")+"\n", p)
-	return nil
-}
-
-func (c *profileCmd) doProfileAssign(client lxd.ContainerServer, d string, p string) error {
-	container, etag, err := client.GetContainer(d)
-	if err != nil {
-		return err
-	}
-
-	if p != "" {
-		container.Profiles = strings.Split(p, ",")
-	} else {
-		container.Profiles = nil
-	}
-
-	op, err := client.UpdateContainer(d, container.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
-	err = op.Wait()
-	if err != nil {
-		return err
-	}
-
-	if p == "" {
-		p = i18n.G("(none)")
-	}
-	fmt.Printf(i18n.G("Profiles %s applied to %s")+"\n", p, d)
 
 	return nil
 }
 
-func (c *profileCmd) doProfileAdd(client lxd.ContainerServer, d string, p string) error {
-	container, etag, err := client.GetContainer(d)
-	if err != nil {
-		return err
-	}
-
-	container.Profiles = append(container.Profiles, p)
-
-	op, err := client.UpdateContainer(d, container.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
-	err = op.Wait()
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf(i18n.G("Profile %s added to %s")+"\n", p, d)
-	return nil
+// Get
+type cmdProfileGet struct {
+	global  *cmdGlobal
+	profile *cmdProfile
 }
 
-func (c *profileCmd) doProfileRemove(client lxd.ContainerServer, d string, p string) error {
-	container, etag, err := client.GetContainer(d)
-	if err != nil {
-		return err
-	}
+func (c *cmdProfileGet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("get [<remote>:]<profile> <key>")
+	cmd.Short = i18n.G("Get values for profile configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Get values for profile configuration keys`))
 
-	if !shared.StringInSlice(p, container.Profiles) {
-		return fmt.Errorf("Profile %s isn't currently applied to %s", p, d)
-	}
+	cmd.RunE = c.Run
 
-	profiles := []string{}
-	for _, profile := range container.Profiles {
-		if profile == p {
-			continue
-		}
-
-		profiles = append(profiles, profile)
-	}
-
-	container.Profiles = profiles
-
-	op, err := client.UpdateContainer(d, container.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
-	err = op.Wait()
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf(i18n.G("Profile %s removed from %s")+"\n", p, d)
-	return nil
+	return cmd
 }
 
-func (c *profileCmd) doProfileShow(client lxd.ContainerServer, p string) error {
-	profile, _, err := client.GetProfile(p)
+func (c *cmdProfileGet) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
 
-	data, err := yaml.Marshal(&profile)
-	if err != nil {
-		return err
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing profile name"))
 	}
 
-	fmt.Printf("%s", data)
-
-	return nil
-}
-
-func (c *profileCmd) doProfileCopy(conf *config.Config, client lxd.ContainerServer, p string, args []string) error {
-	if len(args) != 1 {
-		return errArgs
-	}
-
-	remote, newname, err := conf.ParseRemote(args[0])
-	if err != nil {
-		return err
-	}
-
-	if newname == "" {
-		newname = p
-	}
-
-	dest, err := conf.GetContainerServer(remote)
-	if err != nil {
-		return err
-	}
-
-	profile, _, err := client.GetProfile(p)
-	if err != nil {
-		return err
-	}
-
-	newProfile := api.ProfilesPost{
-		ProfilePut: profile.Writable(),
-		Name:       newname,
-	}
-
-	return dest.CreateProfile(newProfile)
-}
-
-func (c *profileCmd) doProfileDevice(conf *config.Config, args []string) error {
-	// device add b1 eth0 nic type=bridged
-	// device list b1
-	// device remove b1 eth0
-	if len(args) < 3 {
-		return errArgs
-	}
-
-	cfg := configCmd{}
-
-	switch args[1] {
-	case "add":
-		return cfg.deviceAdd(conf, "profile", args)
-	case "remove":
-		return cfg.deviceRm(conf, "profile", args)
-	case "list":
-		return cfg.deviceList(conf, "profile", args)
-	case "show":
-		return cfg.deviceShow(conf, "profile", args)
-	case "get":
-		return cfg.deviceGet(conf, "profile", args)
-	case "set":
-		return cfg.deviceSet(conf, "profile", args)
-	case "unset":
-		return cfg.deviceUnset(conf, "profile", args)
-	default:
-		return errArgs
-	}
-}
-
-func (c *profileCmd) doProfileGet(client lxd.ContainerServer, p string, args []string) error {
-	// we shifted @args so so it should read "<key>"
-	if len(args) != 1 {
-		return errArgs
-	}
-
-	profile, _, err := client.GetProfile(p)
+	// Get the configuration key
+	profile, _, err := resource.server.GetProfile(resource.name)
 	if err != nil {
 		return err
 	}
@@ -491,70 +554,47 @@ func (c *profileCmd) doProfileGet(client lxd.ContainerServer, p string, args []s
 	return nil
 }
 
-func (c *profileCmd) doProfileSet(client lxd.ContainerServer, p string, args []string) error {
-	// we shifted @args so so it should read "<key> [<value>]"
-	if len(args) < 1 {
-		return errArgs
+// List
+type cmdProfileList struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileList) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List profiles")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List profiles`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
 	}
 
-	key := args[0]
-	var value string
-	if len(args) < 2 {
-		value = ""
-	} else {
-		value = args[1]
+	// Parse remote
+	remote := ""
+	if len(args) > 0 {
+		remote = args[0]
 	}
 
-	if !termios.IsTerminal(int(syscall.Stdin)) && value == "-" {
-		buf, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf("Can't read from stdin: %s", err)
-		}
-		value = string(buf[:])
-	}
-
-	profile, etag, err := client.GetProfile(p)
+	resources, err := c.global.ParseServers(remote)
 	if err != nil {
 		return err
 	}
 
-	profile.Config[key] = value
+	resource := resources[0]
 
-	return client.UpdateProfile(p, profile.Writable(), etag)
-}
-
-func (c *profileCmd) doProfileUnset(client lxd.ContainerServer, p string, args []string) error {
-	// we shifted @args so so it should read "<key> [<value>]"
-	if len(args) != 1 {
-		return errArgs
-	}
-
-	return c.doProfileSet(client, p, args)
-}
-
-func (c *profileCmd) doProfileList(conf *config.Config, args []string) error {
-	var remote string
-	if len(args) > 1 {
-		var name string
-		var err error
-		remote, name, err = conf.ParseRemote(args[1])
-		if err != nil {
-			return err
-		}
-
-		if name != "" {
-			return fmt.Errorf(i18n.G("Cannot provide container name to list"))
-		}
-	} else {
-		remote = conf.DefaultRemote
-	}
-
-	client, err := conf.GetContainerServer(remote)
-	if err != nil {
-		return err
-	}
-
-	profiles, err := client.GetProfiles()
+	// List profiles
+	profiles, err := resource.server.GetProfiles()
 	if err != nil {
 		return err
 	}
@@ -577,4 +617,267 @@ func (c *profileCmd) doProfileList(conf *config.Config, args []string) error {
 	table.Render()
 
 	return nil
+}
+
+// Remove
+type cmdProfileRemove struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileRemove) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("remove [<remote>:]<container> <profile>")
+	cmd.Short = i18n.G("Remove profiles from containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Remove profiles from containers`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing container name"))
+	}
+
+	// Remove the profile
+	container, etag, err := resource.server.GetContainer(resource.name)
+	if err != nil {
+		return err
+	}
+
+	if !shared.StringInSlice(args[1], container.Profiles) {
+		return fmt.Errorf(i18n.G("Profile %s isn't currently applied to %s"), args[1], resource.name)
+	}
+
+	profiles := []string{}
+	for _, profile := range container.Profiles {
+		if profile == args[1] {
+			continue
+		}
+
+		profiles = append(profiles, profile)
+	}
+
+	container.Profiles = profiles
+
+	op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Profile %s removed from %s")+"\n", args[1], resource.name)
+	return nil
+}
+
+// Rename
+type cmdProfileRename struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileRename) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("rename [<remote>:]<profile> <new-name>")
+	cmd.Aliases = []string{"mv"}
+	cmd.Short = i18n.G("Rename profiles")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Rename profiles`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileRename) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing profile name"))
+	}
+
+	// Rename the profile
+	err = resource.server.RenameProfile(resource.name, api.ProfilePost{Name: args[1]})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Profile %s renamed to %s")+"\n", resource.name, args[1])
+
+	return nil
+}
+
+// Set
+type cmdProfileSet struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileSet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("set [<remote>:]<profile> <key> <value>")
+	cmd.Short = i18n.G("Set profile configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Set profile configuration keys`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileSet) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing profile name"))
+	}
+
+	// Set the configuration key
+	key := args[1]
+	value := args[2]
+
+	if !termios.IsTerminal(int(syscall.Stdin)) && value == "-" {
+		buf, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
+		}
+		value = string(buf[:])
+	}
+
+	profile, etag, err := resource.server.GetProfile(resource.name)
+	if err != nil {
+		return err
+	}
+
+	profile.Config[key] = value
+
+	return resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
+}
+
+// Show
+type cmdProfileShow struct {
+	global  *cmdGlobal
+	profile *cmdProfile
+}
+
+func (c *cmdProfileShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("show [<remote>:]<profile>")
+	cmd.Short = i18n.G("Show profile configurations")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show profile configurations`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileShow) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing profile name"))
+	}
+
+	// Show the profile
+	profile, _, err := resource.server.GetProfile(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&profile)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Unset
+type cmdProfileUnset struct {
+	global     *cmdGlobal
+	profile    *cmdProfile
+	profileSet *cmdProfileSet
+}
+
+func (c *cmdProfileUnset) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("unset [<remote>:]<profile> <key>")
+	cmd.Short = i18n.G("Unset profile configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Unset profile configuration keys`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProfileUnset) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	args = append(args, "")
+	return c.profileSet.Run(cmd, args)
 }

@@ -4,42 +4,43 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/lxc/lxd/lxc/config"
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type queryCmd struct {
-	respWait bool
-	respRaw  bool
-	action   string
-	data     string
+type cmdQuery struct {
+	global *cmdGlobal
+
+	flagRespWait bool
+	flagRespRaw  bool
+	flagAction   string
+	flagData     string
 }
 
-func (c *queryCmd) showByDefault() bool {
-	return false
+func (c *cmdQuery) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("query [<remote>:]<API path>")
+	cmd.Short = i18n.G("Send a raw query to LXD")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Send a raw query to LXD`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc query -X DELETE --wait /1.0/containers/c1
+    Delete local container "c1".`))
+	cmd.Hidden = true
+
+	cmd.RunE = c.Run
+	cmd.Flags().BoolVar(&c.flagRespWait, "wait", false, i18n.G("Wait for the operation to complete"))
+	cmd.Flags().BoolVar(&c.flagRespRaw, "raw", false, i18n.G("Print the raw response"))
+	cmd.Flags().StringVar(&c.flagAction, "X", "GET", i18n.G("Action (defaults to GET)")+"``")
+	cmd.Flags().StringVar(&c.flagData, "d", "", i18n.G("Input data")+"``")
+
+	return cmd
 }
 
-func (c *queryCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc query [-X <action>] [-d <data>] [--wait] [--raw] [<remote>:]<API path>
-
-Send a raw query to LXD.
-
-*Examples*
-lxc query -X DELETE --wait /1.0/containers/c1
-    Delete local container "c1".`)
-}
-
-func (c *queryCmd) flags() {
-	gnuflag.BoolVar(&c.respWait, "wait", false, i18n.G("Wait for the operation to complete"))
-	gnuflag.BoolVar(&c.respRaw, "raw", false, i18n.G("Print the raw response"))
-	gnuflag.StringVar(&c.action, "X", "GET", i18n.G("Action (defaults to GET)"))
-	gnuflag.StringVar(&c.data, "d", "", i18n.G("Input data"))
-}
-
-func (c *queryCmd) pretty(input interface{}) string {
+func (c *cmdQuery) pretty(input interface{}) string {
 	pretty, err := json.MarshalIndent(input, "", "\t")
 	if err != nil {
 		return fmt.Sprintf("%v", input)
@@ -48,9 +49,13 @@ func (c *queryCmd) pretty(input interface{}) string {
 	return fmt.Sprintf("%s", pretty)
 }
 
-func (c *queryCmd) run(conf *config.Config, args []string) error {
-	if len(args) != 1 {
-		return errArgs
+func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
 	}
 
 	// Parse the remote
@@ -67,18 +72,18 @@ func (c *queryCmd) run(conf *config.Config, args []string) error {
 
 	// Guess the encoding of the input
 	var data interface{}
-	err = json.Unmarshal([]byte(c.data), &data)
+	err = json.Unmarshal([]byte(c.flagData), &data)
 	if err != nil {
-		data = c.data
+		data = c.flagData
 	}
 
 	// Perform the query
-	resp, _, err := d.RawQuery(c.action, path, data, "")
+	resp, _, err := d.RawQuery(c.flagAction, path, data, "")
 	if err != nil {
 		return err
 	}
 
-	if c.respWait && resp.Operation != "" {
+	if c.flagRespWait && resp.Operation != "" {
 		resp, _, err = d.RawQuery("GET", fmt.Sprintf("%s/wait", resp.Operation), "", "")
 		if err != nil {
 			return err
@@ -91,7 +96,7 @@ func (c *queryCmd) run(conf *config.Config, args []string) error {
 		}
 	}
 
-	if c.respRaw {
+	if c.flagRespRaw {
 		fmt.Println(c.pretty(resp))
 	} else if resp.Metadata != nil && string(resp.Metadata) != "{}" {
 		var content interface{}

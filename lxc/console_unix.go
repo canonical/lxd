@@ -13,11 +13,11 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func (c *consoleCmd) getStdout() io.WriteCloser {
+func (c *cmdConsole) getStdout() io.WriteCloser {
 	return os.Stdout
 }
 
-func (c *consoleCmd) controlSocketHandler(control *websocket.Conn) {
+func (c *cmdConsole) controlSocketHandler(control *websocket.Conn) {
 	ch := make(chan os.Signal, 10)
 	signal.Notify(ch, syscall.SIGWINCH)
 

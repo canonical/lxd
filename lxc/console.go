@@ -9,36 +9,39 @@ import (
 	"strconv"
 
 	"github.com/gorilla/websocket"
+	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/termios"
 )
 
-type consoleCmd struct {
-	showLog bool
+type cmdConsole struct {
+	global *cmdGlobal
+
+	flagShowLog bool
 }
 
-func (c *consoleCmd) showByDefault() bool {
-	return true
+func (c *cmdConsole) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("console [<remote>:]<container>")
+	cmd.Short = i18n.G("Attach to container consoles")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Attach to container consoles
+
+This command allows you to interact with the boot console of a container
+as well as retrieve past log entries from it.`))
+
+	cmd.RunE = c.Run
+	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Retrieve the container's console log"))
+
+	return cmd
 }
 
-func (c *consoleCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc console [<remote>:]<container> [-l]
-
-Interact with the container's console device and log.`)
-}
-
-func (c *consoleCmd) flags() {
-	gnuflag.BoolVar(&c.showLog, "show-log", false, i18n.G("Retrieve the container's console log"))
-}
-
-func (c *consoleCmd) sendTermSize(control *websocket.Conn) error {
+func (c *cmdConsole) sendTermSize(control *websocket.Conn) error {
 	width, height, err := termios.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return err
@@ -102,11 +105,16 @@ func (er stdinMirror) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (c *consoleCmd) run(conf *config.Config, args []string) error {
-	if len(args) < 1 {
-		return errArgs
+func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
 	}
 
+	// Connect to LXD
 	remote, name, err := conf.ParseRemote(args[0])
 	if err != nil {
 		return err
@@ -117,7 +125,8 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 		return err
 	}
 
-	if c.showLog {
+	// Show the current log if requested
+	if c.flagShowLog {
 		console := &lxd.ContainerConsoleLogArgs{}
 		log, err := d.GetContainerConsoleLog(name, console)
 		if err != nil {
@@ -133,6 +142,7 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 		return nil
 	}
 
+	// Configure the terminal
 	cfd := int(os.Stdin.Fd())
 
 	var oldttystate *termios.State
@@ -150,6 +160,7 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 		return err
 	}
 
+	// Prepare the remote console
 	req := api.ContainerConsolePost{
 		Width:  width,
 		Height: height,
@@ -158,6 +169,7 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 	consoleDisconnect := make(chan bool)
 	sendDisconnect := make(chan bool)
 	defer close(sendDisconnect)
+
 	consoleArgs := lxd.ContainerConsoleArgs{
 		Terminal: &readWriteCloser{stdinMirror{os.Stdin,
 			sendDisconnect, new(bool)}, os.Stdout},
@@ -172,7 +184,7 @@ func (c *consoleCmd) run(conf *config.Config, args []string) error {
 
 	fmt.Printf(i18n.G("To detach from the console, press: <ctrl>+a q") + "\n\r")
 
-	// Run the command in the container
+	// Attach to the container console
 	op, err := d.ConsoleContainer(name, req, &consoleArgs)
 	if err != nil {
 		return err

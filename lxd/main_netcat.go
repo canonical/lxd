@@ -14,7 +14,6 @@ import (
 )
 
 type cmdNetcat struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -34,7 +33,6 @@ func (c *cmdNetcat) Command() *cobra.Command {
 	cmd.RunE = c.Run
 	cmd.Hidden = true
 
-	c.cmd = cmd
 	return cmd
 }
 
