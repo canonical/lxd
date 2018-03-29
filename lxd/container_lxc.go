@@ -1165,6 +1165,39 @@ func (c *containerLXC) initLXC(config bool) error {
 		}
 	}
 
+	// Setup NVIDIA runtime
+	if shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
+		hookDir := os.Getenv("LXD_LXC_HOOK")
+		if hookDir == "" {
+			hookDir = "/usr/share/lxc/hooks"
+		}
+
+		hookPath := filepath.Join(hookDir, "nvidia")
+		if !shared.PathExists(hookPath) {
+			return fmt.Errorf("The NVIDIA LXC hook couldn't be found")
+		}
+
+		_, err := exec.LookPath("nvidia-container-cli")
+		if err != nil {
+			return fmt.Errorf("The NVIDIA container tools couldn't be found")
+		}
+
+		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_VISIBLE_DEVICES=none")
+		if err != nil {
+			return err
+		}
+
+		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=compute,utility")
+		if err != nil {
+			return err
+		}
+
+		err = lxcSetConfigItem(cc, "lxc.hook.mount", hookPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Memory limits
 	if c.state.OS.CGroupMemoryController {
 		memory := c.expandedConfig["limits.memory"]
