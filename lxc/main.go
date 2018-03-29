@@ -35,6 +35,10 @@ type cmdGlobal struct {
 }
 
 func main() {
+	// Process aliases
+	execIfAliases()
+
+	// Setup the parser
 	app := &cobra.Command{}
 	app.Use = "lxc"
 	app.Short = i18n.G("Command line client for LXD")
@@ -200,8 +204,6 @@ For help with any of those, simply call them with --help.`))
 
 func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 	var err error
-
-	// FIXME: deal with aliases
 
 	// If calling the help, skip pre-run
 	if cmd.Name() == "help" {
