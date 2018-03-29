@@ -241,6 +241,32 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 
 func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 	if !cli.AskBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
+		if cli.AskBool("Would you like to configure LXD to use an existing bridge or host interface (yes/no) [default=no]? ", "no") {
+			for {
+				name := cli.AskString("Name of the existing bridge or host interface: ", "", nil)
+
+				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", name)) {
+					fmt.Println("The requested interface doesn't exist. Please choose another one.")
+					continue
+				}
+
+				nicType := "macvlan"
+				if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", name)) {
+					nicType = "bridged"
+				}
+
+				// Add to the default profile
+				config.Profiles[0].Devices["eth0"] = map[string]string{
+					"type":    "nic",
+					"nictype": nicType,
+					"name":    "eth0",
+					"parent":  name,
+				}
+
+				break
+			}
+		}
+
 		return nil
 	}
 
