@@ -15,6 +15,7 @@ currently supported:
  - `environment` (environment variables)
  - `image` (copy of the image properties at time of creation)
  - `limits` (resource limits)
+ - `nvidia` (NVIDIA and CUDA configuration)
  - `raw` (raw container configuration overrides)
  - `security` (security policies)
  - `user` (storage for user properties, searchable)
@@ -45,6 +46,7 @@ linux.kernel\_modules                   | string    | -             | yes       
 migration.incremental.memory            | boolean   | false         | yes           | migration\_pre\_copy                 | Incremental memory transfer of the container's memory to reduce downtime.
 migration.incremental.memory.goal       | integer   | 70            | yes           | migration\_pre\_copy                 | Percentage of memory to have in sync before stopping the container.
 migration.incremental.memory.iterations | integer   | 10            | yes           | migration\_pre\_copy                 | Maximum number of transfer operations to go through before stopping the container.
+nvidia.runtime                          | boolean   | false         | no            | nvidia\_runtime                      | Pass the host NVIDIA and CUDA runtime libraries into the container
 raw.apparmor                            | blob      | -             | yes           | -                                    | Apparmor profile entries to be appended to the generated profile
 raw.idmap                               | blob      | -             | no            | id\_map                              | Raw idmap configuration (e.g. "both 1000 1000")
 raw.lxc                                 | blob      | -             | no            | -                                    | Raw LXC configuration to be appended to the generated one
