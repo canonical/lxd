@@ -27,6 +27,7 @@ func (c *Cluster) Profiles() ([]string, error) {
 	return response, nil
 }
 
+// ProfileGet returns the profile with the given name.
 func (c *Cluster) ProfileGet(name string) (int64, *api.Profile, error) {
 	id := int64(-1)
 	description := sql.NullString{}
@@ -60,6 +61,7 @@ func (c *Cluster) ProfileGet(name string) (int64, *api.Profile, error) {
 	return id, &profile, nil
 }
 
+// ProfileCreate creates a new profile.
 func (c *Cluster) ProfileCreate(profile string, description string, config map[string]string,
 	devices types.Devices) (int64, error) {
 
@@ -92,6 +94,7 @@ func (c *Cluster) ProfileCreate(profile string, description string, config map[s
 	return id, nil
 }
 
+// ProfileCreateDefault creates the default profile.
 func (c *Cluster) ProfileCreateDefault() error {
 	id, _, _ := c.ProfileGet("default")
 
@@ -108,7 +111,7 @@ func (c *Cluster) ProfileCreateDefault() error {
 	return nil
 }
 
-// Get the profile configuration map from the DB
+// ProfileConfig gets the profile configuration map from the DB.
 func (c *Cluster) ProfileConfig(name string) (map[string]string, error) {
 	var key, value string
 	query := `
@@ -137,7 +140,7 @@ func (c *Cluster) ProfileConfig(name string) (map[string]string, error) {
 		}
 
 		if len(results) == 0 {
-			return nil, NoSuchObjectError
+			return nil, ErrNoSuchObject
 		}
 	}
 
@@ -153,6 +156,7 @@ func (c *Cluster) ProfileConfig(name string) (map[string]string, error) {
 	return config, nil
 }
 
+// ProfileDelete deletes the profile with the given name.
 func (c *Cluster) ProfileDelete(name string) error {
 	id, _, err := c.ProfileGet(name)
 	if err != nil {
@@ -167,6 +171,7 @@ func (c *Cluster) ProfileDelete(name string) error {
 	return nil
 }
 
+// ProfileUpdate renames the profile with the given name to the given new name.
 func (c *Cluster) ProfileUpdate(name string, newName string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		_, err := tx.tx.Exec("UPDATE profiles SET name=? WHERE name=?", newName, name)
@@ -175,11 +180,13 @@ func (c *Cluster) ProfileUpdate(name string, newName string) error {
 	return err
 }
 
+// ProfileDescriptionUpdate updates the description of the profile with the given ID.
 func ProfileDescriptionUpdate(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE profiles SET description=? WHERE id=?", description, id)
 	return err
 }
 
+// ProfileConfigClear resets the config of the profile with the given ID.
 func ProfileConfigClear(tx *sql.Tx, id int64) error {
 	_, err := tx.Exec("DELETE FROM profiles_config WHERE profile_id=?", id)
 	if err != nil {
@@ -201,6 +208,7 @@ func ProfileConfigClear(tx *sql.Tx, id int64) error {
 	return nil
 }
 
+// ProfileConfigAdd adds a config to the profile with the given ID.
 func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO profiles_config (profile_id, key, value) VALUES(?, ?, ?)")
 	stmt, err := tx.Prepare(str)
@@ -219,6 +227,8 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 	return nil
 }
 
+// ProfileContainersGet gets the names of the containers associated with the
+// profile with the given name.
 func (c *Cluster) ProfileContainersGet(profile string) ([]string, error) {
 	q := `SELECT containers.name FROM containers JOIN containers_profiles
 		ON containers.id == containers_profiles.container_id
@@ -242,6 +252,7 @@ func (c *Cluster) ProfileContainersGet(profile string) ([]string, error) {
 	return results, nil
 }
 
+// ProfileCleanupLeftover removes unreferenced profiles.
 func (c *Cluster) ProfileCleanupLeftover() error {
 	stmt := `
 DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);

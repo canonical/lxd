@@ -59,7 +59,7 @@ func TestNetworksCreatePending_AlreadyDefined(t *testing.T) {
 	require.NoError(t, err)
 
 	err = tx.NetworkCreatePending("buzz", "network1", map[string]string{})
-	require.Equal(t, db.DbErrAlreadyDefined, err)
+	require.Equal(t, db.ErrAlreadyDefined, err)
 }
 
 // If no node with the given name is found, an error is returned.
@@ -68,5 +68,5 @@ func TestNetworksCreatePending_NonExistingNode(t *testing.T) {
 	defer cleanup()
 
 	err := tx.NetworkCreatePending("buzz", "network1", map[string]string{})
-	require.Equal(t, db.NoSuchObjectError, err)
+	require.Equal(t, db.ErrNoSuchObject, err)
 }

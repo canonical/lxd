@@ -257,7 +257,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	var poolErr error
 	poolID, pool, poolErr := d.cluster.StoragePoolGet(containerPoolName)
 	if poolErr != nil {
-		if poolErr != db.NoSuchObjectError {
+		if poolErr != db.ErrNoSuchObject {
 			return SmartError(poolErr)
 		}
 	}
@@ -269,7 +269,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			`recovered manually`))
 	}
 
-	if poolErr == db.NoSuchObjectError {
+	if poolErr == db.ErrNoSuchObject {
 		// Create the storage pool db entry if it doesn't exist.
 		err := storagePoolDBCreate(d.State(), containerPoolName, "",
 			backup.Pool.Driver, backup.Pool.Config)
@@ -381,7 +381,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				onDiskPoolName, req.Name,
 				storagePoolVolumeTypeNameContainer, userName)
 			if err != nil {
-				if err != db.NoSuchObjectError {
+				if err != db.ErrNoSuchObject {
 					return InternalError(err)
 				}
 			}
@@ -575,7 +575,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	_, volume, ctVolErr := d.cluster.StoragePoolNodeVolumeGetType(
 		req.Name, storagePoolVolumeTypeContainer, poolID)
 	if ctVolErr != nil {
-		if ctVolErr != db.NoSuchObjectError {
+		if ctVolErr != db.ErrNoSuchObject {
 			return SmartError(ctVolErr)
 		}
 	}
@@ -587,7 +587,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check if an entry for the container already exists in the db.
-	_, containerErr := d.cluster.ContainerId(req.Name)
+	_, containerErr := d.cluster.ContainerID(req.Name)
 	if containerErr != nil {
 		if containerErr != sql.ErrNoRows {
 			return SmartError(containerErr)
@@ -640,7 +640,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	for _, snap := range existingSnapshots {
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := d.cluster.ContainerId(snap.Name)
+		_, snapErr := d.cluster.ContainerID(snap.Name)
 		if snapErr != nil {
 			if snapErr != sql.ErrNoRows {
 				return SmartError(snapErr)
@@ -658,7 +658,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		_, _, csVolErr := d.cluster.StoragePoolNodeVolumeGetType(snap.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if csVolErr != nil {
-			if csVolErr != db.NoSuchObjectError {
+			if csVolErr != db.ErrNoSuchObject {
 				return SmartError(csVolErr)
 			}
 		}

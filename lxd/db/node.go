@@ -44,7 +44,7 @@ func (c *ClusterTx) NodeByAddress(address string) (NodeInfo, error) {
 	}
 	switch len(nodes) {
 	case 0:
-		return null, NoSuchObjectError
+		return null, ErrNoSuchObject
 	case 1:
 		return nodes[0], nil
 	default:
@@ -61,7 +61,7 @@ func (c *ClusterTx) NodePendingByAddress(address string) (NodeInfo, error) {
 	}
 	switch len(nodes) {
 	case 0:
-		return null, NoSuchObjectError
+		return null, ErrNoSuchObject
 	case 1:
 		return nodes[0], nil
 	default:
@@ -78,7 +78,7 @@ func (c *ClusterTx) NodeByName(name string) (NodeInfo, error) {
 	}
 	switch len(nodes) {
 	case 0:
-		return null, NoSuchObjectError
+		return null, ErrNoSuchObject
 	case 1:
 		return nodes[0], nil
 	default:
@@ -149,7 +149,7 @@ func (c *ClusterTx) NodeRename(old, new string) error {
 		return errors.Wrap(err, "failed to check existing nodes")
 	}
 	if count != 0 {
-		return DbErrAlreadyDefined
+		return ErrAlreadyDefined
 	}
 	stmt := `UPDATE nodes SET name=? WHERE name=?`
 	result, err := c.tx.Exec(stmt, new, old)

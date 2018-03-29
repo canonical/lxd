@@ -66,7 +66,7 @@ func (c *ClusterTx) NetworkID(name string) (int64, error) {
 	}
 	switch len(ids) {
 	case 0:
-		return -1, NoSuchObjectError
+		return -1, ErrNoSuchObject
 	case 1:
 		return int64(ids[0]), nil
 	default:
@@ -195,7 +195,7 @@ func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]stri
 		return err
 	}
 	if count != 0 {
-		return DbErrAlreadyDefined
+		return ErrAlreadyDefined
 	}
 
 	// Insert the node-specific configuration.
@@ -234,11 +234,12 @@ func (c *ClusterTx) networkState(name string, state int) error {
 		return err
 	}
 	if n != 1 {
-		return NoSuchObjectError
+		return ErrNoSuchObject
 	}
 	return nil
 }
 
+// Networks returns the names of existing networks.
 func (c *Cluster) Networks() ([]string, error) {
 	return c.networks("")
 }
@@ -283,6 +284,7 @@ const (
 	networkErrored            // Network creation failed on some nodes
 )
 
+// NetworkGet returns the network with the given name.
 func (c *Cluster) NetworkGet(name string) (int64, *api.Network, error) {
 	description := sql.NullString{}
 	id := int64(-1)
@@ -346,6 +348,8 @@ SELECT nodes.name FROM nodes
 	return nodes, nil
 }
 
+// NetworkGetInterface returns the network associated with the interface with
+// the given name.
 func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, error) {
 	id := int64(-1)
 	name := ""
@@ -389,6 +393,7 @@ func (c *Cluster) NetworkGetInterface(devName string) (int64, *api.Network, erro
 	return id, &network, nil
 }
 
+// NetworkConfigGet returns the config map of the network with the given ID.
 func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
 	var key, value string
 	query := `
@@ -417,7 +422,7 @@ func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
 		}
 
 		if len(results) == 0 {
-			return nil, NoSuchObjectError
+			return nil, ErrNoSuchObject
 		}
 	}
 
@@ -433,6 +438,7 @@ func (c *Cluster) NetworkConfigGet(id int64) (map[string]string, error) {
 	return config, nil
 }
 
+// NetworkCreate creates a new network.
 func (c *Cluster) NetworkCreate(name, description string, config map[string]string) (int64, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
@@ -467,6 +473,7 @@ func (c *Cluster) NetworkCreate(name, description string, config map[string]stri
 	return id, err
 }
 
+// NetworkUpdate updates the network with the given name.
 func (c *Cluster) NetworkUpdate(name, description string, config map[string]string) error {
 	id, _, err := c.NetworkGet(name)
 	if err != nil {
@@ -494,6 +501,8 @@ func (c *Cluster) NetworkUpdate(name, description string, config map[string]stri
 	return err
 }
 
+// NetworkUpdateDescription updates the description of the network with the
+// given ID.
 func NetworkUpdateDescription(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE networks SET description=? WHERE id=?", description, id)
 	return err
@@ -527,6 +536,8 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 	return nil
 }
 
+// NetworkConfigClear resets the config of the network with the given ID
+// associated with the node with the given ID.
 func NetworkConfigClear(tx *sql.Tx, networkID, nodeID int64) error {
 	_, err := tx.Exec(
 		"DELETE FROM networks_config WHERE network_id=? AND node_id=?",
@@ -538,6 +549,7 @@ func NetworkConfigClear(tx *sql.Tx, networkID, nodeID int64) error {
 	return nil
 }
 
+// NetworkDelete deletes the network with the given name.
 func (c *Cluster) NetworkDelete(name string) error {
 	id, _, err := c.NetworkGet(name)
 	if err != nil {
@@ -552,6 +564,7 @@ func (c *Cluster) NetworkDelete(name string) error {
 	return nil
 }
 
+// NetworkRename renames a network.
 func (c *Cluster) NetworkRename(oldName string, newName string) error {
 	id, _, err := c.NetworkGet(oldName)
 	if err != nil {

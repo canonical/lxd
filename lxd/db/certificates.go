@@ -114,6 +114,7 @@ func (c *Cluster) CertDelete(fingerprint string) error {
 	return nil
 }
 
+// CertUpdate updates the certificate with the given fingerprint.
 func (c *Cluster) CertUpdate(fingerprint string, certName string, certType int) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		_, err := tx.tx.Exec("UPDATE certificates SET name=?, type=? WHERE fingerprint=?", certName, certType, fingerprint)

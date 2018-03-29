@@ -178,7 +178,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _ := d.cluster.ContainerId(req.Name)
+	id, _ := d.cluster.ContainerID(req.Name)
 	if id > 0 {
 		return Conflict
 	}

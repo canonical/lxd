@@ -81,7 +81,7 @@ func TestNodeRename(t *testing.T) {
 	_, err = tx.NodeAdd("buzz", "5.6.7.8:666")
 	require.NoError(t, err)
 	err = tx.NodeRename("rusp", "buzz")
-	assert.Equal(t, db.DbErrAlreadyDefined, err)
+	assert.Equal(t, db.ErrAlreadyDefined, err)
 }
 
 // Remove a new raft node.
@@ -102,7 +102,7 @@ func TestNodeRemove(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = tx.NodeByName("rusp")
-	assert.Equal(t, db.NoSuchObjectError, err)
+	assert.Equal(t, db.ErrNoSuchObject, err)
 }
 
 // Mark a node has pending.
@@ -119,7 +119,7 @@ func TestNodePending(t *testing.T) {
 
 	// Pending nodes are skipped from regular listing
 	_, err = tx.NodeByName("buzz")
-	assert.Equal(t, db.NoSuchObjectError, err)
+	assert.Equal(t, db.ErrNoSuchObject, err)
 	nodes, err := tx.Nodes()
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)

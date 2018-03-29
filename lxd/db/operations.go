@@ -31,7 +31,7 @@ func (c *ClusterTx) OperationByUUID(uuid string) (Operation, error) {
 	}
 	switch len(operations) {
 	case 0:
-		return null, NoSuchObjectError
+		return null, ErrNoSuchObject
 	case 1:
 		return operations[0], nil
 	default:
