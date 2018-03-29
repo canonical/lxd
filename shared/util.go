@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -899,6 +901,14 @@ func EscapePathFstab(path string) string {
 }
 
 func DownloadFileSha256(httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, target io.WriteSeeker) (int64, error) {
+	return downloadFileSha(httpClient, useragent, progress, canceler, filename, url, hash, sha256.New(), target)
+}
+
+func DownloadFileSha512(httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, target io.WriteSeeker) (int64, error) {
+	return downloadFileSha(httpClient, useragent, progress, canceler, filename, url, hash, sha512.New(), target)
+}
+
+func downloadFileSha(httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, sha hash.Hash, target io.WriteSeeker) (int64, error) {
 	// Always seek to the beginning
 	target.Seek(0, 0)
 
@@ -942,13 +952,12 @@ func DownloadFileSha256(httpClient *http.Client, useragent string, progress func
 		}
 	}
 
-	sha256 := sha256.New()
-	size, err := io.Copy(io.MultiWriter(target, sha256), body)
+	size, err := io.Copy(io.MultiWriter(target, sha), body)
 	if err != nil {
 		return -1, err
 	}
 
-	result := fmt.Sprintf("%x", sha256.Sum(nil))
+	result := fmt.Sprintf("%x", sha.Sum(nil))
 	if result != hash {
 		return -1, fmt.Errorf("Hash mismatch for %s: %s != %s", url, result, hash)
 	}
