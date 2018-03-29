@@ -75,6 +75,9 @@ func (c *cmdConfigDeviceAdd) Command() *cobra.Command {
 	cmd.Short = i18n.G("Add devices to containers or profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add devices to containers or profiles`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc config device add [<remote>:]container1 <device-name> disk source=/share/c1 path=opt
+    Will mount the host's /share/c1 onto /opt in the container.`))
 
 	cmd.RunE = c.Run
 
@@ -101,14 +104,14 @@ func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Add the device
-	devname := args[2]
+	devname := args[1]
 	device := map[string]string{}
-	device["type"] = args[3]
-	if len(args) > 4 {
-		for _, prop := range args[4:] {
+	device["type"] = args[2]
+	if len(args) > 3 {
+		for _, prop := range args[3:] {
 			results := strings.SplitN(prop, "=", 2)
 			if len(results) != 2 {
-				return fmt.Errorf("No value found in %q", prop)
+				return fmt.Errorf(i18n.G("No value found in %q"), prop)
 			}
 			k := results[0]
 			v := results[1]
@@ -360,7 +363,7 @@ func (c *cmdConfigDeviceOverride) Run(cmd *cobra.Command, args []string) error {
 		for _, prop := range args[2:] {
 			results := strings.SplitN(prop, "=", 2)
 			if len(results) != 2 {
-				return fmt.Errorf("No value found in %q", prop)
+				return fmt.Errorf(i18n.G("No value found in %q"), prop)
 			}
 
 			k := results[0]
@@ -512,6 +515,53 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 
 	if resource.name == "" {
 		return fmt.Errorf(i18n.G("Missing name"))
+	}
+
+	// Set the device config key
+	devname := args[1]
+	key := args[2]
+	value := args[3]
+
+	if c.profile != nil {
+		profile, etag, err := resource.server.GetProfile(resource.name)
+		if err != nil {
+			return err
+		}
+
+		dev, ok := profile.Devices[devname]
+		if !ok {
+			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		}
+
+		dev[key] = value
+		profile.Devices[devname] = dev
+
+		err = resource.server.UpdateProfile(resource.name, profile.Writable(), etag)
+		if err != nil {
+			return err
+		}
+	} else {
+		container, etag, err := resource.server.GetContainer(resource.name)
+		if err != nil {
+			return err
+		}
+		dev, ok := container.Devices[devname]
+		if !ok {
+			return fmt.Errorf(i18n.G("The device doesn't exist"))
+		}
+
+		dev[key] = value
+		container.Devices[devname] = dev
+
+		op, err := resource.server.UpdateContainer(resource.name, container.Writable(), etag)
+		if err != nil {
+			return err
+		}
+
+		err = op.Wait()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
