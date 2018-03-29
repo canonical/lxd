@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-03-29 14:53-0400\n"
+"POT-Creation-Date: 2018-03-29 15:37-0400\n"
 "PO-Revision-Date: 2017-02-14 17:11+0000\n"
 "Last-Translator: Tim Rose <tim@netlope.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -1492,9 +1492,8 @@ msgid "Manage container file templates"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
 #: lxc/config_metadata.go:28 lxc/config_metadata.go:29
-#, fuzzy
 msgid "Manage container metadata files"
-msgstr "Anhalten des Containers fehlgeschlagen!"
+msgstr ""
 
 #: lxc/file.go:39 lxc/file.go:40
 #, fuzzy
@@ -1558,9 +1557,8 @@ msgid "Manage the list of remote servers"
 msgstr ""
 
 #: lxc/config_trust.go:29 lxc/config_trust.go:30
-#, fuzzy
 msgid "Manage trusted clients"
-msgstr "Kein Zertifikat für diese Verbindung"
+msgstr ""
 
 #: lxc/info.go:201
 msgid "Memory (current)"
@@ -1754,9 +1752,8 @@ msgid "No storage pool for source volume specified"
 msgstr ""
 
 #: lxc/storage_volume.go:340
-#, fuzzy
 msgid "No storage pool for target volume specified"
-msgstr "Kein Zertifikat für diese Verbindung"
+msgstr ""
 
 #: lxc/config_device.go:114 lxc/config_device.go:366
 #, fuzzy, c-format
@@ -2683,13 +2680,9 @@ msgid "assign [<remote>:]<container> <profiles>"
 msgstr ""
 
 #: lxc/network.go:102
-#, fuzzy
 msgid ""
 "attach [<remote>:]<network> <container> [<device name>] [<interface name>]"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/storage_volume.go:120
 msgid "attach [<remote>:]<pool> <volume> <container> [<device name>] <path>"
@@ -2822,32 +2815,20 @@ msgid "description"
 msgstr ""
 
 #: lxc/network.go:365
-#, fuzzy
 msgid "detach [<remote>:]<network> <container> [<device name>]"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/storage_volume.go:559
-#, fuzzy
 msgid "detach [<remote>:]<pool> <volume> <container> [<device name>]"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/storage_volume.go:641
 msgid "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr ""
 
 #: lxc/network.go:450
-#, fuzzy
 msgid "detach-profile [<remote>:]<network> <container> [<device name>]"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/config_device.go:22
 msgid "device"
@@ -2866,12 +2847,8 @@ msgid "driver"
 msgstr ""
 
 #: lxc/config_metadata.go:52
-#, fuzzy
 msgid "edit [<remote>:]<container>"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/config_template.go:150
 msgid "edit [<remote>:]<container> <template>"
@@ -2902,12 +2879,8 @@ msgid "edit [<remote>:]<profile>"
 msgstr ""
 
 #: lxc/config.go:86
-#, fuzzy
 msgid "edit [<remote>:][<container>]"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/image.go:821
 msgid "enabled"
@@ -2923,12 +2896,8 @@ msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
 #: lxc/image.go:433
-#, fuzzy
 msgid "export [<remote>:]<image> [<target>]"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/file.go:38
 msgid "file"
@@ -2955,12 +2924,8 @@ msgid "get [<remote>:]<profile> <key>"
 msgstr ""
 
 #: lxc/config.go:287
-#, fuzzy
 msgid "get [<remote>:][<container>] <key>"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/remote.go:378
 msgid "get-default"
@@ -3010,20 +2975,12 @@ msgid "list [<remote>:]"
 msgstr ""
 
 #: lxc/image.go:887 lxc/list.go:45
-#, fuzzy
 msgid "list [<remote>:] [<filter>...]"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/image_alias.go:146
-#, fuzzy
 msgid "list [<remote>:] [<filters>...]"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/config_template.go:234
 msgid "list [<remote>:]<container>"
@@ -3235,9 +3192,8 @@ msgid ""
 msgstr ""
 
 #: lxc/manpage.go:17
-#, fuzzy
 msgid "manpage <target>"
-msgstr "Veröffentliche Abbild"
+msgstr ""
 
 #: lxc/config_metadata.go:27
 msgid "metadata"
@@ -3306,15 +3262,10 @@ msgid "profile"
 msgstr "Profil %s erstellt\n"
 
 #: lxc/publish.go:32
-#, fuzzy
 msgid ""
 "publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] "
 "[key=value...]"
 msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
 #: lxc/file.go:183
 #, fuzzy
@@ -3447,12 +3398,8 @@ msgid "set [<remote>:]<profile> <key> <value>"
 msgstr ""
 
 #: lxc/config.go:353
-#, fuzzy
 msgid "set [<remote>:][<container>] <key> <value>"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/remote.go:596
 msgid "set-default <remote>"
@@ -3463,12 +3410,8 @@ msgid "set-url <remote> <URL>"
 msgstr ""
 
 #: lxc/config_metadata.go:174
-#, fuzzy
 msgid "show [<remote>:]<container>"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/config_template.go:296
 msgid "show [<remote>:]<container> <template>"
@@ -3507,21 +3450,12 @@ msgid "show [<remote>:]<profile>"
 msgstr ""
 
 #: lxc/config.go:450
-#, fuzzy
 msgid "show [<remote>:][<container>]"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/snapshot.go:19
-#, fuzzy
 msgid "snapshot [<remote>:]<container> [<snapshot name>]"
 msgstr ""
-"Löscht einen Container oder Container Sicherungspunkt.\n"
-"\n"
-"Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
-"Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
 #: lxc/storage.go:433
 msgid "space used"
@@ -3593,12 +3527,8 @@ msgid "unset [<remote>:]<profile> <key>"
 msgstr ""
 
 #: lxc/config.go:558
-#, fuzzy
 msgid "unset [<remote>:][<container>] <key>"
 msgstr ""
-"Ändert den Laufzustand eines Containers in %s.\n"
-"\n"
-"lxd %s <Name>\n"
 
 #: lxc/storage.go:427
 msgid "used by"
@@ -3611,10 +3541,6 @@ msgstr ""
 #: lxc/delete.go:46 lxc/image.go:811 lxc/image.go:816 lxc/image.go:975
 msgid "yes"
 msgstr ""
-
-#, fuzzy
-#~ msgid "Manage container templates"
-#~ msgstr "kann nicht zum selben Container Namen kopieren"
 
 #, fuzzy
 #~ msgid "Enable debug mode"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-03-29 14:53-0400\n"
+"POT-Creation-Date: 2018-03-29 15:37-0400\n"
 "PO-Revision-Date: 2017-09-05 16:48+0000\n"
 "Last-Translator: Ilya Yakimavets <ilya.yakimavets@backend.expert>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1428,9 +1428,8 @@ msgid "Manage container file templates"
 msgstr "Невозможно добавить имя контейнера в список"
 
 #: lxc/config_metadata.go:28 lxc/config_metadata.go:29
-#, fuzzy
 msgid "Manage container metadata files"
-msgstr "Невозможно добавить имя контейнера в список"
+msgstr ""
 
 #: lxc/file.go:39 lxc/file.go:40
 msgid "Manage files in containers"
@@ -1490,9 +1489,8 @@ msgid "Manage the list of remote servers"
 msgstr ""
 
 #: lxc/config_trust.go:29 lxc/config_trust.go:30
-#, fuzzy
 msgid "Manage trusted clients"
-msgstr "Копирование образа: %s"
+msgstr ""
 
 #: lxc/info.go:201
 msgid "Memory (current)"
@@ -1678,9 +1676,8 @@ msgid "No storage pool for source volume specified"
 msgstr ""
 
 #: lxc/storage_volume.go:340
-#, fuzzy
 msgid "No storage pool for target volume specified"
-msgstr "Копирование образа: %s"
+msgstr ""
 
 #: lxc/config_device.go:114 lxc/config_device.go:366
 #, c-format
@@ -2571,13 +2568,9 @@ msgid "assign [<remote>:]<container> <profiles>"
 msgstr ""
 
 #: lxc/network.go:102
-#, fuzzy
 msgid ""
 "attach [<remote>:]<network> <container> [<device name>] [<interface name>]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/storage_volume.go:120
 msgid "attach [<remote>:]<pool> <volume> <container> [<device name>] <path>"
@@ -2709,32 +2702,20 @@ msgid "description"
 msgstr ""
 
 #: lxc/network.go:365
-#, fuzzy
 msgid "detach [<remote>:]<network> <container> [<device name>]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/storage_volume.go:559
-#, fuzzy
 msgid "detach [<remote>:]<pool> <volume> <container> [<device name>]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/storage_volume.go:641
 msgid "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr ""
 
 #: lxc/network.go:450
-#, fuzzy
 msgid "detach-profile [<remote>:]<network> <container> [<device name>]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/config_device.go:22
 msgid "device"
@@ -2753,12 +2734,8 @@ msgid "driver"
 msgstr ""
 
 #: lxc/config_metadata.go:52
-#, fuzzy
 msgid "edit [<remote>:]<container>"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/config_template.go:150
 msgid "edit [<remote>:]<container> <template>"
@@ -2789,12 +2766,8 @@ msgid "edit [<remote>:]<profile>"
 msgstr ""
 
 #: lxc/config.go:86
-#, fuzzy
 msgid "edit [<remote>:][<container>]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/image.go:821
 msgid "enabled"
@@ -2810,12 +2783,8 @@ msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
 #: lxc/image.go:433
-#, fuzzy
 msgid "export [<remote>:]<image> [<target>]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/file.go:38
 msgid "file"
@@ -2842,12 +2811,8 @@ msgid "get [<remote>:]<profile> <key>"
 msgstr ""
 
 #: lxc/config.go:287
-#, fuzzy
 msgid "get [<remote>:][<container>] <key>"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/remote.go:378
 msgid "get-default"
@@ -2897,20 +2862,12 @@ msgid "list [<remote>:]"
 msgstr ""
 
 #: lxc/image.go:887 lxc/list.go:45
-#, fuzzy
 msgid "list [<remote>:] [<filter>...]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/image_alias.go:146
-#, fuzzy
 msgid "list [<remote>:] [<filters>...]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/config_template.go:234
 msgid "list [<remote>:]<container>"
@@ -3184,14 +3141,10 @@ msgid "profile"
 msgstr ""
 
 #: lxc/publish.go:32
-#, fuzzy
 msgid ""
 "publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] "
 "[key=value...]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/file.go:183
 #, fuzzy
@@ -3322,12 +3275,8 @@ msgid "set [<remote>:]<profile> <key> <value>"
 msgstr ""
 
 #: lxc/config.go:353
-#, fuzzy
 msgid "set [<remote>:][<container>] <key> <value>"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/remote.go:596
 msgid "set-default <remote>"
@@ -3338,12 +3287,8 @@ msgid "set-url <remote> <URL>"
 msgstr ""
 
 #: lxc/config_metadata.go:174
-#, fuzzy
 msgid "show [<remote>:]<container>"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/config_template.go:296
 msgid "show [<remote>:]<container> <template>"
@@ -3382,20 +3327,12 @@ msgid "show [<remote>:]<profile>"
 msgstr ""
 
 #: lxc/config.go:450
-#, fuzzy
 msgid "show [<remote>:][<container>]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/snapshot.go:19
-#, fuzzy
 msgid "snapshot [<remote>:]<container> [<snapshot name>]"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/storage.go:433
 msgid "space used"
@@ -3467,12 +3404,8 @@ msgid "unset [<remote>:]<profile> <key>"
 msgstr ""
 
 #: lxc/config.go:558
-#, fuzzy
 msgid "unset [<remote>:][<container>] <key>"
 msgstr ""
-"Изменение состояния одного или нескольких контейнеров %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/storage.go:427
 msgid "used by"
