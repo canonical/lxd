@@ -459,7 +459,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	for i, server := range servers {
 		address, err := provider.ServerAddr(server.ID)
 		if err != nil {
-			if err != db.NoSuchObjectError {
+			if err != db.ErrNoSuchObject {
 				return nil, errors.Wrap(err, "failed to fetch raft server address")
 			}
 			// Use the initial address as fallback. This is an edge

@@ -59,7 +59,7 @@ func TestStoragePoolsCreatePending_AlreadyDefined(t *testing.T) {
 	require.NoError(t, err)
 
 	err = tx.StoragePoolCreatePending("buzz", "pool1", "dir", map[string]string{})
-	require.Equal(t, db.DbErrAlreadyDefined, err)
+	require.Equal(t, db.ErrAlreadyDefined, err)
 }
 
 // If no node with the given name is found, an error is returned.
@@ -68,7 +68,7 @@ func TestStoragePoolsCreatePending_NonExistingNode(t *testing.T) {
 	defer cleanup()
 
 	err := tx.StoragePoolCreatePending("buzz", "pool1", "dir", map[string]string{})
-	require.Equal(t, db.NoSuchObjectError, err)
+	require.Equal(t, db.ErrNoSuchObject, err)
 }
 
 // If a pool with the given name already exists but has different driver, an
@@ -128,7 +128,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
 		_, volume, err := cluster.StoragePoolVolumeGetType("v1-new", 1, poolID, nodeID)
-		assert.Equal(t, db.NoSuchObjectError, err)
+		assert.Equal(t, db.ErrNoSuchObject, err)
 		assert.Nil(t, volume)
 	}
 }

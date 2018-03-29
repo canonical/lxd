@@ -47,7 +47,7 @@ SELECT nodes.id, nodes.address
 	sort.Strings(addresses)
 
 	if len(addresses) == 0 {
-		return nil, NoSuchObjectError
+		return nil, ErrNoSuchObject
 	}
 
 	return addresses, nil
@@ -67,7 +67,7 @@ SELECT nodes.name FROM storage_volumes
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", NoSuchObjectError
+			return "", ErrNoSuchObject
 		}
 		return "", err
 	}
@@ -75,7 +75,7 @@ SELECT nodes.name FROM storage_volumes
 	return name, nil
 }
 
-// Get config of a storage volume.
+// StorageVolumeConfigGet gets the config of a storage volume.
 func (c *Cluster) StorageVolumeConfigGet(volumeID int64) (map[string]string, error) {
 	var key, value string
 	query := "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
@@ -99,7 +99,7 @@ func (c *Cluster) StorageVolumeConfigGet(volumeID int64) (map[string]string, err
 	return config, nil
 }
 
-// Get the description of a storage volume.
+// StorageVolumeDescriptionGet gets the description of a storage volume.
 func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	description := sql.NullString{}
 	query := "SELECT description FROM storage_volumes WHERE id=?"
@@ -109,7 +109,7 @@ func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", NoSuchObjectError
+			return "", ErrNoSuchObject
 		}
 		return "", err
 	}
@@ -117,13 +117,13 @@ func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	return description.String, nil
 }
 
-// Update description of a storage volume.
+// StorageVolumeDescriptionUpdate updates the description of a storage volume.
 func StorageVolumeDescriptionUpdate(tx *sql.Tx, volumeID int64, description string) error {
 	_, err := tx.Exec("UPDATE storage_volumes SET description=? WHERE id=?", description, volumeID)
 	return err
 }
 
-// Add new storage volume config into database.
+// StorageVolumeConfigAdd adds a new storage volume config into database.
 func StorageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]string) error {
 	str := "INSERT INTO storage_volumes_config (storage_volume_id, key, value) VALUES(?, ?, ?)"
 	stmt, err := tx.Prepare(str)
@@ -146,7 +146,7 @@ func StorageVolumeConfigAdd(tx *sql.Tx, volumeID int64, volumeConfig map[string]
 	return nil
 }
 
-// Delete storage volume config.
+// StorageVolumeConfigClear deletes storage volume config.
 func StorageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
 	_, err := tx.Exec("DELETE FROM storage_volumes_config WHERE storage_volume_id=?", volumeID)
 	if err != nil {
@@ -172,6 +172,7 @@ SELECT id FROM storage_volumes WHERE name=? AND type=? AND storage_pool_id=?
 	return ids64, nil
 }
 
+// StorageVolumeCleanupImages removes the volumes with the given fingerprints.
 func (c *Cluster) StorageVolumeCleanupImages(fingerprints []string) error {
 	stmt := fmt.Sprintf(
 		"DELETE FROM storage_volumes WHERE type=? AND name NOT IN %s",
@@ -184,6 +185,8 @@ func (c *Cluster) StorageVolumeCleanupImages(fingerprints []string) error {
 	return err
 }
 
+// StorageVolumeMoveToLVMThinPoolNameKey upgrades the config keys of LVM
+// volumes.
 func (c *Cluster) StorageVolumeMoveToLVMThinPoolNameKey() error {
 	err := exec(c.db, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
 	if err != nil {

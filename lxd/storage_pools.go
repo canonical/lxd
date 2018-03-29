@@ -27,7 +27,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
 
 	pools, err := d.cluster.StoragePools()
-	if err != nil && err != db.NoSuchObjectError {
+	if err != nil && err != db.ErrNoSuchObject {
 		return SmartError(err)
 	}
 
@@ -149,7 +149,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		return tx.StoragePoolCreatePending(targetNode, req.Name, req.Driver, req.Config)
 	})
 	if err != nil {
-		if err == db.DbErrAlreadyDefined {
+		if err == db.ErrAlreadyDefined {
 			return BadRequest(
 				fmt.Errorf("The storage pool already defined on node %s", targetNode))
 		}
@@ -194,7 +194,7 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 		return tx.StoragePoolConfigAdd(poolID, 0, req.Config)
 	})
 	if err != nil {
-		if err == db.NoSuchObjectError {
+		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Pool not pending on any node (use --target <node> first)")
 		}
 		return err
@@ -271,7 +271,7 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 
 	// Get all users of the storage pool.
 	poolUsedBy, err := storagePoolUsedByGet(d.State(), poolID, poolName)
-	if err != nil && err != db.NoSuchObjectError {
+	if err != nil && err != db.ErrNoSuchObject {
 		return SmartError(err)
 	}
 	pool.UsedBy = poolUsedBy

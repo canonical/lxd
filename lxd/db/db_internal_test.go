@@ -14,7 +14,7 @@ import (
 	"github.com/lxc/lxd/shared/logging"
 )
 
-const DB_FIXTURES string = `
+const fixtures string = `
     INSERT INTO containers (node_id, name, architecture, type) VALUES (1, 'thename', 1, 1);
     INSERT INTO profiles (name) VALUES ('theprofile');
     INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
@@ -39,7 +39,7 @@ type dbTestSuite struct {
 
 func (s *dbTestSuite) SetupTest() {
 	s.db, s.cleanup = s.CreateTestDb()
-	_, err := s.db.DB().Exec(DB_FIXTURES)
+	_, err := s.db.DB().Exec(fixtures)
 	s.Nil(err)
 }
 
@@ -208,7 +208,7 @@ func (s *dbTestSuite) Test_ImageAliasGet_alias_does_not_exists() {
 	var err error
 
 	_, _, err = s.db.ImageAliasGet("whatever", true)
-	s.Equal(err, NoSuchObjectError)
+	s.Equal(err, ErrNoSuchObject)
 }
 
 func (s *dbTestSuite) Test_ImageAliasAdd() {
@@ -242,7 +242,7 @@ func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint_no_match() {
 	s.Nil(err)
 
 	_, err = s.db.ImageSourceGetCachedFingerprint("server.remote", "lxd", "test")
-	s.Equal(err, NoSuchObjectError)
+	s.Equal(err, ErrNoSuchObject)
 }
 
 func (s *dbTestSuite) Test_ContainerConfig() {

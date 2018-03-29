@@ -10,12 +10,15 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 )
 
+// ImageSourceProtocol maps image source protocol codes to human-readable
+// names.
 var ImageSourceProtocol = map[int]string{
 	0: "lxd",
 	1: "direct",
 	2: "simplestreams",
 }
 
+// ImagesGet returns the names of all images (optionally only the public ones).
 func (c *Cluster) ImagesGet(public bool) ([]string, error) {
 	q := "SELECT fingerprint FROM images"
 	if public == true {
@@ -38,6 +41,8 @@ func (c *Cluster) ImagesGet(public bool) ([]string, error) {
 	return results, nil
 }
 
+// ImagesGetExpired returns the names of all images that have expired since the
+// given time.
 func (c *Cluster) ImagesGetExpired(expiry int64) ([]string, error) {
 	q := `SELECT fingerprint, last_use_date, upload_date FROM images WHERE cached=1`
 
@@ -78,7 +83,8 @@ func (c *Cluster) ImagesGetExpired(expiry int64) ([]string, error) {
 	return results, nil
 }
 
-func (c *Cluster) ImageSourceInsert(imageId int, server string, protocol string, certificate string, alias string) error {
+// ImageSourceInsert inserts a new image source.
+func (c *Cluster) ImageSourceInsert(id int, server string, protocol string, certificate string, alias string) error {
 	stmt := `INSERT INTO images_source (image_id, server, protocol, certificate, alias) values (?, ?, ?, ?, ?)`
 
 	protocolInt := -1
@@ -92,23 +98,24 @@ func (c *Cluster) ImageSourceInsert(imageId int, server string, protocol string,
 		return fmt.Errorf("Invalid protocol: %s", protocol)
 	}
 
-	err := exec(c.db, stmt, imageId, server, protocolInt, certificate, alias)
+	err := exec(c.db, stmt, id, server, protocolInt, certificate, alias)
 	return err
 }
 
-func (c *Cluster) ImageSourceGet(imageId int) (int, api.ImageSource, error) {
+// ImageSourceGet returns the image source with the given ID.
+func (c *Cluster) ImageSourceGet(imageID int) (int, api.ImageSource, error) {
 	q := `SELECT id, server, protocol, certificate, alias FROM images_source WHERE image_id=?`
 
 	id := 0
 	protocolInt := -1
 	result := api.ImageSource{}
 
-	arg1 := []interface{}{imageId}
+	arg1 := []interface{}{imageID}
 	arg2 := []interface{}{&id, &result.Server, &protocolInt, &result.Certificate, &result.Alias}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, api.ImageSource{}, NoSuchObjectError
+			return -1, api.ImageSource{}, ErrNoSuchObject
 		}
 
 		return -1, api.ImageSource{}, err
@@ -125,9 +132,9 @@ func (c *Cluster) ImageSourceGet(imageId int) (int, api.ImageSource, error) {
 
 }
 
-// Try to find a source entry of a locally cached image that matches
-// the given remote details (server, protocol and alias). Return the
-// fingerprint linked to the matching entry, if any.
+// ImageSourceGetCachedFingerprint tries to find a source entry of a locally
+// cached image that matches the given remote details (server, protocol and
+// alias). Return the fingerprint linked to the matching entry, if any.
 func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string, alias string) (string, error) {
 	protocolInt := -1
 	for protoInt, protoString := range ImageSourceProtocol {
@@ -154,7 +161,7 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", NoSuchObjectError
+			return "", ErrNoSuchObject
 		}
 
 		return "", err
@@ -163,7 +170,7 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 	return fingerprint, nil
 }
 
-// Whether an image with the given fingerprint exists.
+// ImageExists returns whether an image with the given fingerprint exists.
 func (c *Cluster) ImageExists(fingerprint string) (bool, error) {
 	var exists bool
 	var err error
@@ -374,6 +381,7 @@ func (c *Cluster) ImageAssociateNode(fingerprint string) error {
 	return err
 }
 
+// ImageDelete deletes the image with the given ID.
 func (c *Cluster) ImageDelete(id int) error {
 	err := exec(c.db, "DELETE FROM images WHERE id=?", id)
 	if err != nil {
@@ -383,6 +391,7 @@ func (c *Cluster) ImageDelete(id int) error {
 	return nil
 }
 
+// ImageAliasesGet returns the names of the aliases of all images.
 func (c *Cluster) ImageAliasesGet() ([]string, error) {
 	q := "SELECT name FROM images_aliases"
 	var name string
@@ -399,6 +408,7 @@ func (c *Cluster) ImageAliasesGet() ([]string, error) {
 	return names, nil
 }
 
+// ImageAliasGet returns the alias with the given name.
 func (c *Cluster) ImageAliasGet(name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
 			 FROM images_aliases
@@ -418,7 +428,7 @@ func (c *Cluster) ImageAliasGet(name string, isTrustedClient bool) (int, api.Ima
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, entry, NoSuchObjectError
+			return -1, entry, ErrNoSuchObject
 		}
 
 		return -1, entry, err
@@ -431,46 +441,54 @@ func (c *Cluster) ImageAliasGet(name string, isTrustedClient bool) (int, api.Ima
 	return id, entry, nil
 }
 
+// ImageAliasRename renames the alias with the given ID.
 func (c *Cluster) ImageAliasRename(id int, name string) error {
 	err := exec(c.db, "UPDATE images_aliases SET name=? WHERE id=?", name, id)
 	return err
 }
 
+// ImageAliasDelete deletes the alias with the given name.
 func (c *Cluster) ImageAliasDelete(name string) error {
 	err := exec(c.db, "DELETE FROM images_aliases WHERE name=?", name)
 	return err
 }
 
+// ImageAliasesMove changes the image ID associated with an alias.
 func (c *Cluster) ImageAliasesMove(source int, destination int) error {
 	err := exec(c.db, "UPDATE images_aliases SET image_id=? WHERE image_id=?", destination, source)
 	return err
 }
 
-// Insert an alias ento the database.
+// ImageAliasAdd inserts an alias ento the database.
 func (c *Cluster) ImageAliasAdd(name string, imageID int, desc string) error {
 	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
 	err := exec(c.db, stmt, name, imageID, desc)
 	return err
 }
 
+// ImageAliasUpdate updates the alias with the given ID.
 func (c *Cluster) ImageAliasUpdate(id int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
 	err := exec(c.db, stmt, imageID, desc, id)
 	return err
 }
 
+// ImageLastAccessUpdate updates the last_use_date field of the image with the
+// given fingerprint.
 func (c *Cluster) ImageLastAccessUpdate(fingerprint string, date time.Time) error {
 	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
 	err := exec(c.db, stmt, date, fingerprint)
 	return err
 }
 
+//ImageLastAccessInit inits the last_use_date field of the image with the given fingerprint.
 func (c *Cluster) ImageLastAccessInit(fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
 	err := exec(c.db, stmt, fingerprint)
 	return err
 }
 
+// ImageUpdate updates the image with the given ID.
 func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
@@ -522,6 +540,7 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 	return err
 }
 
+// ImageInsert inserts a new image.
 func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
@@ -585,7 +604,7 @@ func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, au
 	return err
 }
 
-// Get the names of all storage pools on which a given image exists.
+// ImageGetPools get the names of all storage pools on which a given image exists.
 func (c *Cluster) ImageGetPools(imageFingerprint string) ([]int64, error) {
 	poolID := int64(-1)
 	query := "SELECT storage_pool_id FROM storage_volumes WHERE node_id=? AND name=? AND type=?"
@@ -605,7 +624,7 @@ func (c *Cluster) ImageGetPools(imageFingerprint string) ([]int64, error) {
 	return poolIDs, nil
 }
 
-// Get the names of all storage pools on which a given image exists.
+// ImageGetPoolNamesFromIDs get the names of all storage pools on which a given image exists.
 func (c *Cluster) ImageGetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	var poolName string
 	query := "SELECT name FROM storage_pools WHERE id=?"

@@ -46,7 +46,7 @@ func (n *NodeTx) RaftNodeAddress(id int64) (string, error) {
 	}
 	switch len(addresses) {
 	case 0:
-		return "", NoSuchObjectError
+		return "", ErrNoSuchObject
 	case 1:
 		return addresses[0], nil
 	default:
@@ -90,7 +90,7 @@ func (n *NodeTx) RaftNodeDelete(id int64) error {
 		return err
 	}
 	if !deleted {
-		return NoSuchObjectError
+		return ErrNoSuchObject
 	}
 	return nil
 }

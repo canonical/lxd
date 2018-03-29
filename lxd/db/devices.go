@@ -57,6 +57,7 @@ func dbDeviceTypeToInt(t string) (int, error) {
 	}
 }
 
+// DevicesAdd adds a new device.
 func DevicesAdd(tx *sql.Tx, w string, cID int64, devices types.Devices) error {
 	// Prepare the devices entry SQL
 	str1 := fmt.Sprintf("INSERT INTO %ss_devices (%s_id, name, type) VALUES (?, ?, ?)", w, w)
@@ -136,6 +137,7 @@ func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (types.Device, error) {
 	return newdev, nil
 }
 
+// Devices returns the devices matching the given filters.
 func (c *Cluster) Devices(qName string, isprofile bool) (types.Devices, error) {
 	var q string
 	if isprofile {
