@@ -134,11 +134,6 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 				break
 			}
 
-			// Password authentication
-			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=yes]: ", "yes") {
-				config.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
-			}
-
 			// Confirm wiping
 			if !cli.AskBool("All existing data is lost when joining a cluster, continue? (yes/no) [default=no] ", "no") {
 				return fmt.Errorf("User aborted configuration")
@@ -237,8 +232,10 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 				config.Networks = append(config.Networks, newNetwork)
 			}
 		} else {
-			// New cluster
-			config.Cluster.ClusterPassword = cli.AskPassword("Trust password for new clients: ")
+			// Password authentication
+			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=yes]: ", "yes") {
+				config.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
+			}
 		}
 	}
 
