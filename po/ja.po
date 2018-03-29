@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-03-29 10:47-0400\n"
+"POT-Creation-Date: 2018-03-29 14:53-0400\n"
 "PO-Revision-Date: 2018-02-27 18:12+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -422,11 +422,11 @@ msgstr ""
 msgid "Columns"
 msgstr "カラムレイアウト"
 
-#: lxc/main.go:44
+#: lxc/main.go:45
 msgid "Command line client for LXD"
 msgstr ""
 
-#: lxc/main.go:45
+#: lxc/main.go:46
 #, fuzzy
 msgid ""
 "Command line client for LXD\n"
@@ -685,30 +685,30 @@ msgstr "ストレージボリュームの移動中: %s"
 #: lxc/image.go:571 lxc/image.go:776 lxc/image.go:890 lxc/image.go:1212
 #: lxc/image.go:1285 lxc/image_alias.go:26 lxc/image_alias.go:59
 #: lxc/image_alias.go:106 lxc/image_alias.go:149 lxc/image_alias.go:250
-#: lxc/info.go:29 lxc/init.go:35 lxc/launch.go:22 lxc/list.go:48 lxc/main.go:45
-#: lxc/monitor.go:31 lxc/move.go:31 lxc/network.go:32 lxc/network.go:104
-#: lxc/network.go:177 lxc/network.go:250 lxc/network.go:320 lxc/network.go:367
-#: lxc/network.go:452 lxc/network.go:537 lxc/network.go:660 lxc/network.go:719
-#: lxc/network.go:808 lxc/network.go:873 lxc/network.go:920 lxc/network.go:989
-#: lxc/network.go:1051 lxc/operation.go:25 lxc/operation.go:54
-#: lxc/operation.go:98 lxc/operation.go:174 lxc/profile.go:30
-#: lxc/profile.go:102 lxc/profile.go:163 lxc/profile.go:241 lxc/profile.go:297
-#: lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520 lxc/profile.go:568
-#: lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753 lxc/profile.go:812
-#: lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:27 lxc/remote.go:34
-#: lxc/remote.go:84 lxc/remote.go:380 lxc/remote.go:414 lxc/remote.go:487
-#: lxc/remote.go:549 lxc/remote.go:598 lxc/remote.go:636 lxc/rename.go:20
-#: lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33 lxc/storage.go:89
-#: lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328 lxc/storage.go:383
-#: lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645 lxc/storage.go:729
-#: lxc/storage_volume.go:34 lxc/storage_volume.go:122 lxc/storage_volume.go:201
-#: lxc/storage_volume.go:283 lxc/storage_volume.go:426
-#: lxc/storage_volume.go:501 lxc/storage_volume.go:561
-#: lxc/storage_volume.go:643 lxc/storage_volume.go:724
-#: lxc/storage_volume.go:853 lxc/storage_volume.go:918
-#: lxc/storage_volume.go:994 lxc/storage_volume.go:1025
-#: lxc/storage_volume.go:1089 lxc/storage_volume.go:1166
-#: lxc/storage_volume.go:1241
+#: lxc/info.go:29 lxc/init.go:35 lxc/launch.go:22 lxc/list.go:48 lxc/main.go:46
+#: lxc/manpage.go:19 lxc/monitor.go:31 lxc/move.go:31 lxc/network.go:32
+#: lxc/network.go:104 lxc/network.go:177 lxc/network.go:250 lxc/network.go:320
+#: lxc/network.go:367 lxc/network.go:452 lxc/network.go:537 lxc/network.go:660
+#: lxc/network.go:719 lxc/network.go:808 lxc/network.go:873 lxc/network.go:920
+#: lxc/network.go:989 lxc/network.go:1051 lxc/operation.go:25
+#: lxc/operation.go:54 lxc/operation.go:98 lxc/operation.go:174
+#: lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163 lxc/profile.go:241
+#: lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520
+#: lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753
+#: lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:27
+#: lxc/remote.go:34 lxc/remote.go:84 lxc/remote.go:380 lxc/remote.go:414
+#: lxc/remote.go:487 lxc/remote.go:549 lxc/remote.go:598 lxc/remote.go:636
+#: lxc/rename.go:20 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
+#: lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328
+#: lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645
+#: lxc/storage.go:729 lxc/storage_volume.go:34 lxc/storage_volume.go:122
+#: lxc/storage_volume.go:201 lxc/storage_volume.go:283
+#: lxc/storage_volume.go:426 lxc/storage_volume.go:501
+#: lxc/storage_volume.go:561 lxc/storage_volume.go:643
+#: lxc/storage_volume.go:724 lxc/storage_volume.go:853
+#: lxc/storage_volume.go:918 lxc/storage_volume.go:994
+#: lxc/storage_volume.go:1025 lxc/storage_volume.go:1089
+#: lxc/storage_volume.go:1166 lxc/storage_volume.go:1241
 msgid "Description"
 msgstr ""
 
@@ -950,13 +950,17 @@ msgstr "コンテナを強制シャットダウンします"
 msgid "Force the removal of running containers"
 msgstr "稼働中のコンテナを強制的に削除します"
 
-#: lxc/main.go:56
+#: lxc/main.go:57
 msgid "Force using the local unix socket"
 msgstr "強制的にローカルのUNIXソケットを使います"
 
 #: lxc/image.go:913 lxc/list.go:113
 msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
+
+#: lxc/manpage.go:18 lxc/manpage.go:19
+msgid "Generate manpages for all commands"
+msgstr ""
 
 #: lxc/remote.go:211
 msgid "Generating a client certificate. This may take a minute..."
@@ -1013,7 +1017,7 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:259
+#: lxc/main.go:264
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1114,7 +1118,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:341
+#: lxc/main.go:346
 #, fuzzy
 msgid "Invalid number of arguments"
 msgstr "不正な引数 %s"
@@ -1153,6 +1157,10 @@ msgstr ""
 
 #: lxc/list.go:495
 msgid "LOCATION"
+msgstr ""
+
+#: lxc/manpage.go:37
+msgid "LXD - Command line client"
 msgstr ""
 
 #: lxc/cluster.go:94
@@ -1851,7 +1859,7 @@ msgstr "再度エディタを起動するには Enter キーを押します"
 msgid "Pretty rendering"
 msgstr ""
 
-#: lxc/main.go:55
+#: lxc/main.go:56
 msgid "Print help"
 msgstr ""
 
@@ -1859,7 +1867,7 @@ msgstr ""
 msgid "Print the raw response"
 msgstr "レスポンスをそのまま表示します"
 
-#: lxc/main.go:54
+#: lxc/main.go:55
 msgid "Print version number"
 msgstr ""
 
@@ -2207,11 +2215,11 @@ msgstr "プッシュ時にファイルのパーミションを設定します"
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
-#: lxc/main.go:57
+#: lxc/main.go:58
 msgid "Show all debug messages"
 msgstr ""
 
-#: lxc/main.go:58
+#: lxc/main.go:59
 msgid "Show all information messages"
 msgstr ""
 
@@ -2251,7 +2259,7 @@ msgstr ""
 msgid "Show image properties"
 msgstr ""
 
-#: lxc/main.go:61
+#: lxc/main.go:62
 #, fuzzy
 msgid "Show less common commands"
 msgstr "全てのコマンドを表示します (主なコマンドだけではなく)"
@@ -2503,7 +2511,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
-#: lxc/main.go:260
+#: lxc/main.go:265
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
@@ -3255,6 +3263,11 @@ msgid ""
 "    Will show the properties of the filesystem for a container called \"data"
 "\" in the \"default\" pool."
 msgstr ""
+
+#: lxc/manpage.go:17
+#, fuzzy
+msgid "manpage <target>"
+msgstr "イメージを public にする"
 
 #: lxc/config_metadata.go:27
 msgid "metadata"
