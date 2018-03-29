@@ -24,7 +24,7 @@ test_script:
 
 after_test:
   # powershell capture command output into environment variable
-  - ps: $env:VERSION = lxc version
+  - ps: $env:VERSION = lxc --version
   - echo %VERSION%
   # pack lxc as an artifact for upload
   - 7z a lxc-%VERSION%-windows-amd64.zip c:\gopath\bin\lxc.exe
