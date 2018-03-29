@@ -23,7 +23,7 @@ import (
 )
 
 type cmdGlobal struct {
-	conf *config.Config
+	conf     *config.Config
 	confPath string
 
 	flagForceLocal bool
@@ -71,6 +71,10 @@ For help with any of those, simply call them with --help.`))
 	// cluster sub-command
 	clusterCmd := cmdCluster{global: &globalCmd}
 	app.AddCommand(clusterCmd.Command())
+
+	// config sub-command
+	configCmd := cmdConfig{global: &globalCmd}
+	app.AddCommand(configCmd.Command())
 
 	// console sub-command
 	consoleCmd := cmdConsole{global: &globalCmd}
@@ -337,6 +341,3 @@ func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, ma
 
 	return false, nil
 }
-
-var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
-var errUsage = fmt.Errorf("show usage")
