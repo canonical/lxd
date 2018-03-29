@@ -22,6 +22,8 @@ func init() {
 }
 
 type cmdGlobal struct {
+	cmd *cobra.Command
+
 	flagHelp    bool
 	flagVersion bool
 
@@ -63,7 +65,7 @@ func main() {
 	app.Args = cobra.ArbitraryArgs
 
 	// Global flags
-	globalCmd := cmdGlobal{}
+	globalCmd := cmdGlobal{cmd: app}
 	daemonCmd.global = &globalCmd
 	app.PersistentPreRunE = globalCmd.Run
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, "Print version number")
@@ -124,6 +126,10 @@ func main() {
 	// init sub-command
 	initCmd := cmdInit{global: &globalCmd}
 	app.AddCommand(initCmd.Command())
+
+	// manpage sub-command
+	manpageCmd := cmdManpage{global: &globalCmd}
+	app.AddCommand(manpageCmd.Command())
 
 	// migratedumpsuccess sub-command
 	migratedumpsuccessCmd := cmdMigratedumpsuccess{global: &globalCmd}

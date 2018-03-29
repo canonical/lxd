@@ -25,6 +25,7 @@ import (
 type cmdGlobal struct {
 	conf     *config.Config
 	confPath string
+	cmd      *cobra.Command
 
 	flagForceLocal bool
 	flagHelp       bool
@@ -50,7 +51,7 @@ For help with any of those, simply call them with --help.`))
 	app.SilenceUsage = true
 
 	// Global flags
-	globalCmd := cmdGlobal{}
+	globalCmd := cmdGlobal{cmd: app}
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, i18n.G("Print version number"))
 	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, i18n.G("Print help"))
 	app.PersistentFlags().BoolVar(&globalCmd.flagForceLocal, "force-local", false, i18n.G("Force using the local unix socket"))
@@ -119,6 +120,10 @@ For help with any of those, simply call them with --help.`))
 	// list sub-command
 	listCmd := cmdList{global: &globalCmd}
 	app.AddCommand(listCmd.Command())
+
+	// manpage sub-command
+	manpageCmd := cmdManpage{global: &globalCmd}
+	app.AddCommand(manpageCmd.Command())
 
 	// monitor sub-command
 	monitorCmd := cmdMonitor{global: &globalCmd}
