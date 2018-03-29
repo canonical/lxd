@@ -13,7 +13,7 @@ lxc_remote() {
     cmd=$(which lxc)
 
     # shellcheck disable=SC2048,SC2068
-    for arg in $@; do
+    for arg in "$@"; do
         if [ "${arg}" = "--" ]; then
             injected=1
             cmd="${cmd} ${DEBUG:-}"
