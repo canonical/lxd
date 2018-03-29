@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
+	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/lxc/lxd/lxc/config"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
@@ -63,30 +67,67 @@ func expandAlias(conf *config.Config, origArgs []string) ([]string, bool) {
 	}
 
 	if !hasReplacedArgsVar {
-		/* add the rest of the arguments */
+		// Add the rest of the arguments
 		newArgs = append(newArgs, origArgs[len(aliasKey)+1:]...)
 	}
-
-	/* don't re-do aliases the next time; this allows us to have recursive
-	 * aliases, e.g. `lxc list` to `lxc list -c n`
-	 */
-	newArgs = append(newArgs[:2], append([]string{"--no-alias"}, newArgs[2:]...)...)
 
 	return newArgs, true
 }
 
-func execIfAliases(conf *config.Config, origArgs []string) {
-	newArgs, expanded := expandAlias(conf, origArgs)
+func execIfAliases() {
+	args := os.Args
+
+	// Avoid loops
+	if os.Getenv("LXC_ALIASES") == "1" {
+		return
+	}
+
+	// Figure out the config directory and config path
+	var configDir string
+	if os.Getenv("LXD_CONF") != "" {
+		configDir = os.Getenv("LXD_CONF")
+	} else if os.Getenv("HOME") != "" {
+		configDir = path.Join(os.Getenv("HOME"), ".config", "lxc")
+	} else {
+		user, err := user.Current()
+		if err != nil {
+			return
+		}
+
+		configDir = path.Join(user.HomeDir, ".config", "lxc")
+	}
+
+	confPath := os.ExpandEnv(path.Join(configDir, "config.yml"))
+
+	// Load the configuration
+	var conf *config.Config
+	var err error
+	if shared.PathExists(confPath) {
+		conf, err = config.LoadConfig(confPath)
+		if err != nil {
+			return
+		}
+	} else {
+		conf = config.NewConfig(filepath.Dir(confPath), true)
+	}
+
+	// Expand the aliases
+	newArgs, expanded := expandAlias(conf, args)
 	if !expanded {
 		return
 	}
 
-	path, err := exec.LookPath(origArgs[0])
+	// Look for the executable
+	path, err := exec.LookPath(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), err)
-		os.Exit(5)
+		fmt.Fprintf(os.Stderr, i18n.G("Processing aliases failed: %s\n"), err)
+		os.Exit(1)
 	}
-	ret := syscall.Exec(path, newArgs, syscall.Environ())
-	fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), ret)
-	os.Exit(5)
+
+	// Re-exec
+	environ := syscall.Environ()
+	environ = append(environ, "LXC_ALIASES=1")
+	ret := syscall.Exec(path, newArgs, environ)
+	fmt.Fprintf(os.Stderr, i18n.G("Processing aliases failed: %s\n"), ret)
+	os.Exit(1)
 }
