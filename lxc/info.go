@@ -5,46 +5,54 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
 
-type infoCmd struct {
-	showLog   bool
-	resources bool
+type cmdInfo struct {
+	global *cmdGlobal
+
+	flagShowLog   bool
+	flagResources bool
 }
 
-func (c *infoCmd) showByDefault() bool {
-	return true
-}
-
-func (c *infoCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc info [<remote>:][<container>] [--show-log] [--resources]
-
-Show container or server information.
-
-lxc info [<remote>:]<container> [--show-log]
+func (c *cmdInfo) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("info [<remote>:][<container>]")
+	cmd.Short = i18n.G("Show container or server information")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show container or server information`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc info [<remote>:]<container> [--show-log]
     For container information.
 
 lxc info [<remote>:] [--resources]
-    For LXD server information.`)
+    For LXD server information.`))
+
+	cmd.RunE = c.Run
+	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Show the container's last 100 log lines?"))
+	cmd.Flags().BoolVar(&c.flagResources, "resources", false, i18n.G("Show the resources available to the server"))
+
+	return cmd
 }
 
-func (c *infoCmd) flags() {
-	gnuflag.BoolVar(&c.showLog, "show-log", false, i18n.G("Show the container's last 100 log lines?"))
-	gnuflag.BoolVar(&c.resources, "resources", false, i18n.G("Show the resources available to the server"))
-}
+func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
 
-func (c *infoCmd) run(conf *config.Config, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
 	var remote string
 	var cName string
-	var err error
 	if len(args) == 1 {
 		remote, cName, err = conf.ParseRemote(args[0])
 		if err != nil {
@@ -66,11 +74,11 @@ func (c *infoCmd) run(conf *config.Config, args []string) error {
 		return c.remoteInfo(d)
 	}
 
-	return c.containerInfo(d, conf.Remotes[remote], cName, c.showLog)
+	return c.containerInfo(d, conf.Remotes[remote], cName, c.flagShowLog)
 }
 
-func (c *infoCmd) remoteInfo(d lxd.ContainerServer) error {
-	if c.resources {
+func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
+	if c.flagResources {
 		resources, err := d.GetServerResources()
 		if err != nil {
 			return err
@@ -101,7 +109,7 @@ func (c *infoCmd) remoteInfo(d lxd.ContainerServer) error {
 	return nil
 }
 
-func (c *infoCmd) containerInfo(d lxd.ContainerServer, remote config.Remote, name string, showLog bool) error {
+func (c *cmdInfo) containerInfo(d lxd.ContainerServer, remote config.Remote, name string, showLog bool) error {
 	ct, _, err := d.GetContainer(name)
 	if err != nil {
 		return err

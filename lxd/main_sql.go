@@ -13,7 +13,6 @@ import (
 )
 
 type cmdSql struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -34,7 +33,6 @@ func (c *cmdSql) Command() *cobra.Command {
 	cmd.RunE = c.Run
 	cmd.Hidden = true
 
-	c.cmd = cmd
 	return cmd
 }
 

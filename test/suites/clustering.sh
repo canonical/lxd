@@ -86,7 +86,7 @@ test_clustering_membership() {
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   # Force the removal of the degraded node.
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster delete node5 --force
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster remove node5 --force
 
   # Now the preseeded network can be deleted, and all nodes are
   # notified.
@@ -98,12 +98,12 @@ test_clustering_membership() {
   # Trying to delete a container which is the only one with a copy of
   # an image results in an error
   LXD_DIR="${LXD_FOUR_DIR}" ensure_import_testimage
-  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster delete node5
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node5
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
   # Remove a node gracefully.
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster delete node5
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list | grep -q "https://0.0.0.0"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node5
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list
 
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
@@ -166,7 +166,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
 
   # Trying to delete a node which has container results in an error
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster delete node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2
 
   # Exec a command in the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc exec foo ls / | grep -q proc
@@ -324,10 +324,22 @@ test_clustering_storage() {
       driver_config_node1="${driver_config_node1} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns1}"
       driver_config_node2="${driver_config_node1} zfs.pool_name=pool1-$(basename "${TEST_DIR}")-${ns2}"
   fi
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" "${driver_config_node1}" --target node1
+
+  if [ -n "${driver_config_node1}" ]; then
+    # shellcheck disable=SC2086
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" ${driver_config_node1} --target node1
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" --target node1
+  fi
+
   LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node1
   ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node2
-  LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" "${driver_config_node2}" --target node2
+  if [ -n "${driver_config_node2}" ]; then
+    # shellcheck disable=SC2086
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" ${driver_config_node2} --target node2
+  else
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" --target node2
+  fi
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Pending
 
   # The source config key is not legal for the final pool creation
@@ -336,14 +348,13 @@ test_clustering_storage() {
   fi
 
   # Create the storage pool
-  driver_config_global=""
   if [ "${driver}" = "lvm" ]; then
-      driver_config_global="volume.size=25MB"
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" volume.size=25MB
+  elif [ "${driver}" = "ceph" ]; then
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" volume.size=25MB ceph.osd.pg_num=8
+  else
+      LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}"
   fi
-  if [ "${driver}" = "ceph" ]; then
-      driver_config_global="${driver_config_global} volume.size=25MB ceph.osd.pg_num=8"
-  fi
-  LXD_DIR="${LXD_TWO_DIR}" lxc storage create pool1 "${driver}" "${driver_config_global}"
   LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep status: | grep -q Created
 
   # The 'source' config key is omitted when showing the cluster
@@ -421,7 +432,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
 
     LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
-    LXD_DIR="${LXD_ONE_DIR}" lxc cluster delete node3 --force
+    LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force
 
     LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
     LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage

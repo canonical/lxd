@@ -22,7 +22,6 @@ func init() {
 }
 
 type cmdActivateifneeded struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 }
 
@@ -42,7 +41,6 @@ func (c *cmdActivateifneeded) Command() *cobra.Command {
 `
 	cmd.RunE = c.Run
 
-	c.cmd = cmd
 	return cmd
 }
 

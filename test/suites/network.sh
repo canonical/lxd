@@ -33,7 +33,7 @@ test_network() {
   lxc network create lxdt$$ dns.domain=test dns.mode=managed
   lxc network attach lxdt$$ nettest eth0
   v4_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)0"
-  v6_addr="$(lxc network get lxdt$$ ipv4.address | cut -d/ -f1)00"
+  v6_addr="$(lxc network get lxdt$$ ipv6.address | cut -d/ -f1)00"
   lxc config device set nettest eth0 ipv4.address "${v4_addr}"
   lxc config device set nettest eth0 ipv6.address "${v6_addr}"
   grep -q "${v4_addr}.*nettest" "${LXD_DIR}/networks/lxdt$$/dnsmasq.hosts/nettest"

@@ -10,7 +10,6 @@ import (
 )
 
 type cmdShift struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 
 	flagReverse  bool
@@ -41,7 +40,6 @@ func (c *cmdShift) Command() *cobra.Command {
 	cmd.Flags().BoolVarP(&c.flagTestMode, "test", "t", false, "Test mode (no change to files)")
 	cmd.Flags().BoolVarP(&c.flagReverse, "reverse", "r", false, "Perform a reverse mapping")
 
-	c.cmd = cmd
 	return cmd
 }
 

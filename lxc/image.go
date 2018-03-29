@@ -14,66 +14,33 @@ import (
 	"syscall"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
-
-type aliasList []string
-
-func (f *aliasList) String() string {
-	return fmt.Sprint(*f)
-}
-
-func (f *aliasList) Set(value string) error {
-	if f == nil {
-		*f = make(aliasList, 1)
-	} else {
-		*f = append(*f, value)
-	}
-	return nil
-}
 
 type imageColumn struct {
 	Name string
 	Data func(api.Image) string
 }
 
-type imageCmd struct {
-	addAliases  aliasList
-	publicImage bool
-	copyAliases bool
-	autoUpdate  bool
-	format      string
-	columnsRaw  string
+type cmdImage struct {
+	global *cmdGlobal
 }
 
-func (c *imageCmd) showByDefault() bool {
-	return true
-}
-
-func (c *imageCmd) imageEditHelp() string {
-	return i18n.G(
-		`### This is a yaml representation of the image properties.
-### Any line starting with a '# will be ignored.
-###
-### Each property is represented by a single line:
-### An example would be:
-###  description: My custom image`)
-}
-
-func (c *imageCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc image <subcommand> [options]
-
-Manipulate container images.
+func (c *cmdImage) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("image")
+	cmd.Short = i18n.G("Manage images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Manage images
 
 In LXD containers are created from images. Those images were themselves
 either generated from an existing container or downloaded from an image
@@ -87,939 +54,52 @@ as a compressed tarball (or for split images, the concatenation of the
 metadata and rootfs tarballs).
 
 Images can be referenced by their full hash, shortest unique partial
-hash or alias name (if one is set).
+hash or alias name (if one is set).`))
 
+	// Alias
+	imageAliasCmd := cmdImageAlias{global: c.global, image: c}
+	cmd.AddCommand(imageAliasCmd.Command())
 
-lxc image import <tarball>|<dir> [<rootfs tarball>|<URL>] [<remote>:] [--public] [--created-at=ISO-8601] [--expires-at=ISO-8601] [--fingerprint=FINGERPRINT] [--alias=ALIAS...] [prop=value]
-    Import an image tarball (or tarballs) or an image directory into the LXD image store.
-    Directory import is only available on Linux and must be performed as root.
+	// Copy
+	imageCopyCmd := cmdImageCopy{global: c.global, image: c}
+	cmd.AddCommand(imageCopyCmd.Command())
 
-lxc image copy [<remote>:]<image> <remote>: [--alias=ALIAS...] [--copy-aliases] [--public] [--auto-update]
-    Copy an image from one LXD daemon to another over the network.
+	// Delete
+	imageDeleteCmd := cmdImageDelete{global: c.global, image: c}
+	cmd.AddCommand(imageDeleteCmd.Command())
 
-    The auto-update flag instructs the server to keep this image up to
-    date. It requires the source to be an alias and for it to be public.
+	// Edit
+	imageEditCmd := cmdImageEdit{global: c.global, image: c}
+	cmd.AddCommand(imageEditCmd.Command())
 
-lxc image delete [<remote>:]<image> [[<remote>:]<image>...]
-    Delete one or more images from the LXD image store.
+	// Export
+	imageExportCmd := cmdImageExport{global: c.global, image: c}
+	cmd.AddCommand(imageExportCmd.Command())
 
-lxc image refresh [<remote>:]<image> [[<remote>:]<image>...]
-    Refresh one or more images from its parent remote.
+	// Import
+	imageImportCmd := cmdImageImport{global: c.global, image: c}
+	cmd.AddCommand(imageImportCmd.Command())
 
-lxc image export [<remote>:]<image> [target]
-    Export an image from the LXD image store into a distributable tarball.
+	// Info
+	imageInfoCmd := cmdImageInfo{global: c.global, image: c}
+	cmd.AddCommand(imageInfoCmd.Command())
 
-    The output target is optional and defaults to the working directory.
-    The target may be an existing directory, file name, or "-" to specify
-    stdout.  The target MUST be a directory when exporting a split image.
-    If the target is a directory, the image's name (each part's name for
-    split images) as found in the database will be used for the exported
-    image.  If the target is a file (not a directory and not stdout), then
-    the appropriate extension will be appended to the provided file name
-    based on the algorithm used to compress the image.
+	// List
+	imageListCmd := cmdImageList{global: c.global, image: c}
+	cmd.AddCommand(imageListCmd.Command())
 
-lxc image info [<remote>:]<image>
-    Print everything LXD knows about a given image.
+	// Refresh
+	imageRefreshCmd := cmdImageRefresh{global: c.global, image: c}
+	cmd.AddCommand(imageRefreshCmd.Command())
 
-lxc image list [<remote>:] [filter] [--format csv|json|table|yaml] [-c <columns>]
-    List images in the LXD image store. Filters may be of the
-    <key>=<value> form for property based filtering, or part of the image
-    hash or part of the image alias name.
+	// Show
+	imageShowCmd := cmdImageShow{global: c.global, image: c}
+	cmd.AddCommand(imageShowCmd.Command())
 
-    The -c option takes a (optionally comma-separated) list of arguments that
-    control which image attributes to output when displaying in table or csv
-    format.
-
-    Default column layout is: lfpdasu
-
-    Column shorthand chars:
-
-        l - Shortest image alias (and optionally number of other aliases)
-
-        L - Newline-separated list of all image aliases
-
-        f - Fingerprint
-
-        p - Whether image is public
-
-        d - Description
-
-        a - Architecture
-
-        s - Size
-
-        u - Upload date
-
-lxc image show [<remote>:]<image>
-    Yaml output of the user modifiable properties of an image.
-
-lxc image edit [<remote>:]<image>
-    Edit image, either by launching external editor or reading STDIN.
-    Example: lxc image edit <image> # launch editor
-             cat image.yaml | lxc image edit <image> # read from image.yaml
-
-lxc image alias create [<remote>:]<alias> <fingerprint>
-    Create a new alias for an existing image.
-
-lxc image alias rename [<remote>:]<alias> <new-name>
-    Rename an alias.
-
-lxc image alias delete [<remote>:]<alias>
-    Delete an alias.
-
-lxc image alias list [<remote>:] [filter]
-    List the aliases. Filters may be part of the image hash or part of the image alias name.`)
+	return cmd
 }
 
-func (c *imageCmd) flags() {
-	gnuflag.StringVar(&c.columnsRaw, "c", "lfpdasu", i18n.G("Columns"))
-	gnuflag.StringVar(&c.columnsRaw, "columns", "lfpdasu", i18n.G("Columns"))
-	gnuflag.BoolVar(&c.publicImage, "public", false, i18n.G("Make image public"))
-	gnuflag.BoolVar(&c.copyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
-	gnuflag.BoolVar(&c.autoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
-	gnuflag.Var(&c.addAliases, "alias", i18n.G("New alias to define at target"))
-	gnuflag.StringVar(&c.format, "format", "table", i18n.G("Format (csv|json|table|yaml)"))
-}
-
-func (c *imageCmd) aliasColumnData(image api.Image) string {
-	shortest := c.shortestAlias(image.Aliases)
-	if len(image.Aliases) > 1 {
-		shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
-	}
-
-	return shortest
-}
-
-func (c *imageCmd) aliasesColumnData(image api.Image) string {
-	aliases := []string{}
-	for _, alias := range image.Aliases {
-		aliases = append(aliases, alias.Name)
-	}
-	sort.Strings(aliases)
-	return strings.Join(aliases, "\n")
-}
-
-func (c *imageCmd) fingerprintColumnData(image api.Image) string {
-	return image.Fingerprint[0:12]
-}
-
-func (c *imageCmd) publicColumnData(image api.Image) string {
-	if image.Public {
-		return i18n.G("yes")
-	}
-	return i18n.G("no")
-}
-
-func (c *imageCmd) descriptionColumnData(image api.Image) string {
-	return c.findDescription(image.Properties)
-}
-
-func (c *imageCmd) architectureColumnData(image api.Image) string {
-	return image.Architecture
-}
-
-func (c *imageCmd) sizeColumnData(image api.Image) string {
-	return fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
-}
-
-func (c *imageCmd) uploadDateColumnData(image api.Image) string {
-	return image.UploadedAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
-}
-
-func (c *imageCmd) parseColumns() ([]imageColumn, error) {
-	columnsShorthandMap := map[rune]imageColumn{
-		'l': {i18n.G("ALIAS"), c.aliasColumnData},
-		'L': {i18n.G("ALIASES"), c.aliasesColumnData},
-		'f': {i18n.G("FINGERPRINT"), c.fingerprintColumnData},
-		'p': {i18n.G("PUBLIC"), c.publicColumnData},
-		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData},
-		'a': {i18n.G("ARCH"), c.architectureColumnData},
-		's': {i18n.G("SIZE"), c.sizeColumnData},
-		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
-	}
-
-	columnList := strings.Split(c.columnsRaw, ",")
-
-	columns := []imageColumn{}
-	for _, columnEntry := range columnList {
-		if columnEntry == "" {
-			return nil, fmt.Errorf("Empty column entry (redundant, leading or trailing command) in '%s'", c.columnsRaw)
-		}
-
-		for _, columnRune := range columnEntry {
-			if column, ok := columnsShorthandMap[columnRune]; ok {
-				columns = append(columns, column)
-			} else {
-				return nil, fmt.Errorf("Unknown column shorthand char '%c' in '%s'", columnRune, columnEntry)
-			}
-		}
-	}
-
-	return columns, nil
-}
-
-func (c *imageCmd) doImageAlias(conf *config.Config, args []string) error {
-	var remote string
-	var err error
-
-	switch args[1] {
-	case "list":
-		filters := []string{}
-
-		if len(args) > 2 {
-			result := strings.SplitN(args[2], ":", 2)
-			if len(result) == 1 {
-				filters = append(filters, args[2])
-				remote, _, err = conf.ParseRemote("")
-				if err != nil {
-					return err
-				}
-			} else {
-				remote, _, err = conf.ParseRemote(args[2])
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			remote, _, err = conf.ParseRemote("")
-			if err != nil {
-				return err
-			}
-		}
-
-		if len(args) > 3 {
-			for _, filter := range args[3:] {
-				filters = append(filters, filter)
-			}
-		}
-
-		d, err := conf.GetImageServer(remote)
-		if err != nil {
-			return err
-		}
-
-		resp, err := d.GetImageAliases()
-		if err != nil {
-			return err
-		}
-
-		c.showAliases(resp, filters)
-
-		return nil
-	case "create":
-		/* alias create [<remote>:]<alias> <target> */
-		if len(args) < 4 {
-			return errArgs
-		}
-
-		remote, name, err := conf.ParseRemote(args[2])
-		if err != nil {
-			return err
-		}
-
-		d, err := conf.GetContainerServer(remote)
-		if err != nil {
-			return err
-		}
-
-		alias := api.ImageAliasesPost{}
-		alias.Name = name
-		alias.Target = args[3]
-
-		return d.CreateImageAlias(alias)
-	case "rename":
-		/* alias rename [<remote>:]<alias> <newname> */
-		if len(args) < 4 {
-			return errArgs
-		}
-		remote, alias, err := conf.ParseRemote(args[2])
-		if err != nil {
-			return err
-		}
-
-		d, err := conf.GetContainerServer(remote)
-		if err != nil {
-			return err
-		}
-
-		return d.RenameImageAlias(alias, api.ImageAliasesEntryPost{Name: args[3]})
-	case "delete":
-		/* alias delete [<remote>:]<alias> */
-		if len(args) < 3 {
-			return errArgs
-		}
-
-		remote, alias, err := conf.ParseRemote(args[2])
-		if err != nil {
-			return err
-		}
-
-		d, err := conf.GetContainerServer(remote)
-		if err != nil {
-			return err
-		}
-
-		return d.DeleteImageAlias(alias)
-	}
-	return errArgs
-}
-
-func (c *imageCmd) run(conf *config.Config, args []string) error {
-	var remote string
-
-	if len(args) < 1 {
-		return errUsage
-	}
-
-	switch args[0] {
-	case "alias":
-		if len(args) < 2 {
-			return errArgs
-		}
-		return c.doImageAlias(conf, args)
-
-	case "copy":
-		/* copy [<remote>:]<image> [<remote>:]<image> */
-		if len(args) != 3 {
-			return errArgs
-		}
-
-		remote, inName, err := conf.ParseRemote(args[1])
-		if err != nil {
-			return err
-		}
-
-		destRemote, outName, err := conf.ParseRemote(args[2])
-		if err != nil {
-			return err
-		}
-
-		if outName != "" {
-			return errArgs
-		}
-
-		d, err := conf.GetImageServer(remote)
-		if err != nil {
-			return err
-		}
-
-		dest, err := conf.GetContainerServer(destRemote)
-		if err != nil {
-			return err
-		}
-
-		var imgInfo *api.Image
-		var fp string
-		if conf.Remotes[remote].Protocol == "simplestreams" && !c.copyAliases && len(c.addAliases) == 0 {
-			// All simplestreams images are always public, so unless we
-			// need the aliases list too or the real fingerprint, we can skip the otherwise very expensive
-			// alias resolution and image info retrieval step.
-			imgInfo = &api.Image{}
-			imgInfo.Fingerprint = inName
-			imgInfo.Public = true
-		} else {
-			// Resolve any alias and then grab the image information from the source
-			image := c.dereferenceAlias(d, inName)
-			imgInfo, _, err = d.GetImage(image)
-			if err != nil {
-				return err
-			}
-
-			// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overridden)
-			fp = imgInfo.Fingerprint
-		}
-
-		if imgInfo.Public && imgInfo.Fingerprint != inName && !strings.HasPrefix(imgInfo.Fingerprint, inName) {
-			// If dealing with an alias, set the imgInfo fingerprint to match the provided alias (needed for auto-update)
-			imgInfo.Fingerprint = inName
-		}
-
-		args := lxd.ImageCopyArgs{
-			AutoUpdate: c.autoUpdate,
-			Public:     c.publicImage,
-		}
-
-		// Do the copy
-		op, err := dest.CopyImage(d, *imgInfo, &args)
-		if err != nil {
-			return err
-		}
-
-		// Register progress handler
-		progress := utils.ProgressRenderer{Format: i18n.G("Copying the image: %s")}
-		_, err = op.AddHandler(progress.UpdateOp)
-		if err != nil {
-			progress.Done("")
-			return err
-		}
-
-		// Wait for operation to finish
-		err = utils.CancelableWait(op, &progress)
-		if err != nil {
-			progress.Done("")
-			return err
-		}
-
-		progress.Done(i18n.G("Image copied successfully!"))
-
-		// Ensure aliases
-		aliases := make([]api.ImageAlias, len(c.addAliases))
-		for i, entry := range c.addAliases {
-			aliases[i].Name = entry
-		}
-		if c.copyAliases {
-			// Also add the original aliases
-			for _, alias := range imgInfo.Aliases {
-				aliases = append(aliases, alias)
-			}
-		}
-		err = ensureImageAliases(dest, aliases, fp)
-		return err
-
-	case "delete":
-		/* delete [<remote>:]<image> [<remote>:][<image>...] */
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		for _, arg := range args[1:] {
-			var err error
-			remote, inName, err := conf.ParseRemote(arg)
-			if err != nil {
-				return err
-			}
-
-			d, err := conf.GetContainerServer(remote)
-			if err != nil {
-				return err
-			}
-
-			image := c.dereferenceAlias(d, inName)
-			op, err := d.DeleteImage(image)
-			if err != nil {
-				return err
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-
-	case "refresh":
-		/* refresh [<remote>:]<image> [<remote>:][<image>...] */
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		for _, arg := range args[1:] {
-			remote, inName, err := conf.ParseRemote(arg)
-			if err != nil {
-				return err
-			}
-
-			d, err := conf.GetContainerServer(remote)
-			if err != nil {
-				return err
-			}
-
-			image := c.dereferenceAlias(d, inName)
-			progress := utils.ProgressRenderer{Format: i18n.G("Refreshing the image: %s")}
-			op, err := d.RefreshImage(image)
-			if err != nil {
-				return err
-			}
-
-			// Register progress handler
-			_, err = op.AddHandler(progress.UpdateOp)
-			if err != nil {
-				return err
-			}
-
-			// Wait for the refresh to happen
-			err = op.Wait()
-			if err != nil {
-				return err
-			}
-			opAPI := op.Get()
-
-			// Check if refreshed
-			refreshed := false
-			flag, ok := opAPI.Metadata["refreshed"]
-			if ok {
-				refreshed = flag.(bool)
-			}
-
-			if refreshed {
-				progress.Done(i18n.G("Image refreshed successfully!"))
-			} else {
-				progress.Done(i18n.G("Image already up to date."))
-			}
-		}
-
-		return nil
-
-	case "info":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		remote, inName, err := conf.ParseRemote(args[1])
-		if err != nil {
-			return err
-		}
-
-		d, err := conf.GetImageServer(remote)
-		if err != nil {
-			return err
-		}
-
-		image := c.dereferenceAlias(d, inName)
-		info, _, err := d.GetImage(image)
-		if err != nil {
-			return err
-		}
-
-		public := i18n.G("no")
-		if info.Public {
-			public = i18n.G("yes")
-		}
-
-		cached := i18n.G("no")
-		if info.Cached {
-			cached = i18n.G("yes")
-		}
-
-		autoUpdate := i18n.G("disabled")
-		if info.AutoUpdate {
-			autoUpdate = i18n.G("enabled")
-		}
-
-		fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
-		fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
-		fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
-		fmt.Printf(i18n.G("Public: %s")+"\n", public)
-		fmt.Printf(i18n.G("Timestamps:") + "\n")
-		const layout = "2006/01/02 15:04 UTC"
-		if shared.TimeIsSet(info.CreatedAt) {
-			fmt.Printf("    "+i18n.G("Created: %s")+"\n", info.CreatedAt.UTC().Format(layout))
-		}
-		fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", info.UploadedAt.UTC().Format(layout))
-		if shared.TimeIsSet(info.ExpiresAt) {
-			fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiresAt.UTC().Format(layout))
-		} else {
-			fmt.Printf("    " + i18n.G("Expires: never") + "\n")
-		}
-		if shared.TimeIsSet(info.LastUsedAt) {
-			fmt.Printf("    "+i18n.G("Last used: %s")+"\n", info.LastUsedAt.UTC().Format(layout))
-		} else {
-			fmt.Printf("    " + i18n.G("Last used: never") + "\n")
-		}
-		fmt.Println(i18n.G("Properties:"))
-		for key, value := range info.Properties {
-			fmt.Printf("    %s: %s\n", key, value)
-		}
-		fmt.Println(i18n.G("Aliases:"))
-		for _, alias := range info.Aliases {
-			if alias.Description != "" {
-				fmt.Printf("    - %s (%s)\n", alias.Name, alias.Description)
-			} else {
-				fmt.Printf("    - %s\n", alias.Name)
-			}
-		}
-		fmt.Printf(i18n.G("Cached: %s")+"\n", cached)
-		fmt.Printf(i18n.G("Auto update: %s")+"\n", autoUpdate)
-		if info.UpdateSource != nil {
-			fmt.Println(i18n.G("Source:"))
-			fmt.Printf("    Server: %s\n", info.UpdateSource.Server)
-			fmt.Printf("    Protocol: %s\n", info.UpdateSource.Protocol)
-			fmt.Printf("    Alias: %s\n", info.UpdateSource.Alias)
-		}
-		return nil
-
-	case "import":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		var imageFile string
-		var rootfsFile string
-		var properties []string
-		var remote string
-
-		for _, arg := range args[1:] {
-			split := strings.Split(arg, "=")
-			if len(split) == 1 || shared.PathExists(shared.HostPath(arg)) {
-				if strings.HasSuffix(arg, ":") {
-					var err error
-					remote, _, err = conf.ParseRemote(arg)
-					if err != nil {
-						return err
-					}
-				} else {
-					if imageFile == "" {
-						imageFile = args[1]
-					} else {
-						rootfsFile = arg
-					}
-				}
-			} else {
-				properties = append(properties, arg)
-			}
-		}
-
-		if remote == "" {
-			remote = conf.DefaultRemote
-		}
-
-		if imageFile == "" {
-			imageFile = args[1]
-			properties = properties[1:]
-		}
-
-		if shared.PathExists(shared.HostPath(filepath.Clean(imageFile))) {
-			imageFile = shared.HostPath(filepath.Clean(imageFile))
-		}
-
-		d, err := conf.GetContainerServer(remote)
-		if err != nil {
-			return err
-		}
-
-		if strings.HasPrefix(imageFile, "http://") {
-			return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
-		}
-
-		var args *lxd.ImageCreateArgs
-		image := api.ImagesPost{}
-		image.Public = c.publicImage
-
-		// Handle aliases
-		aliases := []api.ImageAlias{}
-		for _, entry := range c.addAliases {
-			alias := api.ImageAlias{}
-			alias.Name = entry
-			aliases = append(aliases, alias)
-		}
-
-		// Handle properties
-		for _, entry := range properties {
-			fields := strings.SplitN(entry, "=", 2)
-			if len(fields) < 2 {
-				return fmt.Errorf(i18n.G("Bad property: %s"), entry)
-			}
-
-			if image.Properties == nil {
-				image.Properties = map[string]string{}
-			}
-
-			image.Properties[strings.TrimSpace(fields[0])] = strings.TrimSpace(fields[1])
-		}
-
-		progress := utils.ProgressRenderer{Format: i18n.G("Transferring image: %s")}
-		if strings.HasPrefix(imageFile, "https://") {
-			image.Source = &api.ImagesPostSource{}
-			image.Source.Type = "url"
-			image.Source.Mode = "pull"
-			image.Source.Protocol = "direct"
-			image.Source.URL = imageFile
-		} else {
-			var meta io.ReadCloser
-			var rootfs io.ReadCloser
-
-			// Open meta
-			if shared.IsDir(imageFile) {
-				imageFile, err = packImageDir(imageFile)
-				if err != nil {
-					return err
-				}
-				// remove temp file
-				defer os.Remove(imageFile)
-
-			}
-			meta, err = os.Open(imageFile)
-			if err != nil {
-				return err
-			}
-			defer meta.Close()
-
-			// Open rootfs
-			if rootfsFile != "" {
-				rootfs, err = os.Open(rootfsFile)
-				if err != nil {
-					return err
-				}
-				defer rootfs.Close()
-			}
-
-			args = &lxd.ImageCreateArgs{
-				MetaFile:        meta,
-				MetaName:        filepath.Base(imageFile),
-				RootfsFile:      rootfs,
-				RootfsName:      filepath.Base(rootfsFile),
-				ProgressHandler: progress.UpdateProgress,
-			}
-			image.Filename = args.MetaName
-		}
-
-		// Start the transfer
-		op, err := d.CreateImage(image, args)
-		if err != nil {
-			progress.Done("")
-			return err
-		}
-
-		err = op.Wait()
-		if err != nil {
-			progress.Done("")
-			return err
-		}
-		opAPI := op.Get()
-
-		// Get the fingerprint
-		fingerprint := opAPI.Metadata["fingerprint"].(string)
-		progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
-
-		// Add the aliases
-		if len(c.addAliases) > 0 {
-			aliases := make([]api.ImageAlias, len(c.addAliases))
-			for i, entry := range c.addAliases {
-				aliases[i].Name = entry
-			}
-			err = ensureImageAliases(d, aliases, fingerprint)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-
-	case "list":
-		columns, err := c.parseColumns()
-		if err != nil {
-			return err
-		}
-
-		filters := []string{}
-		if len(args) > 1 {
-			result := strings.SplitN(args[1], ":", 2)
-			if len(result) == 1 {
-				filters = append(filters, args[1])
-
-				remote, _, err = conf.ParseRemote("")
-				if err != nil {
-					return err
-				}
-			} else {
-				var filter string
-				remote, filter, err = conf.ParseRemote(args[1])
-				if err != nil {
-					return err
-				}
-
-				if filter != "" {
-					filters = append(filters, filter)
-				}
-			}
-		} else {
-			remote, _, err = conf.ParseRemote("")
-			if err != nil {
-				return err
-			}
-		}
-
-		if len(args) > 2 {
-			for _, filter := range args[2:] {
-				filters = append(filters, filter)
-			}
-		}
-
-		d, err := conf.GetImageServer(remote)
-		if err != nil {
-			return err
-		}
-
-		var images []api.Image
-		allImages, err := d.GetImages()
-		if err != nil {
-			return err
-		}
-
-		for _, image := range allImages {
-			if !c.imageShouldShow(filters, &image) {
-				continue
-			}
-
-			images = append(images, image)
-		}
-
-		return c.showImages(images, filters, columns)
-
-	case "edit":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		remote, inName, err := conf.ParseRemote(args[1])
-		if err != nil {
-			return err
-		}
-
-		d, err := conf.GetContainerServer(remote)
-		if err != nil {
-			return err
-		}
-
-		image := c.dereferenceAlias(d, inName)
-		if image == "" {
-			image = inName
-		}
-
-		return c.doImageEdit(d, image)
-
-	case "export":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		remote, inName, err := conf.ParseRemote(args[1])
-		if err != nil {
-			return err
-		}
-
-		d, err := conf.GetImageServer(remote)
-		if err != nil {
-			return err
-		}
-
-		// Resolve aliases
-		fingerprint := c.dereferenceAlias(d, inName)
-
-		// Default target is current directory
-		target := "."
-		targetMeta := fingerprint
-		if len(args) > 2 {
-			target = args[2]
-			if shared.IsDir(args[2]) {
-				targetMeta = filepath.Join(args[2], targetMeta)
-			} else {
-				targetMeta = args[2]
-			}
-		}
-		targetMeta = shared.HostPath(targetMeta)
-		targetRootfs := targetMeta + ".root"
-
-		// Prepare the files
-		dest, err := os.Create(targetMeta)
-		if err != nil {
-			return err
-		}
-		defer dest.Close()
-
-		destRootfs, err := os.Create(targetRootfs)
-		if err != nil {
-			return err
-		}
-		defer destRootfs.Close()
-
-		// Prepare the download request
-		progress := utils.ProgressRenderer{Format: i18n.G("Exporting the image: %s")}
-		req := lxd.ImageFileRequest{
-			MetaFile:        io.WriteSeeker(dest),
-			RootfsFile:      io.WriteSeeker(destRootfs),
-			ProgressHandler: progress.UpdateProgress,
-		}
-
-		// Download the image
-		resp, err := d.GetImageFile(fingerprint, req)
-		if err != nil {
-			os.Remove(targetMeta)
-			os.Remove(targetRootfs)
-			progress.Done("")
-			return err
-		}
-
-		// Cleanup
-		if resp.RootfsSize == 0 {
-			err := os.Remove(targetRootfs)
-			if err != nil {
-				os.Remove(targetMeta)
-				os.Remove(targetRootfs)
-				progress.Done("")
-				return err
-			}
-		}
-
-		// Rename files
-		if shared.IsDir(target) {
-			if resp.MetaName != "" {
-				err := os.Rename(targetMeta, shared.HostPath(filepath.Join(target, resp.MetaName)))
-				if err != nil {
-					os.Remove(targetMeta)
-					os.Remove(targetRootfs)
-					progress.Done("")
-					return err
-				}
-			}
-
-			if resp.RootfsSize > 0 && resp.RootfsName != "" {
-				err := os.Rename(targetRootfs, shared.HostPath(filepath.Join(target, resp.RootfsName)))
-				if err != nil {
-					os.Remove(targetMeta)
-					os.Remove(targetRootfs)
-					progress.Done("")
-					return err
-				}
-			}
-		} else if resp.RootfsSize == 0 && len(args) > 2 {
-			if resp.MetaName != "" {
-				extension := strings.SplitN(resp.MetaName, ".", 2)[1]
-				err := os.Rename(targetMeta, fmt.Sprintf("%s.%s", targetMeta, extension))
-				if err != nil {
-					os.Remove(targetMeta)
-					progress.Done("")
-					return err
-				}
-			}
-		}
-
-		progress.Done(i18n.G("Image exported successfully!"))
-		return nil
-
-	case "show":
-		if len(args) < 2 {
-			return errArgs
-		}
-
-		remote, inName, err := conf.ParseRemote(args[1])
-		if err != nil {
-			return err
-		}
-
-		d, err := conf.GetImageServer(remote)
-		if err != nil {
-			return err
-		}
-
-		image := c.dereferenceAlias(d, inName)
-		info, _, err := d.GetImage(image)
-		if err != nil {
-			return err
-		}
-
-		properties := info.Writable()
-
-		data, err := yaml.Marshal(&properties)
-		fmt.Printf("%s", data)
-		return err
-
-	default:
-		return errArgs
-	}
-}
-
-func (c *imageCmd) dereferenceAlias(d lxd.ImageServer, inName string) string {
+func (c *cmdImage) dereferenceAlias(d lxd.ImageServer, inName string) string {
 	if inName == "" {
 		inName = "default"
 	}
@@ -1032,123 +112,252 @@ func (c *imageCmd) dereferenceAlias(d lxd.ImageServer, inName string) string {
 	return result.Target
 }
 
-func (c *imageCmd) shortestAlias(list []api.ImageAlias) string {
-	shortest := ""
-	for _, l := range list {
-		if shortest == "" {
-			shortest = l.Name
-			continue
-		}
-		if len(l.Name) != 0 && len(l.Name) < len(shortest) {
-			shortest = l.Name
-		}
-	}
+// Copy
+type cmdImageCopy struct {
+	global *cmdGlobal
+	image  *cmdImage
 
-	return shortest
+	flagAliases     []string
+	flagPublic      bool
+	flagCopyAliases bool
+	flagAutoUpdate  bool
 }
 
-func (c *imageCmd) findDescription(props map[string]string) string {
-	for k, v := range props {
-		if k == "description" {
-			return v
-		}
-	}
-	return ""
+func (c *cmdImageCopy) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("copy [<remote>:]<image> <remote>:")
+	cmd.Aliases = []string{"cp"}
+	cmd.Short = i18n.G("Copy images between servers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Copy images between servers
+
+The auto-update flag instructs the server to keep this image up to date.
+It requires the source to be an alias and for it to be public.`))
+
+	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Make image public"))
+	cmd.Flags().BoolVar(&c.flagCopyAliases, "copy-aliases", false, i18n.G("Copy aliases from source"))
+	cmd.Flags().BoolVar(&c.flagAutoUpdate, "auto-update", false, i18n.G("Keep the image up to date after initial copy"))
+	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New aliases to add to the image")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
 }
 
-func (c *imageCmd) showImages(images []api.Image, filters []string, columns []imageColumn) error {
-	tableData := func() [][]string {
-		data := [][]string{}
-		for _, image := range images {
-			if !c.imageShouldShow(filters, &image) {
-				continue
-			}
+func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
 
-			row := []string{}
-			for _, column := range columns {
-				row = append(row, column.Data(image))
-			}
-			data = append(data, row)
-		}
-
-		sort.Sort(stringList(data))
-		return data
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
 	}
 
-	switch c.format {
-	case listFormatCSV:
-		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(tableData())
-		if err := w.Error(); err != nil {
-			return err
-		}
-	case listFormatTable:
+	// Parse source remote
+	remoteName, name, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
 
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetAutoWrapText(false)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetRowLine(true)
-		headers := []string{}
-		for _, column := range columns {
-			headers = append(headers, column.Name)
-		}
-		table.SetHeader(headers)
-		table.AppendBulk(tableData())
-		table.Render()
-	case listFormatJSON:
-		data := make([]*api.Image, len(images))
-		for i := range images {
-			data[i] = &images[i]
-		}
-		enc := json.NewEncoder(os.Stdout)
-		err := enc.Encode(data)
+	sourceServer, err := c.global.conf.GetImageServer(remoteName)
+	if err != nil {
+		return err
+	}
+
+	// Parse destination remote
+	resources, err := c.global.ParseServers(args[1])
+	if err != nil {
+		return err
+	}
+
+	destinationServer := resources[0].server
+
+	if resources[0].name != "" {
+		return fmt.Errorf(i18n.G("Can't provide a name for the target image"))
+	}
+
+	// Copy the image
+	var imgInfo *api.Image
+	var fp string
+	if conf.Remotes[remoteName].Protocol == "simplestreams" && !c.flagCopyAliases && len(c.flagAliases) == 0 {
+		// All simplestreams images are always public, so unless we
+		// need the aliases list too or the real fingerprint, we can skip the otherwise very expensive
+		// alias resolution and image info retrieval step.
+		imgInfo = &api.Image{}
+		imgInfo.Fingerprint = name
+		imgInfo.Public = true
+	} else {
+		// Resolve any alias and then grab the image information from the source
+		image := c.image.dereferenceAlias(sourceServer, name)
+		imgInfo, _, err = sourceServer.GetImage(image)
 		if err != nil {
 			return err
 		}
-	case listFormatYAML:
-		data := make([]*api.Image, len(images))
-		for i := range images {
-			data[i] = &images[i]
+
+		// Store the fingerprint for use when creating aliases later (as imgInfo.Fingerprint may be overridden)
+		fp = imgInfo.Fingerprint
+	}
+
+	if imgInfo.Public && imgInfo.Fingerprint != name && !strings.HasPrefix(imgInfo.Fingerprint, name) {
+		// If dealing with an alias, set the imgInfo fingerprint to match the provided alias (needed for auto-update)
+		imgInfo.Fingerprint = name
+	}
+
+	copyArgs := lxd.ImageCopyArgs{
+		AutoUpdate: c.flagAutoUpdate,
+		Public:     c.flagPublic,
+	}
+
+	// Do the copy
+	op, err := destinationServer.CopyImage(sourceServer, *imgInfo, &copyArgs)
+	if err != nil {
+		return err
+	}
+
+	// Register progress handler
+	progress := utils.ProgressRenderer{Format: i18n.G("Copying the image: %s")}
+	_, err = op.AddHandler(progress.UpdateOp)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	// Wait for operation to finish
+	err = utils.CancelableWait(op, &progress)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	progress.Done(i18n.G("Image copied successfully!"))
+
+	// Ensure aliases
+	aliases := make([]api.ImageAlias, len(c.flagAliases))
+	for i, entry := range c.flagAliases {
+		aliases[i].Name = entry
+	}
+
+	if c.flagCopyAliases {
+		// Also add the original aliases
+		for _, alias := range imgInfo.Aliases {
+			aliases = append(aliases, alias)
+		}
+	}
+
+	err = ensureImageAliases(destinationServer, aliases, fp)
+	return err
+}
+
+// Delete
+type cmdImageDelete struct {
+	global *cmdGlobal
+	image  *cmdImage
+}
+
+func (c *cmdImageDelete) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("delete [<remote>:]<image> [[<remote>:]<image>...]")
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Delete images`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageDelete) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args...)
+	if err != nil {
+		return err
+	}
+
+	for _, resource := range resources {
+		if resource.name == "" {
+			return fmt.Errorf(i18n.G("Image identifier missing"))
 		}
 
-		out, err := yaml.Marshal(data)
+		image := c.image.dereferenceAlias(resource.server, resource.name)
+		op, err := resource.server.DeleteImage(image)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("%s", out)
-	default:
-		return fmt.Errorf("invalid format %q", c.format)
+
+		err = op.Wait()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (c *imageCmd) showAliases(aliases []api.ImageAliasesEntry, filters []string) error {
-	data := [][]string{}
-	for _, alias := range aliases {
-		if !c.aliasShouldShow(filters, &alias) {
-			continue
-		}
-
-		data = append(data, []string{alias.Name, alias.Target[0:12], alias.Description})
-	}
-
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	table.SetHeader([]string{
-		i18n.G("ALIAS"),
-		i18n.G("FINGERPRINT"),
-		i18n.G("DESCRIPTION")})
-	sort.Sort(stringList(data))
-	table.AppendBulk(data)
-	table.Render()
-
-	return nil
+// Edit
+type cmdImageEdit struct {
+	global *cmdGlobal
+	image  *cmdImage
 }
 
-func (c *imageCmd) doImageEdit(client lxd.ContainerServer, image string) error {
+func (c *cmdImageEdit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("edit [<remote>:]<image>")
+	cmd.Short = i18n.G("Edit image properties")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Edit image properties`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc image edit <image>
+    Launch a text editor to edit the properties
+
+lxc image edit <image> < image.yaml
+    Load the image properties from a YAML file`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageEdit) helpTemplate() string {
+	return i18n.G(
+		`### This is a yaml representation of the image properties.
+### Any line starting with a '# will be ignored.
+###
+### Each property is represented by a single line:
+### An example would be:
+###  description: My custom image`)
+}
+
+func (c *cmdImageEdit) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Image identifier missing: %s"), args[0])
+	}
+
+	// Resolve any aliases
+	image := c.image.dereferenceAlias(resource.server, resource.name)
+	if image == "" {
+		image = resource.name
+	}
+
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -1162,11 +371,11 @@ func (c *imageCmd) doImageEdit(client lxd.ContainerServer, image string) error {
 			return err
 		}
 
-		return client.UpdateImage(image, newdata, "")
+		return resource.server.UpdateImage(image, newdata, "")
 	}
 
 	// Extract the current value
-	imgInfo, etag, err := client.GetImage(image)
+	imgInfo, etag, err := resource.server.GetImage(image)
 	if err != nil {
 		return err
 	}
@@ -1178,7 +387,7 @@ func (c *imageCmd) doImageEdit(client lxd.ContainerServer, image string) error {
 	}
 
 	// Spawn the editor
-	content, err := shared.TextEditor("", []byte(c.imageEditHelp()+"\n\n"+string(data)))
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
 	if err != nil {
 		return err
 	}
@@ -1188,7 +397,7 @@ func (c *imageCmd) doImageEdit(client lxd.ContainerServer, image string) error {
 		newdata := api.ImagePut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.UpdateImage(image, newdata, etag)
+			err = resource.server.UpdateImage(image, newdata, etag)
 		}
 
 		// Respawn the editor
@@ -1209,10 +418,606 @@ func (c *imageCmd) doImageEdit(client lxd.ContainerServer, image string) error {
 		}
 		break
 	}
+
 	return nil
 }
 
-func (c *imageCmd) imageShouldShow(filters []string, state *api.Image) bool {
+// Export
+type cmdImageExport struct {
+	global *cmdGlobal
+	image  *cmdImage
+}
+
+func (c *cmdImageExport) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("export [<remote>:]<image> [<target>]")
+	cmd.Short = i18n.G("Export and download images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Export and download images
+
+The output target is optional and defaults to the working directory.`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remoteName, name, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	remoteServer, err := c.global.conf.GetImageServer(remoteName)
+	if err != nil {
+		return err
+	}
+
+	// Resolve aliases
+	fingerprint := c.image.dereferenceAlias(remoteServer, name)
+
+	// Default target is current directory
+	target := "."
+	targetMeta := fingerprint
+	if len(args) > 1 {
+		target = args[1]
+		if shared.IsDir(args[1]) {
+			targetMeta = filepath.Join(args[1], targetMeta)
+		} else {
+			targetMeta = args[1]
+		}
+	}
+	targetMeta = shared.HostPath(targetMeta)
+	targetRootfs := targetMeta + ".root"
+
+	// Prepare the files
+	dest, err := os.Create(targetMeta)
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+
+	destRootfs, err := os.Create(targetRootfs)
+	if err != nil {
+		return err
+	}
+	defer destRootfs.Close()
+
+	// Prepare the download request
+	progress := utils.ProgressRenderer{Format: i18n.G("Exporting the image: %s")}
+	req := lxd.ImageFileRequest{
+		MetaFile:        io.WriteSeeker(dest),
+		RootfsFile:      io.WriteSeeker(destRootfs),
+		ProgressHandler: progress.UpdateProgress,
+	}
+
+	// Download the image
+	resp, err := remoteServer.GetImageFile(fingerprint, req)
+	if err != nil {
+		os.Remove(targetMeta)
+		os.Remove(targetRootfs)
+		progress.Done("")
+		return err
+	}
+
+	// Cleanup
+	if resp.RootfsSize == 0 {
+		err := os.Remove(targetRootfs)
+		if err != nil {
+			os.Remove(targetMeta)
+			os.Remove(targetRootfs)
+			progress.Done("")
+			return err
+		}
+	}
+
+	// Rename files
+	if shared.IsDir(target) {
+		if resp.MetaName != "" {
+			err := os.Rename(targetMeta, shared.HostPath(filepath.Join(target, resp.MetaName)))
+			if err != nil {
+				os.Remove(targetMeta)
+				os.Remove(targetRootfs)
+				progress.Done("")
+				return err
+			}
+		}
+
+		if resp.RootfsSize > 0 && resp.RootfsName != "" {
+			err := os.Rename(targetRootfs, shared.HostPath(filepath.Join(target, resp.RootfsName)))
+			if err != nil {
+				os.Remove(targetMeta)
+				os.Remove(targetRootfs)
+				progress.Done("")
+				return err
+			}
+		}
+	} else if resp.RootfsSize == 0 && len(args) > 1 {
+		if resp.MetaName != "" {
+			extension := strings.SplitN(resp.MetaName, ".", 2)[1]
+			err := os.Rename(targetMeta, fmt.Sprintf("%s.%s", targetMeta, extension))
+			if err != nil {
+				os.Remove(targetMeta)
+				progress.Done("")
+				return err
+			}
+		}
+	}
+
+	progress.Done(i18n.G("Image exported successfully!"))
+	return nil
+}
+
+// Import
+type cmdImageImport struct {
+	global *cmdGlobal
+	image  *cmdImage
+
+	flagPublic  bool
+	flagAliases []string
+}
+
+func (c *cmdImageImport) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("import <tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]")
+	cmd.Short = i18n.G("Import images into the image store")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Import image into the image store
+
+Directory import is only available on Linux and must be performed as root.`))
+
+	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Make image public"))
+	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New aliases to add to the image")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageImport) packImageDir(path string) (string, error) {
+	// Sanity checks
+	if os.Geteuid() == -1 {
+		return "", fmt.Errorf(i18n.G("Directory import is not available on this platform"))
+	} else if os.Geteuid() != 0 {
+		return "", fmt.Errorf(i18n.G("Must run as root to import from directory"))
+	}
+
+	outFile, err := ioutil.TempFile("", "lxd_image_")
+	if err != nil {
+		return "", err
+	}
+	defer outFile.Close()
+
+	outFileName := outFile.Name()
+	shared.RunCommand("tar", "-C", path, "--numeric-owner", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
+
+	return outFileName, nil
+}
+
+func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
+	if exit {
+		return err
+	}
+
+	// Import the image
+	var imageFile string
+	var rootfsFile string
+	var properties []string
+	var remote string
+
+	for _, arg := range args {
+		split := strings.Split(arg, "=")
+		if len(split) == 1 || shared.PathExists(shared.HostPath(arg)) {
+			if strings.HasSuffix(arg, ":") {
+				var err error
+				remote, _, err = conf.ParseRemote(arg)
+				if err != nil {
+					return err
+				}
+			} else {
+				if imageFile == "" {
+					imageFile = args[0]
+				} else {
+					rootfsFile = arg
+				}
+			}
+		} else {
+			properties = append(properties, arg)
+		}
+	}
+
+	if remote == "" {
+		remote = conf.DefaultRemote
+	}
+
+	if imageFile == "" {
+		imageFile = args[0]
+		properties = properties[1:]
+	}
+
+	if shared.PathExists(shared.HostPath(filepath.Clean(imageFile))) {
+		imageFile = shared.HostPath(filepath.Clean(imageFile))
+	}
+
+	d, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	if strings.HasPrefix(imageFile, "http://") {
+		return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
+	}
+
+	createArgs := &lxd.ImageCreateArgs{}
+	image := api.ImagesPost{}
+	image.Public = c.flagPublic
+
+	// Handle aliases
+	aliases := []api.ImageAlias{}
+	for _, entry := range c.flagAliases {
+		alias := api.ImageAlias{}
+		alias.Name = entry
+		aliases = append(aliases, alias)
+	}
+
+	// Handle properties
+	for _, entry := range properties {
+		fields := strings.SplitN(entry, "=", 2)
+		if len(fields) < 2 {
+			return fmt.Errorf(i18n.G("Bad property: %s"), entry)
+		}
+
+		if image.Properties == nil {
+			image.Properties = map[string]string{}
+		}
+
+		image.Properties[strings.TrimSpace(fields[0])] = strings.TrimSpace(fields[1])
+	}
+
+	progress := utils.ProgressRenderer{Format: i18n.G("Transferring image: %s")}
+	if strings.HasPrefix(imageFile, "https://") {
+		image.Source = &api.ImagesPostSource{}
+		image.Source.Type = "url"
+		image.Source.Mode = "pull"
+		image.Source.Protocol = "direct"
+		image.Source.URL = imageFile
+	} else {
+		var meta io.ReadCloser
+		var rootfs io.ReadCloser
+
+		// Open meta
+		if shared.IsDir(imageFile) {
+			imageFile, err = c.packImageDir(imageFile)
+			if err != nil {
+				return err
+			}
+			// remove temp file
+			defer os.Remove(imageFile)
+
+		}
+		meta, err = os.Open(imageFile)
+		if err != nil {
+			return err
+		}
+		defer meta.Close()
+
+		// Open rootfs
+		if rootfsFile != "" {
+			rootfs, err = os.Open(rootfsFile)
+			if err != nil {
+				return err
+			}
+			defer rootfs.Close()
+		}
+
+		createArgs = &lxd.ImageCreateArgs{
+			MetaFile:        meta,
+			MetaName:        filepath.Base(imageFile),
+			RootfsFile:      rootfs,
+			RootfsName:      filepath.Base(rootfsFile),
+			ProgressHandler: progress.UpdateProgress,
+		}
+		image.Filename = createArgs.MetaName
+	}
+
+	// Start the transfer
+	op, err := d.CreateImage(image, createArgs)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	err = op.Wait()
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+	opAPI := op.Get()
+
+	// Get the fingerprint
+	fingerprint := opAPI.Metadata["fingerprint"].(string)
+	progress.Done(fmt.Sprintf(i18n.G("Image imported with fingerprint: %s"), fingerprint))
+
+	// Add the aliases
+	if len(c.flagAliases) > 0 {
+		aliases := make([]api.ImageAlias, len(c.flagAliases))
+		for i, entry := range c.flagAliases {
+			aliases[i].Name = entry
+		}
+		err = ensureImageAliases(d, aliases, fingerprint)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Info
+type cmdImageInfo struct {
+	global *cmdGlobal
+	image  *cmdImage
+}
+
+func (c *cmdImageInfo) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("info [<remote>:]<image>")
+	cmd.Short = i18n.G("Show useful information about images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show useful information about images`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageInfo) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remoteName, name, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
+	remoteServer, err := c.global.conf.GetImageServer(remoteName)
+	if err != nil {
+		return err
+	}
+
+	// Render info
+	image := c.image.dereferenceAlias(remoteServer, name)
+	info, _, err := remoteServer.GetImage(image)
+	if err != nil {
+		return err
+	}
+
+	public := i18n.G("no")
+	if info.Public {
+		public = i18n.G("yes")
+	}
+
+	cached := i18n.G("no")
+	if info.Cached {
+		cached = i18n.G("yes")
+	}
+
+	autoUpdate := i18n.G("disabled")
+	if info.AutoUpdate {
+		autoUpdate = i18n.G("enabled")
+	}
+
+	fmt.Printf(i18n.G("Fingerprint: %s")+"\n", info.Fingerprint)
+	fmt.Printf(i18n.G("Size: %.2fMB")+"\n", float64(info.Size)/1024.0/1024.0)
+	fmt.Printf(i18n.G("Architecture: %s")+"\n", info.Architecture)
+	fmt.Printf(i18n.G("Public: %s")+"\n", public)
+	fmt.Printf(i18n.G("Timestamps:") + "\n")
+
+	const layout = "2006/01/02 15:04 UTC"
+	if shared.TimeIsSet(info.CreatedAt) {
+		fmt.Printf("    "+i18n.G("Created: %s")+"\n", info.CreatedAt.UTC().Format(layout))
+	}
+
+	fmt.Printf("    "+i18n.G("Uploaded: %s")+"\n", info.UploadedAt.UTC().Format(layout))
+
+	if shared.TimeIsSet(info.ExpiresAt) {
+		fmt.Printf("    "+i18n.G("Expires: %s")+"\n", info.ExpiresAt.UTC().Format(layout))
+	} else {
+		fmt.Printf("    " + i18n.G("Expires: never") + "\n")
+	}
+
+	if shared.TimeIsSet(info.LastUsedAt) {
+		fmt.Printf("    "+i18n.G("Last used: %s")+"\n", info.LastUsedAt.UTC().Format(layout))
+	} else {
+		fmt.Printf("    " + i18n.G("Last used: never") + "\n")
+	}
+
+	fmt.Println(i18n.G("Properties:"))
+	for key, value := range info.Properties {
+		fmt.Printf("    %s: %s\n", key, value)
+	}
+
+	fmt.Println(i18n.G("Aliases:"))
+	for _, alias := range info.Aliases {
+		if alias.Description != "" {
+			fmt.Printf("    - %s (%s)\n", alias.Name, alias.Description)
+		} else {
+			fmt.Printf("    - %s\n", alias.Name)
+		}
+	}
+
+	fmt.Printf(i18n.G("Cached: %s")+"\n", cached)
+	fmt.Printf(i18n.G("Auto update: %s")+"\n", autoUpdate)
+
+	if info.UpdateSource != nil {
+		fmt.Println(i18n.G("Source:"))
+		fmt.Printf("    Server: %s\n", info.UpdateSource.Server)
+		fmt.Printf("    Protocol: %s\n", info.UpdateSource.Protocol)
+		fmt.Printf("    Alias: %s\n", info.UpdateSource.Alias)
+	}
+
+	return nil
+}
+
+// List
+type cmdImageList struct {
+	global *cmdGlobal
+	image  *cmdImage
+
+	flagFormat  string
+	flagColumns string
+}
+
+func (c *cmdImageList) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("list [<remote>:] [<filter>...]")
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List images
+
+Filters may be of the <key>=<value> form for property based filtering,
+or part of the image hash or part of the image alias name.
+
+The -c option takes a (optionally comma-separated) list of arguments
+that control which image attributes to output when displaying in table
+or csv format.
+
+Default column layout is: lfpdasu
+
+Column shorthand chars:
+
+    l - Shortest image alias (and optionally number of other aliases)
+    L - Newline-separated list of all image aliases
+    f - Fingerprint
+    p - Whether image is public
+    d - Description
+    a - Architecture
+    s - Size`))
+
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", "lfpdasu", i18n.G("Columns")+"``")
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
+	columnsShorthandMap := map[rune]imageColumn{
+		'l': {i18n.G("ALIAS"), c.aliasColumnData},
+		'L': {i18n.G("ALIASES"), c.aliasesColumnData},
+		'f': {i18n.G("FINGERPRINT"), c.fingerprintColumnData},
+		'p': {i18n.G("PUBLIC"), c.publicColumnData},
+		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData},
+		'a': {i18n.G("ARCH"), c.architectureColumnData},
+		's': {i18n.G("SIZE"), c.sizeColumnData},
+		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
+	}
+
+	columnList := strings.Split(c.flagColumns, ",")
+
+	columns := []imageColumn{}
+	for _, columnEntry := range columnList {
+		if columnEntry == "" {
+			return nil, fmt.Errorf(i18n.G("Empty column entry (redundant, leading or trailing command) in '%s'"), c.flagColumns)
+		}
+
+		for _, columnRune := range columnEntry {
+			if column, ok := columnsShorthandMap[columnRune]; ok {
+				columns = append(columns, column)
+			} else {
+				return nil, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
+			}
+		}
+	}
+
+	return columns, nil
+}
+
+func (c *cmdImageList) aliasColumnData(image api.Image) string {
+	shortest := c.shortestAlias(image.Aliases)
+	if len(image.Aliases) > 1 {
+		shortest = fmt.Sprintf(i18n.G("%s (%d more)"), shortest, len(image.Aliases)-1)
+	}
+
+	return shortest
+}
+
+func (c *cmdImageList) aliasesColumnData(image api.Image) string {
+	aliases := []string{}
+	for _, alias := range image.Aliases {
+		aliases = append(aliases, alias.Name)
+	}
+	sort.Strings(aliases)
+	return strings.Join(aliases, "\n")
+}
+
+func (c *cmdImageList) fingerprintColumnData(image api.Image) string {
+	return image.Fingerprint[0:12]
+}
+
+func (c *cmdImageList) publicColumnData(image api.Image) string {
+	if image.Public {
+		return i18n.G("yes")
+	}
+	return i18n.G("no")
+}
+
+func (c *cmdImageList) descriptionColumnData(image api.Image) string {
+	return c.findDescription(image.Properties)
+}
+
+func (c *cmdImageList) architectureColumnData(image api.Image) string {
+	return image.Architecture
+}
+
+func (c *cmdImageList) sizeColumnData(image api.Image) string {
+	return fmt.Sprintf("%.2fMB", float64(image.Size)/1024.0/1024.0)
+}
+
+func (c *cmdImageList) uploadDateColumnData(image api.Image) string {
+	return image.UploadedAt.UTC().Format("Jan 2, 2006 at 3:04pm (MST)")
+}
+
+func (c *cmdImageList) shortestAlias(list []api.ImageAlias) string {
+	shortest := ""
+	for _, l := range list {
+		if shortest == "" {
+			shortest = l.Name
+			continue
+		}
+		if len(l.Name) != 0 && len(l.Name) < len(shortest) {
+			shortest = l.Name
+		}
+	}
+
+	return shortest
+}
+
+func (c *cmdImageList) findDescription(props map[string]string) string {
+	for k, v := range props {
+		if k == "description" {
+			return v
+		}
+	}
+	return ""
+}
+
+func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool {
 	if len(filters) == 0 {
 		return true
 	}
@@ -1231,7 +1036,7 @@ func (c *imageCmd) imageShouldShow(filters []string, state *api.Image) bool {
 			}
 
 			for configKey, configValue := range state.Properties {
-				list := listCmd{}
+				list := cmdList{}
 				if list.dotPrefixMatch(key, configKey) {
 					//try to test filter value as a regexp
 					regexpValue := value
@@ -1271,39 +1076,252 @@ func (c *imageCmd) imageShouldShow(filters []string, state *api.Image) bool {
 	return true
 }
 
-func (c *imageCmd) aliasShouldShow(filters []string, state *api.ImageAliasesEntry) bool {
-	if len(filters) == 0 {
-		return true
+func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, -1)
+	if exit {
+		return err
 	}
 
-	for _, filter := range filters {
-		if strings.Contains(state.Name, filter) || strings.Contains(state.Target, filter) {
-			return true
+	// Parse remote
+	remote := ""
+	if len(args) > 0 {
+		remote = args[0]
+	}
+
+	remoteName, name, err := c.global.conf.ParseRemote(remote)
+	if err != nil {
+		return err
+	}
+
+	remoteServer, err := c.global.conf.GetImageServer(remoteName)
+	if err != nil {
+		return err
+	}
+
+	// Process the filters
+	filters := []string{}
+	if name != "" {
+		filters = append(filters, name)
+	}
+
+	if len(args) > 1 {
+		filters = append(filters, args[1:]...)
+	}
+
+	// Process the columns
+	columns, err := c.parseColumns()
+	if err != nil {
+		return err
+	}
+
+	var images []api.Image
+	allImages, err := remoteServer.GetImages()
+	if err != nil {
+		return err
+	}
+
+	for _, image := range allImages {
+		if !c.imageShouldShow(filters, &image) {
+			continue
+		}
+
+		images = append(images, image)
+	}
+
+	// Render the table
+	tableData := func() [][]string {
+		data := [][]string{}
+		for _, image := range images {
+			if !c.imageShouldShow(filters, &image) {
+				continue
+			}
+
+			row := []string{}
+			for _, column := range columns {
+				row = append(row, column.Data(image))
+			}
+			data = append(data, row)
+		}
+
+		sort.Sort(stringList(data))
+		return data
+	}
+
+	switch c.flagFormat {
+	case listFormatCSV:
+		w := csv.NewWriter(os.Stdout)
+		w.WriteAll(tableData())
+		if err := w.Error(); err != nil {
+			return err
+		}
+
+	case listFormatTable:
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table.SetRowLine(true)
+		headers := []string{}
+		for _, column := range columns {
+			headers = append(headers, column.Name)
+		}
+		table.SetHeader(headers)
+		table.AppendBulk(tableData())
+		table.Render()
+
+	case listFormatJSON:
+		data := make([]*api.Image, len(images))
+		for i := range images {
+			data[i] = &images[i]
+		}
+		enc := json.NewEncoder(os.Stdout)
+		err := enc.Encode(data)
+		if err != nil {
+			return err
+		}
+
+	case listFormatYAML:
+		data := make([]*api.Image, len(images))
+		for i := range images {
+			data[i] = &images[i]
+		}
+
+		out, err := yaml.Marshal(data)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s", out)
+
+	default:
+		return fmt.Errorf(i18n.G("Invalid format %q"), c.flagFormat)
+	}
+
+	return nil
+}
+
+// Refresh
+type cmdImageRefresh struct {
+	global *cmdGlobal
+	image  *cmdImage
+}
+
+func (c *cmdImageRefresh) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("refresh [<remote>:]<image> [[<remote>:]<image>...]")
+	cmd.Short = i18n.G("Refresh images")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Refresh images`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	for _, resource := range resources {
+		if resource.name == "" {
+			return fmt.Errorf(i18n.G("Image identifier missing"))
+		}
+
+		image := c.image.dereferenceAlias(resource.server, resource.name)
+		progress := utils.ProgressRenderer{Format: i18n.G("Refreshing the image: %s")}
+		op, err := resource.server.RefreshImage(image)
+		if err != nil {
+			return err
+		}
+
+		// Register progress handler
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			return err
+		}
+
+		// Wait for the refresh to happen
+		err = op.Wait()
+		if err != nil {
+			return err
+		}
+		opAPI := op.Get()
+
+		// Check if refreshed
+		refreshed := false
+		flag, ok := opAPI.Metadata["refreshed"]
+		if ok {
+			refreshed = flag.(bool)
+		}
+
+		if refreshed {
+			progress.Done(i18n.G("Image refreshed successfully!"))
+		} else {
+			progress.Done(i18n.G("Image already up to date."))
 		}
 	}
 
-	return false
+	return nil
 }
 
-// Package the image from the specified directory, if running as root.  Return
-// the image filename
-func packImageDir(path string) (string, error) {
-	switch os.Geteuid() {
-	case 0:
-	case -1:
-		return "", fmt.Errorf(
-			i18n.G("Directory import is not available on this platform"))
-	default:
-		return "", fmt.Errorf(i18n.G("Must run as root to import from directory"))
+// Show
+type cmdImageShow struct {
+	global *cmdGlobal
+	image  *cmdImage
+}
+
+func (c *cmdImageShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("show [<remote>:]<image>")
+	cmd.Short = i18n.G("Show image properties")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show image properties`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdImageShow) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
 	}
 
-	outFile, err := ioutil.TempFile("", "lxd_image_")
+	// Parse remote
+	remoteName, name, err := c.global.conf.ParseRemote(args[0])
 	if err != nil {
-		return "", err
+		return err
 	}
-	defer outFile.Close()
-	outFileName := outFile.Name()
 
-	shared.RunCommand("tar", "-C", path, "--numeric-owner", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
-	return outFileName, nil
+	remoteServer, err := c.global.conf.GetImageServer(remoteName)
+	if err != nil {
+		return err
+	}
+
+	// Show properties
+	image := c.image.dereferenceAlias(remoteServer, name)
+	info, _, err := remoteServer.GetImage(image)
+	if err != nil {
+		return err
+	}
+
+	properties := info.Writable()
+	data, err := yaml.Marshal(&properties)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
 }

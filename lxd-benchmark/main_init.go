@@ -7,7 +7,6 @@ import (
 )
 
 type cmdInit struct {
-	cmd    *cobra.Command
 	global *cmdGlobal
 
 	flagCount      int
@@ -22,7 +21,6 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Flags().IntVarP(&c.flagCount, "count", "C", 1, "Number of containers to create"+"``")
 	cmd.Flags().BoolVar(&c.flagPrivileged, "privileged", false, "Use privileged containers")
 
-	c.cmd = cmd
 	return cmd
 }
 

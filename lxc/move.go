@@ -4,57 +4,71 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/pkg/errors"
 )
 
-type moveCmd struct {
-	containerOnly bool
-	mode          string
-	stateless     bool
-	target        string
+type cmdMove struct {
+	global *cmdGlobal
+
+	flagContainerOnly bool
+	flagMode          string
+	flagStateless     bool
+	flagTarget        string
 }
 
-func (c *moveCmd) showByDefault() bool {
-	return true
-}
-
-func (c *moveCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]] [--container-only] [--target <node>]
-
-Move containers within or in between LXD instances.
-
-lxc move [<remote>:]<source container> [<remote>:][<destination container>] [--container-only]
+func (c *cmdMove) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/<snapshot>]]")
+	cmd.Aliases = []string{"mv"}
+	cmd.Short = i18n.G("Move containers within or in between LXD instances")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Move containers within or in between LXD instances`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc move [<remote>:]<source container> [<remote>:][<destination container>] [--container-only]
     Move a container between two hosts, renaming it if destination name differs.
 
 lxc move <old name> <new name> [--container-only]
     Rename a local container.
 
 lxc move <container>/<old snapshot name> <container>/<new snapshot name>
-    Rename a snapshot.`)
+    Rename a snapshot.`))
+
+	cmd.RunE = c.Run
+	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
+	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
+	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Node name")+"``")
+
+	return cmd
 }
 
-func (c *moveCmd) flags() {
-	gnuflag.BoolVar(&c.containerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
-	gnuflag.StringVar(&c.mode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay."))
-	gnuflag.BoolVar(&c.stateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
-	gnuflag.StringVar(&c.target, "target", "", i18n.G("Node name"))
-}
+func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
 
-func (c *moveCmd) run(conf *config.Config, args []string) error {
-	if len(args) != 2 && c.target == "" {
-		return errArgs
+	// Sanity checks
+	if c.flagTarget == "" {
+		exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+		if exit {
+			return err
+		}
+	} else {
+		exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+		if exit {
+			return err
+		}
 	}
 
 	// Parse the mode
 	mode := "pull"
-	if c.mode != "" {
-		mode = c.mode
+	if c.flagMode != "" {
+		mode = c.flagMode
 	}
 
 	sourceRemote, sourceName, err := conf.ParseRemote(args[0])
@@ -73,7 +87,7 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 	}
 
 	// Target node and destination remote can't be used together.
-	if c.target != "" && sourceRemote != destRemote {
+	if c.flagTarget != "" && sourceRemote != destRemote {
 		return fmt.Errorf(i18n.G("You must use the same source and destination remote when using --target"))
 	}
 
@@ -82,7 +96,7 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 	// running, containers that are running should be live migrated (of
 	// course, this changing of hostname isn't supported right now, so this
 	// simply won't work).
-	if sourceRemote == destRemote && c.target == "" {
+	if sourceRemote == destRemote && c.flagTarget == "" {
 		source, err := conf.GetContainerServer(sourceRemote)
 		if err != nil {
 			return err
@@ -120,8 +134,8 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 	// cluster node to another. In case the rootfs of the container is
 	// backed by ceph, we want to re-use the same ceph volume. This assumes
 	// that the container is not running.
-	if c.target != "" {
-		moved, err := maybeMoveCephContainer(conf, sourceResource, destResource, c.target)
+	if c.flagTarget != "" {
+		moved, err := maybeMoveCephContainer(conf, sourceResource, destResource, c.flagTarget)
 		if err != nil {
 			return err
 		}
@@ -130,21 +144,21 @@ func (c *moveCmd) run(conf *config.Config, args []string) error {
 		}
 	}
 
-	cpy := copyCmd{}
-	cpy.target = c.target
+	cpy := cmdCopy{}
+	cpy.flagTarget = c.flagTarget
 
-	stateful := !c.stateless
+	stateful := !c.flagStateless
 
 	// A move is just a copy followed by a delete; however, we want to
 	// keep the volatile entries around since we are moving the container.
-	err = cpy.copyContainer(conf, sourceResource, destResource, true, -1, stateful, c.containerOnly, mode)
+	err = cpy.copyContainer(conf, sourceResource, destResource, true, -1, stateful, c.flagContainerOnly, mode)
 	if err != nil {
 		return err
 	}
 
-	del := deleteCmd{}
-	del.force = true
-	return del.run(conf, args[:1])
+	del := cmdDelete{global: c.global}
+	del.flagForce = true
+	return del.Run(cmd, args[:1])
 }
 
 // Helper to check if the container to be moved is backed by a ceph storage
@@ -183,11 +197,6 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 	source, err := conf.GetContainerServer(sourceRemote)
 	if err != nil {
 		return false, err
-	}
-
-	if shared.IsSnapshot(sourceName) {
-		// TODO: implement moving snapshots.
-		return false, fmt.Errorf("Moving ceph snapshots is not supported")
 	}
 
 	// Check if the container to be moved is backed by ceph.

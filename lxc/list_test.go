@@ -12,7 +12,7 @@ import (
 )
 
 func TestDotPrefixMatch(t *testing.T) {
-	list := listCmd{}
+	list := cmdList{}
 
 	pass := true
 	pass = pass && list.dotPrefixMatch("s.privileged", "security.privileged")
@@ -24,7 +24,7 @@ func TestDotPrefixMatch(t *testing.T) {
 }
 
 func TestShouldShow(t *testing.T) {
-	list := listCmd{}
+	list := cmdList{}
 
 	state := &api.Container{
 		Name: "foo",
@@ -158,7 +158,7 @@ func TestColumns(t *testing.T) {
 			// Generate the column string, removing any leading, trailing or duplicate commas.
 			raw := shared.RemoveDuplicatesFromString(strings.Trim(buffer.String(), ","), ",")
 
-			list := listCmd{columnsRaw: raw}
+			list := cmdList{flagColumns: raw}
 
 			clustered := strings.Contains(raw, "L")
 			columns, err := list.parseColumns(clustered)
@@ -174,7 +174,7 @@ func TestColumns(t *testing.T) {
 
 func TestInvalidColumns(t *testing.T) {
 	run := func(raw string) {
-		list := listCmd{columnsRaw: raw}
+		list := cmdList{flagColumns: raw}
 		_, err := list.parseColumns(true)
 		if err == nil {
 			t.Errorf("Expected error from parseColumns, received nil.  Input: %s", raw)

@@ -9,26 +9,540 @@ import (
 	"syscall"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/gnuflag"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
 
-type networkCmd struct {
-	target string
+type cmdNetwork struct {
+	global *cmdGlobal
+
+	flagTarget string
 }
 
-func (c *networkCmd) showByDefault() bool {
-	return true
+func (c *cmdNetwork) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("network")
+	cmd.Short = i18n.G("Manage and attach containers to networks")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Manage an attach containers to networks`))
+
+	// Attach
+	networkAttachCmd := cmdNetworkAttach{global: c.global, network: c}
+	cmd.AddCommand(networkAttachCmd.Command())
+
+	// Attach profile
+	networkAttachProfileCmd := cmdNetworkAttachProfile{global: c.global, network: c}
+	cmd.AddCommand(networkAttachProfileCmd.Command())
+
+	// Create
+	networkCreateCmd := cmdNetworkCreate{global: c.global, network: c}
+	cmd.AddCommand(networkCreateCmd.Command())
+
+	// Delete
+	networkDeleteCmd := cmdNetworkDelete{global: c.global, network: c}
+	cmd.AddCommand(networkDeleteCmd.Command())
+
+	// Detach
+	networkDetachCmd := cmdNetworkDetach{global: c.global, network: c}
+	cmd.AddCommand(networkDetachCmd.Command())
+
+	// Detach profile
+	networkDetachProfileCmd := cmdNetworkDetachProfile{global: c.global, network: c}
+	cmd.AddCommand(networkDetachProfileCmd.Command())
+
+	// Edit
+	networkEditCmd := cmdNetworkEdit{global: c.global, network: c}
+	cmd.AddCommand(networkEditCmd.Command())
+
+	// Get
+	networkGetCmd := cmdNetworkGet{global: c.global, network: c}
+	cmd.AddCommand(networkGetCmd.Command())
+
+	// List
+	networkListCmd := cmdNetworkList{global: c.global, network: c}
+	cmd.AddCommand(networkListCmd.Command())
+
+	// List leases
+	networkListLeasesCmd := cmdNetworkListLeases{global: c.global, network: c}
+	cmd.AddCommand(networkListLeasesCmd.Command())
+
+	// Rename
+	networkRenameCmd := cmdNetworkRename{global: c.global, network: c}
+	cmd.AddCommand(networkRenameCmd.Command())
+
+	// Set
+	networkSetCmd := cmdNetworkSet{global: c.global, network: c}
+	cmd.AddCommand(networkSetCmd.Command())
+
+	// Show
+	networkShowCmd := cmdNetworkShow{global: c.global, network: c}
+	cmd.AddCommand(networkShowCmd.Command())
+
+	// Unset
+	networkUnsetCmd := cmdNetworkUnset{global: c.global, network: c, networkSet: &networkSetCmd}
+	cmd.AddCommand(networkUnsetCmd.Command())
+
+	return cmd
 }
 
-func (c *networkCmd) networkEditHelp() string {
+// Attach
+type cmdNetworkAttach struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkAttach) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("attach [<remote>:]<network> <container> [<device name>] [<interface name>]")
+	cmd.Short = i18n.G("Attach network interfaces to containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Attach new network interfaces to containers`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkAttach) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Default name is same as network
+	devName := resource.name
+	if len(args) > 2 {
+		devName = args[2]
+	}
+
+	// Get the network entry
+	network, _, err := resource.server.GetNetwork(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Prepare the container's device entry
+	device := map[string]string{
+		"type":    "nic",
+		"nictype": "macvlan",
+		"parent":  resource.name,
+	}
+
+	if network.Type == "bridge" {
+		device["nictype"] = "bridged"
+	}
+
+	if len(args) > 3 {
+		device["name"] = args[3]
+	}
+
+	// Add the device to the container
+	err = containerDeviceAdd(resource.server, args[1], devName, device)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Attach profile
+type cmdNetworkAttachProfile struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkAttachProfile) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("attach-profile [<remote>:]<network> <profile> [<device name>] [<interface name>]")
+	cmd.Short = i18n.G("Attach network interfaces to profiles")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Attach network interfaces to profiles`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkAttachProfile) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 4)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Default name is same as network
+	devName := resource.name
+	if len(args) > 2 {
+		devName = args[2]
+	}
+
+	// Get the network entry
+	network, _, err := resource.server.GetNetwork(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Prepare the profile's device entry
+	device := map[string]string{
+		"type":    "nic",
+		"nictype": "macvlan",
+		"parent":  resource.name,
+	}
+
+	if network.Type == "bridge" {
+		device["nictype"] = "bridged"
+	}
+
+	if len(args) > 3 {
+		device["name"] = args[3]
+	}
+
+	// Add the device to the profile
+	err = profileDeviceAdd(resource.server, args[1], devName, device)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Create
+type cmdNetworkCreate struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkCreate) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("create [<remote>:]<network> [key=value...]")
+	cmd.Short = i18n.G("Create new networks")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Create new networks`))
+
+	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkCreate) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	// Create the network
+	network := api.NetworksPost{}
+	network.Name = resource.name
+	network.Config = map[string]string{}
+
+	for i := 1; i < len(args); i++ {
+		entry := strings.SplitN(args[i], "=", 2)
+		if len(entry) < 2 {
+			return fmt.Errorf(i18n.G("Bad key/value pair: %s"), args[i])
+		}
+
+		network.Config[entry[0]] = entry[1]
+	}
+
+	// If a target node was specified the API won't actually create the
+	// network, but only define it as pending in the database.
+	if c.network.flagTarget != "" {
+		client = client.UseTarget(c.network.flagTarget)
+	}
+
+	err = client.CreateNetwork(network)
+	if err != nil {
+		return err
+	}
+
+	if c.network.flagTarget != "" {
+		fmt.Printf(i18n.G("Network %s pending on node %s")+"\n", resource.name, c.network.flagTarget)
+	} else {
+		fmt.Printf(i18n.G("Network %s created")+"\n", resource.name)
+	}
+
+	return nil
+}
+
+// Delete
+type cmdNetworkDelete struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkDelete) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("delete [<remote>:]<network>")
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete networks")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Delete networks`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkDelete) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Delete the network
+	err = resource.server.DeleteNetwork(resource.name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf(i18n.G("Network %s deleted")+"\n", resource.name)
+	return nil
+}
+
+// Detach
+type cmdNetworkDetach struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkDetach) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("detach [<remote>:]<network> <container> [<device name>]")
+	cmd.Short = i18n.G("Detach network interfaces from containers")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Detach network interfaces from containers`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Default name is same as network
+	devName := ""
+	if len(args) > 2 {
+		devName = args[2]
+	}
+
+	// Get the container entry
+	container, etag, err := resource.server.GetContainer(args[1])
+	if err != nil {
+		return err
+	}
+
+	// Find the device
+	if devName == "" {
+		for n, d := range container.Devices {
+			if d["type"] == "nic" && d["parent"] == resource.name {
+				if devName != "" {
+					return fmt.Errorf(i18n.G("More than one device matches, specify the device name."))
+				}
+
+				devName = n
+			}
+		}
+	}
+
+	if devName == "" {
+		return fmt.Errorf(i18n.G("No device found for this network"))
+	}
+
+	device, ok := container.Devices[devName]
+	if !ok {
+		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
+	}
+
+	if device["type"] != "nic" || device["parent"] != resource.name {
+		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
+	}
+
+	// Remove the device
+	delete(container.Devices, devName)
+	op, err := resource.server.UpdateContainer(args[1], container.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
+}
+
+// Detach profile
+type cmdNetworkDetachProfile struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkDetachProfile) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("detach-profile [<remote>:]<network> <container> [<device name>]")
+	cmd.Short = i18n.G("Detach network interfaces from profiles")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Detach network interfaces from profiles`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkDetachProfile) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Default name is same as network
+	devName := ""
+	if len(args) > 2 {
+		devName = args[2]
+	}
+
+	// Get the profile entry
+	profile, etag, err := resource.server.GetProfile(args[1])
+	if err != nil {
+		return err
+	}
+
+	// Find the device
+	if devName == "" {
+		for n, d := range profile.Devices {
+			if d["type"] == "nic" && d["parent"] == resource.name {
+				if devName != "" {
+					return fmt.Errorf(i18n.G("More than one device matches, specify the device name."))
+				}
+
+				devName = n
+			}
+		}
+	}
+
+	if devName == "" {
+		return fmt.Errorf(i18n.G("No device found for this network"))
+	}
+
+	device, ok := profile.Devices[devName]
+	if !ok {
+		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
+	}
+
+	if device["type"] != "nic" || device["parent"] != resource.name {
+		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
+	}
+
+	// Remove the device
+	delete(profile.Devices, devName)
+	err = resource.server.UpdateProfile(args[1], profile.Writable(), etag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Edit
+type cmdNetworkEdit struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkEdit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("edit [<remote>:]<network>")
+	cmd.Short = i18n.G("Edit network configurations as YAML")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Edit network configurations as YAML`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkEdit) helpTemplate() string {
 	return i18n.G(
 		`### This is a yaml representation of the network.
 ### Any line starting with a '# will be ignored.
@@ -48,353 +562,25 @@ func (c *networkCmd) networkEditHelp() string {
 ### Note that only the configuration can be changed.`)
 }
 
-func (c *networkCmd) usage() string {
-	return i18n.G(
-		`Usage: lxc network <subcommand> [options]
-
-Manage and attach containers to networks.
-
-lxc network list [<remote>:]
-    List available networks.
-
-lxc network list-leases [<remote>:]<network>
-    List the DHCP leases for the network
-
-lxc network show [<remote>:]<network> [--target <node>]
-    Show details of a network.
-
-lxc network create [<remote>:]<network> [key=value...] [--target <node>]
-    Create a network.
-
-lxc network get [<remote>:]<network> <key> [--target <node>]
-    Get network configuration.
-
-lxc network set [<remote>:]<network> <key> <value>
-    Set network configuration.
-
-lxc network unset [<remote>:]<network> <key>
-    Unset network configuration.
-
-lxc network delete [<remote>:]<network>
-    Delete a network.
-
-lxc network edit [<remote>:]<network>
-    Edit network, either by launching external editor or reading STDIN.
-
-lxc network rename [<remote>:]<network> <new-name>
-    Rename a network.
-
-lxc network attach [<remote>:]<network> <container> [device name] [interface name]
-    Attach a network interface connecting the network to a specified container.
-
-lxc network attach-profile [<remote>:]<network> <profile> [device name] [interface name]
-    Attach a network interface connecting the network to a specified profile.
-
-lxc network detach [<remote>:]<network> <container> [device name]
-    Remove a network interface connecting the network to a specified container.
-
-lxc network detach-profile [<remote>:]<network> <container> [device name]
-    Remove a network interface connecting the network to a specified profile.
-
-*Examples*
-cat network.yaml | lxc network edit <network>
-    Update a network using the content of network.yaml`)
-}
-
-func (c *networkCmd) flags() {
-	gnuflag.StringVar(&c.target, "target", "", i18n.G("Node name"))
-}
-
-func (c *networkCmd) run(conf *config.Config, args []string) error {
-	if len(args) < 1 {
-		return errUsage
+func (c *cmdNetworkEdit) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
 	}
 
-	if args[0] == "list" {
-		return c.doNetworkList(conf, args)
-	}
-
-	if len(args) < 2 {
-		return errArgs
-	}
-
-	remote, network, err := conf.ParseRemote(args[1])
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
 
-	client, err := conf.GetContainerServer(remote)
-	if err != nil {
-		return err
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
 	}
 
-	switch args[0] {
-	case "attach":
-		return c.doNetworkAttach(client, network, args[2:])
-	case "attach-profile":
-		return c.doNetworkAttachProfile(client, network, args[2:])
-	case "create":
-		return c.doNetworkCreate(client, network, args[2:])
-	case "delete":
-		return c.doNetworkDelete(client, network)
-	case "detach":
-		return c.doNetworkDetach(client, network, args[2:])
-	case "detach-profile":
-		return c.doNetworkDetachProfile(client, network, args[2:])
-	case "edit":
-		return c.doNetworkEdit(client, network)
-	case "rename":
-		if len(args) != 3 {
-			return errArgs
-		}
-		return c.doNetworkRename(client, network, args[2])
-	case "get":
-		return c.doNetworkGet(client, network, args[2:])
-	case "list-leases":
-		return c.doNetworkListLeases(client, network)
-	case "set":
-		return c.doNetworkSet(client, network, args[2:])
-	case "unset":
-		return c.doNetworkSet(client, network, args[2:])
-	case "show":
-		return c.doNetworkShow(client, network)
-	default:
-		return errArgs
-	}
-}
-
-func (c *networkCmd) doNetworkAttach(client lxd.ContainerServer, name string, args []string) error {
-	if len(args) < 1 || len(args) > 3 {
-		return errArgs
-	}
-
-	// Default name is same as network
-	devName := name
-	if len(args) > 1 {
-		devName = args[1]
-	}
-
-	// Get the network entry
-	network, _, err := client.GetNetwork(name)
-	if err != nil {
-		return err
-	}
-
-	// Prepare the container's device entry
-	device := map[string]string{
-		"type":    "nic",
-		"nictype": "macvlan",
-		"parent":  name,
-	}
-
-	if network.Type == "bridge" {
-		device["nictype"] = "bridged"
-	}
-
-	if len(args) > 2 {
-		device["name"] = args[2]
-	}
-
-	// Add the device to the container
-	err = containerDeviceAdd(client, args[0], devName, device)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *networkCmd) doNetworkAttachProfile(client lxd.ContainerServer, name string, args []string) error {
-	if len(args) < 1 || len(args) > 3 {
-		return errArgs
-	}
-
-	// Default name is same as network
-	devName := name
-	if len(args) > 1 {
-		devName = args[1]
-	}
-
-	// Get the network entry
-	network, _, err := client.GetNetwork(name)
-	if err != nil {
-		return err
-	}
-
-	// Prepare the profile's device entry
-	device := map[string]string{
-		"type":    "nic",
-		"nictype": "macvlan",
-		"parent":  name,
-	}
-
-	if network.Type == "bridge" {
-		device["nictype"] = "bridged"
-	}
-
-	if len(args) > 2 {
-		device["name"] = args[2]
-	}
-
-	// Add the device to the profile
-	err = profileDeviceAdd(client, args[0], devName, device)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *networkCmd) doNetworkCreate(client lxd.ContainerServer, name string, args []string) error {
-	network := api.NetworksPost{}
-	network.Name = name
-	network.Config = map[string]string{}
-
-	for i := 0; i < len(args); i++ {
-		entry := strings.SplitN(args[i], "=", 2)
-		if len(entry) < 2 {
-			return errArgs
-		}
-
-		network.Config[entry[0]] = entry[1]
-	}
-
-	// If a target node was specified the API won't actually create the
-	// network, but only define it as pending in the database.
-	if c.target != "" {
-		client = client.UseTarget(c.target)
-	}
-
-	err := client.CreateNetwork(network)
-	if err != nil {
-		return err
-	}
-
-	if c.target != "" {
-		fmt.Printf(i18n.G("Network %s pending on node %s")+"\n", name, c.target)
-	} else {
-		fmt.Printf(i18n.G("Network %s created")+"\n", name)
-	}
-	return nil
-}
-
-func (c *networkCmd) doNetworkDetach(client lxd.ContainerServer, name string, args []string) error {
-	if len(args) < 1 || len(args) > 2 {
-		return errArgs
-	}
-
-	// Default name is same as network
-	devName := ""
-	if len(args) > 1 {
-		devName = args[1]
-	}
-
-	// Get the container entry
-	container, etag, err := client.GetContainer(args[0])
-	if err != nil {
-		return err
-	}
-
-	// Find the device
-	if devName == "" {
-		for n, d := range container.Devices {
-			if d["type"] == "nic" && d["parent"] == name {
-				if devName != "" {
-					return fmt.Errorf(i18n.G("More than one device matches, specify the device name."))
-				}
-
-				devName = n
-			}
-		}
-	}
-
-	if devName == "" {
-		return fmt.Errorf(i18n.G("No device found for this network"))
-	}
-
-	device, ok := container.Devices[devName]
-	if !ok {
-		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
-	}
-
-	if device["type"] != "nic" || device["parent"] != name {
-		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
-	}
-
-	// Remove the device
-	delete(container.Devices, devName)
-	op, err := client.UpdateContainer(args[0], container.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
-	return op.Wait()
-}
-
-func (c *networkCmd) doNetworkDetachProfile(client lxd.ContainerServer, name string, args []string) error {
-	if len(args) < 1 || len(args) > 2 {
-		return errArgs
-	}
-
-	// Default name is same as network
-	devName := ""
-	if len(args) > 1 {
-		devName = args[1]
-	}
-
-	// Get the profile entry
-	profile, etag, err := client.GetProfile(args[0])
-	if err != nil {
-		return err
-	}
-
-	// Find the device
-	if devName == "" {
-		for n, d := range profile.Devices {
-			if d["type"] == "nic" && d["parent"] == name {
-				if devName != "" {
-					return fmt.Errorf(i18n.G("More than one device matches, specify the device name."))
-				}
-
-				devName = n
-			}
-		}
-	}
-
-	if devName == "" {
-		return fmt.Errorf(i18n.G("No device found for this network"))
-	}
-
-	device, ok := profile.Devices[devName]
-	if !ok {
-		return fmt.Errorf(i18n.G("The specified device doesn't exist"))
-	}
-
-	if device["type"] != "nic" || device["parent"] != name {
-		return fmt.Errorf(i18n.G("The specified device doesn't match the network"))
-	}
-
-	// Remove the device
-	delete(profile.Devices, devName)
-	err = client.UpdateProfile(args[0], profile.Writable(), etag)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *networkCmd) doNetworkDelete(client lxd.ContainerServer, name string) error {
-	err := client.DeleteNetwork(name)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf(i18n.G("Network %s deleted")+"\n", name)
-	return nil
-}
-
-func (c *networkCmd) doNetworkEdit(client lxd.ContainerServer, name string) error {
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -408,11 +594,11 @@ func (c *networkCmd) doNetworkEdit(client lxd.ContainerServer, name string) erro
 			return err
 		}
 
-		return client.UpdateNetwork(name, newdata, "")
+		return resource.server.UpdateNetwork(resource.name, newdata, "")
 	}
 
 	// Extract the current value
-	network, etag, err := client.GetNetwork(name)
+	network, etag, err := resource.server.GetNetwork(resource.name)
 	if err != nil {
 		return err
 	}
@@ -427,7 +613,7 @@ func (c *networkCmd) doNetworkEdit(client lxd.ContainerServer, name string) erro
 	}
 
 	// Spawn the editor
-	content, err := shared.TextEditor("", []byte(c.networkEditHelp()+"\n\n"+string(data)))
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
 	if err != nil {
 		return err
 	}
@@ -437,7 +623,7 @@ func (c *networkCmd) doNetworkEdit(client lxd.ContainerServer, name string) erro
 		newdata := api.NetworkPut{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.UpdateNetwork(name, newdata, etag)
+			err = resource.server.UpdateNetwork(resource.name, newdata, etag)
 		}
 
 		// Respawn the editor
@@ -461,41 +647,193 @@ func (c *networkCmd) doNetworkEdit(client lxd.ContainerServer, name string) erro
 	return nil
 }
 
-func (c *networkCmd) doNetworkRename(client lxd.ContainerServer, name string, newName string) error {
-	err := client.RenameNetwork(name, api.NetworkPost{Name: newName})
+// Get
+type cmdNetworkGet struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkGet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("get [<remote>:]<network> <key>")
+	cmd.Short = i18n.G("Get values for network configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Get values for network configuration keys`))
+
+	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkGet) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Network %s renamed to %s")+"\n", name, newName)
-	return nil
-}
+	resource := resources[0]
+	client := resource.server
 
-func (c *networkCmd) doNetworkGet(client lxd.ContainerServer, name string, args []string) error {
-	// we shifted @args so so it should read "<key>"
-	if len(args) != 1 {
-		return errArgs
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
 	}
 
-	if c.target != "" {
-		client = client.UseTarget(c.target)
+	// Get the network key
+	if c.network.flagTarget != "" {
+		client = client.UseTarget(c.network.flagTarget)
 	}
 
-	resp, _, err := client.GetNetwork(name)
+	resp, _, err := client.GetNetwork(resource.name)
 	if err != nil {
 		return err
 	}
 
 	for k, v := range resp.Config {
-		if k == args[0] {
+		if k == args[1] {
 			fmt.Printf("%s\n", v)
 		}
 	}
+
 	return nil
 }
 
-func (c *networkCmd) doNetworkListLeases(client lxd.ContainerServer, name string) error {
-	leases, err := client.GetNetworkLeases(name)
+// List
+type cmdNetworkList struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkList) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("list [<remote>:]")
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List available networks")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List available networks`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := ""
+	if len(args) > 0 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// List the networks
+	if resource.name != "" {
+		return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
+	}
+
+	networks, err := resource.server.GetNetworks()
+	if err != nil {
+		return err
+	}
+
+	data := [][]string{}
+	for _, network := range networks {
+		if shared.StringInSlice(network.Type, []string{"loopback", "unknown"}) {
+			continue
+		}
+
+		strManaged := i18n.G("NO")
+		if network.Managed {
+			strManaged = i18n.G("YES")
+		}
+
+		strUsedBy := fmt.Sprintf("%d", len(network.UsedBy))
+		details := []string{network.Name, network.Type, strManaged, network.Description, strUsedBy}
+		if resource.server.IsClustered() {
+			details = append(details, strings.ToUpper(network.Status))
+		}
+		data = append(data, details)
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetRowLine(true)
+	header := []string{
+		i18n.G("NAME"),
+		i18n.G("TYPE"),
+		i18n.G("MANAGED"),
+		i18n.G("DESCRIPTION"),
+		i18n.G("USED BY"),
+	}
+	if resource.server.IsClustered() {
+		header = append(header, i18n.G("STATE"))
+	}
+	table.SetHeader(header)
+	sort.Sort(byName(data))
+	table.AppendBulk(data)
+	table.Render()
+
+	return nil
+}
+
+// List leases
+type cmdNetworkListLeases struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkListLeases) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("list-leases [<remote>:]<network>")
+	cmd.Short = i18n.G("List DHCP leases")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List DHCP leases`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// List DHCP leases
+	leases, err := resource.server.GetNetworkLeases(resource.name)
 	if err != nil {
 		return err
 	}
@@ -521,82 +859,99 @@ func (c *networkCmd) doNetworkListLeases(client lxd.ContainerServer, name string
 	return nil
 }
 
-func (c *networkCmd) doNetworkList(conf *config.Config, args []string) error {
-	var remote string
-	var err error
+// Rename
+type cmdNetworkRename struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
 
-	if len(args) > 1 {
-		var name string
-		remote, name, err = conf.ParseRemote(args[1])
-		if err != nil {
-			return err
-		}
+func (c *cmdNetworkRename) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("rename [<remote>:]<network> <new-name>")
+	cmd.Aliases = []string{"mv"}
+	cmd.Short = i18n.G("Rename networks")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Rename networks`))
 
-		if name != "" {
-			return fmt.Errorf(i18n.G("Filtering isn't supported yet"))
-		}
-	} else {
-		remote = conf.DefaultRemote
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkRename) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
 	}
 
-	client, err := conf.GetContainerServer(remote)
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
 
-	networks, err := client.GetNetworks()
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Rename the network
+	err = resource.server.RenameNetwork(resource.name, api.NetworkPost{Name: args[1]})
 	if err != nil {
 		return err
 	}
 
-	data := [][]string{}
-	for _, network := range networks {
-		if shared.StringInSlice(network.Type, []string{"loopback", "unknown"}) {
-			continue
-		}
-
-		strManaged := i18n.G("NO")
-		if network.Managed {
-			strManaged = i18n.G("YES")
-		}
-
-		strUsedBy := fmt.Sprintf("%d", len(network.UsedBy))
-		details := []string{network.Name, network.Type, strManaged, network.Description, strUsedBy}
-		if client.IsClustered() {
-			details = append(details, strings.ToUpper(network.Status))
-		}
-		data = append(data, details)
-	}
-
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
-	header := []string{
-		i18n.G("NAME"),
-		i18n.G("TYPE"),
-		i18n.G("MANAGED"),
-		i18n.G("DESCRIPTION"),
-		i18n.G("USED BY"),
-	}
-	if client.IsClustered() {
-		header = append(header, i18n.G("STATE"))
-	}
-	table.SetHeader(header)
-	sort.Sort(byName(data))
-	table.AppendBulk(data)
-	table.Render()
-
+	fmt.Printf(i18n.G("Network %s renamed to %s")+"\n", resource.name, args[1])
 	return nil
 }
 
-func (c *networkCmd) doNetworkSet(client lxd.ContainerServer, name string, args []string) error {
-	// we shifted @args so so it should read "<key> [<value>]"
-	if len(args) < 1 {
-		return errArgs
+// Set
+type cmdNetworkSet struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkSet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("set [<remote>:]<network> <key> <value>")
+	cmd.Short = i18n.G("Set network configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Set network configuration keys`))
+
+	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkSet) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
 	}
 
-	network, etag, err := client.GetNetwork(name)
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Set the config key
+	if c.network.flagTarget != "" {
+		client = client.UseTarget(c.network.flagTarget)
+	}
+
+	network, etag, err := client.GetNetwork(resource.name)
 	if err != nil {
 		return err
 	}
@@ -605,13 +960,8 @@ func (c *networkCmd) doNetworkSet(client lxd.ContainerServer, name string, args 
 		return fmt.Errorf(i18n.G("Only managed networks can be modified."))
 	}
 
-	key := args[0]
-	var value string
-	if len(args) < 2 {
-		value = ""
-	} else {
-		value = args[1]
-	}
+	key := args[1]
+	value := args[2]
 
 	if !termios.IsTerminal(int(syscall.Stdin)) && value == "-" {
 		buf, err := ioutil.ReadAll(os.Stdin)
@@ -623,19 +973,54 @@ func (c *networkCmd) doNetworkSet(client lxd.ContainerServer, name string, args 
 
 	network.Config[key] = value
 
-	return client.UpdateNetwork(name, network.Writable(), etag)
+	return client.UpdateNetwork(resource.name, network.Writable(), etag)
 }
 
-func (c *networkCmd) doNetworkShow(client lxd.ContainerServer, name string) error {
-	if name == "" {
-		return errArgs
+// Show
+type cmdNetworkShow struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("show [<remote>:]<network>")
+	cmd.Short = i18n.G("Show network configurations")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Show network configurations`))
+
+	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkShow) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
 	}
 
-	if c.target != "" {
-		client = client.UseTarget(c.target)
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
 	}
 
-	network, _, err := client.GetNetwork(name)
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Show the network config
+	if c.network.flagTarget != "" {
+		client = client.UseTarget(c.network.flagTarget)
+	}
+
+	network, _, err := client.GetNetwork(resource.name)
 	if err != nil {
 		return err
 	}
@@ -650,4 +1035,35 @@ func (c *networkCmd) doNetworkShow(client lxd.ContainerServer, name string) erro
 	fmt.Printf("%s", data)
 
 	return nil
+}
+
+// Unset
+type cmdNetworkUnset struct {
+	global     *cmdGlobal
+	network    *cmdNetwork
+	networkSet *cmdNetworkSet
+}
+
+func (c *cmdNetworkUnset) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("unset [<remote>:]<network> <key>")
+	cmd.Short = i18n.G("Unset network configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Unset network configuration keys`))
+
+	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkUnset) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	args = append(args, "")
+	return c.networkSet.Run(cmd, args)
 }

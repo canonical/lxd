@@ -65,14 +65,20 @@ test_storage_local_volume_handling() {
           pool_opts="volume.size=25MB"
         fi
 
-        lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}" "$pool_opts"
+        if [ -n "${pool_opts}" ]; then
+          # shellcheck disable=SC2086
+          lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}" $pool_opts
+        else
+          lxc storage create "lxdtest-$(basename "${LXD_DIR}")-${driver}1" "${driver}"
+        fi
+
         lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
         lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
-        lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1 vol1"
+        lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
         lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
-        ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver} vol1"
-        lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1 vol1"
-        lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1 vol1"
+        ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
+        lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
+        lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
         lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
       fi
     done
@@ -83,22 +89,22 @@ test_storage_local_volume_handling() {
           # source_driver -> target_driver
           lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
           lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1"
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver} vol1"
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
 
           lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1"
-          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver} vol1"
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver} vol1"
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver} vol1"
+          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
 
           # target_driver -> source_driver
           lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
           lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1"
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver} vol1"
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
 
           lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1"
-          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver} vol1"
-          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver} vol1"
-          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver} vol1"
+          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
+          lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
+          lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
         fi
       done
     done
