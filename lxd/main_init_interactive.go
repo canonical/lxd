@@ -52,6 +52,12 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Contai
 			return nil, err
 		}
 
+		// MAAS
+		err = c.askMAAS(&config, d)
+		if err != nil {
+			return nil, err
+		}
+
 		// Networking
 		err = c.askNetworking(&config, d)
 		if err != nil {
@@ -239,6 +245,27 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 	return nil
 }
 
+func (c *cmdInit) askMAAS(config *initData, d lxd.ContainerServer) error {
+	if !cli.AskBool("Would you like to connect to a MAAS server (yes/no) [default=no]? ", "no") {
+		return nil
+	}
+
+	serverName, err := os.Hostname()
+	if err != nil {
+		serverName = "lxd"
+	}
+
+	maasHostname := cli.AskString(fmt.Sprintf("What's the name of this host in MAAS? [default=%s]? ", serverName), serverName, nil)
+	if maasHostname != serverName {
+		config.Config["maas.machine"] = maasHostname
+	}
+
+	config.Config["maas.api.url"] = cli.AskString("What's the URL of your MAAS server? ", "", nil)
+	config.Config["maas.api.key"] = cli.AskString("What's a valid API key for your MAAS server? ", "", nil)
+
+	return nil
+}
+
 func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 	if !cli.AskBool("Would you like to create a new network bridge (yes/no) [default=yes]? ", "yes") {
 		if cli.AskBool("Would you like to configure LXD to use an existing bridge or host interface (yes/no) [default=no]? ", "no") {
@@ -250,17 +277,32 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 					continue
 				}
 
-				nicType := "macvlan"
-				if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", name)) {
-					nicType = "bridged"
-				}
-
 				// Add to the default profile
 				config.Profiles[0].Devices["eth0"] = map[string]string{
 					"type":    "nic",
-					"nictype": nicType,
+					"nictype": "macvlan",
 					"name":    "eth0",
 					"parent":  name,
+				}
+
+				if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", name)) {
+					config.Profiles[0].Devices["eth0"]["nictype"] = "bridged"
+				}
+
+				if config.Config["maas.api.url"] != "" && cli.AskBool("Is this interface connected to your MAAS server? (yes/no) [default=yes]? ", "yes") {
+					maasSubnetV4 := cli.AskString("What's the name of the MAAS IPv4 subnet for this interface (empty for no subnet)? ", "",
+						func(input string) error { return nil })
+
+					if maasSubnetV4 != "" {
+						config.Profiles[0].Devices["eth0"]["maas.subnet.ipv4"] = maasSubnetV4
+					}
+
+					maasSubnetV6 := cli.AskString("What's the name of the MAAS IPv6 subnet for this interface (empty for no subnet)? ", "",
+						func(input string) error { return nil })
+
+					if maasSubnetV6 != "" {
+						config.Profiles[0].Devices["eth0"]["maas.subnet.ipv6"] = maasSubnetV6
+					}
 				}
 
 				break
