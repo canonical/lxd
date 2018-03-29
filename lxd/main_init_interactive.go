@@ -52,6 +52,12 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Contai
 			return nil, err
 		}
 
+		// MAAS
+		err = c.askMAAS(&config, d)
+		if err != nil {
+			return nil, err
+		}
+
 		// Networking
 		err = c.askNetworking(&config, d)
 		if err != nil {
@@ -126,11 +132,6 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 				// Cluster password
 				config.Cluster.ClusterPassword = cli.AskPasswordOnce("Cluster trust password: ")
 				break
-			}
-
-			// Password authentication
-			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=yes]: ", "yes") {
-				config.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
 			}
 
 			// Confirm wiping
@@ -231,10 +232,33 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 				config.Networks = append(config.Networks, newNetwork)
 			}
 		} else {
-			// New cluster
-			config.Cluster.ClusterPassword = cli.AskPassword("Trust password for new clients: ")
+			// Password authentication
+			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=yes]: ", "yes") {
+				config.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
+			}
 		}
 	}
+
+	return nil
+}
+
+func (c *cmdInit) askMAAS(config *initData, d lxd.ContainerServer) error {
+	if !cli.AskBool("Would you like to connect to a MAAS server (yes/no) [default=no]? ", "no") {
+		return nil
+	}
+
+	serverName, err := os.Hostname()
+	if err != nil {
+		serverName = "lxd"
+	}
+
+	maasHostname := cli.AskString(fmt.Sprintf("What's the name of this host in MAAS? [default=%s]? ", serverName), serverName, nil)
+	if maasHostname != serverName {
+		config.Config["maas.machine"] = maasHostname
+	}
+
+	config.Config["maas.api.url"] = cli.AskString("What's the URL of your MAAS server? ", "", nil)
+	config.Config["maas.api.key"] = cli.AskString("What's a valid API key for your MAAS server? ", "", nil)
 
 	return nil
 }
@@ -250,17 +274,32 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 					continue
 				}
 
-				nicType := "macvlan"
-				if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", name)) {
-					nicType = "bridged"
-				}
-
 				// Add to the default profile
 				config.Profiles[0].Devices["eth0"] = map[string]string{
 					"type":    "nic",
-					"nictype": nicType,
+					"nictype": "macvlan",
 					"name":    "eth0",
 					"parent":  name,
+				}
+
+				if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", name)) {
+					config.Profiles[0].Devices["eth0"]["nictype"] = "bridged"
+				}
+
+				if config.Config["maas.api.url"] != "" && cli.AskBool("Is this interface connected to your MAAS server? (yes/no) [default=yes]? ", "yes") {
+					maasSubnetV4 := cli.AskString("What's the name of the MAAS IPv4 subnet for this interface (empty for no subnet)? ", "",
+						func(input string) error { return nil })
+
+					if maasSubnetV4 != "" {
+						config.Profiles[0].Devices["eth0"]["maas.subnet.ipv4"] = maasSubnetV4
+					}
+
+					maasSubnetV6 := cli.AskString("What's the name of the MAAS IPv6 subnet for this interface (empty for no subnet)? ", "",
+						func(input string) error { return nil })
+
+					if maasSubnetV6 != "" {
+						config.Profiles[0].Devices["eth0"]["maas.subnet.ipv6"] = maasSubnetV6
+					}
 				}
 
 				break
@@ -328,12 +367,38 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 }
 
 func (c *cmdInit) askStorage(config *initData, d lxd.ContainerServer) error {
+	if config.Cluster != nil {
+		if cli.AskBool("Do you want to configure a new local storage pool (yes/no) [default=yes]? ", "yes") {
+			err := c.askStoragePool(config, d, "local")
+			if err != nil {
+				return err
+			}
+		}
+
+		if cli.AskBool("Do you want to configure a new remote storage pool (yes/no) [default=yes]? ", "yes") {
+			err := c.askStoragePool(config, d, "remote")
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	if !cli.AskBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes") {
 		return nil
 	}
 
+	return c.askStoragePool(config, d, "all")
+}
+
+func (c *cmdInit) askStoragePool(config *initData, d lxd.ContainerServer, poolType string) error {
 	// Figure out the preferred storage driver
-	availableBackends := c.availableStorageDrivers()
+	availableBackends := c.availableStorageDrivers(poolType)
+
+	if len(availableBackends) == 0 {
+		return fmt.Errorf("No %s storage backends available", poolType)
+	}
 
 	backingFs, err := util.FilesystemDetect(shared.VarPath())
 	if err != nil {
@@ -354,11 +419,20 @@ func (c *cmdInit) askStorage(config *initData, d lxd.ContainerServer) error {
 		pool := api.StoragePoolsPost{}
 		pool.Config = map[string]string{}
 
-		pool.Name = cli.AskString("Name of the new storage pool [default=default]: ", "default", nil)
+		if poolType == "all" {
+			pool.Name = cli.AskString("Name of the new storage pool [default=default]: ", "default", nil)
+		} else {
+			pool.Name = poolType
+		}
+
 		_, _, err := d.GetStoragePool(pool.Name)
 		if err == nil {
-			fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", pool.Name)
-			continue
+			if poolType == "all" {
+				fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", pool.Name)
+				continue
+			}
+
+			return fmt.Errorf("The %s storage pool already exists", poolType)
 		}
 
 		// Add to the default profile
@@ -369,8 +443,12 @@ func (c *cmdInit) askStorage(config *initData, d lxd.ContainerServer) error {
 		}
 
 		// Storage backend
-		pool.Driver = cli.AskChoice(
-			fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultStorage), availableBackends, defaultStorage)
+		if len(availableBackends) > 1 {
+			pool.Driver = cli.AskChoice(
+				fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultStorage), availableBackends, defaultStorage)
+		} else {
+			pool.Driver = availableBackends[0]
+		}
 
 		// Optimization for dir
 		if pool.Driver == "dir" {
