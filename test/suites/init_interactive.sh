@@ -20,6 +20,7 @@ no
 yes
 my-storage-pool
 dir
+no
 yes
 lxdt$$
 auto

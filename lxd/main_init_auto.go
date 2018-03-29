@@ -17,7 +17,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.ContainerServ
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
 	}
 
-	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, c.availableStorageDrivers()) {
+	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, c.availableStorageDrivers("all")) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools)", c.flagStorageBackend)
 	}
 
