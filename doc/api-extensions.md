@@ -449,3 +449,8 @@ This adds a new `lifecycle` message type to the events API.
 
 ## storage\_api\_remote\_volume\_handling
 This adds the ability to copy and move custom storage volumes between remote.
+
+## nvidia\_runtime
+Adds a `nvidia_runtime` config option for containers, setting this to
+true will have the NVIDIA runtime and CUDA libraries passed to the
+container.
