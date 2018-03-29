@@ -3,12 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"os/user"
 	"path"
 	"path/filepath"
-	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
@@ -25,11 +22,9 @@ import (
 	schemaform "gopkg.in/juju/environschema.v1/form"
 )
 
-var configPath string
-var execName string
-
 type cmdGlobal struct {
 	conf *config.Config
+	confPath string
 
 	flagForceLocal bool
 	flagHelp       bool
@@ -223,25 +218,26 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 
 		configDir = path.Join(user.HomeDir, ".config", "lxc")
 	}
-	configPath = os.ExpandEnv(path.Join(configDir, "config.yml"))
+
+	c.confPath = os.ExpandEnv(path.Join(configDir, "config.yml"))
 
 	// Load the configuration
 	if c.flagForceLocal {
 		c.conf = config.NewConfig("", true)
-	} else if shared.PathExists(configPath) {
-		c.conf, err = config.LoadConfig(configPath)
+	} else if shared.PathExists(c.confPath) {
+		c.conf, err = config.LoadConfig(c.confPath)
 		if err != nil {
 			return err
 		}
 	} else {
-		c.conf = config.NewConfig(filepath.Dir(configPath), true)
+		c.conf = config.NewConfig(filepath.Dir(c.confPath), true)
 	}
 
 	// If the user is running a command that may attempt to connect to the local daemon
 	// and this is the first time the client has been run by the user, then check to see
 	// if LXD has been properly configured.  Don't display the message if the var path
 	// does not exist (LXD not installed), as the user may be targeting a remote daemon.
-	if shared.PathExists(shared.VarPath("")) && !shared.PathExists(configPath) {
+	if shared.PathExists(shared.VarPath("")) && !shared.PathExists(c.confPath) {
 		// Create the config dir so that we don't get in here again for this user.
 		err = os.MkdirAll(c.conf.ConfigDir, 0750)
 		if err != nil {
@@ -249,7 +245,7 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 		}
 
 		// And save the initial configuration
-		err = c.conf.SaveConfig(configPath)
+		err = c.conf.SaveConfig(c.confPath)
 		if err != nil {
 			return err
 		}
@@ -259,7 +255,7 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Only setup macaroons if a config path exists (so the jar can be saved)
-	if shared.PathExists(configPath) {
+	if shared.PathExists(c.confPath) {
 		// Add interactor for external authentication
 		c.conf.SetAuthInteractor(form.Interactor{Filler: schemaform.IOFiller{}})
 	}
@@ -342,99 +338,5 @@ func (c *cmdGlobal) CheckArgs(cmd *cobra.Command, args []string, minArgs int, ma
 	return false, nil
 }
 
-type command interface {
-	usage() string
-	flags()
-	showByDefault() bool
-	run(conf *config.Config, args []string) error
-}
-
-var commands = map[string]command{
-	"config": &configCmd{},
-}
-
-// defaultAliases contains LXC's built-in command line aliases.  The built-in
-// aliases are checked only if no user-defined alias was found.
-var defaultAliases = map[string]string{
-	"shell": "exec @ARGS@ -- su -l",
-
-	"config device ls": "config device list",
-	"config device rm": "config device remove",
-}
-
 var errArgs = fmt.Errorf(i18n.G("wrong number of subcommand arguments"))
 var errUsage = fmt.Errorf("show usage")
-
-func findAlias(aliases map[string]string, origArgs []string) ([]string, []string, bool) {
-	foundAlias := false
-	aliasKey := []string{}
-	aliasValue := []string{}
-
-	for k, v := range aliases {
-		foundAlias = true
-		for i, key := range strings.Split(k, " ") {
-			if len(origArgs) <= i+1 || origArgs[i+1] != key {
-				foundAlias = false
-				break
-			}
-		}
-
-		if foundAlias {
-			aliasKey = strings.Split(k, " ")
-			aliasValue = strings.Split(v, " ")
-			break
-		}
-	}
-
-	return aliasKey, aliasValue, foundAlias
-}
-
-func expandAlias(conf *config.Config, origArgs []string) ([]string, bool) {
-	aliasKey, aliasValue, foundAlias := findAlias(conf.Aliases, origArgs)
-	if !foundAlias {
-		aliasKey, aliasValue, foundAlias = findAlias(defaultAliases, origArgs)
-		if !foundAlias {
-			return []string{}, false
-		}
-	}
-
-	newArgs := []string{origArgs[0]}
-	hasReplacedArgsVar := false
-
-	for i, aliasArg := range aliasValue {
-		if aliasArg == "@ARGS@" && len(origArgs) > i {
-			newArgs = append(newArgs, origArgs[i+1:]...)
-			hasReplacedArgsVar = true
-		} else {
-			newArgs = append(newArgs, aliasArg)
-		}
-	}
-
-	if !hasReplacedArgsVar {
-		/* add the rest of the arguments */
-		newArgs = append(newArgs, origArgs[len(aliasKey)+1:]...)
-	}
-
-	/* don't re-do aliases the next time; this allows us to have recursive
-	 * aliases, e.g. `lxc list` to `lxc list -c n`
-	 */
-	newArgs = append(newArgs[:2], append([]string{"--no-alias"}, newArgs[2:]...)...)
-
-	return newArgs, true
-}
-
-func execIfAliases(conf *config.Config, origArgs []string) {
-	newArgs, expanded := expandAlias(conf, origArgs)
-	if !expanded {
-		return
-	}
-
-	path, err := exec.LookPath(origArgs[0])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), err)
-		os.Exit(5)
-	}
-	ret := syscall.Exec(path, newArgs, syscall.Environ())
-	fmt.Fprintf(os.Stderr, i18n.G("processing aliases failed %s\n"), ret)
-	os.Exit(5)
-}

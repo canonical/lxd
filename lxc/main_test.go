@@ -46,11 +46,11 @@ func TestExpandAliases(t *testing.T) {
 		},
 		{
 			input:    []string{"lxc", "tester", "12"},
-			expected: []string{"lxc", "list", "--no-alias"},
+			expected: []string{"lxc", "list"},
 		},
 		{
 			input:    []string{"lxc", "foo", "asdf"},
-			expected: []string{"lxc", "list", "--no-alias", "asdf", "-c", "n"},
+			expected: []string{"lxc", "list", "asdf", "-c", "n"},
 		},
 	}
 
