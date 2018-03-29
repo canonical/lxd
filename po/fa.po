@@ -8,16 +8,13 @@ msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
 "POT-Creation-Date: 2018-03-29 15:37-0400\n"
-"PO-Revision-Date: 2018-02-10 11:39+0000\n"
-"Last-Translator: Allan Esquivel Sibaja <allan.esquivel.sibaja@gmail.com>\n"
-"Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
-"lxd/es/>\n"
-"Language: es\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: fa\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2.19-dev\n"
 
 #: lxc/storage.go:220
 msgid ""
@@ -35,20 +32,6 @@ msgid ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 msgstr ""
-"### Esta es una representación yaml de un pool de almacenamieto.\n"
-"### Cualquier línea que empiece con un '# será ignorada.\n"
-"###\n"
-"### Un pool de almacenamiento consiste en un conjunto de elementos de "
-"configuración.\n"
-"###\n"
-"### Un ejemplo se vería como:\n"
-"### name: default\n"
-"### driver: zfs\n"
-"### used_by: []\n"
-"### config:\n"
-"###   size: \"61203283968\"\n"
-"###   source: /home/chb/mnt/lxd_test/default.img\n"
-"###   zfs.pool_name: default"
 
 #: lxc/storage_volume.go:737
 msgid ""
@@ -84,23 +67,6 @@ msgid ""
 "###\n"
 "### Note that the name is shown but cannot be changed"
 msgstr ""
-"### Esta es una representación yaml de la configuración.\n"
-"### Cualquier línea que empiece con un '# será ignorada..\n"
-"###\n"
-"### Una muestra de configuración se ve como:\n"
-"### name: container1\n"
-"### profiles:\n"
-"### - default\n"
-"### config:\n"
-"###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
-"### devices:\n"
-"###   homedir:\n"
-"###     path: /extra\n"
-"###     source: /home/user\n"
-"###     type: disk\n"
-"### ephemeral: false\n"
-"###\n"
-"### Note que el nombre se muestra pero no puede ser cambiado"
 
 #: lxc/config_metadata.go:63
 msgid ""
@@ -125,26 +91,6 @@ msgid ""
 "###     template: template.tpl\n"
 "###     properties: {}"
 msgstr ""
-"### Esta es una representación yaml de los metadatos del contenedor.\n"
-"### Cualquier línea que empiece con un '# será ignorada.\n"
-"###\n"
-"### Una configuración de muestra se ve como:\n"
-"###\n"
-"### architecture: x86_64\n"
-"### creation_date: 1477146654\n"
-"### expiry_date: 0\n"
-"### properties:\n"
-"###   architecture: x86_64\n"
-"###   description: Busybox x86_64\n"
-"###   name: busybox-x86_64\n"
-"###   os: Busybox\n"
-"### templates:\n"
-"###   /template:\n"
-"###     when:\n"
-"###     - \"\"\n"
-"###     create_only: false\n"
-"###     template: template.tpl\n"
-"###     properties: {}"
 
 #: lxc/image.go:327
 msgid ""
@@ -155,12 +101,6 @@ msgid ""
 "### An example would be:\n"
 "###  description: My custom image"
 msgstr ""
-"### Esta es una representación yaml de las propiedades de la imagen.\n"
-"### Cualquier línea que empiece con un '# será ignorada..\n"
-"###\n"
-"### Cada propiedad es representada por una única línea:\n"
-"### Un ejemplo sería:\n"
-"###  description: My custom image"
 
 #: lxc/network.go:546
 msgid ""
@@ -211,29 +151,29 @@ msgstr ""
 #: lxc/file.go:677
 #, c-format
 msgid "%s is not a directory"
-msgstr "%s no es un directorio"
+msgstr ""
 
 #: lxc/utils/cancel.go:44
 #, c-format
 msgid "%v (interrupt two more times to force)"
-msgstr "%v (interrumpe dos o más tiempos a la fuerza)"
+msgstr ""
 
 #: lxc/file.go:614
 #, c-format
 msgid "'%s' isn't a supported file type."
-msgstr "%s no es un tipo de archivo soportado."
+msgstr ""
 
 #: lxc/profile.go:222
 msgid "(none)"
-msgstr "(ninguno)"
+msgstr ""
 
 #: lxc/alias.go:127 lxc/image.go:921 lxc/image_alias.go:228
 msgid "ALIAS"
-msgstr "ALIAS"
+msgstr ""
 
 #: lxc/image.go:922
 msgid "ALIASES"
-msgstr "ALIASES"
+msgstr ""
 
 #: lxc/image.go:926
 msgid "ARCH"
@@ -241,7 +181,7 @@ msgstr ""
 
 #: lxc/list.go:470
 msgid "ARCHITECTURE"
-msgstr "ARQUITECTURA"
+msgstr ""
 
 #: lxc/remote.go:466
 msgid "AUTH TYPE"
@@ -249,20 +189,19 @@ msgstr ""
 
 #: lxc/remote.go:88
 msgid "Accept certificate"
-msgstr "Acepta certificado"
+msgstr ""
 
 #: lxc/query.go:37
 msgid "Action (defaults to GET)"
-msgstr "Accion (predeterminados a GET)"
+msgstr ""
 
 #: lxc/config_device.go:75 lxc/config_device.go:76
 msgid "Add devices to containers or profiles"
 msgstr ""
 
 #: lxc/alias.go:54 lxc/alias.go:55
-#, fuzzy
 msgid "Add new aliases"
-msgstr "Aliases:"
+msgstr ""
 
 #: lxc/remote.go:83 lxc/remote.go:84
 msgid "Add new remote servers"
@@ -279,7 +218,7 @@ msgstr ""
 #: lxc/remote.go:325
 #, c-format
 msgid "Admin password for %s: "
-msgstr "Contraseña admin para %s:"
+msgstr ""
 
 #: lxc/alias.go:78 lxc/alias.go:176
 #, c-format
@@ -297,12 +236,12 @@ msgstr ""
 
 #: lxc/image.go:854
 msgid "Aliases:"
-msgstr "Aliases:"
+msgstr ""
 
 #: lxc/image.go:826 lxc/info.go:133
 #, c-format
 msgid "Architecture: %s"
-msgstr "Arquitectura: %s"
+msgstr ""
 
 #: lxc/profile.go:162 lxc/profile.go:163
 msgid "Assign sets of profiles to containers"
@@ -343,12 +282,12 @@ msgstr ""
 #: lxc/remote.go:308
 #, c-format
 msgid "Authentication type '%s' not supported by server"
-msgstr "Tipo de autenticación %s no está soportada por el servidor"
+msgstr ""
 
 #: lxc/image.go:864
 #, c-format
 msgid "Auto update: %s"
-msgstr "Auto actualización: %s"
+msgstr ""
 
 #: lxc/network.go:283
 #, c-format
@@ -364,19 +303,19 @@ msgstr ""
 #: lxc/image.go:677
 #, c-format
 msgid "Bad property: %s"
-msgstr "Propiedad mala: %s"
+msgstr ""
 
 #: lxc/action.go:212
 msgid "Both --all and container name given"
-msgstr "Ambas: todas y el nombre del contenedor dado"
+msgstr ""
 
 #: lxc/info.go:226
 msgid "Bytes received"
-msgstr "Bytes recibidos"
+msgstr ""
 
 #: lxc/info.go:227
 msgid "Bytes sent"
-msgstr "Bytes enviados"
+msgstr ""
 
 #: lxc/operation.go:155
 msgid "CANCELABLE"
@@ -384,28 +323,28 @@ msgstr ""
 
 #: lxc/config_trust.go:175
 msgid "COMMON NAME"
-msgstr "NOMBRE COMÚN"
+msgstr ""
 
 #: lxc/info.go:190
 msgid "CPU usage (in seconds)"
-msgstr "Uso de CPU (en segundos)"
+msgstr ""
 
 #: lxc/info.go:194
 msgid "CPU usage:"
-msgstr "Uso de CPU:"
+msgstr ""
 
 #: lxc/operation.go:156
 msgid "CREATED"
-msgstr "CREADO"
+msgstr ""
 
 #: lxc/list.go:471
 msgid "CREATED AT"
-msgstr "CREADO EN"
+msgstr ""
 
 #: lxc/image.go:863
 #, c-format
 msgid "Cached: %s"
-msgstr "Cacheado: %s"
+msgstr ""
 
 #: lxc/image.go:175
 msgid "Can't provide a name for the target image"
@@ -413,13 +352,13 @@ msgstr ""
 
 #: lxc/file.go:261
 msgid "Can't pull a directory without --recursive"
-msgstr "No se puede jalar un directorio sin - recursivo"
+msgstr ""
 
 #: lxc/config.go:400 lxc/network.go:969 lxc/profile.go:787 lxc/storage.go:617
 #: lxc/storage_volume.go:1140
 #, c-format
 msgid "Can't read from stdin: %s"
-msgstr "No se peude leer desde stdin: %s"
+msgstr ""
 
 #: lxc/remote.go:577
 msgid "Can't remove the default remote"
@@ -431,7 +370,7 @@ msgstr ""
 
 #: lxc/rename.go:48
 msgid "Can't specify a different remote for rename."
-msgstr "No se puede especificar un remote diferente para renombrar."
+msgstr ""
 
 #: lxc/list.go:499
 msgid "Can't specify column L when not clustered"
@@ -449,11 +388,11 @@ msgstr ""
 #: lxc/remote.go:252
 #, c-format
 msgid "Certificate fingerprint: %s"
-msgstr "Certificado de la huella digital: %s"
+msgstr ""
 
 #: lxc/remote.go:364
 msgid "Client certificate stored at server: "
-msgstr "Certificado del cliente almacenado en el servidor:"
+msgstr ""
 
 #: lxc/network.go:253 lxc/network.go:663 lxc/network.go:923 lxc/network.go:992
 #: lxc/network.go:1054 lxc/storage.go:92 lxc/storage.go:331 lxc/storage.go:576
@@ -468,7 +407,7 @@ msgstr ""
 
 #: lxc/image.go:912 lxc/list.go:112
 msgid "Columns"
-msgstr "Columnas"
+msgstr ""
 
 #: lxc/main.go:45
 msgid "Command line client for LXD"
@@ -495,16 +434,16 @@ msgstr ""
 
 #: lxc/console.go:141
 msgid "Console log:"
-msgstr "Log de la consola:"
+msgstr ""
 
 #: lxc/publish.go:79
 msgid "Container name is mandatory"
-msgstr "Nombre del contenedor es obligatorio"
+msgstr ""
 
 #: lxc/copy.go:260 lxc/init.go:229
 #, c-format
 msgid "Container name is: %s"
-msgstr "Nombre del contenedor es: %s"
+msgstr ""
 
 #: lxc/publish.go:259
 #, c-format
@@ -578,9 +517,8 @@ msgid "Create any directories necessary"
 msgstr ""
 
 #: lxc/snapshot.go:20
-#, fuzzy
 msgid "Create container snapshots"
-msgstr "No se puede proveer el nombre del container a la lista"
+msgstr ""
 
 #: lxc/snapshot.go:21
 msgid ""
@@ -1175,9 +1113,8 @@ msgid "List DHCP leases"
 msgstr ""
 
 #: lxc/alias.go:98 lxc/alias.go:99
-#, fuzzy
 msgid "List aliases"
-msgstr "Aliases:"
+msgstr ""
 
 #: lxc/cluster.go:58 lxc/cluster.go:59
 msgid "List all the cluster members"
@@ -1466,9 +1403,8 @@ msgstr ""
 #: lxc/config_template.go:91 lxc/config_template.go:134
 #: lxc/config_template.go:176 lxc/config_template.go:260
 #: lxc/config_template.go:322 lxc/profile.go:197 lxc/profile.go:656
-#, fuzzy
 msgid "Missing container name"
-msgstr "Nombre del contenedor es: %s"
+msgstr ""
 
 #: lxc/profile.go:126
 msgid "Missing container.name name"
@@ -1511,9 +1447,8 @@ msgid "Missing source volume name"
 msgstr ""
 
 #: lxc/file.go:446
-#, fuzzy
 msgid "Missing target directory"
-msgstr "%s no es un directorio"
+msgstr ""
 
 #: lxc/monitor.go:30
 msgid "Monitor a local or remote LXD server"
@@ -2502,9 +2437,8 @@ msgid "add [<remote>] <IP|FQDN|URL>"
 msgstr ""
 
 #: lxc/alias.go:21 lxc/image_alias.go:24
-#, fuzzy
 msgid "alias"
-msgstr "Aliases:"
+msgstr ""
 
 #: lxc/profile.go:160
 msgid "assign [<remote>:]<container> <profiles>"
@@ -3307,16 +3241,9 @@ msgid "used by"
 msgstr ""
 
 #: lxc/storage_volume.go:32
-#, fuzzy
 msgid "volume"
-msgstr "Columnas"
+msgstr ""
 
 #: lxc/delete.go:46 lxc/image.go:811 lxc/image.go:816 lxc/image.go:975
 msgid "yes"
 msgstr ""
-
-#~ msgid "Commands:"
-#~ msgstr "Comandos:"
-
-#~ msgid "Connection refused; is LXD running?"
-#~ msgstr "Conexión declinada; está LXD corriendo? "
