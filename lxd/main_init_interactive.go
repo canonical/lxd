@@ -328,12 +328,38 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 }
 
 func (c *cmdInit) askStorage(config *initData, d lxd.ContainerServer) error {
+	if config.Cluster != nil {
+		if cli.AskBool("Do you want to configure a new local storage pool (yes/no) [default=yes]? ", "yes") {
+			err := c.askStoragePool(config, d, "local")
+			if err != nil {
+				return err
+			}
+		}
+
+		if cli.AskBool("Do you want to configure a new remote storage pool (yes/no) [default=yes]? ", "yes") {
+			err := c.askStoragePool(config, d, "remote")
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	if !cli.AskBool("Do you want to configure a new storage pool (yes/no) [default=yes]? ", "yes") {
 		return nil
 	}
 
+	return c.askStoragePool(config, d, "all")
+}
+
+func (c *cmdInit) askStoragePool(config *initData, d lxd.ContainerServer, poolType string) error {
 	// Figure out the preferred storage driver
-	availableBackends := c.availableStorageDrivers()
+	availableBackends := c.availableStorageDrivers(poolType)
+
+	if len(availableBackends) == 0 {
+		return fmt.Errorf("No %s storage backends available", poolType)
+	}
 
 	backingFs, err := util.FilesystemDetect(shared.VarPath())
 	if err != nil {
@@ -354,11 +380,20 @@ func (c *cmdInit) askStorage(config *initData, d lxd.ContainerServer) error {
 		pool := api.StoragePoolsPost{}
 		pool.Config = map[string]string{}
 
-		pool.Name = cli.AskString("Name of the new storage pool [default=default]: ", "default", nil)
+		if poolType == "all" {
+			pool.Name = cli.AskString("Name of the new storage pool [default=default]: ", "default", nil)
+		} else {
+			pool.Name = poolType
+		}
+
 		_, _, err := d.GetStoragePool(pool.Name)
 		if err == nil {
-			fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", pool.Name)
-			continue
+			if poolType == "all" {
+				fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", pool.Name)
+				continue
+			}
+
+			return fmt.Errorf("The %s storage pool already exists", poolType)
 		}
 
 		// Add to the default profile
@@ -369,8 +404,12 @@ func (c *cmdInit) askStorage(config *initData, d lxd.ContainerServer) error {
 		}
 
 		// Storage backend
-		pool.Driver = cli.AskChoice(
-			fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultStorage), availableBackends, defaultStorage)
+		if len(availableBackends) > 1 {
+			pool.Driver = cli.AskChoice(
+				fmt.Sprintf("Name of the storage backend to use (%s) [default=%s]: ", strings.Join(availableBackends, ", "), defaultStorage), availableBackends, defaultStorage)
+		} else {
+			pool.Driver = availableBackends[0]
+		}
 
 		// Optimization for dir
 		if pool.Driver == "dir" {
