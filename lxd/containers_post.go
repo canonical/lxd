@@ -196,6 +196,18 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		Stateful:     req.Stateful,
 	}
 
+	// Early profile validation
+	profiles, err := d.cluster.Profiles()
+	if err != nil {
+		return InternalError(err)
+	}
+
+	for _, profile := range args.Profiles {
+		if !shared.StringInSlice(profile, profiles) {
+			return BadRequest(fmt.Errorf("Requested profile '%s' doesn't exist", profile))
+		}
+	}
+
 	// Grab the container's root device if one is specified
 	storagePool := ""
 	storagePoolProfile := ""
