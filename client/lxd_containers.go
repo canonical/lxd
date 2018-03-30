@@ -97,7 +97,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 	// Forward targetOp to remote op
 	go func() {
 		success := false
-		errors := []string{}
+		errors := map[string]error{}
 		for _, serverURL := range urls {
 			if operation == "" {
 				req.Source.Server = serverURL
@@ -107,7 +107,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 
 			op, err := r.CreateContainer(req)
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				errors[serverURL] = err
 				continue
 			}
 
@@ -119,7 +119,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 
 			err = rop.targetOp.Wait()
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				errors[serverURL] = err
 				continue
 			}
 
@@ -128,7 +128,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 		}
 
 		if !success {
-			rop.err = fmt.Errorf("Failed container creation:\n - %s", strings.Join(errors, "\n - "))
+			rop.err = remoteOperationError("Failed container creation", errors)
 		}
 
 		close(rop.chDone)
@@ -508,13 +508,13 @@ func (r *ProtocolLXD) tryMigrateContainer(source ContainerServer, name string, r
 	// Forward targetOp to remote op
 	go func() {
 		success := false
-		errors := []string{}
+		errors := map[string]error{}
 		for _, serverURL := range urls {
 			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.QueryEscape(operation))
 
 			op, err := source.MigrateContainer(name, req)
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				errors[serverURL] = err
 				continue
 			}
 
@@ -526,7 +526,7 @@ func (r *ProtocolLXD) tryMigrateContainer(source ContainerServer, name string, r
 
 			err = rop.targetOp.Wait()
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				errors[serverURL] = err
 				continue
 			}
 
@@ -535,7 +535,7 @@ func (r *ProtocolLXD) tryMigrateContainer(source ContainerServer, name string, r
 		}
 
 		if !success {
-			rop.err = fmt.Errorf("Failed container migration:\n - %s", strings.Join(errors, "\n - "))
+			rop.err = remoteOperationError("Failed container migration", errors)
 		}
 
 		close(rop.chDone)
@@ -1133,13 +1133,13 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source ContainerServer, contai
 	// Forward targetOp to remote op
 	go func() {
 		success := false
-		errors := []string{}
+		errors := map[string]error{}
 		for _, serverURL := range urls {
 			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.QueryEscape(operation))
 
 			op, err := source.MigrateContainerSnapshot(containerName, name, req)
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				errors[serverURL] = err
 				continue
 			}
 
@@ -1151,7 +1151,7 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source ContainerServer, contai
 
 			err = rop.targetOp.Wait()
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				errors[serverURL] = err
 				continue
 			}
 
@@ -1160,7 +1160,7 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source ContainerServer, contai
 		}
 
 		if !success {
-			rop.err = fmt.Errorf("Failed container migration:\n - %s", strings.Join(errors, "\n - "))
+			rop.err = remoteOperationError("Failed container migration", errors)
 		}
 
 		close(rop.chDone)
