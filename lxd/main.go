@@ -147,6 +147,10 @@ func main() {
 	sqlCmd := cmdSql{global: &globalCmd}
 	app.AddCommand(sqlCmd.Command())
 
+	// version sub-command
+	versionCmd := cmdVersion{global: &globalCmd}
+	app.AddCommand(versionCmd.Command())
+
 	// waitready sub-command
 	waitreadyCmd := cmdWaitready{global: &globalCmd}
 	app.AddCommand(waitreadyCmd.Command())
