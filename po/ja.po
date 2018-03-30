@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-03-29 15:37-0400\n"
+"POT-Creation-Date: 2018-03-30 11:25-0400\n"
 "PO-Revision-Date: 2018-03-01 17:11+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -315,7 +315,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr "不正なイメージプロパティ形式: %s"
 
-#: lxc/action.go:212
+#: lxc/action.go:210
 msgid "Both --all and container name given"
 msgstr "--all とコンテナ名を両方同時に指定することはできません"
 
@@ -406,6 +406,11 @@ msgstr "証明書のフィンガープリント: %s"
 #: lxc/remote.go:364
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
+
+#: lxc/version.go:37
+#, fuzzy, c-format
+msgid "Client version: %s\n"
+msgstr "クライアントのバージョンを表示します"
 
 #: lxc/network.go:253 lxc/network.go:663 lxc/network.go:923 lxc/network.go:992
 #: lxc/network.go:1054 lxc/storage.go:92 lxc/storage.go:331 lxc/storage.go:576
@@ -665,7 +670,7 @@ msgstr ""
 msgid "Delete storage volumes"
 msgstr "ストレージボリュームの移動中: %s"
 
-#: lxc/action.go:30 lxc/action.go:49 lxc/action.go:69 lxc/action.go:91
+#: lxc/action.go:30 lxc/action.go:49 lxc/action.go:69 lxc/action.go:90
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:26 lxc/cluster.go:59 lxc/cluster.go:142
 #: lxc/cluster.go:192 lxc/cluster.go:238 lxc/config.go:29 lxc/config.go:88
@@ -708,7 +713,7 @@ msgstr "ストレージボリュームの移動中: %s"
 #: lxc/storage_volume.go:724 lxc/storage_volume.go:853
 #: lxc/storage_volume.go:918 lxc/storage_volume.go:994
 #: lxc/storage_volume.go:1025 lxc/storage_volume.go:1089
-#: lxc/storage_volume.go:1166 lxc/storage_volume.go:1241
+#: lxc/storage_volume.go:1166 lxc/storage_volume.go:1241 lxc/version.go:22
 msgid "Description"
 msgstr ""
 
@@ -942,7 +947,7 @@ msgstr "強制的に擬似端末を割り当てます"
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
-#: lxc/action.go:121
+#: lxc/action.go:119
 msgid "Force the container to shutdown"
 msgstr "コンテナを強制シャットダウンします"
 
@@ -1017,13 +1022,13 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:264
+#: lxc/main.go:268
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
 msgstr "初めてこのマシンで LXD を使う場合、lxd init と実行する必要があります"
 
-#: lxc/action.go:117
+#: lxc/action.go:115
 #, fuzzy
 msgid "Ignore the container state"
 msgstr "コンテナの状態を無視します (startのみ)"
@@ -1118,7 +1123,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:346
+#: lxc/main.go:350
 #, fuzzy
 msgid "Invalid number of arguments"
 msgstr "不正な引数 %s"
@@ -1683,7 +1688,7 @@ msgstr "ストレージボリュームの移動中: %s"
 msgid "Must run as root to import from directory"
 msgstr "ディレクトリからのインポートは root で実行する必要があります"
 
-#: lxc/action.go:147
+#: lxc/action.go:145
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
@@ -2111,7 +2116,7 @@ msgstr "コンテナのコンソールログを取得します"
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
 
-#: lxc/action.go:112
+#: lxc/action.go:110
 msgid "Run command against all containers"
 msgstr "すべてのコンテナに対してコマンドを実行します"
 
@@ -2162,6 +2167,11 @@ msgstr "認証後、サーバが我々を信用していません"
 #: lxc/remote.go:90
 msgid "Server protocol (lxd or simplestreams)"
 msgstr "サーバのプロトコル (lxd or simplestreams)"
+
+#: lxc/version.go:58
+#, c-format
+msgid "Server version: %s\n"
+msgstr ""
 
 #: lxc/config_device.go:492 lxc/config_device.go:493
 #, fuzzy
@@ -2263,6 +2273,11 @@ msgstr ""
 msgid "Show less common commands"
 msgstr "全てのコマンドを表示します (主なコマンドだけではなく)"
 
+#: lxc/version.go:21 lxc/version.go:22
+#, fuzzy
+msgid "Show local and remote versions"
+msgstr "クライアントのバージョンを表示します"
+
 #: lxc/network.go:988 lxc/network.go:989
 #, fuzzy
 msgid "Show network configurations"
@@ -2330,7 +2345,7 @@ msgstr "サイズ: %.2fMB"
 msgid "Snapshots:"
 msgstr "スナップショット:"
 
-#: lxc/action.go:242
+#: lxc/action.go:240
 #, c-format
 msgid "Some containers failed to %s"
 msgstr "一部のコンテナで %s が失敗しました"
@@ -2344,7 +2359,7 @@ msgstr "取得元:"
 msgid "Start containers"
 msgstr "コンテナを起動します。"
 
-#: lxc/launch.go:62
+#: lxc/launch.go:63
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -2354,7 +2369,7 @@ msgstr "%s を起動中"
 msgid "Status: %s"
 msgstr "状態: %s"
 
-#: lxc/action.go:90 lxc/action.go:91
+#: lxc/action.go:89 lxc/action.go:90
 #, fuzzy
 msgid "Stop containers"
 msgstr "コンテナを停止します。"
@@ -2409,7 +2424,7 @@ msgstr "ストレージボリュームのコピーが成功しました!"
 msgid "Storage volume moved successfully!"
 msgstr "ストレージボリュームの移動が成功しました!"
 
-#: lxc/action.go:115
+#: lxc/action.go:113
 #, fuzzy
 msgid "Store the container state"
 msgstr "コンテナの状態を保存します (stopのみ)"
@@ -2488,7 +2503,7 @@ msgstr ""
 "publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってくだ"
 "さい。"
 
-#: lxc/action.go:122
+#: lxc/action.go:120
 msgid "Time to wait for the container before killing it"
 msgstr "コンテナを強制停止するまでの時間"
 
@@ -2510,7 +2525,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
-#: lxc/main.go:265
+#: lxc/main.go:269
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
@@ -2540,7 +2555,7 @@ msgstr "コンテナを転送中: %s"
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
 
-#: lxc/action.go:181 lxc/launch.go:80
+#: lxc/action.go:179 lxc/launch.go:81
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
@@ -2906,7 +2921,7 @@ msgstr ""
 msgid "enabled"
 msgstr "有効"
 
-#: lxc/action.go:234
+#: lxc/action.go:232
 #, c-format
 msgid "error: %v"
 msgstr "エラー: %v"
@@ -3530,7 +3545,7 @@ msgstr "ステートフル"
 msgid "stateless"
 msgstr "ステートレス"
 
-#: lxc/action.go:89
+#: lxc/action.go:88
 #, fuzzy
 msgid "stop [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr ""
@@ -3559,6 +3574,10 @@ msgstr ""
 msgid "trust"
 msgstr ""
 
+#: lxc/version.go:48
+msgid "unreachable"
+msgstr ""
+
 #: lxc/config_device.go:648
 msgid "unset [<remote>:]<container|profile> <device> <key>"
 msgstr ""
@@ -3585,6 +3604,10 @@ msgstr ""
 
 #: lxc/storage.go:427
 msgid "used by"
+msgstr ""
+
+#: lxc/version.go:20
+msgid "version [<remote>:]"
 msgstr ""
 
 #: lxc/storage_volume.go:32
@@ -3652,9 +3675,6 @@ msgstr ""
 
 #~ msgid "Show all commands (not just interesting ones)"
 #~ msgstr "全てコマンドを表示します (主なコマンドだけではなく)"
-
-#~ msgid "Show client version"
-#~ msgstr "クライアントのバージョンを表示します"
 
 #~ msgid "Unable to find help2man."
 #~ msgstr "help2man が見つかりません。"
