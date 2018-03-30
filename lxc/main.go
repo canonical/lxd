@@ -189,6 +189,10 @@ For help with any of those, simply call them with --help.`))
 	stopCmd := cmdStop{global: &globalCmd}
 	app.AddCommand(stopCmd.Command())
 
+	// version sub-command
+	versionCmd := cmdVersion{global: &globalCmd}
+	app.AddCommand(versionCmd.Command())
+
 	// Deal with --all flag
 	err := app.ParseFlags(os.Args[1:])
 	if err == nil {
