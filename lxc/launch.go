@@ -23,6 +23,7 @@ func (c *cmdLaunch) Command() *cobra.Command {
 		`Create and start containers from images`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc launch ubuntu:16.04 u1`))
+	cmd.Hidden = false
 
 	cmd.RunE = c.Run
 

@@ -70,7 +70,6 @@ func (c *cmdRestart) Command() *cobra.Command {
 		`Restart containers
 
 The opposite of "lxc pause" is "lxc start".`))
-	cmd.Hidden = true
 
 	return cmd
 }
@@ -90,7 +89,6 @@ func (c *cmdStop) Command() *cobra.Command {
 	cmd.Short = i18n.G("Stop containers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Stop containers`))
-	cmd.Hidden = true
 
 	return cmd
 }
