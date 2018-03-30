@@ -43,7 +43,14 @@ func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 		Title:   "LXD - Container server",
 		Section: "1",
 	}
-	doc.GenManTree(c.global.cmd, header, args[0])
+
+	opts := doc.GenManTreeOptions{
+		Header:           header,
+		Path:             args[0],
+		CommandSeparator: ".",
+	}
+
+	doc.GenManTreeFromOpts(c.global.cmd, opts)
 
 	return nil
 }
