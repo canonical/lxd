@@ -37,8 +37,8 @@ available on your network.
 
 You can now join further nodes to the cluster. Note however that these
 nodes should be brand new LXD instances, or alternatively you should
-clear their contents them up before joining, since any existing data 
-on them will be lost.
+clear their contents before joining, since any existing data on them
+will be lost.
 
 To add an additional node, run `lxd init` and answer `yes` to the question
 about whether to use clustering. Choose a node name that is different from
