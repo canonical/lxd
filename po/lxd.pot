@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2018-03-29 15:37-0400\n"
+        "POT-Creation-Date: 2018-03-30 11:25-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -296,7 +296,7 @@ msgstr  ""
 msgid   "Bad property: %s"
 msgstr  ""
 
-#: lxc/action.go:212
+#: lxc/action.go:210
 msgid   "Both --all and container name given"
 msgstr  ""
 
@@ -382,6 +382,11 @@ msgstr  ""
 
 #: lxc/remote.go:364
 msgid   "Client certificate stored at server: "
+msgstr  ""
+
+#: lxc/version.go:37
+#, c-format
+msgid   "Client version: %s\n"
 msgstr  ""
 
 #: lxc/network.go:253 lxc/network.go:663 lxc/network.go:923 lxc/network.go:992 lxc/network.go:1054 lxc/storage.go:92 lxc/storage.go:331 lxc/storage.go:576 lxc/storage.go:649 lxc/storage.go:732 lxc/storage_volume.go:287 lxc/storage_volume.go:429 lxc/storage_volume.go:504 lxc/storage_volume.go:730 lxc/storage_volume.go:856 lxc/storage_volume.go:998 lxc/storage_volume.go:1028 lxc/storage_volume.go:1092 lxc/storage_volume.go:1175 lxc/storage_volume.go:1244
@@ -600,7 +605,7 @@ msgstr  ""
 msgid   "Delete storage volumes"
 msgstr  ""
 
-#: lxc/action.go:30 lxc/action.go:49 lxc/action.go:69 lxc/action.go:91 lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147 lxc/alias.go:198 lxc/cluster.go:26 lxc/cluster.go:59 lxc/cluster.go:142 lxc/cluster.go:192 lxc/cluster.go:238 lxc/config.go:29 lxc/config.go:88 lxc/config.go:289 lxc/config.go:355 lxc/config.go:452 lxc/config.go:560 lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:179 lxc/config_device.go:252 lxc/config_device.go:318 lxc/config_device.go:405 lxc/config_device.go:493 lxc/config_device.go:582 lxc/config_device.go:650 lxc/config_metadata.go:29 lxc/config_metadata.go:54 lxc/config_metadata.go:176 lxc/config_template.go:30 lxc/config_template.go:67 lxc/config_template.go:110 lxc/config_template.go:152 lxc/config_template.go:236 lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59 lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32 lxc/copy.go:35 lxc/delete.go:30 lxc/exec.go:39 lxc/file.go:40 lxc/file.go:73 lxc/file.go:122 lxc/file.go:185 lxc/file.go:324 lxc/image.go:42 lxc/image.go:131 lxc/image.go:261 lxc/image.go:312 lxc/image.go:435 lxc/image.go:571 lxc/image.go:776 lxc/image.go:890 lxc/image.go:1212 lxc/image.go:1285 lxc/image_alias.go:26 lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149 lxc/image_alias.go:250 lxc/info.go:29 lxc/init.go:35 lxc/launch.go:22 lxc/list.go:48 lxc/main.go:46 lxc/manpage.go:19 lxc/monitor.go:31 lxc/move.go:31 lxc/network.go:32 lxc/network.go:104 lxc/network.go:177 lxc/network.go:250 lxc/network.go:320 lxc/network.go:367 lxc/network.go:452 lxc/network.go:537 lxc/network.go:660 lxc/network.go:719 lxc/network.go:808 lxc/network.go:873 lxc/network.go:920 lxc/network.go:989 lxc/network.go:1051 lxc/operation.go:25 lxc/operation.go:54 lxc/operation.go:98 lxc/operation.go:174 lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163 lxc/profile.go:241 lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520 lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753 lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:27 lxc/remote.go:34 lxc/remote.go:84 lxc/remote.go:380 lxc/remote.go:414 lxc/remote.go:487 lxc/remote.go:549 lxc/remote.go:598 lxc/remote.go:636 lxc/rename.go:20 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328 lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645 lxc/storage.go:729 lxc/storage_volume.go:34 lxc/storage_volume.go:122 lxc/storage_volume.go:201 lxc/storage_volume.go:283 lxc/storage_volume.go:426 lxc/storage_volume.go:501 lxc/storage_volume.go:561 lxc/storage_volume.go:643 lxc/storage_volume.go:724 lxc/storage_volume.go:853 lxc/storage_volume.go:918 lxc/storage_volume.go:994 lxc/storage_volume.go:1025 lxc/storage_volume.go:1089 lxc/storage_volume.go:1166 lxc/storage_volume.go:1241
+#: lxc/action.go:30 lxc/action.go:49 lxc/action.go:69 lxc/action.go:90 lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147 lxc/alias.go:198 lxc/cluster.go:26 lxc/cluster.go:59 lxc/cluster.go:142 lxc/cluster.go:192 lxc/cluster.go:238 lxc/config.go:29 lxc/config.go:88 lxc/config.go:289 lxc/config.go:355 lxc/config.go:452 lxc/config.go:560 lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:179 lxc/config_device.go:252 lxc/config_device.go:318 lxc/config_device.go:405 lxc/config_device.go:493 lxc/config_device.go:582 lxc/config_device.go:650 lxc/config_metadata.go:29 lxc/config_metadata.go:54 lxc/config_metadata.go:176 lxc/config_template.go:30 lxc/config_template.go:67 lxc/config_template.go:110 lxc/config_template.go:152 lxc/config_template.go:236 lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59 lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32 lxc/copy.go:35 lxc/delete.go:30 lxc/exec.go:39 lxc/file.go:40 lxc/file.go:73 lxc/file.go:122 lxc/file.go:185 lxc/file.go:324 lxc/image.go:42 lxc/image.go:131 lxc/image.go:261 lxc/image.go:312 lxc/image.go:435 lxc/image.go:571 lxc/image.go:776 lxc/image.go:890 lxc/image.go:1212 lxc/image.go:1285 lxc/image_alias.go:26 lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149 lxc/image_alias.go:250 lxc/info.go:29 lxc/init.go:35 lxc/launch.go:22 lxc/list.go:48 lxc/main.go:46 lxc/manpage.go:19 lxc/monitor.go:31 lxc/move.go:31 lxc/network.go:32 lxc/network.go:104 lxc/network.go:177 lxc/network.go:250 lxc/network.go:320 lxc/network.go:367 lxc/network.go:452 lxc/network.go:537 lxc/network.go:660 lxc/network.go:719 lxc/network.go:808 lxc/network.go:873 lxc/network.go:920 lxc/network.go:989 lxc/network.go:1051 lxc/operation.go:25 lxc/operation.go:54 lxc/operation.go:98 lxc/operation.go:174 lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163 lxc/profile.go:241 lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520 lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753 lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:27 lxc/remote.go:34 lxc/remote.go:84 lxc/remote.go:380 lxc/remote.go:414 lxc/remote.go:487 lxc/remote.go:549 lxc/remote.go:598 lxc/remote.go:636 lxc/rename.go:20 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328 lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645 lxc/storage.go:729 lxc/storage_volume.go:34 lxc/storage_volume.go:122 lxc/storage_volume.go:201 lxc/storage_volume.go:283 lxc/storage_volume.go:426 lxc/storage_volume.go:501 lxc/storage_volume.go:561 lxc/storage_volume.go:643 lxc/storage_volume.go:724 lxc/storage_volume.go:853 lxc/storage_volume.go:918 lxc/storage_volume.go:994 lxc/storage_volume.go:1025 lxc/storage_volume.go:1089 lxc/storage_volume.go:1166 lxc/storage_volume.go:1241 lxc/version.go:22
 msgid   "Description"
 msgstr  ""
 
@@ -811,7 +816,7 @@ msgstr  ""
 msgid   "Force removing a member, even if degraded"
 msgstr  ""
 
-#: lxc/action.go:121
+#: lxc/action.go:119
 msgid   "Force the container to shutdown"
 msgstr  ""
 
@@ -883,11 +888,11 @@ msgstr  ""
 msgid   "ISSUE DATE"
 msgstr  ""
 
-#: lxc/main.go:264
+#: lxc/main.go:268
 msgid   "If this is your first time running LXD on this machine, you should also run: lxd init"
 msgstr  ""
 
-#: lxc/action.go:117
+#: lxc/action.go:115
 msgid   "Ignore the container state"
 msgstr  ""
 
@@ -978,7 +983,7 @@ msgstr  ""
 msgid   "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr  ""
 
-#: lxc/main.go:346
+#: lxc/main.go:350
 msgid   "Invalid number of arguments"
 msgstr  ""
 
@@ -1392,7 +1397,7 @@ msgstr  ""
 msgid   "Must run as root to import from directory"
 msgstr  ""
 
-#: lxc/action.go:147
+#: lxc/action.go:145
 msgid   "Must supply container name for: "
 msgstr  ""
 
@@ -1798,7 +1803,7 @@ msgstr  ""
 msgid   "Retrieving image: %s"
 msgstr  ""
 
-#: lxc/action.go:112
+#: lxc/action.go:110
 msgid   "Run command against all containers"
 msgstr  ""
 
@@ -1848,6 +1853,11 @@ msgstr  ""
 
 #: lxc/remote.go:90
 msgid   "Server protocol (lxd or simplestreams)"
+msgstr  ""
+
+#: lxc/version.go:58
+#, c-format
+msgid   "Server version: %s\n"
 msgstr  ""
 
 #: lxc/config_device.go:492 lxc/config_device.go:493
@@ -1938,6 +1948,10 @@ msgstr  ""
 msgid   "Show less common commands"
 msgstr  ""
 
+#: lxc/version.go:21 lxc/version.go:22
+msgid   "Show local and remote versions"
+msgstr  ""
+
 #: lxc/network.go:988 lxc/network.go:989
 msgid   "Show network configurations"
 msgstr  ""
@@ -1999,7 +2013,7 @@ msgstr  ""
 msgid   "Snapshots:"
 msgstr  ""
 
-#: lxc/action.go:242
+#: lxc/action.go:240
 #, c-format
 msgid   "Some containers failed to %s"
 msgstr  ""
@@ -2012,7 +2026,7 @@ msgstr  ""
 msgid   "Start containers"
 msgstr  ""
 
-#: lxc/launch.go:62
+#: lxc/launch.go:63
 #, c-format
 msgid   "Starting %s"
 msgstr  ""
@@ -2022,7 +2036,7 @@ msgstr  ""
 msgid   "Status: %s"
 msgstr  ""
 
-#: lxc/action.go:90 lxc/action.go:91
+#: lxc/action.go:89 lxc/action.go:90
 msgid   "Stop containers"
 msgstr  ""
 
@@ -2076,7 +2090,7 @@ msgstr  ""
 msgid   "Storage volume moved successfully!"
 msgstr  ""
 
-#: lxc/action.go:115
+#: lxc/action.go:113
 msgid   "Store the container state"
 msgstr  ""
 
@@ -2142,7 +2156,7 @@ msgstr  ""
 msgid   "There is no \"image name\".  Did you want an alias?"
 msgstr  ""
 
-#: lxc/action.go:122
+#: lxc/action.go:120
 msgid   "Time to wait for the container before killing it"
 msgstr  ""
 
@@ -2162,7 +2176,7 @@ msgstr  ""
 msgid   "To detach from the console, press: <ctrl>+a q"
 msgstr  ""
 
-#: lxc/main.go:265
+#: lxc/main.go:269
 msgid   "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr  ""
 
@@ -2188,7 +2202,7 @@ msgstr  ""
 msgid   "Transferring image: %s"
 msgstr  ""
 
-#: lxc/action.go:181 lxc/launch.go:80
+#: lxc/action.go:179 lxc/launch.go:81
 #, c-format
 msgid   "Try `lxc info --show-log %s` for more info"
 msgstr  ""
@@ -2517,7 +2531,7 @@ msgstr  ""
 msgid   "enabled"
 msgstr  ""
 
-#: lxc/action.go:234
+#: lxc/action.go:232
 #, c-format
 msgid   "error: %v"
 msgstr  ""
@@ -3024,7 +3038,7 @@ msgstr  ""
 msgid   "stateless"
 msgstr  ""
 
-#: lxc/action.go:89
+#: lxc/action.go:88
 msgid   "stop [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr  ""
 
@@ -3047,6 +3061,10 @@ msgstr  ""
 
 #: lxc/config_trust.go:28
 msgid   "trust"
+msgstr  ""
+
+#: lxc/version.go:48
+msgid   "unreachable"
 msgstr  ""
 
 #: lxc/config_device.go:648
@@ -3075,6 +3093,10 @@ msgstr  ""
 
 #: lxc/storage.go:427
 msgid   "used by"
+msgstr  ""
+
+#: lxc/version.go:20
+msgid   "version [<remote>:]"
 msgstr  ""
 
 #: lxc/storage_volume.go:32
