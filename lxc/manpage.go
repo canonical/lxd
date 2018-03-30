@@ -37,7 +37,14 @@ func (c *cmdManpage) Run(cmd *cobra.Command, args []string) error {
 		Title:   i18n.G("LXD - Command line client"),
 		Section: "1",
 	}
-	doc.GenManTree(c.global.cmd, header, args[0])
+
+	opts := doc.GenManTreeOptions{
+		Header:           header,
+		Path:             args[0],
+		CommandSeparator: ".",
+	}
+
+	doc.GenManTreeFromOpts(c.global.cmd, opts)
 
 	return nil
 }
