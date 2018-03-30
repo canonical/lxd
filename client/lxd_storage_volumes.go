@@ -132,14 +132,14 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source ContainerServer, pool s
 	// Forward targetOp to remote op
 	go func() {
 		success := false
-		errors := []string{}
+		errors := map[string]error{}
 		for _, serverURL := range urls {
 			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.QueryEscape(operation))
 
 			// Send the request
 			top, err := source.MigrateStoragePoolVolume(pool, req)
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				errors[serverURL] = err
 				continue
 			}
 
@@ -154,7 +154,7 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source ContainerServer, pool s
 
 			err = rop.targetOp.Wait()
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				errors[serverURL] = err
 				continue
 			}
 
@@ -163,7 +163,7 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source ContainerServer, pool s
 		}
 
 		if !success {
-			rop.err = fmt.Errorf("Failed storage volume creation:\n - %s", strings.Join(errors, "\n - "))
+			rop.err = remoteOperationError("Failed storage volume creation", errors)
 		}
 
 		close(rop.chDone)
@@ -186,7 +186,7 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 	// Forward targetOp to remote op
 	go func() {
 		success := false
-		errors := []string{}
+		errors := map[string]error{}
 		for _, serverURL := range urls {
 			req.Source.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.QueryEscape(operation))
 
@@ -211,7 +211,7 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 
 			err = rop.targetOp.Wait()
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("%s: %v", serverURL, err))
+				errors[serverURL] = err
 				continue
 			}
 
@@ -220,7 +220,7 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 		}
 
 		if !success {
-			rop.err = fmt.Errorf("Failed storage volume creation:\n - %s", strings.Join(errors, "\n - "))
+			rop.err = remoteOperationError("Failed storage volume creation", errors)
 		}
 
 		close(rop.chDone)
