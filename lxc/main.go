@@ -248,7 +248,7 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 	// and this is the first time the client has been run by the user, then check to see
 	// if LXD has been properly configured.  Don't display the message if the var path
 	// does not exist (LXD not installed), as the user may be targeting a remote daemon.
-	if shared.PathExists(shared.VarPath("")) && !shared.PathExists(c.confPath) {
+	if !c.flagForceLocal && shared.PathExists(shared.VarPath("")) && !shared.PathExists(c.confPath) {
 		// Create the config dir so that we don't get in here again for this user.
 		err = os.MkdirAll(c.conf.ConfigDir, 0750)
 		if err != nil {
