@@ -126,7 +126,7 @@ func (c *cmdStorageCreate) Run(cmd *cobra.Command, args []string) error {
 		pool.Config[entry[0]] = entry[1]
 	}
 
-	// If a target node was specified the API won't actually create the
+	// If a target member was specified the API won't actually create the
 	// pool, but only define it as pending in the database.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
@@ -139,7 +139,7 @@ func (c *cmdStorageCreate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.storage.flagTarget != "" {
-		fmt.Printf(i18n.G("Storage pool %s pending on node %s")+"\n", resource.name, c.storage.flagTarget)
+		fmt.Printf(i18n.G("Storage pool %s pending on member %s")+"\n", resource.name, c.storage.flagTarget)
 	} else {
 		fmt.Printf(i18n.G("Storage pool %s created")+"\n", resource.name)
 	}
@@ -677,7 +677,7 @@ func (c *cmdStorageShow) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing pool name"))
 	}
 
-	// If a target node was specified, we return also node-specific config values.
+	// If a target member was specified, we return also member-specific config values.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
 	}

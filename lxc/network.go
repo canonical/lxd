@@ -286,7 +286,7 @@ func (c *cmdNetworkCreate) Run(cmd *cobra.Command, args []string) error {
 		network.Config[entry[0]] = entry[1]
 	}
 
-	// If a target node was specified the API won't actually create the
+	// If a target member was specified the API won't actually create the
 	// network, but only define it as pending in the database.
 	if c.network.flagTarget != "" {
 		client = client.UseTarget(c.network.flagTarget)
@@ -298,7 +298,7 @@ func (c *cmdNetworkCreate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if c.network.flagTarget != "" {
-		fmt.Printf(i18n.G("Network %s pending on node %s")+"\n", resource.name, c.network.flagTarget)
+		fmt.Printf(i18n.G("Network %s pending on member %s")+"\n", resource.name, c.network.flagTarget)
 	} else {
 		fmt.Printf(i18n.G("Network %s created")+"\n", resource.name)
 	}

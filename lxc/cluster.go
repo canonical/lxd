@@ -218,7 +218,7 @@ func (c *cmdClusterRename) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Node %s renamed to %s")+"\n", resource.name, args[1])
+	fmt.Printf(i18n.G("Member %s renamed to %s")+"\n", resource.name, args[1])
 	return nil
 }
 
@@ -265,6 +265,6 @@ func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Node %s removed")+"\n", resource.name)
+	fmt.Printf(i18n.G("Member %s removed")+"\n", resource.name)
 	return nil
 }
