@@ -61,6 +61,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.ContainerServ
 
 	// Fill in the configuration
 	config := initData{}
+	config.Config = map[string]interface{}{}
 
 	// Network listening
 	if c.flagNetworkAddress != "" {
