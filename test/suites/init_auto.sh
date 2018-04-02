@@ -55,4 +55,13 @@ test_init_auto() {
 
     kill_lxd "${LXD_INIT_DIR}"
   fi
+
+  # lxd init --trust-password test --network-address 127.0.0.1 --network-port LOCAL --auto
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  LXD_DIR=${LXD_INIT_DIR} lxd init --trust-password test --network-address 127.0.0.1 --network-port "$(local_tcp_port)" --auto
+
+  kill_lxd "${LXD_INIT_DIR}"
 }
