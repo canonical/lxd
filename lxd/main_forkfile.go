@@ -17,6 +17,7 @@ import (
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <limits.h>
 
 extern char* advance_arg(bool required);
 extern void error(char *msg);
