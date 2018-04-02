@@ -90,7 +90,7 @@ Pre-defined column shorthand chars:
   s - State
   S - Number of snapshots
   t - Type (persistent or ephemeral)
-  L - Location of the container (e.g. its node)
+  L - Location of the container (e.g. its cluster member)
 
 Custom columns are defined with "key[:name][:maxWidth]":
   KEY: The (extended) config key to display
