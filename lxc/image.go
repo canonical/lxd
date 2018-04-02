@@ -642,7 +642,6 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 
 	if imageFile == "" {
 		imageFile = args[0]
-		properties = properties[1:]
 	}
 
 	if shared.PathExists(shared.HostPath(filepath.Clean(imageFile))) {
