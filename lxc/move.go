@@ -44,7 +44,7 @@ lxc move <container>/<old snapshot name> <container>/<new snapshot name>
 	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
-	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Node name")+"``")
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
@@ -86,7 +86,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Target node and destination remote can't be used together.
+	// Target member and destination remote can't be used together.
 	if c.flagTarget != "" && sourceRemote != destRemote {
 		return fmt.Errorf(i18n.G("You must use the same source and destination remote when using --target"))
 	}
@@ -131,7 +131,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// If the target option was specified, we're moving a container from a
-	// cluster node to another. In case the rootfs of the container is
+	// cluster member to another. In case the rootfs of the container is
 	// backed by ceph, we want to re-use the same ceph volume. This assumes
 	// that the container is not running.
 	if c.flagTarget != "" {
@@ -162,7 +162,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 }
 
 // Helper to check if the container to be moved is backed by a ceph storage
-// pool, and use the special POST /containers/<name>?target=<node> API if so.
+// pool, and use the special POST /containers/<name>?target=<member> API if so.
 //
 // It returns false if the container is not backed by ceph, true otherwise.
 func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, target string) (bool, error) {
@@ -202,7 +202,7 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 	// Check if the container to be moved is backed by ceph.
 	container, _, err := source.GetContainer(sourceName)
 	if err != nil {
-		// If we are unable to connect, we assume that the source node
+		// If we are unable to connect, we assume that the source member
 		// is offline, and we'll try to perform the migration. If the
 		// container turns out to not be backed by ceph, the migrate
 		// API will still return an error.
