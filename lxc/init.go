@@ -45,7 +45,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", i18n.G("Network name")+"``")
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", i18n.G("Instance type")+"``")
-	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Node name")+"``")
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
