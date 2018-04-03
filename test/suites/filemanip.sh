@@ -48,7 +48,6 @@ test_filemanip() {
   rm -rf "${TEST_DIR}/dest"
 
   # Check that file permissions are not applied to intermediate directories
-
   lxc file push -p --mode=400 "${TEST_DIR}"/source/foo \
       filemanip/tmp/ptest/d1/d2/foo
 
@@ -100,8 +99,8 @@ test_filemanip() {
   [ "$(stat -c "%g" "${TEST_DIR}"/dest/source)" = "$(id -g)" ]
   [ "$(stat -c "%a" "${TEST_DIR}"/dest/source)" = "755" ]
 
-  lxc file push -p "${TEST_DIR}"/source/foo filemanip/tmp/this/is/a/nonexistent/directory/
-  lxc file pull filemanip/tmp/this/is/a/nonexistent/directory/foo "${TEST_DIR}"
+  lxc file push -p "${TEST_DIR}"/source/foo local:filemanip/tmp/this/is/a/nonexistent/directory/
+  lxc file pull local:filemanip/tmp/this/is/a/nonexistent/directory/foo "${TEST_DIR}"
   [ "$(cat "${TEST_DIR}"/foo)" = "foo" ]
 
   lxc file push -p "${TEST_DIR}"/source/foo filemanip/.
