@@ -42,7 +42,7 @@ func (c *cmdCopy) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
 	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Copy the container without its snapshots"))
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
-	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Node name")+"``")
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the container with no profiles applied")
 
 	return cmd
@@ -63,7 +63,7 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		return err
 	}
 
-	// Target node and destination remote can't be used together.
+	// Target member and destination remote can't be used together.
 	if c.flagTarget != "" && sourceRemote != destRemote {
 		return fmt.Errorf(i18n.G("You must use the same source and destination remote when using --target"))
 	}

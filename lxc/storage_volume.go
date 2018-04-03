@@ -471,7 +471,7 @@ func (c *cmdStorageVolumeCreate) Run(cmd *cobra.Command, args []string) error {
 		vol.Config[entry[0]] = entry[1]
 	}
 
-	// If a target was specified, create the volume on the given node.
+	// If a target was specified, create the volume on the given member.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
@@ -531,7 +531,7 @@ func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
 	// Parse the input
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 
-	// If a target was specified, create the volume on the given node.
+	// If a target was specified, create the volume on the given member.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
@@ -787,7 +787,7 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 		return client.UpdateStoragePoolVolume(resource.name, volType, volName, newdata, "")
 	}
 
-	// If a target was specified, create the volume on the given node.
+	// If a target was specified, create the volume on the given member.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
@@ -883,7 +883,7 @@ func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 	// Parse input
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 
-	// If a target was specified, create the volume on the given node.
+	// If a target was specified, create the volume on the given member.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
@@ -968,7 +968,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("USED BY"),
 	}
 	if resource.server.IsClustered() {
-		header = append(header, i18n.G("NODE"))
+		header = append(header, i18n.G("LOCATION"))
 	}
 	table.SetHeader(header)
 	sort.Sort(byNameAndType(data))
@@ -1059,8 +1059,8 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 	vol := api.StorageVolumePost{}
 	vol.Name = args[2]
 
-	// If a target node was specified, get the volume with the matching
-	// name on that node, if any.
+	// If a target member was specified, get the volume with the matching
+	// name on that member, if any.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
@@ -1119,7 +1119,7 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 	// Parse the input
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 
-	// If a target was specified, create the volume on the given node.
+	// If a target was specified, create the volume on the given member.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
@@ -1202,8 +1202,8 @@ func (c *cmdStorageVolumeShow) Run(cmd *cobra.Command, args []string) error {
 	// Parse the input
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 
-	// If a target node was specified, get the volume with the matching
-	// name on that node, if any.
+	// If a target member was specified, get the volume with the matching
+	// name on that member, if any.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
