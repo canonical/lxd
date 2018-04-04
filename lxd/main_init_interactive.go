@@ -189,6 +189,10 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 					Name:           pool.Name,
 				}
 
+				// Delete config keys that are automatically populated by LXD
+				delete(newPool.Config, "volatile.initial_source")
+				delete(newPool.Config, "zfs.pool_name")
+
 				// Only ask for the node-specific "source" key if it's defined in the target node
 				if pool.Config["source"] != "" {
 					// Dummy validator for allowing empty strings
