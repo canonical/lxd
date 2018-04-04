@@ -34,6 +34,17 @@ CREATE TABLE containers (
     UNIQUE (name),
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
+CREATE TABLE containers_backups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    container_only INTEGER NOT NULL default 0,
+    optimized_storage INTEGER NOT NULL default 0,
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
+    UNIQUE (container_id, name)
+);
 CREATE TABLE containers_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     container_id INTEGER NOT NULL,
@@ -235,5 +246,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (7, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (8, strftime("%s"))
 `
