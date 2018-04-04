@@ -375,7 +375,7 @@ func (c *cmdInit) askStorage(config *initData, d lxd.ContainerServer) error {
 			}
 		}
 
-		if cli.AskBool("Do you want to configure a new remote storage pool (yes/no) [default=yes]? ", "yes") {
+		if cli.AskBool("Do you want to configure a new remote storage pool (yes/no) [default=no]? ", "no") {
 			err := c.askStoragePool(config, d, "remote")
 			if err != nil {
 				return err
