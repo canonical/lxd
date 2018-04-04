@@ -37,6 +37,25 @@ var updates = map[int]schema.Update{
 	5: updateFromV4,
 	6: updateFromV5,
 	7: updateFromV6,
+	8: updateFromV7,
+}
+
+func updateFromV7(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE containers_backups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    container_only INTEGER NOT NULL default 0,
+    optimized_storage INTEGER NOT NULL default 0,
+    FOREIGN KEY (container_id) REFERENCES containers (id) ON DELETE CASCADE,
+    UNIQUE (container_id, name)
+);
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 // The zfs.pool_name config key is node-specific, and needs to be linked to
