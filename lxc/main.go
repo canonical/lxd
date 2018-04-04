@@ -58,9 +58,6 @@ For help with any of those, simply call them with --help.`))
 	app.PersistentFlags().BoolVar(&globalCmd.flagLogDebug, "debug", false, i18n.G("Show all debug messages"))
 	app.PersistentFlags().BoolVarP(&globalCmd.flagLogVerbose, "verbose", "v", false, i18n.G("Show all information messages"))
 
-	// Local flags
-	app.Flags().BoolVar(&globalCmd.flagHelpAll, "all", false, i18n.G("Show less common commands"))
-
 	// Wrappers
 	app.PersistentPreRunE = globalCmd.PreRun
 	app.PersistentPostRunE = globalCmd.PostRun
@@ -192,6 +189,20 @@ For help with any of those, simply call them with --help.`))
 	// version sub-command
 	versionCmd := cmdVersion{global: &globalCmd}
 	app.AddCommand(versionCmd.Command())
+
+	// Get help command
+	app.InitDefaultHelpCmd()
+	var help *cobra.Command
+	for _, cmd := range app.Commands() {
+		if cmd.Name() == "help" {
+			help = cmd
+			break
+		}
+	}
+
+	// Help flags
+	app.Flags().BoolVar(&globalCmd.flagHelpAll, "all", false, i18n.G("Show less common commands"))
+	help.Flags().BoolVar(&globalCmd.flagHelpAll, "all", false, i18n.G("Show less common commands"))
 
 	// Deal with --all flag
 	err := app.ParseFlags(os.Args[1:])
