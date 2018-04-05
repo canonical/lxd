@@ -46,6 +46,44 @@ func TestStoragePoolsCreatePending(t *testing.T) {
 	assert.Equal(t, map[string]string{"source": "/egg"}, configs["none"])
 }
 
+func TestStoragePoolsCreatePending_OtherPool(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	// Create a pending pool named 'pool1' on two nodes (the default 'none'
+	// and 'buzz')
+	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	config := map[string]string{"source": "/foo"}
+	err = tx.StoragePoolCreatePending("none", "pool1", "dir", config)
+	require.NoError(t, err)
+
+	config = map[string]string{"source": "/bar"}
+	err = tx.StoragePoolCreatePending("buzz", "pool1", "dir", config)
+	require.NoError(t, err)
+
+	// Create a second pending pool named pool2 on the same two nodes.
+	config = map[string]string{}
+	err = tx.StoragePoolCreatePending("none", "pool2", "dir", config)
+	require.NoError(t, err)
+
+	poolID, err := tx.StoragePoolID("pool2")
+	require.NoError(t, err)
+
+	config = map[string]string{}
+	err = tx.StoragePoolCreatePending("buzz", "pool2", "dir", config)
+	require.NoError(t, err)
+
+	// The node-level configs of the second pool do not contain any key
+	// from the first pool.
+	configs, err := tx.StoragePoolNodeConfigs(poolID)
+	require.NoError(t, err)
+	assert.Len(t, configs, 2)
+	assert.Equal(t, map[string]string{}, configs["none"])
+	assert.Equal(t, map[string]string{}, configs["buzz"])
+}
+
 // If an entry for the given pool and node already exists, an error is
 // returned.
 func TestStoragePoolsCreatePending_AlreadyDefined(t *testing.T) {
