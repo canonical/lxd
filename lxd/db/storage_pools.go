@@ -332,7 +332,8 @@ WHERE storage_pools.id = ? AND storage_pools.state = ?
 
 	configs := map[string]map[string]string{}
 	for _, node := range nodes {
-		config, err := query.SelectConfig(c.tx, "storage_pools_config", "node_id=?", node.ID)
+		config, err := query.SelectConfig(
+			c.tx, "storage_pools_config", "storage_pool_id=? AND node_id=?", poolID, node.ID)
 		if err != nil {
 			return nil, err
 		}
