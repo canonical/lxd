@@ -30,7 +30,7 @@ func (c *cmdNetwork) Command() *cobra.Command {
 	cmd.Use = i18n.G("network")
 	cmd.Short = i18n.G("Manage and attach containers to networks")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Manage an attach containers to networks`))
+		`Manage and attach containers to networks`))
 
 	// Attach
 	networkAttachCmd := cmdNetworkAttach{global: c.global, network: c}
