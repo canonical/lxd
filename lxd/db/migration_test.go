@@ -105,13 +105,7 @@ func TestImportPreClusteringData(t *testing.T) {
 		// The other config keys are node-specific.
 		config, err = query.SelectConfig(tx.Tx(), "storage_pools_config", "node_id=?", 1)
 		require.NoError(t, err)
-		assert.Equal(t,
-			map[string]string{
-				"source": "/foo/bar",
-				"size":   "123",
-				"volatile.initial_source": "/foo/bar",
-				"zfs.pool_name":           "mypool",
-			}, config)
+		assert.Equal(t, map[string]string{"source": "/foo/bar", "size": "123", "volatile.initial_source": "/foo/bar", "zfs.pool_name": "mypool"}, config)
 
 		// Storage volumes have now a node_id key set to 1 (the ID of
 		// the default node).
