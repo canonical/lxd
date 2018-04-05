@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-04-02 19:23-0400\n"
+"POT-Creation-Date: 2018-04-05 09:48-0400\n"
 "PO-Revision-Date: 2017-08-18 14:22+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -173,7 +173,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (altri %d)"
 
-#: lxc/file.go:677
+#: lxc/file.go:676
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
@@ -183,7 +183,7 @@ msgstr ""
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrompi altre due volte per forzare)"
 
-#: lxc/file.go:614
+#: lxc/file.go:613
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr "'%s' non è un tipo di file supportato."
@@ -403,7 +403,7 @@ msgstr ""
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:399
+#: lxc/file.go:398
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -888,7 +888,7 @@ msgstr ""
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:609
+#: lxc/file.go:608
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -987,7 +987,7 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:268
+#: lxc/main.go:279
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1087,7 +1087,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:350
+#: lxc/main.go:361
 #, fuzzy
 msgid "Invalid number of arguments"
 msgstr "numero errato di argomenti del sottocomando"
@@ -1331,11 +1331,7 @@ msgstr ""
 msgid "Make the image public"
 msgstr ""
 
-#: lxc/network.go:32
-msgid "Manage an attach containers to networks"
-msgstr ""
-
-#: lxc/network.go:31
+#: lxc/network.go:31 lxc/network.go:32
 msgid "Manage and attach containers to networks"
 msgstr ""
 
@@ -1498,7 +1494,7 @@ msgstr ""
 msgid "Missing source volume name"
 msgstr ""
 
-#: lxc/file.go:446
+#: lxc/file.go:445
 msgid "Missing target directory"
 msgstr ""
 
@@ -2080,7 +2076,7 @@ msgstr ""
 msgid "Show image properties"
 msgstr ""
 
-#: lxc/main.go:62
+#: lxc/main.go:204 lxc/main.go:205
 msgid "Show less common commands"
 msgstr ""
 
@@ -2320,7 +2316,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:269
+#: lxc/main.go:280
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
@@ -2382,7 +2378,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:596
+#: lxc/file.go:595
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""

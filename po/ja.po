@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-04-02 19:23-0400\n"
+"POT-Creation-Date: 2018-04-05 09:48-0400\n"
 "PO-Revision-Date: 2018-03-01 17:11+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -151,7 +151,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
 
-#: lxc/file.go:677
+#: lxc/file.go:676
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
@@ -162,7 +162,7 @@ msgid "%v (interrupt two more times to force)"
 msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
-#: lxc/file.go:614
+#: lxc/file.go:613
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr "'%s' はサポートされないタイプのファイルです。"
@@ -388,7 +388,7 @@ msgstr "リネームの場合は異なるリモートを指定できません。
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:399
+#: lxc/file.go:398
 #, fuzzy
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
@@ -921,7 +921,7 @@ msgstr "新しいコンテナ名が取得できません"
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
 
-#: lxc/file.go:609
+#: lxc/file.go:608
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
@@ -1022,7 +1022,7 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:268
+#: lxc/main.go:279
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1123,7 +1123,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:350
+#: lxc/main.go:361
 #, fuzzy
 msgid "Invalid number of arguments"
 msgstr "不正な引数 %s"
@@ -1467,11 +1467,7 @@ msgstr "イメージを public にする"
 msgid "Make the image public"
 msgstr "イメージを public にする"
 
-#: lxc/network.go:32
-msgid "Manage an attach containers to networks"
-msgstr ""
-
-#: lxc/network.go:31
+#: lxc/network.go:31 lxc/network.go:32
 msgid "Manage and attach containers to networks"
 msgstr ""
 
@@ -1648,7 +1644,7 @@ msgstr ""
 msgid "Missing source volume name"
 msgstr "ストレージボリュームの移動中: %s"
 
-#: lxc/file.go:446
+#: lxc/file.go:445
 #, fuzzy
 msgid "Missing target directory"
 msgstr "%s はディレクトリではありません"
@@ -2260,7 +2256,7 @@ msgstr ""
 msgid "Show image properties"
 msgstr ""
 
-#: lxc/main.go:62
+#: lxc/main.go:204 lxc/main.go:205
 #, fuzzy
 msgid "Show less common commands"
 msgstr "全てのコマンドを表示します (主なコマンドだけではなく)"
@@ -2517,7 +2513,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
-#: lxc/main.go:269
+#: lxc/main.go:280
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
@@ -2583,7 +2579,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:596
+#: lxc/file.go:595
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
