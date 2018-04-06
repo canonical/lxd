@@ -243,22 +243,23 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("Invalid source %s"), resource.name)
 		}
 
-		if c.file.flagRecursive {
-			err := c.file.recursivePullFile(resource.server, pathSpec[0], pathSpec[1], target)
-			if err != nil {
-				return err
-			}
-
-			continue
-		}
-
 		buf, resp, err := resource.server.GetContainerFile(pathSpec[0], pathSpec[1])
 		if err != nil {
 			return err
 		}
 
+		// Deal with recursion
 		if resp.Type == "directory" {
-			return fmt.Errorf(i18n.G("Can't pull a directory without --recursive"))
+			if c.file.flagRecursive {
+				err := c.file.recursivePullFile(resource.server, pathSpec[0], pathSpec[1], target)
+				if err != nil {
+					return err
+				}
+
+				continue
+			} else {
+				return fmt.Errorf(i18n.G("Can't pull a directory without --recursive"))
+			}
 		}
 
 		var targetPath string
@@ -270,16 +271,30 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 
 		logger.Infof("Pulling %s from %s (%s)", targetPath, pathSpec[1], resp.Type)
 
-		var f *os.File
-		if targetPath == "-" {
-			f = os.Stdout
-		} else {
-			if resp.Type == "symlink" {
-				linkTarget, err := ioutil.ReadAll(buf)
-				if err != nil {
-					return err
-				}
+		if resp.Type == "symlink" {
+			linkTarget, err := ioutil.ReadAll(buf)
+			if err != nil {
+				return err
+			}
 
+			// Follow the symlink
+			if targetPath == "-" || c.file.flagRecursive {
+				for {
+					newPath := strings.TrimSuffix(string(linkTarget), "\n")
+					if !strings.HasPrefix(newPath, "/") {
+						newPath = filepath.Clean(filepath.Join(filepath.Dir(pathSpec[1]), newPath))
+					}
+
+					buf, resp, err = resource.server.GetContainerFile(pathSpec[0], newPath)
+					if err != nil {
+						return err
+					}
+
+					if resp.Type != "symlink" {
+						break
+					}
+				}
+			} else {
 				err = os.Symlink(strings.TrimSpace(string(linkTarget)), targetPath)
 				if err != nil {
 					return err
@@ -287,7 +302,12 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 
 				continue
 			}
+		}
 
+		var f *os.File
+		if targetPath == "-" {
+			f = os.Stdout
+		} else {
 			f, err = os.Create(targetPath)
 			if err != nil {
 				return err
