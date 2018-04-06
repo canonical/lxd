@@ -17,8 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/CanonicalLtd/candidclient"
 	"github.com/gorilla/mux"
-	"github.com/juju/idmclient"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"gopkg.in/macaroon-bakery.v2/bakery"
@@ -784,7 +784,7 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string) error {
 		return nil
 	}
 
-	idmClient, err := idmclient.New(idmclient.NewParams{
+	idmClient, err := candidclient.New(candidclient.NewParams{
 		BaseURL: authEndpoint,
 	})
 	if err != nil {
