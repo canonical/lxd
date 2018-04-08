@@ -2629,7 +2629,7 @@ msgid   "list-leases [<remote>:]<network>"
 msgstr  ""
 
 #: lxc/alias.go:57
-msgid   "lxc alias add list list -c ns46S\n"
+msgid   "lxc alias add list \"list -c ns46S\"\n"
         "    Overwrite the \"list\" command to pass -c ns46S."
 msgstr  ""
 
