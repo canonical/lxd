@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-04-05 09:48-0400\n"
+"POT-Creation-Date: 2018-04-09 02:28+0200\n"
 "PO-Revision-Date: 2018-03-06 13:50+0000\n"
 "Last-Translator: Alban Vidal <alban.vidal@zordhak.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -247,7 +247,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (%d de plus)"
 
-#: lxc/file.go:676
+#: lxc/file.go:696
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s n'est pas un répertoire"
@@ -257,7 +257,7 @@ msgstr "%s n'est pas un répertoire"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrompre encore deux fois pour forcer)"
 
-#: lxc/file.go:613
+#: lxc/file.go:633
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr "'%s' n'est pas un format de fichier pris en charge."
@@ -483,7 +483,7 @@ msgstr ""
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:398
+#: lxc/file.go:418
 #, fuzzy
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "impossible de spécifier uid/gid/mode en mode récursif"
@@ -634,7 +634,7 @@ msgstr ""
 msgid "Create and start containers from images"
 msgstr ""
 
-#: lxc/file.go:191 lxc/file.go:331
+#: lxc/file.go:191 lxc/file.go:351
 msgid "Create any directories necessary"
 msgstr "Créer tous répertoires nécessaires"
 
@@ -786,7 +786,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
 #: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
 #: lxc/copy.go:35 lxc/delete.go:30 lxc/exec.go:39 lxc/file.go:40 lxc/file.go:73
-#: lxc/file.go:122 lxc/file.go:185 lxc/file.go:324 lxc/image.go:42
+#: lxc/file.go:122 lxc/file.go:185 lxc/file.go:344 lxc/image.go:42
 #: lxc/image.go:131 lxc/image.go:261 lxc/image.go:312 lxc/image.go:435
 #: lxc/image.go:571 lxc/image.go:775 lxc/image.go:889 lxc/image.go:1211
 #: lxc/image.go:1284 lxc/image_alias.go:26 lxc/image_alias.go:59
@@ -1017,7 +1017,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:608
+#: lxc/file.go:628
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -1248,7 +1248,7 @@ msgstr "Cible invalide %s"
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:352
+#: lxc/file.go:372
 #, c-format
 msgid "Invalid target %s"
 msgstr "Cible invalide %s"
@@ -1709,7 +1709,7 @@ msgstr ""
 msgid "Missing source volume name"
 msgstr "Copie de l'image : %s"
 
-#: lxc/file.go:445
+#: lxc/file.go:465
 #, fuzzy
 msgid "Missing target directory"
 msgstr "%s n'est pas un répertoire"
@@ -2008,12 +2008,12 @@ msgstr "Création du conteneur"
 msgid "Pull files from containers"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:323 lxc/file.go:324
+#: lxc/file.go:343 lxc/file.go:344
 #, fuzzy
 msgid "Push files into containers"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:192 lxc/file.go:330
+#: lxc/file.go:192 lxc/file.go:350
 #, fuzzy
 msgid "Recursively transfer files"
 msgstr "Pousser ou récupérer des fichiers récursivement"
@@ -2272,15 +2272,15 @@ msgstr ""
 msgid "Set the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/file.go:333
+#: lxc/file.go:353
 msgid "Set the file's gid on push"
 msgstr "Définir le gid du fichier lors de l'envoi"
 
-#: lxc/file.go:334
+#: lxc/file.go:354
 msgid "Set the file's perms on push"
 msgstr "Définir les permissions du fichier lors de l'envoi"
 
-#: lxc/file.go:332
+#: lxc/file.go:352
 msgid "Set the file's uid on push"
 msgstr "Définir l'uid du fichier lors de l'envoi"
 
@@ -2646,7 +2646,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:595
+#: lxc/file.go:615
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -3094,7 +3094,7 @@ msgstr ""
 
 #: lxc/alias.go:57
 msgid ""
-"lxc alias add list list -c ns46S\n"
+"lxc alias add list \"list -c ns46S\"\n"
 "    Overwrite the \"list\" command to pass -c ns46S."
 msgstr ""
 
@@ -3142,7 +3142,7 @@ msgid ""
 "directory."
 msgstr ""
 
-#: lxc/file.go:326
+#: lxc/file.go:346
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the container \"foo\"."
@@ -3401,7 +3401,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/file.go:322
+#: lxc/file.go:342
 #, fuzzy
 msgid ""
 "push <source path> [<remote>:]<container>/<path> [[<remote>:]<container>/"
