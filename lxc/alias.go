@@ -55,7 +55,7 @@ func (c *cmdAliasAdd) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add new aliases`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc alias add list list -c ns46S
+		`lxc alias add list "list -c ns46S"
     Overwrite the "list" command to pass -c ns46S.`))
 
 	cmd.RunE = c.Run
