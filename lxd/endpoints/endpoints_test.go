@@ -33,6 +33,7 @@ func newEndpoints(t *testing.T) (*endpoints.Endpoints, *endpoints.Config, func()
 
 	config := &endpoints.Config{
 		Dir:          dir,
+		UnixSocket:   filepath.Join(dir, "unix.socket"),
 		RestServer:   newServer(),
 		DevLxdServer: newServer(),
 		Cert:         shared.TestingKeyPair(),

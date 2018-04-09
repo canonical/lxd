@@ -83,6 +83,7 @@ func TestEndpoints_LocalAlreadyRunning(t *testing.T) {
 
 	endpoints2, config2, cleanup2 := newEndpoints(t)
 	config2.Dir = config1.Dir
+	config2.UnixSocket = config1.UnixSocket
 	defer cleanup2()
 
 	err := endpoints2.Up(config2)

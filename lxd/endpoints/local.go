@@ -2,13 +2,10 @@ package endpoints
 
 import (
 	"net"
-	"path/filepath"
 )
 
 // Create a new net.Listener bound to the unix socket of the local endpoint.
-func localCreateListener(dir string, group string) (net.Listener, error) {
-	path := filepath.Join(dir, "unix.socket")
-
+func localCreateListener(path string, group string) (net.Listener, error) {
 	err := CheckAlreadyRunning(path)
 	if err != nil {
 		return nil, err
