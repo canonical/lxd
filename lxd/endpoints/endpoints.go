@@ -19,6 +19,9 @@ type Config struct {
 	// The LXD var directory to create Unix sockets in.
 	Dir string
 
+	// UnixSocket is the path to the Unix socket to bind
+	UnixSocket string
+
 	// HTTP server handling requests for the LXD RESTful API.
 	RestServer *http.Server
 
@@ -87,6 +90,9 @@ func Up(config *Config) (*Endpoints, error) {
 	if config.Dir == "" {
 		return nil, fmt.Errorf("no directory configured")
 	}
+	if config.UnixSocket == "" {
+		return nil, fmt.Errorf("no unix socket configured")
+	}
 	if config.RestServer == nil {
 		return nil, fmt.Errorf("no REST server configured")
 	}
@@ -148,7 +154,7 @@ func (e *Endpoints) up(config *Config) error {
 		logger.Infof("LXD isn't socket activated")
 		e.listeners = map[kind]net.Listener{}
 
-		e.listeners[local], err = localCreateListener(config.Dir, config.LocalUnixSocketGroup)
+		e.listeners[local], err = localCreateListener(config.UnixSocket, config.LocalUnixSocketGroup)
 		if err != nil {
 			return fmt.Errorf("local endpoint: %v", err)
 		}

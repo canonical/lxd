@@ -65,8 +65,9 @@ func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 
 // ConnectLXDUnix lets you connect to a remote LXD daemon over a local unix socket.
 //
-// If the path argument is empty, then $LXD_DIR/unix.socket will be used.
-// If that one isn't set either, then the path will default to /var/lib/lxd/unix.socket.
+// If the path argument is empty, then $LXD_SOCKET will be used, if
+// unset $LXD_DIR/unix.socket will be used and if that one isn't set
+// either, then the path will default to /var/lib/lxd/unix.socket.
 func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) {
 	logger.Debugf("Connecting to a local LXD over a Unix socket")
 
@@ -84,12 +85,15 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) 
 
 	// Determine the socket path
 	if path == "" {
-		lxdDir := os.Getenv("LXD_DIR")
-		if lxdDir == "" {
-			lxdDir = "/var/lib/lxd"
-		}
+		path = os.Getenv("LXD_SOCKET")
+		if path == "" {
+			lxdDir := os.Getenv("LXD_DIR")
+			if lxdDir == "" {
+				lxdDir = "/var/lib/lxd"
+			}
 
-		path = filepath.Join(lxdDir, "unix.socket")
+			path = filepath.Join(lxdDir, "unix.socket")
+		}
 	}
 
 	// Setup the HTTP client
