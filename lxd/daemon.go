@@ -216,6 +216,11 @@ func (d *Daemon) State() *state.State {
 // UnixSocket returns the full path to the unix.socket file that this daemon is
 // listening on. Used by tests.
 func (d *Daemon) UnixSocket() string {
+	path := os.Getenv("LXD_SOCKET")
+	if path != "" {
+		return path
+	}
+
 	return filepath.Join(d.os.VarDir, "unix.socket")
 }
 
@@ -443,6 +448,7 @@ func (d *Daemon) init() error {
 	/* Setup the web server */
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
+		UnixSocket:           d.UnixSocket(),
 		Cert:                 certInfo,
 		RestServer:           RestServer(d),
 		DevLxdServer:         DevLxdServer(d),
