@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -161,6 +162,10 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
+	snapshotName, err = url.QueryUnescape(snapshotName)
+	if err != nil {
+		return SmartError(err)
+	}
 	sc, err := containerLoadByName(
 		d.State(),
 		containerName+
