@@ -77,6 +77,9 @@ dist:
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%H" > manifest.uuid
 
+	# Write a manifest
+	cd $(TMP)/dist && find . -type d -name .git | while read line; do GITDIR=$$(dirname $$line); echo "$${GITDIR}: $$(cd $${GITDIR} && git show-ref HEAD $${GITDIR} | cut -d' ' -f1)"; done | sort > $(TMP)/dist/MANIFEST
+
 	# Assemble tarball
 	rm $(TMP)/dist/src/github.com/lxc/lxd
 	ln -s ../../../../ $(TMP)/dist/src/github.com/lxc/lxd
