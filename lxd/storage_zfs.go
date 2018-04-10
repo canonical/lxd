@@ -129,7 +129,7 @@ func (s *storageZfs) StoragePoolCreate() error {
 	}()
 
 	storagePoolMntPoint := getStoragePoolMountPoint(s.pool.Name)
-	err = os.MkdirAll(storagePoolMntPoint, 0755)
+	err = os.MkdirAll(storagePoolMntPoint, 0711)
 	if err != nil {
 		return err
 	}
