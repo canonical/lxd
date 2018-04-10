@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-04-09 02:28+0200\n"
+"POT-Creation-Date: 2018-04-10 00:41+0200\n"
 "PO-Revision-Date: 2018-03-06 13:50+0000\n"
 "Last-Translator: Alban Vidal <alban.vidal@zordhak.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -398,7 +398,7 @@ msgstr "Mise à jour auto. : %s"
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:110 lxc/init.go:118 lxc/publish.go:175 lxc/storage.go:123
+#: lxc/copy.go:110 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
 #: lxc/storage_volume.go:468
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -560,7 +560,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:260 lxc/init.go:229
+#: lxc/copy.go:260 lxc/init.go:230
 #, c-format
 msgid "Container name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -696,17 +696,22 @@ msgstr "Créé : %s"
 msgid "Create storage pools"
 msgstr "Copie de l'image : %s"
 
+#: lxc/copy.go:46 lxc/init.go:49
+#, fuzzy
+msgid "Create the container with no profiles applied"
+msgstr "L'arrêt du conteneur a échoué !"
+
 #: lxc/image.go:831 lxc/info.go:135
 #, c-format
 msgid "Created: %s"
 msgstr "Créé : %s"
 
-#: lxc/init.go:98
+#: lxc/init.go:99
 #, c-format
 msgid "Creating %s"
 msgstr "Création de %s"
 
-#: lxc/init.go:96
+#: lxc/init.go:97
 msgid "Creating the container"
 msgstr "Création du conteneur"
 
@@ -2168,7 +2173,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/init.go:201
+#: lxc/init.go:202
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -2520,7 +2525,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:280
+#: lxc/init.go:281
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 "Le conteneur que vous démarrez n'est attaché à aucune interface réseau."
@@ -2535,12 +2540,12 @@ msgstr "Le périphérique n'existe pas"
 msgid "The device doesn't exist"
 msgstr "Le périphérique n'existe pas"
 
-#: lxc/init.go:264
+#: lxc/init.go:265
 #, fuzzy, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 
-#: lxc/init.go:260
+#: lxc/init.go:261
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
@@ -2571,11 +2576,11 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:282
+#: lxc/init.go:283
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:281
+#: lxc/init.go:282
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
@@ -2927,7 +2932,7 @@ msgstr ""
 msgid "device"
 msgstr ""
 
-#: lxc/init.go:223
+#: lxc/init.go:224
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr "pas d'image, conteneur ou instantané affecté sur ce serveur"
 

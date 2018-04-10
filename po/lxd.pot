@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2018-04-09 02:28+0200\n"
+        "POT-Creation-Date: 2018-04-10 00:41+0200\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -286,7 +286,7 @@ msgstr  ""
 msgid   "Bad key/value pair: %s"
 msgstr  ""
 
-#: lxc/copy.go:110 lxc/init.go:118 lxc/publish.go:175 lxc/storage.go:123 lxc/storage_volume.go:468
+#: lxc/copy.go:110 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123 lxc/storage_volume.go:468
 #, c-format
 msgid   "Bad key=value pair: %s"
 msgstr  ""
@@ -425,7 +425,7 @@ msgstr  ""
 msgid   "Container name is mandatory"
 msgstr  ""
 
-#: lxc/copy.go:260 lxc/init.go:229
+#: lxc/copy.go:260 lxc/init.go:230
 #, c-format
 msgid   "Container name is: %s"
 msgstr  ""
@@ -535,17 +535,21 @@ msgstr  ""
 msgid   "Create storage pools"
 msgstr  ""
 
+#: lxc/copy.go:46 lxc/init.go:49
+msgid   "Create the container with no profiles applied"
+msgstr  ""
+
 #: lxc/image.go:831 lxc/info.go:135
 #, c-format
 msgid   "Created: %s"
 msgstr  ""
 
-#: lxc/init.go:98
+#: lxc/init.go:99
 #, c-format
 msgid   "Creating %s"
 msgstr  ""
 
-#: lxc/init.go:96
+#: lxc/init.go:97
 msgid   "Creating the container"
 msgstr  ""
 
@@ -1786,7 +1790,7 @@ msgstr  ""
 msgid   "Retrieve the container's console log"
 msgstr  ""
 
-#: lxc/init.go:201
+#: lxc/init.go:202
 #, c-format
 msgid   "Retrieving image: %s"
 msgstr  ""
@@ -2106,7 +2110,7 @@ msgstr  ""
 msgid   "The container is currently running. Use --force to have it stopped and restarted."
 msgstr  ""
 
-#: lxc/init.go:280
+#: lxc/init.go:281
 msgid   "The container you are starting doesn't have any network attached to it."
 msgstr  ""
 
@@ -2118,12 +2122,12 @@ msgstr  ""
 msgid   "The device doesn't exist"
 msgstr  ""
 
-#: lxc/init.go:264
+#: lxc/init.go:265
 #, c-format
 msgid   "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr  ""
 
-#: lxc/init.go:260
+#: lxc/init.go:261
 #, c-format
 msgid   "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr  ""
@@ -2152,11 +2156,11 @@ msgstr  ""
 msgid   "Timestamps:"
 msgstr  ""
 
-#: lxc/init.go:282
+#: lxc/init.go:283
 msgid   "To attach a network to a container, use: lxc network attach"
 msgstr  ""
 
-#: lxc/init.go:281
+#: lxc/init.go:282
 msgid   "To create a new network, use: lxc network create"
 msgstr  ""
 
@@ -2467,7 +2471,7 @@ msgstr  ""
 msgid   "device"
 msgstr  ""
 
-#: lxc/init.go:223
+#: lxc/init.go:224
 msgid   "didn't get any affected image, container or snapshot from server"
 msgstr  ""
 
