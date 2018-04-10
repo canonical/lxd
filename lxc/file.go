@@ -223,7 +223,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 		if !targetIsDir && len(args)-1 > 1 {
 			return fmt.Errorf(i18n.G("More than one file to download, but target is not a directory"))
 		}
-	} else if strings.HasSuffix(target, string(os.PathSeparator)) || len(args)-1 > 1 || c.file.flagRecursive {
+	} else if strings.HasSuffix(args[len(args)-1], string(os.PathSeparator)) || len(args)-1 > 1 {
 		err := os.MkdirAll(target, 0755)
 		if err != nil {
 			return err
@@ -251,6 +251,14 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 		// Deal with recursion
 		if resp.Type == "directory" {
 			if c.file.flagRecursive {
+				if !shared.PathExists(target) {
+					err := os.MkdirAll(target, 0755)
+					if err != nil {
+						return err
+					}
+					targetIsDir = true
+				}
+
 				err := c.file.recursivePullFile(resource.server, pathSpec[0], pathSpec[1], target)
 				if err != nil {
 					return err
