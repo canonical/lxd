@@ -71,7 +71,7 @@ uid-shifting filesystem. The per-container configuration key for this is
 
     both 1000 1000
     uid 50-60 500-510
-    gid 10000-110000 10000-20000
+    gid 100000-110000 10000-20000
 
 The first line configures both the uid and gid 1000 on the host to map to uid
 1000 inside the container (this can be used for example to bind mount a user's
