@@ -585,7 +585,7 @@ func createContainerMountpoint(mountPoint string, mountPointSymlink string, priv
 	if privileged {
 		mode = 0700
 	} else {
-		mode = 0755
+		mode = 0711
 	}
 
 	mntPointSymlinkExist := shared.PathExists(mountPointSymlink)
@@ -593,7 +593,7 @@ func createContainerMountpoint(mountPoint string, mountPointSymlink string, priv
 
 	var err error
 	if !mntPointSymlinkTargetExist {
-		err = os.MkdirAll(mountPoint, 0755)
+		err = os.MkdirAll(mountPoint, 0711)
 		if err != nil {
 			return err
 		}
