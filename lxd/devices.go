@@ -211,6 +211,9 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 				}
 				strBuf := strings.TrimSpace(string(buf))
 				idx := strings.Index(strBuf, "Device Minor:")
+				if idx == -1 {
+					return nil, nil, fmt.Errorf("No device minor index detected")
+				}
 				idx += len("Device Minor:")
 				strBuf = strBuf[idx:]
 				strBuf = strings.TrimSpace(strBuf)
