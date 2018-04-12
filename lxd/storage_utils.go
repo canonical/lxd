@@ -158,8 +158,9 @@ func storageConfigDiff(oldConfig map[string]string, newConfig map[string]string)
 }
 
 // Default permissions for folders in ${LXD_DIR}
-const containersDirMode os.FileMode = 0755
-const customDirMode os.FileMode = 0755
+const storagePoolsDirMode os.FileMode = 0711
+const containersDirMode os.FileMode = 0711
+const customDirMode os.FileMode = 0711
 const imagesDirMode os.FileMode = 0700
 const snapshotsDirMode os.FileMode = 0700
 

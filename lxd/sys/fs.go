@@ -26,10 +26,13 @@ func (s *OS) initDirs() error {
 		{filepath.Join(s.VarDir, "disks"), 0700},
 		{filepath.Join(s.VarDir, "storage-pools"), 0711},
 	}
+
 	for _, dir := range dirs {
-		if err := os.MkdirAll(dir.path, dir.mode); err != nil {
+		err := os.Mkdir(dir.path, dir.mode)
+		if err != nil && !os.IsExist(err) {
 			return err
 		}
 	}
+
 	return nil
 }
