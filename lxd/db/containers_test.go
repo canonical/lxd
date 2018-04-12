@@ -89,6 +89,30 @@ func TestContainerPool(t *testing.T) {
 	assert.Equal(t, "default", poolName)
 }
 
+// Only containers running on the local node are returned.
+func TestContainersNodeList(t *testing.T) {
+	cluster, cleanup := db.NewTestCluster(t)
+	defer cleanup()
+
+	nodeID1 := int64(1) // This is the default local node
+
+	// Add another node
+	var nodeID2 int64
+	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		nodeID2, err = tx.NodeAdd("node2", "1.2.3.4:666")
+		require.NoError(t, err)
+		addContainer(t, tx, nodeID1, "c1")
+		addContainer(t, tx, nodeID2, "c2")
+		return nil
+	})
+	require.NoError(t, err)
+
+	names, err := cluster.ContainersNodeList(db.CTypeRegular)
+	require.NoError(t, err)
+	assert.Equal(t, names, []string{"c1"})
+}
+
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 	stmt := `
 INSERT INTO containers(node_id, name, architecture, type) VALUES (?, ?, 1, ?)
