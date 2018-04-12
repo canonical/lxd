@@ -53,6 +53,7 @@ var patches = []patch{
 	{name: "fix_uploaded_at", run: patchFixUploadedAt},
 	{name: "storage_api_ceph_size_remove", run: patchStorageApiCephSizeRemove},
 	{name: "devices_new_naming_scheme", run: patchDevicesNewNamingScheme},
+	{name: "storage_api_permissions", run: patchStorageApiPermissions},
 }
 
 type patch struct {
@@ -2689,6 +2690,143 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 				logger.Errorf("Failed to remove device \"%s\": %s", k, err)
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+func patchStorageApiPermissions(name string, d *Daemon) error {
+	storagePoolsPath := shared.VarPath("storage-pools")
+	err := os.Chmod(storagePoolsPath, 0711)
+	if err != nil {
+		return err
+	}
+
+	pools, err := d.cluster.StoragePools()
+	if err != nil && err == db.ErrNoSuchObject {
+		// No pool was configured in the previous update. So we're on a
+		// pristine LXD instance.
+		return nil
+	} else if err != nil {
+		// Database is screwed.
+		logger.Errorf("Failed to query database: %s", err)
+		return err
+	}
+
+	for _, poolName := range pools {
+		pool, err := storagePoolInit(d.State(), poolName)
+		if err != nil {
+			return err
+		}
+
+		ourMount, err := pool.StoragePoolMount()
+		if err != nil {
+			return err
+		}
+
+		if ourMount {
+			defer pool.StoragePoolUmount()
+		}
+
+		// chmod storage pool directory
+		storagePoolDir := shared.VarPath("storage-pools", poolName)
+		err = os.Chmod(storagePoolDir, 0711)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		// chmod containers directory
+		containersDir := shared.VarPath("storage-pools", poolName, "containers")
+		err = os.Chmod(containersDir, 0711)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		// chmod custom subdir
+		customDir := shared.VarPath("storage-pools", poolName, "custom")
+		err = os.Chmod(customDir, 0711)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		// chmod images subdir
+		imagesDir := shared.VarPath("storage-pools", poolName, "images")
+		err = os.Chmod(imagesDir, 0700)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		// chmod snapshots subdir
+		snapshotsDir := shared.VarPath("storage-pools", poolName, "snapshots")
+		err = os.Chmod(snapshotsDir, 0700)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		// Retrieve ID of the storage pool (and check if the storage pool
+		// exists).
+		poolID, err := d.cluster.StoragePoolGetID(poolName)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		volumes, err := d.cluster.StoragePoolNodeVolumesGetType(storagePoolVolumeTypeCustom, poolID)
+		if err != nil && err != db.ErrNoSuchObject {
+			return err
+		}
+
+		for _, vol := range volumes {
+			volStruct, err := storagePoolVolumeInit(d.State(), poolName, vol, storagePoolVolumeTypeCustom)
+			if err != nil {
+				return err
+			}
+
+			ourMount, err := volStruct.StoragePoolVolumeMount()
+			if err != nil {
+				return err
+			}
+			if ourMount {
+				defer volStruct.StoragePoolVolumeUmount()
+			}
+
+			cuMntPoint := getStoragePoolVolumeMountPoint(poolName, vol)
+			err = os.Chmod(cuMntPoint, 0711)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+	}
+
+	cRegular, err := d.cluster.ContainersNodeList(db.CTypeRegular)
+	if err != nil {
+		return err
+	}
+
+	for _, ct := range cRegular {
+		// load the container from the database
+		ctStruct, err := containerLoadByName(d.State(), ct)
+		if err != nil {
+			return err
+		}
+
+		ourMount, err := ctStruct.StorageStart()
+		if err != nil {
+			return err
+		}
+
+		if ctStruct.IsPrivileged() {
+			err = os.Chmod(ctStruct.Path(), 0700)
+		} else {
+			err = os.Chmod(ctStruct.Path(), 0711)
+		}
+
+		if ourMount {
+			ctStruct.StorageStop()
+		}
+
+		if err != nil && !os.IsNotExist(err) {
+			return err
 		}
 	}
 
