@@ -191,7 +191,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 
 	poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 	if !shared.PathExists(poolMntPoint) {
-		err := os.MkdirAll(poolMntPoint, 0711)
+		err := os.MkdirAll(poolMntPoint, storagePoolsDirMode)
 		if err != nil {
 			return err
 		}
@@ -373,7 +373,7 @@ func (s *storageBtrfs) StoragePoolMount() (bool, error) {
 
 	// Check whether the mount poolMntPoint exits.
 	if !shared.PathExists(poolMntPoint) {
-		err := os.MkdirAll(poolMntPoint, 0711)
+		err := os.MkdirAll(poolMntPoint, storagePoolsDirMode)
 		if err != nil {
 			return false, err
 		}
@@ -721,7 +721,7 @@ func (s *storageBtrfs) ContainerCreate(container container) error {
 	// doesn't already.
 	containerSubvolumePath := s.getContainerSubvolumePath(s.pool.Name)
 	if !shared.PathExists(containerSubvolumePath) {
-		err := os.MkdirAll(containerSubvolumePath, 0711)
+		err := os.MkdirAll(containerSubvolumePath, containersDirMode)
 		if err != nil {
 			return err
 		}
@@ -767,7 +767,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	// doesn't already.
 	containerSubvolumePath := s.getContainerSubvolumePath(s.pool.Name)
 	if !shared.PathExists(containerSubvolumePath) {
-		err := os.MkdirAll(containerSubvolumePath, 0711)
+		err := os.MkdirAll(containerSubvolumePath, containersDirMode)
 		if err != nil {
 			return err
 		}
@@ -893,7 +893,7 @@ func (s *storageBtrfs) copyContainer(target container, source container) error {
 	containersPath := getContainerMountPoint(s.pool.Name, "")
 	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if !shared.PathExists(containersPath) {
-		err := os.MkdirAll(containersPath, 0700)
+		err := os.MkdirAll(containersPath, containersDirMode)
 		if err != nil {
 			return err
 		}
@@ -940,7 +940,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 
 	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if !shared.PathExists(containersPath) {
-		err := os.MkdirAll(containersPath, 0700)
+		err := os.MkdirAll(containersPath, containersDirMode)
 		if err != nil {
 			return err
 		}
@@ -1193,7 +1193,7 @@ func (s *storageBtrfs) ContainerSnapshotCreate(snapshotContainer container, sour
 	// doesn't already.
 	snapshotSubvolumePath := getSnapshotSubvolumePath(s.pool.Name, sourceContainer.Name())
 	if !shared.PathExists(snapshotSubvolumePath) {
-		err := os.MkdirAll(snapshotSubvolumePath, 0711)
+		err := os.MkdirAll(snapshotSubvolumePath, containersDirMode)
 		if err != nil {
 			return err
 		}
@@ -1359,7 +1359,7 @@ func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container)
 	snapshotSubvolumePath := getSnapshotSubvolumePath(s.pool.Name, sourceName)
 	snapshotSubvolumeName := getSnapshotMountPoint(s.pool.Name, snapshotContainer.Name())
 	if !shared.PathExists(snapshotSubvolumePath) {
-		err := os.MkdirAll(snapshotSubvolumePath, 0711)
+		err := os.MkdirAll(snapshotSubvolumePath, containersDirMode)
 		if err != nil {
 			return err
 		}
@@ -1410,7 +1410,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 	// doesn't already.
 	imageSubvolumePath := s.getImageSubvolumePath(s.pool.Name)
 	if !shared.PathExists(imageSubvolumePath) {
-		err := os.MkdirAll(imageSubvolumePath, 0700)
+		err := os.MkdirAll(imageSubvolumePath, imagesDirMode)
 		if err != nil {
 			return err
 		}
@@ -1950,7 +1950,12 @@ func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *
 func (s *btrfsMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
 	tmpPath := getSnapshotMountPoint(s.btrfs.pool.Name,
 		fmt.Sprintf("%s/.migration-send", s.container.Name()))
-	err := os.MkdirAll(tmpPath, 0700)
+	err := os.MkdirAll(tmpPath, 0711)
+	if err != nil {
+		return err
+	}
+
+	err = os.Chmod(tmpPath, 0700)
 	if err != nil {
 		return err
 	}
@@ -2107,7 +2112,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 	_, containerPool, _ := container.Storage().GetContainerPoolInfo()
 	containersPath := getSnapshotMountPoint(containerPool, containerName)
 	if !containerOnly && len(snapshots) > 0 {
-		err := os.MkdirAll(containersPath, 0700)
+		err := os.MkdirAll(containersPath, containersDirMode)
 		if err != nil {
 			return err
 		}
@@ -2305,7 +2310,7 @@ func (s *storageBtrfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) er
 		// Ensure that the directories immediately preceding the subvolume directory exist.
 		customDir := getStoragePoolVolumeMountPoint(s.pool.Name, "")
 		if !shared.PathExists(customDir) {
-			err := os.MkdirAll(customDir, 0700)
+			err := os.MkdirAll(customDir, customDirMode)
 			if err != nil {
 				logger.Errorf("Failed to create directory \"%s\" for storage volume \"%s\" on storage pool \"%s\": %s", customDir, s.volume.Name, s.pool.Name, err)
 				return err
