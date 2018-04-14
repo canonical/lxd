@@ -308,7 +308,7 @@ func raftNetworkTransport(
 	logger *log.Logger,
 	timeout time.Duration,
 	dial rafthttp.Dial) (raft.Transport, *rafthttp.Handler, *rafthttp.Layer, error) {
-	handler := rafthttp.NewHandler()
+	handler := rafthttp.NewHandlerWithLogger(logger)
 	addr, err := net.ResolveTCPAddr("tcp", address)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "invalid node address")
