@@ -5,8 +5,11 @@ test_sql() {
   ! lxd sql
 
   # Single query
-  lxd sql "SELECT * FROM config" | grep "core.trust_password"
+  lxd sql "SELECT * FROM config" | grep -q "core.trust_password"
 
   # Standard input
-  echo "SELECT * FROM config" | lxd sql - | grep "core.trust_password"
+  echo "SELECT * FROM config" | lxd sql - | grep -q "core.trust_password"
+
+  # Multiple queries
+  lxd sql "SELECT * FROM config; SELECT * FROM containers" | grep -q "=> Query 0"
 }
