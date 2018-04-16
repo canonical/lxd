@@ -94,7 +94,8 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 }
 
 type internalSQLPost struct {
-	Query string `json:"query" yaml:"query"`
+	Database string `json:"database" yaml:"database"`
+	Query    string `json:"query" yaml:"query"`
 }
 
 type internalSQLBatch struct {
@@ -115,10 +116,22 @@ func internalSQL(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
+
+	if !shared.StringInSlice(req.Database, []string{"local", "global"}) {
+		return BadRequest(fmt.Errorf("Invalid database"))
+	}
+
 	if req.Query == "" {
 		return BadRequest(fmt.Errorf("No query provided"))
 	}
-	db := d.cluster.DB()
+
+	var db *sql.DB
+	if req.Database == "global" {
+		db = d.cluster.DB()
+	} else {
+		db = d.db.DB()
+	}
+
 	batch := internalSQLBatch{}
 	for _, query := range strings.Split(req.Query, ";") {
 		query = strings.TrimLeft(query, " ")
