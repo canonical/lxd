@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared"
 )
 
 type cmdSql struct {
@@ -21,12 +22,22 @@ type cmdSql struct {
 
 func (c *cmdSql) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = "sql <query>"
-	cmd.Short = "Execute a SQL query against the LXD database"
+	cmd.Use = "sql <local|global> <query>"
+	cmd.Short = "Execute a SQL query against the LXD local or global database"
 	cmd.Long = `Description:
-  Execute a SQL query against the LXD database
+  Execute a SQL query against the LXD local or global database
 
-  If <query> is the special value "-", than the query is read from
+  The local database is specific to the LXD cluster member you target the
+  command to, and contains member-specific data (such as the member network
+  address).
+
+  The global database is common to all LXD members in the cluster, and contains
+  cluster-specific data (such as profiles, containers, etc).
+
+  If you are running a non-clustered LXD instance, the same applies, as that
+  instance is effectively a single-member cluster.
+
+  If <query> is the special value "-", then the query is read from
   standard input.
 
   This internal command is mostly useful for debugging and disaster
@@ -43,7 +54,7 @@ func (c *cmdSql) Command() *cobra.Command {
 }
 
 func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
-	if len(args) != 1 {
+	if len(args) != 2 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -53,7 +64,14 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Missing required arguments")
 	}
 
-	query := args[0]
+	database := args[0]
+	query := args[1]
+
+	if !shared.StringInSlice(database, []string{"local", "global"}) {
+		cmd.Help()
+
+		return fmt.Errorf("Invalid database type")
+	}
 
 	if query == "-" {
 		// Read from stdin
@@ -71,7 +89,8 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	data := internalSQLPost{
-		Query: query,
+		Database: database,
+		Query:    query,
 	}
 	response, _, err := d.RawQuery("POST", "/internal/sql", data, "")
 	if err != nil {

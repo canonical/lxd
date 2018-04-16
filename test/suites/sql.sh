@@ -1,15 +1,19 @@
 # Test the lxd sql command.
 test_sql() {
   # Invalid arguments
-  ! lxd sql ""
   ! lxd sql
+  ! lxd sql foo "SELECT * FROM CONFIG"
+  ! lxd sql global ""
 
-  # Single query
-  lxd sql "SELECT * FROM config" | grep -q "core.trust_password"
+  # Local database
+  lxd sql local "SELECT * FROM config" | grep -q "core.https_address"
+
+  # Global database
+  lxd sql global "SELECT * FROM config" | grep -q "core.trust_password"
 
   # Standard input
-  echo "SELECT * FROM config" | lxd sql - | grep -q "core.trust_password"
+  echo "SELECT * FROM config" | lxd sql global - | grep -q "core.trust_password"
 
   # Multiple queries
-  lxd sql "SELECT * FROM config; SELECT * FROM containers" | grep -q "=> Query 0"
+  lxd sql global "SELECT * FROM config; SELECT * FROM containers" | grep -q "=> Query 0"
 }
