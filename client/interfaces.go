@@ -206,6 +206,7 @@ type ConnectionInfo struct {
 	Addresses   []string
 	Certificate string
 	Protocol    string
+	URL         string
 }
 
 // The ImageCreateArgs struct is used for direct image upload

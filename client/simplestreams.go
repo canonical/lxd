@@ -23,6 +23,7 @@ func (r *ProtocolSimpleStreams) GetConnectionInfo() (*ConnectionInfo, error) {
 	info.Addresses = []string{r.httpHost}
 	info.Certificate = r.httpCertificate
 	info.Protocol = "simplestreams"
+	info.URL = r.httpHost
 
 	return &info, nil
 }
