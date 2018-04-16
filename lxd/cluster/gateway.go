@@ -217,6 +217,11 @@ func (g *Gateway) WaitUpgradeNotification() {
 	<-g.upgradeCh
 }
 
+// IsDatabaseNode returns true if this gateway also run acts a raft database node.
+func (g *Gateway) IsDatabaseNode() bool {
+	return g.raft != nil
+}
+
 // Dialer returns a gRPC dial function that can be used to connect to one of
 // the dqlite nodes via gRPC.
 func (g *Gateway) Dialer() grpcsql.Dialer {
