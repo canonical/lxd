@@ -3,12 +3,13 @@
 To backup a LXD instance different strategies are available.
 
 ## Full backup
-This requires that the whole `/var/lib/lxd` folder will be backuped up.
+This requires that the whole `/var/lib/lxd` or
+`/var/lib/snap/lxd/common/lxd` (for the snap) folder be backuped up.
 Additionally, it is necessary to backup all storage pools as well.
 
-In order to restore the LXD instance the old `/var/lib/lxd` folder needs to be
-removed and replaced with the `/var/lib/lxd` snapshot. All storage pools
-need to be restored as well.
+In order to restore the LXD instance the old `lxd` folder needs to be
+removed and replaced with the `lxd` snapshot. All storage pools need to
+be restored as well.
 
 ## Secondary LXD
 This requires a second LXD instance to be setup and reachable from the LXD
@@ -36,6 +37,15 @@ Note that the corresponding storage volume for the container must exist and be
 accessible before the container can be imported.  For example, if the
 container's storage volume got unmounted the user is required to remount it
 manually.
+
+The container must be available under
+`/var/lib/lxd/storage-pools/POOL-NAME/containers/NAME` or
+`/var/lib/snap/lxd/common/lxd/storage-pools/POOL-NAME/containers/NAME`
+in the case of the LXD snap.
+
+LXD will then locate the container and read its `backup.yaml` file,
+creating any missing database entry.
+
 
 If any matching database entry for resources declared in `backup.yaml` is found
 during import, the command will refuse to restore the container.  This can be
