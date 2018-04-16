@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
@@ -22,6 +25,9 @@ func (c *cmdSql) Command() *cobra.Command {
 	cmd.Short = "Execute a SQL query against the LXD database"
 	cmd.Long = `Description:
   Execute a SQL query against the LXD database
+
+  If <query> is the special value "-", than the query is read from
+  standard input.
 
   This internal command is mostly useful for debugging and disaster
   recovery. The LXD team will occasionally provide hotfixes to users as a
@@ -48,6 +54,15 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	query := args[0]
+
+	if query == "-" {
+		// Read from stdin
+		bytes, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return errors.Wrap(err, "Failed to read from stdin")
+		}
+		query = string(bytes)
+	}
 
 	// Connect to LXD
 	d, err := lxd.ConnectLXDUnix("", nil)
