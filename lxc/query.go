@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 
 	"github.com/spf13/cobra"
 
@@ -80,7 +83,47 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	// Perform the query
 	resp, _, err := d.RawQuery(c.flagAction, path, data, "")
 	if err != nil {
-		return err
+		cleanErr := err
+
+		// Lets assume the endpoint is raw output
+		// Get a raw http client
+		httpClient, err := d.GetHTTPClient()
+		if err != nil {
+			return err
+		}
+
+		// Get the URL prefix
+		httpInfo, err := d.GetConnectionInfo()
+		if err != nil {
+			return err
+		}
+
+		// Setup the request
+		req, err := http.NewRequest(c.flagAction, fmt.Sprintf("%s%s", httpInfo.URL, path), bytes.NewReader([]byte(c.flagData)))
+		if err != nil {
+			return err
+		}
+
+		// Set the encoding accordingly
+		req.Header.Set("Content-Type", "plain/text")
+
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return cleanErr
+		}
+
+		content, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		fmt.Print(string(content))
+
+		return nil
 	}
 
 	if c.flagRespWait && resp.Operation != "" {
