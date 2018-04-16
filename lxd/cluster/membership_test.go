@@ -348,6 +348,83 @@ func TestJoin(t *testing.T) {
 	assert.Equal(t, 1, count)
 }
 
+func FLAKY_TestPromote(t *testing.T) {
+	// Setup a target node running as leader of a cluster.
+	targetCert := shared.TestingKeyPair()
+	targetMux := http.NewServeMux()
+	targetServer := newServer(targetCert, targetMux)
+	defer targetServer.Close()
+
+	targetState, cleanup := state.NewTestState(t)
+	defer cleanup()
+
+	targetGateway := newGateway(t, targetState.Node, targetCert)
+	defer targetGateway.Shutdown()
+
+	for path, handler := range targetGateway.HandlerFuncs() {
+		targetMux.HandleFunc(path, handler)
+	}
+
+	targetAddress := targetServer.Listener.Addr().String()
+	var err error
+	require.NoError(t, targetState.Cluster.Close())
+	targetState.Cluster, err = db.OpenCluster("db.bin", targetGateway.Dialer(), targetAddress)
+	require.NoError(t, err)
+	targetF := &membershipFixtures{t: t, state: targetState}
+	targetF.NetworkAddress(targetAddress)
+
+	err = cluster.Bootstrap(targetState, targetGateway, "buzz")
+	require.NoError(t, err)
+
+	// Setup a node to be promoted.
+	mux := http.NewServeMux()
+	server := newServer(targetCert, mux) // Use the same cert, as we're already part of the cluster
+	defer server.Close()
+
+	state, cleanup := state.NewTestState(t)
+	defer cleanup()
+
+	address := server.Listener.Addr().String()
+	targetF.ClusterNode(address) // Add the non database node to the cluster database
+	f := &membershipFixtures{t: t, state: state}
+	f.NetworkAddress(address)
+	f.RaftNode(targetAddress) // Insert the leader in our local list of database nodes
+
+	gateway := newGateway(t, state.Node, targetCert)
+	defer gateway.Shutdown()
+
+	for path, handler := range gateway.HandlerFuncs() {
+		mux.HandleFunc(path, handler)
+	}
+
+	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address)
+	require.NoError(t, err)
+
+	// Promote the node.
+	targetF.RaftNode(address) // Add the address of the node to be promoted in the leader's db
+	raftNodes := targetF.RaftNodes()
+	err = cluster.Promote(state, gateway, raftNodes)
+	require.NoError(t, err)
+
+	// The leader now returns an updated list of raft nodes.
+	raftNodes, err = targetGateway.RaftNodes()
+	require.NoError(t, err)
+	assert.Len(t, raftNodes, 2)
+	assert.Equal(t, int64(1), raftNodes[0].ID)
+	assert.Equal(t, targetAddress, raftNodes[0].Address)
+	assert.Equal(t, int64(2), raftNodes[1].ID)
+	assert.Equal(t, address, raftNodes[1].Address)
+
+	// The List function returns all nodes in the cluster.
+	nodes, err := cluster.List(state)
+	require.NoError(t, err)
+	assert.Len(t, nodes, 2)
+	assert.Equal(t, "Online", nodes[0].Status)
+	assert.Equal(t, "Online", nodes[1].Status)
+	assert.True(t, nodes[0].Database)
+	assert.True(t, nodes[1].Database)
+}
+
 // Helper for setting fixtures for Bootstrap tests.
 type membershipFixtures struct {
 	t     *testing.T
@@ -372,6 +449,18 @@ func (h *membershipFixtures) RaftNode(address string) {
 		return err
 	})
 	require.NoError(h.t, err)
+}
+
+// Get the current list of the raft nodes in the raft_nodes table.
+func (h *membershipFixtures) RaftNodes() []db.RaftNode {
+	var nodes []db.RaftNode
+	err := h.state.Node.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		nodes, err = tx.RaftNodes()
+		return err
+	})
+	require.NoError(h.t, err)
+	return nodes
 }
 
 // Add the given address to the nodes table of the cluster database.

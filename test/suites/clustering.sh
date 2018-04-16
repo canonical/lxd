@@ -74,39 +74,44 @@ test_clustering_membership() {
   LXD_DIR="${LXD_ONE_DIR}" lxc remote set-url cluster https://10.1.1.102:8443
   lxc network list cluster: | grep -q "${bridge}"
 
-  # Shutdown a non-database node, and wait a few seconds so it will be
+  # Shutdown a database node, and wait a few seconds so it will be
   # detected as down.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 5
-  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   sleep 10
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node5" | grep -q "OFFLINE"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node3" | grep -q "OFFLINE"
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 20
 
   # Trying to delete the preseeded network now fails, because a node is degraded.
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   # Force the removal of the degraded node.
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster remove node5 --force
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node3 --force
+
+  # Sleep a bit to let a heartbeat occur and update the list of raft nodes
+  # everywhere, showing that node 4 has been promoted to database node.
+  sleep 8
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
 
   # Now the preseeded network can be deleted, and all nodes are
   # notified.
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
 
   # Rename a node using the pre-existing name.
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster rename node4 node5
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster rename node4 node3
 
   # Trying to delete a container which is the only one with a copy of
   # an image results in an error
   LXD_DIR="${LXD_FOUR_DIR}" ensure_import_testimage
-  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node5
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node3
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
   # Remove a node gracefully.
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node5
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node3
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list
 
+  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
-  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 2
