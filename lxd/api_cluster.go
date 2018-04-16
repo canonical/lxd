@@ -441,7 +441,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 	// First check that the node is clear from containers and images and
 	// make it leave the database cluster, if it's part of it.
 	name := mux.Vars(r)["name"]
-	address, err := cluster.Leave(d.State(), d.gateway, name, force == 1)
+	address, _, err := cluster.Leave(d.State(), d.gateway, name, force == 1)
 	if err != nil {
 		return SmartError(err)
 	}
