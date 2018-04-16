@@ -365,6 +365,7 @@ func (d *Daemon) Init() error {
 	// cleanup any state we produced so far. Errors happening here will be
 	// ignored.
 	if err != nil {
+		logger.Errorf("Failed to start the daemon: %v", err)
 		d.Stop()
 	}
 
@@ -699,6 +700,7 @@ func (d *Daemon) Kill() {
 
 // Stop stops the shared daemon.
 func (d *Daemon) Stop() error {
+	logger.Info("Starting shutdown sequence")
 	errs := []error{}
 	trackError := func(err error) {
 		if err != nil {
@@ -779,6 +781,9 @@ func (d *Daemon) Stop() error {
 			format += fmt.Sprintf(" (and %d more errors)", n)
 		}
 		err = fmt.Errorf(format, errs[0])
+	}
+	if err != nil {
+		logger.Errorf("Failed to cleanly shutdown daemon: %v", err)
 	}
 	return err
 }
