@@ -135,6 +135,11 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 				break
 			}
 
+			// Root is required to access the certificate files
+			if os.Geteuid() != 0 {
+				return fmt.Errorf("Joining an existing cluster requires root privileges")
+			}
+
 			// Confirm wiping
 			if !cli.AskBool("All existing data is lost when joining a cluster, continue? (yes/no) [default=no] ", "no") {
 				return fmt.Errorf("User aborted configuration")
