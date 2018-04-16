@@ -81,6 +81,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 
 	err = d.Init()
 	if err != nil {
+		logger.Errorf("Daemon failed to start: %v", err)
 		return err
 	}
 
