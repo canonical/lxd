@@ -294,6 +294,42 @@ func TestCluster_LeaveForce(t *testing.T) {
 	assert.Equal(t, []string{}, images)
 }
 
+// If a spare non-database node is available after a nodes leaves, it gets
+// promoted as database node.
+func FLAKY_TestCluster_LeaveAndPromote(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cluster promote test in short mode.")
+	}
+	daemons, cleanup := newDaemons(t, 4)
+	defer cleanup()
+
+	f := clusterFixture{t: t}
+	f.FormCluster(daemons)
+
+	// The first three nodes are database nodes, the fourth is not.
+	client := f.ClientUnix(f.Leader())
+	nodes, err := client.GetClusterMembers()
+	require.NoError(t, err)
+	assert.Len(t, nodes, 4)
+	assert.True(t, nodes[0].Database)
+	assert.True(t, nodes[1].Database)
+	assert.True(t, nodes[2].Database)
+	assert.False(t, nodes[3].Database)
+
+	client = f.ClientUnix(daemons[1])
+	err = client.DeleteClusterMember("rusp-0", false)
+	require.NoError(t, err)
+
+	// Only  three nodes are left, and they are all database nodes.
+	client = f.ClientUnix(f.Leader())
+	nodes, err = client.GetClusterMembers()
+	require.NoError(t, err)
+	assert.Len(t, nodes, 3)
+	assert.True(t, nodes[0].Database)
+	assert.True(t, nodes[1].Database)
+	assert.True(t, nodes[2].Database)
+}
+
 // A LXD node can be renamed.
 func TestCluster_NodeRename(t *testing.T) {
 	daemon, cleanup := newDaemon(t)
@@ -323,10 +359,12 @@ func TestCluster_NodeRename(t *testing.T) {
 type clusterFixture struct {
 	t       *testing.T
 	clients map[*Daemon]lxd.ContainerServer
+	daemons []*Daemon
 }
 
 // Form a cluster using the given daemons. The first daemon will be the leader.
 func (f *clusterFixture) FormCluster(daemons []*Daemon) {
+	f.daemons = daemons
 	for i, daemon := range daemons {
 		password := ""
 		if i == 0 {
@@ -415,4 +453,24 @@ func (f *clusterFixture) ClientUnix(daemon *Daemon) lxd.ContainerServer {
 		require.NoError(f.t, err)
 	}
 	return client
+}
+
+// Return the daemon which is currently the leader
+func (f *clusterFixture) Leader() *Daemon {
+	// Retry a few times since an election might still be happening
+	for i := 0; i < 5; i++ {
+		for _, daemon := range f.daemons {
+			address := daemon.endpoints.NetworkAddress()
+			leader, err := daemon.gateway.LeaderAddress()
+			if err != nil {
+				f.t.Fatal("failed to get leader address", err)
+			}
+			if address == leader {
+				return daemon
+			}
+		}
+		time.Sleep(time.Second)
+	}
+	f.t.Fatal("failed to get leader address")
+	return nil
 }

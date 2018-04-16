@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/CanonicalLtd/raft-http"
-	"github.com/CanonicalLtd/raft-membership"
+	rafthttp "github.com/CanonicalLtd/raft-http"
+	raftmembership "github.com/CanonicalLtd/raft-membership"
 	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -432,6 +432,190 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	return nil
 }
 
+// Rebalance the raft cluster, trying to see if we have a spare online node
+// that we can promote to database node if we are below membershipMaxRaftNodes.
+//
+// If there's such spare node, return its address as well as the new list of
+// raft nodes.
+func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, error) {
+	// First get the current raft members, since this method should be
+	// called after a node has left.
+	currentRaftNodes, err := gateway.currentRaftNodes()
+	if err != nil {
+		return "", nil, errors.Wrap(err, "failed to get current raft nodes")
+	}
+	if len(currentRaftNodes) >= membershipMaxRaftNodes {
+		// We're already at full capacity.
+		return "", nil, nil
+	}
+
+	currentRaftAddresses := make([]string, len(currentRaftNodes))
+	for i, node := range currentRaftNodes {
+		currentRaftAddresses[i] = node.Address
+	}
+
+	// Check if we have a spare node that we can turn into a database one.
+	address := ""
+	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := ConfigLoad(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed load cluster configuration")
+		}
+		nodes, err := tx.Nodes()
+		if err != nil {
+			return errors.Wrap(err, "failed to get cluster nodes")
+		}
+		// Find a node that is not part of the raft cluster yet.
+		for _, node := range nodes {
+			if shared.StringInSlice(node.Address, currentRaftAddresses) {
+				continue // This is already a database node
+			}
+			if node.IsOffline(config.OfflineThreshold()) {
+				continue // This node is offline
+			}
+			logger.Debugf(
+				"Found spare node %s (%s) to be promoted as database node", node.Name, node.Address)
+			address = node.Address
+			break
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	if address == "" {
+		// No node to promote
+		return "", nil, nil
+	}
+
+	// Update the local raft_table adding the new member and building a new
+	// list.
+	updatedRaftNodes := currentRaftNodes
+	err = gateway.db.Transaction(func(tx *db.NodeTx) error {
+		id, err := tx.RaftNodeAdd(address)
+		if err != nil {
+			return errors.Wrap(err, "failed to add new raft node")
+		}
+		updatedRaftNodes = append(updatedRaftNodes, db.RaftNode{ID: id, Address: address})
+		err = tx.RaftNodesReplace(updatedRaftNodes)
+		if err != nil {
+			return errors.Wrap(err, "failed to update raft nodes")
+		}
+		return nil
+	})
+	if err != nil {
+		return "", nil, err
+	}
+	return address, updatedRaftNodes, nil
+}
+
+// Promote makes a LXD node which is not a database node, become part of the
+// raft cluster.
+func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
+	logger.Info("Promote node to database node")
+
+	// Sanity check that this is not already a database node
+	if gateway.IsDatabaseNode() {
+		return fmt.Errorf("this node is already a database node")
+	}
+
+	// Figure out our own address.
+	address := ""
+	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		address, err = tx.NodeAddress()
+		if err != nil {
+			return errors.Wrap(err, "failed to fetch the address of this node")
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Sanity check that we actually have an address.
+	if address == "" {
+		return fmt.Errorf("node is not exposed on the network")
+	}
+
+	// Figure out our raft node ID, and an existing target raft node that
+	// we'll contact to add ourselves as member.
+	id := ""
+	target := ""
+	for _, node := range nodes {
+		if node.Address == address {
+			id = strconv.Itoa(int(node.ID))
+		} else {
+			target = node.Address
+		}
+	}
+
+	// Sanity check that our address was actually included in the given
+	// list of raft nodes.
+	if id == "" {
+		return fmt.Errorf("this node is not included in the given list of database nodes")
+	}
+
+	// Replace our local list of raft nodes with the given one (which
+	// includes ourselves). This will make the gateway start a raft node
+	// when restarted.
+	err = state.Node.Transaction(func(tx *db.NodeTx) error {
+		err = tx.RaftNodesReplace(nodes)
+		if err != nil {
+			return errors.Wrap(err, "failed to set raft nodes")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Lock regular access to the cluster database since we don't want any
+	// other database code to run while we're reconfiguring raft.
+	err = state.Cluster.EnterExclusive()
+	if err != nil {
+		return errors.Wrap(err, "failed to acquire cluster database lock")
+	}
+
+	// Wipe all existing raft data, for good measure (perhaps they were
+	// somehow leftover).
+	err = os.RemoveAll(filepath.Join(state.OS.VarDir, "raft"))
+	if err != nil {
+		return errors.Wrap(err, "failed to remove existing raft data")
+	}
+
+	// Re-initialize the gateway. This will create a new raft factory an
+	// dqlite driver instance, which will be exposed over gRPC by the
+	// gateway handlers.
+	err = gateway.init()
+	if err != nil {
+		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
+	}
+
+	logger.Info(
+		"Joining dqlite raft cluster",
+		log15.Ctx{"id": id, "address": address, "target": target})
+	changer := gateway.raft.MembershipChanger()
+	err = changer.Join(raft.ServerID(id), raft.ServerAddress(target), 5*time.Second)
+	if err != nil {
+		return err
+	}
+
+	// Unlock regular access to our cluster database, and make sure our
+	// gateway still works correctly.
+	err = state.Cluster.ExitExclusive(func(tx *db.ClusterTx) error {
+		_, err := tx.Nodes()
+		return err
+	})
+	if err != nil {
+		return errors.Wrap(err, "cluster database initialization failed")
+	}
+	return nil
+}
+
 // Leave a cluster.
 //
 // If the force flag is true, the node will leave even if it still has
@@ -469,19 +653,17 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	}
 
 	// If the node is a database node, leave the raft cluster too.
-	id := ""
-	target := ""
+	var raftNodes []db.RaftNode // Current raft nodes
+	raftNodeRemoveIndex := -1   // Index of the raft node to remove, if any.
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
-		nodes, err := tx.RaftNodes()
+		var err error
+		raftNodes, err = tx.RaftNodes()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to get current database nodes")
 		}
-		for i, node := range nodes {
+		for i, node := range raftNodes {
 			if node.Address == address {
-				id = strconv.Itoa(int(node.ID))
-				// Save the address of another database node,
-				// we'll use it to leave the raft cluster.
-				target = nodes[(i+1)%len(nodes)].Address
+				raftNodeRemoveIndex = i
 				break
 			}
 		}
@@ -491,22 +673,28 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 		return "", err
 	}
 
-	if target != "" {
-		logger.Info(
-			"Remove node from dqlite raft cluster",
-			log15.Ctx{"id": id, "address": address, "target": target})
-		dial, err := raftDial(gateway.cert)
-		if err != nil {
-			return "", err
-		}
-		err = rafthttp.ChangeMembership(
-			raftmembership.LeaveRequest, raftEndpoint, dial,
-			raft.ServerID(id), address, target, 5*time.Second)
-		if err != nil {
-			return "", err
-		}
+	if raftNodeRemoveIndex == -1 {
+		// The node was not part of the raft cluster, nothing left to
+		// do.
+		return address, nil
 	}
 
+	id := strconv.Itoa(int(raftNodes[raftNodeRemoveIndex].ID))
+	// Get the address of another database node,
+	target := raftNodes[(raftNodeRemoveIndex+1)%len(raftNodes)].Address
+	logger.Info(
+		"Remove node from dqlite raft cluster",
+		log15.Ctx{"id": id, "address": address, "target": target})
+	dial, err := raftDial(gateway.cert)
+	if err != nil {
+		return "", err
+	}
+	err = rafthttp.ChangeMembership(
+		raftmembership.LeaveRequest, raftEndpoint, dial,
+		raft.ServerID(id), address, target, 5*time.Second)
+	if err != nil {
+		return "", err
+	}
 	return address, nil
 }
 

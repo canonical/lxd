@@ -438,9 +438,11 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 		force = 0
 	}
 
+	name := mux.Vars(r)["name"]
+	logger.Debugf("Delete node %s from cluster (force=%d)", name, force)
+
 	// First check that the node is clear from containers and images and
 	// make it leave the database cluster, if it's part of it.
-	name := mux.Vars(r)["name"]
 	address, err := cluster.Leave(d.State(), d.gateway, name, force == 1)
 	if err != nil {
 		return SmartError(err)
@@ -483,6 +485,12 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(errors.Wrap(err, "failed to remove node from database"))
 	}
+	// Try to notify the leader.
+	err = tryClusterRebalance(d)
+	if err != nil {
+		// This is not a fatal error, so let's just log it.
+		logger.Errorf("Failed to rebalance cluster: %v", err)
+	}
 
 	if force != 1 {
 		// Try to gracefully reset the database on the node.
@@ -500,6 +508,26 @@ func clusterNodeDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	return EmptySyncResponse
+}
+
+// This function is used to notify the leader that a node was removed, it will
+// decide whether to promote a new node as database node.
+func tryClusterRebalance(d *Daemon) error {
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		// This is not a fatal error, so let's just log it.
+		return errors.Wrap(err, "failed to get current leader node")
+	}
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.Connect(leader, cert, true)
+	if err != nil {
+		return errors.Wrap(err, "failed to connect to leader node")
+	}
+	_, _, err = client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
+	if err != nil {
+		return errors.Wrap(err, "request to rebalance cluster failed")
+	}
+	return nil
 }
 
 var internalClusterAcceptCmd = Command{name: "cluster/accept", post: internalClusterPostAccept}
@@ -584,6 +612,99 @@ type internalClusterPostAcceptResponse struct {
 type internalRaftNode struct {
 	ID      int64  `json:"id" yaml:"id"`
 	Address string `json:"address" yaml:"address"`
+}
+
+var internalClusterRebalanceCmd = Command{name: "cluster/rebalance", post: internalClusterPostRebalance}
+
+// Used to update the cluster after a database node has been removed, and
+// possibly promote another one as database node.
+func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
+	// Redirect all requests to the leader, which is the one with with
+	// up-to-date knowledge of what nodes are part of the raft cluster.
+	localAddress, err := node.HTTPSAddress(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return InternalError(err)
+	}
+	if localAddress != leader {
+		logger.Debugf("Redirect cluster rebalance request to %s", leader)
+		url := &url.URL{
+			Scheme: "https",
+			Path:   "/internal/cluster/rebalance",
+			Host:   leader,
+		}
+		return SyncResponseRedirect(url.String())
+	}
+
+	logger.Debugf("Rebalance cluster")
+
+	// Check if we have a spare node to promote.
+	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
+	if err != nil {
+		return SmartError(err)
+	}
+	if address == "" {
+		return SyncResponse(true, nil) // Nothing to change
+	}
+
+	// Tell the node to promote itself.
+	post := &internalClusterPostPromoteRequest{}
+	for _, node := range nodes {
+		post.RaftNodes = append(post.RaftNodes, internalRaftNode{
+			ID:      node.ID,
+			Address: node.Address,
+		})
+	}
+
+	cert := d.endpoints.NetworkCert()
+	client, err := cluster.Connect(address, cert, false)
+	if err != nil {
+		return SmartError(err)
+	}
+	_, _, err = client.RawQuery("POST", "/internal/cluster/promote", post, "")
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return SyncResponse(true, nil)
+}
+
+var internalClusterPromoteCmd = Command{name: "cluster/promote", post: internalClusterPostPromote}
+
+// Used to promote the local non-database node to be a database one.
+func internalClusterPostPromote(d *Daemon, r *http.Request) Response {
+	req := internalClusterPostPromoteRequest{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	// Sanity checks
+	if len(req.RaftNodes) == 0 {
+		return BadRequest(fmt.Errorf("No raft nodes provided"))
+	}
+
+	nodes := make([]db.RaftNode, len(req.RaftNodes))
+	for i, node := range req.RaftNodes {
+		nodes[i].ID = node.ID
+		nodes[i].Address = node.Address
+	}
+	err = cluster.Promote(d.State(), d.gateway, nodes)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	return SyncResponse(true, nil)
+}
+
+// A request for the /internal/cluster/promote endpoint.
+type internalClusterPostPromoteRequest struct {
+	RaftNodes []internalRaftNode `json:"raft_nodes" yaml:"raft_nodes"`
 }
 
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
