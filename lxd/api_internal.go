@@ -109,6 +109,9 @@ func internalSQL(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
+	if req.Query == "" {
+		return BadRequest(fmt.Errorf("No query provided"))
+	}
 	db := d.cluster.DB()
 	result := internalSQLResult{}
 	if strings.HasPrefix(strings.ToUpper(req.Query), "SELECT") {
