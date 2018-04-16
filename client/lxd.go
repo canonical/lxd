@@ -44,6 +44,7 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	info := ConnectionInfo{}
 	info.Certificate = r.httpCertificate
 	info.Protocol = "lxd"
+	info.URL = r.httpHost
 
 	urls := []string{}
 	if r.httpProtocol == "https" {
