@@ -78,54 +78,66 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	result := internalSQLResult{}
-	err = json.Unmarshal(response.Metadata, &result)
+	batch := internalSQLBatch{}
+	err = json.Unmarshal(response.Metadata, &batch)
 	if err != nil {
 		return err
 	}
-	if strings.HasPrefix(strings.ToUpper(query), "SELECT") {
-		// Print results in tabular format
-		widths := make([]int, len(result.Columns))
-		for i, column := range result.Columns {
-			widths[i] = len(column)
+	for i, result := range batch.Results {
+		if len(batch.Results) > 1 {
+			fmt.Printf("=> Query %d:\n\n", i)
 		}
-		for _, row := range result.Rows {
-			for i, v := range row {
-				width := 10
-				switch v := v.(type) {
-				case string:
-					width = len(v)
-				case int:
-					width = 6
-				case int64:
-					width = 6
-				case time.Time:
-					width = 12
-				}
-				if width > widths[i] {
-					widths[i] = width
-				}
-			}
+		if result.Type == "select" {
+			sqlPrintSelectResult(result)
+		} else {
+			fmt.Printf("Rows affected: %d\n", result.RowsAffected)
 		}
-		format := "|"
-		separator := "+"
-		columns := make([]interface{}, len(result.Columns))
-		for i, column := range result.Columns {
-			format += " %-" + strconv.Itoa(widths[i]) + "v |"
-			columns[i] = column
-			separator += strings.Repeat("-", widths[i]+2) + "+"
+		if len(batch.Results) > 1 {
+			fmt.Printf("\n")
 		}
-		format += "\n"
-		separator += "\n"
-		fmt.Printf(separator)
-		fmt.Printf(fmt.Sprintf(format, columns...))
-		fmt.Printf(separator)
-		for _, row := range result.Rows {
-			fmt.Printf(format, row...)
-		}
-		fmt.Printf(separator)
-	} else {
-		fmt.Printf("Rows affected: %d\n", result.RowsAffected)
 	}
 	return nil
+}
+
+func sqlPrintSelectResult(result internalSQLResult) {
+	// Print results in tabular format
+	widths := make([]int, len(result.Columns))
+	for i, column := range result.Columns {
+		widths[i] = len(column)
+	}
+	for _, row := range result.Rows {
+		for i, v := range row {
+			width := 10
+			switch v := v.(type) {
+			case string:
+				width = len(v)
+			case int:
+				width = 6
+			case int64:
+				width = 6
+			case time.Time:
+				width = 12
+			}
+			if width > widths[i] {
+				widths[i] = width
+			}
+		}
+	}
+	format := "|"
+	separator := "+"
+	columns := make([]interface{}, len(result.Columns))
+	for i, column := range result.Columns {
+		format += " %-" + strconv.Itoa(widths[i]) + "v |"
+		columns[i] = column
+		separator += strings.Repeat("-", widths[i]+2) + "+"
+	}
+	format += "\n"
+	separator += "\n"
+	fmt.Printf(separator)
+	fmt.Printf(fmt.Sprintf(format, columns...))
+	fmt.Printf(separator)
+	for _, row := range result.Rows {
+		fmt.Printf(format, row...)
+	}
+	fmt.Printf(separator)
 }
