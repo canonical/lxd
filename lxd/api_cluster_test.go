@@ -296,7 +296,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 
 // If a spare non-database node is available after a nodes leaves, it gets
 // promoted as database node.
-func TestCluster_LeaveAndPromote(t *testing.T) {
+func FLAKY_TestCluster_LeaveAndPromote(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping cluster promote test in short mode.")
 	}

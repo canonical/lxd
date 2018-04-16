@@ -348,7 +348,7 @@ func TestJoin(t *testing.T) {
 	assert.Equal(t, 1, count)
 }
 
-func TestPromote(t *testing.T) {
+func FLAKY_TestPromote(t *testing.T) {
 	// Setup a target node running as leader of a cluster.
 	targetCert := shared.TestingKeyPair()
 	targetMux := http.NewServeMux()
