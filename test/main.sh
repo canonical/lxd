@@ -154,6 +154,7 @@ fi
 run_test test_check_deps "checking dependencies"
 run_test test_static_analysis "static analysis"
 run_test test_database_update "database schema updates"
+run_test test_sql "lxd sql"
 run_test test_remote_url "remote url handling"
 run_test test_remote_admin "remote administration"
 run_test test_remote_usage "remote usage"
@@ -204,7 +205,6 @@ run_test test_clustering_containers "clustering containers"
 run_test test_clustering_storage "clustering storage"
 run_test test_clustering_network "clustering network"
 #run_test test_clustering_upgrade "clustering upgrade"
-run_test test_sql "lxd sql"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success
