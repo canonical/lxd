@@ -30,6 +30,8 @@ var apiInternal = []Command{
 	internalContainersCmd,
 	internalSQLCmd,
 	internalClusterAcceptCmd,
+	internalClusterRebalanceCmd,
+	internalClusterPromoteCmd,
 	internalClusterContainerMovedCmd,
 }
 
