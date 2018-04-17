@@ -234,17 +234,26 @@ func lxcValidConfig(rawLxc string) error {
 		if strings.HasPrefix(key, networkKeyPrefix) {
 			fields := strings.Split(key, ".")
 
-			allowedIPKeys := []string{"ipv4.address", "ipv6.address"}
 			if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
-				allowedIPKeys = []string{"ipv4", "ipv6"}
-			}
+				// lxc.network.X.ipv4 or lxc.network.X.ipv6
+				if len(fields) == 4 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) {
+					continue
+				}
 
-			if len(fields) == 4 && shared.StringInSlice(fields[3], allowedIPKeys) {
-				continue
-			}
+				// lxc.network.X.ipv4.gateway or lxc.network.X.ipv6.gateway
+				if len(fields) == 5 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
+					continue
+				}
+			} else {
+				// lxc.net.X.ipv4.address or lxc.net.X.ipv6.address
+				if len(fields) == 5 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "address" {
+					continue
+				}
 
-			if len(fields) == 5 && shared.StringInSlice(fields[3], allowedIPKeys) && fields[4] == "gateway" {
-				continue
+				// lxc.net.X.ipv4.gateway or lxc.net.X.ipv6.gateway
+				if len(fields) == 5 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) && fields[4] == "gateway" {
+					continue
+				}
 			}
 
 			return fmt.Errorf("Only interface-specific ipv4/ipv6 %s keys are allowed", networkKeyPrefix)
