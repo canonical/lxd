@@ -15,6 +15,9 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/node"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -93,7 +96,11 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-type internalSQLPost struct {
+type internalSQLDump struct {
+	Text string `json:"text" yaml:"text"`
+}
+
+type internalSQLQuery struct {
 	Database string `json:"database" yaml:"database"`
 	Query    string `json:"query" yaml:"query"`
 }
@@ -109,8 +116,39 @@ type internalSQLResult struct {
 	RowsAffected int64           `json:"rows_affected" yaml:"rows_affected"`
 }
 
-func internalSQL(d *Daemon, r *http.Request) Response {
-	req := &internalSQLPost{}
+// Perform a database dump.
+func internalSQLGet(d *Daemon, r *http.Request) Response {
+	database := r.FormValue("database")
+
+	if !shared.StringInSlice(database, []string{"local", "global"}) {
+		return BadRequest(fmt.Errorf("Invalid database"))
+	}
+
+	var schema string
+	var db *sql.DB
+	if database == "global" {
+		db = d.cluster.DB()
+		schema = cluster.FreshSchema()
+	} else {
+		db = d.db.DB()
+		schema = node.FreshSchema()
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return SmartError(errors.Wrap(err, "failed to start transaction"))
+	}
+	defer tx.Rollback()
+	dump, err := query.Dump(tx, schema)
+	if err != nil {
+		return SmartError(errors.Wrapf(err, "failed dump database %s", database))
+	}
+	return SyncResponse(true, internalSQLDump{Text: dump})
+}
+
+// Execute queries.
+func internalSQLPost(d *Daemon, r *http.Request) Response {
+	req := &internalSQLQuery{}
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -204,7 +242,7 @@ var internalShutdownCmd = Command{name: "shutdown", put: internalShutdown}
 var internalReadyCmd = Command{name: "ready", get: internalWaitReady}
 var internalContainerOnStartCmd = Command{name: "containers/{id}/onstart", get: internalContainerOnStart}
 var internalContainerOnStopCmd = Command{name: "containers/{id}/onstop", get: internalContainerOnStop}
-var internalSQLCmd = Command{name: "sql", post: internalSQL}
+var internalSQLCmd = Command{name: "sql", get: internalSQLGet, post: internalSQLPost}
 
 func slurpBackupFile(path string) (*backupFile, error) {
 	data, err := ioutil.ReadFile(path)
