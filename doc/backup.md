@@ -4,7 +4,7 @@ To backup a LXD instance different strategies are available.
 
 ## Full backup
 This requires that the whole `/var/lib/lxd` or
-`/var/lib/snap/lxd/common/lxd` (for the snap) folder be backuped up.
+`/var/snap/lxd/common/lxd` (for the snap) folder be backuped up.
 Additionally, it is necessary to backup all storage pools as well.
 
 In order to restore the LXD instance the old `lxd` folder needs to be
@@ -40,7 +40,7 @@ manually.
 
 The container must be available under
 `/var/lib/lxd/storage-pools/POOL-NAME/containers/NAME` or
-`/var/lib/snap/lxd/common/lxd/storage-pools/POOL-NAME/containers/NAME`
+`/var/snap/lxd/common/lxd/storage-pools/POOL-NAME/containers/NAME`
 in the case of the LXD snap.
 
 LXD will then locate the container and read its `backup.yaml` file,
