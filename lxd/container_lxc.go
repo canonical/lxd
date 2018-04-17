@@ -207,6 +207,16 @@ func lxcValidConfig(rawLxc string) error {
 			continue
 		}
 
+		if os.Getenv("LXD_UNPRIVILEGED_ONLY") == "true" {
+			if key == "lxc.idmap" || key == "lxc.id_map" {
+				return fmt.Errorf("Setting lxc.idmap is not allowed. Check LXD_UNPRIVILEGED_ONLY.")
+			}
+
+			if key == "lxc.include" {
+				return fmt.Errorf("Setting lxc.include is not allowed. Check LXD_UNPRIVILEGED_ONLY.")
+			}
+		}
+
 		// Blacklist some keys
 		if key == "lxc.logfile" || key == "lxc.log.file" {
 			return fmt.Errorf("Setting lxc.logfile is not allowed")
