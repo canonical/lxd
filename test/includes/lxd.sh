@@ -164,8 +164,8 @@ kill_lxd() {
         done
 
         echo "==> Checking for locked DB tables"
-        for table in $(echo .tables | sqlite3 "${daemon_dir}/lxd.db"); do
-            echo "SELECT * FROM ${table};" | sqlite3 "${daemon_dir}/lxd.db" >/dev/null
+        for table in $(echo .tables | sqlite3 "${daemon_dir}/local.db"); do
+            echo "SELECT * FROM ${table};" | sqlite3 "${daemon_dir}/local.db" >/dev/null
         done
 
         # Kill the daemon
@@ -203,27 +203,27 @@ kill_lxd() {
         echo "==> Checking for leftover cluster DB entries"
         # FIXME: we should not use the command line sqlite client, since it's
         #        not compatible with dqlite
-        check_empty_table "${daemon_dir}/raft/db.bin" "containers"
-        check_empty_table "${daemon_dir}/raft/db.bin" "containers_config"
-        check_empty_table "${daemon_dir}/raft/db.bin" "containers_devices"
-        check_empty_table "${daemon_dir}/raft/db.bin" "containers_devices_config"
-        check_empty_table "${daemon_dir}/raft/db.bin" "containers_profiles"
-        check_empty_table "${daemon_dir}/raft/db.bin" "images"
-        check_empty_table "${daemon_dir}/raft/db.bin" "images_aliases"
-        check_empty_table "${daemon_dir}/raft/db.bin" "images_properties"
-        check_empty_table "${daemon_dir}/raft/db.bin" "images_source"
-        check_empty_table "${daemon_dir}/raft/db.bin" "images_nodes"
-        check_empty_table "${daemon_dir}/raft/db.bin" "networks"
-        check_empty_table "${daemon_dir}/raft/db.bin" "networks_config"
-        check_empty_table "${daemon_dir}/raft/db.bin" "profiles"
-        check_empty_table "${daemon_dir}/raft/db.bin" "profiles_config"
-        check_empty_table "${daemon_dir}/raft/db.bin" "profiles_devices"
-        check_empty_table "${daemon_dir}/raft/db.bin" "profiles_devices_config"
-        check_empty_table "${daemon_dir}/raft/db.bin" "storage_pools"
-        check_empty_table "${daemon_dir}/raft/db.bin" "storage_pools_nodes"
-        check_empty_table "${daemon_dir}/raft/db.bin" "storage_pools_config"
-        check_empty_table "${daemon_dir}/raft/db.bin" "storage_volumes"
-        check_empty_table "${daemon_dir}/raft/db.bin" "storage_volumes_config"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "containers"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "containers_config"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "containers_devices"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "containers_devices_config"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "containers_profiles"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images_aliases"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images_properties"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images_source"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "images_nodes"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "networks"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "networks_config"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "profiles"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "profiles_config"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "profiles_devices"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "profiles_devices_config"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools_nodes"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_pools_config"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_volumes"
+        check_empty_table "${daemon_dir}/database/global/db.bin" "storage_volumes_config"
     fi
 
     # teardown storage

@@ -146,7 +146,7 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 // happens.
 func newGateway(t *testing.T, db *db.Node, certInfo *shared.CertInfo) *cluster.Gateway {
 	logging.Testing(t)
-	require.NoError(t, os.Mkdir(filepath.Join(db.Dir(), "raft"), 0755))
+	require.NoError(t, os.Mkdir(filepath.Join(db.Dir(), "global"), 0755))
 	gateway, err := cluster.NewGateway(
 		db, certInfo, cluster.Latency(0.2), cluster.LogLevel("TRACE"))
 	require.NoError(t, err)

@@ -237,8 +237,8 @@ func importNodeAssociation(entity string, columns []string, row []interface{}, t
 	return nil
 }
 
-// Dump is a dump of all the user data in lxd.db prior the migration to the
-// cluster db.
+// Dump is a dump of all the user data in the local db prior the migration to
+// the cluster db.
 type Dump struct {
 	// Map table names to the names or their columns.
 	Schema map[string][]string
