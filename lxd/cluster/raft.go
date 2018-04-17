@@ -95,11 +95,11 @@ func raftInstanceInit(
 	// FIXME: should be a parameter
 	timeout := 5 * time.Second
 
-	logger := raftLogger()
+	raftLogger := raftLogger()
 
 	// Raft config.
 	config := raftConfig(latency)
-	config.Logger = logger
+	config.Logger = raftLogger
 	config.LocalID = raft.ServerID(strconv.Itoa(int(node.ID)))
 
 	// Raft transport
@@ -122,7 +122,7 @@ func raftInstanceInit(
 			return nil, err
 		}
 
-		transport, handler, layer, err = raftNetworkTransport(db, addr, logger, timeout, dial)
+		transport, handler, layer, err = raftNetworkTransport(db, addr, raftLogger, timeout, dial)
 		if err != nil {
 			return nil, err
 		}
@@ -136,8 +136,21 @@ func raftInstanceInit(
 		return nil, errors.Wrap(err, "invalid raft configuration")
 	}
 
+	// Rename legacy data directory if needed.
+	dir := filepath.Join(db.Dir(), "global")
+	legacyDir := filepath.Join(db.Dir(), "..", "raft")
+	if shared.PathExists(legacyDir) {
+		if shared.PathExists(dir) {
+			return nil, fmt.Errorf("both legacy and new global database directories exist")
+		}
+		logger.Info("Renaming global database directory from raft/ to database/global/")
+		err := os.Rename(legacyDir, dir)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to rename legacy global database directory")
+		}
+	}
+
 	// Data directory
-	dir := filepath.Join(db.Dir(), "raft")
 	if !shared.PathExists(dir) {
 		err := os.Mkdir(dir, 0750)
 		if err != nil {
@@ -155,7 +168,7 @@ func raftInstanceInit(
 	}
 
 	// Raft snapshot store
-	snaps, err := raft.NewFileSnapshotStoreWithLogger(dir, 2, logger)
+	snaps, err := raft.NewFileSnapshotStoreWithLogger(dir, 2, raftLogger)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create file snapshot store")
 	}
