@@ -82,7 +82,7 @@ CREATE TABLE images (
     auto_update INTEGER NOT NULL DEFAULT 0,
     UNIQUE (fingerprint)
 );
-CREATE TABLE "images_aliases" (
+CREATE TABLE images_aliases (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
     image_id INTEGER NOT NULL,
