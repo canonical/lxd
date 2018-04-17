@@ -15,6 +15,11 @@ func Schema() *schema.Schema {
 	return schema
 }
 
+// FreshSchema returns the fresh schema definition of the global database.
+func FreshSchema() string {
+	return freshSchema
+}
+
 // SchemaDotGo refreshes the schema.go file in this package, using the updates
 // defined here.
 func SchemaDotGo() error {

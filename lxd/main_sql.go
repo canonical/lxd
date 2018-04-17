@@ -40,6 +40,9 @@ func (c *cmdSql) Command() *cobra.Command {
   If <query> is the special value "-", then the query is read from
   standard input.
 
+  If <query> is the special value "dump", the the command returns a SQL text
+  dump of the given database.
+
   This internal command is mostly useful for debugging and disaster
   recovery. The LXD team will occasionally provide hotfixes to users as a
   set of database queries to fix some data inconsistency.
@@ -88,7 +91,22 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	data := internalSQLPost{
+	if query == "dump" {
+		url := fmt.Sprintf("/internal/sql?database=%s", database)
+		response, _, err := d.RawQuery("GET", url, nil, "")
+		if err != nil {
+			return errors.Wrap(err, "failed to request dump")
+		}
+		dump := internalSQLDump{}
+		err = json.Unmarshal(response.Metadata, &dump)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse dump response")
+		}
+		fmt.Printf(dump.Text)
+		return nil
+	}
+
+	data := internalSQLQuery{
 		Database: database,
 		Query:    query,
 	}
