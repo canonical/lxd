@@ -286,7 +286,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	if err != nil {
 		return errors.Wrap(err, "failed to shutdown gRPC SQL gateway")
 	}
-	err = os.RemoveAll(filepath.Join(state.OS.VarDir, "raft"))
+	err = os.RemoveAll(state.OS.GlobalDatabaseDir())
 	if err != nil {
 		return errors.Wrap(err, "failed to remove existing raft data")
 	}
@@ -582,7 +582,7 @@ func Promote(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 
 	// Wipe all existing raft data, for good measure (perhaps they were
 	// somehow leftover).
-	err = os.RemoveAll(filepath.Join(state.OS.VarDir, "raft"))
+	err = os.RemoveAll(state.OS.GlobalDatabaseDir())
 	if err != nil {
 		return errors.Wrap(err, "failed to remove existing raft data")
 	}
