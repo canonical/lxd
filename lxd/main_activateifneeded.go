@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/CanonicalLtd/go-sqlite3"
 	"github.com/spf13/cobra"
@@ -53,14 +52,20 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	// Don't start a full daemon, we just need DB access
 	d := DefaultDaemon()
 
-	if !shared.PathExists(shared.VarPath("lxd.db")) {
-		logger.Debugf("No DB, so no need to start the daemon now.")
-		return nil
+	// Check if either the local database or the legacy local database
+	// files exists.
+	path := d.os.LocalDatabasePath()
+	if !shared.PathExists(d.os.LocalDatabasePath()) {
+		path = d.os.LegacyLocalDatabasePath()
+		if !shared.PathExists(path) {
+			logger.Debugf("No DB, so no need to start the daemon now.")
+			return nil
+		}
 	}
 
 	// Open the database directly to avoid triggering any initialization
 	// code, in particular the data migration from node to cluster db.
-	sqldb, err := sql.Open("sqlite3", filepath.Join(d.os.VarDir, "lxd.db"))
+	sqldb, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return err
 	}
@@ -86,10 +91,13 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Look for auto-started or previously started containers
-	path := filepath.Join(d.os.VarDir, "raft", "db.bin")
+	path = d.os.GlobalDatabasePath()
 	if !shared.PathExists(path) {
-		logger.Debugf("No DB, so no need to start the daemon now.")
-		return nil
+		path = d.os.LegacyGlobalDatabasePath()
+		if !shared.PathExists(path) {
+			logger.Debugf("No DB, so no need to start the daemon now.")
+			return nil
+		}
 	}
 	sqldb, err = sql.Open("dqlite_direct_access", path+"?mode=ro")
 	if err != nil {
