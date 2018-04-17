@@ -12,7 +12,7 @@ import (
 
 // Open the node-local database object.
 func Open(dir string) (*sql.DB, error) {
-	path := filepath.Join(dir, "lxd.db")
+	path := filepath.Join(dir, "local.db")
 	db, err := sqliteOpen(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open node database: %v", err)
@@ -32,8 +32,8 @@ func EnsureSchema(db *sql.DB, dir string, hook schema.Hook) (int, error) {
 	schema := Schema()
 	schema.Hook(func(version int, tx *sql.Tx) error {
 		if !backupDone {
-			logger.Infof("Updating the LXD database schema. Backup made as \"lxd.db.bak\"")
-			path := filepath.Join(dir, "lxd.db")
+			logger.Infof("Updating the LXD database schema. Backup made as \"local.db.bak\"")
+			path := filepath.Join(dir, "local.db")
 			err := shared.FileCopy(path, path+".bak")
 			if err != nil {
 				return err

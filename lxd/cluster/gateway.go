@@ -296,7 +296,7 @@ func (g *Gateway) Reset(cert *shared.CertInfo) error {
 	if err != nil {
 		return err
 	}
-	err = os.RemoveAll(filepath.Join(g.db.Dir(), "raft"))
+	err = os.RemoveAll(filepath.Join(g.db.Dir(), "global"))
 	if err != nil {
 		return err
 	}
