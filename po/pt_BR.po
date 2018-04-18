@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-04-10 00:41+0200\n"
+"POT-Creation-Date: 2018-04-18 10:42+0000\n"
 "PO-Revision-Date: 2018-03-08 09:21+0000\n"
 "Last-Translator: Paulo Coghi <paulo@coghi.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -165,7 +165,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/file.go:696
+#: lxc/file.go:704
 #, c-format
 msgid "%s is not a directory"
 msgstr ""
@@ -175,7 +175,7 @@ msgstr ""
 msgid "%v (interrupt two more times to force)"
 msgstr ""
 
-#: lxc/file.go:633
+#: lxc/file.go:641
 #, c-format
 msgid "'%s' isn't a supported file type."
 msgstr ""
@@ -208,7 +208,7 @@ msgstr ""
 msgid "Accept certificate"
 msgstr ""
 
-#: lxc/query.go:37
+#: lxc/query.go:40
 msgid "Action (defaults to GET)"
 msgstr ""
 
@@ -367,7 +367,7 @@ msgstr ""
 msgid "Can't provide a name for the target image"
 msgstr ""
 
-#: lxc/file.go:261
+#: lxc/file.go:269
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
@@ -393,7 +393,7 @@ msgstr ""
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:418
+#: lxc/file.go:426
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -425,6 +425,10 @@ msgstr ""
 #: lxc/storage_volume.go:1028 lxc/storage_volume.go:1092
 #: lxc/storage_volume.go:1175 lxc/storage_volume.go:1244
 msgid "Cluster member name"
+msgstr ""
+
+#: lxc/cluster.go:358
+msgid "Clustering enabled"
 msgstr ""
 
 #: lxc/image.go:911 lxc/list.go:112
@@ -534,7 +538,7 @@ msgstr ""
 msgid "Create and start containers from images"
 msgstr ""
 
-#: lxc/file.go:191 lxc/file.go:351
+#: lxc/file.go:191 lxc/file.go:359
 msgid "Create any directories necessary"
 msgstr ""
 
@@ -592,7 +596,7 @@ msgstr ""
 msgid "Creating the container"
 msgstr ""
 
-#: lxc/cluster.go:121
+#: lxc/cluster.go:126
 msgid "DATABASE"
 msgstr ""
 
@@ -651,20 +655,20 @@ msgstr ""
 
 #: lxc/action.go:30 lxc/action.go:49 lxc/action.go:69 lxc/action.go:90
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
-#: lxc/alias.go:198 lxc/cluster.go:26 lxc/cluster.go:59 lxc/cluster.go:142
-#: lxc/cluster.go:192 lxc/cluster.go:238 lxc/config.go:29 lxc/config.go:88
-#: lxc/config.go:289 lxc/config.go:355 lxc/config.go:452 lxc/config.go:560
-#: lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:179
-#: lxc/config_device.go:252 lxc/config_device.go:318 lxc/config_device.go:405
-#: lxc/config_device.go:493 lxc/config_device.go:582 lxc/config_device.go:650
-#: lxc/config_metadata.go:29 lxc/config_metadata.go:54
+#: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
+#: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:290 lxc/config.go:29
+#: lxc/config.go:88 lxc/config.go:289 lxc/config.go:355 lxc/config.go:452
+#: lxc/config.go:560 lxc/config_device.go:24 lxc/config_device.go:76
+#: lxc/config_device.go:179 lxc/config_device.go:252 lxc/config_device.go:318
+#: lxc/config_device.go:405 lxc/config_device.go:493 lxc/config_device.go:582
+#: lxc/config_device.go:650 lxc/config_metadata.go:29 lxc/config_metadata.go:54
 #: lxc/config_metadata.go:176 lxc/config_template.go:30
 #: lxc/config_template.go:67 lxc/config_template.go:110
 #: lxc/config_template.go:152 lxc/config_template.go:236
 #: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
 #: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
 #: lxc/copy.go:35 lxc/delete.go:30 lxc/exec.go:39 lxc/file.go:40 lxc/file.go:73
-#: lxc/file.go:122 lxc/file.go:185 lxc/file.go:344 lxc/image.go:42
+#: lxc/file.go:122 lxc/file.go:185 lxc/file.go:352 lxc/image.go:42
 #: lxc/image.go:131 lxc/image.go:261 lxc/image.go:312 lxc/image.go:435
 #: lxc/image.go:571 lxc/image.go:775 lxc/image.go:889 lxc/image.go:1211
 #: lxc/image.go:1284 lxc/image_alias.go:26 lxc/image_alias.go:59
@@ -679,7 +683,7 @@ msgstr ""
 #: lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163 lxc/profile.go:241
 #: lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520
 #: lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753
-#: lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:27
+#: lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:30
 #: lxc/remote.go:34 lxc/remote.go:84 lxc/remote.go:380 lxc/remote.go:414
 #: lxc/remote.go:487 lxc/remote.go:549 lxc/remote.go:598 lxc/remote.go:636
 #: lxc/rename.go:20 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
@@ -797,6 +801,25 @@ msgstr ""
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
 
+#: lxc/cluster.go:289
+msgid "Enable clustering on a single non-clustered LXD instance"
+msgstr ""
+
+#: lxc/cluster.go:290
+msgid ""
+"Enable clustering on a single non-clustered LXD instance\n"
+"\n"
+"  This command turns a non-clustered LXD instance into the first member of a "
+"new\n"
+"  LXD cluster, which will have the given name.\n"
+"\n"
+"  It's required that the LXD is already available on the network. You can "
+"check\n"
+"  that by running 'lxc config get core.https_address', and possibly set a "
+"value\n"
+"  for the address if not yet set."
+msgstr ""
+
 #: lxc/exec.go:52
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
@@ -880,7 +903,7 @@ msgstr ""
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:628
+#: lxc/file.go:636
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -902,7 +925,7 @@ msgstr ""
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/cluster.go:242
+#: lxc/cluster.go:247
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
@@ -1029,7 +1052,7 @@ msgstr ""
 msgid "Import images into the image store"
 msgstr ""
 
-#: lxc/query.go:38
+#: lxc/query.go:41
 msgid "Input data"
 msgstr ""
 
@@ -1096,7 +1119,7 @@ msgstr ""
 msgid "Invalid source %s"
 msgstr ""
 
-#: lxc/file.go:372
+#: lxc/file.go:380
 #, c-format
 msgid "Invalid target %s"
 msgstr ""
@@ -1121,7 +1144,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/cluster.go:94
+#: lxc/cluster.go:99
 msgid "LXD server isn't part of a cluster"
 msgstr ""
 
@@ -1142,7 +1165,7 @@ msgstr ""
 msgid "List aliases"
 msgstr ""
 
-#: lxc/cluster.go:58 lxc/cluster.go:59
+#: lxc/cluster.go:63 lxc/cluster.go:64
 msgid "List all the cluster members"
 msgstr ""
 
@@ -1306,7 +1329,7 @@ msgstr ""
 msgid "MANAGED"
 msgstr ""
 
-#: lxc/cluster.go:123
+#: lxc/cluster.go:128
 msgid "MESSAGE"
 msgstr ""
 
@@ -1322,7 +1345,7 @@ msgstr ""
 msgid "Manage and attach containers to networks"
 msgstr ""
 
-#: lxc/cluster.go:25 lxc/cluster.go:26
+#: lxc/cluster.go:26 lxc/cluster.go:27
 msgid "Manage cluster members"
 msgstr ""
 
@@ -1405,12 +1428,12 @@ msgstr ""
 msgid "Manage trusted clients"
 msgstr ""
 
-#: lxc/cluster.go:268
+#: lxc/cluster.go:273
 #, c-format
 msgid "Member %s removed"
 msgstr ""
 
-#: lxc/cluster.go:221
+#: lxc/cluster.go:226
 #, c-format
 msgid "Member %s renamed to %s"
 msgstr ""
@@ -1478,7 +1501,7 @@ msgstr ""
 msgid "Missing source volume name"
 msgstr ""
 
-#: lxc/file.go:465
+#: lxc/file.go:473
 msgid "Missing target directory"
 msgstr ""
 
@@ -1527,7 +1550,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr ""
 
-#: lxc/cluster.go:119 lxc/list.go:474 lxc/network.go:781 lxc/profile.go:613
+#: lxc/cluster.go:124 lxc/list.go:474 lxc/network.go:781 lxc/profile.go:613
 #: lxc/remote.go:463 lxc/storage.go:544 lxc/storage_volume.go:966
 msgid "NAME"
 msgstr ""
@@ -1682,7 +1705,7 @@ msgstr ""
 msgid "Print help"
 msgstr ""
 
-#: lxc/query.go:36
+#: lxc/query.go:39
 msgid "Print the raw response"
 msgstr ""
 
@@ -1765,11 +1788,11 @@ msgstr ""
 msgid "Pull files from containers"
 msgstr ""
 
-#: lxc/file.go:343 lxc/file.go:344
+#: lxc/file.go:351 lxc/file.go:352
 msgid "Push files into containers"
 msgstr ""
 
-#: lxc/file.go:192 lxc/file.go:350
+#: lxc/file.go:192 lxc/file.go:358
 msgid "Recursively transfer files"
 msgstr ""
 
@@ -1820,7 +1843,7 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
-#: lxc/cluster.go:237 lxc/cluster.go:238
+#: lxc/cluster.go:242 lxc/cluster.go:243
 msgid "Remove a member from the cluster"
 msgstr ""
 
@@ -1844,7 +1867,7 @@ msgstr ""
 msgid "Remove trusted clients"
 msgstr ""
 
-#: lxc/cluster.go:191 lxc/cluster.go:192
+#: lxc/cluster.go:196 lxc/cluster.go:197
 msgid "Rename a cluster member"
 msgstr ""
 
@@ -1933,7 +1956,7 @@ msgstr ""
 msgid "SOURCE"
 msgstr ""
 
-#: lxc/cluster.go:122 lxc/list.go:479 lxc/network.go:788 lxc/storage.go:549
+#: lxc/cluster.go:127 lxc/list.go:479 lxc/network.go:788 lxc/storage.go:549
 msgid "STATE"
 msgstr ""
 
@@ -1949,7 +1972,7 @@ msgstr ""
 msgid "STORAGE POOL"
 msgstr ""
 
-#: lxc/query.go:26 lxc/query.go:27
+#: lxc/query.go:29 lxc/query.go:30
 msgid "Send a raw query to LXD"
 msgstr ""
 
@@ -2006,15 +2029,15 @@ msgstr ""
 msgid "Set the default remote"
 msgstr ""
 
-#: lxc/file.go:353
+#: lxc/file.go:361
 msgid "Set the file's gid on push"
 msgstr ""
 
-#: lxc/file.go:354
+#: lxc/file.go:362
 msgid "Set the file's perms on push"
 msgstr ""
 
-#: lxc/file.go:352
+#: lxc/file.go:360
 msgid "Set the file's uid on push"
 msgstr ""
 
@@ -2042,7 +2065,7 @@ msgstr ""
 msgid "Show content of container file templates"
 msgstr ""
 
-#: lxc/cluster.go:141 lxc/cluster.go:142
+#: lxc/cluster.go:146 lxc/cluster.go:147
 msgid "Show details of a cluster member"
 msgstr ""
 
@@ -2338,7 +2361,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:120 lxc/remote.go:464
+#: lxc/cluster.go:125 lxc/remote.go:464
 msgid "URL"
 msgstr ""
 
@@ -2357,7 +2380,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:615
+#: lxc/file.go:623
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -2401,7 +2424,7 @@ msgid ""
 "running."
 msgstr ""
 
-#: lxc/query.go:35
+#: lxc/query.go:38
 msgid "Wait for the operation to complete"
 msgstr ""
 
@@ -2487,7 +2510,7 @@ msgid ""
 "name>]"
 msgstr ""
 
-#: lxc/cluster.go:24
+#: lxc/cluster.go:25
 msgid "cluster"
 msgstr ""
 
@@ -2657,6 +2680,10 @@ msgstr ""
 msgid "edit [<remote>:][<container>]"
 msgstr ""
 
+#: lxc/cluster.go:287
+msgid "enable [<remote>:] <name>"
+msgstr ""
+
 #: lxc/image.go:820
 msgid "enabled"
 msgstr ""
@@ -2744,7 +2771,7 @@ msgstr ""
 msgid "list"
 msgstr ""
 
-#: lxc/cluster.go:56 lxc/config_trust.go:112 lxc/network.go:716
+#: lxc/cluster.go:61 lxc/config_trust.go:112 lxc/network.go:716
 #: lxc/operation.go:95 lxc/profile.go:565 lxc/storage.go:488
 msgid "list [<remote>:]"
 msgstr ""
@@ -2823,7 +2850,7 @@ msgid ""
 "directory."
 msgstr ""
 
-#: lxc/file.go:346
+#: lxc/file.go:354
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the container \"foo\"."
@@ -2918,7 +2945,7 @@ msgid ""
 "    Update a profile using the content of profile.yaml"
 msgstr ""
 
-#: lxc/query.go:29
+#: lxc/query.go:32
 msgid ""
 "lxc query -X DELETE --wait /1.0/containers/c1\n"
 "    Delete local container \"c1\"."
@@ -3032,13 +3059,13 @@ msgid ""
 "<target path>"
 msgstr ""
 
-#: lxc/file.go:342
+#: lxc/file.go:350
 msgid ""
 "push <source path> [<remote>:]<container>/<path> [[<remote>:]<container>/"
 "<path>...]"
 msgstr ""
 
-#: lxc/query.go:25
+#: lxc/query.go:28
 msgid "query [<remote>:]<API path>"
 msgstr ""
 
@@ -3070,7 +3097,7 @@ msgstr ""
 msgid "remove [<remote>:]<container|profile> <name>..."
 msgstr ""
 
-#: lxc/cluster.go:235
+#: lxc/cluster.go:240
 msgid "remove [<remote>:]<member>"
 msgstr ""
 
@@ -3090,7 +3117,7 @@ msgstr ""
 msgid "rename [<remote>:]<container>[/<snapshot>] <container>[/<snapshot>]"
 msgstr ""
 
-#: lxc/cluster.go:189
+#: lxc/cluster.go:194
 msgid "rename [<remote>:]<member> <new-name>"
 msgstr ""
 
@@ -3162,7 +3189,7 @@ msgstr ""
 msgid "show [<remote>:]<image>"
 msgstr ""
 
-#: lxc/cluster.go:140
+#: lxc/cluster.go:145
 msgid "show [<remote>:]<member>"
 msgstr ""
 
