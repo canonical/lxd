@@ -290,12 +290,12 @@ func (c *cmdClusterEnable) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Enable clustering on a single non-clustered LXD instance
 
-This command turns a non-clustered LXD instance into the first node of a new
-LXD cluster, which will have the given name.
+  This command turns a non-clustered LXD instance into the first member of a new
+  LXD cluster, which will have the given name.
 
-It's required that the LXD is already available on the network. You can check
-that by running 'lxc config get core.https_address', and possibly set a value
-for the address if not yet set.`))
+  It's required that the LXD is already available on the network. You can check
+  that by running 'lxc config get core.https_address', and possibly set a value
+  for the address if not yet set.`))
 
 	cmd.RunE = c.Run
 
