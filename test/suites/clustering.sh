@@ -1,3 +1,27 @@
+test_clustering_enable() {
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034
+    LXD_DIR=${LXD_INIT_DIR}
+
+    # A node name is required.
+    ! lxc cluster enable
+
+    # Enable clustering.
+    lxc cluster enable node1
+    lxc cluster list | grep -q node1
+
+    # Clustering can't be enabled on an already clustered instance.
+    ! lxc cluster enable node2
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
+}
+
 test_clustering_membership() {
   setup_clustering_bridge
   prefix="lxd$$"
@@ -648,16 +672,4 @@ test_clustering_upgrade() {
 
   teardown_clustering_netns
   teardown_clustering_bridge
-}
-
-test_clustering_enable() {
-  # A node name is required.
-  ! lxc cluster enable
-
-  # Enable clustering.
-  lxc cluster enable node1
-  lxc cluster list | grep -q node1
-
-  # Clustering can't be enabled on an already clustered instance.
-  ! lxc cluster enable node2
 }
