@@ -1,3 +1,41 @@
+test_clustering_enable() {
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034
+    LXD_DIR=${LXD_INIT_DIR}
+
+    # Launch a container.
+    ensure_import_testimage
+    lxc storage create default dir
+    lxc profile device add default root disk path="/" pool="default"
+    lxc launch testimage c1
+
+    # A node name is required.
+    ! lxc cluster enable
+
+    # Enable clustering.
+    lxc cluster enable node1
+    lxc cluster list | grep -q node1
+
+    # The container is still there and now shows up as
+    # running on node 1.
+    lxc list | grep c1 | grep -q node1
+
+    # Clustering can't be enabled on an already clustered instance.
+    ! lxc cluster enable node2
+
+    # Delete the container
+    lxc stop c1
+    lxc delete c1
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
+}
+
 test_clustering_membership() {
   setup_clustering_bridge
   prefix="lxd$$"
