@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 
@@ -41,6 +42,10 @@ func (c *cmdCluster) Command() *cobra.Command {
 	// Show
 	clusterShowCmd := cmdClusterShow{global: c.global, cluster: c}
 	cmd.AddCommand(clusterShowCmd.Command())
+
+	// Enable
+	clusterEnableCmd := cmdClusterEnable{global: c.global, cluster: c}
+	cmd.AddCommand(clusterEnableCmd.Command())
 
 	return cmd
 }
@@ -266,5 +271,90 @@ func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf(i18n.G("Member %s removed")+"\n", resource.name)
+	return nil
+}
+
+// Enable
+type cmdClusterEnable struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+
+	flagForce bool
+}
+
+func (c *cmdClusterEnable) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("enable [<remote>:] <name>")
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Enable clustering on a single non-clustered LXD instance")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Enable clustering on a single non-clustered LXD instance
+
+This command turns a non-clustered LXD instance into the first node of a new
+LXD cluster, which will have the given name.
+
+It's required that the LXD is already available on the network. You can check
+that by running 'lxc config get core.https_address', and possibly set a value
+for the address if not yet set.`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := ""
+	name := args[0]
+	if len(args) == 2 {
+		remote = args[0]
+		name = args[1]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Check if the LXD instance is available on the network.
+	server, _, err := resource.server.GetServer()
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve current server config")
+	}
+	if server.Config["core.https_address"] == "" {
+		return fmt.Errorf("This LXD instance is not available on the network")
+	}
+
+	// Check if already enabled
+	currentCluster, etag, err := resource.server.GetCluster()
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve current cluster config")
+	}
+	if currentCluster.Enabled {
+		return fmt.Errorf("This LXD instance is already clustered")
+	}
+
+	// Enable clustering.
+	req := api.ClusterPut{}
+	req.ServerName = name
+	req.Enabled = true
+	op, err := resource.server.UpdateCluster(req, etag)
+	if err != nil {
+		return errors.Wrap(err, "Failed to configure cluster")
+	}
+	err = op.Wait()
+	if err != nil {
+		return errors.Wrap(err, "Failed to configure cluster")
+	}
+
+	fmt.Printf(i18n.G("Clustering enabled") + "\n")
 	return nil
 }
