@@ -649,3 +649,15 @@ test_clustering_upgrade() {
   teardown_clustering_netns
   teardown_clustering_bridge
 }
+
+test_clustering_enable() {
+  # A node name is required.
+  ! lxc cluster enable
+
+  # Enable clustering.
+  lxc cluster enable node1
+  lxc cluster list | grep -q node1
+
+  # Clustering can't be enabled on an already clustered instance.
+  ! lxc cluster enable node2
+}
