@@ -205,6 +205,7 @@ run_test test_clustering_containers "clustering containers"
 run_test test_clustering_storage "clustering storage"
 run_test test_clustering_network "clustering network"
 #run_test test_clustering_upgrade "clustering upgrade"
+run_test test_clustering_enable "clustering enable"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success
