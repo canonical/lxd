@@ -329,6 +329,7 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve current server config")
 	}
+
 	if server.Config["core.https_address"] == "" {
 		return fmt.Errorf("This LXD instance is not available on the network")
 	}
@@ -338,6 +339,7 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to retrieve current cluster config")
 	}
+
 	if currentCluster.Enabled {
 		return fmt.Errorf("This LXD instance is already clustered")
 	}
@@ -350,11 +352,12 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to configure cluster")
 	}
+
 	err = op.Wait()
 	if err != nil {
 		return errors.Wrap(err, "Failed to configure cluster")
 	}
 
-	fmt.Printf(i18n.G("Clustering enabled") + "\n")
+	fmt.Println(i18n.G("Clustering enabled"))
 	return nil
 }
