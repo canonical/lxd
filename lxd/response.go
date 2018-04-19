@@ -477,6 +477,7 @@ var NotImplemented = &errorResponse{http.StatusNotImplemented, "not implemented"
 var NotFound = &errorResponse{http.StatusNotFound, "not found"}
 var Forbidden = &errorResponse{http.StatusForbidden, "not authorized"}
 var Conflict = &errorResponse{http.StatusConflict, "already exists"}
+var Unavailable = &errorResponse{http.StatusServiceUnavailable, "unavailable"}
 
 func BadRequest(err error) Response {
 	return &errorResponse{http.StatusBadRequest, err.Error()}

@@ -40,7 +40,11 @@ var apiInternal = []Command{
 }
 
 func internalWaitReady(d *Daemon, r *http.Request) Response {
-	<-d.readyChan
+	select {
+	case <-d.readyChan:
+	default:
+		return Unavailable
+	}
 
 	return EmptySyncResponse
 }
