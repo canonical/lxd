@@ -207,13 +207,14 @@ func lxcValidConfig(rawLxc string) error {
 			continue
 		}
 
-		if os.Getenv("LXD_UNPRIVILEGED_ONLY") == "true" {
+		unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
+		if shared.IsTrue(unprivOnly) {
 			if key == "lxc.idmap" || key == "lxc.id_map" {
-				return fmt.Errorf("Setting lxc.idmap is not allowed. Check LXD_UNPRIVILEGED_ONLY.")
+				return fmt.Errorf("LXD_UNPRIVILEGED_ONLY is set, setting lxc.idmap is not allowed")
 			}
 
 			if key == "lxc.include" {
-				return fmt.Errorf("Setting lxc.include is not allowed. Check LXD_UNPRIVILEGED_ONLY.")
+				return fmt.Errorf("LXD_UNPRIVILEGED_ONLY is set, setting lxc.include is not allowed")
 			}
 		}
 
