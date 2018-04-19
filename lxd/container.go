@@ -278,13 +278,14 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
 	}
 
-	if os.Getenv("LXD_UNPRIVILEGED_ONLY") == "true" {
+	unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
+	if shared.IsTrue(unprivOnly) {
 		if config["raw.idmap"] != "" {
-			return fmt.Errorf("Setting raw.idmap is not allowed. Check LXD_UNPRIVILEGED_ONLY.")
+			return fmt.Errorf("LXD_UNPRIVILEGED_ONLY is set, setting raw.idmap is not allowed")
 		}
 
 		if shared.IsTrue(config["security.privileged"]) {
-			return fmt.Errorf("LXD_UNPRIVILEGED_ONLY is set, only unprivileged containers are allowed.")
+			return fmt.Errorf("LXD_UNPRIVILEGED_ONLY is set, only unprivileged containers are allowed")
 		}
 	}
 
