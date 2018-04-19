@@ -154,6 +154,7 @@ fi
 run_test test_check_deps "checking dependencies"
 run_test test_static_analysis "static analysis"
 run_test test_database_update "database schema updates"
+run_test test_sql "lxd sql"
 run_test test_remote_url "remote url handling"
 run_test test_remote_admin "remote administration"
 run_test test_remote_usage "remote usage"

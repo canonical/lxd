@@ -27,7 +27,7 @@ test_image_expiry() {
   lxc_remote image list l2: | grep -q "${fpbrief}"
 
   # Override the upload date
-  LXD_DIR="$LXD2_DIR" lxd sql "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}'" | grep -q "Rows affected: 1"
+  LXD_DIR="$LXD2_DIR" lxd sql global "UPDATE images SET last_use_date='$(date --rfc-3339=seconds -u -d "2 days ago")' WHERE fingerprint='${fp}'" | grep -q "Rows affected: 1"
 
   # Trigger the expiry
   lxc_remote config set l2: images.remote_cache_expiry 1
