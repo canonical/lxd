@@ -281,11 +281,11 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 	unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
 	if shared.IsTrue(unprivOnly) {
 		if config["raw.idmap"] != "" {
-			return fmt.Errorf("LXD_UNPRIVILEGED_ONLY is set, setting raw.idmap is not allowed")
+			return fmt.Errorf("raw.idmap can't be set as LXD was configured to only allow unprivileged containers")
 		}
 
 		if shared.IsTrue(config["security.privileged"]) {
-			return fmt.Errorf("LXD_UNPRIVILEGED_ONLY is set, only unprivileged containers are allowed")
+			return fmt.Errorf("LXD was configured to only allow unprivileged containers")
 		}
 	}
 
