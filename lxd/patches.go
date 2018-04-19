@@ -62,7 +62,7 @@ type patch struct {
 }
 
 func (p *patch) apply(d *Daemon) error {
-	logger.Debugf("Applying patch: %s", p.name)
+	logger.Infof("Applying patch: %s", p.name)
 
 	err := p.run(p.name, d)
 	if err != nil {
