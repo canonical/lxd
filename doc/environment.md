@@ -23,3 +23,4 @@ Name                            | Description
 `LXD_EXEC_PATH`                 | Full path to the LXD binary (used when forking subcommands)
 `LXD_LXC_TEMPLATE_CONFIG`       | Path to the LXC template configuration directory
 `LXD_SECURITY_APPARMOR`         | If set to `false`, forces AppArmor off
+`LXD_UNPRIVILEGED_ONLY`         | If set to `true`, enforces that only unprivileged containers can be created. Note that any privileged containers that have been created before setting LXD_UNPRIVILEGED_ONLY will continue to be privileged. To use this option effectively it should be set when the LXD daemon is first setup.
