@@ -468,6 +468,7 @@ func (d *Daemon) init() error {
 
 	/* Open the cluster database */
 	for {
+		logger.Info("Initializing global database")
 		d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
 		if err == nil {
 			break
@@ -534,6 +535,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Read the storage pools */
+	logger.Infof("Initializing storage pools")
 	err = SetupStorageDriver(d.State(), false)
 	if err != nil {
 		return err
@@ -546,6 +548,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Setup the networks */
+	logger.Infof("Initializing networks")
 	err = networkStartup(d.State())
 	if err != nil {
 		return err
@@ -579,6 +582,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	logger.Infof("Loading configuration")
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {
@@ -864,6 +868,7 @@ func (d *Daemon) setupMAASController(server string, key string, machine string) 
 
 // Create a database connection and perform any updates needed.
 func initializeDbObject(d *Daemon) (*db.Dump, error) {
+	logger.Info("Initializing local database")
 	// Rename the old database name if needed.
 	if shared.PathExists(d.os.LegacyLocalDatabasePath()) {
 		if shared.PathExists(d.os.LocalDatabasePath()) {
