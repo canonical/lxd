@@ -209,12 +209,8 @@ func lxcValidConfig(rawLxc string) error {
 
 		unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
 		if shared.IsTrue(unprivOnly) {
-			if key == "lxc.idmap" || key == "lxc.id_map" {
-				return fmt.Errorf("LXD_UNPRIVILEGED_ONLY is set, setting lxc.idmap is not allowed")
-			}
-
-			if key == "lxc.include" {
-				return fmt.Errorf("LXD_UNPRIVILEGED_ONLY is set, setting lxc.include is not allowed")
+			if key == "lxc.idmap" || key == "lxc.id_map" || key == "lxc.include" {
+				return fmt.Errorf("%s can't be set in raw.lxc as LXD was configured to only allow unprivileged containers", key)
 			}
 		}
 
