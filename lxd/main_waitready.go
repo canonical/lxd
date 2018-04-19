@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type cmdWaitready struct {
@@ -35,15 +36,32 @@ func (c *cmdWaitready) Command() *cobra.Command {
 func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 	finger := make(chan error, 1)
 	go func() {
-		for {
+		for i := 0; ; i++ {
+			// Log initial attempts at debug level, but use warn
+			// level after the 10'th attempt (about 5 seconds). Then
+			// after the 30'th attempt (about 15 seconds), log only
+			// only one attempt every 10 attempts (about 5 seconds),
+			// to avoid being too verbose.
+			log := logger.Debugf
+			if i > 10 {
+				log = logger.Warnf
+				if i > 30 && !((i % 10) == 0) {
+					log = func(string, ...interface{}) {}
+				}
+			}
+
+			log("Connecting to LXD daemon (attempt %d)", i)
 			d, err := lxd.ConnectLXDUnix("", nil)
 			if err != nil {
+				log("Failed connecting to LXD daemon (attempt %d): %v", i, err)
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
+			log("Checking if LXD daemon is ready (attempt %d)", i)
 			_, _, err = d.RawQuery("GET", "/internal/ready", nil, "")
 			if err != nil {
+				log("Failed checking if LXD daemon is ready (attempt %d): %v", i, err)
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}

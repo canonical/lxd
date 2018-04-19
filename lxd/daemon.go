@@ -237,7 +237,12 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 
 		// Block public API requests until we're done with basic
 		// initialization tasks, such setting up the cluster database.
-		<-d.setupChan
+		select {
+		case <-d.setupChan:
+		default:
+			Unavailable.Render(w)
+			return
+		}
 
 		untrustedOk := (r.Method == "GET" && c.untrustedGet) || (r.Method == "POST" && c.untrustedPost)
 		err := d.checkTrustedClient(r)
