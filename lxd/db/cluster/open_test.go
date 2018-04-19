@@ -149,7 +149,7 @@ CREATE TABLE schema (
     UNIQUE (version)
 );
 `
-	_, err = db.Exec(createTableSchema + cluster.FreshSchema)
+	_, err = db.Exec(createTableSchema + cluster.FreshSchema())
 	require.NoError(t, err)
 
 	return db

@@ -11,9 +11,13 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/node"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -92,78 +96,153 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-type internalSQLPost struct {
-	Query string `json:"query" yaml:"query"`
+type internalSQLDump struct {
+	Text string `json:"text" yaml:"text"`
+}
+
+type internalSQLQuery struct {
+	Database string `json:"database" yaml:"database"`
+	Query    string `json:"query" yaml:"query"`
+}
+
+type internalSQLBatch struct {
+	Results []internalSQLResult
 }
 
 type internalSQLResult struct {
+	Type         string          `json:"type" yaml:"type"`
 	Columns      []string        `json:"columns" yaml:"columns"`
 	Rows         [][]interface{} `json:"rows" yaml:"rows"`
 	RowsAffected int64           `json:"rows_affected" yaml:"rows_affected"`
 }
 
-func internalSQL(d *Daemon, r *http.Request) Response {
-	req := &internalSQLPost{}
+// Perform a database dump.
+func internalSQLGet(d *Daemon, r *http.Request) Response {
+	database := r.FormValue("database")
+
+	if !shared.StringInSlice(database, []string{"local", "global"}) {
+		return BadRequest(fmt.Errorf("Invalid database"))
+	}
+
+	var schema string
+	var db *sql.DB
+	if database == "global" {
+		db = d.cluster.DB()
+		schema = cluster.FreshSchema()
+	} else {
+		db = d.db.DB()
+		schema = node.FreshSchema()
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return SmartError(errors.Wrap(err, "failed to start transaction"))
+	}
+	defer tx.Rollback()
+	dump, err := query.Dump(tx, schema)
+	if err != nil {
+		return SmartError(errors.Wrapf(err, "failed dump database %s", database))
+	}
+	return SyncResponse(true, internalSQLDump{Text: dump})
+}
+
+// Execute queries.
+func internalSQLPost(d *Daemon, r *http.Request) Response {
+	req := &internalSQLQuery{}
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return BadRequest(err)
 	}
-	db := d.cluster.DB()
-	result := internalSQLResult{}
-	if strings.HasPrefix(strings.ToUpper(req.Query), "SELECT") {
-		rows, err := db.Query(req.Query)
-		if err != nil {
-			return SmartError(err)
-		}
-		defer rows.Close()
-		result.Columns, err = rows.Columns()
-		if err != nil {
-			return SmartError(err)
-		}
-		for rows.Next() {
-			row := make([]interface{}, len(result.Columns))
-			rowPointers := make([]interface{}, len(result.Columns))
-			for i := range row {
-				rowPointers[i] = &row[i]
-			}
-			err := rows.Scan(rowPointers...)
-			if err != nil {
-				return SmartError(err)
-			}
-			for i, column := range row {
-				// Convert bytes to string. This is safe as
-				// long as we don't have any BLOB column type.
-				data, ok := column.([]byte)
-				if ok {
-					row[i] = string(data)
-				}
-			}
-			result.Rows = append(result.Rows, row)
-		}
-		err = rows.Err()
-		if err != nil {
-			return SmartError(err)
-		}
-	} else {
-		r, err := db.Exec(req.Query)
-		if err != nil {
-			return SmartError(err)
-		}
-		result.RowsAffected, err = r.RowsAffected()
-		if err != nil {
-			return SmartError(err)
-		}
 
+	if !shared.StringInSlice(req.Database, []string{"local", "global"}) {
+		return BadRequest(fmt.Errorf("Invalid database"))
 	}
-	return SyncResponse(true, result)
+
+	if req.Query == "" {
+		return BadRequest(fmt.Errorf("No query provided"))
+	}
+
+	var db *sql.DB
+	if req.Database == "global" {
+		db = d.cluster.DB()
+	} else {
+		db = d.db.DB()
+	}
+
+	batch := internalSQLBatch{}
+	for _, query := range strings.Split(req.Query, ";") {
+		query = strings.TrimLeft(query, " ")
+		result := internalSQLResult{}
+		if strings.HasPrefix(strings.ToUpper(query), "SELECT") {
+			err = internalSQLSelect(db, query, &result)
+		} else {
+			err = internalSQLExec(db, query, &result)
+		}
+		if err != nil {
+			return SmartError(err)
+		}
+		batch.Results = append(batch.Results, result)
+	}
+	return SyncResponse(true, batch)
+}
+
+func internalSQLSelect(db *sql.DB, query string, result *internalSQLResult) error {
+	result.Type = "select"
+	rows, err := db.Query(query)
+	if err != nil {
+		return errors.Wrap(err, "failed to execute query")
+	}
+	defer rows.Close()
+	result.Columns, err = rows.Columns()
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch colume names")
+	}
+	for rows.Next() {
+		row := make([]interface{}, len(result.Columns))
+		rowPointers := make([]interface{}, len(result.Columns))
+		for i := range row {
+			rowPointers[i] = &row[i]
+		}
+		err := rows.Scan(rowPointers...)
+		if err != nil {
+			return errors.Wrap(err, "failed to scan row")
+		}
+		for i, column := range row {
+			// Convert bytes to string. This is safe as
+			// long as we don't have any BLOB column type.
+			data, ok := column.([]byte)
+			if ok {
+				row[i] = string(data)
+			}
+		}
+		result.Rows = append(result.Rows, row)
+	}
+	err = rows.Err()
+	if err != nil {
+		return errors.Wrap(err, "rows error")
+	}
+	return nil
+}
+
+func internalSQLExec(db *sql.DB, query string, result *internalSQLResult) error {
+	result.Type = "exec"
+	r, err := db.Exec(query)
+	if err != nil {
+		return errors.Wrapf(err, "failed to exec query")
+	}
+	result.RowsAffected, err = r.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch affected rows")
+	}
+	return nil
 }
 
 var internalShutdownCmd = Command{name: "shutdown", put: internalShutdown}
 var internalReadyCmd = Command{name: "ready", get: internalWaitReady}
 var internalContainerOnStartCmd = Command{name: "containers/{id}/onstart", get: internalContainerOnStart}
 var internalContainerOnStopCmd = Command{name: "containers/{id}/onstop", get: internalContainerOnStop}
-var internalSQLCmd = Command{name: "sql", post: internalSQL}
+var internalSQLCmd = Command{name: "sql", get: internalSQLGet, post: internalSQLPost}
 
 func slurpBackupFile(path string) (*backupFile, error) {
 	data, err := ioutil.ReadFile(path)
