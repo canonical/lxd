@@ -523,6 +523,9 @@ type containerLXC struct {
 
 	// Clustering
 	node string
+
+	// Progress tracking
+	op *operation
 }
 
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
@@ -1887,6 +1890,7 @@ func (c *containerLXC) startCommon() (string, error) {
 
 	if !reflect.DeepEqual(idmap, lastIdmap) {
 		logger.Debugf("Container idmap changed, remapping")
+		c.updateProgress("Remapping container filesystem")
 
 		ourStart, err = c.StorageStart()
 		if err != nil {
@@ -1942,6 +1946,8 @@ func (c *containerLXC) startCommon() (string, error) {
 				return "", err
 			}
 		}
+
+		c.updateProgress("")
 	}
 
 	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
@@ -8157,6 +8163,28 @@ func (c *containerLXC) StoragePool() (string, error) {
 	return poolName, nil
 }
 
+// Progress tracking
+func (c *containerLXC) SetOperation(op *operation) {
+	c.op = op
+}
+
+func (c *containerLXC) updateProgress(progress string) {
+	if c.op == nil {
+		return
+	}
+
+	meta := c.op.metadata
+	if meta == nil {
+		meta = make(map[string]interface{})
+	}
+
+	if meta["container_progress"] != progress {
+		meta["container_progress"] = progress
+		c.op.UpdateMetadata(meta)
+	}
+}
+
+// Internal MAAS handling
 func (c *containerLXC) maasInterfaces() ([]maas.ContainerInterface, error) {
 	interfaces := []maas.ContainerInterface{}
 	for k, m := range c.expandedDevices {
