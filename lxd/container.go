@@ -240,7 +240,7 @@ func containerValidDeviceConfigKey(t, k string) bool {
 	}
 }
 
-func containerValidConfig(os *sys.OS, config map[string]string, profile bool, expanded bool) error {
+func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool, expanded bool) error {
 	if config == nil {
 		return nil
 	}
@@ -254,7 +254,7 @@ func containerValidConfig(os *sys.OS, config map[string]string, profile bool, ex
 			return fmt.Errorf("Image keys can only be set on containers.")
 		}
 
-		err := containerValidConfigKey(os, k, v)
+		err := containerValidConfigKey(sysOS, k, v)
 		if err != nil {
 			return err
 		}
@@ -274,8 +274,19 @@ func containerValidConfig(os *sys.OS, config map[string]string, profile bool, ex
 		return fmt.Errorf("security.syscalls.whitelist is mutually exclusive with security.syscalls.blacklist*")
 	}
 
-	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && os.IdmapSet == nil {
+	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && sysOS.IdmapSet == nil {
 		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
+	}
+
+	unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
+	if shared.IsTrue(unprivOnly) {
+		if config["raw.idmap"] != "" {
+			return fmt.Errorf("raw.idmap can't be set as LXD was configured to only allow unprivileged containers")
+		}
+
+		if shared.IsTrue(config["security.privileged"]) {
+			return fmt.Errorf("LXD was configured to only allow unprivileged containers")
+		}
 	}
 
 	return nil
