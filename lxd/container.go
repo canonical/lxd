@@ -533,7 +533,11 @@ type container interface {
 	ConsoleBufferLogPath() string
 	LogPath() string
 
+	// Storage
 	StoragePool() (string, error)
+
+	// Progress reporting
+	SetOperation(op *operation)
 
 	// FIXME: Those should be internal functions
 	// Needed for migration for now.

@@ -73,6 +73,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	case shared.Start:
 		opDescription = "Starting container"
 		do = func(op *operation) error {
+			c.SetOperation(op)
 			if err = c.Start(raw.Stateful); err != nil {
 				return err
 			}
@@ -82,6 +83,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 		opDescription = "Stopping container"
 		if raw.Stateful {
 			do = func(op *operation) error {
+				c.SetOperation(op)
 				err := c.Stop(raw.Stateful)
 				if err != nil {
 					return err
@@ -91,6 +93,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			}
 		} else if raw.Timeout == 0 || raw.Force {
 			do = func(op *operation) error {
+				c.SetOperation(op)
 				err = c.Stop(false)
 				if err != nil {
 					return err
@@ -100,6 +103,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			}
 		} else {
 			do = func(op *operation) error {
+				c.SetOperation(op)
 				if c.IsFrozen() {
 					err := c.Unfreeze()
 					if err != nil {
@@ -118,6 +122,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	case shared.Restart:
 		opDescription = "Restarting container"
 		do = func(op *operation) error {
+			c.SetOperation(op)
 			ephemeral := c.IsEphemeral()
 
 			if ephemeral {
@@ -169,11 +174,13 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 	case shared.Freeze:
 		opDescription = "Freezing container"
 		do = func(op *operation) error {
+			c.SetOperation(op)
 			return c.Freeze()
 		}
 	case shared.Unfreeze:
 		opDescription = "Unfreezing container"
 		do = func(op *operation) error {
+			c.SetOperation(op)
 			return c.Unfreeze()
 		}
 	default:

@@ -118,11 +118,12 @@ func (p *ProgressRenderer) UpdateOp(op api.Operation) {
 		return
 	}
 
-	for _, key := range []string{"fs_progress", "download_progress"} {
-		value, ok := op.Metadata[key]
-		if ok {
-			p.Update(value.(string))
-			break
+	for key, value := range op.Metadata {
+		if !strings.HasSuffix(key, "_progress") {
+			continue
 		}
+
+		p.Update(value.(string))
+		break
 	}
 }
