@@ -1626,6 +1626,10 @@ func (c *containerLXC) initLXC(config bool) error {
 					rbind = "r"
 				}
 
+				if m["propagation"] != "" {
+					options = append(options, m["propagation"])
+				}
+
 				if isFile {
 					options = append(options, "create=file")
 				} else {
@@ -6246,7 +6250,7 @@ func (c *containerLXC) createUnixDevice(prefix string, m types.Device) ([]string
 		}
 		f.Close()
 
-		err = deviceMountDisk(srcPath, devPath, false, false)
+		err = deviceMountDisk(srcPath, devPath, false, false, "")
 		if err != nil {
 			return nil, err
 		}
@@ -7497,7 +7501,7 @@ func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, er
 	}
 
 	// Mount the fs
-	err := deviceMountDisk(srcPath, devPath, isReadOnly, isRecursive)
+	err := deviceMountDisk(srcPath, devPath, isReadOnly, isRecursive, m["propagation"])
 	if err != nil {
 		return "", err
 	}
