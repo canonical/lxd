@@ -964,7 +964,7 @@ func deviceRemoveInterface(nic string) error {
 	return err
 }
 
-func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bool) error {
+func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bool, propagation string) error {
 	var err error
 
 	// Prepare the mount flags
@@ -982,6 +982,29 @@ func deviceMountDisk(srcPath string, dstPath string, readonly bool, recursive bo
 		}
 	} else {
 		flags |= syscall.MS_BIND
+		if propagation != "" {
+			switch propagation {
+			case "private":
+				flags |= syscall.MS_PRIVATE
+			case "shared":
+				flags |= syscall.MS_SHARED
+			case "slave":
+				flags |= syscall.MS_SLAVE
+			case "unbindable":
+				flags |= syscall.MS_UNBINDABLE
+			case "rprivate":
+				flags |= syscall.MS_PRIVATE | syscall.MS_REC
+			case "rshared":
+				flags |= syscall.MS_SHARED | syscall.MS_REC
+			case "rslave":
+				flags |= syscall.MS_SLAVE | syscall.MS_REC
+			case "runbindable":
+				flags |= syscall.MS_UNBINDABLE | syscall.MS_REC
+			default:
+				return fmt.Errorf("Invalid propagation mode '%s'", propagation)
+			}
+		}
+
 		if recursive {
 			flags |= syscall.MS_REC
 		}

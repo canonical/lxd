@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -167,6 +168,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		case "recursive":
 			return true
 		case "pool":
+			return true
+		case "propagation":
 			return true
 		default:
 			return false
@@ -377,6 +380,15 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 				}
 			}
 
+			if m["propagation"] != "" {
+				if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+					return fmt.Errorf("liblxc 3.0 is required for mount propagation configuration")
+				}
+
+				if !shared.StringInSlice(m["propagation"], []string{"private", "shared", "slave", "unbindable", "rprivate", "rshared", "rslave", "runbindable"}) {
+					return fmt.Errorf("Invalid propagation mode '%s'", m["propagation"])
+				}
+			}
 		} else if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			if m["source"] == "" && m["path"] == "" {
 				return fmt.Errorf("Unix device entry is missing the required \"source\" or \"path\" property.")
