@@ -344,6 +344,7 @@ func (c *cmdGlobal) ParseServers(remotes ...string) ([]remoteResource, error) {
 		}
 
 		resource.server = d
+		servers[remoteName] = d
 		resources = append(resources, resource)
 	}
 
