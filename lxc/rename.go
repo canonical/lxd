@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -45,7 +46,13 @@ func (c *cmdRename) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if sourceRemote != destRemote {
-		return fmt.Errorf(i18n.G("Can't specify a different remote for rename."))
+		// We just do renames
+		if strings.Contains(args[1], ":") {
+			return fmt.Errorf(i18n.G("Can't specify a different remote for rename."))
+		}
+
+		// Don't require the remote to be passed as both source and target
+		args[1] = fmt.Sprintf("%s:%s", sourceRemote, args[1])
 	}
 
 	// Call move
