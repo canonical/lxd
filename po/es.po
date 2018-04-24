@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-04-18 10:42+0000\n"
+"POT-Creation-Date: 2018-04-24 17:39-0400\n"
 "PO-Revision-Date: 2018-02-10 11:39+0000\n"
 "Last-Translator: Allan Esquivel Sibaja <allan.esquivel.sibaja@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -366,7 +366,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr "Propiedad mala: %s"
 
-#: lxc/action.go:210
+#: lxc/action.go:219
 msgid "Both --all and container name given"
 msgstr "Ambas: todas y el nombre del contenedor dado"
 
@@ -429,7 +429,7 @@ msgstr ""
 msgid "Can't specify --fast with --columns"
 msgstr ""
 
-#: lxc/rename.go:48
+#: lxc/rename.go:51
 msgid "Can't specify a different remote for rename."
 msgstr "No se puede especificar un remote diferente para renombrar."
 
@@ -471,7 +471,7 @@ msgstr ""
 msgid "Cluster member name"
 msgstr ""
 
-#: lxc/cluster.go:358
+#: lxc/cluster.go:361
 msgid "Clustering enabled"
 msgstr ""
 
@@ -698,7 +698,7 @@ msgstr ""
 msgid "Delete storage volumes"
 msgstr ""
 
-#: lxc/action.go:30 lxc/action.go:49 lxc/action.go:69 lxc/action.go:90
+#: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
 #: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:290 lxc/config.go:29
@@ -731,7 +731,7 @@ msgstr ""
 #: lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:30
 #: lxc/remote.go:34 lxc/remote.go:84 lxc/remote.go:380 lxc/remote.go:414
 #: lxc/remote.go:487 lxc/remote.go:549 lxc/remote.go:598 lxc/remote.go:636
-#: lxc/rename.go:20 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
+#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
 #: lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328
 #: lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645
 #: lxc/storage.go:729 lxc/storage_volume.go:34 lxc/storage_volume.go:122
@@ -974,7 +974,7 @@ msgstr ""
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
-#: lxc/action.go:119
+#: lxc/action.go:120
 msgid "Force the container to shutdown"
 msgstr ""
 
@@ -1052,7 +1052,7 @@ msgid ""
 "lxd init"
 msgstr ""
 
-#: lxc/action.go:115
+#: lxc/action.go:116
 msgid "Ignore the container state"
 msgstr ""
 
@@ -1594,7 +1594,7 @@ msgstr ""
 msgid "Must run as root to import from directory"
 msgstr ""
 
-#: lxc/action.go:145
+#: lxc/action.go:146
 msgid "Must supply container name for: "
 msgstr ""
 
@@ -1726,7 +1726,7 @@ msgstr ""
 msgid "Packets sent"
 msgstr ""
 
-#: lxc/action.go:48 lxc/action.go:49
+#: lxc/action.go:49 lxc/action.go:50
 msgid "Pause containers"
 msgstr ""
 
@@ -1924,7 +1924,7 @@ msgstr ""
 msgid "Rename aliases"
 msgstr ""
 
-#: lxc/rename.go:19 lxc/rename.go:20
+#: lxc/rename.go:20 lxc/rename.go:21
 msgid "Rename containers and snapshots"
 msgstr ""
 
@@ -1957,11 +1957,11 @@ msgstr ""
 msgid "Resources:"
 msgstr ""
 
-#: lxc/action.go:68
+#: lxc/action.go:69
 msgid "Restart containers"
 msgstr ""
 
-#: lxc/action.go:69
+#: lxc/action.go:70
 msgid ""
 "Restart containers\n"
 "\n"
@@ -1988,7 +1988,7 @@ msgstr ""
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/action.go:110
+#: lxc/action.go:111
 msgid "Run command against all containers"
 msgstr ""
 
@@ -2198,7 +2198,7 @@ msgstr ""
 msgid "Snapshots:"
 msgstr ""
 
-#: lxc/action.go:240
+#: lxc/action.go:249
 #, c-format
 msgid "Some containers failed to %s"
 msgstr ""
@@ -2207,7 +2207,7 @@ msgstr ""
 msgid "Source:"
 msgstr ""
 
-#: lxc/action.go:29 lxc/action.go:30
+#: lxc/action.go:30 lxc/action.go:31
 msgid "Start containers"
 msgstr ""
 
@@ -2221,7 +2221,7 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: lxc/action.go:89 lxc/action.go:90
+#: lxc/action.go:90 lxc/action.go:91
 msgid "Stop containers"
 msgstr ""
 
@@ -2275,7 +2275,7 @@ msgstr ""
 msgid "Storage volume moved successfully!"
 msgstr ""
 
-#: lxc/action.go:113
+#: lxc/action.go:114
 msgid "Store the container state"
 msgstr ""
 
@@ -2346,7 +2346,7 @@ msgstr ""
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
-#: lxc/action.go:120
+#: lxc/action.go:121
 msgid "Time to wait for the container before killing it"
 msgstr ""
 
@@ -2392,7 +2392,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/action.go:179 lxc/launch.go:81
+#: lxc/action.go:188 lxc/launch.go:81
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -2737,7 +2737,7 @@ msgstr ""
 msgid "enabled"
 msgstr ""
 
-#: lxc/action.go:232
+#: lxc/action.go:241
 #, c-format
 msgid "error: %v"
 msgstr ""
@@ -3084,7 +3084,7 @@ msgstr ""
 msgid "override [<remote>:]<container> <device> [key=value...]"
 msgstr ""
 
-#: lxc/action.go:47
+#: lxc/action.go:48
 msgid "pause [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr ""
 
@@ -3162,7 +3162,7 @@ msgstr ""
 msgid "rename [<remote>:]<alias> <new-name>"
 msgstr ""
 
-#: lxc/rename.go:18
+#: lxc/rename.go:19
 msgid "rename [<remote>:]<container>[/<snapshot>] <container>[/<snapshot>]"
 msgstr ""
 
@@ -3182,7 +3182,7 @@ msgstr ""
 msgid "rename [<remote>:]<profile> <new-name>"
 msgstr ""
 
-#: lxc/action.go:67
+#: lxc/action.go:68
 msgid "restart [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr ""
 
@@ -3274,7 +3274,7 @@ msgstr ""
 msgid "space used"
 msgstr ""
 
-#: lxc/action.go:28
+#: lxc/action.go:29
 msgid "start [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr ""
 
@@ -3286,7 +3286,7 @@ msgstr ""
 msgid "stateless"
 msgstr ""
 
-#: lxc/action.go:88
+#: lxc/action.go:89
 msgid "stop [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr ""
 
