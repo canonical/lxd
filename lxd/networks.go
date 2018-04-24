@@ -1461,7 +1461,7 @@ func (n *network) Start() error {
 		}
 
 		// Configure NAT
-		err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", underlaySubnet.String(), "!", "-d", underlaySubnet.String(), "-j", "MASQUERADE")
+		err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", overlaySubnet.String(), "!", "-d", overlaySubnet.String(), "-j", "MASQUERADE")
 		if err != nil {
 			return err
 		}
