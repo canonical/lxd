@@ -173,6 +173,11 @@ func internalSQLPost(d *Daemon, r *http.Request) Response {
 	batch := internalSQLBatch{}
 	for _, query := range strings.Split(req.Query, ";") {
 		query = strings.TrimLeft(query, " ")
+
+		if query == "" {
+			continue
+		}
+
 		result := internalSQLResult{}
 		if strings.HasPrefix(strings.ToUpper(query), "SELECT") {
 			err = internalSQLSelect(db, query, &result)
