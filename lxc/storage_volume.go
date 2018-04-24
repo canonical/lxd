@@ -291,8 +291,6 @@ func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 }
 
 func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
-	conf := c.global.conf
-
 	// Sanity checks
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
@@ -300,57 +298,41 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse remote
-	resources, err := c.global.ParseServers(args[0])
+	resources, err := c.global.ParseServers(args[0], args[1])
 	if err != nil {
 		return err
 	}
 
-	resource := resources[0]
-
-	if resource.name == "" {
+	// Source
+	srcResource := resources[0]
+	if srcResource.name == "" {
 		return fmt.Errorf(i18n.G("Missing source volume name"))
 	}
 
-	source := resource.server
-	sourceRemote := resource.name
-	src := resource.name
-	dst := args[1]
+	srcServer := srcResource.server
+	srcPath := srcResource.name
+
+	// Destination
+	dstResource := resources[1]
+	dstServer := dstResource.server
+	dstPath := dstResource.name
 
 	// Get source pool and volume name
-	srcVolName, srcVolPool := c.storageVolume.parseVolume("", src)
+	srcVolName, srcVolPool := c.storageVolume.parseVolume("", srcPath)
 	if srcVolPool == "" {
 		return fmt.Errorf(i18n.G("No storage pool for source volume specified"))
 	}
 
 	// Check if requested storage volume exists
-	srcVol, _, err := source.GetStoragePoolVolume(srcVolPool, "custom", srcVolName)
-	if err != nil {
-		return err
-	}
-
-	// Parse destination
-	destRemote, destName, err := conf.ParseRemote(dst)
+	srcVol, _, err := srcServer.GetStoragePoolVolume(srcVolPool, "custom", srcVolName)
 	if err != nil {
 		return err
 	}
 
 	// Get destination pool and volume name
-	dstVolName, dstVolPool := c.storageVolume.parseVolume("", destName)
+	dstVolName, dstVolPool := c.storageVolume.parseVolume("", dstPath)
 	if dstVolPool == "" {
 		return fmt.Errorf(i18n.G("No storage pool for target volume specified"))
-	}
-
-	// Connect to the destination host
-	var dest lxd.ContainerServer
-	if sourceRemote == destRemote {
-		// Source and destination are the same
-		dest = source
-	} else {
-		// Destination is different, connect to it
-		dest, err = conf.GetContainerServer(destRemote)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Parse the mode
@@ -360,32 +342,34 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	var op lxd.RemoteOperation
-	opMsg := ""
-	finalMsg := ""
-	if cmd.Name() == "move" && sourceRemote == destRemote {
+
+	// Messages
+	opMsg := i18n.G("Copying the storage volume: %s")
+	finalMsg := i18n.G("Storage volume copied successfully!")
+
+	if cmd.Name() == "move" {
+		opMsg = i18n.G("Moving the storage volume: %s")
+		finalMsg = i18n.G("Storage volume moved successfully!")
+	}
+
+	if cmd.Name() == "move" && srcServer == dstServer {
 		args := &lxd.StoragePoolVolumeMoveArgs{}
 		args.Name = dstVolName
 		args.Mode = mode
 
-		op, err = dest.MoveStoragePoolVolume(dstVolPool, source, srcVolPool, *srcVol, args)
+		op, err = dstServer.MoveStoragePoolVolume(dstVolPool, srcServer, srcVolPool, *srcVol, args)
 		if err != nil {
 			return err
 		}
-
-		opMsg = i18n.G("Moving the storage volume: %s")
-		finalMsg = i18n.G("Storage volume moved successfully!")
 	} else {
 		args := &lxd.StoragePoolVolumeCopyArgs{}
 		args.Name = dstVolName
 		args.Mode = mode
 
-		op, err = dest.CopyStoragePoolVolume(dstVolPool, source, srcVolPool, *srcVol, args)
+		op, err = dstServer.CopyStoragePoolVolume(dstVolPool, srcServer, srcVolPool, *srcVol, args)
 		if err != nil {
 			return err
 		}
-
-		opMsg = i18n.G("Copying the storage volume: %s")
-		finalMsg = i18n.G("Storage volume copied successfully!")
 	}
 
 	// Register progress handler
@@ -396,18 +380,20 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	progress.Done(finalMsg)
 	err = op.Wait()
 	if err != nil {
+		progress.Done("")
 		return err
 	}
 
-	if cmd.Name() == "move" && sourceRemote != destRemote {
-		err := source.DeleteStoragePoolVolume(srcVolPool, srcVol.Type, srcVolName)
+	if cmd.Name() == "move" && srcServer != dstServer {
+		err := srcServer.DeleteStoragePoolVolume(srcVolPool, srcVol.Type, srcVolName)
 		if err != nil {
+			progress.Done("")
 			return err
 		}
 	}
+	progress.Done(finalMsg)
 
 	return nil
 }
