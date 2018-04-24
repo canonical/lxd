@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
-	"strings"
-	"time"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -137,44 +135,17 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 }
 
 func sqlPrintSelectResult(result internalSQLResult) {
-	// Print results in tabular format
-	widths := make([]int, len(result.Columns))
-	for i, column := range result.Columns {
-		widths[i] = len(column)
-	}
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAutoWrapText(false)
+	table.SetAutoFormatHeaders(false)
+	table.SetHeader(result.Columns)
 	for _, row := range result.Rows {
-		for i, v := range row {
-			width := 10
-			switch v := v.(type) {
-			case string:
-				width = len(v)
-			case int:
-				width = 6
-			case int64:
-				width = 6
-			case time.Time:
-				width = 12
-			}
-			if width > widths[i] {
-				widths[i] = width
-			}
+		data := []string{}
+		for _, col := range row {
+			data = append(data, fmt.Sprintf("%v", col))
 		}
+		table.Append(data)
 	}
-	format := "|"
-	separator := "+"
-	columns := make([]interface{}, len(result.Columns))
-	for i, column := range result.Columns {
-		format += " %-" + strconv.Itoa(widths[i]) + "v |"
-		columns[i] = column
-		separator += strings.Repeat("-", widths[i]+2) + "+"
-	}
-	format += "\n"
-	separator += "\n"
-	fmt.Printf(separator)
-	fmt.Printf(fmt.Sprintf(format, columns...))
-	fmt.Printf(separator)
-	for _, row := range result.Rows {
-		fmt.Printf(format, row...)
-	}
-	fmt.Printf(separator)
+	table.Render()
 }
