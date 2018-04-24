@@ -633,12 +633,15 @@ func networkFanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string,
 	ipBytes[0] = overlay.IP[0]
 	if overlaySize == 16 {
 		ipBytes[1] = overlay.IP[1]
+		ipBytes[2] = ipBytes[3]
 	} else if underlaySize == 24 {
-		ipBytes[1] = 0
+		ipBytes[1] = ipBytes[3]
+		ipBytes[2] = 0
 	} else if underlaySize == 16 {
 		ipBytes[1] = ipBytes[2]
+		ipBytes[2] = ipBytes[3]
 	}
-	ipBytes[2] = ipBytes[3]
+
 	ipBytes[3] = 1
 
 	return fmt.Sprintf("%s/%d", ipBytes.String(), overlaySize), dev, ipStr, err
