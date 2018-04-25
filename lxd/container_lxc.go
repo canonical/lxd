@@ -1436,14 +1436,18 @@ func (c *containerLXC) initLXC(config bool) error {
 			if destPath == "" {
 				destPath = m["source"]
 			}
+
+			srcPath := m["source"]
+			if srcPath == "" {
+				srcPath = m["path"]
+			}
+
 			relativeDestPath := strings.TrimPrefix(destPath, "/")
 			sourceDevPath := filepath.Join(c.DevicesPath(), fmt.Sprintf("unix.%s.%s", strings.Replace(k, "/", "-", -1), strings.Replace(relativeDestPath, "/", "-", -1)))
 
-			// Do not fail to start when the device doesn't need to
-			// exist.
-			opts := "none bind,create=file"
-			if m["required"] != "" && !shared.IsTrue(m["required"]) {
-				opts = "none bind,create=file,optional"
+			// Don't add mount entry for devices that don't yet exist
+			if m["required"] != "" && !shared.IsTrue(m["required"]) && srcPath != "" && !shared.PathExists(srcPath) {
+				continue
 			}
 
 			// inform liblxc about the mount
@@ -1451,7 +1455,7 @@ func (c *containerLXC) initLXC(config bool) error {
 				fmt.Sprintf("%s %s %s",
 					shared.EscapePathFstab(sourceDevPath),
 					shared.EscapePathFstab(relativeDestPath),
-					opts))
+					"none bind,create=file"))
 			if err != nil {
 				return err
 			}
@@ -1812,16 +1816,15 @@ func (c *containerLXC) startCommon() (string, error) {
 			if !exist {
 				srcPath = m["path"]
 			}
-			if m["path"] != "" && m["major"] == "" && m["minor"] == "" && !shared.PathExists(srcPath) {
-				return "", fmt.Errorf("Missing source '%s' for device '%s'", srcPath, name)
-			}
 
-			if m["required"] != "" && !shared.IsTrue(m["required"]) {
-				err = deviceInotifyAddClosestLivingAncestor(c.state, srcPath)
+			if srcPath != "" && m["required"] != "" && !shared.IsTrue(m["required"]) {
+				err = deviceInotifyAddClosestLivingAncestor(c.state, filepath.Dir(srcPath))
 				if err != nil {
 					logger.Errorf("Failed to add \"%s\" to inotify targets", srcPath)
-					return "", err
+					return "", fmt.Errorf("Failed to setup inotify watch for '%s': %v", srcPath, err)
 				}
+			} else if srcPath != "" && m["major"] == "" && m["minor"] == "" && !shared.PathExists(srcPath) {
+				return "", fmt.Errorf("Missing source '%s' for device '%s'", srcPath, name)
 			}
 		}
 	}
