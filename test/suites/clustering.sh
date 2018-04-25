@@ -161,6 +161,12 @@ test_clustering_membership() {
 
   teardown_clustering_netns
   teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_FIVE_DIR}"
 }
 
 test_clustering_containers() {
@@ -311,6 +317,10 @@ test_clustering_containers() {
 
   teardown_clustering_netns
   teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
 }
 
 test_clustering_storage() {
@@ -532,6 +542,12 @@ test_clustering_storage() {
 
   teardown_clustering_netns
   teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  if [ -n "${LXD_THREE_DIR:-}" ]; then
+    kill_lxd "${LXD_THREE_DIR}"
+  fi
 }
 
 test_clustering_network() {
@@ -598,6 +614,9 @@ test_clustering_network() {
 
   teardown_clustering_netns
   teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
 }
 
 test_clustering_upgrade() {
@@ -686,4 +705,8 @@ test_clustering_upgrade() {
 
   teardown_clustering_netns
   teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
 }
