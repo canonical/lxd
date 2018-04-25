@@ -128,6 +128,12 @@ kill_lxd() {
 
     daemon_dir=${1}
     LXD_DIR=${daemon_dir}
+
+    # Check if already killed
+    if [ ! -f "${daemon_dir}/lxd.pid" ]; then
+      return
+    fi
+
     daemon_pid=$(cat "${daemon_dir}/lxd.pid")
     check_leftovers="false"
     lxd_backend=$(storage_backend "$daemon_dir")
