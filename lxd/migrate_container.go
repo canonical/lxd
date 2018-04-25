@@ -993,6 +993,10 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	for {
 		select {
 		case err = <-restore:
+			if err != nil {
+				disconnector()
+				return err
+			}
 			controller(err)
 			return err
 		case msg, ok := <-source:
