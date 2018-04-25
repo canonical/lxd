@@ -23,4 +23,6 @@ test_server_config() {
   # macaroons are also enabled
   curl --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq .metadata.auth_methods | grep macaroons
   lxc config unset core.macaroon.endpoint
+
+  kill_lxd "${LXD_SERVERCONFIG_DIR}"
 }
