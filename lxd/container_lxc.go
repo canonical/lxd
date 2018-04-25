@@ -5104,6 +5104,11 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 			opts.PredumpDir = fmt.Sprintf("../%s", args.preDumpDir)
 		}
 
+		if !c.IsRunning() {
+			// otherwise the migration will needlessly fail
+			args.stop = false
+		}
+
 		migrateErr = c.c.Migrate(args.cmd, opts)
 	}
 

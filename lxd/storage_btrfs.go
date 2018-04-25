@@ -2097,8 +2097,6 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			return err
 		}
 
-		defer os.RemoveAll(btrfsPath)
-
 		err = btrfsSubVolumesDelete(receivedSnapshot)
 		if err != nil {
 			logger.Errorf("Failed to delete BTRFS subvolume \"%s\": %s.", btrfsPath, err)
@@ -2184,6 +2182,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 			wrapper := StorageProgressWriter(op, "fs_progress", *snap.Name)
 			err = btrfsRecv(*(snap.Name), tmpSnapshotMntPoint, snapshotMntPoint, true, wrapper)
+			os.RemoveAll(tmpSnapshotMntPoint)
 			if err != nil {
 				return err
 			}
@@ -2213,6 +2212,13 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 	err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
 	if err != nil {
 		return err
+	}
+
+	if live {
+		err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
