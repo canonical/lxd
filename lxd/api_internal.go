@@ -43,7 +43,7 @@ func internalWaitReady(d *Daemon, r *http.Request) Response {
 	select {
 	case <-d.readyChan:
 	default:
-		return Unavailable
+		return Unavailable(fmt.Errorf("LXD daemon not ready yet"))
 	}
 
 	return EmptySyncResponse
