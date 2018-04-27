@@ -19,14 +19,26 @@ with a pretty simple query.
 
 
 # Database engine
-As this is a purely internal database with a single client and very
-little data, we'll be using sqlite3.
+Since LXD supports clustering, and all members of the cluster must share the
+same database state, the database engine is based on a [distributed
+version](https://github.com/CanonicalLtd/dqlite) of SQLite, which provides
+replication, fault-tolerance and automatic failover without the need of external
+database processes. We refer to this database as the "global" LXD database.
 
-We have no interest in replication or other HA features offered by the
-bigger database engines as LXD runs on each compute nodes and having the
-database accessible when the compute node itself isn't, wouldn't be
-terribly useful.
+Even when using LXD as single non-clustered node, the global database will still
+be used, although in that case it effectively behaves like a regular SQLite
+database.
 
+The files of the global database are stored under the ``./database/global``
+sub-directory of your LXD data dir (e.g. ``/var/lib/lxd/database/global``).
+
+Since each member of the cluster also needs to keep some data which is specific
+to that member, LXD also uses a plain SQLite database (the "local" database),
+which you can find in ``./database/local.db``.
+
+Backups of the global database directory and of the local database file are made
+before upgrades, and are tagged with the ``.bak`` suffix. You can use those if
+you need to revert the state as it was before the upgrade.
 
 # Design
 The design of the database is made to be as close as possible to

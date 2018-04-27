@@ -3,12 +3,15 @@ package cluster
 import (
 	"database/sql"
 	"fmt"
+	"path/filepath"
 	"sync/atomic"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
@@ -47,9 +50,60 @@ func Open(name string, dialer grpcsql.Dialer) (*sql.DB, error) {
 // nodes have version greater than us and we need to be upgraded), or return
 // false and no error (if some nodes have a lower version, and we need to wait
 // till they get upgraded and restarted).
-func EnsureSchema(db *sql.DB, address string) (bool, error) {
+func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	someNodesAreBehind := false
 	apiExtensions := version.APIExtensionsCount()
+
+	backupDone := false
+	hook := (func(version int, tx *sql.Tx) error {
+		// Check if this is a fresh instance.
+		isUpdate, err := schema.DoesSchemaTableExist(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to check if schema table exists")
+		}
+
+		if !isUpdate {
+			return nil
+		}
+
+		// Check if we're clustered
+		clustered := true
+		n, err := selectUnclusteredNodesCount(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to fetch unclustered nodes count")
+		}
+		if n > 1 {
+			// This should never happen, since we only add nodes
+			// with valid addresses, but check it for sanity.
+			return fmt.Errorf("found more than one unclustered nodes")
+		} else if n == 1 {
+			clustered = false
+		}
+
+		// If we're not clustered, backup the local cluster database directory
+		// before performing any schema change. This makes sense only in the
+		// non-clustered case, because otherwise the directory would be
+		// re-populated by replication.
+		if !clustered && !backupDone {
+			logger.Infof("Updating the LXD global schema. Backup made as \"global.bak\"")
+			err := shared.DirCopy(
+				filepath.Join(dir, "global"),
+				filepath.Join(dir, "global.bak"),
+			)
+			if err != nil {
+				return errors.Wrap(err, "failed to backup global database")
+			}
+			backupDone = true
+		}
+
+		if version == -1 {
+			logger.Debugf("Running pre-update queries from file for global DB schema")
+		} else {
+			logger.Debugf("Updating global DB schema from %d to %d", version, version+1)
+		}
+
+		return nil
+	})
 
 	check := func(current int, tx *sql.Tx) error {
 		// If we're bootstrapping a fresh schema, skip any check, since
@@ -86,7 +140,9 @@ func EnsureSchema(db *sql.DB, address string) (bool, error) {
 	}
 
 	schema := Schema()
+	schema.File(filepath.Join(dir, "patch.global.sql")) // Optional custom queries
 	schema.Check(check)
+	schema.Hook(hook)
 
 	var initial int
 	err := query.Retry(func() error {

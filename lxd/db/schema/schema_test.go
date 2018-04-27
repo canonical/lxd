@@ -3,6 +3,7 @@ package schema_test
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
+	"github.com/lxc/lxd/shared"
 )
 
 // Create a new Schema by specifying an explicit map from versions to Update
@@ -332,6 +334,104 @@ func TestSchema_ExeciseUpdate(t *testing.T) {
 	// Update 3 has not been applied.
 	_, err = query.SelectStrings(tx, "SELECT name FROM test")
 	require.EqualError(t, err, "no such column: name")
+}
+
+// A custom schema file path is given, but it does not exists. This is a no-op.
+func TestSchema_File_NotExists(t *testing.T) {
+	schema, db := newSchemaAndDB(t)
+	schema.Add(updateCreateTable)
+	schema.File("/non/existing/file/path")
+
+	_, err := schema.Ensure(db)
+	require.NoError(t, err)
+}
+
+// A custom schema file path is given, but it contains non valid SQL. An error
+// is returned an no change to the database is performed at all.
+func TestSchema_File_Garbage(t *testing.T) {
+	schema, db := newSchemaAndDB(t)
+	schema.Add(updateCreateTable)
+
+	path, err := shared.WriteTempFile("", "lxd-db-schema-", "SELECT FROM baz")
+	require.NoError(t, err)
+	defer os.Remove(path)
+
+	schema.File(path)
+
+	_, err = schema.Ensure(db)
+
+	message := fmt.Sprintf("failed to execute queries from %s: near \"FROM\": syntax error", path)
+	require.EqualError(t, err, message)
+}
+
+// A custom schema file path is given, it runs some queries that repair an
+// otherwise broken update, before the update is run.
+func TestSchema_File(t *testing.T) {
+	schema, db := newSchemaAndDB(t)
+
+	// Add an update that would insert a value into a non-existing table.
+	schema.Add(updateInsertValue)
+
+	path, err := shared.WriteTempFile("", "lxd-db-schema-",
+		`CREATE TABLE test (id INTEGER);
+INSERT INTO test VALUES (2);
+`)
+	require.NoError(t, err)
+	defer os.Remove(path)
+
+	schema.File(path)
+
+	_, err = schema.Ensure(db)
+	require.NoError(t, err)
+
+	// The file does not exist anymore.
+	assert.False(t, shared.PathExists(path))
+
+	// The table was created, and the extra row inserted as well.
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	ids, err := query.SelectIntegers(tx, "SELECT id FROM test ORDER BY id")
+	require.NoError(t, err)
+	assert.Equal(t, []int{1, 2}, ids)
+}
+
+// A both a custom schema file path and a hook are set, the hook runs before
+// the queries in the file are executed.
+func TestSchema_File_Hook(t *testing.T) {
+	schema, db := newSchemaAndDB(t)
+
+	// Add an update that would insert a value into a non-existing table.
+	schema.Add(updateInsertValue)
+
+	// Add a custom schema update query file that inserts a value into a
+	// non-existing table.
+	path, err := shared.WriteTempFile("", "lxd-db-schema-", "INSERT INTO test VALUES (2)")
+	require.NoError(t, err)
+	defer os.Remove(path)
+
+	schema.File(path)
+
+	// Add a hook that takes care of creating the test table, this shows
+	// that it's run before anything else.
+	schema.Hook(func(version int, tx *sql.Tx) error {
+		if version == -1 {
+			_, err := tx.Exec("CREATE TABLE test (id INTEGER)")
+			return err
+		}
+		return nil
+	})
+
+	_, err = schema.Ensure(db)
+	require.NoError(t, err)
+
+	// The table was created, and the both rows inserted as well.
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	ids, err := query.SelectIntegers(tx, "SELECT id FROM test ORDER BY id")
+	require.NoError(t, err)
+	assert.Equal(t, []int{1, 2}, ids)
 }
 
 // Return a new in-memory SQLite database.

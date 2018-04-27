@@ -30,6 +30,7 @@ func EnsureSchema(db *sql.DB, dir string, hook schema.Hook) (int, error) {
 	backupDone := false
 
 	schema := Schema()
+	schema.File(filepath.Join(dir, "patch.local.sql")) // Optional custom queries
 	schema.Hook(func(version int, tx *sql.Tx) error {
 		if !backupDone {
 			logger.Infof("Updating the LXD database schema. Backup made as \"local.db.bak\"")
@@ -41,9 +42,16 @@ func EnsureSchema(db *sql.DB, dir string, hook schema.Hook) (int, error) {
 
 			backupDone = true
 		}
-		logger.Debugf("Updating DB schema from %d to %d", version, version+1)
 
-		if hook != nil {
+		if version == -1 {
+			logger.Debugf("Running pre-update queries from file for local DB schema")
+		} else {
+			logger.Debugf("Updating DB schema from %d to %d", version, version+1)
+		}
+
+		// Run the given hook only against actual update versions, not
+		// when a custom query file is passed (signaled by version == -1).
+		if hook != nil && version != -1 {
 			err := hook(version, tx)
 			if err != nil {
 			}

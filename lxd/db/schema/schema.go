@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
+	"github.com/pkg/errors"
 )
 
 // Schema captures the schema of a database in terms of a series of ordered
@@ -17,6 +18,7 @@ type Schema struct {
 	hook    Hook     // Optional hook to execute whenever a update gets applied
 	fresh   string   // Optional SQL statement used to create schema from scratch
 	check   Check    // Optional callback invoked before doing any update
+	path    string   // Optional path to a file containing extra queries to run
 }
 
 // Update applies a specific schema change to a database, and returns an error
@@ -111,6 +113,16 @@ func (s *Schema) Fresh(statement string) {
 	s.fresh = statement
 }
 
+// File extra queries from a file. If the file is exists, all SQL queries in it
+// will be executed transactionally at the very start of Ensure(), before
+// anything else is done.
+//
+//If a schema hook was set with Hook(), it will be run before running the
+//queries in the file and it will be passed a patch version equals to -1.
+func (s *Schema) File(path string) {
+	s.path = path
+}
+
 // Ensure makes sure that the actual schema in the given database matches the
 // one defined by our updates.
 //
@@ -127,7 +139,12 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 	var current int
 	aborted := false
 	err := query.Transaction(db, func(tx *sql.Tx) error {
-		err := ensureSchemaTableExists(tx)
+		err := execFromFile(tx, s.path, s.hook)
+		if err != nil {
+			return errors.Wrapf(err, "failed to execute queries from %s", s.path)
+		}
+
+		err = ensureSchemaTableExists(tx)
 		if err != nil {
 			return err
 		}
@@ -255,7 +272,7 @@ func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error
 
 // Ensure that the schema exists.
 func ensureSchemaTableExists(tx *sql.Tx) error {
-	exists, err := doesSchemaTableExist(tx)
+	exists, err := DoesSchemaTableExist(tx)
 	if err != nil {
 		return fmt.Errorf("failed to check if schema table is there: %v", err)
 	}
