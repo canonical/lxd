@@ -164,16 +164,37 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 	// Test that the cluster database is operational. We wait up to 10
 	// minutes, in case there's no quorum of nodes online yet.
 	timeout := time.After(10 * time.Minute)
-	for {
+	for i := 0; ; i++ {
+		// Log initial attempts at debug level, but use warn
+		// level after the 5'th attempt (about 10 seconds).
+		// After the 15'th attempt (about 30 seconds), log
+		// only one attempt every 5.
+		logPriority := 1 // 0 is discard, 1 is Debug, 2 is Warn
+		if i > 5 {
+			logPriority = 2
+			if i > 15 && !((i % 5) == 0) {
+				logPriority = 0
+			}
+		}
+
 		err = db.Ping()
 		if err == nil {
 			break
 		}
+
 		cause := errors.Cause(err)
 		if cause != context.DeadlineExceeded {
 			return nil, err
 		}
-		time.Sleep(10 * time.Second)
+
+		switch logPriority {
+		case 1:
+			logger.Debugf("Failed connecting to global database (attempt %d): %v", i, err)
+		case 2:
+			logger.Warnf("Failed connecting to global database (attempt %d): %v", i, err)
+		}
+
+		time.Sleep(2 * time.Second)
 		select {
 		case <-timeout:
 			return nil, fmt.Errorf("failed to connect to cluster database")

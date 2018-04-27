@@ -478,6 +478,14 @@ var NotFound = &errorResponse{http.StatusNotFound, "not found"}
 var Forbidden = &errorResponse{http.StatusForbidden, "not authorized"}
 var Conflict = &errorResponse{http.StatusConflict, "already exists"}
 
+func Unavailable(err error) Response {
+	message := "unavailable"
+	if err != nil {
+		message = err.Error()
+	}
+	return &errorResponse{http.StatusServiceUnavailable, message}
+}
+
 func BadRequest(err error) Response {
 	return &errorResponse{http.StatusBadRequest, err.Error()}
 }
