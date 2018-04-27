@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestURLEncode(t *testing.T) {
@@ -64,6 +68,44 @@ func TestFileCopy(t *testing.T) {
 		t.Error("content mismatch: ", string(content), "!=", string(helloWorld))
 		return
 	}
+}
+
+func TestDirCopy(t *testing.T) {
+	dir, err := ioutil.TempDir("", "lxd-shared-util-")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	source := filepath.Join(dir, "source")
+	dest := filepath.Join(dir, "dest")
+
+	dir1 := "dir1"
+	dir2 := "dir2"
+
+	file1 := "file1"
+	file2 := "dir1/file1"
+
+	content1 := []byte("file1")
+	content2 := []byte("file2")
+
+	require.NoError(t, os.Mkdir(source, 0755))
+	require.NoError(t, os.Mkdir(filepath.Join(source, dir1), 0755))
+	require.NoError(t, os.Mkdir(filepath.Join(source, dir2), 0755))
+	require.NoError(t, ioutil.WriteFile(filepath.Join(source, file1), content1, 0755))
+	require.NoError(t, ioutil.WriteFile(filepath.Join(source, file2), content2, 0755))
+
+	require.NoError(t, DirCopy(source, dest))
+
+	for _, path := range []string{dir1, dir2, file1, file2} {
+		assert.True(t, PathExists(filepath.Join(dest, path)))
+	}
+
+	bytes, err := ioutil.ReadFile(filepath.Join(dest, file1))
+	require.NoError(t, err)
+	assert.Equal(t, content1, bytes)
+
+	bytes, err = ioutil.ReadFile(filepath.Join(dest, file2))
+	require.NoError(t, err)
+	assert.Equal(t, content2, bytes)
 }
 
 func TestReaderToChannel(t *testing.T) {
