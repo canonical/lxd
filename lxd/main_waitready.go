@@ -42,26 +42,46 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 			// after the 30'th attempt (about 15 seconds), log only
 			// only one attempt every 10 attempts (about 5 seconds),
 			// to avoid being too verbose.
-			log := logger.Debugf
+			logPriority := 1 // 0 is discard, 1 is Debug, 2 is Warn
 			if i > 10 {
-				log = logger.Warnf
+				logPriority = 2
 				if i > 30 && !((i % 10) == 0) {
-					log = func(string, ...interface{}) {}
+					logPriority = 0
 				}
 			}
 
-			log("Connecting to LXD daemon (attempt %d)", i)
+			switch logPriority {
+			case 1:
+				logger.Debugf("Connecting to LXD daemon (attempt %d)", i)
+			case 2:
+				logger.Warnf("Connecting to LXD daemon (attempt %d)", i)
+			}
 			d, err := lxd.ConnectLXDUnix("", nil)
 			if err != nil {
-				log("Failed connecting to LXD daemon (attempt %d): %v", i, err)
+				switch logPriority {
+				case 1:
+					logger.Debugf("Failed connecting to LXD daemon (attempt %d): %v", i, err)
+				case 2:
+					logger.Warnf("Failed connecting to LXD daemon (attempt %d): %v", i, err)
+				}
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
-			log("Checking if LXD daemon is ready (attempt %d)", i)
+			switch logPriority {
+			case 1:
+				logger.Debugf("Checking if LXD daemon is ready (attempt %d)", i)
+			case 2:
+				logger.Warnf("Checking if LXD daemon is ready (attempt %d)", i)
+			}
 			_, _, err = d.RawQuery("GET", "/internal/ready", nil, "")
 			if err != nil {
-				log("Failed checking if LXD daemon is ready (attempt %d): %v", i, err)
+				switch logPriority {
+				case 1:
+					logger.Debugf("Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
+				case 2:
+					logger.Warnf("Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
+				}
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
