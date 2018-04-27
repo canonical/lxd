@@ -237,7 +237,13 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 
 		// Block public API requests until we're done with basic
 		// initialization tasks, such setting up the cluster database.
-		<-d.setupChan
+		select {
+		case <-d.setupChan:
+		default:
+			response := Unavailable(fmt.Errorf("LXD daemon setup in progress"))
+			response.Render(w)
+			return
+		}
 
 		untrustedOk := (r.Method == "GET" && c.untrustedGet) || (r.Method == "POST" && c.untrustedPost)
 		err := d.checkTrustedClient(r)
@@ -463,6 +469,7 @@ func (d *Daemon) init() error {
 
 	/* Open the cluster database */
 	for {
+		logger.Info("Initializing global database")
 		d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
 		if err == nil {
 			break
@@ -529,6 +536,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Read the storage pools */
+	logger.Infof("Initializing storage pools")
 	err = SetupStorageDriver(d.State(), false)
 	if err != nil {
 		return err
@@ -541,6 +549,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Setup the networks */
+	logger.Infof("Initializing networks")
 	err = networkStartup(d.State())
 	if err != nil {
 		return err
@@ -574,6 +583,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	logger.Infof("Loading configuration")
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {
@@ -859,6 +869,7 @@ func (d *Daemon) setupMAASController(server string, key string, machine string) 
 
 // Create a database connection and perform any updates needed.
 func initializeDbObject(d *Daemon) (*db.Dump, error) {
+	logger.Info("Initializing local database")
 	// Rename the old database name if needed.
 	if shared.PathExists(d.os.LegacyLocalDatabasePath()) {
 		if shared.PathExists(d.os.LocalDatabasePath()) {
