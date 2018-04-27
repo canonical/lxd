@@ -38,3 +38,47 @@ EOF
 
   kill_lxd "$LXD_MIGRATE_DIR"
 }
+
+# Test restore database backups after a failed upgrade.
+test_database_restore(){
+  LXD_RESTORE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+
+  spawn_lxd "${LXD_RESTORE_DIR}" true
+
+  # Set a config value before the broken upgrade.
+  (
+    set -e
+    # shellcheck disable=SC2034
+    LXD_DIR=${LXD_RESTORE_DIR}
+    lxc config set "core.https_allowed_credentials" "true"
+  )
+
+  shutdown_lxd "${LXD_RESTORE_DIR}"
+
+  # Simulate a broken update by dropping in a buggy patch.global.sql
+  cat << EOF > "${LXD_RESTORE_DIR}/database/patch.global.sql"
+UPDATE config SET value='false' WHERE key='core.https_allowed_credentials';
+INSERT INTO broken(n) VALUES(1);
+EOF
+
+  # Starting LXD fails.
+  ! LXD_DIR="${LXD_RESTORE_DIR}" lxd --logfile "${LXD_RESTORE_DIR}/lxd.log" "${DEBUG-}" 2>&1
+
+  # Remove the broken patch
+  rm -f "${LXD_RESTORE_DIR}/database/patch.global.sql"
+
+  # Restore the backup
+  rm -rf "${LXD_RESTORE_DIR}/database/global"
+  cp -a "${LXD_RESTORE_DIR}/database/global.bak" "${LXD_RESTORE_DIR}/database/global"
+
+  # Restart the daemon and check that our previous settings are still there
+  respawn_lxd "${LXD_RESTORE_DIR}" true
+  (
+    set -e
+    # shellcheck disable=SC2034
+    LXD_DIR=${LXD_RESTORE_DIR}
+    lxc config get "core.https_allowed_credentials" | grep -q "true"
+  )
+
+  kill_lxd "${LXD_RESTORE_DIR}"
+}
