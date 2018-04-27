@@ -249,7 +249,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 
 	var err error
 	require.NoError(f.t, state.Cluster.Close())
-	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address)
+	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address, "/unused/db/dir")
 	require.NoError(f.t, err)
 
 	f.gateways[len(f.gateways)] = gateway

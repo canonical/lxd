@@ -318,7 +318,7 @@ func clusterPutDisable(d *Daemon) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
+	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address, "/unused/db/dir")
 	if err != nil {
 		return SmartError(err)
 	}

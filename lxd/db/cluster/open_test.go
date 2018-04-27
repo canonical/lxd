@@ -17,7 +17,7 @@ import (
 func TestEnsureSchema_NoClustered(t *testing.T) {
 	db := newDB(t)
 	addNode(t, db, "0.0.0.0", 1, 1)
-	ready, err := cluster.EnsureSchema(db, "1.2.3.4:666")
+	ready, err := cluster.EnsureSchema(db, "1.2.3.4:666", "/unused/db/dir")
 	assert.True(t, ready)
 	assert.NoError(t, err)
 }
@@ -83,7 +83,7 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 		subtest.Run(t, c.title, func(t *testing.T) {
 			db := newDB(t)
 			c.setup(t, db)
-			ready, err := cluster.EnsureSchema(db, "1")
+			ready, err := cluster.EnsureSchema(db, "1", "/unused/db/dir")
 			assert.Equal(t, c.ready, ready)
 			if c.error == "" {
 				assert.NoError(t, err)
@@ -125,7 +125,7 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 			addNode(t, db, "1", schema-1, apiExtensions-1)
 
 			// Ensure the schema.
-			ready, err := cluster.EnsureSchema(db, "1")
+			ready, err := cluster.EnsureSchema(db, "1", "/unused/db/dir")
 			assert.NoError(t, err)
 			assert.Equal(t, c.ready, ready)
 

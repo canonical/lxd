@@ -3,6 +3,7 @@ package cluster
 import (
 	"database/sql"
 	"fmt"
+	"path/filepath"
 	"sync/atomic"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
@@ -47,7 +48,7 @@ func Open(name string, dialer grpcsql.Dialer) (*sql.DB, error) {
 // nodes have version greater than us and we need to be upgraded), or return
 // false and no error (if some nodes have a lower version, and we need to wait
 // till they get upgraded and restarted).
-func EnsureSchema(db *sql.DB, address string) (bool, error) {
+func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	someNodesAreBehind := false
 	apiExtensions := version.APIExtensionsCount()
 
@@ -86,6 +87,7 @@ func EnsureSchema(db *sql.DB, address string) (bool, error) {
 	}
 
 	schema := Schema()
+	schema.File(filepath.Join(dir, "patch.global.sql")) // Optional custom queries
 	schema.Check(check)
 
 	var initial int
