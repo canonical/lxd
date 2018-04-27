@@ -11,8 +11,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Return whether the schema table is present in the database.
-func doesSchemaTableExist(tx *sql.Tx) (bool, error) {
+// DoesSchemaTableExist return whether the schema table is present in the
+// database.
+func DoesSchemaTableExist(tx *sql.Tx) (bool, error) {
 	statement := `
 SELECT COUNT(name) FROM sqlite_master WHERE type = 'table' AND name = 'schema'
 `

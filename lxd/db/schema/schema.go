@@ -272,7 +272,7 @@ func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error
 
 // Ensure that the schema exists.
 func ensureSchemaTableExists(tx *sql.Tx) error {
-	exists, err := doesSchemaTableExist(tx)
+	exists, err := DoesSchemaTableExist(tx)
 	if err != nil {
 		return fmt.Errorf("failed to check if schema table is there: %v", err)
 	}
