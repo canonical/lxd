@@ -3,8 +3,12 @@ package schema
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared"
+	"github.com/pkg/errors"
 )
 
 // Return whether the schema table is present in the database.
@@ -67,4 +71,35 @@ INSERT INTO schema (version, updated_at) VALUES (?, strftime("%s"))
 `
 	_, err := tx.Exec(statement, new)
 	return err
+}
+
+// Read the given file (if it exists) and executes all queries it contains.
+func execFromFile(tx *sql.Tx, path string, hook Hook) error {
+	if !shared.PathExists(path) {
+		return nil
+	}
+
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return errors.Wrap(err, "failed to read file")
+	}
+
+	if hook != nil {
+		err := hook(-1, tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to execute hook")
+		}
+	}
+
+	_, err = tx.Exec(string(bytes))
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(path)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove file")
+	}
+
+	return nil
 }
