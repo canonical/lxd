@@ -149,13 +149,13 @@ type Cluster struct {
 // - name: Basename of the database file holding the data. Typically "db.bin".
 // - dialer: Function used to connect to the dqlite backend via gRPC SQL.
 // - address: Network address of this node (or empty string).
-// - api: Number of API extensions that this node supports.
+// - dir: Base LXD database directory (e.g. /var/lib/lxd/database)
 //
 // The address and api parameters will be used to determine if the cluster
 // database matches our version, and possibly trigger a schema update. If the
 // schema update can't be performed right now, because some nodes are still
 // behind, an Upgrading error is returned.
-func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, error) {
+func OpenCluster(name string, dialer grpcsql.Dialer, address, dir string) (*Cluster, error) {
 	db, err := cluster.Open(name, dialer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database")
@@ -202,7 +202,7 @@ func OpenCluster(name string, dialer grpcsql.Dialer, address string) (*Cluster, 
 		}
 	}
 
-	nodesVersionsMatch, err := cluster.EnsureSchema(db, address)
+	nodesVersionsMatch, err := cluster.EnsureSchema(db, address, dir)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to ensure schema")
 	}

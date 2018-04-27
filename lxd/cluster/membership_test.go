@@ -256,7 +256,7 @@ func TestJoin(t *testing.T) {
 	targetAddress := targetServer.Listener.Addr().String()
 	var err error
 	require.NoError(t, targetState.Cluster.Close())
-	targetState.Cluster, err = db.OpenCluster("db.bin", targetGateway.Dialer(), targetAddress)
+	targetState.Cluster, err = db.OpenCluster("db.bin", targetGateway.Dialer(), targetAddress, "/unused/db/dir")
 	require.NoError(t, err)
 	targetF := &membershipFixtures{t: t, state: targetState}
 	targetF.NetworkAddress(targetAddress)
@@ -283,7 +283,7 @@ func TestJoin(t *testing.T) {
 
 	address := server.Listener.Addr().String()
 	require.NoError(t, state.Cluster.Close())
-	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address)
+	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address, "/unused/db/dir")
 	require.NoError(t, err)
 
 	f := &membershipFixtures{t: t, state: state}
@@ -368,7 +368,7 @@ func FLAKY_TestPromote(t *testing.T) {
 	targetAddress := targetServer.Listener.Addr().String()
 	var err error
 	require.NoError(t, targetState.Cluster.Close())
-	targetState.Cluster, err = db.OpenCluster("db.bin", targetGateway.Dialer(), targetAddress)
+	targetState.Cluster, err = db.OpenCluster("db.bin", targetGateway.Dialer(), targetAddress, "/unused/db/dir")
 	require.NoError(t, err)
 	targetF := &membershipFixtures{t: t, state: targetState}
 	targetF.NetworkAddress(targetAddress)
@@ -397,7 +397,7 @@ func FLAKY_TestPromote(t *testing.T) {
 		mux.HandleFunc(path, handler)
 	}
 
-	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address)
+	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address, "/unused/db/dir")
 	require.NoError(t, err)
 
 	// Promote the node.

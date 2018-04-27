@@ -470,7 +470,8 @@ func (d *Daemon) init() error {
 	/* Open the cluster database */
 	for {
 		logger.Info("Initializing global database")
-		d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address)
+		dir := filepath.Join(d.os.VarDir, "database")
+		d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address, dir)
 		if err == nil {
 			break
 		}
