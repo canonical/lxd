@@ -29,6 +29,7 @@ import (
 
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/pkg/errors"
 )
 
 const SnapshotDelimiter = "/"
@@ -380,6 +381,60 @@ func FileCopy(source string, dest string) error {
 	if runtime.GOOS != "windows" {
 		_, uid, gid := GetOwnerMode(fi)
 		return d.Chown(uid, gid)
+	}
+
+	return nil
+}
+
+// DirCopy copies a directory recursively, overwriting the target if it exists.
+func DirCopy(source string, dest string) error {
+	// Get info about source.
+	info, err := os.Stat(source)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get source directory info")
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("source is not a directory")
+	}
+
+	// Remove dest if it already exists.
+	if PathExists(dest) {
+		err := os.RemoveAll(dest)
+		if err != nil {
+			return errors.Wrapf(err, "failed to remove destination directory %s", dest)
+		}
+	}
+
+	// Create dest.
+	err = os.MkdirAll(dest, info.Mode())
+	if err != nil {
+		return errors.Wrapf(err, "failed to create destination directory %s", dest)
+	}
+
+	// Copy all files.
+	entries, err := ioutil.ReadDir(source)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read source directory %s", source)
+	}
+
+	for _, entry := range entries {
+
+		sourcePath := filepath.Join(source, entry.Name())
+		destPath := filepath.Join(dest, entry.Name())
+
+		if entry.IsDir() {
+			err := DirCopy(sourcePath, destPath)
+			if err != nil {
+				return errors.Wrapf(err, "failed to copy sub-directory from %s to %s", sourcePath, destPath)
+			}
+		} else {
+			err := FileCopy(sourcePath, destPath)
+			if err != nil {
+				return errors.Wrapf(err, "failed to copy file from %s to %s", sourcePath, destPath)
+			}
+		}
+
 	}
 
 	return nil
