@@ -240,7 +240,8 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 		select {
 		case <-d.setupChan:
 		default:
-			Unavailable.Render(w)
+			response := Unavailable(fmt.Errorf("LXD daemon setup in progress"))
+			response.Render(w)
 			return
 		}
 
