@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -274,7 +275,16 @@ func (c *cmdInit) askMAAS(config *initData, d lxd.ContainerServer) error {
 }
 
 func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
-	if !cli.AskBool("Would you like to create a new network bridge? (yes/no) [default=yes]: ", "yes") {
+	if config.Cluster != nil || !cli.AskBool("Would you like to create a new local network bridge? (yes/no) [default=yes]: ", "yes") {
+		// At this time, only the Ubuntu kernel supports the Fan, detect it
+		fanKernel := false
+		if shared.PathExists("/proc/sys/kernel/version") {
+			content, _ := ioutil.ReadFile("/proc/sys/kernel/version")
+			if content != nil && strings.Contains(string(content), "Ubuntu") {
+				fanKernel = true
+			}
+		}
+
 		if cli.AskBool("Would you like to configure LXD to use an existing bridge or host interface? (yes/no) [default=no]: ", "no") {
 			for {
 				name := cli.AskString("Name of the existing bridge or host interface: ", "", nil)
@@ -313,6 +323,24 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 				}
 
 				break
+			}
+		} else if config.Cluster != nil && fanKernel && cli.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]", "yes") {
+			// Define the network
+			network := api.NetworksPost{}
+			network.Name = "lxdfan0"
+			network.Config = map[string]string{
+				"bridge.mode": "fan",
+			}
+
+			// Add the new network
+			config.Networks = append(config.Networks, network)
+
+			// Add to the default profile
+			config.Profiles[0].Devices["eth0"] = map[string]string{
+				"type":    "nic",
+				"nictype": "bridged",
+				"name":    "eth0",
+				"parent":  "lxdfan0",
 			}
 		}
 
