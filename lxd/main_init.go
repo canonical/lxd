@@ -32,6 +32,11 @@ type CmdInit struct {
 
 // Run triggers the execution of the init command.
 func (cmd *CmdInit) Run() error {
+	// Only root should run this
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("This must be run as root")
+	}
+
 	// Check that command line arguments don't conflict with each other
 	err := cmd.validateArgs()
 	if err != nil {
