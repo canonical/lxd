@@ -306,7 +306,7 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 					config.Profiles[0].Devices["eth0"]["nictype"] = "bridged"
 				}
 
-				if config.Config["maas.api.url"] != "" && cli.AskBool("Is this interface connected to your MAAS server? (yes/no) [default=yes]: ", "yes") {
+				if config.Config["maas.api.url"] != nil && cli.AskBool("Is this interface connected to your MAAS server? (yes/no) [default=yes]: ", "yes") {
 					maasSubnetV4 := cli.AskString("MAAS IPv4 subnet name for this interface (empty for no subnet): ", "",
 						func(input string) error { return nil })
 
