@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -105,5 +106,9 @@ func (answers *cmdInitAnswers) Render(streams *cmd.MemoryStreams) {
 }
 
 func TestCmdInitTestSuite(t *testing.T) {
+	if os.Geteuid() != 0 {
+		return
+	}
+
 	suite.Run(t, new(cmdInitTestSuite))
 }
