@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/CanonicalLtd/dqlite"
 	"github.com/CanonicalLtd/raft-http"
 	"github.com/CanonicalLtd/raft-membership"
@@ -270,11 +268,32 @@ func (i *raftInstance) MembershipChanger() raftmembership.Changer {
 func (i *raftInstance) Shutdown() error {
 	logger.Info("Stop raft instance")
 
-	// Stop raft asynchronously to allow for a timeout.
-	errCh := make(chan error)
+	// Invoke raft APIs asynchronously to allow for a timeout.
 	timeout := 10 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+
+	// FIXME/TODO: We take a snapshot before when shutting down the daemon
+	//             so there will be no uncompacted raft logs at the next
+	//             startup. This is a workaround for slow log replay when
+	//             the LXD daemon starts (see #4485). A more proper fix
+	//             should be probably implemented in dqlite.
+	errCh := make(chan error)
+	timer := time.After(timeout)
+	go func() {
+		errCh <- i.raft.Snapshot().Error()
+	}()
+	// In case of error we just log a warning, since this is not really
+	// fatal.
+	select {
+	case err := <-errCh:
+		if err != nil && err != raft.ErrNothingNewToSnapshot {
+			logger.Warnf("Failed to take raft snapshot: %v", err)
+		}
+	case <-timer:
+		logger.Warnf("Timeout waiting for raft to take a snapshot")
+	}
+
+	errCh = make(chan error)
+	timer = time.After(timeout)
 	go func() {
 		errCh <- i.raft.Shutdown().Error()
 	}()
@@ -283,7 +302,7 @@ func (i *raftInstance) Shutdown() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to shutdown raft")
 		}
-	case <-ctx.Done():
+	case <-timer:
 		logger.Debug("Timeout waiting for raft to shutdown")
 		return fmt.Errorf("raft did not shutdown within %s", timeout)
 
@@ -381,6 +400,14 @@ func raftConfig(latency float64) *raft.Config {
 	for _, duration := range durations {
 		scale(duration)
 	}
+
+	// FIXME/TODO: We increase the frequency of snapshots here to keep the
+	//             number of uncompacted raft logs low, and workaround slow
+	//             log replay when the LXD daemon starts (see #4485). A more
+	//             proper fix should be probably implemented in dqlite.
+	config.SnapshotThreshold = 64
+	config.TrailingLogs = 128
+
 	return config
 }
 
