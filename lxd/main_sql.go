@@ -16,6 +16,8 @@ import (
 
 type cmdSql struct {
 	global *cmdGlobal
+
+	flagSchema bool
 }
 
 func (c *cmdSql) Command() *cobra.Command {
@@ -50,6 +52,9 @@ func (c *cmdSql) Command() *cobra.Command {
 `
 	cmd.RunE = c.Run
 	cmd.Hidden = true
+
+	flags := cmd.Flags()
+	flags.BoolVar(&c.flagSchema, "schema", false, `Dump only the SQL schema (if <query> is set to "dump")`)
 
 	return cmd
 }
@@ -91,6 +96,9 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 
 	if query == "dump" {
 		url := fmt.Sprintf("/internal/sql?database=%s", database)
+		if c.flagSchema {
+			url += "&schema=1"
+		}
 		response, _, err := d.RawQuery("GET", url, nil, "")
 		if err != nil {
 			return errors.Wrap(err, "failed to request dump")
