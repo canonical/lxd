@@ -16,8 +16,6 @@ import (
 
 type cmdSql struct {
 	global *cmdGlobal
-
-	flagSchema bool
 }
 
 func (c *cmdSql) Command() *cobra.Command {
@@ -40,8 +38,11 @@ func (c *cmdSql) Command() *cobra.Command {
   If <query> is the special value "-", then the query is read from
   standard input.
 
-  If <query> is the special value "dump", the the command returns a SQL text
+  If <query> is the special value ".dump", the the command returns a SQL text
   dump of the given database.
+
+  If <query> is the special value ".schema", the the command returns the SQL
+  text schema of the given database.
 
   This internal command is mostly useful for debugging and disaster
   recovery. The LXD team will occasionally provide hotfixes to users as a
@@ -52,9 +53,6 @@ func (c *cmdSql) Command() *cobra.Command {
 `
 	cmd.RunE = c.Run
 	cmd.Hidden = true
-
-	flags := cmd.Flags()
-	flags.BoolVar(&c.flagSchema, "schema", false, `Dump only the SQL schema (if <query> is set to "dump")`)
 
 	return cmd
 }
@@ -94,9 +92,9 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if query == "dump" {
+	if query == ".dump" || query == ".schema" {
 		url := fmt.Sprintf("/internal/sql?database=%s", database)
-		if c.flagSchema {
+		if query == ".schema" {
 			url += "&schema=1"
 		}
 		response, _, err := d.RawQuery("GET", url, nil, "")
