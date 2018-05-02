@@ -42,7 +42,7 @@ you need to revert the state as it was before the upgrade.
 
 # Dumping the database content or schema
 If you want to get a SQL text dump of the content or the schema of the databases,
-use the ``lxd sql <local|global> dump [--schema]`` command, which produces the
+use the ``lxd sql <local|global> [.dump|.schema]`` command, which produces the
 equivalent output of the ``.dump`` or ``.schema`` directives of the sqlite3
 command line tool.
 
