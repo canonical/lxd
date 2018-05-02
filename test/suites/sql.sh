@@ -31,7 +31,7 @@ test_sql() {
   SQLITE_DUMP="${TEST_DIR}/dump.db"
   lxd sql local dump --schema | sqlite3 "${SQLITE_DUMP}"
   sqlite3 "${SQLITE_DUMP}" "SELECT * FROM schema" | grep -q 1
-  [ "$(sqlite3 ${SQLITE_DUMP} 'SELECT * FROM patches' | wc -l)" = "0" ]
+  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM patches' | wc -l)" = "0" ]
   rm -f "${SQLITE_DUMP}"
 
   # Global database dump
@@ -44,6 +44,6 @@ test_sql() {
   SQLITE_DUMP="${TEST_DIR}/dump.db"
   lxd sql global dump --schema | sqlite3 "${SQLITE_DUMP}"
   sqlite3 "${SQLITE_DUMP}" "SELECT * FROM schema" | grep -q 1
-  [ "$(sqlite3 ${SQLITE_DUMP} 'SELECT * FROM profiles' | wc -l)" = "0" ]
+  [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM profiles' | wc -l)" = "0" ]
   rm -f "${SQLITE_DUMP}"
 }
