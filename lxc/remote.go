@@ -405,8 +405,9 @@ func (c *cmdRemoteGetDefault) Run(cmd *cobra.Command, args []string) error {
 
 // List
 type cmdRemoteList struct {
-	global     *cmdGlobal
-	remote     *cmdRemote
+	global *cmdGlobal
+	remote *cmdRemote
+
 	flagFormat string
 }
 
