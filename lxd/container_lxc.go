@@ -5961,23 +5961,23 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 	if link == "" {
 		hdr.Xattrs, err = shared.GetAllXattr(path)
 		if err != nil {
-			return fmt.Errorf("failed to read xattr: %s", err)
+			return fmt.Errorf("Failed to read xattr for '%s': %s", path, err)
 		}
 	}
 
 	if err := tw.WriteHeader(hdr); err != nil {
-		return fmt.Errorf("failed to write tar header: %s", err)
+		return fmt.Errorf("Failed to write tar header: %s", err)
 	}
 
 	if hdr.Typeflag == tar.TypeReg {
 		f, err := os.Open(path)
 		if err != nil {
-			return fmt.Errorf("failed to open the file: %s", err)
+			return fmt.Errorf("Failed to open the file: %s", err)
 		}
 		defer f.Close()
 
 		if _, err := io.Copy(tw, f); err != nil {
-			return fmt.Errorf("failed to copy file content: %s", err)
+			return fmt.Errorf("Failed to copy file content: %s", err)
 		}
 	}
 
