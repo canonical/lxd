@@ -473,15 +473,16 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 		if err != nil || pre < 0 {
 			return nil, err
 		}
-		if pre == 0 {
-			return nil, fmt.Errorf("No valid extended attribute value found.")
-		}
 
 		dest = make([]byte, pre)
-		post, err = syscall.Getxattr(path, xattr, dest)
-		if err != nil || post < 0 {
-			return nil, err
+		post := 0
+		if pre > 0 {
+			post, err = syscall.Getxattr(path, xattr, dest)
+			if err != nil || post < 0 {
+				return nil, err
+			}
 		}
+
 		if post != pre {
 			return nil, e1
 		}
