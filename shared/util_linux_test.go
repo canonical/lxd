@@ -13,6 +13,7 @@ func TestGetAllXattr(t *testing.T) {
 		testxattr = map[string]string{
 			"user.checksum": "asdfsf13434qwf1324",
 			"user.random":   "This is a test",
+			"user.empty":    "",
 		}
 	)
 	xattrFile, err := ioutil.TempFile("", "")
