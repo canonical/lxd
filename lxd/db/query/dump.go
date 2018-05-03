@@ -13,7 +13,7 @@ import (
 
 // Dump returns a SQL text dump of all rows across all tables, similar to
 // sqlite3's dump feature
-func Dump(tx *sql.Tx, schema string) (string, error) {
+func Dump(tx *sql.Tx, schema string, schemaOnly bool) (string, error) {
 	schemas := dumpParseSchema(schema)
 
 	// Begin
@@ -34,6 +34,11 @@ BEGIN TRANSACTION;
 	}
 	sort.Strings(tables)
 	for _, table := range tables {
+		if schemaOnly {
+			// Dump only the schema.
+			dump += schemas[table] + "\n"
+			continue
+		}
 		tableDump, err := dumpTable(tx, table, schemas[table])
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to dump table %s", table)
@@ -41,12 +46,14 @@ BEGIN TRANSACTION;
 		dump += tableDump
 	}
 
-	// Sequences
-	tableDump, err = dumpTable(tx, "sqlite_sequence", "DELETE FROM sqlite_sequence;")
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to dump table sqlite_sequence")
+	// Sequences (unless the schemaOnly flag is true)
+	if !schemaOnly {
+		tableDump, err = dumpTable(tx, "sqlite_sequence", "DELETE FROM sqlite_sequence;")
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to dump table sqlite_sequence")
+		}
+		dump += tableDump
 	}
-	dump += tableDump
 
 	// Commit
 	dump += "COMMIT;\n"

@@ -128,6 +128,12 @@ func internalSQLGet(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid database"))
 	}
 
+	schemaFormValue := r.FormValue("schema")
+	schemaOnly, err := strconv.Atoi(schemaFormValue)
+	if err != nil {
+		schemaOnly = 0
+	}
+
 	var schema string
 	var db *sql.DB
 	if database == "global" {
@@ -143,7 +149,7 @@ func internalSQLGet(d *Daemon, r *http.Request) Response {
 		return SmartError(errors.Wrap(err, "failed to start transaction"))
 	}
 	defer tx.Rollback()
-	dump, err := query.Dump(tx, schema)
+	dump, err := query.Dump(tx, schema, schemaOnly == 1)
 	if err != nil {
 		return SmartError(errors.Wrapf(err, "failed dump database %s", database))
 	}
