@@ -29,7 +29,7 @@ fingerprint will be shown to the user.
 
 The user will then be asked to confirm that this is indeed the server's
 fingerprint which they can manually check by connecting to or asking
-someone with access to the server to run the status command and compare
+someone with access to the server to run the info command and compare
 the fingerprints.
 
 After that, the user must enter the trust password for that server, if
