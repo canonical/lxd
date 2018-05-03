@@ -12,6 +12,8 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/cancel"
+	"github.com/lxc/lxd/shared/ioprogress"
 )
 
 // Container handling functions
@@ -60,6 +62,27 @@ func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) 
 	}
 
 	return &container, etag, nil
+}
+
+// CreateContainerFromBackup is a convenience function to make it easier to
+// create a container from a backup
+func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Operation, error) {
+	if !r.HasExtension("container_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
+	}
+
+	// Send the request
+	path := "/containers"
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
+	}
+
+	op, _, err := r.queryOperation("POST", path, args.BackupFile, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
 
 // CreateContainer requests that LXD creates a new container
@@ -1535,4 +1558,170 @@ func (r *ProtocolLXD) DeleteContainerConsoleLog(containerName string, args *Cont
 	}
 
 	return nil
+}
+
+// GetContainerBackupNames returns a list of backup names for the container
+func (r *ProtocolLXD) GetContainerBackupNames(containerName string) ([]string, error) {
+	if !r.HasExtension("container_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
+	}
+
+	// Fetch the raw value
+	urls := []string{}
+	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/backups",
+		url.QueryEscape(containerName)), nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it
+	names := []string{}
+	for _, uri := range urls {
+		fields := strings.Split(uri, fmt.Sprintf("/containers/%s/backups/",
+			url.QueryEscape(containerName)))
+		names = append(names, fields[len(fields)-1])
+	}
+
+	return names, nil
+}
+
+// GetContainerBackups returns a list of backups for the container
+func (r *ProtocolLXD) GetContainerBackups(containerName string) ([]api.ContainerBackup, error) {
+	if !r.HasExtension("container_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
+	}
+
+	// Fetch the raw value
+	backups := []api.ContainerBackup{}
+
+	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/backups?recursion=1", url.QueryEscape(containerName)), nil, "", &backups)
+	if err != nil {
+		return nil, err
+	}
+
+	return backups, nil
+}
+
+// GetContainerBackup returns a Backup struct for the provided container and backup names
+func (r *ProtocolLXD) GetContainerBackup(containerName string, name string) (*api.ContainerBackup, string, error) {
+	if !r.HasExtension("container_backup") {
+		return nil, "", fmt.Errorf("The server is missing the required \"container_backup\" API extension")
+	}
+
+	// Fetch the raw value
+	backup := api.ContainerBackup{}
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/backups/%s", url.QueryEscape(containerName), url.QueryEscape(name)), nil, "", &backup)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &backup, etag, nil
+}
+
+// CreateContainerBackup requests that LXD creates a new backup for the container
+func (r *ProtocolLXD) CreateContainerBackup(containerName string, backup api.ContainerBackupsPost) (Operation, error) {
+	if !r.HasExtension("container_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/backups",
+		url.QueryEscape(containerName)), backup, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// RenameContainerBackup requests that LXD renames the backup
+func (r *ProtocolLXD) RenameContainerBackup(containerName string, name string, backup api.ContainerBackupPost) (Operation, error) {
+	if !r.HasExtension("container_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s/backups/%s",
+		url.QueryEscape(containerName), url.QueryEscape(name)), backup, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// DeleteContainerBackup requests that LXD deletes the container backup
+func (r *ProtocolLXD) DeleteContainerBackup(containerName string, name string) (Operation, error) {
+	if !r.HasExtension("container_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("DELETE", fmt.Sprintf("/containers/%s/backups/%s",
+		url.QueryEscape(containerName), url.QueryEscape(name)), nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// GetContainerBackupFile requests the container backup content
+func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, req *BackupFileRequest) (*BackupFileResponse, error) {
+	if !r.HasExtension("container_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
+	}
+
+	// Build the URL
+	uri := fmt.Sprintf("%s/1.0/containers/%s/backups/%s/export", r.httpHost,
+		url.QueryEscape(containerName), url.QueryEscape(name))
+
+	// Prepare the download request
+	request, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.httpUserAgent != "" {
+		request.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Start the request
+	response, doneCh, err := cancel.CancelableDownload(req.Canceler, r.http, request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	defer close(doneCh)
+
+	if response.StatusCode != http.StatusOK {
+		_, _, err := r.parseResponse(response)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Handle the data
+	body := response.Body
+	if req.ProgressHandler != nil {
+		body = &ioprogress.ProgressReader{
+			ReadCloser: response.Body,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: response.ContentLength,
+				Handler: func(percent int64, speed int64) {
+					req.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+				},
+			},
+		}
+	}
+
+	size, err := io.Copy(req.BackupFile, body)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := BackupFileResponse{}
+	resp.Size = size
+
+	return &resp, nil
 }
