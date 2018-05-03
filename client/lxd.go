@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -159,25 +160,37 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 
 	// Get a new HTTP request setup
 	if data != nil {
-		// Encode the provided data
-		buf := bytes.Buffer{}
-		err := json.NewEncoder(&buf).Encode(data)
-		if err != nil {
-			return nil, "", err
+		switch data.(type) {
+		case io.Reader:
+			// Some data to be sent along with the request
+			req, err = http.NewRequest(method, url, data.(io.Reader))
+			if err != nil {
+				return nil, "", err
+			}
+
+			// Set the encoding accordingly
+			req.Header.Set("Content-Type", "application/octet-stream")
+		default:
+			// Encode the provided data
+			buf := bytes.Buffer{}
+			err := json.NewEncoder(&buf).Encode(data)
+			if err != nil {
+				return nil, "", err
+			}
+
+			// Some data to be sent along with the request
+			// Use a reader since the request body needs to be seekable
+			req, err = http.NewRequest(method, url, bytes.NewReader(buf.Bytes()))
+			if err != nil {
+				return nil, "", err
+			}
+
+			// Set the encoding accordingly
+			req.Header.Set("Content-Type", "application/json")
+
+			// Log the data
+			logger.Debugf(logger.Pretty(data))
 		}
-
-		// Some data to be sent along with the request
-		// Use a reader since the request body needs to be seekable
-		req, err = http.NewRequest(method, url, bytes.NewReader(buf.Bytes()))
-		if err != nil {
-			return nil, "", err
-		}
-
-		// Set the encoding accordingly
-		req.Header.Set("Content-Type", "application/json")
-
-		// Log the data
-		logger.Debugf(logger.Pretty(data))
 	} else {
 		// No data to be sent along with the request
 		req, err = http.NewRequest(method, url, nil)

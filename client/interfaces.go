@@ -108,6 +108,15 @@ type ContainerServer interface {
 	MigrateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPost) (op Operation, err error)
 	DeleteContainerSnapshot(containerName string, name string) (op Operation, err error)
 
+	GetContainerBackupNames(containerName string) (names []string, err error)
+	GetContainerBackups(containername string) (backups []api.ContainerBackup, err error)
+	GetContainerBackup(containerName string, name string) (backup *api.ContainerBackup, ETag string, err error)
+	CreateContainerBackup(containerName string, backup api.ContainerBackupsPost) (op Operation, err error)
+	RenameContainerBackup(containerName string, name string, backup api.ContainerBackupPost) (op Operation, err error)
+	DeleteContainerBackup(containerName string, name string) (op Operation, err error)
+	GetContainerBackupFile(containerName string, name string, req *BackupFileRequest) (resp *BackupFileResponse, err error)
+	CreateContainerFromBackup(args ContainerBackupArgs) (op Operation, err error)
+
 	GetContainerState(name string) (state *api.ContainerState, ETag string, err error)
 	UpdateContainerState(name string, state api.ContainerStatePut, ETag string) (op Operation, err error)
 
@@ -207,6 +216,30 @@ type ConnectionInfo struct {
 	Certificate string
 	Protocol    string
 	URL         string
+}
+
+// The ContainerBackupArgs struct is used when creating a container from a backup
+type ContainerBackupArgs struct {
+	// The backup file
+	BackupFile io.Reader
+}
+
+// The BackupFileRequest struct is used for a backup download request
+type BackupFileRequest struct {
+	// Writer for the backup file
+	BackupFile io.WriteSeeker
+
+	// Progress handler (called whenever some progress is made)
+	ProgressHandler func(progress ioprogress.ProgressData)
+
+	// A canceler that can be used to interrupt some part of the image download request
+	Canceler *cancel.Canceler
+}
+
+// The BackupFileResponse struct is used as the response for backup downloads
+type BackupFileResponse struct {
+	// Size of backup file
+	Size int64
 }
 
 // The ImageCreateArgs struct is used for direct image upload
