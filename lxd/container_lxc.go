@@ -3027,6 +3027,27 @@ func (c *containerLXC) Snapshots() ([]container, error) {
 	return containers, nil
 }
 
+func (c *containerLXC) Backups() ([]backup, error) {
+	// Get all the backups
+	backupNames, err := c.state.Cluster.ContainerGetBackups(c.name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the backup list
+	backups := []backup{}
+	for _, backupName := range backupNames {
+		backup, err := containerBackupLoadByName(c.state, backupName)
+		if err != nil {
+			return nil, err
+		}
+
+		backups = append(backups, *backup)
+	}
+
+	return backups, nil
+}
+
 func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 	var ctxMap log.Ctx
 
