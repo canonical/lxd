@@ -36,6 +36,20 @@ type ContainerArgs struct {
 	Stateful     bool
 }
 
+// ContainerBackupArgs is a value object holding all db-related details
+// about a backup.
+type ContainerBackupArgs struct {
+	// Don't set manually
+	ID int
+
+	ContainerID      int
+	Name             string
+	CreationDate     time.Time
+	ExpiryDate       time.Time
+	ContainerOnly    bool
+	OptimizedStorage bool
+}
+
 // ContainerType encodes the type of container (either regular or snapshot).
 type ContainerType int
 
@@ -871,4 +885,151 @@ WHERE storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.t
 	}
 
 	return poolName, nil
+}
+
+// ContainerBackupID returns the ID of the container backup with the given name.
+func (c *Cluster) ContainerBackupID(name string) (int, error) {
+	q := "SELECT id FROM containers_backups WHERE name=?"
+	id := -1
+	arg1 := []interface{}{name}
+	arg2 := []interface{}{&id}
+	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	return id, err
+}
+
+// ContainerGetBackup returns the backup with the given name.
+func (c *Cluster) ContainerGetBackup(name string) (ContainerBackupArgs, error) {
+	args := ContainerBackupArgs{}
+	args.Name = name
+
+	containerOnlyInt := -1
+	optimizedStorageInt := -1
+	q := `
+SELECT id, container_id, creation_date, expiry_date, container_only, optimized_storage
+    FROM containers_backups
+    WHERE name=?
+`
+	arg1 := []interface{}{name}
+	arg2 := []interface{}{&args.ID, &args.ContainerID, &args.CreationDate,
+		&args.ExpiryDate, &containerOnlyInt, &optimizedStorageInt}
+	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	if err != nil {
+		return args, err
+	}
+
+	if containerOnlyInt == 1 {
+		args.ContainerOnly = true
+	}
+
+	if optimizedStorageInt == 1 {
+		args.OptimizedStorage = true
+	}
+
+	return args, nil
+}
+
+// ContainerGetBackups returns the names of all backups of the container
+// with the given name.
+func (c *Cluster) ContainerGetBackups(name string) ([]string, error) {
+	var result []string
+
+	q := `SELECT containers_backups.name FROM containers_backups
+JOIN containers ON containers_backups.container_id=containers.id
+WHERE containers.name=?`
+	inargs := []interface{}{name}
+	outfmt := []interface{}{name}
+	dbResults, err := queryScan(c.db, q, inargs, outfmt)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range dbResults {
+		result = append(result, r[0].(string))
+	}
+
+	return result, nil
+}
+
+// ContainerBackupCreate creates a new backup
+func (c *Cluster) ContainerBackupCreate(args ContainerBackupArgs) error {
+	_, err := c.ContainerBackupID(args.Name)
+	if err == nil {
+		return ErrAlreadyDefined
+	}
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		containerOnlyInt := 0
+		if args.ContainerOnly {
+			containerOnlyInt = 1
+		}
+
+		optimizedStorageInt := 0
+		if args.OptimizedStorage {
+			optimizedStorageInt = 1
+		}
+
+		str := fmt.Sprintf("INSERT INTO containers_backups (container_id, name, creation_date, expiry_date, container_only, optimized_storage) VALUES (?, ?, ?, ?, ?, ?)")
+		stmt, err := tx.tx.Prepare(str)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+		result, err := stmt.Exec(args.ContainerID, args.Name,
+			args.CreationDate.Unix(), args.ExpiryDate.Unix(), containerOnlyInt,
+			optimizedStorageInt)
+		if err != nil {
+			return err
+		}
+
+		_, err = result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("Error inserting %s into database", args.Name)
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// ContainerBackupRemove removes the container backup with the given name from
+// the database.
+func (c *Cluster) ContainerBackupRemove(name string) error {
+	id, err := c.ContainerBackupID(name)
+	if err != nil {
+		return err
+	}
+
+	err = exec(c.db, "DELETE FROM containers_backups WHERE id=?", id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ContainerBackupRename renames a container backup from the given current name
+// to the new one.
+func (c *Cluster) ContainerBackupRename(oldName, newName string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		str := fmt.Sprintf("UPDATE containers_backups SET name = ? WHERE name = ?")
+		stmt, err := tx.tx.Prepare(str)
+		if err != nil {
+			return err
+		}
+		defer stmt.Close()
+
+		logger.Debug(
+			"Calling SQL Query",
+			log.Ctx{
+				"query":   "UPDATE containers_backups SET name = ? WHERE name = ?",
+				"oldName": oldName,
+				"newName": newName})
+		if _, err := stmt.Exec(newName, oldName); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	return err
 }
