@@ -1,15 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -528,12 +532,86 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
+func createFromBackup(d *Daemon, data []byte) Response {
+	if len(data) == 0 {
+		return BadRequest(fmt.Errorf("No backup data was provided"))
+	}
+
+	bInfo, err := getBackupInfo(bytes.NewReader(data))
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	run := func(op *operation) error {
+		// Dump tarball to storage
+		err = containerCreateFromBackup(d.State(), *bInfo, data)
+		if err != nil {
+			return err
+		}
+
+		body, err := json.Marshal(&internalImportPost{
+			Name:  bInfo.Name,
+			Force: true,
+		})
+		if err != nil {
+			return err
+		}
+
+		resp := internalImport(d, &http.Request{
+			Body: ioutil.NopCloser(bytes.NewReader(body)),
+		})
+
+		if resp.String() != "success" {
+			return errors.New(resp.String())
+		}
+
+		c, err := containerLoadByName(d.State(), bInfo.Name)
+		if err != nil {
+			return err
+		}
+
+		_, err = c.StorageStop()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	resources := map[string][]string{}
+	resources["containers"] = []string{bInfo.Name}
+
+	op, err := operationCreate(d.cluster, operationClassTask, "Restoring backup",
+		resources, nil, run, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
+}
+
 func containersPost(d *Daemon, r *http.Request) Response {
 	logger.Debugf("Responding to container create")
 
-	req := api.ContainersPost{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	// Store body before it's closed
+	body := make([]byte, r.ContentLength)
+	_, err := io.ReadFull(r.Body, body)
+	if err != nil {
 		return BadRequest(err)
+	}
+
+	req := api.ContainersPost{}
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		// Since the request cannot be decoded, it might be a byte stream.
+		// Try creating a container from it.
+		var data []byte
+		err := json.NewDecoder(bytes.NewReader(body)).Decode(&data)
+		if err != nil {
+			return BadRequest(err)
+		}
+
+		return createFromBackup(d, data)
 	}
 
 	targetNode := r.FormValue("target")
