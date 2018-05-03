@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-05-02 15:53+0000\n"
+"POT-Creation-Date: 2018-05-03 21:05+0200\n"
 "PO-Revision-Date: 2018-04-16 01:37+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -187,11 +187,11 @@ msgstr ""
 msgid "ARCHITECTURE"
 msgstr ""
 
-#: lxc/remote.go:466
+#: lxc/remote.go:467
 msgid "AUTH TYPE"
 msgstr ""
 
-#: lxc/remote.go:88
+#: lxc/remote.go:91
 msgid "Accept certificate"
 msgstr "証明書を受け入れます"
 
@@ -207,7 +207,7 @@ msgstr "コンテナもしくはプロファイルにデバイスを追加しま
 msgid "Add new aliases"
 msgstr "新たにエイリアスを追加します"
 
-#: lxc/remote.go:83 lxc/remote.go:84
+#: lxc/remote.go:86 lxc/remote.go:87
 msgid "Add new remote servers"
 msgstr "新たにリモートサーバを追加します"
 
@@ -219,7 +219,7 @@ msgstr "新たに信頼済みのクライアントを追加します"
 msgid "Add profiles to containers"
 msgstr "コンテナにプロファイルを追加します"
 
-#: lxc/remote.go:325
+#: lxc/remote.go:328
 #, c-format
 msgid "Admin password for %s: "
 msgstr "%s の管理者パスワード: "
@@ -287,7 +287,7 @@ msgstr ""
 "このコマンドはコンテナのブートコンソールに接続できます。\n"
 "そしてそこから過去のログエントリを取り出すことができます。"
 
-#: lxc/remote.go:308
+#: lxc/remote.go:311
 #, c-format
 msgid "Authentication type '%s' not supported by server"
 msgstr "認証タイプ '%s' はサーバではサポートされていません"
@@ -369,7 +369,7 @@ msgstr ""
 msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
 
-#: lxc/remote.go:577
+#: lxc/remote.go:613
 #, fuzzy
 msgid "Can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
@@ -396,12 +396,12 @@ msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません
 msgid "Can't unset key '%s', it's not currently set"
 msgstr "キー '%s' が設定されていないので削除できません"
 
-#: lxc/remote.go:252
+#: lxc/remote.go:255
 #, c-format
 msgid "Certificate fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
-#: lxc/remote.go:364
+#: lxc/remote.go:367
 msgid "Client certificate stored at server: "
 msgstr "クライアント証明書がサーバに格納されました: "
 
@@ -529,7 +529,7 @@ msgstr "イメージのコピー中: %s"
 msgid "Copying the storage volume: %s"
 msgstr "ストレージボリュームのコピー中: %s"
 
-#: lxc/remote.go:267
+#: lxc/remote.go:270
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
@@ -691,8 +691,8 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520
 #: lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753
 #: lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:30
-#: lxc/remote.go:34 lxc/remote.go:84 lxc/remote.go:380 lxc/remote.go:414
-#: lxc/remote.go:487 lxc/remote.go:549 lxc/remote.go:598 lxc/remote.go:636
+#: lxc/remote.go:37 lxc/remote.go:87 lxc/remote.go:383 lxc/remote.go:418
+#: lxc/remote.go:523 lxc/remote.go:585 lxc/remote.go:634 lxc/remote.go:672
 #: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
 #: lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328
 #: lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645
@@ -963,7 +963,7 @@ msgstr "稼働中のコンテナを強制的に削除します"
 msgid "Force using the local unix socket"
 msgstr "強制的にローカルのUNIXソケットを使います"
 
-#: lxc/image.go:912 lxc/list.go:113
+#: lxc/image.go:912 lxc/list.go:113 lxc/remote.go:422
 msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
@@ -971,7 +971,7 @@ msgstr "フォーマット (csv|json|table|yaml)"
 msgid "Generate manpages for all commands"
 msgstr "すべてのコマンドに対する man ページを作成します"
 
-#: lxc/remote.go:211
+#: lxc/remote.go:214
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
@@ -1086,7 +1086,7 @@ msgstr "入力するデータ"
 msgid "Instance type"
 msgstr "インスタンスタイプ"
 
-#: lxc/remote.go:163
+#: lxc/remote.go:166
 #, c-format
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
@@ -1106,7 +1106,7 @@ msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 "不正な設定項目のカラムフォーマットです (フィールド数が多すぎます): '%s'"
 
-#: lxc/image.go:1195 lxc/list.go:365
+#: lxc/image.go:1195 lxc/list.go:365 lxc/remote.go:506
 #, c-format
 msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
@@ -1139,7 +1139,7 @@ msgstr "引数の数が不正です"
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
 
-#: lxc/remote.go:152
+#: lxc/remote.go:155
 #, c-format
 msgid "Invalid protocol: %s"
 msgstr "不正なプロトコル: %s"
@@ -1409,7 +1409,7 @@ msgstr "プロファイルを一覧表示します"
 msgid "List storage volumes"
 msgstr "ストレージボリュームを一覧表示します"
 
-#: lxc/remote.go:413 lxc/remote.go:414
+#: lxc/remote.go:417 lxc/remote.go:418
 msgid "List the available remotes"
 msgstr "利用可能なリモートサーバを一覧表示します"
 
@@ -1546,7 +1546,7 @@ msgstr ""
 "プレフィックスで指定しない限りは、ボリュームに対する操作はすべて \"カスタム"
 "\" (ユーザが作成した) ボリュームに対して行われます。"
 
-#: lxc/remote.go:33 lxc/remote.go:34
+#: lxc/remote.go:36 lxc/remote.go:37
 msgid "Manage the list of remote servers"
 msgstr "リモートサーバのリストを管理します"
 
@@ -1682,11 +1682,11 @@ msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
 #: lxc/cluster.go:124 lxc/list.go:453 lxc/network.go:781 lxc/profile.go:613
-#: lxc/remote.go:463 lxc/storage.go:544 lxc/storage_volume.go:952
+#: lxc/remote.go:464 lxc/storage.go:544 lxc/storage_volume.go:952
 msgid "NAME"
 msgstr ""
 
-#: lxc/network.go:763 lxc/operation.go:138 lxc/remote.go:434 lxc/remote.go:439
+#: lxc/network.go:763 lxc/operation.go:138 lxc/remote.go:439 lxc/remote.go:444
 msgid "NO"
 msgstr ""
 
@@ -1756,7 +1756,7 @@ msgstr "%q に設定する値が指定されていません"
 msgid "Only \"custom\" volumes can be attached to containers."
 msgstr "\"カスタム\" のボリュームのみがコンテナにアタッチできます。"
 
-#: lxc/remote.go:146
+#: lxc/remote.go:149
 msgid "Only https URLs are supported for simplestreams"
 msgstr "simplestreams は https の URL のみサポートします"
 
@@ -1793,11 +1793,11 @@ msgstr ""
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/remote.go:465
+#: lxc/remote.go:466
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:923 lxc/remote.go:467
+#: lxc/image.go:923 lxc/remote.go:468
 msgid "PUBLIC"
 msgstr ""
 
@@ -1902,7 +1902,7 @@ msgstr "プロファイル: %s"
 msgid "Properties:"
 msgstr "プロパティ:"
 
-#: lxc/remote.go:92
+#: lxc/remote.go:95
 msgid "Public image server"
 msgstr "Public なイメージサーバとして設定します"
 
@@ -1936,27 +1936,27 @@ msgstr "イメージを更新します"
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
 
-#: lxc/remote.go:515
+#: lxc/remote.go:551
 #, c-format
 msgid "Remote %s already exists"
 msgstr "リモート %s は既に存在します"
 
-#: lxc/remote.go:507 lxc/remote.go:569 lxc/remote.go:618 lxc/remote.go:656
+#: lxc/remote.go:543 lxc/remote.go:605 lxc/remote.go:654 lxc/remote.go:692
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr "リモート %s は存在しません"
 
-#: lxc/remote.go:116
+#: lxc/remote.go:119
 #, c-format
 msgid "Remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
 
-#: lxc/remote.go:511 lxc/remote.go:573 lxc/remote.go:660
+#: lxc/remote.go:547 lxc/remote.go:609 lxc/remote.go:696
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr "リモート %s は static ですので変更できません"
 
-#: lxc/remote.go:89
+#: lxc/remote.go:92
 msgid "Remote admin password"
 msgstr "リモートの管理者パスワード"
 
@@ -1990,7 +1990,7 @@ msgstr "コンテナのデバイスを削除します"
 msgid "Remove profiles from containers"
 msgstr "コンテナからプロファイルを削除します"
 
-#: lxc/remote.go:548 lxc/remote.go:549
+#: lxc/remote.go:584 lxc/remote.go:585
 msgid "Remove remotes"
 msgstr "リモートサーバを削除します"
 
@@ -2019,7 +2019,7 @@ msgstr "ネットワーク名を変更します"
 msgid "Rename profiles"
 msgstr "プロファイル名を変更します"
 
-#: lxc/remote.go:486 lxc/remote.go:487
+#: lxc/remote.go:522 lxc/remote.go:523
 msgid "Rename remotes"
 msgstr "リモートサーバ名を変更します"
 
@@ -2097,7 +2097,7 @@ msgstr ""
 msgid "STATE"
 msgstr ""
 
-#: lxc/remote.go:468
+#: lxc/remote.go:469
 msgid "STATIC"
 msgstr ""
 
@@ -2113,19 +2113,19 @@ msgstr ""
 msgid "Send a raw query to LXD"
 msgstr "直接リクエスト (raw query) を LXD に送ります"
 
-#: lxc/remote.go:91
+#: lxc/remote.go:94
 msgid "Server authentication type (tls or macaroons)"
 msgstr "サーバの認証タイプ (tls もしくは macaroons)"
 
-#: lxc/remote.go:260
+#: lxc/remote.go:263
 msgid "Server certificate NACKed by user"
 msgstr "ユーザによりサーバ証明書が拒否されました"
 
-#: lxc/remote.go:360
+#: lxc/remote.go:363
 msgid "Server doesn't trust us after authentication"
 msgstr "認証後、サーバが我々を信用していません"
 
-#: lxc/remote.go:90
+#: lxc/remote.go:93
 msgid "Server protocol (lxd or simplestreams)"
 msgstr "サーバのプロトコル (lxd or simplestreams)"
 
@@ -2158,11 +2158,11 @@ msgstr "ストレージプールの設定項目を設定します"
 msgid "Set storage volume configuration keys"
 msgstr "ストレージボリュームの設定項目を設定します"
 
-#: lxc/remote.go:635 lxc/remote.go:636
+#: lxc/remote.go:671 lxc/remote.go:672
 msgid "Set the URL for the remote"
 msgstr "リモートの URL を設定します"
 
-#: lxc/remote.go:597 lxc/remote.go:598
+#: lxc/remote.go:633 lxc/remote.go:634
 msgid "Set the default remote"
 msgstr "デフォルトのリモートを設定します"
 
@@ -2250,7 +2250,7 @@ msgstr "ストレージボリュームの設定を表示する"
 msgid "Show the container's last 100 log lines?"
 msgstr "コンテナログの最後の 100 行を表示しますか?"
 
-#: lxc/remote.go:379 lxc/remote.go:380
+#: lxc/remote.go:382 lxc/remote.go:383
 msgid "Show the default remote"
 msgstr "デフォルトのリモートを表示します"
 
@@ -2509,7 +2509,7 @@ msgstr "タイプ: persistent"
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:125 lxc/remote.go:464
+#: lxc/cluster.go:125 lxc/remote.go:465
 msgid "URL"
 msgstr ""
 
@@ -2589,7 +2589,7 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
-#: lxc/network.go:765 lxc/operation.go:140 lxc/remote.go:436 lxc/remote.go:441
+#: lxc/network.go:765 lxc/operation.go:140 lxc/remote.go:441 lxc/remote.go:446
 msgid "YES"
 msgstr ""
 
@@ -2631,7 +2631,7 @@ msgstr ""
 msgid "add [<remote>:]<container|profile> <device> <type> [key=value...]"
 msgstr ""
 
-#: lxc/remote.go:82
+#: lxc/remote.go:85
 msgid "add [<remote>] <IP|FQDN|URL>"
 msgstr ""
 
@@ -2715,7 +2715,7 @@ msgstr ""
 msgid "create [<remote>:]<profile>"
 msgstr ""
 
-#: lxc/remote.go:453
+#: lxc/remote.go:458
 msgid "default"
 msgstr ""
 
@@ -2887,7 +2887,7 @@ msgstr ""
 msgid "get [<remote>:][<container>] <key>"
 msgstr ""
 
-#: lxc/remote.go:378
+#: lxc/remote.go:381
 msgid "get-default"
 msgstr ""
 
@@ -2925,7 +2925,7 @@ msgstr ""
 msgid "launch [<remote>:]<image> [<remote>:][<name>]"
 msgstr ""
 
-#: lxc/alias.go:96 lxc/remote.go:411
+#: lxc/alias.go:96 lxc/remote.go:415
 msgid "list"
 msgstr ""
 
@@ -3278,7 +3278,7 @@ msgstr "network"
 msgid "no"
 msgstr ""
 
-#: lxc/remote.go:253
+#: lxc/remote.go:256
 msgid "ok (y/n)?"
 msgstr "ok (y/n)?"
 
@@ -3334,7 +3334,7 @@ msgstr ""
 msgid "refresh [<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "refresh [<remote>:]<image> [[<remote>:]<image>...]"
 
-#: lxc/remote.go:32
+#: lxc/remote.go:35
 msgid "remote"
 msgstr "remote"
 
@@ -3342,7 +3342,7 @@ msgstr "remote"
 msgid "remove <alias>"
 msgstr "remove <alias>"
 
-#: lxc/remote.go:546
+#: lxc/remote.go:582
 msgid "remove <remote>"
 msgstr ""
 
@@ -3366,7 +3366,7 @@ msgstr ""
 msgid "rename <old alias> <new alias>"
 msgstr ""
 
-#: lxc/remote.go:484
+#: lxc/remote.go:520
 msgid "rename <remote> <new-name>"
 msgstr ""
 
@@ -3426,11 +3426,11 @@ msgstr ""
 msgid "set [<remote>:][<container>] <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:596
+#: lxc/remote.go:632
 msgid "set-default <remote>"
 msgstr "set-default <remote>"
 
-#: lxc/remote.go:634
+#: lxc/remote.go:670
 msgid "set-url <remote> <URL>"
 msgstr ""
 
