@@ -2226,6 +2226,26 @@ func (s *storageCeph) ContainerSnapshotCreateEmpty(c container) error {
 	return nil
 }
 
+func (s *storageCeph) ContainerBackupCreate(backup backup, sourceContainer container) error {
+	return nil
+}
+
+func (s *storageCeph) ContainerBackupDelete(name string) error {
+	return nil
+}
+
+func (s *storageCeph) ContainerBackupRename(backup backup, newName string) error {
+	return nil
+}
+
+func (s *storageCeph) ContainerBackupDump(backup backup) ([]byte, error) {
+	return nil, nil
+}
+
+func (s *storageCeph) ContainerBackupLoad(info backupInfo, data []byte) error {
+	return nil
+}
+
 func (s *storageCeph) ImageCreate(fingerprint string) error {
 	logger.Debugf(`Creating RBD storage volume for image "%s" on storage `+
 		`pool "%s"`, fingerprint, s.pool.Name)

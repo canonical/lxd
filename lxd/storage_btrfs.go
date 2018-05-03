@@ -1383,6 +1383,26 @@ func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container)
 	return nil
 }
 
+func (s *storageBtrfs) ContainerBackupCreate(backup backup, sourceContainer container) error {
+	return nil
+}
+
+func (s *storageBtrfs) ContainerBackupDelete(name string) error {
+	return nil
+}
+
+func (s *storageBtrfs) ContainerBackupRename(backup backup, newName string) error {
+	return nil
+}
+
+func (s *storageBtrfs) ContainerBackupDump(backup backup) ([]byte, error) {
+	return nil, nil
+}
+
+func (s *storageBtrfs) ContainerBackupLoad(info backupInfo, data []byte) error {
+	return nil
+}
+
 func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 	logger.Debugf("Creating BTRFS storage volume for image \"%s\" on storage pool \"%s\".", fingerprint, s.pool.Name)
 
