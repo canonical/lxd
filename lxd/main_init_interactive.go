@@ -627,6 +627,9 @@ they otherwise would.
 		netPort := cli.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
 		config.Config["core.https_address"] = fmt.Sprintf("%s:%d", netAddr, netPort)
 		config.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
+		if config.Config["core.trust_password"] == "" {
+			fmt.Printf("No password set, client certificates will have to be manually trusted.")
+		}
 	}
 
 	// Ask if the user wants images to be automatically refreshed
