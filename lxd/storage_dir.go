@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -590,6 +591,25 @@ func (s *storageDir) ContainerDelete(container container) error {
 		}
 	}
 
+	// Delete potential leftover backup mountpoints.
+	backupMntPoint := getBackupMountPoint(s.pool.Name, container.Name())
+	if shared.PathExists(backupMntPoint) {
+		err := os.RemoveAll(backupMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete potential leftover backup symlinks:
+	// ${LXD_DIR}/backups/<container_name> -> ${POOL}/backups/<container_name>
+	backupSymlink := shared.VarPath("backups", container.Name())
+	if shared.PathExists(backupSymlink) {
+		err := os.Remove(backupSymlink)
+		if err != nil {
+			return err
+		}
+	}
+
 	logger.Debugf("Deleted DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
@@ -768,6 +788,17 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 		// Create the new snapshot symlink:
 		// ${LXD_DIR}/snapshots/<new_container_name> -> ${POOL}/snapshots/<new_container_name>
 		err = os.Symlink(newSnapshotsMntPoint, newSnapshotSymlink)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rename the backup mountpoint for the container if existing:
+	// ${POOL}/backups/<old_container_name> to ${POOL}/backups/<new_container_name>
+	oldBackupsMntPoint := getBackupMountPoint(s.pool.Name, container.Name())
+	newBackupsMntPoint := getBackupMountPoint(s.pool.Name, newName)
+	if shared.PathExists(oldBackupsMntPoint) {
+		err = os.Rename(oldBackupsMntPoint, newBackupsMntPoint)
 		if err != nil {
 			return err
 		}
@@ -1012,22 +1043,252 @@ func (s *storageDir) ContainerSnapshotStop(container container) (bool, error) {
 }
 
 func (s *storageDir) ContainerBackupCreate(backup backup, sourceContainer container) error {
+	logger.Debugf("Creating DIR storage volume for backup \"%s\" on storage pool \"%s\".",
+		backup.Name(), s.pool.Name)
+
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	// Create the path for the backup.
+	baseMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
+	targetBackupContainerMntPoint := fmt.Sprintf("%s/container",
+		baseMntPoint)
+	targetBackupSnapshotsMntPoint := fmt.Sprintf("%s/snapshots",
+		baseMntPoint)
+
+	err = os.MkdirAll(targetBackupContainerMntPoint, 0711)
+	if err != nil {
+		return err
+	}
+
+	if !backup.ContainerOnly() {
+		// Create path for snapshots as well.
+		err = os.MkdirAll(targetBackupSnapshotsMntPoint, 0711)
+		if err != nil {
+			return err
+		}
+	}
+
+	rsync := func(oldPath string, newPath string, bwlimit string) error {
+		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit)
+		if err != nil {
+			s.ContainerBackupDelete(backup.Name())
+			return fmt.Errorf("failed to rsync: %s: %s", string(output), err)
+		}
+		return nil
+	}
+
+	ourStart, err := sourceContainer.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer sourceContainer.StorageStop()
+	}
+
+	_, sourcePool, _ := sourceContainer.Storage().GetContainerPoolInfo()
+	sourceContainerMntPoint := getContainerMountPoint(sourcePool,
+		sourceContainer.Name())
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	err = rsync(sourceContainerMntPoint, targetBackupContainerMntPoint, bwlimit)
+	if err != nil {
+		return err
+	}
+
+	if sourceContainer.IsRunning() {
+		// This is done to ensure consistency when snapshotting. But we
+		// probably shouldn't fail just because of that.
+		logger.Debugf("Trying to freeze and rsync again to ensure consistency.")
+
+		err := sourceContainer.Freeze()
+		if err != nil {
+			logger.Errorf("Trying to freeze and rsync again failed.")
+		}
+		defer sourceContainer.Unfreeze()
+
+		err = rsync(sourceContainerMntPoint, targetBackupContainerMntPoint, bwlimit)
+		if err != nil {
+			return err
+		}
+	}
+
+	if !backup.ContainerOnly() {
+		// Backup snapshots as well.
+		snaps, err := sourceContainer.Snapshots()
+		if err != nil {
+			return nil
+		}
+
+		for _, ct := range snaps {
+			snapshotMntPoint := getSnapshotMountPoint(sourcePool, ct.Name())
+			_, snapName, _ := containerGetParentAndSnapshotName(ct.Name())
+			target := fmt.Sprintf("%s/%s", targetBackupSnapshotsMntPoint, snapName)
+
+			err = rsync(snapshotMntPoint, target, bwlimit)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	logger.Debugf("Created DIR storage volume for backup \"%s\" on storage pool \"%s\".",
+		backup.Name(), s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerBackupDelete(name string) error {
+	logger.Debugf("Deleting DIR storage volume for backup \"%s\" on storage pool \"%s\".",
+		name, s.pool.Name)
+
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	err = dirBackupDeleteInternal(s.pool.Name, name)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Deleted DIR storage volume for backup \"%s\" on storage pool \"%s\".",
+		name, s.pool.Name)
+	return nil
+}
+
+func dirBackupDeleteInternal(poolName string, backupName string) error {
+	backupContainerMntPoint := getBackupMountPoint(poolName, backupName)
+	if shared.PathExists(backupContainerMntPoint) {
+		err := os.RemoveAll(backupContainerMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	sourceContainerName, _, _ := containerGetParentAndSnapshotName(backupName)
+	backupContainerPath := getBackupMountPoint(poolName, sourceContainerName)
+	empty, _ := shared.PathIsEmpty(backupContainerPath)
+	if empty == true {
+		err := os.Remove(backupContainerPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (s *storageDir) ContainerBackupRename(backup backup, newName string) error {
+	logger.Debugf("Renaming DIR storage volume for backup \"%s\" from %s -> %s.",
+		backup.Name(), backup.Name(), newName)
+
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	oldBackupMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
+	newBackupMntPoint := getBackupMountPoint(s.pool.Name, newName)
+
+	// Rename directory
+	if shared.PathExists(oldBackupMntPoint) {
+		err := os.Rename(oldBackupMntPoint, newBackupMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	logger.Debugf("Renamed DIR storage volume for backup \"%s\" from %s -> %s.",
+		backup.Name(), backup.Name(), newName)
 	return nil
 }
 
 func (s *storageDir) ContainerBackupDump(backup backup) ([]byte, error) {
-	return nil, nil
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return nil, err
+	}
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return nil, fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	backupMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
+
+	args := []string{"-cJf", "-", "-C", backupMntPoint, "--transform", "s,^./,backup/,"}
+	if backup.ContainerOnly() {
+		// Exclude snapshots directory
+		args = append(args, "--exclude", fmt.Sprintf("%s/snapshots", backup.Name()))
+	}
+	args = append(args, ".")
+
+	var buffer bytes.Buffer
+	err = shared.RunCommandWithFds(nil, &buffer, "tar", args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }
 
 func (s *storageDir) ContainerBackupLoad(info backupInfo, data []byte) error {
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	// Create mountpoints
+	containerMntPoint := getContainerMountPoint(s.pool.Name, info.Name)
+	err = createContainerMountpoint(containerMntPoint, containerPath(info.Name, false),
+		info.Privileged)
+	if err != nil {
+		return err
+	}
+
+	// Extract container
+	err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf",
+		"-", "--strip-components=2", "-C", containerMntPoint, "backup/container")
+	if err != nil {
+		return err
+	}
+
+	if len(info.Snapshots) > 0 {
+		// Create mountpoints
+		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, info.Name)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name,
+			"snapshots", info.Name)
+		snapshotMntPointSymlink := shared.VarPath("snapshots", info.Name)
+		err := createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget,
+			snapshotMntPointSymlink)
+		if err != nil {
+			return err
+		}
+
+		// Extract snapshots
+		err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf", "-",
+			"--strip-components=2", "-C", snapshotMntPoint, "backup/snapshots")
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
