@@ -3,6 +3,7 @@ package cluster
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
 	"net"
@@ -165,8 +166,8 @@ func raftInstanceInit(
 		return nil, errors.Wrap(err, "failed to create bolt store for raft logs")
 	}
 
-	// Raft snapshot store
-	snaps, err := raft.NewFileSnapshotStoreWithLogger(dir, 2, raftLogger)
+	// Raft snapshot store (don't log snapshots since we take them frequently)
+	snaps, err := raft.NewFileSnapshotStoreWithLogger(dir, 2, log.New(ioutil.Discard, "", 0))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create file snapshot store")
 	}

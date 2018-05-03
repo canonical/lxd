@@ -12,7 +12,7 @@ import (
 
 func TestDump(t *testing.T) {
 	tx := newTxForDump(t, "local")
-	dump, err := query.Dump(tx, schemas["local"])
+	dump, err := query.Dump(tx, schemas["local"], false /* schemaOnly */)
 	require.NoError(t, err)
 	assert.Equal(t, `PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
