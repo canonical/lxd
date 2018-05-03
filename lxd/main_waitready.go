@@ -35,52 +35,40 @@ func (c *cmdWaitready) Command() *cobra.Command {
 
 func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 	finger := make(chan error, 1)
+	var errLast error
 	go func() {
 		for i := 0; ; i++ {
-			// Log initial attempts at debug level, but use warn
-			// level after the 10'th attempt (about 5 seconds). Then
-			// after the 30'th attempt (about 15 seconds), log only
-			// only one attempt every 10 attempts (about 5 seconds),
-			// to avoid being too verbose.
-			logPriority := 1 // 0 is discard, 1 is Debug, 2 is Warn
+			// Start logging only after the 10'th attempt (about 5
+			// seconds). Then after the 30'th attempt (about 15
+			// seconds), log only only one attempt every 10
+			// attempts (about 5 seconds), to avoid being too
+			// verbose.
+			doLog := false
 			if i > 10 {
-				logPriority = 2
-				if i > 30 && !((i % 10) == 0) {
-					logPriority = 0
-				}
+				doLog = i < 30 || ((i % 10) == 0)
 			}
 
-			switch logPriority {
-			case 1:
+			if doLog {
 				logger.Debugf("Connecting to LXD daemon (attempt %d)", i)
-			case 2:
-				logger.Warnf("Connecting to LXD daemon (attempt %d)", i)
 			}
 			d, err := lxd.ConnectLXDUnix("", nil)
 			if err != nil {
-				switch logPriority {
-				case 1:
+				errLast = err
+				if doLog {
 					logger.Debugf("Failed connecting to LXD daemon (attempt %d): %v", i, err)
-				case 2:
-					logger.Warnf("Failed connecting to LXD daemon (attempt %d): %v", i, err)
 				}
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
-			switch logPriority {
-			case 1:
+			if doLog {
 				logger.Debugf("Checking if LXD daemon is ready (attempt %d)", i)
-			case 2:
-				logger.Warnf("Checking if LXD daemon is ready (attempt %d)", i)
 			}
 			_, _, err = d.RawQuery("GET", "/internal/ready", nil, "")
 			if err != nil {
-				switch logPriority {
-				case 1:
+				errLast = err
+				if doLog {
 					logger.Debugf("Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
-				case 2:
-					logger.Warnf("Failed to check if LXD daemon is ready (attempt %d): %v", i, err)
 				}
 				time.Sleep(500 * time.Millisecond)
 				continue
@@ -96,7 +84,7 @@ func (c *cmdWaitready) Run(cmd *cobra.Command, args []string) error {
 		case <-finger:
 			break
 		case <-time.After(time.Second * time.Duration(c.flagTimeout)):
-			return fmt.Errorf("LXD still not running after %ds timeout", c.flagTimeout)
+			return fmt.Errorf("LXD still not running after %ds timeout (%v)", c.flagTimeout, errLast)
 		}
 	} else {
 		<-finger
