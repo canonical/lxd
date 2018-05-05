@@ -476,3 +476,9 @@ This includes the following new endpoints (see [RESTful API](rest-api.md) for de
 The following existing endpoint has been modified:
 
  * `POST /1.0/containers` accepts the new source type `backup`
+
+## devlxd\_images
+Adds a `security.devlxd.images` config option for containers which
+controls the availability of a `/1.0/images/FINGERPRINT/export` API over
+devlxd. This can be used by a container running nested LXD to access raw
+images from the host.

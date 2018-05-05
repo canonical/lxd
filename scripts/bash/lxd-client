@@ -83,7 +83,8 @@ _have lxc && {
       migration.incremental.memory.goal nvidia.runtime \
       migration.incremental.memory.iterations raw.apparmor raw.idmap raw.lxc \
       raw.seccomp security.idmap.base security.idmap.isolated \
-      security.idmap.size security.devlxd security.nesting security.privileged \
+      security.idmap.size security.devlxd security.devlxd.images \
+      security.nesting security.privileged \
       security.syscalls.blacklist security.syscalls.blacklist_compat \
       security.syscalls.blacklist_default \
       volatile.apply_quota volatile.apply_template volatile.base_image \

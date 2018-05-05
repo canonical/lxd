@@ -104,6 +104,7 @@ var APIExtensions = []string{
 	"nvidia_runtime",
 	"container_mount_propagation",
 	"container_backup",
+	"devlxd_images",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -82,6 +82,13 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c co
 }}
 
 var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	if !shared.IsTrue(c.ExpandedConfig()["security.devlxd.images"]) {
+		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
+	}
+
+	// Use by security checks to distinguish devlxd vs lxd APIs
+	r.RemoteAddr = "@devlxd"
+
 	resp := imageExport(d, r)
 	err := resp.Render(w)
 	if err != nil {
