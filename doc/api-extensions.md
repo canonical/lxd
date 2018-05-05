@@ -444,7 +444,7 @@ The following existing endpoints have been modified:
  * `POST /1.0/networks` accepts a new target query parameter
  * `GET /1.0/networks/<name>` accepts a new target query parameter
 
-## event_lifecycle
+## event\_lifecycle
 This adds a new `lifecycle` message type to the events API.
 
 ## storage\_api\_remote\_volume\_handling
