@@ -111,5 +111,74 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.ContainerServ
 		}}
 	}
 
+	// Network configuration
+	networks, err := d.GetNetworks()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to retrieve list of networks")
+	}
+
+	// Extract managed networks
+	managedNetworks := []api.Network{}
+	for _, network := range networks {
+		if network.Managed {
+			managedNetworks = append(managedNetworks, network)
+		}
+	}
+
+	// Look for an existing network device in the profile
+	defaultProfileNetwork := false
+	defaultProfile, _, err := d.GetProfile("default")
+	if err == nil {
+		for _, dev := range defaultProfile.Devices {
+			if dev["type"] == "nic" {
+				defaultProfileNetwork = true
+				break
+			}
+		}
+	}
+
+	// Define a new network
+	if len(managedNetworks) == 0 && !defaultProfileNetwork {
+		// Find a new name
+		idx := 0
+		for {
+			if shared.PathExists(fmt.Sprintf("/sys/class/net/lxdbr%d", idx)) {
+				idx += 1
+				continue
+			}
+
+			break
+		}
+
+		// Define the new network
+		network := api.NetworksPost{}
+		network.Name = fmt.Sprintf("lxdbr%d", idx)
+		config.Networks = append(config.Networks, network)
+
+		// Add it to the profile
+		if config.Profiles == nil {
+			config.Profiles = []api.ProfilesPost{{
+				Name: "default",
+				ProfilePut: api.ProfilePut{
+					Devices: map[string]map[string]string{
+						"eth0": {
+							"type":    "nic",
+							"nictype": "bridged",
+							"parent":  network.Name,
+							"name":    "eth0",
+						},
+					},
+				},
+			}}
+		} else {
+			config.Profiles[0].Devices["eth0"] = map[string]string{
+				"type":    "nic",
+				"nictype": "bridged",
+				"parent":  network.Name,
+				"name":    "eth0",
+			}
+		}
+	}
+
 	return &config, nil
 }
