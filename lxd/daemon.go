@@ -143,6 +143,11 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 		return nil
 	}
 
+	if r.RemoteAddr == "@devlxd" {
+		// Devlxd unix socket
+		return fmt.Errorf("devlxd query")
+	}
+
 	if r.TLS == nil {
 		return fmt.Errorf("no TLS")
 	}
