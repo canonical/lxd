@@ -1501,13 +1501,27 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	public := d.checkTrustedClient(r) != nil
 	secret := r.FormValue("secret")
 
-	_, imgInfo, err := d.cluster.ImageGet(fingerprint, false, false)
-	if err != nil {
-		return SmartError(err)
-	}
+	var imgInfo *api.Image
+	var err error
+	if r.RemoteAddr == "@devlxd" {
+		// /dev/lxd API requires exact match
+		_, imgInfo, err = d.cluster.ImageGet(fingerprint, false, true)
+		if err != nil {
+			return SmartError(err)
+		}
 
-	if !imgInfo.Public && public && !imageValidSecret(imgInfo.Fingerprint, secret) {
-		return NotFound
+		if !imgInfo.Public && !imgInfo.Cached {
+			return NotFound
+		}
+	} else {
+		_, imgInfo, err = d.cluster.ImageGet(fingerprint, false, false)
+		if err != nil {
+			return SmartError(err)
+		}
+
+		if !imgInfo.Public && public && !imageValidSecret(imgInfo.Fingerprint, secret) {
+			return NotFound
+		}
 	}
 
 	// Check if the image is only available on another node.
