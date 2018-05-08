@@ -7527,6 +7527,10 @@ func (c *containerLXC) insertDiskDevice(name string, m types.Device) error {
 		return fmt.Errorf("Failed to setup device: %s", err)
 	}
 
+	if devPath == "" && shared.IsTrue(m["optional"]) {
+		return nil
+	}
+
 	flags := syscall.MS_BIND
 	if isRecursive {
 		flags |= syscall.MS_REC
