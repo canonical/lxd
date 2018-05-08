@@ -215,7 +215,8 @@ class Busybox(object):
         busybox.wait()
 
         for path in busybox.stdout.read().split("\n"):
-            if not path.strip():
+            # Prevent filesystem loop
+            if not path.strip() or path.strip() == "bin/busybox":
                 continue
 
             symlink_file = tarfile.TarInfo()
