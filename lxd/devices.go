@@ -798,7 +798,7 @@ func deviceUSBEvent(s *state.State, usb usbDevice) {
 			}
 
 			if usb.action == "add" {
-				err := c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", name), m, usb.major, usb.minor, usb.path)
+				err := c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", name), m, usb.major, usb.minor, usb.path, false)
 				if err != nil {
 					logger.Error("failed to create usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
@@ -1829,7 +1829,7 @@ func deviceInotifyDirRescan(s *state.State) {
 			}
 			cleanDevPath := filepath.Clean(cmp)
 			if shared.PathExists(cleanDevPath) {
-				c.insertUnixDevice(fmt.Sprintf("unix.%s", name), m)
+				c.insertUnixDevice(fmt.Sprintf("unix.%s", name), m, false)
 			} else {
 				c.removeUnixDevice(fmt.Sprintf("unix.%s", name), m, true)
 			}
@@ -2011,7 +2011,7 @@ func deviceInotifyFileEvent(s *state.State, target *sys.InotifyTargetInfo) {
 			}
 
 			if (target.Mask & syscall.IN_CREATE) > 0 {
-				err := c.insertUnixDevice(fmt.Sprintf("unix.%s", name), m)
+				err := c.insertUnixDevice(fmt.Sprintf("unix.%s", name), m, false)
 				if err != nil {
 					logger.Error("Failed to create unix device", log.Ctx{"err": err, "dev": m, "container": c.Name()})
 					continue
