@@ -127,6 +127,11 @@ func (c *cmdAction) Command(action string) *cobra.Command {
 func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string) error {
 	state := false
 
+	// Pause is called freeze
+	if action == "pause" {
+		action = "freeze"
+	}
+
 	// Only store state if asked to
 	if action == "stop" && c.flagStateful {
 		state = true
