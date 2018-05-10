@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -54,7 +55,11 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Connect to LXD
-	d, err := lxd.ConnectLXDUnix(fmt.Sprintf("%s/unix.socket", path), nil)
+	socket := os.Getenv("LXD_SOCKET")
+	if socket == "" {
+		socket = filepath.Join(path, "unix.socket")
+	}
+	d, err := lxd.ConnectLXDUnix(socket, nil)
 	if err != nil {
 		return err
 	}
