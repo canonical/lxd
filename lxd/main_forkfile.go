@@ -66,7 +66,10 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 	ssize_t link_length;
 
 	if (!is_dir_manip && !is_symlink_manip) {
-		host_fd = open(host, O_RDWR);
+		if (is_put)
+			host_fd = open(host, O_RDONLY);
+		else
+			host_fd = open(host, O_RDWR);
 		if (host_fd < 0) {
 			error("error: open");
 			return -1;
@@ -147,9 +150,10 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 	if (fstatat(AT_FDCWD, container, &st, AT_SYMLINK_NOFOLLOW) < 0)
 		exists = 0;
 
-	container_open_flags = O_RDWR;
 	if (is_put)
-		container_open_flags |= O_CREAT;
+		container_open_flags = O_RDWR | O_CREAT;
+	else
+		container_open_flags = O_RDONLY;
 
 	if (is_put && !is_dir_manip && exists && S_ISDIR(st.st_mode)) {
 		error("error: Path already exists as a directory");
