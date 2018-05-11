@@ -343,6 +343,7 @@ readonly        | boolean   | false             | no        | Controls whether t
 size            | string    | -                 | no        | Disk size in bytes (supports kB, MB, GB, TB, PB and EB suffixes). This is only supported for the rootfs (/).
 recursive       | boolean   | false             | no        | Whether or not to recursively mount the source path
 pool            | string    | -                 | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD.
+propagation     | string    | -                 | no        | Controls how a bind-mount is shared between the container and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
 
 If multiple disks, backed by the same block device, have I/O limits set,
 the average of the limits will be used.

@@ -454,3 +454,7 @@ This adds the ability to copy and move custom storage volumes between remote.
 Adds a `nvidia_runtime` config option for containers, setting this to
 true will have the NVIDIA runtime and CUDA libraries passed to the
 container.
+
+## container\_mount\_propagation
+This adds a new "propagation" option to the disk device type, allowing
+the configuration of kernel mount propagation.
