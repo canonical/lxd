@@ -588,7 +588,7 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 	return c, nil
 }
 
-func containerCreateFromBackup(s *state.State, info backupInfo, data []byte) error {
+func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeeker) error {
 	var pool storage
 	var fixBackupFile = false
 

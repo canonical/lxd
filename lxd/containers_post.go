@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/dustinkirkland/golang-petname"
@@ -532,19 +533,30 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
-func createFromBackup(d *Daemon, data []byte) Response {
-	if len(data) == 0 {
-		return BadRequest(fmt.Errorf("No backup data was provided"))
+func createFromBackup(d *Daemon, data io.Reader) Response {
+	// Write the data to a temp file
+	f, err := ioutil.TempFile("", "lxd_backup_")
+	if err != nil {
+		return InternalError(err)
+	}
+	defer os.Remove(f.Name())
+
+	_, err = io.Copy(f, data)
+	if err != nil {
+		return InternalError(err)
 	}
 
-	bInfo, err := getBackupInfo(bytes.NewReader(data))
+	// Parse the backup information
+	f.Seek(0, 0)
+	bInfo, err := getBackupInfo(f)
 	if err != nil {
 		return BadRequest(err)
 	}
 
 	run := func(op *operation) error {
 		// Dump tarball to storage
-		err = containerCreateFromBackup(d.State(), *bInfo, data)
+		f.Seek(0, 0)
+		err = containerCreateFromBackup(d.State(), *bInfo, f)
 		if err != nil {
 			return err
 		}
@@ -593,25 +605,15 @@ func createFromBackup(d *Daemon, data []byte) Response {
 func containersPost(d *Daemon, r *http.Request) Response {
 	logger.Debugf("Responding to container create")
 
-	// Store body before it's closed
-	body := make([]byte, r.ContentLength)
-	_, err := io.ReadFull(r.Body, body)
-	if err != nil {
-		return BadRequest(err)
+	// If we're getting binary content, process separately
+	if r.Header.Get("Content-Type") == "application/octet-stream" {
+		return createFromBackup(d, r.Body)
 	}
 
+	// Parse the request
 	req := api.ContainersPost{}
-	err = json.Unmarshal(body, &req)
-	if err != nil {
-		// Since the request cannot be decoded, it might be a byte stream.
-		// Try creating a container from it.
-		var data []byte
-		err := json.NewDecoder(bytes.NewReader(body)).Decode(&data)
-		if err != nil {
-			return BadRequest(err)
-		}
-
-		return createFromBackup(d, data)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest(err)
 	}
 
 	targetNode := r.FormValue("target")
@@ -630,6 +632,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 	}
+
 	if targetNode != "" {
 		address, err := cluster.ResolveTarget(d.cluster, targetNode)
 		if err != nil {

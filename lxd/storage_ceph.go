@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"syscall"
@@ -2111,7 +2112,7 @@ func (s *storageCeph) ContainerBackupDump(backup backup) ([]byte, error) {
 // - for each snapshot dump the contents into the empty storage volume and
 //   after each dump take a snapshot of the rbd storage volume
 // - dump the container contents into the rbd storage volume.
-func (s *storageCeph) ContainerBackupLoad(info backupInfo, data []byte) error {
+func (s *storageCeph) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
 	// create the main container
 	err := s.doContainerCreate(info.Name, info.Privileged)
 	if err != nil {
@@ -2129,7 +2130,9 @@ func (s *storageCeph) ContainerBackupLoad(info backupInfo, data []byte) error {
 	for _, snap := range info.Snapshots {
 		// Extract snapshots
 		cur := fmt.Sprintf("backup/snapshots/%s", snap)
-		err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf", "-",
+
+		data.Seek(0, 0)
+		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
 			"--recursive-unlink", "--strip-components=3", "-C", containerMntPoint, cur)
 		if err != nil {
 			logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", cur, containerMntPoint, err)
@@ -2157,7 +2160,8 @@ func (s *storageCeph) ContainerBackupLoad(info backupInfo, data []byte) error {
 	}
 
 	// Extract container
-	err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf", "-",
+	data.Seek(0, 0)
+	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
 		"--strip-components=2", "-C", containerMntPoint, "backup/container")
 	if err != nil {
 		logger.Errorf("Failed to untar \"backup/container\" into \"%s\": %s", containerMntPoint, err)

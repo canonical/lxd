@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/gorilla/websocket"
 
@@ -206,7 +207,7 @@ func (s *storageMock) ContainerBackupDump(backup backup) ([]byte, error) {
 	return nil, nil
 }
 
-func (s *storageMock) ContainerBackupLoad(info backupInfo, data []byte) error {
+func (s *storageMock) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
 	return nil
 }
 
