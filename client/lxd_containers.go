@@ -250,7 +250,7 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 	}
 
 	// Optimization for the local copy case
-	if r == source && r.clusterTarget == "" {
+	if r == source && !r.IsClustered() {
 		// Local copy source fields
 		req.Source.Type = "copy"
 		req.Source.Source = container.Name
