@@ -1384,57 +1384,11 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 }
 
 func (s *storageCeph) ContainerMount(c container) (bool, error) {
-	name := c.Name()
 	logger.Debugf("Mounting RBD storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
-	RBDFilesystem := s.getRBDFilesystem()
-	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
-	if shared.IsSnapshot(name) {
-		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
-	}
-
-	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
-	lxdStorageMapLock.Lock()
-	if waitChannel, ok := lxdStorageOngoingOperationMap[containerMountLockID]; ok {
-		lxdStorageMapLock.Unlock()
-		if _, ok := <-waitChannel; ok {
-			logger.Warnf("Received value over semaphore. This should not have happened.")
-		}
-		// Give the benefit of the doubt and assume that the other
-		// thread actually succeeded in mounting the storage volume.
-		logger.Debugf("RBD storage volume for container \"%s\" on storage pool \"%s\" appears to be already mounted", s.volume.Name, s.pool.Name)
-		return false, nil
-	}
-
-	lxdStorageOngoingOperationMap[containerMountLockID] = make(chan bool)
-	lxdStorageMapLock.Unlock()
-
-	var ret int
-	var mounterr error
-	ourMount := false
-	RBDDevPath := ""
-	if !shared.IsMountPoint(containerMntPoint) {
-		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName,
-			s.OSDPoolName, storagePoolVolumeTypeNameContainer,
-			name, true, s.UserName)
-		if ret >= 0 {
-			mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
-			mounterr = tryMount(RBDDevPath, containerMntPoint,
-				RBDFilesystem, mountFlags, mountOptions)
-			ourMount = true
-		}
-	}
-
-	lxdStorageMapLock.Lock()
-	if waitChannel, ok := lxdStorageOngoingOperationMap[containerMountLockID]; ok {
-		close(waitChannel)
-		delete(lxdStorageOngoingOperationMap, containerMountLockID)
-	}
-	lxdStorageMapLock.Unlock()
-
-	if mounterr != nil || ret < 0 {
-		logger.Errorf("Failed to mount RBD storage volume for container \"%s\": %s", s.volume.Name, mounterr)
-		return false, mounterr
+	ourMount, err := s.doContainerMount(c.Name())
+	if err != nil {
+		return false, err
 	}
 
 	logger.Debugf("Mounted RBD storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
