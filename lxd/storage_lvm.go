@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
@@ -1068,6 +1070,68 @@ func (s *storageLvm) ContainerDelete(container container) error {
 		return err
 	}
 
+	if container.IsSnapshot() {
+		// Snapshots will return a empty list when calling Backups(). We need to
+		// find the correct backup by iterating over the container's backups.
+		ctName, snapshotName, _ := containerGetParentAndSnapshotName(container.Name())
+		ct, err := containerLoadByName(s.s, ctName)
+		if err != nil {
+			return err
+		}
+
+		backups, err := ct.Backups()
+		if err != nil {
+			return err
+		}
+
+		for _, backup := range backups {
+			if backup.ContainerOnly() {
+				// Skip container-only backups since they don't include
+				// snapshots
+				continue
+			}
+
+			parts := strings.Split(backup.Name(), "/")
+			err := s.ContainerBackupDelete(fmt.Sprintf("%s/%s/%s", ctName,
+				snapshotName, parts[1]))
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		backups, err := container.Backups()
+		if err != nil {
+			return err
+		}
+
+		for _, backup := range backups {
+			err := s.ContainerBackupDelete(backup.Name())
+			if err != nil {
+				return err
+			}
+
+			if backup.ContainerOnly() {
+				continue
+			}
+
+			// Remove the snapshots
+			snapshots, err := container.Snapshots()
+			if err != nil {
+				return err
+			}
+
+			for _, snap := range snapshots {
+				ctName, snapshotName, _ := containerGetParentAndSnapshotName(snap.Name())
+				parts := strings.Split(backup.Name(), "/")
+				err := s.ContainerBackupDelete(fmt.Sprintf("%s/%s/%s", ctName,
+					snapshotName, parts[1]))
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	logger.Debugf("Deleted LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
@@ -1309,6 +1373,29 @@ func (s *storageLvm) ContainerRename(container container, newContainerName strin
 				return err
 			}
 		}
+	}
+
+	// Rename backups
+	if !container.IsSnapshot() {
+		oldBackupPath := getBackupMountPoint(s.pool.Name, oldName)
+		newBackupPath := getBackupMountPoint(s.pool.Name, newContainerName)
+		if shared.PathExists(oldBackupPath) {
+			err = os.Rename(oldBackupPath, newBackupPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	backups, err := container.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		newName := fmt.Sprintf("%s/%s", newContainerName, backupName)
+		s.ContainerBackupRename(backup, newName)
 	}
 
 	tryUndo = false
@@ -1565,23 +1652,304 @@ func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 }
 
 func (s *storageLvm) ContainerBackupCreate(backup backup, sourceContainer container) error {
+	logger.Debugf("Creating LVM storage volume for backup \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+
+	// mount storage
+	ourStart, err := sourceContainer.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer sourceContainer.StorageStop()
+	}
+
+	// Create the path for the backup.
+	baseMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
+	targetBackupContainerMntPoint := fmt.Sprintf("%s/container", baseMntPoint)
+	err = os.MkdirAll(targetBackupContainerMntPoint, 0711)
+	if err != nil {
+		return err
+	}
+
+	snapshots, err := sourceContainer.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	rsync := func(oldPath string, newPath string, bwlimit string) error {
+		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit)
+		if err != nil {
+			s.ContainerBackupDelete(backup.Name())
+			return fmt.Errorf("failed to rsync: %s: %s", string(output), err)
+		}
+		return nil
+	}
+
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	if !backup.containerOnly && len(snapshots) > 0 {
+		// /var/lib/lxd/storage-pools/<pool>/backups/<container>/snapshots
+		targetBackupSnapshotsMntPoint := fmt.Sprintf("%s/snapshots", baseMntPoint)
+		err = os.MkdirAll(targetBackupSnapshotsMntPoint, 0711)
+		if err != nil {
+			return err
+		}
+
+		for _, snap := range snapshots {
+			_, err := s.ContainerSnapshotStart(snap)
+			if err != nil {
+				return err
+			}
+
+			snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, snap.Name())
+			_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+			target := fmt.Sprintf("%s/%s", targetBackupSnapshotsMntPoint, snapName)
+			err = rsync(snapshotMntPoint, target, bwlimit)
+			s.ContainerSnapshotStop(snap)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	snapshotSuffix := uuid.NewRandom().String()
+	sourceLvmDatasetSnapshot := fmt.Sprintf("snapshot-%s", snapshotSuffix)
+
+	// /var/lib/lxd/storage-pools/<pool>/containers/<container>
+	tmpContainerMntPoint := getContainerMountPoint(s.pool.Name, sourceLvmDatasetSnapshot)
+	err = os.MkdirAll(tmpContainerMntPoint, 0711)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpContainerMntPoint)
+
+	_, err = s.createSnapshotLV(s.pool.Name, sourceContainer.Name(),
+		storagePoolVolumeAPIEndpointContainers, containerNameToLVName(sourceLvmDatasetSnapshot),
+		storagePoolVolumeAPIEndpointContainers, false, s.useThinpool)
+	if err != nil {
+		return err
+	}
+	defer removeLV(s.pool.Name, storagePoolVolumeAPIEndpointContainers,
+		containerNameToLVName(sourceLvmDatasetSnapshot))
+
+	_, err = s.doContainerMount(sourceLvmDatasetSnapshot)
+	if err != nil {
+		return err
+	}
+	defer s.ContainerUmount(sourceLvmDatasetSnapshot, "")
+
+	err = rsync(tmpContainerMntPoint, targetBackupContainerMntPoint, bwlimit)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Created LVM storage volume for backup \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageLvm) ContainerBackupDelete(name string) error {
+	logger.Debugf("Deleting LVM storage volume for backup \"%s\" on storage pool \"%s\".",
+		name, s.pool.Name)
+
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	err = lvmBackupDeleteInternal(s.pool.Name, name)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Deleted LVM storage volume for backup \"%s\" on storage pool \"%s\".",
+		name, s.pool.Name)
 	return nil
 }
 
+func lvmBackupDeleteInternal(poolName string, backupName string) error {
+	backupContainerMntPoint := getBackupMountPoint(poolName, backupName)
+	if shared.PathExists(backupContainerMntPoint) {
+		err := os.RemoveAll(backupContainerMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	sourceContainerName, _, _ := containerGetParentAndSnapshotName(backupName)
+	backupContainerPath := getBackupMountPoint(poolName, sourceContainerName)
+	empty, _ := shared.PathIsEmpty(backupContainerPath)
+	if empty == true {
+		err := os.Remove(backupContainerPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 func (s *storageLvm) ContainerBackupRename(backup backup, newName string) error {
+	logger.Debugf("Renaming LVM storage volume for backup \"%s\" from %s -> %s.",
+		backup.Name(), backup.Name(), newName)
+
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	oldBackupMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
+	newBackupMntPoint := getBackupMountPoint(s.pool.Name, newName)
+
+	// Rename directory
+	if shared.PathExists(oldBackupMntPoint) {
+		err := os.Rename(oldBackupMntPoint, newBackupMntPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	logger.Debugf("Renamed LVM storage volume for backup \"%s\" from %s -> %s.",
+		backup.Name(), backup.Name(), newName)
 	return nil
 }
 
 func (s *storageLvm) ContainerBackupDump(backup backup) ([]byte, error) {
-	return nil, nil
+	var buffer bytes.Buffer
+
+	args := []string{"-cJf", "-", "-C", getBackupMountPoint(s.pool.Name, backup.Name()),
+		"--transform", "s,^./,backup/,"}
+	if backup.ContainerOnly() {
+		// Exclude snapshots directory
+		args = append(args, "--exclude", fmt.Sprintf("%s/snapshots", backup.Name()))
+	}
+	args = append(args, ".")
+
+	// Create tarball
+	err := shared.RunCommandWithFds(nil, &buffer, "tar", args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
 }
 
 func (s *storageLvm) ContainerBackupLoad(info backupInfo, data []byte) error {
+	containerPath, err := s.doContainerBackupLoad(info.Name, info.Privileged, false)
+	if err != nil {
+		return err
+	}
+
+	// Extract container
+	err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf", "-", "--strip-components=2",
+		"-C", containerPath, "backup/container")
+	if err != nil {
+		return err
+	}
+
+	for _, snap := range info.Snapshots {
+		containerPath, err := s.doContainerBackupLoad(fmt.Sprintf("%s/%s", info.Name, snap),
+			info.Privileged, true)
+		if err != nil {
+			return err
+		}
+
+		// Extract snapshots
+		err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf", "-",
+			"--strip-components=3", "-C", containerPath, fmt.Sprintf("backup/snapshots/%s", snap))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool,
+	snapshot bool) (string, error) {
+	tryUndo := true
+
+	var containerPath string
+	if snapshot {
+		containerPath = shared.VarPath("snapshots", containerName)
+	} else {
+		containerPath = shared.VarPath("containers", containerName)
+	}
+	containerLvmName := containerNameToLVName(containerName)
+	thinPoolName := s.getLvmThinpoolName()
+	lvFsType := s.getLvmFilesystem()
+	lvSize, err := s.getLvmVolumeSize()
+	if lvSize == "" {
+		return "", err
+	}
+
+	poolName := s.getOnDiskPoolName()
+	if s.useThinpool {
+		err = lvmCreateThinpool(s.s, s.sTypeVersion, poolName, thinPoolName, lvFsType)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if !snapshot {
+		err = lvmCreateLv(poolName, thinPoolName, containerLvmName, lvFsType, lvSize,
+			storagePoolVolumeAPIEndpointContainers, s.useThinpool)
+	} else {
+		cname, _, _ := containerGetParentAndSnapshotName(containerName)
+		_, err = s.createSnapshotLV(poolName, cname, storagePoolVolumeAPIEndpointContainers,
+			containerLvmName, storagePoolVolumeAPIEndpointContainers, false, s.useThinpool)
+	}
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		if tryUndo {
+			lvmContainerDeleteInternal(s.pool.Name, containerName, false, poolName,
+				containerPath)
+		}
+	}()
+
+	var containerMntPoint string
+	if snapshot {
+		containerMntPoint = getSnapshotMountPoint(s.pool.Name, containerName)
+	} else {
+		containerMntPoint = getContainerMountPoint(s.pool.Name, containerName)
+	}
+	err = os.MkdirAll(containerMntPoint, 0711)
+	if err != nil {
+		return "", err
+	}
+
+	if snapshot {
+		cname, _, _ := containerGetParentAndSnapshotName(containerName)
+		snapshotMntPointSymlink := shared.VarPath("snapshots", cname)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots",
+			cname)
+		err = createSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget,
+			snapshotMntPointSymlink)
+	} else {
+		err = createContainerMountpoint(containerMntPoint, containerPath, privileged)
+	}
+	if err != nil {
+		return "", err
+	}
+
+	_, err = s.doContainerMount(containerName)
+	if err != nil {
+		return "", err
+	}
+
+	tryUndo = false
+
+	return containerPath, nil
 }
 
 func (s *storageLvm) ImageCreate(fingerprint string) error {
