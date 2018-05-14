@@ -29,7 +29,7 @@ test_clustering_enable() {
     ! lxc cluster enable node2
 
     # Delete the container
-    lxc stop c1
+    lxc stop c1 --force
     lxc delete c1
   )
 
@@ -489,6 +489,46 @@ test_clustering_storage() {
 
     LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
     LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  fi
+
+  # Test migration of zfs/btrfs-based containers
+  if [ "${driver}" = "zfs" ] || [ "${driver}" = "btrfs" ]; then
+    # Launch a container on node2
+    LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
+    LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 testimage foo
+    LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Location: node2"
+
+    # Stop the container and move it to node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc stop foo --force
+    LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "Location: node1"
+
+    # Start and stop the migrated container on node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc start bar
+    LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
+
+    # Rename the container locally on node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc rename bar foo
+    LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q "Location: node1"
+
+    # Copy the container without specifying a target, it will be placed on node2
+    # since it's the one with the least number of containers (0 vs 1)
+    LXD_DIR="${LXD_ONE_DIR}" lxc copy foo bar
+    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "Location: node2"
+
+    # Start and stop the copied container on node2
+    LXD_DIR="${LXD_TWO_DIR}" lxc start bar
+    LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
+
+    # Purge the containers
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete foo
+
+    # Delete the image too, and remove its volumes since they are not
+    # automatically deleted.
+    fp="$(LXD_DIR="${LXD_ONE_DIR}" lxc image list -c f --format json | jq .[0].fingerprint)"
+    LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete data "image/${fp}"
   fi
 
   # Delete the storage pool
