@@ -1688,7 +1688,7 @@ func (s *storageBtrfs) ContainerBackupDump(backup backup) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data []byte) error {
+func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker) error {
 	containerName, _, _ := containerGetParentAndSnapshotName(info.Name)
 
 	containerMntPoint := getContainerMountPoint(s.pool.Name, "")
@@ -1710,7 +1710,8 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data []by
 	}
 
 	// Extract container
-	err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf", "-",
+	data.Seek(0, 0)
+	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
 		"--strip-components=1", "-C", unpackPath, "backup")
 	if err != nil {
 		logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", "backup", unpackPath, err)
@@ -1779,7 +1780,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data []by
 	return nil
 }
 
-func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data []byte) error {
+func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker) error {
 	// create the main container
 	err := s.doContainerCreate(info.Name, info.Privileged)
 	if err != nil {
@@ -1791,7 +1792,8 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data []byte
 	for _, snap := range info.Snapshots {
 		// Extract snapshots
 		cur := fmt.Sprintf("backup/snapshots/%s", snap)
-		err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf", "-",
+		data.Seek(0, 0)
+		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
 			"--recursive-unlink", "--strip-components=3", "-C", containerMntPoint, cur)
 		if err != nil {
 			logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", cur, containerMntPoint, err)
@@ -1806,7 +1808,8 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data []byte
 	}
 
 	// Extract container
-	err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf", "-",
+	data.Seek(0, 0)
+	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
 		"--strip-components=2", "-C", containerMntPoint, "backup/container")
 	if err != nil {
 		logger.Errorf("Failed to untar \"backup/container\" into \"%s\": %s", containerMntPoint, err)
@@ -1816,7 +1819,7 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data []byte
 	return nil
 }
 
-func (s *storageBtrfs) ContainerBackupLoad(info backupInfo, data []byte) error {
+func (s *storageBtrfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
 	logger.Debugf("Loading BTRFS storage volume for backup \"%s\" on storage pool \"%s\".", info.Name, s.pool.Name)
 
 	if info.HasBinaryFormat {

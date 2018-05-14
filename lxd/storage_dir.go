@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1243,7 +1244,7 @@ func (s *storageDir) ContainerBackupDump(backup backup) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (s *storageDir) ContainerBackupLoad(info backupInfo, data []byte) error {
+func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
 	_, err := s.StoragePoolMount()
 	if err != nil {
 		return err
@@ -1263,7 +1264,8 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data []byte) error {
 	}
 
 	// Extract container
-	err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf",
+	data.Seek(0, 0)
+	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf",
 		"-", "--strip-components=2", "-C", containerMntPoint, "backup/container")
 	if err != nil {
 		return err
@@ -1282,7 +1284,8 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data []byte) error {
 		}
 
 		// Extract snapshots
-		err = shared.RunCommandWithFds(bytes.NewReader(data), nil, "tar", "-xJf", "-",
+		data.Seek(0, 0)
+		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
 			"--strip-components=2", "-C", snapshotMntPoint, "backup/snapshots")
 		if err != nil {
 			return err
