@@ -1138,7 +1138,10 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 }
 
 func (s *storageLvm) ContainerMount(c container) (bool, error) {
-	name := c.Name()
+	return s.doContainerMount(c.Name())
+}
+
+func (s *storageLvm) doContainerMount(name string) (bool, error) {
 	logger.Debugf("Mounting LVM storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	containerLvmName := containerNameToLVName(name)
