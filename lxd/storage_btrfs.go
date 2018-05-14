@@ -705,7 +705,7 @@ func (s *storageBtrfs) ContainerStorageReady(name string) bool {
 	return isBtrfsSubVolume(containerMntPoint)
 }
 
-func (s *storageBtrfs) ContainerCreate(container container) error {
+func (s *storageBtrfs) doContainerCreate(name string, privileged bool) error {
 	logger.Debugf("Creating empty BTRFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -728,7 +728,7 @@ func (s *storageBtrfs) ContainerCreate(container container) error {
 	}
 
 	// Create empty subvolume for container.
-	containerSubvolumeName := getContainerMountPoint(s.pool.Name, container.Name())
+	containerSubvolumeName := getContainerMountPoint(s.pool.Name, name)
 	err = btrfsSubVolumeCreate(containerSubvolumeName)
 	if err != nil {
 		return err
@@ -736,12 +736,21 @@ func (s *storageBtrfs) ContainerCreate(container container) error {
 
 	// Create the mountpoint for the container at:
 	// ${LXD_DIR}/containers/<name>
-	err = createContainerMountpoint(containerSubvolumeName, container.Path(), container.IsPrivileged())
+	err = createContainerMountpoint(containerSubvolumeName, shared.VarPath("containers", name), privileged)
 	if err != nil {
 		return err
 	}
 
 	logger.Debugf("Created empty BTRFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	return nil
+}
+
+func (s *storageBtrfs) ContainerCreate(container container) error {
+	err := s.doContainerCreate(container.Name(), container.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
 	return container.TemplateApply("create")
 }
 
