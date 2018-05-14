@@ -1780,28 +1780,20 @@ func (s *storageCeph) ContainerRestore(target container, source container) error
 	logger.Debugf(`Restoring RBD storage volume for container "%s" from `+
 		`%s to %s`, targetName, sourceName, targetName)
 
-	// Start storage for source container
-	ourSourceStart, err := source.StorageStart()
+	ourStorageStop, err := source.StorageStop()
 	if err != nil {
-		logger.Errorf(`Failed to initialize storage for container `+
-			`"%s": %s`, sourceName, err)
 		return err
 	}
-	logger.Debugf(`Initialized storage for container "%s"`, sourceName)
-	if ourSourceStart {
-		defer source.StorageStop()
+	if ourStorageStop {
+		defer source.StorageStart()
 	}
 
-	// Start storage for target container
-	ourTargetStart, err := target.StorageStart()
+	ourStorageStop, err = target.StorageStop()
 	if err != nil {
-		logger.Errorf(`Failed to initialize storage for container `+
-			`"%s": %s`, targetName, err)
 		return err
 	}
-	logger.Debugf(`Initialized storage for container "%s"`, targetName)
-	if ourTargetStart {
-		defer target.StorageStop()
+	if ourStorageStop {
+		defer target.StorageStart()
 	}
 
 	sourceContainerOnlyName, sourceSnapshotOnlyName, _ := containerGetParentAndSnapshotName(sourceName)
