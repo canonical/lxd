@@ -1671,3 +1671,66 @@ func parseCephSize(numStr string) (uint64, error) {
 
 	return uint64(size), nil
 }
+
+func (s *storageCeph) doContainerSnapshotCreate(targetName string, sourceName string) error {
+	logger.Debugf(`Creating RBD storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, targetName, s.pool.Name)
+
+	revert := true
+
+	_, targetSnapshotOnlyName, _ := containerGetParentAndSnapshotName(targetName)
+	targetSnapshotName := fmt.Sprintf("snapshot_%s", targetSnapshotOnlyName)
+	err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName,
+		sourceName, storagePoolVolumeTypeNameContainer,
+		targetSnapshotName, s.UserName)
+	if err != nil {
+		logger.Errorf(`Failed to create snapshot for RBD storage `+
+			`volume for image "%s" on storage pool "%s": %s`,
+			targetName, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Created snapshot for RBD storage volume for image `+
+		`"%s" on storage pool "%s"`, targetName, s.pool.Name)
+
+	defer func() {
+		if !revert {
+			return
+		}
+
+		err := cephRBDSnapshotDelete(s.ClusterName, s.OSDPoolName,
+			sourceName, storagePoolVolumeTypeNameContainer,
+			targetSnapshotName, s.UserName)
+		if err != nil {
+			logger.Warnf(`Failed to delete RBD `+
+				`container storage for `+
+				`snapshot "%s" of container "%s"`,
+				targetSnapshotOnlyName, sourceName)
+		}
+	}()
+
+	targetContainerMntPoint := getSnapshotMountPoint(s.pool.Name, targetName)
+	sourceOnlyName, _, _ := containerGetParentAndSnapshotName(sourceName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceOnlyName)
+	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceOnlyName)
+	err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		logger.Errorf(`Failed to create mountpoint "%s", snapshot `+
+			`symlink target "%s", snapshot mountpoint symlink"%s" `+
+			`for RBD storage volume "%s" on storage pool "%s": %s`,
+			targetContainerMntPoint, snapshotMntPointSymlinkTarget,
+			snapshotMntPointSymlink, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+	logger.Debugf(`Created mountpoint "%s", snapshot symlink target `+
+		`"%s", snapshot mountpoint symlink"%s" for RBD storage `+
+		`volume "%s" on storage pool "%s"`, targetContainerMntPoint,
+		snapshotMntPointSymlinkTarget, snapshotMntPointSymlink,
+		s.volume.Name, s.pool.Name)
+
+	logger.Debugf(`Created RBD storage volume for snapshot "%s" on `+
+		`storage pool "%s"`, targetName, s.pool.Name)
+
+	revert = false
+
+	return nil
+}
