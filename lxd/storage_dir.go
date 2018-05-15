@@ -592,23 +592,14 @@ func (s *storageDir) ContainerDelete(container container) error {
 		}
 	}
 
-	// Delete potential leftover backup mountpoints.
-	backupMntPoint := getBackupMountPoint(s.pool.Name, container.Name())
-	if shared.PathExists(backupMntPoint) {
-		err := os.RemoveAll(backupMntPoint)
-		if err != nil {
-			return err
-		}
+	backups, err := container.Backups()
+	if err != nil {
+		return err
 	}
 
-	// Delete potential leftover backup symlinks:
-	// ${LXD_DIR}/backups/<container_name> -> ${POOL}/backups/<container_name>
-	backupSymlink := shared.VarPath("backups", container.Name())
-	if shared.PathExists(backupSymlink) {
-		err := os.Remove(backupSymlink)
-		if err != nil {
-			return err
-		}
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		s.ContainerBackupDelete(backupName)
 	}
 
 	logger.Debugf("Deleted DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
