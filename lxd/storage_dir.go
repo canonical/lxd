@@ -794,15 +794,15 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 		}
 	}
 
-	// Rename the backup mountpoint for the container if existing:
-	// ${POOL}/backups/<old_container_name> to ${POOL}/backups/<new_container_name>
-	oldBackupsMntPoint := getBackupMountPoint(s.pool.Name, container.Name())
-	newBackupsMntPoint := getBackupMountPoint(s.pool.Name, newName)
-	if shared.PathExists(oldBackupsMntPoint) {
-		err = os.Rename(oldBackupsMntPoint, newBackupsMntPoint)
-		if err != nil {
-			return err
-		}
+	backups, err := container.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		newName := fmt.Sprintf("%s/%s", newName, backupName)
+		s.ContainerBackupRename(backup, newName)
 	}
 
 	logger.Debugf("Renamed DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
