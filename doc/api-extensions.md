@@ -458,3 +458,21 @@ container.
 ## container\_mount\_propagation
 This adds a new "propagation" option to the disk device type, allowing
 the configuration of kernel mount propagation.
+
+## container_backup
+Add container backup support.
+
+This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/containers/<name>/backups`
+* `POST /1.0/containers/<name>/backups`
+
+* `GET /1.0/containers/<name>/backups/<name>`
+* `POST /1.0/containers/<name>/backups/<name>`
+* `DELETE /1.0/containers/<name>/backups/<name>`
+
+* `GET /1.0/containers/<name>/backups/<name>/export`
+
+The following existing endpoint has been modified:
+
+ * `POST /1.0/containers` accepts the new source type `backup`

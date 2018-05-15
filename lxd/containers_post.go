@@ -1,15 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -528,9 +533,84 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
+func createFromBackup(d *Daemon, data io.Reader) Response {
+	// Write the data to a temp file
+	f, err := ioutil.TempFile("", "lxd_backup_")
+	if err != nil {
+		return InternalError(err)
+	}
+	defer os.Remove(f.Name())
+
+	_, err = io.Copy(f, data)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	// Parse the backup information
+	f.Seek(0, 0)
+	bInfo, err := getBackupInfo(f)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	run := func(op *operation) error {
+		// Dump tarball to storage
+		f.Seek(0, 0)
+		err = containerCreateFromBackup(d.State(), *bInfo, f)
+		if err != nil {
+			return err
+		}
+
+		body, err := json.Marshal(&internalImportPost{
+			Name:  bInfo.Name,
+			Force: true,
+		})
+		if err != nil {
+			return err
+		}
+
+		resp := internalImport(d, &http.Request{
+			Body: ioutil.NopCloser(bytes.NewReader(body)),
+		})
+
+		if resp.String() != "success" {
+			return errors.New(resp.String())
+		}
+
+		c, err := containerLoadByName(d.State(), bInfo.Name)
+		if err != nil {
+			return err
+		}
+
+		_, err = c.StorageStop()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	resources := map[string][]string{}
+	resources["containers"] = []string{bInfo.Name}
+
+	op, err := operationCreate(d.cluster, operationClassTask, "Restoring backup",
+		resources, nil, run, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
+}
+
 func containersPost(d *Daemon, r *http.Request) Response {
 	logger.Debugf("Responding to container create")
 
+	// If we're getting binary content, process separately
+	if r.Header.Get("Content-Type") == "application/octet-stream" {
+		return createFromBackup(d, r.Body)
+	}
+
+	// Parse the request
 	req := api.ContainersPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
@@ -552,6 +632,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 	}
+
 	if targetNode != "" {
 		address, err := cluster.ResolveTarget(d.cluster, targetNode)
 		if err != nil {

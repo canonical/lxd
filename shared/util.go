@@ -903,6 +903,34 @@ func RunCommand(name string, arg ...string) (string, error) {
 	return string(output), nil
 }
 
+func RunCommandWithFds(stdin io.Reader, stdout io.Writer, name string, arg ...string) error {
+	cmd := exec.Command(name, arg...)
+
+	if stdin != nil {
+		cmd.Stdin = stdin
+	}
+
+	if stdout != nil {
+		cmd.Stdout = stdout
+	}
+
+	var buffer bytes.Buffer
+	cmd.Stderr = &buffer
+
+	err := cmd.Run()
+	if err != nil {
+		err := RunError{
+			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "),
+				strings.TrimSpace(buffer.String())),
+			Err: err,
+		}
+
+		return err
+	}
+
+	return nil
+}
+
 func TryRunCommand(name string, arg ...string) (string, error) {
 	var err error
 	var output string

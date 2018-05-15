@@ -195,6 +195,9 @@ won't work and PUT needs to be used instead.
          * `/1.0/containers/<name>/logs/<logfile>`
          * `/1.0/containers/<name>/metadata`
          * `/1.0/containers/<name>/metadata/templates`
+         * `/1.0/containers/<name>/backups`
+         * `/1.0/containers/<name>/backups/<name>`
+         * `/1.0/containers/<name>/backups/<name>/export`
      * `/1.0/events`
      * `/1.0/images`
        * `/1.0/images/<fingerprint>`
@@ -607,6 +610,10 @@ Input (using a remote container, in push mode sent over the migration websocket 
                    "container_only": true}                                              # Whether to migrate only the container without snapshots. Can be "true" or "false".
     }
 
+Input (using a backup):
+
+    Raw compressed tarball as provided by a backup download.
+
 ## `/1.0/containers/<name>`
 ### GET
  * Description: Container information
@@ -763,6 +770,89 @@ Input (none at present):
     }
 
 HTTP code for this should be 202 (Accepted).
+
+## `/1.0/containers/<name>/backups`
+### GET
+* Description: List of backups for the container
+* Introduced: with API extension `container_backup`
+* Authentication: trusted
+* Operation: sync
+* Return: a list of backups for the container
+
+Return value:
+
+    [
+        "/1.0/containers/c1/backups/c1/backup0",
+        "/1.0/containers/c1/backups/c1/backup1",
+    ]
+
+### POST
+* Description: Create a new backup
+* Introduced: with API extension `container_backup`
+* Authentication: trusted
+* Operation: async
+* Returns: background operation or standard error
+
+Input:
+
+    {
+        "name": "backupName",      # unique identifier for the backup
+        "expiry": 3600,            # when to delete the backup automatically
+        "container_only": true,    # if True, snapshots aren't included
+        "optimized_storage": true  # if True, btrfs send or zfs send is used for container and snapshots
+    }
+
+## `/1.0/containers/<name>/backups/<name>`
+### GET
+* Description: Backup information
+* Introduced: with API extension `container_backup`
+* Authentication: trusted
+* Operation: sync
+* Returns: dict of the backup
+
+Output:
+
+    {
+        "name": "backupName",
+        "creation_date": "2018-04-23T12:16:09+02:00",
+        "expiry_date": "2018-04-23T12:16:09+02:00",
+        "container_only": false,
+        "optimized_storage": false
+    }
+
+### DELETE
+ * Description: remove the backup
+ * Introduced: with API extension `container_backup`
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+### POST
+ * Description: used to rename the backup
+ * Introduced: with API extension `container_backup`
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input:
+
+    {
+        "name": "new-name"
+    }
+
+## `/1.0/containers/<name>/backups/<name>/export`
+### GET
+* Description: fetch the backup tarball
+* Introduced: with API extension `container_backup`
+* Authentication: trusted
+* Operation: sync
+* Return: dict containing the backup tarball
+
+Output:
+
+    {
+        "data": <byte-stream>
+    }
 
 ## `/1.0/containers/<name>/console`
 ### GET

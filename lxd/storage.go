@@ -187,6 +187,12 @@ type storage interface {
 	ContainerSnapshotStart(c container) (bool, error)
 	ContainerSnapshotStop(c container) (bool, error)
 
+	ContainerBackupCreate(backup backup, sourceContainer container) error
+	ContainerBackupDelete(name string) error
+	ContainerBackupRename(backup backup, newName string) error
+	ContainerBackupDump(backup backup) ([]byte, error)
+	ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error
+
 	// For use in migrating snapshots.
 	ContainerSnapshotCreateEmpty(c container) error
 
@@ -578,6 +584,11 @@ func getImageMountPoint(poolName string, fingerprint string) string {
 // ${LXD_DIR}/storage-pools/<pool>/custom/<storage_volume>
 func getStoragePoolVolumeMountPoint(poolName string, volumeName string) string {
 	return shared.VarPath("storage-pools", poolName, "custom", volumeName)
+}
+
+// ${LXD_DIR}/storage-pools/<pool>/backups/<backup_name>
+func getBackupMountPoint(poolName string, backupName string) string {
+	return shared.VarPath("storage-pools", poolName, "backups", backupName)
 }
 
 func createContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
