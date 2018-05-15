@@ -889,6 +889,16 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 		}
 	}
 
+	backups, err := container.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		s.ContainerBackupDelete(backupName)
+	}
+
 	logger.Debugf("Deleted BTRFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }

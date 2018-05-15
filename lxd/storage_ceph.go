@@ -1069,6 +1069,16 @@ func (s *storageCeph) ContainerDelete(container container) error {
 		`container "%s" for RBD storage volume on storage pool "%s"`,
 		containerMntPoint, containerName, s.pool.Name)
 
+	backups, err := container.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		s.ContainerBackupDelete(backupName)
+	}
+
 	logger.Debugf(`Deleted RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, containerName, s.pool.Name)
 	return nil

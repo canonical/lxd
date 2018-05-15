@@ -877,7 +877,22 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 }
 
 func (s *storageZfs) ContainerDelete(container container) error {
-	return s.doContainerDelete(container.Name())
+	err := s.doContainerDelete(container.Name())
+	if err != nil {
+		return err
+	}
+
+	backups, err := container.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		s.ContainerBackupDelete(backupName)
+	}
+
+	return nil
 }
 
 func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source container) error {
