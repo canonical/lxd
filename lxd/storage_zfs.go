@@ -1335,6 +1335,17 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 		}
 	}
 
+	backups, err := container.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		newName := fmt.Sprintf("%s/%s", newName, backupName)
+		s.ContainerBackupRename(backup, newName)
+	}
+
 	revert = false
 
 	logger.Debugf("Renamed ZFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)

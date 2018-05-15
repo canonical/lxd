@@ -1603,6 +1603,17 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 		}
 	}
 
+	backups, err := c.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		newName := fmt.Sprintf("%s/%s", newName, backupName)
+		s.ContainerBackupRename(backup, newName)
+	}
+
 	logger.Debugf(`Renamed RBD storage volume for container "%s" from `+
 		`"%s" to "%s"`, oldName, oldName, newName)
 
