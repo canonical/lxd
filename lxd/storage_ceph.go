@@ -1069,6 +1069,16 @@ func (s *storageCeph) ContainerDelete(container container) error {
 		`container "%s" for RBD storage volume on storage pool "%s"`,
 		containerMntPoint, containerName, s.pool.Name)
 
+	backups, err := container.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		s.ContainerBackupDelete(backupName)
+	}
+
 	logger.Debugf(`Deleted RBD storage volume for container "%s" on `+
 		`storage pool "%s"`, containerName, s.pool.Name)
 	return nil
@@ -1601,6 +1611,17 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	backups, err := c.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		newName := fmt.Sprintf("%s/%s", newName, backupName)
+		s.ContainerBackupRename(backup, newName)
 	}
 
 	logger.Debugf(`Renamed RBD storage volume for container "%s" from `+
