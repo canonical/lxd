@@ -188,3 +188,119 @@ test_container_import() {
   LXD_DIR=${LXD_DIR}
   kill_lxd "${LXD_IMPORT_DIR}"
 }
+
+test_backup_import() {
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  lxc launch testimage b1
+  lxc launch testimage b2
+  lxc snapshot b2
+
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  # container only
+
+  # create backup
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    lxc export b1 "${LXD_DIR}/c1-optimized.tar.xz" --optimized-storage --container-only
+  fi
+
+  lxc export b1 "${LXD_DIR}/c1.tar.xz" --container-only
+  lxc delete --force b1
+
+  # import backup, and ensure it's valid and runnable
+  lxc import "${LXD_DIR}/c1.tar.xz"
+  lxc info b1
+  lxc start b1
+  lxc delete --force b1
+
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    lxc import "${LXD_DIR}/c1-optimized.tar.xz"
+    lxc info b1
+    lxc start b1
+    lxc delete --force b1
+  fi
+
+  # with snapshots
+
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    lxc export b2 "${LXD_DIR}/c2-optimized.tar.xz" --optimized-storage
+  fi
+
+  lxc export b2 "${LXD_DIR}/c2.tar.xz"
+  lxc delete --force b2
+
+  lxc import "${LXD_DIR}/c2.tar.xz"
+  lxc info b2 | grep snap0
+  lxc start b2
+  lxc stop b2 --force
+
+  lxc restore b2 snap0
+  lxc start b2
+  lxc delete --force b2
+
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    lxc import "${LXD_DIR}/c2-optimized.tar.xz"
+    lxc info b2 | grep snap0
+    lxc start b2
+    lxc stop b2 --force
+
+    lxc restore b2 snap0
+    lxc start b2
+    lxc delete --force b2
+  fi
+}
+
+test_backup_export() {
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  lxc launch testimage b1
+  lxc snapshot b1
+
+  mkdir "${LXD_DIR}/optimized" "${LXD_DIR}/non-optimized"
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  # container only
+
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    lxc export b1 "${LXD_DIR}/c1-optimized.tar.xz" --optimized-storage --container-only
+    tar -xJf "${LXD_DIR}/c1-optimized.tar.xz" -C "${LXD_DIR}/optimized"
+
+    [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
+    [ -f "${LXD_DIR}/optimized/backup/container.bin" ]
+    [ ! -d "${LXD_DIR}/optimized/backup/snapshots" ]
+  fi
+
+  lxc export b1 "${LXD_DIR}/c1.tar.xz" --container-only
+  tar -xJf "${LXD_DIR}/c1.tar.xz" -C "${LXD_DIR}/non-optimized"
+
+  # check tarball content
+  [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
+  [ -d "${LXD_DIR}/non-optimized/backup/container" ]
+  [ ! -d "${LXD_DIR}/non-optimized/backup/snapshots" ]
+
+  rm -rf "${LXD_DIR}/non-optimized/"* "${LXD_DIR}/optimized/"*
+
+  # with snapshots
+
+  if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
+    lxc export b1 "${LXD_DIR}/c2-optimized.tar.xz" --optimized-storage
+    tar -xJf "${LXD_DIR}/c2-optimized.tar.xz" -C "${LXD_DIR}/optimized"
+
+    [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
+    [ -f "${LXD_DIR}/optimized/backup/container.bin" ]
+    [ -f "${LXD_DIR}/optimized/backup/snapshots/snap0.bin" ]
+  fi
+
+  lxc export b1 "${LXD_DIR}/c2.tar.xz"
+  tar -xJf "${LXD_DIR}/c2.tar.xz" -C "${LXD_DIR}/non-optimized"
+
+  # check tarball content
+  [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
+  [ -d "${LXD_DIR}/non-optimized/backup/container" ]
+  [ -d "${LXD_DIR}/non-optimized/backup/snapshots/snap0" ]
+
+  lxc delete --force b1
+}

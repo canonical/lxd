@@ -81,6 +81,24 @@ var containerMetadataTemplatesCmd = Command{
 	delete: containerMetadataTemplatesDelete,
 }
 
+var containerBackupsCmd = Command{
+	name: "containers/{name}/backups",
+	get:  containerBackupsGet,
+	post: containerBackupsPost,
+}
+
+var containerBackupCmd = Command{
+	name:   "containers/{name}/backups/{backupName}",
+	get:    containerBackupGet,
+	post:   containerBackupPost,
+	delete: containerBackupDelete,
+}
+
+var containerBackupExportCmd = Command{
+	name: "containers/{name}/backups/{backupName}/export",
+	get:  containerBackupExportGet,
+}
+
 type containerAutostartList []container
 
 func (slice containerAutostartList) Len() int {
