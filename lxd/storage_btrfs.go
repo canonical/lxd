@@ -889,6 +889,16 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 		}
 	}
 
+	backups, err := container.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		s.ContainerBackupDelete(backupName)
+	}
+
 	logger.Debugf("Deleted BTRFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
 	return nil
 }
@@ -1090,6 +1100,17 @@ func (s *storageBtrfs) ContainerRename(container container, newName string) erro
 		if err != nil {
 			return err
 		}
+	}
+
+	backups, err := container.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.Name(), "/")[1]
+		newName := fmt.Sprintf("%s/%s", newName, backupName)
+		s.ContainerBackupRename(backup, newName)
 	}
 
 	logger.Debugf("Renamed BTRFS storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
