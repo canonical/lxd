@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"net/url"
 	"strings"
 	"syscall"
 
@@ -179,4 +180,26 @@ func setupSource(path string, mounts []string) error {
 	}
 
 	return nil
+}
+
+func parseURL(URL string) (string, error) {
+	u, err := url.Parse(URL)
+	if err != nil {
+		return "", err
+	}
+
+	// Create a URL with scheme and hostname since it wasn't provided
+	if u.Scheme == "" && u.Host == "" && u.Path != "" {
+		u, err = url.Parse(fmt.Sprintf("https://%s", u.Path))
+		if err != nil {
+			return "", err
+		}
+	}
+
+	// If no port was provided, use port 8443
+	if u.Port() == "" {
+		u.Host = fmt.Sprintf("%s:8443", u.Hostname())
+	}
+
+	return u.String(), nil
 }
