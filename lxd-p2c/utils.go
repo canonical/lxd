@@ -16,7 +16,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string) error {
+func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rsyncArgs string) error {
 	opAPI := op.Get()
 
 	// Connect to the websockets
@@ -54,7 +54,7 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string) er
 		return err
 	}
 
-	err = rsyncSend(wsFs, rootfs)
+	err = rsyncSend(wsFs, rootfs, rsyncArgs)
 	if err != nil {
 		return abort(err)
 	}
