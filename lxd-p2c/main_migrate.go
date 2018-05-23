@@ -180,11 +180,24 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Check if the container already exists
+	_, _, err = dst.GetContainer(apiArgs.Name)
+	if err == nil {
+		return fmt.Errorf("Container '%s' already exists", apiArgs.Name)
+	}
+
 	// Create the container
+	success := false
 	op, err := dst.CreateContainer(apiArgs)
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		if !success {
+			dst.DeleteContainer(apiArgs.Name)
+		}
+	}()
 
 	progress := utils.ProgressRenderer{Format: "Transferring container: %s"}
 	_, err = op.AddHandler(progress.UpdateOp)
@@ -199,6 +212,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	progress.Done(fmt.Sprintf("Container %s successfully created", apiArgs.Name))
+	success = true
 
 	return nil
 }
