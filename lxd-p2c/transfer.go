@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
@@ -16,8 +17,8 @@ import (
 )
 
 // Send an rsync stream of a path over a websocket
-func rsyncSend(conn *websocket.Conn, path string) error {
-	cmd, dataSocket, stderr, err := rsyncSendSetup(path)
+func rsyncSend(conn *websocket.Conn, path string, rsyncArgs string) error {
+	cmd, dataSocket, stderr, err := rsyncSendSetup(path, rsyncArgs)
 	if err != nil {
 		return err
 	}
@@ -40,14 +41,14 @@ func rsyncSend(conn *websocket.Conn, path string) error {
 	<-writeDone
 
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to rsync: %v\n%s", err, output)
 	}
 
 	return nil
 }
 
 // Spawn the rsync process
-func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
+func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	auds := fmt.Sprintf("@lxd-p2c/%s", uuid.NewRandom().String())
 	if len(auds) > shared.ABSTRACT_UNIX_SOCK_LEN-1 {
 		auds = auds[:shared.ABSTRACT_UNIX_SOCK_LEN-1]
@@ -65,16 +66,23 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 
 	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s\"", execPath, auds)
 
-	cmd := exec.Command("rsync",
+	args := []string{
 		"-arvP",
 		"--devices",
 		"--numeric-ids",
 		"--partial",
 		"--sparse",
-		path,
-		"localhost:/tmp/foo",
-		"-e",
-		rsyncCmd)
+		"--ignore-missing-args",
+	}
+
+	if rsyncArgs != "" {
+		args = append(args, strings.Split(rsyncArgs, " ")...)
+	}
+
+	args = append(args, []string{path, "localhost:/tmp/foo"}...)
+	args = append(args, []string{"-e", rsyncCmd}...)
+
+	cmd := exec.Command("rsync", args...)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
