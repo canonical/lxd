@@ -40,7 +40,7 @@ func rsyncSend(conn *websocket.Conn, path string) error {
 	<-writeDone
 
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to rsync: %v\n%s", err, output)
 	}
 
 	return nil
