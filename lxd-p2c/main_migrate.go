@@ -109,8 +109,13 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to setup the source: %v", err)
 	}
 
+	URL, err := parseURL(args[0])
+	if err != nil {
+		return err
+	}
+
 	// Connect to the target
-	dst, err := connectTarget(args[0])
+	dst, err := connectTarget(URL)
 	if err != nil {
 		return err
 	}
