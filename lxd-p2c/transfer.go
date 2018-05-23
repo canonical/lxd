@@ -71,6 +71,7 @@ func rsyncSendSetup(path string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 		"--numeric-ids",
 		"--partial",
 		"--sparse",
+		"--ignore-missing-args",
 		path,
 		"localhost:/tmp/foo",
 		"-e",
