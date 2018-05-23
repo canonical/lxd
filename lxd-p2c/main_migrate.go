@@ -24,6 +24,7 @@ type cmdMigrate struct {
 	flagProfile    []string
 	flagStorage    string
 	flagType       string
+	flagRsyncArgs  string
 	flagNoProfiles bool
 }
 
@@ -49,6 +50,7 @@ func (c *cmdMigrate) Command() *cobra.Command {
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, "Profile to apply to the container"+"``")
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", "Storage pool to use for the container"+"``")
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", "Instance type to use for the container"+"``")
+	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the container with no profiles applied")
 
 	return cmd
@@ -206,7 +208,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = transferRootfs(dst, op, fullPath)
+	err = transferRootfs(dst, op, fullPath, c.flagRsyncArgs)
 	if err != nil {
 		return err
 	}
