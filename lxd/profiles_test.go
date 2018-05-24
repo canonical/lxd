@@ -9,7 +9,10 @@ import (
 func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
-	db := cluster.DB()
+	tx, err := cluster.DB().Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Insert a container and a related profile. Dont't forget that the profile
 	// we insert is profile ID 2 (there is a default profile already).
@@ -21,7 +24,11 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
     INSERT INTO profiles_config (key, value, profile_id) VALUES ('thekey', 'thevalue', 2);
     INSERT INTO profiles_devices_config (profile_device_id, key, value) VALUES (1, 'something', 'boring');`
 
-	_, err := db.Exec(statements)
+	_, err = tx.Exec(statements)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tx.Commit()
 	if err != nil {
 		t.Fatal(err)
 	}
