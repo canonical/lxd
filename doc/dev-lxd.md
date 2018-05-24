@@ -40,6 +40,7 @@ authentication support in the `/dev/lxd/sock` API.
      * /1.0/config
        * /1.0/config/{key}
      * /1.0/events
+     * /1.0/images/{fingerprint}/export
      * /1.0/meta-data
 
 ## API details
@@ -134,6 +135,16 @@ This never returns. Each notification is sent as a separate JSON dict:
             "value": "bar"
         }
     }
+
+### `/1.0/images/<FINGERPRINT>/export`
+#### GET
+ * Description: Download a public/cached image from the host
+ * Return: raw image or error
+ * Access: Requires security.devlxd.images set to true
+
+Return value:
+
+    See /1.0/images/<FINGERPRINT>/export in the daemon API.
 
 
 ### `/1.0/meta-data`

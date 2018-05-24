@@ -208,9 +208,10 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 
 	"nvidia.runtime": IsBool,
 
-	"security.nesting":    IsBool,
-	"security.privileged": IsBool,
-	"security.devlxd":     IsBool,
+	"security.nesting":       IsBool,
+	"security.privileged":    IsBool,
+	"security.devlxd":        IsBool,
+	"security.devlxd.images": IsBool,
 
 	"security.idmap.base":     IsUint32,
 	"security.idmap.isolated": IsBool,
