@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/raft"
@@ -71,12 +70,9 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 			logger.Warnf("Failed to get current cluster nodes: %v", err)
 			return
 		}
-		wg := sync.WaitGroup{}
-		wg.Add(len(nodes))
 		heartbeats := make([]time.Time, len(nodes))
 		for i, node := range nodes {
-			go func(i int, address string) {
-				defer wg.Done()
+			func(i int, address string) {
 				var err error
 				// Only send actual requests to other nodes
 				if address != nodeAddress {
@@ -90,7 +86,6 @@ func Heartbeat(gateway *Gateway, cluster *db.Cluster) (task.Func, task.Schedule)
 				}
 			}(i, node.Address)
 		}
-		wg.Wait()
 
 		// If the context has been cancelled, return immediately.
 		if ctx.Err() != nil {
