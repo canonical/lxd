@@ -189,10 +189,18 @@ func internalSQLPost(d *Daemon, r *http.Request) Response {
 		}
 
 		result := internalSQLResult{}
+		tx, err := db.Begin()
+		if err != nil {
+			return SmartError(err)
+		}
 		if strings.HasPrefix(strings.ToUpper(query), "SELECT") {
-			err = internalSQLSelect(db, query, &result)
+			err = internalSQLSelect(tx, query, &result)
+			tx.Rollback()
 		} else {
-			err = internalSQLExec(db, query, &result)
+			err = internalSQLExec(tx, query, &result)
+			if err == nil {
+				err = tx.Commit()
+			}
 		}
 		if err != nil {
 			return SmartError(err)
@@ -202,9 +210,9 @@ func internalSQLPost(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, batch)
 }
 
-func internalSQLSelect(db *sql.DB, query string, result *internalSQLResult) error {
+func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) error {
 	result.Type = "select"
-	rows, err := db.Query(query)
+	rows, err := tx.Query(query)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute query")
 	}
@@ -240,9 +248,9 @@ func internalSQLSelect(db *sql.DB, query string, result *internalSQLResult) erro
 	return nil
 }
 
-func internalSQLExec(db *sql.DB, query string, result *internalSQLResult) error {
+func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error {
 	result.Type = "exec"
-	r, err := db.Exec(query)
+	r, err := tx.Exec(query)
 	if err != nil {
 		return errors.Wrapf(err, "failed to exec query")
 	}
