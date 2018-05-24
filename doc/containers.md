@@ -52,6 +52,7 @@ raw.idmap                               | blob      | -             | no        
 raw.lxc                                 | blob      | -             | no            | -                                    | Raw LXC configuration to be appended to the generated one
 raw.seccomp                             | blob      | -             | no            | container\_syscall\_filtering        | Raw Seccomp configuration
 security.devlxd                         | boolean   | true          | no            | restrict\_devlxd                     | Controls the presence of /dev/lxd in the container
+security.devlxd.images                  | boolean   | false         | no            | devlxd\_images                       | Controls the availability of the /1.0/images API over devlxd
 security.idmap.base                     | integer   | -             | no            | id\_map\_base                        | The base host ID to use for the allocation (overrides auto-detection)
 security.idmap.isolated                 | boolean   | false         | no            | id\_map                              | Use an idmap for this container that is unique among containers with isolated set.
 security.idmap.size                     | integer   | -             | no            | id\_map                              | The size of the idmap to use
