@@ -8,10 +8,10 @@ msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
 "POT-Creation-Date: 2018-05-14 23:47+0200\n"
-"PO-Revision-Date: 2018-04-16 01:37+0000\n"
+"PO-Revision-Date: 2018-05-16 23:39+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
-"Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
-"containers/lxd/ja/>\n"
+"Language-Team: Japanese <https://hosted.weblate.org/projects/"
+"linux-containers/lxd/ja/>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -298,9 +298,8 @@ msgid "Auto update: %s"
 msgstr "自動更新: %s"
 
 #: lxc/export.go:120
-#, fuzzy
 msgid "Backup exported successfully!"
-msgstr "イメージのエクスポートが成功しました!"
+msgstr "バックアップのエクスポートが成功しました!"
 
 #: lxc/network.go:283
 #, c-format
@@ -427,9 +426,8 @@ msgid "Cluster member name"
 msgstr "クラスタメンバ名"
 
 #: lxc/cluster.go:361
-#, fuzzy
 msgid "Clustering enabled"
-msgstr "クラスタメンバ名"
+msgstr "クラスタリングが有効になりました"
 
 #: lxc/image.go:911 lxc/list.go:112
 msgid "Columns"
@@ -905,19 +903,17 @@ msgstr ""
 "出力先はオプショナルで、デフォルトは現在のディレクトリです。"
 
 #: lxc/export.go:28
-#, fuzzy
 msgid "Export container backups"
-msgstr "コンテナの状態を保存します"
+msgstr "コンテナのバックアップをエクスポートします"
 
 #: lxc/export.go:29
-#, fuzzy
 msgid "Export containers as backup tarballs."
-msgstr "コンテナの状態を保存します"
+msgstr "コンテナを tarball 形式のバックアップとしてエクスポートします"
 
 #: lxc/export.go:106
-#, fuzzy, c-format
+#, c-format
 msgid "Exporting the backup: %s"
-msgstr "イメージのエクスポート中: %s"
+msgstr "バックアップのエクスポート中: %s"
 
 #: lxc/image.go:494
 #, c-format
@@ -1089,9 +1085,8 @@ msgid "Import backups of containers including their snapshots."
 msgstr ""
 
 #: lxc/import.go:20
-#, fuzzy
 msgid "Import container backups"
-msgstr "コンテナの状態を無視します"
+msgstr "コンテナのバックアップをインポートします"
 
 #: lxc/image.go:571
 msgid ""
@@ -2614,9 +2609,8 @@ msgid "Wait for the operation to complete"
 msgstr "処理が完全に終わるまで待ちます"
 
 #: lxc/export.go:37
-#, fuzzy
 msgid "Whether or not to only backup the container (without snapshots)"
-msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
+msgstr "スナップショットを含めずにコンテナのみをバックアップするかどうか"
 
 #: lxc/restore.go:36
 msgid ""
@@ -2896,11 +2890,12 @@ msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
 #: lxc/export.go:27
-#, fuzzy
 msgid ""
 "export [<remote>:]<container> [target] [--container-only] [--optimized-"
 "storage]"
-msgstr "restart [<remote>:]<container> [[<remote>:]<container>...]"
+msgstr ""
+"export [<remote>:]<container> [target] [--container-only] [--optimized-"
+"storage]"
 
 #: lxc/image.go:433
 msgid "export [<remote>:]<image> [<target>]"
@@ -3072,16 +3067,12 @@ msgstr ""
 "    サーバの認証パスワードを blah に設定します。"
 
 #: lxc/export.go:31
-#, fuzzy
 msgid ""
 "lxc export u1 backup0.tar.xz\n"
 "    Download a backup tarball of the u1 container."
 msgstr ""
-"lxc snapshot u1 snap0\n"
-"    スナップショットを作成します。\n"
-"\n"
-"lxc restore u1 snap0\n"
-"    スナップショットからリストアします。"
+"lxc export u1 backup0.tar.xz\n"
+"    u1 コンテナのバックアップ tarball をダウンロードします"
 
 #: lxc/file.go:187
 msgid ""
@@ -3117,16 +3108,12 @@ msgstr ""
 "    YAML ファイルからイメージプロパティをロードします"
 
 #: lxc/import.go:23
-#, fuzzy
 msgid ""
 "lxc import backup0.tar.xz\n"
 "    Create a new container using backup0.tar.xz as the source."
 msgstr ""
-"lxc snapshot u1 snap0\n"
-"    スナップショットを作成します。\n"
-"\n"
-"lxc restore u1 snap0\n"
-"    スナップショットからリストアします。"
+"lxc import backup0.tar.xz\n"
+"    backup0.tar.xz を使って新しいコンテナを作成します"
 
 #: lxc/info.go:31
 msgid ""
