@@ -39,7 +39,11 @@ type dbTestSuite struct {
 
 func (s *dbTestSuite) SetupTest() {
 	s.db, s.cleanup = s.CreateTestDb()
-	_, err := s.db.DB().Exec(fixtures)
+
+	tx, commit := s.CreateTestTx()
+	defer commit()
+
+	_, err := tx.Exec(fixtures)
 	s.Nil(err)
 }
 
@@ -61,6 +65,16 @@ func (s *dbTestSuite) CreateTestDb() (*Cluster, func()) {
 	return db, cleanup
 }
 
+// Enter a transaction on the test in-memory DB.
+func (s *dbTestSuite) CreateTestTx() (*sql.Tx, func()) {
+	tx, err := s.db.DB().Begin()
+	s.Nil(err)
+	commit := func() {
+		s.Nil(tx.Commit())
+	}
+	return tx, commit
+}
+
 func TestDBTestSuite(t *testing.T) {
 	suite.Run(t, new(dbTestSuite))
 }
@@ -73,30 +87,33 @@ func (s *dbTestSuite) Test_deleting_a_container_cascades_on_related_tables() {
 	// Drop the container we just created.
 	statements = `DELETE FROM containers WHERE name = 'thename';`
 
-	_, err = s.db.DB().Exec(statements)
+	tx, commit := s.CreateTestTx()
+	defer commit()
+
+	_, err = tx.Exec(statements)
 	s.Nil(err, "Error deleting container!")
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the profile association!")
 
 	// Make sure there are 0 containers_config entries left.
 	statements = `SELECT count(*) FROM containers_config;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_config!")
 
 	// Make sure there are 0 containers_devices entries left.
 	statements = `SELECT count(*) FROM containers_devices;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices!")
 
 	// Make sure there are 0 containers_devices_config entries left.
 	statements = `SELECT count(*) FROM containers_devices_config;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a container didn't delete the associated container_devices_config!")
 }
@@ -109,30 +126,33 @@ func (s *dbTestSuite) Test_deleting_a_profile_cascades_on_related_tables() {
 	// Drop the profile we just created.
 	statements = `DELETE FROM profiles WHERE name = 'theprofile';`
 
-	_, err = s.db.DB().Exec(statements)
+	tx, commit := s.CreateTestTx()
+	defer commit()
+
+	_, err = tx.Exec(statements)
 	s.Nil(err)
 
 	// Make sure there are 0 container_profiles entries left.
 	statements = `SELECT count(*) FROM containers_profiles WHERE profile_id = 2;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the container association!")
 
 	// Make sure there are 0 profiles_devices entries left.
 	statements = `SELECT count(*) FROM profiles_devices WHERE profile_id == 2;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices!")
 
 	// Make sure there are 0 profiles_config entries left.
 	statements = `SELECT count(*) FROM profiles_config WHERE profile_id == 2;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_config! There are %d left")
 
 	// Make sure there are 0 profiles_devices_config entries left.
 	statements = `SELECT count(*) FROM profiles_devices_config WHERE profile_device_id == 3;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting a profile didn't delete the related profiles_devices_config!")
 }
@@ -145,17 +165,20 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 	// Drop the image we just created.
 	statements = `DELETE FROM images;`
 
-	_, err = s.db.DB().Exec(statements)
+	tx, commit := s.CreateTestTx()
+	defer commit()
+
+	_, err = tx.Exec(statements)
 	s.Nil(err)
 	// Make sure there are 0 images_aliases entries left.
 	statements = `SELECT count(*) FROM images_aliases;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting an image didn't delete the image alias association!")
 
 	// Make sure there are 0 images_properties entries left.
 	statements = `SELECT count(*) FROM images_properties;`
-	err = s.db.DB().QueryRow(statements).Scan(&count)
+	err = tx.QueryRow(statements).Scan(&count)
 	s.Nil(err)
 	s.Equal(count, 0, "Deleting an image didn't delete the related images_properties!")
 }
@@ -250,8 +273,12 @@ func (s *dbTestSuite) Test_ContainerConfig() {
 	var result map[string]string
 	var expected map[string]string
 
-	_, err = s.db.DB().Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
+	tx, commit := s.CreateTestTx()
+
+	_, err = tx.Exec("INSERT INTO containers_config (container_id, key, value) VALUES (1, 'something', 'something else');")
 	s.Nil(err)
+
+	commit()
 
 	result, err = s.db.ContainerConfig(1)
 	s.Nil(err)
@@ -269,8 +296,12 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 	var result map[string]string
 	var expected map[string]string
 
-	_, err = s.db.DB().Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'something', 'something else');")
+	tx, commit := s.CreateTestTx()
+
+	_, err = tx.Exec("INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'something', 'something else');")
 	s.Nil(err)
+
+	commit()
 
 	result, err = s.db.ProfileConfig("theprofile")
 	s.Nil(err)
