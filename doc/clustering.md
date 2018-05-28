@@ -221,7 +221,7 @@ lxc pull file xenial/etc/hosts .
 
 As mentioned above, all nodes must have identical storage pools. The
 only difference between pools on different nodes might be their
-`source` and `size` configuration keys.
+`source`, `size` or `zfs.pool_name` configuration keys.
 
 To create a new storage pool, you first have to define it across all
 nodes, for example:
@@ -230,6 +230,9 @@ nodes, for example:
 lxc storage create --target node1 data zfs source=/dev/vdb1
 lxc storage create --target node2 data zfs source=/dev/vdc1
 ```
+
+Note that when defining a new storage pool on a node the only valid
+configuration keys you can pass are the node-specific ones mentioned above.
 
 At this point the pool hasn't been actually created yet, but just
 defined (it's state is marked as Pending if you run `lxc storage list`).
@@ -243,6 +246,9 @@ lxc storage create data zfs
 and the storage will be instantiated on all nodes. If you didn't
 define it on a particular node, or a node is down, an error will be
 returned.
+
+You can pass to this final ``storage create`` command any configuration key
+which is not node-specific (see above).
 
 ## Storage volumes
 
@@ -269,3 +275,37 @@ lxc storage volume create default web --target node2
 lxc storage volume show default web --target node1
 lxc storage volume show default web --target node2
 ```
+
+## Networks
+
+As mentioned above, all nodes must have identical networks defined. The only
+difference between networks on different nodes might be their
+`bridge.external_interfaces` optional configuration key (see also documentation
+about [network configuration](networks.md)).
+
+To create a new network, you first have to define it across all
+nodes, for example:
+
+```bash
+lxc network create --target node1 my-network
+lxc network create --target node2 my-network
+```
+
+Note that when defining a new network on a node the only valid configuration
+key you can pass is `bridge.external_interfaces`, as mentioned above.
+
+At this point the network hasn't been actually created yet, but just
+defined (it's state is marked as Pending if you run `lxc network list`).
+
+Now run:
+
+```bash
+lxc network create my-network
+```
+
+and the network will be instantiated on all nodes. If you didn't
+define it on a particular node, or a node is down, an error will be
+returned.
+
+You can pass to this final ``network create`` command any configuration key
+which is not node-specific (see above).

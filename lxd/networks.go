@@ -115,7 +115,8 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		// value for the storage config is 'bridge.external_interfaces'.
 		for key := range req.Config {
 			if !shared.StringInSlice(key, db.NetworkNodeConfigKeys) {
-				return SmartError(fmt.Errorf("Invalid config key '%s'", key))
+				return SmartError(
+					fmt.Errorf("Config key '%s' may not be used as node-specific key", key))
 			}
 		}
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
