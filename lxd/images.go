@@ -607,6 +607,22 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return InternalError(fmt.Errorf("Invalid images JSON"))
 	}
 
+	/* Forward requests for containers on other nodes */
+	if !imageUpload && shared.StringInSlice(req.Source.Type, []string{"container", "snapshot"}) {
+		name := req.Source.Name
+		if name != "" {
+			post.Seek(0, 0)
+			r.Body = post
+			response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+			if err != nil {
+				return SmartError(err)
+			}
+			if response != nil {
+				return response
+			}
+		}
+	}
+
 	// Begin background operation
 	run := func(op *operation) error {
 		var err error
