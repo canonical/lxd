@@ -136,8 +136,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 	// storage config are the ones in StoragePoolNodeConfigKeys.
 	for key := range req.Config {
 		if !shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-			return SmartError(
-				fmt.Errorf("Config key '%s' may not be used as node-specific key", key))
+			return SmartError(fmt.Errorf("Config key '%s' may not be used as node-specific key", key))
 		}
 	}
 
@@ -151,8 +150,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 	})
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
-			return BadRequest(
-				fmt.Errorf("The storage pool already defined on node %s", targetNode))
+			return BadRequest(fmt.Errorf("The storage pool already defined on node %s", targetNode))
 		}
 		return SmartError(err)
 	}
