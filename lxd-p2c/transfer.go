@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
+	"github.com/hashicorp/go-version"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 )
@@ -72,7 +75,19 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 		"--numeric-ids",
 		"--partial",
 		"--sparse",
-		"--ignore-missing-args",
+	}
+
+	// extract rsync version
+	result, _ := exec.Command("rsync", "--version").Output()
+	re, _ := regexp.Compile(`.* ([0-9]+[.][0-9]+[.][0-9]+) .*`)
+	extractVersion := re.FindStringSubmatch(string(result))
+	rsyncVers, err := version.NewVersion(extractVersion[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	constraints, _ := version.NewConstraint(">= 3.1.0")
+	if constraints.Check(rsyncVers) {
+		args = append(args, []string{"--ignore-missing-args"}...)
 	}
 
 	if rsyncArgs != "" {
