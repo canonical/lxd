@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Send an rsync stream of a path over a websocket
@@ -72,7 +73,31 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 		"--numeric-ids",
 		"--partial",
 		"--sparse",
-		"--ignore-missing-args",
+	}
+
+	// Ignore deletions (requires 3.1 or higher)
+	rsyncCheckVersion := func(min string) bool {
+		out, err := shared.RunCommand("rsync", "--version")
+		if err != nil {
+			return false
+		}
+
+		fields := strings.Split(out, " ")
+		curVer, err := version.Parse(fields[3])
+		if err != nil {
+			return false
+		}
+
+		minVer, err := version.Parse(min)
+		if err != nil {
+			return false
+		}
+
+		return curVer.Compare(minVer) >= 0
+	}
+
+	if rsyncCheckVersion("3.1.0") {
+		args = append(args, "--ignore-missing-args")
 	}
 
 	if rsyncArgs != "" {
