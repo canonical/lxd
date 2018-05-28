@@ -6179,7 +6179,11 @@ func (c *containerLXC) createUnixDevice(prefix string, m types.Device, defaultMo
 	} else if !defaultMode {
 		mode, err = shared.GetPathMode(srcPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to retrieve mode of device %s: %s", m["path"], err)
+			errno, isErrno := shared.GetErrno(err)
+			if !isErrno || errno != syscall.ENOENT {
+				return nil, fmt.Errorf("Failed to retrieve mode of device %s: %s", m["path"], err)
+			}
+			mode = os.FileMode(0660)
 		}
 	}
 
