@@ -464,7 +464,20 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 
 func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) {
 	// Create the container struct
-	c := &containerLXC{
+	c := containerLXCInstantiate(s, args)
+
+	// Load the config.
+	err := c.init()
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// Create a container struct without initializing it.
+func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLXC {
+	return &containerLXC{
 		state:        s,
 		id:           args.ID,
 		name:         args.Name,
@@ -480,14 +493,6 @@ func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) 
 		stateful:     args.Stateful,
 		node:         args.Node,
 	}
-
-	// Load the config.
-	err := c.init()
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
 }
 
 // The LXC container driver
@@ -1696,16 +1701,30 @@ func (c *containerLXC) initStorage() error {
 
 // Config handling
 func (c *containerLXC) expandConfig() error {
-	config := map[string]string{}
+	// Fetch profile configs
+	profileConfigs := make([]map[string]string, len(c.profiles))
 
 	// Apply all the profiles
-	for _, name := range c.profiles {
+	for i, name := range c.profiles {
 		profileConfig, err := c.state.Cluster.ProfileConfig(name)
 		if err != nil {
 			return err
 		}
+		profileConfigs[i] = profileConfig
+	}
 
-		for k, v := range profileConfig {
+	c.expandConfigFromProfiles(profileConfigs)
+
+	return nil
+}
+
+// Expand the container config using the given profile configs.
+func (c *containerLXC) expandConfigFromProfiles(profileConfigs []map[string]string) {
+	config := map[string]string{}
+
+	// Apply all the profiles
+	for i := range profileConfigs {
+		for k, v := range profileConfigs[i] {
 			config[k] = v
 		}
 	}
@@ -1716,20 +1735,31 @@ func (c *containerLXC) expandConfig() error {
 	}
 
 	c.expandedConfig = config
-	return nil
 }
 
 func (c *containerLXC) expandDevices() error {
-	devices := types.Devices{}
-
-	// Apply all the profiles
+	// Fetch profile devices
+	profileDevices := make([]types.Devices, len(c.profiles))
 	for _, p := range c.profiles {
-		profileDevices, err := c.state.Cluster.Devices(p, true)
+		devices, err := c.state.Cluster.Devices(p, true)
 		if err != nil {
 			return err
 		}
+		profileDevices = append(profileDevices, devices)
+	}
 
-		for k, v := range profileDevices {
+	c.expandDevicesFromProfiles(profileDevices)
+
+	return nil
+}
+
+// Expand the container config using the given profile devices.
+func (c *containerLXC) expandDevicesFromProfiles(profileDevices []types.Devices) {
+	devices := types.Devices{}
+
+	// Apply all the profiles
+	for i := range profileDevices {
+		for k, v := range profileDevices[i] {
 			devices[k] = v
 		}
 	}
@@ -1740,7 +1770,6 @@ func (c *containerLXC) expandDevices() error {
 	}
 
 	c.expandedDevices = devices
-	return nil
 }
 
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
