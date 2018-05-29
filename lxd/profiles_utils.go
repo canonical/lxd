@@ -6,8 +6,10 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/pkg/errors"
 )
 
 func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
@@ -22,7 +24,10 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		return err
 	}
 
-	containers := getContainersWithProfile(d.State(), name)
+	containers, err := getProfileContainersInfo(d.cluster, name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to query containers associated with profile '%s'", name)
+	}
 
 	// Check if the root device is supposed to be changed or removed.
 	oldProfileRootDiskDeviceKey, oldProfileRootDiskDevice, _ := shared.GetRootDiskDevice(profile.Devices)
@@ -31,14 +36,13 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		// Check for containers using the device
 		for _, container := range containers {
 			// Check if the device is locally overridden
-			localDevices := container.LocalDevices()
-			k, v, _ := shared.GetRootDiskDevice(localDevices)
+			k, v, _ := shared.GetRootDiskDevice(container.Devices)
 			if k != "" && v["pool"] != "" {
 				continue
 			}
 
 			// Check what profile the device comes from
-			profiles := container.Profiles()
+			profiles := container.Profiles
 			for i := len(profiles) - 1; i >= 0; i-- {
 				_, profile, err := d.cluster.ProfileGet(profiles[i])
 				if err != nil {
@@ -114,20 +118,22 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 		return err
 	}
 
-	// Update all the containers using the profile. Must be done after db.TxCommit due to DB lock.
+	// Update all the containers on this node using the profile. Must be
+	// done after db.TxCommit due to DB lock.
+	nodeName := ""
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		nodeName, err = tx.NodeName()
+		return err
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to query local node name")
+	}
 	failures := map[string]error{}
-	for _, c := range containers {
-		err = c.Update(db.ContainerArgs{
-			Architecture: c.Architecture(),
-			Ephemeral:    c.IsEphemeral(),
-			Config:       c.LocalConfig(),
-			Devices:      c.LocalDevices(),
-			Profiles:     c.Profiles(),
-			Description:  c.Description(),
-		}, true)
-
+	for _, args := range containers {
+		err := doProfileUpdateContainer(d, name, profile.ProfilePut, nodeName, args)
 		if err != nil {
-			failures[c.Name()] = err
+			failures[args.Name] = err
 		}
 	}
 
@@ -140,4 +146,113 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 	}
 
 	return nil
+}
+
+// Like doProfileUpdate but does not update the database, since it was already
+// updated by doProfileUpdate itself, called on the notifying node.
+func doProfileUpdateCluster(d *Daemon, name string, old api.ProfilePut) error {
+	nodeName := ""
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		nodeName, err = tx.NodeName()
+		return err
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to query local node name")
+	}
+
+	containers, err := getProfileContainersInfo(d.cluster, name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to query containers associated with profile '%s'", name)
+	}
+
+	failures := map[string]error{}
+	for _, args := range containers {
+		err := doProfileUpdateContainer(d, name, old, nodeName, args)
+		if err != nil {
+			failures[args.Name] = err
+		}
+	}
+
+	if len(failures) != 0 {
+		msg := "The following containers failed to update (profile change still saved):\n"
+		for cname, err := range failures {
+			msg += fmt.Sprintf(" - %s: %s\n", cname, err)
+		}
+		return fmt.Errorf("%s", msg)
+	}
+
+	return nil
+}
+
+// Profile update of a single container.
+func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeName string, args db.ContainerArgs) error {
+	if args.Node != "" && args.Node != nodeName {
+		// No-op, this container does not belong to this node.
+		return nil
+	}
+
+	profileConfigs := make([]map[string]string, len(args.Profiles))
+	for i, profileName := range args.Profiles {
+		if profileName == name {
+			// Use the old config.
+			profileConfigs[i] = old.Config
+			continue
+		}
+		// Use the config currently in the database.
+		profileConfig, err := d.cluster.ProfileConfig(profileName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to load profile config for '%s'", profileName)
+		}
+		profileConfigs[i] = profileConfig
+	}
+
+	profileDevices := make([]types.Devices, len(args.Profiles))
+	for i, profileName := range args.Profiles {
+		if profileName == name {
+			// Use the old devices
+			profileDevices[i] = old.Devices
+			continue
+		}
+		// Use the config currently in the database.
+		devices, err := d.cluster.Devices(profileName, true)
+		if err != nil {
+			return errors.Wrapf(err, "failed to load profile devices for '%s'", profileName)
+		}
+		profileDevices[i] = devices
+	}
+
+	c := containerLXCInstantiate(d.State(), args)
+	c.expandConfigFromProfiles(profileConfigs)
+	c.expandDevicesFromProfiles(profileDevices)
+
+	return c.Update(db.ContainerArgs{
+		Architecture: c.Architecture(),
+		Ephemeral:    c.IsEphemeral(),
+		Config:       c.LocalConfig(),
+		Devices:      c.LocalDevices(),
+		Profiles:     c.Profiles(),
+		Description:  c.Description(),
+	}, true)
+}
+
+// Query the db for information about containers associated with the given
+// profile.
+func getProfileContainersInfo(cluster *db.Cluster, profile string) ([]db.ContainerArgs, error) {
+	// Query the db for information about containers associated with the
+	// given profile.
+	names, err := cluster.ProfileContainersGet(profile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to query containers with profile '%s'", profile)
+	}
+	containers := make([]db.ContainerArgs, len(names))
+	for i, name := range names {
+		container, err := cluster.ContainerGet(name)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to query container '%s'", name)
+		}
+		containers[i] = container
+	}
+
+	return containers, nil
 }

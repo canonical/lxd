@@ -797,3 +797,71 @@ test_clustering_publish() {
   kill_lxd "${LXD_TWO_DIR}"
 }
 
+test_clustering_profiles() {
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/server.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Create an empty profile.
+  LXD_DIR="${LXD_TWO_DIR}" lxc profile create web
+
+  # Launch two containers on the two nodes, using the above profile.
+  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 -p default -p web testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 -p default -p web testimage c2
+
+  # Edit the profile.
+  source=$(mktemp -d -p "${TEST_DIR}" XXX)
+  touch "${source}/hello"
+  chmod 755 "${source}"
+  chmod 644 "${source}/hello"
+  (
+    cat <<EOF
+config: {}
+description: ""
+devices:
+  web:
+    path: /mnt
+    source: "${source}"
+    type: disk
+name: web
+used_by:
+- /1.0/containers/c1
+- /1.0/containers/c2
+EOF
+  ) | LXD_DIR="${LXD_TWO_DIR}" lxc profile edit web
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c1 ls /mnt | grep -q hello
+  LXD_DIR="${LXD_TWO_DIR}" lxc exec c2 ls /mnt | grep -q hello
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc stop c1 --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc stop c2 --force
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 2
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
