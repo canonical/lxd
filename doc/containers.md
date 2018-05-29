@@ -421,7 +421,10 @@ addresses to an address inside the container or to do the reverse and
 have an address in the container connect through the host.
 
 The supported connection types are:
- - `TCP - TCP`
+* `TCP <-> TCP`
+* `UNIX <-> UNIX`
+* `TCP <-> UNIX`
+* `UNIX <-> TCP`
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--

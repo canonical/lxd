@@ -106,6 +106,7 @@ var APIExtensions = []string{
 	"container_backup",
 	"devlxd_images",
 	"container_local_cross_pool_handling",
+	"proxy_unix",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
