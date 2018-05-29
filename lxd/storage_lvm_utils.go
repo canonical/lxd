@@ -136,7 +136,7 @@ func (s *storageLvm) getLvmThinpoolName() string {
 		return s.pool.Config["lvm.thinpool_name"]
 	}
 
-	return "LXDThinpool"
+	return "LXDThinPool"
 }
 
 func (s *storageLvm) usesThinpool() bool {

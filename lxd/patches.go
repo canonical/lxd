@@ -878,7 +878,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 	poolConfig["lvm.thinpool_name"] = daemonConfig["storage.lvm_thinpool_name"]
 	if poolConfig["lvm.thinpool_name"] == "" {
 		// If empty we need to set it to the old default.
-		poolConfig["lvm.thinpool_name"] = "LXDPool"
+		poolConfig["lvm.thinpool_name"] = "LXDThinPool"
 	}
 
 	poolConfig["lvm.vg_name"] = daemonConfig["storage.lvm_vg_name"]
