@@ -16,7 +16,7 @@ ceph.osd.pg\_num                | string    | ceph driver                       
 ceph.osd.pool\_name             | string    | ceph driver                       | name of the pool           | storage\_driver\_ceph              | Name of the osd storage pool.
 ceph.rbd.clone\_copy            | string    | ceph driver                       | true                       | storage\_driver\_ceph              | Whether to use RBD lightweight clones rather than full dataset copies.
 ceph.user.name                  | string    | ceph driver                       | admin                      | storage\_ceph\_user\_name          | The ceph user to use when creating storage pools and volumes.
-lvm.thinpool\_name              | string    | lvm driver                        | LXDPool                    | storage                            | Thin pool where images and containers are created.
+lvm.thinpool\_name              | string    | lvm driver                        | LXDThinPool                | storage                            | Thin pool where images and containers are created.
 lvm.use\_thinpool               | bool      | lvm driver                        | true                       | storage\_lvm\_use\_thinpool        | Whether the storage pool uses a thinpool for logical volumes.
 lvm.vg\_name                    | string    | lvm driver                        | name of the pool           | storage                            | Name of the volume group to create.
 rsync.bwlimit                   | string    | -                                 | 0 (no limit)               | storage\_rsync\_bwlimit            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
