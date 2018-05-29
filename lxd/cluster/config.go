@@ -221,7 +221,7 @@ var ConfigSchema = config.Schema{
 	// Keys deprecated since the implementation of the storage api.
 	"storage.lvm_fstype":           {Setter: deprecatedStorage, Default: "ext4"},
 	"storage.lvm_mount_options":    {Setter: deprecatedStorage, Default: "discard"},
-	"storage.lvm_thinpool_name":    {Setter: deprecatedStorage, Default: "LXDPool"},
+	"storage.lvm_thinpool_name":    {Setter: deprecatedStorage, Default: "LXDThinPool"},
 	"storage.lvm_vg_name":          {Setter: deprecatedStorage},
 	"storage.lvm_volume_size":      {Setter: deprecatedStorage, Default: "10GiB"},
 	"storage.zfs_pool_name":        {Setter: deprecatedStorage},
