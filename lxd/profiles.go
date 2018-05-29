@@ -10,6 +10,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -158,6 +160,21 @@ func getContainersWithProfile(s *state.State, profile string) []container {
 func profilePut(d *Daemon, r *http.Request) Response {
 	// Get the profile
 	name := mux.Vars(r)["name"]
+
+	if isClusterNotification(r) {
+		// In this case the ProfilePut request payload contains
+		// information about the old profile, since the new one has
+		// already been saved in the database.
+		old := api.ProfilePut{}
+		err := json.NewDecoder(r.Body).Decode(&old)
+		if err != nil {
+			return BadRequest(err)
+		}
+		err = doProfileUpdateCluster(d, name, old)
+		return SmartError(err)
+
+	}
+
 	id, profile, err := d.cluster.ProfileGet(name)
 	if err != nil {
 		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
@@ -175,7 +192,23 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	return SmartError(doProfileUpdate(d, name, id, profile, req))
+	err = doProfileUpdate(d, name, id, profile, req)
+
+	if err == nil && !isClusterNotification(r) {
+		// Notify all other nodes. If a node is down, it will be ignored.
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		if err != nil {
+			return SmartError(err)
+		}
+		err = notifier(func(client lxd.ContainerServer) error {
+			return client.UpdateProfile(name, profile.ProfilePut, "")
+		})
+		if err != nil {
+			return SmartError(err)
+		}
+	}
+
+	return SmartError(err)
 }
 
 func profilePatch(d *Daemon, r *http.Request) Response {
