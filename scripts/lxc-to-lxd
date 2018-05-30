@@ -601,7 +601,10 @@ if (not args.containers and not args.all) or (args.containers and args.all):
     parser.error("You must either pass container names or --all")
 
 # Connect to LXD
-lxd_socket = os.path.join(args.lxdpath, "unix.socket")
+if 'LXD_SOCKET' in os.environ:
+    lxd_socket = os.environ['LXD_SOCKET']
+else:
+    lxd_socket = os.path.join(args.lxdpath, "unix.socket")
 
 if not os.path.exists(lxd_socket):
     print("LXD isn't running.")
