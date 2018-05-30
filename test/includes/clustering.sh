@@ -182,7 +182,7 @@ EOF
   config:
     source: lxdtest-$(basename "${TEST_DIR}")
     volume.size: 25GB
-    ceph.osd.pg_num: 8
+    ceph.osd.pg_num: 1
 EOF
     fi
     cat >> "${LXD_DIR}/preseed.yaml" <<EOF
