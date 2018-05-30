@@ -1148,10 +1148,30 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 		defer source.StorageStop()
 	}
 
-	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
-	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
+	sourcePool, err := source.StoragePool()
+	if err != nil {
+		return err
+	}
+	targetPool, err := target.StoragePool()
+	if err != nil {
+		return err
+	}
+	srcState := s.s
 	if sourcePool != targetPool {
-		return fmt.Errorf("copying containers between different storage pools is not implemented")
+		// setup storage for the source volume
+		srcStorage, err := storagePoolVolumeInit(s.s, sourcePool, source.Name(), storagePoolVolumeTypeContainer)
+		if err != nil {
+			return err
+		}
+
+		ourMount, err := srcStorage.StoragePoolMount()
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer srcStorage.StoragePoolUmount()
+		}
+		srcState = srcStorage.GetState()
 	}
 
 	err = s.copyContainer(target, source)
@@ -1180,7 +1200,7 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 
 		logger.Debugf("Copying LVM container storage for snapshot %s -> %s.", snap.Name(), newSnapName)
 
-		sourceSnapshot, err := containerLoadByName(s.s, snap.Name())
+		sourceSnapshot, err := containerLoadByName(srcState, snap.Name())
 		if err != nil {
 			return err
 		}

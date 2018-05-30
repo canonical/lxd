@@ -261,6 +261,10 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 	targetContainerMntPoint := ""
 	targetContainerPath := snapshotContainer.Path()
 	targetIsSnapshot := snapshotContainer.IsSnapshot()
+	targetPool, err := snapshotContainer.StoragePool()
+	if err != nil {
+		return err
+	}
 	if targetIsSnapshot {
 		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetContainerName)
 		sourceName, _, _ := containerGetParentAndSnapshotName(sourceContainerName)
@@ -268,7 +272,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
-		targetContainerMntPoint = getContainerMountPoint(s.pool.Name, targetContainerName)
+		targetContainerMntPoint = getContainerMountPoint(targetPool, targetContainerName)
 		err = createContainerMountpoint(targetContainerMntPoint, targetContainerPath, snapshotContainer.IsPrivileged())
 	}
 	if err != nil {
@@ -350,16 +354,21 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 }
 
 func (s *storageLvm) copySnapshot(target container, source container) error {
-	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
-	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", targetParentName)
-	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
-	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
 	}
 
-	if s.useThinpool {
+	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
+	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", targetParentName)
+	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
+	err = createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+	if err != nil {
+		return err
+	}
+
+	if s.useThinpool && sourcePool == s.pool.Name {
 		err = s.copyContainerThinpool(target, source, true)
 	} else {
 		err = s.copyContainerLv(target, source, true)
@@ -397,10 +406,15 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 		defer source.StorageStop()
 	}
 
-	sourceContainerMntPoint := getContainerMountPoint(s.pool.Name, sourceName)
-	if source.IsSnapshot() {
-		sourceContainerMntPoint = getSnapshotMountPoint(s.pool.Name, sourceName)
+	sourcePool, err := source.StoragePool()
+	if err != nil {
+		return err
 	}
+	sourceContainerMntPoint := getContainerMountPoint(sourcePool, sourceName)
+	if source.IsSnapshot() {
+		sourceContainerMntPoint = getSnapshotMountPoint(sourcePool, sourceName)
+	}
+
 	targetContainerMntPoint := getContainerMountPoint(s.pool.Name, targetName)
 	if target.IsSnapshot() {
 		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetName)
@@ -435,13 +449,23 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 
 // Copy an lvm container.
 func (s *storageLvm) copyContainer(target container, source container) error {
-	targetContainerMntPoint := getContainerMountPoint(s.pool.Name, target.Name())
-	err := createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
+	targetPool, err := target.StoragePool()
 	if err != nil {
 		return err
 	}
 
-	if s.useThinpool {
+	targetContainerMntPoint := getContainerMountPoint(targetPool, target.Name())
+	err = createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	sourcePool, err := source.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	if s.useThinpool && targetPool == sourcePool {
 		// If the storage pool uses a thinpool we can have snapshots of
 		// snapshots.
 		err = s.copyContainerThinpool(target, source, false)
