@@ -6850,7 +6850,7 @@ func (c *containerLXC) removeProxyDevices() error {
 		devicePath := filepath.Join(c.DevicesPath(), f.Name())
 		err = killProxyProc(devicePath)
 		if err != nil {
-			logger.Error("failed removing proxy device", log.Ctx{"err": err, "path": devicePath})
+			logger.Error("Failed removing proxy device", log.Ctx{"err": err, "path": devicePath})
 		}
 	}
 
