@@ -21,7 +21,7 @@ test_storage_local_volume_handling() {
     fi
 
     if storage_backend_available "ceph"; then
-      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-ceph" ceph volume.size=25MB ceph.osd.pg_num=8
+      lxc storage create "lxdtest-$(basename "${LXD_DIR}")-ceph" ceph volume.size=25MB ceph.osd.pg_num=1
     fi
 
     lxc storage create "lxdtest-$(basename "${LXD_DIR}")-dir" dir
@@ -58,7 +58,7 @@ test_storage_local_volume_handling() {
         fi
 
         if [ "$driver" = "ceph" ]; then
-          pool_opts="volume.size=25MB ceph.osd.pg_num=8"
+          pool_opts="volume.size=25MB ceph.osd.pg_num=1"
         fi
 
         if [ "$driver" = "lvm" ]; then
