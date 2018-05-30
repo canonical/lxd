@@ -24,6 +24,7 @@ type cmdCopy struct {
 	flagContainerOnly bool
 	flagMode          string
 	flagStateless     bool
+	flagStorage       string
 	flagTarget        string
 }
 
@@ -42,6 +43,7 @@ func (c *cmdCopy) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
 	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Copy the container without its snapshots"))
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the container with no profiles applied"))
 
@@ -50,7 +52,7 @@ func (c *cmdCopy) Command() *cobra.Command {
 
 func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	destResource string, keepVolatile bool, ephemeral int, stateful bool,
-	containerOnly bool, mode string) error {
+	containerOnly bool, mode string, pool string) error {
 	// Parse the source
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -151,6 +153,21 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			entry.Ephemeral = false
 		}
 
+		rootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(entry.Devices)
+		if err != nil {
+			return err
+		}
+
+		if rootDiskDeviceKey != "" && pool != "" {
+			entry.Devices[rootDiskDeviceKey]["pool"] = pool
+		} else if pool != "" {
+			entry.Devices["root"] = map[string]string{
+				"type": "disk",
+				"path": "/",
+				"pool": pool,
+			}
+		}
+
 		// Strip the volatile keys if requested
 		if !keepVolatile {
 			for k := range entry.Config {
@@ -203,6 +220,21 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			entry.Ephemeral = true
 		} else if ephemeral == 0 {
 			entry.Ephemeral = false
+		}
+
+		rootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(entry.Devices)
+		if err != nil {
+			return err
+		}
+
+		if rootDiskDeviceKey != "" && pool != "" {
+			entry.Devices[rootDiskDeviceKey]["pool"] = pool
+		} else if pool != "" {
+			entry.Devices["root"] = map[string]string{
+				"type": "disk",
+				"path": "/",
+				"pool": pool,
+			}
 		}
 
 		// Strip the volatile keys if requested
@@ -289,10 +321,10 @@ func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
 		return c.copyContainer(conf, args[0], "", false, ephem,
-			stateful, c.flagContainerOnly, mode)
+			stateful, c.flagContainerOnly, mode, c.flagStorage)
 	}
 
 	// Normal copy with a pre-determined name
 	return c.copyContainer(conf, args[0], args[1], false, ephem,
-		stateful, c.flagContainerOnly, mode)
+		stateful, c.flagContainerOnly, mode, c.flagStorage)
 }
