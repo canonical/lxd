@@ -670,6 +670,16 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 		return nil, err
 	}
 
+	// At this point we have already figured out the parent
+	// container's root disk device so we can simply
+	// retrieve it from the expanded devices.
+	parentStoragePool := ""
+	parentExpandedDevices := ct.ExpandedDevices()
+	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
+	if parentLocalRootDiskDeviceKey != "" {
+		parentStoragePool = parentLocalRootDiskDevice["pool"]
+	}
+
 	csList := []*container{}
 	if !containerOnly {
 		snapshots, err := sourceContainer.Snapshots()
@@ -680,13 +690,32 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 
 		csList = make([]*container, len(snapshots))
 		for i, snap := range snapshots {
+			// Ensure that snapshot and parent container have the
+			// same storage pool in their local root disk device.
+			// If the root disk device for the snapshot comes from a
+			// profile on the new instance as well we don't need to
+			// do anything.
+			snapDevices := snap.LocalDevices()
+			if snapDevices != nil {
+				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(snapDevices)
+				if snapLocalRootDiskDeviceKey != "" {
+					snapDevices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+				} else {
+					snapDevices["root"] = map[string]string{
+						"type": "disk",
+						"path": "/",
+						"pool": parentStoragePool,
+					}
+				}
+			}
+
 			fields := strings.SplitN(snap.Name(), shared.SnapshotDelimiter, 2)
 			newSnapName := fmt.Sprintf("%s/%s", ct.Name(), fields[1])
 			csArgs := db.ContainerArgs{
 				Architecture: snap.Architecture(),
 				Config:       snap.LocalConfig(),
 				Ctype:        db.CTypeSnapshot,
-				Devices:      snap.LocalDevices(),
+				Devices:      snapDevices,
 				Ephemeral:    snap.IsEphemeral(),
 				Name:         newSnapName,
 				Profiles:     snap.Profiles(),
