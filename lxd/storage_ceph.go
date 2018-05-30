@@ -1084,6 +1084,98 @@ func (s *storageCeph) ContainerDelete(container container) error {
 	return nil
 }
 
+// This function recreates an rbd container including its snapshots. It
+// recreates the dependencies between the container and the snapshots:
+// - create an empty rbd storage volume
+// - for each snapshot dump the contents into the empty storage volume and
+//   after each dump take a snapshot of the rbd storage volume
+// - dump the container contents into the rbd storage volume.
+func (s *storageCeph) doCrossPoolContainerCopy(target container, source container, containerOnly bool) error {
+	sourcePool, err := source.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	// setup storage for the source volume
+	srcStorage, err := storagePoolVolumeInit(s.s, sourcePool, source.Name(), storagePoolVolumeTypeContainer)
+	if err != nil {
+		return err
+	}
+
+	ourMount, err := srcStorage.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer srcStorage.StoragePoolUmount()
+	}
+
+	targetPool, err := target.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	snapshots, err := source.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	// create the main container
+	err = s.doContainerCreate(target.Name(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	// mount container
+	_, err = s.doContainerMount(target.Name())
+	if err != nil {
+		return err
+	}
+
+	destContainerMntPoint := getContainerMountPoint(targetPool, target.Name())
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	// Extract container
+	if !containerOnly {
+		for _, snap := range snapshots {
+			srcSnapshotMntPoint := getSnapshotMountPoint(sourcePool, snap.Name())
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit)
+			if err != nil {
+				return err
+			}
+
+			// This is costly but we need to ensure that all cached data has
+			// been committed to disk. If we don't then the rbd snapshot of
+			// the underlying filesystem can be inconsistent or - worst case
+			// - empty.
+			syscall.Sync()
+
+			msg, fsFreezeErr := shared.TryRunCommand("fsfreeze", "--freeze", destContainerMntPoint)
+			logger.Debugf("Trying to freeze the filesystem: %s: %s", msg, fsFreezeErr)
+
+			// create snapshot
+			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+			err = s.doContainerSnapshotCreate(fmt.Sprintf("%s/%s", target.Name(), snapOnlyName), target.Name())
+			if fsFreezeErr == nil {
+				msg, fsFreezeErr := shared.TryRunCommand("fsfreeze", "--unfreeze", destContainerMntPoint)
+				logger.Debugf("Trying to unfreeze the filesystem: %s: %s", msg, fsFreezeErr)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	srcContainerMntPoint := getContainerMountPoint(sourcePool, source.Name())
+	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit)
+	if err != nil {
+		s.StoragePoolVolumeDelete()
+		logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	return nil
+}
+
 func (s *storageCeph) ContainerCopy(target container, source container,
 	containerOnly bool) error {
 	sourceContainerName := source.Name()
@@ -1107,8 +1199,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return fmt.Errorf(`Copying containers between different ` +
-			`storage pools is not implemented`)
+		return s.doCrossPoolContainerCopy(target, source, containerOnly)
 	}
 
 	snapshots, err := source.Snapshots()
