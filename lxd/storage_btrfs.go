@@ -974,6 +974,72 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 	return nil
 }
 
+func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source container, containerOnly bool) error {
+	sourcePool, err := source.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	// setup storage for the source volume
+	srcStorage, err := storagePoolVolumeInit(s.s, sourcePool, source.Name(), storagePoolVolumeTypeContainer)
+	if err != nil {
+		return err
+	}
+
+	ourMount, err := srcStorage.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer srcStorage.StoragePoolUmount()
+	}
+
+	targetPool, err := target.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	snapshots, err := source.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	// create the main container
+	err = s.doContainerCreate(target.Name(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	destContainerMntPoint := getContainerMountPoint(targetPool, target.Name())
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	if !containerOnly {
+		for _, snap := range snapshots {
+			srcSnapshotMntPoint := getSnapshotMountPoint(sourcePool, snap.Name())
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit)
+			if err != nil {
+				logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+				return err
+			}
+
+			// create snapshot
+			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+			err = s.doContainerSnapshotCreate(fmt.Sprintf("%s/%s", target.Name(), snapOnlyName), target.Name())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	srcContainerMntPoint := getContainerMountPoint(sourcePool, source.Name())
+	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit)
+	if err != nil {
+		logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	return nil
+}
+
 func (s *storageBtrfs) ContainerCopy(target container, source container, containerOnly bool) error {
 	logger.Debugf("Copying BTRFS container storage %s -> %s.", source.Name(), target.Name())
 
@@ -994,7 +1060,7 @@ func (s *storageBtrfs) ContainerCopy(target container, source container, contain
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return fmt.Errorf("copying containers between different storage pools is not implemented")
+		return s.doCrossPoolContainerCopy(target, source, containerOnly)
 	}
 
 	err = s.copyContainer(target, source)
