@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -313,18 +312,6 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 				logger.Errorf("Failed writing error for error, giving up")
 			}
 		}
-
-		/*
-		 * When we create a new lxc.Container, it adds a finalizer (via
-		 * SetFinalizer) that frees the struct. However, it sometimes
-		 * takes the go GC a while to actually free the struct,
-		 * presumably since it is a small amount of memory.
-		 * Unfortunately, the struct also keeps the log fd open, so if
-		 * we leave too many of these around, we end up running out of
-		 * fds. So, let's explicitly do a GC to collect these at the
-		 * end of each request.
-		 */
-		runtime.GC()
 	})
 }
 
