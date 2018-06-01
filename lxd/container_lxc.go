@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -466,6 +467,9 @@ func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) 
 	// Create the container struct
 	c := containerLXCInstantiate(s, args)
 
+	// Setup finalizer
+	runtime.SetFinalizer(c, containerLXCUnload)
+
 	// Load the config.
 	err := c.init()
 	if err != nil {
@@ -473,6 +477,15 @@ func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) 
 	}
 
 	return c, nil
+}
+
+// Unload is called by the garbage collector
+func containerLXCUnload(c *containerLXC) {
+	runtime.SetFinalizer(c, nil)
+	if c.c != nil {
+		lxc.Release(c.c)
+		c.c = nil
+	}
 }
 
 // Create a container struct without initializing it.
@@ -7166,6 +7179,8 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		// Attempt to include all existing interfaces
 		cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
 		if err == nil {
+			defer lxc.Release(cc)
+
 			interfaces, err := cc.Interfaces()
 			if err == nil {
 				for _, name := range interfaces {
@@ -7423,6 +7438,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	if err != nil {
 		return err
 	}
+	defer lxc.Release(cc)
 
 	// Remove the interface from the container
 	err = cc.DetachInterfaceRename(m["name"], hostName)
