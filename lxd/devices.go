@@ -101,6 +101,74 @@ type cardIds struct {
 	pci string
 }
 
+// Fallback for old drivers which don't provide "Device Minor:"
+func findNvidiaMinorOld() (string, error) {
+	var minor string
+
+	// For now, just handle most common case (single nvidia card)
+	ents, err := ioutil.ReadDir("/dev")
+	if err != nil {
+		return "", err
+	}
+
+	rp := regexp.MustCompile("^nvidia([0-9]+)$")
+	for _, ent := range ents {
+		matches := rp.FindStringSubmatch(ent.Name())
+		if matches == nil {
+			continue
+		}
+
+		if minor != "" {
+			return "", fmt.Errorf("No device minor index detected, and more than one NVIDIA card present")
+		}
+		minor = matches[1]
+	}
+
+	if minor == "" {
+		return "", fmt.Errorf("No device minor index detected, and no NVIDIA card present")
+	}
+
+	return minor, nil
+}
+
+// Return string for minor number of nvidia device corresponding to the given pci id
+func findNvidiaMinor(pci string) (string, error) {
+	nvidiaPath := fmt.Sprintf("/proc/driver/nvidia/gpus/%s/information", pci)
+	buf, err := ioutil.ReadFile(nvidiaPath)
+	if err != nil {
+		return "", err
+	}
+
+	strBuf := strings.TrimSpace(string(buf))
+	idx := strings.Index(strBuf, "Device Minor:")
+	if idx != -1 {
+		idx += len("Device Minor:")
+		strBuf = strBuf[idx:]
+		strBuf = strings.TrimSpace(strBuf)
+		idx = strings.Index(strBuf, " ")
+
+		if idx == -1 {
+			idx = strings.Index(strBuf, "\t")
+		}
+
+		if idx >= 1 {
+			minor := strBuf[:idx]
+
+			_, err = strconv.Atoi(minor)
+			if err == nil {
+				return minor, nil
+			}
+		}
+	}
+
+	minor, err := findNvidiaMinorOld()
+	if err == nil {
+		return minor, nil
+	}
+
+	return "", err
+}
+
 func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 	const DRI_PATH = "/sys/bus/pci/devices"
 	var gpus []gpuDevice
@@ -200,41 +268,15 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 					isNvidia = true
 				}
 
-				nvidiaPath := fmt.Sprintf("/proc/driver/nvidia/gpus/%s/information", tmpGpu.pci)
-				buf, err := ioutil.ReadFile(nvidiaPath)
+				minor, err := findNvidiaMinor(tmpGpu.pci)
 				if err != nil {
 					if os.IsNotExist(err) {
 						continue
 					}
-
-					return nil, nil, err
-				}
-				strBuf := strings.TrimSpace(string(buf))
-				idx := strings.Index(strBuf, "Device Minor:")
-				if idx == -1 {
-					return nil, nil, fmt.Errorf("No device minor index detected")
-				}
-				idx += len("Device Minor:")
-				strBuf = strBuf[idx:]
-				strBuf = strings.TrimSpace(strBuf)
-				idx = strings.Index(strBuf, " ")
-				if idx == -1 {
-					idx = strings.Index(strBuf, "\t")
-				}
-				if idx >= 1 {
-					strBuf = strBuf[:idx]
-				}
-
-				if strBuf == "" {
-					return nil, nil, fmt.Errorf("No device minor index detected")
-				}
-
-				_, err = strconv.Atoi(strBuf)
-				if err != nil {
 					return nil, nil, err
 				}
 
-				nvidiaPath = "/dev/nvidia" + strBuf
+				nvidiaPath := "/dev/nvidia" + minor
 				stat := syscall.Stat_t{}
 				err = syscall.Stat(nvidiaPath, &stat)
 				if err != nil {
