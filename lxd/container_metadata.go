@@ -30,6 +30,7 @@ func containerMetadataGet(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
+	// Load the container
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
@@ -45,19 +46,25 @@ func containerMetadataGet(d *Daemon, r *http.Request) Response {
 		defer c.StorageStop()
 	}
 
+	// Read the metadata
 	metadataFile, err := os.Open(metadataPath)
 	if err != nil {
 		return InternalError(err)
 	}
+	defer metadataFile.Close()
+
 	data, err := ioutil.ReadAll(metadataFile)
 	if err != nil {
 		return InternalError(err)
 	}
+
+	// Parse into the API struct
 	metadata := api.ImageMetadata{}
 	err = yaml.Unmarshal(data, &metadata)
 	if err != nil {
 		return SmartError(err)
 	}
+
 	return SyncResponse(true, metadata)
 }
 
@@ -73,6 +80,7 @@ func containerMetadataPut(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
+	// Load the container
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
@@ -88,15 +96,18 @@ func containerMetadataPut(d *Daemon, r *http.Request) Response {
 		defer c.StorageStop()
 	}
 
+	// Read the new metadata
 	metadata := api.ImageMetadata{}
 	if err := json.NewDecoder(r.Body).Decode(&metadata); err != nil {
 		return BadRequest(err)
 	}
 
+	// Write as YAML
 	data, err := yaml.Marshal(metadata)
 	if err != nil {
 		return BadRequest(err)
 	}
+
 	if err := ioutil.WriteFile(metadataPath, data, 0644); err != nil {
 		InternalError(err)
 	}
@@ -117,10 +128,12 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
+	// Load the container
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
 	}
+
 	// Start the storage if needed
 	ourStart, err := c.StorageStart()
 	if err != nil {
@@ -130,6 +143,7 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 		defer c.StorageStop()
 	}
 
+	// Look at the request
 	templateName := r.FormValue("path")
 	if templateName == "" {
 		// List templates
@@ -145,14 +159,16 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 				templates = append(templates, info.Name())
 			}
 		}
+
 		return SyncResponse(true, templates)
 	}
 
-	// Return the content of the template
+	// Check if the template exists
 	templatePath, err := getContainerTemplatePath(c, templateName)
 	if err != nil {
 		return SmartError(err)
 	}
+
 	if !shared.PathExists(templatePath) {
 		return NotFound
 	}
@@ -164,11 +180,13 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 	defer template.Close()
+
 	tempfile, err := ioutil.TempFile("", "lxd_template")
 	if err != nil {
 		return SmartError(err)
 	}
 	defer tempfile.Close()
+
 	_, err = io.Copy(tempfile, template)
 	if err != nil {
 		return InternalError(err)
@@ -194,10 +212,12 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
+	// Load the container
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
 	}
+
 	// Start the storage if needed
 	ourStart, err := c.StorageStart()
 	if err != nil {
@@ -207,10 +227,13 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
 		defer c.StorageStop()
 	}
 
+	// Look at the request
 	templateName := r.FormValue("path")
 	if templateName == "" {
 		return BadRequest(fmt.Errorf("missing path argument"))
 	}
+
+	// Check if the template already exists
 	templatePath, err := getContainerTemplatePath(c, templateName)
 	if err != nil {
 		return SmartError(err)
@@ -220,6 +243,7 @@ func containerMetadataTemplatesPostPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Template already exists"))
 	}
 
+	// Write the new template
 	template, err := os.OpenFile(templatePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return SmartError(err)
@@ -247,10 +271,12 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
+	// Load the container
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
 		return SmartError(err)
 	}
+
 	// Start the storage if needed
 	ourStart, err := c.StorageStart()
 	if err != nil {
@@ -260,22 +286,27 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 		defer c.StorageStop()
 	}
 
+	// Look at the request
 	templateName := r.FormValue("path")
 	if templateName == "" {
 		return BadRequest(fmt.Errorf("missing path argument"))
 	}
+
 	templatePath, err := getContainerTemplatePath(c, templateName)
 	if err != nil {
 		return SmartError(err)
 	}
+
 	if !shared.PathExists(templatePath) {
 		return NotFound
 	}
 
+	// Delete the template
 	err = os.Remove(templatePath)
 	if err != nil {
 		return InternalError(err)
 	}
+
 	return EmptySyncResponse
 }
 
@@ -284,5 +315,6 @@ func getContainerTemplatePath(c container, filename string) (string, error) {
 	if strings.Contains(filename, "/") {
 		return "", fmt.Errorf("Invalid template filename")
 	}
+
 	return filepath.Join(c.Path(), "templates", filename), nil
 }
