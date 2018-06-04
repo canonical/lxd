@@ -155,23 +155,29 @@ void forkdomount(pid_t pid) {
 }
 
 void forkdoumount(pid_t pid) {
+	int ret;
 	char *path = NULL;
 
-	if (dosetns(pid, "mnt") < 0) {
-		fprintf(stderr, "Failed setns to container mount namespace: %s\n", strerror(errno));
+	ret = dosetns(pid, "mnt");
+	if (ret < 0) {
+		fprintf(stderr, "Failed to setns to container mount namespace: %s\n", strerror(errno));
 		_exit(1);
 	}
 
 	path = advance_arg(true);
-	if (access(path, F_OK) < 0) {
-		fprintf(stderr, "Mount path doesn't exist: %s\n", strerror(errno));
-		_exit(1);
-	}
 
-	if (umount2(path, MNT_DETACH) < 0) {
+	ret = umount2(path, MNT_DETACH);
+	if (ret < 0) {
+		// - ENOENT: The user must have unmounted and removed the path.
+		// - EINVAL: The user must have unmounted. Other explanations
+		//           for EINVAL do not apply.
+		if (errno == ENOENT || errno == EINVAL)
+			_exit(0);
+
 		fprintf(stderr, "Error unmounting %s: %s\n", path, strerror(errno));
 		_exit(1);
 	}
+
 	_exit(0);
 }
 
