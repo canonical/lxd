@@ -607,11 +607,13 @@ func (s *storageDir) ContainerDelete(container container) error {
 }
 
 func (s *storageDir) copyContainer(target container, source container) error {
-	sourceContainerMntPoint := getContainerMountPoint(s.pool.Name, source.Name())
+	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
+	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
+	sourceContainerMntPoint := getContainerMountPoint(sourcePool, source.Name())
 	if source.IsSnapshot() {
-		sourceContainerMntPoint = getSnapshotMountPoint(s.pool.Name, source.Name())
+		sourceContainerMntPoint = getSnapshotMountPoint(sourcePool, source.Name())
 	}
-	targetContainerMntPoint := getContainerMountPoint(s.pool.Name, target.Name())
+	targetContainerMntPoint := getContainerMountPoint(targetPool, target.Name())
 
 	err := createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
@@ -637,15 +639,15 @@ func (s *storageDir) copyContainer(target container, source container) error {
 	return nil
 }
 
-func (s *storageDir) copySnapshot(target container, source container) error {
+func (s *storageDir) copySnapshot(target container, targetPool string, source container, sourcePool string) error {
 	sourceName := source.Name()
 	targetName := target.Name()
-	sourceContainerMntPoint := getSnapshotMountPoint(s.pool.Name, sourceName)
-	targetContainerMntPoint := getSnapshotMountPoint(s.pool.Name, targetName)
+	sourceContainerMntPoint := getSnapshotMountPoint(sourcePool, sourceName)
+	targetContainerMntPoint := getSnapshotMountPoint(targetPool, targetName)
 
 	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
-	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", targetParentName)
+	containersPath := getSnapshotMountPoint(targetPool, targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", targetPool, "snapshots", targetParentName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
@@ -677,10 +679,31 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 		defer source.StorageStop()
 	}
 
-	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
-	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
+	sourcePool, err := source.StoragePool()
+	if err != nil {
+		return err
+	}
+	targetPool, err := target.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	srcState := s.s
 	if sourcePool != targetPool {
-		return fmt.Errorf("copying containers between different storage pools is not implemented")
+		// setup storage for the source volume
+		srcStorage, err := storagePoolVolumeInit(s.s, sourcePool, source.Name(), storagePoolVolumeTypeContainer)
+		if err != nil {
+			return err
+		}
+
+		ourMount, err := srcStorage.StoragePoolMount()
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer srcStorage.StoragePoolUmount()
+		}
+		srcState = srcStorage.GetState()
 	}
 
 	err = s.copyContainer(target, source)
@@ -704,7 +727,7 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 	}
 
 	for _, snap := range snapshots {
-		sourceSnapshot, err := containerLoadByName(s.s, snap.Name())
+		sourceSnapshot, err := containerLoadByName(srcState, snap.Name())
 		if err != nil {
 			return err
 		}
@@ -716,7 +739,7 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 			return err
 		}
 
-		err = s.copySnapshot(targetSnapshot, sourceSnapshot)
+		err = s.copySnapshot(targetSnapshot, targetPool, sourceSnapshot, sourcePool)
 		if err != nil {
 			return err
 		}

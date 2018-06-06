@@ -1145,6 +1145,78 @@ func (s *storageZfs) copyWithSnapshots(target container, source container, paren
 	return nil
 }
 
+func (s *storageZfs) doCrossPoolContainerCopy(target container, source container, containerOnly bool) error {
+	sourcePool, err := source.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	// setup storage for the source volume
+	srcStorage, err := storagePoolVolumeInit(s.s, sourcePool, source.Name(), storagePoolVolumeTypeContainer)
+	if err != nil {
+		return err
+	}
+
+	ourMount, err := srcStorage.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer srcStorage.StoragePoolUmount()
+	}
+
+	targetPool, err := target.StoragePool()
+	if err != nil {
+		return err
+	}
+
+	snapshots, err := source.Snapshots()
+	if err != nil {
+		return err
+	}
+
+	// create the main container
+	err = s.doContainerCreate(target.Name(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+
+	_, err = s.doContainerMount(target.Name(), target.IsPrivileged())
+	if err != nil {
+		return err
+	}
+	defer s.ContainerUmount(target.Name(), shared.VarPath("containers", target.Name()))
+
+	destContainerMntPoint := getContainerMountPoint(targetPool, target.Name())
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	if !containerOnly {
+		for _, snap := range snapshots {
+			srcSnapshotMntPoint := getSnapshotMountPoint(sourcePool, snap.Name())
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit)
+			if err != nil {
+				logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+				return err
+			}
+
+			// create snapshot
+			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+			err = s.doContainerSnapshotCreate(fmt.Sprintf("%s/%s", target.Name(), snapOnlyName), target.Name())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	srcContainerMntPoint := getContainerMountPoint(sourcePool, source.Name())
+	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit)
+	if err != nil {
+		logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	return nil
+}
+
 func (s *storageZfs) ContainerCopy(target container, source container, containerOnly bool) error {
 	logger.Debugf("Copying ZFS container storage %s -> %s.", source.Name(), target.Name())
 
@@ -1159,7 +1231,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return fmt.Errorf("copying containers between different storage pools is not implemented")
+		return s.doCrossPoolContainerCopy(target, source, containerOnly)
 	}
 
 	snapshots, err := source.Snapshots()
@@ -2194,7 +2266,7 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadS
 }
 
 func (s *storageZfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
-	logger.Debugf("Loading BTRFS storage volume for backup \"%s\" on storage pool \"%s\".", info.Name, s.pool.Name)
+	logger.Debugf("Loading ZFS storage volume for backup \"%s\" on storage pool \"%s\".", info.Name, s.pool.Name)
 
 	if info.HasBinaryFormat {
 		return s.doContainerBackupLoadOptimized(info, data)

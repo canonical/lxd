@@ -482,3 +482,7 @@ Adds a `security.devlxd.images` config option for containers which
 controls the availability of a `/1.0/images/FINGERPRINT/export` API over
 devlxd. This can be used by a container running nested LXD to access raw
 images from the host.
+
+## container\_local\_cross\_pool\_handling
+This enables copying or moving containers between storage pools on the same LXD
+instance.
