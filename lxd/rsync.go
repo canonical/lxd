@@ -104,7 +104,7 @@ func rsyncSendSetup(name string, path string, bwlimit string, execPath string) (
 	}
 
 	cmd := exec.Command("rsync",
-		"-arvP",
+		"-ar",
 		"--devices",
 		"--numeric-ids",
 		"--partial",
