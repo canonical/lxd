@@ -3,6 +3,7 @@ package maas
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/juju/gomaasapi"
 )
@@ -67,7 +68,13 @@ func NewController(url string, key string, machine string) (*Controller, error) 
 		APIKey:  key,
 	})
 	if err != nil {
-		return nil, err
+		// Juju errors aren't user-friendly, try to extract what actually happened
+		if !strings.Contains(err.Error(), "unsupported version") {
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("Unable to connect MAAS at '%s': %v", baseURL,
+			strings.Split(strings.Split(err.Error(), "unsupported version: ")[1], " (")[0])
 	}
 
 	srvRaw, err := gomaasapi.NewAuthenticatedClient(baseURL, key)
