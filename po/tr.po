@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-06-07 15:27-0400\n"
+"POT-Creation-Date: 2018-06-08 13:11-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -350,7 +350,7 @@ msgstr ""
 msgid "Cached: %s"
 msgstr ""
 
-#: lxc/move.go:109
+#: lxc/move.go:104
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
@@ -2343,6 +2343,10 @@ msgstr ""
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
+#: lxc/copy.go:105
+msgid "To use --target, the destination remote must be a cluster"
+msgstr ""
+
 #: lxc/storage_volume.go:983
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr ""
@@ -2484,16 +2488,12 @@ msgstr ""
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
-#: lxc/copy.go:80
+#: lxc/copy.go:75
 msgid "You must specify a destination container name when using --target"
 msgstr ""
 
-#: lxc/copy.go:75 lxc/move.go:203
+#: lxc/copy.go:70 lxc/move.go:194
 msgid "You must specify a source container name"
-msgstr ""
-
-#: lxc/copy.go:70 lxc/move.go:99 lxc/move.go:198
-msgid "You must use the same source and destination remote when using --target"
 msgstr ""
 
 #: lxc/alias.go:53
