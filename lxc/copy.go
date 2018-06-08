@@ -65,11 +65,6 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		return err
 	}
 
-	// Target member and destination remote can't be used together.
-	if c.flagTarget != "" && sourceRemote != destRemote {
-		return fmt.Errorf(i18n.G("You must use the same source and destination remote when using --target"))
-	}
-
 	// Make sure we have a container or snapshot name
 	if sourceName == "" {
 		return fmt.Errorf(i18n.G("You must specify a source container name"))
@@ -103,6 +98,11 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		if err != nil {
 			return err
 		}
+	}
+
+	// Confirm that --target is only used with a cluster
+	if c.flagTarget != "" && !dest.IsClustered() {
+		return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
 	}
 
 	// Parse the config overrides
