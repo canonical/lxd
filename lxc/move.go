@@ -94,11 +94,6 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Target member and destination remote can't be used together.
-	if c.flagTarget != "" && sourceRemote != destRemote {
-		return fmt.Errorf(i18n.G("You must use the same source and destination remote when using --target"))
-	}
-
 	// As an optimization, if the source an destination are the same, do
 	// this via a simple rename. This only works for containers that aren't
 	// running, containers that are running should be live migrated (of
@@ -146,11 +141,12 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	// cluster member to another. In case the rootfs of the container is
 	// backed by ceph, we want to re-use the same ceph volume. This assumes
 	// that the container is not running.
-	if c.flagTarget != "" {
+	if sourceRemote == destRemote && c.flagTarget != "" {
 		moved, err := maybeMoveCephContainer(conf, sourceResource, destResource, c.flagTarget)
 		if err != nil {
 			return err
 		}
+
 		if moved {
 			return nil
 		}
@@ -188,14 +184,9 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 	}
 
 	// Parse the destination.
-	destRemote, destName, err := conf.ParseRemote(destResource)
+	_, destName, err := conf.ParseRemote(destResource)
 	if err != nil {
 		return false, err
-	}
-
-	if sourceRemote != destRemote {
-		return false, fmt.Errorf(
-			i18n.G("You must use the same source and destination remote when using --target"))
 	}
 
 	// Make sure we have a container or snapshot name.
@@ -214,6 +205,11 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 		return false, err
 	}
 
+	// Check that it's a cluster
+	if !source.IsClustered() {
+		return false, nil
+	}
+
 	// Check if the container to be moved is backed by ceph.
 	container, _, err := source.GetContainer(sourceName)
 	if err != nil {
@@ -224,12 +220,12 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 		if !strings.Contains(err.Error(), "Unable to connect") {
 			return false, errors.Wrapf(err, "Failed to get container %s", sourceName)
 		}
-	}
-	if container != nil {
+	} else {
 		devices := container.Devices
 		for key, value := range container.ExpandedDevices {
 			devices[key] = value
 		}
+
 		_, device, err := shared.GetRootDiskDevice(devices)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed parse root disk device")
@@ -244,6 +240,7 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed get root disk device pool %s", poolName)
 		}
+
 		if pool.Driver != "ceph" {
 			return false, nil
 		}
@@ -256,9 +253,11 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 	if err != nil {
 		return false, err
 	}
+
 	err = op.Wait()
 	if err != nil {
 		return false, err
 	}
+
 	return true, nil
 }
