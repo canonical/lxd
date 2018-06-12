@@ -1040,7 +1040,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) {
 		for _, pool := range poolNames {
 			err := doDeleteImageFromPool(d.State(), fp, pool)
 			if err != nil {
-				logger.Debugf("Error deleting image %s from storage pool %: %s", fp, pool, err)
+				logger.Debugf("Error deleting image %s from storage pool %s: %s", fp, pool, err)
 				continue
 			}
 		}
