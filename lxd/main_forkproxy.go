@@ -335,7 +335,16 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	listener, err := net.FileListener(file)
+	var srcConn net.Conn
+	var listener net.Listener
+
+	udpFD := -1
+	if lAddr.connType == "udp" {
+		udpFD = int(file.Fd())
+		srcConn, err = net.FileConn(file)
+	} else {
+		listener, err = net.FileListener(file)
+	}
 	if err != nil {
 		fmt.Printf("Failed to re-assemble listener: %v", err)
 		return err
@@ -350,7 +359,11 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	go func() {
 		<-sigs
 		terminate = true
-		listener.Close()
+		if lAddr.connType == "udp" {
+			srcConn.Close()
+		} else {
+			listener.Close()
+		}
 	}()
 
 	connectAddr := args[3]
@@ -378,22 +391,30 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	// begin proxying
 	for {
 		// Accept a new client
-		srcConn, err := listener.Accept()
-		if err != nil {
-			if terminate {
-				break
-			}
+		if lAddr.connType != "udp" {
+			srcConn, err = listener.Accept()
+			if err != nil {
+				if terminate {
+					break
+				}
 
-			fmt.Printf("error: Failed to accept new connection: %v\n", err)
-			continue
+				fmt.Printf("error: Failed to accept new connection: %v\n", err)
+				continue
+			}
+			fmt.Printf("Accepted a new connection\n")
+		} else {
+			shared.GetPollRevents(udpFD, -1, (shared.POLLIN | shared.POLLPRI | shared.POLLERR | shared.POLLHUP | shared.POLLRDHUP | shared.POLLNVAL))
 		}
-		fmt.Printf("Accepted a new connection\n")
 
 		// Connect to the target
 		dstConn, err := getDestConn(connectAddr)
 		if err != nil {
 			fmt.Printf("error: Failed to connect to target: %v\n", err)
 			srcConn.Close()
+			if lAddr.connType != "udp" {
+				srcConn.Close()
+			}
+
 			continue
 		}
 
@@ -533,13 +554,45 @@ func tryListen(protocol string, addr string) (net.Listener, error) {
 	return listener, nil
 }
 
-func getListenerFile(listenAddr string) (os.File, error) {
+func tryListenUDP(protocol string, addr string) (*os.File, error) {
+	var UDPConn *net.UDPConn
+	var err error
+
+	udpAddr, err := net.ResolveUDPAddr(protocol, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < 10; i++ {
+		UDPConn, err = net.ListenUDP(protocol, udpAddr)
+		if err == nil {
+			return UDPConn.File()
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if UDPConn == nil {
+		return nil, fmt.Errorf("Failed to setup UDP listener")
+	}
+
+	return UDPConn.File()
+}
+
+func getListenerFile(listenAddr string) (*os.File, error) {
 	fields := strings.SplitN(listenAddr, ":", 2)
 	addr := strings.Join(fields[1:], "")
 
+	if fields[0] == "udp" {
+		return tryListenUDP(fields[0], addr)
+	}
+
 	listener, err := tryListen(fields[0], addr)
 	if err != nil {
-		return os.File{}, fmt.Errorf("Failed to listen on %s: %v", addr, err)
+		return nil, fmt.Errorf("Failed to listen on %s: %v", addr, err)
 	}
 
 	file := &os.File{}
@@ -552,10 +605,10 @@ func getListenerFile(listenAddr string) (os.File, error) {
 		file, err = unixListener.File()
 	}
 	if err != nil {
-		return os.File{}, fmt.Errorf("Failed to get file from listener: %v", err)
+		return nil, fmt.Errorf("Failed to get file from listener: %v", err)
 	}
 
-	return *file, nil
+	return file, nil
 }
 
 func getDestConn(connectAddr string) (net.Conn, error) {
