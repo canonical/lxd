@@ -183,6 +183,7 @@ void attach_userns(int pid) {
 	}
 
 	ret = setns(userns_fd, CLONE_NEWUSER);
+	close(userns_fd);
 	if (ret < 0) {
 		fprintf(stderr, "Failed setns to container user namespace: %s\n", strerror(errno));
 		_exit(EXIT_FAILURE);
