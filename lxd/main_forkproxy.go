@@ -333,7 +333,16 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	listener, err := net.FileListener(file)
+	var srcConn net.Conn
+	var listener net.Listener
+
+	udpFD := -1
+	if lAddr.connType == "udp" {
+		udpFD = int(file.Fd())
+		srcConn, err = net.FileConn(file)
+	} else {
+		listener, err = net.FileListener(file)
+	}
 	if err != nil {
 		fmt.Printf("Failed to re-assemble listener: %v", err)
 		return err
@@ -345,10 +354,19 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	signal.Notify(sigs, syscall.SIGTERM)
 
 	// Wait for SIGTERM and close the listener in order to exit the loop below
+	killOnUDP := syscall.Getpid()
 	go func() {
 		<-sigs
 		terminate = true
-		listener.Close()
+		file.Close()
+		if lAddr.connType == "udp" {
+			srcConn.Close()
+			// Kill ourselves since we will otherwise block on UDP
+			// connect() or poll().
+			syscall.Kill(killOnUDP, syscall.SIGKILL)
+		} else {
+			listener.Close()
+		}
 	}()
 
 	connectAddr := args[3]
@@ -369,35 +387,65 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		defer os.Remove(lAddr.addr)
 	}
 
-	fmt.Printf("Starting to proxy\n")
-
-	// begin proxying
-	for {
-		// Accept a new client
-		srcConn, err := listener.Accept()
-		if err != nil {
-			if terminate {
-				break
+	fmt.Printf("Starting %s <-> %s proxy\n", lAddr.connType, cAddr.connType)
+	if lAddr.connType == "udp" {
+		for {
+			ret, revents, err := shared.GetPollRevents(udpFD, -1, (shared.POLLIN | shared.POLLPRI | shared.POLLERR | shared.POLLHUP | shared.POLLRDHUP | shared.POLLNVAL))
+			if ret < 0 {
+				fmt.Printf("Failed to poll on file descriptor: %s\n", err)
+				srcConn.Close()
+				return err
 			}
 
-			fmt.Printf("error: Failed to accept new connection: %v\n", err)
-			continue
-		}
-		fmt.Printf("Accepted a new connection\n")
+			if (revents & (shared.POLLERR | shared.POLLHUP | shared.POLLRDHUP | shared.POLLNVAL)) > 0 {
+				err := fmt.Errorf("Invalid UDP socket file descriptor")
+				fmt.Printf("%s\n", err)
+				srcConn.Close()
+				return err
+			}
 
-		// Connect to the target
-		dstConn, err := getDestConn(connectAddr)
-		if err != nil {
-			fmt.Printf("error: Failed to connect to target: %v\n", err)
-			srcConn.Close()
-			continue
-		}
+			// Connect to the target
+			dstConn, err := getDestConn(connectAddr)
+			if err != nil {
+				fmt.Printf("error: Failed to connect to target: %v\n", err)
+				srcConn.Close()
+				return err
+			}
 
-		if cAddr.connType == "unix" && lAddr.connType == "unix" {
-			// Handle OOB if both src and dst are using unix sockets
-			go unixRelay(srcConn, dstConn)
-		} else {
-			go genericRelay(srcConn, dstConn)
+			genericRelay(srcConn, dstConn, false)
+		}
+	} else {
+		// begin proxying
+		for {
+			// Accept a new client
+			srcConn, err = listener.Accept()
+			if err != nil {
+				if terminate {
+					break
+				}
+
+				fmt.Printf("error: Failed to accept new connection: %v\n", err)
+				continue
+			}
+			fmt.Printf("Accepted a new connection\n")
+
+			// Connect to the target
+			dstConn, err := getDestConn(connectAddr)
+			if err != nil {
+				fmt.Printf("error: Failed to connect to target: %v\n", err)
+				if lAddr.connType != "udp" {
+					srcConn.Close()
+				}
+
+				continue
+			}
+
+			if cAddr.connType == "unix" && lAddr.connType == "unix" {
+				// Handle OOB if both src and dst are using unix sockets
+				go unixRelay(srcConn, dstConn)
+			} else {
+				go genericRelay(srcConn, dstConn, true)
+			}
 		}
 	}
 
@@ -406,23 +454,33 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
-	relayer := func(dst io.Writer, src io.Reader, ch chan bool) {
-		io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
-		ch <- true
+func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser, closeDst bool) {
+	relayer := func(dst io.Writer, src io.Reader, ch chan error) {
+		_, err := io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
+		ch <- err
 	}
 
-	chSend := make(chan bool)
+	chSend := make(chan error)
 	go relayer(dst, src, chSend)
 
-	chRecv := make(chan bool)
+	chRecv := make(chan error)
 	go relayer(src, dst, chRecv)
 
-	<-chSend
-	<-chRecv
+	errSnd := <-chSend
+	errRcv := <-chRecv
 
 	src.Close()
-	dst.Close()
+	if closeDst {
+		dst.Close()
+	}
+
+	if errSnd != nil {
+		fmt.Printf("Error while sending data %s\n", errSnd)
+	}
+
+	if errRcv != nil {
+		fmt.Printf("Error while reading data %s\n", errRcv)
+	}
 }
 
 func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan bool) {
@@ -529,13 +587,49 @@ func tryListen(protocol string, addr string) (net.Listener, error) {
 	return listener, nil
 }
 
-func getListenerFile(listenAddr string) (os.File, error) {
+func tryListenUDP(protocol string, addr string) (*os.File, error) {
+	var UDPConn *net.UDPConn
+	var err error
+
+	udpAddr, err := net.ResolveUDPAddr(protocol, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < 10; i++ {
+		UDPConn, err = net.ListenUDP(protocol, udpAddr)
+		if err == nil {
+			file, err := UDPConn.File()
+			UDPConn.Close()
+			return file, err
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if UDPConn == nil {
+		return nil, fmt.Errorf("Failed to setup UDP listener")
+	}
+
+	file, err := UDPConn.File()
+	UDPConn.Close()
+	return file, err
+}
+
+func getListenerFile(listenAddr string) (*os.File, error) {
 	fields := strings.SplitN(listenAddr, ":", 2)
 	addr := strings.Join(fields[1:], "")
 
+	if fields[0] == "udp" {
+		return tryListenUDP(fields[0], addr)
+	}
+
 	listener, err := tryListen(fields[0], addr)
 	if err != nil {
-		return os.File{}, fmt.Errorf("Failed to listen on %s: %v", addr, err)
+		return nil, fmt.Errorf("Failed to listen on %s: %v", addr, err)
 	}
 
 	file := &os.File{}
@@ -548,10 +642,10 @@ func getListenerFile(listenAddr string) (os.File, error) {
 		file, err = unixListener.File()
 	}
 	if err != nil {
-		return os.File{}, fmt.Errorf("Failed to get file from listener: %v", err)
+		return nil, fmt.Errorf("Failed to get file from listener: %v", err)
 	}
 
-	return *file, nil
+	return file, nil
 }
 
 func getDestConn(connectAddr string) (net.Conn, error) {
