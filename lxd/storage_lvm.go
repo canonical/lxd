@@ -767,10 +767,7 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 
 			err := lvmVGRename(newName, oldPoolName)
 			if err != nil {
-				logger.Warnf(`Failed to rename LVM volume `+
-					`group from "%s" to "%s": %s. Manual `+
-					`intervention needed`, newName,
-					oldPoolName)
+				logger.Warnf(`Failed to rename LVM volume group from "%s" to "%s": %s. Manual intervention needed`, newName, oldPoolName, err)
 			}
 			s.setOnDiskPoolName(oldPoolName)
 		}()
