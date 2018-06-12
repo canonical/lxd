@@ -31,10 +31,10 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 	connectionType := strings.SplitN(connectAddr, ":", 2)[0]
 	listenerType := strings.SplitN(listenAddr, ":", 2)[0]
 
-	if connectionType != "tcp" {
+	if !shared.StringInSlice(connectionType, []string{"tcp", "udp", "unix"}) {
 		return nil, fmt.Errorf("Proxy device doesn't support the connection type: %s", connectionType)
 	}
-	if listenerType != "tcp" {
+	if !shared.StringInSlice(listenerType, []string{"tcp", "udp", "unix"}) {
 		return nil, fmt.Errorf("Proxy device doesn't support the listener type: %s", listenerType)
 	}
 

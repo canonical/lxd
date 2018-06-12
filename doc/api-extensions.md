@@ -486,3 +486,30 @@ images from the host.
 ## container\_local\_cross\_pool\_handling
 This enables copying or moving containers between storage pools on the same LXD
 instance.
+
+## proxy_unix
+Add support for both unix sockets and abstract unix sockets in proxy devices.
+They can be used by specifying the address as `unix:/path/to/unix.sock` (normal
+socket) or `unix:@/tmp/unix.sock` (abstract socket).
+
+Supported connections are now:
+
+* `tcp <-> tcp`
+* `unix <-> unix`
+* `tcp <-> unix`
+* `unix <-> tcp`
+
+## proxy_udp
+Add support for udp in proxy devices.
+
+Supported connections are now:
+
+* `tcp <-> tcp`
+* `unix <-> unix`
+* `tcp <-> unix`
+* `unix <-> tcp`
+* `udp <-> udp`
+* `udp <-> tcp`
+* `tcp <-> udp`
+* `udp <-> unix`
+* `unix <-> udp`

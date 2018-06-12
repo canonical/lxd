@@ -177,7 +177,7 @@ void attach_userns(int pid) {
 	userns_fd = in_same_namespace(getpid(), pid, "user");
 	if (userns_fd < 0) {
 		if (userns_fd == -EINVAL)
-			_exit(EXIT_SUCCESS);
+			return;
 
 		_exit(EXIT_FAILURE);
 	}
