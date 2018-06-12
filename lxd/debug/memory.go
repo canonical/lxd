@@ -50,7 +50,7 @@ func memoryWatcher(ctx context.Context, signals <-chan os.Signal, filename strin
 func memoryDump(filename string) {
 	f, err := os.Create(filename)
 	if err != nil {
-		logger.Debugf("Error opening memory profile file '%s': %s", err)
+		logger.Debugf("Error opening memory profile file '%s': %s", filename, err)
 		return
 	}
 	pprof.WriteHeapProfile(f)
