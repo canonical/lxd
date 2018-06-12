@@ -150,7 +150,6 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 	if tmp != "" {
 		use_pre_dumps = shared.IsTrue(tmp)
 	}
-	logger.Debugf("migration.incremental.memory %d", use_pre_dumps)
 
 	var max_iterations int
 
@@ -910,7 +909,6 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			}
 
 			if resp.GetPredump() {
-				logger.Debugf("Before the receive loop %s", sync.GetFinalPreDump())
 				for !sync.GetFinalPreDump() {
 					logger.Debugf("About to receive rsync")
 					// Transfer a CRIU pre-dump
@@ -940,7 +938,6 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 						restore <- err
 						return
 					}
-					logger.Debugf("At the end of the receive loop %s", sync.GetFinalPreDump())
 				}
 			}
 
