@@ -498,3 +498,18 @@ Supported connections are now:
 * `UNIX <-> UNIX`
 * `TCP <-> UNIX`
 * `UNIX <-> TCP`
+
+## proxy_udp
+Add support for udp in proxy devices.
+
+Supported connections are now:
+
+* `TCP <-> TCP`
+* `UNIX <-> UNIX`
+* `TCP <-> UNIX`
+* `UNIX <-> TCP`
+* `UDP <-> UDP`
+* `UDP <-> TCP`
+* `TCP <-> UDP`
+* `UDP <-> UNIX`
+* `UNIX <-> UDP`

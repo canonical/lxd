@@ -422,9 +422,14 @@ have an address in the container connect through the host.
 
 The supported connection types are:
 * `TCP <-> TCP`
+* `UDP <-> UDP`
 * `UNIX <-> UNIX`
 * `TCP <-> UNIX`
 * `UNIX <-> TCP`
+* `UDP <-> TCP`
+* `TCP <-> UDP`
+* `UDP <-> UNIX`
+* `UNIX <-> UDP`
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
