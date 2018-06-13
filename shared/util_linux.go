@@ -35,6 +35,7 @@ import (
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
 
@@ -149,6 +150,93 @@ again:
 
 	return ret;
 }
+
+int lxc_abstract_unix_send_fds(int fd, int *sendfds, int num_sendfds,
+			       void *data, size_t size)
+{
+	int ret;
+	struct msghdr msg;
+	struct iovec iov;
+	struct cmsghdr *cmsg = NULL;
+	char buf[1] = {0};
+	char *cmsgbuf;
+	size_t cmsgbufsize = CMSG_SPACE(num_sendfds * sizeof(int));
+
+	memset(&msg, 0, sizeof(msg));
+	memset(&iov, 0, sizeof(iov));
+
+	cmsgbuf = malloc(cmsgbufsize);
+	if (!cmsgbuf)
+		return -1;
+
+	msg.msg_control = cmsgbuf;
+	msg.msg_controllen = cmsgbufsize;
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	cmsg->cmsg_len = CMSG_LEN(num_sendfds * sizeof(int));
+
+	msg.msg_controllen = cmsg->cmsg_len;
+
+	memcpy(CMSG_DATA(cmsg), sendfds, num_sendfds * sizeof(int));
+
+	iov.iov_base = data ? data : buf;
+	iov.iov_len = data ? size : sizeof(buf);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	ret = sendmsg(fd, &msg, MSG_NOSIGNAL);
+	if (ret < 0)
+		fprintf(stderr, "%s - Failed to send file descriptor\n", strerror(errno));
+	free(cmsgbuf);
+	return ret;
+}
+
+int lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
+			       void *data, size_t size)
+{
+	int ret;
+	struct msghdr msg;
+	struct iovec iov;
+	struct cmsghdr *cmsg = NULL;
+	char buf[1] = {0};
+	char *cmsgbuf;
+	size_t cmsgbufsize = CMSG_SPACE(num_recvfds * sizeof(int));
+
+	memset(&msg, 0, sizeof(msg));
+	memset(&iov, 0, sizeof(iov));
+
+	cmsgbuf = malloc(cmsgbufsize);
+	if (!cmsgbuf)
+		return -1;
+
+	msg.msg_control = cmsgbuf;
+	msg.msg_controllen = cmsgbufsize;
+
+	iov.iov_base = data ? data : buf;
+	iov.iov_len = data ? size : sizeof(buf);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	ret = recvmsg(fd, &msg, 0);
+	if (ret <= 0) {
+		fprintf(stderr, "%s - Failed to receive file descriptor\n", strerror(errno));
+		goto out;
+	}
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+
+	memset(recvfds, -1, num_recvfds * sizeof(int));
+	if (cmsg && cmsg->cmsg_len == CMSG_LEN(num_recvfds * sizeof(int)) &&
+	    cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS) {
+		memcpy(recvfds, CMSG_DATA(cmsg), num_recvfds * sizeof(int));
+	}
+
+out:
+	free(cmsgbuf);
+	return ret;
+}
 */
 import "C"
 
@@ -172,6 +260,29 @@ func GetPollRevents(fd int, timeout int, flags int) (int, int, error) {
 	}
 
 	return int(ret), int(revents), err
+}
+
+func AbstractUnixSendFd(sockFD int, sendFD int) error {
+	fd := C.int(sendFD)
+	sk_fd := C.int(sockFD)
+	ret := C.lxc_abstract_unix_send_fds(sk_fd, &fd, C.int(1), nil, C.size_t(0))
+	if ret < 0 {
+		return fmt.Errorf("Failed to send file descriptor via abstract unix socket")
+	}
+
+	return nil
+}
+
+func AbstractUnixReceiveFd(sockFD int) (*os.File, error) {
+	fd := C.int(-1)
+	sk_fd := C.int(sockFD)
+	ret := C.lxc_abstract_unix_recv_fds(sk_fd, &fd, C.int(1), nil, C.size_t(0))
+	if ret < 0 {
+		return nil, fmt.Errorf("Failed to receive file descriptor via abstract unix socket")
+	}
+
+	file := os.NewFile(uintptr(fd), "")
+	return file, nil
 }
 
 func OpenPty(uid, gid int64) (master *os.File, slave *os.File, err error) {
