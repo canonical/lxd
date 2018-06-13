@@ -177,12 +177,13 @@ void attach_userns(int pid) {
 	userns_fd = in_same_namespace(getpid(), pid, "user");
 	if (userns_fd < 0) {
 		if (userns_fd == -EINVAL)
-			_exit(EXIT_SUCCESS);
+			return;
 
 		_exit(EXIT_FAILURE);
 	}
 
 	ret = setns(userns_fd, CLONE_NEWUSER);
+	close(userns_fd);
 	if (ret < 0) {
 		fprintf(stderr, "Failed setns to container user namespace: %s\n", strerror(errno));
 		_exit(EXIT_FAILURE);

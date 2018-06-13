@@ -218,10 +218,10 @@ func (s *execWs) Do(op *operation) error {
 					}
 				} else if command.Command == "signal" {
 					if err := syscall.Kill(attachedChildPid, syscall.Signal(command.Signal)); err != nil {
-						logger.Debugf("Failed forwarding signal '%s' to PID %d.", command.Signal, attachedChildPid)
+						logger.Debugf("Failed forwarding signal '%d' to PID %d", command.Signal, attachedChildPid)
 						continue
 					}
-					logger.Debugf("Forwarded signal '%d' to PID %d.", command.Signal, attachedChildPid)
+					logger.Debugf("Forwarded signal '%d' to PID %d", command.Signal, attachedChildPid)
 				}
 			}
 		}()

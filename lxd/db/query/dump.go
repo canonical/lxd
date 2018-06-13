@@ -102,7 +102,7 @@ func dumpTable(tx *sql.Tx, table, schema string) (string, error) {
 		}
 		err := rows.Scan(row...)
 		if err != nil {
-			return "", errors.Wrapf(err, "failed to scan row %d")
+			return "", errors.Wrapf(err, "failed to scan row %d", i)
 		}
 		values := make([]string, len(columns))
 		for j, v := range raw {
