@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -96,7 +97,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		targetName = "backup.tar.xz"
 	}
 
-	target, err := os.Create(targetName)
+	target, err := os.Create(shared.HostPath(targetName))
 	if err != nil {
 		return err
 	}
