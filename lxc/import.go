@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -49,7 +50,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
-	file, err := os.Open(args[len(args)-1])
+	file, err := os.Open(shared.HostPath(args[len(args)-1]))
 	if err != nil {
 		return nil
 	}
