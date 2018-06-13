@@ -2488,7 +2488,13 @@ func (c *containerLXC) Start(stateful bool) error {
 		return err
 	}
 
-	c.restartProxyDevices()
+	// Start proxy devices
+	err = c.restartProxyDevices()
+	if err != nil {
+		// Attempt to stop the container
+		c.Stop(false)
+		return err
+	}
 
 	logger.Info("Started container", ctxMap)
 	eventSendLifecycle("container-started",
@@ -6798,8 +6804,6 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 		proxyValues.listenAddr,
 		proxyValues.connectPid,
 		proxyValues.connectAddr,
-		"0",
-		"0",
 		logPath,
 		pidPath)
 	if err != nil {
@@ -6858,49 +6862,28 @@ func (c *containerLXC) updateProxyDevice(devName string, m types.Device) error {
 		return fmt.Errorf("Can't update proxy device in stopped container")
 	}
 
-	proxyValues, err := setupProxyProcInfo(c, m)
-	if err != nil {
-		return err
-	}
-
 	devFileName := fmt.Sprintf("proxy.%s", devName)
 	pidPath := filepath.Join(c.DevicesPath(), devFileName)
-	logFileName := fmt.Sprintf("proxy.%s.log", devName)
-	logPath := filepath.Join(c.LogPath(), logFileName)
-
-	err = killProxyProc(pidPath)
+	err := killProxyProc(pidPath)
 	if err != nil {
-		return fmt.Errorf("Error occurred when removing old proxy device")
+		return fmt.Errorf("Error occurred when removing old proxy device: %v", err)
 	}
 
-	_, err = shared.RunCommand(
-		c.state.OS.ExecPath,
-		"forkproxy",
-		proxyValues.listenPid,
-		proxyValues.listenAddr,
-		proxyValues.connectPid,
-		proxyValues.connectAddr,
-		"0",
-		"0",
-		logPath,
-		pidPath)
-	if err != nil {
-		return fmt.Errorf("Error occurred when starting new proxy device")
-	}
-
-	return nil
+	return c.insertProxyDevice(devName, m)
 }
 
-func (c *containerLXC) restartProxyDevices() {
+func (c *containerLXC) restartProxyDevices() error {
 	for _, name := range c.expandedDevices.DeviceNames() {
 		m := c.expandedDevices[name]
 		if m["type"] == "proxy" {
 			err := c.insertProxyDevice(name, m)
 			if err != nil {
-				fmt.Printf("Error when starting proxy device '%s' for container %s: %s\n", name, c.name, err)
+				return fmt.Errorf("Error when starting proxy device '%s' for container %s: %v\n", name, c.name, err)
 			}
 		}
 	}
+
+	return nil
 }
 
 // Network device handling
