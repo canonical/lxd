@@ -91,7 +91,7 @@ func killProxyProc(pidPath string) error {
 	}
 
 	// Parse the pid
-	pidInt, _ := strconv.Atoi(pidString)
+	pidInt, err := strconv.Atoi(pidString)
 	if err != nil {
 		return err
 	}
