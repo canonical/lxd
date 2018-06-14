@@ -8,6 +8,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The StoragePoolsNodeConfigs method returns only node-specific config values.
+func TestStoragePoolsNodeConfigs(t *testing.T) {
+	cluster, cleanup := db.NewTestCluster(t)
+	defer cleanup()
+
+	// Create a storage pool named "local" (like the default LXD clustering
+	// one), then delete it and create another one.
+	_, err := cluster.StoragePoolCreate("local", "", "dir", map[string]string{
+		"rsync.bwlimit": "1",
+		"source":        "/foo/bar",
+	})
+	require.NoError(t, err)
+
+	_, err = cluster.StoragePoolDelete("local")
+	require.NoError(t, err)
+
+	_, err = cluster.StoragePoolCreate("BTRFS", "", "dir", map[string]string{
+		"rsync.bwlimit": "1",
+		"source":        "/egg/baz",
+	})
+	require.NoError(t, err)
+
+	// Check that the config map returned by StoragePoolsConfigs actually
+	// contains the value of the "BTRFS" storage pool.
+	var config map[string]map[string]string
+
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		config, err = tx.StoragePoolsNodeConfig()
+		return err
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, config, map[string]map[string]string{
+		"BTRFS": {"source": "/egg/baz"},
+	})
+}
+
 func TestStoragePoolsCreatePending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
@@ -116,7 +154,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	cluster, cleanup := db.NewTestCluster(t)
 	defer cleanup()
 
-	// Create a second no (beyond the default one).
+	// Create a second node (beyond the default one).
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		_, err := tx.NodeAdd("n1", "1.2.3.4:666")
 		return err

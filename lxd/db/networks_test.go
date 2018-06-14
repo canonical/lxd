@@ -8,6 +8,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The NetworksNodeConfigs method returns only node-specific config values.
+func TestNetworksNodeConfigs(t *testing.T) {
+	cluster, cleanup := db.NewTestCluster(t)
+	defer cleanup()
+
+	_, err := cluster.NetworkCreate("lxdbr0", "", map[string]string{
+		"dns.mode":                   "none",
+		"bridge.external_interfaces": "vlan0",
+	})
+	require.NoError(t, err)
+
+	var config map[string]map[string]string
+
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		config, err = tx.NetworksNodeConfig()
+		return err
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, config, map[string]map[string]string{
+		"lxdbr0": {"bridge.external_interfaces": "vlan0"},
+	})
+}
+
 func TestNetworkCreatePending(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
