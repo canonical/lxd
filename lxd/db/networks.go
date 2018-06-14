@@ -10,9 +10,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// NetworkConfigs returns a map associating each network name to its config
-// values.
-func (c *ClusterTx) NetworkConfigs() (map[string]map[string]string, error) {
+// NetworksNodeConfig returns a map associating each network name to its
+// node-specific config values (i.e. the ones where node_id is not NULL).
+func (c *ClusterTx) NetworksNodeConfig() (map[string]map[string]string, error) {
 	names, err := query.SelectStrings(c.tx, "SELECT name FROM networks")
 	if err != nil {
 		return nil, err
@@ -20,7 +20,9 @@ func (c *ClusterTx) NetworkConfigs() (map[string]map[string]string, error) {
 	networks := make(map[string]map[string]string, len(names))
 	for _, name := range names {
 		table := "networks_config JOIN networks ON networks.id=networks_config.network_id"
-		config, err := query.SelectConfig(c.tx, table, "networks.name=?", name)
+		config, err := query.SelectConfig(
+			c.tx, table, "networks.name=? AND networks_config.node_id=?",
+			name, c.nodeID)
 		if err != nil {
 			return nil, err
 		}

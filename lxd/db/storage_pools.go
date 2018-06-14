@@ -12,13 +12,9 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// StoragePoolConfigs returns a map associating each storage pool name to its
-// config values.
-//
-// The config values are the ones defined for the node this function is run
-// on. They are used by cluster.Join when a new node joins the cluster and its
-// configuration needs to be migrated to the cluster database.
-func (c *ClusterTx) StoragePoolConfigs() (map[string]map[string]string, error) {
+// StoragePoolsNodeConfig returns a map associating each storage pool name to
+// its node-specific config values (i.e. the ones where node_id is not NULL).
+func (c *ClusterTx) StoragePoolsNodeConfig() (map[string]map[string]string, error) {
 	names, err := query.SelectStrings(c.tx, "SELECT name FROM storage_pools")
 	if err != nil {
 		return nil, err
@@ -29,7 +25,7 @@ func (c *ClusterTx) StoragePoolConfigs() (map[string]map[string]string, error) {
 storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config.storage_pool_id
 `
 		config, err := query.SelectConfig(
-			c.tx, table, "storage_pools.name=? AND storage_pools_config.storage_pool_id=?",
+			c.tx, table, "storage_pools.name=? AND storage_pools_config.node_id=?",
 			name, c.nodeID)
 		if err != nil {
 			return nil, err
