@@ -10,9 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-type initData struct {
+type initDataNode struct {
 	api.ServerPut `yaml:",inline"`
-	Cluster       *initDataCluster       `json:"cluster" yaml:"cluster"`
 	Networks      []api.NetworksPost     `json:"networks" yaml:"networks"`
 	StoragePools  []api.StoragePoolsPost `json:"storage_pools" yaml:"storage_pools"`
 	Profiles      []api.ProfilesPost     `json:"profiles" yaml:"profiles"`
@@ -23,31 +22,28 @@ type initDataCluster struct {
 	ClusterPassword string `json:"cluster_password" yaml:"cluster_password"`
 }
 
-// Helper to initialize a LXD instance using the definitions from an initData
-// object.
+// Helper to initialize node-specific entities on a LXD instance using the
+// definitions from the given initDataNode object.
 //
 // It's used both by the 'lxd init' command and by the PUT /1.0/cluster API.
-func initApplyConfig(d lxd.ContainerServer, config initData) error {
+//
+// In case of error, the returned function can be used to revert the changes.
+func initDataNodeApply(d lxd.ContainerServer, config initDataNode) (func(), error) {
 	// Handle reverts
-	revert := true
 	reverts := []func(){}
-	defer func() {
-		if !revert {
-			return
-		}
-
+	revert := func() {
 		// Lets undo things in reverse order
 		for i := len(reverts) - 1; i >= 0; i-- {
 			reverts[i]()
 		}
-	}()
+	}
 
 	// Apply server configuration
 	if config.Config != nil && len(config.Config) > 0 {
 		// Get current config
 		currentServer, etag, err := d.GetServer()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve current server configuration")
+			return revert, errors.Wrap(err, "Failed to retrieve current server configuration")
 		}
 
 		// Setup reverter
@@ -59,7 +55,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 		newServer := api.ServerPut{}
 		err = shared.DeepCopy(currentServer.Writable(), &newServer)
 		if err != nil {
-			return errors.Wrap(err, "Failed to copy server configuration")
+			return revert, errors.Wrap(err, "Failed to copy server configuration")
 		}
 
 		for k, v := range config.Config {
@@ -69,7 +65,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 		// Apply it
 		err = d.UpdateServer(newServer, etag)
 		if err != nil {
-			return errors.Wrap(err, "Failed to update server configuration")
+			return revert, errors.Wrap(err, "Failed to update server configuration")
 		}
 	}
 
@@ -78,7 +74,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 		// Get the list of networks
 		networkNames, err := d.GetNetworkNames()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve list of networks")
+			return revert, errors.Wrap(err, "Failed to retrieve list of networks")
 		}
 
 		// Network creator
@@ -141,7 +137,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 			if !shared.StringInSlice(network.Name, networkNames) {
 				err := createNetwork(network)
 				if err != nil {
-					return err
+					return revert, err
 				}
 
 				continue
@@ -150,7 +146,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 			// Existing network
 			err := updateNetwork(network)
 			if err != nil {
-				return err
+				return revert, err
 			}
 		}
 	}
@@ -160,7 +156,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 		// Get the list of storagePools
 		storagePoolNames, err := d.GetStoragePoolNames()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve list of storage pools")
+			return revert, errors.Wrap(err, "Failed to retrieve list of storage pools")
 		}
 
 		// StoragePool creator
@@ -228,7 +224,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 			if !shared.StringInSlice(storagePool.Name, storagePoolNames) {
 				err := createStoragePool(storagePool)
 				if err != nil {
-					return err
+					return revert, err
 				}
 
 				continue
@@ -237,7 +233,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 			// Existing storagePool
 			err := updateStoragePool(storagePool)
 			if err != nil {
-				return err
+				return revert, err
 			}
 		}
 	}
@@ -247,7 +243,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 		// Get the list of profiles
 		profileNames, err := d.GetProfileNames()
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve list of profiles")
+			return revert, errors.Wrap(err, "Failed to retrieve list of profiles")
 		}
 
 		// Profile creator
@@ -325,7 +321,7 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 			if !shared.StringInSlice(profile.Name, profileNames) {
 				err := createProfile(profile)
 				if err != nil {
-					return err
+					return revert, err
 				}
 
 				continue
@@ -334,50 +330,57 @@ func initApplyConfig(d lxd.ContainerServer, config initData) error {
 			// Existing profile
 			err := updateProfile(profile)
 			if err != nil {
-				return err
+				return revert, err
 			}
 		}
 	}
 
-	// Apply clustering configuration
-	if config.Cluster != nil && config.Cluster.Enabled {
-		// Get the current cluster configuration
-		currentCluster, etag, err := d.GetCluster()
+	return nil, nil
+}
+
+// Helper to initialize LXD clustering.
+//
+// Used by the 'lxd init' command.
+func initDataClusterApply(d lxd.ContainerServer, config *initDataCluster) error {
+	if config == nil || !config.Enabled {
+		return nil
+	}
+
+	// Get the current cluster configuration
+	currentCluster, etag, err := d.GetCluster()
+	if err != nil {
+		return errors.Wrap(err, "Failed to retrieve current cluster config")
+	}
+
+	// Check if already enabled
+	if !currentCluster.Enabled {
+		// Setup trust relationship
+		if config.ClusterAddress != "" && config.ClusterPassword != "" {
+			// Get our certificate
+			serverConfig, _, err := d.GetServer()
+			if err != nil {
+				return errors.Wrap(err, "Failed to retrieve server configuration")
+			}
+
+			// Try to setup trust
+			err = cluster.SetupTrust(serverConfig.Environment.Certificate, config.ClusterAddress,
+				config.ClusterCertificate, config.ClusterPassword)
+			if err != nil {
+				return errors.Wrap(err, "Failed to setup cluster trust")
+			}
+		}
+
+		// Configure the cluster
+		op, err := d.UpdateCluster(config.ClusterPut, etag)
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve current cluster config")
+			return errors.Wrap(err, "Failed to configure cluster")
 		}
 
-		// Check if already enabled
-		if !currentCluster.Enabled {
-			// Setup trust relationship
-			if config.Cluster.ClusterAddress != "" && config.Cluster.ClusterPassword != "" {
-				// Get our certificate
-				serverConfig, _, err := d.GetServer()
-				if err != nil {
-					return errors.Wrap(err, "Failed to retrieve server configuration")
-				}
-
-				// Try to setup trust
-				err = cluster.SetupTrust(serverConfig.Environment.Certificate, config.Cluster.ClusterAddress,
-					config.Cluster.ClusterCertificate, config.Cluster.ClusterPassword)
-				if err != nil {
-					return errors.Wrap(err, "Failed to setup cluster trust")
-				}
-			}
-
-			// Configure the cluster
-			op, err := d.UpdateCluster(config.Cluster.ClusterPut, etag)
-			if err != nil {
-				return errors.Wrap(err, "Failed to configure cluster")
-			}
-
-			err = op.Wait()
-			if err != nil {
-				return errors.Wrap(err, "Failed to configure cluster")
-			}
+		err = op.Wait()
+		if err != nil {
+			return errors.Wrap(err, "Failed to configure cluster")
 		}
 	}
 
-	revert = false
 	return nil
 }
