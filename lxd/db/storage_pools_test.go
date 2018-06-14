@@ -42,7 +42,7 @@ func TestStoragePoolsNodeConfigs(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, config, map[string]map[string]string{
-		"BTRFS": map[string]string{"source": "/egg/baz"},
+		"BTRFS": {"source": "/egg/baz"},
 	})
 }
 
