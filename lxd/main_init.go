@@ -11,6 +11,11 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+type cmdInitData struct {
+	Node    initDataNode     `yaml:",inline"`
+	Cluster *initDataCluster `json:"cluster" yaml:"cluster"`
+}
+
 type cmdInit struct {
 	global *cmdGlobal
 
@@ -73,7 +78,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Prepare the input data
-	var config *initData
+	var config *cmdInitData
 
 	// Preseed mode
 	if c.flagPreseed {
@@ -99,7 +104,13 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return initApplyConfig(d, *config)
+	revert, err := initDataNodeApply(d, config.Node)
+	if err != nil {
+		revert()
+		return err
+	}
+
+	return initDataClusterApply(d, config.Cluster)
 }
 
 func (c *cmdInit) availableStorageDrivers(poolType string) []string {

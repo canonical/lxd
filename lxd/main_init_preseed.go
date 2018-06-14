@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/client"
 )
 
-func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.ContainerServer) (*initData, error) {
+func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.ContainerServer) (*cmdInitData, error) {
 	// Read the YAML
 	bytes, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
@@ -19,7 +19,7 @@ func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.ContainerS
 	}
 
 	// Parse the YAML
-	config := initData{}
+	config := cmdInitData{}
 	err = yaml.Unmarshal(bytes, &config)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse the preseed")
