@@ -29,7 +29,7 @@ func TestNetworksNodeConfigs(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, config, map[string]map[string]string{
-		"lxdbr0": map[string]string{"bridge.external_interfaces": "vlan0"},
+		"lxdbr0": {"bridge.external_interfaces": "vlan0"},
 	})
 }
 
