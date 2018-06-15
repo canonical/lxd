@@ -354,16 +354,12 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	signal.Notify(sigs, syscall.SIGTERM)
 
 	// Wait for SIGTERM and close the listener in order to exit the loop below
-	killOnUDP := syscall.Getpid()
 	go func() {
 		<-sigs
 		terminate = true
 		file.Close()
 		if lAddr.connType == "udp" {
 			srcConn.Close()
-			// Kill ourselves since we will otherwise block on UDP
-			// connect() or poll().
-			syscall.Kill(killOnUDP, syscall.SIGKILL)
 		} else {
 			listener.Close()
 		}
