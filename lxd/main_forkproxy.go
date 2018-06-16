@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/spf13/cobra"
 
@@ -25,6 +26,7 @@ import (
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -111,6 +113,13 @@ void forkproxy()
 			"%s - Failed to create pid file for proxy daemon\n",
 			strerror(errno));
 		_exit(EXIT_FAILURE);
+	}
+
+	if (strncmp(listen_addr, "udp:", sizeof("udp:") - 1) == 0 &&
+	    strncmp(connect_addr, "udp:", sizeof("udp:") - 1) != 0) {
+		    fprintf(stderr, "Error: Proxying from udp to non-udp "
+			    "protocol is not supported\n");
+		    _exit(EXIT_FAILURE);
 	}
 
 	ret = socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sk_fds);
@@ -283,6 +292,57 @@ func (c *cmdForkproxy) Command() *cobra.Command {
 	return cmd
 }
 
+func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, connectAddr string, connFd C.int, udpSrcConn *net.Conn, listener *net.Listener) error {
+	fmt.Printf("Starting %s <-> %s proxy\n", lAddr.connType, cAddr.connType)
+	if lAddr.connType == "udp" {
+		go func() {
+			// Connect to the target
+			dstConn, err := getDestConn(connectAddr)
+			if err != nil {
+				fmt.Printf("Error: Failed to connect to target: %v\n", err)
+				return
+			}
+
+			genericRelay((*udpSrcConn), dstConn, true)
+
+			var ev C.struct_epoll_event
+			ev.events = C.EPOLLIN | C.EPOLLONESHOT
+			*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&ev)) + unsafe.Sizeof(ev.events))) = connFd
+			ret := C.epoll_ctl(epFd, C.EPOLL_CTL_MOD, connFd, &ev)
+			if ret < 0 {
+				fmt.Printf("Error: Failed to add listener fd to epoll instance\n")
+			}
+		}()
+
+		return nil
+	}
+
+	// Accept a new client
+	srcConn, err := (*listener).Accept()
+	if err != nil {
+		fmt.Printf("Error: Failed to accept new connection: %v\n", err)
+		return err
+	}
+	fmt.Printf("Accepted a new connection\n")
+
+	// Connect to the target
+	dstConn, err := getDestConn(connectAddr)
+	if err != nil {
+		srcConn.Close()
+		fmt.Printf("Error: Failed to connect to target: %v\n", err)
+		return err
+	}
+
+	if cAddr.connType == "unix" && lAddr.connType == "unix" {
+		// Handle OOB if both src and dst are using unix sockets
+		go unixRelay(srcConn, dstConn)
+	} else {
+		go genericRelay(srcConn, dstConn, false)
+	}
+
+	return nil
+}
+
 func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	// Only root should run this
 	if os.Geteuid() != 0 {
@@ -314,15 +374,11 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if C.whoami == C.FORKPROXY_CHILD {
-		if lAddr.connType == "unix"  && !lAddr.abstract {
+		if lAddr.connType == "unix" && !lAddr.abstract {
 			err := os.Remove(lAddr.addr[0])
 			if err != nil && !os.IsNotExist(err) {
 				return err
 			}
-		}
-
-		for _, port := range lAddr.addr {
-			fmt.Println(port)
 		}
 
 		for _, addr := range lAddr.addr {
@@ -347,6 +403,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		f, err := shared.AbstractUnixReceiveFd(forkproxyUDSSockFDNum)
 		if err != nil {
 			fmt.Printf("Failed to receive fd from listener process: %v\n", err)
+			syscall.Close(forkproxyUDSSockFDNum)
 			return err
 		}
 		files = append(files, f)
@@ -354,53 +411,35 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	syscall.Close(forkproxyUDSSockFDNum)
 
 	var srcConn net.Conn
-	var listeners []*net.Listener
+	var listenerMap map[int]*net.Listener
+	var udpConnMap map[int]*net.Conn
 
-	udpFD := -1
-	if lAddr.connType == "udp" {
-		udpFD = int(files[0].Fd())
-		srcConn, err = net.FileConn(files[0])
-		if err != nil {
-			fmt.Printf("Failed to re-assemble listener: %v", err)
-			return err
+	isUDPListener := lAddr.connType == "udp"
+	if isUDPListener {
+		udpConnMap = make(map[int]*net.Conn, len(lAddr.addr))
+		for _, f := range files {
+			srcConn, err = net.FileConn(files[0])
+			if err != nil {
+				fmt.Printf("Failed to re-assemble listener: %v", err)
+				return err
+			}
+			udpConnMap[int(f.Fd())] = &srcConn
 		}
 	} else {
+		listenerMap = make(map[int]*net.Listener, len(lAddr.addr))
 		for _, f := range files {
 			listener, err := net.FileListener(f)
 			if err != nil {
 				fmt.Printf("Failed to re-assemble listener: %v", err)
 				return err
 			}
-			listeners = append(listeners, &listener)
+			listenerMap[int(f.Fd())] = &listener
 		}
 	}
 
 	// Handle SIGTERM which is sent when the proxy is to be removed
-	terminate := false
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
-
-	// Wait for SIGTERM and close the listener in order to exit the loop below
-	killOnUDP := syscall.Getpid()
-	go func() {
-		<-sigs
-		terminate = true
-
-		for _, f := range files {
-			f.Close()
-		}
-
-		if lAddr.connType == "udp" {
-			srcConn.Close()
-			// Kill ourselves since we will otherwise block on UDP
-			// connect() or poll().
-			syscall.Kill(killOnUDP, syscall.SIGKILL)
-		} else {
-			for _, listener := range listeners {
-				(*listener).Close()
-			}
-		}
-	}()
 
 	connectAddr := args[3]
 	cAddr, err := parseAddr(connectAddr)
@@ -425,90 +464,102 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		defer os.Remove(lAddr.addr[0])
 	}
 
-	fmt.Printf("Starting %s to %s proxy\n", lAddr.connType, cAddr.connType)
-	if lAddr.connType == "udp" {
-		for {
-			ret, revents, err := shared.GetPollRevents(udpFD, -1, (shared.POLLIN | shared.POLLPRI | shared.POLLERR | shared.POLLHUP | shared.POLLRDHUP | shared.POLLNVAL))
-			if ret < 0 {
-				fmt.Printf("Failed to poll on file descriptor: %s\n", err)
-				srcConn.Close()
-				return err
-			}
+	epFd := C.epoll_create1(C.EPOLL_CLOEXEC)
+	if epFd < 0 {
+		return fmt.Errorf("Failed to create new epoll instance")
+	}
 
-			if (revents & (shared.POLLERR | shared.POLLHUP | shared.POLLRDHUP | shared.POLLNVAL)) > 0 {
-				err := fmt.Errorf("Invalid UDP socket file descriptor")
-				fmt.Printf("%s\n", err)
-				srcConn.Close()
-				return err
-			}
+	// Wait for SIGTERM and close the listener in order to exit the loop below
+	self := syscall.Getpid()
+	go func() {
+		<-sigs
 
-			// Connect to the target
-			dstConn, err := getDestConn(connectAddr)
-			if err != nil {
-				fmt.Printf("error: Failed to connect to target: %v\n", err)
-				srcConn.Close()
-				return err
-			}
-
-			genericRelay(srcConn, dstConn, false)
+		for _, f := range files {
+			C.epoll_ctl(epFd, C.EPOLL_CTL_DEL, C.int(f.Fd()), nil)
+			f.Close()
 		}
-	} else {
-		// begin proxying
-		for {
-			// Accept a new client
-			srcConn, err = (*listeners[0]).Accept()
-			if err != nil {
-				if terminate {
-					break
-				}
+		syscall.Close(int(epFd))
 
-				fmt.Printf("error: Failed to accept new connection: %v\n", err)
-				continue
+		if isUDPListener {
+			for _, l := range udpConnMap {
+				(*l).Close()
 			}
-			fmt.Printf("Accepted a new connection\n")
-
-			// Connect to the target
-			dstConn, err := getDestConn(connectAddr)
-			if err != nil {
-				fmt.Printf("error: Failed to connect to target: %v\n", err)
-				if lAddr.connType != "udp" {
-					srcConn.Close()
-				}
-
-				continue
+		} else {
+			for _, l := range listenerMap {
+				(*l).Close()
 			}
+		}
+		syscall.Kill(self, syscall.SIGKILL)
+	}()
+	defer syscall.Kill(self, syscall.SIGTERM)
 
-			if cAddr.connType == "unix" && lAddr.connType == "unix" {
-				// Handle OOB if both src and dst are using unix sockets
-				go unixRelay(srcConn, dstConn)
+	for _, f := range files {
+		var ev C.struct_epoll_event
+		ev.events = C.EPOLLIN
+		if isUDPListener {
+			ev.events |= C.EPOLLONESHOT
+		}
+
+		*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&ev)) + unsafe.Sizeof(ev.events))) = C.int(f.Fd())
+		ret := C.epoll_ctl(epFd, C.EPOLL_CTL_ADD, C.int(f.Fd()), &ev)
+		if ret < 0 {
+			return fmt.Errorf("Failed to add listener fd to epoll instance")
+		}
+		fmt.Printf("Added listener socket file descriptor %d to epoll instance\n", int(f.Fd()))
+	}
+
+	for {
+		var events [10]C.struct_epoll_event
+
+		nfds := C.epoll_wait(epFd, &events[0], 10, -1)
+		if nfds < 0 {
+			fmt.Printf("Failed to wait on epoll instance")
+			break
+		}
+
+		for i := C.int(0); i < nfds; i++ {
+			var listener *net.Listener
+			var udpListener *net.Conn
+			var ok bool
+
+			curFd := *(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&events[i])) + unsafe.Sizeof(events[i].events)))
+			if isUDPListener {
+				udpListener, ok = udpConnMap[int(curFd)]
 			} else {
-				go genericRelay(srcConn, dstConn, true)
+				listener, ok = listenerMap[int(curFd)]
+			}
+			if !ok {
+				continue
+			}
+
+			err := listenerInstance(epFd, lAddr, cAddr, connectAddr, curFd, udpListener, listener)
+			if err != nil {
+				fmt.Printf("Failed to prepare new listener instance: %s", err)
 			}
 		}
 	}
 
 	fmt.Printf("Stopping proxy\n")
-
 	return nil
 }
 
-func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser, closeDst bool) {
-	relayer := func(dst io.Writer, src io.Reader, ch chan error) {
-		_, err := io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
+func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser, udp bool) {
+	relayer := func(src io.Writer, dst io.Reader, udp bool, ch chan error) {
+		_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
 		ch <- err
 	}
 
 	chSend := make(chan error)
-	go relayer(dst, src, chSend)
+	go relayer(dst, src, udp, chSend)
 
 	chRecv := make(chan error)
-	go relayer(src, dst, chRecv)
+	go relayer(src, dst, udp, chRecv)
 
 	errSnd := <-chSend
 	errRcv := <-chRecv
 
 	src.Close()
-	if closeDst {
+	if !udp {
 		dst.Close()
 	}
 
@@ -746,7 +797,7 @@ func parseAddr(addr string) (*proxyAddress, error) {
 		}
 
 		for i := int64(0); i < portRange; i++ {
-			newAddr := fmt.Sprintf("%s:%d", addrParts[0], portFirst + i)
+			newAddr := fmt.Sprintf("%s:%d", addrParts[0], portFirst+i)
 			newProxyAddr.addr = append(newProxyAddr.addr, newAddr)
 		}
 	}
