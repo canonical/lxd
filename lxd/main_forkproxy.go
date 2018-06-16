@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -260,7 +261,7 @@ type cmdForkproxy struct {
 
 type proxyAddress struct {
 	connType string
-	addr     string
+	addr     []string
 	abstract bool
 }
 
@@ -307,45 +308,71 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to call forkproxy constructor")
 	}
 
-	lAddr := parseAddr(listenAddr)
+	lAddr, err := parseAddr(listenAddr)
+	if err != nil {
+		return err
+	}
 
 	if C.whoami == C.FORKPROXY_CHILD {
-		err := os.Remove(lAddr.addr)
-		if err != nil && !os.IsNotExist(err) {
-			return err
+		if lAddr.connType == "unix"  && !lAddr.abstract {
+			err := os.Remove(lAddr.addr[0])
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
 		}
 
-		file, err := getListenerFile(listenAddr)
-		if err != nil {
-			return err
+		for _, port := range lAddr.addr {
+			fmt.Println(port)
 		}
 
-		err = shared.AbstractUnixSendFd(forkproxyUDSSockFDNum, int(file.Fd()))
+		for _, addr := range lAddr.addr {
+			file, err := getListenerFile(lAddr.connType, addr)
+			if err != nil {
+				return err
+			}
+
+			err = shared.AbstractUnixSendFd(forkproxyUDSSockFDNum, int(file.Fd()))
+			file.Close()
+			if err != nil {
+				break
+			}
+		}
+
 		syscall.Close(forkproxyUDSSockFDNum)
-		file.Close()
 		return err
 	}
 
-	file, err := shared.AbstractUnixReceiveFd(forkproxyUDSSockFDNum)
-	syscall.Close(forkproxyUDSSockFDNum)
-	if err != nil {
-		fmt.Printf("Failed to receive fd from listener process: %v\n", err)
-		return err
+	files := []*os.File{}
+	for range lAddr.addr {
+		f, err := shared.AbstractUnixReceiveFd(forkproxyUDSSockFDNum)
+		if err != nil {
+			fmt.Printf("Failed to receive fd from listener process: %v\n", err)
+			return err
+		}
+		files = append(files, f)
 	}
+	syscall.Close(forkproxyUDSSockFDNum)
 
 	var srcConn net.Conn
-	var listener net.Listener
+	var listeners []*net.Listener
 
 	udpFD := -1
 	if lAddr.connType == "udp" {
-		udpFD = int(file.Fd())
-		srcConn, err = net.FileConn(file)
+		udpFD = int(files[0].Fd())
+		srcConn, err = net.FileConn(files[0])
+		if err != nil {
+			fmt.Printf("Failed to re-assemble listener: %v", err)
+			return err
+		}
 	} else {
-		listener, err = net.FileListener(file)
-	}
-	if err != nil {
-		fmt.Printf("Failed to re-assemble listener: %v", err)
-		return err
+		for _, f := range files {
+			listener, err := net.FileListener(f)
+			if err != nil {
+				fmt.Printf("Failed to re-assemble listener: %v", err)
+				return err
+			}
+			listeners = append(listeners, &listener)
+		}
 	}
 
 	// Handle SIGTERM which is sent when the proxy is to be removed
@@ -358,33 +385,44 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	go func() {
 		<-sigs
 		terminate = true
-		file.Close()
+
+		for _, f := range files {
+			f.Close()
+		}
+
 		if lAddr.connType == "udp" {
 			srcConn.Close()
 			// Kill ourselves since we will otherwise block on UDP
 			// connect() or poll().
 			syscall.Kill(killOnUDP, syscall.SIGKILL)
 		} else {
-			listener.Close()
+			for _, listener := range listeners {
+				(*listener).Close()
+			}
 		}
 	}()
 
 	connectAddr := args[3]
-	cAddr := parseAddr(connectAddr)
+	cAddr, err := parseAddr(connectAddr)
+	if err != nil {
+		return err
+	}
 
 	if cAddr.connType == "unix" && !cAddr.abstract {
 		// Create socket
-		file, err := getListenerFile(fmt.Sprintf("unix:%s", cAddr.addr))
+		file, err := getListenerFile("unix", cAddr.addr[0])
 		if err != nil {
 			return err
 		}
 		file.Close()
 
-		defer os.Remove(cAddr.addr)
+		if cAddr.connType == "unix" && !cAddr.abstract {
+			defer os.Remove(cAddr.addr[0])
+		}
 	}
 
 	if lAddr.connType == "unix" && !lAddr.abstract {
-		defer os.Remove(lAddr.addr)
+		defer os.Remove(lAddr.addr[0])
 	}
 
 	fmt.Printf("Starting %s to %s proxy\n", lAddr.connType, cAddr.connType)
@@ -418,7 +456,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		// begin proxying
 		for {
 			// Accept a new client
-			srcConn, err = listener.Accept()
+			srcConn, err = (*listeners[0]).Accept()
 			if err != nil {
 				if terminate {
 					break
@@ -619,15 +657,12 @@ func tryListenUDP(protocol string, addr string) (*os.File, error) {
 	return file, err
 }
 
-func getListenerFile(listenAddr string) (*os.File, error) {
-	fields := strings.SplitN(listenAddr, ":", 2)
-	addr := strings.Join(fields[1:], "")
-
-	if fields[0] == "udp" {
-		return tryListenUDP(fields[0], addr)
+func getListenerFile(protocol string, addr string) (*os.File, error) {
+	if protocol == "udp" {
+		return tryListenUDP("udp", addr)
 	}
 
-	listener, err := tryListen(fields[0], addr)
+	listener, err := tryListen(protocol, addr)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to listen on %s: %v", addr, err)
 	}
@@ -654,11 +689,67 @@ func getDestConn(connectAddr string) (net.Conn, error) {
 	return net.Dial(fields[0], addr)
 }
 
-func parseAddr(addr string) *proxyAddress {
+func parsePortRange(r string) (int64, int64, error) {
+	entries := strings.Split(r, "-")
+	if len(entries) > 2 {
+		return -1, -1, fmt.Errorf("Invalid port range %s", r)
+	}
+
+	base, err := strconv.ParseInt(entries[0], 10, 64)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	size := int64(1)
+	if len(entries) > 1 {
+		size, err = strconv.ParseInt(entries[1], 10, 64)
+		if err != nil {
+			return -1, -1, err
+		}
+
+		size -= base
+		size += 1
+	}
+
+	return base, size, nil
+}
+
+func parseAddr(addr string) (*proxyAddress, error) {
+	// Split into <protocol> and <address>
 	fields := strings.SplitN(addr, ":", 2)
-	return &proxyAddress{
+
+	newProxyAddr := &proxyAddress{
 		connType: fields[0],
-		addr:     fields[1],
 		abstract: strings.HasPrefix(fields[1], "@"),
 	}
+
+	// unix addresses cannot have ports
+	if newProxyAddr.connType == "unix" {
+		newProxyAddr.addr = []string{fields[1]}
+		return newProxyAddr, nil
+	}
+
+	// Split <address> into <address> and <ports>
+	addrParts := strings.SplitN(fields[1], ":", 2)
+	// no ports
+	if len(addrParts) == 1 {
+		newProxyAddr.addr = []string{fields[1]}
+		return newProxyAddr, nil
+	}
+
+	// Split <ports> into individual ports and port ranges
+	ports := strings.SplitN(addrParts[1], ",", -1)
+	for _, port := range ports {
+		portFirst, portRange, err := parsePortRange(port)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := int64(0); i < portRange; i++ {
+			newAddr := fmt.Sprintf("%s:%d", addrParts[0], portFirst + i)
+			newProxyAddr.addr = append(newProxyAddr.addr, newAddr)
+		}
+	}
+
+	return newProxyAddr, nil
 }
