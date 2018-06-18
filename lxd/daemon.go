@@ -614,12 +614,20 @@ func (d *Daemon) init() error {
 
 		// Read the trusted certificates
 		readSavedClientCAList(d)
-	}
 
-	// Connect to MAAS
-	err = d.setupMAASController(maasAPIURL, maasAPIKey, maasMachine)
-	if err != nil {
-		return err
+		// Connect to MAAS
+		go func() {
+			for {
+				err = d.setupMAASController(maasAPIURL, maasAPIKey, maasMachine)
+				if err == nil {
+					logger.Info("Connected to MAAS controller")
+					break
+				}
+
+				logger.Warn("Unable to connect to MAAS, trying again in a minute", log.Ctx{"err": err})
+				time.Sleep(time.Minute)
+			}
+		}()
 	}
 
 	close(d.setupChan)
