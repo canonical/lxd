@@ -22,7 +22,7 @@ again:
 
 	// keep retrying on EAGAIN
 	errno, ok := shared.GetErrno(err)
-	if ok && errno == syscall.EAGAIN {
+	if ok && (errno == syscall.EAGAIN || errno == syscall.EINTR) {
 		goto again
 	}
 
@@ -44,7 +44,7 @@ again:
 
 	// keep retrying on EAGAIN
 	errno, ok := shared.GetErrno(err)
-	if ok && errno == syscall.EAGAIN {
+	if ok && (errno == syscall.EAGAIN || errno == syscall.EINTR) {
 		goto again
 	}
 
