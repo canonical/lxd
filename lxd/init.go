@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	lxd "github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
@@ -18,8 +17,7 @@ type initDataNode struct {
 }
 
 type initDataCluster struct {
-	api.ClusterPut  `yaml:",inline"`
-	ClusterPassword string `json:"cluster_password" yaml:"cluster_password"`
+	api.ClusterPut `yaml:",inline"`
 }
 
 // Helper to initialize node-specific entities on a LXD instance using the
@@ -354,22 +352,6 @@ func initDataClusterApply(d lxd.ContainerServer, config *initDataCluster) error 
 
 	// Check if already enabled
 	if !currentCluster.Enabled {
-		// Setup trust relationship
-		if config.ClusterAddress != "" && config.ClusterPassword != "" {
-			// Get our certificate
-			serverConfig, _, err := d.GetServer()
-			if err != nil {
-				return errors.Wrap(err, "Failed to retrieve server configuration")
-			}
-
-			// Try to setup trust
-			err = cluster.SetupTrust(serverConfig.Environment.Certificate, config.ClusterAddress,
-				config.ClusterCertificate, config.ClusterPassword)
-			if err != nil {
-				return errors.Wrap(err, "Failed to setup cluster trust")
-			}
-		}
-
 		// Configure the cluster
 		op, err := d.UpdateCluster(config.ClusterPut, etag)
 		if err != nil {
