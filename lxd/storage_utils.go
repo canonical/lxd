@@ -309,7 +309,7 @@ func shrinkVolumeFilesystem(s storage, volumeType int, fsType string, devPath st
 	var cleanupFunc func() (bool, error)
 	switch fsType {
 	case "xfs":
-		logger.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
+		logger.Errorf("XFS filesystems cannot be shrunk: dump, mkfs, and restore are required")
 		return nil, fmt.Errorf("xfs filesystems cannot be shrunk: dump, mkfs, and restore are required")
 	case "btrfs":
 		fallthrough

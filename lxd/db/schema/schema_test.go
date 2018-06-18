@@ -79,7 +79,7 @@ func TestSchemaEnsure_MissingVersion(t *testing.T) {
 
 	_, err = schema.Ensure(db)
 	assert.NotNil(t, err)
-	assert.EqualError(t, err, "missing updates: 1 -> 3")
+	assert.EqualError(t, err, "Missing updates: 1 to 3")
 }
 
 // If the schema has no update, the schema table gets created and has no version.

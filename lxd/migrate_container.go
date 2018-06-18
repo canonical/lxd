@@ -170,7 +170,7 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 		// is not higher than this.
 		max_iterations = 999
 	}
-	logger.Debugf("using maximal %d iterations for pre-dumping", max_iterations)
+	logger.Debugf("Using maximal %d iterations for pre-dumping", max_iterations)
 
 	return use_pre_dumps, max_iterations
 }
@@ -201,7 +201,6 @@ func readCriuStatsDump(path string) (uint64, uint64, error) {
 
 	// Next, read the size of the image payload
 	size := binary.LittleEndian.Uint32(in[8:12])
-	logger.Debugf("stats-dump payload size %d", size)
 
 	statsEntry := &migration.StatsEntry{}
 	if err = proto.Unmarshal(in[12:12+size], statsEntry); err != nil {
@@ -593,7 +592,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 				logger.Debugf("Dump finished, continuing with restore...")
 			}
 		} else {
-			logger.Debugf("liblxc version is older than 2.0.4 and the live migration will probably fail")
+			logger.Debugf("The version of liblxc is older than 2.0.4 and the live migration will probably fail")
 			defer os.RemoveAll(checkpointDir)
 			criuMigrationArgs := CriuMigrationArgs{
 				cmd:          lxc.MIGRATE_DUMP,
@@ -646,7 +645,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		restoreSuccess <- *msg.Success
 		err := <-dumpSuccess
 		if err != nil {
-			logger.Errorf("dump failed after successful restore?: %q", err)
+			logger.Errorf("Dump failed after successful restore?: %q", err)
 		}
 	}
 
@@ -917,14 +916,13 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 						restore <- err
 						return
 					}
-					logger.Debugf("rsync receive done")
+					logger.Debugf("Done receiving from rsync")
 
 					logger.Debugf("About to receive header")
 					// Check if this was the last pre-dump
 					// Only the FinalPreDump element if of interest
 					mtype, data, err := criuConn.ReadMessage()
 					if err != nil {
-						logger.Debugf("err %s", err)
 						restore <- err
 						return
 					}
@@ -934,7 +932,6 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 					}
 					err = proto.Unmarshal(data, sync)
 					if err != nil {
-						logger.Debugf("err %s", err)
 						restore <- err
 						return
 					}

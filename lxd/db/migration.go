@@ -204,7 +204,7 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 				return fmt.Errorf("could not insert %d int %s", i, table)
 			}
 
-			// Also insert the image ID -> node ID association.
+			// Also insert the image ID to node ID association.
 			if shared.StringInSlice(table, []string{"images", "networks", "storage_pools"}) {
 				entity := table[:len(table)-1]
 				importNodeAssociation(entity, columns, row, tx)

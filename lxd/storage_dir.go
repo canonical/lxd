@@ -33,7 +33,7 @@ func (s *storageDir) StorageCoreInit() error {
 	s.sTypeName = typeName
 	s.sTypeVersion = "1"
 
-	logger.Debugf("Initializing a DIR driver.")
+	logger.Debugf("Initializing a DIR driver")
 	return nil
 }
 
@@ -49,12 +49,12 @@ func (s *storageDir) StoragePoolInit() error {
 
 // Initialize a full storage interface.
 func (s *storageDir) StoragePoolCheck() error {
-	logger.Debugf("Checking DIR storage pool \"%s\".", s.pool.Name)
+	logger.Debugf("Checking DIR storage pool \"%s\"", s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) StoragePoolCreate() error {
-	logger.Infof("Creating DIR storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Creating DIR storage pool \"%s\"", s.pool.Name)
 
 	s.pool.Config["volatile.initial_source"] = s.pool.Config["source"]
 
@@ -125,12 +125,12 @@ func (s *storageDir) StoragePoolCreate() error {
 
 	revert = false
 
-	logger.Infof("Created DIR storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Created DIR storage pool \"%s\"", s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) StoragePoolDelete() error {
-	logger.Infof("Deleting DIR storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Deleting DIR storage pool \"%s\"", s.pool.Name)
 
 	source := shared.HostPath(s.pool.Config["source"])
 	if source == "" {
@@ -162,7 +162,7 @@ func (s *storageDir) StoragePoolDelete() error {
 		}
 	}
 
-	logger.Infof("Deleted DIR storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Deleted DIR storage pool \"%s\"", s.pool.Name)
 	return nil
 }
 
@@ -177,14 +177,14 @@ func (s *storageDir) StoragePoolMount() (bool, error) {
 		return true, nil
 	}
 
-	logger.Debugf("Mounting DIR storage pool \"%s\".", s.pool.Name)
+	logger.Debugf("Mounting DIR storage pool \"%s\"", s.pool.Name)
 
 	poolMountLockID := getPoolMountLockID(s.pool.Name)
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[poolMountLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			logger.Warnf("Received value over semaphore. This should not have happened.")
+			logger.Warnf("Received value over semaphore, this should not have happened")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in mounting the storage pool.
@@ -213,12 +213,11 @@ func (s *storageDir) StoragePoolMount() (bool, error) {
 
 	err := syscall.Mount(mountSource, poolMntPoint, "", uintptr(mountFlags), "")
 	if err != nil {
-		logger.Errorf(`Failed to mount DIR storage pool "%s" onto `+
-			`"%s": %s`, mountSource, poolMntPoint, err)
+		logger.Errorf(`Failed to mount DIR storage pool "%s" onto "%s": %s`, mountSource, poolMntPoint, err)
 		return false, err
 	}
 
-	logger.Debugf("Mounted DIR storage pool \"%s\".", s.pool.Name)
+	logger.Debugf("Mounted DIR storage pool \"%s\"", s.pool.Name)
 
 	return true, nil
 }
@@ -234,14 +233,14 @@ func (s *storageDir) StoragePoolUmount() (bool, error) {
 		return true, nil
 	}
 
-	logger.Debugf("Unmounting DIR storage pool \"%s\".", s.pool.Name)
+	logger.Debugf("Unmounting DIR storage pool \"%s\"", s.pool.Name)
 
 	poolUmountLockID := getPoolUmountLockID(s.pool.Name)
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[poolUmountLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			logger.Warnf("Received value over semaphore. This should not have happened.")
+			logger.Warnf("Received value over semaphore, this should not have happened")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in unmounting the storage pool.
@@ -271,7 +270,7 @@ func (s *storageDir) StoragePoolUmount() (bool, error) {
 		return false, err
 	}
 
-	logger.Debugf("Unmounted DIR pool \"%s\".", s.pool.Name)
+	logger.Debugf("Unmounted DIR pool \"%s\"", s.pool.Name)
 	return true, nil
 }
 
@@ -323,7 +322,7 @@ func (s *storageDir) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 
 // Functions dealing with storage pools.
 func (s *storageDir) StoragePoolVolumeCreate() error {
-	logger.Infof("Creating DIR storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Infof("Creating DIR storage volume \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -341,12 +340,12 @@ func (s *storageDir) StoragePoolVolumeCreate() error {
 		return err
 	}
 
-	logger.Infof("Created DIR storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Infof("Created DIR storage volume \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) StoragePoolVolumeDelete() error {
-	logger.Infof("Deleting DIR storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Infof("Deleting DIR storage volume \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -368,12 +367,11 @@ func (s *storageDir) StoragePoolVolumeDelete() error {
 		storagePoolVolumeTypeCustom,
 		s.poolID)
 	if err != nil {
-		logger.Errorf(`Failed to delete database entry for DIR `+
-			`storage volume "%s" on storage pool "%s"`,
+		logger.Errorf(`Failed to delete database entry for DIR storage volume "%s" on storage pool "%s"`,
 			s.volume.Name, s.pool.Name)
 	}
 
-	logger.Infof("Deleted DIR storage volume \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Infof("Deleted DIR storage volume \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
@@ -448,7 +446,7 @@ func (s *storageDir) ContainerStorageReady(name string) bool {
 }
 
 func (s *storageDir) ContainerCreate(container container) error {
-	logger.Debugf("Creating empty DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Creating empty DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -480,12 +478,12 @@ func (s *storageDir) ContainerCreate(container container) error {
 
 	revert = false
 
-	logger.Debugf("Created empty DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Created empty DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerCreateFromImage(container container, imageFingerprint string) error {
-	logger.Debugf("Creating DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Creating DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -532,7 +530,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 
 	revert = false
 
-	logger.Debugf("Created DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Created DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
@@ -541,7 +539,7 @@ func (s *storageDir) ContainerCanRestore(container container, sourceContainer co
 }
 
 func (s *storageDir) ContainerDelete(container container) error {
-	logger.Debugf("Deleting DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Deleting DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	source := s.pool.Config["source"]
 	if source == "" {
@@ -583,7 +581,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 	}
 
 	// Delete potential leftover snapshot symlinks:
-	// ${LXD_DIR}/snapshots/<container_name> -> ${POOL}/snapshots/<container_name>
+	// ${LXD_DIR}/snapshots/<container_name> to ${POOL}/snapshots/<container_name>
 	snapshotSymlink := shared.VarPath("snapshots", container.Name())
 	if shared.PathExists(snapshotSymlink) {
 		err := os.Remove(snapshotSymlink)
@@ -602,7 +600,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 		s.ContainerBackupDelete(backupName)
 	}
 
-	logger.Debugf("Deleted DIR storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Deleted DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
@@ -664,7 +662,7 @@ func (s *storageDir) copySnapshot(target container, targetPool string, source co
 }
 
 func (s *storageDir) ContainerCopy(target container, source container, containerOnly bool) error {
-	logger.Debugf("Copying DIR container storage %s -> %s.", source.Name(), target.Name())
+	logger.Debugf("Copying DIR container storage %s to %s", source.Name(), target.Name())
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -712,7 +710,7 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 	}
 
 	if containerOnly {
-		logger.Debugf("Copied DIR container storage %s -> %s.", source.Name(), target.Name())
+		logger.Debugf("Copied DIR container storage %s to %s", source.Name(), target.Name())
 		return nil
 	}
 
@@ -722,7 +720,7 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 	}
 
 	if len(snapshots) == 0 {
-		logger.Debugf("Copied DIR container storage %s -> %s.", source.Name(), target.Name())
+		logger.Debugf("Copied DIR container storage %s to %s", source.Name(), target.Name())
 		return nil
 	}
 
@@ -745,7 +743,7 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 		}
 	}
 
-	logger.Debugf("Copied DIR container storage %s -> %s.", source.Name(), target.Name())
+	logger.Debugf("Copied DIR container storage %s to %s", source.Name(), target.Name())
 	return nil
 }
 
@@ -758,7 +756,7 @@ func (s *storageDir) ContainerUmount(name string, path string) (bool, error) {
 }
 
 func (s *storageDir) ContainerRename(container container, newName string) error {
-	logger.Debugf("Renaming DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+	logger.Debugf("Renaming DIR storage volume for container \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -801,7 +799,7 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 		}
 
 		// Create the new snapshot symlink:
-		// ${LXD_DIR}/snapshots/<new_container_name> -> ${POOL}/snapshots/<new_container_name>
+		// ${LXD_DIR}/snapshots/<new_container_name> to ${POOL}/snapshots/<new_container_name>
 		err = os.Symlink(newSnapshotsMntPoint, newSnapshotSymlink)
 		if err != nil {
 			return err
@@ -819,12 +817,12 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 		s.ContainerBackupRename(backup, newName)
 	}
 
-	logger.Debugf("Renamed DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+	logger.Debugf("Renamed DIR storage volume for container \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 	return nil
 }
 
 func (s *storageDir) ContainerRestore(container container, sourceContainer container) error {
-	logger.Debugf("Restoring DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
+	logger.Debugf("Restoring DIR storage volume for container \"%s\" from %s to %s", s.volume.Name, sourceContainer.Name(), container.Name())
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -846,7 +844,7 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 		return err
 	}
 
-	logger.Debugf("Restored DIR storage volume for container \"%s\" from %s -> %s.", s.volume.Name, sourceContainer.Name(), container.Name())
+	logger.Debugf("Restored DIR storage volume for container \"%s\" from %s to %s", s.volume.Name, sourceContainer.Name(), container.Name())
 	return nil
 }
 
@@ -855,7 +853,7 @@ func (s *storageDir) ContainerGetUsage(container container) (int64, error) {
 }
 
 func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
-	logger.Debugf("Creating DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Creating DIR storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -899,11 +897,11 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 	if sourceContainer.IsRunning() {
 		// This is done to ensure consistency when snapshotting. But we
 		// probably shouldn't fail just because of that.
-		logger.Debugf("Trying to freeze and rsync again to ensure consistency.")
+		logger.Debugf("Trying to freeze and rsync again to ensure consistency")
 
 		err := sourceContainer.Freeze()
 		if err != nil {
-			logger.Errorf("Trying to freeze and rsync again failed.")
+			logger.Errorf("Trying to freeze and rsync again failed")
 			goto onSuccess
 		}
 		defer sourceContainer.Unfreeze()
@@ -916,7 +914,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 
 onSuccess:
 	// Check if the symlink
-	// ${LXD_DIR}/snapshots/<source_container_name> -> ${POOL_PATH}/snapshots/<source_container_name>
+	// ${LXD_DIR}/snapshots/<source_container_name> to ${POOL_PATH}/snapshots/<source_container_name>
 	// exists and if not create it.
 	sourceContainerSymlink := shared.VarPath("snapshots", sourceContainerName)
 	sourceContainerSymlinkTarget := getSnapshotMountPoint(sourcePool, sourceContainerName)
@@ -927,12 +925,12 @@ onSuccess:
 		}
 	}
 
-	logger.Debugf("Created DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Created DIR storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) error {
-	logger.Debugf("Creating empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Creating empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -955,7 +953,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	}()
 
 	// Check if the symlink
-	// ${LXD_DIR}/snapshots/<source_container_name> -> ${POOL_PATH}/snapshots/<source_container_name>
+	// ${LXD_DIR}/snapshots/<source_container_name> to ${POOL_PATH}/snapshots/<source_container_name>
 	// exists and if not create it.
 	targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name,
 		targetContainerName)
@@ -971,7 +969,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 
 	revert = false
 
-	logger.Debugf("Created empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Created empty DIR storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
@@ -1006,7 +1004,7 @@ func dirSnapshotDeleteInternal(poolName string, snapshotName string) error {
 }
 
 func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error {
-	logger.Debugf("Deleting DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Deleting DIR storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -1024,12 +1022,12 @@ func (s *storageDir) ContainerSnapshotDelete(snapshotContainer container) error 
 		return err
 	}
 
-	logger.Debugf("Deleted DIR storage volume for snapshot \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Deleted DIR storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newName string) error {
-	logger.Debugf("Renaming DIR storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+	logger.Debugf("Renaming DIR storage volume for snapshot \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
@@ -1045,7 +1043,7 @@ func (s *storageDir) ContainerSnapshotRename(snapshotContainer container, newNam
 		return err
 	}
 
-	logger.Debugf("Renamed DIR storage volume for snapshot \"%s\" from %s -> %s.", s.volume.Name, s.volume.Name, newName)
+	logger.Debugf("Renamed DIR storage volume for snapshot \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
 	return nil
 }
 
@@ -1058,7 +1056,7 @@ func (s *storageDir) ContainerSnapshotStop(container container) (bool, error) {
 }
 
 func (s *storageDir) ContainerBackupCreate(backup backup, sourceContainer container) error {
-	logger.Debugf("Creating DIR storage volume for backup \"%s\" on storage pool \"%s\".",
+	logger.Debugf("Creating DIR storage volume for backup \"%s\" on storage pool \"%s\"",
 		backup.Name(), s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -1115,11 +1113,11 @@ func (s *storageDir) ContainerBackupCreate(backup backup, sourceContainer contai
 	if sourceContainer.IsRunning() {
 		// This is done to ensure consistency when snapshotting. But we
 		// probably shouldn't fail just because of that.
-		logger.Debugf("Trying to freeze and rsync again to ensure consistency.")
+		logger.Debugf("Trying to freeze and rsync again to ensure consistency")
 
 		err := sourceContainer.Freeze()
 		if err != nil {
-			logger.Errorf("Trying to freeze and rsync again failed.")
+			logger.Errorf("Trying to freeze and rsync again failed")
 		}
 		defer sourceContainer.Unfreeze()
 
@@ -1148,13 +1146,13 @@ func (s *storageDir) ContainerBackupCreate(backup backup, sourceContainer contai
 		}
 	}
 
-	logger.Debugf("Created DIR storage volume for backup \"%s\" on storage pool \"%s\".",
+	logger.Debugf("Created DIR storage volume for backup \"%s\" on storage pool \"%s\"",
 		backup.Name(), s.pool.Name)
 	return nil
 }
 
 func (s *storageDir) ContainerBackupDelete(name string) error {
-	logger.Debugf("Deleting DIR storage volume for backup \"%s\" on storage pool \"%s\".",
+	logger.Debugf("Deleting DIR storage volume for backup \"%s\" on storage pool \"%s\"",
 		name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -1172,7 +1170,7 @@ func (s *storageDir) ContainerBackupDelete(name string) error {
 		return err
 	}
 
-	logger.Debugf("Deleted DIR storage volume for backup \"%s\" on storage pool \"%s\".",
+	logger.Debugf("Deleted DIR storage volume for backup \"%s\" on storage pool \"%s\"",
 		name, s.pool.Name)
 	return nil
 }
@@ -1200,7 +1198,7 @@ func dirBackupDeleteInternal(poolName string, backupName string) error {
 }
 
 func (s *storageDir) ContainerBackupRename(backup backup, newName string) error {
-	logger.Debugf("Renaming DIR storage volume for backup \"%s\" from %s -> %s.",
+	logger.Debugf("Renaming DIR storage volume for backup \"%s\" from %s to %s",
 		backup.Name(), backup.Name(), newName)
 
 	_, err := s.StoragePoolMount()
@@ -1224,7 +1222,7 @@ func (s *storageDir) ContainerBackupRename(backup backup, newName string) error 
 		}
 	}
 
-	logger.Debugf("Renamed DIR storage volume for backup \"%s\" from %s -> %s.",
+	logger.Debugf("Renamed DIR storage volume for backup \"%s\" from %s to %s",
 		backup.Name(), backup.Name(), newName)
 	return nil
 }

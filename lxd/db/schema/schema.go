@@ -362,8 +362,7 @@ func checkSchemaVersionsHaveNoHoles(versions []int) error {
 	// versions.
 	for i := range versions[:len(versions)-1] {
 		if versions[i+1] != versions[i]+1 {
-			return fmt.Errorf(
-				"missing updates: %d -> %d", versions[i], versions[i+1])
+			return fmt.Errorf("Missing updates: %d to %d", versions[i], versions[i+1])
 		}
 	}
 	return nil

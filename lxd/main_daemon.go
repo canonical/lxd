@@ -94,15 +94,15 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	select {
 	case sig := <-ch:
 		if sig == syscall.SIGPWR {
-			logger.Infof("Received '%s signal', shutting down containers.", sig)
+			logger.Infof("Received '%s signal', shutting down containers", sig)
 			containersShutdown(s)
 			networkShutdown(s)
 		} else {
-			logger.Infof("Received '%s signal', exiting.", sig)
+			logger.Infof("Received '%s signal', exiting", sig)
 		}
 
 	case <-d.shutdownChan:
-		logger.Infof("Asked to shutdown by API, shutting down containers.")
+		logger.Infof("Asked to shutdown by API, shutting down containers")
 		d.Kill()
 		containersShutdown(s)
 		networkShutdown(s)
