@@ -487,7 +487,7 @@ images from the host.
 This enables copying or moving containers between storage pools on the same LXD
 instance.
 
-## proxy_unix
+## proxy\_unix
 Add support for both unix sockets and abstract unix sockets in proxy devices.
 They can be used by specifying the address as `unix:/path/to/unix.sock` (normal
 socket) or `unix:@/tmp/unix.sock` (abstract socket).
@@ -499,7 +499,7 @@ Supported connections are now:
 * `TCP <-> UNIX`
 * `UNIX <-> TCP`
 
-## proxy_udp
+## proxy\_udp
 Add support for udp in proxy devices.
 
 Supported connections are now:
