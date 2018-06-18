@@ -446,11 +446,13 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	}
 
 	// Update MAAS
-	err = c.maasUpdate(false)
-	if err != nil {
-		c.Delete()
-		logger.Error("Failed creating container", ctxMap)
-		return nil, err
+	if !c.IsSnapshot() {
+		err = c.maasUpdate(false)
+		if err != nil {
+			c.Delete()
+			logger.Error("Failed creating container", ctxMap)
+			return nil, err
+		}
 	}
 
 	// Update lease files
@@ -3367,9 +3369,11 @@ func (c *containerLXC) Rename(newName string) error {
 	c.cleanup()
 
 	// Rename the MAAS entry
-	err = c.maasRename(newName)
-	if err != nil {
-		return err
+	if !c.IsSnapshot() {
+		err = c.maasRename(newName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Rename the logging path
@@ -3951,7 +3955,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		}
 	}
 
-	if updateMAAS {
+	if !c.IsSnapshot() && updateMAAS {
 		err = c.maasUpdate(true)
 		if err != nil {
 			return err
