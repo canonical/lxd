@@ -3560,7 +3560,7 @@ func writeBackupFile(c container) error {
 
 	/* deal with the container occasionally not being monuted */
 	if !shared.PathExists(c.RootfsPath()) {
-		logger.Warn("Unable to update backup.yaml at this time.", log.Ctx{"name": c.Name()})
+		logger.Warn("Unable to update backup.yaml at this time", log.Ctx{"name": c.Name()})
 		return nil
 	}
 
@@ -4323,7 +4323,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 					err := c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path)
 					if err != nil {
-						logger.Error("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						logger.Error("Failed to remove GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
 					}
 
@@ -4333,7 +4333,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 					err = c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
 					if err != nil {
-						logger.Error("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						logger.Error("Failed to remove GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
 					}
 				}
@@ -4355,7 +4355,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						}
 						err = c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path)
 						if err != nil {
-							logger.Error("Failed to remove GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							logger.Error("Failed to remove GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 							return err
 						}
 					}
@@ -4426,7 +4426,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 					err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, usb.major, usb.minor, usb.path, false)
 					if err != nil {
-						logger.Error("failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+						logger.Error("Failed to insert usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					}
 				}
 			} else if m["type"] == "gpu" {
@@ -4451,7 +4451,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 					err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path, false)
 					if err != nil {
-						logger.Error("Failed to insert GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						logger.Error("Failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
 					}
 
@@ -4461,7 +4461,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 					err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path, false)
 					if err != nil {
-						logger.Error("Failed to insert GPU device.", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+						logger.Error("Failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 						return err
 					}
 
@@ -4475,7 +4475,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						}
 						err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path, false)
 						if err != nil {
-							logger.Error("failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							logger.Error("Failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 							return err
 						}
 					}
@@ -5050,7 +5050,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		prettyCmd = "feature-check"
 	default:
 		prettyCmd = "unknown"
-		logger.Warn("unknown migrate call", log.Ctx{"cmd": args.cmd})
+		logger.Warn("Unknown migrate call", log.Ctx{"cmd": args.cmd})
 	}
 
 	preservesInodes := c.storage.PreservesInodes()
@@ -5739,7 +5739,6 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	r, w, err := shared.Pipe()
 	defer r.Close()
 	if err != nil {
-		logger.Errorf("%s", err)
 		return nil, -1, -1, err
 	}
 
@@ -6519,7 +6518,7 @@ func (c *containerLXC) removeUnixDeviceNum(prefix string, m types.Device, major 
 
 	err := c.removeUnixDevice(prefix, temp, true)
 	if err != nil {
-		logger.Error("failed to remove device", log.Ctx{"err": err, m["type"]: path, "container": c.Name()})
+		logger.Error("Failed to remove device", log.Ctx{"err": err, m["type"]: path, "container": c.Name()})
 		return err
 	}
 
@@ -6777,7 +6776,7 @@ func (c *containerLXC) removeUnixDevices() error {
 		devicePath := filepath.Join(c.DevicesPath(), f.Name())
 		err := os.Remove(devicePath)
 		if err != nil {
-			logger.Error("failed removing unix device", log.Ctx{"err": err, "path": devicePath})
+			logger.Error("Failed removing unix device", log.Ctx{"err": err, "path": devicePath})
 		}
 	}
 

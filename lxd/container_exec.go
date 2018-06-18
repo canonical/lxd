@@ -178,9 +178,9 @@ func (s *execWs) Do(op *operation) error {
 					// If an abnormal closure occurred, kill the attached process.
 					err := syscall.Kill(attachedChildPid, syscall.SIGKILL)
 					if err != nil {
-						logger.Debugf("Failed to send SIGKILL to pid %d.", attachedChildPid)
+						logger.Debugf("Failed to send SIGKILL to pid %d", attachedChildPid)
 					} else {
-						logger.Debugf("Sent SIGKILL to pid %d.", attachedChildPid)
+						logger.Debugf("Sent SIGKILL to pid %d", attachedChildPid)
 					}
 					return
 				}
@@ -498,7 +498,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 		err = op.UpdateMetadata(metadata)
 		if err != nil {
-			logger.Error("error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
+			logger.Error("Error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
 		}
 
 		return cmdErr

@@ -74,7 +74,7 @@ func zfsPoolCreate(pool string, vdev string) error {
 		output, err := shared.RunCommand(
 			"zfs", "create", "-p", "-o", "mountpoint=none", vdev)
 		if err != nil {
-			logger.Errorf("zfs create failed: %s.", output)
+			logger.Errorf("zfs create failed: %s", output)
 			return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
 		}
 		dataset = vdev
@@ -82,7 +82,7 @@ func zfsPoolCreate(pool string, vdev string) error {
 		output, err = shared.RunCommand(
 			"zpool", "create", "-f", "-m", "none", "-O", "compression=on", pool, vdev)
 		if err != nil {
-			logger.Errorf("zfs create failed: %s.", output)
+			logger.Errorf("zfs create failed: %s", output)
 			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 		}
 
@@ -141,7 +141,7 @@ func zfsPoolVolumeClone(pool string, source string, name string, dest string, mo
 		fmt.Sprintf("%s/%s@%s", pool, source, name),
 		fmt.Sprintf("%s/%s", pool, dest))
 	if err != nil {
-		logger.Errorf("zfs clone failed: %s.", output)
+		logger.Errorf("zfs clone failed: %s", output)
 		return fmt.Errorf("Failed to clone the filesystem: %s", output)
 	}
 
@@ -172,7 +172,7 @@ func zfsPoolVolumeClone(pool string, source string, name string, dest string, mo
 			fmt.Sprintf("%s/%s@%s", pool, sub, name),
 			fmt.Sprintf("%s/%s", pool, destSubvol))
 		if err != nil {
-			logger.Errorf("zfs clone failed: %s.", output)
+			logger.Errorf("zfs clone failed: %s", output)
 			return fmt.Errorf("Failed to clone the sub-volume: %s", output)
 		}
 	}
@@ -211,7 +211,7 @@ func zfsPoolVolumeDestroy(pool string, path string) error {
 	if mountpoint != "none" && shared.IsMountPoint(mountpoint) {
 		err := syscall.Unmount(mountpoint, syscall.MNT_DETACH)
 		if err != nil {
-			logger.Errorf("umount failed: %s.", err)
+			logger.Errorf("umount failed: %s", err)
 			return err
 		}
 	}
@@ -224,7 +224,7 @@ func zfsPoolVolumeDestroy(pool string, path string) error {
 		fmt.Sprintf("%s/%s", pool, path))
 
 	if err != nil {
-		logger.Errorf("zfs destroy failed: %s.", output)
+		logger.Errorf("zfs destroy failed: %s", output)
 		return fmt.Errorf("Failed to destroy ZFS filesystem: %s", output)
 	}
 
@@ -342,7 +342,7 @@ func zfsPoolVolumeRename(pool string, source string, dest string) error {
 	}
 
 	// Timeout
-	logger.Errorf("zfs rename failed: %s.", output)
+	logger.Errorf("zfs rename failed: %s", output)
 	return fmt.Errorf("Failed to rename ZFS filesystem: %s", output)
 }
 
@@ -357,7 +357,7 @@ func zfsPoolVolumeSet(pool string, path string, key string, value string) error 
 		fmt.Sprintf("%s=%s", key, value),
 		vdev)
 	if err != nil {
-		logger.Errorf("zfs set failed: %s.", output)
+		logger.Errorf("zfs set failed: %s", output)
 		return fmt.Errorf("Failed to set ZFS config: %s", output)
 	}
 
@@ -371,7 +371,7 @@ func zfsPoolVolumeSnapshotCreate(pool string, path string, name string) error {
 		"-r",
 		fmt.Sprintf("%s/%s@%s", pool, path, name))
 	if err != nil {
-		logger.Errorf("zfs snapshot failed: %s.", output)
+		logger.Errorf("zfs snapshot failed: %s", output)
 		return fmt.Errorf("Failed to create ZFS snapshot: %s", output)
 	}
 
@@ -385,7 +385,7 @@ func zfsPoolVolumeSnapshotDestroy(pool, path string, name string) error {
 		"-r",
 		fmt.Sprintf("%s/%s@%s", pool, path, name))
 	if err != nil {
-		logger.Errorf("zfs destroy failed: %s.", output)
+		logger.Errorf("zfs destroy failed: %s", output)
 		return fmt.Errorf("Failed to destroy ZFS snapshot: %s", output)
 	}
 
@@ -398,7 +398,7 @@ func zfsPoolVolumeSnapshotRestore(pool string, path string, name string) error {
 		"rollback",
 		fmt.Sprintf("%s/%s@%s", pool, path, name))
 	if err != nil {
-		logger.Errorf("zfs rollback failed: %s.", output)
+		logger.Errorf("zfs rollback failed: %s", output)
 		return fmt.Errorf("Failed to restore ZFS snapshot: %s", output)
 	}
 
@@ -422,7 +422,7 @@ func zfsPoolVolumeSnapshotRestore(pool string, path string, name string) error {
 			"rollback",
 			fmt.Sprintf("%s/%s@%s", pool, sub, name))
 		if err != nil {
-			logger.Errorf("zfs rollback failed: %s.", output)
+			logger.Errorf("zfs rollback failed: %s", output)
 			return fmt.Errorf("Failed to restore ZFS sub-volume snapshot: %s", output)
 		}
 	}
@@ -438,7 +438,7 @@ func zfsPoolVolumeSnapshotRename(pool string, path string, oldName string, newNa
 		fmt.Sprintf("%s/%s@%s", pool, path, oldName),
 		fmt.Sprintf("%s/%s@%s", pool, path, newName))
 	if err != nil {
-		logger.Errorf("zfs snapshot rename failed: %s.", output)
+		logger.Errorf("zfs snapshot rename failed: %s", output)
 		return fmt.Errorf("Failed to rename ZFS snapshot: %s", output)
 	}
 
@@ -483,7 +483,7 @@ func zfsPoolListSubvolumes(pool string, path string) ([]string, error) {
 		"-H",
 		"-r", path)
 	if err != nil {
-		logger.Errorf("zfs list failed: %s.", output)
+		logger.Errorf("zfs list failed: %s", output)
 		return []string{}, fmt.Errorf("Failed to list ZFS filesystems: %s", output)
 	}
 
@@ -520,7 +520,7 @@ func zfsPoolListSnapshots(pool string, path string) ([]string, error) {
 		"-s", "creation",
 		"-r", fullPath)
 	if err != nil {
-		logger.Errorf("zfs list failed: %s.", output)
+		logger.Errorf("zfs list failed: %s", output)
 		return []string{}, fmt.Errorf("Failed to list ZFS snapshots: %s", output)
 	}
 
@@ -592,7 +592,7 @@ func (s *storageZfs) doContainerMount(name string, privileged bool) (bool, error
 	if waitChannel, ok := lxdStorageOngoingOperationMap[containerMountLockID]; ok {
 		lxdStorageMapLock.Unlock()
 		if _, ok := <-waitChannel; ok {
-			logger.Warnf("Received value over semaphore. This should not have happened.")
+			logger.Warnf("Received value over semaphore, this should not have happened")
 		}
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in mounting the storage volume.
@@ -629,13 +629,13 @@ func (s *storageZfs) doContainerMount(name string, privileged bool) (bool, error
 		mounterr := tryMount(source, containerPoolVolumeMntPoint, "zfs", 0, zfsMountOptions)
 		if mounterr != nil {
 			if mounterr != syscall.EBUSY {
-				logger.Errorf("Failed to mount ZFS dataset \"%s\" onto \"%s\".", source, containerPoolVolumeMntPoint)
+				logger.Errorf("Failed to mount ZFS dataset \"%s\" onto \"%s\"", source, containerPoolVolumeMntPoint)
 				return false, mounterr
 			}
 			// EBUSY error in zfs are related to a bug we're
 			// tracking. So ignore them for now, report back that
 			// the mount isn't ours and proceed.
-			logger.Warnf("ZFS returned EBUSY while \"%s\" is actually not a mountpoint.", containerPoolVolumeMntPoint)
+			logger.Warnf("ZFS returned EBUSY while \"%s\" is actually not a mountpoint", containerPoolVolumeMntPoint)
 			return false, mounterr
 		}
 		ourMount = true
@@ -646,7 +646,7 @@ func (s *storageZfs) doContainerMount(name string, privileged bool) (bool, error
 }
 
 func (s *storageZfs) doContainerDelete(name string) error {
-	logger.Debugf("Deleting ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Deleting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	poolName := s.getOnDiskPoolName()
 	containerName := name
@@ -720,7 +720,7 @@ func (s *storageZfs) doContainerDelete(name string) error {
 	}
 
 	// Delete potential leftover snapshot symlinks:
-	// ${LXD_DIR}/snapshots/<container_name> -> ${POOL}/snapshots/<container_name>
+	// ${LXD_DIR}/snapshots/<container_name> to ${POOL}/snapshots/<container_name>
 	snapshotSymlink := shared.VarPath("snapshots", containerName)
 	if shared.PathExists(snapshotSymlink) {
 		err := os.Remove(snapshotSymlink)
@@ -729,12 +729,12 @@ func (s *storageZfs) doContainerDelete(name string) error {
 		}
 	}
 
-	logger.Debugf("Deleted ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Deleted ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 
 func (s *storageZfs) doContainerCreate(name string, privileged bool) error {
-	logger.Debugf("Creating empty ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Creating empty ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerPath := shared.VarPath("containers", name)
 	containerName := name
@@ -746,7 +746,7 @@ func (s *storageZfs) doContainerCreate(name string, privileged bool) error {
 	// Create volume.
 	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none", "canmount=noauto")
 	if err != nil {
-		logger.Errorf("failed to create ZFS storage volume for container \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
+		logger.Errorf("Failed to create ZFS storage volume for container \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, msg)
 		return err
 	}
 
@@ -761,7 +761,7 @@ func (s *storageZfs) doContainerCreate(name string, privileged bool) error {
 		return err
 	}
 
-	logger.Debugf("Created empty ZFS storage volume for container \"%s\" on storage pool \"%s\".", s.volume.Name, s.pool.Name)
+	logger.Debugf("Created empty ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
 

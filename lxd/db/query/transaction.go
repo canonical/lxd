@@ -32,7 +32,7 @@ func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
 func rollback(tx *sql.Tx, reason error) error {
 	err := tx.Rollback()
 	if err != nil {
-		logger.Warnf("failed to rollback transaction after error (%v): %v", reason, err)
+		logger.Warnf("Failed to rollback transaction after error (%v): %v", reason, err)
 	}
 
 	return reason

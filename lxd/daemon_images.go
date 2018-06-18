@@ -267,20 +267,20 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 
 		if shared.Int64InSlice(poolID, poolIDs) {
-			logger.Debugf("Image already exists on storage pool \"%s\".", storagePool)
+			logger.Debugf("Image already exists on storage pool \"%s\"", storagePool)
 			return info, nil
 		}
 
 		// Import the image in the pool
-		logger.Debugf("Image does not exist on storage pool \"%s\".", storagePool)
+		logger.Debugf("Image does not exist on storage pool \"%s\"", storagePool)
 
 		err = imageCreateInPool(d, info, storagePool)
 		if err != nil {
-			logger.Debugf("Failed to create image on storage pool \"%s\": %s.", storagePool, err)
+			logger.Debugf("Failed to create image on storage pool \"%s\": %s", storagePool, err)
 			return nil, err
 		}
 
-		logger.Debugf("Created image on storage pool \"%s\".", storagePool)
+		logger.Debugf("Created image on storage pool \"%s\"", storagePool)
 		return info, nil
 	}
 

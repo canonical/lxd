@@ -253,9 +253,6 @@ func containersShutdown(s *state.State) error {
 }
 
 func containerDeleteSnapshots(s *state.State, cname string) error {
-	logger.Debug("containerDeleteSnapshots",
-		log.Ctx{"container": cname})
-
 	results, err := s.Cluster.ContainerGetSnapshots(cname)
 	if err != nil {
 		return err

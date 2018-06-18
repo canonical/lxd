@@ -37,10 +37,10 @@ func memoryWatcher(ctx context.Context, signals <-chan os.Signal, filename strin
 	for {
 		select {
 		case sig := <-signals:
-			logger.Debugf("Received '%s signal', dumping memory.", sig)
+			logger.Debugf("Received '%s signal', dumping memory", sig)
 			memoryDump(filename)
 		case <-ctx.Done():
-			logger.Debugf("Shutdown memory profiler.")
+			logger.Debugf("Shutdown memory profiler")
 			return
 		}
 	}

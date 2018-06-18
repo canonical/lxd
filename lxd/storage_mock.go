@@ -24,7 +24,7 @@ func (s *storageMock) StorageCoreInit() error {
 	}
 	s.sTypeName = typeName
 
-	logger.Debugf("Initializing a MOCK driver.")
+	logger.Debugf("Initializing a MOCK driver")
 	return nil
 }
 
@@ -38,19 +38,19 @@ func (s *storageMock) StoragePoolInit() error {
 }
 
 func (s *storageMock) StoragePoolCheck() error {
-	logger.Debugf("Checking MOCK storage pool \"%s\".", s.pool.Name)
+	logger.Debugf("Checking MOCK storage pool \"%s\"", s.pool.Name)
 	return nil
 }
 
 func (s *storageMock) StoragePoolCreate() error {
-	logger.Infof("Creating MOCK storage pool \"%s\".", s.pool.Name)
-	logger.Infof("Created MOCK storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Creating MOCK storage pool \"%s\"", s.pool.Name)
+	logger.Infof("Created MOCK storage pool \"%s\"", s.pool.Name)
 	return nil
 }
 
 func (s *storageMock) StoragePoolDelete() error {
-	logger.Infof("Deleting MOCK storage pool \"%s\".", s.pool.Name)
-	logger.Infof("Deleted MOCK storage pool \"%s\".", s.pool.Name)
+	logger.Infof("Deleting MOCK storage pool \"%s\"", s.pool.Name)
+	logger.Infof("Deleted MOCK storage pool \"%s\"", s.pool.Name)
 	return nil
 }
 

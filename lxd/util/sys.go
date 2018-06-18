@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -50,7 +51,7 @@ func GetIdmapSet() *idmap.IdmapSet {
 		if err == nil {
 			logger.Infof("Kernel uid/gid map:")
 			for _, lxcmap := range kernelIdmapSet.ToLxcString() {
-				logger.Infof(" - " + lxcmap)
+				logger.Infof(fmt.Sprintf(" - %s", lxcmap))
 			}
 		}
 

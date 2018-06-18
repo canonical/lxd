@@ -500,7 +500,7 @@ func AADestroy(c container) error {
 	if state.OS.AppArmorStacking && !state.OS.AppArmorStacked {
 		p := path.Join("/sys/kernel/security/apparmor/policy/namespaces", AANamespace(c))
 		if err := os.Remove(p); err != nil {
-			logger.Error("error removing apparmor namespace", log.Ctx{"err": err, "ns": p})
+			logger.Error("Error removing apparmor namespace", log.Ctx{"err": err, "ns": p})
 		}
 	}
 
