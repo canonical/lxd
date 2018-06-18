@@ -438,7 +438,7 @@ connect     | string    | -                 | yes       | The address and port t
 bind        | string    | host              | no        | Which side to bind on (host/container)
 
 ```
-lxc config device add <container> <device-name> proxy listen=<type>:<addr>:<port> connect=<type>:<addr>:<port> bind=<host/container>
+lxc config device add <container> <device-name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/container>
 ```
 
 ## Instance types
