@@ -44,7 +44,7 @@ type consoleWs struct {
 	// channel to wait until the control socket is connected
 	controlConnected chan bool
 
-	// map file descriptors -> secret
+	// map file descriptors to secret
 	fds map[int]string
 
 	// terminal width

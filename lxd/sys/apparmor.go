@@ -43,11 +43,11 @@ func (s *OS) initAppArmor() {
 	/* Detect AppArmor admin support */
 	if !haveMacAdmin() {
 		if s.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because the mac_admin capability is missing.")
+			logger.Warnf("Per-container AppArmor profiles are disabled because the mac_admin capability is missing")
 		}
 	} else if s.RunningInUserNS && !s.AppArmorStacked {
 		if s.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container without stacking.")
+			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is running in an unprivileged container without stacking")
 		}
 	} else {
 		s.AppArmorAdmin = true
@@ -57,7 +57,7 @@ func (s *OS) initAppArmor() {
 	profile := util.AppArmorProfile()
 	if profile != "unconfined" && profile != "" {
 		if s.AppArmorAvailable {
-			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor.")
+			logger.Warnf("Per-container AppArmor profiles are disabled because LXD is already protected by AppArmor")
 		}
 		s.AppArmorConfined = true
 	}
@@ -95,13 +95,13 @@ func appArmorCanStack() bool {
 	parts := strings.Split(strings.TrimSpace(content), ".")
 
 	if len(parts) == 0 {
-		logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
+		logger.Warn("Unknown apparmor domain version", log.Ctx{"version": content})
 		return false
 	}
 
 	major, err := strconv.Atoi(parts[0])
 	if err != nil {
-		logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
+		logger.Warn("Unknown apparmor domain version", log.Ctx{"version": content})
 		return false
 	}
 
@@ -109,7 +109,7 @@ func appArmorCanStack() bool {
 	if len(parts) == 2 {
 		minor, err = strconv.Atoi(parts[1])
 		if err != nil {
-			logger.Warn("unknown apparmor domain version", log.Ctx{"version": content})
+			logger.Warn("Unknown apparmor domain version", log.Ctx{"version": content})
 			return false
 		}
 	}

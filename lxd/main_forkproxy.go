@@ -387,7 +387,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		defer os.Remove(lAddr.addr)
 	}
 
-	fmt.Printf("Starting %s <-> %s proxy\n", lAddr.connType, cAddr.connType)
+	fmt.Printf("Starting %s to %s proxy\n", lAddr.connType, cAddr.connType)
 	if lAddr.connType == "udp" {
 		for {
 			ret, revents, err := shared.GetPollRevents(udpFD, -1, (shared.POLLIN | shared.POLLPRI | shared.POLLERR | shared.POLLHUP | shared.POLLRDHUP | shared.POLLNVAL))

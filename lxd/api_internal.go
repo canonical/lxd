@@ -68,7 +68,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) Response {
 
 	err = c.OnStart()
 	if err != nil {
-		logger.Error("start hook failed", log.Ctx{"container": c.Name(), "err": err})
+		logger.Error("The start hook failed", log.Ctx{"container": c.Name(), "err": err})
 		return SmartError(err)
 	}
 
@@ -93,7 +93,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 
 	err = c.OnStop(target)
 	if err != nil {
-		logger.Error("stop hook failed", log.Ctx{"container": c.Name(), "err": err})
+		logger.Error("The stop hook failed", log.Ctx{"container": c.Name(), "err": err})
 		return SmartError(err)
 	}
 

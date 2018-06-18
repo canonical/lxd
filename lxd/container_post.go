@@ -208,8 +208,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, oldName, new
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
 		if c != nil {
-			logger.Debugf(`Renaming RBD storage volume for source container "%s" from `+
-				`"%s" to "%s"`, c.Name(), c.Name(), newName)
+			logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, c.Name(), c.Name(), newName)
 			poolName, err := c.StoragePool()
 			if err != nil {
 				return errors.Wrap(err, "Failed to get source container's storage pool name")
