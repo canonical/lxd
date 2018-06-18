@@ -2585,6 +2585,20 @@ Return:
     {
         "server_name": "node1",
         "enabled": true,
+        "member_config": [
+            {
+                "entity": "storage-pool",
+                "name": "local",
+                "key": "source",
+                "description": "\"source\" property for storage pool \"local\"",
+            },
+            {
+                "entity": "network",
+                "name": "lxdbr0",
+                "key": "bridge.external_interfaces",
+                "description": "\"bridge.external_interfaces\" property for network \"lxdbr0\"",
+            },
+        ],
     }
 
 ### PUT
@@ -2607,9 +2621,24 @@ Input (request to join an existing cluster):
 
     {
         "server_name": "node2",
+        "server_address": "10.1.1.102:8443",
         "enabled": true,
         "cluster_address": "10.1.1.101:8443",
         "cluster_certificate": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
+		"cluster_password": "sekret",
+        "member_config": [
+            {
+                "entity": "storage-pool",
+                "name": "local",
+                "key": "source",
+                "value": "/dev/sdb",
+            },
+            {
+                "entity": "network",
+                "name": "lxdbr0",
+                "key": "bridge.external_interfaces",
+                "value": "vlan0",
+            },
     }
 
 Input (disable clustering on the node):
