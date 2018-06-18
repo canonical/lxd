@@ -25,6 +25,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/maas"
@@ -8318,8 +8319,17 @@ func (c *containerLXC) maasConnected() bool {
 }
 
 func (c *containerLXC) maasUpdate(force bool) error {
-	if c.state.MAAS == nil {
+	maasURL, err := cluster.ConfigGetString(c.state.Cluster, "maas.api.url")
+	if err != nil {
+		return err
+	}
+
+	if maasURL == "" {
 		return nil
+	}
+
+	if c.state.MAAS == nil {
+		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
 	if !c.maasConnected() {
@@ -8354,8 +8364,17 @@ func (c *containerLXC) maasUpdate(force bool) error {
 }
 
 func (c *containerLXC) maasRename(newName string) error {
-	if c.state.MAAS == nil {
+	maasURL, err := cluster.ConfigGetString(c.state.Cluster, "maas.api.url")
+	if err != nil {
+		return err
+	}
+
+	if maasURL == "" {
 		return nil
+	}
+
+	if c.state.MAAS == nil {
+		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
 	if !c.maasConnected() {
@@ -8375,8 +8394,17 @@ func (c *containerLXC) maasRename(newName string) error {
 }
 
 func (c *containerLXC) maasDelete() error {
-	if c.state.MAAS == nil {
+	maasURL, err := cluster.ConfigGetString(c.state.Cluster, "maas.api.url")
+	if err != nil {
+		return err
+	}
+
+	if maasURL == "" {
 		return nil
+	}
+
+	if c.state.MAAS == nil {
+		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
 	}
 
 	if !c.maasConnected() {
