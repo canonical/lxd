@@ -70,14 +70,17 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
+
 		pools, err = tx.StoragePoolsNodeConfig()
 		if err != nil {
-			return errors.Wrapf(err, "failed to fetch storage pools configuration")
+			return errors.Wrapf(err, "Failed to fetch storage pools configuration")
 		}
+
 		networks, err = tx.NetworksNodeConfig()
 		if err != nil {
-			return errors.Wrapf(err, "failed to fetch networks configuration")
+			return errors.Wrapf(err, "Failed to fetch networks configuration")
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -190,8 +193,9 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		err := d.db.Transaction(func(tx *db.NodeTx) error {
 			config, err := node.ConfigLoad(tx)
 			if err != nil {
-				return errors.Wrap(err, "failed to load cluster config")
+				return errors.Wrap(err, "Failed to load cluster config")
 			}
+
 			_, err = config.Patch(map[string]interface{}{
 				"core.https_address": req.ServerAddress,
 			})
@@ -232,7 +236,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			err = cluster.SetupTrust(string(cert.PublicKey()), req.ClusterAddress,
 				string(req.ClusterCertificate), req.ClusterPassword)
 			if err != nil {
-				return errors.Wrap(err, "failed to setup cluster trust")
+				return errors.Wrap(err, "Failed to setup cluster trust")
 			}
 		}
 
@@ -250,12 +254,12 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			// networks using the API.
 			d, err := lxd.ConnectLXDUnix("", nil)
 			if err != nil {
-				return errors.Wrap(err, "failed to connect to local LXD")
+				return errors.Wrap(err, "Failed to connect to local LXD")
 			}
 
 			err = clusterInitMember(d, client, req.MemberConfig)
 			if err != nil {
-				return errors.Wrap(err, "failed to initialize member")
+				return errors.Wrap(err, "Failed to initialize member")
 			}
 		}
 
@@ -266,6 +270,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
+
 		for _, name := range poolNames {
 			_, pool, err := d.cluster.StoragePoolGet(name)
 			if err != nil {
@@ -273,11 +278,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			}
 			pools = append(pools, *pool)
 		}
+
 		networks := []api.Network{}
 		networkNames, err := d.cluster.Networks()
 		if err != nil && err != db.ErrNoSuchObject {
 			return err
 		}
+
 		for _, name := range networkNames {
 			_, network, err := d.cluster.NetworkGet(name)
 			if err != nil {
@@ -286,8 +293,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			networks = append(networks, *network)
 		}
 
-		// Now request for this node to be added to the list of cluster
-		// nodes.
+		// Now request for this node to be added to the list of cluster nodes.
 		info, err := clusterAcceptMember(
 			client, req.ServerName, address, cluster.SchemaVersion,
 			version.APIExtensionsCount(), pools, networks)
@@ -454,10 +460,10 @@ func clusterPutDisable(d *Daemon) Response {
 func clusterInitMember(d, client lxd.ContainerServer, memberConfig []api.ClusterMemberConfigKey) error {
 	data := initDataNode{}
 
-	// Fetch all pools current defined in the cluster.
+	// Fetch all pools currently defined in the cluster.
 	pools, err := client.GetStoragePools()
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch information about cluster storage pools")
+		return errors.Wrap(err, "Failed to fetch information about cluster storage pools")
 	}
 
 	// Merge the returned storage pools configs with the node-specific
@@ -474,7 +480,7 @@ func clusterInitMember(d, client lxd.ContainerServer, memberConfig []api.Cluster
 			continue
 		}
 
-		logger.Debugf("populating init data for storage pool %s", pool.Name)
+		logger.Debugf("Populating init data for storage pool %s", pool.Name)
 
 		post := api.StoragePoolsPost{
 			StoragePoolPut: pool.StoragePoolPut,
@@ -507,10 +513,10 @@ func clusterInitMember(d, client lxd.ContainerServer, memberConfig []api.Cluster
 		data.StoragePools = append(data.StoragePools, post)
 	}
 
-	// Fetch all networks current defined in the cluster.
+	// Fetch all networks currently defined in the cluster.
 	networks, err := client.GetNetworks()
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch information about cluster networks")
+		return errors.Wrap(err, "Failed to fetch information about cluster networks")
 	}
 
 	// Merge the returned storage networks configs with the node-specific
@@ -552,7 +558,7 @@ func clusterInitMember(d, client lxd.ContainerServer, memberConfig []api.Cluster
 	revert, err := initDataNodeApply(d, data)
 	if err != nil {
 		revert()
-		return errors.Wrap(err, "failed to initialize storage pools and networks")
+		return errors.Wrap(err, "Failed to initialize storage pools and networks")
 	}
 
 	return nil
