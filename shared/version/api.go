@@ -108,6 +108,7 @@ var APIExtensions = []string{
 	"container_local_cross_pool_handling",
 	"proxy_unix",
 	"proxy_udp",
+	"clustering_join",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
