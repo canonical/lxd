@@ -294,7 +294,7 @@ func profilePost(d *Daemon, r *http.Request) Response {
 	// Check that the name isn't already in use
 	id, _, _ := d.cluster.ProfileGet(req.Name)
 	if id > 0 {
-		return Conflict
+		return Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
 	}
 
 	if strings.Contains(req.Name, "/") {

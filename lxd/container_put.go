@@ -35,7 +35,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 
 	c, err := containerLoadByName(d.State(), name)
 	if err != nil {
-		return NotFound
+		return NotFound(err)
 	}
 
 	// Validate the ETag

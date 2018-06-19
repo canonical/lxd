@@ -170,7 +170,7 @@ func containerMetadataTemplatesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	if !shared.PathExists(templatePath) {
-		return NotFound
+		return NotFound(fmt.Errorf("Path '%s' not found", templatePath))
 	}
 
 	// Create a temporary file with the template content (since the container
@@ -298,7 +298,7 @@ func containerMetadataTemplatesDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	if !shared.PathExists(templatePath) {
-		return NotFound
+		return NotFound(fmt.Errorf("Path '%s' not found", templatePath))
 	}
 
 	// Delete the template
