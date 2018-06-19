@@ -42,7 +42,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	case "DELETE":
 		return containerFileDelete(c, path, r)
 	default:
-		return NotFound
+		return NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 	}
 }
 
