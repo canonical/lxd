@@ -37,9 +37,7 @@ func (s *rbdMigrationSourceDriver) Cleanup() {
 			containerName, storagePoolVolumeTypeNameContainer,
 			s.stoppedSnapName, s.ceph.UserName)
 		if err != nil {
-			logger.Warnf(`Failed to delete RBD snapshot "%s" of `+
-				`container "%s"`, s.stoppedSnapName,
-				containerName)
+			logger.Warnf(`Failed to delete RBD snapshot "%s" of container "%s"`, s.stoppedSnapName, containerName)
 		}
 	}
 
@@ -48,9 +46,7 @@ func (s *rbdMigrationSourceDriver) Cleanup() {
 			containerName, storagePoolVolumeTypeNameContainer,
 			s.runningSnapName, s.ceph.UserName)
 		if err != nil {
-			logger.Warnf(`Failed to delete RBD snapshot "%s" of `+
-				`container "%s"`, s.runningSnapName,
-				containerName)
+			logger.Warnf(`Failed to delete RBD snapshot "%s" of container "%s"`, s.runningSnapName, containerName)
 		}
 	}
 }
@@ -62,9 +58,7 @@ func (s *rbdMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwl
 		containerName, storagePoolVolumeTypeNameContainer,
 		s.stoppedSnapName, s.ceph.UserName)
 	if err != nil {
-		logger.Errorf(`Failed to create snapshot "%s" for RBD storage `+
-			`volume for image "%s" on storage pool "%s": %s`,
-			s.stoppedSnapName, containerName, s.ceph.pool.Name, err)
+		logger.Errorf(`Failed to create snapshot "%s" for RBD storage volume for image "%s" on storage pool "%s": %s`, s.stoppedSnapName, containerName, s.ceph.pool.Name, err)
 		return err
 	}
 
@@ -72,13 +66,10 @@ func (s *rbdMigrationSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwl
 		containerName, s.stoppedSnapName)
 	err = s.rbdSend(conn, cur, s.runningSnapName, nil)
 	if err != nil {
-		logger.Errorf(`Failed to send exported diff of RBD storage `+
-			`volume "%s" from snapshot "%s": %s`, cur,
-			s.runningSnapName, err)
+		logger.Errorf(`Failed to send exported diff of RBD storage volume "%s" from snapshot "%s": %s`, cur, s.runningSnapName, err)
 		return err
 	}
-	logger.Debugf(`Sent exported diff of RBD storage volume "%s" from `+
-		`snapshot "%s"`, cur, s.stoppedSnapName)
+	logger.Debugf(`Sent exported diff of RBD storage volume "%s" from snapshot "%s"`, cur, s.stoppedSnapName)
 
 	return nil
 }
@@ -131,15 +122,10 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 				prev,
 				wrapper)
 			if err != nil {
-				logger.Errorf(`Failed to send exported diff `+
-					`of RBD storage volume "%s" from `+
-					`snapshot "%s": %s`, sendSnapName,
-					prev, err)
+				logger.Errorf(`Failed to send exported diff of RBD storage volume "%s" from snapshot "%s": %s`, sendSnapName, prev, err)
 				return err
 			}
-			logger.Debugf(`Sent exported diff of RBD storage `+
-				`volume "%s" from snapshot "%s"`, sendSnapName,
-				prev)
+			logger.Debugf(`Sent exported diff of RBD storage volume "%s" from snapshot "%s"`, sendSnapName, prev)
 		}
 	}
 
@@ -148,9 +134,7 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 		containerName, storagePoolVolumeTypeNameContainer,
 		s.runningSnapName, s.ceph.UserName)
 	if err != nil {
-		logger.Errorf(`Failed to create snapshot "%s" for RBD storage `+
-			`volume for image "%s" on storage pool "%s": %s`,
-			s.runningSnapName, containerName, s.ceph.pool.Name, err)
+		logger.Errorf(`Failed to create snapshot "%s" for RBD storage volume for image "%s" on storage pool "%s": %s`, s.runningSnapName, containerName, s.ceph.pool.Name, err)
 		return err
 	}
 
@@ -159,13 +143,10 @@ func (s *rbdMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn,
 	wrapper := StorageProgressReader(op, "fs_progress", containerName)
 	err = s.rbdSend(conn, cur, lastSnap, wrapper)
 	if err != nil {
-		logger.Errorf(`Failed to send exported diff of RBD storage `+
-			`volume "%s" from snapshot "%s": %s`, s.runningSnapName,
-			lastSnap, err)
+		logger.Errorf(`Failed to send exported diff of RBD storage volume "%s" from snapshot "%s": %s`, s.runningSnapName, lastSnap, err)
 		return err
 	}
-	logger.Debugf(`Sent exported diff of RBD storage volume "%s" from `+
-		`snapshot "%s"`, s.runningSnapName, lastSnap)
+	logger.Debugf(`Sent exported diff of RBD storage volume "%s" from snapshot "%s"`, s.runningSnapName, lastSnap)
 
 	return nil
 }
@@ -197,9 +178,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 
 	containerName := c.Name()
 	if containerOnly {
-		logger.Debugf(`Only migrating the RBD storage volume for `+
-			`container "%s" on storage pool "%s`, containerName,
-			s.pool.Name)
+		logger.Debugf(`Only migrating the RBD storage volume for container "%s" on storage pool "%s`, containerName, s.pool.Name)
 		return &driver, nil
 	}
 
@@ -257,8 +236,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 		return fmt.Errorf(`Detected that the container's root device ` +
 			`is missing the pool property during RBD migration`)
 	}
-	logger.Debugf(`Detected root disk device with pool property set to `+
-		`"%s" during RBD migration`, parentStoragePool)
+	logger.Debugf(`Detected root disk device with pool property set to "%s" during RBD migration`, parentStoragePool)
 
 	// create empty volume for container
 	// TODO: The cluster name can be different between LXD instances. Find
@@ -320,14 +298,10 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 		}
 		_, err := containerCreateEmptySnapshot(c.DaemonState(), args)
 		if err != nil {
-			logger.Errorf(`Failed to create empty RBD storage `+
-				`volume for container "%s" on storage pool "%s: %s`,
-				containerName, s.OSDPoolName, err)
+			logger.Errorf(`Failed to create empty RBD storage volume for container "%s" on storage pool "%s: %s`, containerName, s.OSDPoolName, err)
 			return err
 		}
-		logger.Debugf(`Created empty RBD storage volume for `+
-			`container "%s" on storage pool "%s`, containerName,
-			s.OSDPoolName)
+		logger.Debugf(`Created empty RBD storage volume for container "%s" on storage pool "%s`, containerName, s.OSDPoolName)
 
 		wrapper := StorageProgressWriter(op, "fs_progress", curSnapName)
 		err = s.rbdRecv(conn, recvName, wrapper)
@@ -362,10 +336,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 					storagePoolVolumeTypeNameContainer,
 					snapOnlyName, s.UserName)
 				if err != nil {
-					logger.Warnf(`Failed to delete RBD container `+
-						`storage for snapshot "%s" of `+
-						`container "%s"`, snapOnlyName,
-						containerName)
+					logger.Warnf(`Failed to delete RBD container storage for snapshot "%s" of container "%s"`, snapOnlyName, containerName)
 				}
 			}
 		}
@@ -383,8 +354,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 	if live {
 		err := s.rbdRecv(conn, recvName, wrapper)
 		if err != nil {
-			logger.Errorf(`Failed to receive RBD storage volume `+
-				`"%s": %s`, recvName, err)
+			logger.Errorf(`Failed to receive RBD storage volume "%s": %s`, recvName, err)
 			return err
 		}
 		logger.Debugf(`Received RBD storage volume "%s"`, recvName)
@@ -396,15 +366,10 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 		c.Path(),
 		c.IsPrivileged())
 	if err != nil {
-		logger.Errorf(`Failed to create mountpoint "%s" for RBD `+
-			`storage volume for container "%s" on storage pool `+
-			`"%s": %s"`, containerMntPoint, containerName,
-			s.pool.Name, err)
+		logger.Errorf(`Failed to create mountpoint "%s" for RBD storage volume for container "%s" on storage pool "%s": %s"`, containerMntPoint, containerName, s.pool.Name, err)
 		return err
 	}
-	logger.Debugf(`Created mountpoint "%s" for RBD storage volume for `+
-		`container "%s" on storage pool "%s""`, containerMntPoint,
-		containerName, s.pool.Name)
+	logger.Debugf(`Created mountpoint "%s" for RBD storage volume for container "%s" on storage pool "%s""`, containerMntPoint, containerName, s.pool.Name)
 
 	return nil
 }

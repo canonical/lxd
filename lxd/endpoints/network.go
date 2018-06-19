@@ -139,7 +139,7 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 func networkCreateListener(address string, cert *shared.CertInfo) net.Listener {
 	listener, err := net.Listen("tcp", util.CanonicalNetworkAddress(address))
 	if err != nil {
-		logger.Error("cannot listen on https socket, skipping...", log.Ctx{"err": err})
+		logger.Error("Cannot listen on https socket, skipping...", log.Ctx{"err": err})
 		return nil
 	}
 	return networkTLSListener(listener, cert)

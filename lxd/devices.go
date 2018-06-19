@@ -75,7 +75,7 @@ type nvidiaGpuDevices struct {
 }
 
 // /dev/dri/card0. If we detect that vendor == nvidia, then nvidia will contain
-// the corresponding nvidia car, e.g. {/dev/dri/card1 --> /dev/nvidia1}.
+// the corresponding nvidia car, e.g. {/dev/dri/card1 to /dev/nvidia1}.
 type gpuDevice struct {
 	vendorid  string
 	productid string
@@ -529,7 +529,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 					devname,
 				)
 				if err != nil {
-					logger.Error("error reading usb device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
+					logger.Error("Error reading usb device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
 					continue
 				}
 
@@ -651,7 +651,7 @@ func deviceTaskBalance(s *state.State) {
 	// Iterate through the containers
 	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
-		logger.Error("problem loading containers list", log.Ctx{"err": err})
+		logger.Error("Problem loading containers list", log.Ctx{"err": err})
 		return
 	}
 	fixedContainers := map[int][]container{}
@@ -808,7 +808,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 func deviceUSBEvent(s *state.State, usb usbDevice) {
 	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
-		logger.Error("problem loading containers list", log.Ctx{"err": err})
+		logger.Error("Problem loading containers list", log.Ctx{"err": err})
 		return
 	}
 
@@ -820,7 +820,7 @@ func deviceUSBEvent(s *state.State, usb usbDevice) {
 
 		c, ok := containerIf.(*containerLXC)
 		if !ok {
-			logger.Errorf("got device event on non-LXC container?")
+			logger.Errorf("Got device event on non-LXC container?")
 			return
 		}
 
@@ -842,17 +842,17 @@ func deviceUSBEvent(s *state.State, usb usbDevice) {
 			if usb.action == "add" {
 				err := c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", name), m, usb.major, usb.minor, usb.path, false)
 				if err != nil {
-					logger.Error("failed to create usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					logger.Error("Failed to create usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
 				}
 			} else if usb.action == "remove" {
 				err := c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", name), m, usb.major, usb.minor, usb.path)
 				if err != nil {
-					logger.Error("failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
+					logger.Error("Failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
 				}
 			} else {
-				logger.Error("unknown action for usb device", log.Ctx{"usb": usb})
+				logger.Error("Unknown action for usb device", log.Ctx{"usb": usb})
 				continue
 			}
 		}
@@ -862,7 +862,7 @@ func deviceUSBEvent(s *state.State, usb usbDevice) {
 func deviceEventListener(s *state.State) {
 	chNetlinkCPU, chNetlinkNetwork, chUSB, err := deviceNetlinkListener()
 	if err != nil {
-		logger.Errorf("scheduler: couldn't setup netlink listener: %v", err)
+		logger.Errorf("scheduler: Couldn't setup netlink listener: %v", err)
 		return
 	}
 

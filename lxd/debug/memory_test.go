@@ -35,12 +35,12 @@ func TestMemory(t *testing.T) {
 	syscall.Kill(os.Getpid(), syscall.SIGUSR1)
 	record := logging.WaitRecord(records, time.Second)
 	require.NotNil(t, record)
-	assert.Equal(t, "Received 'user defined signal 1 signal', dumping memory.", record.Msg)
+	assert.Equal(t, "Received 'user defined signal 1 signal', dumping memory", record.Msg)
 
 	go stop()
 	record = logging.WaitRecord(records, time.Second)
 	require.NotNil(t, record)
-	assert.Equal(t, "Shutdown memory profiler.", record.Msg)
+	assert.Equal(t, "Shutdown memory profiler", record.Msg)
 
 	// The memory dump actually exists on disk.
 	_, err = os.Stat(file.Name())
