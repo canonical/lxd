@@ -23,13 +23,13 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 )
 
-func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.ContainerServer) (*initData, error) {
+func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.ContainerServer) (*cmdInitData, error) {
 	// Initialize config
-	config := initData{}
-	config.Config = map[string]interface{}{}
-	config.Networks = []api.NetworksPost{}
-	config.StoragePools = []api.StoragePoolsPost{}
-	config.Profiles = []api.ProfilesPost{
+	config := cmdInitData{}
+	config.Node.Config = map[string]interface{}{}
+	config.Node.Networks = []api.NetworksPost{}
+	config.Node.StoragePools = []api.StoragePoolsPost{}
+	config.Node.Profiles = []api.ProfilesPost{
 		{
 			Name: "default",
 			ProfilePut: api.ProfilePut{
@@ -85,7 +85,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Contai
 	return &config, nil
 }
 
-func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
+func (c *cmdInit) askClustering(config *cmdInitData, d lxd.ContainerServer) error {
 	if cli.AskBool("Would you like to use LXD clustering? (yes/no) [default=no]: ", "no") {
 		config.Cluster = &initDataCluster{}
 		config.Cluster.Enabled = true
@@ -103,7 +103,7 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 		address := util.NetworkInterfaceAddress()
 		serverAddress := util.CanonicalNetworkAddress(cli.AskString(
 			fmt.Sprintf("What IP address or DNS name should be used to reach this node? [default=%s]: ", address), address, nil))
-		config.Config["core.https_address"] = serverAddress
+		config.Node.Config["core.https_address"] = serverAddress
 
 		if cli.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no") {
 			// Existing cluster
@@ -177,7 +177,7 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 				return errors.Wrap(err, "Failed to retrieve storage pools from the cluster")
 			}
 
-			config.StoragePools = []api.StoragePoolsPost{}
+			config.Node.StoragePools = []api.StoragePoolsPost{}
 			for _, pool := range targetPools {
 				// Skip pending pools
 				if pool.Status == "PENDING" {
@@ -208,7 +208,7 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 						fmt.Sprintf(`Choose the local disk or dataset for storage pool "%s" (empty for loop disk): `, pool.Name), "", validator)
 				}
 
-				config.StoragePools = append(config.StoragePools, newPool)
+				config.Node.StoragePools = append(config.Node.StoragePools, newPool)
 			}
 
 			// Prompt for network config
@@ -217,7 +217,7 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 				return errors.Wrap(err, "Failed to retrieve networks from the cluster")
 			}
 
-			config.Networks = []api.NetworksPost{}
+			config.Node.Networks = []api.NetworksPost{}
 			for _, network := range targetNetworks {
 				// Skip not-managed or pending networks
 				if !network.Managed || network.Status == "PENDING" {
@@ -240,12 +240,12 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 						fmt.Sprintf(`Choose the local network interface to connect to network "%s" (empty for none): `, network.Name), "", validator)
 				}
 
-				config.Networks = append(config.Networks, newNetwork)
+				config.Node.Networks = append(config.Node.Networks, newNetwork)
 			}
 		} else {
 			// Password authentication
 			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=yes]: ", "yes") {
-				config.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
+				config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
 			}
 		}
 	}
@@ -253,7 +253,7 @@ func (c *cmdInit) askClustering(config *initData, d lxd.ContainerServer) error {
 	return nil
 }
 
-func (c *cmdInit) askMAAS(config *initData, d lxd.ContainerServer) error {
+func (c *cmdInit) askMAAS(config *cmdInitData, d lxd.ContainerServer) error {
 	if !cli.AskBool("Would you like to connect to a MAAS server? (yes/no) [default=no]: ", "no") {
 		return nil
 	}
@@ -265,16 +265,16 @@ func (c *cmdInit) askMAAS(config *initData, d lxd.ContainerServer) error {
 
 	maasHostname := cli.AskString(fmt.Sprintf("What's the name of this host in MAAS? [default=%s]: ", serverName), serverName, nil)
 	if maasHostname != serverName {
-		config.Config["maas.machine"] = maasHostname
+		config.Node.Config["maas.machine"] = maasHostname
 	}
 
-	config.Config["maas.api.url"] = cli.AskString("URL of your MAAS server (e.g. http://1.2.3.4:5240/MAAS): ", "", nil)
-	config.Config["maas.api.key"] = cli.AskString("API key for your MAAS server: ", "", nil)
+	config.Node.Config["maas.api.url"] = cli.AskString("URL of your MAAS server (e.g. http://1.2.3.4:5240/MAAS): ", "", nil)
+	config.Node.Config["maas.api.key"] = cli.AskString("API key for your MAAS server: ", "", nil)
 
 	return nil
 }
 
-func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
+func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.ContainerServer) error {
 	if config.Cluster != nil || !cli.AskBool("Would you like to create a new local network bridge? (yes/no) [default=yes]: ", "yes") {
 		// At this time, only the Ubuntu kernel supports the Fan, detect it
 		fanKernel := false
@@ -295,7 +295,7 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 				}
 
 				// Add to the default profile
-				config.Profiles[0].Devices["eth0"] = map[string]string{
+				config.Node.Profiles[0].Devices["eth0"] = map[string]string{
 					"type":    "nic",
 					"nictype": "macvlan",
 					"name":    "eth0",
@@ -303,22 +303,22 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 				}
 
 				if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", name)) {
-					config.Profiles[0].Devices["eth0"]["nictype"] = "bridged"
+					config.Node.Profiles[0].Devices["eth0"]["nictype"] = "bridged"
 				}
 
-				if config.Config["maas.api.url"] != nil && cli.AskBool("Is this interface connected to your MAAS server? (yes/no) [default=yes]: ", "yes") {
+				if config.Node.Config["maas.api.url"] != nil && cli.AskBool("Is this interface connected to your MAAS server? (yes/no) [default=yes]: ", "yes") {
 					maasSubnetV4 := cli.AskString("MAAS IPv4 subnet name for this interface (empty for no subnet): ", "",
 						func(input string) error { return nil })
 
 					if maasSubnetV4 != "" {
-						config.Profiles[0].Devices["eth0"]["maas.subnet.ipv4"] = maasSubnetV4
+						config.Node.Profiles[0].Devices["eth0"]["maas.subnet.ipv4"] = maasSubnetV4
 					}
 
 					maasSubnetV6 := cli.AskString("MAAS IPv6 subnet name for this interface (empty for no subnet): ", "",
 						func(input string) error { return nil })
 
 					if maasSubnetV6 != "" {
-						config.Profiles[0].Devices["eth0"]["maas.subnet.ipv6"] = maasSubnetV6
+						config.Node.Profiles[0].Devices["eth0"]["maas.subnet.ipv6"] = maasSubnetV6
 					}
 				}
 
@@ -333,10 +333,10 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 			}
 
 			// Add the new network
-			config.Networks = append(config.Networks, network)
+			config.Node.Networks = append(config.Node.Networks, network)
 
 			// Add to the default profile
-			config.Profiles[0].Devices["eth0"] = map[string]string{
+			config.Node.Profiles[0].Devices["eth0"] = map[string]string{
 				"type":    "nic",
 				"nictype": "bridged",
 				"name":    "eth0",
@@ -361,7 +361,7 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 		}
 
 		// Add to the default profile
-		config.Profiles[0].Devices["eth0"] = map[string]string{
+		config.Node.Profiles[0].Devices["eth0"] = map[string]string{
 			"type":    "nic",
 			"nictype": "bridged",
 			"name":    "eth0",
@@ -397,14 +397,14 @@ func (c *cmdInit) askNetworking(config *initData, d lxd.ContainerServer) error {
 		}
 
 		// Add the new network
-		config.Networks = append(config.Networks, network)
+		config.Node.Networks = append(config.Node.Networks, network)
 		break
 	}
 
 	return nil
 }
 
-func (c *cmdInit) askStorage(config *initData, d lxd.ContainerServer) error {
+func (c *cmdInit) askStorage(config *cmdInitData, d lxd.ContainerServer) error {
 	if config.Cluster != nil {
 		if cli.AskBool("Do you want to configure a new local storage pool? (yes/no) [default=yes]: ", "yes") {
 			err := c.askStoragePool(config, d, "local")
@@ -430,7 +430,7 @@ func (c *cmdInit) askStorage(config *initData, d lxd.ContainerServer) error {
 	return c.askStoragePool(config, d, "all")
 }
 
-func (c *cmdInit) askStoragePool(config *initData, d lxd.ContainerServer, poolType string) error {
+func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.ContainerServer, poolType string) error {
 	// Figure out the preferred storage driver
 	availableBackends := c.availableStorageDrivers(poolType)
 
@@ -474,7 +474,7 @@ func (c *cmdInit) askStoragePool(config *initData, d lxd.ContainerServer, poolTy
 		}
 
 		// Add to the default profile
-		config.Profiles[0].Devices["root"] = map[string]string{
+		config.Node.Profiles[0].Devices["root"] = map[string]string{
 			"type": "disk",
 			"path": "/",
 			"pool": pool.Name,
@@ -490,7 +490,7 @@ func (c *cmdInit) askStoragePool(config *initData, d lxd.ContainerServer, poolTy
 
 		// Optimization for dir
 		if pool.Driver == "dir" {
-			config.StoragePools = append(config.StoragePools, pool)
+			config.Node.StoragePools = append(config.Node.StoragePools, pool)
 			break
 		}
 
@@ -498,7 +498,7 @@ func (c *cmdInit) askStoragePool(config *initData, d lxd.ContainerServer, poolTy
 		if pool.Driver == "btrfs" && backingFs == "btrfs" {
 			if cli.AskBool(fmt.Sprintf("Would you like to create a new btrfs subvolume under %s? (yes/no) [default=yes]: ", shared.VarPath("")), "yes") {
 				pool.Config["source"] = shared.VarPath("storage-pools", pool.Name)
-				config.StoragePools = append(config.StoragePools, pool)
+				config.Node.StoragePools = append(config.Node.StoragePools, pool)
 				break
 			}
 		}
@@ -577,14 +577,14 @@ your Linux distribution and run "lxd init" again afterwards.
 			}
 		}
 
-		config.StoragePools = append(config.StoragePools, pool)
+		config.Node.StoragePools = append(config.Node.StoragePools, pool)
 		break
 	}
 
 	return nil
 }
 
-func (c *cmdInit) askDaemon(config *initData, d lxd.ContainerServer) error {
+func (c *cmdInit) askDaemon(config *cmdInitData, d lxd.ContainerServer) error {
 	// Detect lack of uid/gid
 	idmapset, err := idmap.DefaultIdmapSet("")
 	if (err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil) && shared.RunningInUserNS() {
@@ -601,7 +601,7 @@ they otherwise would.
 `)
 
 		if cli.AskBool("Would you like to have your containers share their parent's allocation? (yes/no) [default=yes]: ", "yes") {
-			config.Profiles[0].Config["security.privileged"] = "true"
+			config.Node.Profiles[0].Config["security.privileged"] = "true"
 		}
 	}
 
@@ -625,16 +625,16 @@ they otherwise would.
 		}
 
 		netPort := cli.AskInt("Port to bind LXD to [default=8443]: ", 1, 65535, "8443")
-		config.Config["core.https_address"] = fmt.Sprintf("%s:%d", netAddr, netPort)
-		config.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
-		if config.Config["core.trust_password"] == "" {
+		config.Node.Config["core.https_address"] = fmt.Sprintf("%s:%d", netAddr, netPort)
+		config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
+		if config.Node.Config["core.trust_password"] == "" {
 			fmt.Printf("No password set, client certificates will have to be manually trusted.")
 		}
 	}
 
 	// Ask if the user wants images to be automatically refreshed
 	if !cli.AskBool("Would you like stale cached images to be updated automatically? (yes/no) [default=yes] ", "yes") {
-		config.Config["images.auto_update_interval"] = "0"
+		config.Node.Config["images.auto_update_interval"] = "0"
 	}
 
 	return nil

@@ -31,8 +31,8 @@ spawn_lxd() {
         cp deps/server.crt "${lxddir}"
         cp deps/server.key "${lxddir}"
     else
-        cp deps/server-alt.crt "${lxddir}"
-        cp deps/server-alt.key "${lxddir}"
+        cp deps/server-alt.crt "${lxddir}"/server.crt
+        cp deps/server-alt.key "${lxddir}"/server.key
     fi
 
     # setup storage

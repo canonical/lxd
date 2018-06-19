@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.ContainerServer) (*initData, error) {
+func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.ContainerServer) (*cmdInitData, error) {
 	// Sanity checks
 	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, supportedStoragePoolDrivers) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
@@ -59,8 +59,8 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.ContainerServ
 		c.flagNetworkPort = 8443
 	}
 
-	// Fill in the configuration
-	config := initData{}
+	// Fill in the node configuration
+	config := initDataNode{}
 	config.Config = map[string]interface{}{}
 
 	// Network listening
@@ -143,7 +143,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.ContainerServ
 		idx := 0
 		for {
 			if shared.PathExists(fmt.Sprintf("/sys/class/net/lxdbr%d", idx)) {
-				idx += 1
+				idx++
 				continue
 			}
 
@@ -180,5 +180,5 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.ContainerServ
 		}
 	}
 
-	return &config, nil
+	return &cmdInitData{Node: config}, nil
 }
