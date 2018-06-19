@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	log "github.com/lxc/lxd/shared/log15"
+	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -435,7 +436,7 @@ func networkDelete(d *Daemon, r *http.Request) Response {
 	// Get the existing network
 	n, err := networkLoadByName(state, name)
 	if err != nil {
-		return NotFound
+		return NotFound(err)
 	}
 
 	withDatabase := true
@@ -503,7 +504,7 @@ func networkPost(d *Daemon, r *http.Request) Response {
 	// Get the existing network
 	n, err := networkLoadByName(state, name)
 	if err != nil {
-		return NotFound
+		return NotFound(err)
 	}
 
 	// Sanity checks
@@ -523,7 +524,7 @@ func networkPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if shared.StringInSlice(req.Name, networks) {
-		return Conflict
+		return Conflict(fmt.Errorf("Network '%s' already exists", req.Name))
 	}
 
 	// Rename it
@@ -614,7 +615,7 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 	// Load the network
 	n, err := networkLoadByName(d.State(), name)
 	if err != nil {
-		return NotFound
+		return NotFound(err)
 	}
 
 	err = n.Update(req)
@@ -639,7 +640,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 
 	// Validate that we do have leases for it
 	if !n.Managed || n.Type != "bridge" {
-		return NotFound
+		return NotFound(errors.New("Leases not found"))
 	}
 
 	if !shared.PathExists(leaseFile) {

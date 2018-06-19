@@ -492,7 +492,7 @@ func operationAPIDelete(d *Daemon, r *http.Request) Response {
 
 	op, err := operationGet(id)
 	if err != nil {
-		return NotFound
+		return NotFound(err)
 	}
 
 	_, err = op.Cancel()
@@ -554,7 +554,7 @@ func operationAPIWaitGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 	op, err := operationGet(id)
 	if err != nil {
-		return NotFound
+		return NotFound(err)
 	}
 
 	_, err = op.WaitFinal(timeout)
