@@ -513,3 +513,11 @@ Supported connections are now:
 * `TCP <-> UDP`
 * `UDP <-> UNIX`
 * `UNIX <-> UDP`
+
+## clustering_join
+This makes GET /1.0/cluster return information about which storage pools and
+networks are required to be created by joining nodes and which node-specific
+configuration keys they are required to use when creating them. Likewise the PUT
+/1.0/cluster endpoint now accepts the same format to pass information about
+storage pools and networks to be automatically created before attempting to join
+a cluster.

@@ -29,6 +29,12 @@ func (r *ProtocolLXD) UpdateCluster(cluster api.ClusterPut, ETag string) (Operat
 		return nil, fmt.Errorf("The server is missing the required \"clustering\" API extension")
 	}
 
+	if cluster.ServerAddress != "" || cluster.ClusterPassword != "" || len(cluster.MemberConfig) > 0 {
+		if !r.HasExtension("clustering_join") {
+			return nil, fmt.Errorf("The server is missing the required \"clustering_join\" API extension")
+		}
+	}
+
 	op, _, err := r.queryOperation("PUT", "/cluster", cluster, "")
 	if err != nil {
 		return nil, err

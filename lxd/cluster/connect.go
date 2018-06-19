@@ -112,7 +112,7 @@ func SetupTrust(cert, targetAddress, targetCert, targetPassword string) error {
 	post.Type = "client"
 	err = target.CreateCertificate(post)
 	if err != nil && err.Error() != "Certificate already in trust store" {
-		return errors.Wrap(err, "failed client cert to cluster")
+		return errors.Wrap(err, "Failed to add client cert to cluster")
 	}
 	return nil
 }
