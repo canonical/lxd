@@ -292,41 +292,65 @@ func (c *cmdForkproxy) Command() *cobra.Command {
 	return cmd
 }
 
-func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, connectAddr string, connFd C.int, udpSrcConn *net.Conn, listener *net.Listener) error {
+func rearmUDPFd(epFd C.int, connFd C.int) {
+	var ev C.struct_epoll_event
+	ev.events = C.EPOLLIN | C.EPOLLONESHOT
+	*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&ev)) + unsafe.Sizeof(ev.events))) = connFd
+	ret := C.epoll_ctl(epFd, C.EPOLL_CTL_MOD, connFd, &ev)
+	if ret < 0 {
+		fmt.Printf("Error: Failed to add listener fd to epoll instance\n")
+	}
+}
+
+func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, connFd C.int, lStruct *lStruct) error {
 	fmt.Printf("Starting %s <-> %s proxy\n", lAddr.connType, cAddr.connType)
 	if lAddr.connType == "udp" {
+		// This only handles udp <-> udp. The C constructor will have
+		// verified this before.
 		go func() {
-			// Connect to the target
-			dstConn, err := getDestConn(connectAddr)
+			// single or multiple port -> single port
+			connectAddr := cAddr.addr[0]
+			if len(cAddr.addr) > 1 {
+				// multiple port -> multiple port
+				connectAddr = cAddr.addr[(*lStruct).lAddrIndex]
+			}
+
+			srcConn, err := net.FileConn((*lStruct).f)
 			if err != nil {
-				fmt.Printf("Error: Failed to connect to target: %v\n", err)
+				fmt.Printf("Failed to re-assemble listener: %s", err)
+				rearmUDPFd(epFd, connFd)
 				return
 			}
 
-			genericRelay((*udpSrcConn), dstConn, true)
-
-			var ev C.struct_epoll_event
-			ev.events = C.EPOLLIN | C.EPOLLONESHOT
-			*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&ev)) + unsafe.Sizeof(ev.events))) = connFd
-			ret := C.epoll_ctl(epFd, C.EPOLL_CTL_MOD, connFd, &ev)
-			if ret < 0 {
-				fmt.Printf("Error: Failed to add listener fd to epoll instance\n")
+			dstConn, err := net.Dial(cAddr.connType, connectAddr)
+			if err != nil {
+				fmt.Printf("Error: Failed to connect to target: %v\n", err)
+				rearmUDPFd(epFd, connFd)
+				return
 			}
+
+			genericRelay(srcConn, dstConn)
+			rearmUDPFd(epFd, connFd)
 		}()
 
 		return nil
 	}
 
 	// Accept a new client
+	listener := (*lStruct).lConn
 	srcConn, err := (*listener).Accept()
 	if err != nil {
 		fmt.Printf("Error: Failed to accept new connection: %v\n", err)
 		return err
 	}
-	fmt.Printf("Accepted a new connection\n")
 
-	// Connect to the target
-	dstConn, err := getDestConn(connectAddr)
+	// single or multiple port -> single port
+	connectAddr := cAddr.addr[0]
+	if lAddr.connType != "unix" && cAddr.connType != "unix" && len(cAddr.addr) > 1 {
+		// multiple port -> multiple port
+		connectAddr = cAddr.addr[(*lStruct).lAddrIndex]
+	}
+	dstConn, err := net.Dial(cAddr.connType, connectAddr)
 	if err != nil {
 		srcConn.Close()
 		fmt.Printf("Error: Failed to connect to target: %v\n", err)
@@ -337,10 +361,17 @@ func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, conn
 		// Handle OOB if both src and dst are using unix sockets
 		go unixRelay(srcConn, dstConn)
 	} else {
-		go genericRelay(srcConn, dstConn, false)
+		go genericRelay(srcConn, dstConn)
 	}
 
 	return nil
+}
+
+type lStruct struct {
+	f          *os.File
+	lConn      *net.Listener
+	udpConn    *net.Conn
+	lAddrIndex int
 }
 
 func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
@@ -360,17 +391,32 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Missing required arguments")
 	}
 
-	// Get all our arguments
-	listenAddr := args[1]
-
 	// Check where we are in initialization
 	if C.whoami != C.FORKPROXY_PARENT && C.whoami != C.FORKPROXY_CHILD {
 		return fmt.Errorf("Failed to call forkproxy constructor")
 	}
 
+	listenAddr := args[1]
 	lAddr, err := parseAddr(listenAddr)
 	if err != nil {
 		return err
+	}
+
+	connectAddr := args[3]
+	cAddr, err := parseAddr(connectAddr)
+	if err != nil {
+		return err
+	}
+
+	if (lAddr.connType == "udp" || lAddr.connType == "tcp") && cAddr.connType == "udp" || cAddr.connType == "tcp" {
+		err := fmt.Errorf("Invalid port range")
+		if len(lAddr.addr) > 1 && len(cAddr.addr) > 1 && (len(cAddr.addr) != len(lAddr.addr)) {
+			fmt.Println(err)
+			return err
+		} else if len(lAddr.addr) == 1 && len(cAddr.addr) > 1 {
+			fmt.Println(err)
+			return err
+		}
 	}
 
 	if C.whoami == C.FORKPROXY_CHILD {
@@ -410,42 +456,34 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 	syscall.Close(forkproxyUDSSockFDNum)
 
-	var srcConn net.Conn
-	var listenerMap map[int]*net.Listener
-	var udpConnMap map[int]*net.Conn
+	var listenerMap map[int]*lStruct
 
 	isUDPListener := lAddr.connType == "udp"
+	listenerMap = make(map[int]*lStruct, len(lAddr.addr))
 	if isUDPListener {
-		udpConnMap = make(map[int]*net.Conn, len(lAddr.addr))
-		for _, f := range files {
-			srcConn, err = net.FileConn(files[0])
-			if err != nil {
-				fmt.Printf("Failed to re-assemble listener: %v", err)
-				return err
+		for i, f := range files {
+			listenerMap[int(f.Fd())] = &lStruct{
+				f:          f,
+				lAddrIndex: i,
 			}
-			udpConnMap[int(f.Fd())] = &srcConn
 		}
 	} else {
-		listenerMap = make(map[int]*net.Listener, len(lAddr.addr))
-		for _, f := range files {
+		for i, f := range files {
 			listener, err := net.FileListener(f)
 			if err != nil {
 				fmt.Printf("Failed to re-assemble listener: %v", err)
 				return err
 			}
-			listenerMap[int(f.Fd())] = &listener
+			listenerMap[int(f.Fd())] = &lStruct{
+				lConn:      &listener,
+				lAddrIndex: i,
+			}
 		}
 	}
 
 	// Handle SIGTERM which is sent when the proxy is to be removed
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
-
-	connectAddr := args[3]
-	cAddr, err := parseAddr(connectAddr)
-	if err != nil {
-		return err
-	}
 
 	if cAddr.connType == "unix" && !cAddr.abstract {
 		// Create socket
@@ -480,15 +518,17 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		}
 		syscall.Close(int(epFd))
 
-		if isUDPListener {
-			for _, l := range udpConnMap {
-				(*l).Close()
+		for _, l := range listenerMap {
+			if isUDPListener {
+				conn := (*l).udpConn
+				(*conn).Close()
+				continue
 			}
-		} else {
-			for _, l := range listenerMap {
-				(*l).Close()
-			}
+
+			conn := (*l).lConn
+			(*conn).Close()
 		}
+
 		syscall.Kill(self, syscall.SIGKILL)
 	}()
 	defer syscall.Kill(self, syscall.SIGTERM)
@@ -518,21 +558,13 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		for i := C.int(0); i < nfds; i++ {
-			var listener *net.Listener
-			var udpListener *net.Conn
-			var ok bool
-
 			curFd := *(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&events[i])) + unsafe.Sizeof(events[i].events)))
-			if isUDPListener {
-				udpListener, ok = udpConnMap[int(curFd)]
-			} else {
-				listener, ok = listenerMap[int(curFd)]
-			}
+			srcConn, ok := listenerMap[int(curFd)]
 			if !ok {
 				continue
 			}
 
-			err := listenerInstance(epFd, lAddr, cAddr, connectAddr, curFd, udpListener, listener)
+			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn)
 			if err != nil {
 				fmt.Printf("Failed to prepare new listener instance: %s", err)
 			}
@@ -543,25 +575,23 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser, udp bool) {
-	relayer := func(src io.Writer, dst io.Reader, udp bool, ch chan error) {
+func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
+	relayer := func(src io.Writer, dst io.Reader, ch chan error) {
 		_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
 		ch <- err
 	}
 
 	chSend := make(chan error)
-	go relayer(dst, src, udp, chSend)
+	go relayer(dst, src, chSend)
 
 	chRecv := make(chan error)
-	go relayer(src, dst, udp, chRecv)
+	go relayer(src, dst, chRecv)
 
 	errSnd := <-chSend
 	errRcv := <-chRecv
 
 	src.Close()
-	if !udp {
-		dst.Close()
-	}
+	dst.Close()
 
 	if errSnd != nil {
 		fmt.Printf("Error while sending data %s\n", errSnd)
@@ -732,12 +762,6 @@ func getListenerFile(protocol string, addr string) (*os.File, error) {
 	}
 
 	return file, nil
-}
-
-func getDestConn(connectAddr string) (net.Conn, error) {
-	fields := strings.SplitN(connectAddr, ":", 2)
-	addr := strings.Join(fields[1:], "")
-	return net.Dial(fields[0], addr)
 }
 
 func parsePortRange(r string) (int64, int64, error) {
