@@ -63,6 +63,32 @@ test_proxy_device_tcp() {
 
   rm -f proxyTest.out
 
+  # Initial test
+  lxc config device remove proxyTester proxyDev
+  HOST_TCP_PORT2=$(local_tcp_port)
+  lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT,$HOST_TCP_PORT2" connect=tcp:127.0.0.1:4321-4322 bind=host
+  nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- nc -6 -l 4321 > proxyTest1.out &
+  nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- nc -6 -l 4322 > proxyTest2.out &
+  sleep 2
+
+  echo "${MESSAGE}" | nc -w1 127.0.0.1 "${HOST_TCP_PORT}"
+  echo "${MESSAGE}" | nc -w1 127.0.0.1 "${HOST_TCP_PORT2}"
+
+  if [ "$(cat proxyTest1.out)" != "${MESSAGE}" ]; then
+    cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
+    echo "Proxy device did not properly send data from host to container"
+    false
+  fi
+
+  if [ "$(cat proxyTest2.out)" != "${MESSAGE}" ]; then
+    cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
+    echo "Proxy device did not properly send data from host to container"
+    false
+  fi
+
+  rm -f proxyTest1.out
+  rm -f proxyTest2.out
+
   # Give the procies some time to shut down
   sleep 3
 
