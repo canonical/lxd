@@ -182,7 +182,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	case "DELETE":
 		return snapshotDelete(sc, snapshotName)
 	default:
-		return NotFound
+		return NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 	}
 }
 
@@ -287,7 +287,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	// Check that the name isn't already in use
 	id, _ := d.cluster.ContainerID(fullName)
 	if id > 0 {
-		return Conflict
+		return Conflict(fmt.Errorf("Name '%s' already in use", fullName))
 	}
 
 	rename := func(op *operation) error {

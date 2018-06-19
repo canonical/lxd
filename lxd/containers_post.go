@@ -174,7 +174,7 @@ func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
-		return NotImplemented
+		return NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
 	}
 
 	var c container

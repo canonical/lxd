@@ -458,11 +458,37 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 	return nil
 }
 
-/* Some standard responses */
-var NotImplemented = &errorResponse{http.StatusNotImplemented, "not implemented"}
-var NotFound = &errorResponse{http.StatusNotFound, "not found"}
-var Forbidden = &errorResponse{http.StatusForbidden, "not authorized"}
-var Conflict = &errorResponse{http.StatusConflict, "already exists"}
+func NotImplemented(err error) Response {
+	message := "not implemented"
+	if err != nil {
+		message = err.Error()
+	}
+	return &errorResponse{http.StatusNotImplemented, message}
+}
+
+func NotFound(err error) Response {
+	message := "not found"
+	if err != nil {
+		message = err.Error()
+	}
+	return &errorResponse{http.StatusNotFound, message}
+}
+
+func Forbidden(err error) Response {
+	message := "not authorized"
+	if err != nil {
+		message = err.Error()
+	}
+	return &errorResponse{http.StatusForbidden, message}
+}
+
+func Conflict(err error) Response {
+	message := "already exists"
+	if err != nil {
+		message = err.Error()
+	}
+	return &errorResponse{http.StatusConflict, message}
+}
 
 func Unavailable(err error) Response {
 	message := "unavailable"
@@ -492,17 +518,17 @@ func SmartError(err error) Response {
 	case nil:
 		return EmptySyncResponse
 	case os.ErrNotExist:
-		return NotFound
+		return NotFound(nil)
 	case sql.ErrNoRows:
-		return NotFound
+		return NotFound(nil)
 	case db.ErrNoSuchObject:
-		return NotFound
+		return NotFound(nil)
 	case os.ErrPermission:
-		return Forbidden
+		return Forbidden(nil)
 	case db.ErrAlreadyDefined:
-		return Conflict
+		return Conflict(nil)
 	case sqlite3.ErrConstraintUnique:
-		return Conflict
+		return Conflict(nil)
 	default:
 		return InternalError(err)
 	}

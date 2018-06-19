@@ -292,7 +292,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) Response {
 func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
-		return NotImplemented
+		return NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
 	}
 
 	storage, err := storagePoolVolumeDBCreateInternal(d.State(), poolName, req)
@@ -485,8 +485,10 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 	// Check that the name isn't already in use.
 	_, err = d.cluster.StoragePoolNodeVolumeGetTypeID(req.Name,
 		storagePoolVolumeTypeCustom, poolID)
-	if err == nil || err != nil && err != db.ErrNoSuchObject {
-		return Conflict
+	if err == nil {
+		return Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
+	} else if err != nil && err != db.ErrNoSuchObject {
+		return Conflict(err)
 	}
 
 	doWork := func() error {
@@ -825,7 +827,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 
 	s, err := storagePoolVolumeInit(d.State(), poolName, volumeName, volumeType)
 	if err != nil {
-		return NotFound
+		return NotFound(err)
 	}
 
 	switch volumeType {

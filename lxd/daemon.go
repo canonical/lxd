@@ -261,7 +261,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 			logger.Warn(
 				"rejecting request from untrusted client",
 				log.Ctx{"ip": r.RemoteAddr})
-			Forbidden.Render(w)
+			Forbidden(nil).Render(w)
 			return
 		}
 
@@ -279,7 +279,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 		}
 
 		var resp Response
-		resp = NotImplemented
+		resp = NotImplemented(nil)
 
 		switch r.Method {
 		case "GET":
@@ -303,7 +303,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 				resp = c.patch(d, r)
 			}
 		default:
-			resp = NotFound
+			resp = NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 		}
 
 		if err := resp.Render(w); err != nil {

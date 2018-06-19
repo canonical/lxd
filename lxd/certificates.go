@@ -121,7 +121,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 	if d.checkTrustedClient(r) != nil && util.PasswordCheck(secret, req.Password) != nil {
-		return Forbidden
+		return Forbidden(nil)
 	}
 
 	if req.Type != "client" {
@@ -308,7 +308,7 @@ func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 
 	certInfo, err := d.cluster.CertificateGet(fingerprint)
 	if err != nil {
-		return NotFound
+		return NotFound(err)
 	}
 
 	err = d.cluster.CertDelete(certInfo.Fingerprint)

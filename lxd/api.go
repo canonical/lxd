@@ -39,7 +39,7 @@ func RestServer(d *Daemon) *http.Server {
 	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Sending top level 404", log.Ctx{"url": r.URL})
 		w.Header().Set("Content-Type", "application/json")
-		NotFound.Render(w)
+		NotFound(nil).Render(w)
 	})
 
 	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}

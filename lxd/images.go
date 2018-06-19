@@ -1254,7 +1254,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 	}
 
 	if !info.Public && public && !imageValidSecret(info.Fingerprint, secret) {
-		return NotFound
+		return NotFound(fmt.Errorf("Image '%s' not found", info.Fingerprint))
 	}
 
 	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
@@ -1368,7 +1368,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 	// This is just to see if the alias name already exists.
 	_, _, err := d.cluster.ImageAliasGet(req.Name, true)
 	if err == nil {
-		return Conflict
+		return Conflict(fmt.Errorf("Alias '%s' already exists", req.Name))
 	}
 
 	id, _, err := d.cluster.ImageGet(req.Target, false, false)
@@ -1539,7 +1539,7 @@ func aliasPost(d *Daemon, r *http.Request) Response {
 	// Check that the name isn't already in use
 	id, _, _ := d.cluster.ImageAliasGet(req.Name, true)
 	if id > 0 {
-		return Conflict
+		return Conflict(fmt.Errorf("Alias '%s' already in use", req.Name))
 	}
 
 	id, _, err := d.cluster.ImageAliasGet(name, true)
@@ -1567,7 +1567,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	}
 
 	if !imgInfo.Public && public && !imageValidSecret(imgInfo.Fingerprint, secret) {
-		return NotFound
+		return NotFound(fmt.Errorf("Image '%s' not found", fingerprint))
 	}
 
 	// Check if the image is only available on another node.
