@@ -2625,7 +2625,7 @@ Input (request to join an existing cluster):
         "enabled": true,
         "cluster_address": "10.1.1.101:8443",
         "cluster_certificate": "-----BEGIN CERTIFICATE-----MIFf\n-----END CERTIFICATE-----",
-		"cluster_password": "sekret",
+        "cluster_password": "sekret",
         "member_config": [
             {
                 "entity": "storage-pool",
