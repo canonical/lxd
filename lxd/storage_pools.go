@@ -499,7 +499,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 
 	poolID, err := d.cluster.StoragePoolGetID(poolName)
 	if err != nil {
-		return NotFound
+		return NotFound(err)
 	}
 
 	// If this is not an internal cluster request, check if the storage

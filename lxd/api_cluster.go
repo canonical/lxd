@@ -643,7 +643,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	return NotFound
+	return NotFound(fmt.Errorf("Node '%s' not found", name))
 }
 
 func clusterNodePost(d *Daemon, r *http.Request) Response {
