@@ -382,7 +382,7 @@ func updateFromV18(tx *sql.Tx) error {
 		// Deal with completely broken values
 		_, err = shared.ParseByteSizeString(value)
 		if err != nil {
-			logger.Debugf("Invalid container memory limit, id=%d value=%s, removing.", id, value)
+			logger.Debugf("Invalid container memory limit, id=%d value=%s, removing", id, value)
 			_, err = tx.Exec("DELETE FROM containers_config WHERE id=?;", id)
 			if err != nil {
 				return err
@@ -427,7 +427,7 @@ func updateFromV18(tx *sql.Tx) error {
 		// Deal with completely broken values
 		_, err = shared.ParseByteSizeString(value)
 		if err != nil {
-			logger.Debugf("Invalid profile memory limit, id=%d value=%s, removing.", id, value)
+			logger.Debugf("Invalid profile memory limit, id=%d value=%s, removing", id, value)
 			_, err = tx.Exec("DELETE FROM profiles_config WHERE id=?;", id)
 			if err != nil {
 				return err

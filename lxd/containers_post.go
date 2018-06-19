@@ -250,7 +250,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		}
 	}
 
-	logger.Debugf("No valid storage pool in the container's local root disk device and profiles found.")
+	logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
 		pools, err := d.cluster.StoragePools()
