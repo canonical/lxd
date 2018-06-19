@@ -169,25 +169,11 @@ func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Respons
 
 	// Figure out the address of the target node (which is possibly
 	// this very same node).
-	var address string
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		localNode, err := tx.NodeName()
-		if err != nil {
-			return err
-		}
-		if targetNode == localNode {
-			return nil
-		}
-		node, err := tx.NodeByName(targetNode)
-		if err != nil {
-			return err
-		}
-		address = node.Address
-		return nil
-	})
+	address, err := cluster.ResolveTarget(d.cluster, targetNode)
 	if err != nil {
 		return SmartError(err)
 	}
+
 	if address != "" {
 		// Forward the response.
 		cert := d.endpoints.NetworkCert()
