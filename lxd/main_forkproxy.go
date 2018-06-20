@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -15,7 +16,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/eagain"
 )
 
 /*
@@ -274,6 +274,16 @@ type proxyAddress struct {
 	abstract bool
 }
 
+// UDP session tracking (map "client tuple" to udp session)
+var udpSessions = map[string]*udpSession{}
+var udpSessionsLock sync.Mutex
+
+type udpSession struct {
+	client net.Addr
+	target net.Conn
+	timer  *time.Timer
+}
+
 func (c *cmdForkproxy) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
@@ -329,7 +339,7 @@ func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, conn
 				return
 			}
 
-			genericRelay(srcConn, dstConn)
+			genericRelay(srcConn, dstConn, true)
 			rearmUDPFd(epFd, connFd)
 		}()
 
@@ -361,7 +371,7 @@ func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, conn
 		// Handle OOB if both src and dst are using unix sockets
 		go unixRelay(srcConn, dstConn)
 	} else {
-		go genericRelay(srcConn, dstConn)
+		go genericRelay(srcConn, dstConn, false)
 	}
 
 	return nil
@@ -485,19 +495,6 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
 
-	if cAddr.connType == "unix" && !cAddr.abstract {
-		// Create socket
-		file, err := getListenerFile("unix", cAddr.addr[0])
-		if err != nil {
-			return err
-		}
-		file.Close()
-
-		if cAddr.connType == "unix" && !cAddr.abstract {
-			defer os.Remove(cAddr.addr[0])
-		}
-	}
-
 	if lAddr.connType == "unix" && !lAddr.abstract {
 		defer os.Remove(lAddr.addr[0])
 	}
@@ -518,15 +515,11 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		}
 		syscall.Close(int(epFd))
 
-		for _, l := range listenerMap {
-			if isUDPListener {
-				conn := (*l).udpConn
+		if !isUDPListener {
+			for _, l := range listenerMap {
+				conn := (*l).lConn
 				(*conn).Close()
-				continue
 			}
-
-			conn := (*l).lConn
-			(*conn).Close()
 		}
 
 		syscall.Kill(self, syscall.SIGKILL)
@@ -575,27 +568,146 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
-	relayer := func(src io.Writer, dst io.Reader, ch chan error) {
-		_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
-		ch <- err
+func proxyCopy(dst net.Conn, src net.Conn) error {
+	var err error
+
+	// Attempt casting to UDP connections
+	srcUdp, srcIsUdp := src.(*net.UDPConn)
+	dstUdp, dstIsUdp := dst.(*net.UDPConn)
+
+	buf := make([]byte, 32*1024)
+	for {
+	rAgain:
+		var nr int
+		var er error
+
+		if srcIsUdp && srcUdp.RemoteAddr() == nil {
+			var addr net.Addr
+			nr, addr, er = srcUdp.ReadFrom(buf)
+			if er == nil {
+				// Look for existing UDP session
+				udpSessionsLock.Lock()
+				us, ok := udpSessions[addr.String()]
+				udpSessionsLock.Unlock()
+
+				if !ok {
+					dc, err := net.Dial(dst.RemoteAddr().Network(), dst.RemoteAddr().String())
+					if err != nil {
+						return err
+					}
+
+					us = &udpSession{
+						client: addr,
+						target: dc,
+					}
+
+					udpSessionsLock.Lock()
+					udpSessions[addr.String()] = us
+					udpSessionsLock.Unlock()
+
+					go proxyCopy(src, dc)
+					us.timer = time.AfterFunc(30*time.Minute, func() {
+						us.target.Close()
+
+						udpSessionsLock.Lock()
+						delete(udpSessions, addr.String())
+						udpSessionsLock.Unlock()
+					})
+				}
+
+				us.timer.Reset(30 * time.Minute)
+				dst = us.target
+				dstUdp, dstIsUdp = dst.(*net.UDPConn)
+			}
+		} else {
+			nr, er = src.Read(buf)
+		}
+
+		// keep retrying on EAGAIN
+		errno, ok := shared.GetErrno(er)
+		if ok && (errno == syscall.EAGAIN) {
+			goto rAgain
+		}
+
+		if nr > 0 {
+		wAgain:
+			var nw int
+			var ew error
+
+			if dstIsUdp && dstUdp.RemoteAddr() == nil {
+				var us *udpSession
+
+				udpSessionsLock.Lock()
+				for _, v := range udpSessions {
+					if v.target.LocalAddr() == src.LocalAddr() {
+						us = v
+						break
+					}
+				}
+				udpSessionsLock.Unlock()
+
+				if us == nil {
+					return fmt.Errorf("Connection expired")
+				}
+
+				us.timer.Reset(30 * time.Minute)
+
+				nw, ew = dstUdp.WriteTo(buf[0:nr], us.client)
+			} else {
+				nw, ew = dst.Write(buf[0:nr])
+			}
+
+			// keep retrying on EAGAIN
+			errno, ok := shared.GetErrno(ew)
+			if ok && (errno == syscall.EAGAIN) {
+				goto wAgain
+
+			}
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if er != nil {
+			if er != io.EOF {
+				err = er
+			}
+
+			break
+		}
+	}
+
+	return err
+}
+
+func genericRelay(dst net.Conn, src net.Conn, timeout bool) {
+	relayer := func(src net.Conn, dst net.Conn, ch chan error) {
+		ch <- proxyCopy(src, dst)
 	}
 
 	chSend := make(chan error)
-	go relayer(dst, src, chSend)
-
 	chRecv := make(chan error)
+
 	go relayer(src, dst, chRecv)
+
+	_, ok := dst.(*net.UDPConn)
+	if !ok {
+		go relayer(dst, src, chSend)
+	}
 
 	select {
 	case errSnd := <-chSend:
 		if errSnd != nil {
-			fmt.Printf("Error while sending data %s\n", errSnd)
+			fmt.Printf("Error while sending data: %v\n", errSnd)
 		}
 
 	case errRcv := <-chRecv:
 		if errRcv != nil {
-			fmt.Printf("Error while reading data %s\n", errRcv)
+			fmt.Printf("Error while reading data: %v\n", errRcv)
 		}
 	}
 
