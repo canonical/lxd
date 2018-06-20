@@ -385,19 +385,28 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 }
 
 func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
-	relayer := func(dst io.Writer, src io.Reader, ch chan bool) {
-		io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
-		ch <- true
+	relayer := func(src io.Writer, dst io.Reader, ch chan error) {
+		_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
+		ch <- err
 	}
 
-	chSend := make(chan bool)
+	chSend := make(chan error)
 	go relayer(dst, src, chSend)
 
-	chRecv := make(chan bool)
+	chRecv := make(chan error)
 	go relayer(src, dst, chRecv)
 
-	<-chSend
-	<-chRecv
+	select {
+	case errSnd := <-chSend:
+		if errSnd != nil {
+			fmt.Printf("Error while sending data %s\n", errSnd)
+		}
+
+	case errRcv := <-chRecv:
+		if errRcv != nil {
+			fmt.Printf("Error while reading data %s\n", errRcv)
+		}
+	}
 
 	src.Close()
 	dst.Close()
