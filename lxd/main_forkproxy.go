@@ -587,19 +587,20 @@ func genericRelay(dst io.ReadWriteCloser, src io.ReadWriteCloser) {
 	chRecv := make(chan error)
 	go relayer(src, dst, chRecv)
 
-	errSnd := <-chSend
-	errRcv := <-chRecv
+	select {
+	case errSnd := <-chSend:
+		if errSnd != nil {
+			fmt.Printf("Error while sending data %s\n", errSnd)
+		}
+
+	case errRcv := <-chRecv:
+		if errRcv != nil {
+			fmt.Printf("Error while reading data %s\n", errRcv)
+		}
+	}
 
 	src.Close()
 	dst.Close()
-
-	if errSnd != nil {
-		fmt.Printf("Error while sending data %s\n", errSnd)
-	}
-
-	if errRcv != nil {
-		fmt.Printf("Error while reading data %s\n", errRcv)
-	}
 }
 
 func unixRelayer(src *net.UnixConn, dst *net.UnixConn, ch chan bool) {
