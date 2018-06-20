@@ -9,11 +9,12 @@ test_proxy_device() {
 }
 
 test_proxy_device_tcp() {
+  echo "====> Testing tcp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
-  MESSAGE="Proxy device test string"
+  MESSAGE="Proxy device test string: tcp"
   HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
@@ -70,11 +71,12 @@ test_proxy_device_tcp() {
 }
 
 test_proxy_device_unix() {
+  echo "====> Testing unix proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
-  MESSAGE="Proxy device test string"
+  MESSAGE="Proxy device test string: unix"
   OUTFILE="${TEST_DIR}/proxyTest.out"
   HOST_SOCK="${TEST_DIR}/lxdtest-$(basename "${LXD_DIR}")-host.sock"
   lxc launch testimage proxyTester
@@ -162,11 +164,12 @@ test_proxy_device_unix() {
 }
 
 test_proxy_device_tcp_unix() {
+  echo "====> Testing tcp to unix proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
-  MESSAGE="Proxy device test string"
+  MESSAGE="Proxy device test string: tcp -> unix"
   HOST_TCP_PORT=$(local_tcp_port)
   OUTFILE="${TEST_DIR}/proxyTest.out"
   lxc launch testimage proxyTester
@@ -239,11 +242,12 @@ test_proxy_device_tcp_unix() {
 }
 
 test_proxy_device_unix_tcp() {
+  echo "====> Testing unix to tcp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
-  MESSAGE="Proxy device test string"
+  MESSAGE="Proxy device test string: unix -> tcp"
   OUTFILE="${TEST_DIR}/proxyTest.out"
   HOST_SOCK="${TEST_DIR}/lxdtest-$(basename "${LXD_DIR}")-host.sock"
   lxc launch testimage proxyTester
@@ -301,11 +305,12 @@ test_proxy_device_unix_tcp() {
 }
 
 test_proxy_device_udp() {
+  echo "====> Testing udp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
-  MESSAGE="Proxy device test string"
+  MESSAGE="Proxy device test string: udp"
   HOST_UDP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
@@ -380,11 +385,12 @@ test_proxy_device_udp() {
 }
 
 test_proxy_device_unix_udp() {
+  echo "====> Testing unix to udp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
-  MESSAGE="Proxy device test string"
+  MESSAGE="Proxy device test string: unix -> udp"
   OUTFILE="${TEST_DIR}/proxyTest.out"
   HOST_SOCK="${TEST_DIR}/lxdtest-$(basename "${LXD_DIR}")-host.sock"
   lxc launch testimage proxyTester
@@ -460,11 +466,12 @@ test_proxy_device_unix_udp() {
 }
 
 test_proxy_device_tcp_udp() {
+  echo "====> Testing udp proxying"
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   # Setup
-  MESSAGE="Proxy device test string"
+  MESSAGE="Proxy device test string: tcp -> udp"
   HOST_TCP_PORT=$(local_tcp_port)
   lxc launch testimage proxyTester
 
