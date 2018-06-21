@@ -487,7 +487,7 @@ images from the host.
 This enables copying or moving containers between storage pools on the same LXD
 instance.
 
-## proxy_unix
+## proxy\_unix
 Add support for both unix sockets and abstract unix sockets in proxy devices.
 They can be used by specifying the address as `unix:/path/to/unix.sock` (normal
 socket) or `unix:@/tmp/unix.sock` (abstract socket).
@@ -499,7 +499,7 @@ Supported connections are now:
 * `TCP <-> UNIX`
 * `UNIX <-> TCP`
 
-## proxy_udp
+## proxy\_udp
 Add support for udp in proxy devices.
 
 Supported connections are now:
@@ -509,9 +509,7 @@ Supported connections are now:
 * `TCP <-> UNIX`
 * `UNIX <-> TCP`
 * `UDP <-> UDP`
-* `UDP <-> TCP`
 * `TCP <-> UDP`
-* `UDP <-> UNIX`
 * `UNIX <-> UDP`
 
 ## clustering_join
@@ -521,3 +519,9 @@ configuration keys they are required to use when creating them. Likewise the PUT
 /1.0/cluster endpoint now accepts the same format to pass information about
 storage pools and networks to be automatically created before attempting to join
 a cluster.
+
+## proxy\_tcp\_udp\_multi\_port\_handling
+Adds support for forwarding traffic for multiple ports. Forwarding is allowed
+between a range of ports if the port range is equal for source and target
+(for example `1.2.3.4 0-1000 -> 5.6.7.8 1000-2000`) and between a range of source
+ports and a single target port (for example `1.2.3.4 0-1000 -> 5.6.7.8 1000`).
