@@ -20,6 +20,8 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
+
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 var certificatesCmd = Command{
@@ -120,7 +122,9 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
+
 	if d.checkTrustedClient(r) != nil && util.PasswordCheck(secret, req.Password) != nil {
+		logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		return Forbidden(nil)
 	}
 
