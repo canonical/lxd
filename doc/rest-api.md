@@ -179,47 +179,47 @@ it to empty will usually do the trick, but there are cases where PATCH
 won't work and PUT needs to be used instead.
 
 # API structure
- * `/`
-   * `/1.0`
-     * `/1.0/certificates`
-       * `/1.0/certificates/<fingerprint>`
-     * `/1.0/containers`
-       * `/1.0/containers/<name>`
-         * `/1.0/containers/<name>/console`
-         * `/1.0/containers/<name>/exec`
-         * `/1.0/containers/<name>/files`
-         * `/1.0/containers/<name>/snapshots`
-         * `/1.0/containers/<name>/snapshots/<name>`
-         * `/1.0/containers/<name>/state`
-         * `/1.0/containers/<name>/logs`
-         * `/1.0/containers/<name>/logs/<logfile>`
-         * `/1.0/containers/<name>/metadata`
-         * `/1.0/containers/<name>/metadata/templates`
-     * `/1.0/events`
-     * `/1.0/images`
-       * `/1.0/images/<fingerprint>`
-         * `/1.0/images/<fingerprint>/export`
-         * `/1.0/images/<fingerprint>/refresh`
-         * `/1.0/images/<fingerprint>/secret`
-       * `/1.0/images/aliases`
-         * `/1.0/images/aliases/<name>`
-     * `/1.0/networks`
-       * `/1.0/networks/<name>`
-     * `/1.0/operations`
-       * `/1.0/operations/<uuid>`
-         * `/1.0/operations/<uuid>/wait`
-         * `/1.0/operations/<uuid>/websocket`
-     * `/1.0/profiles`
-       * `/1.0/profiles/<name>`
-     * `/1.0/storage-pools`
-       * `/1.0/storage-pools/<name>`
-         * `/1.0/storage-pools/<name>/resources`
-         * `/1.0/storage-pools/<name>/volumes`
-           * `/1.0/storage-pools/<name>/volumes/<volume type>/<volume>`
-     * `/1.0/resources`
-     * `/1.0/cluster`
-       * `/1.0/cluster/members`
-         * `/1.0/cluster/members/<name>`
+ * [`/`](#)
+   * [`/1.0`](#10)
+     * [`/1.0/certificates`](#10certificates)
+       * [`/1.0/certificates/<fingerprint>`](#10certificatesfingerprint)
+     * [`/1.0/containers`](#10containers)
+       * [`/1.0/containers/<name>`](#10containersname)
+         * [`/1.0/containers/<name>/console`](#10containersnameconsole)
+         * [`/1.0/containers/<name>/exec`](#10containersnameexec)
+         * [`/1.0/containers/<name>/files`](#10containersnamefiles)
+         * [`/1.0/containers/<name>/snapshots`](#10containersnamesnapshots)
+         * [`/1.0/containers/<name>/snapshots/<name>`](#10containersnamesnapshotsname)
+         * [`/1.0/containers/<name>/state`](#10containersnamestate)
+         * [`/1.0/containers/<name>/logs`](#10containersnamelogs)
+         * [`/1.0/containers/<name>/logs/<logfile>`](#10containersnamelogslogfile)
+         * [`/1.0/containers/<name>/metadata`](#10containersnamemetadata)
+         * [`/1.0/containers/<name>/metadata/templates`](#10containersnamemetadatatemplates)
+     * [`/1.0/events`](#10events)
+     * [`/1.0/images`](#10images)
+       * [`/1.0/images/<fingerprint>`](#10imagesfingerprint)
+         * [`/1.0/images/<fingerprint>/export`](#10imagesfingerprintexport)
+         * [`/1.0/images/<fingerprint>/refresh`](#10imagesfingerprintrefresh)
+         * [`/1.0/images/<fingerprint>/secret`](#10imagesfingerprintsecret)
+       * [`/1.0/images/aliases`](#10imagesaliases)
+         * [`/1.0/images/aliases/<name>`](#10imagesaliasesname)
+     * [`/1.0/networks`](#10networks)
+       * [`/1.0/networks/<name>`](#10networksname)
+     * [`/1.0/operations`](#10operations)
+       * [`/1.0/operations/<uuid>`](#10operationsuuid)
+         * [`/1.0/operations/<uuid>/wait`](#10operationsuuidwait)
+         * [`/1.0/operations/<uuid>/websocket`](#10operationsuuidwebsocket)
+     * [`/1.0/profiles`](#10profiles)
+       * [`/1.0/profiles/<name>`](#10profilesname)
+     * [`/1.0/storage-pools`](#10storage-pools)
+       * [`/1.0/storage-pools/<name>`](#10storage-poolsname)
+         * [`/1.0/storage-pools/<name>/resources`](#10storage-poolsnameresources)
+         * [`/1.0/storage-pools/<name>/volumes`](#10storage-poolsnamevolumes)
+           * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>`](#10storage-poolspoolvolumestypename)
+     * [`/1.0/resources`](#10resources)
+     * [`/1.0/cluster`](#10cluster)
+       * [`/1.0/cluster/members`](#10clustermembers)
+         * [`/1.0/cluster/members/<name>`](#10clustermembersname)
 
 # API details
 ## `/`
@@ -2560,7 +2560,6 @@ Return:
         "state": "Online"
     }
 
-## `/1.0/cluster/members/<name>`
 ### POST
  * Description: rename a cluster member
  * Introduced: with API extension `clustering`
