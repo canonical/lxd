@@ -237,19 +237,8 @@ func (s *storageZfs) zfsPoolCreate() error {
 				return fmt.Errorf("Provided ZFS pool (or dataset) isn't empty")
 			}
 
-			if err := zfsPoolVolumeSet(vdev, "", "mountpoint", "none"); err != nil {
-				return err
-			}
-
-			if err := zfsPoolVolumeSet(vdev, "", "setuid", "on"); err != nil {
-				return err
-			}
-
-			if err := zfsPoolVolumeSet(vdev, "", "exec", "on"); err != nil {
-				return err
-			}
-
-			if err := zfsPoolVolumeSet(vdev, "", "devices", "on"); err != nil {
+			err = zfsPoolApplyDefaults(vdev)
+			if err != nil {
 				return err
 			}
 		}

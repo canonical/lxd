@@ -67,6 +67,9 @@ func zfsPoolCheck(pool string) error {
 func zfsPoolCreate(pool string, vdev string) error {
 	var output string
 	var err error
+
+	dataset := ""
+
 	if pool == "" {
 		output, err := shared.RunCommand(
 			"zfs", "create", "-p", "-o", "mountpoint=none", vdev)
@@ -74,6 +77,7 @@ func zfsPoolCreate(pool string, vdev string) error {
 			logger.Errorf("zfs create failed: %s", output)
 			return fmt.Errorf("Failed to create ZFS filesystem: %s", output)
 		}
+		dataset = vdev
 	} else {
 		output, err = shared.RunCommand(
 			"zpool", "create", "-f", "-m", "none", "-O", "compression=on", pool, vdev)
@@ -81,6 +85,47 @@ func zfsPoolCreate(pool string, vdev string) error {
 			logger.Errorf("zfs create failed: %s", output)
 			return fmt.Errorf("Failed to create the ZFS pool: %s", output)
 		}
+
+		dataset = pool
+	}
+
+	err = zfsPoolApplyDefaults(dataset)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func zfsPoolApplyDefaults(dataset string) error {
+	err := zfsPoolVolumeSet(dataset, "", "mountpoint", "none")
+	if err != nil {
+		return err
+	}
+
+	err = zfsPoolVolumeSet(dataset, "", "setuid", "on")
+	if err != nil {
+		return err
+	}
+
+	err = zfsPoolVolumeSet(dataset, "", "exec", "on")
+	if err != nil {
+		return err
+	}
+
+	err = zfsPoolVolumeSet(dataset, "", "devices", "on")
+	if err != nil {
+		return err
+	}
+
+	err = zfsPoolVolumeSet(dataset, "", "acltype", "posixacl")
+	if err != nil {
+		return err
+	}
+
+	err = zfsPoolVolumeSet(dataset, "", "xattr", "sa")
+	if err != nil {
+		return err
 	}
 
 	return nil
