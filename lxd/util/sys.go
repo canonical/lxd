@@ -41,7 +41,7 @@ func GetArchitectures() ([]int, error) {
 
 // GetIdmapSet reads the uid/gid allocation.
 func GetIdmapSet() *idmap.IdmapSet {
-	idmapSet, err := idmap.DefaultIdmapSet("")
+	idmapSet, err := idmap.DefaultIdmapSet("", "")
 	if err != nil {
 		logger.Warn("Error reading default uid/gid map", log.Ctx{"err": err.Error()})
 		logger.Warnf("Only privileged containers will be able to run")

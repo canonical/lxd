@@ -660,7 +660,7 @@ func getFromProc(fname string) ([][]int64, error) {
 /*
  * Create a new default idmap
  */
-func DefaultIdmapSet(username string) (*IdmapSet, error) {
+func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 	idmapset := new(IdmapSet)
 
 	if username == "" {
@@ -672,9 +672,12 @@ func DefaultIdmapSet(username string) (*IdmapSet, error) {
 		username = currentUser.Username
 	}
 
-	if shared.PathExists("/etc/subuid") && shared.PathExists("/etc/subgid") {
+	// Check if shadow's uidmap tools are installed
+	subuidPath := path.Join(rootfs, "/etc/subuid")
+	subgidPath := path.Join(rootfs, "/etc/subgid")
+	if shared.PathExists(subuidPath) && shared.PathExists(subgidPath) {
 		// Parse the shadow uidmap
-		entries, err := getFromShadow("/etc/subuid", username)
+		entries, err := getFromShadow(subuidPath, username)
 		if err != nil {
 			return nil, err
 		}
@@ -693,7 +696,7 @@ func DefaultIdmapSet(username string) (*IdmapSet, error) {
 		}
 
 		// Parse the shadow gidmap
-		entries, err = getFromShadow("/etc/subgid", username)
+		entries, err = getFromShadow(subgidPath, username)
 		if err != nil {
 			return nil, err
 		}
