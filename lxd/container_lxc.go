@@ -2085,7 +2085,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 		} else if m["type"] == "gpu" {
 			if gpus == nil {
-				gpus, nvidiaDevices, err = deviceLoadGpu()
+				gpus, nvidiaDevices, err = deviceLoadGpu(deviceWantsAllGPUs(m))
 				if err != nil {
 					return "", err
 				}
@@ -2108,13 +2108,15 @@ func (c *containerLXC) startCommon() (string, error) {
 					return "", err
 				}
 
-				if gpu.nvidia.path == "" {
+				if !gpu.isNvidia {
 					continue
 				}
 
-				err = c.setupUnixDevice(fmt.Sprintf("unix.%s", k), m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path, true, false)
-				if err != nil {
-					return "", err
+				if gpu.nvidia.path != "" {
+					err = c.setupUnixDevice(fmt.Sprintf("unix.%s", k), m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path, true, false)
+					if err != nil {
+						return "", err
+					}
 				}
 
 				sawNvidia = true
@@ -4307,7 +4309,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if m["type"] == "gpu" {
 				if gpus == nil {
-					gpus, nvidiaDevices, err = deviceLoadGpu()
+					gpus, nvidiaDevices, err = deviceLoadGpu(deviceWantsAllGPUs(m))
 					if err != nil {
 						return err
 					}
@@ -4327,14 +4329,16 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 
-					if gpu.nvidia.path == "" {
+					if !gpu.isNvidia {
 						continue
 					}
 
-					err = c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
-					if err != nil {
-						logger.Error("Failed to remove GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
-						return err
+					if gpu.nvidia.path != "" {
+						err = c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path)
+						if err != nil {
+							logger.Error("Failed to remove GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							return err
+						}
 					}
 				}
 
@@ -4431,7 +4435,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 			} else if m["type"] == "gpu" {
 				if gpus == nil {
-					gpus, nvidiaDevices, err = deviceLoadGpu()
+					gpus, nvidiaDevices, err = deviceLoadGpu(deviceWantsAllGPUs(m))
 					if err != nil {
 						return err
 					}
@@ -4455,14 +4459,16 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 
-					if gpu.nvidia.path == "" {
+					if !gpu.isNvidia {
 						continue
 					}
 
-					err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path, false)
-					if err != nil {
-						logger.Error("Failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
-						return err
+					if gpu.nvidia.path != "" {
+						err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.nvidia.major, gpu.nvidia.minor, gpu.nvidia.path, false)
+						if err != nil {
+							logger.Error("Failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
+							return err
+						}
 					}
 
 					sawNvidia = true
