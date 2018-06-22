@@ -133,7 +133,10 @@ void forkproxy()
 		whoami = FORKPROXY_CHILD;
 
 		fclose(pid_file);
-		close(sk_fds[0]);
+		ret = close(sk_fds[0]);
+		if (ret < 0)
+			fprintf(stderr, "%s - Failed to close fd %d\n",
+				strerror(errno), sk_fds[0]);
 
 		// Attach to the user namespace of the listener
 		attach_userns(listen_pid);
@@ -163,15 +166,16 @@ void forkproxy()
 		}
 
 		ret = close(sk_fds[1]);
-		if (ret < 0) {
-			fprintf(stderr, "%s - Failed to close socket fd %d\n",
+		if (ret < 0)
+			fprintf(stderr, "%s - Failed to close fd %d\n",
 				strerror(errno), sk_fds[1]);
-			_exit(1);
-		}
 	} else {
 		whoami = FORKPROXY_PARENT;
 
-		close(sk_fds[1]);
+		ret = close(sk_fds[1]);
+		if (ret < 0)
+			fprintf(stderr, "%s - Failed to close fd %d\n",
+				strerror(errno), sk_fds[1]);
 
 		// Attach to the user namespace of the listener
 		attach_userns(connect_pid);
@@ -201,17 +205,25 @@ void forkproxy()
 		}
 
 		ret = close(sk_fds[0]);
-		if (ret < 0) {
-			fprintf(stderr, "%s - Failed to close socket fd %d\n",
-				strerror(errno), sk_fds[1]);
-			_exit(1);
-		}
+		if (ret < 0)
+			fprintf(stderr, "%s - Failed to close fd %d\n",
+				strerror(errno), sk_fds[0]);
 
-		ret = wait_for_pid(pid);
-		if (ret < 0) {
-			fprintf(stderr, "Failed to start listener\n");
-			_exit(EXIT_FAILURE);
-		}
+		// Usually we should wait for the child process somewhere here.
+		// But we cannot really do this. The listener file descriptors
+		// are retrieved in the go runtime but at that point we have
+		// already double-fork()ed to daemonize ourselves and so we
+		// can't wait on the child anymore after we received the
+		// listener fds. On the other hand, if we wait on the child
+		// here we wait on the child before the receive. However, if we
+		// do this then we can end up in a situation where the socket
+		// send buffer is full and we need to retrieve some file
+		// descriptors first before we can go on sending more. But this
+		// won't be possible because we're waiting before the call to
+		// receive the file descriptor in the go runtime. Luckily, we
+		// can just rely on init doing it's job and reaping the zombie
+		// process. So, technically unsatisfying but pragmatically
+		// correct.
 
 		// daemonize
 		pid = fork();
@@ -318,19 +330,34 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-
+	sAgain:
 		err = shared.AbstractUnixSendFd(forkproxyUDSSockFDNum, int(file.Fd()))
+		if err != nil {
+			errno, ok := shared.GetErrno(err)
+			if ok && (errno == syscall.EAGAIN) {
+				goto sAgain
+			}
+		}
 		syscall.Close(forkproxyUDSSockFDNum)
+
 		file.Close()
 		return err
 	}
 
+rAgain:
 	file, err := shared.AbstractUnixReceiveFd(forkproxyUDSSockFDNum)
-	syscall.Close(forkproxyUDSSockFDNum)
 	if err != nil {
+		errno, ok := shared.GetErrno(err)
+		if ok && (errno == syscall.EAGAIN) {
+			goto rAgain
+		}
+
 		fmt.Printf("Failed to receive fd from listener process: %v\n", err)
+		syscall.Close(forkproxyUDSSockFDNum)
 		return err
 	}
+
+	syscall.Close(forkproxyUDSSockFDNum)
 
 	listener, err := net.FileListener(file)
 	if err != nil {
