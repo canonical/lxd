@@ -30,6 +30,31 @@ import (
 // Lock to prevent concurent networks creation
 var networkCreateLock sync.Mutex
 
+var networksCmd = Command{
+	name: "networks",
+	get:  networksGet,
+	post: networksPost,
+}
+
+var networkCmd = Command{
+	name:   "networks/{name}",
+	get:    networkGet,
+	delete: networkDelete,
+	post:   networkPost,
+	put:    networkPut,
+	patch:  networkPatch,
+}
+
+var networkLeasesCmd = Command{
+	name: "networks/{name}/leases",
+	get:  networkLeasesGet,
+}
+
+var networkStateCmd = Command{
+	name: "networks/{name}/state",
+	get:  networkStateGet,
+}
+
 // API endpoints
 func networksGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
@@ -312,8 +337,6 @@ func doNetworksCreate(d *Daemon, req api.NetworksPost, withDatabase bool) error 
 
 	return nil
 }
-
-var networksCmd = Command{name: "networks", get: networksGet, post: networksPost}
 
 func networkGet(d *Daemon, r *http.Request) Response {
 	// If a target was specified, forward the request to the relevant node.
@@ -626,8 +649,6 @@ func doNetworkUpdate(d *Daemon, name string, oldConfig map[string]string, req ap
 	return EmptySyncResponse
 }
 
-var networkCmd = Command{name: "networks/{name}", get: networkGet, delete: networkDelete, post: networkPost, put: networkPut, patch: networkPatch}
-
 func networkLeasesGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	leaseFile := shared.VarPath("networks", name, "dnsmasq.leases")
@@ -741,8 +762,6 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, leases)
 }
 
-var networkLeasesCmd = Command{name: "networks/{name}/leases", get: networkLeasesGet}
-
 // The network structs and functions
 func networkLoadByName(s *state.State, name string) (*network, error) {
 	id, dbInfo, err := s.Cluster.NetworkGet(name)
@@ -804,6 +823,21 @@ func networkShutdown(s *state.State) error {
 	}
 
 	return nil
+}
+
+func networkStateGet(d *Daemon, r *http.Request) Response {
+	name := mux.Vars(r)["name"]
+
+	// Get some information
+	osInfo, _ := net.InterfaceByName(name)
+	_, dbInfo, _ := d.cluster.NetworkGet(name)
+
+	// Sanity check
+	if osInfo == nil && dbInfo == nil {
+		return NotFound(fmt.Errorf("Interface '%s' not found", name))
+	}
+
+	return SyncResponse(true, networkGetState(*osInfo))
 }
 
 type network struct {
