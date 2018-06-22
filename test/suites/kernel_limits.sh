@@ -3,7 +3,7 @@ test_kernel_limits() {
   lxc_major=$(echo "${lxc_version}" | cut -d. -f1)
   lxc_minor=$(echo "${lxc_version}" | cut -d. -f2)
 
-  if [ "${lxc_major}" -lt 2 ] || ([ "${lxc_major}" = "2" ] && [ "${lxc_minor}" -lt "1" ]); then
+  if [ "${lxc_major}" -lt 2 ] || { [ "${lxc_major}" = "2" ] && [ "${lxc_minor}" -lt "1" ]; }; then
     echo "==> SKIP: kernel_limits require liblxc 2.1 or higher"
     return
   fi
