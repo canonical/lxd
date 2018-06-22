@@ -1047,3 +1047,18 @@ func downloadFileSha(httpClient *http.Client, useragent string, progress func(pr
 
 	return size, nil
 }
+
+func ParseNumberFromFile(file string) (int64, error) {
+	buf, err := ioutil.ReadFile(file)
+	if err != nil {
+		return int64(0), err
+	}
+
+	str := strings.TrimSpace(string(buf))
+	nr, err := strconv.Atoi(str)
+	if err != nil {
+		return int64(0), err
+	}
+
+	return int64(nr), nil
+}
