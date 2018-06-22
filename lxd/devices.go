@@ -84,8 +84,9 @@ type gpuDevice struct {
 	// mount them all. Meaning if we detect /dev/dri/card0,
 	// /dev/dri/controlD64, and /dev/dri/renderD128 with the same PCI
 	// address, then they should all be made available in the container.
-	pci    string
-	nvidia nvidiaGpuCards
+	pci      string
+	isNvidia bool
+	nvidia   nvidiaGpuCards
 
 	path  string
 	major int
@@ -169,7 +170,11 @@ func findNvidiaMinor(pci string) (string, error) {
 	return "", err
 }
 
-func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
+func deviceWantsAllGPUs(m map[string]string) bool {
+	return m["vendorid"] == "" && m["productid"] == "" && m["id"] == "" && m["pci"] == ""
+}
+
+func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 	const DRI_PATH = "/sys/bus/pci/devices"
 	var gpus []gpuDevice
 	var nvidiaDevices []nvidiaGpuDevices
@@ -267,29 +272,32 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 				if !isNvidia {
 					isNvidia = true
 				}
+				tmpGpu.isNvidia = true
 
-				minor, err := findNvidiaMinor(tmpGpu.pci)
-				if err != nil {
-					if os.IsNotExist(err) {
-						continue
-					}
-					return nil, nil, err
-				}
-
-				nvidiaPath := "/dev/nvidia" + minor
-				stat := syscall.Stat_t{}
-				err = syscall.Stat(nvidiaPath, &stat)
-				if err != nil {
-					if os.IsNotExist(err) {
-						continue
+				if !all {
+					minor, err := findNvidiaMinor(tmpGpu.pci)
+					if err != nil {
+						if os.IsNotExist(err) {
+							continue
+						}
+						return nil, nil, err
 					}
 
-					return nil, nil, err
+					nvidiaPath := "/dev/nvidia" + minor
+					stat := syscall.Stat_t{}
+					err = syscall.Stat(nvidiaPath, &stat)
+					if err != nil {
+						if os.IsNotExist(err) {
+							continue
+						}
+
+						return nil, nil, err
+					}
+					tmpGpu.nvidia.path = nvidiaPath
+					tmpGpu.nvidia.major = shared.Major(stat.Rdev)
+					tmpGpu.nvidia.minor = shared.Minor(stat.Rdev)
+					tmpGpu.nvidia.id = strconv.Itoa(tmpGpu.nvidia.minor)
 				}
-				tmpGpu.nvidia.path = nvidiaPath
-				tmpGpu.nvidia.major = shared.Major(stat.Rdev)
-				tmpGpu.nvidia.minor = shared.Minor(stat.Rdev)
-				tmpGpu.nvidia.id = strconv.Itoa(tmpGpu.nvidia.minor)
 			}
 
 			if isCard {
@@ -314,13 +322,20 @@ func deviceLoadGpu() ([]gpuDevice, []nvidiaGpuDevices, error) {
 				return nil, nil, err
 			}
 		}
+
 		validNvidia, err := regexp.Compile(`^nvidia[^0-9]+`)
 		if err != nil {
 			return nil, nil, err
 		}
 		for _, nvidiaEnt := range nvidiaEnts {
-			if !validNvidia.MatchString(nvidiaEnt.Name()) {
-				continue
+			if all {
+				if !strings.HasPrefix(nvidiaEnt.Name(), "nvidia") {
+					continue
+				}
+			} else {
+				if !validNvidia.MatchString(nvidiaEnt.Name()) {
+					continue
+				}
 			}
 			nvidiaPath := filepath.Join("/dev", nvidiaEnt.Name())
 			stat := syscall.Stat_t{}
