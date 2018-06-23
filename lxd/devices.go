@@ -276,27 +276,22 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 
 				if !all {
 					minor, err := findNvidiaMinor(tmpGpu.pci)
-					if err != nil {
-						if os.IsNotExist(err) {
-							continue
-						}
-						return nil, nil, err
-					}
+					if err == nil {
+						nvidiaPath := "/dev/nvidia" + minor
+						stat := syscall.Stat_t{}
+						err = syscall.Stat(nvidiaPath, &stat)
+						if err != nil {
+							if os.IsNotExist(err) {
+								continue
+							}
 
-					nvidiaPath := "/dev/nvidia" + minor
-					stat := syscall.Stat_t{}
-					err = syscall.Stat(nvidiaPath, &stat)
-					if err != nil {
-						if os.IsNotExist(err) {
-							continue
+							return nil, nil, err
 						}
-
-						return nil, nil, err
+						tmpGpu.nvidia.path = nvidiaPath
+						tmpGpu.nvidia.major = shared.Major(stat.Rdev)
+						tmpGpu.nvidia.minor = shared.Minor(stat.Rdev)
+						tmpGpu.nvidia.id = strconv.Itoa(tmpGpu.nvidia.minor)
 					}
-					tmpGpu.nvidia.path = nvidiaPath
-					tmpGpu.nvidia.major = shared.Major(stat.Rdev)
-					tmpGpu.nvidia.minor = shared.Minor(stat.Rdev)
-					tmpGpu.nvidia.id = strconv.Itoa(tmpGpu.nvidia.minor)
 				}
 			}
 
