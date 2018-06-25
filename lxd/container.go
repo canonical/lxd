@@ -240,7 +240,7 @@ func containerValidDeviceConfigKey(t, k string) bool {
 	}
 }
 
-func validateRawIdmap(rawIdmap string) error {
+func allowedUnprivilegedOnlyMap(rawIdmap string) error {
 	rawMaps, err := parseRawIdmap(rawIdmap)
 	if err != nil {
 		return err
@@ -249,10 +249,6 @@ func validateRawIdmap(rawIdmap string) error {
 	for _, ent := range rawMaps {
 		if ent.Hostid == 0 {
 			return fmt.Errorf("Cannot map root user into container as LXD was configured to only allow unprivileged containers")
-		}
-
-		if ent.Hostid != ent.Nsid {
-			return fmt.Errorf("Cannot create non-identity mapping for container as LXD was configured to only allow unprivileged containers")
 		}
 	}
 
@@ -300,7 +296,8 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 	unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
 	if shared.IsTrue(unprivOnly) {
 		if config["raw.idmap"] != "" {
-			if err := validateRawIdmap(config["raw.idmap"]); err != nil {
+			err := allowedUnprivilegedOnlyMap(config["raw.idmap"])
+			if err != nil {
 				return err
 			}
 		}
