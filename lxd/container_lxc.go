@@ -2017,9 +2017,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	c.removeProxyDevices()
 
 	var usbs []usbDevice
-	var gpus []gpuDevice
 	var sriov []string
-	var nvidiaDevices []nvidiaGpuDevices
 	diskDevices := map[string]types.Device{}
 
 	// Create the devices
@@ -2081,11 +2079,10 @@ func (c *containerLXC) startCommon() (string, error) {
 				}
 			}
 		} else if m["type"] == "gpu" {
-			if gpus == nil {
-				gpus, nvidiaDevices, err = deviceLoadGpu(deviceWantsAllGPUs(m))
-				if err != nil {
-					return "", err
-				}
+			allGpus := deviceWantsAllGPUs(m)
+			gpus, nvidiaDevices, err := deviceLoadGpu(allGpus)
+			if err != nil {
+				return "", err
 			}
 
 			sawNvidia := false
@@ -2114,6 +2111,10 @@ func (c *containerLXC) startCommon() (string, error) {
 					if err != nil {
 						return "", err
 					}
+				} else if !allGpus {
+					errMsg := fmt.Errorf("Failed to detect correct \"/dev/nvidia\" path")
+					logger.Errorf("%s", errMsg)
+					return "", errMsg
 				}
 
 				sawNvidia = true
@@ -4271,8 +4272,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		}
 
 		var usbs []usbDevice
-		var gpus []gpuDevice
-		var nvidiaDevices []nvidiaGpuDevices
 
 		// Live update the devices
 		for k, m := range removeDevices {
@@ -4326,11 +4325,10 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 			} else if m["type"] == "gpu" {
-				if gpus == nil {
-					gpus, nvidiaDevices, err = deviceLoadGpu(deviceWantsAllGPUs(m))
-					if err != nil {
-						return err
-					}
+				allGpus := deviceWantsAllGPUs(m)
+				gpus, nvidiaDevices, err := deviceLoadGpu(allGpus)
+				if err != nil {
+					return err
 				}
 
 				for _, gpu := range gpus {
@@ -4357,6 +4355,10 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 							logger.Error("Failed to remove GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 							return err
 						}
+					} else if !allGpus {
+						errMsg := fmt.Errorf("Failed to detect correct \"/dev/nvidia\" path")
+						logger.Errorf("%s", errMsg)
+						return errMsg
 					}
 				}
 
@@ -4367,6 +4369,10 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 							nvidiaExists = true
 							break
 						}
+					} else if !allGpus {
+						errMsg := fmt.Errorf("Failed to detect correct \"/dev/nvidia\" path")
+						logger.Errorf("%s", errMsg)
+						return errMsg
 					}
 				}
 
@@ -4452,11 +4458,10 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 			} else if m["type"] == "gpu" {
-				if gpus == nil {
-					gpus, nvidiaDevices, err = deviceLoadGpu(deviceWantsAllGPUs(m))
-					if err != nil {
-						return err
-					}
+				allGpus := deviceWantsAllGPUs(m)
+				gpus, nvidiaDevices, err := deviceLoadGpu(allGpus)
+				if err != nil {
+					return err
 				}
 
 				sawNvidia := false
@@ -4487,6 +4492,10 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 							logger.Error("Failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
 							return err
 						}
+					} else if !allGpus {
+						errMsg := fmt.Errorf("Failed to detect correct \"/dev/nvidia\" path")
+						logger.Errorf("%s", errMsg)
+						return errMsg
 					}
 
 					sawNvidia = true
