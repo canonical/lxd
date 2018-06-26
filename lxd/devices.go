@@ -147,19 +147,10 @@ func findNvidiaMinor(pci string) (string, error) {
 		idx += len("Device Minor:")
 		strBuf = strBuf[idx:]
 		strBuf = strings.TrimSpace(strBuf)
-		idx = strings.Index(strBuf, " ")
-
-		if idx == -1 {
-			idx = strings.Index(strBuf, "\t")
-		}
-
-		if idx >= 1 {
-			minor := strBuf[:idx]
-
-			_, err = strconv.Atoi(minor)
-			if err == nil {
-				return minor, nil
-			}
+		parts := strings.SplitN(strBuf, "\n", 1)
+		_, err = strconv.Atoi(parts[0])
+		if err == nil {
+			return parts[0], nil
 		}
 	}
 
