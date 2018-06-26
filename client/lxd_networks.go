@@ -83,6 +83,23 @@ func (r *ProtocolLXD) GetNetworkLeases(name string) ([]api.NetworkLease, error) 
 	return leases, nil
 }
 
+// GetNetworkState returns metrics and information on the running network
+func (r *ProtocolLXD) GetNetworkState(name string) (*api.NetworkState, error) {
+	if !r.HasExtension("network_state") {
+		return nil, fmt.Errorf("The server is missing the required \"network_state\" API extension")
+	}
+
+	state := api.NetworkState{}
+
+	// Fetch the raw value
+	_, err := r.queryStruct("GET", fmt.Sprintf("/networks/%s/state", url.QueryEscape(name)), nil, "", &state)
+	if err != nil {
+		return nil, err
+	}
+
+	return &state, nil
+}
+
 // CreateNetwork defines a new network using the provided Network struct
 func (r *ProtocolLXD) CreateNetwork(network api.NetworksPost) error {
 	if !r.HasExtension("network") {
