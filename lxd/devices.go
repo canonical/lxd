@@ -69,9 +69,10 @@ type nvidiaGpuCards struct {
 
 // {/dev/nvidiactl, /dev/nvidia-uvm, ...}
 type nvidiaGpuDevices struct {
-	path  string
-	major int
-	minor int
+	isCard bool
+	path   string
+	major  int
+	minor  int
 }
 
 // /dev/dri/card0. If we detect that vendor == nvidia, then nvidia will contain
@@ -339,9 +340,10 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 				continue
 			}
 			tmpNividiaGpu := nvidiaGpuDevices{
-				path:  nvidiaPath,
-				major: shared.Major(stat.Rdev),
-				minor: shared.Minor(stat.Rdev),
+				isCard: !validNvidia.MatchString(nvidiaEnt.Name()),
+				path:   nvidiaPath,
+				major:  shared.Major(stat.Rdev),
+				minor:  shared.Minor(stat.Rdev),
 			}
 			nvidiaDevices = append(nvidiaDevices, tmpNividiaGpu)
 		}
