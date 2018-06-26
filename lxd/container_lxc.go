@@ -2120,8 +2120,13 @@ func (c *containerLXC) startCommon() (string, error) {
 				sawNvidia = true
 			}
 
-			if sawNvidia && !shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
+			if sawNvidia {
 				for _, gpu := range nvidiaDevices {
+					if shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
+						if !gpu.isCard {
+							continue
+						}
+					}
 					err := c.setupUnixDevice(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path, true, false)
 					if err != nil {
 						return "", err
@@ -4376,11 +4381,18 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					}
 				}
 
-				if !nvidiaExists && !shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
+				if !nvidiaExists {
 					for _, gpu := range nvidiaDevices {
+						if shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
+							if !gpu.isCard {
+								continue
+							}
+						}
+
 						if !c.deviceExistsInDevicesFolder(fmt.Sprintf("unix.%s", k), gpu.path) {
 							continue
 						}
+
 						err = c.removeUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path)
 						if err != nil {
 							logger.Error("Failed to remove GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
@@ -4501,11 +4513,18 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 					sawNvidia = true
 				}
 
-				if sawNvidia && !shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
+				if sawNvidia {
 					for _, gpu := range nvidiaDevices {
+						if shared.IsTrue(c.expandedConfig["nvidia.runtime"]) {
+							if !gpu.isCard {
+								continue
+							}
+						}
+
 						if c.deviceExistsInDevicesFolder(k, gpu.path) {
 							continue
 						}
+
 						err = c.insertUnixDeviceNum(fmt.Sprintf("unix.%s", k), m, gpu.major, gpu.minor, gpu.path, false)
 						if err != nil {
 							logger.Error("Failed to insert GPU device", log.Ctx{"err": err, "gpu": gpu, "container": c.Name()})
