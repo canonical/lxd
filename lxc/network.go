@@ -64,6 +64,10 @@ func (c *cmdNetwork) Command() *cobra.Command {
 	networkGetCmd := cmdNetworkGet{global: c.global, network: c}
 	cmd.AddCommand(networkGetCmd.Command())
 
+	// Info
+	networkInfoCmd := cmdNetworkInfo{global: c.global, network: c}
+	cmd.AddCommand(networkInfoCmd.Command())
+
 	// List
 	networkListCmd := cmdNetworkList{global: c.global, network: c}
 	cmd.AddCommand(networkListCmd.Command())
@@ -701,6 +705,73 @@ func (c *cmdNetworkGet) Run(cmd *cobra.Command, args []string) error {
 			fmt.Printf("%s\n", v)
 		}
 	}
+
+	return nil
+}
+
+// Info
+type cmdNetworkInfo struct {
+	global  *cmdGlobal
+	network *cmdNetwork
+}
+
+func (c *cmdNetworkInfo) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("info [<remote>:]<network>")
+	cmd.Short = i18n.G("Get runtime information on networks")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Get runtime information on networks`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	state, err := client.GetNetworkState(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Interface information
+	fmt.Printf(i18n.G("Name: %s")+"\n", resource.name)
+	fmt.Printf(i18n.G("MAC address: %s")+"\n", state.Hwaddr)
+	fmt.Printf(i18n.G("MTU: %d")+"\n", state.Mtu)
+	fmt.Printf(i18n.G("State: %s")+"\n", state.State)
+
+	// IP addresses
+	fmt.Println("")
+	fmt.Println(i18n.G("Ips:"))
+	for _, addr := range state.Addresses {
+		fmt.Printf("  %s\t%s\n", addr.Family, addr.Address)
+	}
+
+	// Network usage
+	fmt.Println("")
+	fmt.Println(i18n.G("Network usage:"))
+	fmt.Printf("  %s: %s\n", i18n.G("Bytes received"), shared.GetByteSizeString(state.Counters.BytesReceived, 2))
+	fmt.Printf("  %s: %s\n", i18n.G("Bytes sent"), shared.GetByteSizeString(state.Counters.BytesSent, 2))
+	fmt.Printf("  %s: %d\n", i18n.G("Packets received"), state.Counters.PacketsReceived)
+	fmt.Printf("  %s: %d\n", i18n.G("Packets sent"), state.Counters.PacketsSent)
 
 	return nil
 }
