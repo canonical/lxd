@@ -89,7 +89,7 @@ func PathIsEmpty(path string) (bool, error) {
 
 // IsDir returns true if the given path is a directory.
 func IsDir(name string) bool {
-	stat, err := os.Lstat(name)
+	stat, err := os.Stat(name)
 	if err != nil {
 		return false
 	}
