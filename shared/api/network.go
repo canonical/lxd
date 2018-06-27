@@ -58,3 +58,29 @@ type NetworkLease struct {
 	Address  string `json:"address" yaml:"address"`
 	Type     string `json:"type" yaml:"type"`
 }
+
+// NetworkState represents the network state
+type NetworkState struct {
+	Addresses []NetworkStateAddress `json:"addresses" yaml:"addresses"`
+	Counters  NetworkStateCounters  `json:"counters" yaml:"counters"`
+	Hwaddr    string                `json:"hwaddr" yaml:"hwaddr"`
+	Mtu       int                   `json:"mtu" yaml:"mtu"`
+	State     string                `json:"state" yaml:"state"`
+	Type      string                `json:"type" yaml:"type"`
+}
+
+// NetworkStateAddress represents a network address
+type NetworkStateAddress struct {
+	Family  string `json:"family" yaml:"family"`
+	Address string `json:"address" yaml:"address"`
+	Netmask string `json:"netmask" yaml:"netmask"`
+	Scope   string `json:"scope" yaml:"scope"`
+}
+
+// NetworkStateCounters represents packet counters
+type NetworkStateCounters struct {
+	BytesReceived   int64 `json:"bytes_received" yaml:"bytes_received"`
+	BytesSent       int64 `json:"bytes_sent" yaml:"bytes_sent"`
+	PacketsReceived int64 `json:"packets_received" yaml:"packets_received"`
+	PacketsSent     int64 `json:"packets_sent" yaml:"packets_sent"`
+}

@@ -525,3 +525,11 @@ Adds support for forwarding traffic for multiple ports. Forwarding is allowed
 between a range of ports if the port range is equal for source and target
 (for example `1.2.3.4 0-1000 -> 5.6.7.8 1000-2000`) and between a range of source
 ports and a single target port (for example `1.2.3.4 0-1000 -> 5.6.7.8 1000`).
+
+## network\_state
+Adds support for retrieving a network's state.
+
+This adds the following new endpoint (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/networks/<name>/state`
+
