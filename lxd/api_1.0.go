@@ -51,6 +51,7 @@ var api10 = []Command{
 	networksCmd,
 	networkCmd,
 	networkLeasesCmd,
+	networkStateCmd,
 	api10Cmd,
 	certificatesCmd,
 	certificateFingerprintCmd,

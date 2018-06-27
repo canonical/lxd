@@ -110,6 +110,7 @@ var APIExtensions = []string{
 	"proxy_udp",
 	"clustering_join",
 	"proxy_tcp_udp_multi_port_handling",
+	"network_state",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

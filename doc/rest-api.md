@@ -208,6 +208,7 @@ won't work and PUT needs to be used instead.
          * [`/1.0/images/aliases/<name>`](#10imagesaliasesname)
      * [`/1.0/networks`](#10networks)
        * [`/1.0/networks/<name>`](#10networksname)
+       * [`/1.0/networks/<name>/state`](#10networksnamestate)
      * [`/1.0/operations`](#10operations)
        * [`/1.0/operations/<uuid>`](#10operationsuuid)
          * [`/1.0/operations/<uuid>/wait`](#10operationsuuidwait)
@@ -1960,6 +1961,48 @@ Input (none at present):
     }
 
 HTTP code for this should be 202 (Accepted).
+
+## `/1.0/networks/<name>/state`
+### GET
+ * Description: network state
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing a network's state
+
+Return:
+
+    {
+        "addresses": [
+            {
+                "family": "inet",
+                "address": "10.87.252.1",
+                "netmask": "24",
+                "scope": "global"
+            },
+            {
+                "family": "inet6",
+                "address": "fd42:6e0e:6542:a212::1",
+                "netmask": "64",
+                "scope": "global"
+            },
+            {
+                "family": "inet6",
+                "address": "fe80::3419:9ff:fe9b:f9aa",
+                "netmask": "64",
+                "scope": "link"
+            }
+        ],
+        "counters": {
+            "bytes_received": 0,
+            "bytes_sent": 17724,
+            "packets_received": 0,
+            "packets_sent": 95
+        },
+        "hwaddr": "36:19:09:9b:f9:aa",
+        "mtu": 1500,
+        "state": "up",
+        "type": "broadcast"
+    }
 
 ## `/1.0/operations`
 ### GET

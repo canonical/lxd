@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -19,21 +20,6 @@ type thread struct {
 	socketID       uint64
 	frequency      uint64
 	frequencyTurbo uint64
-}
-
-func parseNumberFromFile(file string) (int64, error) {
-	buf, err := ioutil.ReadFile(file)
-	if err != nil {
-		return int64(0), err
-	}
-
-	str := strings.TrimSpace(string(buf))
-	nr, err := strconv.Atoi(str)
-	if err != nil {
-		return int64(0), err
-	}
-
-	return int64(nr), nil
 }
 
 func parseCpuinfo() ([]thread, error) {
@@ -67,7 +53,7 @@ func parseCpuinfo() ([]thread, error) {
 			t.ID = uint64(id)
 
 			path := fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology/core_id", t.ID)
-			coreID, err := parseNumberFromFile(path)
+			coreID, err := shared.ParseNumberFromFile(path)
 			if err != nil {
 				return nil, err
 			}
@@ -75,7 +61,7 @@ func parseCpuinfo() ([]thread, error) {
 			t.coreID = uint64(coreID)
 
 			path = fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology/physical_package_id", t.ID)
-			sockID, err := parseNumberFromFile(path)
+			sockID, err := shared.ParseNumberFromFile(path)
 			if err != nil {
 				return nil, err
 			}
@@ -83,7 +69,7 @@ func parseCpuinfo() ([]thread, error) {
 			t.socketID = uint64(sockID)
 
 			path = fmt.Sprintf("/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", t.ID)
-			freq, err := parseNumberFromFile(path)
+			freq, err := shared.ParseNumberFromFile(path)
 			if err != nil {
 				if !os.IsNotExist(err) {
 					return nil, err
@@ -93,7 +79,7 @@ func parseCpuinfo() ([]thread, error) {
 			}
 
 			path = fmt.Sprintf("/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", t.ID)
-			freq, err = parseNumberFromFile(path)
+			freq, err = shared.ParseNumberFromFile(path)
 			if err != nil {
 				if !os.IsNotExist(err) {
 					return nil, err
@@ -179,7 +165,7 @@ func parseSysDevSystemCPU() ([]thread, error) {
 		t := thread{}
 		t.ID = uint64(idx)
 		path := fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology/core_id", t.ID)
-		coreID, err := parseNumberFromFile(path)
+		coreID, err := shared.ParseNumberFromFile(path)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +173,7 @@ func parseSysDevSystemCPU() ([]thread, error) {
 		t.coreID = uint64(coreID)
 
 		path = fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology/physical_package_id", t.ID)
-		sockID, err := parseNumberFromFile(path)
+		sockID, err := shared.ParseNumberFromFile(path)
 		if err != nil {
 			return nil, err
 		}
@@ -195,7 +181,7 @@ func parseSysDevSystemCPU() ([]thread, error) {
 		t.socketID = uint64(sockID)
 
 		path = fmt.Sprintf("/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", t.ID)
-		freq, err := parseNumberFromFile(path)
+		freq, err := shared.ParseNumberFromFile(path)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
@@ -205,7 +191,7 @@ func parseSysDevSystemCPU() ([]thread, error) {
 		}
 
 		path = fmt.Sprintf("/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", t.ID)
-		freq, err = parseNumberFromFile(path)
+		freq, err = shared.ParseNumberFromFile(path)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
