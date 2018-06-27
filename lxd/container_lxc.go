@@ -4374,10 +4374,6 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 							nvidiaExists = true
 							break
 						}
-					} else if !allGpus {
-						errMsg := fmt.Errorf("Failed to detect correct \"/dev/nvidia\" path")
-						logger.Errorf("%s", errMsg)
-						return errMsg
 					}
 				}
 
