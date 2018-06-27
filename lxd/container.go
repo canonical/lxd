@@ -427,8 +427,17 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 				return fmt.Errorf("Missing vendorid for USB device.")
 			}
 		} else if m["type"] == "gpu" {
-			// Probably no checks needed, since we allow users to
-			// pass in all GPUs.
+			if m["pci"] != "" && !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s", m["pci"])) {
+				return fmt.Errorf("Invalid PCI address (no device found): %s", m["pci"])
+			}
+
+			if m["pci"] != "" && (m["id"] != "" || m["productid"] != "" || m["vendorid"] != "") {
+				return fmt.Errorf("Cannot use id, productid or vendorid when pci is set")
+			}
+
+			if m["id"] != "" && (m["pci"] != "" || m["productid"] != "" || m["vendorid"] != "") {
+				return fmt.Errorf("Cannot use pci, productid or vendorid when id is set")
+			}
 		} else if m["type"] == "proxy" {
 			if m["listen"] == "" {
 				return fmt.Errorf("Proxy device entry is missing the required \"listen\" property.")
