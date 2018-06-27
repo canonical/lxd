@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -709,6 +711,8 @@ func (c *cmdNetworkGet) Run(cmd *cobra.Command, args []string) error {
 type cmdNetworkList struct {
 	global  *cmdGlobal
 	network *cmdNetwork
+
+	flagFormat string
 }
 
 func (c *cmdNetworkList) Command() *cobra.Command {
@@ -720,6 +724,7 @@ func (c *cmdNetworkList) Command() *cobra.Command {
 		`List available networks`))
 
 	cmd.RunE = c.Run
+	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 
 	return cmd
 }
@@ -773,10 +778,6 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, details)
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(true)
 	header := []string{
 		i18n.G("NAME"),
 		i18n.G("TYPE"),
@@ -787,10 +788,44 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 	if resource.server.IsClustered() {
 		header = append(header, i18n.G("STATE"))
 	}
-	table.SetHeader(header)
-	sort.Sort(byName(data))
-	table.AppendBulk(data)
-	table.Render()
+
+	switch c.flagFormat {
+	case listFormatTable:
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoWrapText(false)
+		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table.SetRowLine(true)
+		table.SetHeader(header)
+		sort.Sort(byName(data))
+		table.AppendBulk(data)
+		table.Render()
+	case listFormatCSV:
+		sort.Sort(byName(data))
+		data = append(data, []string{})
+		copy(data[1:], data[0:])
+		data[0] = header
+		w := csv.NewWriter(os.Stdout)
+		w.WriteAll(data)
+		if err := w.Error(); err != nil {
+			return err
+		}
+	case listFormatJSON:
+		data := networks
+		enc := json.NewEncoder(os.Stdout)
+		err := enc.Encode(data)
+		if err != nil {
+			return err
+		}
+	case listFormatYAML:
+		data := networks
+		out, err := yaml.Marshal(data)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s", out)
+	default:
+		return fmt.Errorf(i18n.G("Invalid format %q"), c.flagFormat)
+	}
 
 	return nil
 }
