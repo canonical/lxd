@@ -831,7 +831,8 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	}
 
 	if !container.IsPrivileged() {
-		if err = s.shiftRootfs(container); err != nil {
+		err := s.shiftRootfs(container, nil)
+		if err != nil {
 			s.ContainerDelete(container)
 			return err
 		}

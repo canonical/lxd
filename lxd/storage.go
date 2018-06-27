@@ -485,7 +485,13 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 		// unshift rootfs
 		if lastIdmap != nil {
-			err := lastIdmap.UnshiftRootfs(remapPath)
+			var err error
+
+			if st.GetStorageType() == storageTypeZfs {
+				err = lastIdmap.UnshiftRootfs(remapPath, zfsIdmapSetSkipper)
+			} else {
+				err = lastIdmap.UnshiftRootfs(remapPath, nil)
+			}
 			if err != nil {
 				logger.Errorf("Failed to unshift \"%s\"", remapPath)
 				return nil, err
@@ -495,7 +501,13 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 		// shift rootfs
 		if nextIdmap != nil {
-			err := nextIdmap.ShiftRootfs(remapPath)
+			var err error
+
+			if st.GetStorageType() == storageTypeZfs {
+				err = nextIdmap.ShiftRootfs(remapPath, zfsIdmapSetSkipper)
+			} else {
+				err = nextIdmap.ShiftRootfs(remapPath, nil)
+			}
 			if err != nil {
 				logger.Errorf("Failed to shift \"%s\"", remapPath)
 				return nil, err

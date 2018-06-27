@@ -1944,7 +1944,11 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 
 		if lastIdmap != nil {
-			err = lastIdmap.UnshiftRootfs(c.RootfsPath())
+			if c.Storage().GetStorageType() == storageTypeZfs {
+				err = lastIdmap.UnshiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+			} else {
+				err = lastIdmap.UnshiftRootfs(c.RootfsPath(), nil)
+			}
 			if err != nil {
 				if ourStart {
 					c.StorageStop()
@@ -1954,7 +1958,11 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 
 		if idmap != nil {
-			err = idmap.ShiftRootfs(c.RootfsPath())
+			if c.Storage().GetStorageType() == storageTypeZfs {
+				err = idmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+			} else {
+				err = idmap.ShiftRootfs(c.RootfsPath(), nil)
+			}
 			if err != nil {
 				if ourStart {
 					c.StorageStop()
@@ -4754,12 +4762,23 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 	}
 
 	if idmap != nil {
-		if err := idmap.UnshiftRootfs(c.RootfsPath()); err != nil {
+		var err error
+
+		if c.Storage().GetStorageType() == storageTypeZfs {
+			err = idmap.UnshiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+		} else {
+			err = idmap.UnshiftRootfs(c.RootfsPath(), nil)
+		}
+		if err != nil {
 			logger.Error("Failed exporting container", ctxMap)
 			return err
 		}
 
-		defer idmap.ShiftRootfs(c.RootfsPath())
+		if c.Storage().GetStorageType() == storageTypeZfs {
+			defer idmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+		} else {
+			defer idmap.ShiftRootfs(c.RootfsPath(), nil)
+		}
 	}
 
 	// Create the tarball
@@ -5068,7 +5087,11 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 				return err
 			}
 
-			err = idmapset.ShiftRootfs(args.stateDir)
+			if c.Storage().GetStorageType() == storageTypeZfs {
+				err = idmapset.ShiftRootfs(args.stateDir, zfsIdmapSetSkipper)
+			} else {
+				err = idmapset.ShiftRootfs(args.stateDir, nil)
+			}
 			if ourStart {
 				_, err2 := c.StorageStop()
 				if err != nil {

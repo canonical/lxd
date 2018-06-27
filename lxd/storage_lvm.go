@@ -989,7 +989,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	}
 
 	if !container.IsPrivileged() {
-		err := s.shiftRootfs(container)
+		err := s.shiftRootfs(container, nil)
 		if err != nil {
 			return err
 		}
