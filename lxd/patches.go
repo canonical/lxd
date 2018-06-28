@@ -1806,12 +1806,9 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 		args := db.ContainerArgs{
 			Architecture: c.Architecture(),
 			Config:       c.LocalConfig(),
-			Ephemeral:    c.IsEphemeral(),
-			CreationDate: c.CreationDate(),
-			LastUsedDate: c.LastUsedDate(),
-			Name:         c.Name(),
-			Profiles:     c.Profiles(),
 			Description:  c.Description(),
+			Ephemeral:    c.IsEphemeral(),
+			Profiles:     c.Profiles(),
 		}
 
 		if c.IsSnapshot() {

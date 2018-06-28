@@ -144,13 +144,13 @@ func snapshotProtobufToContainerArgs(containerName string, snap *migration.Snaps
 
 	name := containerName + shared.SnapshotDelimiter + snap.GetName()
 	args := db.ContainerArgs{
-		Name:         name,
-		Ctype:        db.CTypeSnapshot,
-		Config:       config,
-		Profiles:     snap.Profiles,
-		Ephemeral:    snap.GetEphemeral(),
-		Devices:      devices,
 		Architecture: int(snap.GetArchitecture()),
+		Config:       config,
+		Ctype:        db.CTypeSnapshot,
+		Devices:      devices,
+		Ephemeral:    snap.GetEphemeral(),
+		Name:         name,
+		Profiles:     snap.Profiles,
 		Stateful:     snap.GetStateful(),
 	}
 
