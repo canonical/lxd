@@ -19,18 +19,20 @@ import (
 // container.
 type ContainerArgs struct {
 	// Don't set manually
-	ID   int
-	Node string
+	ID    int
+	Node  string
+	Ctype ContainerType
 
-	Description  string
-	Architecture int
+	// Creation only
 	BaseImage    string
-	Config       map[string]string
 	CreationDate time.Time
-	LastUsedDate time.Time
-	Ctype        ContainerType
+
+	Architecture int
+	Config       map[string]string
+	Description  string
 	Devices      types.Devices
 	Ephemeral    bool
+	LastUsedDate time.Time
 	Name         string
 	Profiles     []string
 	Stateful     bool

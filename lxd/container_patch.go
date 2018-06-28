@@ -113,11 +113,12 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 	// Update container configuration
 	args := db.ContainerArgs{
 		Architecture: architecture,
-		Description:  req.Description,
 		Config:       req.Config,
+		Description:  req.Description,
 		Devices:      req.Devices,
 		Ephemeral:    req.Ephemeral,
-		Profiles:     req.Profiles}
+		Profiles:     req.Profiles,
+	}
 
 	err = c.Update(args, false)
 	if err != nil {

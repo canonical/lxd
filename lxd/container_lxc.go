@@ -3149,10 +3149,10 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 	args := db.ContainerArgs{
 		Architecture: sourceContainer.Architecture(),
 		Config:       sourceContainer.LocalConfig(),
+		Description:  sourceContainer.Description(),
 		Devices:      sourceContainer.LocalDevices(),
 		Ephemeral:    sourceContainer.IsEphemeral(),
 		Profiles:     sourceContainer.Profiles(),
-		Description:  sourceContainer.Description(),
 	}
 
 	err = c.Update(args, false)
@@ -3526,10 +3526,10 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 	args := db.ContainerArgs{
 		Architecture: c.architecture,
 		Config:       c.localConfig,
+		Description:  c.description,
 		Devices:      c.localDevices,
 		Ephemeral:    c.ephemeral,
 		Profiles:     c.profiles,
-		Description:  c.description,
 	}
 
 	return c.Update(args, false)

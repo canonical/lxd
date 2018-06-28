@@ -128,9 +128,9 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			if ephemeral {
 				// Unset ephemeral flag
 				args := db.ContainerArgs{
-					Description:  c.Description(),
 					Architecture: c.Architecture(),
 					Config:       c.LocalConfig(),
+					Description:  c.Description(),
 					Devices:      c.LocalDevices(),
 					Ephemeral:    false,
 					Profiles:     c.Profiles(),
