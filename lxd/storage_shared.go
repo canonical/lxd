@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -34,7 +35,7 @@ func (s *storageShared) GetStorageTypeVersion() string {
 	return s.sTypeVersion
 }
 
-func (s *storageShared) shiftRootfs(c container) error {
+func (s *storageShared) shiftRootfs(c container, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
 	dpath := c.Path()
 	rpath := c.RootfsPath()
 
@@ -49,7 +50,7 @@ func (s *storageShared) shiftRootfs(c container) error {
 		return fmt.Errorf("IdmapSet of container '%s' is nil", c.Name())
 	}
 
-	err = idmapset.ShiftRootfs(rpath)
+	err = idmapset.ShiftRootfs(rpath, skipper)
 	if err != nil {
 		logger.Debugf("Shift of rootfs %s failed: %s", rpath, err)
 		return err
