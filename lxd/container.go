@@ -812,6 +812,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 				Config:       snap.LocalConfig(),
 				Ctype:        db.CTypeSnapshot,
 				Devices:      snapDevices,
+				Description:  snap.Description(),
 				Ephemeral:    snap.IsEphemeral(),
 				Name:         newSnapName,
 				Profiles:     snap.Profiles(),
