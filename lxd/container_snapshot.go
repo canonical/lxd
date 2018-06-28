@@ -120,14 +120,13 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	snapshot := func(op *operation) error {
 		args := db.ContainerArgs{
-			Name:         fullName,
-			Ctype:        db.CTypeSnapshot,
-			Config:       c.LocalConfig(),
-			Profiles:     c.Profiles(),
-			Ephemeral:    c.IsEphemeral(),
-			BaseImage:    c.ExpandedConfig()["volatile.base_image"],
 			Architecture: c.Architecture(),
+			Config:       c.LocalConfig(),
+			Ctype:        db.CTypeSnapshot,
 			Devices:      c.LocalDevices(),
+			Ephemeral:    c.IsEphemeral(),
+			Name:         fullName,
+			Profiles:     c.Profiles(),
 			Stateful:     req.Stateful,
 		}
 

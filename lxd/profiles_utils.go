@@ -228,11 +228,11 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 
 	return c.Update(db.ContainerArgs{
 		Architecture: c.Architecture(),
-		Ephemeral:    c.IsEphemeral(),
 		Config:       c.LocalConfig(),
-		Devices:      c.LocalDevices(),
-		Profiles:     c.Profiles(),
 		Description:  c.Description(),
+		Devices:      c.LocalDevices(),
+		Ephemeral:    c.IsEphemeral(),
+		Profiles:     c.Profiles(),
 	}, true)
 }
 
