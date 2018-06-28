@@ -467,7 +467,7 @@ func (m IdmapSet) ShiftFromNs(uid int64, gid int64) (int64, int64) {
 	return m.doShiftIntoNs(uid, gid, "out")
 }
 
-func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how string) error {
+func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
 	// Expand any symlink before the final path component
 	tmp := filepath.Dir(dir)
 	tmp, err := filepath.EvalSymlinks(tmp)
@@ -481,6 +481,10 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	convert := func(path string, fi os.FileInfo, err error) (e error) {
 		if err != nil {
 			return err
+		}
+
+		if skipper != nil && skipper(dir, path, fi) {
+			return filepath.SkipDir
 		}
 
 		intUid, intGid, _, _, inode, nlink, err := shared.GetFileStat(path)
@@ -534,23 +538,23 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 }
 
 func (set *IdmapSet) UidshiftIntoContainer(dir string, testmode bool) error {
-	return set.doUidshiftIntoContainer(dir, testmode, "in")
+	return set.doUidshiftIntoContainer(dir, testmode, "in", nil)
 }
 
 func (set *IdmapSet) UidshiftFromContainer(dir string, testmode bool) error {
-	return set.doUidshiftIntoContainer(dir, testmode, "out")
+	return set.doUidshiftIntoContainer(dir, testmode, "out", nil)
 }
 
-func (set *IdmapSet) ShiftRootfs(p string) error {
-	return set.doUidshiftIntoContainer(p, false, "in")
+func (set *IdmapSet) ShiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
+	return set.doUidshiftIntoContainer(p, false, "in", skipper)
 }
 
-func (set *IdmapSet) UnshiftRootfs(p string) error {
-	return set.doUidshiftIntoContainer(p, false, "out")
+func (set *IdmapSet) UnshiftRootfs(p string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
+	return set.doUidshiftIntoContainer(p, false, "out", skipper)
 }
 
 func (set *IdmapSet) ShiftFile(p string) error {
-	return set.ShiftRootfs(p)
+	return set.ShiftRootfs(p, nil)
 }
 
 /*
