@@ -62,11 +62,12 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		do = func(op *operation) error {
 			args := db.ContainerArgs{
 				Architecture: architecture,
-				Description:  configRaw.Description,
 				Config:       configRaw.Config,
+				Description:  configRaw.Description,
 				Devices:      configRaw.Devices,
 				Ephemeral:    configRaw.Ephemeral,
-				Profiles:     configRaw.Profiles}
+				Profiles:     configRaw.Profiles,
+			}
 
 			// FIXME: should set to true when not migrating
 			err = c.Update(args, false)

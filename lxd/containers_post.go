@@ -93,12 +93,13 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 	run := func(op *operation) error {
 		args := db.ContainerArgs{
-			Config:    req.Config,
-			Ctype:     db.CTypeRegular,
-			Devices:   req.Devices,
-			Ephemeral: req.Ephemeral,
-			Name:      req.Name,
-			Profiles:  req.Profiles,
+			Config:      req.Config,
+			Ctype:       db.CTypeRegular,
+			Description: req.Description,
+			Devices:     req.Devices,
+			Ephemeral:   req.Ephemeral,
+			Name:        req.Name,
+			Profiles:    req.Profiles,
 		}
 
 		var info *api.Image
@@ -142,12 +143,13 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 	args := db.ContainerArgs{
-		Config:    req.Config,
-		Ctype:     db.CTypeRegular,
-		Devices:   req.Devices,
-		Ephemeral: req.Ephemeral,
-		Name:      req.Name,
-		Profiles:  req.Profiles,
+		Config:      req.Config,
+		Ctype:       db.CTypeRegular,
+		Description: req.Description,
+		Devices:     req.Devices,
+		Ephemeral:   req.Ephemeral,
+		Name:        req.Name,
+		Profiles:    req.Profiles,
 	}
 
 	if req.Architecture != "" {
@@ -195,6 +197,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		Config:       req.Config,
 		Ctype:        db.CTypeRegular,
 		Devices:      req.Devices,
+		Description:  req.Description,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
 		Profiles:     req.Profiles,
@@ -507,6 +510,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
 		Ctype:        db.CTypeRegular,
+		Description:  req.Description,
 		Devices:      req.Devices,
 		Ephemeral:    req.Ephemeral,
 		Name:         req.Name,
