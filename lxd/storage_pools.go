@@ -377,7 +377,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) Response {
 
 	// Get the existing network
 	_, dbInfo, err := d.cluster.StoragePoolGet(poolName)
-	if dbInfo != nil {
+	if err != nil {
 		return SmartError(err)
 	}
 
