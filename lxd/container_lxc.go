@@ -909,8 +909,7 @@ func (c *containerLXC) initLXC(config bool) error {
 
 	// Setup logging
 	logfile := c.LogFilePath()
-
-	err = cc.SetLogFile(logfile)
+	err = lxcSetConfigItem(cc, "lxc.log.file", logfile)
 	if err != nil {
 		return err
 	}
