@@ -227,11 +227,17 @@ func containerValidDeviceConfigKey(t, k string) bool {
 		}
 	case "proxy":
 		switch k {
-		case "listen":
+		case "bind":
 			return true
 		case "connect":
 			return true
-		case "bind":
+		case "gid":
+			return true
+		case "listen":
+			return true
+		case "mode":
+			return true
+		case "uid":
 			return true
 		default:
 			return false
@@ -457,6 +463,11 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 
 			if m["connect"] == "" {
 				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property.")
+			}
+
+			if (!strings.HasPrefix(m["listen"], "unix:") || strings.HasPrefix(m["listen"], "unix:@")) &&
+				(m["uid"] != "" || m["gid"] != "" || m["mode"] != "") {
+				return fmt.Errorf("Only proxy devices for non-abstract unix sockets can carry uid, gid, or mode properties")
 			}
 		} else if m["type"] == "none" {
 			continue

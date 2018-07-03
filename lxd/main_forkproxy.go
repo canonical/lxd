@@ -403,7 +403,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Sanity checks
-	if len(args) != 6 {
+	if len(args) != 9 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -442,6 +442,8 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if C.whoami == C.FORKPROXY_CHILD {
+		defer syscall.Close(forkproxyUDSSockFDNum)
+
 		if lAddr.connType == "unix" && !lAddr.abstract {
 			err := os.Remove(lAddr.addr[0])
 			if err != nil && !os.IsNotExist(err) {
@@ -467,7 +469,47 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			file.Close()
 		}
 
-		syscall.Close(forkproxyUDSSockFDNum)
+		if lAddr.connType == "unix" && !lAddr.abstract {
+			var err error
+
+			listenAddrGid := -1
+			if args[6] != "" {
+				listenAddrGid, err = strconv.Atoi(args[6])
+				if err != nil {
+					return err
+				}
+			}
+
+			listenAddrUid := -1
+			if args[7] != "" {
+				listenAddrUid, err = strconv.Atoi(args[7])
+				if err != nil {
+					return err
+				}
+			}
+
+			if listenAddrGid != -1 || listenAddrUid != -1 {
+				err = os.Chown(lAddr.addr[0], listenAddrUid, listenAddrGid)
+				if err != nil {
+					return err
+				}
+			}
+
+			var listenAddrMode os.FileMode
+			if args[8] != "" {
+				tmp, err := strconv.Atoi(args[8])
+				if err != nil {
+					return err
+				}
+
+				listenAddrMode = os.FileMode(tmp)
+				err = os.Chmod(lAddr.addr[0], listenAddrMode)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		return err
 	}
 
