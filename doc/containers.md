@@ -7,6 +7,17 @@ The following are direct container properties and can't be part of a profile:
 
 Name is the container name and can only be changed by renaming the container.
 
+Valid container names must:
+
+ - Be between 1 and 63 characters long
+ - Be made up exclusively of letters, numbers and dashes from the ASCII table
+ - Not start with a digit or a dash
+ - Not end with a dash
+
+This requirement is so that the container name may properly be used in
+DNS records, on the filesystem, in various security profiles as well as
+the hostname of the container itself.
+
 ## Key/value configuration
 The key/value configuration is namespaced with the following namespaces
 currently supported:
