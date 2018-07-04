@@ -285,7 +285,6 @@ type cmdClusterEnable struct {
 func (c *cmdClusterEnable) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = i18n.G("enable [<remote>:] <name>")
-	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Enable clustering on a single non-clustered LXD instance")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Enable clustering on a single non-clustered LXD instance

@@ -219,7 +219,8 @@ won't work and PUT needs to be used instead.
        * [`/1.0/storage-pools/<name>`](#10storage-poolsname)
          * [`/1.0/storage-pools/<name>/resources`](#10storage-poolsnameresources)
          * [`/1.0/storage-pools/<name>/volumes`](#10storage-poolsnamevolumes)
-           * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>`](#10storage-poolspoolvolumestypename)
+           * [`/1.0/storage-pools/<name>/volumes/<type>`](#10storage-poolsnamevolumestype)
+             * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>`](#10storage-poolspoolvolumestypename)
      * [`/1.0/resources`](#10resources)
      * [`/1.0/cluster`](#10cluster)
        * [`/1.0/cluster/members`](#10clustermembers)
@@ -2431,7 +2432,6 @@ Input:
 
     {
         "config": {},
-        "pool": "pool1",
         "name": "vol1",
         "type": "custom"
     }
@@ -2440,7 +2440,6 @@ Input (when copying a volume):
 
     {
         "config": {},
-        "pool": "pool1",
         "name": "vol1",
         "type": "custom"
         "source": {
@@ -2454,9 +2453,48 @@ Input (when migrating a volume):
 
     {
         "config": {},
-        "pool": "pool1",
         "name": "vol1",
         "type": "custom"
+        "source": {
+            "pool": "pool2",
+            "name": "vol2",
+            "type": "migration"
+            "mode": "pull",                                                 # One of "pull" (default), "push", "relay"
+        }
+    }
+
+## `/1.0/storage-pools/<pool>/volumes/<type>`
+### POST
+ * Description: create a new storage volume of a particular type on a given storage pool
+ * Introduced: with API extension `storage`
+ * Authentication: trusted
+ * Operation: sync or async (when copying an existing volume)
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "config": {},
+        "name": "vol1",
+    }
+
+Input (when copying a volume):
+
+    {
+        "config": {},
+        "name": "vol1",
+        "source": {
+            "pool": "pool2",
+            "name": "vol2",
+            "type": "copy"
+        }
+    }
+
+Input (when migrating a volume):
+
+    {
+        "config": {},
+        "name": "vol1",
         "source": {
             "pool": "pool2",
             "name": "vol2",
