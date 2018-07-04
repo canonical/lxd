@@ -533,3 +533,6 @@ This adds the following new endpoint (see [RESTful API](rest-api.md) for details
 
 * `GET /1.0/networks/<name>/state`
 
+## proxy\_unix\_dac\_properties
+This adds support for gid, uid, and mode properties for non-abstract unix
+sockets.

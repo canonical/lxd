@@ -14,10 +14,13 @@ import (
 )
 
 type proxyProcInfo struct {
-	listenPid   string
-	connectPid  string
-	connectAddr string
-	listenAddr  string
+	listenPid      string
+	connectPid     string
+	connectAddr    string
+	listenAddr     string
+	listenAddrGid  string
+	listenAddrUid  string
+	listenAddrMode string
 }
 
 func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, error) {
@@ -54,10 +57,13 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 	}
 
 	p := &proxyProcInfo{
-		listenPid:   listenPid,
-		connectPid:  connectPid,
-		connectAddr: connectAddr,
-		listenAddr:  listenAddr,
+		listenPid:      listenPid,
+		connectPid:     connectPid,
+		connectAddr:    connectAddr,
+		listenAddr:     listenAddr,
+		listenAddrGid:  device["gid"],
+		listenAddrUid:  device["uid"],
+		listenAddrMode: device["mode"],
 	}
 
 	return p, nil
