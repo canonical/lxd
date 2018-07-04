@@ -497,7 +497,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 			var listenAddrMode os.FileMode
 			if args[8] != "" {
-				tmp, err := strconv.Atoi(args[8])
+				tmp, err := strconv.ParseUint(args[8], 8, 0)
 				if err != nil {
 					return err
 				}
