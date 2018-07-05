@@ -1091,7 +1091,9 @@ func (n *network) Start() error {
 		}
 
 		// Attempt a workaround for broken DHCP clients
-		networkIptablesPrepend("ipv4", n.name, "mangle", "POSTROUTING", "-o", n.name, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill")
+		if n.config["ipv4.firewall"] == "" || shared.IsTrue(n.config["ipv4.firewall"]) {
+			networkIptablesPrepend("ipv4", n.name, "mangle", "POSTROUTING", "-o", n.name, "-p", "udp", "--dport", "68", "-j", "CHECKSUM", "--checksum-fill")
+		}
 
 		// Allow forwarding
 		if n.config["bridge.mode"] == "fan" || n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
