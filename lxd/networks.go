@@ -1303,13 +1303,14 @@ func (n *network) Start() error {
 			}
 
 			if shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
+				subnetSize, _ := subnet.Mask.Size()
 				if n.config["ipv6.dhcp.ranges"] != "" {
 					for _, dhcpRange := range strings.Split(n.config["ipv6.dhcp.ranges"], ",") {
 						dhcpRange = strings.TrimSpace(dhcpRange)
-						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s", strings.Replace(dhcpRange, "-", ",", -1), expiry)}...)
+						dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%d,%s", strings.Replace(dhcpRange, "-", ",", -1), subnetSize, expiry)}...)
 					}
 				} else {
-					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%s", networkGetIP(subnet, 2), networkGetIP(subnet, -1), expiry)}...)
+					dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("%s,%s,%d,%s", networkGetIP(subnet, 2), networkGetIP(subnet, -1), subnetSize, expiry)}...)
 				}
 			} else {
 				dnsmasqCmd = append(dnsmasqCmd, []string{"--dhcp-range", fmt.Sprintf("::,constructor:%s,ra-stateless,ra-names", n.name)}...)
