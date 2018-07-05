@@ -219,7 +219,7 @@ func dbQuery(db *sql.DB, q string, args ...interface{}) (*sql.Rows, error) {
 		time.Sleep(30 * time.Millisecond)
 	}
 
-	logger.Debugf("DbQuery: query %q args %q, DB still locked", q, args)
+	logger.Debugf("DbQuery: query %q args %q, DB still locked", q, []interface{}(args))
 	logger.Debugf(logger.GetStack())
 	return nil, fmt.Errorf("DB is locked")
 }
@@ -304,7 +304,7 @@ func queryScan(qi queryer, q string, inargs []interface{}, outfmt []interface{})
 		time.Sleep(30 * time.Millisecond)
 	}
 
-	logger.Debugf("DbQueryscan: query %q inargs %q, DB still locked", q, []interface{}(inargs))
+	logger.Debugf("DbQueryscan: query %q inargs %q, DB still locked", q, inargs)
 	logger.Debugf(logger.GetStack())
 	return nil, fmt.Errorf("DB is locked")
 }
