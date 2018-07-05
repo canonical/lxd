@@ -518,8 +518,6 @@ func (c *Client) AmTrusted() bool {
 		return false
 	}
 
-	logger.Debugf("%s", resp)
-
 	meta, err := resp.MetadataAsMap()
 	if err != nil {
 		return false
@@ -538,8 +536,6 @@ func (c *Client) IsPublic() bool {
 	if err != nil {
 		return false
 	}
-
-	logger.Debugf("%s", resp)
 
 	meta, err := resp.MetadataAsMap()
 	if err != nil {
