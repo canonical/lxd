@@ -325,7 +325,7 @@ func defaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 	for {
 		mt, r, err := conn.NextReader()
 		if err != nil {
-			logger.Debugf("Got error getting next reader %s, %s", err, w)
+			logger.Debugf("Got error getting next reader %s", err)
 			break
 		}
 
