@@ -536,3 +536,7 @@ This adds the following new endpoint (see [RESTful API](rest-api.md) for details
 ## proxy\_unix\_dac\_properties
 This adds support for gid, uid, and mode properties for non-abstract unix
 sockets.
+
+## container\_protection\_delete
+Enables setting the `security.protection.delete` field which prevents containers
+from being deleted if set to true. Snapshots are not affected by this setting.

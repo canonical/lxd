@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -3291,6 +3292,12 @@ func (c *containerLXC) Delete() error {
 		"used":      c.lastUsedDate}
 
 	logger.Info("Deleting container", ctxMap)
+
+	if c.IsDeleteProtected() && !c.IsSnapshot() {
+		err := errors.New("Container is protected")
+		logger.Warn("Failed to delete container", log.Ctx{"name": c.Name(), "err": err})
+		return err
+	}
 
 	// Attempt to initialize storage interface for the container.
 	c.initStorage()
@@ -8126,6 +8133,10 @@ func (c *containerLXC) IsRunning() bool {
 
 func (c *containerLXC) IsSnapshot() bool {
 	return c.cType == db.CTypeSnapshot
+}
+
+func (c *containerLXC) IsDeleteProtected() bool {
+	return shared.IsTrue(c.expandedConfig["security.protection.delete"])
 }
 
 // Various property query functions
