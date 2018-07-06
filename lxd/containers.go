@@ -124,7 +124,7 @@ func (slice containerAutostartList) Swap(i, j int) {
 
 func containersRestart(s *state.State) error {
 	// Get all the containers
-	result, err := s.Cluster.ContainersList(db.CTypeRegular)
+	result, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
