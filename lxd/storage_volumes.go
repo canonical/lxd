@@ -21,6 +21,27 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
+var storagePoolVolumesCmd = Command{
+	name: "storage-pools/{name}/volumes",
+	get:  storagePoolVolumesGet,
+	post: storagePoolVolumesPost,
+}
+
+var storagePoolVolumesTypeCmd = Command{
+	name: "storage-pools/{name}/volumes/{type}",
+	get:  storagePoolVolumesTypeGet,
+	post: storagePoolVolumesTypePost,
+}
+
+var storagePoolVolumeTypeCmd = Command{
+	name:   "storage-pools/{pool}/volumes/{type}/{name:.*}",
+	post:   storagePoolVolumeTypePost,
+	get:    storagePoolVolumeTypeGet,
+	put:    storagePoolVolumeTypePut,
+	patch:  storagePoolVolumeTypePatch,
+	delete: storagePoolVolumeTypeDelete,
+}
+
 // /1.0/storage-pools/{name}/volumes
 // List all storage volumes attached to a given storage pool.
 func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
@@ -66,8 +87,6 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 
 	return SyncResponse(true, volumes)
 }
-
-var storagePoolVolumesCmd = Command{name: "storage-pools/{name}/volumes", get: storagePoolVolumesGet, post: storagePoolVolumesPost}
 
 // /1.0/storage-pools/{name}/volumes/{type}
 // List all storage volumes of a given volume type for a given storage pool.
@@ -349,8 +368,6 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 
 	return OperationResponse(op)
 }
-
-var storagePoolVolumesTypeCmd = Command{name: "storage-pools/{name}/volumes/{type}", get: storagePoolVolumesTypeGet, post: storagePoolVolumesTypePost}
 
 // /1.0/storage-pools/{name}/volumes/{type}/{name}
 // Rename a storage volume of a given volume type in a given storage pool.
@@ -829,5 +846,3 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 
 	return EmptySyncResponse
 }
-
-var storagePoolVolumeTypeCmd = Command{name: "storage-pools/{pool}/volumes/{type}/{name:.*}", post: storagePoolVolumeTypePost, get: storagePoolVolumeTypeGet, put: storagePoolVolumeTypePut, patch: storagePoolVolumeTypePatch, delete: storagePoolVolumeTypeDelete}
