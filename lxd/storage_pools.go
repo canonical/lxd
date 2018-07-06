@@ -21,6 +21,20 @@ import (
 // Lock to prevent concurent storage pools creation
 var storagePoolCreateLock sync.Mutex
 
+var storagePoolsCmd = Command{
+	name: "storage-pools",
+	get:  storagePoolsGet,
+	post: storagePoolsPost,
+}
+
+var storagePoolCmd = Command{
+	name:   "storage-pools/{name}",
+	get:    storagePoolGet,
+	put:    storagePoolPut,
+	patch:  storagePoolPatch,
+	delete: storagePoolDelete,
+}
+
 // /1.0/storage-pools
 // List all storage pools.
 func storagePoolsGet(d *Daemon, r *http.Request) Response {
@@ -248,8 +262,6 @@ func storagePoolsPostCluster(d *Daemon, req api.StoragePoolsPost) error {
 
 	return notifyErr
 }
-
-var storagePoolsCmd = Command{name: "storage-pools", get: storagePoolsGet, post: storagePoolsPost}
 
 // /1.0/storage-pools/{name}
 // Get a single storage pool.
@@ -608,5 +620,3 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 
 	return nil
 }
-
-var storagePoolCmd = Command{name: "storage-pools/{name}", get: storagePoolGet, put: storagePoolPut, patch: storagePoolPatch, delete: storagePoolDelete}
