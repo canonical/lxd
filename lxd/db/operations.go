@@ -22,6 +22,12 @@ func (c *ClusterTx) OperationsUUIDs() ([]string, error) {
 	return query.SelectStrings(c.tx, stmt, c.nodeID)
 }
 
+// OperationNodes returns a list of nodes that have running operations
+func (c *ClusterTx) OperationNodes() ([]string, error) {
+	stmt := "SELECT DISTINCT nodes.address FROM operations JOIN nodes ON nodes.id = node_id"
+	return query.SelectStrings(c.tx, stmt)
+}
+
 // OperationByUUID returns the operation with the given UUID.
 func (c *ClusterTx) OperationByUUID(uuid string) (Operation, error) {
 	null := Operation{}
