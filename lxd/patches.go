@@ -54,6 +54,7 @@ var patches = []patch{
 	{name: "storage_api_ceph_size_remove", run: patchStorageApiCephSizeRemove},
 	{name: "devices_new_naming_scheme", run: patchDevicesNewNamingScheme},
 	{name: "storage_api_permissions", run: patchStorageApiPermissions},
+	{name: "container_config_regen", run: patchContainerConfigRegen},
 }
 
 type patch struct {
@@ -1892,6 +1893,45 @@ func patchStorageApiV1(name string, d *Daemon) error {
 	err = updatePoolPropertyForAllObjects(d, pools[0], allcontainers)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func patchContainerConfigRegen(name string, d *Daemon) error {
+	cts, err := d.cluster.ContainersNodeList(db.CTypeRegular)
+	if err != nil {
+		return err
+	}
+
+	for _, ct := range cts {
+		// Load the container from the database.
+		c, err := containerLoadByName(d.State(), ct)
+		if err != nil {
+			return err
+		}
+
+		if !c.IsRunning() {
+			continue
+		}
+
+		lxcCt, ok := c.(*containerLXC)
+		if !ok {
+			continue
+		}
+
+		err = lxcCt.initLXC(true)
+		if err != nil {
+			return err
+		}
+
+		// Generate the LXC config
+		configPath := filepath.Join(lxcCt.LogPath(), "lxc.conf")
+		err = lxcCt.c.SaveConfigFile(configPath)
+		if err != nil {
+			os.Remove(configPath)
+			return err
+		}
 	}
 
 	return nil
