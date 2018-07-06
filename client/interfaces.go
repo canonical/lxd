@@ -163,8 +163,9 @@ type ContainerServer interface {
 	GetOperationUUIDs() (uuids []string, err error)
 	GetOperations() (operations []api.Operation, err error)
 	GetOperation(uuid string) (op *api.Operation, ETag string, err error)
-	DeleteOperation(uuid string) (err error)
+	GetOperationWait(uuid string, timeout int) (op *api.Operation, ETag string, err error)
 	GetOperationWebsocket(uuid string, secret string) (conn *websocket.Conn, err error)
+	DeleteOperation(uuid string) (err error)
 
 	// Profile functions
 	GetProfileNames() (names []string, err error)
