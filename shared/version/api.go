@@ -112,6 +112,7 @@ var APIExtensions = []string{
 	"proxy_tcp_udp_multi_port_handling",
 	"network_state",
 	"proxy_unix_dac_properties",
+	"container_protection_delete",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
