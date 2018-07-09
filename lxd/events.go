@@ -17,6 +17,11 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+var eventsCmd = Command{
+	name: "events",
+	get:  eventsGet,
+}
+
 type eventsHandler struct {
 }
 
@@ -119,8 +124,6 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 func eventsGet(d *Daemon, r *http.Request) Response {
 	return &eventsServe{req: r}
 }
-
-var eventsCmd = Command{name: "events", get: eventsGet}
 
 func eventSend(eventType string, eventMessage interface{}) error {
 	event := shared.Jmap{}
