@@ -9,6 +9,16 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+var serverResourceCmd = Command{
+	name: "resources",
+	get:  serverResourcesGet,
+}
+
+var storagePoolResourcesCmd = Command{
+	name: "storage-pools/{name}/resources",
+	get:  storagePoolResourcesGet,
+}
+
 // /1.0/resources
 // Get system resources
 func serverResourcesGet(d *Daemon, r *http.Request) Response {
@@ -29,8 +39,6 @@ func serverResourcesGet(d *Daemon, r *http.Request) Response {
 
 	return SyncResponse(true, res)
 }
-
-var serverResourceCmd = Command{name: "resources", get: serverResourcesGet}
 
 // /1.0/storage-pools/{name}/resources
 // Get resources for a specific storage pool
@@ -55,5 +63,3 @@ func storagePoolResourcesGet(d *Daemon, r *http.Request) Response {
 
 	return SyncResponse(true, &res)
 }
-
-var storagePoolResourcesCmd = Command{name: "storage-pools/{name}/resources", get: storagePoolResourcesGet}
