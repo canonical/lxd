@@ -20,6 +20,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+var api10Cmd = Command{
+	name:         "",
+	untrustedGet: true,
+	get:          api10Get,
+	put:          api10Put,
+	patch:        api10Patch,
+}
+
 var api10 = []Command{
 	containersCmd,
 	containerCmd,
@@ -401,5 +409,3 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	}
 	return nil
 }
-
-var api10Cmd = Command{name: "", untrustedGet: true, get: api10Get, put: api10Put, patch: api10Patch}
