@@ -22,6 +22,21 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+var certificatesCmd = Command{
+	name:          "certificates",
+	untrustedPost: true,
+	get:           certificatesGet,
+	post:          certificatesPost,
+}
+
+var certificateFingerprintCmd = Command{
+	name:   "certificates/{fingerprint}",
+	get:    certificateFingerprintGet,
+	delete: certificateFingerprintDelete,
+	put:    certificateFingerprintPut,
+	patch:  certificateFingerprintPatch,
+}
+
 func certificatesGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -187,8 +202,6 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 }
 
-var certificatesCmd = Command{name: "certificates", untrustedPost: true, get: certificatesGet, post: certificatesPost}
-
 func certificateFingerprintGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
@@ -306,5 +319,3 @@ func certificateFingerprintDelete(d *Daemon, r *http.Request) Response {
 
 	return EmptySyncResponse
 }
-
-var certificateFingerprintCmd = Command{name: "certificates/{fingerprint}", get: certificateFingerprintGet, delete: certificateFingerprintDelete, put: certificateFingerprintPut, patch: certificateFingerprintPatch}
