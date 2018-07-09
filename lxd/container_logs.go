@@ -13,6 +13,17 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+var containerLogCmd = Command{
+	name:   "containers/{name}/logs/{file}",
+	get:    containerLogGet,
+	delete: containerLogDelete,
+}
+
+var containerLogsCmd = Command{
+	name: "containers/{name}/logs",
+	get:  containerLogsGet,
+}
+
 func containerLogsGet(d *Daemon, r *http.Request) Response {
 	/* Let's explicitly *not* try to do a containerLoadByName here. In some
 	 * cases (e.g. when container creation failed), the container won't
@@ -52,11 +63,6 @@ func containerLogsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	return SyncResponse(true, result)
-}
-
-var containerLogsCmd = Command{
-	name: "containers/{name}/logs",
-	get:  containerLogsGet,
 }
 
 func validLogFileName(fname string) bool {
@@ -127,10 +133,4 @@ func containerLogDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	return SmartError(os.Remove(shared.LogPath(name, file)))
-}
-
-var containerLogCmd = Command{
-	name:   "containers/{name}/logs/{file}",
-	get:    containerLogGet,
-	delete: containerLogDelete,
 }
