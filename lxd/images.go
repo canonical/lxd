@@ -56,18 +56,18 @@ var imageCmd = Command{
 	patch:        imagePatch,
 }
 
-var imagesExportCmd = Command{
+var imageExportCmd = Command{
 	name:         "images/{fingerprint}/export",
 	untrustedGet: true,
 	get:          imageExport,
 }
 
-var imagesSecretCmd = Command{
+var imageSecretCmd = Command{
 	name: "images/{fingerprint}/secret",
 	post: imageSecret,
 }
 
-var imagesRefreshCmd = Command{
+var imageRefreshCmd = Command{
 	name: "images/{fingerprint}/refresh",
 	post: imageRefresh,
 }
