@@ -1727,12 +1727,6 @@ func (s *storageBtrfs) btrfsPoolVolumeSnapshot(source string, dest string, reado
 }
 
 func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, readonly bool, recursive bool) error {
-	// First snapshot the root
-	err := s.btrfsPoolVolumeSnapshot(source, dest, readonly)
-	if err != nil {
-		return err
-	}
-
 	// Now snapshot all subvolumes of the root.
 	if recursive {
 		// Get a list of subvolumes of the root
@@ -1750,6 +1744,12 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 			logger.Warnf("Subvolumes detected, ignoring ro flag.")
 		}
 
+		// First snapshot the root
+		err = s.btrfsPoolVolumeSnapshot(source, dest, readonly)
+		if err != nil {
+			return err
+		}
+
 		for _, subsubvol := range subsubvols {
 			// Clear the target for the subvol to use
 			os.Remove(path.Join(dest, subsubvol))
@@ -1758,6 +1758,11 @@ func (s *storageBtrfs) btrfsPoolVolumesSnapshot(source string, dest string, read
 			if err != nil {
 				return err
 			}
+		}
+	} else {
+		err := s.btrfsPoolVolumeSnapshot(source, dest, readonly)
+		if err != nil {
+			return err
 		}
 	}
 
