@@ -17,6 +17,11 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+var internalClusterContainerMovedCmd = Command{
+	name: "cluster/container-moved/{name}",
+	post: internalClusterContainerMovedPost,
+}
+
 func containerPost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 	targetNode := r.FormValue("target")
@@ -307,11 +312,6 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, oldName, new
 	}
 
 	return OperationResponse(op)
-}
-
-var internalClusterContainerMovedCmd = Command{
-	name: "cluster/container-moved/{name}",
-	post: internalClusterContainerMovedPost,
 }
 
 // Notification that a container was moved.
