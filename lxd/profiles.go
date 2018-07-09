@@ -22,6 +22,21 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
+var profilesCmd = Command{
+	name: "profiles",
+	get:  profilesGet,
+	post: profilesPost,
+}
+
+var profileCmd = Command{
+	name:   "profiles/{name}",
+	get:    profileGet,
+	put:    profilePut,
+	delete: profileDelete,
+	post:   profilePost,
+	patch:  profilePatch,
+}
+
 /* This is used for both profiles post and profile put */
 func profilesGet(d *Daemon, r *http.Request) Response {
 	results, err := d.cluster.Profiles()
@@ -99,11 +114,6 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
-
-var profilesCmd = Command{
-	name: "profiles",
-	get:  profilesGet,
-	post: profilesPost}
 
 func doProfileGet(s *state.State, name string) (*api.Profile, error) {
 	_, profile, err := s.Cluster.ProfileGet(name)
@@ -334,5 +344,3 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 
 	return EmptySyncResponse
 }
-
-var profileCmd = Command{name: "profiles/{name}", get: profileGet, put: profilePut, delete: profileDelete, post: profilePost, patch: profilePatch}

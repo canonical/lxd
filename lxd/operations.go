@@ -23,6 +23,28 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+var operationCmd = Command{
+	name:   "operations/{id}",
+	get:    operationAPIGet,
+	delete: operationAPIDelete,
+}
+
+var operationsCmd = Command{
+	name: "operations",
+	get:  operationsAPIGet,
+}
+
+var operationWait = Command{
+	name: "operations/{id}/wait",
+	get:  operationAPIWaitGet,
+}
+
+var operationWebsocket = Command{
+	name:         "operations/{id}/websocket",
+	untrustedGet: true,
+	get:          operationAPIWebsocketGet,
+}
+
 var operationsLock sync.Mutex
 var operations map[string]*operation = make(map[string]*operation)
 
@@ -537,8 +559,6 @@ func operationAPIDelete(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var operationCmd = Command{name: "operations/{id}", get: operationAPIGet, delete: operationAPIDelete}
-
 func operationsAPIGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -704,8 +724,6 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, md)
 }
 
-var operationsCmd = Command{name: "operations", get: operationsAPIGet}
-
 func operationAPIWaitGet(d *Daemon, r *http.Request) Response {
 	id := mux.Vars(r)["id"]
 
@@ -758,8 +776,6 @@ func operationAPIWaitGet(d *Daemon, r *http.Request) Response {
 
 	return SyncResponse(true, body)
 }
-
-var operationWait = Command{name: "operations/{id}/wait", get: operationAPIWaitGet}
 
 type operationWebSocket struct {
 	req *http.Request
@@ -847,5 +863,3 @@ func operationAPIWebsocketGet(d *Daemon, r *http.Request) Response {
 
 	return &forwardedOperationWebSocket{req: r, id: id, source: source}
 }
-
-var operationWebsocket = Command{name: "operations/{id}/websocket", untrustedGet: true, get: operationAPIWebsocketGet}

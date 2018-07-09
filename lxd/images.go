@@ -40,6 +40,54 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
+var imagesCmd = Command{
+	name:         "images",
+	post:         imagesPost,
+	untrustedGet: true,
+	get:          imagesGet,
+}
+
+var imageCmd = Command{
+	name:         "images/{fingerprint}",
+	untrustedGet: true,
+	get:          imageGet,
+	put:          imagePut,
+	delete:       imageDelete,
+	patch:        imagePatch,
+}
+
+var imageExportCmd = Command{
+	name:         "images/{fingerprint}/export",
+	untrustedGet: true,
+	get:          imageExport,
+}
+
+var imageSecretCmd = Command{
+	name: "images/{fingerprint}/secret",
+	post: imageSecret,
+}
+
+var imageRefreshCmd = Command{
+	name: "images/{fingerprint}/refresh",
+	post: imageRefresh,
+}
+
+var aliasesCmd = Command{
+	name: "images/aliases",
+	post: aliasesPost,
+	get:  aliasesGet,
+}
+
+var aliasCmd = Command{
+	name:         "images/aliases/{name:.*}",
+	untrustedGet: true,
+	get:          aliasGet,
+	delete:       aliasDelete,
+	put:          aliasPut,
+	post:         aliasPost,
+	patch:        aliasPatch,
+}
+
 /* We only want a single publish running at any one time.
    The CPU and I/O load of publish is such that running multiple ones in
    parallel takes longer than running them serially.
@@ -770,8 +818,6 @@ func imagesGet(d *Daemon, r *http.Request) Response {
 	return SyncResponse(true, result)
 }
 
-var imagesCmd = Command{name: "images", post: imagesPost, untrustedGet: true, get: imagesGet}
-
 func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		autoUpdateImages(ctx, d)
@@ -1309,8 +1355,6 @@ func imagePatch(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
-var imageCmd = Command{name: "images/{fingerprint}", untrustedGet: true, get: imageGet, put: imagePut, delete: imageDelete, patch: imagePatch}
-
 func aliasesPost(d *Daemon, r *http.Request) Response {
 	req := api.ImageAliasesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1697,11 +1741,3 @@ func imageRefresh(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 
 }
-
-var imagesExportCmd = Command{name: "images/{fingerprint}/export", untrustedGet: true, get: imageExport}
-var imagesSecretCmd = Command{name: "images/{fingerprint}/secret", post: imageSecret}
-var imagesRefreshCmd = Command{name: "images/{fingerprint}/refresh", post: imageRefresh}
-
-var aliasesCmd = Command{name: "images/aliases", post: aliasesPost, get: aliasesGet}
-
-var aliasCmd = Command{name: "images/aliases/{name:.*}", untrustedGet: true, get: aliasGet, delete: aliasDelete, put: aliasPut, post: aliasPost, patch: aliasPatch}

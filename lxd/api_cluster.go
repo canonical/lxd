@@ -28,6 +28,33 @@ var clusterCmd = Command{
 	put:  clusterPut,
 }
 
+var clusterNodesCmd = Command{
+	name: "cluster/members",
+	get:  clusterNodesGet,
+}
+
+var clusterNodeCmd = Command{
+	name:   "cluster/members/{name}",
+	get:    clusterNodeGet,
+	post:   clusterNodePost,
+	delete: clusterNodeDelete,
+}
+
+var internalClusterAcceptCmd = Command{
+	name: "cluster/accept",
+	post: internalClusterPostAccept,
+}
+
+var internalClusterRebalanceCmd = Command{
+	name: "cluster/rebalance",
+	post: internalClusterPostRebalance,
+}
+
+var internalClusterPromoteCmd = Command{
+	name: "cluster/promote",
+	post: internalClusterPostPromote,
+}
+
 // Return information about the cluster.
 func clusterGet(d *Daemon, r *http.Request) Response {
 	name := ""
@@ -594,11 +621,6 @@ func clusterAcceptMember(
 	return info, nil
 }
 
-var clusterNodesCmd = Command{
-	name: "cluster/members",
-	get:  clusterNodesGet,
-}
-
 func clusterNodesGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
 
@@ -620,13 +642,6 @@ func clusterNodesGet(d *Daemon, r *http.Request) Response {
 	}
 
 	return SyncResponse(true, result)
-}
-
-var clusterNodeCmd = Command{
-	name:   "cluster/members/{name}",
-	get:    clusterNodeGet,
-	post:   clusterNodePost,
-	delete: clusterNodeDelete,
 }
 
 func clusterNodeGet(d *Daemon, r *http.Request) Response {
@@ -765,8 +780,6 @@ func tryClusterRebalance(d *Daemon) error {
 	return nil
 }
 
-var internalClusterAcceptCmd = Command{name: "cluster/accept", post: internalClusterPostAccept}
-
 func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
 	req := internalClusterPostAcceptRequest{}
 
@@ -849,8 +862,6 @@ type internalRaftNode struct {
 	Address string `json:"address" yaml:"address"`
 }
 
-var internalClusterRebalanceCmd = Command{name: "cluster/rebalance", post: internalClusterPostRebalance}
-
 // Used to update the cluster after a database node has been removed, and
 // possibly promote another one as database node.
 func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
@@ -906,8 +917,6 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 
 	return SyncResponse(true, nil)
 }
-
-var internalClusterPromoteCmd = Command{name: "cluster/promote", post: internalClusterPostPromote}
 
 // Used to promote the local non-database node to be a database one.
 func internalClusterPostPromote(d *Daemon, r *http.Request) Response {

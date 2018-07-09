@@ -39,6 +39,37 @@ var apiInternal = []Command{
 	internalClusterContainerMovedCmd,
 }
 
+var internalShutdownCmd = Command{
+	name: "shutdown",
+	put:  internalShutdown,
+}
+
+var internalReadyCmd = Command{
+	name: "ready",
+	get:  internalWaitReady,
+}
+
+var internalContainerOnStartCmd = Command{
+	name: "containers/{id}/onstart",
+	get:  internalContainerOnStart,
+}
+
+var internalContainerOnStopCmd = Command{
+	name: "containers/{id}/onstop",
+	get:  internalContainerOnStop,
+}
+
+var internalSQLCmd = Command{
+	name: "sql",
+	get:  internalSQLGet,
+	post: internalSQLPost,
+}
+
+var internalContainersCmd = Command{
+	name: "containers",
+	post: internalImport,
+}
+
 func internalWaitReady(d *Daemon, r *http.Request) Response {
 	select {
 	case <-d.readyChan:
@@ -275,12 +306,6 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 
 	return nil
 }
-
-var internalShutdownCmd = Command{name: "shutdown", put: internalShutdown}
-var internalReadyCmd = Command{name: "ready", get: internalWaitReady}
-var internalContainerOnStartCmd = Command{name: "containers/{id}/onstart", get: internalContainerOnStart}
-var internalContainerOnStopCmd = Command{name: "containers/{id}/onstop", get: internalContainerOnStop}
-var internalSQLCmd = Command{name: "sql", get: internalSQLGet, post: internalSQLPost}
 
 func slurpBackupFile(path string) (*backupFile, error) {
 	data, err := ioutil.ReadFile(path)
@@ -879,5 +904,3 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	return EmptySyncResponse
 }
-
-var internalContainersCmd = Command{name: "containers", post: internalImport}
