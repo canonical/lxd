@@ -21,6 +21,7 @@ type cmdMove struct {
 	flagProfile       []string
 	flagConfig        []string
 	flagContainerOnly bool
+	flagDevice        []string
 	flagMode          string
 	flagStateless     bool
 	flagTarget        string
@@ -45,6 +46,7 @@ lxc move <container>/<old snapshot name> <container>/<new snapshot name>
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the target container")+"``")
+	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the target container")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Unset all profiles on the target container"))
 	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
@@ -98,7 +100,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	// course, this changing of hostname isn't supported right now, so this
 	// simply won't work).
 	if sourceRemote == destRemote && c.flagTarget == "" {
-		if c.flagConfig != nil || c.flagProfile != nil || c.flagNoProfiles {
+		if c.flagConfig != nil || c.flagDevice != nil || c.flagProfile != nil || c.flagNoProfiles {
 			return fmt.Errorf(i18n.G("Can't override configuration or profiles in local rename"))
 		}
 
@@ -153,6 +155,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	cpy := cmdCopy{}
 	cpy.flagTarget = c.flagTarget
 	cpy.flagConfig = c.flagConfig
+	cpy.flagDevice = c.flagDevice
 	cpy.flagProfile = c.flagProfile
 	cpy.flagNoProfiles = c.flagNoProfiles
 

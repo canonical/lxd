@@ -20,6 +20,7 @@ type cmdCopy struct {
 	flagNoProfiles    bool
 	flagProfile       []string
 	flagConfig        []string
+	flagDevice        []string
 	flagEphemeral     bool
 	flagContainerOnly bool
 	flagMode          string
@@ -37,6 +38,7 @@ func (c *cmdCopy) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new container")+"``")
+	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new container")+"``")
 	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, i18n.G("Ephemeral container"))
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
@@ -114,6 +116,23 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		configMap[fields[0]] = fields[1]
 	}
 
+	// Parse the device overrides
+	deviceMap := map[string]map[string]string{}
+	for _, entry := range c.flagDevice {
+		if !strings.Contains(entry, "=") || !strings.Contains(entry, ",") {
+			return fmt.Errorf(i18n.G("Bad syntax, expecting <device>,<key>=<value>: %s"), entry)
+		}
+
+		deviceFields := strings.SplitN(entry, ",", 2)
+		keyFields := strings.SplitN(deviceFields[1], "=", 2)
+
+		if deviceMap[deviceFields[0]] == nil {
+			deviceMap[deviceFields[0]] = map[string]string{}
+		}
+
+		deviceMap[deviceFields[0]][keyFields[0]] = keyFields[1]
+	}
+
 	var op lxd.RemoteOperation
 	if shared.IsSnapshot(sourceName) {
 		// Prepare the container creation request
@@ -141,6 +160,20 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		if configMap != nil {
 			for key, value := range configMap {
 				entry.Config[key] = value
+			}
+		}
+
+		// Allow setting device overrides
+		if deviceMap != nil {
+			for k, m := range deviceMap {
+				if entry.Devices[k] == nil {
+					entry.Devices[k] = m
+					continue
+				}
+
+				for key, value := range m {
+					entry.Devices[k][key] = value
+				}
 			}
 		}
 
@@ -195,6 +228,20 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		if configMap != nil {
 			for key, value := range configMap {
 				entry.Config[key] = value
+			}
+		}
+
+		// Allow setting device overrides
+		if deviceMap != nil {
+			for k, m := range deviceMap {
+				if entry.Devices[k] == nil {
+					entry.Devices[k] = m
+					continue
+				}
+
+				for key, value := range m {
+					entry.Devices[k][key] = value
+				}
 			}
 		}
 
