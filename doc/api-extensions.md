@@ -545,3 +545,9 @@ from being deleted if set to true. Snapshots are not affected by this setting.
 Adds security.uid and security.gid for the proxy devices, allowing
 privilege dropping and effectively changing the uid/gid used for
 connections to Unix sockets too.
+
+## pprof\_http
+This adds a new core.debug\_address config option to start a debugging HTTP server.
+
+That server currently includes a pprof API and replaces the old
+cpu-profile, memory-profile and print-goroutines debug options.

@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	dbg "github.com/lxc/lxd/lxd/debug"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -19,11 +18,6 @@ type cmdDaemon struct {
 
 	// Common options
 	flagGroup string
-
-	// Debug options
-	flagCPUProfile      string
-	flagMemoryProfile   string
-	flagPrintGoroutines int
 }
 
 func (c *cmdDaemon) Command() *cobra.Command {
@@ -41,9 +35,6 @@ func (c *cmdDaemon) Command() *cobra.Command {
 `
 	cmd.RunE = c.Run
 	cmd.Flags().StringVar(&c.flagGroup, "group", "", "The group of users that will be allowed to talk to LXD"+"``")
-	cmd.Flags().StringVar(&c.flagCPUProfile, "cpu-profile", "", "Enable CPU profiling, writing into the specified file"+"``")
-	cmd.Flags().StringVar(&c.flagMemoryProfile, "memory-profile", "", "Enable memory profiling, writing into the specified file"+"``")
-	cmd.Flags().IntVar(&c.flagPrintGoroutines, "print-goroutines", 0, "How often to print all the goroutines"+"``")
 
 	return cmd
 }
@@ -53,18 +44,6 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")
 	}
-
-	// Start debug activities as per command line flags, if any.
-	stop, err := dbg.Start(
-		dbg.CPU(c.flagCPUProfile),
-		dbg.Memory(c.flagMemoryProfile),
-		dbg.Goroutines(c.flagPrintGoroutines),
-	)
-	if err != nil {
-		return err
-	}
-
-	defer stop()
 
 	neededPrograms := []string{"setfacl", "rsync", "tar", "unsquashfs", "xz"}
 	for _, p := range neededPrograms {
@@ -79,7 +58,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	conf.Trace = c.global.flagLogTrace
 	d := NewDaemon(conf, sys.DefaultOS())
 
-	err = d.Init()
+	err := d.Init()
 	if err != nil {
 		return err
 	}

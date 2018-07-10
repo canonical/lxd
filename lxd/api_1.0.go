@@ -273,8 +273,7 @@ func api10Patch(d *Daemon, r *http.Request) Response {
 }
 
 func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
-	// The HTTPS address and maas machine are the only config keys that we
-	// want to save in the node-level database, so handle it here.
+	// First deal with config specific to the local daemon
 	nodeValues := map[string]interface{}{}
 
 	for key := range node.ConfigSchema {
@@ -291,7 +290,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(tx)
 		if err != nil {
-			return errors.Wrap(err, "failed to load node config")
+			return errors.Wrap(err, "Failed to load node config")
 		}
 		if patch {
 			nodeChanged, err = newNodeConfig.Patch(nodeValues)
@@ -309,13 +308,14 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 	}
 
+	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *cluster.Config
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		newClusterConfig, err = cluster.ConfigLoad(tx)
 		if err != nil {
-			return errors.Wrap(err, "failed to load cluster config")
+			return errors.Wrap(err, "Failed to load cluster config")
 		}
 		if patch {
 			clusterChanged, err = newClusterConfig.Patch(req.Config)
@@ -333,6 +333,7 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		}
 	}
 
+	// Notify the other nodes about changes
 	notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
 	if err != nil {
 		return SmartError(err)
@@ -398,6 +399,11 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			maasChanged = true
 		case "core.https_address":
 			err := d.endpoints.NetworkUpdateAddress(value)
+			if err != nil {
+				return err
+			}
+		case "core.debug_address":
+			err := d.endpoints.PprofUpdateAddress(value)
 			if err != nil {
 				return err
 			}

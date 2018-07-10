@@ -46,6 +46,11 @@ type Config struct {
 	//
 	// It can be updated after the endpoints are up using UpdateNetworkAddress().
 	NetworkAddress string
+
+	// DebugSetAddress sets the address for the pprof endpoint.
+	//
+	// It can be updated after the endpoints are up using UpdateDebugAddress().
+	DebugAddress string
 }
 
 // Up brings up all applicable LXD endpoints and starts accepting HTTP
@@ -140,6 +145,7 @@ func (e *Endpoints) up(config *Config) error {
 		devlxd:  config.DevLxdServer,
 		local:   config.RestServer,
 		network: config.RestServer,
+		pprof:   pprofCreateServer(),
 	}
 	e.cert = config.Cert
 
@@ -177,6 +183,16 @@ func (e *Endpoints) up(config *Config) error {
 		e.listeners[network] = networkCreateListener(config.NetworkAddress, e.cert)
 	}
 
+	if config.DebugAddress != "" {
+		e.listeners[pprof], err = pprofCreateListener(config.DebugAddress)
+		if err != nil {
+			return err
+		}
+
+		logger.Infof("Starting pprof handler:")
+		e.serveHTTP(pprof)
+	}
+
 	logger.Infof("Starting /dev/lxd handler:")
 	e.serveHTTP(devlxd)
 
@@ -192,20 +208,33 @@ func (e *Endpoints) Down() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	logger.Infof("Stopping REST API handler:")
-	err := e.closeListener(network)
-	if err != nil {
-		return err
-	}
-	err = e.closeListener(local)
-	if err != nil {
-		return err
+	if e.listeners[network] != nil || e.listeners[local] != nil {
+		logger.Infof("Stopping REST API handler:")
+		err := e.closeListener(network)
+		if err != nil {
+			return err
+		}
+
+		err = e.closeListener(local)
+		if err != nil {
+			return err
+		}
 	}
 
-	logger.Infof("Stopping /dev/lxd handler")
-	err = e.closeListener(devlxd)
-	if err != nil {
-		return err
+	if e.listeners[devlxd] != nil {
+		logger.Infof("Stopping /dev/lxd handler:")
+		err := e.closeListener(devlxd)
+		if err != nil {
+			return err
+		}
+	}
+
+	if e.listeners[pprof] != nil {
+		logger.Infof("Stopping pprof handler:")
+		err := e.closeListener(pprof)
+		if err != nil {
+			return err
+		}
 	}
 
 	if e.tomb != nil {
@@ -283,6 +312,7 @@ const (
 	local kind = iota
 	devlxd
 	network
+	pprof
 )
 
 // Human-readable descriptions of the various kinds of endpoints.
@@ -290,4 +320,5 @@ var descriptions = map[kind]string{
 	local:   "Unix socket",
 	devlxd:  "devlxd socket",
 	network: "TCP socket",
+	pprof:   "pprof socket",
 }

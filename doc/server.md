@@ -11,7 +11,8 @@ currently supported:
 Key                             | Type      | Default   | API extension            | Description
 :--                             | :---      | :------   | :------------            | :----------
 cluster.offline\_threshold      | integer   | 20        | clustering               | Number of seconds after which an unresponsive node is considered offline
-core.https\_address             | string    | -         | -                        | Address to bind for the remote API
+core.debug\_address             | string    | -         | pprof\_http              | Address to bind the pprof debug server to (HTTP)
+core.https\_address             | string    | -         | -                        | Address to bind for the remote API (HTTPs)
 core.https\_allowed\_credentials| boolean   | -         | -                        | Whether to set Access-Control-Allow-Credentials http header value to "true"
 core.https\_allowed\_headers    | string    | -         | -                        | Access-Control-Allow-Headers http header value
 core.https\_allowed\_methods    | string    | -         | -                        | Access-Control-Allow-Methods http header value
