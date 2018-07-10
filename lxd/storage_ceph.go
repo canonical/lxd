@@ -2420,7 +2420,7 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 		ctName := c.Name()
 		if c.IsRunning() {
 			msg := fmt.Sprintf(`Cannot resize RBD storage volume `+
-				`for container \"%s\" when it is running`,
+				`for container "%s" when it is running`,
 				ctName)
 			logger.Errorf(msg)
 			return fmt.Errorf(msg)
