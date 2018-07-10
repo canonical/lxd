@@ -1755,7 +1755,7 @@ func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data inte
 		ctName := c.Name()
 		if c.IsRunning() {
 			msg := fmt.Sprintf(`Cannot resize LVM storage volume `+
-				`for container \"%s\" when it is running`,
+				`for container "%s" when it is running`,
 				ctName)
 			logger.Errorf(msg)
 			return fmt.Errorf(msg)
