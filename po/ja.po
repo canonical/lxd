@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-06-27 12:44-0400\n"
+"POT-Creation-Date: 2018-07-10 00:08-0400\n"
 "PO-Revision-Date: 2018-05-16 23:39+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -105,7 +105,7 @@ msgid ""
 "###  description: My custom image"
 msgstr ""
 
-#: lxc/network.go:550
+#: lxc/network.go:552
 msgid ""
 "### This is a yaml representation of the network.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -251,15 +251,15 @@ msgstr "アーキテクチャ: %s"
 msgid "Assign sets of profiles to containers"
 msgstr "コンテナにプロファイルを割り当てます"
 
-#: lxc/network.go:107
+#: lxc/network.go:109
 msgid "Attach network interfaces to containers"
 msgstr "コンテナにネットワークインターフェースを追加します"
 
-#: lxc/network.go:180 lxc/network.go:181
+#: lxc/network.go:182 lxc/network.go:183
 msgid "Attach network interfaces to profiles"
 msgstr "プロファイルにネットワークインターフェースを追加します"
 
-#: lxc/network.go:108
+#: lxc/network.go:110
 msgid "Attach new network interfaces to containers"
 msgstr "新たなネットワークインターフェースをコンテナに追加します"
 
@@ -301,12 +301,12 @@ msgstr "自動更新: %s"
 msgid "Backup exported successfully!"
 msgstr "バックアップのエクスポートが成功しました!"
 
-#: lxc/network.go:287
+#: lxc/network.go:289
 #, c-format
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:112 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
+#: lxc/copy.go:114 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
 #: lxc/storage_volume.go:454
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -317,15 +317,20 @@ msgstr "不適切な キー=値 のペア: %s"
 msgid "Bad property: %s"
 msgstr "不正なイメージプロパティ形式: %s"
 
+#: lxc/copy.go:125
+#, c-format
+msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
+msgstr ""
+
 #: lxc/action.go:224
 msgid "Both --all and container name given"
 msgstr "--all とコンテナ名を両方同時に指定することはできません"
 
-#: lxc/info.go:226 lxc/network.go:771
+#: lxc/info.go:226 lxc/network.go:773
 msgid "Bytes received"
 msgstr "受信バイト数"
 
-#: lxc/info.go:227 lxc/network.go:772
+#: lxc/info.go:227 lxc/network.go:774
 msgid "Bytes sent"
 msgstr "送信バイト数"
 
@@ -358,7 +363,7 @@ msgstr ""
 msgid "Cached: %s"
 msgstr "キャッシュ済: %s"
 
-#: lxc/move.go:104
+#: lxc/move.go:106
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
@@ -371,7 +376,7 @@ msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
 
-#: lxc/config.go:400 lxc/network.go:1040 lxc/profile.go:787 lxc/storage.go:617
+#: lxc/config.go:400 lxc/network.go:1075 lxc/profile.go:787 lxc/storage.go:617
 #: lxc/storage_volume.go:1126
 #, c-format
 msgid "Can't read from stdin: %s"
@@ -418,9 +423,9 @@ msgstr "クライアント証明書がサーバに格納されました: "
 msgid "Client version: %s\n"
 msgstr "クライアントバージョン: %s\n"
 
-#: lxc/copy.go:47 lxc/init.go:48 lxc/move.go:55 lxc/network.go:257
-#: lxc/network.go:667 lxc/network.go:994 lxc/network.go:1063
-#: lxc/network.go:1125 lxc/storage.go:92 lxc/storage.go:331 lxc/storage.go:576
+#: lxc/copy.go:49 lxc/init.go:48 lxc/move.go:57 lxc/network.go:259
+#: lxc/network.go:669 lxc/network.go:1029 lxc/network.go:1098
+#: lxc/network.go:1160 lxc/storage.go:92 lxc/storage.go:331 lxc/storage.go:576
 #: lxc/storage.go:649 lxc/storage.go:732 lxc/storage_volume.go:287
 #: lxc/storage_volume.go:415 lxc/storage_volume.go:490
 #: lxc/storage_volume.go:716 lxc/storage_volume.go:842
@@ -430,7 +435,7 @@ msgstr "クライアントバージョン: %s\n"
 msgid "Cluster member name"
 msgstr "クラスタメンバ名"
 
-#: lxc/cluster.go:361
+#: lxc/cluster.go:360
 msgid "Clustering enabled"
 msgstr "クラスタリングが有効になりました"
 
@@ -454,17 +459,17 @@ msgstr ""
 "LXD の機能のすべてが、以下の色々なコマンドから操作できます。\n"
 "コマンドのヘルプは、--help をコマンドに付けて実行するだけです。"
 
-#: lxc/copy.go:40 lxc/init.go:42
+#: lxc/copy.go:41 lxc/init.go:42
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
-#: lxc/move.go:48
+#: lxc/move.go:49
 #, fuzzy
 msgid "Config key/value to apply to the target container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
 #: lxc/config.go:195 lxc/config.go:259 lxc/config_metadata.go:144
-#: lxc/image.go:405 lxc/network.go:635 lxc/profile.go:490 lxc/storage.go:298
+#: lxc/image.go:405 lxc/network.go:637 lxc/profile.go:490 lxc/storage.go:298
 #: lxc/storage_volume.go:808
 #, c-format
 msgid "Config parsing error: %s"
@@ -478,7 +483,7 @@ msgstr "コンソールログ:"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:292 lxc/init.go:230
+#: lxc/copy.go:339 lxc/init.go:230
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -488,7 +493,7 @@ msgstr "コンテナ名: %s"
 msgid "Container published with fingerprint: %s"
 msgstr "コンテナは以下のフィンガープリントで publish されます: %s"
 
-#: lxc/copy.go:45 lxc/move.go:53
+#: lxc/copy.go:47 lxc/move.go:55
 msgid "Copy a stateful container stateless"
 msgstr "ステートフルなコンテナをステートレスにコピーします"
 
@@ -496,7 +501,7 @@ msgstr "ステートフルなコンテナをステートレスにコピーしま
 msgid "Copy aliases from source"
 msgstr "ソースからエイリアスをコピーしました"
 
-#: lxc/copy.go:35 lxc/copy.go:36
+#: lxc/copy.go:36 lxc/copy.go:37
 msgid "Copy containers within or in between LXD instances"
 msgstr "LXD インスタンス内に、またはインスタンス間でコンテナをコピーします"
 
@@ -528,7 +533,7 @@ msgstr "プロファイルをコピーします"
 msgid "Copy storage volumes"
 msgstr "ストレージボリュームをコピーします"
 
-#: lxc/copy.go:44
+#: lxc/copy.go:46
 msgid "Copy the container without its snapshots"
 msgstr "コンテナをコピーします (スナップショットはコピーしません)"
 
@@ -586,7 +591,7 @@ msgstr "新たにコンテナのファイルテンプレートを作成します
 msgid "Create new custom storage volumes"
 msgstr "新たにカスタムストレージボリュームを作成します"
 
-#: lxc/network.go:253 lxc/network.go:254
+#: lxc/network.go:255 lxc/network.go:256
 msgid "Create new networks"
 msgstr "新たにネットワークを作成します"
 
@@ -598,7 +603,7 @@ msgstr "プロファイルを作成します"
 msgid "Create storage pools"
 msgstr "ストレージプールを作成します"
 
-#: lxc/copy.go:48 lxc/init.go:49
+#: lxc/copy.go:50 lxc/init.go:49
 msgid "Create the container with no profiles applied"
 msgstr "プロファイルを適用しないコンテナを作成します"
 
@@ -620,7 +625,7 @@ msgstr "コンテナを作成中"
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:451 lxc/network.go:855
+#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:451 lxc/network.go:856
 #: lxc/operation.go:153 lxc/storage.go:545 lxc/storage_volume.go:953
 msgid "DESCRIPTION"
 msgstr ""
@@ -657,7 +662,7 @@ msgstr "イメージのエイリアスを削除します"
 msgid "Delete images"
 msgstr "イメージを削除します"
 
-#: lxc/network.go:323 lxc/network.go:324
+#: lxc/network.go:325 lxc/network.go:326
 msgid "Delete networks"
 msgstr "ネットワークを削除します"
 
@@ -676,7 +681,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:290 lxc/config.go:29
+#: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:289 lxc/config.go:29
 #: lxc/config.go:88 lxc/config.go:289 lxc/config.go:355 lxc/config.go:452
 #: lxc/config.go:560 lxc/config_device.go:24 lxc/config_device.go:76
 #: lxc/config_device.go:179 lxc/config_device.go:252 lxc/config_device.go:318
@@ -687,7 +692,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_template.go:152 lxc/config_template.go:236
 #: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
 #: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
-#: lxc/copy.go:36 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:30
+#: lxc/copy.go:37 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:30
 #: lxc/file.go:40 lxc/file.go:73 lxc/file.go:122 lxc/file.go:185
 #: lxc/file.go:352 lxc/image.go:42 lxc/image.go:131 lxc/image.go:261
 #: lxc/image.go:312 lxc/image.go:435 lxc/image.go:571 lxc/image.go:775
@@ -695,11 +700,11 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
 #: lxc/image_alias.go:250 lxc/import.go:22 lxc/info.go:29 lxc/init.go:35
 #: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:46 lxc/manpage.go:19
-#: lxc/monitor.go:31 lxc/move.go:35 lxc/network.go:32 lxc/network.go:108
-#: lxc/network.go:181 lxc/network.go:254 lxc/network.go:324 lxc/network.go:371
-#: lxc/network.go:456 lxc/network.go:541 lxc/network.go:664 lxc/network.go:722
-#: lxc/network.go:790 lxc/network.go:879 lxc/network.go:944 lxc/network.go:991
-#: lxc/network.go:1060 lxc/network.go:1122 lxc/operation.go:25
+#: lxc/monitor.go:31 lxc/move.go:36 lxc/network.go:34 lxc/network.go:110
+#: lxc/network.go:183 lxc/network.go:256 lxc/network.go:326 lxc/network.go:373
+#: lxc/network.go:458 lxc/network.go:543 lxc/network.go:666 lxc/network.go:724
+#: lxc/network.go:794 lxc/network.go:914 lxc/network.go:979 lxc/network.go:1026
+#: lxc/network.go:1095 lxc/network.go:1157 lxc/operation.go:25
 #: lxc/operation.go:54 lxc/operation.go:98 lxc/operation.go:174
 #: lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163 lxc/profile.go:241
 #: lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520
@@ -721,11 +726,11 @@ msgstr "ストレージボリュームを削除します"
 msgid "Description"
 msgstr "説明"
 
-#: lxc/network.go:370 lxc/network.go:371
+#: lxc/network.go:372 lxc/network.go:373
 msgid "Detach network interfaces from containers"
 msgstr "コンテナからネットワークインターフェースを取り外します"
 
-#: lxc/network.go:455 lxc/network.go:456
+#: lxc/network.go:457 lxc/network.go:458
 msgid "Detach network interfaces from profiles"
 msgstr "プロファイルからネットワークインターフェースを取り外します"
 
@@ -801,7 +806,7 @@ msgstr "コンテナ内のファイルを編集します"
 msgid "Edit image properties"
 msgstr "イメージのプロパティを編集します"
 
-#: lxc/network.go:540 lxc/network.go:541
+#: lxc/network.go:542 lxc/network.go:543
 msgid "Edit network configurations as YAML"
 msgstr "ネットワーク設定をYAMLで編集します"
 
@@ -823,11 +828,11 @@ msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
 "'%s' 中のカラムエントリが空です (カラムの指定に空文字列が指定されています)"
 
-#: lxc/cluster.go:289
+#: lxc/cluster.go:288
 msgid "Enable clustering on a single non-clustered LXD instance"
 msgstr ""
 
-#: lxc/cluster.go:290
+#: lxc/cluster.go:289
 msgid ""
 "Enable clustering on a single non-clustered LXD instance\n"
 "\n"
@@ -846,7 +851,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "環境変数を設定します (例: HOME=/home/foo)"
 
-#: lxc/copy.go:42 lxc/init.go:44
+#: lxc/copy.go:44 lxc/init.go:44
 msgid "Ephemeral container"
 msgstr "Ephemeral コンテナ"
 
@@ -943,7 +948,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
 
-#: lxc/copy.go:287
+#: lxc/copy.go:334
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナ名が取得できません"
 
@@ -961,7 +966,7 @@ msgstr "パス %s にアクセスできませんでした: %s"
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Fast モード (--columns=nsacPt と同じ)"
 
-#: lxc/network.go:820 lxc/operation.go:126
+#: lxc/network.go:825 lxc/operation.go:126
 msgid "Filtering isn't supported yet"
 msgstr "情報表示のフィルタリングはまだサポートされていません"
 
@@ -990,7 +995,7 @@ msgstr "稼働中のコンテナを強制的に削除します"
 msgid "Force using the local unix socket"
 msgstr "強制的にローカルのUNIXソケットを使います"
 
-#: lxc/image.go:912 lxc/list.go:113 lxc/remote.go:423
+#: lxc/image.go:912 lxc/list.go:113 lxc/network.go:798 lxc/remote.go:423
 msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
@@ -1002,7 +1007,7 @@ msgstr "すべてのコマンドに対する man ページを作成します"
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "クライアント証明書を生成します。1分ぐらいかかります..."
 
-#: lxc/network.go:721 lxc/network.go:722
+#: lxc/network.go:723 lxc/network.go:724
 #, fuzzy
 msgid "Get runtime information on networks"
 msgstr "コンテナの情報を一覧表示します。\n"
@@ -1015,7 +1020,7 @@ msgstr "コンテナのデバイスの設定値を取得します"
 msgid "Get values for container or server configuration keys"
 msgstr "コンテナもしくはサーバの設定値を取得します"
 
-#: lxc/network.go:663 lxc/network.go:664
+#: lxc/network.go:665 lxc/network.go:666
 msgid "Get values for network configuration keys"
 msgstr "ネットワークの設定値を取得します"
 
@@ -1031,7 +1036,7 @@ msgstr "ストレージプールの設定値を取得します"
 msgid "Get values for storage volume configuration keys"
 msgstr "ストレージボリュームの設定値を取得します"
 
-#: lxc/network.go:922
+#: lxc/network.go:957
 msgid "HOSTNAME"
 msgstr ""
 
@@ -1039,7 +1044,7 @@ msgstr ""
 msgid "ID"
 msgstr "ID"
 
-#: lxc/network.go:924
+#: lxc/network.go:959
 msgid "IP ADDRESS"
 msgstr ""
 
@@ -1146,7 +1151,7 @@ msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 "不正な設定項目のカラムフォーマットです (フィールド数が多すぎます): '%s'"
 
-#: lxc/image.go:1195 lxc/list.go:365 lxc/remote.go:507
+#: lxc/image.go:1195 lxc/list.go:365 lxc/network.go:898 lxc/remote.go:507
 #, c-format
 msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
@@ -1194,7 +1199,7 @@ msgstr "不正なソース %s"
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
 
-#: lxc/info.go:164 lxc/network.go:763
+#: lxc/info.go:164 lxc/network.go:765
 msgid "Ips:"
 msgstr "IPアドレス:"
 
@@ -1227,7 +1232,7 @@ msgstr "最終使用: %s"
 msgid "Last used: never"
 msgstr "最終使用: 未使用"
 
-#: lxc/network.go:878 lxc/network.go:879
+#: lxc/network.go:913 lxc/network.go:914
 msgid "List DHCP leases"
 msgstr "DHCP のリースを一覧表示します"
 
@@ -1239,7 +1244,7 @@ msgstr "エイリアスを一覧表示します"
 msgid "List all the cluster members"
 msgstr "クラスタのメンバをすべて一覧表示します"
 
-#: lxc/network.go:789 lxc/network.go:790
+#: lxc/network.go:793 lxc/network.go:794
 msgid "List available networks"
 msgstr "利用可能なネットワークを一覧表示します"
 
@@ -1470,16 +1475,16 @@ msgstr "ロケーション: %s"
 msgid "Log:"
 msgstr "ログ:"
 
-#: lxc/network.go:923
+#: lxc/network.go:958
 msgid "MAC ADDRESS"
 msgstr ""
 
-#: lxc/network.go:757
+#: lxc/network.go:759
 #, c-format
 msgid "MAC address: %s"
 msgstr ""
 
-#: lxc/network.go:854
+#: lxc/network.go:855
 msgid "MANAGED"
 msgstr ""
 
@@ -1487,7 +1492,7 @@ msgstr ""
 msgid "MESSAGE"
 msgstr ""
 
-#: lxc/network.go:758
+#: lxc/network.go:760
 #, c-format
 msgid "MTU: %d"
 msgstr ""
@@ -1500,7 +1505,7 @@ msgstr "イメージを public にする"
 msgid "Make the image public"
 msgstr "イメージを public にする"
 
-#: lxc/network.go:31 lxc/network.go:32
+#: lxc/network.go:33 lxc/network.go:34
 msgid "Manage and attach containers to networks"
 msgstr "ネットワークを管理し、コンテナをネットワークに接続します"
 
@@ -1647,10 +1652,10 @@ msgstr "コンテナ名を指定する必要があります"
 msgid "Missing name"
 msgstr "名前を指定する必要があります"
 
-#: lxc/network.go:132 lxc/network.go:205 lxc/network.go:348 lxc/network.go:395
-#: lxc/network.go:480 lxc/network.go:585 lxc/network.go:690 lxc/network.go:747
-#: lxc/network.go:903 lxc/network.go:968 lxc/network.go:1017
-#: lxc/network.go:1086
+#: lxc/network.go:134 lxc/network.go:207 lxc/network.go:350 lxc/network.go:397
+#: lxc/network.go:482 lxc/network.go:587 lxc/network.go:692 lxc/network.go:749
+#: lxc/network.go:938 lxc/network.go:1003 lxc/network.go:1052
+#: lxc/network.go:1121
 msgid "Missing network name"
 msgstr "ネットワーク名を指定する必要があります"
 
@@ -1696,7 +1701,7 @@ msgstr ""
 "\n"
 "デフォルトではすべてのタイプのメッセージをモニタリングします。"
 
-#: lxc/network.go:415 lxc/network.go:500 lxc/storage_volume.go:591
+#: lxc/network.go:417 lxc/network.go:502 lxc/storage_volume.go:591
 #: lxc/storage_volume.go:672
 msgid "More than one device matches, specify the device name."
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
@@ -1707,7 +1712,7 @@ msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん"
 
-#: lxc/move.go:34 lxc/move.go:35
+#: lxc/move.go:35 lxc/move.go:36
 msgid "Move containers within or in between LXD instances"
 msgstr "LXD サーバ内もしくはサーバ間でコンテナを移動します"
 
@@ -1715,7 +1720,7 @@ msgstr "LXD サーバ内もしくはサーバ間でコンテナを移動しま�
 msgid "Move storage volumes between pools"
 msgstr "プール間でストレージボリュームを移動します"
 
-#: lxc/move.go:51
+#: lxc/move.go:53
 msgid "Move the container without its snapshots"
 msgstr "コンテナを移動します (スナップショットは移動しません)"
 
@@ -1732,36 +1737,36 @@ msgstr "ディレクトリからのインポートは root で実行する必要
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
-#: lxc/cluster.go:124 lxc/list.go:453 lxc/network.go:852 lxc/profile.go:613
+#: lxc/cluster.go:124 lxc/list.go:453 lxc/network.go:853 lxc/profile.go:613
 #: lxc/remote.go:465 lxc/storage.go:544 lxc/storage_volume.go:952
 msgid "NAME"
 msgstr ""
 
-#: lxc/network.go:834 lxc/operation.go:138 lxc/remote.go:440 lxc/remote.go:445
+#: lxc/network.go:839 lxc/operation.go:138 lxc/remote.go:440 lxc/remote.go:445
 msgid "NO"
 msgstr ""
 
-#: lxc/info.go:125 lxc/network.go:756
+#: lxc/info.go:125 lxc/network.go:758
 #, c-format
 msgid "Name: %s"
 msgstr "コンテナ名: %s"
 
-#: lxc/network.go:307
+#: lxc/network.go:309
 #, c-format
 msgid "Network %s created"
 msgstr "ネットワーク %s を作成しました"
 
-#: lxc/network.go:357
+#: lxc/network.go:359
 #, c-format
 msgid "Network %s deleted"
 msgstr "ネットワーク %s を削除しました"
 
-#: lxc/network.go:305
+#: lxc/network.go:307
 #, c-format
 msgid "Network %s pending on member %s"
 msgstr "ネットワーク %s はメンバ %s 上でペンディング状態です"
 
-#: lxc/network.go:977
+#: lxc/network.go:1012
 #, c-format
 msgid "Network %s renamed to %s"
 msgstr "ネットワーク名 %s を %s に変更しました"
@@ -1770,7 +1775,7 @@ msgstr "ネットワーク名 %s を %s に変更しました"
 msgid "Network name"
 msgstr "ネットワーク名:"
 
-#: lxc/info.go:234 lxc/network.go:770
+#: lxc/info.go:234 lxc/network.go:772
 msgid "Network usage:"
 msgstr "ネットワーク使用状況:"
 
@@ -1782,7 +1787,12 @@ msgstr "新しいエイリアスを定義する"
 msgid "New aliases to add to the image"
 msgstr "イメージに新しいエイリアスを追加します"
 
-#: lxc/network.go:424 lxc/network.go:509
+#: lxc/copy.go:42 lxc/move.go:50
+#, fuzzy
+msgid "New key/value to apply to a specific device"
+msgstr "新しいコンテナに適用するキー/値の設定"
+
+#: lxc/network.go:426 lxc/network.go:511
 msgid "No device found for this network"
 msgstr "このネットワークに対するデバイスがありません"
 
@@ -1815,7 +1825,7 @@ msgstr "simplestreams は https の URL のみサポートします"
 msgid "Only https:// is supported for remote image import."
 msgstr "リモートイメージのインポートは https:// のみをサポートします。"
 
-#: lxc/network.go:611 lxc/network.go:1031
+#: lxc/network.go:613 lxc/network.go:1066
 msgid "Only managed networks can be modified."
 msgstr "管理対象のネットワークのみ変更できます。"
 
@@ -1852,11 +1862,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:228 lxc/network.go:773
+#: lxc/info.go:228 lxc/network.go:775
 msgid "Packets received"
 msgstr "受信パケット"
 
-#: lxc/info.go:229 lxc/network.go:774
+#: lxc/info.go:229 lxc/network.go:776
 msgid "Packets sent"
 msgstr "送信パケット"
 
@@ -1869,7 +1879,7 @@ msgstr "コンテナを一時停止します"
 msgid "Pid: %d"
 msgstr "Pid: %d"
 
-#: lxc/network.go:636 lxc/profile.go:491 lxc/storage.go:299
+#: lxc/network.go:638 lxc/profile.go:491 lxc/storage.go:299
 #: lxc/storage_volume.go:809
 msgid "Press enter to open the editor again"
 msgstr "再度エディタを開くためには Enter キーを押します"
@@ -1935,11 +1945,11 @@ msgstr "プロファイル %s が %s から削除されました"
 msgid "Profile %s renamed to %s"
 msgstr "プロファイル名 %s を %s に変更しました"
 
-#: lxc/copy.go:41 lxc/init.go:43
+#: lxc/copy.go:43 lxc/init.go:43
 msgid "Profile to apply to the new container"
 msgstr "新しいコンテナに適用するプロファイル"
 
-#: lxc/move.go:49
+#: lxc/move.go:51
 #, fuzzy
 msgid "Profile to apply to the target container"
 msgstr "新しいコンテナに適用するプロファイル"
@@ -2067,7 +2077,7 @@ msgstr "エイリアスの名前を変更します"
 msgid "Rename containers and snapshots"
 msgstr "コンテナまたはコンテナのスナップショットの名前を変更します"
 
-#: lxc/network.go:943 lxc/network.go:944
+#: lxc/network.go:978 lxc/network.go:979
 msgid "Rename networks"
 msgstr "ネットワーク名を変更します"
 
@@ -2149,7 +2159,7 @@ msgstr ""
 msgid "SOURCE"
 msgstr ""
 
-#: lxc/cluster.go:127 lxc/list.go:458 lxc/network.go:859 lxc/storage.go:549
+#: lxc/cluster.go:127 lxc/list.go:458 lxc/network.go:860 lxc/storage.go:549
 msgid "STATE"
 msgstr ""
 
@@ -2198,7 +2208,7 @@ msgstr "コンテナデバイスの設定項目を設定します"
 msgid "Set container or server configuration keys"
 msgstr "コンテナもしくはサーバの設定項目を設定します"
 
-#: lxc/network.go:990 lxc/network.go:991
+#: lxc/network.go:1025 lxc/network.go:1026
 msgid "Set network configuration keys"
 msgstr "ネットワークの設定項目を設定します"
 
@@ -2282,7 +2292,7 @@ msgstr "全てのコマンドを表示します (主なコマンドだけでは�
 msgid "Show local and remote versions"
 msgstr "ローカルとリモートのバージョンを表示します"
 
-#: lxc/network.go:1059 lxc/network.go:1060
+#: lxc/network.go:1094 lxc/network.go:1095
 msgid "Show network configurations"
 msgstr "ネットワークの設定を表示します"
 
@@ -2361,7 +2371,7 @@ msgstr "コンテナを起動します"
 msgid "Starting %s"
 msgstr "%s を起動中"
 
-#: lxc/network.go:759
+#: lxc/network.go:761
 #, fuzzy, c-format
 msgid "State: %s"
 msgstr "状態: %s"
@@ -2403,7 +2413,7 @@ msgstr "ストレージプール %s を削除しました"
 msgid "Storage pool %s pending on member %s"
 msgstr "ストレージプール %s はメンバ %s 上でペンディング状態です"
 
-#: lxc/copy.go:46 lxc/init.go:46 lxc/move.go:54
+#: lxc/copy.go:48 lxc/init.go:46 lxc/move.go:56
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
@@ -2441,7 +2451,7 @@ msgstr "Swap (ピーク)"
 msgid "TARGET"
 msgstr ""
 
-#: lxc/list.go:459 lxc/network.go:853 lxc/network.go:925 lxc/operation.go:152
+#: lxc/list.go:459 lxc/network.go:854 lxc/network.go:960 lxc/operation.go:152
 #: lxc/storage_volume.go:951
 msgid "TYPE"
 msgstr ""
@@ -2488,12 +2498,12 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
-#: lxc/network.go:429 lxc/network.go:514 lxc/storage_volume.go:605
+#: lxc/network.go:431 lxc/network.go:516 lxc/storage_volume.go:605
 #: lxc/storage_volume.go:686
 msgid "The specified device doesn't exist"
 msgstr "指定したデバイスが存在しません"
 
-#: lxc/network.go:433 lxc/network.go:518
+#: lxc/network.go:435 lxc/network.go:520
 msgid "The specified device doesn't match the network"
 msgstr "指定したデバイスはネットワークとマッチしません"
 
@@ -2531,7 +2541,7 @@ msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
 "さい"
 
-#: lxc/copy.go:105
+#: lxc/copy.go:107
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -2539,15 +2549,15 @@ msgstr ""
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)"
 
-#: lxc/copy.go:43
+#: lxc/copy.go:45
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)"
 
-#: lxc/move.go:52 lxc/storage_volume.go:286
+#: lxc/move.go:54 lxc/storage_volume.go:286
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
-#: lxc/copy.go:261
+#: lxc/copy.go:308
 #, c-format
 msgid "Transferring container: %s"
 msgstr "コンテナを転送中: %s"
@@ -2578,7 +2588,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:856 lxc/profile.go:614 lxc/storage.go:553
+#: lxc/network.go:857 lxc/profile.go:614 lxc/storage.go:553
 #: lxc/storage_volume.go:954
 msgid "USED BY"
 msgstr ""
@@ -2598,7 +2608,7 @@ msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
 
-#: lxc/move.go:50
+#: lxc/move.go:52
 #, fuzzy
 msgid "Unset all profiles on the target container"
 msgstr "コンテナにプロファイルを割り当てます"
@@ -2611,7 +2621,7 @@ msgstr "コンテナデバイスの設定を削除します"
 msgid "Unset container or server configuration keys"
 msgstr "コンテナもしくはサーバの設定を削除します"
 
-#: lxc/network.go:1121 lxc/network.go:1122
+#: lxc/network.go:1156 lxc/network.go:1157
 msgid "Unset network configuration keys"
 msgstr "ネットワークの設定を削除します"
 
@@ -2668,7 +2678,7 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "コンテナの稼動状態のスナップショットを取得するかどうか"
 
-#: lxc/network.go:836 lxc/operation.go:140 lxc/remote.go:442 lxc/remote.go:447
+#: lxc/network.go:841 lxc/operation.go:140 lxc/remote.go:442 lxc/remote.go:447
 msgid "YES"
 msgstr ""
 
@@ -2680,11 +2690,11 @@ msgstr "-t と -T は同時に指定できません"
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "--mode と同時に -t または -T は指定できません"
 
-#: lxc/copy.go:75
+#: lxc/copy.go:77
 msgid "You must specify a destination container name when using --target"
 msgstr "--target オプションを使うときはコピー先のコンテナ名を指定してください"
 
-#: lxc/copy.go:70 lxc/move.go:194
+#: lxc/copy.go:72 lxc/move.go:197
 msgid "You must specify a source container name"
 msgstr "コピー元のコンテナ名を指定してください"
 
@@ -2716,7 +2726,7 @@ msgstr "alias"
 msgid "assign [<remote>:]<container> <profiles>"
 msgstr ""
 
-#: lxc/network.go:106
+#: lxc/network.go:108
 msgid ""
 "attach [<remote>:]<network> <container> [<device name>] [<interface name>]"
 msgstr ""
@@ -2730,7 +2740,7 @@ msgid ""
 "attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
 
-#: lxc/network.go:179
+#: lxc/network.go:181
 msgid ""
 "attach-profile [<remote>:]<network> <profile> [<device name>] [<interface "
 "name>]"
@@ -2760,7 +2770,7 @@ msgstr ""
 msgid "copy [<remote>:]<profile> [<remote>:]<profile>"
 msgstr ""
 
-#: lxc/copy.go:33
+#: lxc/copy.go:34
 msgid "copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr ""
 
@@ -2772,7 +2782,7 @@ msgstr ""
 msgid "create [<remote>:]<container> <template>"
 msgstr ""
 
-#: lxc/network.go:252
+#: lxc/network.go:254
 msgid "create [<remote>:]<network> [key=value...]"
 msgstr ""
 
@@ -2817,7 +2827,7 @@ msgstr ""
 msgid "delete [<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "delete [<remote>:]<image> [[<remote>:]<image>...]"
 
-#: lxc/network.go:321
+#: lxc/network.go:323
 msgid "delete [<remote>:]<network>"
 msgstr ""
 
@@ -2841,7 +2851,7 @@ msgstr ""
 msgid "description"
 msgstr "説明"
 
-#: lxc/network.go:369
+#: lxc/network.go:371
 msgid "detach [<remote>:]<network> <container> [<device name>]"
 msgstr ""
 
@@ -2853,7 +2863,7 @@ msgstr ""
 msgid "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr ""
 
-#: lxc/network.go:454
+#: lxc/network.go:456
 msgid "detach-profile [<remote>:]<network> <container> [<device name>]"
 msgstr ""
 
@@ -2891,7 +2901,7 @@ msgstr ""
 msgid "edit [<remote>:]<image>"
 msgstr ""
 
-#: lxc/network.go:539
+#: lxc/network.go:541
 msgid "edit [<remote>:]<network>"
 msgstr ""
 
@@ -2948,7 +2958,7 @@ msgstr ""
 msgid "get [<remote>:]<container|profile> <device> <key>"
 msgstr ""
 
-#: lxc/network.go:662
+#: lxc/network.go:664
 msgid "get [<remote>:]<network> <key>"
 msgstr ""
 
@@ -2994,7 +3004,7 @@ msgstr "ストレージ情報"
 msgid "info [<remote>:]<image>"
 msgstr ""
 
-#: lxc/network.go:720
+#: lxc/network.go:722
 msgid "info [<remote>:]<network>"
 msgstr ""
 
@@ -3018,7 +3028,7 @@ msgstr ""
 msgid "list"
 msgstr ""
 
-#: lxc/cluster.go:61 lxc/config_trust.go:112 lxc/network.go:787
+#: lxc/cluster.go:61 lxc/config_trust.go:112 lxc/network.go:791
 #: lxc/operation.go:95 lxc/profile.go:565 lxc/storage.go:488
 msgid "list [<remote>:]"
 msgstr ""
@@ -3043,7 +3053,7 @@ msgstr ""
 msgid "list [<remote>:]<pool>"
 msgstr ""
 
-#: lxc/network.go:877
+#: lxc/network.go:912
 msgid "list-leases [<remote>:]<network>"
 msgstr ""
 
@@ -3222,7 +3232,7 @@ msgstr ""
 "lxc monitor --type=lifecycle\n"
 "    lifecycle イベントのみを表示します。"
 
-#: lxc/move.go:37
+#: lxc/move.go:38
 msgid ""
 "lxc move [<remote>:]<source container> [<remote>:][<destination container>] "
 "[--container-only]\n"
@@ -3363,7 +3373,7 @@ msgstr ""
 msgid "move [<pool>/]<volume> [<pool>/]<volume>"
 msgstr ""
 
-#: lxc/move.go:32
+#: lxc/move.go:33
 msgid ""
 "move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
 "<snapshot>]]"
@@ -3375,7 +3385,7 @@ msgstr ""
 msgid "name"
 msgstr "名前"
 
-#: lxc/network.go:30
+#: lxc/network.go:32
 msgid "network"
 msgstr "network"
 
@@ -3487,7 +3497,7 @@ msgstr "rename [<remote>:]<container>[/<snapshot>] <container>[/<snapshot>]"
 msgid "rename [<remote>:]<member> <new-name>"
 msgstr ""
 
-#: lxc/network.go:941
+#: lxc/network.go:976
 msgid "rename [<remote>:]<network> <new-name>"
 msgstr ""
 
@@ -3511,7 +3521,7 @@ msgstr "restore [<remote>:]<container> <snapshot>"
 msgid "set [<remote>:]<container|profile> <device> <key> <value>"
 msgstr ""
 
-#: lxc/network.go:989
+#: lxc/network.go:1024
 msgid "set [<remote>:]<network> <key> <value>"
 msgstr ""
 
@@ -3559,7 +3569,7 @@ msgstr ""
 msgid "show [<remote>:]<member>"
 msgstr ""
 
-#: lxc/network.go:1058
+#: lxc/network.go:1093
 msgid "show [<remote>:]<network>"
 msgstr ""
 
@@ -3636,7 +3646,7 @@ msgstr ""
 msgid "unset [<remote>:]<container|profile> <device> <key>"
 msgstr ""
 
-#: lxc/network.go:1120
+#: lxc/network.go:1155
 msgid "unset [<remote>:]<network> <key>"
 msgstr ""
 

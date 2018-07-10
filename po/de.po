@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-06-27 12:44-0400\n"
+"POT-Creation-Date: 2018-07-10 00:08-0400\n"
 "PO-Revision-Date: 2018-06-05 04:58+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -176,7 +176,7 @@ msgstr ""
 "### Zum Beispiel:\n"
 "###  description: Mein eigenes Abbild\n"
 
-#: lxc/network.go:550
+#: lxc/network.go:552
 #, fuzzy
 msgid ""
 "### This is a yaml representation of the network.\n"
@@ -360,15 +360,15 @@ msgstr "Architektur: %s\n"
 msgid "Assign sets of profiles to containers"
 msgstr ""
 
-#: lxc/network.go:107
+#: lxc/network.go:109
 msgid "Attach network interfaces to containers"
 msgstr ""
 
-#: lxc/network.go:180 lxc/network.go:181
+#: lxc/network.go:182 lxc/network.go:183
 msgid "Attach network interfaces to profiles"
 msgstr ""
 
-#: lxc/network.go:108
+#: lxc/network.go:110
 msgid "Attach new network interfaces to containers"
 msgstr ""
 
@@ -408,12 +408,12 @@ msgstr "automatisches Update: %s"
 msgid "Backup exported successfully!"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/network.go:287
+#: lxc/network.go:289
 #, c-format
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:112 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
+#: lxc/copy.go:114 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
 #: lxc/storage_volume.go:454
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -424,15 +424,20 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr "Ungültige Abbild Eigenschaft: %s\n"
 
+#: lxc/copy.go:125
+#, c-format
+msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
+msgstr ""
+
 #: lxc/action.go:224
 msgid "Both --all and container name given"
 msgstr ""
 
-#: lxc/info.go:226 lxc/network.go:771
+#: lxc/info.go:226 lxc/network.go:773
 msgid "Bytes received"
 msgstr "Bytes empfangen"
 
-#: lxc/info.go:227 lxc/network.go:772
+#: lxc/info.go:227 lxc/network.go:774
 msgid "Bytes sent"
 msgstr "Bytes gesendet"
 
@@ -471,7 +476,7 @@ msgstr ""
 "Optionen:\n"
 "\n"
 
-#: lxc/move.go:104
+#: lxc/move.go:106
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
@@ -483,7 +488,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
-#: lxc/config.go:400 lxc/network.go:1040 lxc/profile.go:787 lxc/storage.go:617
+#: lxc/config.go:400 lxc/network.go:1075 lxc/profile.go:787 lxc/storage.go:617
 #: lxc/storage_volume.go:1126
 #, c-format
 msgid "Can't read from stdin: %s"
@@ -528,9 +533,9 @@ msgstr "Gespeichertes Nutzerzertifikat auf dem Server: "
 msgid "Client version: %s\n"
 msgstr ""
 
-#: lxc/copy.go:47 lxc/init.go:48 lxc/move.go:55 lxc/network.go:257
-#: lxc/network.go:667 lxc/network.go:994 lxc/network.go:1063
-#: lxc/network.go:1125 lxc/storage.go:92 lxc/storage.go:331 lxc/storage.go:576
+#: lxc/copy.go:49 lxc/init.go:48 lxc/move.go:57 lxc/network.go:259
+#: lxc/network.go:669 lxc/network.go:1029 lxc/network.go:1098
+#: lxc/network.go:1160 lxc/storage.go:92 lxc/storage.go:331 lxc/storage.go:576
 #: lxc/storage.go:649 lxc/storage.go:732 lxc/storage_volume.go:287
 #: lxc/storage_volume.go:415 lxc/storage_volume.go:490
 #: lxc/storage_volume.go:716 lxc/storage_volume.go:842
@@ -540,7 +545,7 @@ msgstr ""
 msgid "Cluster member name"
 msgstr ""
 
-#: lxc/cluster.go:361
+#: lxc/cluster.go:360
 msgid "Clustering enabled"
 msgstr ""
 
@@ -560,18 +565,18 @@ msgid ""
 "For help with any of those, simply call them with --help."
 msgstr ""
 
-#: lxc/copy.go:40 lxc/init.go:42
+#: lxc/copy.go:41 lxc/init.go:42
 #, fuzzy
 msgid "Config key/value to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/move.go:48
+#: lxc/move.go:49
 #, fuzzy
 msgid "Config key/value to apply to the target container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/config.go:195 lxc/config.go:259 lxc/config_metadata.go:144
-#: lxc/image.go:405 lxc/network.go:635 lxc/profile.go:490 lxc/storage.go:298
+#: lxc/image.go:405 lxc/network.go:637 lxc/profile.go:490 lxc/storage.go:298
 #: lxc/storage_volume.go:808
 #, fuzzy, c-format
 msgid "Config parsing error: %s"
@@ -585,7 +590,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:292 lxc/init.go:230
+#: lxc/copy.go:339 lxc/init.go:230
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
@@ -595,7 +600,7 @@ msgstr ""
 msgid "Container published with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
 
-#: lxc/copy.go:45 lxc/move.go:53
+#: lxc/copy.go:47 lxc/move.go:55
 msgid "Copy a stateful container stateless"
 msgstr ""
 
@@ -603,7 +608,7 @@ msgstr ""
 msgid "Copy aliases from source"
 msgstr "Kopiere Aliasse von der Quelle"
 
-#: lxc/copy.go:35 lxc/copy.go:36
+#: lxc/copy.go:36 lxc/copy.go:37
 #, fuzzy
 msgid "Copy containers within or in between LXD instances"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -633,7 +638,7 @@ msgstr ""
 msgid "Copy storage volumes"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/copy.go:44
+#: lxc/copy.go:46
 #, fuzzy
 msgid "Copy the container without its snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -692,7 +697,7 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Create new custom storage volumes"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/network.go:253 lxc/network.go:254
+#: lxc/network.go:255 lxc/network.go:256
 msgid "Create new networks"
 msgstr ""
 
@@ -706,7 +711,7 @@ msgstr "Fehlerhafte Profil URL %s"
 msgid "Create storage pools"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/copy.go:48 lxc/init.go:49
+#: lxc/copy.go:50 lxc/init.go:49
 #, fuzzy
 msgid "Create the container with no profiles applied"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -730,7 +735,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:451 lxc/network.go:855
+#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:451 lxc/network.go:856
 #: lxc/operation.go:153 lxc/storage.go:545 lxc/storage_volume.go:953
 msgid "DESCRIPTION"
 msgstr "BESCHREIBUNG"
@@ -769,7 +774,7 @@ msgstr ""
 msgid "Delete images"
 msgstr ""
 
-#: lxc/network.go:323 lxc/network.go:324
+#: lxc/network.go:325 lxc/network.go:326
 msgid "Delete networks"
 msgstr ""
 
@@ -789,7 +794,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:290 lxc/config.go:29
+#: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:289 lxc/config.go:29
 #: lxc/config.go:88 lxc/config.go:289 lxc/config.go:355 lxc/config.go:452
 #: lxc/config.go:560 lxc/config_device.go:24 lxc/config_device.go:76
 #: lxc/config_device.go:179 lxc/config_device.go:252 lxc/config_device.go:318
@@ -800,7 +805,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/config_template.go:152 lxc/config_template.go:236
 #: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
 #: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
-#: lxc/copy.go:36 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:30
+#: lxc/copy.go:37 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:30
 #: lxc/file.go:40 lxc/file.go:73 lxc/file.go:122 lxc/file.go:185
 #: lxc/file.go:352 lxc/image.go:42 lxc/image.go:131 lxc/image.go:261
 #: lxc/image.go:312 lxc/image.go:435 lxc/image.go:571 lxc/image.go:775
@@ -808,11 +813,11 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
 #: lxc/image_alias.go:250 lxc/import.go:22 lxc/info.go:29 lxc/init.go:35
 #: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:46 lxc/manpage.go:19
-#: lxc/monitor.go:31 lxc/move.go:35 lxc/network.go:32 lxc/network.go:108
-#: lxc/network.go:181 lxc/network.go:254 lxc/network.go:324 lxc/network.go:371
-#: lxc/network.go:456 lxc/network.go:541 lxc/network.go:664 lxc/network.go:722
-#: lxc/network.go:790 lxc/network.go:879 lxc/network.go:944 lxc/network.go:991
-#: lxc/network.go:1060 lxc/network.go:1122 lxc/operation.go:25
+#: lxc/monitor.go:31 lxc/move.go:36 lxc/network.go:34 lxc/network.go:110
+#: lxc/network.go:183 lxc/network.go:256 lxc/network.go:326 lxc/network.go:373
+#: lxc/network.go:458 lxc/network.go:543 lxc/network.go:666 lxc/network.go:724
+#: lxc/network.go:794 lxc/network.go:914 lxc/network.go:979 lxc/network.go:1026
+#: lxc/network.go:1095 lxc/network.go:1157 lxc/operation.go:25
 #: lxc/operation.go:54 lxc/operation.go:98 lxc/operation.go:174
 #: lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163 lxc/profile.go:241
 #: lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520
@@ -834,11 +839,11 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid "Description"
 msgstr ""
 
-#: lxc/network.go:370 lxc/network.go:371
+#: lxc/network.go:372 lxc/network.go:373
 msgid "Detach network interfaces from containers"
 msgstr ""
 
-#: lxc/network.go:455 lxc/network.go:456
+#: lxc/network.go:457 lxc/network.go:458
 msgid "Detach network interfaces from profiles"
 msgstr ""
 
@@ -917,7 +922,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Edit image properties"
 msgstr ""
 
-#: lxc/network.go:540 lxc/network.go:541
+#: lxc/network.go:542 lxc/network.go:543
 msgid "Edit network configurations as YAML"
 msgstr ""
 
@@ -938,11 +943,11 @@ msgstr ""
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
 
-#: lxc/cluster.go:289
+#: lxc/cluster.go:288
 msgid "Enable clustering on a single non-clustered LXD instance"
 msgstr ""
 
-#: lxc/cluster.go:290
+#: lxc/cluster.go:289
 msgid ""
 "Enable clustering on a single non-clustered LXD instance\n"
 "\n"
@@ -961,7 +966,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:42 lxc/init.go:44
+#: lxc/copy.go:44 lxc/init.go:44
 msgid "Ephemeral container"
 msgstr "Flüchtiger Container"
 
@@ -1050,7 +1055,7 @@ msgstr "FINGERABDRUCK"
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:287
+#: lxc/copy.go:334
 #, fuzzy
 msgid "Failed to get the new container name"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1069,7 +1074,7 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/network.go:820 lxc/operation.go:126
+#: lxc/network.go:825 lxc/operation.go:126
 #, fuzzy
 msgid "Filtering isn't supported yet"
 msgstr ""
@@ -1102,7 +1107,7 @@ msgstr ""
 msgid "Force using the local unix socket"
 msgstr ""
 
-#: lxc/image.go:912 lxc/list.go:113 lxc/remote.go:423
+#: lxc/image.go:912 lxc/list.go:113 lxc/network.go:798 lxc/remote.go:423
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
@@ -1115,7 +1120,7 @@ msgstr ""
 msgid "Generating a client certificate. This may take a minute..."
 msgstr "Generiere Nutzerzertifikat. Dies kann wenige Minuten dauern...\n"
 
-#: lxc/network.go:721 lxc/network.go:722
+#: lxc/network.go:723 lxc/network.go:724
 msgid "Get runtime information on networks"
 msgstr ""
 
@@ -1127,7 +1132,7 @@ msgstr ""
 msgid "Get values for container or server configuration keys"
 msgstr ""
 
-#: lxc/network.go:663 lxc/network.go:664
+#: lxc/network.go:665 lxc/network.go:666
 msgid "Get values for network configuration keys"
 msgstr ""
 
@@ -1143,7 +1148,7 @@ msgstr ""
 msgid "Get values for storage volume configuration keys"
 msgstr ""
 
-#: lxc/network.go:922
+#: lxc/network.go:957
 msgid "HOSTNAME"
 msgstr ""
 
@@ -1151,7 +1156,7 @@ msgstr ""
 msgid "ID"
 msgstr ""
 
-#: lxc/network.go:924
+#: lxc/network.go:959
 msgid "IP ADDRESS"
 msgstr ""
 
@@ -1256,7 +1261,7 @@ msgstr ""
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 
-#: lxc/image.go:1195 lxc/list.go:365 lxc/remote.go:507
+#: lxc/image.go:1195 lxc/list.go:365 lxc/network.go:898 lxc/remote.go:507
 #, fuzzy, c-format
 msgid "Invalid format %q"
 msgstr "Ungültiges Ziel %s"
@@ -1302,7 +1307,7 @@ msgstr "Ungültige Quelle %s"
 msgid "Invalid target %s"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/info.go:164 lxc/network.go:763
+#: lxc/info.go:164 lxc/network.go:765
 msgid "Ips:"
 msgstr ""
 
@@ -1335,7 +1340,7 @@ msgstr ""
 msgid "Last used: never"
 msgstr ""
 
-#: lxc/network.go:878 lxc/network.go:879
+#: lxc/network.go:913 lxc/network.go:914
 msgid "List DHCP leases"
 msgstr ""
 
@@ -1348,7 +1353,7 @@ msgstr "Aliasse:\n"
 msgid "List all the cluster members"
 msgstr ""
 
-#: lxc/network.go:789 lxc/network.go:790
+#: lxc/network.go:793 lxc/network.go:794
 msgid "List available networks"
 msgstr ""
 
@@ -1519,16 +1524,16 @@ msgstr ""
 msgid "Log:"
 msgstr ""
 
-#: lxc/network.go:923
+#: lxc/network.go:958
 msgid "MAC ADDRESS"
 msgstr ""
 
-#: lxc/network.go:757
+#: lxc/network.go:759
 #, c-format
 msgid "MAC address: %s"
 msgstr ""
 
-#: lxc/network.go:854
+#: lxc/network.go:855
 msgid "MANAGED"
 msgstr ""
 
@@ -1536,7 +1541,7 @@ msgstr ""
 msgid "MESSAGE"
 msgstr ""
 
-#: lxc/network.go:758
+#: lxc/network.go:760
 #, c-format
 msgid "MTU: %d"
 msgstr ""
@@ -1550,7 +1555,7 @@ msgstr "Veröffentliche Abbild"
 msgid "Make the image public"
 msgstr "Veröffentliche Abbild"
 
-#: lxc/network.go:31 lxc/network.go:32
+#: lxc/network.go:33 lxc/network.go:34
 msgid "Manage and attach containers to networks"
 msgstr ""
 
@@ -1692,10 +1697,10 @@ msgstr "der Name des Ursprung Containers muss angegeben werden"
 msgid "Missing name"
 msgstr "Fehlende Zusammenfassung."
 
-#: lxc/network.go:132 lxc/network.go:205 lxc/network.go:348 lxc/network.go:395
-#: lxc/network.go:480 lxc/network.go:585 lxc/network.go:690 lxc/network.go:747
-#: lxc/network.go:903 lxc/network.go:968 lxc/network.go:1017
-#: lxc/network.go:1086
+#: lxc/network.go:134 lxc/network.go:207 lxc/network.go:350 lxc/network.go:397
+#: lxc/network.go:482 lxc/network.go:587 lxc/network.go:692 lxc/network.go:749
+#: lxc/network.go:938 lxc/network.go:1003 lxc/network.go:1052
+#: lxc/network.go:1121
 msgid "Missing network name"
 msgstr ""
 
@@ -1740,7 +1745,7 @@ msgid ""
 "By default the monitor will listen to all message types."
 msgstr ""
 
-#: lxc/network.go:415 lxc/network.go:500 lxc/storage_volume.go:591
+#: lxc/network.go:417 lxc/network.go:502 lxc/storage_volume.go:591
 #: lxc/storage_volume.go:672
 msgid "More than one device matches, specify the device name."
 msgstr ""
@@ -1750,7 +1755,7 @@ msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
 
-#: lxc/move.go:34 lxc/move.go:35
+#: lxc/move.go:35 lxc/move.go:36
 #, fuzzy
 msgid "Move containers within or in between LXD instances"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -1760,7 +1765,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Move storage volumes between pools"
 msgstr "Kein Zertifikat für diese Verbindung"
 
-#: lxc/move.go:51
+#: lxc/move.go:53
 #, fuzzy
 msgid "Move the container without its snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -1779,36 +1784,36 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/cluster.go:124 lxc/list.go:453 lxc/network.go:852 lxc/profile.go:613
+#: lxc/cluster.go:124 lxc/list.go:453 lxc/network.go:853 lxc/profile.go:613
 #: lxc/remote.go:465 lxc/storage.go:544 lxc/storage_volume.go:952
 msgid "NAME"
 msgstr ""
 
-#: lxc/network.go:834 lxc/operation.go:138 lxc/remote.go:440 lxc/remote.go:445
+#: lxc/network.go:839 lxc/operation.go:138 lxc/remote.go:440 lxc/remote.go:445
 msgid "NO"
 msgstr ""
 
-#: lxc/info.go:125 lxc/network.go:756
+#: lxc/info.go:125 lxc/network.go:758
 #, c-format
 msgid "Name: %s"
 msgstr ""
 
-#: lxc/network.go:307
+#: lxc/network.go:309
 #, fuzzy, c-format
 msgid "Network %s created"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/network.go:357
+#: lxc/network.go:359
 #, fuzzy, c-format
 msgid "Network %s deleted"
 msgstr "Profil %s gelöscht\n"
 
-#: lxc/network.go:305
+#: lxc/network.go:307
 #, fuzzy, c-format
 msgid "Network %s pending on member %s"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/network.go:977
+#: lxc/network.go:1012
 #, fuzzy, c-format
 msgid "Network %s renamed to %s"
 msgstr "Profil %s erstellt\n"
@@ -1817,7 +1822,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Network name"
 msgstr ""
 
-#: lxc/info.go:234 lxc/network.go:770
+#: lxc/info.go:234 lxc/network.go:772
 #, fuzzy
 msgid "Network usage:"
 msgstr "Profil %s erstellt\n"
@@ -1830,7 +1835,12 @@ msgstr ""
 msgid "New aliases to add to the image"
 msgstr ""
 
-#: lxc/network.go:424 lxc/network.go:509
+#: lxc/copy.go:42 lxc/move.go:50
+#, fuzzy
+msgid "New key/value to apply to a specific device"
+msgstr "kann nicht zum selben Container Namen kopieren"
+
+#: lxc/network.go:426 lxc/network.go:511
 #, fuzzy
 msgid "No device found for this network"
 msgstr "Kein Zertifikat für diese Verbindung"
@@ -1865,7 +1875,7 @@ msgstr ""
 msgid "Only https:// is supported for remote image import."
 msgstr ""
 
-#: lxc/network.go:611 lxc/network.go:1031
+#: lxc/network.go:613 lxc/network.go:1066
 msgid "Only managed networks can be modified."
 msgstr ""
 
@@ -1902,11 +1912,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:228 lxc/network.go:773
+#: lxc/info.go:228 lxc/network.go:775
 msgid "Packets received"
 msgstr ""
 
-#: lxc/info.go:229 lxc/network.go:774
+#: lxc/info.go:229 lxc/network.go:776
 msgid "Packets sent"
 msgstr ""
 
@@ -1920,7 +1930,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/network.go:636 lxc/profile.go:491 lxc/storage.go:299
+#: lxc/network.go:638 lxc/profile.go:491 lxc/storage.go:299
 #: lxc/storage_volume.go:809
 msgid "Press enter to open the editor again"
 msgstr ""
@@ -1986,12 +1996,12 @@ msgstr "Gerät %s wurde von %s entfernt\n"
 msgid "Profile %s renamed to %s"
 msgstr "Profil %s wurde auf %s angewandt\n"
 
-#: lxc/copy.go:41 lxc/init.go:43
+#: lxc/copy.go:43 lxc/init.go:43
 #, fuzzy
 msgid "Profile to apply to the new container"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/move.go:49
+#: lxc/move.go:51
 #, fuzzy
 msgid "Profile to apply to the target container"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -2128,7 +2138,7 @@ msgstr ""
 msgid "Rename containers and snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/network.go:943 lxc/network.go:944
+#: lxc/network.go:978 lxc/network.go:979
 msgid "Rename networks"
 msgstr ""
 
@@ -2209,7 +2219,7 @@ msgstr ""
 msgid "SOURCE"
 msgstr ""
 
-#: lxc/cluster.go:127 lxc/list.go:458 lxc/network.go:859 lxc/storage.go:549
+#: lxc/cluster.go:127 lxc/list.go:458 lxc/network.go:860 lxc/storage.go:549
 msgid "STATE"
 msgstr ""
 
@@ -2261,7 +2271,7 @@ msgstr "Alternatives config Verzeichnis."
 msgid "Set container or server configuration keys"
 msgstr ""
 
-#: lxc/network.go:990 lxc/network.go:991
+#: lxc/network.go:1025 lxc/network.go:1026
 msgid "Set network configuration keys"
 msgstr ""
 
@@ -2349,7 +2359,7 @@ msgstr ""
 msgid "Show local and remote versions"
 msgstr ""
 
-#: lxc/network.go:1059 lxc/network.go:1060
+#: lxc/network.go:1094 lxc/network.go:1095
 msgid "Show network configurations"
 msgstr ""
 
@@ -2431,7 +2441,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Starting %s"
 msgstr ""
 
-#: lxc/network.go:759
+#: lxc/network.go:761
 #, fuzzy, c-format
 msgid "State: %s"
 msgstr "Erstellt: %s"
@@ -2474,7 +2484,7 @@ msgstr "Profil %s gelöscht\n"
 msgid "Storage pool %s pending on member %s"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/copy.go:46 lxc/init.go:46 lxc/move.go:54
+#: lxc/copy.go:48 lxc/init.go:46 lxc/move.go:56
 #, fuzzy
 msgid "Storage pool name"
 msgstr "Profilname kann nicht geändert werden"
@@ -2516,7 +2526,7 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/list.go:459 lxc/network.go:853 lxc/network.go:925 lxc/operation.go:152
+#: lxc/list.go:459 lxc/network.go:854 lxc/network.go:960 lxc/operation.go:152
 #: lxc/storage_volume.go:951
 msgid "TYPE"
 msgstr ""
@@ -2561,13 +2571,13 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/network.go:429 lxc/network.go:514 lxc/storage_volume.go:605
+#: lxc/network.go:431 lxc/network.go:516 lxc/storage_volume.go:605
 #: lxc/storage_volume.go:686
 #, fuzzy
 msgid "The specified device doesn't exist"
 msgstr "entfernte Instanz %s existiert nicht"
 
-#: lxc/network.go:433 lxc/network.go:518
+#: lxc/network.go:435 lxc/network.go:520
 #, fuzzy
 msgid "The specified device doesn't match the network"
 msgstr "entfernte Instanz %s existiert nicht"
@@ -2602,7 +2612,7 @@ msgstr ""
 msgid "To start your first container, try: lxc launch ubuntu:16.04"
 msgstr ""
 
-#: lxc/copy.go:105
+#: lxc/copy.go:107
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -2610,15 +2620,15 @@ msgstr ""
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr ""
 
-#: lxc/copy.go:43
+#: lxc/copy.go:45
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr ""
 
-#: lxc/move.go:52 lxc/storage_volume.go:286
+#: lxc/move.go:54 lxc/storage_volume.go:286
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:261
+#: lxc/copy.go:308
 #, fuzzy, c-format
 msgid "Transferring container: %s"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -2649,7 +2659,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:856 lxc/profile.go:614 lxc/storage.go:553
+#: lxc/network.go:857 lxc/profile.go:614 lxc/storage.go:553
 #: lxc/storage_volume.go:954
 msgid "USED BY"
 msgstr ""
@@ -2669,7 +2679,7 @@ msgstr ""
 msgid "Unknown file type '%s'"
 msgstr "Unbekannter Befehl %s für Abbild"
 
-#: lxc/move.go:50
+#: lxc/move.go:52
 #, fuzzy
 msgid "Unset all profiles on the target container"
 msgstr "nicht alle Profile der Quelle sind am Ziel vorhanden."
@@ -2682,7 +2692,7 @@ msgstr ""
 msgid "Unset container or server configuration keys"
 msgstr ""
 
-#: lxc/network.go:1121 lxc/network.go:1122
+#: lxc/network.go:1156 lxc/network.go:1157
 msgid "Unset network configuration keys"
 msgstr ""
 
@@ -2740,7 +2750,7 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr "Zustand des laufenden Containers sichern oder nicht"
 
-#: lxc/network.go:836 lxc/operation.go:140 lxc/remote.go:442 lxc/remote.go:447
+#: lxc/network.go:841 lxc/operation.go:140 lxc/remote.go:442 lxc/remote.go:447
 msgid "YES"
 msgstr ""
 
@@ -2753,12 +2763,12 @@ msgstr ""
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/copy.go:75
+#: lxc/copy.go:77
 #, fuzzy
 msgid "You must specify a destination container name when using --target"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/copy.go:70 lxc/move.go:194
+#: lxc/copy.go:72 lxc/move.go:197
 #, fuzzy
 msgid "You must specify a source container name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -2792,7 +2802,7 @@ msgstr "Aliasse:\n"
 msgid "assign [<remote>:]<container> <profiles>"
 msgstr ""
 
-#: lxc/network.go:106
+#: lxc/network.go:108
 msgid ""
 "attach [<remote>:]<network> <container> [<device name>] [<interface name>]"
 msgstr ""
@@ -2806,7 +2816,7 @@ msgid ""
 "attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
 
-#: lxc/network.go:179
+#: lxc/network.go:181
 msgid ""
 "attach-profile [<remote>:]<network> <profile> [<device name>] [<interface "
 "name>]"
@@ -2836,7 +2846,7 @@ msgstr ""
 msgid "copy [<remote>:]<profile> [<remote>:]<profile>"
 msgstr ""
 
-#: lxc/copy.go:33
+#: lxc/copy.go:34
 msgid "copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr ""
 
@@ -2848,7 +2858,7 @@ msgstr ""
 msgid "create [<remote>:]<container> <template>"
 msgstr ""
 
-#: lxc/network.go:252
+#: lxc/network.go:254
 msgid "create [<remote>:]<network> [key=value...]"
 msgstr ""
 
@@ -2903,7 +2913,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/network.go:321
+#: lxc/network.go:323
 msgid "delete [<remote>:]<network>"
 msgstr ""
 
@@ -2927,7 +2937,7 @@ msgstr ""
 msgid "description"
 msgstr ""
 
-#: lxc/network.go:369
+#: lxc/network.go:371
 msgid "detach [<remote>:]<network> <container> [<device name>]"
 msgstr ""
 
@@ -2939,7 +2949,7 @@ msgstr ""
 msgid "detach-profile [<remote:>]<pool> <volume> <profile> [<device name>]"
 msgstr ""
 
-#: lxc/network.go:454
+#: lxc/network.go:456
 msgid "detach-profile [<remote>:]<network> <container> [<device name>]"
 msgstr ""
 
@@ -2975,7 +2985,7 @@ msgstr ""
 msgid "edit [<remote>:]<image>"
 msgstr ""
 
-#: lxc/network.go:539
+#: lxc/network.go:541
 msgid "edit [<remote>:]<network>"
 msgstr ""
 
@@ -3034,7 +3044,7 @@ msgstr ""
 msgid "get [<remote>:]<container|profile> <device> <key>"
 msgstr ""
 
-#: lxc/network.go:662
+#: lxc/network.go:664
 msgid "get [<remote>:]<network> <key>"
 msgstr ""
 
@@ -3080,7 +3090,7 @@ msgstr ""
 msgid "info [<remote>:]<image>"
 msgstr ""
 
-#: lxc/network.go:720
+#: lxc/network.go:722
 msgid "info [<remote>:]<network>"
 msgstr ""
 
@@ -3104,7 +3114,7 @@ msgstr ""
 msgid "list"
 msgstr ""
 
-#: lxc/cluster.go:61 lxc/config_trust.go:112 lxc/network.go:787
+#: lxc/cluster.go:61 lxc/config_trust.go:112 lxc/network.go:791
 #: lxc/operation.go:95 lxc/profile.go:565 lxc/storage.go:488
 msgid "list [<remote>:]"
 msgstr ""
@@ -3129,7 +3139,7 @@ msgstr ""
 msgid "list [<remote>:]<pool>"
 msgstr ""
 
-#: lxc/network.go:877
+#: lxc/network.go:912
 msgid "list-leases [<remote>:]<network>"
 msgstr ""
 
@@ -3252,7 +3262,7 @@ msgid ""
 "    Only show lifecycle events."
 msgstr ""
 
-#: lxc/move.go:37
+#: lxc/move.go:38
 #, fuzzy
 msgid ""
 "lxc move [<remote>:]<source container> [<remote>:][<destination container>] "
@@ -3354,7 +3364,7 @@ msgstr ""
 msgid "move [<pool>/]<volume> [<pool>/]<volume>"
 msgstr ""
 
-#: lxc/move.go:32
+#: lxc/move.go:33
 #, fuzzy
 msgid ""
 "move [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
@@ -3369,7 +3379,7 @@ msgstr ""
 msgid "name"
 msgstr ""
 
-#: lxc/network.go:30
+#: lxc/network.go:32
 msgid "network"
 msgstr ""
 
@@ -3500,7 +3510,7 @@ msgstr ""
 msgid "rename [<remote>:]<member> <new-name>"
 msgstr ""
 
-#: lxc/network.go:941
+#: lxc/network.go:976
 msgid "rename [<remote>:]<network> <new-name>"
 msgstr ""
 
@@ -3528,7 +3538,7 @@ msgstr ""
 msgid "set [<remote>:]<container|profile> <device> <key> <value>"
 msgstr ""
 
-#: lxc/network.go:989
+#: lxc/network.go:1024
 msgid "set [<remote>:]<network> <key> <value>"
 msgstr ""
 
@@ -3576,7 +3586,7 @@ msgstr ""
 msgid "show [<remote>:]<member>"
 msgstr ""
 
-#: lxc/network.go:1058
+#: lxc/network.go:1093
 msgid "show [<remote>:]<network>"
 msgstr ""
 
@@ -3661,7 +3671,7 @@ msgstr ""
 msgid "unset [<remote>:]<container|profile> <device> <key>"
 msgstr ""
 
-#: lxc/network.go:1120
+#: lxc/network.go:1155
 msgid "unset [<remote>:]<network> <key>"
 msgstr ""
 
