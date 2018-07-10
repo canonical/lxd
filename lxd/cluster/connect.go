@@ -73,6 +73,20 @@ func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName strin
 	}
 
 	if len(addresses) > 1 {
+		var driver string
+		err := cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			driver, err = tx.StoragePoolDriver(poolID)
+			return err
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if driver == "ceph" {
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("more than one node has a volume named %s", volumeName)
 	}
 
@@ -80,6 +94,7 @@ func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName strin
 	if address == "" {
 		return nil, nil
 	}
+
 	return Connect(address, cert, false)
 }
 
