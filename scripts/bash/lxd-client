@@ -68,7 +68,7 @@ _have lxc && {
       core.https_allowed_headers core.https_allowed_methods \
       core.https_allowed_origin core.macaroon.endpoint core.proxy_https \
       core.proxy_http core.proxy_ignore_hosts core.trust_password \
-      cluster.offline_threshold \
+      core.debug_address cluster.offline_threshold \
       images.auto_update_cached images.auto_update_interval \
       images.compression_algorithm images.remote_cache_expiry \
       maas.api.url maas.api.key maas.machine"
