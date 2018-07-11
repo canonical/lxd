@@ -540,3 +540,8 @@ sockets.
 ## container\_protection\_delete
 Enables setting the `security.protection.delete` field which prevents containers
 from being deleted if set to true. Snapshots are not affected by this setting.
+
+## proxy\_priv\_drop
+Adds security.uid and security.gid for the proxy devices, allowing
+privilege dropping and effectively changing the uid/gid used for
+connections to Unix sockets too.

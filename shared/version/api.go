@@ -113,6 +113,7 @@ var APIExtensions = []string{
 	"network_state",
 	"proxy_unix_dac_properties",
 	"container_protection_delete",
+	"unix_priv_drop",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
