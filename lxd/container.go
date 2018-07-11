@@ -237,6 +237,10 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "mode":
 			return true
+		case "security.gid":
+			return true
+		case "security.uid":
+			return true
 		case "uid":
 			return true
 		default:

@@ -443,14 +443,16 @@ The supported connection types are:
 * `UDP <-> UNIX`
 * `UNIX <-> UDP`
 
-Key         | Type      | Default           | Required  | Description
-:--         | :--       | :--               | :--       | :--
-listen      | string    | -                 | yes       | The address and port to bind and listen
-connect     | string    | -                 | yes       | The address and port to connect to
-bind        | string    | host              | no        | Which side to bind on (host/container)
-uid         | int       | 0                 | no        | UID of the owner of the listening Unix socket
-gid         | int       | 0                 | no        | GID of the owner of the listening Unix socket
-mode        | int       | 0660              | no        | Mode for the listening Unix socket
+Key             | Type      | Default           | Required  | Description
+:--             | :--       | :--               | :--       | :--
+listen          | string    | -                 | yes       | The address and port to bind and listen
+connect         | string    | -                 | yes       | The address and port to connect to
+bind            | string    | host              | no        | Which side to bind on (host/container)
+uid             | int       | 0                 | no        | UID of the owner of the listening Unix socket
+gid             | int       | 0                 | no        | GID of the owner of the listening Unix socket
+mode            | int       | 0755              | no        | Mode for the listening Unix socket
+security.uid    | int       | 0                 | no        | What UID to drop privilege to
+security.gid    | int       | 0                 | no        | What GID to drop privilege to
 
 ```
 lxc config device add <container> <device-name> proxy listen=<type>:<addr>:<port>[-<port>][,<port>] connect=<type>:<addr>:<port> bind=<host/container>
