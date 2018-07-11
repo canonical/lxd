@@ -406,7 +406,7 @@ func raftConfig(latency float64) *raft.Config {
 	//             number of uncompacted raft logs low, and workaround slow
 	//             log replay when the LXD daemon starts (see #4485). A more
 	//             proper fix should be probably implemented in dqlite.
-	config.SnapshotThreshold = 64
+	config.SnapshotThreshold = 512
 	config.TrailingLogs = 128
 
 	return config
