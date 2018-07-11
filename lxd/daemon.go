@@ -441,7 +441,12 @@ func (d *Daemon) init() error {
 
 	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch node address")
+		return errors.Wrap(err, "Failed to fetch node address")
+	}
+
+	debugAddress, err := node.DebugAddress(d.db)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch debug address")
 	}
 
 	/* Setup the web server */
@@ -453,6 +458,7 @@ func (d *Daemon) init() error {
 		DevLxdServer:         DevLxdServer(d),
 		LocalUnixSocketGroup: d.config.Group,
 		NetworkAddress:       address,
+		DebugAddress:         debugAddress,
 	}
 	d.endpoints, err = endpoints.Up(config)
 	if err != nil {
