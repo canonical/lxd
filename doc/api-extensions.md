@@ -459,7 +459,7 @@ container.
 This adds a new "propagation" option to the disk device type, allowing
 the configuration of kernel mount propagation.
 
-## container_backup
+## container\_backup
 Add container backup support.
 
 This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
@@ -512,7 +512,7 @@ Supported connections are now:
 * `TCP <-> UDP`
 * `UNIX <-> UDP`
 
-## clustering_join
+## clustering\_join
 This makes GET /1.0/cluster return information about which storage pools and
 networks are required to be created by joining nodes and which node-specific
 configuration keys they are required to use when creating them. Likewise the PUT
@@ -545,3 +545,9 @@ from being deleted if set to true. Snapshots are not affected by this setting.
 Adds security.uid and security.gid for the proxy devices, allowing
 privilege dropping and effectively changing the uid/gid used for
 connections to Unix sockets too.
+
+## pprof\_http
+This adds a new core.debug\_address config option to start a debugging HTTP server.
+
+That server currently includes a pprof API and replaces the old
+cpu-profile, memory-profile and print-goroutines debug options.
