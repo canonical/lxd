@@ -1558,7 +1558,7 @@ func (s *storageCeph) ContainerRestore(target container, source container) error
 	if err != nil {
 		return err
 	}
-	if ourStorageStop {
+	if !ourStorageStop {
 		defer source.StorageStart()
 	}
 
@@ -1566,7 +1566,7 @@ func (s *storageCeph) ContainerRestore(target container, source container) error
 	if err != nil {
 		return err
 	}
-	if ourStorageStop {
+	if !ourStorageStop {
 		defer target.StorageStart()
 	}
 
