@@ -299,7 +299,7 @@ type udpSession struct {
 func (c *cmdForkproxy) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkproxy <listen PID> <listen address> <connect PID> <connect address> <fd> <reexec> <log path> <pid path>"
+	cmd.Use = "forkproxy <listen PID> <listen address> <connect PID> <connect address> <log path> <pid path> <listen gid> <listen uid> <listen mode> <security gid> <security uid>"
 	cmd.Short = "Setup network connection proxying"
 	cmd.Long = `Description:
   Setup network connection proxying
@@ -403,7 +403,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Sanity checks
-	if len(args) != 9 {
+	if len(args) != 11 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -553,6 +553,31 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				lConn:      &listener,
 				lAddrIndex: i,
 			}
+		}
+	}
+
+	// Drop privilege if requested
+	if args[9] != "" {
+		gid, err := strconv.ParseInt(args[9], 10, 32)
+		if err != nil {
+			return err
+		}
+
+		errno := C.setgid(C.__gid_t(gid))
+		if errno < 0 {
+			return fmt.Errorf("setgid: %v", errno)
+		}
+	}
+
+	if args[10] != "" {
+		uid, err := strconv.ParseInt(args[10], 10, 32)
+		if err != nil {
+			return err
+		}
+
+		errno := C.setuid(C.__uid_t(uid))
+		if errno < 0 {
+			return fmt.Errorf("setuid: %v", errno)
 		}
 	}
 
