@@ -459,7 +459,7 @@ container.
 This adds a new "propagation" option to the disk device type, allowing
 the configuration of kernel mount propagation.
 
-## container_backup
+## container\_backup
 Add container backup support.
 
 This includes the following new endpoints (see [RESTful API](rest-api.md) for details):
@@ -512,7 +512,7 @@ Supported connections are now:
 * `TCP <-> UDP`
 * `UNIX <-> UDP`
 
-## clustering_join
+## clustering\_join
 This makes GET /1.0/cluster return information about which storage pools and
 networks are required to be created by joining nodes and which node-specific
 configuration keys they are required to use when creating them. Likewise the PUT
