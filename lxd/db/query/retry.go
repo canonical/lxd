@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CanonicalLtd/go-sqlite3"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )
 
