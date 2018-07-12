@@ -1,17 +1,17 @@
 package db
 
 import (
+	"context"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/CanonicalLtd/go-grpc-sql"
-	"github.com/CanonicalLtd/go-sqlite3"
-	"github.com/lxc/lxd/lxd/util"
+	"github.com/CanonicalLtd/go-dqlite"
+	"github.com/CanonicalLtd/raft-test"
+	"github.com/hashicorp/raft"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 // NewTestNode creates a new Node for testing purposes, along with a function
@@ -53,15 +53,23 @@ func NewTestNodeTx(t *testing.T) (*NodeTx, func()) {
 // NewTestCluster creates a new Cluster for testing purposes, along with a function
 // that can be used to clean it up when done.
 func NewTestCluster(t *testing.T) (*Cluster, func()) {
-	// Create an in-memory gRPC SQL server and dialer.
-	server, dialer := newGrpcServer()
+	// Create an in-memory dqlite SQL server and associated store.
+	store, serverCleanup := newDqliteServer(t)
 
-	cluster, err := OpenCluster(":memory:", dialer, "1", "/unused/db/dir")
+	log := newLogFunc(t)
+
+	dial := func(ctx context.Context, address string) (net.Conn, error) {
+		return net.Dial("unix", address)
+	}
+
+	cluster, err := OpenCluster(
+		"test.db", store, "1", "/unused/db/dir",
+		dqlite.WithLogFunc(log), dqlite.WithDialFunc(dial))
 	require.NoError(t, err)
 
 	cleanup := func() {
 		require.NoError(t, cluster.Close())
-		server.Stop()
+		serverCleanup()
 	}
 
 	return cluster, cleanup
@@ -87,26 +95,54 @@ func NewTestClusterTx(t *testing.T) (*ClusterTx, func()) {
 	return clusterTx, cleanup
 }
 
-// Create a new in-memory gRPC server attached to a grpc-sql gateway backed by a
-// SQLite driver.
+// Create a new in-memory dqlite server.
 //
-// Return the newly created gRPC server and a dialer that can be used to
-// connect to it.
-func newGrpcServer() (*grpc.Server, grpcsql.Dialer) {
-	listener, dial := util.InMemoryNetwork()
-	server := grpcsql.NewServer(&sqlite3.SQLiteDriver{})
+// Return the newly created server store can be used to connect to it.
+func newDqliteServer(t *testing.T) (*dqlite.DatabaseServerStore, func()) {
+	t.Helper()
 
-	// Setup an in-memory gRPC dialer.
-	options := []grpc.DialOption{
-		grpc.WithInsecure(),
-		grpc.WithDialer(func(string, time.Duration) (net.Conn, error) {
-			return dial(), nil
-		}),
-	}
-	dialer := func() (*grpc.ClientConn, error) {
-		return grpc.Dial("", options...)
+	listener, err := net.Listen("unix", "")
+	require.NoError(t, err)
+
+	address := listener.Addr().String()
+
+	store, err := dqlite.DefaultServerStore(":memory:")
+	require.NoError(t, err)
+	require.NoError(t, store.Set(context.Background(), []dqlite.ServerInfo{{Address: address}}))
+
+	id := fmt.Sprintf("%d", dqliteSerial)
+	dqliteSerial++
+	registry := dqlite.NewRegistry(id)
+
+	fsm := dqlite.NewFSM(registry)
+
+	r, raftCleanup := rafttest.Server(t, fsm, rafttest.Transport(func(i int) raft.Transport {
+		require.Equal(t, i, 0)
+		address := raft.ServerAddress(listener.Addr().String())
+		_, transport := raft.NewInmemTransport(address)
+		return transport
+	}))
+
+	log := newLogFunc(t)
+
+	server, err := dqlite.NewServer(
+		r, registry, listener, dqlite.WithServerLogFunc(log))
+	require.NoError(t, err)
+
+	cleanup := func() {
+		require.NoError(t, server.Close())
+		raftCleanup()
 	}
 
-	go server.Serve(listener)
-	return server, dialer
+	return store, cleanup
+}
+
+var dqliteSerial = 0
+
+func newLogFunc(t *testing.T) dqlite.LogFunc {
+	return func(l dqlite.LogLevel, format string, a ...interface{}) {
+		format = fmt.Sprintf("%s: %s", l.String(), format)
+		t.Logf(format, a...)
+	}
+
 }

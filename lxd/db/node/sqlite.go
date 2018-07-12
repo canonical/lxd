@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/CanonicalLtd/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 )
 
 func init() {

@@ -28,8 +28,7 @@ var testStringsErrorCases = []struct {
 	error string
 }{
 	{"garbage", "near \"garbage\": syntax error"},
-	{"SELECT id, name FROM test", "query yields 2 columns, not 1"},
-	{"SELECT id FROM test", "query yields INTEGER column, not TEXT"},
+	{"SELECT id, name FROM test", "sql: expected 2 destination arguments in Scan, not 1"},
 }
 
 // All values yield by the query are returned.
@@ -57,8 +56,7 @@ var testIntegersErrorCases = []struct {
 	error string
 }{
 	{"garbage", "near \"garbage\": syntax error"},
-	{"SELECT id, name FROM test", "query yields 2 columns, not 1"},
-	{"SELECT name FROM test", "query yields TEXT column, not INTEGER"},
+	{"SELECT id, name FROM test", "sql: expected 2 destination arguments in Scan, not 1"},
 }
 
 // All values yield by the query are returned.
