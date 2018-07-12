@@ -230,7 +230,7 @@ func importNodeAssociation(entity string, columns []string, row []interface{}, t
 	if id == 0 {
 		return fmt.Errorf("entity %s has invalid ID", entity)
 	}
-	_, err := tx.Exec(stmt, row...)
+	_, err := tx.Exec(stmt, id)
 	if err != nil {
 		return errors.Wrapf(err, "failed to associate %s to node", entity)
 	}
