@@ -290,7 +290,7 @@ wipe() {
     done
 
     if mountpoint -q "${1}"; then
-        umount "${1}"
+        umount -l "${1}"
     fi
 
     rm -Rf "${1}"
