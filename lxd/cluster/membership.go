@@ -85,8 +85,8 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 		return err
 	}
 
-	// Shutdown the gateway. This will trash any gRPC SQL connection
-	// against our in-memory dqlite driver and shutdown the associated raft
+	// Shutdown the gateway. This will trash any dqlite connection against
+	// our in-memory dqlite driver and shutdown the associated raft
 	// instance. We also lock regular access to the cluster database since
 	// we don't want any other database code to run while we're
 	// reconfiguring raft.
@@ -107,6 +107,7 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to re-initialize gRPC SQL gateway")
 	}
+
 	err = gateway.waitLeadership()
 	if err != nil {
 		return err
