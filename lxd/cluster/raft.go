@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CanonicalLtd/dqlite"
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/CanonicalLtd/raft-http"
 	"github.com/CanonicalLtd/raft-membership"
 	"github.com/boltdb/bolt"
@@ -183,7 +183,8 @@ func raftInstanceInit(
 	}
 
 	// The dqlite registry and FSM.
-	registry := dqlite.NewRegistry(dir)
+	registry := dqlite.NewRegistry(strconv.Itoa(serial))
+	serial++
 	fsm := dqlite.NewFSM(registry)
 
 	// The actual raft instance.
@@ -213,6 +214,8 @@ func raftInstanceInit(
 
 	return instance, nil
 }
+
+var serial = 99
 
 // Registry returns the dqlite Registry associated with the raft instance.
 func (i *raftInstance) Registry() *dqlite.Registry {
@@ -280,7 +283,8 @@ func (i *raftInstance) Shutdown() error {
 	errCh := make(chan error)
 	timer := time.After(timeout)
 	go func() {
-		errCh <- i.raft.Snapshot().Error()
+		//errCh <- i.raft.Snapshot().Error()
+		errCh <- nil
 	}()
 	// In case of error we just log a warning, since this is not really
 	// fatal.
