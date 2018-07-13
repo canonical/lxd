@@ -94,6 +94,29 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 	return nil
 }
 
+// CreateStoragePoolVolumeSnapshot defines a new storage volume
+func (r *ProtocolLXD) CreateStoragePoolVolumeSnapshot(pool string, volume string, snapshot api.StorageVolumeSnapshot) error {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
+	}
+
+	// Send the request
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s-snapshots",
+		url.QueryEscape(pool),
+		url.QueryEscape(snapshot.Type),
+		url.QueryEscape(volume),
+		url.QueryEscape(snapshot.Type))
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
+	}
+	_, _, err := r.query("POST", path, volume, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // MigrateStoragePoolVolume requests that LXD prepares for a storage volume migration
 func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVolumePost) (Operation, error) {
 	if !r.HasExtension("storage_api_remote_volume_handling") {
