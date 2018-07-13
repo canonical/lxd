@@ -143,7 +143,7 @@ func TestConvertNetworkConfig(t *testing.T) {
 			false,
 		},
 		{
-			"multiple network devices",
+			"multiple network devices (sorted)",
 			[]string{
 				"lxc.net.0.type = macvlan",
 				"lxc.net.0.macvlan.mode = bridge",
@@ -167,6 +167,41 @@ func TestConvertNetworkConfig(t *testing.T) {
 					"type": "none",
 				},
 				"convert_net0": map[string]string{
+					"name":    "eth1",
+					"hwaddr":  "00:16:3e:8d:4f:51",
+					"type":    "nic",
+					"nictype": "macvlan",
+					"parent":  "mvlan0",
+				},
+			},
+			"",
+			false,
+		},
+		{
+			"multiple network devices (unsorted)",
+			[]string{
+				"lxc.net.1.type = macvlan",
+				"lxc.net.2.name = eth2",
+				"lxc.net.1.macvlan.mode = bridge",
+				"lxc.net.1.link = mvlan0",
+				"lxc.net.1.hwaddr = 00:16:3e:8d:4f:51",
+				"lxc.net.1.name = eth1",
+				"lxc.net.2.type = veth",
+				"lxc.net.2.link = lxcbr0",
+				"lxc.net.2.hwaddr = 00:16:3e:a2:7d:54",
+			},
+			types.Devices{
+				"convert_net2": map[string]string{
+					"type":    "nic",
+					"nictype": "bridged",
+					"parent":  "lxcbr0",
+					"name":    "eth2",
+					"hwaddr":  "00:16:3e:a2:7d:54",
+				},
+				"eth0": map[string]string{
+					"type": "none",
+				},
+				"convert_net1": map[string]string{
 					"name":    "eth1",
 					"hwaddr":  "00:16:3e:8d:4f:51",
 					"type":    "nic",

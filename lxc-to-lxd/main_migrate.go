@@ -93,11 +93,11 @@ func (c *cmdMigrate) RunE(cmd *cobra.Command, args []string) error {
 		if c.flagDelete {
 			if c.flagDryRun {
 				fmt.Println("Would destroy container now")
-			} else {
-				err := container.Destroy()
-				if err != nil {
-					fmt.Printf("Failed to destroy container '%s': %v\n", container.Name(), err)
-				}
+				continue
+			}
+			err := container.Destroy()
+			if err != nil {
+				fmt.Printf("Failed to destroy container '%s': %v\n", container.Name(), err)
 			}
 		}
 	}
@@ -304,7 +304,7 @@ func convertContainer(d lxd.ContainerServer, container *lxc.Container, storage s
 		if value[0] == "lxc-container-default-with-nesting" {
 			newConfig["security.nesting"] = "true"
 		} else if value[0] != "lxc-container-default" {
-			newConfig["raw.lxc"] = fmt.Sprintf("lxc.aa_profile=%s\n", value[0])
+			newConfig["raw.lxc"] = fmt.Sprintf("lxc.apparmor.profile=%s\n", value[0])
 		}
 	}
 
@@ -507,7 +507,7 @@ func convertNetworkConfig(container *lxc.Container, devices types.Devices) error
 			continue
 		}
 
-		devices[fmt.Sprintf("convert_net%d", i)] = dev
+		devices[fmt.Sprintf("net%d", i)] = dev
 	}
 
 	// Old config key
@@ -519,7 +519,7 @@ func convertNetworkConfig(container *lxc.Container, devices types.Devices) error
 			continue
 		}
 
-		devices[fmt.Sprintf("convert_net%d", len(devices))] = dev
+		devices[fmt.Sprintf("net%d", len(devices))] = dev
 	}
 
 	return nil
@@ -575,7 +575,7 @@ func convertStorageConfig(conf []string, devices types.Devices) error {
 			device["path"] = strings.TrimPrefix(parts[1], rootfs)
 		}
 
-		devices[fmt.Sprintf("convert_mount%d", i)] = device
+		devices[fmt.Sprintf("mount%d", i)] = device
 		i++
 	}
 
