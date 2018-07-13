@@ -138,14 +138,14 @@ test_clustering_membership() {
   # Rename a node using the pre-existing name.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster rename node4 node3
 
-  # Trying to delete a container which is the only one with a copy of
+  # Trying to delete a node which is the only one with a copy of
   # an image results in an error
   LXD_DIR="${LXD_FOUR_DIR}" ensure_import_testimage
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node3
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
   # Remove a node gracefully.
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node3
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list
 
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown

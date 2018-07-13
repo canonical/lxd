@@ -34,6 +34,6 @@ func (h *testingHandler) Log(r *log.Record) error {
 	}
 
 	h.t.Logf("%s %s %s%s", r.Time.Format("15:04:05.000"), r.Lvl, r.Msg, ctx)
-	//fmt.Printf("%s %s %s%s\n", r.Time.Format("15:04:05.000"), r.Lvl, r.Msg, ctx)
+
 	return nil
 }

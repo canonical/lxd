@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/candidclient"
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -76,9 +77,10 @@ type externalAuth struct {
 
 // DaemonConfig holds configuration values for Daemon.
 type DaemonConfig struct {
-	Group       string   // Group name the local unix socket should be chown'ed to
-	Trace       []string // List of sub-systems to trace
-	RaftLatency float64  // Coarse grain measure of the cluster latency
+	Group              string        // Group name the local unix socket should be chown'ed to
+	Trace              []string      // List of sub-systems to trace
+	RaftLatency        float64       // Coarse grain measure of the cluster latency
+	DqliteSetupTimeout time.Duration // How long to wait for the cluster database to be up
 }
 
 // NewDaemon returns a new Daemon object with the given configuration.
@@ -95,7 +97,8 @@ func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 // DefaultDaemonConfig returns a DaemonConfig object with default values/
 func DefaultDaemonConfig() *DaemonConfig {
 	return &DaemonConfig{
-		RaftLatency: 3.0,
+		RaftLatency:        3.0,
+		DqliteSetupTimeout: 36 * time.Hour, // Account for snap refresh lag
 	}
 }
 
@@ -469,7 +472,13 @@ func (d *Daemon) init() error {
 	for {
 		logger.Info("Initializing global database")
 		dir := filepath.Join(d.os.VarDir, "database")
-		d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address, dir)
+		store := d.gateway.ServerStore()
+		d.cluster, err = db.OpenCluster(
+			"db.bin", store, address, dir,
+			dqlite.WithDialFunc(d.gateway.DialFunc()),
+			dqlite.WithContext(d.gateway.Context()),
+			dqlite.WithConnectionTimeout(d.config.DqliteSetupTimeout),
+		)
 		if err == nil {
 			break
 		}
