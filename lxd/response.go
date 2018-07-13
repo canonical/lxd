@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/CanonicalLtd/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
