@@ -84,6 +84,10 @@ func getConfig(config []string, key string) []string {
 		}
 
 		line := strings.Split(text, "=")
+		if len(line) != 2 {
+			continue
+		}
+
 		k := strings.TrimSpace(line[0])
 		v := strings.Trim(strings.TrimSpace(line[1]), "\"")
 
@@ -145,6 +149,10 @@ func parseConfig(path string) ([]string, error) {
 		}
 
 		line := strings.Split(text, "=")
+		if len(line) != 2 {
+			continue
+		}
+
 		key := strings.TrimSpace(line[0])
 		value := strings.TrimSpace(line[1])
 
