@@ -197,6 +197,9 @@ type ContainerServer interface {
 	MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (op RemoteOperation, err error)
 	MigrateStoragePoolVolume(pool string, volume api.StorageVolumePost) (op Operation, err error)
 
+	// Storage volume snapshot functions ("storage_api_volume_snapshots" API extension)
+	CreateStoragePoolVolumeSnapshot(pool string, volume string, snapshot api.StorageVolumeSnapshot) (err error)
+
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
 	UpdateCluster(cluster api.ClusterPut, ETag string) (op Operation, err error)
