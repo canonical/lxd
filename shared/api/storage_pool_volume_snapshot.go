@@ -2,6 +2,13 @@ package api
 
 import ()
 
+// StorageVolumeSnapshotPost represents the fields required to rename/move a LXD storage volume snapshot
+//
+// API extension: storage_api_volume_snapshots
+type StorageVolumeSnapshotPost struct {
+	Name string `json:"name" yaml:"name"`
+}
+
 // StorageVolumeSnapshot represents a LXD storage volume snapshot
 //
 // API extension: storage_api_volume_snapshots
