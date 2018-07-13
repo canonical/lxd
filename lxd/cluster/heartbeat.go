@@ -141,7 +141,7 @@ func heartbeatNode(taskCtx context.Context, address string, cert *shared.CertInf
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf("https://%s%s", address, grpcEndpoint)
+	url := fmt.Sprintf("https://%s%s", address, databaseEndpoint)
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}}
 
 	buffer := bytes.Buffer{}
