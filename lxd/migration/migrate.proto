@@ -12,6 +12,7 @@ enum MigrationFSType {
 enum CRIUType {
 	CRIU_RSYNC	= 0;
 	PHAUL		= 1;
+	NONE		= 2;
 }
 
 message IDMapType {
