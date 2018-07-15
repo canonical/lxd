@@ -934,7 +934,7 @@ func networkGetMacSlice(hwaddr string) []string {
 	return buf
 }
 
-func networkClearLease(s *state.State, network string, hwaddr string) error {
+func networkClearLease(s *state.State, name string, network string, hwaddr string) error {
 	leaseFile := shared.VarPath("networks", network, "dnsmasq.leases")
 
 	// Check that we are in fact running a dnsmasq for the network
@@ -966,6 +966,7 @@ func networkClearLease(s *state.State, network string, hwaddr string) error {
 		return err
 	}
 
+	knownMac := networkGetMacSlice(hwaddr)
 	for _, lease := range strings.Split(string(leases), "\n") {
 		if lease == "" {
 			continue
@@ -973,12 +974,16 @@ func networkClearLease(s *state.State, network string, hwaddr string) error {
 
 		fields := strings.Fields(lease)
 		if len(fields) > 2 {
-			leaseMac := networkGetMacSlice(fields[1])
-			leaseMacStr := strings.Join(leaseMac, ":")
-			knownMac := networkGetMacSlice(hwaddr)
-			knownMacStr := strings.Join(
-				knownMac[len(knownMac)-len(leaseMac):], ":")
-			if knownMacStr == leaseMacStr {
+			if strings.Contains(fields[1], ":") {
+				leaseMac := networkGetMacSlice(fields[1])
+				leaseMacStr := strings.Join(leaseMac, ":")
+
+				knownMacStr := strings.Join(knownMac[len(knownMac)-len(leaseMac):], ":")
+				if knownMacStr == leaseMacStr {
+					continue
+				}
+			} else if len(fields) > 3 && fields[3] == name {
+				// Mostly IPv6 leases which don't contain a MAC address...
 				continue
 			}
 		}
