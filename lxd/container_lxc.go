@@ -3335,7 +3335,7 @@ func (c *containerLXC) Delete() error {
 	// Update network files
 	networkUpdateStatic(c.state, "")
 	for k, m := range c.expandedDevices {
-		if (m["type"] != "nic" && m["type"] != "infiniband") || m["nictype"] != "bridged" || (m["ipv4.address"] == "" && m["ipv6.address"] == "") {
+		if m["type"] != "nic" || m["nictype"] != "bridged" {
 			continue
 		}
 
@@ -3344,7 +3344,7 @@ func (c *containerLXC) Delete() error {
 			continue
 		}
 
-		networkClearLease(c.state, m["parent"], m["hwaddr"])
+		networkClearLease(c.state, c.name, m["parent"], m["hwaddr"])
 	}
 
 	logger.Info("Deleted container", ctxMap)
