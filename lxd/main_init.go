@@ -21,6 +21,7 @@ type cmdInit struct {
 
 	flagAuto    bool
 	flagPreseed bool
+	flagDump    bool
 
 	flagNetworkAddress  string
 	flagNetworkPort     int
@@ -42,10 +43,12 @@ func (c *cmdInit) Command() *cobra.Command {
   init --auto [--network-address=IP] [--network-port=8443] [--storage-backend=dir]
               [--storage-create-device=DEVICE] [--storage-create-loop=SIZE]
               [--storage-pool=POOL] [--trust-password=PASSWORD]
+  init --dump
 `
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagAuto, "auto", false, "Automatic (non-interactive) mode")
 	cmd.Flags().BoolVar(&c.flagPreseed, "preseed", false, "Pre-seed mode, expects YAML config from stdin")
+	cmd.Flags().BoolVar(&c.flagDump, "dump", false, "Dump YAML config to stdout")
 
 	cmd.Flags().StringVar(&c.flagNetworkAddress, "network-address", "", "Address to bind LXD to (default: none)"+"``")
 	cmd.Flags().IntVar(&c.flagNetworkPort, "network-port", -1, "Port to bind LXD to (default: 8443)"+"``")
@@ -71,10 +74,27 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Configuration flags require --auto")
 	}
 
+	if c.flagDump && (c.flagAuto || c.flagPreseed || c.flagNetworkAddress != "" ||
+		c.flagNetworkPort != -1 || c.flagStorageBackend != "" ||
+		c.flagStorageDevice != "" || c.flagStorageLoopSize != -1 ||
+		c.flagStoragePool != "" || c.flagTrustPassword != "") {
+		return fmt.Errorf("Can't use --dump with other flags")
+	}
+
 	// Connect to LXD
 	d, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed to connect to local LXD")
+	}
+
+	// Dump mode
+	if c.flagDump {
+		err := c.RunDump(d)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	// Prepare the input data
