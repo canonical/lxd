@@ -35,7 +35,7 @@ EOF
     lxc storage list | grep -q "my-storage-pool"
     lxc profile show default | grep -q "pool: my-storage-pool"
     lxc profile show default | grep -q "parent: lxdt$$"
-    lxc profile delete default
+    printf 'config: {}\ndevices: {}' | lxc profile edit default
     lxc network delete lxdt$$
   )
   kill_lxd "${LXD_INIT_DIR}"
