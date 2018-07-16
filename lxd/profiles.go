@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -291,6 +292,10 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 func profilePost(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
+	if name == "default" {
+		return Forbidden(errors.New("The 'default' profile cannot be renamed"))
+	}
+
 	req := api.ProfilePost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
@@ -326,6 +331,10 @@ func profilePost(d *Daemon, r *http.Request) Response {
 // The handler for the delete operation.
 func profileDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+
+	if name == "default" {
+		return Forbidden(errors.New("The 'default' profile cannot be deleted"))
+	}
 
 	_, err := doProfileGet(d.State(), name)
 	if err != nil {
