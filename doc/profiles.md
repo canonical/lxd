@@ -10,6 +10,8 @@ the profiles.
 
 If not present, LXD will create a `default` profile.
 
+The `default` profile cannot be renamed or removed.
+
 The `default` profile is set for any new container created which doesn't
 specify a different profiles list.
 
