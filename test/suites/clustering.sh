@@ -571,7 +571,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data webbaz
   fi
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc profile delete default
+  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
   LXD_DIR="${LXD_TWO_DIR}" lxc storage delete data
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown

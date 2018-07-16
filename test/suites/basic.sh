@@ -477,4 +477,8 @@ test_basic_usage() {
 
   lxc stop foo --force || true
   ! lxc list | grep -q foo || false
+
+  # Test renaming/deletion of the default profile
+  ! lxc profile rename default foobar
+  ! lxc profile delete default
 }
