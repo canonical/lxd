@@ -550,7 +550,7 @@ func (c *cmdProfileGet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("%s\n", profile.Config[args[0]])
+	fmt.Printf("%s\n", profile.Config[args[1]])
 	return nil
 }
 
