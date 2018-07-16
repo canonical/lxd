@@ -2209,6 +2209,8 @@ the renamed resource.
 
 Renaming to an existing name must return the 409 (Conflict) HTTP code.
 
+Attempting to rename the `default` profile will return the 403 (Forbidden) HTTP code.
+
 ### DELETE
  * Description: remove a profile
  * Authentication: trusted
@@ -2221,6 +2223,8 @@ Input (none at present):
     }
 
 HTTP code for this should be 202 (Accepted).
+
+Attempting to delete the `default` profile will return the 403 (Forbidden) HTTP code.
 
 ## `/1.0/storage-pools`
 ### GET
