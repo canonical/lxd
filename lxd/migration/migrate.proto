@@ -42,8 +42,8 @@ message Snapshot {
 	repeated Device			localDevices	= 5;
 	required int32			architecture	= 6;
 	required bool			stateful		= 7;
-	required int64			creation_date	= 8;
-	required int64			last_used_date	= 9;
+	optional int64			creation_date	= 8;
+	optional int64			last_used_date	= 9;
 }
 
 message MigrationHeader {
