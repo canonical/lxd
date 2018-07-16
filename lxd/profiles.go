@@ -297,6 +297,10 @@ func profilePost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Sanity checks
+	if name == "default" {
+		return BadRequest(fmt.Errorf("The default profile cannot be renamed"))
+	}
+
 	if req.Name == "" {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
@@ -326,6 +330,10 @@ func profilePost(d *Daemon, r *http.Request) Response {
 // The handler for the delete operation.
 func profileDelete(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+
+	if name == "default" {
+		return BadRequest(fmt.Errorf("The default profile cannot be removed"))
+	}
 
 	_, err := doProfileGet(d.State(), name)
 	if err != nil {
