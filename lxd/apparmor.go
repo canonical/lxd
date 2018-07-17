@@ -247,8 +247,8 @@ const AA_PROFILE_NESTING = `
   ptrace,
   signal,
 
-  deny /dev/.lxd/proc/** rw,
-  deny /dev/.lxd/sys/** rw,
+  deny /dev/.lxc/proc/** rw,
+  deny /dev/.lxc/sys/** rw,
 
   mount /var/lib/lxd/shmounts/ -> /var/lib/lxd/shmounts/,
   mount none -> /var/lib/lxd/shmounts/,
