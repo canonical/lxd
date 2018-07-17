@@ -164,6 +164,11 @@ kill_lxd() {
             lxc profile delete "${profile}" --force-local || true
         done
 
+        # Clear config of the default profile since the profile itself cannot
+        # be deleted.
+        echo "==> Clearing config of default profile"
+        printf 'config: {}\ndevices: {}' | lxc profile edit default
+
         echo "==> Deleting all storage pools"
         for storage in $(lxc storage list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
             lxc storage delete "${storage}" --force-local || true

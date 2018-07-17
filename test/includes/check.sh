@@ -26,9 +26,20 @@ check_empty() {
 }
 
 check_empty_table() {
+    # The profiles table will never be empty since the `default` profile cannot
+    # be deleted.
+    if [ "$2" = 'profiles' ]; then
+        if [ -n "$(sqlite3 "${1}" "SELECT * FROM ${2} WHERE name != 'default';")" ]; then
+          echo "DB table ${2} is not empty, content:"
+          sqlite3 "${1}" "SELECT * FROM ${2} WHERE name != 'default';"
+          return 1
+        fi
+        return 0
+    fi
+
     if [ -n "$(sqlite3 "${1}" "SELECT * FROM ${2};")" ]; then
         echo "DB table ${2} is not empty, content:"
         sqlite3 "${1}" "SELECT * FROM ${2};"
-        false
+        return 1
     fi
 }

@@ -71,7 +71,7 @@ EOF
     lxc profile show test-profile | grep -q "limits.memory: 2GB"
     lxc profile show test-profile | grep -q "nictype: bridged"
     lxc profile show test-profile | grep -q "parent: lxdt$$"
-    lxc profile delete default
+    printf 'config: {}\ndevices: {}' | lxc profile edit default
     lxc profile delete test-profile
     lxc network delete lxdt$$
     lxc storage delete "${storage_pool}"
