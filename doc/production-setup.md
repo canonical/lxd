@@ -16,6 +16,7 @@ using containers that require tens of thousands of file operations.
 
 `failed to open stream: Too many open files in...`
 
+`neighbour: ndisc_cache: neighbor table overflow!`
 
 # Server Changes
 ## /etc/security/limits.conf
@@ -39,12 +40,14 @@ fs.inotify.max\_user\_instances | 1048576   | 128     | This specifies an upper 
 fs.inotify.max\_user\_watches   | 1048576   | 8192    | This specifies an upper limit on the number of watches that can be created per real user ID. [1]
 vm.max\_map\_count              | 262144    | 65530   | This file contains the maximum number of memory map areas a process may have. Memory map areas are used as a side-effect of calling malloc, directly by mmap and mprotect, and also when loading shared libraries.
 kernel.dmesg\_restrict          | 1         | 0       | This denies container access to the messages in the kernel ring buffer. Please note that this also will deny access to non-root users on the host system.
-
+net.ipv4.neigh.default.gc_thresh3| 8192     | 1024    | This is the maximum number of entries in ARP table (IPv4). You should increase this if you create over 1024 containers. Otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and those containers will not be able to get a network configuration. [2]
+net.ipv6.neigh.default.gc_thresh3| 8192     | 1024    | This is the maximum number of entries in ARP table (IPv6). You should increase this if you plan to create over 1024 containers. Otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and those containers will not be able to get a network configuration. [2]
 
 Then, reboot the server.
 
 
 [1]: http://man7.org/linux/man-pages/man7/inotify.7.html
+[2]: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
 
 ## Network Bandwidth Tweaking 
 If you have at least 1GbE NIC on your lxd host with a lot of local activity (container - container connections, or host - container connections), or you have 1GbE or better internet connection on your lxd host it worth play with txqueuelen. These settings work even better with 10GbE NIC.
