@@ -657,7 +657,7 @@ func (c *Cluster) StoragePoolDelete(poolName string) (*api.StoragePool, error) {
 
 // StoragePoolVolumesGetNames gets the names of all storage volumes attached to
 // a given storage pool.
-func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) (int, error) {
+func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) ([]string, error) {
 	var volumeName string
 	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND node_id=?"
 	inargs := []interface{}{poolID, c.nodeID}
@@ -665,14 +665,16 @@ func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) (int, error) {
 
 	result, err := queryScan(c.db, query, inargs, outargs)
 	if err != nil {
-		return -1, err
+		return []string{}, err
 	}
 
-	if len(result) == 0 {
-		return 0, nil
+	var out []string
+
+	for _, r := range result {
+		out = append(out, r[0].(string))
 	}
 
-	return len(result), nil
+	return out, nil
 }
 
 // StoragePoolVolumesGet returns all storage volumes attached to a given
