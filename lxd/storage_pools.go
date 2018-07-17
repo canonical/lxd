@@ -599,12 +599,12 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 }
 
 func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, poolID int64) Response {
-	volumeCount, err := cluster.StoragePoolVolumesGetNames(poolID)
+	volumeNames, err := cluster.StoragePoolVolumesGetNames(poolID)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	if volumeCount > 0 {
+	if len(volumeNames) > 0 {
 		return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
 	}
 
