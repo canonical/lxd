@@ -23,6 +23,7 @@ type proxyProcInfo struct {
 	listenAddrMode string
 	securityUid    string
 	securityGid    string
+	proxyProtocol  string
 }
 
 func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, error) {
@@ -68,6 +69,7 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 		listenAddrMode: device["mode"],
 		securityGid:    device["security.gid"],
 		securityUid:    device["security.uid"],
+		proxyProtocol:  device["proxy_protocol"],
 	}
 
 	return p, nil

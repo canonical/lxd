@@ -324,7 +324,7 @@ func rearmUDPFd(epFd C.int, connFd C.int) {
 	}
 }
 
-func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, connFd C.int, lStruct *lStruct) error {
+func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, connFd C.int, lStruct *lStruct, proxy bool) error {
 	fmt.Printf("Starting %s <-> %s proxy\n", lAddr.connType, cAddr.connType)
 	if lAddr.connType == "udp" {
 		// This only handles udp <-> udp. The C constructor will have
@@ -379,10 +379,37 @@ func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, conn
 		return err
 	}
 
+	if proxy && cAddr.connType == "tcp" {
+		if lAddr.connType == "unix" {
+			dstConn.Write([]byte(fmt.Sprintf("PROXY UNKNOWN\r\n")))
+		} else {
+			cHost, cPort, err := net.SplitHostPort(srcConn.RemoteAddr().String())
+			if err != nil {
+				return err
+			}
+
+			dHost, dPort, err := net.SplitHostPort(srcConn.LocalAddr().String())
+			if err != nil {
+				return err
+			}
+
+			proto := srcConn.LocalAddr().Network()
+			proto = strings.ToUpper(proto)
+			if strings.Contains(cHost, ":") {
+				proto = fmt.Sprintf("%s6", proto)
+			} else {
+				proto = fmt.Sprintf("%s4", proto)
+			}
+
+			dstConn.Write([]byte(fmt.Sprintf("PROXY %s %s %s %s %s\r\n", proto, cHost, dHost, cPort, dPort)))
+		}
+	}
+
 	if cAddr.connType == "unix" && lAddr.connType == "unix" {
 		// Handle OOB if both src and dst are using unix sockets
 		go unixRelay(srcConn, dstConn)
 	} else {
+
 		go genericRelay(srcConn, dstConn, false)
 	}
 
@@ -403,7 +430,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Sanity checks
-	if len(args) != 11 {
+	if len(args) != 12 {
 		cmd.Help()
 
 		if len(args) == 0 {
@@ -647,7 +674,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn)
+			err := listenerInstance(epFd, lAddr, cAddr, curFd, srcConn, args[11] == "true")
 			if err != nil {
 				fmt.Printf("Failed to prepare new listener instance: %s", err)
 			}
