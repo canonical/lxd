@@ -121,6 +121,7 @@ var APIExtensions = []string{
 	"network_nat_order",
 	"container_full",
 	"candid_authentication",
+	"storage_api_volume_snapshots",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
