@@ -237,6 +237,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "mode":
 			return true
+		case "proxy_protocol":
+			return true
 		case "security.gid":
 			return true
 		case "security.uid":
@@ -467,6 +469,10 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 
 			if m["connect"] == "" {
 				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property.")
+			}
+
+			if shared.IsTrue(m["proxy_protocol"]) && !strings.HasPrefix(m["connect"], "tcp") {
+				return fmt.Errorf("The PROXY header can only be sent to tcp servers")
 			}
 
 			if (!strings.HasPrefix(m["listen"], "unix:") || strings.HasPrefix(m["listen"], "unix:@")) &&
