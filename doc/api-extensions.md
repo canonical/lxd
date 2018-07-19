@@ -39,14 +39,14 @@ A number of new syscalls related container configuration keys were introduced.
  * `security.syscalls.blacklist`
  * `security.syscalls.whitelist`
 
-See [configuration.md](Configuration) for how to use them.
+See [configuration.md](configuration.md) for how to use them.
 
 ## auth\_pki
 This indicates support for PKI authentication mode.
 
 In this mode, the client and server both must use certificates issued by the same PKI.
 
-See [security.md](Security) for details.
+See [security.md](security.md) for details.
 
 ## container\_last\_used\_at
 A `last_used_at` field was added to the `GET /1.0/containers/<name>` endpoint.
@@ -122,9 +122,9 @@ Network management API for LXD.
 This includes:
 
  * Addition of the "managed" property on `/1.0/networks` entries
- * All the network configuration options (see [configuration.md](configuration) for details)
- * `POST /1.0/networks` (see [rest-api.md](RESTful API) for details)
- * `PUT /1.0/networks/<entry>` (see [RESTful API](rest-api.md)for details)
+ * All the network configuration options (see [configuration.md](configuration.md) for details)
+ * `POST /1.0/networks` (see [RESTful API](rest-api.md) for details)
+ * `PUT /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
  * `PATCH /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
  * `DELETE /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
  * `ipv4.address` property on "nic" type devices (when nictype is "bridged")
@@ -215,7 +215,7 @@ This includes:
 * `PATCH /1.0/storage-pools/<pool>/volumes/<volume_type>/<name>` (see [RESTful API](rest-api.md) for details)
 * `DELETE /1.0/storage-pools/<pool>/volumes/<volume_type>/<name>` (see [RESTful API](rest-api.md) for details)
 
-* All storage configuration options (see [configuration.md](configuration) for details)
+* All storage configuration options (see [configuration.md](configuration.md) for details)
 
 ## file\_delete
 Implements `DELETE` in `/1.0/containers/<name>/files`
