@@ -6873,7 +6873,9 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 		proxyValues.listenAddrUid,
 		proxyValues.listenAddrMode,
 		proxyValues.securityGid,
-		proxyValues.securityUid)
+		proxyValues.securityUid,
+		proxyValues.proxyProtocol,
+	)
 	if err != nil {
 		return fmt.Errorf("Error occurred when starting proxy device: %s", err)
 	}
