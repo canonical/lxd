@@ -1908,7 +1908,8 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 		// Load the container from the database.
 		c, err := containerLoadByName(d.State(), ct)
 		if err != nil {
-			return err
+			logger.Errorf("Failed to open container '%s': %v", ct, err)
+			continue
 		}
 
 		if !c.IsRunning() {
@@ -1922,7 +1923,8 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 
 		err = lxcCt.initLXC(true)
 		if err != nil {
-			return err
+			logger.Errorf("Failed to generate LXC config for '%s': %v", ct, err)
+			continue
 		}
 
 		// Generate the LXC config
@@ -1930,7 +1932,8 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 		err = lxcCt.c.SaveConfigFile(configPath)
 		if err != nil {
 			os.Remove(configPath)
-			return err
+			logger.Errorf("Failed to save LXC config for '%s': %v", ct, err)
+			continue
 		}
 	}
 
