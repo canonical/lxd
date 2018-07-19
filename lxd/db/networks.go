@@ -542,7 +542,7 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 // associated with the node with the given ID.
 func NetworkConfigClear(tx *sql.Tx, networkID, nodeID int64) error {
 	_, err := tx.Exec(
-		"DELETE FROM networks_config WHERE network_id=? AND node_id=?",
+		"DELETE FROM networks_config WHERE network_id=? AND (node_id=? OR node_id IS NULL)",
 		networkID, nodeID)
 	if err != nil {
 		return err
