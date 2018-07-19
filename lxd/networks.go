@@ -566,7 +566,7 @@ func networkPatch(d *Daemon, r *http.Request) Response {
 
 	// Get the existing network
 	_, dbInfo, err := d.cluster.NetworkGet(name)
-	if dbInfo != nil {
+	if err != nil {
 		return SmartError(err)
 	}
 
