@@ -92,6 +92,10 @@ Unless specified through a prefix, all volume operations affect "custom" (user c
 	storageVolumeShowCmd := cmdStorageVolumeShow{global: c.global, storage: c.storage, storageVolume: c}
 	cmd.AddCommand(storageVolumeShowCmd.Command())
 
+	// Snapshot
+	storageVolumeSnapshotCmd := cmdStorageVolumeSnapshot{global: c.global, storage: c.storage, storageVolume: c}
+	cmd.AddCommand(storageVolumeSnapshotCmd.Command())
+
 	// Unset
 	storageVolumeUnsetCmd := cmdStorageVolumeUnset{global: c.global, storage: c.storage, storageVolume: c, storageVolumeSet: &storageVolumeSetCmd}
 	cmd.AddCommand(storageVolumeUnsetCmd.Command())
@@ -1242,4 +1246,77 @@ func (c *cmdStorageVolumeUnset) Run(cmd *cobra.Command, args []string) error {
 
 	args = append(args, "")
 	return c.storageVolumeSet.Run(cmd, args)
+}
+
+// Snapshot
+type cmdStorageVolumeSnapshot struct {
+	global        *cmdGlobal
+	storage       *cmdStorage
+	storageVolume *cmdStorageVolume
+
+	flagMode string
+}
+
+func (c *cmdStorageVolumeSnapshot) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("snapshot [<remote>:]<pool> <volume> [<snapshot name>]")
+	cmd.Short = i18n.G("Snapshot storage volumes")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Snapshot storage volumes`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdStorageVolumeSnapshot) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing pool name"))
+	}
+
+	client := resource.server
+
+	// Parse the input
+	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+	if volType != "custom" {
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be snapshotted"))
+	}
+
+	// Check if the requested storage volume actually exists
+	_, _, err = resource.server.GetStoragePoolVolume(resource.name, volType, volName)
+	if err != nil {
+		return err
+	}
+
+	var snapname string
+	if len(args) < 3 {
+		snapname = ""
+	} else {
+		snapname = args[2]
+	}
+
+	req := api.StorageVolumeSnapshotsPost{
+		Name: snapname,
+	}
+
+	op, err := client.CreateStoragePoolVolumeSnapshot(resource.name, volType, volName, req)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
+
 }
