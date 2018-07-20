@@ -557,6 +557,18 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 		return EmptySyncResponse
 	}
 
+	volumeNames, err := d.cluster.StoragePoolVolumesGetNames(poolID)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	for _, volume := range volumeNames {
+		err = d.cluster.StoragePoolVolumeDelete(volume, storagePoolVolumeTypeImage, poolID)
+		if err != nil {
+			return InternalError(err)
+		}
+	}
+
 	err = s.StoragePoolDelete()
 	if err != nil {
 		return InternalError(err)
@@ -605,7 +617,27 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 	}
 
 	if len(volumeNames) > 0 {
-		return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
+		volumes, err := cluster.StoragePoolVolumesGet(poolID, supportedVolumeTypes)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		for _, volume := range volumes {
+			if volume.Type != "image" {
+				return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
+			}
+
+			pools, err := cluster.ImageGetPools(volume.Name)
+			if err != nil {
+				return InternalError(err)
+			}
+
+			// The pool volume/image is used by this pool only. We should fail
+			// here since we don't actually want to have to remove images.
+			if len(pools) == 1 {
+				return BadRequest(fmt.Errorf("storage pool \"%s\" has volumes attached to it", poolName))
+			}
+		}
 	}
 
 	// Check if the storage pool is still referenced in any profiles.
