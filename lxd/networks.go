@@ -930,7 +930,12 @@ func (n *network) Start() error {
 	// Create the bridge interface
 	if !n.IsRunning() {
 		if n.config["bridge.driver"] == "openvswitch" {
-			_, err := shared.RunCommand("ovs-vsctl", "add-br", n.name)
+			_, err := exec.LookPath("ovs-vsctl")
+			if err != nil {
+				return fmt.Errorf("Open vSwitch isn't installed on this system")
+			}
+
+			_, err = shared.RunCommand("ovs-vsctl", "add-br", n.name)
 			if err != nil {
 				return err
 			}
