@@ -1,8 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+
+	"github.com/gorilla/mux"
+
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 var storagePoolVolumeSnapshotsTypeCmd = Command{
@@ -19,7 +26,81 @@ var storagePoolVolumeSnapshotTypeCmd = Command{
 }
 
 func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
-	return NotImplemented(fmt.Errorf("Creating storage pool volume snapshots is not implemented"))
+	// Get the name of the pool.
+	poolName := mux.Vars(r)["pool"]
+
+	// Get the name of the volume type.
+	volumeTypeName := mux.Vars(r)["type"]
+
+	// Get the name of the volume.
+	volumeName := mux.Vars(r)["name"]
+
+	// Parse the request.
+	req := api.StorageVolumeSnapshotsPost{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	// Get a snapshot name.
+	if req.Name == "" {
+		// i := d.cluster.ContainerNextSnapshot(volumeName)
+		i := 0
+		req.Name = fmt.Sprintf("snap%d", i)
+	}
+
+	// Validate the name
+	if strings.Contains(req.Name, "/") {
+		return BadRequest(fmt.Errorf("Snapshot names may not contain slashes"))
+	}
+
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	// Check that the storage volume type is valid.
+	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+		return BadRequest(fmt.Errorf("invalid storage volume type \"%d\"", volumeType))
+	}
+
+	// Retrieve ID of the storage pool (and check if the storage pool
+	// exists).
+	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	response := ForwardedResponseIfTargetIsRemote(d, r)
+	if response != nil {
+		return response
+	}
+
+	response = ForwardedResponseIfVolumeIsRemote(d, r, poolID, volumeName, volumeType)
+	if response != nil {
+		return response
+	}
+
+	// Ensure that the storage volume exists.
+	storage, err := storagePoolVolumeInit(d.State(), poolName, volumeName, volumeType)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Start the storage.
+	ourMount, err := storage.StoragePoolVolumeMount()
+	if err != nil {
+		return SmartError(err)
+	}
+	if ourMount {
+		defer storage.StoragePoolVolumeUmount()
+	}
+
+	// // Create new snapshot name.
+	// fullName := fmt.Sprintf("%s%s%s", name, shared.SnapshotDelimiter, req.Name)
+
+	return EmptySyncResponse
 }
 
 func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) Response {
