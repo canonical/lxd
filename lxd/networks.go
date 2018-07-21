@@ -1751,8 +1751,15 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 	undoChanges := true
 	defer func() {
 		if undoChanges {
+			// Revert changes to the struct
 			n.config = oldConfig
 			n.description = oldDescription
+
+			// Update the database
+			n.state.Cluster.NetworkUpdate(n.name, n.description, n.config)
+
+			// Reset any change that was made to the bridge
+			n.Start()
 		}
 	}()
 
