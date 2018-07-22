@@ -1235,9 +1235,16 @@ func (n *network) Start() error {
 
 		// Configure NAT
 		if shared.IsTrue(n.config["ipv4.nat"]) {
-			err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
-			if err != nil {
-				return err
+			if n.config["ipv4.nat.order"] == "after" {
+				err = networkIptablesAppend("ipv4", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+				if err != nil {
+					return err
+				}
+			} else {
+				err = networkIptablesPrepend("ipv4", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -1397,9 +1404,16 @@ func (n *network) Start() error {
 
 		// Configure NAT
 		if shared.IsTrue(n.config["ipv6.nat"]) {
-			err = networkIptablesPrepend("ipv6", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
-			if err != nil {
-				return err
+			if n.config["ipv6.nat.order"] == "after" {
+				err = networkIptablesAppend("ipv6", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+				if err != nil {
+					return err
+				}
+			} else {
+				err = networkIptablesPrepend("ipv6", n.name, "nat", "POSTROUTING", "-s", subnet.String(), "!", "-d", subnet.String(), "-j", "MASQUERADE")
+				if err != nil {
+					return err
+				}
 			}
 		}
 
