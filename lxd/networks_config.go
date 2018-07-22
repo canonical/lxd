@@ -61,8 +61,11 @@ var networkConfigKeys = map[string]func(value string) error{
 
 		return networkValidAddressCIDRV4(value)
 	},
-	"ipv4.firewall":     shared.IsBool,
-	"ipv4.nat":          shared.IsBool,
+	"ipv4.firewall": shared.IsBool,
+	"ipv4.nat":      shared.IsBool,
+	"ipv4.nat.order": func(value string) error {
+		return shared.IsOneOf(value, []string{"before", "after"})
+	},
 	"ipv4.dhcp":         shared.IsBool,
 	"ipv4.dhcp.gateway": networkValidAddressV4,
 	"ipv4.dhcp.expiry":  shared.IsAny,
@@ -77,8 +80,11 @@ var networkConfigKeys = map[string]func(value string) error{
 
 		return networkValidAddressCIDRV6(value)
 	},
-	"ipv6.firewall":      shared.IsBool,
-	"ipv6.nat":           shared.IsBool,
+	"ipv6.firewall": shared.IsBool,
+	"ipv6.nat":      shared.IsBool,
+	"ipv6.nat.order": func(value string) error {
+		return shared.IsOneOf(value, []string{"before", "after"})
+	},
 	"ipv6.dhcp":          shared.IsBool,
 	"ipv6.dhcp.expiry":   shared.IsAny,
 	"ipv6.dhcp.stateful": shared.IsBool,

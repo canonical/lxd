@@ -561,3 +561,7 @@ Adds a bridge.hwaddr key to control the MAC address of the bridge.
 ## proxy\_nat
 This adds optimized UDP/TCP proxying. If the configuration allows, proxying
 will be done via iptables instead of proxy devices.
+
+## network\_nat\_order
+This introduces the `ipv4.nat.order` and `ipv6.nat.order` configuration keys for LXD bridges.
+Those keys control whether to put the LXD rules before or after any pre-existing rules in the chain.

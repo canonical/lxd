@@ -8,7 +8,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func iptablesPrepend(protocol string, comment string, table string, chain string,
+func iptablesConfig(protocol string, comment string, table string, method string, chain string,
 	rule ...string) error {
 	cmd := "iptables"
 	if protocol == "ipv6" {
@@ -35,8 +35,7 @@ func iptablesPrepend(protocol string, comment string, table string, chain string
 		return nil
 	}
 
-	// Add the rule
-	args = append(baseArgs, []string{"-I", chain}...)
+	args = append(baseArgs, []string{method, chain}...)
 	args = append(args, rule...)
 	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for %s", comment))
 
@@ -46,6 +45,14 @@ func iptablesPrepend(protocol string, comment string, table string, chain string
 	}
 
 	return nil
+}
+
+func iptablesAppend(protocol string, comment string, table string, chain string, rule ...string) error {
+	return iptablesConfig(protocol, comment, table, "-A", chain, rule...)
+}
+
+func iptablesPrepend(protocol string, comment string, table string, chain string, rule ...string) error {
+	return iptablesConfig(protocol, comment, table, "-I", chain, rule...)
 }
 
 func iptablesClear(protocol string, comment string, table string) error {
@@ -94,6 +101,12 @@ func iptablesClear(protocol string, comment string, table string) error {
 	}
 
 	return nil
+}
+
+func networkIptablesAppend(protocol string, comment string, table string, chain string,
+	rule ...string) error {
+	return iptablesAppend(protocol, fmt.Sprintf("LXD network %s", comment),
+		table, chain, rule...)
 }
 
 func networkIptablesPrepend(protocol string, comment string, table string, chain string,
