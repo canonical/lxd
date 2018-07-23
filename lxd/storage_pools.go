@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -564,48 +563,14 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	for _, volume := range volumeNames {
-		pools, err := d.cluster.ImageGetPools(volume)
+		_, imgInfo, err := d.cluster.ImageGet(volume, false, false)
 		if err != nil {
 			return InternalError(err)
 		}
 
-		if len(pools) == 1 {
-			imgID, imgInfo, err := d.cluster.ImageGet(volume, false, false)
-			if err != nil {
-				return InternalError(err)
-			}
-
-			err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, poolName)
-			if err != nil {
-				return InternalError(err)
-			}
-
-			// Remove main image file.
-			fname := shared.VarPath("images", imgInfo.Fingerprint)
-			if shared.PathExists(fname) {
-				err = os.Remove(fname)
-				if err != nil {
-					logger.Debugf("Error deleting image file %s: %s", fname, err)
-				}
-			}
-
-			// Remove the rootfs file for the image.
-			fname = shared.VarPath("images", imgInfo.Fingerprint) + ".rootfs"
-			if shared.PathExists(fname) {
-				err = os.Remove(fname)
-				if err != nil {
-					logger.Debugf("Error deleting image file %s: %s", fname, err)
-				}
-			}
-
-			// Remove the database entry for the image.
-			d.cluster.ImageDelete(imgID)
-		} else if len(pools) > 1 {
-			// Remove DB entry
-			err = d.cluster.StoragePoolVolumeDelete(volume, storagePoolVolumeTypeImage, poolID)
-			if err != nil {
-				return InternalError(err)
-			}
+		err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, poolName)
+		if err != nil {
+			return InternalError(err)
 		}
 	}
 
