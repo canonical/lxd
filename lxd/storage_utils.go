@@ -119,6 +119,10 @@ func tryUnmount(path string, flags int) error {
 }
 
 func storageValidName(value string) error {
+	if strings.Contains(value, "/") {
+		return fmt.Errorf("Invalid storage volume name \"%s\". Storage volumes cannot contain \"/\" in their name", value)
+	}
+
 	return nil
 }
 
