@@ -332,6 +332,7 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 	containerLvmName := containerNameToLVName(containerName)
 	containerLvDevPath := getLvmDevPath(poolName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
+
 	// If btrfstune sees two btrfs filesystems with the same UUID it
 	// gets confused and wants both of them unmounted. So unmount
 	// the source as well.
@@ -340,8 +341,9 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 		if err != nil {
 			return err
 		}
+
 		if ourUmount {
-			s.ContainerMount(source)
+			defer s.ContainerMount(source)
 		}
 	}
 
