@@ -452,7 +452,7 @@ func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeTy
 	return usedBy, nil
 }
 
-func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeConfig map[string]string) error {
+func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeKind db.StorageVolumeKind, volumeConfig map[string]string) error {
 	// Check that the name of the new storage volume is valid. (For example.
 	// zfs pools cannot contain "/" in their names.)
 	err := storageValidName(volumeName)
@@ -496,7 +496,7 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 	}
 
 	// Create the database entry for the storage volume.
-	_, err = s.Cluster.StoragePoolVolumeCreate(volumeName, volumeDescription, volumeType, db.StorageVolumeKindRegular, poolID, volumeConfig)
+	_, err = s.Cluster.StoragePoolVolumeCreate(volumeName, volumeDescription, volumeType, volumeKind, poolID, volumeConfig)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
 	}
@@ -529,7 +529,7 @@ func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol 
 	}
 
 	// Create database entry for new storage volume.
-	err := storagePoolVolumeDBCreate(state, poolName, volumeName, volumeDescription, volumeTypeName, volumeConfig)
+	err := storagePoolVolumeDBCreate(state, poolName, volumeName, volumeDescription, volumeTypeName, db.StorageVolumeKindRegular, volumeConfig)
 	if err != nil {
 		return nil, err
 	}
