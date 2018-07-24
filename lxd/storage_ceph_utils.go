@@ -1487,32 +1487,19 @@ func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
 	fsMntPoint string, volumeType int, volumeName string,
 	data interface{}) error {
 
+	// Find the volume type name
 	volumeTypeName := ""
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
-		c := data.(container)
-		ourMount, err := c.StorageStart()
-		if err != nil {
-			return err
-		}
-		if ourMount {
-			defer c.StorageStop()
-		}
 		volumeTypeName = storagePoolVolumeTypeNameContainer
 	case storagePoolVolumeTypeCustom:
-		ourMount, err := s.StoragePoolVolumeMount()
-		if err != nil {
-			return err
-		}
-		if ourMount {
-			defer s.StoragePoolVolumeUmount()
-		}
 		volumeTypeName = storagePoolVolumeTypeNameCustom
 	default:
 		return fmt.Errorf(`Resizing not implemented for storage `+
 			`volume type %d`, volumeType)
 	}
 
+	// Grow the block device
 	msg, err := shared.TryRunCommand(
 		"rbd",
 		"resize",
@@ -1528,6 +1515,30 @@ func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
 			%s`, path, msg)
 	}
 
+	// Mount the filesystem
+	switch volumeType {
+	case storagePoolVolumeTypeContainer:
+		c := data.(container)
+		ourMount, err := c.StorageStart()
+		if err != nil {
+			return err
+		}
+
+		if ourMount {
+			defer c.StorageStop()
+		}
+	case storagePoolVolumeTypeCustom:
+		ourMount, err := s.StoragePoolVolumeMount()
+		if err != nil {
+			return err
+		}
+
+		if ourMount {
+			defer s.StoragePoolVolumeUmount()
+		}
+	}
+
+	// Grow the filesystem
 	return growFileSystem(fsType, path, fsMntPoint)
 }
 
