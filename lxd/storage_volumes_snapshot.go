@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
 
@@ -50,8 +49,9 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate the name
-	if strings.Contains(req.Name, "/") {
-		return BadRequest(fmt.Errorf("Snapshot names may not contain slashes"))
+	err = storageValidName(req.Name)
+	if err != nil {
+		return BadRequest(err)
 	}
 
 	// Convert the volume type name to our internal integer representation.
