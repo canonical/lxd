@@ -1445,13 +1445,6 @@ func (s *storageCeph) rbdShrink(path string, size int64, fsType string,
 	var err error
 	var msg string
 
-	if (size / 1024) == 0 {
-		// Everything under a 1MB doesn't make sense. Even if rbd won't
-		// freak out xfs or ext4 will.
-		return fmt.Errorf(`The size of the storage pool would be ` +
-			`less than 1MB`)
-	}
-
 	cleanupFunc, err := shrinkVolumeFilesystem(s, volumeType, fsType, path, fsMntPoint, size, data)
 	if cleanupFunc != nil {
 		defer cleanupFunc()
@@ -1520,12 +1513,6 @@ func (s *storageCeph) rbdGrow(path string, size int64, fsType string,
 			`volume type %d`, volumeType)
 	}
 
-	if (size / 1024) == 0 {
-		// Everything under a 1MB doesn't make sense. Even if rbd won't
-		// freak out xfs or ext4 will.
-		return fmt.Errorf(`The size of the storage pool would be ` +
-			`less than 1MB`)
-	}
 	msg, err := shared.TryRunCommand(
 		"rbd",
 		"resize",
