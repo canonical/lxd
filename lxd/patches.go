@@ -10,8 +10,10 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
 
 	log "github.com/lxc/lxd/shared/log15"
 )
@@ -55,6 +57,7 @@ var patches = []patch{
 	{name: "devices_new_naming_scheme", run: patchDevicesNewNamingScheme},
 	{name: "storage_api_permissions", run: patchStorageApiPermissions},
 	{name: "container_config_regen", run: patchContainerConfigRegen},
+	{name: "lvm_node_specific_config_keys", run: patchLvmNodeSpecificConfigKeys},
 }
 
 type patch struct {
@@ -1938,6 +1941,70 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 	}
 
 	return nil
+}
+
+// The lvm.thinpool_name and lvm.vg_name config keys are node-specific and need
+// to be linked to nodes.
+func patchLvmNodeSpecificConfigKeys(name string, d *Daemon) error {
+	tx, err := d.cluster.Begin()
+	if err != nil {
+		return errors.Wrap(err, "failed to begin transaction")
+	}
+
+	// Fetch the IDs of all existing nodes.
+	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
+	if err != nil {
+		return errors.Wrap(err, "failed to get IDs of current nodes")
+	}
+
+	// Fetch the IDs of all existing lvm pools.
+	poolIDs, err := query.SelectIntegers(tx, "SELECT id FROM storage_pools WHERE driver='lvm'")
+	if err != nil {
+		return errors.Wrap(err, "failed to get IDs of current lvm pools")
+	}
+
+	for _, poolID := range poolIDs {
+		// Fetch the config for this lvm pool and check if it has the
+		// lvn.thinpool_name or lvm.vg_name keys.
+		config, err := query.SelectConfig(
+			tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
+		if err != nil {
+			return errors.Wrap(err, "failed to fetch of lvm pool config")
+		}
+
+		for _, key := range []string{"lvm.thinpool_name", "lvm.vg_name"} {
+			value, ok := config[key]
+			if !ok {
+				continue
+			}
+
+			// Delete the current key
+			_, err = tx.Exec(`
+DELETE FROM storage_pools_config WHERE key=? AND storage_pool_id=? AND node_id IS NULL
+`, key, poolID)
+			if err != nil {
+				return errors.Wrapf(err, "failed to delete %s config", key)
+			}
+
+			// Add the config entry for each node
+			for _, nodeID := range nodeIDs {
+				_, err := tx.Exec(`
+INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
+  VALUES(?, ?, ?, ?)
+`, poolID, nodeID, key, value)
+				if err != nil {
+					return errors.Wrapf(err, "failed to create %s node config", key)
+				}
+			}
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return errors.Wrap(err, "failed to commit transaction")
+	}
+
+	return err
 }
 
 func patchStorageApiDirCleanup(name string, d *Daemon) error {
