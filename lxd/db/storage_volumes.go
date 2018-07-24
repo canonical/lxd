@@ -4,8 +4,39 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
+)
+
+// StorageVolumeArgs is a value object holding all db-related details about a
+// storage volume.
+type StorageVolumeArgs struct {
+	Name string
+
+	// At least one of Type or TypeName must be set.
+	Type     int
+	TypeName string
+
+	// At least one of PoolID or PoolName must be set.
+	PoolID   int64
+	PoolName string
+
+	Kind StorageVolumeKind
+
+	Config       map[string]string
+	Description  string
+	CreationDate time.Time
+}
+
+// StorageVolumeKind encodes the type of storage volume (either regular or snapshot).
+type StorageVolumeKind int
+
+// Numerical codes for storage volume types.
+const (
+	StorageVolumeKindValid    StorageVolumeKind = 0
+	StorageVolumeKindRegular  StorageVolumeKind = 0
+	StorageVolumeKindSnapshot StorageVolumeKind = 1
 )
 
 // StorageVolumeNodeAddresses returns the addresses of all nodes on which the
