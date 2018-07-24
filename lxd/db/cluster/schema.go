@@ -234,6 +234,7 @@ CREATE TABLE storage_volumes (
     node_id INTEGER NOT NULL,
     type INTEGER NOT NULL,
     description TEXT,
+    kind INTEGER NOT NULL DEFAULT 0,
     UNIQUE (storage_pool_id, node_id, name, type),
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
@@ -247,5 +248,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (10, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (11, strftime("%s"))
 `
