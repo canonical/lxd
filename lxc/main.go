@@ -276,7 +276,20 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		fmt.Fprintf(os.Stderr, i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")+"\n")
+		// Attempt to connect to the local server
+		runInit := true
+		d, err := lxd.ConnectLXDUnix("", nil)
+		if err == nil {
+			info, _, err := d.GetServer()
+			if err == nil && info.Environment.Storage != "" {
+				runInit = false
+			}
+		}
+
+		if runInit {
+			fmt.Fprintf(os.Stderr, i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")+"\n")
+		}
+
 		fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:18.04")+"\n\n")
 	}
 
