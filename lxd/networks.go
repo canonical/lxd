@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -1403,6 +1404,40 @@ func (n *network) Start() error {
 		addr := strings.Split(fanAddress, "/")
 		if n.config["fan.type"] == "ipip" {
 			fanAddress = fmt.Sprintf("%s/24", addr[0])
+		}
+
+		// Update the MTU based on overlay device (if available)
+		content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/mtu", devName))
+		if err == nil {
+			// Parse value
+			fanMtuInt, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 32)
+			if err != nil {
+				return err
+			}
+
+			// Apply overhead
+			if n.config["fan.type"] == "ipip" {
+				fanMtuInt = fanMtuInt - 20
+			} else {
+				fanMtuInt = fanMtuInt - 50
+			}
+
+			// Apply changes
+			fanMtu := fmt.Sprintf("%d", fanMtuInt)
+			if fanMtu != mtu {
+				mtu = fanMtu
+				if n.config["bridge.driver"] != "openvswitch" {
+					_, err = shared.RunCommand("ip", "link", "set", "dev", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu)
+					if err != nil {
+						return err
+					}
+				}
+
+				_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "mtu", mtu)
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		// Parse the host subnet
