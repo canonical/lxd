@@ -15,14 +15,9 @@ import (
 )
 
 func (s *storageLvm) lvExtend(lvPath string, lvSize int64, fsType string, fsMntPoint string, volumeType int, data interface{}) error {
+	// Round the size to closest 512 bytes
+	lvSize = int64(lvSize/512) * 512
 	lvSizeString := shared.GetByteSizeString(lvSize, 0)
-
-	if (lvSize / 1024) == 0 {
-		// Everything under a 1MB doesn't make sense. Even if lvextend
-		// won't freak out xfs or ext4 will.
-		return fmt.Errorf(`The size of the storage volume would be ` +
-			`less than 1MB`)
-	}
 
 	msg, err := shared.TryRunCommand(
 		"lvextend",
@@ -64,12 +59,10 @@ func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntP
 	var err error
 	var msg string
 
-	if (lvSize / 1024) == 0 {
-		// Everything under a 1MB doesn't make sense. Even if lvreduce
-		// won't freak out xfs or ext4 will.
-		return fmt.Errorf(`The size of the storage volume would be ` +
-			`less than 1MB`)
-	}
+	// Round the size to closest 512 bytes
+	lvSize = int64(lvSize/512) * 512
+	lvSizeString := shared.GetByteSizeString(lvSize, 0)
+
 	cleanupFunc, err := shrinkVolumeFilesystem(s, volumeType, fsType, lvPath, fsMntPoint, lvSize, data)
 	if cleanupFunc != nil {
 		defer cleanupFunc()
@@ -78,10 +71,9 @@ func (s *storageLvm) lvReduce(lvPath string, lvSize int64, fsType string, fsMntP
 		return err
 	}
 
-	lvSizeString := strconv.FormatInt(lvSize, 10)
 	msg, err = shared.TryRunCommand(
 		"lvreduce",
-		"-L", lvSizeString+"B",
+		"-L", lvSizeString,
 		"-f",
 		lvPath)
 	if err != nil {
@@ -207,7 +199,17 @@ func (s *storageLvm) createSnapshotLV(vgName string, origLvName string, origVolu
 		if lvSize == "" {
 			return "", err
 		}
-		args = append(args, "--size", lvSize+"B")
+
+		// Round the size to closest 512 bytes
+		lvSizeInt, err := shared.ParseByteSizeString(lvSize)
+		if err != nil {
+			return "", err
+		}
+
+		lvSizeInt = int64(lvSizeInt/512) * 512
+		lvSizeString := shared.GetByteSizeString(lvSizeInt, 0)
+
+		args = append(args, "--size", lvSizeString)
 	}
 
 	if readonly {
@@ -330,6 +332,7 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 	containerLvmName := containerNameToLVName(containerName)
 	containerLvDevPath := getLvmDevPath(poolName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
+
 	// If btrfstune sees two btrfs filesystems with the same UUID it
 	// gets confused and wants both of them unmounted. So unmount
 	// the source as well.
@@ -338,8 +341,9 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 		if err != nil {
 			return err
 		}
+
 		if ourUmount {
-			s.ContainerMount(source)
+			defer s.ContainerMount(source)
 		}
 	}
 
@@ -836,12 +840,21 @@ func lvmCreateLv(vgName string, thinPoolName string, lvName string, lvFsType str
 	var output string
 	var err error
 
+	// Round the size to closest 512 bytes
+	lvSizeInt, err := shared.ParseByteSizeString(lvSize)
+	if err != nil {
+		return err
+	}
+
+	lvSizeInt = int64(lvSizeInt/512) * 512
+	lvSizeString := shared.GetByteSizeString(lvSizeInt, 0)
+
 	lvmPoolVolumeName := getPrefixedLvName(volumeType, lvName)
 	if makeThinLv {
 		targetVg := fmt.Sprintf("%s/%s", vgName, thinPoolName)
-		output, err = shared.TryRunCommand("lvcreate", "--thin", "-n", lvmPoolVolumeName, "--virtualsize", lvSize+"B", targetVg)
+		output, err = shared.TryRunCommand("lvcreate", "--thin", "-n", lvmPoolVolumeName, "--virtualsize", lvSizeString, targetVg)
 	} else {
-		output, err = shared.TryRunCommand("lvcreate", "-n", lvmPoolVolumeName, "--size", lvSize+"B", vgName)
+		output, err = shared.TryRunCommand("lvcreate", "-n", lvmPoolVolumeName, "--size", lvSizeString, vgName)
 	}
 	if err != nil {
 		logger.Errorf("Could not create LV \"%s\": %s", lvmPoolVolumeName, output)
