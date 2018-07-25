@@ -30,9 +30,9 @@ test_network() {
 
   # rename network
   lxc network create lxdt$$
-  lxc network rename lxdt$$ newnet
+  lxc network rename lxdt$$ newnet$$
   lxc network list | grep -qv lxdt$$  # the old name is gone
-  lxc network delete newnet
+  lxc network delete newnet$$
 
   # Unconfigured bridge
   lxc network create lxdt$$ ipv4.address=none ipv6.address=none
