@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -97,10 +98,35 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 		defer storage.StoragePoolVolumeUmount()
 	}
 
-	// // Create new snapshot name.
-	// fullName := fmt.Sprintf("%s%s%s", name, shared.SnapshotDelimiter, req.Name)
+	volWritable := storage.GetStoragePoolVolumeWritable()
+	fullSnapName := fmt.Sprintf("%s%s%s", volumeName, shared.SnapshotDelimiter, req.Name)
+	req.Name = fullSnapName
+	snapshot := func(op *operation) error {
+		dbArgs := &db.StorageVolumeArgs{
+			Name:        fullSnapName,
+			PoolName:    poolName,
+			TypeName:    volumeTypeName,
+			Kind:        db.StorageVolumeKindSnapshot,
+			Config:      volWritable.Config,
+			Description: volWritable.Description,
+		}
 
-	return EmptySyncResponse
+		_, err = storagePoolVolumeSnapshotDBCreateInternal(d.State(), dbArgs)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	resources := map[string][]string{}
+	resources["storage_volumes"] = []string{volumeName}
+
+	op, err := operationCreate(d.cluster, operationClassTask, db.OperationVolumeSnapshotCreate, resources, nil, snapshot, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }
 
 func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) Response {
