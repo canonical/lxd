@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -51,6 +52,20 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	// Sanity checks
 	if req.MetaFile == nil && req.RootfsFile == nil {
 		return nil, fmt.Errorf("No file requested")
+	}
+
+	// Attempt to download from host
+	if shared.PathExists("/dev/lxd/sock") && os.Geteuid() == 0 {
+		unixURI := fmt.Sprintf("http://unix.socket/1.0/images/%s/export", url.QueryEscape(fingerprint))
+
+		// Setup the HTTP client
+		devlxdHTTP, err := unixHTTPClient(nil, "/dev/lxd/sock")
+		if err == nil {
+			resp, err := lxdDownloadImage(fingerprint, unixURI, r.httpUserAgent, devlxdHTTP, req)
+			if err == nil {
+				return resp, nil
+			}
+		}
 	}
 
 	// Get the file list

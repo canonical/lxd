@@ -99,8 +99,19 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 		return nil, fmt.Errorf("No file requested")
 	}
 
-	// Prepare the response
-	resp := ImageFileResponse{}
+	// Attempt to download from host
+	if secret == "" && shared.PathExists("/dev/lxd/sock") && os.Geteuid() == 0 {
+		unixURI := fmt.Sprintf("http://unix.socket/1.0/images/%s/export", url.QueryEscape(fingerprint))
+
+		// Setup the HTTP client
+		devlxdHTTP, err := unixHTTPClient(nil, "/dev/lxd/sock")
+		if err == nil {
+			resp, err := lxdDownloadImage(fingerprint, unixURI, r.httpUserAgent, devlxdHTTP, req)
+			if err == nil {
+				return resp, nil
+			}
+		}
+	}
 
 	// Build the URL
 	uri := fmt.Sprintf("%s/1.0/images/%s/export", r.httpHost, url.QueryEscape(fingerprint))
@@ -108,18 +119,25 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 		uri = fmt.Sprintf("%s?secret=%s", uri, url.QueryEscape(secret))
 	}
 
+	return lxdDownloadImage(fingerprint, uri, r.httpUserAgent, r.http, req)
+}
+
+func lxdDownloadImage(fingerprint string, uri string, userAgent string, client *http.Client, req ImageFileRequest) (*ImageFileResponse, error) {
+	// Prepare the response
+	resp := ImageFileResponse{}
+
 	// Prepare the download request
 	request, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if r.httpUserAgent != "" {
-		request.Header.Set("User-Agent", r.httpUserAgent)
+	if userAgent != "" {
+		request.Header.Set("User-Agent", userAgent)
 	}
 
 	// Start the request
-	response, doneCh, err := cancel.CancelableDownload(req.Canceler, r.http, request)
+	response, doneCh, err := cancel.CancelableDownload(req.Canceler, client, request)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +145,7 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 	defer close(doneCh)
 
 	if response.StatusCode != http.StatusOK {
-		_, _, err := r.parseResponse(response)
+		_, _, err := lxdParseResponse(response)
 		if err != nil {
 			return nil, err
 		}
@@ -412,7 +430,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	defer resp.Body.Close()
 
 	// Handle errors
-	response, _, err := r.parseResponse(resp)
+	response, _, err := lxdParseResponse(resp)
 	if err != nil {
 		return nil, err
 	}
