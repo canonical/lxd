@@ -121,7 +121,7 @@ func (r *ProtocolLXD) RawOperation(method string, path string, data interface{},
 }
 
 // Internal functions
-func (r *ProtocolLXD) parseResponse(resp *http.Response) (*api.Response, string, error) {
+func lxdParseResponse(resp *http.Response) (*api.Response, string, error) {
 	// Get the ETag
 	etag := resp.Header.Get("ETag")
 
@@ -221,7 +221,7 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 	}
 	defer resp.Body.Close()
 
-	return r.parseResponse(resp)
+	return lxdParseResponse(resp)
 }
 
 func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag string) (*api.Response, string, error) {
