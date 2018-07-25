@@ -324,13 +324,39 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.ContainerServer) erro
 
 				break
 			}
-		} else if config.Cluster != nil && fanKernel && cli.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]", "yes") {
+		} else if config.Cluster != nil && fanKernel && cli.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]: ", "yes") {
 			// Define the network
 			network := api.NetworksPost{}
 			network.Name = "lxdfan0"
 			network.Config = map[string]string{
 				"bridge.mode": "fan",
 			}
+
+			// Select the underlay
+			network.Config["fan.underlay_subnet"] = cli.AskString("What subnet should be used as the Fan underlay? [default=auto]: ", "auto", func(value string) error {
+				var err error
+				var subnet *net.IPNet
+
+				// Handle auto
+				if value == "auto" {
+					subnet, _, err = networkDefaultGatewaySubnetV4()
+					if err != nil {
+						return err
+					}
+				} else {
+					_, subnet, err = net.ParseCIDR(value)
+					if err != nil {
+						return err
+					}
+				}
+
+				size, _ := subnet.Mask.Size()
+				if size != 16 && size != 24 {
+					return fmt.Errorf("The underlay subnet must be a /16 or a /24")
+				}
+
+				return nil
+			})
 
 			// Add the new network
 			config.Node.Networks = append(config.Node.Networks, network)
