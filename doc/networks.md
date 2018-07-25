@@ -23,6 +23,7 @@ Key                             | Type      | Condition             | Default   
 :--                             | :--       | :--                   | :--                       | :--
 bridge.driver                   | string    | -                     | native                    | Bridge driver ("native" or "openvswitch")
 bridge.external\_interfaces     | string    | -                     | -                         | Comma separate list of unconfigured network interfaces to include in the bridge
+bridge.hwaddr                   | string    | -                     | -                         | MAC address for the bridge
 bridge.mode                     | string    | -                     | standard                  | Bridge operation mode ("standard" or "fan")
 bridge.mtu                      | integer   | -                     | 1500                      | Bridge MTU (default varies if tunnel or fan setup)
 dns.domain                      | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
