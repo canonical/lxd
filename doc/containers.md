@@ -451,6 +451,7 @@ bind            | string    | host              | no        | Which side to bind
 uid             | int       | 0                 | no        | UID of the owner of the listening Unix socket
 gid             | int       | 0                 | no        | GID of the owner of the listening Unix socket
 mode            | int       | 0755              | no        | Mode for the listening Unix socket
+nat             | bool      | false             | no        | Whether to optimize proxying via NAT
 proxy\_protocol | bool      | false             | no        | Whether to use the HAProxy PROXY protocol to transmit sender information
 security.uid    | int       | 0                 | no        | What UID to drop privilege to
 security.gid    | int       | 0                 | no        | What GID to drop privilege to

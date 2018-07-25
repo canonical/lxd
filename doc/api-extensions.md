@@ -557,3 +557,7 @@ Adds a proxy\_protocol key to the proxy device which controls the use of the HAP
 
 ## network\_hwaddr
 Adds a bridge.hwaddr key to control the MAC address of the bridge.
+
+## proxy\_nat
+This adds optimized UDP/TCP proxying. If the configuration allows, proxying
+will be done via iptables instead of proxy devices.
