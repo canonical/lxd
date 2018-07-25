@@ -285,7 +285,7 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Fprintf(os.Stderr, i18n.G("If this is your first time running LXD on this machine, you should also run: lxd init")+"\n")
-		fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:16.04")+"\n\n")
+		fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:18.04")+"\n\n")
 	}
 
 	// Only setup macaroons if a config path exists (so the jar can be saved)
