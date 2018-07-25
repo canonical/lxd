@@ -116,6 +116,7 @@ var APIExtensions = []string{
 	"unix_priv_drop",
 	"pprof_http",
 	"proxy_haproxy_protocol",
+	"network_hwaddr",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

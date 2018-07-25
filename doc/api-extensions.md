@@ -554,3 +554,6 @@ cpu-profile, memory-profile and print-goroutines debug options.
 
 ## proxy\_haproxy\_protocol
 Adds a proxy\_protocol key to the proxy device which controls the use of the HAProxy PROXY protocol header.
+
+## network\_hwaddr
+Adds a bridge.hwaddr key to control the MAC address of the bridge.
