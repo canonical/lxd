@@ -38,7 +38,7 @@ test_storage() {
       lxc storage create "$btrfs_storage_pool" "$lxd_backend" volume.block.filesystem=btrfs volume.size=200MB
       lxc storage volume create "$btrfs_storage_pool" "$btrfs_storage_volume"
       lxc storage volume show "$btrfs_storage_pool" "$btrfs_storage_volume"
-      lxc storage volume set "$btrfs_storage_pool" "$btrfs_storage_volume" size 256MB
+      lxc storage volume set "$btrfs_storage_pool" "$btrfs_storage_volume" size 256MiB
       lxc storage volume delete "$btrfs_storage_pool" "$btrfs_storage_volume"
 
       # Test generation of unique UUID.
