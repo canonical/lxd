@@ -6850,6 +6850,10 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 		return fmt.Errorf("Can't add proxy device to stopped container")
 	}
 
+	if shared.IsTrue(m["nat"]) {
+		return c.doNat(devName, m)
+	}
+
 	proxyValues, err := setupProxyProcInfo(c, m)
 	if err != nil {
 		return err
@@ -6883,13 +6887,139 @@ func (c *containerLXC) insertProxyDevice(devName string, m types.Device) error {
 	return nil
 }
 
+func (c *containerLXC) doNat(proxy string, device types.Device) error {
+	listenAddr, err := parseAddr(device["listen"])
+	if err != nil {
+		return err
+	}
+
+	connectAddr, err := parseAddr(device["connect"])
+	if err != nil {
+		return err
+	}
+
+	address, _, err := net.SplitHostPort(connectAddr.addr[0])
+	if err != nil {
+		return err
+	}
+
+	var IPv4Addr string
+	var IPv6Addr string
+
+	for _, name := range c.expandedDevices.DeviceNames() {
+		m := c.expandedDevices[name]
+		if m["type"] != "nic" || (m["type"] == "nic" && m["nictype"] != "bridged") {
+			continue
+		}
+
+		// Check whether the NIC has a static IP
+		ip := m["ipv4.address"]
+		// Ensure that the provided IP address matches the container's IP
+		// address otherwise we could mess with other containers.
+		if ip != "" && IPv4Addr == "" && (address == ip || address == "0.0.0.0") {
+			IPv4Addr = ip
+		}
+
+		ip = m["ipv6.address"]
+		if ip != "" && IPv6Addr == "" && (address == ip || address == "::") {
+			IPv6Addr = ip
+		}
+	}
+
+	if IPv4Addr == "" && IPv6Addr == "" {
+		return errors.New("NIC IP doesn't match proxy target IP")
+	}
+
+	iptablesComment := fmt.Sprintf("%s (%s)", c.Name(), proxy)
+
+	revert := true
+	defer func() {
+		if revert {
+			if IPv4Addr != "" {
+				containerIptablesClear("ipv4", iptablesComment, "nat")
+			}
+
+			if IPv6Addr != "" {
+				containerIptablesClear("ipv6", iptablesComment, "nat")
+			}
+		}
+	}()
+
+	for i, lAddr := range listenAddr.addr {
+		address, port, err := net.SplitHostPort(lAddr)
+		if err != nil {
+			return err
+		}
+		var cPort string
+		if len(connectAddr.addr) == 1 {
+			_, cPort, _ = net.SplitHostPort(connectAddr.addr[0])
+		} else {
+			_, cPort, _ = net.SplitHostPort(connectAddr.addr[i])
+		}
+
+		if IPv4Addr != "" {
+			// outbound <-> container
+			err := containerIptablesPrepend("ipv4", iptablesComment, "nat",
+				"PREROUTING", "-p", listenAddr.connType, "--destination",
+				address, "--dport", port, "-j", "DNAT",
+				"--to-destination", fmt.Sprintf("%s:%s", IPv4Addr, cPort))
+			if err != nil {
+				return err
+			}
+
+			// host <-> container
+			err = containerIptablesPrepend("ipv4", iptablesComment, "nat",
+				"OUTPUT", "-p", listenAddr.connType, "--destination",
+				address, "--dport", port, "-j", "DNAT",
+				"--to-destination", fmt.Sprintf("%s:%s", IPv4Addr, cPort))
+			if err != nil {
+				return err
+			}
+		}
+
+		if IPv6Addr != "" {
+			// outbound <-> container
+			err := containerIptablesPrepend("ipv6", iptablesComment, "nat",
+				"PREROUTING", "-p", listenAddr.connType, "--destination",
+				address, "--dport", port, "-j", "DNAT",
+				"--to-destination", fmt.Sprintf("[%s]:%s", IPv6Addr, cPort))
+			if err != nil {
+				return err
+			}
+
+			// host <-> container
+			err = containerIptablesPrepend("ipv6", iptablesComment, "nat",
+				"OUTPUT", "-p", listenAddr.connType, "--destination",
+				address, "--dport", port, "-j", "DNAT",
+				"--to-destination", fmt.Sprintf("[%s]:%s", IPv6Addr, cPort))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	revert = false
+	logger.Info(fmt.Sprintf("Using NAT for proxy device '%s'", proxy))
+	return nil
+}
+
 func (c *containerLXC) removeProxyDevice(devName string) error {
 	if !c.IsRunning() {
 		return fmt.Errorf("Can't remove proxy device from stopped container")
 	}
 
+	// Remove possible iptables entries
+	containerIptablesClear("ipv4", fmt.Sprintf("%s (%s)", c.Name(), devName), "nat")
+	containerIptablesClear("ipv6", fmt.Sprintf("%s (%s)", c.Name(), devName), "nat")
+
 	devFileName := fmt.Sprintf("proxy.%s", devName)
 	devPath := filepath.Join(c.DevicesPath(), devFileName)
+
+	if !shared.PathExists(devPath) {
+		// There's no proxy process if NAT is enabled
+		return nil
+	}
+
 	err := killProxyProc(devPath)
 	if err != nil {
 		return err
@@ -6899,6 +7029,10 @@ func (c *containerLXC) removeProxyDevice(devName string) error {
 }
 
 func (c *containerLXC) removeProxyDevices() error {
+	// Remove possible iptables entries
+	containerIptablesClear("ipv4", fmt.Sprintf("%s", c.Name()), "nat")
+	containerIptablesClear("ipv6", fmt.Sprintf("%s", c.Name()), "nat")
+
 	// Check that we actually have devices to remove
 	if !shared.PathExists(c.DevicesPath()) {
 		return nil
