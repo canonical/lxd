@@ -762,7 +762,7 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
-		_, _, err := r.parseResponse(resp)
+		_, _, err := lxdParseResponse(resp)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -861,7 +861,7 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Check the return value for a cleaner error
-	_, _, err = r.parseResponse(resp)
+	_, _, err = lxdParseResponse(resp)
 	if err != nil {
 		return err
 	}
@@ -1287,7 +1287,7 @@ func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.Read
 
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
-		_, _, err := r.parseResponse(resp)
+		_, _, err := lxdParseResponse(resp)
 		if err != nil {
 			return nil, err
 		}
@@ -1381,7 +1381,7 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
-		_, _, err := r.parseResponse(resp)
+		_, _, err := lxdParseResponse(resp)
 		if err != nil {
 			return nil, err
 		}
@@ -1421,7 +1421,7 @@ func (r *ProtocolLXD) setContainerTemplateFile(containerName string, templateNam
 	resp, err := r.http.Do(req)
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
-		_, _, err := r.parseResponse(resp)
+		_, _, err := lxdParseResponse(resp)
 		if err != nil {
 			return err
 		}
@@ -1536,7 +1536,7 @@ func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *Contain
 
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
-		_, _, err := r.parseResponse(resp)
+		_, _, err := lxdParseResponse(resp)
 		if err != nil {
 			return nil, err
 		}
@@ -1695,7 +1695,7 @@ func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, 
 	defer close(doneCh)
 
 	if response.StatusCode != http.StatusOK {
-		_, _, err := r.parseResponse(response)
+		_, _, err := lxdParseResponse(response)
 		if err != nil {
 			return nil, err
 		}
