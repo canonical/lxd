@@ -453,13 +453,6 @@ func profilesUsingPoolVolumeGetNames(db *db.Cluster, volumeName string, volumeTy
 }
 
 func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volumeDescription string, volumeTypeName string, volumeKind db.StorageVolumeKind, volumeConfig map[string]string) error {
-	// Check that the name of the new storage volume is valid. (For example.
-	// zfs pools cannot contain "/" in their names.)
-	err := storageValidName(volumeName)
-	if err != nil {
-		return err
-	}
-
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
 	if err != nil {
@@ -577,4 +570,33 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 	}
 
 	return nil
+}
+
+func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.StorageVolumeArgs) (storage, error) {
+	// Create database entry for new storage volume.
+	err := storagePoolVolumeDBCreate(state, dbArgs.PoolName, dbArgs.Name, dbArgs.Description, dbArgs.TypeName, db.StorageVolumeKindSnapshot, dbArgs.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the volume type name to our internal integer representation.
+	poolID, err := state.Cluster.StoragePoolGetID(dbArgs.PoolName)
+	if err != nil {
+		return nil, err
+	}
+
+	volumeType, err := storagePoolVolumeTypeNameToType(dbArgs.TypeName)
+	if err != nil {
+		state.Cluster.StoragePoolVolumeDelete(dbArgs.Name, volumeType, poolID)
+		return nil, err
+	}
+
+	// Initialize new storage volume on the target storage pool.
+	s, err := storagePoolVolumeInit(state, dbArgs.PoolName, dbArgs.Name, volumeType)
+	if err != nil {
+		state.Cluster.StoragePoolVolumeDelete(dbArgs.Name, volumeType, poolID)
+		return nil, err
+	}
+
+	return s, nil
 }
