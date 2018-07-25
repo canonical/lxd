@@ -239,6 +239,8 @@ func containerValidDeviceConfigKey(t, k string) bool {
 			return true
 		case "proxy_protocol":
 			return true
+		case "nat":
+			return true
 		case "security.gid":
 			return true
 		case "security.uid":
@@ -471,6 +473,21 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property.")
 			}
 
+			listenAddr, err := parseAddr(m["listen"])
+			if err != nil {
+				return err
+			}
+
+			connectAddr, err := parseAddr(m["connect"])
+			if err != nil {
+				return err
+			}
+
+			if len(connectAddr.addr) > len(listenAddr.addr) {
+				// Cannot support single port -> multiple port
+				return fmt.Errorf("Cannot map a single port to multiple ports")
+			}
+
 			if shared.IsTrue(m["proxy_protocol"]) && !strings.HasPrefix(m["connect"], "tcp") {
 				return fmt.Errorf("The PROXY header can only be sent to tcp servers")
 			}
@@ -479,6 +496,20 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 				(m["uid"] != "" || m["gid"] != "" || m["mode"] != "") {
 				return fmt.Errorf("Only proxy devices for non-abstract unix sockets can carry uid, gid, or mode properties")
 			}
+
+			if shared.IsTrue(m["nat"]) {
+				if m["bind"] != "host" {
+					return fmt.Errorf("Only host-bound proxies can use NAT")
+				}
+
+				// Support TCP <-> TCP and UDP <-> UDP
+				if listenAddr.connType == "unix" || connectAddr.connType == "unix" ||
+					listenAddr.connType != connectAddr.connType {
+					return fmt.Errorf("Proxying %s <-> %s is not supported when using NAT",
+						listenAddr.connType, connectAddr.connType)
+				}
+			}
+
 		} else if m["type"] == "none" {
 			continue
 		} else {
