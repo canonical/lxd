@@ -1,7 +1,5 @@
 package api
 
-import ()
-
 // StorageVolumeSnapshotsPost represents the fields available for a new LXD storage volume snapshot
 //
 // API extension: storage_api_volume_snapshots
