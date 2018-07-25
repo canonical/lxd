@@ -471,6 +471,21 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property.")
 			}
 
+			listenAddr, err := parseAddr(m["listen"])
+			if err != nil {
+				return err
+			}
+
+			connectAddr, err := parseAddr(m["connect"])
+			if err != nil {
+				return err
+			}
+
+			if len(connectAddr.addr) > len(listenAddr.addr) {
+				// Cannot support single port -> multiple port
+				return fmt.Errorf("Cannot map a single port to multiple ports")
+			}
+
 			if shared.IsTrue(m["proxy_protocol"]) && !strings.HasPrefix(m["connect"], "tcp") {
 				return fmt.Errorf("The PROXY header can only be sent to tcp servers")
 			}
