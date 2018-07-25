@@ -1046,6 +1046,14 @@ func (n *network) Start() error {
 		return err
 	}
 
+	// Set the MAC address
+	if n.config["bridge.hwaddr"] != "" {
+		_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "address", n.config["bridge.hwaddr"])
+		if err != nil {
+			return err
+		}
+	}
+
 	// Bring it up
 	_, err = shared.RunCommand("ip", "link", "set", "dev", n.name, "up")
 	if err != nil {
