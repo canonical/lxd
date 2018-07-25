@@ -324,7 +324,7 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.ContainerServer) erro
 
 				break
 			}
-		} else if config.Cluster != nil && fanKernel && cli.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]", "yes") {
+		} else if config.Cluster != nil && fanKernel && cli.AskBool("Would you like to create a new Fan overlay network? (yes/no) [default=yes]: ", "yes") {
 			// Define the network
 			network := api.NetworksPost{}
 			network.Name = "lxdfan0"
