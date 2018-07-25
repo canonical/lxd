@@ -26,7 +26,8 @@ var networkConfigKeys = map[string]func(value string) error{
 
 		return nil
 	},
-	"bridge.mtu": shared.IsInt64,
+	"bridge.hwaddr": shared.IsAny,
+	"bridge.mtu":    shared.IsInt64,
 	"bridge.mode": func(value string) error {
 		return shared.IsOneOf(value, []string{"standard", "fan"})
 	},

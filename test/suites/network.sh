@@ -11,6 +11,8 @@ test_network() {
   lxc network set lxdt$$ ipv4.routing false
   lxc network set lxdt$$ ipv6.routing false
   lxc network set lxdt$$ ipv6.dhcp.stateful true
+  lxc network set lxdt$$ bridge.hwaddr 00:11:22:33:44:55
+  [ "$(cat /sys/class/net/lxdt$$/address)" = "00:11:22:33:44:55" ]
 
   # validate unset and patch
   [ "$(lxc network get lxdt$$ ipv6.dhcp.stateful)" = "true" ]
@@ -30,9 +32,9 @@ test_network() {
 
   # rename network
   lxc network create lxdt$$
-  lxc network rename lxdt$$ newnet
+  lxc network rename lxdt$$ newnet$$
   lxc network list | grep -qv lxdt$$  # the old name is gone
-  lxc network delete newnet
+  lxc network delete newnet$$
 
   # Unconfigured bridge
   lxc network create lxdt$$ ipv4.address=none ipv6.address=none
