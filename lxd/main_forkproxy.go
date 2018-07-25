@@ -1023,6 +1023,10 @@ func parseAddr(addr string) (*proxyAddress, error) {
 	// Split into <protocol> and <address>
 	fields := strings.SplitN(addr, ":", 2)
 
+	if !shared.StringInSlice(fields[0], []string{"tcp", "udp", "unix"}) {
+		return nil, fmt.Errorf("Unknown connection type '%s'", fields[0])
+	}
+
 	newProxyAddr := &proxyAddress{
 		connType: fields[0],
 		abstract: strings.HasPrefix(fields[1], "@"),
@@ -1035,23 +1039,27 @@ func parseAddr(addr string) (*proxyAddress, error) {
 	}
 
 	// Split <address> into <address> and <ports>
-	addrParts := strings.SplitN(fields[1], ":", 2)
-	// no ports
-	if len(addrParts) == 1 {
-		newProxyAddr.addr = []string{fields[1]}
-		return newProxyAddr, nil
+	address, port, err := net.SplitHostPort(fields[1])
+	if err != nil {
+		return nil, err
 	}
 
 	// Split <ports> into individual ports and port ranges
-	ports := strings.SplitN(addrParts[1], ",", -1)
-	for _, port := range ports {
-		portFirst, portRange, err := parsePortRange(port)
+	ports := strings.SplitN(port, ",", -1)
+	for _, p := range ports {
+		portFirst, portRange, err := parsePortRange(p)
 		if err != nil {
 			return nil, err
 		}
 
 		for i := int64(0); i < portRange; i++ {
-			newAddr := fmt.Sprintf("%s:%d", addrParts[0], portFirst+i)
+			var newAddr string
+			if strings.Contains(address, ":") {
+				// IPv6 addresses need to be enclosed in square brackets
+				newAddr = fmt.Sprintf("[%s]:%d", address, portFirst+i)
+			} else {
+				newAddr = fmt.Sprintf("%s:%d", address, portFirst+i)
+			}
 			newProxyAddr.addr = append(newProxyAddr.addr, newAddr)
 		}
 	}

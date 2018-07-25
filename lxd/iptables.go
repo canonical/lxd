@@ -8,7 +8,8 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func networkIptablesPrepend(protocol string, netName string, table string, chain string, rule ...string) error {
+func iptablesPrepend(protocol string, comment string, table string, chain string,
+	rule ...string) error {
 	cmd := "iptables"
 	if protocol == "ipv6" {
 		cmd = "ip6tables"
@@ -28,7 +29,7 @@ func networkIptablesPrepend(protocol string, netName string, table string, chain
 	// Check for an existing entry
 	args := append(baseArgs, []string{"-C", chain}...)
 	args = append(args, rule...)
-	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for LXD network %s", netName))
+	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for %s", comment))
 	_, err = shared.RunCommand(cmd, args...)
 	if err == nil {
 		return nil
@@ -37,7 +38,7 @@ func networkIptablesPrepend(protocol string, netName string, table string, chain
 	// Add the rule
 	args = append(baseArgs, []string{"-I", chain}...)
 	args = append(args, rule...)
-	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for LXD network %s", netName))
+	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for %s", comment))
 
 	_, err = shared.TryRunCommand(cmd, args...)
 	if err != nil {
@@ -47,7 +48,7 @@ func networkIptablesPrepend(protocol string, netName string, table string, chain
 	return nil
 }
 
-func networkIptablesClear(protocol string, netName string, table string) error {
+func iptablesClear(protocol string, comment string, table string) error {
 	// Detect kernels that lack IPv6 support
 	if !shared.PathExists("/proc/sys/net/ipv6") && protocol == "ipv6" {
 		return nil
@@ -73,11 +74,11 @@ func networkIptablesClear(protocol string, netName string, table string) error {
 	args := append(baseArgs, "-S")
 	output, err := shared.TryRunCommand(cmd, args...)
 	if err != nil {
-		return fmt.Errorf("Failed to list %s rules for %s (table %s)", protocol, netName, table)
+		return fmt.Errorf("Failed to list %s rules for %s (table %s)", protocol, comment, table)
 	}
 
 	for _, line := range strings.Split(output, "\n") {
-		if !strings.Contains(line, fmt.Sprintf("generated for LXD network %s", netName)) {
+		if !strings.Contains(line, fmt.Sprintf("generated for %s", comment)) {
 			continue
 		}
 
@@ -93,4 +94,26 @@ func networkIptablesClear(protocol string, netName string, table string) error {
 	}
 
 	return nil
+}
+
+func networkIptablesPrepend(protocol string, comment string, table string, chain string,
+	rule ...string) error {
+	return iptablesPrepend(protocol, fmt.Sprintf("LXD network %s", comment),
+		table, chain, rule...)
+}
+
+func networkIptablesClear(protocol string, comment string, table string) error {
+	return iptablesClear(protocol, fmt.Sprintf("LXD network %s", comment),
+		table)
+}
+
+func containerIptablesPrepend(protocol string, comment string, table string,
+	chain string, rule ...string) error {
+	return iptablesPrepend(protocol, fmt.Sprintf("LXD container %s", comment),
+		table, chain, rule...)
+}
+
+func containerIptablesClear(protocol string, comment string, table string) error {
+	return iptablesClear(protocol, fmt.Sprintf("LXD container %s", comment),
+		table)
 }
