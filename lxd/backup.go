@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -110,7 +111,7 @@ func (b *backup) Dump() ([]byte, error) {
 
 func (b *backup) Render() interface{} {
 	return &api.ContainerBackup{
-		Name:             b.name,
+		Name:             strings.SplitN(b.name, "/", 2)[1],
 		CreationDate:     b.creationDate,
 		ExpiryDate:       b.expiryDate,
 		ContainerOnly:    b.containerOnly,
