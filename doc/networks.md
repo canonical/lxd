@@ -38,6 +38,7 @@ ipv4.dhcp.gateway               | string    | ipv4 dhcp             | ipv4.addre
 ipv4.dhcp.ranges                | string    | ipv4 dhcp             | all addresses             | Comma separated list of IP ranges to use for DHCP (FIRST-LAST format)
 ipv4.firewall                   | boolean   | ipv4 address          | true                      | Whether to generate filtering firewall rules for this network
 ipv4.nat                        | boolean   | ipv4 address          | false                     | Whether to NAT (will default to true if unset and a random ipv4.address is generated)
+ipv4.nat.order                  | string    | ipv4 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
 ipv4.routes                     | string    | ipv4 address          | -                         | Comma separated list of additional IPv4 CIDR subnets to route to the bridge
 ipv4.routing                    | boolean   | ipv4 address          | true                      | Whether to route traffic in and out of the bridge
 ipv6.address                    | string    | standard mode         | random unused subnet      | IPv6 address for the bridge (CIDR notation). Use "none" to turn off IPv6 or "auto" to generate a new one
@@ -47,6 +48,7 @@ ipv6.dhcp.ranges                | string    | ipv6 stateful dhcp    | all addres
 ipv6.dhcp.stateful              | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
 ipv6.firewall                   | boolean   | ipv6 address          | true                      | Whether to generate filtering firewall rules for this network
 ipv6.nat                        | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
+ipv6.nat.order                  | string    | ipv6 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
 ipv6.routes                     | string    | ipv6 address          | -                         | Comma separated list of additional IPv6 CIDR subnets to route to the bridge
 ipv6.routing                    | boolean   | ipv6 address          | true                      | Whether to route traffic in and out of the bridge
 raw.dnsmasq                     | string    | -                     | -                         | Additional dnsmasq configuration to append to the configuration
