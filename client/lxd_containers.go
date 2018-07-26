@@ -942,12 +942,13 @@ func (r *ProtocolLXD) CreateContainerSnapshot(containerName string, snapshot api
 }
 
 // CopyContainerSnapshot copies a snapshot from a remote server into a new container. Additional options can be passed using ContainerCopyArgs
-func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (RemoteOperation, error) {
-	// Base request
-	fields := strings.SplitN(snapshot.Name, shared.SnapshotDelimiter, 2)
-	cName := fields[0]
-	sName := fields[1]
+func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, containerName string, snapshot api.ContainerSnapshot, args *ContainerSnapshotCopyArgs) (RemoteOperation, error) {
+	// Backward compatibility (with broken Name field)
+	fields := strings.Split(snapshot.Name, shared.SnapshotDelimiter)
+	cName := containerName
+	sName := fields[len(fields)-1]
 
+	// Base request
 	req := api.ContainersPost{
 		Name: cName,
 		ContainerPut: api.ContainerPut{
@@ -995,7 +996,7 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source ContainerServer, snapshot api
 	if r == source && r.clusterTarget == "" {
 		// Local copy source fields
 		req.Source.Type = "copy"
-		req.Source.Source = snapshot.Name
+		req.Source.Source = fmt.Sprintf("%s/%s", cName, sName)
 
 		// Copy the container
 		op, err := r.CreateContainer(req)
