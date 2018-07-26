@@ -215,7 +215,7 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		}
 
 		// Do the actual copy
-		op, err = dest.CopyContainerSnapshot(source, *entry, &args)
+		op, err = dest.CopyContainerSnapshot(source, srcFields[0], *entry, &args)
 		if err != nil {
 			return err
 		}
