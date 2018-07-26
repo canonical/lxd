@@ -28,12 +28,25 @@ func zfsIsEnabled() bool {
 
 // zfsModuleVersionGet returhs the ZFS module version
 func zfsModuleVersionGet() (string, error) {
-	zfsVersion, err := ioutil.ReadFile("/sys/module/zfs/version")
-	if err != nil {
-		return "", fmt.Errorf("could not determine ZFS module version")
+	var zfsVersion string
+
+	if shared.PathExists("/sys/module/zfs/version") {
+		out, err := ioutil.ReadFile("/sys/module/zfs/version")
+		if err != nil {
+			return "", fmt.Errorf("Could not determine ZFS module version")
+		}
+
+		zfsVersion = string(out)
+	} else {
+		out, err := shared.RunCommand("modinfo", "-F", "version", "zfs")
+		if err != nil {
+			return "", fmt.Errorf("Could not determine ZFS module version")
+		}
+
+		zfsVersion = out
 	}
 
-	return strings.TrimSpace(string(zfsVersion)), nil
+	return strings.TrimSpace(zfsVersion), nil
 }
 
 // zfsPoolVolumeCreate creates a ZFS dataset with a set of given properties.

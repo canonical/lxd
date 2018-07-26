@@ -52,7 +52,7 @@ func (s *storageZfs) StorageCoreInit() error {
 	util.LoadModule("zfs")
 
 	if !zfsIsEnabled() {
-		return fmt.Errorf("the \"zfs\" tool is not enabled")
+		return fmt.Errorf("The \"zfs\" tool is not enabled")
 	}
 
 	s.sTypeVersion, err = zfsModuleVersionGet()
