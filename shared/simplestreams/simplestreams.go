@@ -699,9 +699,9 @@ func (s *SimpleStreams) GetImage(fingerprint string) (*api.Image, error) {
 	}
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("The requested image couldn't be found.")
+		return nil, fmt.Errorf("The requested image couldn't be found")
 	} else if len(matches) > 1 {
-		return nil, fmt.Errorf("More than one match for the provided partial fingerprint.")
+		return nil, fmt.Errorf("More than one match for the provided partial fingerprint")
 	}
 
 	return &matches[0], nil
@@ -709,7 +709,7 @@ func (s *SimpleStreams) GetImage(fingerprint string) (*api.Image, error) {
 
 func (s *SimpleStreams) ExportImage(image string, target string) (string, error) {
 	if !shared.IsDir(target) {
-		return "", fmt.Errorf("Split images can only be written to a directory.")
+		return "", fmt.Errorf("Split images can only be written to a directory")
 	}
 
 	files, err := s.GetFiles(image)
@@ -741,5 +741,5 @@ func (s *SimpleStreams) Download(image string, fileType string, target string, p
 		return s.downloadFile(file.Path, file.Sha256, target, progress)
 	}
 
-	return fmt.Errorf("The file couldn't be found.")
+	return fmt.Errorf("The file couldn't be found")
 }

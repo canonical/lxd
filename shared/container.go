@@ -53,7 +53,7 @@ func IsPriority(value string) error {
 	}
 
 	if valueInt < 0 || valueInt > 10 {
-		return fmt.Errorf("Invalid value for a limit '%s'. Must be between 0 and 10.", value)
+		return fmt.Errorf("Invalid value for a limit '%s'. Must be between 0 and 10", value)
 	}
 
 	return nil
@@ -106,7 +106,7 @@ func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string
 	for n, d := range devices {
 		if IsRootDiskDevice(d) {
 			if devName != "" {
-				return "", nil, fmt.Errorf("More than one root device found.")
+				return "", nil, fmt.Errorf("More than one root device found")
 			}
 
 			devName = n
@@ -118,7 +118,7 @@ func GetRootDiskDevice(devices map[string]map[string]string) (string, map[string
 		return devName, dev, nil
 	}
 
-	return "", nil, fmt.Errorf("No root device could be found.")
+	return "", nil, fmt.Errorf("No root device could be found")
 }
 
 // KnownContainerConfigKeys maps all fully defined, well-known config keys

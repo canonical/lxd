@@ -265,7 +265,7 @@ func patchStorageApi(name string, d *Daemon) error {
 		}
 		err = upgradeFromStorageTypeZfs(name, d, defaultPoolName, defaultStorageTypeName, cRegular, []string{}, imgPublic, imgPrivate)
 	default: // Shouldn't happen.
-		return fmt.Errorf("Invalid storage type. Upgrading not possible.")
+		return fmt.Errorf("Invalid storage type. Upgrading not possible")
 	}
 	if err != nil {
 		return err
@@ -2326,7 +2326,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 		poolName := pool.Config["lvm.vg_name"]
 		if poolName == "" {
 			logger.Errorf("The \"lvm.vg_name\" key should not be empty")
-			return fmt.Errorf("The \"lvm.vg_name\" key should not be empty.")
+			return fmt.Errorf("The \"lvm.vg_name\" key should not be empty")
 		}
 
 		for _, volume := range volumes {
@@ -3039,7 +3039,7 @@ func patchUpdateFromV11(d *Daemon) error {
 
 	// Refuse to start lxd if a rsync failed.
 	if errors > 0 {
-		return fmt.Errorf("Got errors while moving snapshots, see the log output.")
+		return fmt.Errorf("Got errors while moving snapshots, see the log output")
 	}
 
 	return nil

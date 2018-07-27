@@ -196,7 +196,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		} else if len(matches) > 1 {
 			return nil, fmt.Errorf("Provided partial image fingerprint matches more than one image")
 		} else {
-			return nil, fmt.Errorf("The requested image couldn't be found.")
+			return nil, fmt.Errorf("The requested image couldn't be found")
 		}
 	} else if protocol == "lxd" {
 		// Setup LXD client
