@@ -53,7 +53,7 @@ func containerValidName(name string) error {
 	}
 
 	if !shared.ValidHostname(name) {
-		return fmt.Errorf("Container name isn't a valid hostname.")
+		return fmt.Errorf("Container name isn't a valid hostname")
 	}
 
 	return nil
@@ -279,11 +279,11 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 
 	for k, v := range config {
 		if profile && strings.HasPrefix(k, "volatile.") {
-			return fmt.Errorf("Volatile keys can only be set on containers.")
+			return fmt.Errorf("Volatile keys can only be set on containers")
 		}
 
 		if profile && strings.HasPrefix(k, "image.") {
-			return fmt.Errorf("Image keys can only be set on containers.")
+			return fmt.Errorf("Image keys can only be set on containers")
 		}
 
 		err := containerValidConfigKey(sysOS, k, v)
@@ -307,7 +307,7 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 	}
 
 	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && sysOS.IdmapSet == nil {
-		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported.")
+		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported")
 	}
 
 	unprivOnly := os.Getenv("LXD_UNPRIVILEGED_ONLY")
@@ -378,37 +378,37 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 			if !expanded && !shared.StringInSlice(m["path"], diskDevicePaths) {
 				diskDevicePaths = append(diskDevicePaths, m["path"])
 			} else if !expanded {
-				return fmt.Errorf("More than one disk device uses the same path: %s.", m["path"])
+				return fmt.Errorf("More than one disk device uses the same path: %s", m["path"])
 			}
 
 			if m["path"] == "" {
-				return fmt.Errorf("Disk entry is missing the required \"path\" property.")
+				return fmt.Errorf("Disk entry is missing the required \"path\" property")
 			}
 
 			if m["source"] == "" && m["path"] != "/" {
-				return fmt.Errorf("Disk entry is missing the required \"source\" property.")
+				return fmt.Errorf("Disk entry is missing the required \"source\" property")
 			}
 
 			if m["path"] == "/" && m["source"] != "" {
-				return fmt.Errorf("Root disk entry may not have a \"source\" property set.")
+				return fmt.Errorf("Root disk entry may not have a \"source\" property set")
 			}
 
 			if m["size"] != "" && m["path"] != "/" {
-				return fmt.Errorf("Only the root disk may have a size quota.")
+				return fmt.Errorf("Only the root disk may have a size quota")
 			}
 
 			if (m["path"] == "/" || !shared.IsDir(m["source"])) && m["recursive"] != "" {
-				return fmt.Errorf("The recursive option is only supported for additional bind-mounted paths.")
+				return fmt.Errorf("The recursive option is only supported for additional bind-mounted paths")
 			}
 
 			if m["pool"] != "" {
 				if filepath.IsAbs(m["source"]) {
-					return fmt.Errorf("Storage volumes cannot be specified as absolute paths.")
+					return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 				}
 
 				_, err := db.StoragePoolGetID(m["pool"])
 				if err != nil {
-					return fmt.Errorf("The \"%s\" storage pool doesn't exist.", m["pool"])
+					return fmt.Errorf("The \"%s\" storage pool doesn't exist", m["pool"])
 				}
 			}
 
@@ -423,7 +423,7 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 			}
 		} else if shared.StringInSlice(m["type"], []string{"unix-char", "unix-block"}) {
 			if m["source"] == "" && m["path"] == "" {
-				return fmt.Errorf("Unix device entry is missing the required \"source\" or \"path\" property.")
+				return fmt.Errorf("Unix device entry is missing the required \"source\" or \"path\" property")
 			}
 
 			if (m["required"] == "" || shared.IsTrue(m["required"])) && (m["major"] == "" || m["minor"] == "") {
@@ -432,7 +432,7 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 					srcPath = m["path"]
 				}
 				if !shared.PathExists(srcPath) {
-					return fmt.Errorf("The device path doesn't exist on the host and major/minor wasn't specified.")
+					return fmt.Errorf("The device path doesn't exist on the host and major/minor wasn't specified")
 				}
 
 				dType, _, _, err := deviceGetAttributes(srcPath)
@@ -441,16 +441,16 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 				}
 
 				if m["type"] == "unix-char" && dType != "c" {
-					return fmt.Errorf("Path specified for unix-char device is a block device.")
+					return fmt.Errorf("Path specified for unix-char device is a block device")
 				}
 
 				if m["type"] == "unix-block" && dType != "b" {
-					return fmt.Errorf("Path specified for unix-block device is a character device.")
+					return fmt.Errorf("Path specified for unix-block device is a character device")
 				}
 			}
 		} else if m["type"] == "usb" {
 			if m["vendorid"] == "" {
-				return fmt.Errorf("Missing vendorid for USB device.")
+				return fmt.Errorf("Missing vendorid for USB device")
 			}
 		} else if m["type"] == "gpu" {
 			if m["pci"] != "" && !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s", m["pci"])) {
@@ -466,11 +466,11 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 			}
 		} else if m["type"] == "proxy" {
 			if m["listen"] == "" {
-				return fmt.Errorf("Proxy device entry is missing the required \"listen\" property.")
+				return fmt.Errorf("Proxy device entry is missing the required \"listen\" property")
 			}
 
 			if m["connect"] == "" {
-				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property.")
+				return fmt.Errorf("Proxy device entry is missing the required \"connect\" property")
 			}
 
 			listenAddr, err := parseAddr(m["listen"])
@@ -916,12 +916,12 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 	// Deal with state
 	if args.Stateful {
 		if !sourceContainer.IsRunning() {
-			return nil, fmt.Errorf("Unable to create a stateful snapshot. The container isn't running.")
+			return nil, fmt.Errorf("Unable to create a stateful snapshot. The container isn't running")
 		}
 
 		_, err := exec.LookPath("criu")
 		if err != nil {
-			return nil, fmt.Errorf("Unable to create a stateful snapshot. CRIU isn't installed.")
+			return nil, fmt.Errorf("Unable to create a stateful snapshot. CRIU isn't installed")
 		}
 
 		stateDir := sourceContainer.StatePath()

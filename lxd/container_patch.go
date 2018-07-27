@@ -60,7 +60,7 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Restore != "" {
-		return BadRequest(fmt.Errorf("Can't call PATCH in restore mode."))
+		return BadRequest(fmt.Errorf("Can't call PATCH in restore mode"))
 	}
 
 	// Check if architecture was passed

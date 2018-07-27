@@ -161,7 +161,7 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 	if volType != "custom" {
-		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers."))
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers"))
 	}
 
 	// Check if the requested storage volume actually exists
@@ -240,7 +240,7 @@ func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) e
 
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 	if volType != "custom" {
-		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers."))
+		return fmt.Errorf(i18n.G("Only \"custom\" volumes can be attached to containers"))
 	}
 
 	// Check if the requested storage volume actually exists
@@ -588,7 +588,7 @@ func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
 		for n, d := range container.Devices {
 			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == args[1] {
 				if devName != "" {
-					return fmt.Errorf(i18n.G("More than one device matches, specify the device name."))
+					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
 				}
 
 				devName = n
@@ -597,7 +597,7 @@ func (c *cmdStorageVolumeDetach) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if devName == "" {
-		return fmt.Errorf(i18n.G("No device found for this storage volume."))
+		return fmt.Errorf(i18n.G("No device found for this storage volume"))
 	}
 
 	_, ok := container.Devices[devName]
@@ -669,7 +669,7 @@ func (c *cmdStorageVolumeDetachProfile) Run(cmd *cobra.Command, args []string) e
 		for n, d := range profile.Devices {
 			if d["type"] == "disk" && d["pool"] == resource.name && d["source"] == args[1] {
 				if devName != "" {
-					return fmt.Errorf(i18n.G("More than one device matches, specify the device name."))
+					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
 				}
 
 				devName = n
@@ -678,7 +678,7 @@ func (c *cmdStorageVolumeDetachProfile) Run(cmd *cobra.Command, args []string) e
 	}
 
 	if devName == "" {
-		return fmt.Errorf(i18n.G("No device found for this storage volume."))
+		return fmt.Errorf(i18n.G("No device found for this storage volume"))
 	}
 
 	_, ok := profile.Devices[devName]

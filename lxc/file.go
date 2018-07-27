@@ -638,7 +638,7 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 
 		// Detect unsupported files
 		if !fInfo.Mode().IsRegular() && !fInfo.Mode().IsDir() && fInfo.Mode()&os.ModeSymlink != os.ModeSymlink {
-			return fmt.Errorf(i18n.G("'%s' isn't a supported file type."), p)
+			return fmt.Errorf(i18n.G("'%s' isn't a supported file type"), p)
 		}
 
 		// Prepare for file transfer
