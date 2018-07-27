@@ -3014,7 +3014,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 			ExpandedConfig:  c.expandedConfig,
 			ExpandedDevices: c.expandedDevices,
 			LastUsedDate:    c.lastUsedDate,
-			Name:            c.name,
+			Name:            strings.SplitN(c.name, "/", 2)[1],
 			Profiles:        c.profiles,
 			Stateful:        c.stateful,
 		}, etag, nil

@@ -397,6 +397,13 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
+	// Update snapshot names to include container name (if needed)
+	for i, snap := range backup.Snapshots {
+		if !strings.Contains(snap.Name, "/") {
+			backup.Snapshots[i].Name = fmt.Sprintf("%s/%s", backup.Container.Name, snap.Name)
+		}
+	}
+
 	// Try to retrieve the storage pool the container supposedly lives on.
 	var poolErr error
 	poolID, pool, poolErr := d.cluster.StoragePoolGet(containerPoolName)

@@ -1023,7 +1023,7 @@ Return:
                 "type": "disk"
             },
         },
-        "name": "zerotier/blah",
+        "name": "blah",
         "profiles": [
             "default"
         ],
