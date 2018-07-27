@@ -124,7 +124,7 @@ func (e *IdmapEntry) Usable() error {
 		}
 
 		if !valid {
-			return fmt.Errorf("The '%s' map can't work in the current user namespace.", e.ToLxcString())
+			return fmt.Errorf("The '%s' map can't work in the current user namespace", e.ToLxcString())
 		}
 	}
 
@@ -143,7 +143,7 @@ func (e *IdmapEntry) Usable() error {
 		}
 
 		if !valid {
-			return fmt.Errorf("The '%s' map can't work in the current user namespace.", e.ToLxcString())
+			return fmt.Errorf("The '%s' map can't work in the current user namespace", e.ToLxcString())
 		}
 	}
 
@@ -203,7 +203,7 @@ func (e *IdmapEntry) parse(s string) error {
 func (e *IdmapEntry) shift_into_ns(id int64) (int64, error) {
 	if id < e.Nsid || id >= e.Nsid+e.Maprange {
 		// this mapping doesn't apply
-		return 0, fmt.Errorf("ID mapping doesn't apply.")
+		return 0, fmt.Errorf("ID mapping doesn't apply")
 	}
 
 	return id - e.Nsid + e.Hostid, nil
@@ -216,7 +216,7 @@ func (e *IdmapEntry) shift_into_ns(id int64) (int64, error) {
 func (e *IdmapEntry) shift_from_ns(id int64) (int64, error) {
 	if id < e.Hostid || id >= e.Hostid+e.Maprange {
 		// this mapping doesn't apply
-		return 0, fmt.Errorf("ID mapping doesn't apply.")
+		return 0, fmt.Errorf("ID mapping doesn't apply")
 	}
 
 	return id - e.Hostid + e.Nsid, nil
@@ -601,7 +601,7 @@ func getFromShadow(fname string, username string) ([][]int64, error) {
 	}
 
 	if len(entries) == 0 {
-		return nil, fmt.Errorf("User %q has no %ss.", username, path.Base(fname))
+		return nil, fmt.Errorf("User %q has no %ss", username, path.Base(fname))
 	}
 
 	return entries, nil

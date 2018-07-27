@@ -550,7 +550,7 @@ func llistxattr(path string, list []byte) (sz int, err error) {
 // GetAllXattr retrieves all extended attributes associated with a file,
 // directory or symbolic link.
 func GetAllXattr(path string) (xattrs map[string]string, err error) {
-	e1 := fmt.Errorf("Extended attributes changed during retrieval.")
+	e1 := fmt.Errorf("Extended attributes changed during retrieval")
 
 	// Call llistxattr() twice: First, to determine the size of the buffer
 	// we need to allocate to store the extended attributes, second, to
@@ -577,7 +577,7 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 
 	split := strings.Split(string(dest), "\x00")
 	if split == nil {
-		return nil, fmt.Errorf("No valid extended attribute key found.")
+		return nil, fmt.Errorf("No valid extended attribute key found")
 	}
 	// *listxattr functions return a list of  names  as  an unordered array
 	// of null-terminated character strings (attribute names are separated
@@ -795,7 +795,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan bool, fd int
 	return ch
 }
 
-var ObjectFound = fmt.Errorf("Found requested object.")
+var ObjectFound = fmt.Errorf("Found requested object")
 
 func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 	uuid := ""
@@ -826,11 +826,11 @@ func LookupUUIDByBlockDevPath(diskDevice string) (string, error) {
 
 	err := filepath.Walk("/dev/disk/by-uuid", readUUID)
 	if err != nil && err != ObjectFound {
-		return "", fmt.Errorf("Failed to detect UUID: %s.", err)
+		return "", fmt.Errorf("Failed to detect UUID: %s", err)
 	}
 
 	if uuid == "" {
-		return "", fmt.Errorf("Failed to detect UUID.")
+		return "", fmt.Errorf("Failed to detect UUID")
 	}
 
 	lastSlash := strings.LastIndex(uuid, "/")

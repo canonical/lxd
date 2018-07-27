@@ -101,7 +101,7 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 
 		if ct.StatusCode != 0 && ct.StatusCode != api.Stopped {
 			if !c.flagForce {
-				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force."))
+				return fmt.Errorf(i18n.G("The container is currently running, stop it first or pass --force"))
 			}
 
 			req := api.ContainerStatePut{

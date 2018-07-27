@@ -98,7 +98,7 @@ func (c *cmdCallhook) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if target == "reboot" {
-		return fmt.Errorf("Reboot must be handled by LXD.")
+		return fmt.Errorf("Reboot must be handled by LXD")
 	}
 
 	return nil
