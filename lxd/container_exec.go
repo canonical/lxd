@@ -367,11 +367,11 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if !c.IsRunning() {
-		return BadRequest(fmt.Errorf("Container is not running."))
+		return BadRequest(fmt.Errorf("Container is not running"))
 	}
 
 	if c.IsFrozen() {
-		return BadRequest(fmt.Errorf("Container is frozen."))
+		return BadRequest(fmt.Errorf("Container is frozen"))
 	}
 
 	env := map[string]string{}

@@ -37,7 +37,7 @@ func CancelableWait(op lxd.RemoteOperation, progress *ProgressRenderer) error {
 			count++
 
 			if count == 3 {
-				return fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running."))
+				return fmt.Errorf(i18n.G("User signaled us three times, exiting. The remote operation will keep running"))
 			}
 
 			if progress != nil {

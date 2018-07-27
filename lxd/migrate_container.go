@@ -41,7 +41,7 @@ func NewMigrationSource(c container, stateful bool, containerOnly bool) (*migrat
 	if stateful && c.IsRunning() {
 		_, err := exec.LookPath("criu")
 		if err != nil {
-			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server.")
+			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server")
 		}
 
 		ret.live = true
@@ -706,9 +706,9 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 
 	_, err = exec.LookPath("criu")
 	if sink.push && sink.dest.live && err != nil {
-		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server.")
+		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
 	} else if sink.src.live && err != nil {
-		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server.")
+		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
 	}
 
 	return &sink, nil
