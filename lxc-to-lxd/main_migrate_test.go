@@ -156,7 +156,7 @@ func TestConvertNetworkConfig(t *testing.T) {
 				"lxc.net.1.name = eth2",
 			},
 			types.Devices{
-				"convert_net1": map[string]string{
+				"net1": map[string]string{
 					"type":    "nic",
 					"nictype": "bridged",
 					"parent":  "lxcbr0",
@@ -166,7 +166,7 @@ func TestConvertNetworkConfig(t *testing.T) {
 				"eth0": map[string]string{
 					"type": "none",
 				},
-				"convert_net0": map[string]string{
+				"net0": map[string]string{
 					"name":    "eth1",
 					"hwaddr":  "00:16:3e:8d:4f:51",
 					"type":    "nic",
@@ -180,18 +180,18 @@ func TestConvertNetworkConfig(t *testing.T) {
 		{
 			"multiple network devices (unsorted)",
 			[]string{
-				"lxc.net.1.type = macvlan",
-				"lxc.net.2.name = eth2",
-				"lxc.net.1.macvlan.mode = bridge",
-				"lxc.net.1.link = mvlan0",
-				"lxc.net.1.hwaddr = 00:16:3e:8d:4f:51",
-				"lxc.net.1.name = eth1",
-				"lxc.net.2.type = veth",
-				"lxc.net.2.link = lxcbr0",
-				"lxc.net.2.hwaddr = 00:16:3e:a2:7d:54",
+				"lxc.net.0.type = macvlan",
+				"lxc.net.1.name = eth2",
+				"lxc.net.0.macvlan.mode = bridge",
+				"lxc.net.0.link = mvlan0",
+				"lxc.net.0.hwaddr = 00:16:3e:8d:4f:51",
+				"lxc.net.0.name = eth1",
+				"lxc.net.1.type = veth",
+				"lxc.net.1.link = lxcbr0",
+				"lxc.net.1.hwaddr = 00:16:3e:a2:7d:54",
 			},
 			types.Devices{
-				"convert_net2": map[string]string{
+				"net1": map[string]string{
 					"type":    "nic",
 					"nictype": "bridged",
 					"parent":  "lxcbr0",
@@ -201,7 +201,7 @@ func TestConvertNetworkConfig(t *testing.T) {
 				"eth0": map[string]string{
 					"type": "none",
 				},
-				"convert_net1": map[string]string{
+				"net0": map[string]string{
 					"name":    "eth1",
 					"hwaddr":  "00:16:3e:8d:4f:51",
 					"type":    "nic",
@@ -307,32 +307,32 @@ func TestConvertStorageConfig(t *testing.T) {
 				"lxc.mount.entry = /mnt /tmp/mnt none ro,bind 0 0",
 			},
 			types.Devices{
-				"convert_mount0": map[string]string{
+				"mount0": map[string]string{
 					"type":     "disk",
 					"readonly": "true",
 					"source":   "/lib",
 					"path":     "/lib",
 				},
-				"convert_mount1": map[string]string{
+				"mount1": map[string]string{
 					"type":     "disk",
 					"readonly": "true",
 					"source":   "/usr/lib",
 					"path":     "/usr/lib",
 				},
-				"convert_mount2": map[string]string{
+				"mount2": map[string]string{
 					"type":     "disk",
 					"readonly": "true",
 					"source":   "/lib64",
 					"path":     "/lib64",
 				},
-				"convert_mount3": map[string]string{
+				"mount3": map[string]string{
 					"type":     "disk",
 					"readonly": "true",
 					"optional": "true",
 					"source":   "/sys/kernel/security",
 					"path":     "/sys/kernel/security",
 				},
-				"convert_mount4": map[string]string{
+				"mount4": map[string]string{
 					"type":     "disk",
 					"readonly": "true",
 					"source":   "/mnt",
