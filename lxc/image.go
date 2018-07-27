@@ -654,7 +654,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if strings.HasPrefix(imageFile, "http://") {
-		return fmt.Errorf(i18n.G("Only https:// is supported for remote image import."))
+		return fmt.Errorf(i18n.G("Only https:// is supported for remote image import"))
 	}
 
 	createArgs := &lxd.ImageCreateArgs{}

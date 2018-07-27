@@ -342,7 +342,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 
 	if rootDiskDevice["pool"] == "" {
 		c.Delete()
-		return nil, fmt.Errorf("The container's root device is missing the pool property.")
+		return nil, fmt.Errorf("The container's root device is missing the pool property")
 	}
 
 	storagePool := rootDiskDevice["pool"]
@@ -865,7 +865,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 		return set, offset, nil
 	}
 
-	return nil, 0, fmt.Errorf("Not enough uid/gid available for the container.")
+	return nil, 0, fmt.Errorf("Not enough uid/gid available for the container")
 }
 
 func (c *containerLXC) init() error {
@@ -891,7 +891,7 @@ func (c *containerLXC) initLXC(config bool) error {
 
 	// Check if being called from a hook
 	if c.fromHook {
-		return fmt.Errorf("You can't use go-lxc from inside a LXC hook.")
+		return fmt.Errorf("You can't use go-lxc from inside a LXC hook")
 	}
 
 	// Check if already initialized
@@ -2409,7 +2409,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	// If stateful, restore now
 	if stateful {
 		if !c.stateful {
-			return fmt.Errorf("Container has no existing state to restore.")
+			return fmt.Errorf("Container has no existing state to restore")
 		}
 
 		criuMigrationArgs := CriuMigrationArgs{
@@ -3118,7 +3118,7 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 	if shared.PathExists(c.StatePath()) {
 		_, err := exec.LookPath("criu")
 		if err != nil {
-			return fmt.Errorf("Failed to restore container state. CRIU isn't installed.")
+			return fmt.Errorf("Failed to restore container state. CRIU isn't installed")
 		}
 	}
 
@@ -3692,21 +3692,21 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	if userRequested {
 		for k, v := range args.Config {
 			if strings.HasPrefix(k, "volatile.") && c.localConfig[k] != v {
-				return fmt.Errorf("Volatile keys are read-only.")
+				return fmt.Errorf("Volatile keys are read-only")
 			}
 
 			if strings.HasPrefix(k, "image.") && c.localConfig[k] != v {
-				return fmt.Errorf("Image keys are read-only.")
+				return fmt.Errorf("Image keys are read-only")
 			}
 		}
 
 		for k, v := range c.localConfig {
 			if strings.HasPrefix(k, "volatile.") && args.Config[k] != v {
-				return fmt.Errorf("Volatile keys are read-only.")
+				return fmt.Errorf("Volatile keys are read-only")
 			}
 
 			if strings.HasPrefix(k, "image.") && args.Config[k] != v {
-				return fmt.Errorf("Image keys are read-only.")
+				return fmt.Errorf("Image keys are read-only")
 			}
 		}
 	}
@@ -3913,12 +3913,12 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 		if newLocalRootDiskDevice["pool"] == "" {
 			if len(newProfileRootDiskDevices) == 0 {
-				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but none was found.")
+				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but none was found")
 			} else if len(newProfileRootDiskDevices) > 1 {
-				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but conflicting devices were found.")
+				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but conflicting devices were found")
 			} else if c.expandedDevices[newProfileRootDiskDevices[0]]["pool"] != oldLocalRootDiskDevice["pool"] {
 				newRootDiskDeviceKey = newProfileRootDiskDevices[0]
-				return fmt.Errorf("Using the profile's root disk device would change the storage pool of the container.")
+				return fmt.Errorf("Using the profile's root disk device would change the storage pool of the container")
 			}
 		}
 	} else {
@@ -3932,14 +3932,14 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			if len(oldProfileRootDiskDevices) > 0 {
 				oldRootDiskDeviceKey = oldProfileRootDiskDevices[0]
 				if oldExpandedDevices[oldRootDiskDeviceKey]["pool"] != newLocalRootDiskDevice["pool"] {
-					return fmt.Errorf("The new local root disk device would change the storage pool of the container.")
+					return fmt.Errorf("The new local root disk device would change the storage pool of the container")
 				}
 			}
 		} else {
 			if len(newProfileRootDiskDevices) == 0 {
-				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but none was found.")
+				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but none was found")
 			} else if len(newProfileRootDiskDevices) > 1 {
-				return fmt.Errorf("Using the profile's root disk device would change the storage pool of the container.")
+				return fmt.Errorf("Using the profile's root disk device would change the storage pool of the container")
 			}
 			newRootDiskDeviceKey = newProfileRootDiskDevices[0]
 		}
@@ -5057,7 +5057,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 
 	_, err := exec.LookPath("criu")
 	if err != nil {
-		return fmt.Errorf("Unable to perform container live migration. CRIU isn't installed.")
+		return fmt.Errorf("Unable to perform container live migration. CRIU isn't installed")
 	}
 
 	logger.Info("Migrating container", ctxMap)
@@ -7503,7 +7503,7 @@ func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, er
 		// yet support container mounts.
 
 		if filepath.IsAbs(m["source"]) {
-			return "", fmt.Errorf("When the \"pool\" property is set \"source\" must specify the name of a volume, not a path.")
+			return "", fmt.Errorf("When the \"pool\" property is set \"source\" must specify the name of a volume, not a path")
 		}
 
 		volumeTypeName := ""
@@ -7518,7 +7518,7 @@ func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, er
 
 		switch volumeTypeName {
 		case storagePoolVolumeTypeNameContainer:
-			return "", fmt.Errorf("Using container storage volumes is not supported.")
+			return "", fmt.Errorf("Using container storage volumes is not supported")
 		case "":
 			// We simply received the name of a storage volume.
 			volumeTypeName = storagePoolVolumeTypeNameCustom
@@ -7526,9 +7526,9 @@ func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, er
 		case storagePoolVolumeTypeNameCustom:
 			srcPath = shared.VarPath("storage-pools", m["pool"], volumeTypeName, volumeName)
 		case storagePoolVolumeTypeNameImage:
-			return "", fmt.Errorf("Using image storage volumes is not supported.")
+			return "", fmt.Errorf("Using image storage volumes is not supported")
 		default:
-			return "", fmt.Errorf("Unknown storage type prefix \"%s\" found.", volumeTypeName)
+			return "", fmt.Errorf("Unknown storage type prefix \"%s\" found", volumeTypeName)
 		}
 
 		// Initialize a new storage interface and check if the
@@ -7536,7 +7536,7 @@ func (c *containerLXC) createDiskDevice(name string, m types.Device) (string, er
 		volumeType, _ := storagePoolVolumeTypeNameToType(volumeTypeName)
 		s, err := storagePoolVolumeAttachInit(c.state, m["pool"], volumeName, volumeType, c)
 		if err != nil && !isOptional {
-			return "", fmt.Errorf("Failed to initialize storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s.",
+			return "", fmt.Errorf("Failed to initialize storage volume \"%s\" of type \"%s\" on storage pool \"%s\": %s",
 				volumeName,
 				volumeTypeName,
 				m["pool"], err)

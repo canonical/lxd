@@ -254,7 +254,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		pools, err := d.cluster.StoragePools()
 		if err != nil {
 			if err == db.ErrNoSuchObject {
-				return BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured."))
+				return BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))
 			}
 			return SmartError(err)
 		}
@@ -327,7 +327,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		}
 
 		if rootDiskDevice["pool"] == "" {
-			return BadRequest(fmt.Errorf("The container's root device is missing the pool property."))
+			return BadRequest(fmt.Errorf("The container's root device is missing the pool property"))
 		}
 
 		storagePool = rootDiskDevice["pool"]
@@ -582,7 +582,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	// If no storage pool is found, error out.
 	pools, err := d.cluster.StoragePools()
 	if err != nil || len(pools) == 0 {
-		return BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool."))
+		return BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool"))
 	}
 
 	if req.Name == "" {

@@ -410,7 +410,7 @@ func (c *cmdNetworkDetach) Run(cmd *cobra.Command, args []string) error {
 		for n, d := range container.Devices {
 			if d["type"] == "nic" && d["parent"] == resource.name {
 				if devName != "" {
-					return fmt.Errorf(i18n.G("More than one device matches, specify the device name."))
+					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
 				}
 
 				devName = n
@@ -495,7 +495,7 @@ func (c *cmdNetworkDetachProfile) Run(cmd *cobra.Command, args []string) error {
 		for n, d := range profile.Devices {
 			if d["type"] == "nic" && d["parent"] == resource.name {
 				if devName != "" {
-					return fmt.Errorf(i18n.G("More than one device matches, specify the device name."))
+					return fmt.Errorf(i18n.G("More than one device matches, specify the device name"))
 				}
 
 				devName = n
@@ -606,7 +606,7 @@ func (c *cmdNetworkEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !network.Managed {
-		return fmt.Errorf(i18n.G("Only managed networks can be modified."))
+		return fmt.Errorf(i18n.G("Only managed networks can be modified"))
 	}
 
 	data, err := yaml.Marshal(&network)
@@ -992,7 +992,7 @@ func (c *cmdNetworkSet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if !network.Managed {
-		return fmt.Errorf(i18n.G("Only managed networks can be modified."))
+		return fmt.Errorf(i18n.G("Only managed networks can be modified"))
 	}
 
 	key := args[1]

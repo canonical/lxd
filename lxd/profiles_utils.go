@@ -55,7 +55,7 @@ func doProfileUpdate(d *Daemon, name string, id int64, profile *api.Profile, req
 					// Found the profile
 					if profiles[i] == name {
 						// If it's the current profile, then we can't modify that root device
-						return fmt.Errorf("At least one container relies on this profile's root disk device.")
+						return fmt.Errorf("At least one container relies on this profile's root disk device")
 					} else {
 						// If it's not, then move on to the next container
 						break

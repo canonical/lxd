@@ -1642,7 +1642,7 @@ func (n *network) Start() error {
 		// Check for dnsmasq
 		_, err := exec.LookPath("dnsmasq")
 		if err != nil {
-			return fmt.Errorf("dnsmasq is required for LXD managed bridges.")
+			return fmt.Errorf("dnsmasq is required for LXD managed bridges")
 		}
 
 		// Start dnsmasq (occasionally races, try a few times)

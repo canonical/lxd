@@ -585,7 +585,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) 
 // database and hence has already a storage volume in at least one storage pool.
 func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 	if storagePool == "" {
-		return fmt.Errorf("No storage pool specified.")
+		return fmt.Errorf("No storage pool specified")
 	}
 
 	// Initialize a new storage interface.
@@ -771,7 +771,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, error) {
 	}
 
 	if metadata.CreationDate == 0 {
-		return nil, fmt.Errorf("Missing creation date.")
+		return nil, fmt.Errorf("Missing creation date")
 	}
 
 	return &metadata, nil

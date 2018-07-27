@@ -670,7 +670,7 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 				}
 			}
 			if editor == "" {
-				return []byte{}, fmt.Errorf("No text editor found, please set the EDITOR environment variable.")
+				return []byte{}, fmt.Errorf("No text editor found, please set the EDITOR environment variable")
 			}
 		}
 	}
@@ -727,14 +727,14 @@ func ParseMetadata(metadata interface{}) (map[string]interface{}, error) {
 	if s.Kind() == reflect.Map {
 		for _, k := range s.MapKeys() {
 			if k.Kind() != reflect.String {
-				return nil, fmt.Errorf("Invalid metadata provided (key isn't a string).")
+				return nil, fmt.Errorf("Invalid metadata provided (key isn't a string)")
 			}
 			newMetadata[k.String()] = s.MapIndex(k).Interface()
 		}
 	} else if s.Kind() == reflect.Ptr && !s.Elem().IsValid() {
 		return nil, nil
 	} else {
-		return nil, fmt.Errorf("Invalid metadata provided (type isn't a map).")
+		return nil, fmt.Errorf("Invalid metadata provided (type isn't a map)")
 	}
 
 	return newMetadata, nil
