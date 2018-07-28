@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-07-26 00:14-0400\n"
+"POT-Creation-Date: 2018-08-03 00:21-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -160,7 +160,7 @@ msgstr ""
 
 #: lxc/file.go:641
 #, c-format
-msgid "'%s' isn't a supported file type."
+msgid "'%s' isn't a supported file type"
 msgstr ""
 
 #: lxc/profile.go:222
@@ -378,7 +378,7 @@ msgid "Can't specify --fast with --columns"
 msgstr ""
 
 #: lxc/rename.go:51
-msgid "Can't specify a different remote for rename."
+msgid "Can't specify a different remote for rename"
 msgstr ""
 
 #: lxc/list.go:478
@@ -1515,7 +1515,7 @@ msgstr ""
 
 #: lxc/network.go:413 lxc/network.go:498 lxc/storage_volume.go:591
 #: lxc/storage_volume.go:672
-msgid "More than one device matches, specify the device name."
+msgid "More than one device matches, specify the device name"
 msgstr ""
 
 #: lxc/file.go:224
@@ -1606,7 +1606,7 @@ msgid "No device found for this network"
 msgstr ""
 
 #: lxc/storage_volume.go:600 lxc/storage_volume.go:681
-msgid "No device found for this storage volume."
+msgid "No device found for this storage volume"
 msgstr ""
 
 #: lxc/storage_volume.go:323
@@ -1623,7 +1623,7 @@ msgid "No value found in %q"
 msgstr ""
 
 #: lxc/storage_volume.go:164 lxc/storage_volume.go:243
-msgid "Only \"custom\" volumes can be attached to containers."
+msgid "Only \"custom\" volumes can be attached to containers"
 msgstr ""
 
 #: lxc/remote.go:146
@@ -1631,11 +1631,11 @@ msgid "Only https URLs are supported for simplestreams"
 msgstr ""
 
 #: lxc/image.go:657
-msgid "Only https:// is supported for remote image import."
+msgid "Only https:// is supported for remote image import"
 msgstr ""
 
 #: lxc/network.go:609 lxc/network.go:995
-msgid "Only managed networks can be modified."
+msgid "Only managed networks can be modified"
 msgstr ""
 
 #: lxc/operation.go:83
@@ -2254,13 +2254,13 @@ msgid "TYPE"
 msgstr ""
 
 #: lxc/delete.go:104
-msgid "The container is currently running, stop it first or pass --force."
+msgid "The container is currently running, stop it first or pass --force"
 msgstr ""
 
 #: lxc/publish.go:109
 msgid ""
 "The container is currently running. Use --force to have it stopped and "
-"restarted."
+"restarted"
 msgstr ""
 
 #: lxc/init.go:281
@@ -2433,8 +2433,7 @@ msgstr ""
 
 #: lxc/utils/cancel.go:40
 msgid ""
-"User signaled us three times, exiting. The remote operation will keep "
-"running."
+"User signaled us three times, exiting. The remote operation will keep running"
 msgstr ""
 
 #: lxc/query.go:38
@@ -3309,6 +3308,10 @@ msgstr ""
 
 #: lxc/storage_volume.go:32
 msgid "volume"
+msgstr ""
+
+#: lxc/remote.go:259
+msgid "y"
 msgstr ""
 
 #: lxc/delete.go:46 lxc/image.go:810 lxc/image.go:815 lxc/image.go:974
