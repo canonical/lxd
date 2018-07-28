@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-07-27 09:29+0200\n"
+"POT-Creation-Date: 2018-07-28 12:22-0400\n"
 "PO-Revision-Date: 2018-05-16 23:39+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -171,7 +171,7 @@ msgstr "'%s' はサポートされないタイプのファイルです。"
 msgid "(none)"
 msgstr ""
 
-#: lxc/alias.go:127 lxc/image_alias.go:228 lxc/image.go:920
+#: lxc/alias.go:127 lxc/image.go:920 lxc/image_alias.go:228
 msgid "ALIAS"
 msgstr ""
 
@@ -626,7 +626,7 @@ msgstr "コンテナを作成中"
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image_alias.go:230 lxc/image.go:924 lxc/list.go:451 lxc/network.go:856
+#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:451 lxc/network.go:856
 #: lxc/operation.go:153 lxc/storage.go:545 lxc/storage_volume.go:953
 msgid "DESCRIPTION"
 msgstr ""
@@ -682,49 +682,48 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:289
-#: lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:179
-#: lxc/config_device.go:252 lxc/config_device.go:318 lxc/config_device.go:405
-#: lxc/config_device.go:493 lxc/config_device.go:582 lxc/config_device.go:650
-#: lxc/config.go:29 lxc/config.go:88 lxc/config.go:289 lxc/config.go:355
-#: lxc/config.go:452 lxc/config.go:560 lxc/config_metadata.go:29
-#: lxc/config_metadata.go:54 lxc/config_metadata.go:176
-#: lxc/config_template.go:30 lxc/config_template.go:67
-#: lxc/config_template.go:110 lxc/config_template.go:152
-#: lxc/config_template.go:236 lxc/config_template.go:298 lxc/config_trust.go:30
-#: lxc/config_trust.go:59 lxc/config_trust.go:115 lxc/config_trust.go:197
-#: lxc/console.go:32 lxc/copy.go:37 lxc/delete.go:30 lxc/exec.go:39
-#: lxc/export.go:30 lxc/file.go:40 lxc/file.go:73 lxc/file.go:122
-#: lxc/file.go:185 lxc/file.go:352 lxc/image_alias.go:26 lxc/image_alias.go:59
-#: lxc/image_alias.go:106 lxc/image_alias.go:149 lxc/image_alias.go:250
-#: lxc/image.go:42 lxc/image.go:131 lxc/image.go:261 lxc/image.go:312
-#: lxc/image.go:435 lxc/image.go:571 lxc/image.go:775 lxc/image.go:889
-#: lxc/image.go:1211 lxc/image.go:1284 lxc/import.go:22 lxc/info.go:29
-#: lxc/init.go:35 lxc/launch.go:22 lxc/list.go:48 lxc/main.go:46
-#: lxc/manpage.go:19 lxc/monitor.go:31 lxc/move.go:36 lxc/network.go:34
-#: lxc/network.go:110 lxc/network.go:183 lxc/network.go:256 lxc/network.go:326
-#: lxc/network.go:373 lxc/network.go:458 lxc/network.go:543 lxc/network.go:666
-#: lxc/network.go:724 lxc/network.go:794 lxc/network.go:914 lxc/network.go:979
-#: lxc/network.go:1026 lxc/network.go:1095 lxc/network.go:1157
-#: lxc/operation.go:25 lxc/operation.go:54 lxc/operation.go:98
-#: lxc/operation.go:174 lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163
-#: lxc/profile.go:241 lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396
-#: lxc/profile.go:520 lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705
-#: lxc/profile.go:753 lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34
-#: lxc/query.go:30 lxc/remote.go:37 lxc/remote.go:87 lxc/remote.go:383
-#: lxc/remote.go:419 lxc/remote.go:524 lxc/remote.go:586 lxc/remote.go:635
-#: lxc/remote.go:673 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21
-#: lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208
-#: lxc/storage.go:328 lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573
-#: lxc/storage.go:645 lxc/storage.go:729 lxc/storage_volume.go:34
-#: lxc/storage_volume.go:122 lxc/storage_volume.go:201
-#: lxc/storage_volume.go:283 lxc/storage_volume.go:412
-#: lxc/storage_volume.go:487 lxc/storage_volume.go:547
-#: lxc/storage_volume.go:629 lxc/storage_volume.go:710
-#: lxc/storage_volume.go:839 lxc/storage_volume.go:904
-#: lxc/storage_volume.go:980 lxc/storage_volume.go:1011
-#: lxc/storage_volume.go:1075 lxc/storage_volume.go:1152
-#: lxc/storage_volume.go:1227 lxc/version.go:22
+#: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:289 lxc/config.go:29
+#: lxc/config.go:88 lxc/config.go:289 lxc/config.go:355 lxc/config.go:452
+#: lxc/config.go:560 lxc/config_device.go:24 lxc/config_device.go:76
+#: lxc/config_device.go:179 lxc/config_device.go:252 lxc/config_device.go:318
+#: lxc/config_device.go:405 lxc/config_device.go:493 lxc/config_device.go:582
+#: lxc/config_device.go:650 lxc/config_metadata.go:29 lxc/config_metadata.go:54
+#: lxc/config_metadata.go:176 lxc/config_template.go:30
+#: lxc/config_template.go:67 lxc/config_template.go:110
+#: lxc/config_template.go:152 lxc/config_template.go:236
+#: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
+#: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
+#: lxc/copy.go:37 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:30
+#: lxc/file.go:40 lxc/file.go:73 lxc/file.go:122 lxc/file.go:185
+#: lxc/file.go:352 lxc/image.go:42 lxc/image.go:131 lxc/image.go:261
+#: lxc/image.go:312 lxc/image.go:435 lxc/image.go:571 lxc/image.go:775
+#: lxc/image.go:889 lxc/image.go:1211 lxc/image.go:1284 lxc/image_alias.go:26
+#: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
+#: lxc/image_alias.go:250 lxc/import.go:22 lxc/info.go:29 lxc/init.go:35
+#: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:46 lxc/manpage.go:19
+#: lxc/monitor.go:31 lxc/move.go:36 lxc/network.go:34 lxc/network.go:110
+#: lxc/network.go:183 lxc/network.go:256 lxc/network.go:326 lxc/network.go:373
+#: lxc/network.go:458 lxc/network.go:543 lxc/network.go:666 lxc/network.go:724
+#: lxc/network.go:794 lxc/network.go:914 lxc/network.go:979 lxc/network.go:1026
+#: lxc/network.go:1095 lxc/network.go:1157 lxc/operation.go:25
+#: lxc/operation.go:54 lxc/operation.go:98 lxc/operation.go:174
+#: lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163 lxc/profile.go:241
+#: lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520
+#: lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753
+#: lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:30
+#: lxc/remote.go:37 lxc/remote.go:87 lxc/remote.go:383 lxc/remote.go:419
+#: lxc/remote.go:524 lxc/remote.go:586 lxc/remote.go:635 lxc/remote.go:673
+#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
+#: lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328
+#: lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645
+#: lxc/storage.go:729 lxc/storage_volume.go:34 lxc/storage_volume.go:122
+#: lxc/storage_volume.go:201 lxc/storage_volume.go:283
+#: lxc/storage_volume.go:412 lxc/storage_volume.go:487
+#: lxc/storage_volume.go:547 lxc/storage_volume.go:629
+#: lxc/storage_volume.go:710 lxc/storage_volume.go:839
+#: lxc/storage_volume.go:904 lxc/storage_volume.go:980
+#: lxc/storage_volume.go:1011 lxc/storage_volume.go:1075
+#: lxc/storage_volume.go:1152 lxc/storage_volume.go:1227 lxc/version.go:22
 msgid "Description"
 msgstr "説明"
 
@@ -941,7 +940,7 @@ msgstr "イメージのエクスポート中: %s"
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:174 lxc/image_alias.go:229 lxc/image.go:922
+#: lxc/config_trust.go:174 lxc/image.go:922 lxc/image_alias.go:229
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -3687,6 +3686,10 @@ msgstr ""
 #: lxc/storage_volume.go:32
 msgid "volume"
 msgstr "volume"
+
+#: lxc/remote.go:262
+msgid "y"
+msgstr ""
 
 #: lxc/delete.go:46 lxc/image.go:810 lxc/image.go:815 lxc/image.go:974
 msgid "yes"
