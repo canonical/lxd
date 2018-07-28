@@ -256,7 +256,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
+			if len(line) < 1 || strings.ToLower(string(line[0])) != i18n.G("y") {
 				return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
 			}
 		}
