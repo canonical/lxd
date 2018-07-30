@@ -1031,6 +1031,7 @@ func networkGetState(netIf net.Interface) api.NetworkState {
 		Type:      netType,
 	}
 
+	// Get address information
 	addrs, err := netIf.Addrs()
 	if err == nil {
 		for _, addr := range addrs {
@@ -1071,17 +1072,48 @@ func networkGetState(netIf net.Interface) api.NetworkState {
 		}
 	}
 
-	network.Counters.BytesSent, _ = shared.ParseNumberFromFile(
-		fmt.Sprintf("/sys/class/net/%s/statistics/tx_bytes", netIf.Name))
+	// Get counters
+	content, err := ioutil.ReadFile("/proc/net/dev")
+	if err == nil {
+		for _, line := range strings.Split(string(content), "\n") {
+			fields := strings.Fields(line)
 
-	network.Counters.BytesReceived, _ = shared.ParseNumberFromFile(
-		fmt.Sprintf("/sys/class/net/%s/statistics/rx_bytes", netIf.Name))
+			if len(fields) != 17 {
+				continue
+			}
 
-	network.Counters.PacketsSent, _ = shared.ParseNumberFromFile(
-		fmt.Sprintf("/sys/class/net/%s/statistics/tx_packets", netIf.Name))
+			intName := strings.TrimSuffix(fields[0], ":")
+			if intName != netIf.Name {
+				continue
+			}
 
-	network.Counters.PacketsReceived, _ = shared.ParseNumberFromFile(
-		fmt.Sprintf("/sys/class/net/%s/statistics/rx_packets", netIf.Name))
+			rxBytes, err := strconv.ParseInt(fields[1], 10, 64)
+			if err != nil {
+				continue
+			}
+
+			rxPackets, err := strconv.ParseInt(fields[2], 10, 64)
+			if err != nil {
+				continue
+			}
+
+			txBytes, err := strconv.ParseInt(fields[9], 10, 64)
+			if err != nil {
+				continue
+			}
+
+			txPackets, err := strconv.ParseInt(fields[10], 10, 64)
+			if err != nil {
+				continue
+			}
+
+			network.Counters.BytesSent = txBytes
+			network.Counters.BytesReceived = rxBytes
+			network.Counters.PacketsSent = txPackets
+			network.Counters.PacketsReceived = rxPackets
+			break
+		}
+	}
 
 	return network
 }
