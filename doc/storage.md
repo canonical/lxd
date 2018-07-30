@@ -134,7 +134,7 @@ to restrict I/O at the disk level (but nothing finer grained than that).
 Because those apply to a whole physical disk rather than a partition or path, the following restrictions apply:
 
  - Limits will not apply to filesystems that are backed by virtual devices (e.g. device mapper).
- - If a fileystem is backed by multiple block devices, each device will get the same limit.
+ - If a filesystem is backed by multiple block devices, each device will get the same limit.
  - If the container is passed two disk devices that are each backed by the same disk,  
    the limits of the two devices will be averaged.
 
