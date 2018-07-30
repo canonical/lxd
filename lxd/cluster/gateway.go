@@ -597,6 +597,9 @@ func dqliteNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) 
 	dialer := &net.Dialer{Timeout: time.Until(deadline)}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, config)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := request.Write(conn); err != nil {
 		return nil, errors.Wrap(err, "sending HTTP request failed")
