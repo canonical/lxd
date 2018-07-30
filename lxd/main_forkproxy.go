@@ -23,6 +23,7 @@ import (
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,6 +43,17 @@ int whoami = -ESRCH;
 #define FORKPROXY_CHILD 1
 #define FORKPROXY_PARENT 0
 #define FORKPROXY_UDS_SOCK_FD_NUM 200
+
+int switch_uid_gid(uint32_t uid, uint32_t gid)
+{
+	if (setgid((gid_t)gid) < 0)
+		return -1;
+
+	if (setuid((uid_t)uid) < 0)
+		return -1;
+
+	return 0;
+}
 
 int wait_for_pid(pid_t pid)
 {
@@ -584,27 +596,26 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Drop privilege if requested
+	gid := uint64(0)
 	if args[9] != "" {
-		gid, err := strconv.ParseInt(args[9], 10, 32)
+		gid, err = strconv.ParseUint(args[9], 10, 32)
 		if err != nil {
 			return err
-		}
-
-		errno := C.setgid(C.__gid_t(gid))
-		if errno < 0 {
-			return fmt.Errorf("setgid: %v", errno)
 		}
 	}
 
+	uid := uint64(0)
 	if args[10] != "" {
-		uid, err := strconv.ParseInt(args[10], 10, 32)
+		uid, err = strconv.ParseUint(args[10], 10, 32)
 		if err != nil {
 			return err
 		}
+	}
 
-		errno := C.setuid(C.__uid_t(uid))
-		if errno < 0 {
-			return fmt.Errorf("setuid: %v", errno)
+	if uid != 0 || gid != 0 {
+		ret := C.switch_uid_gid(C.uint32_t(uid), C.uint32_t(gid))
+		if ret < 0 {
+			return fmt.Errorf("Failed to switch to uid %d and gid %d", uid, gid)
 		}
 	}
 
