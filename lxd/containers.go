@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"sort"
 	"strconv"
 	"sync"
@@ -196,16 +197,39 @@ func (slice containerStopList) Swap(i, j int) {
 func containersShutdown(s *state.State) error {
 	var wg sync.WaitGroup
 
+	dbAvailable := true
+
 	// Get all the containers
 	results, err := s.Cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
-		return err
+		// Mark database as offline
+		dbAvailable = false
+
+		// List all containers on disk
+		files, err := ioutil.ReadDir(shared.VarPath("containers"))
+		if err != nil {
+			return err
+		}
+
+		for _, file := range files {
+			results = append(results, file.Name())
+		}
 	}
 
 	containers := []container{}
 
 	for _, name := range results {
-		c, err := containerLoadByName(s, name)
+		var c container
+		var err error
+
+		if dbAvailable {
+			c, err = containerLoadByName(s, name)
+		} else {
+			c, err = containerLXCLoad(s, db.ContainerArgs{
+				Name:   name,
+				Config: make(map[string]string),
+			})
+		}
 		if err != nil {
 			return err
 		}
@@ -215,10 +239,12 @@ func containersShutdown(s *state.State) error {
 
 	sort.Sort(containerStopList(containers))
 
-	// Reset all container states
-	err = s.Cluster.ContainersResetState()
-	if err != nil {
-		return err
+	if dbAvailable {
+		// Reset all container states
+		err = s.Cluster.ContainersResetState()
+		if err != nil {
+			return err
+		}
 	}
 
 	var lastPriority int = 0
