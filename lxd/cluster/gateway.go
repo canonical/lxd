@@ -304,23 +304,32 @@ func (g *Gateway) Shutdown() error {
 	}
 
 	if g.server != nil {
-		// Dump the content of the database to disk, so the
-		// activateifneeded command can inspect it in order to decide
-		// whether to activate the daemon or not.
-		dir := filepath.Join(g.db.Dir(), "global")
-		err := g.server.Dump("db.bin", dir)
-		if err != nil {
-			// Just log a warning, since this is not fatal.
-			logger.Warnf("Failed to dump database to disk: %v", err)
-		}
-
+		g.Sync()
 		g.server.Close()
+
 		// Unset the memory dial, since Shutdown() is also called for
 		// switching between in-memory and network mode.
 		g.memoryDial = nil
 	}
 
 	return nil
+}
+
+// Sync dumps the content of the database to disk. This is useful for
+// inspection purposes, and it's also needed by the activateifneeded command so
+// it can inspect the database in order to decide whether to activate the
+// daemon or not.
+func (g *Gateway) Sync() {
+	if g.server == nil {
+		return
+	}
+
+	dir := filepath.Join(g.db.Dir(), "global")
+	err := g.server.Dump("db.bin", dir)
+	if err != nil {
+		// Just log a warning, since this is not fatal.
+		logger.Warnf("Failed to dump database to disk: %v", err)
+	}
 }
 
 // Reset the gateway, shutting it down and starting against from scratch using
