@@ -70,3 +70,9 @@ if the queries were successful (if they fail, no state will change as they are
 run in a SQL transaction).
 
 As above, please consult the LXD team first.
+
+# Syncing the cluster database to disk
+If you want to flush the content of the cluster database to disk, use the ``lxd
+sql global .sync`` command, that will write a plain SQLite database file into
+``./database/global/db.bin``, which you can then inspect with the ``sqlite3``
+command line tool.

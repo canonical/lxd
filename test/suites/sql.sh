@@ -46,4 +46,11 @@ test_sql() {
   sqlite3 "${SQLITE_DUMP}" "SELECT * FROM schema" | grep -q 1
   [ "$(sqlite3 "${SQLITE_DUMP}" 'SELECT * FROM profiles' | wc -l)" = "0" ]
   rm -f "${SQLITE_DUMP}"
+
+  # Sync the global database to disk
+  SQLITE_SYNC="${LXD_DIR}/database/global/db.bin"
+  echo SYNC "${SQLITE_SYNC}"
+  lxd sql global .sync
+  sqlite3 "${SQLITE_SYNC}" "SELECT * FROM schema" | grep -q 1
+  sqlite3 "${SQLITE_SYNC}" "SELECT * FROM profiles" | grep -q "Default LXD profile"
 }
