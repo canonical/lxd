@@ -606,8 +606,12 @@ func dqliteNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) 
 	dialer := &net.Dialer{Timeout: time.Until(deadline)}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, config)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to connect to HTTP endpoint")
+	}
 
-	if err := request.Write(conn); err != nil {
+	err = request.Write(conn)
+	if err != nil {
 		return nil, errors.Wrap(err, "Sending HTTP request failed")
 	}
 
