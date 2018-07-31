@@ -267,7 +267,6 @@ func TestJoin(t *testing.T) {
 	err = cluster.Bootstrap(targetState, targetGateway, "buzz")
 	require.NoError(t, err)
 	_, err = targetState.Cluster.Networks()
-	require.NoError(t, err)
 
 	// Setup a joining node
 	mux := http.NewServeMux()
