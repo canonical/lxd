@@ -334,6 +334,23 @@ func (s *storageZfs) zfsPoolCreate() error {
 		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(snapshotsDirMode), 8), err)
 	}
 
+	dataset = fmt.Sprintf("%s/custom-snapshots", poolName)
+	msg, err = zfsPoolVolumeCreate(dataset, "mountpoint=none")
+	if err != nil {
+		logger.Errorf("Failed to create snapshots dataset: %s", msg)
+		return err
+	}
+
+	fixperms = shared.VarPath("storage-pools", s.pool.Name, "custom-snapshots")
+	err = os.MkdirAll(fixperms, snapshotsDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	err = os.Chmod(fixperms, snapshotsDirMode)
+	if err != nil {
+		logger.Warnf("Failed to chmod \"%s\" to \"0%s\": %s", fixperms, strconv.FormatInt(int64(snapshotsDirMode), 8), err)
+	}
+
 	return nil
 }
 
