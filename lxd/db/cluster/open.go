@@ -26,7 +26,7 @@ import (
 func Open(name string, store dqlite.ServerStore, options ...dqlite.DriverOption) (*sql.DB, error) {
 	driver, err := dqlite.NewDriver(store, options...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create dqlite driver")
+		return nil, errors.Wrap(err, "Failed to create dqlite driver")
 	}
 
 	driverName := dqliteDriverName()
