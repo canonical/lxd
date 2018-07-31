@@ -603,6 +603,11 @@ func getBackupMountPoint(poolName string, backupName string) string {
 	return shared.VarPath("storage-pools", poolName, "backups", backupName)
 }
 
+// ${LXD_DIR}/storage-pools/<pool>/custom-snapshots/<custom volume name>/<snapshot name>
+func getStoragePoolVolumeSnapshotMountPoint(poolName string, snapshotName string) string {
+	return shared.VarPath("storage-pools", poolName, "custom-snapshots", snapshotName)
+}
+
 func createContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
 	var mode os.FileMode
 	if privileged {
