@@ -263,6 +263,12 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
 	}
 
+	dummyDir = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, "")
+	err = btrfsSubVolumeCreate(dummyDir)
+	if err != nil {
+		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
+	}
+
 	err = s.StoragePoolCheck()
 	if err != nil {
 		return err
