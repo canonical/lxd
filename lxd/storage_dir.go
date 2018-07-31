@@ -1413,7 +1413,36 @@ func (s *storageDir) GetState() *state.State {
 }
 
 func (s *storageDir) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
-	msg := fmt.Sprintf("Function not implemented")
-	logger.Errorf(msg)
-	return fmt.Errorf(msg)
+	logger.Infof("Creating DIR storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	sourceName, _, ok := containerGetParentAndSnapshotName(target.Name)
+	if !ok {
+		return fmt.Errorf("Not a snapshot name")
+	}
+
+	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
+	err = os.MkdirAll(targetPath, 0711)
+	if err != nil {
+		return err
+	}
+
+	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	msg, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit)
+	if err != nil {
+		return fmt.Errorf("Failed to rsync: %s: %s", string(msg), err)
+	}
+
+	logger.Infof("Created DIR storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
 }
