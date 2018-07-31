@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/gorilla/mux"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -469,7 +470,12 @@ func clusterPutDisable(d *Daemon) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	d.cluster, err = db.OpenCluster("db.bin", d.gateway.Dialer(), address, "/unused/db/dir")
+	store := d.gateway.ServerStore()
+	d.cluster, err = db.OpenCluster(
+		"db.bin", store, address, "/unused/db/dir",
+		dqlite.WithDialFunc(d.gateway.DialFunc()),
+		dqlite.WithContext(d.gateway.Context()),
+	)
 	if err != nil {
 		return SmartError(err)
 	}

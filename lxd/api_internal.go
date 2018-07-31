@@ -212,6 +212,12 @@ func internalSQLPost(d *Daemon, r *http.Request) Response {
 	}
 
 	batch := internalSQLBatch{}
+
+	if req.Query == ".sync" {
+		d.gateway.Sync()
+		return SyncResponse(true, batch)
+	}
+
 	for _, query := range strings.Split(req.Query, ";") {
 		query = strings.TrimLeft(query, " ")
 

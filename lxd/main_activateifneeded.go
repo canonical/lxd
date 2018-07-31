@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/CanonicalLtd/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
@@ -71,7 +71,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 	d.db = db.ForLegacyPatches(sqldb)
 
-	/* Load the configured address the database */
+	// Load the configured address from the database
 	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
 		return err

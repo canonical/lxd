@@ -7,7 +7,7 @@ import (
 	"path"
 	"runtime"
 
-	_ "github.com/CanonicalLtd/go-sqlite3" // For opening the in-memory database
+	_ "github.com/mattn/go-sqlite3" // For opening the in-memory database
 )
 
 // DotGo writes '<name>.go' source file in the package of the calling function, containing

@@ -80,6 +80,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		resultMu.Unlock()
 	}
 
+	wg := sync.WaitGroup{}
 	for address, containers := range result {
 		// If this is an internal request from another cluster node,
 		// ignore containers from other nodes, and return only the ones
@@ -100,7 +101,9 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		// For recursion requests we need to fetch the state of remote
 		// containers from their respective nodes.
 		if recursion && address != "" && !isClusterNotification(r) {
-			func(address string, containers []string) {
+			wg.Add(1)
+			go func(address string, containers []string) {
+				defer wg.Done()
 				cert := d.endpoints.NetworkCert()
 
 				cs, err := doContainersGetFromNode(address, cert)
@@ -135,6 +138,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 			}
 		}
 	}
+	wg.Wait()
 
 	if !recursion {
 		return resultString, nil

@@ -23,6 +23,14 @@ func TestStrings_Error(t *testing.T) {
 	}
 }
 
+var testStringsErrorCases = []struct {
+	query string
+	error string
+}{
+	{"garbage", "near \"garbage\": syntax error"},
+	{"SELECT id, name FROM test", "sql: expected 2 destination arguments in Scan, not 1"},
+}
+
 // All values yield by the query are returned.
 func TestStrings(t *testing.T) {
 	tx := newTxForSlices(t)
@@ -41,6 +49,14 @@ func TestIntegers_Error(t *testing.T) {
 			assert.Nil(t, values)
 		})
 	}
+}
+
+var testIntegersErrorCases = []struct {
+	query string
+	error string
+}{
+	{"garbage", "near \"garbage\": syntax error"},
+	{"SELECT id, name FROM test", "sql: expected 2 destination arguments in Scan, not 1"},
 }
 
 // All values yield by the query are returned.

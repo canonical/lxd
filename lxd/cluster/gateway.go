@@ -1,7 +1,10 @@
 package cluster
 
 import (
+	"bufio"
+	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -10,17 +13,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/CanonicalLtd/dqlite"
-	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/eagain"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 // NewGateway creates a new Gateway for managing access to the dqlite cluster.
@@ -49,6 +50,8 @@ func NewGateway(db *db.Node, cert *shared.CertInfo, options ...Option) (*Gateway
 		ctx:       ctx,
 		cancel:    cancel,
 		upgradeCh: make(chan struct{}, 16),
+		acceptCh:  make(chan net.Conn),
+		store:     &dqliteServerStore{},
 	}
 
 	err := gateway.init()
@@ -74,15 +77,16 @@ type Gateway struct {
 	// The gRPC server exposing the dqlite driver created by this
 	// gateway. It's nil if this LXD node is not supposed to be part of the
 	// raft cluster.
-	server *grpc.Server
+	server   *dqlite.Server
+	acceptCh chan net.Conn
 
-	// A dialer that will connect to the gRPC server using an in-memory
+	// A dialer that will connect to the dqlite server using a loopback
 	// net.Conn. It's non-nil when clustering is not enabled on this LXD
 	// node, and so we don't expose any dqlite or raft network endpoint,
 	// but still we want to use dqlite as backend for the "cluster"
 	// database, to minimize the difference between code paths in
 	// clustering and non-clustering modes.
-	memoryDial func() (*grpc.ClientConn, error)
+	memoryDial dqlite.DialFunc
 
 	// Used when shutting down the daemon to cancel any ongoing gRPC
 	// dialing attempt.
@@ -92,6 +96,9 @@ type Gateway struct {
 	// Used to unblock nodes that are waiting for other nodes to upgrade
 	// their version.
 	upgradeCh chan struct{}
+
+	// ServerStore wrapper.
+	store *dqliteServerStore
 }
 
 // HandlerFuncs returns the HTTP handlers that should be added to the REST API
@@ -104,7 +111,7 @@ type Gateway struct {
 // non-clustered node not available over the network or because it is not a
 // database node part of the dqlite cluster.
 func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
-	grpc := func(w http.ResponseWriter, r *http.Request) {
+	database := func(w http.ResponseWriter, r *http.Request) {
 		if !tlsCheckCert(r, g.cert) {
 			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
 			return
@@ -166,7 +173,33 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 			return
 		}
 
-		g.server.ServeHTTP(w, r)
+		if r.Header.Get("Upgrade") != "dqlite" {
+			http.Error(w, "Missing or invalid upgrade header", http.StatusBadRequest)
+			return
+		}
+
+		hijacker, ok := w.(http.Hijacker)
+		if !ok {
+			http.Error(w, "Webserver doesn't support hijacking", http.StatusInternalServerError)
+			return
+		}
+
+		conn, _, err := hijacker.Hijack()
+		if err != nil {
+			message := errors.Wrap(err, "Failed to hijack connection").Error()
+			http.Error(w, message, http.StatusInternalServerError)
+			return
+		}
+
+		// Write the status line and upgrade header by hand since w.WriteHeader()
+		// would fail after Hijack()
+		data := []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: dqlite\r\n\r\n")
+		if n, err := conn.Write(data); err != nil || n != len(data) {
+			conn.Close()
+			return
+		}
+
+		g.acceptCh <- conn
 	}
 	raft := func(w http.ResponseWriter, r *http.Request) {
 		// If we are not part of the raft cluster, reply with a
@@ -205,8 +238,8 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 	}
 
 	return map[string]http.HandlerFunc{
-		grpcEndpoint: grpc,
-		raftEndpoint: raft,
+		databaseEndpoint: database,
+		raftEndpoint:     raft,
 	}
 }
 
@@ -222,45 +255,32 @@ func (g *Gateway) IsDatabaseNode() bool {
 	return g.raft != nil
 }
 
-// Dialer returns a gRPC dial function that can be used to connect to one of
-// the dqlite nodes via gRPC.
-func (g *Gateway) Dialer() grpcsql.Dialer {
-	return func() (*grpc.ClientConn, error) {
+// DialFunc returns a dial function that can be used to connect to one of the
+// dqlite nodes.
+func (g *Gateway) DialFunc() dqlite.DialFunc {
+	return func(ctx context.Context, address string) (net.Conn, error) {
 		// Memory connection.
 		if g.memoryDial != nil {
-			return g.memoryDial()
+			return g.memoryDial(ctx, address)
 		}
 
-		// TODO: should the timeout be configurable?
-		ctx, cancel := context.WithTimeout(g.ctx, 10*time.Second)
-		defer cancel()
-		var err error
-		for {
-			// Network connection.
-			addresses, dbErr := g.cachedRaftNodes()
-			if dbErr != nil {
-				return nil, dbErr
-			}
-
-			for _, address := range addresses {
-				var conn *grpc.ClientConn
-				conn, err = grpcNetworkDial(g.ctx, address, g.cert)
-				if err == nil {
-					return conn, nil
-				}
-				logger.Debugf("Failed to establish gRPC connection with %s: %v", address, err)
-			}
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
-			select {
-			case <-time.After(250 * time.Millisecond):
-				continue
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-		}
+		return dqliteNetworkDial(ctx, address, g.cert)
 	}
+}
+
+// Context returns a cancellation context to pass to dqlite.NewDriver as
+// option.
+//
+// This context gets cancelled by Gateway.Kill() and at that point any
+// connection failure won't be retried.
+func (g *Gateway) Context() context.Context {
+	return g.ctx
+}
+
+// ServerStore returns a dqlite server store that can be used to lookup the
+// addresses of known database nodes.
+func (g *Gateway) ServerStore() dqlite.ServerStore {
+	return g.store
 }
 
 // Kill is an API that the daemon calls before it actually shuts down and calls
@@ -275,16 +295,41 @@ func (g *Gateway) Kill() {
 // Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
 func (g *Gateway) Shutdown() error {
 	logger.Info("Stop database gateway")
+
+	if g.raft != nil {
+		err := g.raft.Shutdown()
+		if err != nil {
+			return errors.Wrap(err, "Failed to shutdown raft")
+		}
+	}
+
 	if g.server != nil {
-		g.server.Stop()
+		g.Sync()
+		g.server.Close()
+
 		// Unset the memory dial, since Shutdown() is also called for
 		// switching between in-memory and network mode.
 		g.memoryDial = nil
 	}
-	if g.raft == nil {
-		return nil
+
+	return nil
+}
+
+// Sync dumps the content of the database to disk. This is useful for
+// inspection purposes, and it's also needed by the activateifneeded command so
+// it can inspect the database in order to decide whether to activate the
+// daemon or not.
+func (g *Gateway) Sync() {
+	if g.server == nil {
+		return
 	}
-	return g.raft.Shutdown()
+
+	dir := filepath.Join(g.db.Dir(), "global")
+	err := g.server.Dump("db.bin", dir)
+	if err != nil {
+		// Just log a warning, since this is not fatal.
+		logger.Warnf("Failed to dump database to disk: %v", err)
+	}
 }
 
 // Reset the gateway, shutting it down and starting against from scratch using
@@ -314,7 +359,7 @@ func (g *Gateway) Reset(cert *shared.CertInfo) error {
 func (g *Gateway) LeaderAddress() (string, error) {
 	// If we aren't clustered, return an error.
 	if g.memoryDial != nil {
-		return "", fmt.Errorf("node is not clustered")
+		return "", fmt.Errorf("Node is not clustered")
 	}
 
 	ctx, cancel := context.WithTimeout(g.ctx, 5*time.Second)
@@ -352,18 +397,18 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "failed to fetch raft nodes addresses")
+		return "", errors.Wrap(err, "Failed to fetch raft nodes addresses")
 	}
 
 	if len(addresses) == 0 {
 		// This should never happen because the raft_nodes table should
 		// be never empty for a clustered node, but check it for good
 		// measure.
-		return "", fmt.Errorf("no raft node known")
+		return "", fmt.Errorf("No raft node known")
 	}
 
 	for _, address := range addresses {
-		url := fmt.Sprintf("https://%s%s", address, grpcEndpoint)
+		url := fmt.Sprintf("https://%s%s", address, databaseEndpoint)
 		request, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return "", err
@@ -393,7 +438,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return leader, nil
 	}
 
-	return "", fmt.Errorf("raft cluster is unavailable")
+	return "", fmt.Errorf("RAFT cluster is unavailable")
 }
 
 // Initialize the gateway, creating a new raft factory and gRPC server (if this
@@ -402,27 +447,33 @@ func (g *Gateway) init() error {
 	logger.Info("Initializing database gateway")
 	raft, err := newRaft(g.db, g.cert, g.options.latency)
 	if err != nil {
-		return errors.Wrap(err, "failed to create raft factory")
+		return errors.Wrap(err, "Failed to create raft factory")
 	}
 
 	// If the resulting raft instance is not nil, it means that this node
 	// should serve as database node, so create a dqlite driver to be
 	// exposed it over gRPC.
 	if raft != nil {
-		config := dqlite.DriverConfig{}
-		driver, err := dqlite.NewDriver(raft.Registry(), raft.Raft(), config)
+		listener, err := net.Listen("unix", "")
 		if err != nil {
-			return errors.Wrap(err, "failed to create dqlite driver")
+			return errors.Wrap(err, "Failed to allocate loopback port")
 		}
-		server := grpcsql.NewServer(driver)
+
 		if raft.HandlerFunc() == nil {
-			// If no raft http handler is set, it means we are in
-			// single node mode and we don't have a network
-			// endpoint, so let's spin up a fully in-memory gRPC
-			// server.
-			listener, dial := util.InMemoryNetwork()
-			go server.Serve(listener)
-			g.memoryDial = grpcMemoryDial(dial)
+			g.memoryDial = dqliteMemoryDial(listener)
+			g.store.inMemory = dqlite.NewInmemServerStore()
+			g.store.Set(context.Background(), []dqlite.ServerInfo{{Address: "0"}})
+		} else {
+			go runDqliteProxy(listener, g.acceptCh)
+			g.store.inMemory = nil
+		}
+
+		provider := &raftAddressProvider{db: g.db}
+		server, err := dqlite.NewServer(
+			raft.Raft(), raft.Registry(), listener,
+			dqlite.WithServerAddressProvider(provider))
+		if err != nil {
+			return errors.Wrap(err, "Failed to create dqlite server")
 		}
 
 		g.server = server
@@ -430,7 +481,11 @@ func (g *Gateway) init() error {
 	} else {
 		g.server = nil
 		g.raft = nil
+		g.store.inMemory = nil
 	}
+
+	g.store.onDisk = dqlite.NewServerStore(g.db.DB(), "main", "raft_nodes", "address")
+
 	return nil
 }
 
@@ -445,7 +500,7 @@ func (g *Gateway) waitLeadership() error {
 		}
 		time.Sleep(sleep)
 	}
-	return fmt.Errorf("raft node did not self-elect within %s", time.Duration(n)*sleep)
+	return fmt.Errorf("RAFT node did not self-elect within %s", time.Duration(n)*sleep)
 }
 
 // Return information about the LXD nodes that a currently part of the raft
@@ -465,7 +520,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 		address, err := provider.ServerAddr(server.ID)
 		if err != nil {
 			if err != db.ErrNoSuchObject {
-				return nil, errors.Wrap(err, "failed to fetch raft server address")
+				return nil, errors.Wrap(err, "Failed to fetch raft server address")
 			}
 			// Use the initial address as fallback. This is an edge
 			// case that happens when a new leader is elected and
@@ -474,7 +529,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 		}
 		id, err := strconv.Atoi(string(server.ID))
 		if err != nil {
-			return nil, errors.Wrap(err, "non-numeric server ID")
+			return nil, errors.Wrap(err, "Non-numeric server ID")
 		}
 		nodes[i].ID = int64(id)
 		nodes[i].Address = string(address)
@@ -495,26 +550,20 @@ func (g *Gateway) cachedRaftNodes() ([]string, error) {
 		return err
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to fetch raft nodes")
+		return nil, errors.Wrap(err, "Failed to fetch raft nodes")
 	}
 	return addresses, nil
 }
 
-func grpcNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) (*grpc.ClientConn, error) {
+func dqliteNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) (net.Conn, error) {
 	config, err := tlsClientConfig(cert)
 	if err != nil {
 		return nil, err
 	}
 
-	// The whole attempt should not take more than a few seconds. If the
-	// context gets cancelled, calling code will typically try against
-	// another database node, in round robin.
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-
 	// Make a probe HEAD request to check if the target node is the leader.
-	url := fmt.Sprintf("https://%s%s", addr, grpcEndpoint)
-	request, err := http.NewRequest("HEAD", url, nil)
+	path := fmt.Sprintf("https://%s%s", addr, databaseEndpoint)
+	request, err := http.NewRequest("HEAD", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -524,36 +573,72 @@ func grpcNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) (*
 	if err != nil {
 		return nil, err
 	}
+
+	// If the endpoint does not exists, it means that the target node is
+	// running version 1 of dqlite protocol. In that case we simply behave
+	// as the node was at an older LXD version.
+	if response.StatusCode == http.StatusNotFound {
+		return nil, db.ErrSomeNodesAreBehind
+	}
+
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf(response.Status)
 	}
 
-	options := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewTLS(config)),
+	// Establish the connection
+	request = &http.Request{
+		Method:     "POST",
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     make(http.Header),
+		Host:       addr,
 	}
-	return grpc.DialContext(ctx, addr, options...)
+	request.URL, err = url.Parse(path)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Upgrade", "dqlite")
+	request = request.WithContext(ctx)
+
+	deadline, _ := ctx.Deadline()
+	dialer := &net.Dialer{Timeout: time.Until(deadline)}
+
+	conn, err := tls.DialWithDialer(dialer, "tcp", addr, config)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to connect to HTTP endpoint")
+	}
+
+	err = request.Write(conn)
+	if err != nil {
+		return nil, errors.Wrap(err, "Sending HTTP request failed")
+	}
+
+	response, err = http.ReadResponse(bufio.NewReader(conn), request)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read response")
+	}
+	if response.StatusCode != http.StatusSwitchingProtocols {
+		return nil, fmt.Errorf("Dialing failed: expected status code 101 got %d", response.StatusCode)
+	}
+	if response.Header.Get("Upgrade") != "dqlite" {
+		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
+	}
+
+	return conn, err
 }
 
-// Convert a raw in-memory dial function into a gRPC one.
-func grpcMemoryDial(dial func() net.Conn) func() (*grpc.ClientConn, error) {
-	options := []grpc.DialOption{
-		grpc.WithInsecure(),
-		grpc.WithBlock(),
-		grpc.WithDialer(func(string, time.Duration) (net.Conn, error) {
-			return dial(), nil
-		}),
-	}
-	return func() (*grpc.ClientConn, error) {
-		return grpc.Dial("", options...)
+// Create a dial function that connects to the given listener.
+func dqliteMemoryDial(listener net.Listener) dqlite.DialFunc {
+	return func(ctx context.Context, address string) (net.Conn, error) {
+		return net.Dial("unix", listener.Addr().String())
 	}
 }
 
-// The LXD API endpoint path that gets routed to a gRPC server handler for
-// performing SQL queries against the dqlite driver running on this node.
-//
-// FIXME: figure out if there's a way to configure the gRPC client to add a
-//        prefix to this url, e.g. /internal/db/protocol.SQL/Conn.
-const grpcEndpoint = "/protocol.SQL/Conn"
+// The LXD API endpoint path that gets routed to a dqlite server handler for
+// performing SQL queries against the dqlite server running on this node.
+const databaseEndpoint = "/internal/database"
 
 // Redirect dqlite's logs to our own logger
 func dqliteLog(configuredLevel string) func(level, message string) {
@@ -581,4 +666,52 @@ func dqliteLog(configuredLevel string) func(level, message string) {
 			// Ignore any other log level.
 		}
 	}
+}
+
+func runDqliteProxy(listener net.Listener, acceptCh chan net.Conn) {
+	for {
+		src := <-acceptCh
+		dst, err := net.Dial("unix", listener.Addr().String())
+		if err != nil {
+			panic(err)
+		}
+
+		go func() {
+			_, err := io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
+			if err != nil {
+				logger.Warnf("Error during dqlite proxy copy: %v", err)
+			}
+
+			src.Close()
+		}()
+
+		go func() {
+			_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
+			if err != nil {
+				logger.Warnf("Error during dqlite proxy copy: %v", err)
+			}
+
+			dst.Close()
+		}()
+	}
+}
+
+// Conditionally uses the in-memory or the on-disk server store.
+type dqliteServerStore struct {
+	inMemory dqlite.ServerStore
+	onDisk   dqlite.ServerStore
+}
+
+func (s *dqliteServerStore) Get(ctx context.Context) ([]dqlite.ServerInfo, error) {
+	if s.inMemory != nil {
+		return s.inMemory.Get(ctx)
+	}
+	return s.onDisk.Get(ctx)
+}
+
+func (s *dqliteServerStore) Set(ctx context.Context, servers []dqlite.ServerInfo) error {
+	if s.inMemory != nil {
+		return s.inMemory.Set(ctx, servers)
+	}
+	return s.onDisk.Set(ctx, servers)
 }

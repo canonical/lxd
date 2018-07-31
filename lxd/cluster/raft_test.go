@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/CanonicalLtd/raft-test"
 	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -122,7 +123,7 @@ func newRaft(t *testing.T, db *db.Node, cert *shared.CertInfo) *cluster.RaftInst
 // address into the raft_nodes table.
 //
 // This effectively makes the node act as a database raft node.
-func setRaftRole(t *testing.T, database *db.Node, address string) {
+func setRaftRole(t *testing.T, database *db.Node, address string) *dqlite.DatabaseServerStore {
 	require.NoError(t, database.Transaction(func(tx *db.NodeTx) error {
 		err := tx.UpdateConfig(map[string]string{"core.https_address": address})
 		if err != nil {
@@ -131,6 +132,9 @@ func setRaftRole(t *testing.T, database *db.Node, address string) {
 		_, err = tx.RaftNodeAdd(address)
 		return err
 	}))
+
+	store := dqlite.NewServerStore(database.DB(), "main", "raft_nodes", "address")
+	return store
 }
 
 // Create a new test HTTP server configured with the given TLS certificate and

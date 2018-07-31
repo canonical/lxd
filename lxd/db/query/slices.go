@@ -83,11 +83,6 @@ func scanSingleColumn(tx *sql.Tx, query string, args []interface{}, typeName str
 	}
 	defer rows.Close()
 
-	err = checkRowsHaveOneColumnOfSpecificType(rows, typeName)
-	if err != nil {
-		return err
-	}
-
 	for rows.Next() {
 		err := scan(rows)
 		if err != nil {

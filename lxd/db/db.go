@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 
@@ -90,6 +90,9 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 		}
 	}
 
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
 	return node, dump, nil
 }
 
@@ -155,8 +158,8 @@ type Cluster struct {
 // database matches our version, and possibly trigger a schema update. If the
 // schema update can't be performed right now, because some nodes are still
 // behind, an Upgrading error is returned.
-func OpenCluster(name string, dialer grpcsql.Dialer, address, dir string) (*Cluster, error) {
-	db, err := cluster.Open(name, dialer)
+func OpenCluster(name string, store dqlite.ServerStore, address, dir string, options ...dqlite.DriverOption) (*Cluster, error) {
+	db, err := cluster.Open(name, store, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database")
 	}

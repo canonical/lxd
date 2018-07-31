@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -122,11 +122,6 @@ func TestBootstrap(t *testing.T) {
 	for path, handler := range gateway.HandlerFuncs() {
 		mux.HandleFunc(path, handler)
 	}
-
-	driver := grpcsql.NewDriver(gateway.Dialer())
-	conn, err := driver.Open("test.db")
-	require.NoError(t, err)
-	require.NoError(t, conn.Close())
 
 	count, err := cluster.Count(state)
 	require.NoError(t, err)
@@ -254,14 +249,24 @@ func TestJoin(t *testing.T) {
 	}
 
 	targetAddress := targetServer.Listener.Addr().String()
-	var err error
+
 	require.NoError(t, targetState.Cluster.Close())
-	targetState.Cluster, err = db.OpenCluster("db.bin", targetGateway.Dialer(), targetAddress, "/unused/db/dir")
+
+	targetStore := targetGateway.ServerStore()
+	targetDialFunc := targetGateway.DialFunc()
+
+	var err error
+	targetState.Cluster, err = db.OpenCluster(
+		"db.bin", targetStore, targetAddress, "/unused/db/dir",
+		dqlite.WithDialFunc(targetDialFunc))
 	require.NoError(t, err)
+
 	targetF := &membershipFixtures{t: t, state: targetState}
 	targetF.NetworkAddress(targetAddress)
 
 	err = cluster.Bootstrap(targetState, targetGateway, "buzz")
+	require.NoError(t, err)
+	_, err = targetState.Cluster.Networks()
 	require.NoError(t, err)
 
 	// Setup a joining node
@@ -282,8 +287,14 @@ func TestJoin(t *testing.T) {
 	}
 
 	address := server.Listener.Addr().String()
+
 	require.NoError(t, state.Cluster.Close())
-	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address, "/unused/db/dir")
+
+	store := gateway.ServerStore()
+	dialFunc := gateway.DialFunc()
+
+	state.Cluster, err = db.OpenCluster(
+		"db.bin", store, address, "/unused/db/dir", dqlite.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 
 	f := &membershipFixtures{t: t, state: state}
@@ -368,7 +379,10 @@ func FLAKY_TestPromote(t *testing.T) {
 	targetAddress := targetServer.Listener.Addr().String()
 	var err error
 	require.NoError(t, targetState.Cluster.Close())
-	targetState.Cluster, err = db.OpenCluster("db.bin", targetGateway.Dialer(), targetAddress, "/unused/db/dir")
+	store := targetGateway.ServerStore()
+	dialFunc := targetGateway.DialFunc()
+	targetState.Cluster, err = db.OpenCluster(
+		"db.bin", store, targetAddress, "/unused/db/dir", dqlite.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 	targetF := &membershipFixtures{t: t, state: targetState}
 	targetF.NetworkAddress(targetAddress)
@@ -396,9 +410,6 @@ func FLAKY_TestPromote(t *testing.T) {
 	for path, handler := range gateway.HandlerFuncs() {
 		mux.HandleFunc(path, handler)
 	}
-
-	state.Cluster, err = db.OpenCluster("db.bin", gateway.Dialer(), address, "/unused/db/dir")
-	require.NoError(t, err)
 
 	// Promote the node.
 	targetF.RaftNode(address) // Add the address of the node to be promoted in the leader's db

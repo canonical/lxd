@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CanonicalLtd/dqlite"
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/CanonicalLtd/raft-http"
 	"github.com/CanonicalLtd/raft-membership"
 	"github.com/boltdb/bolt"
@@ -183,7 +183,8 @@ func raftInstanceInit(
 	}
 
 	// The dqlite registry and FSM.
-	registry := dqlite.NewRegistry(dir)
+	registry := dqlite.NewRegistry(strconv.Itoa(serial))
+	serial++
 	fsm := dqlite.NewFSM(registry)
 
 	// The actual raft instance.
@@ -213,6 +214,8 @@ func raftInstanceInit(
 
 	return instance, nil
 }
+
+var serial = 99
 
 // Registry returns the dqlite Registry associated with the raft instance.
 func (i *raftInstance) Registry() *dqlite.Registry {
@@ -272,29 +275,8 @@ func (i *raftInstance) Shutdown() error {
 	// Invoke raft APIs asynchronously to allow for a timeout.
 	timeout := 10 * time.Second
 
-	// FIXME/TODO: We take a snapshot before when shutting down the daemon
-	//             so there will be no uncompacted raft logs at the next
-	//             startup. This is a workaround for slow log replay when
-	//             the LXD daemon starts (see #4485). A more proper fix
-	//             should be probably implemented in dqlite.
 	errCh := make(chan error)
 	timer := time.After(timeout)
-	go func() {
-		errCh <- i.raft.Snapshot().Error()
-	}()
-	// In case of error we just log a warning, since this is not really
-	// fatal.
-	select {
-	case err := <-errCh:
-		if err != nil && err != raft.ErrNothingNewToSnapshot {
-			logger.Warnf("Failed to take raft snapshot: %v", err)
-		}
-	case <-timer:
-		logger.Warnf("Timeout waiting for raft to take a snapshot")
-	}
-
-	errCh = make(chan error)
-	timer = time.After(timeout)
 	go func() {
 		errCh <- i.raft.Shutdown().Error()
 	}()
@@ -402,12 +384,8 @@ func raftConfig(latency float64) *raft.Config {
 		scale(duration)
 	}
 
-	// FIXME/TODO: We increase the frequency of snapshots here to keep the
-	//             number of uncompacted raft logs low, and workaround slow
-	//             log replay when the LXD daemon starts (see #4485). A more
-	//             proper fix should be probably implemented in dqlite.
-	config.SnapshotThreshold = 512
-	config.TrailingLogs = 128
+	config.SnapshotThreshold = 1024
+	config.TrailingLogs = 512
 
 	return config
 }
