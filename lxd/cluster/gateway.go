@@ -675,12 +675,22 @@ func runDqliteProxy(listener net.Listener, acceptCh chan net.Conn) {
 		if err != nil {
 			panic(err)
 		}
+
 		go func() {
-			io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
+			_, err := io.Copy(eagain.Writer{Writer: dst}, eagain.Reader{Reader: src})
+			if err != nil {
+				logger.Warnf("Error during dqlite proxy copy: %v", err)
+			}
+
 			src.Close()
 		}()
+
 		go func() {
-			io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
+			_, err := io.Copy(eagain.Writer{Writer: src}, eagain.Reader{Reader: dst})
+			if err != nil {
+				logger.Warnf("Error during dqlite proxy copy: %v", err)
+			}
+
 			dst.Close()
 		}()
 	}
