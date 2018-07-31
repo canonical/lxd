@@ -65,6 +65,11 @@ func (s *storageBtrfs) getCustomSubvolumePath(poolName string) string {
 	return shared.VarPath("storage-pools", poolName, "custom")
 }
 
+// ${LXD_DIR}/storage-pools/<pool>/custom-snapshots
+func (s *storageBtrfs) getCustomSnapshotSubvolumePath(poolName string) string {
+	return shared.VarPath("storage-pools", poolName, "custom-snapshots")
+}
+
 func (s *storageBtrfs) StorageCoreInit() error {
 	s.sType = storageTypeBtrfs
 	typeName, err := storageTypeToString(s.sType)
