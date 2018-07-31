@@ -59,6 +59,7 @@ var patches = []patch{
 	{name: "container_config_regen", run: patchContainerConfigRegen},
 	{name: "lvm_node_specific_config_keys", run: patchLvmNodeSpecificConfigKeys},
 	{name: "candid_rename_config_key", run: patchCandidConfigKey},
+	{name: "storage_api_rename_container_snapshots_dir", run: patchStorageApiRenameContainerSnapshotsDir},
 }
 
 type patch struct {
@@ -2959,6 +2960,36 @@ func patchCandidConfigKey(name string, d *Daemon) error {
 			"candid.api.url":         value,
 		})
 	})
+}
+
+func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
+	storagePoolsPath := shared.VarPath("storage-pools")
+	storagePoolsDir, err := os.Open(storagePoolsPath)
+	if err != nil {
+		return err
+	}
+
+	// Get a list of all storage pools.
+	storagePoolNames, err := storagePoolsDir.Readdirnames(-1)
+	storagePoolsDir.Close()
+	if err != nil {
+		return err
+	}
+
+	for _, poolName := range storagePoolNames {
+		containerSnapshotDirOld := shared.VarPath("storage-pools", poolName, "snapshots")
+		containerSnapshotDirNew := shared.VarPath("storage-pools", poolName, "containers-snapshots")
+		err := shared.FileMove(containerSnapshotDirOld, containerSnapshotDirNew)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Patches end here
