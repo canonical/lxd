@@ -2950,7 +2950,33 @@ func (s *storageBtrfs) GetState() *state.State {
 }
 
 func (s *storageBtrfs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
-	msg := fmt.Sprintf("Function not implemented")
-	logger.Errorf(msg)
-	return fmt.Errorf(msg)
+	logger.Infof("Creating BTRFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	// Create subvolume path on the storage pool.
+	customSubvolumePath := s.getCustomSubvolumePath(s.pool.Name)
+	err := os.MkdirAll(customSubvolumePath, 0700)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	_, _, ok := containerGetParentAndSnapshotName(target.Name)
+	if !ok {
+		return err
+	}
+
+	customSnapshotSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	err = os.MkdirAll(customSnapshotSubvolumeName, snapshotsDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
+	err = s.btrfsPoolVolumesSnapshot(sourcePath, targetPath, true, true)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Created BTRFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
 }
