@@ -2352,7 +2352,27 @@ func (s *storageLvm) GetState() *state.State {
 }
 
 func (s *storageLvm) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
-	msg := fmt.Sprintf("Function not implemented")
-	logger.Errorf(msg)
-	return fmt.Errorf(msg)
+	logger.Debugf("Creating LVM storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	poolName := s.getOnDiskPoolName()
+	sourceOnlyName, _, ok := containerGetParentAndSnapshotName(target.Name)
+	if !ok {
+		return fmt.Errorf("Not a snapshot")
+	}
+
+	targetLvmName := containerNameToLVName(target.Name)
+	_, err := s.createSnapshotLV(poolName, sourceOnlyName, storagePoolVolumeAPIEndpointCustom, targetLvmName, storagePoolVolumeAPIEndpointCustom, true, s.useThinpool)
+	if err != nil {
+		return fmt.Errorf("Failed to create snapshot logical volume %s", err)
+	}
+
+	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
+	err = os.MkdirAll(targetPath, snapshotsDirMode)
+	if err != nil {
+		logger.Errorf("Failed to create mountpoint \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s", targetPath, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	logger.Debugf("Created LVM storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
 }
