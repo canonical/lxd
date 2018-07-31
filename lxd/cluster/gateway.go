@@ -174,19 +174,19 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 		}
 
 		if r.Header.Get("Upgrade") != "dqlite" {
-			http.Error(w, "missing or invalid upgrade header", http.StatusBadRequest)
+			http.Error(w, "Missing or invalid upgrade header", http.StatusBadRequest)
 			return
 		}
 
 		hijacker, ok := w.(http.Hijacker)
 		if !ok {
-			http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
+			http.Error(w, "Webserver doesn't support hijacking", http.StatusInternalServerError)
 			return
 		}
 
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
-			message := errors.Wrap(err, "failed to hijack connection").Error()
+			message := errors.Wrap(err, "Failed to hijack connection").Error()
 			http.Error(w, message, http.StatusInternalServerError)
 			return
 		}
@@ -299,7 +299,7 @@ func (g *Gateway) Shutdown() error {
 	if g.raft != nil {
 		err := g.raft.Shutdown()
 		if err != nil {
-			return errors.Wrap(err, "failed to shutdown raft")
+			return errors.Wrap(err, "Failed to shutdown raft")
 		}
 	}
 
@@ -473,7 +473,7 @@ func (g *Gateway) init() error {
 			raft.Raft(), raft.Registry(), listener,
 			dqlite.WithServerAddressProvider(provider))
 		if err != nil {
-			return errors.Wrap(err, "failed to create dqlite server")
+			return errors.Wrap(err, "Failed to create dqlite server")
 		}
 
 		g.server = server
@@ -606,23 +606,20 @@ func dqliteNetworkDial(ctx context.Context, addr string, cert *shared.CertInfo) 
 	dialer := &net.Dialer{Timeout: time.Until(deadline)}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, config)
-	if err != nil {
-		return nil, err
-	}
 
 	if err := request.Write(conn); err != nil {
-		return nil, errors.Wrap(err, "sending HTTP request failed")
+		return nil, errors.Wrap(err, "Sending HTTP request failed")
 	}
 
 	response, err = http.ReadResponse(bufio.NewReader(conn), request)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read response")
+		return nil, errors.Wrap(err, "Failed to read response")
 	}
 	if response.StatusCode != http.StatusSwitchingProtocols {
-		return nil, fmt.Errorf("dialing fail: expected status code 101 got %d", response.StatusCode)
+		return nil, fmt.Errorf("Dialing failed: expected status code 101 got %d", response.StatusCode)
 	}
 	if response.Header.Get("Upgrade") != "dqlite" {
-		return nil, fmt.Errorf("missing or unexpected Upgrade header in response")
+		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
 	}
 
 	return conn, err
