@@ -59,9 +59,6 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 		return nil, nil, err
 	}
 
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-
 	legacyHook := legacyPatchHook(db, legacyPatches)
 	hook := func(version int, tx *sql.Tx) error {
 		if version == node.UpdateFromPreClustering {
@@ -92,6 +89,9 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 			}
 		}
 	}
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	return node, dump, nil
 }
