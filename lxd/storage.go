@@ -164,6 +164,9 @@ type storage interface {
 	SetStoragePoolVolumeWritable(writable *api.StorageVolumePut)
 	GetStoragePoolVolume() *api.StorageVolume
 
+	// Functions dealing with custom storage volume snapshots.
+	StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error
+
 	// Functions dealing with container storage volumes.
 	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
 	ContainerCreate(container container) error

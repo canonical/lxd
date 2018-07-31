@@ -2698,3 +2698,9 @@ func (s *storageCeph) GetStoragePoolVolume() *api.StorageVolume {
 func (s *storageCeph) GetState() *state.State {
 	return s.s
 }
+
+func (s *storageCeph) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
+	msg := fmt.Sprintf("Function not implemented")
+	logger.Errorf(msg)
+	return fmt.Errorf(msg)
+}

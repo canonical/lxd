@@ -2948,3 +2948,9 @@ func (s *storageBtrfs) GetStoragePoolVolume() *api.StorageVolume {
 func (s *storageBtrfs) GetState() *state.State {
 	return s.s
 }
+
+func (s *storageBtrfs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
+	msg := fmt.Sprintf("Function not implemented")
+	logger.Errorf(msg)
+	return fmt.Errorf(msg)
+}
