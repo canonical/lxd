@@ -111,6 +111,11 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 			Description: volWritable.Description,
 		}
 
+		err = storage.StoragePoolVolumeSnapshotCreate(&req)
+		if err != nil {
+			return err
+		}
+
 		_, err = storagePoolVolumeSnapshotDBCreateInternal(d.State(), dbArgs)
 		if err != nil {
 			return err
