@@ -360,7 +360,7 @@ func (c *cmdStorageGet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	for k, v := range resp.Config {
-		if k == args[0] {
+		if k == args[1] {
 			fmt.Printf("%s\n", v)
 		}
 	}

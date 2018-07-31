@@ -27,6 +27,13 @@ test_storage() {
   lxc storage volume show "$storage_pool" "$storage_volume" | grep -q 'description: bar'
   lxc storage volume delete "$storage_pool" "$storage_volume"
 
+  # Validate get/set
+  lxc storage set "$storage_pool" user.abc def
+  [ "$(lxc storage get "$storage_pool" user.abc)" = "def" ]
+
+  lxc storage volume set "$storage_pool" "$storage_volume" user.abc def
+  [ "$(lxc storage volume get "$storage_pool" "$storage_volume" user.abc)" = "def" ]
+
   lxc storage delete "$storage_pool"
 
   # Test btrfs resize

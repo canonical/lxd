@@ -881,7 +881,7 @@ func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	for k, v := range resp.Config {
-		if k == args[1] {
+		if k == args[2] {
 			fmt.Printf("%s\n", v)
 		}
 	}
