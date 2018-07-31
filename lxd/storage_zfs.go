@@ -3041,7 +3041,29 @@ func (s *storageZfs) GetState() *state.State {
 }
 
 func (s *storageZfs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
-	msg := fmt.Sprintf("Function not implemented")
-	logger.Errorf(msg)
-	return fmt.Errorf(msg)
+	logger.Infof("Creating ZFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	sourceOnlyName, snapshotOnlyName, ok := containerGetParentAndSnapshotName(target.Name)
+	if !ok {
+		return fmt.Errorf("Not a snapshot name")
+	}
+
+	sourceDataset := fmt.Sprintf("custom/%s", sourceOnlyName)
+	poolName := s.getOnDiskPoolName()
+	dataset := fmt.Sprintf("%s/%s", poolName, sourceDataset)
+	snapName := fmt.Sprintf("snapshot-%s", snapshotOnlyName)
+	err := zfsPoolVolumeSnapshotCreate(poolName, dataset, snapName)
+	if err != nil {
+		return err
+	}
+
+	targetPath := getStoragePoolVolumeMountPoint(s.pool.Name, target.Name)
+	err = os.MkdirAll(targetPath, snapshotsDirMode)
+	if err != nil {
+		logger.Errorf("Failed to create mountpoint \"%s\" for ZFS storage volume \"%s\" on storage pool \"%s\": %s", targetPath, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	logger.Infof("Created ZFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
 }
