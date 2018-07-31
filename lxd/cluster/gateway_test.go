@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/hashicorp/raft"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
 // Basic creation and shutdown. By default, the gateway runs an in-memory gRPC
@@ -44,8 +45,8 @@ func TestGateway_Single(t *testing.T) {
 		assert.Equal(t, 404, w.Code, endpoint)
 	}
 
-	dialer := gateway.Dialer()
-	conn, err := dialer()
+	dial := gateway.DialFunc()
+	conn, err := dial(context.Background(), "")
 	assert.NoError(t, err)
 	assert.NotNil(t, conn)
 
@@ -66,7 +67,7 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	defer server.Close()
 
 	address := server.Listener.Addr().String()
-	setRaftRole(t, db, address)
+	store := setRaftRole(t, db, address)
 
 	gateway := newGateway(t, db, cert)
 	defer gateway.Shutdown()
@@ -75,9 +76,12 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 		mux.HandleFunc(path, handler)
 	}
 
-	driver := grpcsql.NewDriver(gateway.Dialer())
+	driver, err := dqlite.NewDriver(store, dqlite.WithDialFunc(gateway.DialFunc()))
+	require.NoError(t, err)
+
 	conn, err := driver.Open("test.db")
 	require.NoError(t, err)
+
 	require.NoError(t, conn.Close())
 
 	leader, err := gateway.LeaderAddress()

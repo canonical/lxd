@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/sys"
@@ -40,7 +41,7 @@ func newDaemon(t *testing.T) (*Daemon, func()) {
 	require.NoError(t, daemon.Init())
 
 	cleanup := func() {
-		require.NoError(t, daemon.Stop())
+		daemon.Stop()
 		osCleanup()
 		resetLogger()
 	}
@@ -76,6 +77,8 @@ func newDaemons(t *testing.T, n int) ([]*Daemon, func()) {
 // Create a new DaemonConfig object for testing purposes.
 func newConfig() *DaemonConfig {
 	return &DaemonConfig{
-		RaftLatency: 0.8,
+		RaftLatency:        0.8,
+		Trace:              []string{"dqlite"},
+		DqliteSetupTimeout: 10 * time.Second,
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 
-	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/lxd/util"
@@ -23,18 +23,22 @@ import (
 //
 // The dialer argument is a function that returns a gRPC dialer that can be
 // used to connect to a database node using the gRPC SQL package.
-func Open(name string, dialer grpcsql.Dialer) (*sql.DB, error) {
-	driver := grpcsql.NewDriver(dialer)
-	driverName := grpcSQLDriverName()
+func Open(name string, store dqlite.ServerStore, options ...dqlite.DriverOption) (*sql.DB, error) {
+	driver, err := dqlite.NewDriver(store, options...)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create dqlite driver")
+	}
+
+	driverName := dqliteDriverName()
 	sql.Register(driverName, driver)
 
-	// Create the cluster db. This won't immediately establish any gRPC
+	// Create the cluster db. This won't immediately establish any network
 	// connection, that will happen only when a db transaction is started
 	// (see the database/sql connection pooling code for more details).
 	if name == "" {
 		name = "db.bin"
 	}
-	db, err := sql.Open(driverName, name+"?_foreign_keys=1")
+	db, err := sql.Open(driverName, name)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open cluster database: %v", err)
 	}
@@ -191,18 +195,18 @@ INSERT INTO profiles (name, description) VALUES ('default', 'Default LXD profile
 	return true, err
 }
 
-// Generate a new name for the grpcsql driver registration. We need it to be
+// Generate a new name for the dqlite driver registration. We need it to be
 // unique for testing, see below.
-func grpcSQLDriverName() string {
-	defer atomic.AddUint64(&grpcSQLDriverSerial, 1)
-	return fmt.Sprintf("grpc-%d", grpcSQLDriverSerial)
+func dqliteDriverName() string {
+	defer atomic.AddUint64(&dqliteDriverSerial, 1)
+	return fmt.Sprintf("dqlite-%d", dqliteDriverSerial)
 }
 
-// Monotonic serial number for registering new instances of grpcsql.Driver
+// Monotonic serial number for registering new instances of dqlite.Driver
 // using the database/sql stdlib package. This is needed since there's no way
 // to unregister drivers, and in unit tests more than one driver gets
 // registered.
-var grpcSQLDriverSerial uint64
+var dqliteDriverSerial uint64
 
 func checkClusterIsUpgradable(tx *sql.Tx, target [2]int) error {
 	// Get the current versions in the nodes table.

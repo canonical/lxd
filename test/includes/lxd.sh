@@ -211,9 +211,7 @@ kill_lxd() {
         check_empty "${daemon_dir}/shmounts/"
         check_empty "${daemon_dir}/snapshots/"
 
-        echo "==> Checking for leftover cluster DB entries"
-        # FIXME: we should not use the command line sqlite client, since it's
-        #        not compatible with dqlite
+        echo "==> Checking for leftover DB entries"
         check_empty_table "${daemon_dir}/database/global/db.bin" "containers"
         check_empty_table "${daemon_dir}/database/global/db.bin" "containers_config"
         check_empty_table "${daemon_dir}/database/global/db.bin" "containers_devices"
