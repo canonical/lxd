@@ -359,7 +359,7 @@ func (g *Gateway) Reset(cert *shared.CertInfo) error {
 func (g *Gateway) LeaderAddress() (string, error) {
 	// If we aren't clustered, return an error.
 	if g.memoryDial != nil {
-		return "", fmt.Errorf("node is not clustered")
+		return "", fmt.Errorf("Node is not clustered")
 	}
 
 	ctx, cancel := context.WithTimeout(g.ctx, 5*time.Second)
@@ -397,14 +397,14 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "failed to fetch raft nodes addresses")
+		return "", errors.Wrap(err, "Failed to fetch raft nodes addresses")
 	}
 
 	if len(addresses) == 0 {
 		// This should never happen because the raft_nodes table should
 		// be never empty for a clustered node, but check it for good
 		// measure.
-		return "", fmt.Errorf("no raft node known")
+		return "", fmt.Errorf("No raft node known")
 	}
 
 	for _, address := range addresses {
@@ -438,7 +438,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return leader, nil
 	}
 
-	return "", fmt.Errorf("raft cluster is unavailable")
+	return "", fmt.Errorf("RAFT cluster is unavailable")
 }
 
 // Initialize the gateway, creating a new raft factory and gRPC server (if this
@@ -447,7 +447,7 @@ func (g *Gateway) init() error {
 	logger.Info("Initializing database gateway")
 	raft, err := newRaft(g.db, g.cert, g.options.latency)
 	if err != nil {
-		return errors.Wrap(err, "failed to create raft factory")
+		return errors.Wrap(err, "Failed to create raft factory")
 	}
 
 	// If the resulting raft instance is not nil, it means that this node
@@ -456,7 +456,7 @@ func (g *Gateway) init() error {
 	if raft != nil {
 		listener, err := net.Listen("unix", "")
 		if err != nil {
-			return errors.Wrap(err, "failed to allocate loopback port")
+			return errors.Wrap(err, "Failed to allocate loopback port")
 		}
 
 		if raft.HandlerFunc() == nil {
@@ -500,7 +500,7 @@ func (g *Gateway) waitLeadership() error {
 		}
 		time.Sleep(sleep)
 	}
-	return fmt.Errorf("raft node did not self-elect within %s", time.Duration(n)*sleep)
+	return fmt.Errorf("RAFT node did not self-elect within %s", time.Duration(n)*sleep)
 }
 
 // Return information about the LXD nodes that a currently part of the raft
@@ -520,7 +520,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 		address, err := provider.ServerAddr(server.ID)
 		if err != nil {
 			if err != db.ErrNoSuchObject {
-				return nil, errors.Wrap(err, "failed to fetch raft server address")
+				return nil, errors.Wrap(err, "Failed to fetch raft server address")
 			}
 			// Use the initial address as fallback. This is an edge
 			// case that happens when a new leader is elected and
@@ -529,7 +529,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 		}
 		id, err := strconv.Atoi(string(server.ID))
 		if err != nil {
-			return nil, errors.Wrap(err, "non-numeric server ID")
+			return nil, errors.Wrap(err, "Non-numeric server ID")
 		}
 		nodes[i].ID = int64(id)
 		nodes[i].Address = string(address)
@@ -550,7 +550,7 @@ func (g *Gateway) cachedRaftNodes() ([]string, error) {
 		return err
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to fetch raft nodes")
+		return nil, errors.Wrap(err, "Failed to fetch raft nodes")
 	}
 	return addresses, nil
 }
