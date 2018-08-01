@@ -9,6 +9,11 @@ TAG_SQLITE3=$(shell printf "\#include <sqlite3.h>\nvoid main(){int n = SQLITE_IO
 
 .PHONY: default
 default:
+ifeq ($(TAG_SQLITE3),)
+	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
+	exit 1
+endif
+
 	go get -t -v -d ./...
 	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	@echo "LXD built successfully"
@@ -35,6 +40,11 @@ update-schema:
 
 .PHONY: debug
 debug:
+ifeq ($(TAG_SQLITE3),)
+	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
+	exit 1
+endif
+
 	go get -t -v -d ./...
 	go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
 	@echo "LXD built successfully"
