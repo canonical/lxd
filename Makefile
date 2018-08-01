@@ -71,7 +71,8 @@ dist:
 	# Download dependencies
 	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
 
-	# Download the cluster-enabled sqlite
+	# Download the cluster-enabled sqlite/dqlite
+	git clone https://github.com/CanonicalLtd/dqlite $(TMP)/dist/dqlite
 	git clone https://github.com/CanonicalLtd/sqlite $(TMP)/dist/sqlite
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%H" > manifest.uuid
