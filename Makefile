@@ -6,6 +6,7 @@ POTFILE=po/$(DOMAIN).pot
 VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
 TAG_SQLITE3=$(shell printf "\#include <sqlite3.h>\nvoid main(){int n = SQLITE_IOERR_NOT_LEADER;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
+GOPATH ?= $(HOME)/go
 
 .PHONY: default
 default:
@@ -23,6 +24,42 @@ client:
 	go get -t -v -d ./...
 	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./lxc
 	@echo "LXD client built successfully"
+
+.PHONY: deps
+deps:
+	# sqlite
+	@if [ -d "$(GOPATH)/deps/sqlite" ]; then \
+		cd "$(GOPATH)/deps/sqlite"; \
+		git pull; \
+	else \
+		git clone "https://github.com/CanonicalLtd/sqlite" "$(GOPATH)/deps/sqlite"; \
+	fi
+
+	cd "$(GOPATH)/deps/sqlite" && \
+		./configure --enable-replication && \
+		git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest && \
+		git log -1 --format="format:%H" > manifest.uuid && \
+		make
+
+	# dqlite
+	@if [ -d "$(GOPATH)/deps/dqlite" ]; then \
+		cd "$(GOPATH)/deps/dqlite"; \
+		git pull; \
+	else \
+		git clone "https://github.com/CanonicalLtd/dqlite" "$(GOPATH)/deps/dqlite"; \
+	fi
+
+	cd "$(GOPATH)/deps/dqlite" && \
+		autoreconf -i && \
+		./configure && \
+		make CFLAGS="-I$(GOPATH)/deps/sqlite/"
+
+	# environment
+	@echo ""
+	@echo "Please set the following in your environment (possibly ~/.bashrc)"
+	@echo "export CGO_CFLAGS=\"-I$(GOPATH)/deps/sqlite/ -I$(GOPATH)/deps/dqlite/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(GOPATH)/deps/sqlite/.libs/ -L$(GOPATH)/deps/dqlite/.libs/\""
+	@echo "export LD_LIBRARY_PATH=\"$(GOPATH)/deps/sqlite/.libs/:$(GOPATH)/deps/dqlite/.libs/\""
 
 .PHONY: update
 update:
