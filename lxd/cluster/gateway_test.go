@@ -52,7 +52,7 @@ func TestGateway_Single(t *testing.T) {
 
 	leader, err := gateway.LeaderAddress()
 	assert.Equal(t, "", leader)
-	assert.EqualError(t, err, "node is not clustered")
+	assert.EqualError(t, err, "Node is not clustered")
 }
 
 // If there's a network address configured, we expose the gRPC endpoint with
