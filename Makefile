@@ -5,18 +5,18 @@ LINGUAS=$(basename $(POFILES))
 POTFILE=po/$(DOMAIN).pot
 VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
-TAGS=$(shell printf "\#include <sqlite3.h>\nvoid main(){int n = SQLITE_IOERR_NOT_LEADER;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "-tags libsqlite3")
+TAG_SQLITE3=$(shell printf "\#include <sqlite3.h>\nvoid main(){int n = SQLITE_IOERR_NOT_LEADER;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 
 .PHONY: default
 default:
 	go get -t -v -d ./...
-	go install -v $(TAGS) $(DEBUG) ./...
+	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	@echo "LXD built successfully"
 
 .PHONY: client
 client:
 	go get -t -v -d ./...
-	go install -v $(TAGS) $(DEBUG) ./lxc
+	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./lxc
 	@echo "LXD client built successfully"
 
 .PHONY: update
@@ -30,13 +30,13 @@ update-protobuf:
 
 .PHONY: update-schema
 update-schema:
-	go run -v $(TAGS) ./lxd/schema.go
+	go run -v -tags "$(TAG_SQLITE3)" ./lxd/schema.go
 	@echo "Schema source code updated"
 
 .PHONY: debug
 debug:
 	go get -t -v -d ./...
-	go install -v $(TAGS) -tags logdebug $(DEBUG) ./...
+	go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
 	@echo "LXD built successfully"
 
 .PHONY: check
@@ -44,7 +44,7 @@ check: default
 	go get -v -x github.com/rogpeppe/godeps
 	go get -v -x github.com/remyoudompheng/go-misc/deadcode
 	go get -v -x github.com/golang/lint/golint
-	go test -v $(TAGS) $(DEBUG) ./...
+	go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
 
 .PHONY: dist
