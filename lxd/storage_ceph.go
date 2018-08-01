@@ -1957,7 +1957,7 @@ func (s *storageCeph) ContainerBackupDump(backup backup) ([]byte, error) {
 	backupMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
 	logger.Debugf("Taring up \"%s\" on storage pool \"%s\"", backupMntPoint, s.pool.Name)
 
-	args := []string{"-cJf", "-", "-C", backupMntPoint, "--transform", "s,^./,backup/,"}
+	args := []string{"-cJf", "-", "--xattrs", "-C", backupMntPoint, "--transform", "s,^./,backup/,"}
 	if backup.ContainerOnly() {
 		// Exclude snapshots directory
 		args = append(args, "--exclude", fmt.Sprintf("%s/snapshots", backup.Name()))
@@ -2001,7 +2001,7 @@ func (s *storageCeph) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) e
 
 		data.Seek(0, 0)
 		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-			"--recursive-unlink", "--strip-components=3", "-C", containerMntPoint, cur)
+			"--recursive-unlink", "--strip-components=3", "--xattrs", "-C", containerMntPoint, cur)
 		if err != nil {
 			logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", cur, containerMntPoint, err)
 			return err
@@ -2030,7 +2030,7 @@ func (s *storageCeph) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) e
 	// Extract container
 	data.Seek(0, 0)
 	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-		"--strip-components=2", "-C", containerMntPoint, "backup/container")
+		"--strip-components=2", "--xattrs", "-C", containerMntPoint, "backup/container")
 	if err != nil {
 		logger.Errorf("Failed to untar \"backup/container\" into \"%s\": %s", containerMntPoint, err)
 		return err
