@@ -3310,6 +3310,21 @@ func (c *containerLXC) Delete() error {
 			logger.Error("Failed deleting container MAAS record", log.Ctx{"name": c.Name(), "err": err})
 			return err
 		}
+
+		// Update network files
+		networkUpdateStatic(c.state, "")
+		for k, m := range c.expandedDevices {
+			if m["type"] != "nic" || m["nictype"] != "bridged" {
+				continue
+			}
+
+			m, err := c.fillNetworkDevice(k, m)
+			if err != nil {
+				continue
+			}
+
+			networkClearLease(c.state, c.name, m["parent"], m["hwaddr"])
+		}
 	}
 
 	// Remove the database record
@@ -3330,21 +3345,6 @@ func (c *containerLXC) Delete() error {
 		if err != nil {
 			return err
 		}
-	}
-
-	// Update network files
-	networkUpdateStatic(c.state, "")
-	for k, m := range c.expandedDevices {
-		if m["type"] != "nic" || m["nictype"] != "bridged" {
-			continue
-		}
-
-		m, err := c.fillNetworkDevice(k, m)
-		if err != nil {
-			continue
-		}
-
-		networkClearLease(c.state, c.name, m["parent"], m["hwaddr"])
 	}
 
 	logger.Info("Deleted container", ctxMap)
