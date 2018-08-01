@@ -51,10 +51,6 @@ check: default
 	go test -v $(TAGS) $(DEBUG) ./...
 	cd test && ./main.sh
 
-gccgo:
-	go build -v $(TAGS) $(DEBUG) -compiler gccgo ./...
-	@echo "LXD built successfully with gccgo"
-
 .PHONY: dist
 dist:
 	# Cleanup
