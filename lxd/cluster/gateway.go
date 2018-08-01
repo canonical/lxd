@@ -471,7 +471,9 @@ func (g *Gateway) init() error {
 		provider := &raftAddressProvider{db: g.db}
 		server, err := dqlite.NewServer(
 			raft.Raft(), raft.Registry(), listener,
-			dqlite.WithServerAddressProvider(provider))
+			dqlite.WithServerAddressProvider(provider),
+			dqlite.WithServerLogFunc(DqliteLog),
+		)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create dqlite server")
 		}
@@ -640,31 +642,18 @@ func dqliteMemoryDial(listener net.Listener) dqlite.DialFunc {
 // performing SQL queries against the dqlite server running on this node.
 const databaseEndpoint = "/internal/database"
 
-// Redirect dqlite's logs to our own logger
-func dqliteLog(configuredLevel string) func(level, message string) {
-	return func(level, message string) {
-		if level == "TRACE" {
-			// TODO: lxd has no TRACE level, so let's map it to
-			// DEBUG. However, ignore it altogether if the
-			// configured level is not TRACE, to save some CPU
-			// (since TRACE is quite verbose in dqlite).
-			if configuredLevel != "TRACE" {
-				return
-			}
-			level = "DEBUG"
-		}
-
-		message = fmt.Sprintf("DQLite: %s", message)
-		switch level {
-		case "DEBUG":
-			logger.Debug(message)
-		case "INFO":
-			logger.Info(message)
-		case "WARN":
-			logger.Warn(message)
-		default:
-			// Ignore any other log level.
-		}
+// DqliteLog redirects dqlite's logs to our own logger
+func DqliteLog(l dqlite.LogLevel, format string, a ...interface{}) {
+	format = fmt.Sprintf("Dqlite: %s", format)
+	switch l {
+	case dqlite.LogDebug:
+		logger.Debugf(format, a...)
+	case dqlite.LogInfo:
+		logger.Infof(format, a...)
+	case dqlite.LogWarn:
+		logger.Warnf(format, a...)
+	case dqlite.LogError:
+		logger.Errorf(format, a...)
 	}
 }
 
