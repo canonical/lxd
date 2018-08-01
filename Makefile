@@ -28,7 +28,7 @@ update:
 	go get -t -v -d -u ./...
 	@echo "Dependencies updated"
 
-.PHONY: update
+.PHONY: update-schema
 update-schema:
 	go run -v $(TAGS) ./lxd/schema.go
 	@echo "Schema source code updated"
