@@ -28,6 +28,10 @@ update:
 	go get -t -v -d -u ./...
 	@echo "Dependencies updated"
 
+.PHONY: update-protobuf
+update-protobuf:
+	protoc --go_out=. ./lxd/migration/migrate.proto
+
 .PHONY: update-schema
 update-schema:
 	go run -v $(TAGS) ./lxd/schema.go
@@ -38,13 +42,6 @@ debug:
 	go get -t -v -d ./...
 	go install -v $(TAGS) -tags logdebug $(DEBUG) ./...
 	@echo "LXD built successfully"
-
-# This only needs to be done when migrate.proto is actually changed; since we
-# commit the .pb.go in the tree and it's not expected to change very often,
-# it's not a default build step.
-.PHONY: protobuf
-protobuf:
-	protoc --go_out=. ./lxd/migration/migrate.proto
 
 .PHONY: check
 check: default
