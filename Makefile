@@ -3,60 +3,96 @@ POFILES=$(wildcard po/*.po)
 MOFILES=$(patsubst %.po,%.mo,$(POFILES))
 LINGUAS=$(basename $(POFILES))
 POTFILE=po/$(DOMAIN).pot
-
-# dist is primarily for use when packaging; for development we still manage
-# dependencies via `go get` explicitly.
-# TODO: use git describe for versioning
 VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
-TAGS=$(shell printf "\#include <sqlite3.h>\nvoid main(){int n = SQLITE_IOERR_NOT_LEADER;}" | $(CC) -o /dev/null -xc - >/dev/null 2>&1 && echo "-tags libsqlite3")
+TAG_SQLITE3=$(shell printf "\#include <sqlite3.h>\nvoid main(){int n = SQLITE_IOERR_NOT_LEADER;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
+GOPATH ?= $(HOME)/go
 
 .PHONY: default
 default:
+ifeq ($(TAG_SQLITE3),)
+	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
+	exit 1
+endif
+
 	go get -t -v -d ./...
-	go install -v $(TAGS) $(DEBUG) ./...
+	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	@echo "LXD built successfully"
 
 .PHONY: client
 client:
 	go get -t -v -d ./...
-	go install -v $(TAGS) $(DEBUG) ./lxc
+	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./lxc
 	@echo "LXD client built successfully"
+
+.PHONY: deps
+deps:
+	# sqlite
+	@if [ -d "$(GOPATH)/deps/sqlite" ]; then \
+		cd "$(GOPATH)/deps/sqlite"; \
+		git pull; \
+	else \
+		git clone "https://github.com/CanonicalLtd/sqlite" "$(GOPATH)/deps/sqlite"; \
+	fi
+
+	cd "$(GOPATH)/deps/sqlite" && \
+		./configure --enable-replication && \
+		git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest && \
+		git log -1 --format="format:%H" > manifest.uuid && \
+		make
+
+	# dqlite
+	@if [ -d "$(GOPATH)/deps/dqlite" ]; then \
+		cd "$(GOPATH)/deps/dqlite"; \
+		git pull; \
+	else \
+		git clone "https://github.com/CanonicalLtd/dqlite" "$(GOPATH)/deps/dqlite"; \
+	fi
+
+	cd "$(GOPATH)/deps/dqlite" && \
+		autoreconf -i && \
+		./configure && \
+		make CFLAGS="-I$(GOPATH)/deps/sqlite/"
+
+	# environment
+	@echo ""
+	@echo "Please set the following in your environment (possibly ~/.bashrc)"
+	@echo "export CGO_CFLAGS=\"-I$(GOPATH)/deps/sqlite/ -I$(GOPATH)/deps/dqlite/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(GOPATH)/deps/sqlite/.libs/ -L$(GOPATH)/deps/dqlite/.libs/\""
+	@echo "export LD_LIBRARY_PATH=\"$(GOPATH)/deps/sqlite/.libs/:$(GOPATH)/deps/dqlite/.libs/\""
 
 .PHONY: update
 update:
 	go get -t -v -d -u ./...
 	@echo "Dependencies updated"
 
-.PHONY: update
+.PHONY: update-protobuf
+update-protobuf:
+	protoc --go_out=. ./lxd/migration/migrate.proto
+
+.PHONY: update-schema
 update-schema:
-	go run -v $(TAGS) ./lxd/schema.go
+	go run -v -tags "$(TAG_SQLITE3)" ./lxd/schema.go
 	@echo "Schema source code updated"
 
 .PHONY: debug
 debug:
-	go get -t -v -d ./...
-	go install -v $(TAGS) -tags logdebug $(DEBUG) ./...
-	@echo "LXD built successfully"
+ifeq ($(TAG_SQLITE3),)
+	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
+	exit 1
+endif
 
-# This only needs to be done when migrate.proto is actually changed; since we
-# commit the .pb.go in the tree and it's not expected to change very often,
-# it's not a default build step.
-.PHONY: protobuf
-protobuf:
-	protoc --go_out=. ./lxd/migration/migrate.proto
+	go get -t -v -d ./...
+	go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
+	@echo "LXD built successfully"
 
 .PHONY: check
 check: default
 	go get -v -x github.com/rogpeppe/godeps
 	go get -v -x github.com/remyoudompheng/go-misc/deadcode
 	go get -v -x github.com/golang/lint/golint
-	go test -v $(TAGS) $(DEBUG) ./...
+	go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
-
-gccgo:
-	go build -v $(TAGS) $(DEBUG) -compiler gccgo ./...
-	@echo "LXD built successfully with gccgo"
 
 .PHONY: dist
 dist:
@@ -72,7 +108,8 @@ dist:
 	# Download dependencies
 	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
 
-	# Download the cluster-enabled sqlite
+	# Download the cluster-enabled sqlite/dqlite
+	git clone https://github.com/CanonicalLtd/dqlite $(TMP)/dist/dqlite
 	git clone https://github.com/CanonicalLtd/sqlite $(TMP)/dist/sqlite
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%H" > manifest.uuid
