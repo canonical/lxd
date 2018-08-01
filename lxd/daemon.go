@@ -467,6 +467,7 @@ func (d *Daemon) init() error {
 			dqlite.WithDialFunc(d.gateway.DialFunc()),
 			dqlite.WithContext(d.gateway.Context()),
 			dqlite.WithConnectionTimeout(d.config.DqliteSetupTimeout),
+			dqlite.WithLogFunc(cluster.DqliteLog),
 		)
 		if err == nil {
 			break
