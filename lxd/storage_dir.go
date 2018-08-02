@@ -1240,7 +1240,7 @@ func (s *storageDir) ContainerBackupDump(backup backup) ([]byte, error) {
 
 	backupMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
 
-	args := []string{"-cJf", "-", "-C", backupMntPoint, "--transform", "s,^./,backup/,"}
+	args := []string{"-cJf", "-", "--xattrs", "-C", backupMntPoint, "--transform", "s,^./,backup/,"}
 	if backup.ContainerOnly() {
 		// Exclude snapshots directory
 		args = append(args, "--exclude", fmt.Sprintf("%s/snapshots", backup.Name()))
@@ -1278,7 +1278,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 	// Extract container
 	data.Seek(0, 0)
 	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf",
-		"-", "--strip-components=2", "-C", containerMntPoint, "backup/container")
+		"-", "--strip-components=2", "--xattrs", "-C", containerMntPoint, "backup/container")
 	if err != nil {
 		return err
 	}
@@ -1298,7 +1298,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 		// Extract snapshots
 		data.Seek(0, 0)
 		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-			"--strip-components=2", "-C", snapshotMntPoint, "backup/snapshots")
+			"--strip-components=2", "--xattrs", "-C", snapshotMntPoint, "backup/snapshots")
 		if err != nil {
 			return err
 		}

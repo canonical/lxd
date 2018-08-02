@@ -73,6 +73,7 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 		"--numeric-ids",
 		"--partial",
 		"--sparse",
+		"--xattrs",
 	}
 
 	// Ignore deletions (requires 3.1 or higher)

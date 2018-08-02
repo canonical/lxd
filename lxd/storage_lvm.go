@@ -1829,7 +1829,7 @@ func (s *storageLvm) ContainerBackupRename(backup backup, newName string) error 
 func (s *storageLvm) ContainerBackupDump(backup backup) ([]byte, error) {
 	var buffer bytes.Buffer
 
-	args := []string{"-cJf", "-", "-C", getBackupMountPoint(s.pool.Name, backup.Name()),
+	args := []string{"-cJf", "-", "--xattrs", "-C", getBackupMountPoint(s.pool.Name, backup.Name()),
 		"--transform", "s,^./,backup/,"}
 	if backup.ContainerOnly() {
 		// Exclude snapshots directory
@@ -1854,7 +1854,7 @@ func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 
 	// Extract container
 	data.Seek(0, 0)
-	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-", "--strip-components=2",
+	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-", "--strip-components=2", "--xattrs",
 		"-C", containerPath, "backup/container")
 	if err != nil {
 		return err
@@ -1870,7 +1870,7 @@ func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 		// Extract snapshots
 		data.Seek(0, 0)
 		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-			"--strip-components=3", "-C", containerPath, fmt.Sprintf("backup/snapshots/%s", snap))
+			"--strip-components=3", "--xattrs", "-C", containerPath, fmt.Sprintf("backup/snapshots/%s", snap))
 		if err != nil {
 			return err
 		}
