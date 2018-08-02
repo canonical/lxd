@@ -67,7 +67,7 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool) e
 			args = append(args, "--exclude=rootfs/dev/*")
 			args = append(args, "--exclude=rootfs/./dev/*")
 		}
-		args = append(args, "-C", path, "--numeric-owner", "--xattrs")
+		args = append(args, "-C", path, "--numeric-owner", "--xattrs-include=*")
 		args = append(args, extractArgs...)
 		args = append(args, file)
 	} else if strings.HasPrefix(extension, ".squashfs") {
