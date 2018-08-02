@@ -214,6 +214,7 @@ run_test test_clustering_network "clustering network"
 run_test test_clustering_publish "clustering publish"
 run_test test_clustering_profiles "clustering profiles"
 run_test test_clustering_join_api "clustering join api"
+run_test test_clustering_shutdown_nodes "clustering shutdown"
 #run_test test_clustering_upgrade "clustering upgrade"
 
 # shellcheck disable=SC2034
