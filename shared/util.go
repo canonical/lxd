@@ -1087,3 +1087,20 @@ func ParseNumberFromFile(file string) (int64, error) {
 
 	return int64(nr), nil
 }
+
+type ReadSeeker struct {
+	io.Reader
+	io.Seeker
+}
+
+func NewReadSeeker(reader io.Reader, seeker io.Seeker) *ReadSeeker {
+	return &ReadSeeker{Reader: reader, Seeker: seeker}
+}
+
+func (r *ReadSeeker) Read(p []byte) (n int, err error) {
+	return r.Reader.Read(p)
+}
+
+func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	return r.Seeker.Seek(offset, whence)
+}
