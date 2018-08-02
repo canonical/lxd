@@ -1854,7 +1854,7 @@ func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 
 	// Extract container
 	data.Seek(0, 0)
-	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-", "--strip-components=2", "--xattrs",
+	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-", "--strip-components=2", "--xattrs-include=*",
 		"-C", containerPath, "backup/container")
 	if err != nil {
 		return err
@@ -1870,7 +1870,7 @@ func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 		// Extract snapshots
 		data.Seek(0, 0)
 		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-			"--strip-components=3", "--xattrs", "-C", containerPath, fmt.Sprintf("backup/snapshots/%s", snap))
+			"--strip-components=3", "--xattrs-include=*", "-C", containerPath, fmt.Sprintf("backup/snapshots/%s", snap))
 		if err != nil {
 			return err
 		}
