@@ -87,7 +87,7 @@ SELECT operations.id, uuid, nodes.address FROM operations JOIN nodes ON nodes.id
 	stmt += "ORDER BY operations.id"
 	err := query.SelectObjects(c.tx, dest, stmt, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to fecth operations")
+		return nil, errors.Wrap(err, "Failed to fetch operations")
 	}
 	return operations, nil
 }
