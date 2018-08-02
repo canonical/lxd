@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type IdRange struct {
@@ -505,6 +506,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 
 		uid := int64(intUid)
 		gid := int64(intGid)
+		caps := []byte{}
 
 		var newuid, newgid int64
 		switch how {
@@ -517,16 +519,41 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 		if testmode {
 			fmt.Printf("I would shift %q to %d %d\n", path, newuid, newgid)
 		} else {
+			// Dump capabilities
+			if fi.Mode()&os.ModeSymlink == 0 {
+				caps, err = GetCaps(path)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Shift owner
 			err = ShiftOwner(dir, path, int(newuid), int(newgid))
 			if err != nil {
 				return err
 			}
 
-			err = ShiftACL(path, func(uid int64, gid int64) (int64, int64) { return set.doShiftIntoNs(uid, gid, how) })
-			if err != nil {
-				return err
+			if fi.Mode()&os.ModeSymlink == 0 {
+				// Shift POSIX ACLs
+				err = ShiftACL(path, func(uid int64, gid int64) (int64, int64) { return set.doShiftIntoNs(uid, gid, how) })
+				if err != nil {
+					return err
+				}
+
+				// Shift capabilities
+				if len(caps) != 0 {
+					rootUid := int64(0)
+					if how == "in" {
+						rootUid, _ = set.ShiftIntoNs(0, 0)
+					}
+					err = SetCaps(path, caps, rootUid)
+					if err != nil {
+						logger.Warnf("Unable to set file capabilities on %s", path)
+					}
+				}
 			}
 		}
+
 		return nil
 	}
 
