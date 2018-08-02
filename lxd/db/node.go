@@ -194,7 +194,7 @@ SELECT id, name, address, description, schema, api_extensions, heartbeat FROM no
 	stmt += "ORDER BY id"
 	err := query.SelectObjects(c.tx, dest, stmt, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to fecth nodes")
+		return nil, errors.Wrap(err, "Failed to fetch nodes")
 	}
 	return nodes, nil
 }
