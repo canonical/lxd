@@ -24,7 +24,7 @@ func (n *NodeTx) RaftNodes() ([]RaftNode, error) {
 	}
 	err := query.SelectObjects(n.tx, dest, "SELECT id, address FROM raft_nodes ORDER BY id")
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to fecth raft nodes")
+		return nil, errors.Wrap(err, "Failed to fetch raft nodes")
 	}
 	return nodes, nil
 }
