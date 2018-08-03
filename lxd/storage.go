@@ -166,6 +166,7 @@ type storage interface {
 
 	// Functions dealing with custom storage volume snapshots.
 	StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error
+	StoragePoolVolumeSnapshotDelete() error
 
 	// Functions dealing with container storage volumes.
 	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
