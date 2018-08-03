@@ -108,6 +108,28 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeSnapshot(pool string, volumeType st
 	return op, nil
 }
 
+// DeleteStoragePoolVolumeSnapshot deletes a storage volume snapshot
+func (r *ProtocolLXD) DeleteStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string) (Operation, error) {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return nil, fmt.Errorf("The server is missing the required \"storage\" API extension")
+	}
+
+	// Send the request
+	path := fmt.Sprintf(
+		"/storage-pools/%s/volumes/%s/%s/snapshots/%s",
+		url.QueryEscape(pool), url.QueryEscape(volumeType), url.QueryEscape(volumeName), url.QueryEscape(snapshotName))
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
+	}
+
+	op, _, err := r.queryOperation("DELETE", path, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // MigrateStoragePoolVolume requests that LXD prepares for a storage volume migration
 func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVolumePost) (Operation, error) {
 	if !r.HasExtension("storage_api_remote_volume_handling") {
