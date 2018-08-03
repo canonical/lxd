@@ -499,7 +499,8 @@ func (c *cmdStorageVolumeDelete) Command() *cobra.Command {
 
 func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
 	if exit {
 		return err
 	}
@@ -511,7 +512,6 @@ func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	resource := resources[0]
-
 	if resource.name == "" {
 		return fmt.Errorf(i18n.G("Missing pool name"))
 	}
@@ -526,13 +526,30 @@ func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
 
-	// Delete the volume
-	err = client.DeleteStoragePoolVolume(resource.name, volType, volName)
-	if err != nil {
-		return err
+	msg := ""
+	if len(args) < 3 {
+		// Delete the volume
+		err := client.DeleteStoragePoolVolume(resource.name, volType, volName)
+		if err != nil {
+			return err
+		}
+		msg = args[1]
+	} else {
+		// Delete the snapshot
+		op, err := client.DeleteStoragePoolVolumeSnapshot(resource.name, volType, volName, args[2])
+		if err != nil {
+			return err
+		}
+
+		err = op.Wait()
+		if err != nil {
+			return err
+		}
+
+		msg = args[2]
 	}
 
-	fmt.Printf(i18n.G("Storage volume %s deleted")+"\n", args[1])
+	fmt.Printf(i18n.G("Storage volume %s deleted")+"\n", msg)
 
 	return nil
 }
