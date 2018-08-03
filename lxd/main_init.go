@@ -124,6 +124,20 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Detect if the user has chosen to join a cluster using the new
+	// cluster join API format, and use the dedicated API if so.
+	if config.Cluster != nil && config.Cluster.ClusterAddress != "" && config.Cluster.ServerAddress != "" {
+		op, err := d.UpdateCluster(config.Cluster.ClusterPut, "")
+		if err != nil {
+			return errors.Wrap(err, "Failed to join cluster")
+		}
+		err = op.Wait()
+		if err != nil {
+			return errors.Wrap(err, "Failed to join cluster")
+		}
+		return nil
+	}
+
 	revert, err := initDataNodeApply(d, config.Node)
 	if err != nil {
 		revert()

@@ -87,42 +87,22 @@ cluster:
 Then run `cat <preseed-file> | lxd init --preseed` and your first node
 should be bootstrapped.
 
-Now create a bootstrap file for another node. Be sure to specify the
-address and certificate of the target bootstrap node. To create a
-YAML-compatible entry for the `<cert>` key you can use a command like
-`sed ':a;N;$!ba;s/\n/\n\n/g' /var/lib/lxd/server.crt`, which you have to
-run on the bootstrap node.
+Now create a bootstrap file for another node. You only need to fill in the
+``cluster`` section with data and config values that are specific to the joining
+node.
+
+Be sure to include the address and certificate of the target bootstrap node. To
+create a YAML-compatible entry for the ``cluster_certificate`` key you can use a
+command like `sed ':a;N;$!ba;s/\n/\n\n/g' /var/lib/lxd/server.crt`, which you
+have to run on the bootstrap node.
 
 For example:
 
 ```yaml
-config:
-  core.https_address: 10.55.60.155:8443
-  images.auto_update_interval: 15
-storage_pools:
-- name: default
-  driver: dir
-networks:
-- name: lxdbr0
-  type: bridge
-  config:
-    ipv4.address: 192.168.100.14/24
-    ipv6.address: none
-profiles:
-- name: default
-  devices:
-    root:
-      path: /
-      pool: default
-      type: disk
-    eth0:
-      name: eth0
-      nictype: bridged
-      parent: lxdbr0
-      type: nic
 cluster:
-  server_name: node2
   enabled: true
+  server_name: node2
+  server_address: 10.55.60.155:8443
   cluster_address: 10.55.60.171:8443
   cluster_certificate: "-----BEGIN CERTIFICATE-----
 
@@ -135,6 +115,11 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
 -----END CERTIFICATE-----
 "
   cluster_password: sekret
+  member_config:
+  - entity: storage-pool
+    name: default
+    key: source
+    value: ""
 ```
 
 ## Managing a cluster
