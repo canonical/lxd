@@ -228,53 +228,34 @@ spawn_lxd_and_join_cluster() {
     set -e
 
     cat > "${LXD_DIR}/preseed.yaml" <<EOF
-config:
-  core.https_address: 10.1.1.10${index}:8443
-  images.auto_update_interval: 0
+cluster:
+  enabled: true
+  server_name: node${index}
+  server_address: 10.1.1.10${index}:8443
+  cluster_address: 10.1.1.10${target}:8443
+  cluster_certificate: "$cert"
+  cluster_password: sekret
+  member_config:
 EOF
     # Declare the pool only if the driver is not ceph, because
     # the ceph pool doesn't need to be created on the joining
     # node (it's shared with the bootstrap one).
     if [ "${driver}" != "ceph" ]; then
       cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-storage_pools:
-- name: data
-  driver: $driver
+  - entity: storage-pool
+    name: data
+    key: source
+    value: ""
 EOF
-      if [ "${driver}" = "btrfs" ]; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  config:
-    size: 100GB
-EOF
-      fi
       if [ "${driver}" = "zfs" ]; then
         cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  config:
-    size: 100GB
-    zfs.pool_name: lxdtest-$(basename "${TEST_DIR}")-${ns}
-EOF
-      fi
-      if [ "${driver}" = "lvm" ]; then
-        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-  config:
-    volume.size: 25MB
+  - entity: storage-pool
+    name: data
+    key: zfs.pool_name
+    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
 EOF
       fi
     fi
-    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
-networks:
-- name: $bridge
-  type: bridge
-  config:
-    ipv4.address: none
-    ipv6.address: none
-cluster:
-  server_name: node${index}
-  enabled: true
-  cluster_address: 10.1.1.10${target}:8443
-  cluster_certificate: "$cert"
-  cluster_password: sekret
-EOF
-  lxd init --preseed < "${LXD_DIR}/preseed.yaml"
+    lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )
 }
