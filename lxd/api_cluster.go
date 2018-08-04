@@ -274,13 +274,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			return err
 		}
 
-		// If node-specific configuration values are provided, it means
-		// the user wants to also initialize storage pools and
-		// networks.
-		if len(req.MemberConfig) > 0 {
+		// If the ServerAddress field is set it means that we're using
+		// the new join API introduced with the 'clustering_join'
+		// extension.
+		if req.ServerAddress != "" {
 			// Connect to ourselves to initialize storage pools and
 			// networks using the API.
-			d, err := lxd.ConnectLXDUnix("", nil)
+			d, err := lxd.ConnectLXDUnix(d.UnixSocket(), nil)
 			if err != nil {
 				return errors.Wrap(err, "Failed to connect to local LXD")
 			}
