@@ -74,7 +74,19 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Contai
 
 	// Print the YAML
 	if cli.AskBool("Would you like a YAML \"lxd init\" preseed to be printed? (yes/no) [default=no]: ", "no") {
-		out, err := yaml.Marshal(config)
+		var object cmdInitData
+
+		// If the user has chosen to join an existing cluster, print
+		// only YAML for the cluster section, which is the only
+		// relevant one. Otherwise print the regular config.
+		if config.Cluster != nil && config.Cluster.ClusterAddress != "" {
+			object = cmdInitData{}
+			object.Cluster = config.Cluster
+		} else {
+			object = config
+		}
+
+		out, err := yaml.Marshal(object)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to render the config")
 		}
@@ -107,6 +119,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.ContainerServer) erro
 
 		if cli.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no") {
 			// Existing cluster
+			config.Cluster.ServerAddress = serverAddress
 			for {
 				// Cluster URL
 				clusterAddress := cli.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
@@ -171,77 +184,19 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.ContainerServer) erro
 				return err
 			}
 
-			// Prompt for storage config
-			targetPools, err := client.GetStoragePools()
+			// Get the list of required member config keys.
+			cluster, _, err := client.GetCluster()
 			if err != nil {
-				return errors.Wrap(err, "Failed to retrieve storage pools from the cluster")
+				return errors.Wrap(err, "Failed to retrieve cluster information")
 			}
 
-			config.Node.StoragePools = []api.StoragePoolsPost{}
-			for _, pool := range targetPools {
-				// Skip pending pools
-				if pool.Status == "PENDING" {
-					continue
-				}
-
-				// Skip ceph pools since they have no node-specific key
-				if pool.Driver == "ceph" {
-					continue
-				}
-
-				// Setup the new local pool
-				newPool := api.StoragePoolsPost{
-					StoragePoolPut: pool.StoragePoolPut,
-					Driver:         pool.Driver,
-					Name:           pool.Name,
-				}
-
-				// Delete config keys that are automatically populated by LXD
-				delete(newPool.Config, "volatile.initial_source")
-				delete(newPool.Config, "zfs.pool_name")
-
-				// Only ask for the node-specific "source" key if it's defined in the target node
-				if pool.Config["source"] != "" {
-					// Dummy validator for allowing empty strings
-					validator := func(string) error { return nil }
-					newPool.Config["source"] = cli.AskString(
-						fmt.Sprintf(`Choose the local disk or dataset for storage pool "%s" (empty for loop disk): `, pool.Name), "", validator)
-				}
-
-				config.Node.StoragePools = append(config.Node.StoragePools, newPool)
+			validator := func(string) error { return nil }
+			for i, config := range cluster.MemberConfig {
+				question := fmt.Sprintf("Choose %s: ", config.Description)
+				cluster.MemberConfig[i].Value = cli.AskString(question, "", validator)
 			}
 
-			// Prompt for network config
-			targetNetworks, err := client.GetNetworks()
-			if err != nil {
-				return errors.Wrap(err, "Failed to retrieve networks from the cluster")
-			}
-
-			config.Node.Networks = []api.NetworksPost{}
-			for _, network := range targetNetworks {
-				// Skip not-managed or pending networks
-				if !network.Managed || network.Status == "PENDING" {
-					continue
-				}
-
-				// Setup the new local network
-				newNetwork := api.NetworksPost{
-					NetworkPut: network.NetworkPut,
-					Managed:    true,
-					Name:       network.Name,
-					Type:       network.Type,
-				}
-
-				// Only ask for the node-specific "bridge.external_interfaces" key if it's defined in the target node
-				if network.Config["bridge.external_interfaces"] != "" {
-					// Dummy validator for allowing empty strings
-					validator := func(string) error { return nil }
-					newNetwork.Config["bridge.external_interfaces"] = cli.AskString(
-						fmt.Sprintf(`Choose the local network interface to connect to network "%s" (empty for none): `, network.Name), "", validator)
-				}
-
-				config.Node.Networks = append(config.Node.Networks, newNetwork)
-			}
+			config.Cluster.MemberConfig = cluster.MemberConfig
 		} else {
 			// Password authentication
 			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=yes]: ", "yes") {
