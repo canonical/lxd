@@ -13,6 +13,7 @@ import (
 // #cgo LDFLAGS: -lacl
 /*
 #define _GNU_SOURCE
+#include <byteswap.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -48,81 +49,82 @@ struct vfs_ns_cap_data {
 };
 #endif
 
-int set_caps(char *path, char *caps, ssize_t len, uint32_t uid) {
-	ssize_t ret;
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define BE32_TO_LE32(x) bswap_32(x)
+#else
+#define BE32_TO_LE32(x) (x)
+#endif
 
-	// Works because vfs_ns_cap_data is a superset of vfs_cap_data (rootid field added to the end)
+int set_vfs_ns_caps(char *path, char *caps, ssize_t len, uint32_t uid)
+{
+	// Works because vfs_ns_cap_data is a superset of vfs_cap_data (rootid
+	// field added to the end)
 	struct vfs_ns_cap_data ns_xattr;
 
 	memset(&ns_xattr, 0, sizeof(ns_xattr));
 	memcpy(&ns_xattr, caps, len);
 	ns_xattr.magic_etc &= ~(VFS_CAP_REVISION_1 | VFS_CAP_REVISION_2);
 	ns_xattr.magic_etc |= VFS_CAP_REVISION_3;
-	ns_xattr.rootid = uid;
+	ns_xattr.rootid = BE32_TO_LE32(uid);
 
-	ret = setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
-	if (ret < 0) {
-		return -1;
-	}
-
-	return 0;
+	return setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
 }
 
-int shiftowner(char *basepath, char *path, int uid, int gid) {
+int shiftowner(char *basepath, char *path, int uid, int gid)
+{
+	int fd, ret;
+	char fdpath[PATH_MAX], realpath[PATH_MAX];
 	struct stat sb;
-	int fd, r;
-	char fdpath[PATH_MAX];
-	char realpath[PATH_MAX];
 
-	fd = open(path, O_PATH|O_NOFOLLOW);
-	if (fd < 0 ) {
+	fd = open(path, O_PATH | O_NOFOLLOW);
+	if (fd < 0) {
 		perror("Failed open");
 		return 1;
 	}
 
-	r = sprintf(fdpath, "/proc/self/fd/%d", fd);
-	if (r < 0) {
+	ret = sprintf(fdpath, "/proc/self/fd/%d", fd);
+	if (ret < 0) {
 		perror("Failed sprintf");
 		close(fd);
 		return 1;
 	}
 
-	r = readlink(fdpath, realpath, PATH_MAX);
-	if (r < 0) {
+	ret = readlink(fdpath, realpath, PATH_MAX);
+	if (ret < 0) {
 		perror("Failed readlink");
 		close(fd);
 		return 1;
 	}
 
 	if (strlen(realpath) < strlen(basepath)) {
-		printf("Invalid path, source (%s) is outside of basepath (%s).\n", realpath, basepath);
+		printf("Invalid path, source (%s) is outside of basepath (%s)\n", realpath, basepath);
 		close(fd);
 		return 1;
 	}
 
 	if (strncmp(realpath, basepath, strlen(basepath))) {
-		printf("Invalid path, source (%s) is outside of basepath (%s).\n", realpath, basepath);
+		printf("Invalid path, source (%s) is outside of basepath " "(%s).\n", realpath, basepath);
 		close(fd);
 		return 1;
 	}
 
-	r = fstat(fd, &sb);
-	if (r < 0) {
+	ret = fstat(fd, &sb);
+	if (ret < 0) {
 		perror("Failed fstat");
 		close(fd);
 		return 1;
 	}
 
-	r = fchownat(fd, "", uid, gid, AT_EMPTY_PATH|AT_SYMLINK_NOFOLLOW);
-	if (r < 0) {
+	ret = fchownat(fd, "", uid, gid, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
+	if (ret < 0) {
 		perror("Failed chown");
 		close(fd);
 		return 1;
 	}
 
 	if (!S_ISLNK(sb.st_mode)) {
-		r = chmod(fdpath, sb.st_mode);
-		if (r < 0) {
+		ret = chmod(fdpath, sb.st_mode);
+		if (ret < 0) {
 			perror("Failed chmod");
 			close(fd);
 			return 1;
@@ -174,7 +176,7 @@ func SetCaps(path string, caps []byte, uid int64) error {
 	ccaps := C.CString(string(caps))
 	defer C.free(unsafe.Pointer(ccaps))
 
-	r := C.set_caps(cpath, ccaps, C.ssize_t(len(caps)), C.uint32_t(uid))
+	r := C.set_vfs_ns_caps(cpath, ccaps, C.ssize_t(len(caps)), C.uint32_t(uid))
 	if r != 0 {
 		return fmt.Errorf("Failed to apply capabilities to: %s", path)
 	}
