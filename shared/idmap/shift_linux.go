@@ -48,10 +48,9 @@ struct vfs_ns_cap_data {
 };
 #endif
 
-int set_caps(char *path, char *caps, ssize_t len, uint32_t uid)
-{
-	ssize_t ret;
 
+int set_vfs_ns_caps(char *path, char *caps, ssize_t len, uint32_t uid)
+{
 	// Works because vfs_ns_cap_data is a superset of vfs_cap_data (rootid
 	// field added to the end)
 	struct vfs_ns_cap_data ns_xattr;
@@ -62,12 +61,7 @@ int set_caps(char *path, char *caps, ssize_t len, uint32_t uid)
 	ns_xattr.magic_etc |= VFS_CAP_REVISION_3;
 	ns_xattr.rootid = uid;
 
-	ret = setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
-	if (ret < 0) {
-		return -1;
-	}
-
-	return 0;
+	return setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
 }
 
 int shiftowner(char *basepath, char *path, int uid, int gid)
@@ -176,7 +170,7 @@ func SetCaps(path string, caps []byte, uid int64) error {
 	ccaps := C.CString(string(caps))
 	defer C.free(unsafe.Pointer(ccaps))
 
-	r := C.set_caps(cpath, ccaps, C.ssize_t(len(caps)), C.uint32_t(uid))
+	r := C.set_vfs_ns_caps(cpath, ccaps, C.ssize_t(len(caps)), C.uint32_t(uid))
 	if r != 0 {
 		return fmt.Errorf("Failed to apply capabilities to: %s", path)
 	}
