@@ -13,6 +13,7 @@ import (
 // #cgo LDFLAGS: -lacl
 /*
 #define _GNU_SOURCE
+#include <byteswap.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -48,6 +49,11 @@ struct vfs_ns_cap_data {
 };
 #endif
 
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define BE32_TO_LE32(x) bswap_32(x)
+#else
+#define BE32_TO_LE32(x) (x)
+#endif
 
 int set_vfs_ns_caps(char *path, char *caps, ssize_t len, uint32_t uid)
 {
@@ -59,7 +65,7 @@ int set_vfs_ns_caps(char *path, char *caps, ssize_t len, uint32_t uid)
 	memcpy(&ns_xattr, caps, len);
 	ns_xattr.magic_etc &= ~(VFS_CAP_REVISION_1 | VFS_CAP_REVISION_2);
 	ns_xattr.magic_etc |= VFS_CAP_REVISION_3;
-	ns_xattr.rootid = uid;
+	ns_xattr.rootid = BE32_TO_LE32(uid);
 
 	return setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
 }
