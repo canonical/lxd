@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-07-28 12:22-0400\n"
+"POT-Creation-Date: 2018-08-05 04:07+0000\n"
 "PO-Revision-Date: 2017-02-14 08:00+0000\n"
 "Last-Translator: Simos Xenitellis <simos.65@gmail.com>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -691,7 +691,7 @@ msgstr ""
 #: lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753
 #: lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:30
 #: lxc/remote.go:37 lxc/remote.go:87 lxc/remote.go:383 lxc/remote.go:419
-#: lxc/remote.go:524 lxc/remote.go:586 lxc/remote.go:635 lxc/remote.go:673
+#: lxc/remote.go:524 lxc/remote.go:586 lxc/remote.go:636 lxc/remote.go:674
 #: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
 #: lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328
 #: lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645
@@ -1863,7 +1863,7 @@ msgstr ""
 msgid "Remote %s already exists"
 msgstr ""
 
-#: lxc/remote.go:544 lxc/remote.go:606 lxc/remote.go:655 lxc/remote.go:693
+#: lxc/remote.go:544 lxc/remote.go:606 lxc/remote.go:656 lxc/remote.go:694
 #, c-format
 msgid "Remote %s doesn't exist"
 msgstr ""
@@ -1873,7 +1873,7 @@ msgstr ""
 msgid "Remote %s exists as <%s>"
 msgstr ""
 
-#: lxc/remote.go:548 lxc/remote.go:610 lxc/remote.go:697
+#: lxc/remote.go:548 lxc/remote.go:610 lxc/remote.go:698
 #, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr ""
@@ -2074,12 +2074,8 @@ msgstr ""
 msgid "Set storage volume configuration keys"
 msgstr ""
 
-#: lxc/remote.go:672 lxc/remote.go:673
+#: lxc/remote.go:673 lxc/remote.go:674
 msgid "Set the URL for the remote"
-msgstr ""
-
-#: lxc/remote.go:634 lxc/remote.go:635
-msgid "Set the default remote"
 msgstr ""
 
 #: lxc/file.go:361
@@ -2295,6 +2291,10 @@ msgstr ""
 
 #: lxc/info.go:213
 msgid "Swap (peak)"
+msgstr ""
+
+#: lxc/remote.go:635 lxc/remote.go:636
+msgid "Switch the default remote"
 msgstr ""
 
 #: lxc/alias.go:128
@@ -3261,11 +3261,7 @@ msgstr ""
 msgid "set [<remote>:][<container>] <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:633
-msgid "set-default <remote>"
-msgstr ""
-
-#: lxc/remote.go:671
+#: lxc/remote.go:672
 msgid "set-url <remote> <URL>"
 msgstr ""
 
@@ -3339,6 +3335,10 @@ msgstr ""
 
 #: lxc/storage.go:31
 msgid "storage"
+msgstr ""
+
+#: lxc/remote.go:634
+msgid "switch <remote>"
 msgstr ""
 
 #: lxc/info.go:255
