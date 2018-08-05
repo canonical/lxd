@@ -72,12 +72,7 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 	}
 
 	// Send the request
-	path := "/containers"
-	if r.clusterTarget != "" {
-		path += fmt.Sprintf("?target=%s", r.clusterTarget)
-	}
-
-	op, _, err := r.queryOperation("POST", path, args.BackupFile, "")
+	op, _, err := r.queryOperation("POST", "/containers", args.BackupFile, "")
 	if err != nil {
 		return nil, err
 	}
@@ -94,11 +89,7 @@ func (r *ProtocolLXD) CreateContainer(container api.ContainersPost) (Operation, 
 	}
 
 	// Send the request
-	path := "/containers"
-	if r.clusterTarget != "" {
-		path += fmt.Sprintf("?target=%s", r.clusterTarget)
-	}
-	op, _, err := r.queryOperation("POST", path, container, "")
+	op, _, err := r.queryOperation("POST", "/containers", container, "")
 	if err != nil {
 		return nil, err
 	}
@@ -581,12 +572,7 @@ func (r *ProtocolLXD) MigrateContainer(name string, container api.ContainerPost)
 	}
 
 	// Send the request
-	path := fmt.Sprintf("/containers/%s", url.QueryEscape(name))
-	if r.clusterTarget != "" {
-		path += fmt.Sprintf("?target=%s", r.clusterTarget)
-	}
-
-	op, _, err := r.queryOperation("POST", path, container, "")
+	op, _, err := r.queryOperation("POST", fmt.Sprintf("/containers/%s", url.QueryEscape(name)), container, "")
 	if err != nil {
 		return nil, err
 	}

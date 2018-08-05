@@ -228,7 +228,23 @@ func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag s
 	// Generate the URL
 	url := fmt.Sprintf("%s/1.0%s", r.httpHost, path)
 
-	return r.rawQuery(method, url, data, ETag)
+	// Parse the full URI
+	fields, err := neturl.Parse(url)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Extract query fields and update for cluster targeting
+	values := fields.Query()
+	if r.clusterTarget != "" {
+		if values.Get("target") == "" {
+			values.Set("target", r.clusterTarget)
+		}
+	}
+	fields.RawQuery = values.Encode()
+
+	// Run the actual query
+	return r.rawQuery(method, fields.String(), data, ETag)
 }
 
 func (r *ProtocolLXD) queryStruct(method string, path string, data interface{}, ETag string, target interface{}) (string, error) {
