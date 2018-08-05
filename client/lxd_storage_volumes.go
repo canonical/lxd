@@ -60,12 +60,7 @@ func (r *ProtocolLXD) GetStoragePoolVolume(pool string, volType string, name str
 	volume := api.StorageVolume{}
 
 	// Fetch the raw value
-	path := fmt.Sprintf(
-		"/storage-pools/%s/volumes/%s/%s",
-		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
-	if r.clusterTarget != "" {
-		path += fmt.Sprintf("?target=%s", r.clusterTarget)
-	}
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
 	etag, err := r.queryStruct("GET", path, nil, "", &volume)
 	if err != nil {
 		return nil, "", err
@@ -81,11 +76,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 	}
 
 	// Send the request
-	path := fmt.Sprintf(
-		"/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type))
-	if r.clusterTarget != "" {
-		path += fmt.Sprintf("?target=%s", r.clusterTarget)
-	}
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type))
 	_, _, err := r.query("POST", path, volume, "")
 	if err != nil {
 		return err
@@ -107,9 +98,6 @@ func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVo
 
 	// Send the request
 	path := fmt.Sprintf("/storage-pools/%s/volumes/custom/%s", url.QueryEscape(pool), volume.Name)
-	if r.clusterTarget != "" {
-		path += fmt.Sprintf("?target=%s", r.clusterTarget)
-	}
 	op, _, err := r.queryOperation("POST", path, volume, "")
 	if err != nil {
 		return nil, err
@@ -192,9 +180,6 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 
 			// Send the request
 			path := fmt.Sprintf("/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(req.Type))
-			if r.clusterTarget != "" {
-				path += fmt.Sprintf("?target=%s", r.clusterTarget)
-			}
 			top, _, err := r.queryOperation("POST", path, req, "")
 			if err != nil {
 				continue
@@ -290,9 +275,6 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source ContainerServer,
 
 		// Send the request
 		path := fmt.Sprintf("/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type))
-		if r.clusterTarget != "" {
-			path += fmt.Sprintf("?target=%s", r.clusterTarget)
-		}
 
 		// Send the request
 		op, _, err := r.queryOperation("POST", path, req, "")
@@ -343,9 +325,6 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source ContainerServer,
 
 		// Send the request
 		path := fmt.Sprintf("/storage-pools/%s/volumes/%s", url.QueryEscape(pool), url.QueryEscape(volume.Type))
-		if r.clusterTarget != "" {
-			path += fmt.Sprintf("?target=%s", r.clusterTarget)
-		}
 
 		// Send the request
 		targetOp, _, err := r.queryOperation("POST", path, req, "")
@@ -433,12 +412,7 @@ func (r *ProtocolLXD) UpdateStoragePoolVolume(pool string, volType string, name 
 	}
 
 	// Send the request
-	path := fmt.Sprintf(
-		"/storage-pools/%s/volumes/%s/%s",
-		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
-	if r.clusterTarget != "" {
-		path += fmt.Sprintf("?target=%s", r.clusterTarget)
-	}
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
 	_, _, err := r.query("PUT", path, volume, ETag)
 	if err != nil {
 		return err
@@ -454,12 +428,7 @@ func (r *ProtocolLXD) DeleteStoragePoolVolume(pool string, volType string, name 
 	}
 
 	// Send the request
-	path := fmt.Sprintf(
-		"/storage-pools/%s/volumes/%s/%s",
-		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
-	if r.clusterTarget != "" {
-		path += fmt.Sprintf("?target=%s", r.clusterTarget)
-	}
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
 	_, _, err := r.query("DELETE", path, nil, "")
 	if err != nil {
 		return err
@@ -473,12 +442,7 @@ func (r *ProtocolLXD) RenameStoragePoolVolume(pool string, volType string, name 
 	if !r.HasExtension("storage_api_volume_rename") {
 		return fmt.Errorf("The server is missing the required \"storage_api_volume_rename\" API extension")
 	}
-	path := fmt.Sprintf(
-		"/storage-pools/%s/volumes/%s/%s",
-		url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
-	if r.clusterTarget != "" {
-		path += fmt.Sprintf("?target=%s", r.clusterTarget)
-	}
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.QueryEscape(pool), url.QueryEscape(volType), url.QueryEscape(name))
 
 	// Send the request
 	_, _, err := r.query("POST", path, volume, "")
