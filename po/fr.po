@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-07-28 12:22-0400\n"
+"POT-Creation-Date: 2018-08-05 04:07+0000\n"
 "PO-Revision-Date: 2018-03-06 13:50+0000\n"
 "Last-Translator: Alban Vidal <alban.vidal@zordhak.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -833,7 +833,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753
 #: lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:30
 #: lxc/remote.go:37 lxc/remote.go:87 lxc/remote.go:383 lxc/remote.go:419
-#: lxc/remote.go:524 lxc/remote.go:586 lxc/remote.go:635 lxc/remote.go:673
+#: lxc/remote.go:524 lxc/remote.go:586 lxc/remote.go:636 lxc/remote.go:674
 #: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
 #: lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328
 #: lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645
@@ -2135,7 +2135,7 @@ msgstr "Récupération de l'image : %s"
 msgid "Remote %s already exists"
 msgstr "le serveur distant %s existe déjà"
 
-#: lxc/remote.go:544 lxc/remote.go:606 lxc/remote.go:655 lxc/remote.go:693
+#: lxc/remote.go:544 lxc/remote.go:606 lxc/remote.go:656 lxc/remote.go:694
 #, fuzzy, c-format
 msgid "Remote %s doesn't exist"
 msgstr "le serveur distant %s n'existe pas"
@@ -2145,7 +2145,7 @@ msgstr "le serveur distant %s n'existe pas"
 msgid "Remote %s exists as <%s>"
 msgstr "le serveur distant %s existe en tant que <%s>"
 
-#: lxc/remote.go:548 lxc/remote.go:610 lxc/remote.go:697
+#: lxc/remote.go:548 lxc/remote.go:610 lxc/remote.go:698
 #, fuzzy, c-format
 msgid "Remote %s is static and cannot be modified"
 msgstr "le serveur distant %s est statique et ne peut être modifié"
@@ -2365,14 +2365,9 @@ msgstr "Clé de configuration invalide"
 msgid "Set storage volume configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/remote.go:672 lxc/remote.go:673
+#: lxc/remote.go:673 lxc/remote.go:674
 msgid "Set the URL for the remote"
 msgstr ""
-
-#: lxc/remote.go:634 lxc/remote.go:635
-#, fuzzy
-msgid "Set the default remote"
-msgstr "impossible de supprimer le serveur distant par défaut"
 
 #: lxc/file.go:361
 msgid "Set the file's gid on push"
@@ -2604,6 +2599,11 @@ msgstr "Swap (courant)"
 #: lxc/info.go:213
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
+
+#: lxc/remote.go:635 lxc/remote.go:636
+#, fuzzy
+msgid "Switch the default remote"
+msgstr "impossible de supprimer le serveur distant par défaut"
 
 #: lxc/alias.go:128
 msgid "TARGET"
@@ -3686,12 +3686,7 @@ msgstr ""
 msgid "set [<remote>:][<container>] <key> <value>"
 msgstr ""
 
-#: lxc/remote.go:633
-#, fuzzy
-msgid "set-default <remote>"
-msgstr "impossible de supprimer le serveur distant par défaut"
-
-#: lxc/remote.go:671
+#: lxc/remote.go:672
 msgid "set-url <remote> <URL>"
 msgstr ""
 
@@ -3774,6 +3769,11 @@ msgstr ""
 #: lxc/storage.go:31
 msgid "storage"
 msgstr ""
+
+#: lxc/remote.go:634
+#, fuzzy
+msgid "switch <remote>"
+msgstr "impossible de supprimer le serveur distant par défaut"
 
 #: lxc/info.go:255
 #, c-format
