@@ -58,8 +58,8 @@ func (c *cmdRemote) Command() *cobra.Command {
 	cmd.AddCommand(remoteRemoveCmd.Command())
 
 	// Set default
-	remoteSetDefaultCmd := cmdRemoteSetDefault{global: c.global, remote: c}
-	cmd.AddCommand(remoteSetDefaultCmd.Command())
+	remoteSwitchCmd := cmdRemoteSwitch{global: c.global, remote: c}
+	cmd.AddCommand(remoteSwitchCmd.Command())
 
 	// Set URL
 	remoteSetURLCmd := cmdRemoteSetURL{global: c.global, remote: c}
@@ -623,24 +623,25 @@ func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 }
 
 // Set default
-type cmdRemoteSetDefault struct {
+type cmdRemoteSwitch struct {
 	global *cmdGlobal
 	remote *cmdRemote
 }
 
-func (c *cmdRemoteSetDefault) Command() *cobra.Command {
+func (c *cmdRemoteSwitch) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("set-default <remote>")
-	cmd.Short = i18n.G("Set the default remote")
+	cmd.Aliases = []string{"set-default"}
+	cmd.Use = i18n.G("switch <remote>")
+	cmd.Short = i18n.G("Switch the default remote")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Set the default remote`))
+		`Switch the default remote`))
 
 	cmd.RunE = c.Run
 
 	return cmd
 }
 
-func (c *cmdRemoteSetDefault) Run(cmd *cobra.Command, args []string) error {
+func (c *cmdRemoteSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
 	// Sanity checks
