@@ -27,7 +27,7 @@ import (
 #include <sys/acl.h>
 
 // Needs to be included at the end
-#include <attr/xattr.h>
+#include <sys/xattr.h>
 
 #ifndef VFS_CAP_REVISION_1
 #define VFS_CAP_REVISION_1 0x01000000
