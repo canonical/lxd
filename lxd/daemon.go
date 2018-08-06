@@ -685,7 +685,7 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := d.cluster.ContainersList(db.CTypeRegular)
+	results, err := d.cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		return 0, err
 	}

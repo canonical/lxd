@@ -652,11 +652,12 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the containers
-	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		logger.Error("Problem loading containers list", log.Ctx{"err": err})
 		return
 	}
+
 	fixedContainers := map[int][]container{}
 	balancedContainers := map[container]int{}
 	for _, name := range containers {
@@ -778,7 +779,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		return
 	}
 
-	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		return
 	}
@@ -809,7 +810,7 @@ func deviceNetworkPriority(s *state.State, netif string) {
 }
 
 func deviceUSBEvent(s *state.State, usb usbDevice) {
-	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		logger.Error("Problem loading containers list", log.Ctx{"err": err})
 		return
@@ -1834,7 +1835,7 @@ func deviceInotifyDirDeleteEvent(s *state.State, target *sys.InotifyTargetInfo) 
 }
 
 func deviceInotifyDirRescan(s *state.State) {
-	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
@@ -1899,7 +1900,7 @@ func deviceInotifyDirCreateEvent(s *state.State, target *sys.InotifyTargetInfo) 
 		return
 	}
 
-	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
@@ -2002,7 +2003,7 @@ func deviceInotifyFileEvent(s *state.State, target *sys.InotifyTargetInfo) {
 		return
 	}
 
-	containers, err := s.Cluster.ContainersList(db.CTypeRegular)
+	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
