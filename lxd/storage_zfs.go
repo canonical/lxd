@@ -3069,7 +3069,49 @@ func (s *storageZfs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSn
 }
 
 func (s *storageZfs) StoragePoolVolumeSnapshotDelete() error {
-	msg := fmt.Sprintf("Function not implemented")
-	logger.Errorf(msg)
-	return fmt.Errorf(msg)
+	logger.Infof("Deleting ZFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	sourceName, snapshotOnlyName, _ := containerGetParentAndSnapshotName(s.volume.Name)
+	snapshotName := fmt.Sprintf("snapshot-%s", snapshotOnlyName)
+
+	onDiskPoolName := s.getOnDiskPoolName()
+	if zfsFilesystemEntityExists(onDiskPoolName, fmt.Sprintf("custom/%s@%s", sourceName, snapshotName)) {
+		removable, err := zfsPoolVolumeSnapshotRemovable(onDiskPoolName, fmt.Sprintf("custom/%s", sourceName), snapshotName)
+		if err != nil {
+			return err
+		}
+
+		if removable {
+			err = zfsPoolVolumeSnapshotDestroy(onDiskPoolName, fmt.Sprintf("custom/%s", sourceName), snapshotName)
+		} else {
+			err = zfsPoolVolumeSnapshotRename(onDiskPoolName, fmt.Sprintf("custom/%s", sourceName), snapshotName, fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	storageVolumePath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	err := os.RemoveAll(storageVolumePath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	storageVolumeSnapshotPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
+	empty, err := shared.PathIsEmpty(storageVolumeSnapshotPath)
+	if err == nil && empty {
+		os.RemoveAll(storageVolumeSnapshotPath)
+	}
+
+	err = s.s.Cluster.StoragePoolVolumeDelete(
+		s.volume.Name,
+		storagePoolVolumeTypeCustom,
+		s.poolID)
+	if err != nil {
+		logger.Errorf(`Failed to delete database entry for DIR storage volume "%s" on storage pool "%s"`,
+			s.volume.Name, s.pool.Name)
+	}
+
+	logger.Infof("Deleted ZFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
 }
