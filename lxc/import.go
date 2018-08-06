@@ -1,14 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/ioprogress"
 )
 
 type cmdImport struct {
@@ -56,13 +59,37 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 	}
 	defer file.Close()
 
+	fstat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Importing container: %s"),
+	}
+
 	createArgs := lxd.ContainerBackupArgs{}
-	createArgs.BackupFile = file
+	createArgs.BackupFile = &ioprogress.ProgressReader{
+		ReadCloser: file,
+		Tracker: &ioprogress.ProgressTracker{
+			Length: fstat.Size(),
+			Handler: func(percent int64, speed int64) {
+				progress.UpdateProgress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+			},
+		},
+	}
 
 	op, err := resource.server.CreateContainerFromBackup(createArgs)
 	if err != nil {
 		return err
 	}
 
-	return op.Wait()
+	err = op.Wait()
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+	progress.Done("")
+
+	return nil
 }
