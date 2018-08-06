@@ -350,6 +350,11 @@ func networkGet(d *Daemon, r *http.Request) Response {
 }
 
 func doNetworkGet(d *Daemon, name string) (api.Network, error) {
+	// Ignore veth pairs (for performance reasons)
+	if strings.HasPrefix(name, "veth") {
+		return api.Network{}, os.ErrNotExist
+	}
+
 	// Get some information
 	osInfo, _ := net.InterfaceByName(name)
 	_, dbInfo, _ := d.cluster.NetworkGet(name)

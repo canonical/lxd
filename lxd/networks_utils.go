@@ -89,6 +89,12 @@ func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
 	}
 
 	for _, iface := range ifaces {
+		// Ignore veth pairs (for performance reasons)
+		if strings.HasPrefix(iface.Name, "veth") {
+			continue
+		}
+
+		// Append to the list
 		if !shared.StringInSlice(iface.Name, networks) {
 			networks = append(networks, iface.Name)
 		}
@@ -462,6 +468,11 @@ func networkDefaultGatewaySubnetV4() (*net.IPNet, string, error) {
 }
 
 func networkValidName(value string) error {
+	// Not a veth-liked name
+	if strings.HasPrefix(value, "veth") {
+		return fmt.Errorf("Interface name cannot be prefix with veth")
+	}
+
 	// Validate the length
 	if len(value) < 2 {
 		return fmt.Errorf("Interface name is too short (minimum 2 characters)")
