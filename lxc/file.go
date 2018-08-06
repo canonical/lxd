@@ -15,9 +15,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/termios"
 )
@@ -328,10 +330,32 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		_, err = io.Copy(f, buf)
+		progress := utils.ProgressRenderer{
+			Format: fmt.Sprintf(i18n.G("Pulling %s from %s: %%s"), targetPath, pathSpec[1]),
+		}
+
+		writer := &ioprogress.ProgressWriter{
+			WriteCloser: f,
+			Tracker: &ioprogress.ProgressTracker{
+				Handler: func(bytesReceived int64, speed int64) {
+					if targetPath == "-" {
+						return
+					}
+
+					progress.UpdateProgress(ioprogress.ProgressData{
+						Text: fmt.Sprintf("%s (%s/s)",
+							shared.GetByteSizeString(bytesReceived, 2),
+							shared.GetByteSizeString(speed, 2))})
+				},
+			},
+		}
+
+		_, err = io.Copy(writer, buf)
 		if err != nil {
+			progress.Done("")
 			return err
 		}
+		progress.Done("")
 	}
 
 	return nil
@@ -523,10 +547,9 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 
 		// Transfer the files
 		args := lxd.ContainerFileArgs{
-			Content: f,
-			UID:     -1,
-			GID:     -1,
-			Mode:    -1,
+			UID:  -1,
+			GID:  -1,
+			Mode: -1,
 		}
 
 		if !c.noModeChange {
@@ -560,11 +583,34 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 		}
 		args.Type = "file"
 
-		logger.Infof("Pushing %s to %s (%s)", f.Name(), fpath, args.Type)
-		err = resource.server.CreateContainerFile(resource.name, fpath, args)
+		fstat, err := f.Stat()
 		if err != nil {
 			return err
 		}
+
+		progress := utils.ProgressRenderer{
+			Format: fmt.Sprintf(i18n.G("Pushing %s to %s: %%s"), f.Name(), fpath),
+		}
+
+		args.Content = shared.NewReadSeeker(&ioprogress.ProgressReader{
+			ReadCloser: f,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: fstat.Size(),
+				Handler: func(percent int64, speed int64) {
+					progress.UpdateProgress(ioprogress.ProgressData{
+						Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2)),
+					})
+				},
+			},
+		}, f)
+
+		logger.Infof("Pushing %s to %s (%s)", f.Name(), fpath, args.Type)
+		err = resource.server.CreateContainerFile(resource.name, fpath, args)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
+		progress.Done("")
 	}
 
 	return nil
@@ -605,10 +651,28 @@ func (c *cmdFile) recursivePullFile(d lxd.ContainerServer, container string, p s
 			return err
 		}
 
-		_, err = io.Copy(f, buf)
+		progress := utils.ProgressRenderer{
+			Format: fmt.Sprintf(i18n.G("Pulling %s from %s: %%s"), p, target),
+		}
+
+		writer := &ioprogress.ProgressWriter{
+			WriteCloser: f,
+			Tracker: &ioprogress.ProgressTracker{
+				Handler: func(bytesReceived int64, speed int64) {
+					progress.UpdateProgress(ioprogress.ProgressData{
+						Text: fmt.Sprintf("%s (%s/s)",
+							shared.GetByteSizeString(bytesReceived, 2),
+							shared.GetByteSizeString(speed, 2))})
+				},
+			},
+		}
+
+		_, err = io.Copy(writer, buf)
 		if err != nil {
+			progress.Done("")
 			return err
 		}
+		progress.Done("")
 	} else if resp.Type == "symlink" {
 		linkTarget, err := ioutil.ReadAll(buf)
 		if err != nil {
@@ -650,6 +714,8 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 			Mode: int(mode.Perm()),
 		}
 
+		var readCloser io.ReadCloser
+
 		if fInfo.IsDir() {
 			// Directory handling
 			args.Type = "directory"
@@ -662,6 +728,7 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 
 			args.Type = "symlink"
 			args.Content = bytes.NewReader([]byte(symlinkTarget))
+			readCloser = ioutil.NopCloser(args.Content)
 		} else {
 			// File handling
 			f, err := os.Open(p)
@@ -672,10 +739,49 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 
 			args.Type = "file"
 			args.Content = f
+			readCloser = f
+		}
+
+		progress := utils.ProgressRenderer{
+			Format: fmt.Sprintf(i18n.G("Pushing %s to %s: %%s"), p, targetPath),
+		}
+
+		if args.Type != "directory" {
+			contentLength, err := args.Content.Seek(0, io.SeekEnd)
+			if err != nil {
+				return err
+			}
+
+			_, err = args.Content.Seek(0, io.SeekStart)
+			if err != nil {
+				return err
+			}
+
+			args.Content = shared.NewReadSeeker(&ioprogress.ProgressReader{
+				ReadCloser: readCloser,
+				Tracker: &ioprogress.ProgressTracker{
+					Length: contentLength,
+					Handler: func(percent int64, speed int64) {
+						progress.UpdateProgress(ioprogress.ProgressData{
+							Text: fmt.Sprintf("%d%% (%s/s)", percent,
+								shared.GetByteSizeString(speed, 2))})
+					},
+				},
+			}, args.Content)
 		}
 
 		logger.Infof("Pushing %s to %s (%s)", p, targetPath, args.Type)
-		return d.CreateContainerFile(container, targetPath, args)
+		err = d.CreateContainerFile(container, targetPath, args)
+		if err != nil {
+			if args.Type != "directory" {
+				progress.Done("")
+			}
+			return err
+		}
+		if args.Type != "directory" {
+			progress.Done("")
+		}
+		return nil
 	}
 
 	return filepath.Walk(source, sendFile)
