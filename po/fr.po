@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-08-03 00:21-0400\n"
+"POT-Creation-Date: 2018-08-11 23:19-0400\n"
 "PO-Revision-Date: 2018-03-06 13:50+0000\n"
 "Last-Translator: Alban Vidal <alban.vidal@zordhak.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -247,7 +247,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr "%s (%d de plus)"
 
-#: lxc/file.go:704
+#: lxc/file.go:810
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s n'est pas un répertoire"
@@ -257,7 +257,7 @@ msgstr "%s n'est pas un répertoire"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrompre encore deux fois pour forcer)"
 
-#: lxc/file.go:641
+#: lxc/file.go:705
 #, fuzzy, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' n'est pas un format de fichier pris en charge."
@@ -279,7 +279,7 @@ msgstr "ALIAS"
 msgid "ARCH"
 msgstr "ARCH"
 
-#: lxc/list.go:449
+#: lxc/list.go:442
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
@@ -447,7 +447,7 @@ msgstr "CPU utilisé :"
 msgid "CREATED"
 msgstr "CRÉÉ À"
 
-#: lxc/list.go:450
+#: lxc/list.go:443
 msgid "CREATED AT"
 msgstr "CRÉÉ À"
 
@@ -464,7 +464,7 @@ msgstr ""
 msgid "Can't provide a name for the target image"
 msgstr ""
 
-#: lxc/file.go:269
+#: lxc/file.go:271
 #, fuzzy
 msgid "Can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
@@ -480,7 +480,7 @@ msgstr "Impossible de lire depuis stdin : %s"
 msgid "Can't remove the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/list.go:466
+#: lxc/list.go:459
 msgid "Can't specify --fast with --columns"
 msgstr ""
 
@@ -488,11 +488,11 @@ msgstr ""
 msgid "Can't specify a different remote for rename"
 msgstr ""
 
-#: lxc/list.go:478
+#: lxc/list.go:471
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:426
+#: lxc/file.go:450
 #, fuzzy
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "impossible de spécifier uid/gid/mode en mode récursif"
@@ -653,7 +653,7 @@ msgstr ""
 msgid "Create and start containers from images"
 msgstr ""
 
-#: lxc/file.go:191 lxc/file.go:359
+#: lxc/file.go:193 lxc/file.go:383
 msgid "Create any directories necessary"
 msgstr "Créer tous répertoires nécessaires"
 
@@ -738,7 +738,7 @@ msgstr "Création du conteneur"
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:451 lxc/network.go:785
+#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:444 lxc/network.go:785
 #: lxc/operation.go:153 lxc/storage.go:545 lxc/storage_volume.go:953
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
@@ -765,7 +765,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Delete containers and snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/file.go:72 lxc/file.go:73
+#: lxc/file.go:74 lxc/file.go:75
 msgid "Delete files in containers"
 msgstr ""
 
@@ -809,8 +809,8 @@ msgstr "Copie de l'image : %s"
 #: lxc/config_template.go:152 lxc/config_template.go:236
 #: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
 #: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
-#: lxc/copy.go:36 lxc/delete.go:30 lxc/exec.go:39 lxc/file.go:40 lxc/file.go:73
-#: lxc/file.go:122 lxc/file.go:185 lxc/file.go:352 lxc/image.go:42
+#: lxc/copy.go:36 lxc/delete.go:30 lxc/exec.go:39 lxc/file.go:42 lxc/file.go:75
+#: lxc/file.go:124 lxc/file.go:187 lxc/file.go:376 lxc/image.go:42
 #: lxc/image.go:131 lxc/image.go:261 lxc/image.go:312 lxc/image.go:435
 #: lxc/image.go:571 lxc/image.go:775 lxc/image.go:889 lxc/image.go:1211
 #: lxc/image.go:1284 lxc/image_alias.go:26 lxc/image_alias.go:59
@@ -895,7 +895,7 @@ msgstr "Désactiver stdin (lecture à partir de /dev/null)"
 msgid "Disk usage:"
 msgstr "  Disque utilisé :"
 
-#: lxc/list.go:620
+#: lxc/list.go:613
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
@@ -916,7 +916,7 @@ msgstr ""
 msgid "Edit container or server configurations as YAML"
 msgstr ""
 
-#: lxc/file.go:121 lxc/file.go:122
+#: lxc/file.go:123 lxc/file.go:124
 #, fuzzy
 msgid "Edit files in containers"
 msgstr "Création du conteneur"
@@ -941,7 +941,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:935 lxc/list.go:489
+#: lxc/image.go:935 lxc/list.go:482
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -1060,7 +1060,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:636
+#: lxc/file.go:700
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -1153,11 +1153,11 @@ msgstr "PID"
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/list.go:447
+#: lxc/list.go:440
 msgid "IPV4"
 msgstr "IPv4"
 
-#: lxc/list.go:448
+#: lxc/list.go:441
 msgid "IPV6"
 msgstr "IPv6"
 
@@ -1240,12 +1240,12 @@ msgstr "Schème d'URL invalide \"%s\" in \"%s\""
 msgid "Invalid certificate"
 msgstr "Certificat invalide"
 
-#: lxc/list.go:510
+#: lxc/list.go:503
 #, fuzzy, c-format
 msgid "Invalid config key '%s' in '%s'"
 msgstr "Clé de configuration invalide"
 
-#: lxc/list.go:505
+#: lxc/list.go:498
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
@@ -1255,17 +1255,17 @@ msgstr ""
 msgid "Invalid format %q"
 msgstr "Cible invalide %s"
 
-#: lxc/list.go:528
+#: lxc/list.go:521
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:525
+#: lxc/list.go:518
 #, c-format
 msgid "Invalid max width (must be an integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:516
+#: lxc/list.go:509
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
@@ -1276,7 +1276,7 @@ msgstr ""
 msgid "Invalid number of arguments"
 msgstr "nombre d'arguments incorrect pour la sous-comande"
 
-#: lxc/file.go:97
+#: lxc/file.go:99
 #, fuzzy, c-format
 msgid "Invalid path %s"
 msgstr "Cible invalide %s"
@@ -1286,12 +1286,12 @@ msgstr "Cible invalide %s"
 msgid "Invalid protocol: %s"
 msgstr "Cible invalide %s"
 
-#: lxc/file.go:243
+#: lxc/file.go:245
 #, c-format
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:380
+#: lxc/file.go:404
 #, c-format
 msgid "Invalid target %s"
 msgstr "Cible invalide %s"
@@ -1304,11 +1304,11 @@ msgstr "IPs :"
 msgid "Keep the image up to date after initial copy"
 msgstr "Garder l'image à jour après la copie initiale"
 
-#: lxc/list.go:452
+#: lxc/list.go:445
 msgid "LAST USED AT"
 msgstr "DERNIÈRE UTILISATION À"
 
-#: lxc/list.go:474 lxc/storage_volume.go:957
+#: lxc/list.go:467 lxc/storage_volume.go:957
 msgid "LOCATION"
 msgstr ""
 
@@ -1608,7 +1608,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Manage container metadata files"
 msgstr ""
 
-#: lxc/file.go:39 lxc/file.go:40
+#: lxc/file.go:41 lxc/file.go:42
 #, fuzzy
 msgid "Manage files in containers"
 msgstr "Transfert de l'image : %s"
@@ -1752,7 +1752,7 @@ msgstr ""
 msgid "Missing source volume name"
 msgstr "Copie de l'image : %s"
 
-#: lxc/file.go:473
+#: lxc/file.go:497
 #, fuzzy
 msgid "Missing target directory"
 msgstr "%s n'est pas un répertoire"
@@ -1774,7 +1774,7 @@ msgstr ""
 msgid "More than one device matches, specify the device name"
 msgstr "Plus d'un périphérique correspond, spécifier le nom du périphérique."
 
-#: lxc/file.go:224
+#: lxc/file.go:226
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger, mais la destination n'est pas un dossier"
@@ -1807,7 +1807,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/cluster.go:124 lxc/list.go:453 lxc/network.go:782 lxc/profile.go:613
+#: lxc/cluster.go:124 lxc/list.go:446 lxc/network.go:782 lxc/profile.go:613
 #: lxc/remote.go:463 lxc/storage.go:544 lxc/storage_volume.go:952
 msgid "NAME"
 msgstr "NOM"
@@ -1915,19 +1915,19 @@ msgstr "Le réseau %s a été supprimé"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "Surcharger le mode terminal (auto, interactif ou non-interactif)"
 
-#: lxc/list.go:623
+#: lxc/list.go:616
 msgid "PERSISTENT"
 msgstr "PERSISTANT"
 
-#: lxc/list.go:455
+#: lxc/list.go:448
 msgid "PID"
 msgstr "PID"
 
-#: lxc/list.go:454
+#: lxc/list.go:447
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:456
+#: lxc/list.go:449
 msgid "PROFILES"
 msgstr "PROFILS"
 
@@ -2060,17 +2060,27 @@ msgstr "Public : %s"
 msgid "Publish containers as images"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:184 lxc/file.go:185
+#: lxc/file.go:186 lxc/file.go:187
 #, fuzzy
 msgid "Pull files from containers"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:351 lxc/file.go:352
+#: lxc/file.go:334 lxc/file.go:655
+#, c-format
+msgid "Pulling %s from %s: %%s"
+msgstr ""
+
+#: lxc/file.go:375 lxc/file.go:376
 #, fuzzy
 msgid "Push files into containers"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:192 lxc/file.go:358
+#: lxc/file.go:592 lxc/file.go:746
+#, c-format
+msgid "Pushing %s to %s: %%s"
+msgstr ""
+
+#: lxc/file.go:194 lxc/file.go:382
 #, fuzzy
 msgid "Recursively transfer files"
 msgstr "Pousser ou récupérer des fichiers récursivement"
@@ -2238,7 +2248,7 @@ msgstr ""
 msgid "SIZE"
 msgstr "TAILLE"
 
-#: lxc/list.go:457
+#: lxc/list.go:450
 msgid "SNAPSHOTS"
 msgstr "INSTANTANÉS"
 
@@ -2246,7 +2256,7 @@ msgstr "INSTANTANÉS"
 msgid "SOURCE"
 msgstr "SOURCE"
 
-#: lxc/cluster.go:127 lxc/list.go:458 lxc/network.go:789 lxc/storage.go:549
+#: lxc/cluster.go:127 lxc/list.go:451 lxc/network.go:789 lxc/storage.go:549
 msgid "STATE"
 msgstr "ÉTAT"
 
@@ -2259,7 +2269,7 @@ msgstr "STATIQUE"
 msgid "STATUS"
 msgstr "ÉTAT"
 
-#: lxc/list.go:460
+#: lxc/list.go:453
 msgid "STORAGE POOL"
 msgstr "ENSEMBLE DE STOCKAGE"
 
@@ -2329,15 +2339,15 @@ msgstr ""
 msgid "Set the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/file.go:361
+#: lxc/file.go:385
 msgid "Set the file's gid on push"
 msgstr "Définir le gid du fichier lors de l'envoi"
 
-#: lxc/file.go:362
+#: lxc/file.go:386
 msgid "Set the file's perms on push"
 msgstr "Définir les permissions du fichier lors de l'envoi"
 
-#: lxc/file.go:360
+#: lxc/file.go:384
 msgid "Set the file's uid on push"
 msgstr "Définir l'uid du fichier lors de l'envoi"
 
@@ -2559,7 +2569,7 @@ msgstr "Swap (pointe)"
 msgid "TARGET"
 msgstr ""
 
-#: lxc/list.go:459 lxc/network.go:783 lxc/network.go:889 lxc/operation.go:152
+#: lxc/list.go:452 lxc/network.go:783 lxc/network.go:889 lxc/operation.go:152
 #: lxc/storage_volume.go:951
 msgid "TYPE"
 msgstr "TYPE"
@@ -2700,17 +2710,17 @@ msgstr "URL"
 msgid "USED BY"
 msgstr "UTILISÉ PAR"
 
-#: lxc/file.go:147
+#: lxc/file.go:149
 #, c-format
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/image.go:942 lxc/list.go:499
+#: lxc/image.go:942 lxc/list.go:492
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:623
+#: lxc/file.go:687
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -2917,7 +2927,7 @@ msgstr ""
 msgid "delete [<remote>:]<container> <template>"
 msgstr ""
 
-#: lxc/file.go:70
+#: lxc/file.go:72
 #, fuzzy
 msgid "delete [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...]"
 msgstr ""
@@ -3011,7 +3021,7 @@ msgstr ""
 msgid "edit [<remote>:]<container> <template>"
 msgstr ""
 
-#: lxc/file.go:120
+#: lxc/file.go:122
 msgid "edit [<remote>:]<container>/<path>"
 msgstr ""
 
@@ -3060,7 +3070,7 @@ msgstr ""
 msgid "export [<remote>:]<image> [<target>]"
 msgstr ""
 
-#: lxc/file.go:38
+#: lxc/file.go:40
 msgid "file"
 msgstr ""
 
@@ -3203,14 +3213,14 @@ msgid ""
 "    Will set the server's trust password to blah."
 msgstr ""
 
-#: lxc/file.go:187
+#: lxc/file.go:189
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the container and write it to the current "
 "directory."
 msgstr ""
 
-#: lxc/file.go:354
+#: lxc/file.go:378
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the container \"foo\"."
@@ -3455,7 +3465,7 @@ msgstr ""
 "lxc publish [<remote>:]<container>[/<snapshot>] [<remote>:] [--"
 "alias=ALIAS...] [prop-key=prop-value...]"
 
-#: lxc/file.go:183
+#: lxc/file.go:185
 #, fuzzy
 msgid ""
 "pull [<remote>:]<container>/<path> [[<remote>:]<container>/<path>...] "
@@ -3469,7 +3479,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/file.go:350
+#: lxc/file.go:374
 #, fuzzy
 msgid ""
 "push <source path> [<remote>:]<container>/<path> [[<remote>:]<container>/"
