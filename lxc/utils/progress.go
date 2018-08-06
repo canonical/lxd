@@ -34,6 +34,11 @@ func (p *ProgressRenderer) Done(msg string) {
 	// Mark this renderer as done
 	p.done = true
 
+	// If we're not printing a completion message and nothing was printed before just return
+	if msg == "" && p.maxLength == 0 {
+		return
+	}
+
 	// Print the new message
 	if msg != "" {
 		msg += "\n"
