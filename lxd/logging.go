@@ -41,7 +41,7 @@ func expireLogs(ctx context.Context, state *state.State) error {
 	var containers []string
 	ch := make(chan struct{})
 	go func() {
-		containers, err = state.Cluster.ContainersList(db.CTypeRegular)
+		containers, err = state.Cluster.ContainersNodeList(db.CTypeRegular)
 		ch <- struct{}{}
 	}()
 	select {
