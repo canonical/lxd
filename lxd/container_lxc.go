@@ -3030,7 +3030,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 			Location:        c.node,
 		}
 
-		ct.Description = c.Description()
+		ct.Description = c.description
 		ct.Architecture = architectureName
 		ct.Config = c.localConfig
 		ct.CreatedAt = c.creationDate
