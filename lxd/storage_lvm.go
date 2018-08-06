@@ -2378,7 +2378,48 @@ func (s *storageLvm) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSn
 }
 
 func (s *storageLvm) StoragePoolVolumeSnapshotDelete() error {
-	msg := fmt.Sprintf("Function not implemented")
-	logger.Errorf(msg)
-	return fmt.Errorf(msg)
+	logger.Infof("Deleting LVM storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	snapshotLVName := containerNameToLVName(s.volume.Name)
+	storageVolumeSnapshotPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	if shared.IsMountPoint(storageVolumeSnapshotPath) {
+		err := tryUnmount(storageVolumeSnapshotPath, 0)
+		if err != nil {
+			return fmt.Errorf("Failed to unmount snapshot path \"%s\": %s", storageVolumeSnapshotPath, err)
+		}
+	}
+
+	poolName := s.getOnDiskPoolName()
+	snapshotLVDevPath := getLvmDevPath(poolName, storagePoolVolumeAPIEndpointCustom, snapshotLVName)
+	lvExists, _ := storageLVExists(snapshotLVDevPath)
+	if lvExists {
+		err := removeLV(poolName, storagePoolVolumeAPIEndpointCustom, snapshotLVName)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := os.Remove(storageVolumeSnapshotPath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	sourceName, _, _ := containerGetParentAndSnapshotName(s.volume.Name)
+	storageVolumeSnapshotPath = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
+	empty, err := shared.PathIsEmpty(storageVolumeSnapshotPath)
+	if err == nil && empty {
+		os.RemoveAll(storageVolumeSnapshotPath)
+	}
+
+	err = s.s.Cluster.StoragePoolVolumeDelete(
+		s.volume.Name,
+		storagePoolVolumeTypeCustom,
+		s.poolID)
+	if err != nil {
+		logger.Errorf(`Failed to delete database entry for LVM storage volume "%s" on storage pool "%s"`,
+			s.volume.Name, s.pool.Name)
+	}
+
+	logger.Infof("Deleted LVM storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
 }
