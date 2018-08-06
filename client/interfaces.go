@@ -69,6 +69,7 @@ type ContainerServer interface {
 	RequireAuthenticated(authenticated bool)
 	IsClustered() (clustered bool)
 	UseTarget(name string) (client ContainerServer)
+	UseProject(name string) (client ContainerServer)
 
 	// Certificate functions
 	GetCertificateFingerprints() (fingerprints []string, err error)
