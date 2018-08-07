@@ -8,8 +8,10 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var storagePoolVolumeSnapshotsTypeCmd = Command{
@@ -135,7 +137,77 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 }
 
 func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) Response {
-	return NotImplemented(fmt.Errorf("Retrieving storage pool volume snapshots is not implemented"))
+	// Get the name of the pool the storage volume is supposed to be
+	// attached to.
+	poolName := mux.Vars(r)["pool"]
+
+	recursion := util.IsRecursionRequest(r)
+
+	// Get the name of the volume type.
+	volumeTypeName := mux.Vars(r)["type"]
+
+	// Get the name of the volume type.
+	volumeName := mux.Vars(r)["name"]
+
+	// Convert the volume type name to our internal integer representation.
+	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
+	if err != nil {
+		return BadRequest(err)
+	}
+	// Check that the storage volume type is valid.
+	if !shared.IntInSlice(volumeType, supportedVolumeTypes) {
+		return BadRequest(fmt.Errorf("invalid storage volume type %s", volumeTypeName))
+	}
+
+	// Retrieve ID of the storage pool (and check if the storage pool
+	// exists).
+	poolID, err := d.cluster.StoragePoolGetID(poolName)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	// Get the names of all storage volumes of a given volume type currently
+	// attached to the storage pool.
+	volumes, err := d.cluster.StoragePoolVolumeSnapshotsGetType(volumeName, volumeType, poolID)
+	if err != nil {
+		return SmartError(err)
+	}
+
+	resultString := []string{}
+	resultMap := []*api.StorageVolumeSnapshot{}
+	for _, volume := range volumes {
+		if !recursion {
+			apiEndpoint, err := storagePoolVolumeTypeToAPIEndpoint(volumeType)
+			if err != nil {
+				return InternalError(err)
+			}
+			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, apiEndpoint, volumeName, volume))
+		} else {
+			_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volume, volumeType, poolID)
+			if err != nil {
+				continue
+			}
+
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), vol.Name, vol.Type)
+			if err != nil {
+				return SmartError(err)
+			}
+			vol.UsedBy = volumeUsedBy
+
+			tmp := &api.StorageVolumeSnapshot{}
+			tmp.Config = vol.Config
+			tmp.Description = vol.Description
+			tmp.Name = vol.Name
+
+			resultMap = append(resultMap, tmp)
+		}
+	}
+
+	if !recursion {
+		return SyncResponse(true, resultString)
+	}
+
+	return SyncResponse(true, resultMap)
 }
 
 func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) Response {
