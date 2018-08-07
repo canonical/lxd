@@ -19,7 +19,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -467,17 +466,12 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 		return nil, err
 	}
 
-	containers, err := d.cluster.ContainersNodeList(db.CTypeRegular)
+	containers, err := containerLoadNodeAll(d.State())
 	if err != nil {
 		return nil, err
 	}
 
-	for _, container := range containers {
-		c, err := containerLoadByName(d.State(), container)
-		if err != nil {
-			return nil, err
-		}
-
+	for _, c := range containers {
 		if !c.IsRunning() {
 			continue
 		}
