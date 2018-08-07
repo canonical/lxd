@@ -203,6 +203,7 @@ type ContainerServer interface {
 	DeleteStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string) (op Operation, err error)
 	GetStoragePoolVolumeSnapshotNames(pool string, volumeType string, volumeName string) (names []string, err error)
 	GetStoragePoolVolumeSnapshots(pool string, volumeType string, volumeName string) (snapshots []api.StorageVolumeSnapshot, err error)
+	GetStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string) (snapshot *api.StorageVolumeSnapshot, ETag string, err error)
 
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
