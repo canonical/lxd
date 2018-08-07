@@ -757,12 +757,6 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	networkStaticLock.Lock()
 	defer networkStaticLock.Unlock()
 
-	// Get all the containers
-	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
-	if err != nil {
-		return err
-	}
-
 	// Get all the networks
 	var networks []string
 	if networkName == "" {
@@ -775,15 +769,15 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 		networks = []string{networkName}
 	}
 
+	// Get all the containers
+	containers, err := containerLoadNodeAll(s)
+	if err != nil {
+		return err
+	}
+
 	// Build a list of dhcp host entries
 	entries := map[string][][]string{}
-	for _, cName := range containers {
-		// Load the container
-		c, err := containerLoadByName(s, cName)
-		if err != nil {
-			continue
-		}
-
+	for _, c := range containers {
 		// Go through all its devices (including profiles
 		for k, d := range c.ExpandedDevices() {
 			// Skip uninteresting entries
@@ -803,7 +797,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 				entries[d["parent"]] = [][]string{}
 			}
 
-			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], cName, d["ipv4.address"], d["ipv6.address"]})
+			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], c.Name(), d["ipv4.address"], d["ipv6.address"]})
 		}
 	}
 

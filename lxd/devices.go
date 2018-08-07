@@ -18,7 +18,6 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
@@ -652,7 +651,7 @@ func deviceTaskBalance(s *state.State) {
 	}
 
 	// Iterate through the containers
-	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
+	containers, err := containerLoadNodeAll(s)
 	if err != nil {
 		logger.Error("Problem loading containers list", log.Ctx{"err": err})
 		return
@@ -660,12 +659,7 @@ func deviceTaskBalance(s *state.State) {
 
 	fixedContainers := map[int][]container{}
 	balancedContainers := map[container]int{}
-	for _, name := range containers {
-		c, err := containerLoadByName(s, name)
-		if err != nil {
-			continue
-		}
-
+	for _, c := range containers {
 		conf := c.ExpandedConfig()
 		cpulimit, ok := conf["limits.cpu"]
 		if !ok || cpulimit == "" {
@@ -779,18 +773,12 @@ func deviceNetworkPriority(s *state.State, netif string) {
 		return
 	}
 
-	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
+	containers, err := containerLoadNodeAll(s)
 	if err != nil {
 		return
 	}
 
-	for _, name := range containers {
-		// Get the container struct
-		c, err := containerLoadByName(s, name)
-		if err != nil {
-			continue
-		}
-
+	for _, c := range containers {
 		// Extract the current priority
 		networkPriority := c.ExpandedConfig()["limits.network.priority"]
 		if networkPriority == "" {
@@ -810,18 +798,13 @@ func deviceNetworkPriority(s *state.State, netif string) {
 }
 
 func deviceUSBEvent(s *state.State, usb usbDevice) {
-	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
+	containers, err := containerLoadNodeAll(s)
 	if err != nil {
 		logger.Error("Problem loading containers list", log.Ctx{"err": err})
 		return
 	}
 
-	for _, name := range containers {
-		containerIf, err := containerLoadByName(s, name)
-		if err != nil {
-			continue
-		}
-
+	for _, containerIf := range containers {
 		c, ok := containerIf.(*containerLXC)
 		if !ok {
 			logger.Errorf("Got device event on non-LXC container?")
@@ -1835,19 +1818,13 @@ func deviceInotifyDirDeleteEvent(s *state.State, target *sys.InotifyTargetInfo) 
 }
 
 func deviceInotifyDirRescan(s *state.State) {
-	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
+	containers, err := containerLoadNodeAll(s)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
 	}
 
-	for _, name := range containers {
-		containerIf, err := containerLoadByName(s, name)
-		if err != nil {
-			logger.Errorf("Failed to load container \"%s\": %s", name, err)
-			continue
-		}
-
+	for _, containerIf := range containers {
 		c, ok := containerIf.(*containerLXC)
 		if !ok {
 			logger.Errorf("Received device event on non-LXC container")
@@ -1900,7 +1877,7 @@ func deviceInotifyDirCreateEvent(s *state.State, target *sys.InotifyTargetInfo) 
 		return
 	}
 
-	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
+	containers, err := containerLoadNodeAll(s)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
@@ -1913,13 +1890,7 @@ func deviceInotifyDirCreateEvent(s *state.State, target *sys.InotifyTargetInfo) 
 	// ancestors
 	del := createAncestorPaths(targetName)
 	keep := []string{}
-	for _, name := range containers {
-		containerIf, err := containerLoadByName(s, name)
-		if err != nil {
-			logger.Errorf("Failed to load container \"%s\": %s", name, err)
-			continue
-		}
-
+	for _, containerIf := range containers {
 		c, ok := containerIf.(*containerLXC)
 		if !ok {
 			logger.Errorf("Received device event on non-LXC container")
@@ -2003,7 +1974,7 @@ func deviceInotifyFileEvent(s *state.State, target *sys.InotifyTargetInfo) {
 		return
 	}
 
-	containers, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
+	containers, err := containerLoadNodeAll(s)
 	if err != nil {
 		logger.Errorf("Failed to load containers: %s", err)
 		return
@@ -2013,13 +1984,7 @@ func deviceInotifyFileEvent(s *state.State, target *sys.InotifyTargetInfo) {
 	hasWatchers := false
 	// The absolute path of the file for which we received an event?
 	targetName := filepath.Join(parent.Path, target.Path)
-	for _, name := range containers {
-		containerIf, err := containerLoadByName(s, name)
-		if err != nil {
-			logger.Errorf("Failed to load container \"%s\": %s", name, err)
-			continue
-		}
-
+	for _, containerIf := range containers {
 		c, ok := containerIf.(*containerLXC)
 		if !ok {
 			logger.Errorf("Received device event on non-LXC container")

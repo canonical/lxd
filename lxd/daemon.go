@@ -685,18 +685,13 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := d.cluster.ContainersNodeList(db.CTypeRegular)
+	results, err := containerLoadNodeAll(d.State())
 	if err != nil {
 		return 0, err
 	}
 
 	count := 0
-	for _, r := range results {
-		container, err := containerLoadByName(d.State(), r)
-		if err != nil {
-			continue
-		}
-
+	for _, container := range results {
 		if container.IsRunning() {
 			count = count + 1
 		}
