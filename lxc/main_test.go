@@ -37,6 +37,7 @@ func TestExpandAliases(t *testing.T) {
 	aliases := map[string]string{
 		"tester 12": "list",
 		"foo":       "list @ARGS@ -c n",
+		"ssh":       "/usr/bin/ssh @ARGS@",
 	}
 
 	testcases := []aliasTestcase{
@@ -51,6 +52,10 @@ func TestExpandAliases(t *testing.T) {
 		{
 			input:    []string{"lxc", "foo", "asdf"},
 			expected: []string{"lxc", "list", "asdf", "-c", "n"},
+		},
+		{
+			input:    []string{"lxc", "ssh", "c1"},
+			expected: []string{"/usr/bin/ssh", "c1"},
 		},
 	}
 
