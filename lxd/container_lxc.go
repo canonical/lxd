@@ -780,7 +780,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
-	cs, err := state.Cluster.ContainersList(db.CTypeRegular)
+	cts, err := containerLoadAll(state)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -788,15 +788,12 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	offset := state.OS.IdmapSet.Idmap[0].Hostid + 65536
 
 	mapentries := idmap.ByHostid{}
-	for _, name := range cs {
+	for _, container := range cts {
+		name := container.Name()
+
 		/* Don't change our map Just Because. */
 		if name == cName {
 			continue
-		}
-
-		container, err := containerLoadByName(state, name)
-		if err != nil {
-			return nil, 0, err
 		}
 
 		if container.IsPrivileged() {
