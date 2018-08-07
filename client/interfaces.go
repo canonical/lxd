@@ -202,6 +202,7 @@ type ContainerServer interface {
 	CreateStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshot api.StorageVolumeSnapshotsPost) (op Operation, err error)
 	DeleteStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string) (op Operation, err error)
 	GetStoragePoolVolumeSnapshotNames(pool string, volumeType string, volumeName string) (names []string, err error)
+	GetStoragePoolVolumeSnapshots(pool string, volumeType string, volumeName string) (snapshots []api.StorageVolumeSnapshot, err error)
 
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
