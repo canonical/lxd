@@ -193,7 +193,7 @@ func containersShutdown(s *state.State) error {
 			c, err := containerLXCLoad(s, db.ContainerArgs{
 				Name:   file.Name(),
 				Config: make(map[string]string),
-			})
+			}, nil)
 			if err != nil {
 				return err
 			}
