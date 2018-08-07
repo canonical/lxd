@@ -174,19 +174,14 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 
 func storagePoolVolumeUsedByContainersGet(s *state.State, volumeName string,
 	volumeTypeName string) ([]string, error) {
-	cts, err := s.Cluster.ContainersList(db.CTypeRegular)
+	cts, err := containerLoadAll(s)
 	if err != nil {
 		return []string{}, err
 	}
 
 	ctsUsingVolume := []string{}
 	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
-	for _, ct := range cts {
-		c, err := containerLoadByName(s, ct)
-		if err != nil {
-			continue
-		}
-
+	for _, c := range cts {
 		for _, dev := range c.LocalDevices() {
 			if dev["type"] != "disk" {
 				continue
@@ -196,7 +191,7 @@ func storagePoolVolumeUsedByContainersGet(s *state.State, volumeName string,
 			// "container////bla" but only against "container/bla".
 			cleanSource := filepath.Clean(dev["source"])
 			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				ctsUsingVolume = append(ctsUsingVolume, ct)
+				ctsUsingVolume = append(ctsUsingVolume, c.Name())
 			}
 		}
 	}
@@ -209,17 +204,12 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 
 	s := d.State()
 	// update all containers
-	cts, err := s.Cluster.ContainersList(db.CTypeRegular)
+	cts, err := containerLoadAll(s)
 	if err != nil {
 		return err
 	}
 
-	for _, ct := range cts {
-		c, err := containerLoadByName(s, ct)
-		if err != nil {
-			continue
-		}
-
+	for _, c := range cts {
 		devices := c.LocalDevices()
 		for k := range devices {
 			if devices[k]["type"] != "disk" {
@@ -344,19 +334,14 @@ func storagePoolVolumeUpdateUsers(d *Daemon, oldPoolName string,
 func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 	poolName string, volumeName string, volumeTypeName string,
 	runningOnly bool) ([]string, error) {
-	cts, err := s.Cluster.ContainersList(db.CTypeRegular)
+	cts, err := containerLoadAll(s)
 	if err != nil {
 		return []string{}, err
 	}
 
 	ctsUsingVolume := []string{}
 	volumeNameWithType := fmt.Sprintf("%s/%s", volumeTypeName, volumeName)
-	for _, ct := range cts {
-		c, err := containerLoadByName(s, ct)
-		if err != nil {
-			continue
-		}
-
+	for _, c := range cts {
 		if runningOnly && !c.IsRunning() {
 			continue
 		}
@@ -374,7 +359,7 @@ func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 			// "container////bla" but only against "container/bla".
 			cleanSource := filepath.Clean(dev["source"])
 			if cleanSource == volumeName || cleanSource == volumeNameWithType {
-				ctsUsingVolume = append(ctsUsingVolume, ct)
+				ctsUsingVolume = append(ctsUsingVolume, c.Name())
 			}
 		}
 	}
