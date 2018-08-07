@@ -373,6 +373,11 @@ func networkGet(d *Daemon, r *http.Request) Response {
 }
 
 func doNetworkGet(d *Daemon, name string) (api.Network, error) {
+	// Ignore veth pairs (for performance reasons)
+	if strings.HasPrefix(name, "veth") {
+		return api.Network{}, os.ErrNotExist
+	}
+
 	// Get some information
 	osInfo, _ := net.InterfaceByName(name)
 	_, dbInfo, _ := d.cluster.NetworkGet(name)
@@ -387,23 +392,6 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 	n.Name = name
 	n.UsedBy = []string{}
 	n.Config = map[string]string{}
-
-	// Look for containers using the interface
-	cts, err := d.cluster.ContainersList(db.CTypeRegular)
-	if err != nil {
-		return api.Network{}, err
-	}
-
-	for _, ct := range cts {
-		c, err := containerLoadByName(d.State(), ct)
-		if err != nil {
-			return api.Network{}, err
-		}
-
-		if networkIsInUse(c, n.Name) {
-			n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
-		}
-	}
 
 	// Set the device type as needed
 	if osInfo != nil && shared.IsLoopback(osInfo) {
@@ -428,6 +416,25 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 			n.Type = "bridge"
 		} else {
 			n.Type = "unknown"
+		}
+	}
+
+	// Look for containers using the interface
+	if n.Type != "loopback" {
+		cts, err := d.cluster.ContainersList(db.CTypeRegular)
+		if err != nil {
+			return api.Network{}, err
+		}
+
+		for _, ct := range cts {
+			c, err := containerLoadByName(d.State(), ct)
+			if err != nil {
+				return api.Network{}, err
+			}
+
+			if networkIsInUse(c, n.Name) {
+				n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
+			}
 		}
 	}
 

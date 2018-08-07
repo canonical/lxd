@@ -732,7 +732,7 @@ func storageLVMThinpoolExists(vgName string, poolName string) (bool, error) {
 func storageLVMGetThinPoolUsers(s *state.State) ([]string, error) {
 	results := []string{}
 
-	cNames, err := s.Cluster.ContainersList(db.CTypeRegular)
+	cNames, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		return results, err
 	}

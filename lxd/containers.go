@@ -200,7 +200,7 @@ func containersShutdown(s *state.State) error {
 	dbAvailable := true
 
 	// Get all the containers
-	results, err := s.Cluster.ContainersList(db.CTypeRegular)
+	results, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		// Mark database as offline
 		dbAvailable = false
