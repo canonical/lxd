@@ -398,19 +398,14 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 	// Look for containers using the interface
 	if n.Type != "loopback" {
-		cts, err := d.cluster.ContainersList(db.CTypeRegular)
+		cts, err := containerLoadAll(d.State())
 		if err != nil {
 			return api.Network{}, err
 		}
 
-		for _, ct := range cts {
-			c, err := containerLoadByName(d.State(), ct)
-			if err != nil {
-				return api.Network{}, err
-			}
-
+		for _, c := range cts {
 			if networkIsInUse(c, n.Name) {
-				n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
+				n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, c.Name()))
 			}
 		}
 	}
@@ -664,19 +659,13 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 	leases := []api.NetworkLease{}
 
 	// Get all the containers
-	containers, err := d.cluster.ContainersList(db.CTypeRegular)
+	containers, err := containerLoadAll(d.State())
 	if err != nil {
 		return SmartError(err)
 	}
 
 	// Get static leases
-	for _, cName := range containers {
-		// Load the container
-		c, err := containerLoadByName(d.State(), cName)
-		if err != nil {
-			continue
-		}
-
+	for _, c := range containers {
 		// Go through all its devices (including profiles
 		for k, d := range c.ExpandedDevices() {
 			// Skip uninteresting entries
@@ -693,7 +682,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 			// Add the lease
 			if d["ipv4.address"] != "" {
 				leases = append(leases, api.NetworkLease{
-					Hostname: cName,
+					Hostname: c.Name(),
 					Address:  d["ipv4.address"],
 					Hwaddr:   d["hwaddr"],
 					Type:     "static",
@@ -702,7 +691,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 
 			if d["ipv6.address"] != "" {
 				leases = append(leases, api.NetworkLease{
-					Hostname: cName,
+					Hostname: c.Name(),
 					Address:  d["ipv6.address"],
 					Hwaddr:   d["hwaddr"],
 					Type:     "static",
@@ -836,17 +825,12 @@ func (n *network) IsRunning() bool {
 
 func (n *network) IsUsed() bool {
 	// Look for containers using the interface
-	cts, err := n.state.Cluster.ContainersList(db.CTypeRegular)
+	cts, err := containerLoadAll(n.state)
 	if err != nil {
 		return true
 	}
 
-	for _, ct := range cts {
-		c, err := containerLoadByName(n.state, ct)
-		if err != nil {
-			return true
-		}
-
+	for _, c := range cts {
 		if networkIsInUse(c, n.name) {
 			return true
 		}
