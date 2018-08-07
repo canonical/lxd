@@ -337,6 +337,229 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 	return nil
 }
 
+// ContainerArgsList returns all container objects alll node.
+func (c *ClusterTx) ContainerArgsList() ([]ContainerArgs, error) {
+	return c.containerArgsList(false)
+}
+
+// ContainerArgsNodeList returns all container objects on the local node.
+func (c *ClusterTx) ContainerArgsNodeList() ([]ContainerArgs, error) {
+	return c.containerArgsList(true)
+}
+
+func (c *ClusterTx) containerArgsList(local bool) ([]ContainerArgs, error) {
+	// First query the containers table.
+	stmt := `
+SELECT containers.id, nodes.name, type, creation_date, architecture,
+       coalesce(containers.description, ''), ephemeral, last_use_date,
+       containers.name, stateful
+  FROM containers
+  JOIN nodes ON containers.node_id=nodes.id
+`
+	if local {
+		stmt += `
+ WHERE nodes.id=?
+`
+	}
+
+	stmt += `
+ORDER BY containers.name
+`
+
+	containers := make([]ContainerArgs, 0)
+
+	dest := func(i int) []interface{} {
+		containers = append(containers, ContainerArgs{})
+		return []interface{}{
+			&containers[i].ID,
+			&containers[i].Node,
+			&containers[i].Ctype,
+			&containers[i].CreationDate,
+			&containers[i].Architecture,
+			&containers[i].Description,
+			&containers[i].Ephemeral,
+			&containers[i].LastUsedDate,
+			&containers[i].Name,
+			&containers[i].Stateful,
+		}
+	}
+
+	args := make([]interface{}, 0)
+	if local {
+		args = append(args, c.nodeID)
+	}
+
+	err := query.SelectObjects(c.tx, dest, stmt, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query containers")
+	}
+
+	// Make an index to populate configs and devices.
+	index := make(map[int]*ContainerArgs, len(containers))
+	for i := range containers {
+		index[containers[i].ID] = &containers[i]
+		containers[i].Config = map[string]string{}
+		containers[i].Devices = types.Devices{}
+		containers[i].Profiles = make([]string, 0)
+	}
+
+	// Query the containers_config table.
+	stmt = `
+SELECT container_id, key, value
+  FROM containers_config
+  JOIN containers ON containers.id=container_id
+`
+	if local {
+		stmt += `
+  JOIN nodes ON nodes.id=containers.node_id
+  WHERE nodes.id=?
+`
+	}
+
+	configs := make([]struct {
+		ContainerID int64
+		Key         string
+		Value       string
+	}, 0)
+
+	dest = func(i int) []interface{} {
+		configs = append(configs, struct {
+			ContainerID int64
+			Key         string
+			Value       string
+		}{})
+
+		return []interface{}{
+			&configs[i].ContainerID,
+			&configs[i].Key,
+			&configs[i].Value,
+		}
+	}
+
+	err = query.SelectObjects(c.tx, dest, stmt, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query containers config")
+	}
+
+	for _, config := range configs {
+		index[int(config.ContainerID)].Config[config.Key] = config.Value
+	}
+
+	// Query the containers_devices/containers_devices_config tables.
+	stmt = `
+SELECT container_id, containers_devices.name, containers_devices.type,
+       coalesce(containers_devices_config.key, ''), coalesce(containers_devices_config.value, '')
+  FROM containers_devices
+  LEFT OUTER JOIN containers_devices_config ON containers_devices_config.container_device_id=containers_devices.id
+  JOIN containers ON containers.id=container_id
+`
+	if local {
+		stmt += `
+  JOIN nodes ON nodes.id=containers.node_id
+  WHERE nodes.id=?
+`
+	}
+
+	devices := make([]struct {
+		ContainerID int64
+		Name        string
+		Type        int64
+		Key         string
+		Value       string
+	}, 0)
+
+	dest = func(i int) []interface{} {
+		devices = append(devices, struct {
+			ContainerID int64
+			Name        string
+			Type        int64
+			Key         string
+			Value       string
+		}{})
+
+		return []interface{}{
+			&devices[i].ContainerID,
+			&devices[i].Name,
+			&devices[i].Type,
+			&devices[i].Key,
+			&devices[i].Value,
+		}
+	}
+
+	err = query.SelectObjects(c.tx, dest, stmt, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query containers devices")
+	}
+
+	for _, device := range devices {
+		cid := int(device.ContainerID)
+		_, ok := index[cid].Devices[device.Name]
+		if !ok {
+			// First time we see this device, let's int the config
+			// and add the type.
+			index[cid].Devices[device.Name] = make(map[string]string)
+
+			typ, err := dbDeviceTypeToString(int(device.Type))
+			if err != nil {
+				return nil, errors.Wrapf(err, "unexpected device type code '%d'", device.Type)
+			}
+			index[cid].Devices[device.Name]["type"] = typ
+		}
+
+		if device.Key != "" {
+			index[cid].Devices[device.Name][device.Key] = device.Value
+		}
+
+	}
+
+	// Query the profiles table
+	stmt = `
+SELECT container_id, profiles.name FROM containers_profiles
+  JOIN profiles ON containers_profiles.profile_id=profiles.id
+  JOIN containers ON containers.id=container_id
+`
+
+	if local {
+		stmt += `
+  JOIN nodes ON nodes.id=containers.node_id
+  WHERE nodes.id=?
+`
+	}
+
+	stmt += `
+ORDER BY containers_profiles.apply_order
+`
+
+	profiles := make([]struct {
+		ContainerID int64
+		Name        string
+	}, 0)
+
+	dest = func(i int) []interface{} {
+		profiles = append(profiles, struct {
+			ContainerID int64
+			Name        string
+		}{})
+
+		return []interface{}{
+			&profiles[i].ContainerID,
+			&profiles[i].Name,
+		}
+	}
+
+	err = query.SelectObjects(c.tx, dest, stmt, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query containers profiles")
+	}
+
+	for _, profile := range profiles {
+		id := int(profile.ContainerID)
+		index[id].Profiles = append(index[id].Profiles, profile.Name)
+	}
+
+	return containers, nil
+}
+
 // ContainerRemove removes the container with the given name from the database.
 func (c *Cluster) ContainerRemove(name string) error {
 	id, err := c.ContainerID(name)
