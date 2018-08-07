@@ -54,7 +54,10 @@ func expandAlias(conf *config.Config, origArgs []string) ([]string, bool) {
 		}
 	}
 
-	newArgs := []string{origArgs[0]}
+	var newArgs []string
+	if !strings.HasPrefix(aliasValue[0], "/") {
+		newArgs = append(newArgs, origArgs[0])
+	}
 	hasReplacedArgsVar := false
 
 	for i, aliasArg := range aliasValue {
@@ -118,7 +121,7 @@ func execIfAliases() {
 	}
 
 	// Look for the executable
-	path, err := exec.LookPath(args[0])
+	path, err := exec.LookPath(newArgs[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, i18n.G("Processing aliases failed: %s\n"), err)
 		os.Exit(1)
