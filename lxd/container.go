@@ -1172,6 +1172,66 @@ func containerLoadByName(s *state.State, name string) (container, error) {
 	return containerLXCLoad(s, args)
 }
 
+func containerLoadAll(s *state.State) ([]container, error) {
+	// Get all the container arguments
+	var cts []db.ContainerArgs
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		cts, err = tx.ContainerArgsList()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Load the container structs
+	containers := []container{}
+	for _, args := range cts {
+		ct, err := containerLXCLoad(s, args)
+		if err != nil {
+			return nil, err
+		}
+
+		containers = append(containers, ct)
+	}
+
+	return containers, nil
+}
+
+func containerLoadNodeAll(s *state.State) ([]container, error) {
+	// Get all the container arguments
+	var cts []db.ContainerArgs
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		cts, err = tx.ContainerArgsNodeList()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Load the container structs
+	containers := []container{}
+	for _, args := range cts {
+		ct, err := containerLXCLoad(s, args)
+		if err != nil {
+			return nil, err
+		}
+
+		containers = append(containers, ct)
+	}
+
+	return containers, nil
+}
+
 func containerBackupLoadByName(s *state.State, name string) (*backup, error) {
 	// Get the DB record
 	args, err := s.Cluster.ContainerGetBackup(name)
