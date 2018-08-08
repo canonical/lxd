@@ -51,6 +51,23 @@ func (r *ProtocolLXD) GetContainers() ([]api.Container, error) {
 	return containers, nil
 }
 
+// GetContainersFull returns a list of containers including snapshots, backups and state
+func (r *ProtocolLXD) GetContainersFull() ([]api.ContainerFull, error) {
+	containers := []api.ContainerFull{}
+
+	if !r.HasExtension("container_full") {
+		return nil, fmt.Errorf("The server is missing the required \"container_full\" API extension")
+	}
+
+	// Fetch the raw value
+	_, err := r.queryStruct("GET", "/containers?recursion=2", nil, "", &containers)
+	if err != nil {
+		return nil, err
+	}
+
+	return containers, nil
+}
+
 // GetContainer returns the container entry for the provided name
 func (r *ProtocolLXD) GetContainer(name string) (*api.Container, string, error) {
 	container := api.Container{}

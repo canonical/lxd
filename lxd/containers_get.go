@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -39,15 +39,23 @@ func containersGet(d *Daemon, r *http.Request) Response {
 }
 
 func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
-	recursion := util.IsRecursionRequest(r)
 	resultString := []string{}
 	resultList := []*api.Container{}
+	resultFullList := []*api.ContainerFull{}
 	resultMu := sync.Mutex{}
+
+	// Parse the recursion field
+	recursionStr := r.FormValue("recursion")
+
+	recursion, err := strconv.Atoi(recursionStr)
+	if err != nil {
+		recursion = 0
+	}
 
 	// Get the list and location of all containers
 	var result map[string][]string // Containers by node address
 	var nodes map[string]string    // Node names by container
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
 		result, err = tx.ContainersListByNodeAddress()
@@ -68,7 +76,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 	// Get the local containers
 	nodeCts := map[string]container{}
-	if recursion {
+	if recursion > 0 {
 		cts, err := containerLoadNodeAll(d.State())
 		if err != nil {
 			return nil, err
@@ -79,7 +87,8 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		}
 	}
 
-	resultAppend := func(name string, c api.Container, err error) {
+	// Append containers to list and handle errors
+	resultListAppend := func(name string, c api.Container, err error) {
 		if err != nil {
 			c = api.Container{
 				Name:       name,
@@ -93,6 +102,21 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		resultMu.Unlock()
 	}
 
+	resultFullListAppend := func(name string, c api.ContainerFull, err error) {
+		if err != nil {
+			c = api.ContainerFull{Container: api.Container{
+				Name:       name,
+				Status:     api.Error.String(),
+				StatusCode: api.Error,
+				Location:   nodes[name],
+			}}
+		}
+		resultMu.Lock()
+		resultFullList = append(resultFullList, &c)
+		resultMu.Unlock()
+	}
+
+	// Get the data
 	wg := sync.WaitGroup{}
 	for address, containers := range result {
 		// If this is an internal request from another cluster node,
@@ -103,9 +127,13 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		}
 
 		// Mark containers on unavailable nodes as down
-		if recursion && address == "0.0.0.0" {
+		if recursion > 0 && address == "0.0.0.0" {
 			for _, container := range containers {
-				resultAppend(container, api.Container{}, fmt.Errorf("unavailable"))
+				if recursion == 1 {
+					resultListAppend(container, api.Container{}, fmt.Errorf("unavailable"))
+				} else {
+					resultFullListAppend(container, api.ContainerFull{}, fmt.Errorf("unavailable"))
+				}
 			}
 
 			continue
@@ -113,56 +141,120 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 		// For recursion requests we need to fetch the state of remote
 		// containers from their respective nodes.
-		if recursion && address != "" && !isClusterNotification(r) {
+		if recursion > 0 && address != "" && !isClusterNotification(r) {
 			wg.Add(1)
 			go func(address string, containers []string) {
 				defer wg.Done()
 				cert := d.endpoints.NetworkCert()
 
-				cs, err := doContainersGetFromNode(address, cert)
+				if recursion == 1 {
+					cs, err := doContainersGetFromNode(address, cert)
+					if err != nil {
+						for _, name := range containers {
+							resultListAppend(name, api.Container{}, err)
+						}
+
+						return
+					}
+
+					for _, c := range cs {
+						resultListAppend(c.Name, c, nil)
+					}
+
+					return
+				}
+
+				cs, err := doContainersFullGetFromNode(address, cert)
 				if err != nil {
 					for _, name := range containers {
-						resultAppend(name, api.Container{}, err)
+						resultFullListAppend(name, api.ContainerFull{}, err)
 					}
 
 					return
 				}
 
 				for _, c := range cs {
-					resultAppend(c.Name, c, nil)
+					resultFullListAppend(c.Name, c, nil)
 				}
 			}(address, containers)
 
 			continue
 		}
 
-		for _, container := range containers {
-			if !recursion {
+		if recursion == 0 {
+			for _, container := range containers {
 				url := fmt.Sprintf("/%s/containers/%s", version.APIVersion, container)
 				resultString = append(resultString, url)
-				continue
+			}
+		} else {
+			threads := 4
+			if len(containers) < threads {
+				threads = len(containers)
 			}
 
-			c, _, err := nodeCts[container].Render()
-			if err != nil {
-				resultAppend(container, api.Container{}, err)
-			} else {
-				resultAppend(container, *c.(*api.Container), err)
+			queue := make(chan string, threads)
+
+			for i := 0; i < threads; i++ {
+				wg.Add(1)
+
+				go func() {
+					for {
+						container, more := <-queue
+						if !more {
+							break
+						}
+
+						if recursion == 1 {
+							c, _, err := nodeCts[container].Render()
+							if err != nil {
+								resultListAppend(container, api.Container{}, err)
+							} else {
+								resultListAppend(container, *c.(*api.Container), err)
+							}
+
+							continue
+						}
+
+						c, _, err := nodeCts[container].RenderFull()
+						if err != nil {
+							resultFullListAppend(container, api.ContainerFull{}, err)
+						} else {
+							resultFullListAppend(container, *c, err)
+						}
+					}
+
+					wg.Done()
+				}()
 			}
+
+			for _, container := range containers {
+				queue <- container
+			}
+
+			close(queue)
 		}
 	}
 	wg.Wait()
 
-	if !recursion {
+	if recursion == 0 {
 		return resultString, nil
 	}
 
+	if recursion == 1 {
+		// Sort the result list by name.
+		sort.Slice(resultList, func(i, j int) bool {
+			return resultList[i].Name < resultList[j].Name
+		})
+
+		return resultList, nil
+	}
+
 	// Sort the result list by name.
-	sort.Slice(resultList, func(i, j int) bool {
-		return resultList[i].Name < resultList[j].Name
+	sort.Slice(resultFullList, func(i, j int) bool {
+		return resultFullList[i].Name < resultFullList[j].Name
 	})
 
-	return resultList, nil
+	return resultFullList, nil
 }
 
 // Fetch information about the containers on the given remote node, using the
@@ -171,12 +263,14 @@ func doContainersGetFromNode(node string, cert *shared.CertInfo) ([]api.Containe
 	f := func() ([]api.Container, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to connect to node %s", node)
+			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
 		}
+
 		containers, err := client.GetContainers()
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get containers from node %s", node)
+			return nil, errors.Wrapf(err, "Failed to get containers from node %s", node)
 		}
+
 		return containers, nil
 	}
 
@@ -193,7 +287,42 @@ func doContainersGetFromNode(node string, cert *shared.CertInfo) ([]api.Containe
 
 	select {
 	case <-timeout:
-		err = fmt.Errorf("timeout getting containers from node %s", node)
+		err = fmt.Errorf("Timeout getting containers from node %s", node)
+	case <-done:
+	}
+
+	return containers, err
+}
+
+func doContainersFullGetFromNode(node string, cert *shared.CertInfo) ([]api.ContainerFull, error) {
+	f := func() ([]api.ContainerFull, error) {
+		client, err := cluster.Connect(node, cert, true)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
+		}
+
+		containers, err := client.GetContainersFull()
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to get containers from node %s", node)
+		}
+
+		return containers, nil
+	}
+
+	timeout := time.After(30 * time.Second)
+	done := make(chan struct{})
+
+	var containers []api.ContainerFull
+	var err error
+
+	go func() {
+		containers, err = f()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-timeout:
+		err = fmt.Errorf("Timeout getting containers from node %s", node)
 	case <-done:
 	}
 

@@ -3065,6 +3065,64 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	}
 }
 
+func (c *containerLXC) RenderFull() (*api.ContainerFull, interface{}, error) {
+	if c.IsSnapshot() {
+		return nil, nil, fmt.Errorf("RenderFull only works with containers")
+	}
+
+	// Get the Container struct
+	base, etag, err := c.Render()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Convert to ContainerFull
+	ct := api.ContainerFull{Container: *base.(*api.Container)}
+
+	// Add the ContainerState
+	ct.State, err = c.RenderState()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Add the ContainerSnapshots
+	snaps, err := c.Snapshots()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, snap := range snaps {
+		render, _, err := snap.Render()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if ct.Snapshots == nil {
+			ct.Snapshots = []api.ContainerSnapshot{}
+		}
+
+		ct.Snapshots = append(ct.Snapshots, *render.(*api.ContainerSnapshot))
+	}
+
+	// Add the ContainerBackups
+	backups, err := c.Backups()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, backup := range backups {
+		render := backup.Render()
+
+		if ct.Backups == nil {
+			ct.Backups = []api.ContainerBackup{}
+		}
+
+		ct.Backups = append(ct.Backups, *render)
+	}
+
+	return &ct, etag, nil
+}
+
 func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 	cState, err := c.getLxcState()
 	if err != nil {
