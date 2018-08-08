@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
 	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 
 	"github.com/lxc/lxd/client"
@@ -296,7 +297,10 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 	// Only setup macaroons if a config path exists (so the jar can be saved)
 	if shared.PathExists(c.confPath) {
 		// Add interactor for external authentication
-		c.conf.SetAuthInteractor(form.Interactor{Filler: schemaform.IOFiller{}})
+		c.conf.SetAuthInteractor([]httpbakery.Interactor{
+			form.Interactor{Filler: schemaform.IOFiller{}},
+			httpbakery.WebBrowserInteractor{},
+		})
 	}
 
 	// Set the user agent
