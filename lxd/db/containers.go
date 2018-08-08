@@ -341,11 +341,10 @@ SELECT containers.id, nodes.name, type, creation_date, architecture,
        containers.name, stateful
   FROM containers
   JOIN nodes ON containers.node_id=nodes.id
+  WHERE type=0
 `
 	if local {
-		stmt += `
- WHERE nodes.id=?
-`
+		stmt += " AND nodes.id=?"
 	}
 
 	stmt += `
@@ -398,7 +397,11 @@ SELECT container_id, key, value
 	if local {
 		stmt += `
   JOIN nodes ON nodes.id=containers.node_id
-  WHERE nodes.id=?
+  WHERE nodes.id=? AND containers.type=0
+`
+	} else {
+		stmt += `
+  WHERE containers.type=0
 `
 	}
 
@@ -442,7 +445,11 @@ SELECT container_id, containers_devices.name, containers_devices.type,
 	if local {
 		stmt += `
   JOIN nodes ON nodes.id=containers.node_id
-  WHERE nodes.id=?
+  WHERE nodes.id=? AND containers.type=0
+`
+	} else {
+		stmt += `
+  WHERE containers.type=0
 `
 	}
 
@@ -508,7 +515,11 @@ SELECT container_id, profiles.name FROM containers_profiles
 	if local {
 		stmt += `
   JOIN nodes ON nodes.id=containers.node_id
-  WHERE nodes.id=?
+  WHERE nodes.id=? AND containers.type=0
+`
+	} else {
+		stmt += `
+  WHERE containers.type=0
 `
 	}
 
