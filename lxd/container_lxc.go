@@ -467,15 +467,20 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	return c, nil
 }
 
-func containerLXCLoad(s *state.State, args db.ContainerArgs) (container, error) {
+func containerLXCLoad(s *state.State, args db.ContainerArgs, profiles []api.Profile) (container, error) {
 	// Create the container struct
 	c := containerLXCInstantiate(s, args)
 
 	// Setup finalizer
 	runtime.SetFinalizer(c, containerLXCUnload)
 
-	// Load the config.
-	err := c.init()
+	// Expand config and devices
+	err := c.expandConfig(profiles)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.expandDevices(profiles)
 	if err != nil {
 		return nil, err
 	}
@@ -780,7 +785,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	idmapLock.Lock()
 	defer idmapLock.Unlock()
 
-	cs, err := state.Cluster.ContainersList(db.CTypeRegular)
+	cts, err := containerLoadAll(state)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -788,15 +793,12 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 	offset := state.OS.IdmapSet.Idmap[0].Hostid + 65536
 
 	mapentries := idmap.ByHostid{}
-	for _, name := range cs {
+	for _, container := range cts {
+		name := container.Name()
+
 		/* Don't change our map Just Because. */
 		if name == cName {
 			continue
-		}
-
-		container, err := containerLoadByName(state, name)
-		if err != nil {
-			return nil, 0, err
 		}
 
 		if container.IsPrivileged() {
@@ -871,12 +873,12 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 
 func (c *containerLXC) init() error {
 	// Compute the expanded config and device list
-	err := c.expandConfig()
+	err := c.expandConfig(nil)
 	if err != nil {
 		return err
 	}
 
-	err = c.expandDevices()
+	err = c.expandDevices(nil)
 	if err != nil {
 		return err
 	}
@@ -1720,17 +1722,23 @@ func (c *containerLXC) initStorage() error {
 }
 
 // Config handling
-func (c *containerLXC) expandConfig() error {
+func (c *containerLXC) expandConfig(profiles []api.Profile) error {
 	// Fetch profile configs
 	profileConfigs := make([]map[string]string, len(c.profiles))
 
 	// Apply all the profiles
-	for i, name := range c.profiles {
-		profileConfig, err := c.state.Cluster.ProfileConfig(name)
-		if err != nil {
-			return err
+	if profiles != nil {
+		for i, profile := range profiles {
+			profileConfigs[i] = profile.Config
 		}
-		profileConfigs[i] = profileConfig
+	} else {
+		for i, name := range c.profiles {
+			profileConfig, err := c.state.Cluster.ProfileConfig(name)
+			if err != nil {
+				return err
+			}
+			profileConfigs[i] = profileConfig
+		}
 	}
 
 	c.expandConfigFromProfiles(profileConfigs)
@@ -1757,15 +1765,23 @@ func (c *containerLXC) expandConfigFromProfiles(profileConfigs []map[string]stri
 	c.expandedConfig = config
 }
 
-func (c *containerLXC) expandDevices() error {
+func (c *containerLXC) expandDevices(profiles []api.Profile) error {
 	// Fetch profile devices
 	profileDevices := make([]types.Devices, len(c.profiles))
-	for _, p := range c.profiles {
-		devices, err := c.state.Cluster.Devices(p, true)
-		if err != nil {
-			return err
+
+	// Apply all the profiles
+	if profiles != nil {
+		for i, profile := range profiles {
+			profileDevices[i] = profile.Devices
 		}
-		profileDevices = append(profileDevices, devices)
+	} else {
+		for _, p := range c.profiles {
+			devices, err := c.state.Cluster.Devices(p, true)
+			if err != nil {
+				return err
+			}
+			profileDevices = append(profileDevices, devices)
+		}
 	}
 
 	c.expandDevicesFromProfiles(profileDevices)
@@ -3049,6 +3065,64 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	}
 }
 
+func (c *containerLXC) RenderFull() (*api.ContainerFull, interface{}, error) {
+	if c.IsSnapshot() {
+		return nil, nil, fmt.Errorf("RenderFull only works with containers")
+	}
+
+	// Get the Container struct
+	base, etag, err := c.Render()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Convert to ContainerFull
+	ct := api.ContainerFull{Container: *base.(*api.Container)}
+
+	// Add the ContainerState
+	ct.State, err = c.RenderState()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Add the ContainerSnapshots
+	snaps, err := c.Snapshots()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, snap := range snaps {
+		render, _, err := snap.Render()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if ct.Snapshots == nil {
+			ct.Snapshots = []api.ContainerSnapshot{}
+		}
+
+		ct.Snapshots = append(ct.Snapshots, *render.(*api.ContainerSnapshot))
+	}
+
+	// Add the ContainerBackups
+	backups, err := c.Backups()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, backup := range backups {
+		render := backup.Render()
+
+		if ct.Backups == nil {
+			ct.Backups = []api.ContainerBackup{}
+		}
+
+		ct.Backups = append(ct.Backups, *render)
+	}
+
+	return &ct, etag, nil
+}
+
 func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 	cState, err := c.getLxcState()
 	if err != nil {
@@ -3818,12 +3892,12 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	c.profiles = args.Profiles
 
 	// Expand the config and refresh the LXC config
-	err = c.expandConfig()
+	err = c.expandConfig(nil)
 	if err != nil {
 		return err
 	}
 
-	err = c.expandDevices()
+	err = c.expandDevices(nil)
 	if err != nil {
 		return err
 	}

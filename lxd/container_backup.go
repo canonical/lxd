@@ -50,7 +50,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 			resultString = append(resultString, url)
 		} else {
 			render := backup.Render()
-			resultMap = append(resultMap, render.(*api.ContainerBackup))
+			resultMap = append(resultMap, render)
 		}
 	}
 

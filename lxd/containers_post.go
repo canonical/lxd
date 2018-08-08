@@ -321,7 +321,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 		}
 	} else {
 		// Retrieve the future storage pool
-		cM, err := containerLXCLoad(d.State(), args)
+		cM, err := containerLXCLoad(d.State(), args, nil)
 		if err != nil {
 			return InternalError(err)
 		}

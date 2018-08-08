@@ -119,6 +119,7 @@ var APIExtensions = []string{
 	"network_hwaddr",
 	"proxy_nat",
 	"network_nat_order",
+	"container_full",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

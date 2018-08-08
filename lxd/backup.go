@@ -109,7 +109,7 @@ func (b *backup) Dump() ([]byte, error) {
 	return data, nil
 }
 
-func (b *backup) Render() interface{} {
+func (b *backup) Render() *api.ContainerBackup {
 	return &api.ContainerBackup{
 		Name:             strings.SplitN(b.name, "/", 2)[1],
 		CreationDate:     b.creationDate,
