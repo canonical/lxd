@@ -577,7 +577,7 @@ func (d *Daemon) init() error {
 	pruneLeftoverImages(d)
 
 	/* Setup the proxy handler, external authentication and MAAS */
-	macaroonEndpoint := ""
+	candidEndpoint := ""
 	maasAPIURL := ""
 	maasAPIKey := ""
 	maasMachine := ""
@@ -605,7 +605,7 @@ func (d *Daemon) init() error {
 		d.proxy = shared.ProxyFromConfig(
 			config.ProxyHTTPS(), config.ProxyHTTP(), config.ProxyIgnoreHosts(),
 		)
-		macaroonEndpoint = config.MacaroonEndpoint()
+		candidEndpoint = config.CandidEndpoint()
 		maasAPIURL, maasAPIKey = config.MAASController()
 		return nil
 	})
@@ -613,7 +613,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	err = d.setupExternalAuthentication(macaroonEndpoint)
+	err = d.setupExternalAuthentication(candidEndpoint)
 	if err != nil {
 		return err
 	}

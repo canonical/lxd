@@ -78,15 +78,15 @@ pre-generated files.
 
 After this is done, restarting the server will have it run in PKI mode.
 
-# Adding a remote with Macaroon-based authentication
-When LXD is configured with Macaroon-based authentication, it will request that
-clients trying to authenticating with it get a Discharge token from the
-authentication server specified by the `core.macaroon.endpoint` setting.
+# Adding a remote with Candid
+When LXD is configured with Candid, it will request that clients trying to
+authenticating with it get a Discharge token from the authentication server
+specified by the `candid.api.url` setting.
 
 The authentication server certificate needs to be trusted by the LXD server.
 
 To add a remote pointing to a LXD configured with Macaroon auth, run `lxc
-remote add REMOTE ENDPOINT --auth-type=macaroons`.  The client will prompt for
+remote add REMOTE ENDPOINT --auth-type=candid`.  The client will prompt for
 the credentials required by the authentication server in order to verify the
 user. If the authentication is successful, it will connect to the LXD server
 presenting the token received from the authentication server.  The LXD server
