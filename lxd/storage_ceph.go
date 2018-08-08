@@ -41,7 +41,6 @@ func (s *storageCeph) StorageCoreInit() error {
 	}
 	s.sTypeVersion = strings.TrimSpace(msg)
 
-	logger.Debugf("Initializing a CEPH driver")
 	return nil
 }
 

@@ -86,7 +86,6 @@ func (s *storageBtrfs) StorageCoreInit() error {
 		return fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
 
-	logger.Debugf("Initializing a BTRFS driver")
 	return nil
 }
 

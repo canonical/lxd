@@ -55,7 +55,6 @@ func (s *storageLvm) StorageCoreInit() error {
 		s.sTypeVersion += strings.TrimSpace(fields[1])
 	}
 
-	logger.Debugf("Initializing an LVM driver")
 	return nil
 }
 
