@@ -102,6 +102,7 @@ var APIExtensions = []string{
 	"event_lifecycle",
 	"storage_api_remote_volume_handling",
 	"nvidia_runtime",
+	"candid_authentication",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -454,3 +454,7 @@ This adds the ability to copy and move custom storage volumes between remote.
 Adds a `nvidia_runtime` config option for containers, setting this to
 true will have the NVIDIA runtime and CUDA libraries passed to the
 container.
+
+## candid\_authentication
+This introduces the new candid.api.url config option and removes
+core.macaroon.endpoint.
