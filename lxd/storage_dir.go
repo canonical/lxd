@@ -33,7 +33,6 @@ func (s *storageDir) StorageCoreInit() error {
 	s.sTypeName = typeName
 	s.sTypeVersion = "1"
 
-	logger.Debugf("Initializing a DIR driver")
 	return nil
 }
 

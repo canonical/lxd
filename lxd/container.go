@@ -588,6 +588,7 @@ type container interface {
 
 	// Status
 	Render() (interface{}, interface{}, error)
+	RenderFull() (*api.ContainerFull, interface{}, error)
 	RenderState() (*api.ContainerState, error)
 	IsPrivileged() bool
 	IsRunning() bool
@@ -1169,7 +1170,87 @@ func containerLoadByName(s *state.State, name string) (container, error) {
 		return nil, err
 	}
 
-	return containerLXCLoad(s, args)
+	return containerLXCLoad(s, args, nil)
+}
+
+func containerLoadAll(s *state.State) ([]container, error) {
+	// Get all the container arguments
+	var cts []db.ContainerArgs
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		cts, err = tx.ContainerArgsList()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return containerLoadAllInternal(cts, s)
+}
+
+func containerLoadNodeAll(s *state.State) ([]container, error) {
+	// Get all the container arguments
+	var cts []db.ContainerArgs
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		cts, err = tx.ContainerArgsNodeList()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return containerLoadAllInternal(cts, s)
+}
+
+func containerLoadAllInternal(cts []db.ContainerArgs, s *state.State) ([]container, error) {
+	// Figure out what profiles are in use
+	profiles := map[string]api.Profile{}
+	for _, cArgs := range cts {
+		for _, profile := range cArgs.Profiles {
+			_, ok := profiles[profile]
+			if !ok {
+				profiles[profile] = api.Profile{}
+			}
+		}
+	}
+
+	// Get the profile data
+	for name := range profiles {
+		_, profile, err := s.Cluster.ProfileGet(name)
+		if err != nil {
+			return nil, err
+		}
+
+		profiles[name] = *profile
+	}
+
+	// Load the container structs
+	containers := []container{}
+	for _, args := range cts {
+		// Figure out the container's profiles
+		cProfiles := []api.Profile{}
+		for _, name := range args.Profiles {
+			cProfiles = append(cProfiles, profiles[name])
+		}
+
+		ct, err := containerLXCLoad(s, args, cProfiles)
+		if err != nil {
+			return nil, err
+		}
+
+		containers = append(containers, ct)
+	}
+
+	return containers, nil
 }
 
 func containerBackupLoadByName(s *state.State, name string) (*backup, error) {

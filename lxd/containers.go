@@ -125,19 +125,14 @@ func (slice containerAutostartList) Swap(i, j int) {
 
 func containersRestart(s *state.State) error {
 	// Get all the containers
-	result, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
+	result, err := containerLoadNodeAll(s)
 	if err != nil {
 		return err
 	}
 
 	containers := []container{}
 
-	for _, name := range result {
-		c, err := containerLoadByName(s, name)
-		if err != nil {
-			return err
-		}
-
+	for _, c := range result {
 		containers = append(containers, c)
 	}
 
@@ -200,10 +195,11 @@ func containersShutdown(s *state.State) error {
 	dbAvailable := true
 
 	// Get all the containers
-	results, err := s.Cluster.ContainersNodeList(db.CTypeRegular)
+	containers, err := containerLoadNodeAll(s)
 	if err != nil {
 		// Mark database as offline
 		dbAvailable = false
+		containers = []container{}
 
 		// List all containers on disk
 		files, err := ioutil.ReadDir(shared.VarPath("containers"))
@@ -212,29 +208,16 @@ func containersShutdown(s *state.State) error {
 		}
 
 		for _, file := range files {
-			results = append(results, file.Name())
-		}
-	}
-
-	containers := []container{}
-
-	for _, name := range results {
-		var c container
-		var err error
-
-		if dbAvailable {
-			c, err = containerLoadByName(s, name)
-		} else {
-			c, err = containerLXCLoad(s, db.ContainerArgs{
-				Name:   name,
+			c, err := containerLXCLoad(s, db.ContainerArgs{
+				Name:   file.Name(),
 				Config: make(map[string]string),
-			})
-		}
-		if err != nil {
-			return err
-		}
+			}, nil)
+			if err != nil {
+				return err
+			}
 
-		containers = append(containers, c)
+			containers = append(containers, c)
+		}
 	}
 
 	sort.Sort(containerStopList(containers))

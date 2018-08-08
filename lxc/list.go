@@ -30,7 +30,7 @@ type column struct {
 	NeedsSnapshots bool
 }
 
-type columnData func(api.Container, *api.ContainerState, []api.ContainerSnapshot) string
+type columnData func(api.ContainerFull) string
 
 type cmdList struct {
 	global *cmdGlobal
@@ -202,11 +202,6 @@ func (c *cmdList) shouldShow(filters []string, state *api.Container) bool {
 }
 
 func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cinfos []api.Container, filters []string, columns []column) error {
-	headers := []string{}
-	for _, column := range columns {
-		headers = append(headers, column.Name)
-	}
-
 	threads := 10
 	if len(cinfos) < threads {
 		threads = len(cinfos)
@@ -303,16 +298,29 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 	cStatesWg.Wait()
 	cSnapshotsWg.Wait()
 
+	// Convert to ContainerFull
+	data := make([]api.ContainerFull, len(cinfos))
+	for i := range cinfos {
+		data[i].Container = cinfos[i]
+		data[i].State = cStates[cinfos[i].Name]
+		data[i].Snapshots = cSnapshots[cinfos[i].Name]
+	}
+
+	return c.showContainers(data, filters, columns)
+}
+
+func (c *cmdList) showContainers(cts []api.ContainerFull, filters []string, columns []column) error {
+	// Generate the table data
 	tableData := func() [][]string {
 		data := [][]string{}
-		for _, cInfo := range cinfos {
-			if !c.shouldShow(filters, &cInfo) {
+		for _, ct := range cts {
+			if !c.shouldShow(filters, &ct.Container) {
 				continue
 			}
 
 			col := []string{}
 			for _, column := range columns {
-				col = append(col, column.Data(cInfo, cStates[cInfo.Name], cSnapshots[cInfo.Name]))
+				col = append(col, column.Data(ct))
 			}
 			data = append(data, col)
 		}
@@ -321,6 +329,7 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 		return data
 	}
 
+	// Deal with various output formats
 	switch c.flagFormat {
 	case listFormatCSV:
 		w := csv.NewWriter(os.Stdout)
@@ -329,6 +338,11 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 			return err
 		}
 	case listFormatTable:
+		headers := []string{}
+		for _, column := range columns {
+			headers = append(headers, column.Name)
+		}
+
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetAutoWrapText(false)
 		table.SetAlignment(tablewriter.ALIGN_LEFT)
@@ -337,26 +351,13 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 		table.AppendBulk(tableData())
 		table.Render()
 	case listFormatJSON:
-		data := make([]listContainerItem, len(cinfos))
-		for i := range cinfos {
-			data[i].Container = &cinfos[i]
-			data[i].State = cStates[cinfos[i].Name]
-			data[i].Snapshots = cSnapshots[cinfos[i].Name]
-		}
 		enc := json.NewEncoder(os.Stdout)
-		err := enc.Encode(data)
+		err := enc.Encode(cts)
 		if err != nil {
 			return err
 		}
 	case listFormatYAML:
-		data := make([]listContainerItem, len(cinfos))
-		for i := range cinfos {
-			data[i].Container = &cinfos[i]
-			data[i].State = cStates[cinfos[i].Name]
-			data[i].Snapshots = cSnapshots[cinfos[i].Name]
-		}
-
-		out, err := yaml.Marshal(data)
+		out, err := yaml.Marshal(cts)
 		if err != nil {
 			return err
 		}
@@ -366,13 +367,6 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 	}
 
 	return nil
-}
-
-type listContainerItem struct {
-	*api.Container
-
-	State     *api.ContainerState     `json:"state" yaml:"state"`
-	Snapshots []api.ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
 }
 
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
@@ -404,7 +398,9 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 			name = args[0]
 		}
 	}
-	filters = append(filters, name)
+	if name != "" {
+		filters = append(filters, name)
+	}
 
 	if remote == "" {
 		remote = conf.DefaultRemote
@@ -414,6 +410,22 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	d, err := conf.GetContainerServer(remote)
 	if err != nil {
 		return err
+	}
+
+	// Get the list of columns
+	columns, needsData, err := c.parseColumns(d.IsClustered())
+	if err != nil {
+		return err
+	}
+
+	if len(filters) == 0 && needsData && d.HasExtension("container_full") {
+		// Using the GetContainersFull shortcut
+		cts, err := d.GetContainersFull()
+		if err != nil {
+			return err
+		}
+
+		return c.showContainers(cts, filters, columns)
 	}
 
 	// Get the list of containers
@@ -432,17 +444,11 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 		cts = append(cts, cinfo)
 	}
 
-	// Get the list of columns
-	columns, err := c.parseColumns(d.IsClustered())
-	if err != nil {
-		return err
-	}
-
 	// Fetch any remaining data and render the table
 	return c.listContainers(conf, d, cts, filters, columns)
 }
 
-func (c *cmdList) parseColumns(clustered bool) ([]column, error) {
+func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	columnsShorthandMap := map[rune]column{
 		'4': {i18n.G("IPV4"), c.IP4ColumnData, true, false},
 		'6': {i18n.G("IPV6"), c.IP6ColumnData, true, false},
@@ -463,7 +469,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, error) {
 	if c.flagFast {
 		if c.flagColumns != defaultColumns {
 			// --columns was specified too
-			return nil, fmt.Errorf(i18n.G("Can't specify --fast with --columns"))
+			return nil, false, fmt.Errorf(i18n.G("Can't specify --fast with --columns"))
 		}
 
 		c.flagColumns = "nsacPt"
@@ -475,7 +481,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, error) {
 	} else {
 		if c.flagColumns != defaultColumns {
 			if strings.ContainsAny(c.flagColumns, "L") {
-				return nil, fmt.Errorf(i18n.G("Can't specify column L when not clustered"))
+				return nil, false, fmt.Errorf(i18n.G("Can't specify column L when not clustered"))
 			}
 		}
 		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)
@@ -484,9 +490,10 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, error) {
 	columnList := strings.Split(c.flagColumns, ",")
 
 	columns := []column{}
+	needsData := false
 	for _, columnEntry := range columnList {
 		if columnEntry == "" {
-			return nil, fmt.Errorf(i18n.G("Empty column entry (redundant, leading or trailing command) in '%s'"), c.flagColumns)
+			return nil, false, fmt.Errorf(i18n.G("Empty column entry (redundant, leading or trailing command) in '%s'"), c.flagColumns)
 		}
 
 		// Config keys always contain a period, parse anything without a
@@ -495,25 +502,29 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, error) {
 			for _, columnRune := range columnEntry {
 				if column, ok := columnsShorthandMap[columnRune]; ok {
 					columns = append(columns, column)
+
+					if column.NeedsState || column.NeedsSnapshots {
+						needsData = true
+					}
 				} else {
-					return nil, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
+					return nil, false, fmt.Errorf(i18n.G("Unknown column shorthand char '%c' in '%s'"), columnRune, columnEntry)
 				}
 			}
 		} else {
 			cc := strings.Split(columnEntry, ":")
 			if len(cc) > 3 {
-				return nil, fmt.Errorf(i18n.G("Invalid config key column format (too many fields): '%s'"), columnEntry)
+				return nil, false, fmt.Errorf(i18n.G("Invalid config key column format (too many fields): '%s'"), columnEntry)
 			}
 
 			k := cc[0]
 			if _, err := shared.ConfigKeyChecker(k); err != nil {
-				return nil, fmt.Errorf(i18n.G("Invalid config key '%s' in '%s'"), k, columnEntry)
+				return nil, false, fmt.Errorf(i18n.G("Invalid config key '%s' in '%s'"), k, columnEntry)
 			}
 
 			column := column{Name: k}
 			if len(cc) > 1 {
 				if len(cc[1]) == 0 && len(cc) != 3 {
-					return nil, fmt.Errorf(i18n.G("Invalid name in '%s', empty string is only allowed when defining maxWidth"), columnEntry)
+					return nil, false, fmt.Errorf(i18n.G("Invalid name in '%s', empty string is only allowed when defining maxWidth"), columnEntry)
 				}
 				column.Name = cc[1]
 			}
@@ -522,10 +533,10 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, error) {
 			if len(cc) > 2 {
 				temp, err := strconv.ParseInt(cc[2], 10, 64)
 				if err != nil {
-					return nil, fmt.Errorf(i18n.G("Invalid max width (must be an integer) '%s' in '%s'"), cc[2], columnEntry)
+					return nil, false, fmt.Errorf(i18n.G("Invalid max width (must be an integer) '%s' in '%s'"), cc[2], columnEntry)
 				}
 				if temp < -1 {
-					return nil, fmt.Errorf(i18n.G("Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"), cc[2], columnEntry)
+					return nil, false, fmt.Errorf(i18n.G("Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"), cc[2], columnEntry)
 				}
 				if temp == 0 {
 					maxWidth = len(column.Name)
@@ -534,7 +545,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, error) {
 				}
 			}
 
-			column.Data = func(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+			column.Data = func(cInfo api.ContainerFull) string {
 				v, ok := cInfo.Config[k]
 				if !ok {
 					v, _ = cInfo.ExpandedConfig[k]
@@ -547,28 +558,34 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, error) {
 				}
 				return v
 			}
+
 			columns = append(columns, column)
+
+			if column.NeedsState || column.NeedsSnapshots {
+				needsData = true
+			}
 		}
 	}
-	return columns, nil
+
+	return columns, needsData, nil
 }
 
-func (c *cmdList) nameColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) nameColumnData(cInfo api.ContainerFull) string {
 	return cInfo.Name
 }
 
-func (c *cmdList) descriptionColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) descriptionColumnData(cInfo api.ContainerFull) string {
 	return cInfo.Description
 }
 
-func (c *cmdList) statusColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) statusColumnData(cInfo api.ContainerFull) string {
 	return strings.ToUpper(cInfo.Status)
 }
 
-func (c *cmdList) IP4ColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
-	if cInfo.IsActive() && cState != nil && cState.Network != nil {
+func (c *cmdList) IP4ColumnData(cInfo api.ContainerFull) string {
+	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
 		ipv4s := []string{}
-		for netName, net := range cState.Network {
+		for netName, net := range cInfo.State.Network {
 			if net.Type == "loopback" {
 				continue
 			}
@@ -590,10 +607,10 @@ func (c *cmdList) IP4ColumnData(cInfo api.Container, cState *api.ContainerState,
 	return ""
 }
 
-func (c *cmdList) IP6ColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
-	if cInfo.IsActive() && cState != nil && cState.Network != nil {
+func (c *cmdList) IP6ColumnData(cInfo api.ContainerFull) string {
+	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Network != nil {
 		ipv6s := []string{}
-		for netName, net := range cState.Network {
+		for netName, net := range cInfo.State.Network {
 			if net.Type == "loopback" {
 				continue
 			}
@@ -615,7 +632,7 @@ func (c *cmdList) IP6ColumnData(cInfo api.Container, cState *api.ContainerState,
 	return ""
 }
 
-func (c *cmdList) typeColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) typeColumnData(cInfo api.ContainerFull) string {
 	if cInfo.Ephemeral {
 		return i18n.G("EPHEMERAL")
 	}
@@ -623,27 +640,27 @@ func (c *cmdList) typeColumnData(cInfo api.Container, cState *api.ContainerState
 	return i18n.G("PERSISTENT")
 }
 
-func (c *cmdList) numberSnapshotsColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
-	if cSnaps != nil {
-		return fmt.Sprintf("%d", len(cSnaps))
+func (c *cmdList) numberSnapshotsColumnData(cInfo api.ContainerFull) string {
+	if cInfo.Snapshots != nil {
+		return fmt.Sprintf("%d", len(cInfo.Snapshots))
 	}
 
 	return ""
 }
 
-func (c *cmdList) PIDColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
-	if cInfo.IsActive() && cState != nil {
-		return fmt.Sprintf("%d", cState.Pid)
+func (c *cmdList) PIDColumnData(cInfo api.ContainerFull) string {
+	if cInfo.IsActive() && cInfo.State != nil {
+		return fmt.Sprintf("%d", cInfo.State.Pid)
 	}
 
 	return ""
 }
 
-func (c *cmdList) ArchitectureColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) ArchitectureColumnData(cInfo api.ContainerFull) string {
 	return cInfo.Architecture
 }
 
-func (c *cmdList) StoragePoolColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) StoragePoolColumnData(cInfo api.ContainerFull) string {
 	for _, v := range cInfo.ExpandedDevices {
 		if v["type"] == "disk" && v["path"] == "/" {
 			return v["pool"]
@@ -653,11 +670,11 @@ func (c *cmdList) StoragePoolColumnData(cInfo api.Container, cState *api.Contain
 	return ""
 }
 
-func (c *cmdList) ProfilesColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) ProfilesColumnData(cInfo api.ContainerFull) string {
 	return strings.Join(cInfo.Profiles, "\n")
 }
 
-func (c *cmdList) CreatedColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) CreatedColumnData(cInfo api.ContainerFull) string {
 	layout := "2006/01/02 15:04 UTC"
 
 	if shared.TimeIsSet(cInfo.CreatedAt) {
@@ -667,7 +684,7 @@ func (c *cmdList) CreatedColumnData(cInfo api.Container, cState *api.ContainerSt
 	return ""
 }
 
-func (c *cmdList) LastUsedColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) LastUsedColumnData(cInfo api.ContainerFull) string {
 	layout := "2006/01/02 15:04 UTC"
 
 	if !cInfo.LastUsedAt.IsZero() && shared.TimeIsSet(cInfo.LastUsedAt) {
@@ -677,14 +694,14 @@ func (c *cmdList) LastUsedColumnData(cInfo api.Container, cState *api.ContainerS
 	return ""
 }
 
-func (c *cmdList) NumberOfProcessesColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
-	if cInfo.IsActive() && cState != nil {
-		return fmt.Sprintf("%d", cState.Processes)
+func (c *cmdList) NumberOfProcessesColumnData(cInfo api.ContainerFull) string {
+	if cInfo.IsActive() && cInfo.State != nil {
+		return fmt.Sprintf("%d", cInfo.State.Processes)
 	}
 
 	return ""
 }
 
-func (c *cmdList) locationColumnData(cInfo api.Container, cState *api.ContainerState, cSnaps []api.ContainerSnapshot) string {
+func (c *cmdList) locationColumnData(cInfo api.ContainerFull) string {
 	return cInfo.Location
 }

@@ -27,6 +27,8 @@ type storageCeph struct {
 	storageShared
 }
 
+var cephVersion = ""
+
 func (s *storageCeph) StorageCoreInit() error {
 	s.sType = storageTypeCeph
 	typeName, err := storageTypeToString(s.sType)
@@ -35,13 +37,18 @@ func (s *storageCeph) StorageCoreInit() error {
 	}
 	s.sTypeName = typeName
 
+	if cephVersion != "" {
+		s.sTypeVersion = cephVersion
+		return nil
+	}
+
 	msg, err := shared.RunCommand("rbd", "--version")
 	if err != nil {
 		return fmt.Errorf("Error getting CEPH version: %s", err)
 	}
 	s.sTypeVersion = strings.TrimSpace(msg)
+	cephVersion = s.sTypeVersion
 
-	logger.Debugf("Initializing a CEPH driver")
 	return nil
 }
 
