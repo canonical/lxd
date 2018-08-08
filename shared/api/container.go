@@ -75,6 +75,17 @@ type Container struct {
 	Location string `json:"location" yaml:"location"`
 }
 
+// ContainerFull is a combination of Container, ContainerState and CotnainerSnapshot
+//
+// API extension: container_full
+type ContainerFull struct {
+	Container `yaml:",inline"`
+
+	Backups   []ContainerBackup   `json:"backups" yaml:"backups"`
+	State     *ContainerState     `json:"state" yaml:"state"`
+	Snapshots []ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
+}
+
 // Writable converts a full Container struct into a ContainerPut struct (filters read-only fields)
 func (c *Container) Writable() ContainerPut {
 	return c.ContainerPut
