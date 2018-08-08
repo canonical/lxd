@@ -591,12 +591,8 @@ func getRootfs(conf []string) (string, error) {
 		}
 	}
 
-	// XXX: ignore the first part (storage) for now
-	parts := strings.Split(value[0], ":")
+	// Get the rootfs path
+	parts := strings.SplitN(value[0], ":", 2)
 
-	if len(parts) != 2 {
-		return "", fmt.Errorf("Invalid container, invalid lxc.rootfs key")
-	}
-
-	return parts[1], nil
+	return parts[len(parts)-1], nil
 }
