@@ -59,7 +59,6 @@ func (s *storageZfs) StorageCoreInit() error {
 		return err
 	}
 
-	logger.Debugf("Initializing a ZFS driver")
 	return nil
 }
 

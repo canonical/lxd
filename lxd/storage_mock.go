@@ -24,7 +24,6 @@ func (s *storageMock) StorageCoreInit() error {
 	}
 	s.sTypeName = typeName
 
-	logger.Debugf("Initializing a MOCK driver")
 	return nil
 }
 
