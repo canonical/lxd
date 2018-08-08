@@ -32,7 +32,7 @@ type ConnectionArgs struct {
 	AuthType string
 
 	// Authentication interactor
-	AuthInteractor httpbakery.Interactor
+	AuthInteractor []httpbakery.Interactor
 
 	// Custom proxy
 	Proxy func(*http.Request) (*url.URL, error)

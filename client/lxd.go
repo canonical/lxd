@@ -34,7 +34,7 @@ type ProtocolLXD struct {
 	httpUserAgent   string
 
 	bakeryClient         *httpbakery.Client
-	bakeryInteractor     httpbakery.Interactor
+	bakeryInteractor     []httpbakery.Interactor
 	requireAuthenticated bool
 
 	clusterTarget string
@@ -366,6 +366,8 @@ func (r *ProtocolLXD) setupBakeryClient() {
 	r.bakeryClient = httpbakery.NewClient()
 	r.bakeryClient.Client = r.http
 	if r.bakeryInteractor != nil {
-		r.bakeryClient.AddInteractor(r.bakeryInteractor)
+		for _, interactor := range r.bakeryInteractor {
+			r.bakeryClient.AddInteractor(interactor)
+		}
 	}
 }

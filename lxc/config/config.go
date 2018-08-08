@@ -27,7 +27,7 @@ type Config struct {
 	// The UserAgent to pass for all queries
 	UserAgent string `yaml:"-"`
 
-	authInteractor httpbakery.Interactor
+	authInteractor []httpbakery.Interactor
 
 	cookiejar *cookiejar.Jar
 }
@@ -46,7 +46,7 @@ func (c *Config) ServerCertPath(remote string) string {
 }
 
 // SetAuthInteractor sets the interactor for macaroon-based authorization
-func (c *Config) SetAuthInteractor(interactor httpbakery.Interactor) {
+func (c *Config) SetAuthInteractor(interactor []httpbakery.Interactor) {
 	c.authInteractor = interactor
 }
 
