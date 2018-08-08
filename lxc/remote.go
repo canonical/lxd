@@ -91,7 +91,7 @@ func (c *cmdRemoteAdd) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagAcceptCert, "accept-certificate", false, i18n.G("Accept certificate"))
 	cmd.Flags().StringVar(&c.flagPassword, "password", "", i18n.G("Remote admin password")+"``")
 	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)")+"``")
-	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls or macaroons)")+"``")
+	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls or candid)")+"``")
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Public image server"))
 
 	return cmd
@@ -297,7 +297,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		return conf.SaveConfig(c.global.confPath)
 	}
 
-	if c.flagAuthType == "macaroons" {
+	if c.flagAuthType == "candid" {
 		d.(lxd.ContainerServer).RequireAuthenticated(false)
 	}
 

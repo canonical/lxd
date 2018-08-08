@@ -173,7 +173,7 @@ func httpsLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 		httpUserAgent:    args.UserAgent,
 		bakeryInteractor: args.AuthInteractor,
 	}
-	if args.AuthType == "macaroons" {
+	if args.AuthType == "candid" {
 		server.RequireAuthenticated(true)
 	}
 
@@ -188,7 +188,7 @@ func httpsLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	}
 
 	server.http = httpClient
-	if args.AuthType == "macaroons" {
+	if args.AuthType == "candid" {
 		server.setupBakeryClient()
 	}
 

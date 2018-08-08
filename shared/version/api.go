@@ -120,6 +120,7 @@ var APIExtensions = []string{
 	"proxy_nat",
 	"network_nat_order",
 	"container_full",
+	"candid_authentication",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
