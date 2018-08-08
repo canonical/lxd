@@ -30,6 +30,8 @@ type storageBtrfs struct {
 	storageShared
 }
 
+var btrfsVersion = ""
+
 func (s *storageBtrfs) getBtrfsMountOptions() string {
 	if s.pool.Config["btrfs.mount_options"] != "" {
 		return s.pool.Config["btrfs.mount_options"]
@@ -70,6 +72,11 @@ func (s *storageBtrfs) StorageCoreInit() error {
 	}
 	s.sTypeName = typeName
 
+	if btrfsVersion != "" {
+		s.sTypeVersion = btrfsVersion
+		return nil
+	}
+
 	out, err := exec.LookPath("btrfs")
 	if err != nil || len(out) == 0 {
 		return fmt.Errorf("The 'btrfs' tool isn't available")
@@ -84,6 +91,8 @@ func (s *storageBtrfs) StorageCoreInit() error {
 	if err != nil || count != 1 {
 		return fmt.Errorf("The 'btrfs' tool isn't working properly")
 	}
+
+	btrfsVersion = s.sTypeVersion
 
 	return nil
 }

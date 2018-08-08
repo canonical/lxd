@@ -25,6 +25,8 @@ type storageLvm struct {
 	storageShared
 }
 
+var lvmVersion = ""
+
 // Only initialize the minimal information we need about a given storage type.
 func (s *storageLvm) StorageCoreInit() error {
 	s.sType = storageTypeLvm
@@ -33,6 +35,11 @@ func (s *storageLvm) StorageCoreInit() error {
 		return err
 	}
 	s.sTypeName = typeName
+
+	if lvmVersion != "" {
+		s.sTypeVersion = lvmVersion
+		return nil
+	}
 
 	output, err := shared.RunCommand("lvm", "version")
 	if err != nil {
@@ -51,6 +58,8 @@ func (s *storageLvm) StorageCoreInit() error {
 		}
 		s.sTypeVersion += strings.TrimSpace(fields[1])
 	}
+
+	lvmVersion = s.sTypeVersion
 
 	return nil
 }
