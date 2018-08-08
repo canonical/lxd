@@ -337,9 +337,9 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 		table.AppendBulk(tableData())
 		table.Render()
 	case listFormatJSON:
-		data := make([]listContainerItem, len(cinfos))
+		data := make([]api.ContainerFull, len(cinfos))
 		for i := range cinfos {
-			data[i].Container = &cinfos[i]
+			data[i].Container = cinfos[i]
 			data[i].State = cStates[cinfos[i].Name]
 			data[i].Snapshots = cSnapshots[cinfos[i].Name]
 		}
@@ -349,9 +349,9 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 			return err
 		}
 	case listFormatYAML:
-		data := make([]listContainerItem, len(cinfos))
+		data := make([]api.ContainerFull, len(cinfos))
 		for i := range cinfos {
-			data[i].Container = &cinfos[i]
+			data[i].Container = cinfos[i]
 			data[i].State = cStates[cinfos[i].Name]
 			data[i].Snapshots = cSnapshots[cinfos[i].Name]
 		}
@@ -366,13 +366,6 @@ func (c *cmdList) listContainers(conf *config.Config, d lxd.ContainerServer, cin
 	}
 
 	return nil
-}
-
-type listContainerItem struct {
-	*api.Container
-
-	State     *api.ContainerState     `json:"state" yaml:"state"`
-	Snapshots []api.ContainerSnapshot `json:"snapshots" yaml:"snapshots"`
 }
 
 func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
