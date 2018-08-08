@@ -24,8 +24,12 @@ import (
 	"github.com/pborman/uuid"
 )
 
+// Global defaults
 var zfsUseRefquota = "false"
 var zfsRemoveSnapshots = "false"
+
+// Cache
+var zfsVersion = ""
 
 type storageZfs struct {
 	dataset string
@@ -49,6 +53,11 @@ func (s *storageZfs) StorageCoreInit() error {
 	}
 	s.sTypeName = typeName
 
+	if zfsVersion != "" {
+		s.sTypeVersion = zfsVersion
+		return nil
+	}
+
 	util.LoadModule("zfs")
 
 	if !zfsIsEnabled() {
@@ -59,6 +68,8 @@ func (s *storageZfs) StorageCoreInit() error {
 	if err != nil {
 		return err
 	}
+
+	zfsVersion = s.sTypeVersion
 
 	return nil
 }
