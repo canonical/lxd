@@ -653,7 +653,7 @@ func (c *cmdRemoteSwitch) Run(cmd *cobra.Command, args []string) error {
 	// Set the default remote
 	_, ok := conf.Remotes[args[0]]
 	if !ok {
-		return fmt.Errorf(i18n.G("Remote %s doesn't exist"), args[1])
+		return fmt.Errorf(i18n.G("Remote %s doesn't exist"), args[0])
 	}
 
 	conf.DefaultRemote = args[0]
