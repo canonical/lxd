@@ -82,17 +82,6 @@ func TestValidateConfig(t *testing.T) {
 			true,
 		},
 		{
-			"invalid lxc.rootfs key",
-			[]string{
-				"lxc.uts.name = c1",
-				"lxc.apparmor.allow_incomplete = 0",
-				"lxc.autodev = 1",
-				"lxc.rootfs = /invalid/path",
-			},
-			"Invalid container, invalid lxc.rootfs key",
-			true,
-		},
-		{
 			"non-existent rootfs path",
 			[]string{
 				"lxc.uts.name = c1",
@@ -269,16 +258,6 @@ func TestConvertStorageConfig(t *testing.T) {
 			true,
 		},
 		{
-			"invalid rootfs",
-			[]string{
-				"lxc.rootfs.path = /invalid",
-				"lxc.mount.entry = /lib /lib none ro,bind 0 0",
-			},
-			types.Devices{},
-			"Invalid container, invalid lxc.rootfs key",
-			true,
-		},
-		{
 			"ignored default mounts",
 			[]string{
 				"lxc.mount.entry = proc /proc proc defaults 0 0",
@@ -373,16 +352,16 @@ func TestGetRootfs(t *testing.T) {
 			true,
 		},
 		{
-			"invalid lxc.rootfs key",
+			"valid lxc.rootfs key (1)",
 			[]string{
 				"lxc.rootfs = foobar",
 			},
+			"foobar",
 			"",
-			"Invalid container, invalid lxc.rootfs key",
-			true,
+			false,
 		},
 		{
-			"valid lxc.rootfs key",
+			"valid lxc.rootfs key (2)",
 			[]string{
 				"lxc.rootfs = dir:foobar",
 			},
