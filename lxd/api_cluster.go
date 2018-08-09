@@ -503,7 +503,7 @@ func clusterInitMember(d, client lxd.ContainerServer, memberConfig []api.Cluster
 	// configs provided by the user.
 	for _, pool := range pools {
 		// Skip pending pools.
-		if pool.Status == "PENDING" {
+		if pool.Status == "Pending" {
 			continue
 		}
 
@@ -556,7 +556,7 @@ func clusterInitMember(d, client lxd.ContainerServer, memberConfig []api.Cluster
 	// configs provided by the user.
 	for _, network := range networks {
 		// Skip not-managed or pending networks
-		if !network.Managed || network.Status == "PENDING" {
+		if !network.Managed || network.Status == "Pending" {
 			continue
 		}
 
