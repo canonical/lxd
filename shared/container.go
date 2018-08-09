@@ -263,6 +263,10 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"security.syscalls.blacklist":         IsAny,
 	"security.syscalls.whitelist":         IsAny,
 
+	"snapshots.schedule":         IsAny,
+	"snapshots.schedule.stopped": IsBool,
+	"snapshots.pattern":          IsAny,
+
 	// Caller is responsible for full validation of any raw.* value
 	"raw.apparmor": IsAny,
 	"raw.lxc":      IsAny,
