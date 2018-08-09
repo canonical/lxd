@@ -16,6 +16,7 @@ if [ -n "${LXD_VERBOSE:-}" ]; then
   DEBUG="--verbose"
 fi
 
+export LXD_DEBUG=1
 if [ -n "${LXD_DEBUG:-}" ]; then
   DEBUG="--debug"
 fi
