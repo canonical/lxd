@@ -805,7 +805,6 @@ func networkShutdown(s *state.State) error {
 
 type network struct {
 	// Properties
-	db          *db.Node
 	state       *state.State
 	id          int64
 	name        string
