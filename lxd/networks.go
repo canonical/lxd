@@ -830,7 +830,7 @@ func networkStateGet(d *Daemon, r *http.Request) Response {
 	_, dbInfo, _ := d.cluster.NetworkGet(name)
 
 	// Sanity check
-	if osInfo == nil && dbInfo == nil {
+	if osInfo == nil || dbInfo == nil {
 		return NotFound(fmt.Errorf("Interface '%s' not found", name))
 	}
 
