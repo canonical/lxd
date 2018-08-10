@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 
@@ -1503,6 +1504,18 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 
 	if shared.IsTrue(zfsUseRefquota) {
 		property = "referenced"
+	}
+
+	// Shortcut for refquota
+	mountpoint := getContainerMountPoint(s.pool.Name, container.Name())
+	if property == "referenced" && shared.IsMountPoint(mountpoint) {
+		var stat syscall.Statfs_t
+		err := syscall.Statfs(mountpoint, &stat)
+		if err != nil {
+			return -1, err
+		}
+
+		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
 	}
 
 	value, err := zfsFilesystemEntityPropertyGet(s.getOnDiskPoolName(), fs, property)
