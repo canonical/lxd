@@ -839,7 +839,6 @@ func networkStateGet(d *Daemon, r *http.Request) Response {
 
 type network struct {
 	// Properties
-	db          *db.Node
 	state       *state.State
 	id          int64
 	name        string
