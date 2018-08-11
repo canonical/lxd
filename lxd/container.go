@@ -1123,7 +1123,7 @@ func containerConfigureInternal(c container) error {
 	storage := c.Storage()
 	if rootDiskDevice["size"] != "" {
 		storageTypeName := storage.GetStorageTypeName()
-		if storageTypeName == "lvm" && c.IsRunning() {
+		if (storageTypeName == "lvm" || storageTypeName == "ceph") && c.IsRunning() {
 			err = c.ConfigKeySet("volatile.apply_quota", rootDiskDevice["size"])
 			if err != nil {
 				return err
