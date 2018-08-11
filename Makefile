@@ -51,7 +51,7 @@ deps:
 
 	cd "$(GOPATH)/deps/dqlite" && \
 		autoreconf -i && \
-		./configure && \
+		PKG_CONFIG_PATH="$(GOPATH)/deps/sqlite/" ./configure && \
 		make CFLAGS="-I$(GOPATH)/deps/sqlite/"
 
 	# environment
