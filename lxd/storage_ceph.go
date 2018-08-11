@@ -420,7 +420,7 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 		}
 	}()
 
-	// apply quota
+	// Apply quota
 	if s.volume.Config["size"] != "" {
 		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
 		if err != nil {
@@ -880,6 +880,28 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		}
 	}()
 
+	// Apply quota
+	_, imageVol, err := s.s.Cluster.StoragePoolNodeVolumeGetType(fingerprint, db.StoragePoolVolumeTypeImage, s.poolID)
+	if err != nil {
+		return err
+	}
+
+	if s.volume.Config["size"] != "" && imageVol.Config["size"] != s.volume.Config["size"] {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		newSize := s.volume.Config["size"]
+		s.volume.Config["size"] = imageVol.Config["size"]
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, container)
+		if err != nil {
+			return err
+		}
+		s.volume.Config["size"] = newSize
+	}
+
+	// Shift if needed
 	ourMount, err := s.ContainerMount(container)
 	if err != nil {
 		return err
