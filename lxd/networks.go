@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/gorilla/mux"
 	log "github.com/lxc/lxd/shared/log15"
@@ -20,6 +22,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -830,7 +833,7 @@ func networkStateGet(d *Daemon, r *http.Request) Response {
 	_, dbInfo, _ := d.cluster.NetworkGet(name)
 
 	// Sanity check
-	if osInfo == nil && dbInfo == nil {
+	if osInfo == nil || dbInfo == nil {
 		return NotFound(fmt.Errorf("Interface '%s' not found", name))
 	}
 
@@ -839,7 +842,6 @@ func networkStateGet(d *Daemon, r *http.Request) Response {
 
 type network struct {
 	// Properties
-	db          *db.Node
 	state       *state.State
 	id          int64
 	name        string
@@ -1421,6 +1423,8 @@ func (n *network) Start() error {
 	}
 
 	// Configure the fan
+	dnsClustered := false
+	dnsClusteredAddress := ""
 	if n.config["bridge.mode"] == "fan" {
 		tunName := fmt.Sprintf("%s-fan", n.name)
 
@@ -1555,6 +1559,14 @@ func (n *network) Start() error {
 		if err != nil {
 			return err
 		}
+
+		// Setup clustered DNS
+		dnsClustered, err = cluster.Enabled(n.state.Node)
+		if err != nil {
+			return err
+		}
+
+		dnsClusteredAddress = strings.Split(fanAddress, "/")[0]
 	}
 
 	// Configure tunnels
@@ -1642,8 +1654,13 @@ func (n *network) Start() error {
 		}
 	}
 
-	// Kill any existing dnsmasq daemon for this network
+	// Kill any existing dnsmasq and forkdns daemon for this network
 	err = networkKillDnsmasq(n.name, false)
+	if err != nil {
+		return err
+	}
+
+	err = networkKillForkDNS(n.name)
 	if err != nil {
 		return err
 	}
@@ -1657,7 +1674,13 @@ func (n *network) Start() error {
 		}
 
 		if n.config["dns.mode"] != "none" {
-			dnsmasqCmd = append(dnsmasqCmd, []string{"-s", dnsDomain, "-S", fmt.Sprintf("/%s/", dnsDomain)}...)
+			if dnsClustered {
+				dnsmasqCmd = append(dnsmasqCmd, []string{"-s", "__internal", "-S", "/__internal/"}...)
+				dnsmasqCmd = append(dnsmasqCmd, []string{"-S", fmt.Sprintf("/%s/%s#1053", dnsDomain, dnsClusteredAddress)}...)
+				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--dhcp-option=15,%s", dnsDomain))
+			} else {
+				dnsmasqCmd = append(dnsmasqCmd, []string{"-s", dnsDomain, "-S", fmt.Sprintf("/%s/", dnsDomain)}...)
+			}
 		}
 
 		// Create a config file to contain additional config (and to prevent dnsmasq from reading /etc/dnsmasq.conf)
@@ -1702,6 +1725,11 @@ func (n *network) Start() error {
 		err = networkUpdateStatic(n.state, n.name)
 		if err != nil {
 			return err
+		}
+
+		// Spawn DNS forwarder if needed (backgrounded to avoid deadlocks during cluster boot)
+		if dnsClustered {
+			go n.spawnForkDNS(dnsClusteredAddress)
 		}
 	}
 
@@ -1752,8 +1780,13 @@ func (n *network) Stop() error {
 		return err
 	}
 
-	// Kill any existing dnsmasq daemon for this network
+	// Kill any existing dnsmasq and forkdns daemon for this network
 	err = networkKillDnsmasq(n.name, false)
+	if err != nil {
+		return err
+	}
+
+	err = networkKillForkDNS(n.name)
 	if err != nil {
 		return err
 	}
@@ -1895,6 +1928,83 @@ func (n *network) Update(newNetwork api.NetworkPut) error {
 
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
+
+	return nil
+}
+
+func (n *network) spawnForkDNS(listenAddress string) error {
+	// Get the list of nodes
+	nodes, err := cluster.List(n.state)
+	if err != nil {
+		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
+		return err
+	}
+
+	localAddress, err := node.HTTPSAddress(n.state.Node)
+	if err != nil {
+		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
+		return err
+	}
+
+	// Grab the network address from the various nodes
+	addresses := []string{listenAddress}
+
+	cert := n.state.Endpoints.NetworkCert()
+	for _, node := range nodes {
+		address := strings.TrimPrefix(node.URL, "https://")
+		if address == localAddress {
+			continue
+		}
+
+	again:
+		client, err := cluster.Connect(address, cert, false)
+		if err != nil {
+			time.Sleep(30 * time.Second)
+			goto again
+		}
+
+		state, err := client.GetNetworkState(n.name)
+		if err != nil {
+			time.Sleep(30 * time.Second)
+			goto again
+		}
+
+		for _, addr := range state.Addresses {
+			if addr.Family != "inet" || addr.Scope != "global" {
+				continue
+			}
+
+			addresses = append(addresses, addr.Address)
+			break
+		}
+	}
+
+	// Setup the dnsmasq domain
+	dnsDomain := n.config["dns.domain"]
+	if dnsDomain == "" {
+		dnsDomain = "lxd"
+	}
+
+	// Spawn the daemon
+	cmd := exec.Cmd{}
+	cmd.Path = n.state.OS.ExecPath
+	cmd.Args = []string{n.state.OS.ExecPath, "forkdns", fmt.Sprintf("%s:1053", listenAddress), dnsDomain}
+	cmd.Args = append(cmd.Args, addresses...)
+
+	err = cmd.Start()
+	if err != nil {
+		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
+		return err
+	}
+
+	// Write the PID file
+	pidPath := shared.VarPath("networks", n.name, "forkdns.pid")
+	err = ioutil.WriteFile(pidPath, []byte(fmt.Sprintf("%d\n", cmd.Process.Pid)), 0600)
+	if err != nil {
+		syscall.Kill(cmd.Process.Pid, syscall.SIGKILL)
+		logger.Errorf("Failed to start forkdns for network '%s': %v", n.name, err)
+		return err
+	}
 
 	return nil
 }
