@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -657,6 +658,56 @@ func networkFanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string,
 	ipBytes[3] = 1
 
 	return fmt.Sprintf("%s/%d", ipBytes.String(), overlaySize), dev, ipStr, err
+}
+
+func networkKillForkDNS(name string) error {
+	// Check if we have a running forkdns at all
+	pidPath := shared.VarPath("networks", name, "forkdns.pid")
+	if !shared.PathExists(pidPath) {
+		return nil
+	}
+
+	// Grab the PID
+	content, err := ioutil.ReadFile(pidPath)
+	if err != nil {
+		return err
+	}
+	pid := strings.TrimSpace(string(content))
+
+	// Check for empty string
+	if pid == "" {
+		os.Remove(pidPath)
+		return nil
+	}
+
+	// Check if it's forkdns
+	cmdArgs, err := ioutil.ReadFile(fmt.Sprintf("/proc/%s/cmdline", pid))
+	if err != nil {
+		os.Remove(pidPath)
+		return nil
+	}
+
+	cmdFields := strings.Split(string(bytes.TrimRight(cmdArgs, string("\x00"))), string(byte(0)))
+	if len(cmdFields) < 5 || cmdFields[1] != "forkdns" {
+		os.Remove(pidPath)
+		return nil
+	}
+
+	// Parse the pid
+	pidInt, err := strconv.Atoi(pid)
+	if err != nil {
+		return err
+	}
+
+	// Actually kill the process
+	err = syscall.Kill(pidInt, syscall.SIGKILL)
+	if err != nil {
+		return err
+	}
+
+	// Cleanup
+	os.Remove(pidPath)
+	return nil
 }
 
 func networkKillDnsmasq(name string, reload bool) error {
