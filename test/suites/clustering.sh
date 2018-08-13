@@ -281,13 +281,21 @@ test_clustering_containers() {
   LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node3"
 
   # Move the container on node3 to node1, using a client connected to
-  # node2 and a different container name than the original one.
+  # node2 and a different container name than the original one. The
+  # volatile.apply_template config key is preserved.
+  apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get bar volatile.apply_template)
   LXD_DIR="${LXD_TWO_DIR}" lxc move bar egg --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node1"
+  apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
+  [ "${apply_template1}" =  "${apply_template2}" ] || false
 
   # Move back to node3 the container on node1, keeping the same name.
+  apply_template1=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
   LXD_DIR="${LXD_TWO_DIR}" lxc move egg --target node3
   LXD_DIR="${LXD_ONE_DIR}" lxc info egg | grep -q "Location: node3"
+  apply_template2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get egg volatile.apply_template)
+  [ "${apply_template1}" =  "${apply_template2}" ] || false
+
   LXD_DIR="${LXD_THREE_DIR}" lxc delete egg
 
   # Delete the network now, since we're going to shutdown node2 and it
