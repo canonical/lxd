@@ -1480,3 +1480,9 @@ func (s *storageDir) StoragePoolVolumeSnapshotDelete() error {
 	logger.Infof("Deleted DIR storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
+
+func (s *storageDir) StoragePoolVolumeSnapshotRename(newName string) error {
+	msg := fmt.Sprintf("Function not implemented")
+	logger.Errorf(msg)
+	return fmt.Errorf(msg)
+}

@@ -2423,3 +2423,9 @@ func (s *storageLvm) StoragePoolVolumeSnapshotDelete() error {
 	logger.Infof("Deleted LVM storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
+
+func (s *storageLvm) StoragePoolVolumeSnapshotRename(newName string) error {
+	msg := fmt.Sprintf("Function not implemented")
+	logger.Errorf(msg)
+	return fmt.Errorf(msg)
+}

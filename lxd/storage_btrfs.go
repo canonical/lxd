@@ -3021,3 +3021,9 @@ func (s *storageBtrfs) StoragePoolVolumeSnapshotDelete() error {
 	logger.Infof("Deleted BTRFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return nil
 }
+
+func (s *storageBtrfs) StoragePoolVolumeSnapshotRename(newName string) error {
+	msg := fmt.Sprintf("Function not implemented")
+	logger.Errorf(msg)
+	return fmt.Errorf(msg)
+}

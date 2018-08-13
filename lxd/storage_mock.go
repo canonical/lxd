@@ -281,3 +281,9 @@ func (s *storageMock) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeS
 func (s *storageMock) StoragePoolVolumeSnapshotDelete() error {
 	return nil
 }
+
+func (s *storageMock) StoragePoolVolumeSnapshotRename(newName string) error {
+	msg := fmt.Sprintf("Function not implemented")
+	logger.Errorf(msg)
+	return fmt.Errorf(msg)
+}
