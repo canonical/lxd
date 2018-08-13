@@ -1210,20 +1210,53 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 			}
 		}
 
-		// Remove the rootfs file for the image.
-		fname = shared.VarPath("images", imgInfo.Fingerprint) + ".rootfs"
-		if shared.PathExists(fname) {
-			err = os.Remove(fname)
-			if err != nil {
-				logger.Debugf("Error deleting image file %s: %s", fname, err)
-			}
+		imageDeleteFromDisk(imgInfo.Fingerprint)
+
+		err = d.cluster.ImageDelete(imgID)
+		if err != nil {
+			return errors.Wrap(err, "Error deleting image info from the database")
 		}
 
-		// Remove the database entry for the image.
-		return d.cluster.ImageDelete(imgID)
+		// Notify the other nodes about the removed image.
+		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), cluster.NotifyAlive)
+		if err != nil {
+			// This isn't fatal.
+			logger.Warnf("Error notifying other nodes about image removal: %v", err)
+			return nil
+		}
+
+		err = notifier(func(client lxd.ContainerServer) error {
+			op, err := client.DeleteImage(imgInfo.Fingerprint)
+			if err != nil {
+				return errors.Wrap(err, "Failed to request to delete image from peer node")
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return errors.Wrap(err, "Failed to delete image from peer node")
+			}
+
+			return nil
+		})
+		if err != nil {
+			// This isn't fatal.
+			logger.Warnf("Failed to notify other nodes about removed image: %v", err)
+			return nil
+		}
+
+		return nil
+	}
+
+	deleteFromDisk := func() error {
+		imageDeleteFromDisk(fingerprint)
+		return nil
 	}
 
 	rmimg := func(op *operation) error {
+		if isClusterNotification(r) {
+			return deleteFromDisk()
+		}
+
 		return deleteFromAllPools()
 	}
 
@@ -1236,6 +1269,27 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	return OperationResponse(op)
+}
+
+// Helper to delete an image file from the local images directory.
+func imageDeleteFromDisk(fingerprint string) {
+	// Remove main image file.
+	fname := shared.VarPath("images", fingerprint)
+	if shared.PathExists(fname) {
+		err := os.Remove(fname)
+		if err != nil {
+			logger.Debugf("Error deleting image file %s: %s", fname, err)
+		}
+	}
+
+	// Remove the rootfs file for the image.
+	fname = shared.VarPath("images", fingerprint) + ".rootfs"
+	if shared.PathExists(fname) {
+		err := os.Remove(fname)
+		if err != nil {
+			logger.Debugf("Error deleting image file %s: %s", fname, err)
+		}
+	}
 }
 
 func doImageGet(db *db.Cluster, fingerprint string, public bool) (*api.Image, Response) {
