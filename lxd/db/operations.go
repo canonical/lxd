@@ -51,6 +51,7 @@ const (
 	OperationVolumeMigrate
 	OperationVolumeMove
 	OperationVolumeSnapshotCreate
+	OperationVolumeSnapshotDelete
 )
 
 // Description return a human-readable description of the operation type.
@@ -124,6 +125,8 @@ func (t OperationType) Description() string {
 		return "Moving storage volume"
 	case OperationVolumeSnapshotCreate:
 		return "Creating storage volume snapshot"
+	case OperationVolumeSnapshotDelete:
+		return "Deleting storage volume snapshot"
 	default:
 		return "Executing operation"
 
