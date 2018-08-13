@@ -33,7 +33,7 @@ later to work. On ubuntu, you can get those with:
 
 ```bash
 sudo apt update
-sudo apt install acl dnsmasq-base git golang liblxc1 lxc-dev libacl1-dev make pkg-config rsync squashfs-tools tar xz-utils
+sudo apt install acl dnsmasq-base git golang libcap-dev liblxc1 liblxc-dev libacl1-dev make pkg-config rsync squashfs-tools tar xz-utils
 ```
 
 Note that when building LXC yourself, ensure to build it with the appropriate
@@ -75,6 +75,7 @@ And then download it as usual:
 ```bash
 go get -d -v github.com/lxc/lxd/lxd
 cd $GOPATH/src/github.com/lxc/lxd
+make deps
 make
 ```
 
