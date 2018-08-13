@@ -36,7 +36,7 @@ deps:
 	fi
 
 	cd "$(GOPATH)/deps/sqlite" && \
-		./configure --enable-replication && \
+		./configure --enable-replication --disable-amalgamation --disable-tcl && \
 		git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest && \
 		git log -1 --format="format:%H" > manifest.uuid && \
 		make
