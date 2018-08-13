@@ -1062,6 +1062,43 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 	// Parse the input
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 
+	isSnapshot := false
+	fields := strings.Split(volName, "/")
+	if len(fields) > 1 {
+		isSnapshot = true
+	} else if len(fields) > 2 {
+		return fmt.Errorf("Invalid snapshot name")
+	}
+
+	if isSnapshot {
+		// Create the storage volume entry
+		vol := api.StorageVolumeSnapshotPost{}
+		vol.Name = args[2]
+
+		// If a target member was specified, get the volume with the matching
+		// name on that member, if any.
+		if c.storage.flagTarget != "" {
+			client = client.UseTarget(c.storage.flagTarget)
+		}
+
+		if len(fields) != 2 {
+			return fmt.Errorf("Not a snapshot name")
+		}
+
+		op, err := client.RenameStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], vol)
+		if err != nil {
+			return err
+		}
+
+		err = op.Wait()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf(i18n.G(`Renamed storage volume from "%s" to "%s"`)+"\n", volName, vol.Name)
+		return nil
+	}
+
 	// Create the storage volume entry
 	vol := api.StorageVolumePost{}
 	vol.Name = args[2]
@@ -1078,7 +1115,6 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf(i18n.G(`Renamed storage volume from "%s" to "%s"`)+"\n", volName, vol.Name)
-
 	return nil
 }
 
