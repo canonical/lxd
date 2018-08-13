@@ -145,12 +145,15 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		if c.flagStateless {
 			return fmt.Errorf(i18n.G("The --stateless flag can't be used with --target"))
 		}
+
 		if c.flagContainerOnly {
 			return fmt.Errorf(i18n.G("The --container-only flag can't be used with --target"))
 		}
+
 		if c.flagMode != moveDefaultMode {
 			return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
 		}
+
 		return moveClusterContainer(conf, sourceResource, destResource, c.flagTarget)
 	}
 

@@ -185,9 +185,10 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			// here only to handle the case where the container is
 			// ceph-based.
 			if sourceNodeOffline {
-				err := fmt.Errorf("The cluster node hosting the container is offline")
+				err := fmt.Errorf("The cluster member hosting the container is offline")
 				return SmartError(err)
 			}
+
 			return containerPostClusteringMigrate(d, c, name, req.Name, targetNode)
 		}
 
@@ -279,13 +280,13 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 		// Connect to the source host, i.e. ourselves (the node the container is running on).
 		source, err := cluster.Connect(sourceAddress, cert, false)
 		if err != nil {
-			return errors.Wrap(err, "Failed to connect to local node")
+			return errors.Wrap(err, "Failed to connect to source server")
 		}
 
 		// Connect to the destination host, i.e. the node to migrate the container to.
 		dest, err := cluster.Connect(targetAddress, cert, false)
 		if err != nil {
-			return errors.Wrap(err, "Failed to connect to local node")
+			return errors.Wrap(err, "Failed to connect to destination server")
 		}
 		dest = dest.UseTarget(newNode)
 
@@ -307,10 +308,8 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 		}
 
 		args := lxd.ContainerCopyArgs{
-			Name:          destName,
-			Live:          true,
-			ContainerOnly: false,
-			Mode:          "pull",
+			Name: destName,
+			Mode: "pull",
 		}
 
 		copyOp, err := dest.CopyContainer(source, *entry, &args)
