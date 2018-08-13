@@ -1043,6 +1043,40 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
+func pruneLeftoverImages(d *Daemon) {
+	logger.Infof("Pruning leftover image files")
+
+	// Get all images
+	images, err := d.cluster.ImagesGet(false)
+	if err != nil {
+		logger.Error("Unable to retrieve the list of images", log.Ctx{"err": err})
+		return
+	}
+
+	// Look at what's in the images directory
+	entries, err := ioutil.ReadDir(shared.VarPath("images"))
+	if err != nil {
+		logger.Error("Unable to list the images directory", log.Ctx{"err": err})
+		return
+	}
+
+	// Check and delete leftovers
+	for _, entry := range entries {
+		fp := strings.Split(entry.Name(), ".")[0]
+		if !shared.StringInSlice(fp, images) {
+			err = os.RemoveAll(shared.VarPath("images", entry.Name()))
+			if err != nil {
+				logger.Error("Unable to remove leftover image", log.Ctx{"err": err, "file": entry.Name()})
+				continue
+			}
+
+			logger.Debugf("Removed leftover image file: %s", entry.Name())
+		}
+	}
+
+	logger.Infof("Done pruning leftover image files")
+}
+
 func pruneExpiredImages(ctx context.Context, d *Daemon) {
 	logger.Infof("Pruning expired images")
 
