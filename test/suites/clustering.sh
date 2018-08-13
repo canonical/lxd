@@ -144,6 +144,10 @@ test_clustering_membership() {
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node3
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
+  # The image got deleted from the LXD_DIR tree.
+  # shellcheck disable=2086
+  [ "$(ls ${LXD_FOUR_DIR}/images)" = "" ] || false
+
   # Remove a node gracefully.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list
