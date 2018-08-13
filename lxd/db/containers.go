@@ -557,6 +557,11 @@ ORDER BY containers_profiles.apply_order
 	return containers, nil
 }
 
+// ContainerConfigInsert inserts a new config for the container with the given ID.
+func (c *ClusterTx) ContainerConfigInsert(id int, config map[string]string) error {
+	return ContainerConfigInsert(c.tx, id, config)
+}
+
 // ContainerRemove removes the container with the given name from the database.
 func (c *Cluster) ContainerRemove(name string) error {
 	id, err := c.ContainerID(name)
