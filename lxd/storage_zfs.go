@@ -3117,7 +3117,21 @@ func (s *storageZfs) StoragePoolVolumeSnapshotDelete() error {
 }
 
 func (s *storageZfs) StoragePoolVolumeSnapshotRename(newName string) error {
-	msg := fmt.Sprintf("Function not implemented")
-	logger.Errorf(msg)
-	return fmt.Errorf(msg)
+	logger.Infof("Renaming ZFS storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
+
+	sourceName, snapshotOnlyName, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	if !ok {
+		return fmt.Errorf("Not a snapshot name")
+	}
+
+	oldZfsDatasetName := fmt.Sprintf("snapshot-%s", snapshotOnlyName)
+	newZfsDatasetName := fmt.Sprintf("snapshot-%s", newName)
+	err := zfsPoolVolumeSnapshotRename(s.getOnDiskPoolName(), fmt.Sprintf("custom/%s", sourceName), oldZfsDatasetName, newZfsDatasetName)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Renamed ZFS storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
+
+	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, newName, storagePoolVolumeTypeCustom, s.poolID)
 }
