@@ -94,7 +94,7 @@ Now you can run the daemon (the `--group` sudo bit allows everyone in the sudo
 group to talk to LXD; you can create your own group if you want):
 
 ```bash
-sudo -E $GOPATH/bin/lxd --group sudo
+sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH $GOPATH/bin/lxd --group sudo
 ```
 
 ## Getting started with LXD
