@@ -179,6 +179,22 @@ func (r *ProtocolLXD) GetStoragePoolVolumeSnapshot(pool string, volumeType strin
 	return &snapshot, etag, nil
 }
 
+// RenameStoragePoolVolumeSnapshot renames a storage volume snapshot
+func (r *ProtocolLXD) RenameStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string, snapshot api.StorageVolumeSnapshotPost) (Operation, error) {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
+	}
+
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots/%s", url.QueryEscape(pool), url.QueryEscape(volumeType), url.QueryEscape(volumeName), url.QueryEscape(snapshotName))
+	// Send the request
+	op, _, err := r.queryOperation("POST", path, snapshot, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // DeleteStoragePoolVolumeSnapshot deletes a storage volume snapshot
 func (r *ProtocolLXD) DeleteStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string) (Operation, error) {
 	if !r.HasExtension("storage_api_volume_snapshots") {
