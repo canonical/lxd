@@ -849,6 +849,18 @@ func (s *storageLvm) StoragePoolVolumeRename(newName string) error {
 			s.volume.Name, newName, err)
 	}
 
+	sourceName, _, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	if !ok {
+		return fmt.Errorf("Not a snapshot name")
+	}
+	fullSnapshotName := fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
+	oldPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	newPath := getStoragePoolVolumeMountPoint(s.pool.Name, fullSnapshotName)
+	err = os.Rename(oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
 	logger.Infof(`Renamed ZFS storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
