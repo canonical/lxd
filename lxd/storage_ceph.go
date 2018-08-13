@@ -686,6 +686,13 @@ func (s *storageCeph) StoragePoolVolumeRename(newName string) error {
 	logger.Debugf(`Mapped RBD storage volume for container "%s" on storage pool "%s"`,
 		newName, s.pool.Name)
 
+	oldPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	newPath := getStoragePoolVolumeMountPoint(s.pool.Name, newName)
+	err = os.Rename(oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
 	logger.Infof(`Renamed CEPH storage volume on OSD storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
