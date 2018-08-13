@@ -573,6 +573,9 @@ func (d *Daemon) init() error {
 	/* Log expiry */
 	d.tasks.Add(expireLogsTask(d.State()))
 
+	// Cleanup leftover images
+	pruneLeftoverImages(d)
+
 	/* Setup the proxy handler, external authentication and MAAS */
 	macaroonEndpoint := ""
 	maasAPIURL := ""
