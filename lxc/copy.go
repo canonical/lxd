@@ -87,7 +87,6 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	if err != nil {
 		return err
 	}
-	source = source.UseTarget(c.flagTarget)
 
 	// Connect to the destination host
 	var dest lxd.ContainerServer
@@ -215,6 +214,7 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		}
 
 		// Do the actual copy
+		dest = dest.UseTarget(c.flagTarget)
 		op, err = dest.CopyContainerSnapshot(source, srcFields[0], *entry, &args)
 		if err != nil {
 			return err
@@ -298,6 +298,7 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		}
 
 		// Do the actual copy
+		dest = dest.UseTarget(c.flagTarget)
 		op, err = dest.CopyContainer(source, *entry, &args)
 		if err != nil {
 			return err
