@@ -32,7 +32,7 @@ deps:
 		cd "$(GOPATH)/deps/sqlite"; \
 		git pull; \
 	else \
-		git clone "https://github.com/CanonicalLtd/sqlite" "$(GOPATH)/deps/sqlite"; \
+		git clone --depth=1 "https://github.com/CanonicalLtd/sqlite" "$(GOPATH)/deps/sqlite"; \
 	fi
 
 	cd "$(GOPATH)/deps/sqlite" && \
@@ -46,7 +46,7 @@ deps:
 		cd "$(GOPATH)/deps/dqlite"; \
 		git pull; \
 	else \
-		git clone "https://github.com/CanonicalLtd/dqlite" "$(GOPATH)/deps/dqlite"; \
+		git clone --depth=1 "https://github.com/CanonicalLtd/dqlite" "$(GOPATH)/deps/dqlite"; \
 	fi
 
 	cd "$(GOPATH)/deps/dqlite" && \
@@ -109,8 +109,8 @@ dist:
 	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/dist go get -t -v -d ./...
 
 	# Download the cluster-enabled sqlite/dqlite
-	git clone https://github.com/CanonicalLtd/dqlite $(TMP)/dist/dqlite
-	git clone https://github.com/CanonicalLtd/sqlite $(TMP)/dist/sqlite
+	git clone --depth=1 https://github.com/CanonicalLtd/dqlite $(TMP)/dist/dqlite
+	git clone --depth=1 https://github.com/CanonicalLtd/sqlite $(TMP)/dist/sqlite
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%ci%n" | sed -e 's/ [-+].*$$//;s/ /T/;s/^/D /' > manifest
 	cd $(TMP)/dist/sqlite && git log -1 --format="format:%H" > manifest.uuid
 
