@@ -24,3 +24,10 @@ type StorageVolumeSnapshot struct {
 	Config      map[string]string `json:"config" yaml:"config"`
 	Description string            `json:"description" yaml:"description"`
 }
+
+// StorageVolumeSnapshotPut represents the modifiable fields of a LXD storage volume
+//
+// API extension: storage_api_volume_snapshots
+type StorageVolumeSnapshotPut struct {
+	Description string `json:"description" yaml:"description"`
+}
