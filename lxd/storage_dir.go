@@ -644,7 +644,7 @@ func (s *storageDir) copySnapshot(target container, targetPool string, source co
 
 	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
 	containersPath := getSnapshotMountPoint(targetPool, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", targetPool, "snapshots", targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", targetPool, "containers-snapshots", targetParentName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
@@ -957,8 +957,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name,
 		targetContainerName)
 	sourceName, _, _ := containerGetParentAndSnapshotName(targetContainerName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
-		s.pool.Name, "snapshots", sourceName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 	err = createSnapshotMountpoint(targetContainerMntPoint,
 		snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -1285,8 +1284,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 	if len(info.Snapshots) > 0 {
 		// Create mountpoints
 		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, info.Name)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name,
-			"snapshots", info.Name)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", info.Name)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", info.Name)
 		err := createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget,
 			snapshotMntPointSymlink)

@@ -899,7 +899,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 	if container.IsSnapshot() {
 		containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
 		sourceName, _, _ := containerGetParentAndSnapshotName(containerName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err := os.MkdirAll(containerMntPoint, 0711)
 		if err != nil {
@@ -1045,7 +1045,7 @@ func lvmContainerDeleteInternal(poolName string, ctName string, isSnapshot bool,
 	var err error
 	if isSnapshot {
 		sourceName, _, _ := containerGetParentAndSnapshotName(ctName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", poolName, "snapshots", sourceName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", poolName, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = deleteSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
@@ -1946,8 +1946,7 @@ func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool
 	if snapshot {
 		cname, _, _ := containerGetParentAndSnapshotName(containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", cname)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots",
-			cname)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", cname)
 		err = createSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget,
 			snapshotMntPointSymlink)
 	} else {

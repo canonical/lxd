@@ -1260,20 +1260,9 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 				s.pool.Name,
 				newTargetName)
 
-			snapshotMntPointSymlinkTarget := shared.VarPath(
-				"storage-pools",
-				s.pool.Name,
-				"snapshots",
-				targetContainerName)
-
-			snapshotMntPointSymlink := shared.VarPath(
-				"snapshots",
-				targetContainerName)
-
-			err := createSnapshotMountpoint(
-				containersPath,
-				snapshotMntPointSymlinkTarget,
-				snapshotMntPointSymlink)
+			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", targetContainerName)
+			snapshotMntPointSymlink := shared.VarPath("snapshots", targetContainerName)
+			err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
 				logger.Errorf(`Failed to create mountpoint "%s", snapshot symlink target "%s", snapshot mountpoint symlink"%s" for RBD storage volume "%s" on storage pool "%s": %s`, containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink, s.volume.Name, s.pool.Name, err)
 				return err
@@ -1683,8 +1672,7 @@ func (s *storageCeph) ContainerSnapshotDelete(snapshotContainer container) error
 		logger.Debugf(`Deleted snapshot directory  "%s" of RBD snapshot "%s" of container "%s" on storage pool "%s"`, snapshotContainerPath, sourceContainerSnapOnlyName, sourceContainerName, s.OSDPoolName)
 
 		// remove the snapshot symlink if possible
-		snapshotSymlink := shared.VarPath("snapshots",
-			sourceContainerName)
+		snapshotSymlink := shared.VarPath("snapshots", sourceContainerName)
 		if shared.PathExists(snapshotSymlink) {
 			err := os.Remove(snapshotSymlink)
 			if err != nil {

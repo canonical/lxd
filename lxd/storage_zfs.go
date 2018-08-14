@@ -324,7 +324,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 		return err
 	}
 
-	fixperms = shared.VarPath("storage-pools", s.pool.Name, "snapshots")
+	fixperms = shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots")
 	err = os.MkdirAll(fixperms, snapshotsDirMode)
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -1100,7 +1100,7 @@ func (s *storageZfs) copyWithSnapshots(target container, source container, paren
 	sourceName := source.Name()
 	targetParentName, targetSnapOnlyName, _ := containerGetParentAndSnapshotName(target.Name())
 	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", targetParentName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
@@ -1554,7 +1554,7 @@ func (s *storageZfs) doContainerSnapshotCreate(targetName string, sourceName str
 		}
 	}
 
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceContainerName)
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -1725,7 +1725,7 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 		}
 	}
 
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", oldcName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", oldcName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", oldcName)
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -2180,7 +2180,7 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 
 		// create mountpoint
 		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, fmt.Sprintf("%s/%s", containerName, snapshotOnlyName))
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", containerName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 		err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
@@ -2713,7 +2713,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	}
 
 	if len(snapshots) > 0 {
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", s.volume.Name)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", s.volume.Name)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", container.Name())
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)

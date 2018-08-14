@@ -52,7 +52,7 @@ func (s *storageBtrfs) getContainerSubvolumePath(poolName string) string {
 
 // ${LXD_DIR}/storage-pools/<pool>/snapshots
 func getSnapshotSubvolumePath(poolName string, containerName string) string {
-	return shared.VarPath("storage-pools", poolName, "snapshots", containerName)
+	return shared.VarPath("storage-pools", poolName, "containers-snapshots", containerName)
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/images
@@ -958,7 +958,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 
 	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
 	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", targetParentName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
@@ -1303,7 +1303,7 @@ func (s *storageBtrfs) doContainerSnapshotCreate(targetName string, sourceName s
 		}
 	}
 
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", s.volume.Name)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", s.volume.Name)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		if !shared.PathExists(snapshotMntPointSymlinkTarget) {
@@ -1491,7 +1491,7 @@ func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container)
 		return err
 	}
 
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		err := createContainerMountpoint(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink, snapshotContainer.IsPrivileged())
@@ -1559,7 +1559,7 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(backup backup, source co
 		for i, snap := range snapshots {
 			prev := ""
 			if i > 0 {
-				// /var/lib/lxd/storage-pools/<pool>/snapshots/<container>/<snapshot>
+				// /var/lib/lxd/storage-pools/<pool>/containers-snapshots/<container>/<snapshot>
 				prev = getSnapshotMountPoint(s.pool.Name, snapshots[i-1].Name())
 			}
 
@@ -1821,7 +1821,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 
 		// create mountpoint
 		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", containerName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 		err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
@@ -2660,7 +2660,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			return err
 		}
 
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", containerPool, "snapshots", containerName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", containerPool, "containers-snapshots", containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -2707,7 +2707,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 				return err
 			}
 
-			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", containerName)
+			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", containerName)
 			snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 			err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {

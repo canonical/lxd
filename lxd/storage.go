@@ -585,7 +585,7 @@ func getContainerMountPoint(poolName string, containerName string) string {
 
 // ${LXD_DIR}/storage-pools/<pool>/snapshots/<snapshot_name>
 func getSnapshotMountPoint(poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "snapshots", snapshotName)
+	return shared.VarPath("storage-pools", poolName, "containers-snapshots", snapshotName)
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>
