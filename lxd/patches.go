@@ -58,6 +58,7 @@ var patches = []patch{
 	{name: "storage_api_permissions", run: patchStorageApiPermissions},
 	{name: "container_config_regen", run: patchContainerConfigRegen},
 	{name: "lvm_node_specific_config_keys", run: patchLvmNodeSpecificConfigKeys},
+	{name: "candid_rename_config_key", run: patchCandidConfigKey},
 }
 
 type patch struct {
@@ -2938,6 +2939,26 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 	}
 
 	return nil
+}
+
+func patchCandidConfigKey(name string, d *Daemon) error {
+	return d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		config, err := tx.Config()
+		if err != nil {
+			return err
+		}
+
+		value, ok := config["core.macaroon.endpoint"]
+		if !ok {
+			// Nothing to do
+			return nil
+		}
+
+		return tx.UpdateConfig(map[string]string{
+			"core.macaroon.endpoint": "",
+			"candid.api.url":         value,
+		})
+	})
 }
 
 // Patches end here
