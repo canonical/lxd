@@ -1064,10 +1064,8 @@ func (s *storageDir) ContainerBackupCreate(backup backup, sourceContainer contai
 
 	// Create the path for the backup.
 	baseMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
-	targetBackupContainerMntPoint := fmt.Sprintf("%s/container",
-		baseMntPoint)
-	targetBackupSnapshotsMntPoint := fmt.Sprintf("%s/snapshots",
-		baseMntPoint)
+	targetBackupContainerMntPoint := fmt.Sprintf("%s/container", baseMntPoint)
+	targetBackupSnapshotsMntPoint := fmt.Sprintf("%s/snapshots", baseMntPoint)
 
 	err = os.MkdirAll(targetBackupContainerMntPoint, 0711)
 	if err != nil {
@@ -1267,16 +1265,14 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 
 	// Create mountpoints
 	containerMntPoint := getContainerMountPoint(s.pool.Name, info.Name)
-	err = createContainerMountpoint(containerMntPoint, containerPath(info.Name, false),
-		info.Privileged)
+	err = createContainerMountpoint(containerMntPoint, containerPath(info.Name, false), info.Privileged)
 	if err != nil {
 		return err
 	}
 
 	// Extract container
 	data.Seek(0, 0)
-	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf",
-		"-", "--strip-components=2", "--xattrs-include=*", "-C", containerMntPoint, "backup/container")
+	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-", "--strip-components=2", "--xattrs-include=*", "-C", containerMntPoint, "backup/container")
 	if err != nil {
 		return err
 	}
@@ -1286,16 +1282,14 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, info.Name)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", info.Name)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", info.Name)
-		err := createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget,
-			snapshotMntPointSymlink)
+		err := createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			return err
 		}
 
 		// Extract snapshots
 		data.Seek(0, 0)
-		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-			"--strip-components=2", "--xattrs-include=*", "-C", snapshotMntPoint, "backup/snapshots")
+		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-", "--strip-components=2", "--xattrs-include=*", "-C", snapshotMntPoint, "backup/snapshots")
 		if err != nil {
 			return err
 		}

@@ -871,8 +871,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		sourceName, _, _ := containerGetParentAndSnapshotName(snap.Name)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
-		err = createSnapshotMountpoint(snapshotMountPoint,
-			snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err = createSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			return InternalError(err)
 		}
