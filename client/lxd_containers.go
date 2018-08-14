@@ -280,8 +280,18 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 		req.Source.Live = container.StatusCode == api.Running
 	}
 
+	sourceInfo, err := source.GetConnectionInfo()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get source connection info: %v", err)
+	}
+
+	destInfo, err := r.GetConnectionInfo()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get source connection info: %v", err)
+	}
+
 	// Optimization for the local copy case
-	if r == source && !r.IsClustered() {
+	if destInfo.URL == sourceInfo.URL && !r.IsClustered() {
 		// Local copy source fields
 		req.Source.Type = "copy"
 		req.Source.Source = container.Name

@@ -725,7 +725,7 @@ Input:
         "ephemeral": true
     }
 
-### POST
+### POST (optional `?target=<member>`)
  * Description: used to rename/migrate the container
  * Authentication: trusted
  * Operation: async
@@ -739,7 +739,7 @@ Input (simple rename):
         "name": "new-name"
     }
 
-Input (migration across lxd instances):
+Input (migration across lxd instances or lxd cluster members):
 
     {
         "name": "new-name"
@@ -749,6 +749,8 @@ Input (migration across lxd instances):
 
 The migration does not actually start until someone (i.e. another lxd instance)
 connects to all the websockets and begins negotiation with the source.
+
+To migrate between cluster members the `?target=<member>` option is required.
 
 Output in metadata section (for migration):
 

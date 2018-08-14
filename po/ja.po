@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-08-07 10:34-0400\n"
+"POT-Creation-Date: 2018-08-13 14:38+0200\n"
 "PO-Revision-Date: 2018-07-30 09:55+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -183,7 +183,7 @@ msgstr ""
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:449
+#: lxc/list.go:455
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -306,7 +306,7 @@ msgstr "バックアップのエクスポートが成功しました!"
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:114 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
+#: lxc/copy.go:113 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
 #: lxc/storage_volume.go:454
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -317,7 +317,7 @@ msgstr "不適切な キー=値 のペア: %s"
 msgid "Bad property: %s"
 msgstr "不正なイメージプロパティ形式: %s"
 
-#: lxc/copy.go:125
+#: lxc/copy.go:124
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -354,7 +354,7 @@ msgstr "CPU使用量:"
 msgid "CREATED"
 msgstr ""
 
-#: lxc/list.go:450
+#: lxc/list.go:456
 msgid "CREATED AT"
 msgstr ""
 
@@ -387,7 +387,7 @@ msgstr "標準入力から読み込めません: %s"
 msgid "Can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/list.go:466
+#: lxc/list.go:472
 msgid "Can't specify --fast with --columns"
 msgstr "--fast と --columns は同時に指定できません"
 
@@ -395,7 +395,7 @@ msgstr "--fast と --columns は同時に指定できません"
 msgid "Can't specify a different remote for rename"
 msgstr "リネームの場合は異なるリモートを指定できません"
 
-#: lxc/list.go:478
+#: lxc/list.go:484
 msgid "Can't specify column L when not clustered"
 msgstr "クラスタでない場合はカラムとして L は指定できません"
 
@@ -482,7 +482,7 @@ msgstr "コンソールログ:"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:339 lxc/init.go:230
+#: lxc/copy.go:340 lxc/init.go:230
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -624,7 +624,7 @@ msgstr "コンテナを作成中"
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:451 lxc/network.go:856
+#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:457 lxc/network.go:856
 #: lxc/operation.go:153 lxc/storage.go:545 lxc/storage_volume.go:953
 msgid "DESCRIPTION"
 msgstr ""
@@ -777,7 +777,7 @@ msgstr "標準入力を無効にします (/dev/null から読み込みます)"
 msgid "Disk usage:"
 msgstr "ディスク使用量:"
 
-#: lxc/list.go:620
+#: lxc/list.go:637
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -821,7 +821,7 @@ msgstr "ストレージプールの設定をYAMLで編集します"
 msgid "Edit storage volume configurations as YAML"
 msgstr "ストレージボリュームの設定をYAMLで編集します"
 
-#: lxc/image.go:935 lxc/list.go:489
+#: lxc/image.go:935 lxc/list.go:496
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -942,12 +942,17 @@ msgstr ""
 msgid "FINGERPRINT"
 msgstr ""
 
+#: lxc/move.go:210
+#, fuzzy
+msgid "Failed to connect to cluster member"
+msgstr "クラスタメンバの名前を変更します"
+
 #: lxc/utils.go:202
 #, c-format
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
 
-#: lxc/copy.go:334
+#: lxc/copy.go:335
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナ名が取得できません"
 
@@ -1046,11 +1051,11 @@ msgstr "ID"
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/list.go:447
+#: lxc/list.go:453
 msgid "IPV4"
 msgstr "IPV4"
 
-#: lxc/list.go:448
+#: lxc/list.go:454
 msgid "IPV6"
 msgstr "IPV6"
 
@@ -1143,35 +1148,35 @@ msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
 msgid "Invalid certificate"
 msgstr "不正な証明書です"
 
-#: lxc/list.go:510
+#: lxc/list.go:521
 #, c-format
 msgid "Invalid config key '%s' in '%s'"
 msgstr "'%s' は正しくない設定項目 (key) です (%s 中の)"
 
-#: lxc/list.go:505
+#: lxc/list.go:516
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 "不正な設定項目のカラムフォーマットです (フィールド数が多すぎます): '%s'"
 
-#: lxc/image.go:1195 lxc/list.go:365 lxc/network.go:898 lxc/remote.go:507
+#: lxc/image.go:1195 lxc/list.go:366 lxc/network.go:898 lxc/remote.go:507
 #, c-format
 msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
 
-#: lxc/list.go:528
+#: lxc/list.go:539
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
 msgstr ""
 "'%s' は最大幅の値として不正です (-1 もしくは 0 もしくは正の整数でなくてはなり"
 "ません) ('%s' 中の)"
 
-#: lxc/list.go:525
+#: lxc/list.go:536
 #, c-format
 msgid "Invalid max width (must be an integer) '%s' in '%s'"
 msgstr "'%s' は最大幅の値として不正です (整数でなくてはなりません) ('%s' 中の)"
 
-#: lxc/list.go:516
+#: lxc/list.go:527
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
@@ -1210,11 +1215,11 @@ msgstr "IPアドレス:"
 msgid "Keep the image up to date after initial copy"
 msgstr "最初にコピーした後も常にイメージを最新の状態に保つ"
 
-#: lxc/list.go:452
+#: lxc/list.go:458
 msgid "LAST USED AT"
 msgstr ""
 
-#: lxc/list.go:474 lxc/storage_volume.go:957
+#: lxc/list.go:480 lxc/storage_volume.go:957
 msgid "LOCATION"
 msgstr ""
 
@@ -1634,6 +1639,15 @@ msgstr "メモリ (ピーク)"
 msgid "Memory usage:"
 msgstr "メモリ消費量:"
 
+#: lxc/move.go:223
+#, fuzzy
+msgid "Migration API failure"
+msgstr "ソースのホスト上でマイグレーションが失敗しました: %s"
+
+#: lxc/move.go:228
+msgid "Migration operation failure"
+msgstr ""
+
 #: lxc/monitor.go:49
 msgid "Minimum level for log messages"
 msgstr "表示するログメッセージの最小レベル"
@@ -1740,7 +1754,7 @@ msgstr "ディレクトリからのインポートは root で実行する必要
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
-#: lxc/cluster.go:124 lxc/list.go:453 lxc/network.go:853 lxc/profile.go:613
+#: lxc/cluster.go:124 lxc/list.go:459 lxc/network.go:853 lxc/profile.go:613
 #: lxc/remote.go:465 lxc/storage.go:544 lxc/storage_volume.go:952
 msgid "NAME"
 msgstr ""
@@ -1840,19 +1854,19 @@ msgstr "バックグラウンド操作 %s を削除しました"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
-#: lxc/list.go:623
+#: lxc/list.go:640
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:455
+#: lxc/list.go:461
 msgid "PID"
 msgstr "PID"
 
-#: lxc/list.go:454
+#: lxc/list.go:460
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:456
+#: lxc/list.go:462
 msgid "PROFILES"
 msgstr ""
 
@@ -2162,7 +2176,7 @@ msgstr "すべてのコンテナに対してコマンドを実行します"
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:457
+#: lxc/list.go:463
 msgid "SNAPSHOTS"
 msgstr ""
 
@@ -2170,7 +2184,7 @@ msgstr ""
 msgid "SOURCE"
 msgstr ""
 
-#: lxc/cluster.go:127 lxc/list.go:458 lxc/network.go:860 lxc/storage.go:549
+#: lxc/cluster.go:127 lxc/list.go:464 lxc/network.go:860 lxc/storage.go:549
 msgid "STATE"
 msgstr ""
 
@@ -2182,7 +2196,7 @@ msgstr ""
 msgid "STATUS"
 msgstr ""
 
-#: lxc/list.go:460
+#: lxc/list.go:466
 msgid "STORAGE POOL"
 msgstr ""
 
@@ -2463,9 +2477,21 @@ msgstr "デフォルトのリモートを設定します"
 msgid "TARGET"
 msgstr ""
 
-#: lxc/list.go:459 lxc/network.go:854 lxc/network.go:960 lxc/operation.go:152
+#: lxc/list.go:465 lxc/network.go:854 lxc/network.go:960 lxc/operation.go:152
 #: lxc/storage_volume.go:951
 msgid "TYPE"
+msgstr ""
+
+#: lxc/move.go:149
+msgid "The --container-only flag can't be used with --target"
+msgstr ""
+
+#: lxc/move.go:152
+msgid "The --mode flag can't be used with --target"
+msgstr ""
+
+#: lxc/move.go:146
+msgid "The --stateless flag can't be used with --target"
 msgstr ""
 
 #: lxc/delete.go:104
@@ -2510,6 +2536,10 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
+#: lxc/move.go:215
+msgid "The source LXD instance is not clustered"
+msgstr ""
+
 #: lxc/network.go:431 lxc/network.go:516 lxc/storage_volume.go:605
 #: lxc/storage_volume.go:686
 msgid "The specified device doesn't exist"
@@ -2553,7 +2583,7 @@ msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:18.04\" と実行してみてくだ"
 "さい"
 
-#: lxc/copy.go:107
+#: lxc/copy.go:106
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -2569,7 +2599,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
-#: lxc/copy.go:308
+#: lxc/copy.go:309
 #, c-format
 msgid "Transferring container: %s"
 msgstr "コンテナを転送中: %s"
@@ -2610,7 +2640,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
 
-#: lxc/image.go:942 lxc/list.go:499
+#: lxc/image.go:942 lxc/list.go:510
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
@@ -2704,7 +2734,7 @@ msgstr "--mode と同時に -t または -T は指定できません"
 msgid "You must specify a destination container name when using --target"
 msgstr "--target オプションを使うときはコピー先のコンテナ名を指定してください"
 
-#: lxc/copy.go:72 lxc/move.go:197
+#: lxc/copy.go:72 lxc/move.go:199
 msgid "You must specify a source container name"
 msgstr "コピー元のコンテナ名を指定してください"
 
@@ -5098,9 +5128,6 @@ msgstr ""
 
 #~ msgid "Unable to read remote TLS certificate"
 #~ msgstr "リモートの TLS 証明書を読めません"
-
-#~ msgid "Migration failed on source host: %s"
-#~ msgstr "ソースのホスト上でマイグレーションが失敗しました: %s"
 
 #~ msgid "Migration failed on target host: %s"
 #~ msgstr "コピー先のホストでマイグレーションが失敗しました: %s"

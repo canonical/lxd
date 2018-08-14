@@ -51,7 +51,7 @@ lxc move <container>/<old snapshot name> <container>/<new snapshot name>
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the target container")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Unset all profiles on the target container"))
 	cmd.Flags().BoolVar(&c.flagContainerOnly, "container-only", false, i18n.G("Move the container without its snapshots"))
-	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
+	cmd.Flags().StringVar(&c.flagMode, "mode", moveDefaultMode, i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
@@ -76,7 +76,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse the mode
-	mode := "pull"
+	mode := moveDefaultMode
 	if c.flagMode != "" {
 		mode = c.flagMode
 	}
@@ -140,18 +140,21 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// If the target option was specified, we're moving a container from a
-	// cluster member to another. In case the rootfs of the container is
-	// backed by ceph, we want to re-use the same ceph volume. This assumes
-	// that the container is not running.
-	if sourceRemote == destRemote && c.flagTarget != "" {
-		moved, err := maybeMoveCephContainer(conf, sourceResource, destResource, c.flagTarget)
-		if err != nil {
-			return err
+	// cluster member to another, let's use the dedicated API.
+	if c.flagTarget != "" {
+		if c.flagStateless {
+			return fmt.Errorf(i18n.G("The --stateless flag can't be used with --target"))
 		}
 
-		if moved {
-			return nil
+		if c.flagContainerOnly {
+			return fmt.Errorf(i18n.G("The --container-only flag can't be used with --target"))
 		}
+
+		if c.flagMode != moveDefaultMode {
+			return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
+		}
+
+		return moveClusterContainer(conf, sourceResource, destResource, c.flagTarget)
 	}
 
 	cpy := cmdCopy{}
@@ -172,29 +175,31 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 
 	del := cmdDelete{global: c.global}
 	del.flagForce = true
-	return del.Run(cmd, args[:1])
+	err = del.Run(cmd, args[:1])
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete original container after copying it")
+	}
+
+	return nil
 }
 
-// Helper to check if the container to be moved is backed by a ceph storage
-// pool, and use the special POST /containers/<name>?target=<member> API if so.
-//
-// It returns false if the container is not backed by ceph, true otherwise.
-func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, target string) (bool, error) {
+// Move a container using special POST /containers/<name>?target=<member> API.
+func moveClusterContainer(conf *config.Config, sourceResource, destResource, target string) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Parse the destination.
 	_, destName, err := conf.ParseRemote(destResource)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Make sure we have a container or snapshot name.
 	if sourceName == "" {
-		return false, fmt.Errorf(i18n.G("You must specify a source container name"))
+		return fmt.Errorf(i18n.G("You must specify a source container name"))
 	}
 
 	// The destination name is optional.
@@ -205,48 +210,12 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 	// Connect to the source host
 	source, err := conf.GetContainerServer(sourceRemote)
 	if err != nil {
-		return false, err
+		return errors.Wrap(err, i18n.G("Failed to connect to cluster member"))
 	}
 
 	// Check that it's a cluster
 	if !source.IsClustered() {
-		return false, nil
-	}
-
-	// Check if the container to be moved is backed by ceph.
-	container, _, err := source.GetContainer(sourceName)
-	if err != nil {
-		// If we are unable to connect, we assume that the source member
-		// is offline, and we'll try to perform the migration. If the
-		// container turns out to not be backed by ceph, the migrate
-		// API will still return an error.
-		if !strings.Contains(err.Error(), "Unable to connect") {
-			return false, errors.Wrapf(err, "Failed to get container %s", sourceName)
-		}
-	} else {
-		devices := container.Devices
-		for key, value := range container.ExpandedDevices {
-			devices[key] = value
-		}
-
-		_, device, err := shared.GetRootDiskDevice(devices)
-		if err != nil {
-			return false, errors.Wrapf(err, "Failed parse root disk device")
-		}
-
-		poolName, ok := device["pool"]
-		if !ok {
-			return false, nil
-		}
-
-		pool, _, err := source.GetStoragePool(poolName)
-		if err != nil {
-			return false, errors.Wrapf(err, "Failed get root disk device pool %s", poolName)
-		}
-
-		if pool.Driver != "ceph" {
-			return false, nil
-		}
+		return fmt.Errorf(i18n.G("The source LXD instance is not clustered"))
 	}
 
 	// The migrate API will do the right thing when passed a target.
@@ -254,13 +223,16 @@ func maybeMoveCephContainer(conf *config.Config, sourceResource, destResource, t
 	req := api.ContainerPost{Name: destName, Migration: true}
 	op, err := source.MigrateContainer(sourceName, req)
 	if err != nil {
-		return false, err
+		return errors.Wrap(err, i18n.G("Migration API failure"))
 	}
 
 	err = op.Wait()
 	if err != nil {
-		return false, err
+		return errors.Wrap(err, i18n.G("Migration operation failure"))
 	}
 
-	return true, nil
+	return nil
 }
+
+// Default migration mode when moving a container.
+const moveDefaultMode = "pull"
