@@ -25,6 +25,7 @@ var storagePoolVolumeSnapshotTypeCmd = Command{
 	name:   "storage-pools/{pool}/volumes/{type}/{name}/snapshots/{snapshotName}",
 	post:   storagePoolVolumeSnapshotTypePost,
 	get:    storagePoolVolumeSnapshotTypeGet,
+	put:    storagePoolVolumeSnapshotTypePut,
 	delete: storagePoolVolumeSnapshotTypeDelete,
 }
 
@@ -348,6 +349,10 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) Response {
 	etag := []interface{}{snapshot.Name, snapshot.Description, snapshot.Config}
 
 	return SyncResponseETag(true, &snapshot, etag)
+}
+
+func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) Response {
+	return NotImplemented(fmt.Errorf("Updating storage pool volume snapshots is not implemented"))
 }
 
 func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) Response {
