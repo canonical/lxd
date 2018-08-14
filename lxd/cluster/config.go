@@ -64,10 +64,10 @@ func (c *Config) TrustPassword() string {
 	return c.m.GetString("core.trust_password")
 }
 
-// MacaroonEndpoint returns the address of the macaroon endpoint to use for
+// CandidEndpoint returns the address of the Candid endpoint to use for
 // authentication, if any.
-func (c *Config) MacaroonEndpoint() string {
-	return c.m.GetString("core.macaroon.endpoint")
+func (c *Config) CandidEndpoint() string {
+	return c.m.GetString("candid.api.url")
 }
 
 // AutoUpdateInterval returns the configured images auto update interval.
@@ -210,7 +210,7 @@ var ConfigSchema = config.Schema{
 	"core.proxy_https":               {},
 	"core.proxy_ignore_hosts":        {},
 	"core.trust_password":            {Hidden: true, Setter: passwordSetter},
-	"core.macaroon.endpoint":         {},
+	"candid.api.url":                 {},
 	"images.auto_update_cached":      {Type: config.Bool, Default: "true"},
 	"images.auto_update_interval":    {Type: config.Int64, Default: "6"},
 	"images.compression_algorithm":   {Default: "gzip", Validator: validateCompression},

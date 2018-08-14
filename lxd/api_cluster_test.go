@@ -150,7 +150,7 @@ func TestCluster_Join(t *testing.T) {
 	server, _, err := client.GetServer()
 	require.NoError(t, err)
 	serverPut := server.Writable()
-	serverPut.Config["core.macaroon.endpoint"] = "foo.bar"
+	serverPut.Config["candid.api.url"] = "foo.bar"
 	require.NoError(t, client.UpdateServer(serverPut, ""))
 
 	for _, daemon := range daemons {
@@ -246,7 +246,7 @@ func TestCluster_JoinServerAddress(t *testing.T) {
 	server, _, err := client.GetServer()
 	require.NoError(t, err)
 	serverPut := server.Writable()
-	serverPut.Config["core.macaroon.endpoint"] = "foo.bar"
+	serverPut.Config["candid.api.url"] = "foo.bar"
 	require.NoError(t, client.UpdateServer(serverPut, ""))
 
 	for _, daemon := range daemons {
