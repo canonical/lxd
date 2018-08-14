@@ -32,7 +32,7 @@ deps:
 		cd "$(GOPATH)/deps/sqlite"; \
 		git pull; \
 	else \
-		git clone "https://github.com/CanonicalLtd/sqlite" "$(GOPATH)/deps/sqlite"; \
+		git clone --depth=1 "https://github.com/CanonicalLtd/sqlite" "$(GOPATH)/deps/sqlite"; \
 	fi
 
 	cd "$(GOPATH)/deps/sqlite" && \
@@ -46,7 +46,7 @@ deps:
 		cd "$(GOPATH)/deps/dqlite"; \
 		git pull; \
 	else \
-		git clone "https://github.com/CanonicalLtd/dqlite" "$(GOPATH)/deps/dqlite"; \
+		git clone --depth=1 "https://github.com/CanonicalLtd/dqlite" "$(GOPATH)/deps/dqlite"; \
 	fi
 
 	cd "$(GOPATH)/deps/dqlite" && \
