@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-08-07 10:34-0400\n"
+"POT-Creation-Date: 2018-08-13 14:38+0200\n"
 "PO-Revision-Date: 2018-02-10 11:39+0000\n"
 "Last-Translator: Allan Esquivel Sibaja <allan.esquivel.sibaja@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -239,7 +239,7 @@ msgstr "ALIASES"
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:449
+#: lxc/list.go:455
 msgid "ARCHITECTURE"
 msgstr "ARQUITECTURA"
 
@@ -359,7 +359,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:114 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
+#: lxc/copy.go:113 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
 #: lxc/storage_volume.go:454
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -370,7 +370,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr "Propiedad mala: %s"
 
-#: lxc/copy.go:125
+#: lxc/copy.go:124
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -407,7 +407,7 @@ msgstr "Uso de CPU:"
 msgid "CREATED"
 msgstr "CREADO"
 
-#: lxc/list.go:450
+#: lxc/list.go:456
 msgid "CREATED AT"
 msgstr "CREADO EN"
 
@@ -438,7 +438,7 @@ msgstr "No se peude leer desde stdin: %s"
 msgid "Can't remove the default remote"
 msgstr ""
 
-#: lxc/list.go:466
+#: lxc/list.go:472
 msgid "Can't specify --fast with --columns"
 msgstr ""
 
@@ -447,7 +447,7 @@ msgstr ""
 msgid "Can't specify a different remote for rename"
 msgstr "No se puede especificar un remote diferente para renombrar."
 
-#: lxc/list.go:478
+#: lxc/list.go:484
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
@@ -529,7 +529,7 @@ msgstr "Log de la consola:"
 msgid "Container name is mandatory"
 msgstr "Nombre del contenedor es obligatorio"
 
-#: lxc/copy.go:339 lxc/init.go:230
+#: lxc/copy.go:340 lxc/init.go:230
 #, c-format
 msgid "Container name is: %s"
 msgstr "Nombre del contenedor es: %s"
@@ -664,7 +664,7 @@ msgstr ""
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:451 lxc/network.go:856
+#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:457 lxc/network.go:856
 #: lxc/operation.go:153 lxc/storage.go:545 lxc/storage_volume.go:953
 msgid "DESCRIPTION"
 msgstr ""
@@ -817,7 +817,7 @@ msgstr ""
 msgid "Disk usage:"
 msgstr ""
 
-#: lxc/list.go:620
+#: lxc/list.go:637
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -861,7 +861,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:935 lxc/list.go:489
+#: lxc/image.go:935 lxc/list.go:496
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -969,12 +969,16 @@ msgstr ""
 msgid "FINGERPRINT"
 msgstr ""
 
+#: lxc/move.go:210
+msgid "Failed to connect to cluster member"
+msgstr ""
+
 #: lxc/utils.go:202
 #, c-format
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:334
+#: lxc/copy.go:335
 msgid "Failed to get the new container name"
 msgstr ""
 
@@ -1073,11 +1077,11 @@ msgstr ""
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/list.go:447
+#: lxc/list.go:453
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:448
+#: lxc/list.go:454
 msgid "IPV6"
 msgstr ""
 
@@ -1167,32 +1171,32 @@ msgstr ""
 msgid "Invalid certificate"
 msgstr ""
 
-#: lxc/list.go:510
+#: lxc/list.go:521
 #, c-format
 msgid "Invalid config key '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:505
+#: lxc/list.go:516
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 
-#: lxc/image.go:1195 lxc/list.go:365 lxc/network.go:898 lxc/remote.go:507
+#: lxc/image.go:1195 lxc/list.go:366 lxc/network.go:898 lxc/remote.go:507
 #, c-format
 msgid "Invalid format %q"
 msgstr ""
 
-#: lxc/list.go:528
+#: lxc/list.go:539
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:525
+#: lxc/list.go:536
 #, c-format
 msgid "Invalid max width (must be an integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:516
+#: lxc/list.go:527
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
@@ -1230,11 +1234,11 @@ msgstr ""
 msgid "Keep the image up to date after initial copy"
 msgstr ""
 
-#: lxc/list.go:452
+#: lxc/list.go:458
 msgid "LAST USED AT"
 msgstr ""
 
-#: lxc/list.go:474 lxc/storage_volume.go:957
+#: lxc/list.go:480 lxc/storage_volume.go:957
 msgid "LOCATION"
 msgstr ""
 
@@ -1559,6 +1563,14 @@ msgstr ""
 msgid "Memory usage:"
 msgstr ""
 
+#: lxc/move.go:223
+msgid "Migration API failure"
+msgstr ""
+
+#: lxc/move.go:228
+msgid "Migration operation failure"
+msgstr ""
+
 #: lxc/monitor.go:49
 msgid "Minimum level for log messages"
 msgstr ""
@@ -1662,7 +1674,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr ""
 
-#: lxc/cluster.go:124 lxc/list.go:453 lxc/network.go:853 lxc/profile.go:613
+#: lxc/cluster.go:124 lxc/list.go:459 lxc/network.go:853 lxc/profile.go:613
 #: lxc/remote.go:465 lxc/storage.go:544 lxc/storage_volume.go:952
 msgid "NAME"
 msgstr ""
@@ -1762,19 +1774,19 @@ msgstr ""
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
-#: lxc/list.go:623
+#: lxc/list.go:640
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:455
+#: lxc/list.go:461
 msgid "PID"
 msgstr ""
 
-#: lxc/list.go:454
+#: lxc/list.go:460
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:456
+#: lxc/list.go:462
 msgid "PROFILES"
 msgstr ""
 
@@ -2078,7 +2090,7 @@ msgstr ""
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:457
+#: lxc/list.go:463
 msgid "SNAPSHOTS"
 msgstr ""
 
@@ -2086,7 +2098,7 @@ msgstr ""
 msgid "SOURCE"
 msgstr ""
 
-#: lxc/cluster.go:127 lxc/list.go:458 lxc/network.go:860 lxc/storage.go:549
+#: lxc/cluster.go:127 lxc/list.go:464 lxc/network.go:860 lxc/storage.go:549
 msgid "STATE"
 msgstr ""
 
@@ -2098,7 +2110,7 @@ msgstr ""
 msgid "STATUS"
 msgstr ""
 
-#: lxc/list.go:460
+#: lxc/list.go:466
 msgid "STORAGE POOL"
 msgstr ""
 
@@ -2378,9 +2390,21 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/list.go:459 lxc/network.go:854 lxc/network.go:960 lxc/operation.go:152
+#: lxc/list.go:465 lxc/network.go:854 lxc/network.go:960 lxc/operation.go:152
 #: lxc/storage_volume.go:951
 msgid "TYPE"
+msgstr ""
+
+#: lxc/move.go:149
+msgid "The --container-only flag can't be used with --target"
+msgstr ""
+
+#: lxc/move.go:152
+msgid "The --mode flag can't be used with --target"
+msgstr ""
+
+#: lxc/move.go:146
+msgid "The --stateless flag can't be used with --target"
 msgstr ""
 
 #: lxc/delete.go:104
@@ -2420,6 +2444,10 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr ""
 
+#: lxc/move.go:215
+msgid "The source LXD instance is not clustered"
+msgstr ""
+
 #: lxc/network.go:431 lxc/network.go:516 lxc/storage_volume.go:605
 #: lxc/storage_volume.go:686
 msgid "The specified device doesn't exist"
@@ -2457,7 +2485,7 @@ msgstr ""
 msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
 
-#: lxc/copy.go:107
+#: lxc/copy.go:106
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -2473,7 +2501,7 @@ msgstr ""
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:308
+#: lxc/copy.go:309
 #, c-format
 msgid "Transferring container: %s"
 msgstr ""
@@ -2514,7 +2542,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/image.go:942 lxc/list.go:499
+#: lxc/image.go:942 lxc/list.go:510
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
@@ -2605,7 +2633,7 @@ msgstr ""
 msgid "You must specify a destination container name when using --target"
 msgstr ""
 
-#: lxc/copy.go:72 lxc/move.go:197
+#: lxc/copy.go:72 lxc/move.go:199
 msgid "You must specify a source container name"
 msgstr ""
 
