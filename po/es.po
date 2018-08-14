@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-08-13 14:38+0200\n"
+"POT-Creation-Date: 2018-08-14 17:14+0200\n"
 "PO-Revision-Date: 2018-02-10 11:39+0000\n"
 "Last-Translator: Allan Esquivel Sibaja <allan.esquivel.sibaja@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -203,7 +203,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/image.go:953
+#: lxc/image.go:954
 #, c-format
 msgid "%s (%d more)"
 msgstr ""
@@ -227,15 +227,15 @@ msgstr "%s no es un tipo de archivo soportado."
 msgid "(none)"
 msgstr "(ninguno)"
 
-#: lxc/alias.go:127 lxc/image.go:920 lxc/image_alias.go:228
+#: lxc/alias.go:127 lxc/image_alias.go:228 lxc/image.go:921
 msgid "ALIAS"
 msgstr "ALIAS"
 
-#: lxc/image.go:921
+#: lxc/image.go:922
 msgid "ALIASES"
 msgstr "ALIASES"
 
-#: lxc/image.go:925
+#: lxc/image.go:926
 msgid "ARCH"
 msgstr ""
 
@@ -295,11 +295,11 @@ msgstr ""
 msgid "Alias name missing"
 msgstr ""
 
-#: lxc/image.go:853
+#: lxc/image.go:854
 msgid "Aliases:"
 msgstr "Aliases:"
 
-#: lxc/image.go:825 lxc/info.go:133
+#: lxc/image.go:826 lxc/info.go:133
 #, c-format
 msgid "Architecture: %s"
 msgstr "Arquitectura: %s"
@@ -345,7 +345,7 @@ msgstr ""
 msgid "Authentication type '%s' not supported by server"
 msgstr "Tipo de autenticación %s no está soportada por el servidor"
 
-#: lxc/image.go:863
+#: lxc/image.go:864
 #, c-format
 msgid "Auto update: %s"
 msgstr "Auto actualización: %s"
@@ -411,7 +411,7 @@ msgstr "CREADO"
 msgid "CREATED AT"
 msgstr "CREADO EN"
 
-#: lxc/image.go:862
+#: lxc/image.go:863
 #, c-format
 msgid "Cached: %s"
 msgstr "Cacheado: %s"
@@ -490,15 +490,15 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:911 lxc/list.go:112
+#: lxc/image.go:912 lxc/list.go:112
 msgid "Columns"
 msgstr "Columnas"
 
-#: lxc/main.go:45
+#: lxc/main.go:46
 msgid "Command line client for LXD"
 msgstr ""
 
-#: lxc/main.go:46
+#: lxc/main.go:47
 msgid ""
 "Command line client for LXD\n"
 "\n"
@@ -646,7 +646,7 @@ msgstr ""
 msgid "Create the container with no profiles applied"
 msgstr ""
 
-#: lxc/image.go:831 lxc/info.go:135
+#: lxc/image.go:832 lxc/info.go:135
 #, c-format
 msgid "Created: %s"
 msgstr ""
@@ -664,7 +664,7 @@ msgstr ""
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:924 lxc/image_alias.go:230 lxc/list.go:457 lxc/network.go:856
+#: lxc/image_alias.go:230 lxc/image.go:925 lxc/list.go:457 lxc/network.go:856
 #: lxc/operation.go:153 lxc/storage.go:545 lxc/storage_volume.go:953
 msgid "DESCRIPTION"
 msgstr ""
@@ -720,48 +720,49 @@ msgstr ""
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:289 lxc/config.go:29
-#: lxc/config.go:88 lxc/config.go:289 lxc/config.go:355 lxc/config.go:452
-#: lxc/config.go:560 lxc/config_device.go:24 lxc/config_device.go:76
-#: lxc/config_device.go:179 lxc/config_device.go:252 lxc/config_device.go:318
-#: lxc/config_device.go:405 lxc/config_device.go:493 lxc/config_device.go:582
-#: lxc/config_device.go:650 lxc/config_metadata.go:29 lxc/config_metadata.go:54
-#: lxc/config_metadata.go:176 lxc/config_template.go:30
-#: lxc/config_template.go:67 lxc/config_template.go:110
-#: lxc/config_template.go:152 lxc/config_template.go:236
-#: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
-#: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
-#: lxc/copy.go:37 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:30
-#: lxc/file.go:42 lxc/file.go:75 lxc/file.go:124 lxc/file.go:187
-#: lxc/file.go:376 lxc/image.go:42 lxc/image.go:131 lxc/image.go:261
-#: lxc/image.go:312 lxc/image.go:435 lxc/image.go:571 lxc/image.go:775
-#: lxc/image.go:889 lxc/image.go:1211 lxc/image.go:1284 lxc/image_alias.go:26
-#: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
-#: lxc/image_alias.go:250 lxc/import.go:25 lxc/info.go:29 lxc/init.go:35
-#: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:46 lxc/manpage.go:19
-#: lxc/monitor.go:31 lxc/move.go:36 lxc/network.go:34 lxc/network.go:110
-#: lxc/network.go:183 lxc/network.go:256 lxc/network.go:326 lxc/network.go:373
-#: lxc/network.go:458 lxc/network.go:543 lxc/network.go:666 lxc/network.go:724
-#: lxc/network.go:794 lxc/network.go:914 lxc/network.go:979 lxc/network.go:1026
-#: lxc/network.go:1095 lxc/network.go:1157 lxc/operation.go:25
-#: lxc/operation.go:54 lxc/operation.go:98 lxc/operation.go:174
-#: lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163 lxc/profile.go:241
-#: lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396 lxc/profile.go:520
-#: lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705 lxc/profile.go:753
-#: lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34 lxc/query.go:30
-#: lxc/remote.go:37 lxc/remote.go:87 lxc/remote.go:383 lxc/remote.go:419
-#: lxc/remote.go:524 lxc/remote.go:586 lxc/remote.go:636 lxc/remote.go:674
-#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
-#: lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208 lxc/storage.go:328
-#: lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573 lxc/storage.go:645
-#: lxc/storage.go:729 lxc/storage_volume.go:34 lxc/storage_volume.go:122
-#: lxc/storage_volume.go:201 lxc/storage_volume.go:283
-#: lxc/storage_volume.go:412 lxc/storage_volume.go:487
-#: lxc/storage_volume.go:547 lxc/storage_volume.go:629
-#: lxc/storage_volume.go:710 lxc/storage_volume.go:839
-#: lxc/storage_volume.go:904 lxc/storage_volume.go:980
-#: lxc/storage_volume.go:1011 lxc/storage_volume.go:1075
-#: lxc/storage_volume.go:1152 lxc/storage_volume.go:1227 lxc/version.go:22
+#: lxc/cluster.go:197 lxc/cluster.go:243 lxc/cluster.go:289
+#: lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:179
+#: lxc/config_device.go:252 lxc/config_device.go:318 lxc/config_device.go:405
+#: lxc/config_device.go:493 lxc/config_device.go:582 lxc/config_device.go:650
+#: lxc/config.go:29 lxc/config.go:88 lxc/config.go:289 lxc/config.go:355
+#: lxc/config.go:452 lxc/config.go:560 lxc/config_metadata.go:29
+#: lxc/config_metadata.go:54 lxc/config_metadata.go:176
+#: lxc/config_template.go:30 lxc/config_template.go:67
+#: lxc/config_template.go:110 lxc/config_template.go:152
+#: lxc/config_template.go:236 lxc/config_template.go:298 lxc/config_trust.go:30
+#: lxc/config_trust.go:59 lxc/config_trust.go:115 lxc/config_trust.go:197
+#: lxc/console.go:32 lxc/copy.go:37 lxc/delete.go:30 lxc/exec.go:39
+#: lxc/export.go:30 lxc/file.go:42 lxc/file.go:75 lxc/file.go:124
+#: lxc/file.go:187 lxc/file.go:376 lxc/image_alias.go:26 lxc/image_alias.go:59
+#: lxc/image_alias.go:106 lxc/image_alias.go:149 lxc/image_alias.go:250
+#: lxc/image.go:42 lxc/image.go:131 lxc/image.go:261 lxc/image.go:312
+#: lxc/image.go:435 lxc/image.go:571 lxc/image.go:776 lxc/image.go:890
+#: lxc/image.go:1212 lxc/image.go:1285 lxc/import.go:25 lxc/info.go:29
+#: lxc/init.go:35 lxc/launch.go:22 lxc/list.go:48 lxc/main.go:47
+#: lxc/manpage.go:19 lxc/monitor.go:31 lxc/move.go:36 lxc/network.go:34
+#: lxc/network.go:110 lxc/network.go:183 lxc/network.go:256 lxc/network.go:326
+#: lxc/network.go:373 lxc/network.go:458 lxc/network.go:543 lxc/network.go:666
+#: lxc/network.go:724 lxc/network.go:794 lxc/network.go:914 lxc/network.go:979
+#: lxc/network.go:1026 lxc/network.go:1095 lxc/network.go:1157
+#: lxc/operation.go:25 lxc/operation.go:54 lxc/operation.go:98
+#: lxc/operation.go:174 lxc/profile.go:30 lxc/profile.go:102 lxc/profile.go:163
+#: lxc/profile.go:241 lxc/profile.go:297 lxc/profile.go:348 lxc/profile.go:396
+#: lxc/profile.go:520 lxc/profile.go:568 lxc/profile.go:632 lxc/profile.go:705
+#: lxc/profile.go:753 lxc/profile.go:812 lxc/profile.go:866 lxc/publish.go:34
+#: lxc/query.go:30 lxc/remote.go:37 lxc/remote.go:87 lxc/remote.go:383
+#: lxc/remote.go:419 lxc/remote.go:524 lxc/remote.go:586 lxc/remote.go:636
+#: lxc/remote.go:674 lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21
+#: lxc/storage.go:33 lxc/storage.go:89 lxc/storage.go:161 lxc/storage.go:208
+#: lxc/storage.go:328 lxc/storage.go:383 lxc/storage.go:491 lxc/storage.go:573
+#: lxc/storage.go:645 lxc/storage.go:729 lxc/storage_volume.go:34
+#: lxc/storage_volume.go:122 lxc/storage_volume.go:201
+#: lxc/storage_volume.go:283 lxc/storage_volume.go:412
+#: lxc/storage_volume.go:487 lxc/storage_volume.go:547
+#: lxc/storage_volume.go:629 lxc/storage_volume.go:710
+#: lxc/storage_volume.go:839 lxc/storage_volume.go:904
+#: lxc/storage_volume.go:980 lxc/storage_volume.go:1011
+#: lxc/storage_volume.go:1075 lxc/storage_volume.go:1152
+#: lxc/storage_volume.go:1227 lxc/version.go:22
 msgid "Description"
 msgstr ""
 
@@ -861,7 +862,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:935 lxc/list.go:496
+#: lxc/image.go:936 lxc/list.go:496
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -921,12 +922,12 @@ msgid ""
 "AND stdout are terminals (stderr is ignored)."
 msgstr ""
 
-#: lxc/image.go:837
+#: lxc/image.go:838
 #, c-format
 msgid "Expires: %s"
 msgstr ""
 
-#: lxc/image.go:839
+#: lxc/image.go:840
 msgid "Expires: never"
 msgstr ""
 
@@ -965,11 +966,11 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:174 lxc/image.go:922 lxc/image_alias.go:229
+#: lxc/config_trust.go:174 lxc/image_alias.go:229 lxc/image.go:923
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/move.go:210
+#: lxc/move.go:213
 msgid "Failed to connect to cluster member"
 msgstr ""
 
@@ -1000,7 +1001,7 @@ msgstr ""
 msgid "Filtering isn't supported yet"
 msgstr ""
 
-#: lxc/image.go:823
+#: lxc/image.go:824
 #, c-format
 msgid "Fingerprint: %s"
 msgstr ""
@@ -1021,11 +1022,11 @@ msgstr ""
 msgid "Force the removal of running containers"
 msgstr ""
 
-#: lxc/main.go:57
+#: lxc/main.go:58
 msgid "Force using the local unix socket"
 msgstr ""
 
-#: lxc/image.go:912 lxc/list.go:113 lxc/network.go:798 lxc/remote.go:423
+#: lxc/image.go:913 lxc/list.go:113 lxc/network.go:798 lxc/remote.go:423
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
@@ -1089,7 +1090,7 @@ msgstr ""
 msgid "ISSUE DATE"
 msgstr ""
 
-#: lxc/main.go:298
+#: lxc/main.go:299
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1099,7 +1100,7 @@ msgstr ""
 msgid "Ignore the container state"
 msgstr ""
 
-#: lxc/image.go:1267
+#: lxc/image.go:1268
 msgid "Image already up to date."
 msgstr ""
 
@@ -1111,7 +1112,7 @@ msgstr ""
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:284 lxc/image.go:1234
+#: lxc/image.go:284 lxc/image.go:1235
 msgid "Image identifier missing"
 msgstr ""
 
@@ -1120,12 +1121,12 @@ msgstr ""
 msgid "Image identifier missing: %s"
 msgstr ""
 
-#: lxc/image.go:748
+#: lxc/image.go:749
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr ""
 
-#: lxc/image.go:1265
+#: lxc/image.go:1266
 msgid "Image refreshed successfully!"
 msgstr ""
 
@@ -1181,7 +1182,7 @@ msgstr ""
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 
-#: lxc/image.go:1195 lxc/list.go:366 lxc/network.go:898 lxc/remote.go:507
+#: lxc/image.go:1196 lxc/list.go:366 lxc/network.go:898 lxc/remote.go:507
 #, c-format
 msgid "Invalid format %q"
 msgstr ""
@@ -1202,7 +1203,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:383
+#: lxc/main.go:387
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -1250,12 +1251,12 @@ msgstr ""
 msgid "LXD server isn't part of a cluster"
 msgstr ""
 
-#: lxc/image.go:843
+#: lxc/image.go:844
 #, c-format
 msgid "Last used: %s"
 msgstr ""
 
-#: lxc/image.go:845
+#: lxc/image.go:846
 msgid "Last used: never"
 msgstr ""
 
@@ -1367,11 +1368,11 @@ msgid ""
 "Filters may be part of the image hash or part of the image alias name.\n"
 msgstr ""
 
-#: lxc/image.go:888
+#: lxc/image.go:889
 msgid "List images"
 msgstr ""
 
-#: lxc/image.go:889
+#: lxc/image.go:890
 msgid ""
 "List images\n"
 "\n"
@@ -1563,11 +1564,11 @@ msgstr ""
 msgid "Memory usage:"
 msgstr ""
 
-#: lxc/move.go:223
+#: lxc/move.go:226
 msgid "Migration API failure"
 msgstr ""
 
-#: lxc/move.go:228
+#: lxc/move.go:231
 msgid "Migration operation failure"
 msgstr ""
 
@@ -1794,7 +1795,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:923 lxc/remote.go:469
+#: lxc/image.go:924 lxc/remote.go:469
 msgid "PUBLIC"
 msgstr ""
 
@@ -1829,7 +1830,7 @@ msgstr ""
 msgid "Pretty rendering"
 msgstr ""
 
-#: lxc/main.go:56
+#: lxc/main.go:57
 msgid "Print help"
 msgstr ""
 
@@ -1837,7 +1838,7 @@ msgstr ""
 msgid "Print the raw response"
 msgstr ""
 
-#: lxc/main.go:55
+#: lxc/main.go:56
 msgid "Print version number"
 msgstr ""
 
@@ -1899,7 +1900,7 @@ msgstr ""
 msgid "Profiles: %s"
 msgstr ""
 
-#: lxc/image.go:848
+#: lxc/image.go:849
 msgid "Properties:"
 msgstr ""
 
@@ -1907,7 +1908,7 @@ msgstr ""
 msgid "Public image server"
 msgstr ""
 
-#: lxc/image.go:826
+#: lxc/image.go:827
 #, c-format
 msgid "Public: %s"
 msgstr ""
@@ -1938,11 +1939,11 @@ msgstr ""
 msgid "Recursively transfer files"
 msgstr ""
 
-#: lxc/image.go:1210 lxc/image.go:1211
+#: lxc/image.go:1211 lxc/image.go:1212
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/image.go:1238
+#: lxc/image.go:1239
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr ""
@@ -2086,7 +2087,7 @@ msgstr ""
 msgid "Run command against all containers"
 msgstr ""
 
-#: lxc/image.go:926
+#: lxc/image.go:927
 msgid "SIZE"
 msgstr ""
 
@@ -2119,7 +2120,7 @@ msgid "Send a raw query to LXD"
 msgstr ""
 
 #: lxc/remote.go:94
-msgid "Server authentication type (tls or macaroons)"
+msgid "Server authentication type (tls or candid)"
 msgstr ""
 
 #: lxc/remote.go:263
@@ -2179,11 +2180,11 @@ msgstr ""
 msgid "Set the file's uid on push"
 msgstr ""
 
-#: lxc/main.go:58
+#: lxc/main.go:59
 msgid "Show all debug messages"
 msgstr ""
 
-#: lxc/main.go:59
+#: lxc/main.go:60
 msgid "Show all information messages"
 msgstr ""
 
@@ -2215,11 +2216,11 @@ msgstr ""
 msgid "Show full device configuration for containers or profiles"
 msgstr ""
 
-#: lxc/image.go:1283 lxc/image.go:1284
+#: lxc/image.go:1284 lxc/image.go:1285
 msgid "Show image properties"
 msgstr ""
 
-#: lxc/main.go:212 lxc/main.go:213
+#: lxc/main.go:213 lxc/main.go:214
 msgid "Show less common commands"
 msgstr ""
 
@@ -2271,7 +2272,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/image.go:774 lxc/image.go:775
+#: lxc/image.go:775 lxc/image.go:776
 msgid "Show useful information about images"
 msgstr ""
 
@@ -2279,7 +2280,7 @@ msgstr ""
 msgid "Show useful information about storage pools"
 msgstr ""
 
-#: lxc/image.go:824
+#: lxc/image.go:825
 #, c-format
 msgid "Size: %.2fMB"
 msgstr ""
@@ -2293,7 +2294,7 @@ msgstr ""
 msgid "Some containers failed to %s"
 msgstr ""
 
-#: lxc/image.go:866
+#: lxc/image.go:867
 msgid "Source:"
 msgstr ""
 
@@ -2395,11 +2396,11 @@ msgstr ""
 msgid "TYPE"
 msgstr ""
 
-#: lxc/move.go:149
+#: lxc/move.go:150
 msgid "The --container-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:152
+#: lxc/move.go:154
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
@@ -2444,7 +2445,7 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr ""
 
-#: lxc/move.go:215
+#: lxc/move.go:218
 msgid "The source LXD instance is not clustered"
 msgstr ""
 
@@ -2465,7 +2466,7 @@ msgstr ""
 msgid "Time to wait for the container before killing it"
 msgstr ""
 
-#: lxc/image.go:827
+#: lxc/image.go:828
 msgid "Timestamps:"
 msgstr ""
 
@@ -2481,7 +2482,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:301
+#: lxc/main.go:302
 msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
 
@@ -2524,7 +2525,7 @@ msgstr ""
 msgid "Type: persistent"
 msgstr ""
 
-#: lxc/image.go:927
+#: lxc/image.go:928
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -2542,7 +2543,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/image.go:942 lxc/list.go:510
+#: lxc/image.go:943 lxc/list.go:510
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
@@ -2580,7 +2581,7 @@ msgstr ""
 msgid "Unset storage volume configuration keys"
 msgstr ""
 
-#: lxc/image.go:834
+#: lxc/image.go:835
 #, c-format
 msgid "Uploaded: %s"
 msgstr ""
@@ -2633,7 +2634,7 @@ msgstr ""
 msgid "You must specify a destination container name when using --target"
 msgstr ""
 
-#: lxc/copy.go:72 lxc/move.go:199
+#: lxc/copy.go:72 lxc/move.go:202
 msgid "You must specify a source container name"
 msgstr ""
 
@@ -2812,7 +2813,7 @@ msgstr ""
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
 
-#: lxc/image.go:818
+#: lxc/image.go:819
 msgid "disabled"
 msgstr ""
 
@@ -2860,7 +2861,7 @@ msgstr ""
 msgid "enable [<remote>:] <name>"
 msgstr ""
 
-#: lxc/image.go:820
+#: lxc/image.go:821
 msgid "enabled"
 msgstr ""
 
@@ -2933,7 +2934,7 @@ msgstr ""
 msgid "info"
 msgstr ""
 
-#: lxc/image.go:773
+#: lxc/image.go:774
 msgid "info [<remote>:]<image>"
 msgstr ""
 
@@ -2966,7 +2967,7 @@ msgstr ""
 msgid "list [<remote>:]"
 msgstr ""
 
-#: lxc/image.go:886 lxc/list.go:45
+#: lxc/image.go:887 lxc/list.go:45
 msgid "list [<remote>:] [<filter>...]"
 msgstr ""
 
@@ -3221,7 +3222,7 @@ msgstr ""
 msgid "network"
 msgstr ""
 
-#: lxc/image.go:808 lxc/image.go:813 lxc/image.go:976
+#: lxc/image.go:809 lxc/image.go:814 lxc/image.go:977
 msgid "no"
 msgstr ""
 
@@ -3271,7 +3272,7 @@ msgstr ""
 msgid "query [<remote>:]<API path>"
 msgstr ""
 
-#: lxc/image.go:1209
+#: lxc/image.go:1210
 msgid "refresh [<remote>:]<image> [[<remote>:]<image>...]"
 msgstr ""
 
@@ -3383,7 +3384,7 @@ msgstr ""
 msgid "show [<remote>:]<container|profile>"
 msgstr ""
 
-#: lxc/image.go:1282
+#: lxc/image.go:1283
 msgid "show [<remote>:]<image>"
 msgstr ""
 
@@ -3509,7 +3510,7 @@ msgstr "Columnas"
 msgid "y"
 msgstr ""
 
-#: lxc/delete.go:46 lxc/image.go:810 lxc/image.go:815 lxc/image.go:974
+#: lxc/delete.go:46 lxc/image.go:811 lxc/image.go:816 lxc/image.go:975
 msgid "yes"
 msgstr ""
 
