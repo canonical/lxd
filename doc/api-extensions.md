@@ -571,3 +571,7 @@ This introduces a new recursion=2 mode for `GET /1.0/containers` which allows fo
 all container structs, including the state, snapshots and backup structs.
 
 This effectively allows for "lxc list" to get all it needs in one query.
+
+## candid\_authentication
+This introduces the new candid.api.url config option and removes
+core.macaroon.endpoint.

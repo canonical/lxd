@@ -85,8 +85,8 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return err
 		}
-		if config.MacaroonEndpoint() != "" {
-			authMethods = append(authMethods, "macaroons")
+		if config.CandidEndpoint() != "" {
+			authMethods = append(authMethods, "candid")
 		}
 		return nil
 	})
@@ -378,7 +378,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			fallthrough
 		case "maas.api.key":
 			maasChanged = true
-		case "core.macaroon.endpoint":
+		case "candid.api.url":
 			err := d.setupExternalAuthentication(value)
 			if err != nil {
 				return err
