@@ -690,6 +690,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 		image.Source.Mode = "pull"
 		image.Source.Protocol = "direct"
 		image.Source.URL = imageFile
+		createArgs = nil
 	} else {
 		var meta io.ReadCloser
 		var rootfs io.ReadCloser
