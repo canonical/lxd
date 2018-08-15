@@ -778,11 +778,34 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 	// Parse the input
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 
+	isSnapshot := false
+	fields := strings.Split(volName, "/")
+	if len(fields) > 1 {
+		isSnapshot = true
+	} else if len(fields) > 2 {
+		return fmt.Errorf("Invalid snapshot name")
+	}
+
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return err
+		}
+
+		if isSnapshot {
+			newdata := api.StorageVolumeSnapshotPut{}
+			err = yaml.Unmarshal(contents, &newdata)
+			if err != nil {
+				return err
+			}
+
+			op, err := client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], newdata, "")
+			if err != nil {
+				return err
+			}
+
+			return op.Wait()
 		}
 
 		newdata := api.StorageVolumePut{}
@@ -799,15 +822,32 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
 
-	// Extract the current value
-	vol, etag, err := client.GetStoragePoolVolume(resource.name, volType, volName)
-	if err != nil {
-		return err
-	}
+	data := []byte{}
+	var snapVol *api.StorageVolumeSnapshot
+	var vol *api.StorageVolume
+	etag := ""
+	if isSnapshot {
+		// Extract the current value
+		snapVol, etag, err = client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
+		if err != nil {
+			return err
+		}
 
-	data, err := yaml.Marshal(&vol)
-	if err != nil {
-		return err
+		data, err = yaml.Marshal(&snapVol)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Extract the current value
+		vol, etag, err = client.GetStoragePoolVolume(resource.name, volType, volName)
+		if err != nil {
+			return err
+		}
+
+		data, err = yaml.Marshal(&vol)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Spawn the editor
@@ -816,12 +856,47 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if isSnapshot {
+		for {
+			var op lxd.Operation
+			// Parse the text received from the editor
+			newdata := api.StorageVolumeSnapshotPut{}
+			err = yaml.Unmarshal(content, &newdata)
+			if err == nil {
+				op, err = client.UpdateStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], newdata, etag)
+				if err == nil {
+					err = op.Wait()
+				}
+			}
+
+			// Respawn the editor
+			if err != nil {
+				fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+				fmt.Println(i18n.G("Press enter to open the editor again"))
+
+				_, err := os.Stdin.Read(make([]byte, 1))
+				if err != nil {
+					return err
+				}
+
+				content, err = shared.TextEditor("", content)
+				if err != nil {
+					return err
+				}
+				continue
+			}
+			break
+		}
+
+		return nil
+	}
+
 	for {
 		// Parse the text received from the editor
 		newdata := api.StorageVolume{}
 		err = yaml.Unmarshal(content, &newdata)
 		if err == nil {
-			err = client.UpdateStoragePoolVolume(resource.name, vol.Type, vol.Name, newdata.Writable(), etag)
+			err = client.UpdateStoragePoolVolume(resource.name, volType, vol.Name, newdata.Writable(), etag)
 		}
 
 		// Respawn the editor
