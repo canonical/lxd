@@ -12,6 +12,7 @@ type Task struct {
 	f        Func          // Function to execute.
 	schedule Schedule      // Decides if and when to execute f.
 	reset    chan struct{} // Resets the shedule and starts over.
+	cron     bool          // Whether the schedule uses a cron expression.
 }
 
 // Reset the state of the task as if it had just been started.
@@ -49,7 +50,7 @@ func (t *Task) loop(ctx context.Context) {
 			// never expire (hence the task function won't ever be
 			// run, unless Reset() is called and schedule() starts
 			// returning values greater than zero).
-			if schedule > 0 {
+			if schedule > 0 || t.cron {
 				timer = time.After(delay)
 			} else {
 				timer = make(chan time.Time)
@@ -72,7 +73,13 @@ func (t *Task) loop(ctx context.Context) {
 				// are responsible for implementing proper cancellation
 				// of the task function itself using the tomb's context.
 				t.f(ctx)
-				delay = schedule
+				if t.cron {
+					// Re-calculate the schedule/interval since with cronjobs
+					// this won't always be constant.
+					delay, _ = t.schedule()
+				} else {
+					delay = schedule
+				}
 			} else {
 				// Don't execute the task function, and set the
 				// delay to run it immediately whenever the

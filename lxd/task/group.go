@@ -23,11 +23,21 @@ type Group struct {
 
 // Add a new task to the group, returning its index.
 func (g *Group) Add(f Func, schedule Schedule) *Task {
+	return g.add(f, schedule, false)
+}
+
+// AddCron adds a new cron task to the group, returning its index.
+func (g *Group) AddCron(f Func, schedule Schedule) *Task {
+	return g.add(f, schedule, true)
+}
+
+func (g *Group) add(f Func, schedule Schedule, cron bool) *Task {
 	i := len(g.tasks)
 	g.tasks = append(g.tasks, Task{
 		f:        f,
 		schedule: schedule,
 		reset:    make(chan struct{}, 16), // Buffered to not block senders
+		cron:     cron,
 	})
 	return &g.tasks[i]
 }
