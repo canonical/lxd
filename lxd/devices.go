@@ -166,28 +166,44 @@ func deviceWantsAllGPUs(m map[string]string) bool {
 }
 
 func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
-	const DRI_PATH = "/sys/bus/pci/devices"
+	const DRM_PATH = "/sys/class/drm/"
 	var gpus []gpuDevice
 	var nvidiaDevices []nvidiaGpuDevices
 	var cards []cardIds
 
-	ents, err := ioutil.ReadDir(DRI_PATH)
+	// Get the list of DRM devices
+	ents, err := ioutil.ReadDir(DRM_PATH)
 	if err != nil {
+		// No GPUs
 		if os.IsNotExist(err) {
 			return nil, nil, nil
 		}
+
 		return nil, nil, err
 	}
 
-	isNvidia := false
+	// Get the list of cards
+	devices := []string{}
 	for _, ent := range ents {
+		dev, err := filepath.EvalSymlinks(fmt.Sprintf("%s/%s/device", DRM_PATH, ent.Name()))
+		if err != nil {
+			continue
+		}
+
+		if !shared.StringInSlice(dev, devices) {
+			devices = append(devices, dev)
+		}
+	}
+
+	isNvidia := false
+	for _, device := range devices {
 		// The pci address == the name of the directory. So let's use
 		// this cheap way of retrieving it.
-		pciAddr := ent.Name()
+		pciAddr := filepath.Base(device)
 
 		// Make sure that we are dealing with a GPU by looking whether
 		// the "drm" subfolder exists.
-		drm := filepath.Join(DRI_PATH, pciAddr, "drm")
+		drm := filepath.Join(device, "drm")
 		drmEnts, err := ioutil.ReadDir(drm)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -196,7 +212,7 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 		}
 
 		// Retrieve vendor ID.
-		vendorIdPath := filepath.Join(DRI_PATH, pciAddr, "vendor")
+		vendorIdPath := filepath.Join(device, "vendor")
 		vendorId, err := ioutil.ReadFile(vendorIdPath)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -205,7 +221,7 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 		}
 
 		// Retrieve device ID.
-		productIdPath := filepath.Join(DRI_PATH, pciAddr, "device")
+		productIdPath := filepath.Join(device, "device")
 		productId, err := ioutil.ReadFile(productIdPath)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -215,7 +231,7 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 
 		// Store all associated subdevices, e.g. controlD64, renderD128.
 		// The name of the directory == the last part of the
-		// /dev/dri/controlD64 path. So ent.Name() will give us
+		// /dev/dri/controlD64 path. So drmEnt.Name() will give us
 		// controlD64.
 		for _, drmEnt := range drmEnts {
 			vendorTmp := strings.TrimSpace(string(vendorId))
@@ -236,15 +252,18 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 					continue
 				}
 			}
+
 			majMin := strings.TrimSpace(string(majMinByte))
 			majMinSlice := strings.Split(string(majMin), ":")
 			if len(majMinSlice) != 2 {
 				continue
 			}
+
 			majorInt, err := strconv.Atoi(majMinSlice[0])
 			if err != nil {
 				continue
 			}
+
 			minorInt, err := strconv.Atoi(majMinSlice[1])
 			if err != nil {
 				continue
@@ -278,6 +297,7 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 
 							return nil, nil, err
 						}
+
 						tmpGpu.nvidia.path = nvidiaPath
 						tmpGpu.nvidia.major = shared.Major(stat.Rdev)
 						tmpGpu.nvidia.minor = shared.Minor(stat.Rdev)
@@ -293,8 +313,10 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 					id:  tmpGpu.id,
 					pci: tmpGpu.pci,
 				}
+
 				cards = append(cards, tmp)
 			}
+
 			gpus = append(gpus, tmpGpu)
 		}
 	}
@@ -313,6 +335,7 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+
 		for _, nvidiaEnt := range nvidiaEnts {
 			if all {
 				if !strings.HasPrefix(nvidiaEnt.Name(), "nvidia") {
@@ -323,21 +346,23 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 					continue
 				}
 			}
+
 			nvidiaPath := filepath.Join("/dev", nvidiaEnt.Name())
 			stat := syscall.Stat_t{}
 			err = syscall.Stat(nvidiaPath, &stat)
 			if err != nil {
 				continue
 			}
+
 			tmpNividiaGpu := nvidiaGpuDevices{
 				isCard: !validNvidia.MatchString(nvidiaEnt.Name()),
 				path:   nvidiaPath,
 				major:  shared.Major(stat.Rdev),
 				minor:  shared.Minor(stat.Rdev),
 			}
+
 			nvidiaDevices = append(nvidiaDevices, tmpNividiaGpu)
 		}
-
 	}
 
 	// Since we'll give users to ability to specify and id we need to group
