@@ -965,9 +965,33 @@ func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 	// Parse input
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
 
+	isSnapshot := false
+	fields := strings.Split(volName, "/")
+	if len(fields) > 1 {
+		isSnapshot = true
+	} else if len(fields) > 2 {
+		return fmt.Errorf("Invalid snapshot name")
+	}
+
 	// If a target was specified, create the volume on the given member.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
+	}
+
+	if isSnapshot && volType != "container" {
+		// Get the storage volume snapshot entry
+		resp, _, err := client.GetStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1])
+		if err != nil {
+			return err
+		}
+
+		for k, v := range resp.Config {
+			if k == args[2] {
+				fmt.Printf("%s\n", v)
+			}
+		}
+
+		return nil
 	}
 
 	// Get the storage volume entry
