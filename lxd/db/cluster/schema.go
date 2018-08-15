@@ -31,6 +31,7 @@ CREATE TABLE containers (
     stateful INTEGER NOT NULL DEFAULT 0,
     last_use_date DATETIME,
     description TEXT,
+    project_id INTEGER NOT NULL DEFAULT 0 REFERENCES projects(id) ON DELETE CASCADE,
     UNIQUE (name),
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
@@ -91,6 +92,7 @@ CREATE TABLE images (
     cached INTEGER NOT NULL DEFAULT 0,
     last_use_date DATETIME,
     auto_update INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL DEFAULT 0 REFERENCES projects(id) ON DELETE CASCADE,
     UNIQUE (fingerprint)
 );
 CREATE TABLE images_aliases (
@@ -98,6 +100,7 @@ CREATE TABLE images_aliases (
     name TEXT NOT NULL,
     image_id INTEGER NOT NULL,
     description TEXT,
+    project_id INTEGER NOT NULL DEFAULT 0 REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
     UNIQUE (name)
 );
@@ -175,6 +178,7 @@ CREATE TABLE profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
+    project_id INTEGER NOT NULL DEFAULT 0 REFERENCES projects(id) ON DELETE CASCADE,
     UNIQUE (name)
 );
 CREATE TABLE profiles_config (
@@ -200,6 +204,14 @@ CREATE TABLE profiles_devices_config (
     value TEXT,
     UNIQUE (profile_device_id, key),
     FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id) ON DELETE CASCADE
+);
+CREATE TABLE projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    has_images INTEGER NOT NULL default 0,
+    has_profiles INTEGER NOT NULL default 0,
+    description TEXT,
+    UNIQUE (name)
 );
 CREATE TABLE storage_pools (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
