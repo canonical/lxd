@@ -892,6 +892,16 @@ Return (with wait-for-websocket=true and interactive=true):
         }
     }
 
+Return (with interactive=false and record-output=true):
+
+    {
+        "output": {
+            "1": "/1.0/containers/example/logs/exec_b0f737b4-2c8a-4edf-a7c1-4cc7e4e9e155.stdout",
+            "2": "/1.0/containers/example/logs/exec_b0f737b4-2c8a-4edf-a7c1-4cc7e4e9e155.stderr"
+        },
+        "return": 0
+    }
+
 When the exec command finishes, its exit status is available from the
 operation's metadata:
 
