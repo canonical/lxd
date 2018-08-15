@@ -4,7 +4,7 @@ package api
 type ProfilesPost struct {
 	ProfilePut `yaml:",inline"`
 
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" db:"primary=yes"`
 }
 
 // ProfilePost represents the fields required to rename a LXD profile
@@ -23,7 +23,7 @@ type ProfilePut struct {
 type Profile struct {
 	ProfilePut `yaml:",inline"`
 
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name" db:"primary=yes"`
 
 	// API extension: profile_usedby
 	UsedBy []string `json:"used_by" yaml:"used_by"`
