@@ -27,5 +27,7 @@ type StorageVolumeSnapshot struct {
 //
 // API extension: storage_api_volume_snapshots
 type StorageVolumeSnapshotPut struct {
+	Restore string `json:"restore,omitempty" yaml:"restore,omitempty"`
+
 	Description string `json:"description" yaml:"description"`
 }
