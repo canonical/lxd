@@ -92,6 +92,13 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 
 // ImportPreClusteringData imports the data loaded with LoadPreClusteringData.
 func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
+	// Disable foreign key enforcement during schema update
+	_, err := c.db.Exec("PRAGMA foreign_keys=OFF;")
+	if err != nil {
+		return err
+	}
+	defer c.db.Exec("PRAGMA foreign_keys=ON;")
+
 	tx, err := c.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "failed to start cluster database transaction")

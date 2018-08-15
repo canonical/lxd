@@ -55,6 +55,13 @@ func Open(name string, store dqlite.ServerStore, options ...dqlite.DriverOption)
 // false and no error (if some nodes have a lower version, and we need to wait
 // till they get upgraded and restarted).
 func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
+	// Disable foreign key enforcement during schema update
+	_, err := db.Exec("PRAGMA foreign_keys=OFF;")
+	if err != nil {
+		return false, err
+	}
+	defer db.Exec("PRAGMA foreign_keys=ON;")
+
 	someNodesAreBehind := false
 	apiExtensions := version.APIExtensionsCount()
 
@@ -149,7 +156,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 	schema.Hook(hook)
 
 	var initial int
-	err := query.Retry(func() error {
+	err = query.Retry(func() error {
 		var err error
 		initial, err = schema.Ensure(db)
 		return err
@@ -178,14 +185,26 @@ INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '
 			return false, err
 		}
 
+		// Default project
 		stmt = `
-INSERT INTO profiles (name, description) VALUES ('default', 'Default LXD profile')
+INSERT INTO projects (name, description, has_images, has_profiles) VALUES ('default', 'Default LXD project', 1, 1);
 `
 		_, err = tx.Exec(stmt)
 		if err != nil {
 			tx.Rollback()
 			return false, err
 		}
+
+		// Default profile
+		stmt = `
+INSERT INTO profiles (name, description, project_id) VALUES ('default', 'Default LXD profile', 1)
+`
+		_, err = tx.Exec(stmt)
+		if err != nil {
+			tx.Rollback()
+			return false, err
+		}
+
 		err = tx.Commit()
 		if err != nil {
 			return false, err

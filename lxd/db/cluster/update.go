@@ -41,6 +41,100 @@ var updates = map[int]schema.Update{
 	9:  updateFromV8,
 	10: updateFromV9,
 	11: updateFromV10,
+	12: updateFromV11,
+}
+
+func updateFromV11(tx *sql.Tx) error {
+	stmts := `
+CREATE TABLE projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    has_images INTEGER NOT NULL default 0,
+    has_profiles INTEGER NOT NULL default 0,
+    description TEXT,
+    UNIQUE (name)
+);
+INSERT INTO projects (name, description, has_images, has_profiles) VALUES ('default', 'Default LXD project', 1, 1);
+
+ALTER TABLE containers ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE images ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE images_aliases ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE profiles ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+
+CREATE TABLE tmp_containers (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    node_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    architecture INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    ephemeral INTEGER NOT NULL DEFAULT 0,
+    creation_date DATETIME NOT NULL DEFAULT 0,
+    stateful INTEGER NOT NULL DEFAULT 0,
+    last_use_date DATETIME,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (name),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE tmp_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    public INTEGER NOT NULL DEFAULT 0,
+    architecture INTEGER NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    upload_date DATETIME NOT NULL,
+    cached INTEGER NOT NULL DEFAULT 0,
+    last_use_date DATETIME,
+    auto_update INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL,
+    UNIQUE (fingerprint),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE tmp_images_aliases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    image_id INTEGER NOT NULL,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (name),
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE tmp_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (name),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+INSERT INTO tmp_containers SELECT * FROM containers;
+INSERT INTO tmp_images SELECT * FROM images;
+INSERT INTO tmp_images_aliases SELECT * FROM images_aliases;
+INSERT INTO tmp_profiles SELECT * FROM profiles;
+
+DROP TABLE containers;
+ALTER TABLE tmp_containers RENAME TO containers;
+
+DROP TABLE images;
+ALTER TABLE tmp_images RENAME TO images;
+
+DROP TABLE images_aliases;
+ALTER TABLE tmp_images_aliases RENAME TO images_aliases;
+
+DROP TABLE profiles;
+ALTER TABLE tmp_profiles RENAME TO profiles;
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 func updateFromV10(tx *sql.Tx) error {

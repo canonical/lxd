@@ -347,9 +347,9 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 	assert.Equal(t, map[string]string{"zfs.clone_copy": "true"}, config)
 }
 
-func TestUpdateFromV9(t *testing.T) {
+func TestUpdateFromV10(t *testing.T) {
 	schema := cluster.Schema()
-	db, err := schema.ExerciseUpdate(10, func(db *sql.DB) {
+	db, err := schema.ExerciseUpdate(11, func(db *sql.DB) {
 		// Create a node.
 		_, err := db.Exec(
 			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0)",
