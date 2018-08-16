@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -488,7 +489,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			actionScriptOp, err := operationCreate(
 				state.Cluster,
 				operationClassWebsocket,
-				"Live-migrating container",
+				db.OperationContainerLiveMigrate,
 				nil,
 				nil,
 				func(op *operation) error {

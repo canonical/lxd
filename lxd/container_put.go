@@ -56,7 +56,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	}
 
 	var do func(*operation) error
-	var opDescription string
+	var opType db.OperationType
 	if configRaw.Restore == "" {
 		// Update container configuration
 		do = func(op *operation) error {
@@ -78,20 +78,20 @@ func containerPut(d *Daemon, r *http.Request) Response {
 			return nil
 		}
 
-		opDescription = "Updating container"
+		opType = db.OperationSnapshotUpdate
 	} else {
 		// Snapshot Restore
 		do = func(op *operation) error {
 			return containerSnapRestore(d.State(), name, configRaw.Restore, configRaw.Stateful)
 		}
 
-		opDescription = "Restoring snapshot"
+		opType = db.OperationSnapshotRestore
 	}
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, opDescription, resources, nil, do, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, opType, resources, nil, do, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

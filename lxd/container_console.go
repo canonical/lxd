@@ -16,6 +16,7 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -330,7 +331,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{ws.container.Name()}
 
-	op, err := operationCreate(d.cluster, operationClassWebsocket, "Showing console",
+	op, err := operationCreate(d.cluster, operationClassWebsocket, db.OperationConsoleShow,
 		resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
 		return InternalError(err)
