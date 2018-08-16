@@ -167,6 +167,7 @@ CREATE TABLE operations (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     uuid TEXT NOT NULL,
     node_id TEXT NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
     UNIQUE (uuid),
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
@@ -246,5 +247,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (9, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (10, strftime("%s"))
 `

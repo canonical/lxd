@@ -253,7 +253,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 	// /cluster/nodes request which triggered this code.
 	var pools map[string]map[string]string
 	var networks map[string]map[string]string
-	var operations []string
+	var operations []db.Operation
 	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		pools, err = tx.StoragePoolsNodeConfig()
 		if err != nil {
@@ -263,7 +263,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		if err != nil {
 			return err
 		}
-		operations, err = tx.OperationsUUIDs()
+		operations, err = tx.Operations()
 		if err != nil {
 			return err
 		}
@@ -396,10 +396,10 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		}
 
 		// Migrate outstanding operations.
-		for _, uuid := range operations {
-			_, err := tx.OperationAdd(uuid)
+		for _, operation := range operations {
+			_, err := tx.OperationAdd(operation.UUID, operation.Type)
 			if err != nil {
-				return errors.Wrapf(err, "failed to migrate operation %s", uuid)
+				return errors.Wrapf(err, "failed to migrate operation %s", operation.UUID)
 			}
 		}
 

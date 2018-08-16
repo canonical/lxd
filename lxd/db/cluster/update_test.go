@@ -346,3 +346,29 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"zfs.clone_copy": "true"}, config)
 }
+
+func TestUpdateFromV9(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(10, func(db *sql.DB) {
+		// Create a node.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+
+		// Create an operation.
+		_, err = db.Exec("INSERT INTO operations VALUES (1, 'op1', 1)")
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	// Check that a type column has been added and that existing rows get type 0.
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	defer tx.Rollback()
+
+	types, err := query.SelectIntegers(tx, `SELECT type FROM operations`)
+	require.NoError(t, err)
+	require.Equal(t, []int{0}, types)
+}
