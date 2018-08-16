@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/stretchr/testify/suite"
 )
@@ -39,7 +40,7 @@ func (suite *daemonImagesTestSuite) TestUseCachedImagesIfAvailable() {
 
 	// Request an image with alias "test" and check that it's the
 	// one we created above.
-	op, err := operationCreate(suite.d.cluster, operationClassTask, "Downloading image", map[string][]string{}, nil, nil, nil, nil)
+	op, err := operationCreate(suite.d.cluster, operationClassTask, db.OperationImageDownload, map[string][]string{}, nil, nil, nil, nil)
 	suite.Req.Nil(err)
 	image, err := suite.d.ImageDownload(op, "img.srv", "simplestreams", "", "", "test", false, false, "", true)
 	suite.Req.Nil(err)
