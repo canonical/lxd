@@ -81,6 +81,19 @@ Similarly, the directory backend is to be considered as a last resort option.
 It does support all main LXD features, but is terribly slow and inefficient as it can't perform  
 instant copies or snapshots and so needs to copy the entirety of the container's filesystem every time.
 
+## Security Considerations
+
+Currently, the Linux Kernel may not apply mount options and silently ignore
+them when a block-based filesystem (e.g. `ext4`) is already mounted with
+different options. This means when dedicated disk devices are shared between
+different storage pools with different mount options set, the second mount may
+not have the expected mount options. This becomes security relevant, when e.g.
+one storage pool is supposed to provide `acl` support and the second one is
+supposed to not provide `acl` support. For this reason it is currently
+recommended to either have dedicated disk devices per storage pool or ensure
+that all storage pools that share the same dedicated disk device use the same
+mount options.
+
 ## Optimized image storage
 All backends but the directory backend have some kind of optimized image storage format.  
 This is used by LXD to make container creation near instantaneous by simply cloning a pre-made  
