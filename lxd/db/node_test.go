@@ -260,3 +260,23 @@ INSERT INTO containers (id, node_id, name, architecture, type) VALUES (1, ?, 'fo
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
+
+// If there are 2 online nodes, and a container is pending on one of them,
+// return the address of the other one number of containers.
+func TestNodeWithLeastContainers_Pending(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	// Add a pending container to the default node (ID 1)
+	_, err = tx.Tx().Exec(`
+INSERT INTO operations (id, uuid, node_id, type) VALUES (1, 'abc', 1, ?)
+`, db.OperationContainerCreate)
+	require.NoError(t, err)
+
+	name, err := tx.NodeWithLeastContainers()
+	require.NoError(t, err)
+	assert.Equal(t, "buzz", name)
+}
