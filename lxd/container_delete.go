@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/lxc/lxd/lxd/db"
 )
 
 func containerDelete(d *Daemon, r *http.Request) Response {
@@ -35,7 +36,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, "Deleting container", resources, nil, rmct, nil, nil)
+	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
