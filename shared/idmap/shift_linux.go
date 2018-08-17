@@ -5,6 +5,9 @@ package idmap
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"syscall"
 	"unsafe"
 
 	"github.com/lxc/lxd/shared"
@@ -66,6 +69,20 @@ int set_vfs_ns_caps(char *path, char *caps, ssize_t len, uint32_t uid)
 	ns_xattr.magic_etc &= ~(VFS_CAP_REVISION_1 | VFS_CAP_REVISION_2);
 	ns_xattr.magic_etc |= VFS_CAP_REVISION_3;
 	ns_xattr.rootid = BE32_TO_LE32(uid);
+
+	return setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
+}
+
+int set_dummy_fs_ns_caps(const char *path)
+{
+	#define __raise_cap_permitted(x, ns_cap_data)   ns_cap_data.data[(x)>>5].permitted   |= (1<<((x)&31))
+
+	struct vfs_ns_cap_data ns_xattr;
+
+	memset(&ns_xattr, 0, sizeof(ns_xattr));
+        __raise_cap_permitted(CAP_NET_RAW, ns_xattr);
+	ns_xattr.magic_etc |= VFS_CAP_REVISION_3 | VFS_CAP_FLAGS_EFFECTIVE;
+	ns_xattr.rootid = BE32_TO_LE32(1000000);
 
 	return setxattr(path, "security.capability", &ns_xattr, sizeof(ns_xattr), 0);
 }
@@ -278,4 +295,38 @@ func shiftAclType(path string, aclType _Ctype_acl_type_t, shiftIds func(uid int6
 	}
 
 	return nil
+}
+
+func supportsV3Fcaps(prefix string) bool {
+	tmpfile, err := ioutil.TempFile(prefix, ".lxd_fcaps_v3_")
+	if err != nil {
+		return false
+	}
+	defer tmpfile.Close()
+	defer os.Remove(tmpfile.Name())
+
+	err = os.Chmod(tmpfile.Name(), 0001)
+	if err != nil {
+		return false
+	}
+
+	cpath := C.CString(tmpfile.Name())
+	defer C.free(unsafe.Pointer(cpath))
+
+	r := C.set_dummy_fs_ns_caps(cpath)
+	if r != 0 {
+		return false
+	}
+
+	_, err = shared.RunCommand(tmpfile.Name())
+	if err != nil {
+		errno, isErrno := shared.GetErrno(err)
+		if isErrno && (errno == syscall.ERANGE) {
+			return true
+		}
+
+		return false
+	}
+
+	return true
 }

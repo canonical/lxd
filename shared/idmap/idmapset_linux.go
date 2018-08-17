@@ -469,6 +469,11 @@ func (m IdmapSet) ShiftFromNs(uid int64, gid int64) (int64, int64) {
 }
 
 func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
+	v3Caps := true
+	if how == "in" {
+		v3Caps = supportsV3Fcaps(dir)
+	}
+
 	// Expand any symlink before the final path component
 	tmp := filepath.Dir(dir)
 	tmp, err := filepath.EvalSymlinks(tmp)
@@ -546,9 +551,12 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 					if how == "in" {
 						rootUid, _ = set.ShiftIntoNs(0, 0)
 					}
-					err = SetCaps(path, caps, rootUid)
-					if err != nil {
-						logger.Warnf("Unable to set file capabilities on %s", path)
+
+					if how != "in" || v3Caps {
+						err = SetCaps(path, caps, rootUid)
+						if err != nil {
+							logger.Warnf("Unable to set file capabilities on %s", path)
+						}
 					}
 				}
 			}
