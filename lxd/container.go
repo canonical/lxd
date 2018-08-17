@@ -6,20 +6,26 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
 	"gopkg.in/lxc/go-lxc.v2"
+	"gopkg.in/robfig/cron.v2"
 
+	"github.com/flosch/pongo2"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/pkg/errors"
@@ -1529,4 +1535,197 @@ func containerCompareSnapshots(source container, target container) ([]container,
 	}
 
 	return toSync, toDelete, nil
+}
+
+func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		opRun := func(op *operation) error {
+			return autoCreateContainerSnapshots(ctx, d)
+		}
+
+		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start create snapshot operation", log.Ctx{"err": err})
+		}
+
+		logger.Info("Creating scheduled container snapshots")
+
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to create scheduled container snapshots", log.Ctx{"err": err})
+		}
+
+		logger.Info("Done creating scheduled container snapshots")
+	}
+
+	f(context.Background())
+
+	first := true
+	schedule := func() (time.Duration, error) {
+		interval := time.Minute
+
+		if first {
+			first = false
+			return interval, task.ErrSkip
+		}
+
+		return interval, nil
+	}
+
+	return f, schedule
+}
+
+func autoCreateContainerSnapshots(ctx context.Context, d *Daemon) error {
+	logger.Info("Creating scheduled container snapshots")
+
+	containers, err := d.cluster.ContainersNodeList(db.CTypeRegular)
+	if err != nil {
+		return errors.Wrap(err, "Unable to retrieve the list of containers")
+	}
+
+	for _, container := range containers {
+		cId, err := d.cluster.ContainerID(container)
+		if err != nil {
+			return errors.Wrap(err, "Error retrieving container ID")
+		}
+
+		c, err := containerLoadById(d.State(), cId)
+		if err != nil {
+			return errors.Wrap(err, "Error loading container")
+		}
+
+		schedule := c.LocalConfig()["snapshots.schedule"]
+
+		if schedule == "" || (!shared.IsTrue(c.LocalConfig()["snapshots.schedule.stopped"]) && c.IsRunning()) {
+			continue
+		}
+
+		if len(strings.Split(schedule, " ")) != 5 {
+			logger.Error("Schedule must be of the form: <minute> <hour> <day-of-month> <month> <day-of-week>")
+			continue
+		}
+
+		// Extend our schedule to one that is accepted by the used cron parser
+		sched, err := cron.Parse(fmt.Sprintf("* %s", schedule))
+		if err != nil {
+			logger.Error("Error parsing schedule", log.Ctx{"err": err,
+				"container": container, "schedule": schedule})
+			continue
+		}
+
+		now := time.Now()
+		next := sched.Next(now).Format("2006-01-02T15:04")
+		skip := false
+
+		snapshots, err := c.Snapshots()
+		if err != nil {
+			logger.Error("Error retrieving snapshots", log.Ctx{"err": err,
+				"container": container})
+			continue
+		}
+
+		for _, snap := range snapshots {
+			// Check whether the container has been snapshotted within (at least)
+			// the last minute.
+			if snap.CreationDate().Format("2006-01-02T15:04") == next {
+				skip = true
+				break
+			}
+		}
+
+		// Skip snapshotting if the container has been snapshotted within (at
+		// least) the last minute, or it's not time yet.
+		if skip || now.Format("2006-01-02T15:04") != next {
+			continue
+		}
+
+		ch := make(chan struct{})
+		go func() {
+			snapshotName, err := containerDetermineNextSnapshotName(d, c, "auto-snapshot")
+			if err != nil {
+				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err,
+					"container": c})
+				ch <- struct{}{}
+				return
+			}
+
+			snapshotName = fmt.Sprintf("%s%s%s", c.Name(), shared.SnapshotDelimiter, snapshotName)
+
+			args := db.ContainerArgs{
+				Project:      c.Project(),
+				Architecture: c.Architecture(),
+				Config:       c.LocalConfig(),
+				Ctype:        db.CTypeSnapshot,
+				Devices:      c.LocalDevices(),
+				Ephemeral:    c.IsEphemeral(),
+				Name:         snapshotName,
+				Profiles:     c.Profiles(),
+				Stateful:     false,
+			}
+
+			_, err = containerCreateAsSnapshot(d.State(), args, c)
+			if err != nil {
+				logger.Error("Error creating snapshots", log.Ctx{"err": err,
+					"container": c})
+			}
+
+			ch <- struct{}{}
+		}()
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ch:
+		}
+	}
+
+	return nil
+}
+
+func containerDetermineNextSnapshotName(d *Daemon, c container, defaultPattern string) (string, error) {
+	var err error
+
+	pattern := c.LocalConfig()["snapshots.pattern"]
+	if pattern == "" {
+		pattern = defaultPattern
+	}
+
+	pattern, err = shared.RenderTemplate(pattern, pongo2.Context{
+		"creation_date": time.Now(),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	count := strings.Count(pattern, "%d")
+	if count > 1 {
+		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
+	} else if count == 1 {
+		i := d.cluster.ContainerNextSnapshot(c.Project(), c.Name(), pattern)
+		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
+	}
+
+	snapshotExists := false
+
+	snapshots, err := c.Snapshots()
+	if err != nil {
+		return "", err
+	}
+
+	for _, snap := range snapshots {
+		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
+		logger.Debugf("%s %s", snapOnlyName, pattern)
+		if snapOnlyName == pattern {
+			snapshotExists = true
+			break
+		}
+	}
+
+	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
+	if snapshotExists {
+		pattern = fmt.Sprintf("%s-%%d", pattern)
+		i := d.cluster.ContainerNextSnapshot(c.Project(), c.Name(), pattern)
+		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
+	}
+
+	return pattern, nil
 }
