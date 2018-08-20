@@ -51,12 +51,15 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 		logger.Debugf("Loading data from table %s", table)
 		data := [][]interface{}{}
 		stmt := fmt.Sprintf("SELECT * FROM %s", table)
+
 		rows, err := tx.Query(stmt)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to fetch rows from %s", table)
 		}
+
 		columns, err := rows.Columns()
 		if err != nil {
+			rows.Close()
 			return nil, errors.Wrapf(err, "failed to get columns of %s", table)
 		}
 		dump.Schema[table] = columns
@@ -69,14 +72,17 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 			}
 			err := rows.Scan(row...)
 			if err != nil {
+				rows.Close()
 				return nil, errors.Wrapf(err, "failed to scan row from %s", table)
 			}
 			data = append(data, values)
 		}
 		err = rows.Err()
 		if err != nil {
+			rows.Close()
 			return nil, errors.Wrapf(err, "error while fetching rows from %s", table)
 		}
+		rows.Close()
 
 		dump.Data[table] = data
 	}
