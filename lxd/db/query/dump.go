@@ -86,6 +86,7 @@ func dumpTable(tx *sql.Tx, table, schema string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to fetch rows")
 	}
+	defer rows.Close()
 
 	// Figure column names
 	columns, err := rows.Columns()
