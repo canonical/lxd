@@ -725,11 +725,11 @@ PRAGMA foreign_keys=ON; -- Make sure we turn integrity checks back on.`
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
 	var tablestodelete []string
 	var rowidtodelete []int
 
-	defer rows.Close()
 	for rows.Next() {
 		var tablename string
 		var rowid int

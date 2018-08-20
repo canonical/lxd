@@ -255,12 +255,14 @@ func internalSQLPost(d *Daemon, r *http.Request) Response {
 
 func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) error {
 	result.Type = "select"
+
 	rows, err := tx.Query(query)
 	if err != nil {
 		return errors.Wrap(err, "Failed to execute query")
 	}
 
 	defer rows.Close()
+
 	result.Columns, err = rows.Columns()
 	if err != nil {
 		return errors.Wrap(err, "Failed to fetch colume names")
