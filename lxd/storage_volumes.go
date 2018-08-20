@@ -33,13 +33,31 @@ var storagePoolVolumesTypeCmd = Command{
 	post: storagePoolVolumesTypePost,
 }
 
-var storagePoolVolumeTypeCmd = Command{
-	name:   "storage-pools/{pool}/volumes/{type}/{name:.*}",
-	post:   storagePoolVolumeTypePost,
-	get:    storagePoolVolumeTypeGet,
-	put:    storagePoolVolumeTypePut,
-	patch:  storagePoolVolumeTypePatch,
-	delete: storagePoolVolumeTypeDelete,
+var storagePoolVolumeTypeContainerCmd = Command{
+	name:   "storage-pools/{pool}/volumes/container/{name:.*}",
+	post:   storagePoolVolumeTypeContainerPost,
+	get:    storagePoolVolumeTypeContainerGet,
+	put:    storagePoolVolumeTypeContainerPut,
+	patch:  storagePoolVolumeTypeContainerPatch,
+	delete: storagePoolVolumeTypeContainerDelete,
+}
+
+var storagePoolVolumeTypeCustomCmd = Command{
+	name:   "storage-pools/{pool}/volumes/custom/{name}",
+	post:   storagePoolVolumeTypeCustomPost,
+	get:    storagePoolVolumeTypeCustomGet,
+	put:    storagePoolVolumeTypeCustomPut,
+	patch:  storagePoolVolumeTypeCustomPatch,
+	delete: storagePoolVolumeTypeCustomDelete,
+}
+
+var storagePoolVolumeTypeImageCmd = Command{
+	name:   "storage-pools/{pool}/volumes/image/{name}",
+	post:   storagePoolVolumeTypeImagePost,
+	get:    storagePoolVolumeTypeImageGet,
+	put:    storagePoolVolumeTypeImagePut,
+	patch:  storagePoolVolumeTypeImagePatch,
+	delete: storagePoolVolumeTypeImageDelete,
 }
 
 // /1.0/storage-pools/{name}/volumes
@@ -95,10 +113,10 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 	// attached to.
 	poolName := mux.Vars(r)["name"]
 
-	recursion := util.IsRecursionRequest(r)
-
 	// Get the name of the volume type.
 	volumeTypeName := mux.Vars(r)["type"]
+
+	recursion := util.IsRecursionRequest(r)
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
@@ -371,16 +389,13 @@ func doVolumeMigration(d *Daemon, poolName string, req *api.StorageVolumesPost) 
 
 // /1.0/storage-pools/{name}/volumes/{type}/{name}
 // Rename a storage volume of a given volume type in a given storage pool.
-func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string) Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
 
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName := mux.Vars(r)["pool"]
-
-	// Get the name of the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
 
 	req := api.StorageVolumePost{}
 
@@ -552,18 +567,27 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
+func storagePoolVolumeTypeContainerPost(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypePost(d, r, "container")
+}
+
+func storagePoolVolumeTypeCustomPost(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypePost(d, r, "custom")
+}
+
+func storagePoolVolumeTypeImagePost(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypePost(d, r, "image")
+}
+
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
 // Get storage volume of a given volume type on a given storage pool.
-func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeGet(d *Daemon, r *http.Request, volumeTypeName string) Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
 
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName := mux.Vars(r)["pool"]
-
-	// Get the name of the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
@@ -609,17 +633,26 @@ func storagePoolVolumeTypeGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, volume, etag)
 }
 
+func storagePoolVolumeTypeContainerGet(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypeGet(d, r, "container")
+}
+
+func storagePoolVolumeTypeCustomGet(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypeGet(d, r, "custom")
+}
+
+func storagePoolVolumeTypeImageGet(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypeGet(d, r, "image")
+}
+
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
-func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string) Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
 
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName := mux.Vars(r)["pool"]
-
-	// Get the name of the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
@@ -679,17 +712,26 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
+func storagePoolVolumeTypeContainerPut(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypePut(d, r, "container")
+}
+
+func storagePoolVolumeTypeCustomPut(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypePut(d, r, "custom")
+}
+
+func storagePoolVolumeTypeImagePut(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypePut(d, r, "image")
+}
+
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
-func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypePatch(d *Daemon, r *http.Request, volumeTypeName string) Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
 
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName := mux.Vars(r)["pool"]
-
-	// Get the name of the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
@@ -762,17 +804,26 @@ func storagePoolVolumeTypePatch(d *Daemon, r *http.Request) Response {
 	return EmptySyncResponse
 }
 
+func storagePoolVolumeTypeContainerPatch(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypePatch(d, r, "container")
+}
+
+func storagePoolVolumeTypeCustomPatch(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypePatch(d, r, "custom")
+}
+
+func storagePoolVolumeTypeImagePatch(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypePatch(d, r, "image")
+}
+
 // /1.0/storage-pools/{pool}/volumes/{type}/{name}
-func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
+func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName string) Response {
 	// Get the name of the storage volume.
 	volumeName := mux.Vars(r)["name"]
 
 	// Get the name of the storage pool the volume is supposed to be
 	// attached to.
 	poolName := mux.Vars(r)["pool"]
-
-	// Get the name of the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
@@ -845,4 +896,16 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	return EmptySyncResponse
+}
+
+func storagePoolVolumeTypeContainerDelete(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypeDelete(d, r, "container")
+}
+
+func storagePoolVolumeTypeCustomDelete(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypeDelete(d, r, "custom")
+}
+
+func storagePoolVolumeTypeImageDelete(d *Daemon, r *http.Request) Response {
+	return storagePoolVolumeTypeDelete(d, r, "image")
 }

@@ -85,6 +85,154 @@ func (r *ProtocolLXD) CreateStoragePoolVolume(pool string, volume api.StorageVol
 	return nil
 }
 
+// CreateStoragePoolVolumeSnapshot defines a new storage volume
+func (r *ProtocolLXD) CreateStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshot api.StorageVolumeSnapshotsPost) (Operation, error) {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
+	}
+
+	// Send the request
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots",
+		url.QueryEscape(pool),
+		url.QueryEscape(volumeType),
+		url.QueryEscape(volumeName))
+	fmt.Println(path)
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
+	}
+	op, _, err := r.queryOperation("POST", path, snapshot, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// GetStoragePoolVolumeSnapshotNames returns a list of snapshot names for the
+// storage volume
+func (r *ProtocolLXD) GetStoragePoolVolumeSnapshotNames(pool string, volumeType string, volumeName string) ([]string, error) {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
+	}
+
+	urls := []string{}
+
+	// Send the request
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots",
+		url.QueryEscape(pool),
+		url.QueryEscape(volumeType),
+		url.QueryEscape(volumeName))
+	_, err := r.queryStruct("GET", path, nil, "", &urls)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it
+	names := []string{}
+	for _, uri := range urls {
+		fields := strings.Split(uri, path)
+		names = append(names, fields[len(fields)-1])
+	}
+
+	return names, nil
+}
+
+// GetStoragePoolVolumeSnapshots returns a list of snapshots for the storage
+// volume
+func (r *ProtocolLXD) GetStoragePoolVolumeSnapshots(pool string, volumeType string, volumeName string) ([]api.StorageVolumeSnapshot, error) {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
+	}
+
+	snapshots := []api.StorageVolumeSnapshot{}
+
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots?recursion=1",
+		url.QueryEscape(pool),
+		url.QueryEscape(volumeType),
+		url.QueryEscape(volumeName))
+	_, err := r.queryStruct("GET", path, nil, "", &snapshots)
+	if err != nil {
+		return nil, err
+	}
+
+	return snapshots, nil
+}
+
+// GetStoragePoolVolumeSnapshot returns a snapshots for the storage volume
+func (r *ProtocolLXD) GetStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string) (*api.StorageVolumeSnapshot, string, error) {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return nil, "", fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
+	}
+
+	snapshot := api.StorageVolumeSnapshot{}
+
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots/%s",
+		url.QueryEscape(pool),
+		url.QueryEscape(volumeType),
+		url.QueryEscape(volumeName),
+		url.QueryEscape(snapshotName))
+	etag, err := r.queryStruct("GET", path, nil, "", &snapshot)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &snapshot, etag, nil
+}
+
+// RenameStoragePoolVolumeSnapshot renames a storage volume snapshot
+func (r *ProtocolLXD) RenameStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string, snapshot api.StorageVolumeSnapshotPost) (Operation, error) {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
+	}
+
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots/%s", url.QueryEscape(pool), url.QueryEscape(volumeType), url.QueryEscape(volumeName), url.QueryEscape(snapshotName))
+	// Send the request
+	op, _, err := r.queryOperation("POST", path, snapshot, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// DeleteStoragePoolVolumeSnapshot deletes a storage volume snapshot
+func (r *ProtocolLXD) DeleteStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string) (Operation, error) {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
+	}
+
+	// Send the request
+	path := fmt.Sprintf(
+		"/storage-pools/%s/volumes/%s/%s/snapshots/%s",
+		url.QueryEscape(pool), url.QueryEscape(volumeType), url.QueryEscape(volumeName), url.QueryEscape(snapshotName))
+	if r.clusterTarget != "" {
+		path += fmt.Sprintf("?target=%s", r.clusterTarget)
+	}
+
+	op, _, err := r.queryOperation("DELETE", path, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
+// UpdateStoragePoolVolumeSnapshot updates the volume to match the provided StoragePoolVolume struct
+func (r *ProtocolLXD) UpdateStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string, volume api.StorageVolumeSnapshotPut, ETag string) (Operation, error) {
+	if !r.HasExtension("storage_api_volume_snapshots") {
+		return nil, fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
+	}
+
+	// Send the request
+	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots/%s", url.QueryEscape(pool), url.QueryEscape(volumeType), url.QueryEscape(volumeName), url.QueryEscape(snapshotName))
+	op, _, err := r.queryOperation("PUT", path, volume, ETag)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // MigrateStoragePoolVolume requests that LXD prepares for a storage volume migration
 func (r *ProtocolLXD) MigrateStoragePoolVolume(pool string, volume api.StorageVolumePost) (Operation, error) {
 	if !r.HasExtension("storage_api_remote_volume_handling") {

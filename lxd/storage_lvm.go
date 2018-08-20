@@ -849,6 +849,18 @@ func (s *storageLvm) StoragePoolVolumeRename(newName string) error {
 			s.volume.Name, newName, err)
 	}
 
+	sourceName, _, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	if !ok {
+		return fmt.Errorf("Not a snapshot name")
+	}
+	fullSnapshotName := fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
+	oldPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	newPath := getStoragePoolVolumeMountPoint(s.pool.Name, fullSnapshotName)
+	err = os.Rename(oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
 	logger.Infof(`Renamed ZFS storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
@@ -899,7 +911,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 	if container.IsSnapshot() {
 		containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
 		sourceName, _, _ := containerGetParentAndSnapshotName(containerName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err := os.MkdirAll(containerMntPoint, 0711)
 		if err != nil {
@@ -1045,7 +1057,7 @@ func lvmContainerDeleteInternal(poolName string, ctName string, isSnapshot bool,
 	var err error
 	if isSnapshot {
 		sourceName, _, _ := containerGetParentAndSnapshotName(ctName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", poolName, "snapshots", sourceName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", poolName, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = deleteSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
@@ -1946,8 +1958,7 @@ func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool
 	if snapshot {
 		cname, _, _ := containerGetParentAndSnapshotName(containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", cname)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots",
-			cname)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", cname)
 		err = createSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget,
 			snapshotMntPointSymlink)
 	} else {
@@ -2350,4 +2361,108 @@ func (s *storageLvm) GetStoragePoolVolume() *api.StorageVolume {
 
 func (s *storageLvm) GetState() *state.State {
 	return s.s
+}
+
+func (s *storageLvm) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
+	logger.Debugf("Creating LVM storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	poolName := s.getOnDiskPoolName()
+	sourceOnlyName, _, ok := containerGetParentAndSnapshotName(target.Name)
+	if !ok {
+		return fmt.Errorf("Not a snapshot")
+	}
+
+	targetLvmName := containerNameToLVName(target.Name)
+	_, err := s.createSnapshotLV(poolName, sourceOnlyName, storagePoolVolumeAPIEndpointCustom, targetLvmName, storagePoolVolumeAPIEndpointCustom, true, s.useThinpool)
+	if err != nil {
+		return fmt.Errorf("Failed to create snapshot logical volume %s", err)
+	}
+
+	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
+	err = os.MkdirAll(targetPath, snapshotsDirMode)
+	if err != nil {
+		logger.Errorf("Failed to create mountpoint \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s", targetPath, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	logger.Debugf("Created LVM storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
+}
+
+func (s *storageLvm) StoragePoolVolumeSnapshotDelete() error {
+	logger.Infof("Deleting LVM storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	snapshotLVName := containerNameToLVName(s.volume.Name)
+	storageVolumeSnapshotPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	if shared.IsMountPoint(storageVolumeSnapshotPath) {
+		err := tryUnmount(storageVolumeSnapshotPath, 0)
+		if err != nil {
+			return fmt.Errorf("Failed to unmount snapshot path \"%s\": %s", storageVolumeSnapshotPath, err)
+		}
+	}
+
+	poolName := s.getOnDiskPoolName()
+	snapshotLVDevPath := getLvmDevPath(poolName, storagePoolVolumeAPIEndpointCustom, snapshotLVName)
+	lvExists, _ := storageLVExists(snapshotLVDevPath)
+	if lvExists {
+		err := removeLV(poolName, storagePoolVolumeAPIEndpointCustom, snapshotLVName)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := os.Remove(storageVolumeSnapshotPath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	sourceName, _, _ := containerGetParentAndSnapshotName(s.volume.Name)
+	storageVolumeSnapshotPath = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
+	empty, err := shared.PathIsEmpty(storageVolumeSnapshotPath)
+	if err == nil && empty {
+		os.RemoveAll(storageVolumeSnapshotPath)
+	}
+
+	err = s.s.Cluster.StoragePoolVolumeDelete(
+		s.volume.Name,
+		storagePoolVolumeTypeCustom,
+		s.poolID)
+	if err != nil {
+		logger.Errorf(`Failed to delete database entry for LVM storage volume "%s" on storage pool "%s"`,
+			s.volume.Name, s.pool.Name)
+	}
+
+	logger.Infof("Deleted LVM storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
+}
+
+func (s *storageLvm) StoragePoolVolumeSnapshotRename(newName string) error {
+	logger.Infof("Renaming LVM storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
+
+	_, err := s.StoragePoolVolumeUmount()
+	if err != nil {
+		return err
+	}
+
+	sourceName, _, ok := containerGetParentAndSnapshotName(s.volume.Name)
+	if !ok {
+		return fmt.Errorf("Not a snapshot name")
+	}
+	fullSnapshotName := fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
+
+	err = s.renameLVByPath(s.volume.Name, fullSnapshotName, storagePoolVolumeAPIEndpointCustom)
+	if err != nil {
+		return fmt.Errorf("Failed to rename logical volume from \"%s\" to \"%s\": %s", s.volume.Name, newName, err)
+	}
+
+	oldPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	newPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, fullSnapshotName)
+	err = os.Rename(oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Renamed LVM storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
+
+	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, newName, storagePoolVolumeTypeCustom, s.poolID)
 }

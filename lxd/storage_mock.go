@@ -273,3 +273,15 @@ func (s *storageMock) GetStoragePoolVolume() *api.StorageVolume {
 func (s *storageMock) GetState() *state.State {
 	return nil
 }
+
+func (s *storageMock) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
+	return nil
+}
+
+func (s *storageMock) StoragePoolVolumeSnapshotDelete() error {
+	return nil
+}
+
+func (s *storageMock) StoragePoolVolumeSnapshotRename(newName string) error {
+	return nil
+}

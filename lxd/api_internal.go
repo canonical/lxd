@@ -398,8 +398,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Read in the backup.yaml file.
-	backupYamlPath := shared.VarPath("storage-pools", containerPoolName,
-		"containers", req.Name, "backup.yaml")
+	backupYamlPath := shared.VarPath("storage-pools", containerPoolName, "containers", req.Name, "backup.yaml")
 	backup, err := slurpBackupFile(backupYamlPath)
 	if err != nil {
 		return SmartError(err)
@@ -872,11 +871,9 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		snapshotMountPoint := getSnapshotMountPoint(backup.Pool.Name,
 			snap.Name)
 		sourceName, _, _ := containerGetParentAndSnapshotName(snap.Name)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
-			backup.Pool.Name, "snapshots", sourceName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
-		err = createSnapshotMountpoint(snapshotMountPoint,
-			snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
+		err = createSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			return InternalError(err)
 		}

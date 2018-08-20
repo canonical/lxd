@@ -40,14 +40,24 @@ var updates = map[int]schema.Update{
 	8:  updateFromV7,
 	9:  updateFromV8,
 	10: updateFromV9,
+	11: updateFromV10,
+}
+
+func updateFromV10(tx *sql.Tx) error {
+	stmt := `
+ALTER TABLE storage_volumes ADD COLUMN kind INTEGER NOT NULL DEFAULT 0;
+UPDATE storage_volumes SET kind = 0;
+`
+	_, err := tx.Exec(stmt)
+	return err
 }
 
 // Add a new 'type' column to the operations table.
 func updateFromV9(tx *sql.Tx) error {
 	stmts := `
 	ALTER TABLE operations ADD COLUMN type INTEGER NOT NULL DEFAULT 0;
-        UPDATE operations SET type = 0;
-`
+	UPDATE operations SET type = 0;
+	`
 	_, err := tx.Exec(stmts)
 	return err
 }
