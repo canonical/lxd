@@ -22,15 +22,18 @@ SELECT COUNT(name) FROM sqlite_master WHERE type = 'table' AND name = 'schema'
 		return false, err
 	}
 	defer rows.Close()
+
 	if !rows.Next() {
 		return false, fmt.Errorf("schema table query returned no rows")
 	}
 
 	var count int
+
 	err = rows.Scan(&count)
 	if err != nil {
 		return false, err
 	}
+
 	return count == 1, nil
 }
 
