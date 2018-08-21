@@ -1766,7 +1766,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 			// This is nasty, but we need to clear the profiles config and
 			// devices in order to add the new root device including the
 			// newly added storage pool.
-			tx, err := d.db.Begin()
+			tx, err := d.cluster.Begin()
 			if err != nil {
 				return err
 			}
