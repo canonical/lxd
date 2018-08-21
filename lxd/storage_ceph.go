@@ -1504,16 +1504,19 @@ func (s *storageCeph) ContainerGetUsage(container container) (int64, error) {
 }
 
 func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
-	// This is costly but we need to ensure that all cached data has
-	// been committed to disk. If we don't then the rbd snapshot of
-	// the underlying filesystem can be inconsistent or - worst case
-	// - empty.
-	syscall.Sync()
 	containerMntPoint := getContainerMountPoint(s.pool.Name, sourceContainer.Name())
-	msg, fsFreezeErr := shared.TryRunCommand("fsfreeze", "--freeze", containerMntPoint)
-	logger.Debugf("Trying to freeze the filesystem: %s: %s", msg, fsFreezeErr)
-	if fsFreezeErr == nil {
-		defer shared.TryRunCommand("fsfreeze", "--unfreeze", containerMntPoint)
+	if shared.IsMountPoint(containerMntPoint) {
+		// This is costly but we need to ensure that all cached data has
+		// been committed to disk. If we don't then the rbd snapshot of
+		// the underlying filesystem can be inconsistent or - worst case
+		// - empty.
+		syscall.Sync()
+
+		msg, fsFreezeErr := shared.TryRunCommand("fsfreeze", "--freeze", containerMntPoint)
+		logger.Debugf("Trying to freeze the filesystem: %s: %s", msg, fsFreezeErr)
+		if fsFreezeErr == nil {
+			defer shared.TryRunCommand("fsfreeze", "--unfreeze", containerMntPoint)
+		}
 	}
 
 	return s.doContainerSnapshotCreate(snapshotContainer.Name(), sourceContainer.Name())
