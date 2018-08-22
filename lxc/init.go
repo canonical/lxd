@@ -86,7 +86,10 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 	if err != nil {
 		return nil, "", err
 	}
-	d = d.UseTarget(c.flagTarget)
+
+	if c.flagTarget != "" {
+		d = d.UseTarget(c.flagTarget)
+	}
 
 	profiles := []string{}
 	for _, p := range c.flagProfile {
