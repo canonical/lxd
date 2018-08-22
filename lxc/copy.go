@@ -100,7 +100,6 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			return err
 		}
 	}
-
 	// Confirm that --target is only used with a cluster
 	if c.flagTarget != "" && !dest.IsClustered() {
 		return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
@@ -214,7 +213,10 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		}
 
 		// Do the actual copy
-		dest = dest.UseTarget(c.flagTarget)
+		if c.flagTarget != "" {
+			dest = dest.UseTarget(c.flagTarget)
+		}
+
 		op, err = dest.CopyContainerSnapshot(source, srcFields[0], *entry, &args)
 		if err != nil {
 			return err
@@ -298,7 +300,10 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		}
 
 		// Do the actual copy
-		dest = dest.UseTarget(c.flagTarget)
+		if c.flagTarget != "" {
+			dest = dest.UseTarget(c.flagTarget)
+		}
+
 		op, err = dest.CopyContainer(source, *entry, &args)
 		if err != nil {
 			return err
