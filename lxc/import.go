@@ -66,6 +66,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 
 	progress := utils.ProgressRenderer{
 		Format: i18n.G("Importing container: %s"),
+		Quiet:  c.global.flagQuiet,
 	}
 
 	createArgs := lxd.ContainerBackupArgs{}

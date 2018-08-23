@@ -373,7 +373,11 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Register progress handler
-	progress := utils.ProgressRenderer{Format: opMsg}
+	progress := utils.ProgressRenderer{
+		Format: opMsg,
+		Quiet:  c.global.flagQuiet,
+	}
+
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
@@ -467,7 +471,9 @@ func (c *cmdStorageVolumeCreate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Storage volume %s created")+"\n", args[1])
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Storage volume %s created")+"\n", args[1])
+	}
 
 	return nil
 }
@@ -528,7 +534,9 @@ func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Storage volume %s deleted")+"\n", args[1])
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Storage volume %s deleted")+"\n", args[1])
+	}
 
 	return nil
 }
@@ -1056,7 +1064,9 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G(`Renamed storage volume from "%s" to "%s"`)+"\n", volName, vol.Name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G(`Renamed storage volume from "%s" to "%s"`)+"\n", volName, vol.Name)
+	}
 
 	return nil
 }

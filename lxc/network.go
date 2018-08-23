@@ -303,10 +303,12 @@ func (c *cmdNetworkCreate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if c.network.flagTarget != "" {
-		fmt.Printf(i18n.G("Network %s pending on member %s")+"\n", resource.name, c.network.flagTarget)
-	} else {
-		fmt.Printf(i18n.G("Network %s created")+"\n", resource.name)
+	if !c.global.flagQuiet {
+		if c.network.flagTarget != "" {
+			fmt.Printf(i18n.G("Network %s pending on member %s")+"\n", resource.name, c.network.flagTarget)
+		} else {
+			fmt.Printf(i18n.G("Network %s created")+"\n", resource.name)
+		}
 	}
 
 	return nil
@@ -356,7 +358,10 @@ func (c *cmdNetworkDelete) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Network %s deleted")+"\n", resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Network %s deleted")+"\n", resource.name)
+	}
+
 	return nil
 }
 
@@ -1009,7 +1014,10 @@ func (c *cmdNetworkRename) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Network %s renamed to %s")+"\n", resource.name, args[1])
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Network %s renamed to %s")+"\n", resource.name, args[1])
+	}
+
 	return nil
 }
 
