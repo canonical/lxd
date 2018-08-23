@@ -6,7 +6,18 @@ import (
 
 // ResponseRaw represents a LXD operation in its original form
 type ResponseRaw struct {
-	Response `yaml:",inline"`
+	Type ResponseType `json:"type" yaml:"type"`
+
+	// Valid only for Sync responses
+	Status     string `json:"status" yaml:"status"`
+	StatusCode int    `json:"status_code" yaml:"status_code"`
+
+	// Valid only for Async responses
+	Operation string `json:"operation" yaml:"operation"`
+
+	// Valid only for Error responses
+	Code  int    `json:"error_code" yaml:"error_code"`
+	Error string `json:"error" yaml:"error"`
 
 	Metadata interface{} `json:"metadata" yaml:"metadata"`
 }
