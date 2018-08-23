@@ -311,7 +311,11 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	// Watch the background operation
-	progress := utils.ProgressRenderer{Format: i18n.G("Transferring container: %s")}
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Transferring container: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")

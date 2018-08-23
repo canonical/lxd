@@ -332,6 +332,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 
 		progress := utils.ProgressRenderer{
 			Format: fmt.Sprintf(i18n.G("Pulling %s from %s: %%s"), targetPath, pathSpec[1]),
+			Quiet:  c.global.flagQuiet,
 		}
 
 		writer := &ioprogress.ProgressWriter{
@@ -590,6 +591,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 
 		progress := utils.ProgressRenderer{
 			Format: fmt.Sprintf(i18n.G("Pushing %s to %s: %%s"), f.Name(), fpath),
+			Quiet:  c.global.flagQuiet,
 		}
 
 		args.Content = shared.NewReadSeeker(&ioprogress.ProgressReader{
@@ -653,6 +655,7 @@ func (c *cmdFile) recursivePullFile(d lxd.ContainerServer, container string, p s
 
 		progress := utils.ProgressRenderer{
 			Format: fmt.Sprintf(i18n.G("Pulling %s from %s: %%s"), p, target),
+			Quiet:  c.global.flagQuiet,
 		}
 
 		writer := &ioprogress.ProgressWriter{
@@ -744,6 +747,7 @@ func (c *cmdFile) recursivePushFile(d lxd.ContainerServer, container string, sou
 
 		progress := utils.ProgressRenderer{
 			Format: fmt.Sprintf(i18n.G("Pushing %s to %s: %%s"), p, targetPath),
+			Quiet:  c.global.flagQuiet,
 		}
 
 		if args.Type != "directory" {
