@@ -203,11 +203,11 @@ _have lxc && {
       "network")
         case $pos in
           2)
-            COMPREPLY=( $(compgen -W "list show create get set unset delete edit rename attach attach-profile detach detach-profile" -- $cur) )
+            COMPREPLY=( $(compgen -W "list show create get set unset delete edit rename attach attach-profile detach detach-profile info" -- $cur) )
             ;;
           3)
             case ${no_dashargs[2]} in
-              "show"|"get"|"set"|"unset"|"delete"|"edit"|"rename"|"attach"|"attach-profile"|"detach"|"detach-profile")
+              "show"|"get"|"set"|"unset"|"delete"|"edit"|"rename"|"attach"|"attach-profile"|"detach"|"detach-profile"|"info")
                 _lxd_networks
                 ;;
             esac
