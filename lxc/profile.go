@@ -144,7 +144,9 @@ func (c *cmdProfileAdd) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Profile %s added to %s")+"\n", args[1], resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Profile %s added to %s")+"\n", args[1], resource.name)
+	}
 
 	return nil
 }
@@ -222,7 +224,9 @@ func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
 		args[1] = i18n.G("(none)")
 	}
 
-	fmt.Printf(i18n.G("Profiles %s applied to %s")+"\n", args[1], resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Profiles %s applied to %s")+"\n", args[1], resource.name)
+	}
 
 	return nil
 }
@@ -330,7 +334,10 @@ func (c *cmdProfileCreate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Profile %s created")+"\n", resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Profile %s created")+"\n", resource.name)
+	}
+
 	return nil
 }
 
@@ -378,7 +385,9 @@ func (c *cmdProfileDelete) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Profile %s deleted")+"\n", resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Profile %s deleted")+"\n", resource.name)
+	}
 
 	return nil
 }
@@ -687,7 +696,10 @@ func (c *cmdProfileRemove) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Profile %s removed from %s")+"\n", args[1], resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Profile %s removed from %s")+"\n", args[1], resource.name)
+	}
+
 	return nil
 }
 
@@ -735,7 +747,9 @@ func (c *cmdProfileRename) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Profile %s renamed to %s")+"\n", resource.name, args[1])
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Profile %s renamed to %s")+"\n", resource.name, args[1])
+	}
 
 	return nil
 }

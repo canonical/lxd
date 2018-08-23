@@ -138,10 +138,12 @@ func (c *cmdStorageCreate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if c.storage.flagTarget != "" {
-		fmt.Printf(i18n.G("Storage pool %s pending on member %s")+"\n", resource.name, c.storage.flagTarget)
-	} else {
-		fmt.Printf(i18n.G("Storage pool %s created")+"\n", resource.name)
+	if !c.global.flagQuiet {
+		if c.storage.flagTarget != "" {
+			fmt.Printf(i18n.G("Storage pool %s pending on member %s")+"\n", resource.name, c.storage.flagTarget)
+		} else {
+			fmt.Printf(i18n.G("Storage pool %s created")+"\n", resource.name)
+		}
 	}
 
 	return nil
@@ -191,7 +193,10 @@ func (c *cmdStorageDelete) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Storage pool %s deleted")+"\n", resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Storage pool %s deleted")+"\n", resource.name)
+	}
+
 	return nil
 }
 

@@ -106,7 +106,10 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	defer target.Close()
 
 	// Prepare the download request
-	progress := utils.ProgressRenderer{Format: i18n.G("Exporting the backup: %s")}
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Exporting the backup: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
 	backupFileRequest := lxd.BackupFileRequest{
 		BackupFile:      io.WriteSeeker(target),
 		ProgressHandler: progress.UpdateProgress,

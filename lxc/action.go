@@ -180,7 +180,9 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		return err
 	}
 
-	progress := utils.ProgressRenderer{}
+	progress := utils.ProgressRenderer{
+		Quiet: c.global.flagQuiet,
+	}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")

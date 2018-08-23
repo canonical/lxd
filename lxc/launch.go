@@ -60,7 +60,10 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Start the container
-	fmt.Printf(i18n.G("Starting %s")+"\n", name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Starting %s")+"\n", name)
+	}
+
 	req := api.ContainerStatePut{
 		Action:  "start",
 		Timeout: -1,

@@ -96,10 +96,12 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 		profiles = append(profiles, p)
 	}
 
-	if name == "" {
-		fmt.Printf(i18n.G("Creating the container") + "\n")
-	} else {
-		fmt.Printf(i18n.G("Creating %s")+"\n", name)
+	if !c.global.flagQuiet {
+		if name == "" {
+			fmt.Printf(i18n.G("Creating the container") + "\n")
+		} else {
+			fmt.Printf(i18n.G("Creating %s")+"\n", name)
+		}
 	}
 
 	devicesMap := map[string]map[string]string{}
@@ -202,7 +204,11 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.ContainerServe
 	}
 
 	// Watch the background operation
-	progress := utils.ProgressRenderer{Format: i18n.G("Retrieving image: %s")}
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Retrieving image: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")

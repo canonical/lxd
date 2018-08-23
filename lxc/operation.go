@@ -80,7 +80,10 @@ func (c *cmdOperationDelete) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Operation %s deleted")+"\n", resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Operation %s deleted")+"\n", resource.name)
+	}
+
 	return nil
 }
 

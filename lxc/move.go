@@ -158,6 +158,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	cpy := cmdCopy{}
+	cpy.global = c.global
 	cpy.flagTarget = c.flagTarget
 	cpy.flagConfig = c.flagConfig
 	cpy.flagDevice = c.flagDevice
