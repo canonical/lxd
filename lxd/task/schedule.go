@@ -3,6 +3,8 @@ package task
 import (
 	"fmt"
 	"time"
+
+	"github.com/gorhill/cronexpr"
 )
 
 // Schedule captures the signature of a schedule function.
@@ -43,6 +45,30 @@ func Every(interval time.Duration, options ...EveryOption) Schedule {
 		}
 		first = false
 		return interval, err
+	}
+}
+
+// Cron returns a Schedule determined by the provided cron expression.
+func Cron(expr string, options ...EveryOption) Schedule {
+	every := &every{}
+	for _, option := range options {
+		option(every)
+	}
+
+	first := true
+	return func() (time.Duration, error) {
+		exp, err := cronexpr.Parse(expr)
+		if err != nil {
+			return 0, err
+		}
+
+		if first && every.skipFirst {
+			err = ErrSkip
+		}
+
+		first = false
+		return exp.Next(time.Now()).Sub(time.Now()), err
+
 	}
 }
 
