@@ -160,7 +160,10 @@ func (c *cmdConfigDeviceAdd) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf(i18n.G("Device %s added to %s")+"\n", devname, resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Device %s added to %s")+"\n", devname, resource.name)
+	}
+
 	return nil
 }
 
@@ -384,7 +387,9 @@ func (c *cmdConfigDeviceOverride) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(i18n.G("Device %s overridden for %s")+"\n", devname, resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Device %s overridden for %s")+"\n", devname, resource.name)
+	}
 
 	return nil
 }
@@ -473,7 +478,9 @@ func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf(i18n.G("Device %s removed from %s")+"\n", strings.Join(args[1:], ", "), resource.name)
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Device %s removed from %s")+"\n", strings.Join(args[1:], ", "), resource.name)
+	}
 
 	return nil
 }

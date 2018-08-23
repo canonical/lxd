@@ -214,7 +214,11 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Register progress handler
-	progress := utils.ProgressRenderer{Format: i18n.G("Copying the image: %s")}
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Copying the image: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
@@ -491,7 +495,11 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	defer destRootfs.Close()
 
 	// Prepare the download request
-	progress := utils.ProgressRenderer{Format: i18n.G("Exporting the image: %s")}
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Exporting the image: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+
 	req := lxd.ImageFileRequest{
 		MetaFile:        io.WriteSeeker(dest),
 		RootfsFile:      io.WriteSeeker(destRootfs),
@@ -683,7 +691,11 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 		image.Properties[strings.TrimSpace(fields[0])] = strings.TrimSpace(fields[1])
 	}
 
-	progress := utils.ProgressRenderer{Format: i18n.G("Transferring image: %s")}
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Transferring image: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+
 	if strings.HasPrefix(imageFile, "https://") {
 		image.Source = &api.ImagesPostSource{}
 		image.Source.Type = "url"
@@ -1037,6 +1049,7 @@ func (c *cmdImageList) imageShouldShow(filters []string, state *api.Image) bool 
 
 			for configKey, configValue := range state.Properties {
 				list := cmdList{}
+				list.global = c.global
 				if list.dotPrefixMatch(key, configKey) {
 					//try to test filter value as a regexp
 					regexpValue := value
@@ -1236,7 +1249,11 @@ func (c *cmdImageRefresh) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		image := c.image.dereferenceAlias(resource.server, resource.name)
-		progress := utils.ProgressRenderer{Format: i18n.G("Refreshing the image: %s")}
+		progress := utils.ProgressRenderer{
+			Format: i18n.G("Refreshing the image: %s"),
+			Quiet:  c.global.flagQuiet,
+		}
+
 		op, err := resource.server.RefreshImage(image)
 		if err != nil {
 			return err
