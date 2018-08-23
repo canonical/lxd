@@ -2966,13 +2966,21 @@ func patchMoveBackups(name string, d *Daemon) error {
 	// Get all storage pools
 	pools, err := d.cluster.StoragePools()
 	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return nil
+		}
+
 		return err
 	}
 
 	// Get all containers
 	containers, err := d.cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
-		return err
+		if err != db.ErrNoSuchObject {
+			return err
+		}
+
+		containers = []string{}
 	}
 
 	// Convert the backups
