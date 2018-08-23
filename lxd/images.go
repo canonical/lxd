@@ -737,7 +737,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 func getImageMetadata(fname string) (*api.ImageMetadata, error) {
 	metadataName := "metadata.yaml"
 
-	compressionArgs, _, err := shared.DetectCompression(fname)
+	compressionArgs, _, _, err := shared.DetectCompression(fname)
 
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -1690,7 +1690,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 	imagePath := shared.VarPath("images", imgInfo.Fingerprint)
 	rootfsPath := imagePath + ".rootfs"
 
-	_, ext, err := shared.DetectCompression(imagePath)
+	_, ext, _, err := shared.DetectCompression(imagePath)
 	if err != nil {
 		ext = ""
 	}
@@ -1705,7 +1705,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 
 		// Recompute the extension for the root filesystem, it may use a different
 		// compression algorithm than the metadata.
-		_, ext, err = shared.DetectCompression(rootfsPath)
+		_, ext, _, err = shared.DetectCompression(rootfsPath)
 		if err != nil {
 			ext = ""
 		}

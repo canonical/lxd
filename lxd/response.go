@@ -27,26 +27,6 @@ type Response interface {
 	String() string
 }
 
-// Backup response
-type backupResponse struct {
-	data []byte
-}
-
-func (r *backupResponse) Render(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r.data)))
-	_, err := io.Copy(w, bytes.NewReader(r.data))
-	return err
-}
-
-func (r *backupResponse) String() string {
-	return fmt.Sprintf("%d bytes", len(r.data))
-}
-
-func BackupResponse(data []byte) Response {
-	return &backupResponse{data: data}
-}
-
 // Sync response
 type syncResponse struct {
 	success  bool

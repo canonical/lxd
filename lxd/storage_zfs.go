@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -880,16 +879,6 @@ func (s *storageZfs) ContainerDelete(container container) error {
 		return err
 	}
 
-	backups, err := container.Backups()
-	if err != nil {
-		return err
-	}
-
-	for _, backup := range backups {
-		backupName := strings.Split(backup.Name(), "/")[1]
-		s.ContainerBackupDelete(backupName)
-	}
-
 	return nil
 }
 
@@ -1420,17 +1409,6 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 		}
 	}
 
-	backups, err := container.Backups()
-	if err != nil {
-		return err
-	}
-
-	for _, backup := range backups {
-		backupName := strings.Split(backup.Name(), "/")[1]
-		newName := fmt.Sprintf("%s/%s", newName, backupName)
-		s.ContainerBackupRename(backup, newName)
-	}
-
 	revert = false
 
 	logger.Debugf("Renamed ZFS storage volume for container \"%s\" from %s to %s", s.volume.Name, s.volume.Name, newName)
@@ -1784,9 +1762,7 @@ func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	return nil
 }
 
-func (s *storageZfs) doContainerOnlyBackup(backup backup, source container) error {
-	logger.Debugf("Creating DIR storage volume for backup \"%s\" on storage pool \"%s\"", source.Name(), s.pool.Name)
-
+func (s *storageZfs) doContainerOnlyBackup(tmpPath string, backup backup, source container) error {
 	sourceIsSnapshot := source.IsSnapshot()
 	poolName := s.getOnDiskPoolName()
 
@@ -1816,14 +1792,8 @@ func (s *storageZfs) doContainerOnlyBackup(backup backup, source container) erro
 		}()
 	}
 
-	// Create the path for the backup.
-	baseMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
-	err := os.MkdirAll(baseMntPoint, 0711)
-	if err != nil {
-		return err
-	}
-
-	backupFile := fmt.Sprintf("%s/%s", baseMntPoint, "container.bin")
+	// Dump the container to a file
+	backupFile := fmt.Sprintf("%s/%s", tmpPath, "container.bin")
 	f, err := os.OpenFile(backupFile, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
@@ -1837,16 +1807,15 @@ func (s *storageZfs) doContainerOnlyBackup(backup backup, source container) erro
 		return err
 	}
 
-	logger.Debugf("Created ZFS storage volume for backup \"%s\" on storage pool \"%s\"", source.Name(), s.pool.Name)
 	return nil
 }
 
-func (s *storageZfs) doSnapshotBackup(backup backup, source container, parentSnapshot string) error {
+func (s *storageZfs) doSnapshotBackup(tmpPath string, backup backup, source container, parentSnapshot string) error {
 	sourceName := source.Name()
-	baseMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
-	targetBackupSnapshotsMntPoint := fmt.Sprintf("%s/snapshots", baseMntPoint)
-	// create backup path for snapshots.
-	err := os.MkdirAll(targetBackupSnapshotsMntPoint, 0711)
+	snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
+
+	// Create backup path for snapshots
+	err := os.MkdirAll(snapshotsPath, 0711)
 	if err != nil {
 		return err
 	}
@@ -1861,7 +1830,7 @@ func (s *storageZfs) doSnapshotBackup(backup backup, source container, parentSna
 		args = append(args, "-i", parentSnapshotDataset)
 	}
 
-	backupFile := fmt.Sprintf("%s/%s.bin", targetBackupSnapshotsMntPoint, sourceSnapOnlyName)
+	backupFile := fmt.Sprintf("%s/%s.bin", snapshotsPath, sourceSnapOnlyName)
 	f, err := os.OpenFile(backupFile, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
@@ -1873,22 +1842,16 @@ func (s *storageZfs) doSnapshotBackup(backup backup, source container, parentSna
 	return zfsSendCmd.Run()
 }
 
-func (s *storageZfs) doContainerBackupCreateOptimized(backup backup, source container) error {
+func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup backup, source container) error {
+	// Handle snapshots
 	snapshots, err := source.Snapshots()
 	if err != nil {
 		return err
 	}
 
-	baseMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
 	if backup.containerOnly || len(snapshots) == 0 {
-		err = s.doContainerOnlyBackup(backup, source)
+		err = s.doContainerOnlyBackup(tmpPath, backup, source)
 	} else {
-		// create the path for the backup
-		err = os.MkdirAll(baseMntPoint, 0711)
-		if err != nil {
-			return err
-		}
-
 		prev := ""
 		prevSnapOnlyName := ""
 		for i, snap := range snapshots {
@@ -1903,13 +1866,13 @@ func (s *storageZfs) doContainerBackupCreateOptimized(backup backup, source cont
 
 			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
 			prevSnapOnlyName = snapOnlyName
-			err = s.doSnapshotBackup(backup, sourceSnapshot, prev)
+			err = s.doSnapshotBackup(tmpPath, backup, sourceSnapshot, prev)
 			if err != nil {
 				return err
 			}
 		}
 
-		// send actual container
+		// Dump the container to a file
 		poolName := s.getOnDiskPoolName()
 		tmpSnapshotName := fmt.Sprintf("backup-%s", uuid.NewRandom().String())
 		err = zfsPoolVolumeSnapshotCreate(poolName, fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
@@ -1924,7 +1887,7 @@ func (s *storageZfs) doContainerBackupCreateOptimized(backup backup, source cont
 			args = append(args, "-i", parentSnapshotDataset)
 		}
 
-		backupFile := fmt.Sprintf("%s/container.bin", baseMntPoint)
+		backupFile := fmt.Sprintf("%s/container.bin", tmpPath)
 		f, err := os.OpenFile(backupFile, os.O_RDWR|os.O_CREATE, 0644)
 		if err != nil {
 			return err
@@ -1938,6 +1901,7 @@ func (s *storageZfs) doContainerBackupCreateOptimized(backup backup, source cont
 		if err != nil {
 			return err
 		}
+
 		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
 	}
 	if err != nil {
@@ -1947,49 +1911,50 @@ func (s *storageZfs) doContainerBackupCreateOptimized(backup backup, source cont
 	return nil
 }
 
-func (s *storageZfs) doContainerBackupCreateVanilla(backup backup, source container) error {
-	// Create the path for the backup.
-	baseMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
-	targetBackupContainerMntPoint := fmt.Sprintf("%s/container", baseMntPoint)
-	err := os.MkdirAll(targetBackupContainerMntPoint, 0711)
-	if err != nil {
-		return err
-	}
-
-	snapshots, err := source.Snapshots()
-	if err != nil {
-		return err
-	}
-
+func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backup, source container) error {
+	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {
 		output, err := rsyncLocalCopy(oldPath, newPath, bwlimit)
 		if err != nil {
-			s.ContainerBackupDelete(backup.Name())
-			return fmt.Errorf("failed to rsync: %s: %s", string(output), err)
+			return fmt.Errorf("Failed to rsync: %s: %s", string(output), err)
 		}
+
 		return nil
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
-	if !backup.containerOnly && len(snapshots) > 0 {
-		// /var/lib/lxd/storage-pools/<pool>/backups/<container>/snapshots
-		targetBackupSnapshotsMntPoint := fmt.Sprintf("%s/snapshots", baseMntPoint)
-		err = os.MkdirAll(targetBackupSnapshotsMntPoint, 0711)
+
+	// Handle snapshots
+	if !backup.containerOnly {
+		snapshotsPath := fmt.Sprintf("%s/snapshots", tmpPath)
+
+		// Retrieve the snapshots
+		snapshots, err := source.Snapshots()
 		if err != nil {
-			logger.Errorf("Failed to create directory \"%s\": %s", targetBackupSnapshotsMntPoint, err)
 			return err
 		}
-		logger.Debugf("Created directory \"%s\"", targetBackupSnapshotsMntPoint)
+
+		// Create the snapshot path
+		if len(snapshots) > 0 {
+			err = os.MkdirAll(snapshotsPath, 0711)
+			if err != nil {
+				return err
+			}
+		}
 
 		for _, snap := range snapshots {
+			_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+
+			// Mount the snapshot to a usable path
 			_, err := s.ContainerSnapshotStart(snap)
 			if err != nil {
 				return err
 			}
 
 			snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, snap.Name())
-			_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
-			target := fmt.Sprintf("%s/%s", targetBackupSnapshotsMntPoint, snapName)
+			target := fmt.Sprintf("%s/%s", snapshotsPath, snapName)
+
+			// Copy the snapshot
 			err = rsync(snapshotMntPoint, target, bwlimit)
 			s.ContainerSnapshotStop(snap)
 			if err != nil {
@@ -1998,7 +1963,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(backup backup, source contai
 		}
 	}
 
-	// /var/lib/lxd/storage-pools/<pool>/containers/<container>
+	// Make a temporary copy of the container
 	containersPath := getContainerMountPoint(s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, source.Name())
 	if err != nil {
@@ -2029,6 +1994,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(backup backup, source contai
 	}
 	defer zfsPoolVolumeDestroy(poolName, targetZfsDataset)
 
+	// Mount the temporary copy
 	if !shared.IsMountPoint(tmpContainerMntPoint) {
 		err = zfsMount(poolName, targetZfsDataset)
 		if err != nil {
@@ -2037,7 +2003,9 @@ func (s *storageZfs) doContainerBackupCreateVanilla(backup backup, source contai
 		defer zfsUmount(poolName, targetZfsDataset, tmpContainerMntPoint)
 	}
 
-	err = rsync(tmpContainerMntPoint, targetBackupContainerMntPoint, bwlimit)
+	// Copy the container
+	containerPath := fmt.Sprintf("%s/container", tmpPath)
+	err = rsync(tmpContainerMntPoint, containerPath, bwlimit)
 	if err != nil {
 		return err
 	}
@@ -2046,9 +2014,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(backup backup, source contai
 }
 
 func (s *storageZfs) ContainerBackupCreate(backup backup, source container) error {
-	logger.Debugf("Creating backup for container \"%s\" on storage pool \"%s\"", backup.Name(), s.pool.Name)
-
-	// mount storage
+	// Start storage
 	ourStart, err := source.StorageStart()
 	if err != nil {
 		return err
@@ -2057,73 +2023,33 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 		defer source.StorageStop()
 	}
 
-	if backup.optimizedStorage {
-		return s.doContainerBackupCreateOptimized(backup, source)
-	}
-
-	return s.doContainerBackupCreateVanilla(backup, source)
-}
-
-func (s *storageZfs) ContainerBackupDelete(name string) error {
-	logger.Debugf("Deleting ZFS storage volume for backup \"%s\" on storage pool \"%s\"", name, s.pool.Name)
-	backupContainerMntPoint := getBackupMountPoint(s.pool.Name, name)
-	if shared.PathExists(backupContainerMntPoint) {
-		err := os.RemoveAll(backupContainerMntPoint)
-		if err != nil {
-			return err
-		}
-	}
-
-	sourceContainerName, _, _ := containerGetParentAndSnapshotName(name)
-	backupContainerPath := getBackupMountPoint(s.pool.Name, sourceContainerName)
-	empty, _ := shared.PathIsEmpty(backupContainerPath)
-	if empty == true {
-		err := os.Remove(backupContainerPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	logger.Debugf("Deleted ZFS storage volume for backup \"%s\" on storage pool \"%s\"", name, s.pool.Name)
-	return nil
-}
-
-func (s *storageZfs) ContainerBackupRename(backup backup, newName string) error {
-	logger.Debugf("Renaming ZFS storage volume for backup \"%s\" from %s to %s", backup.Name(), backup.Name(), newName)
-	oldBackupMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
-	newBackupMntPoint := getBackupMountPoint(s.pool.Name, newName)
-
-	// Rename directory
-	if shared.PathExists(oldBackupMntPoint) {
-		err := os.Rename(oldBackupMntPoint, newBackupMntPoint)
-		if err != nil {
-			return err
-		}
-	}
-
-	logger.Debugf("Renamed ZFS storage volume for backup \"%s\" from %s to %s", backup.Name(), backup.Name(), newName)
-	return nil
-}
-
-func (s *storageZfs) ContainerBackupDump(backup backup) ([]byte, error) {
-	backupMntPoint := getBackupMountPoint(s.pool.Name, backup.Name())
-	logger.Debugf("Taring up \"%s\" on storage pool \"%s\"", backupMntPoint, s.pool.Name)
-
-	args := []string{"-cJf", "-", "--xattrs", "-C", backupMntPoint, "--transform", "s,^./,backup/,"}
-	if backup.ContainerOnly() {
-		// Exclude snapshots directory
-		args = append(args, "--exclude", fmt.Sprintf("%s/snapshots", backup.Name()))
-	}
-	args = append(args, ".")
-
-	var buffer bytes.Buffer
-	err := shared.RunCommandWithFds(nil, &buffer, "tar", args...)
+	// Create a temporary path for the backup
+	tmpPath, err := ioutil.TempDir(shared.VarPath("backups"), "lxd_backup_")
 	if err != nil {
-		return nil, err
+		return err
+	}
+	defer os.RemoveAll(tmpPath)
+
+	// Generate the actual backup
+	if backup.optimizedStorage {
+		err = s.doContainerBackupCreateOptimized(tmpPath, backup, source)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = s.doContainerBackupCreateVanilla(tmpPath, backup, source)
+		if err != nil {
+			return err
+		}
 	}
 
-	logger.Debugf("Tared up \"%s\" on storage pool \"%s\"", backupMntPoint, s.pool.Name)
-	return buffer.Bytes(), nil
+	// Pack the backup
+	err = backupCreateTarball(tmpPath, backup)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker) error {

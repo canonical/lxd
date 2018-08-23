@@ -18,7 +18,62 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// backup represents a container backup.
+// Load a backup from the database
+func backupLoadByName(s *state.State, name string) (*backup, error) {
+	// Get the backup database record
+	args, err := s.Cluster.ContainerGetBackup(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load the container it belongs to
+	c, err := containerLoadById(s, args.ContainerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return the backup struct
+	return &backup{
+		state:            s,
+		container:        c,
+		id:               args.ID,
+		name:             name,
+		creationDate:     args.CreationDate,
+		expiryDate:       args.ExpiryDate,
+		containerOnly:    args.ContainerOnly,
+		optimizedStorage: args.OptimizedStorage,
+	}, nil
+}
+
+// Create a new backup
+func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer container) error {
+	// Create the database entry
+	err := s.Cluster.ContainerBackupCreate(args)
+	if err != nil {
+		if err == db.ErrAlreadyDefined {
+			return fmt.Errorf("backup '%s' already exists", args.Name)
+		}
+
+		return err
+	}
+
+	// Get the backup struct
+	b, err := backupLoadByName(s, args.Name)
+	if err != nil {
+		return err
+	}
+
+	// Now create the empty snapshot
+	err = sourceContainer.Storage().ContainerBackupCreate(*b, sourceContainer)
+	if err != nil {
+		s.Cluster.ContainerBackupRemove(args.Name)
+		return err
+	}
+
+	return nil
+}
+
+// backup represents a container backup
 type backup struct {
 	state     *state.State
 	container container
@@ -41,24 +96,37 @@ type backupInfo struct {
 	HasBinaryFormat bool     `json:"-" yaml:"-"`
 }
 
-// Rename renames a container backup.
+// Rename renames a container backup
 func (b *backup) Rename(newName string) error {
-	ourStart, err := b.container.StorageStart()
+	oldBackupPath := shared.VarPath("backups", b.name)
+	newBackupPath := shared.VarPath("backups", newName)
+
+	// Create the new backup path
+	backupsPath := shared.VarPath("backups", b.container.Name())
+	if !shared.PathExists(backupsPath) {
+		err := os.MkdirAll(backupsPath, 0700)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Rename the backup directory
+	err := os.Rename(oldBackupPath, newBackupPath)
 	if err != nil {
 		return err
 	}
-	if ourStart {
-		defer b.container.StorageStop()
+
+	// Check if we can remove the container directory
+	empty, _ := shared.PathIsEmpty(backupsPath)
+	if empty {
+		err := os.Remove(backupsPath)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Rename the directories and files
-	err = b.container.Storage().ContainerBackupRename(*b, newName)
-	if err != nil {
-		return err
-	}
-
-	// Rename the database entry
-	err = b.state.Cluster.ContainerBackupRename(b.Name(), newName)
+	// Rename the database record
+	err = b.state.Cluster.ContainerBackupRename(b.name, newName)
 	if err != nil {
 		return err
 	}
@@ -66,47 +134,35 @@ func (b *backup) Rename(newName string) error {
 	return nil
 }
 
-// Delete removes a container backup.
+// Delete removes a container backup
 func (b *backup) Delete() error {
-	ourStart, err := b.container.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer b.container.StorageStop()
+	backupPath := shared.VarPath("backups", b.name)
+
+	// Delete the on-disk data
+	if shared.PathExists(backupPath) {
+		err := os.RemoveAll(backupPath)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Delete backup from storage
-	err = b.container.Storage().ContainerBackupDelete(b.Name())
-	if err != nil {
-		return err
+	// Check if we can remove the container directory
+	backupsPath := shared.VarPath("backups", b.container.Name())
+	empty, _ := shared.PathIsEmpty(backupsPath)
+	if empty {
+		err := os.Remove(backupsPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Remove the database record
-	err = b.state.Cluster.ContainerBackupRemove(b.Name())
+	err := b.state.Cluster.ContainerBackupRemove(b.name)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-// Dump dumps the container including its snapshots.
-func (b *backup) Dump() ([]byte, error) {
-	ourStart, err := b.container.StorageStart()
-	if err != nil {
-		return nil, err
-	}
-	if ourStart {
-		defer b.container.StorageStop()
-	}
-
-	data, err := b.container.Storage().ContainerBackupDump(*b)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
 }
 
 func (b *backup) Render() *api.ContainerBackup {
@@ -119,41 +175,22 @@ func (b *backup) Render() *api.ContainerBackup {
 	}
 }
 
-func (b *backup) Id() int {
-	return b.id
-}
-
-func (b *backup) Name() string {
-	return b.name
-}
-
-func (b *backup) CreationDate() time.Time {
-	return b.creationDate
-}
-
-func (b *backup) ExpiryDate() time.Time {
-	return b.expiryDate
-}
-
-func (b *backup) ContainerOnly() bool {
-	return b.containerOnly
-}
-
-func (b *backup) OptimizedStorage() bool {
-	return b.optimizedStorage
-}
-
-func getBackupInfo(r io.Reader) (*backupInfo, error) {
+func backupGetInfo(r io.ReadSeeker) (*backupInfo, error) {
 	var buf bytes.Buffer
-	err := shared.RunCommandWithFds(r, &buf, "unxz", "-")
+	var tr *tar.Reader
+	result := backupInfo{}
+	hasBinaryFormat := false
+	hasIndexFile := false
+
+	// Extract
+	r.Seek(0, 0)
+
+	err := shared.RunCommandWithFds(r, &buf, "xz", "-d")
 	if err != nil {
 		return nil, err
 	}
 
-	result := backupInfo{}
-	hasBinaryFormat := false
-	hasIndexFile := false
-	tr := tar.NewReader(&buf)
+	tr = tar.NewReader(&buf)
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -188,7 +225,7 @@ func getBackupInfo(r io.Reader) (*backupInfo, error) {
 // fixBackupStoragePool changes the pool information in the backup.yaml. This
 // is done only if the provided pool doesn't exist. In this case, the pool of
 // the default profile will be used.
-func fixBackupStoragePool(c *db.Cluster, b backupInfo) error {
+func backupFixStoragePool(c *db.Cluster, b backupInfo) error {
 	// Get the default profile
 	_, profile, err := c.ProfileGet("default")
 	if err != nil {
@@ -251,17 +288,14 @@ func fixBackupStoragePool(c *db.Cluster, b backupInfo) error {
 	return nil
 }
 
-func createBackupIndexFile(container container, backup backup) error {
+func backupCreateTarball(path string, backup backup) error {
+	container := backup.container
+
+	// Create the index
 	pool, err := container.StoragePool()
 	if err != nil {
 		return err
 	}
-
-	file, err := os.Create(filepath.Join(getBackupMountPoint(pool, backup.Name()), "index.yaml"))
-	if err != nil {
-		return err
-	}
-	defer file.Close()
 
 	indexFile := backupInfo{
 		Name:       container.Name(),
@@ -271,11 +305,12 @@ func createBackupIndexFile(container container, backup backup) error {
 		Snapshots:  []string{},
 	}
 
-	if !backup.ContainerOnly() {
+	if !backup.containerOnly {
 		snaps, err := container.Snapshots()
 		if err != nil {
 			return err
 		}
+
 		for _, snap := range snaps {
 			_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
 			indexFile.Snapshots = append(indexFile.Snapshots, snapName)
@@ -287,7 +322,52 @@ func createBackupIndexFile(container container, backup backup) error {
 		return err
 	}
 
+	file, err := os.Create(filepath.Join(path, "index.yaml"))
+	if err != nil {
+		return err
+	}
+
 	_, err = file.Write(data)
+	file.Close()
+	if err != nil {
+		return err
+	}
+
+	// Create the target path if needed
+	backupsPath := shared.VarPath("backups", backup.container.Name())
+	if !shared.PathExists(backupsPath) {
+		err := os.MkdirAll(backupsPath, 0700)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Create the tarball
+	backupPath := shared.VarPath("backups", backup.name)
+	args := []string{"-cf", backupPath, "--xattrs", "-C", path, "--transform", "s,^./,backup/,", "."}
+	_, err = shared.RunCommand("tar", args...)
+	if err != nil {
+		return err
+	}
+
+	// Compress it
+	compressedPath, err := compressFile(backupPath, "xz")
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(backupPath)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(compressedPath, backupPath)
+	if err != nil {
+		return err
+	}
+
+	// Set permissions
+	err = os.Chmod(backupPath, 0600)
 	if err != nil {
 		return err
 	}

@@ -86,8 +86,10 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 
 	defer func() {
 		// Delete backup after we're done
-		op, _ = d.DeleteContainerBackup(name, backupName)
-		op.Wait()
+		op, err = d.DeleteContainerBackup(name, backupName)
+		if err == nil {
+			op.Wait()
+		}
 	}()
 
 	var targetName string

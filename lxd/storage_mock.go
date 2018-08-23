@@ -194,18 +194,6 @@ func (s *storageMock) ContainerBackupCreate(backup backup, sourceContainer conta
 	return nil
 }
 
-func (s *storageMock) ContainerBackupDelete(name string) error {
-	return nil
-}
-
-func (s *storageMock) ContainerBackupRename(backup backup, newName string) error {
-	return nil
-}
-
-func (s *storageMock) ContainerBackupDump(backup backup) ([]byte, error) {
-	return nil, nil
-}
-
 func (s *storageMock) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
 	return nil
 }

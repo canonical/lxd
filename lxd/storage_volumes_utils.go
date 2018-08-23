@@ -33,7 +33,6 @@ const (
 	storagePoolVolumeAPIEndpointContainers string = "containers"
 	storagePoolVolumeAPIEndpointImages     string = "images"
 	storagePoolVolumeAPIEndpointCustom     string = "custom"
-	storagePoolVolumeAPIEndpointBackups    string = "backups"
 )
 
 var supportedVolumeTypes = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom}
