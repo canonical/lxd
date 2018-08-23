@@ -6104,6 +6104,10 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 
 // Storage functions
 func (c *containerLXC) Storage() storage {
+	if c.storage == nil {
+		c.initStorage()
+	}
+
 	return c.storage
 }
 
