@@ -68,11 +68,10 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 	}
 
 	resp := api.ResponseRaw{
-		Response: api.Response{
-			Type:       api.SyncResponse,
-			Status:     status.String(),
-			StatusCode: int(status)},
-		Metadata: r.metadata,
+		Type:       api.SyncResponse,
+		Status:     status.String(),
+		StatusCode: int(status),
+		Metadata:   r.metadata,
 	}
 
 	return util.WriteJSON(w, resp, debug)
@@ -355,13 +354,11 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 	}
 
 	body := api.ResponseRaw{
-		Response: api.Response{
-			Type:       api.AsyncResponse,
-			Status:     api.OperationCreated.String(),
-			StatusCode: int(api.OperationCreated),
-			Operation:  url,
-		},
-		Metadata: md,
+		Type:       api.AsyncResponse,
+		Status:     api.OperationCreated.String(),
+		StatusCode: int(api.OperationCreated),
+		Operation:  url,
+		Metadata:   md,
 	}
 
 	w.Header().Set("Location", url)
@@ -394,13 +391,11 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
 	url := fmt.Sprintf("/%s/operations/%s", version.APIVersion, r.op.ID)
 
 	body := api.ResponseRaw{
-		Response: api.Response{
-			Type:       api.AsyncResponse,
-			Status:     api.OperationCreated.String(),
-			StatusCode: int(api.OperationCreated),
-			Operation:  url,
-		},
-		Metadata: r.op,
+		Type:       api.AsyncResponse,
+		Status:     api.OperationCreated.String(),
+		StatusCode: int(api.OperationCreated),
+		Operation:  url,
+		Metadata:   r.op,
 	}
 
 	w.Header().Set("Location", url)
