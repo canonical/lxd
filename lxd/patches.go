@@ -59,6 +59,7 @@ var patches = []patch{
 	{name: "container_config_regen", run: patchContainerConfigRegen},
 	{name: "lvm_node_specific_config_keys", run: patchLvmNodeSpecificConfigKeys},
 	{name: "candid_rename_config_key", run: patchCandidConfigKey},
+	{name: "move_backups", run: patchMoveBackups},
 }
 
 type patch struct {
@@ -2959,6 +2960,105 @@ func patchCandidConfigKey(name string, d *Daemon) error {
 			"candid.api.url":         value,
 		})
 	})
+}
+
+func patchMoveBackups(name string, d *Daemon) error {
+	// Get all storage pools
+	pools, err := d.cluster.StoragePools()
+	if err != nil {
+		return err
+	}
+
+	// Get all containers
+	containers, err := d.cluster.ContainersList(db.CTypeRegular)
+	if err != nil {
+		return err
+	}
+
+	// Convert the backups
+	for _, pool := range pools {
+		poolBackupPath := shared.VarPath("storage-pools", pool, "backups")
+
+		// Check if we have any backup
+		if !shared.PathExists(poolBackupPath) {
+			continue
+		}
+
+		// Look at the list of backups
+		cts, err := ioutil.ReadDir(poolBackupPath)
+		if err != nil {
+			return err
+		}
+
+		for _, ct := range cts {
+			if !shared.StringInSlice(ct.Name(), containers) {
+				// Backups for a deleted container, remove it
+				err = os.RemoveAll(filepath.Join(poolBackupPath, ct.Name()))
+				if err != nil {
+					return err
+				}
+
+				continue
+			}
+
+			backups, err := ioutil.ReadDir(filepath.Join(poolBackupPath, ct.Name()))
+			if err != nil {
+				return err
+			}
+
+			if len(backups) > 0 {
+				// Create the target path if needed
+				backupsPath := shared.VarPath("backups", ct.Name())
+				if !shared.PathExists(backupsPath) {
+					err := os.MkdirAll(backupsPath, 0700)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			for _, backup := range backups {
+				// Create the tarball
+				backupPath := shared.VarPath("backups", ct.Name(), backup.Name())
+				path := filepath.Join(poolBackupPath, ct.Name(), backup.Name())
+				args := []string{"-cf", backupPath, "--xattrs", "-C", path, "--transform", "s,^./,backup/,", "."}
+				_, err = shared.RunCommand("tar", args...)
+				if err != nil {
+					return err
+				}
+
+				// Compress it
+				compressedPath, err := compressFile(backupPath, "xz")
+				if err != nil {
+					return err
+				}
+
+				err = os.Remove(backupPath)
+				if err != nil {
+					return err
+				}
+
+				err = os.Rename(compressedPath, backupPath)
+				if err != nil {
+					return err
+				}
+
+				// Set permissions
+				err = os.Chmod(backupPath, 0600)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		// Wipe the backup directory
+		err = os.RemoveAll(poolBackupPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Patches end here

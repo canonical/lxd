@@ -552,7 +552,7 @@ func createFromBackup(d *Daemon, data io.Reader) Response {
 
 	// Parse the backup information
 	f.Seek(0, 0)
-	bInfo, err := getBackupInfo(f)
+	bInfo, err := backupGetInfo(f)
 	if err != nil {
 		return BadRequest(err)
 	}
