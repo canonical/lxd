@@ -221,7 +221,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 
 func (s *storageCeph) MigrationSink(live bool, c container,
 	snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet,
-	op *operation, containerOnly bool) error {
+	op *operation, containerOnly bool, args MigrationSinkArgs) error {
 	// Check that we received a valid root disk device with a pool property
 	// set.
 	parentStoragePool := ""

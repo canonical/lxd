@@ -178,17 +178,23 @@ func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(
 // RsyncRecv sets up the receiving half of the websocket to rsync (the other
 // half set up by RsyncSend), putting the contents in the directory specified
 // by path.
-func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
-	cmd := exec.Command("rsync",
+func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) io.WriteCloser, extraArgs []string) error {
+	args := []string{
 		"--server",
 		"-vlogDtpre.iLsfx",
 		"--numeric-ids",
 		"--devices",
 		"--partial",
 		"--sparse",
-		"--xattrs",
-		".",
-		path)
+	}
+
+	if extraArgs != nil && len(extraArgs) > 0 {
+		args = append(args, extraArgs...)
+	}
+
+	args = append(args, []string{".", path}...)
+
+	cmd := exec.Command("rsync", args...)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
