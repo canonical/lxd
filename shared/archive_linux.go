@@ -3,6 +3,7 @@ package shared
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"syscall"
@@ -10,13 +11,17 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func DetectCompression(fname string) ([]string, string, error) {
+func DetectCompression(fname string) ([]string, string, []string, error) {
 	f, err := os.Open(fname)
 	if err != nil {
-		return []string{""}, "", err
+		return nil, "", nil, err
 	}
 	defer f.Close()
 
+	return DetectCompressionFile(f)
+}
+
+func DetectCompressionFile(f io.ReadSeeker) ([]string, string, []string, error) {
 	// read header parts to detect compression method
 	// bz2 - 2 bytes, 'BZ' signature/magic number
 	// gz - 2 bytes, 0x1f 0x8b
@@ -24,34 +29,33 @@ func DetectCompression(fname string) ([]string, string, error) {
 	// xy - 6 bytes,  header format { 0xFD, '7', 'z', 'X', 'Z', 0x00 }
 	// tar - 263 bytes, trying to get ustar from 257 - 262
 	header := make([]byte, 263)
-	_, err = f.Read(header)
+	_, err := f.Read(header)
 	if err != nil {
-		return []string{""}, "", err
+		return nil, "", nil, err
 	}
 
 	switch {
 	case bytes.Equal(header[0:2], []byte{'B', 'Z'}):
-		return []string{"-jxf"}, ".tar.bz2", nil
+		return []string{"-jxf"}, ".tar.bz2", []string{"bzip2", "-d"}, nil
 	case bytes.Equal(header[0:2], []byte{0x1f, 0x8b}):
-		return []string{"-zxf"}, ".tar.gz", nil
+		return []string{"-zxf"}, ".tar.gz", []string{"gzip", "-d"}, nil
 	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] == 0xFD):
-		return []string{"-Jxf"}, ".tar.xz", nil
+		return []string{"-Jxf"}, ".tar.xz", []string{"xz", "-d"}, nil
 	case (bytes.Equal(header[1:5], []byte{'7', 'z', 'X', 'Z'}) && header[0] != 0xFD):
-		return []string{"--lzma", "-xf"}, ".tar.lzma", nil
+		return []string{"--lzma", "-xf"}, ".tar.lzma", []string{"lzma", "-d"}, nil
 	case bytes.Equal(header[0:3], []byte{0x5d, 0x00, 0x00}):
-		return []string{"--lzma", "-xf"}, ".tar.lzma", nil
+		return []string{"--lzma", "-xf"}, ".tar.lzma", []string{"lzma", "-d"}, nil
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
-		return []string{"-xf"}, ".tar", nil
+		return []string{"-xf"}, ".tar", []string{""}, nil
 	case bytes.Equal(header[0:4], []byte{'h', 's', 'q', 's'}):
-		return []string{""}, ".squashfs", nil
+		return []string{""}, ".squashfs", nil, nil
 	default:
-		return []string{""}, "", fmt.Errorf("Unsupported compression")
+		return nil, "", nil, fmt.Errorf("Unsupported compression")
 	}
-
 }
 
 func Unpack(file string, path string, blockBackend bool, runningInUserns bool) error {
-	extractArgs, extension, err := DetectCompression(file)
+	extractArgs, extension, _, err := DetectCompression(file)
 	if err != nil {
 		return err
 	}

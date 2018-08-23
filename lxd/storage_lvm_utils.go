@@ -285,38 +285,6 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 	return nil
 }
 
-func (s *storageLvm) createContainerBackup(backup backup, sourceContainer container,
-	readonly bool) error {
-	tryUndo := true
-
-	sourceContainerName := sourceContainer.Name()
-	sourceContainerLvmName := containerNameToLVName(sourceContainerName)
-
-	// Always add the backup name as suffix, e.g. container-backup0 or
-	// container-snap1-backup1.
-	names := strings.Split(backup.Name(), "/")
-	targetContainerLvmName := fmt.Sprintf("%s-%s", sourceContainerLvmName,
-		names[len(names)-1])
-
-	poolName := s.getOnDiskPoolName()
-	_, err := s.createSnapshotLV(poolName, sourceContainerLvmName,
-		storagePoolVolumeAPIEndpointContainers, targetContainerLvmName,
-		storagePoolVolumeAPIEndpointBackups, readonly, s.useThinpool)
-	if err != nil {
-		return fmt.Errorf("Error creating snapshot LV: %s", err)
-	}
-
-	defer func() {
-		if tryUndo {
-			s.ContainerBackupDelete(backup.Name())
-		}
-	}()
-
-	tryUndo = false
-
-	return nil
-}
-
 // Copy a container on a storage pool that does use a thinpool.
 func (s *storageLvm) copyContainerThinpool(target container, source container, readonly bool) error {
 	err := s.createSnapshotContainer(target, source, readonly)

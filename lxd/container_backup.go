@@ -46,7 +46,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 	for _, backup := range backups {
 		if !recursion {
 			url := fmt.Sprintf("/%s/containers/%s/backups/%s",
-				version.APIVersion, cname, strings.Split(backup.Name(), "/")[1])
+				version.APIVersion, cname, strings.Split(backup.name, "/")[1])
 			resultString = append(resultString, url)
 		} else {
 			render := backup.Render()
@@ -78,14 +78,6 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	ourStart, err := c.StorageStart()
-	if err != nil {
-		return InternalError(err)
-	}
-	if ourStart {
-		defer c.StorageStop()
-	}
-
 	req := api.ContainerBackupsPost{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -105,11 +97,11 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 
 		for _, backup := range backups {
 			// Ignore backups not containing base
-			if !strings.HasPrefix(backup.Name(), base) {
+			if !strings.HasPrefix(backup.name, base) {
 				continue
 			}
 
-			substr := backup.Name()[length:]
+			substr := backup.name[length:]
 			var num int
 			count, err := fmt.Sscanf(substr, "%d", &num)
 			if err != nil || count != 1 {
@@ -140,7 +132,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 			OptimizedStorage: req.OptimizedStorage,
 		}
 
-		err := containerBackupCreate(d.State(), args, c)
+		err := backupCreate(d.State(), args, c)
 		if err != nil {
 			return err
 		}
@@ -175,7 +167,7 @@ func containerBackupGet(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := containerBackupLoadByName(d.State(), fullName)
+	backup, err := backupLoadByName(d.State(), fullName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -208,7 +200,7 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 	}
 
 	oldName := name + shared.SnapshotDelimiter + backupName
-	backup, err := containerBackupLoadByName(d.State(), oldName)
+	backup, err := backupLoadByName(d.State(), oldName)
 	if err != nil {
 		SmartError(err)
 	}
@@ -250,7 +242,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := containerBackupLoadByName(d.State(), fullName)
+	backup, err := backupLoadByName(d.State(), fullName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -290,15 +282,14 @@ func containerBackupExportGet(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := containerBackupLoadByName(d.State(), fullName)
+	backup, err := backupLoadByName(d.State(), fullName)
 	if err != nil {
 		return SmartError(err)
 	}
 
-	data, err := backup.Dump()
-	if err != nil {
-		return SmartError(err)
+	ent := fileResponseEntry{
+		path: shared.VarPath("backups", backup.name),
 	}
 
-	return BackupResponse(data)
+	return FileResponse(r, []fileResponseEntry{ent}, nil, false)
 }

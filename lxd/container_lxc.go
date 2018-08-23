@@ -3178,7 +3178,7 @@ func (c *containerLXC) Backups() ([]backup, error) {
 	// Build the backup list
 	backups := []backup{}
 	for _, backupName := range backupNames {
-		backup, err := containerBackupLoadByName(c.state, backupName)
+		backup, err := backupLoadByName(c.state, backupName)
 		if err != nil {
 			return nil, err
 		}
@@ -3386,11 +3386,24 @@ func (c *containerLXC) Delete() error {
 			}
 		}
 	} else {
-		// Remove all snapshot
+		// Remove all snapshots
 		err := containerDeleteSnapshots(c.state, c.Name())
 		if err != nil {
 			logger.Warn("Failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
 			return err
+		}
+
+		// Remove all backups
+		backups, err := c.Backups()
+		if err != nil {
+			return err
+		}
+
+		for _, backup := range backups {
+			err = backup.Delete()
+			if err != nil {
+				return err
+			}
 		}
 
 		// Clean things up
@@ -3525,6 +3538,22 @@ func (c *containerLXC) Rename(newName string) error {
 		err := c.storage.ContainerRename(c, newName)
 		if err != nil {
 			logger.Error("Failed renaming container", ctxMap)
+			return err
+		}
+	}
+
+	// Rename the backups
+	backups, err := c.Backups()
+	if err != nil {
+		return err
+	}
+
+	for _, backup := range backups {
+		backupName := strings.Split(backup.name, "/")[1]
+		newName := fmt.Sprintf("%s/%s", newName, backupName)
+
+		err = backup.Rename(newName)
+		if err != nil {
 			return err
 		}
 	}
@@ -6194,6 +6223,10 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 
 // Storage functions
 func (c *containerLXC) Storage() storage {
+	if c.storage == nil {
+		c.initStorage()
+	}
+
 	return c.storage
 }
 
