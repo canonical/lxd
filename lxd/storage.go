@@ -230,10 +230,11 @@ type storage interface {
 		conn *websocket.Conn,
 		srcIdmap *idmap.IdmapSet,
 		op *operation,
-		containerOnly bool) error
+		containerOnly bool,
+		args MigrationSinkArgs) error
 
 	StorageMigrationSource() (MigrationStorageSourceDriver, error)
-	StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage) error
+	StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error
 }
 
 func storageCoreInit(driver string) (storage, error) {

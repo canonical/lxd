@@ -46,6 +46,10 @@ message Snapshot {
 	optional int64			last_used_date	= 9;
 }
 
+message rsyncFeatures {
+	optional bool		xattrs = 1;
+}
+
 message MigrationHeader {
 	required MigrationFSType		fs		= 1;
 	optional CRIUType			criu		= 2;
@@ -53,6 +57,7 @@ message MigrationHeader {
 	repeated string				snapshotNames	= 4;
 	repeated Snapshot			snapshots	= 5;
 	optional bool				predump		= 7;
+	optional rsyncFeatures		rsyncFeatures = 8;
 }
 
 message MigrationControl {

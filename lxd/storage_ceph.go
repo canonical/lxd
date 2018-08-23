@@ -2415,8 +2415,8 @@ func (s *storageCeph) StorageMigrationSource() (MigrationStorageSourceDriver, er
 	return rsyncStorageMigrationSource()
 }
 
-func (s *storageCeph) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage) error {
-	return rsyncStorageMigrationSink(conn, op, storage)
+func (s *storageCeph) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
+	return rsyncStorageMigrationSink(conn, op, storage, args)
 }
 
 func (s *storageCeph) GetStoragePool() *api.StoragePool {
