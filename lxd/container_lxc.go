@@ -4021,65 +4021,32 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		c.idmapset = nil
 	}
 
-	// Retrieve old root disk devices.
-	oldLocalRootDiskDeviceKey, oldLocalRootDiskDevice, _ := shared.GetRootDiskDevice(oldLocalDevices)
-	var oldProfileRootDiskDevices []string
-	for k, v := range oldExpandedDevices {
-		if shared.IsRootDiskDevice(v) && k != oldLocalRootDiskDeviceKey && !shared.StringInSlice(k, oldProfileRootDiskDevices) {
-			oldProfileRootDiskDevices = append(oldProfileRootDiskDevices, k)
-		}
-	}
-
-	// Retrieve new root disk devices.
-	newLocalRootDiskDeviceKey, newLocalRootDiskDevice, _ := shared.GetRootDiskDevice(c.localDevices)
-	var newProfileRootDiskDevices []string
+	// Make sure we have a valid root disk device (and only one)
+	newRootDiskDeviceKey := ""
 	for k, v := range c.expandedDevices {
-		if shared.IsRootDiskDevice(v) && k != newLocalRootDiskDeviceKey && !shared.StringInSlice(k, newProfileRootDiskDevices) {
-			newProfileRootDiskDevices = append(newProfileRootDiskDevices, k)
+		if v["type"] == "disk" && v["path"] == "/" && v["pool"] != "" {
+			if newRootDiskDeviceKey != "" {
+				return fmt.Errorf("Containers may only have one root disk device")
+			}
+
+			newRootDiskDeviceKey = k
 		}
 	}
 
-	// Verify root disk devices. (Be specific with error messages.)
-	var oldRootDiskDeviceKey string
-	var newRootDiskDeviceKey string
-	if oldLocalRootDiskDevice["pool"] != "" {
-		oldRootDiskDeviceKey = oldLocalRootDiskDeviceKey
-		newRootDiskDeviceKey = newLocalRootDiskDeviceKey
+	if newRootDiskDeviceKey == "" {
+		return fmt.Errorf("Containers must have a root disk device (directly or inherited)")
+	}
 
-		if newLocalRootDiskDevice["pool"] == "" {
-			if len(newProfileRootDiskDevices) == 0 {
-				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but none was found")
-			} else if len(newProfileRootDiskDevices) > 1 {
-				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but conflicting devices were found")
-			} else if c.expandedDevices[newProfileRootDiskDevices[0]]["pool"] != oldLocalRootDiskDevice["pool"] {
-				newRootDiskDeviceKey = newProfileRootDiskDevices[0]
-				return fmt.Errorf("Using the profile's root disk device would change the storage pool of the container")
-			}
-		}
-	} else {
-		// This branch should allow us to cover cases where a container
-		// didn't have root disk device before for whatever reason. As
-		// long as there is a root disk device in one of the local or
-		// profile devices we're good.
-		if newLocalRootDiskDevice["pool"] != "" {
-			newRootDiskDeviceKey = newLocalRootDiskDeviceKey
-
-			if len(oldProfileRootDiskDevices) > 0 {
-				oldRootDiskDeviceKey = oldProfileRootDiskDevices[0]
-				if oldExpandedDevices[oldRootDiskDeviceKey]["pool"] != newLocalRootDiskDevice["pool"] {
-					return fmt.Errorf("The new local root disk device would change the storage pool of the container")
-				}
-			}
-		} else {
-			if len(newProfileRootDiskDevices) == 0 {
-				return fmt.Errorf("Update will cause the container to rely on a profile's root disk device but none was found")
-			} else if len(newProfileRootDiskDevices) > 1 {
-				return fmt.Errorf("Using the profile's root disk device would change the storage pool of the container")
-			}
-			newRootDiskDeviceKey = newProfileRootDiskDevices[0]
+	// Retrieve the old root disk device
+	oldRootDiskDeviceKey := ""
+	for k, v := range oldExpandedDevices {
+		if v["type"] == "disk" && v["path"] == "/" && v["pool"] != "" {
+			oldRootDiskDeviceKey = k
+			break
 		}
 	}
 
+	// Deal with quota changes
 	oldRootDiskDeviceSize := oldExpandedDevices[oldRootDiskDeviceKey]["size"]
 	newRootDiskDeviceSize := c.expandedDevices[newRootDiskDeviceKey]["size"]
 
