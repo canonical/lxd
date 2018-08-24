@@ -618,7 +618,8 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			fd.Close()
 		}
 
-		if err := os.RemoveAll(path); err != nil {
+		err := os.RemoveAll(path)
+		if err != nil {
 			logger.Debugf("Error deleting temporary directory \"%s\": %s", path, err)
 		}
 	}
@@ -645,8 +646,10 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 	err = decoder.Decode(&req)
 	if err != nil {
 		if r.Header.Get("Content-Type") == "application/json" {
+			cleanup(builddir, post)
 			return BadRequest(err)
 		}
+
 		imageUpload = true
 	}
 
@@ -663,9 +666,12 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			r.Body = post
 			response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
 			if err != nil {
+				cleanup(builddir, post)
 				return SmartError(err)
 			}
+
 			if response != nil {
+				cleanup(builddir, nil)
 				return response
 			}
 		}
@@ -728,6 +734,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 	op, err := operationCreate(d.cluster, operationClassTask, "Downloading image", nil, nil, run, nil, nil)
 	if err != nil {
+		cleanup(builddir, post)
 		return InternalError(err)
 	}
 
