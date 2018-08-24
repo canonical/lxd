@@ -656,6 +656,9 @@ func (d *Daemon) Ready() error {
 	/* Events */
 	d.tasks.Add(cluster.Events(d.endpoints, d.cluster, eventForward))
 
+	/* Cluster update trigger */
+	d.tasks.Add(cluster.KeepUpdated(d.State()))
+
 	// FIXME: There's no hard reason for which we should not run these
 	//        tasks in mock mode. However it requires that we tweak them so
 	//        they exit gracefully without blocking (something we should do
