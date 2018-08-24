@@ -2495,9 +2495,9 @@ func (s *storageBtrfs) MigrationSource(c container, containerOnly bool) (Migrati
 	return driver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
+func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
 	if s.s.OS.RunningInUserNS {
-		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
+		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly, args)
 	}
 
 	btrfsRecv := func(snapName string, btrfsPath string, targetPath string, isSnapshot bool, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
@@ -2840,8 +2840,8 @@ func (s *storageBtrfs) StorageMigrationSource() (MigrationStorageSourceDriver, e
 	return rsyncStorageMigrationSource()
 }
 
-func (s *storageBtrfs) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage) error {
-	return rsyncStorageMigrationSink(conn, op, storage)
+func (s *storageBtrfs) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
+	return rsyncStorageMigrationSink(conn, op, storage, args)
 }
 
 func (s *storageBtrfs) GetStoragePool() *api.StoragePool {

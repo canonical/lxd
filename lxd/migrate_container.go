@@ -379,6 +379,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
 	myType := s.container.Storage().MigrationType()
+	rsyncXattrs := true
 	header := migration.MigrationHeader{
 		Fs:            &myType,
 		Criu:          criuType,
@@ -386,6 +387,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		SnapshotNames: snapshotNames,
 		Snapshots:     snapshots,
 		Predump:       proto.Bool(use_pre_dumps),
+		RsyncFeatures: &migration.RsyncFeatures{Xattrs: &rsyncXattrs},
 	}
 
 	err = s.send(&header)
@@ -659,11 +661,12 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:    migrationFields{container: args.Container, containerOnly: args.ContainerOnly},
-		dest:   migrationFields{containerOnly: args.ContainerOnly},
-		url:    args.Url,
-		dialer: args.Dialer,
-		push:   args.Push,
+		src:       migrationFields{container: args.Container, containerOnly: args.ContainerOnly},
+		dest:      migrationFields{containerOnly: args.ContainerOnly},
+		url:       args.Url,
+		dialer:    args.Dialer,
+		push:      args.Push,
+		rsyncArgs: args.RsyncArgs,
 	}
 
 	if sink.push {
@@ -788,9 +791,11 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 	mySink := c.src.container.Storage().MigrationSink
 	myType := c.src.container.Storage().MigrationType()
+	rsyncXattrs := true
 	resp := migration.MigrationHeader{
-		Fs:   &myType,
-		Criu: criuType,
+		Fs:            &myType,
+		Criu:          criuType,
+		RsyncFeatures: &migration.RsyncFeatures{Xattrs: &rsyncXattrs},
 	}
 
 	// If the storage type the source has doesn't match what we have, then
@@ -870,9 +875,15 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				sendFinalFsDelta = true
 			}
 
+			args := MigrationSinkArgs{}
+			rsyncFeatures := header.GetRsyncFeatures()
+			if rsyncFeatures.GetXattrs() {
+				args.RsyncArgs = []string{"--xattrs"}
+			}
+
 			err = mySink(sendFinalFsDelta, c.src.container,
 				snapshots, fsConn, srcIdmap, migrateOp,
-				c.src.containerOnly)
+				c.src.containerOnly, args)
 			if err != nil {
 				fsTransfer <- err
 				return
@@ -912,7 +923,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				for !sync.GetFinalPreDump() {
 					logger.Debugf("About to receive rsync")
 					// Transfer a CRIU pre-dump
-					err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil)
+					err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil, c.rsyncArgs)
 					if err != nil {
 						restore <- err
 						return
@@ -940,7 +951,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			}
 
 			// Final CRIU dump
-			err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil)
+			err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil, c.rsyncArgs)
 			if err != nil {
 				restore <- err
 				return
