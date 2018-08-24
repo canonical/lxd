@@ -113,14 +113,14 @@ test_security_protection() {
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   lxc launch testimage c1
-  lxc stop c1
+  lxc stop c1 --force
   lxc snapshot c1
   lxc delete c1
 
   lxc profile set default security.protection.delete true
 
   lxc launch testimage c1
-  lxc stop c1
+  lxc stop c1 --force
   lxc snapshot c1
   lxc delete c1/snap0
   ! lxc delete c1
