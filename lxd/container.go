@@ -707,8 +707,15 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 		fixBackupFile = true
 	}
 
+	// Find the compression algorithm
+	tarArgs, _, _, err := shared.DetectCompressionFile(data)
+	if err != nil {
+		return err
+	}
+	data.Seek(0, 0)
+
 	// Unpack tarball
-	err := pool.ContainerBackupLoad(info, data)
+	err = pool.ContainerBackupLoad(info, data, tarArgs)
 	if err != nil {
 		return err
 	}

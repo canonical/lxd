@@ -12,6 +12,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -176,7 +177,6 @@ func (b *backup) Render() *api.ContainerBackup {
 }
 
 func backupGetInfo(r io.ReadSeeker) (*backupInfo, error) {
-	var buf bytes.Buffer
 	var tr *tar.Reader
 	result := backupInfo{}
 	hasBinaryFormat := false
@@ -184,13 +184,29 @@ func backupGetInfo(r io.ReadSeeker) (*backupInfo, error) {
 
 	// Extract
 	r.Seek(0, 0)
-
-	err := shared.RunCommandWithFds(r, &buf, "xz", "-d")
+	_, _, unpacker, err := shared.DetectCompressionFile(r)
 	if err != nil {
 		return nil, err
 	}
+	r.Seek(0, 0)
 
-	tr = tar.NewReader(&buf)
+	if unpacker == nil {
+		return nil, fmt.Errorf("Unsupported backup compression")
+	}
+
+	if len(unpacker) > 0 {
+		var buf bytes.Buffer
+
+		err := shared.RunCommandWithFds(r, &buf, unpacker[0], unpacker[1:]...)
+		if err != nil {
+			return nil, err
+		}
+
+		tr = tar.NewReader(&buf)
+	} else {
+		tr = tar.NewReader(r)
+	}
+
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -288,7 +304,7 @@ func backupFixStoragePool(c *db.Cluster, b backupInfo) error {
 	return nil
 }
 
-func backupCreateTarball(path string, backup backup) error {
+func backupCreateTarball(s *state.State, path string, backup backup) error {
 	container := backup.container
 
 	// Create the index
@@ -351,19 +367,26 @@ func backupCreateTarball(path string, backup backup) error {
 	}
 
 	// Compress it
-	compressedPath, err := compressFile(backupPath, "xz")
+	compress, err := cluster.ConfigGetString(s.Cluster, "backups.compression_algorithm")
 	if err != nil {
 		return err
 	}
 
-	err = os.Remove(backupPath)
-	if err != nil {
-		return err
-	}
+	if compress != "none" {
+		compressedPath, err := compressFile(backupPath, compress)
+		if err != nil {
+			return err
+		}
 
-	err = os.Rename(compressedPath, backupPath)
-	if err != nil {
-		return err
+		err = os.Remove(backupPath)
+		if err != nil {
+			return err
+		}
+
+		err = os.Rename(compressedPath, backupPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Set permissions

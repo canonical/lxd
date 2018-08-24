@@ -188,7 +188,7 @@ type storage interface {
 	ContainerSnapshotStop(c container) (bool, error)
 
 	ContainerBackupCreate(backup backup, sourceContainer container) error
-	ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error
+	ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error
 
 	// For use in migrating snapshots.
 	ContainerSnapshotCreateEmpty(c container) error
