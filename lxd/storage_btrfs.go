@@ -2297,7 +2297,7 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 		subvol = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 	}
 
-	_, err := btrfsSubVolumeQGroup(subvol)
+	qgroup, err := btrfsSubVolumeQGroup(subvol)
 	if err != nil {
 		if err != db.ErrNoSuchObject {
 			return err
@@ -2312,15 +2312,30 @@ func (s *storageBtrfs) StorageEntitySetQuota(volumeType int, size int64, data in
 		}
 	}
 
-	output, err := shared.RunCommand(
-		"btrfs",
-		"qgroup",
-		"limit",
-		"-e", fmt.Sprintf("%d", size),
-		subvol)
+	// Attempt to make the subvolume writable
+	shared.RunCommand("btrfs", "property", "set", subvol, "ro", "false")
+	if size > 0 {
+		output, err := shared.RunCommand(
+			"btrfs",
+			"qgroup",
+			"limit",
+			"-e", fmt.Sprintf("%d", size),
+			subvol)
 
-	if err != nil {
-		return fmt.Errorf("Failed to set btrfs quota: %s", output)
+		if err != nil {
+			return fmt.Errorf("Failed to set btrfs quota: %s", output)
+		}
+	} else if qgroup != "" {
+		output, err := shared.RunCommand(
+			"btrfs",
+			"qgroup",
+			"destroy",
+			qgroup,
+			subvol)
+
+		if err != nil {
+			return fmt.Errorf("Failed to set btrfs quota: %s", output)
+		}
 	}
 
 	logger.Debugf(`Set BTRFS quota for "%s"`, s.volume.Name)
