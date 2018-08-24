@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
@@ -118,6 +119,44 @@ func (c *ClusterTx) NodeAddress() (string, error) {
 	default:
 		return "", fmt.Errorf("inconsistency: non-unique node ID")
 	}
+}
+
+// NodeIsOutdated returns true if there's some cluster node having an API or
+// schema version greater than the node this method is invoked on.
+func (c *ClusterTx) NodeIsOutdated() (bool, error) {
+	nodes, err := c.nodes(false /* not pending */, "")
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to fetch nodes")
+	}
+
+	// Figure our own version.
+	version := [2]int{}
+	for _, node := range nodes {
+		if node.ID == c.nodeID {
+			version = node.Version()
+		}
+	}
+	if version[0] == 0 || version[1] == 0 {
+		return false, fmt.Errorf("Inconsistency: local node not found")
+	}
+
+	// Check if any of the other nodes is greater than us.
+	for _, node := range nodes {
+		if node.ID == c.nodeID {
+			continue
+		}
+		n, err := util.CompareVersions(node.Version(), version)
+		if err != nil {
+			errors.Wrapf(err, "Failed to compare with version of node %s", node.Name)
+		}
+
+		if n == 1 {
+			// The other node's version is greater than ours.
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // Nodes returns all LXD nodes part of the cluster.
@@ -419,6 +458,28 @@ func (c *ClusterTx) NodeWithLeastContainers() (string, error) {
 		}
 	}
 	return name, nil
+}
+
+// NodeUpdateVersion updates the schema and API version of the node with the
+// given id. This is used only in tests.
+func (c *ClusterTx) NodeUpdateVersion(id int64, version [2]int) error {
+	stmt := "UPDATE nodes SET schema=?, api_extensions=? WHERE id=?"
+
+	result, err := c.tx.Exec(stmt, version[0], version[1], id)
+	if err != nil {
+		return errors.Wrap(err, "Failed to update nodes table")
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get affected rows")
+	}
+
+	if n != 1 {
+		return fmt.Errorf("Expected exactly one row to be updated")
+	}
+
+	return nil
 }
 
 func nodeIsOffline(threshold time.Duration, heartbeat time.Time) bool {
