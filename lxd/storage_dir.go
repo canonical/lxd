@@ -1205,8 +1205,8 @@ func (s *storageDir) MigrationSource(container container, containerOnly bool) (M
 	return rsyncMigrationSource(container, containerOnly)
 }
 
-func (s *storageDir) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
-	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly)
+func (s *storageDir) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
+	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly, args)
 }
 
 func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
@@ -1270,8 +1270,8 @@ func (s *storageDir) StorageMigrationSource() (MigrationStorageSourceDriver, err
 	return rsyncStorageMigrationSource()
 }
 
-func (s *storageDir) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage) error {
-	return rsyncStorageMigrationSink(conn, op, storage)
+func (s *storageDir) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
+	return rsyncStorageMigrationSink(conn, op, storage, args)
 }
 
 func (s *storageDir) GetStoragePool() *api.StoragePool {

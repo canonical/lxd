@@ -47,8 +47,10 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
 	myType := s.storage.MigrationType()
+	rsyncXattrs := true
 	header := migration.MigrationHeader{
-		Fs: &myType,
+		Fs:            &myType,
+		RsyncFeatures: &migration.RsyncFeatures{Xattrs: &rsyncXattrs},
 	}
 
 	err = s.send(&header)
@@ -213,8 +215,10 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 
 	mySink := c.src.storage.StorageMigrationSink
 	myType := c.src.storage.MigrationType()
+	rsyncXattrs := true
 	resp := migration.MigrationHeader{
-		Fs: &myType,
+		Fs:            &myType,
+		RsyncFeatures: &migration.RsyncFeatures{Xattrs: &rsyncXattrs},
 	}
 
 	// If the storage type the source has doesn't match what we have, then
@@ -223,6 +227,12 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 		mySink = rsyncStorageMigrationSink
 		myType = migration.MigrationFSType_RSYNC
 		resp.Fs = &myType
+	}
+
+	args := MigrationSinkArgs{}
+	rsyncFeatures := header.GetRsyncFeatures()
+	if rsyncFeatures.GetXattrs() {
+		args.RsyncArgs = []string{"--xattrs"}
 	}
 
 	err = sender(&resp)
@@ -239,7 +249,7 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 		fsConn = c.src.fsConn
 	}
 
-	err = mySink(fsConn, migrateOp, c.dest.storage)
+	err = mySink(fsConn, migrateOp, c.dest.storage, args)
 	if err != nil {
 		logger.Errorf("Failed to start storage volume migration sink")
 		controller(err)

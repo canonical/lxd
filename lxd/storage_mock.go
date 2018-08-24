@@ -226,7 +226,7 @@ func (s *storageMock) MigrationSource(container container, containerOnly bool) (
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (s *storageMock) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool) error {
+func (s *storageMock) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
 	return nil
 }
 
@@ -246,7 +246,7 @@ func (s *storageMock) StorageMigrationSource() (MigrationStorageSourceDriver, er
 	return nil, nil
 }
 
-func (s *storageMock) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage) error {
+func (s *storageMock) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
 	return nil
 }
 

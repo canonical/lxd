@@ -31,8 +31,10 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 
 	// Setup control struct
 	fs := migration.MigrationFSType_RSYNC
+	rsyncXattrs := true
 	header := migration.MigrationHeader{
-		Fs: &fs,
+		Fs:            &fs,
+		RsyncFeatures: &migration.RsyncFeatures{Xattrs: &rsyncXattrs},
 	}
 
 	err = migration.ProtoSend(wsControl, &header)
