@@ -64,7 +64,8 @@ _have lxc && {
       list manpage monitor move network profile publish query remote rename \
       restart restore shell snapshot start stop storage version"
 
-    global_keys="core.https_address core.https_allowed_credentials \
+    global_keys="backups.compression_algorithm,
+      core.https_address core.https_allowed_credentials \
       core.https_allowed_headers core.https_allowed_methods \
       core.https_allowed_origin candid.api.url core.proxy_https \
       core.proxy_http core.proxy_ignore_hosts core.trust_password \

@@ -1679,7 +1679,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 	}
 
 	// Pack the backup
-	err = backupCreateTarball(tmpPath, backup)
+	err = backupCreateTarball(s.s, tmpPath, backup)
 	if err != nil {
 		return err
 	}
@@ -1687,16 +1687,23 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 	return nil
 }
 
-func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
+func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	containerPath, err := s.doContainerBackupLoad(info.Name, info.Privileged, false)
 	if err != nil {
 		return err
 	}
 
+	// Prepare tar arguments
+	args := append(tarArgs, []string{
+		"-",
+		"--strip-components=2",
+		"--xattrs-include=*",
+		"-C", containerPath, "backup/container",
+	}...)
+
 	// Extract container
 	data.Seek(0, 0)
-	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-", "--strip-components=2", "--xattrs-include=*",
-		"-C", containerPath, "backup/container")
+	err = shared.RunCommandWithFds(data, nil, "tar", args...)
 	if err != nil {
 		return err
 	}
@@ -1708,10 +1715,17 @@ func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 			return err
 		}
 
+		// Prepare tar arguments
+		args := append(tarArgs, []string{
+			"-",
+			"--strip-components=3",
+			"--xattrs-include=*",
+			"-C", containerPath, fmt.Sprintf("backup/snapshots/%s", snap),
+		}...)
+
 		// Extract snapshots
 		data.Seek(0, 0)
-		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-			"--strip-components=3", "--xattrs-include=*", "-C", containerPath, fmt.Sprintf("backup/snapshots/%s", snap))
+		err = shared.RunCommandWithFds(data, nil, "tar", args...)
 		if err != nil {
 			return err
 		}

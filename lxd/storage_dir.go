@@ -1113,7 +1113,7 @@ func (s *storageDir) ContainerBackupCreate(backup backup, source container) erro
 	}
 
 	// Pack the backup
-	err = backupCreateTarball(tmpPath, backup)
+	err = backupCreateTarball(s.s, tmpPath, backup)
 	if err != nil {
 		return err
 	}
@@ -1121,7 +1121,7 @@ func (s *storageDir) ContainerBackupCreate(backup backup, source container) erro
 	return nil
 }
 
-func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
+func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	_, err := s.StoragePoolMount()
 	if err != nil {
 		return err
@@ -1140,10 +1140,17 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 		return err
 	}
 
+	// Prepare tar arguments
+	args := append(tarArgs, []string{
+		"-",
+		"--strip-components=2",
+		"--xattrs-include=*",
+		"-C", containerMntPoint, "backup/container",
+	}...)
+
 	// Extract container
 	data.Seek(0, 0)
-	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf",
-		"-", "--strip-components=2", "--xattrs-include=*", "-C", containerMntPoint, "backup/container")
+	err = shared.RunCommandWithFds(data, nil, "tar", args...)
 	if err != nil {
 		return err
 	}
@@ -1160,10 +1167,17 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) er
 			return err
 		}
 
+		// Prepare tar arguments
+		args := append(tarArgs, []string{
+			"-",
+			"--strip-components=2",
+			"--xattrs-include=*",
+			"-C", snapshotMntPoint, "backup/snapshots",
+		}...)
+
 		// Extract snapshots
 		data.Seek(0, 0)
-		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-			"--strip-components=2", "--xattrs-include=*", "-C", snapshotMntPoint, "backup/snapshots")
+		err = shared.RunCommandWithFds(data, nil, "tar", args...)
 		if err != nil {
 			return err
 		}

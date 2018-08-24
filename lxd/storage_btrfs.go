@@ -1692,7 +1692,7 @@ func (s *storageBtrfs) ContainerBackupCreate(backup backup, source container) er
 	}
 
 	// Pack the backup
-	err = backupCreateTarball(tmpPath, backup)
+	err = backupCreateTarball(s.s, tmpPath, backup)
 	if err != nil {
 		return err
 	}
@@ -1700,7 +1700,7 @@ func (s *storageBtrfs) ContainerBackupCreate(backup backup, source container) er
 	return nil
 }
 
-func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker) error {
+func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := containerGetParentAndSnapshotName(info.Name)
 
 	containerMntPoint := getContainerMountPoint(s.pool.Name, "")
@@ -1721,10 +1721,16 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 		return err
 	}
 
+	// Prepare tar arguments
+	args := append(tarArgs, []string{
+		"-",
+		"--strip-components=1",
+		"-C", unpackPath, "backup",
+	}...)
+
 	// Extract container
 	data.Seek(0, 0)
-	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-		"--strip-components=1", "-C", unpackPath, "backup")
+	err = shared.RunCommandWithFds(data, nil, "tar", args...)
 	if err != nil {
 		logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", "backup", unpackPath, err)
 		return err
@@ -1792,7 +1798,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 	return nil
 }
 
-func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker) error {
+func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	// create the main container
 	err := s.doContainerCreate(info.Name, info.Privileged)
 	if err != nil {
@@ -1802,11 +1808,20 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.Rea
 	containerMntPoint := getContainerMountPoint(s.pool.Name, info.Name)
 	// Extract container
 	for _, snap := range info.Snapshots {
-		// Extract snapshots
 		cur := fmt.Sprintf("backup/snapshots/%s", snap)
+
+		// Prepare tar arguments
+		args := append(tarArgs, []string{
+			"-",
+			"--recursive-unlink",
+			"--xattrs-include=*",
+			"--strip-components=3",
+			"-C", containerMntPoint, cur,
+		}...)
+
+		// Extract snapshots
 		data.Seek(0, 0)
-		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-			"--recursive-unlink", "--xattrs-include=*", "--strip-components=3", "-C", containerMntPoint, cur)
+		err = shared.RunCommandWithFds(data, nil, "tar", args...)
 		if err != nil {
 			logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", cur, containerMntPoint, err)
 			return err
@@ -1819,10 +1834,17 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.Rea
 		}
 	}
 
+	// Prepare tar arguments
+	args := append(tarArgs, []string{
+		"-",
+		"--strip-components=2",
+		"--xattrs-include=*",
+		"-C", containerMntPoint, "backup/container",
+	}...)
+
 	// Extract container
 	data.Seek(0, 0)
-	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-		"--strip-components=2", "--xattrs-include=*", "-C", containerMntPoint, "backup/container")
+	err = shared.RunCommandWithFds(data, nil, "tar", args...)
 	if err != nil {
 		logger.Errorf("Failed to untar \"backup/container\" into \"%s\": %s", containerMntPoint, err)
 		return err
@@ -1831,14 +1853,14 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.Rea
 	return nil
 }
 
-func (s *storageBtrfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
+func (s *storageBtrfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	logger.Debugf("Loading BTRFS storage volume for backup \"%s\" on storage pool \"%s\"", info.Name, s.pool.Name)
 
 	if info.HasBinaryFormat {
-		return s.doContainerBackupLoadOptimized(info, data)
+		return s.doContainerBackupLoadOptimized(info, data, tarArgs)
 	}
 
-	return s.doContainerBackupLoadVanilla(info, data)
+	return s.doContainerBackupLoadVanilla(info, data, tarArgs)
 }
 
 func (s *storageBtrfs) ImageCreate(fingerprint string) error {
