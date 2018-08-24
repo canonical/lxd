@@ -575,3 +575,7 @@ This effectively allows for "lxc list" to get all it needs in one query.
 ## candid\_authentication
 This introduces the new candid.api.url config option and removes
 core.macaroon.endpoint.
+
+## backup\_compression
+This introduces a new backups.compression\_algorithm config key which
+allows configuration of backup compression.
