@@ -201,6 +201,7 @@ func configGet(cluster *db.Cluster) (*Config, error) {
 
 // ConfigSchema defines available server configuration keys.
 var ConfigSchema = config.Schema{
+	"backups.compression_algorithm":  {Default: "gzip", Validator: validateCompression},
 	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
 	"core.https_allowed_headers":     {},
 	"core.https_allowed_methods":     {},

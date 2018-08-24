@@ -2044,7 +2044,7 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 	}
 
 	// Pack the backup
-	err = backupCreateTarball(tmpPath, backup)
+	err = backupCreateTarball(s.s, tmpPath, backup)
 	if err != nil {
 		return err
 	}
@@ -2052,7 +2052,7 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 	return nil
 }
 
-func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker) error {
+func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := containerGetParentAndSnapshotName(info.Name)
 	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 	err := createContainerMountpoint(containerMntPoint, containerPath(info.Name, false), info.Privileged)
@@ -2073,9 +2073,16 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 		return err
 	}
 
+	// Prepare tar arguments
+	args := append(tarArgs, []string{
+		"-",
+		"--strip-components=1",
+		"-C", unpackPath, "backup",
+	}...)
+
 	// Extract container
 	data.Seek(0, 0)
-	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-", "--strip-components=1", "-C", unpackPath, "backup")
+	err = shared.RunCommandWithFds(data, nil, "tar", args...)
 	if err != nil {
 		// can't use defer because it needs to run before the mount
 		os.RemoveAll(unpackPath)
@@ -2155,7 +2162,7 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 	return nil
 }
 
-func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker) error {
+func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	// create the main container
 	err := s.doContainerCreate(info.Name, info.Privileged)
 	if err != nil {
@@ -2174,9 +2181,18 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadS
 		// Extract snapshots
 		cur := fmt.Sprintf("backup/snapshots/%s", snap)
 
+		// Prepare tar arguments
+		args := append(tarArgs, []string{
+			"-",
+			"--recursive-unlink",
+			"--strip-components=3",
+			"--xattrs-include=*",
+			"-C", containerMntPoint, cur,
+		}...)
+
+		// Unpack
 		data.Seek(0, 0)
-		err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-			"--recursive-unlink", "--strip-components=3", "--xattrs-include=*", "-C", containerMntPoint, cur)
+		err = shared.RunCommandWithFds(data, nil, "tar", args...)
 		if err != nil {
 			logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", cur, containerMntPoint, err)
 			return err
@@ -2189,10 +2205,17 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadS
 		}
 	}
 
+	// Prepare tar arguments
+	args := append(tarArgs, []string{
+		"-",
+		"--strip-components=2",
+		"--xattrs-include=*",
+		"-C", containerMntPoint, "backup/container",
+	}...)
+
 	// Extract container
 	data.Seek(0, 0)
-	err = shared.RunCommandWithFds(data, nil, "tar", "-xJf", "-",
-		"--strip-components=2", "--xattrs-include=*", "-C", containerMntPoint, "backup/container")
+	err = shared.RunCommandWithFds(data, nil, "tar", args...)
 	if err != nil {
 		logger.Errorf("Failed to untar \"backup/container\" into \"%s\": %s", containerMntPoint, err)
 		return err
@@ -2201,14 +2224,14 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadS
 	return nil
 }
 
-func (s *storageZfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
+func (s *storageZfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	logger.Debugf("Loading ZFS storage volume for backup \"%s\" on storage pool \"%s\"", info.Name, s.pool.Name)
 
 	if info.HasBinaryFormat {
-		return s.doContainerBackupLoadOptimized(info, data)
+		return s.doContainerBackupLoadOptimized(info, data, tarArgs)
 	}
 
-	return s.doContainerBackupLoadVanilla(info, data)
+	return s.doContainerBackupLoadVanilla(info, data, tarArgs)
 }
 
 // - create temporary directory ${LXD_DIR}/images/lxd_images_

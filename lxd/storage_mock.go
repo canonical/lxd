@@ -194,7 +194,7 @@ func (s *storageMock) ContainerBackupCreate(backup backup, sourceContainer conta
 	return nil
 }
 
-func (s *storageMock) ContainerBackupLoad(info backupInfo, data io.ReadSeeker) error {
+func (s *storageMock) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	return nil
 }
 
