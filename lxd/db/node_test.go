@@ -54,6 +54,63 @@ func TestNodesCount(t *testing.T) {
 	assert.Equal(t, 2, count)
 }
 
+func TestNodeIsOutdated_SingleNode(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	outdated, err := tx.NodeIsOutdated()
+	require.NoError(t, err)
+
+	assert.False(t, outdated)
+}
+
+func TestNodeIsOutdated_AllNodesAtSameVersion(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	_, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	outdated, err := tx.NodeIsOutdated()
+	require.NoError(t, err)
+
+	assert.False(t, outdated)
+}
+
+func TestNodeIsOutdated_OneNodeWithHigherVersion(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	version := [2]int{cluster.SchemaVersion + 1, len(version.APIExtensions)}
+	err = tx.NodeUpdateVersion(id, version)
+	require.NoError(t, err)
+
+	outdated, err := tx.NodeIsOutdated()
+	require.NoError(t, err)
+
+	assert.True(t, outdated)
+}
+
+func TestNodeIsOutdated_OneNodeWithLowerVersion(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	version := [2]int{cluster.SchemaVersion, len(version.APIExtensions) - 1}
+	err = tx.NodeUpdateVersion(id, version)
+	require.NoError(t, err)
+
+	outdated, err := tx.NodeIsOutdated()
+	require.NoError(t, err)
+
+	assert.False(t, outdated)
+}
+
 func TestNodeName(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
