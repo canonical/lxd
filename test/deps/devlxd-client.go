@@ -82,10 +82,11 @@ func main() {
 	if raw.StatusCode != http.StatusOK {
 		fmt.Println("http error", raw.StatusCode)
 		result, err := ioutil.ReadAll(raw.Body)
-		if err == nil {
-			fmt.Println(string(result))
+		if err != nil {
+			os.Exit(1)
 		}
-		os.Exit(1)
+
+		fmt.Println(string(result))
 	}
 
 	result := []string{}
