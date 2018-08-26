@@ -38,7 +38,7 @@ func containerFileHandler(d *Daemon, r *http.Request) Response {
 	case "GET":
 		return containerFileGet(c, path, r)
 	case "POST":
-		return containerFilePut(c, path, r)
+		return containerFilePost(c, path, r)
 	case "DELETE":
 		return containerFileDelete(c, path, r)
 	default:
@@ -91,7 +91,7 @@ func containerFileGet(c container, path string, r *http.Request) Response {
 	}
 }
 
-func containerFilePut(c container, path string, r *http.Request) Response {
+func containerFilePost(c container, path string, r *http.Request) Response {
 	// Extract file ownership and mode from headers
 	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
 
