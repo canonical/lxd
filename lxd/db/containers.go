@@ -584,6 +584,10 @@ func (c *Cluster) ContainerName(id int) (string, error) {
 	arg1 := []interface{}{id}
 	arg2 := []interface{}{&name}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	if err == sql.ErrNoRows {
+		return "", ErrNoSuchObject
+	}
+
 	return name, err
 }
 
@@ -594,6 +598,10 @@ func (c *Cluster) ContainerID(name string) (int, error) {
 	arg1 := []interface{}{name}
 	arg2 := []interface{}{&id}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	if err == sql.ErrNoRows {
+		return -1, ErrNoSuchObject
+	}
+
 	return id, err
 }
 
@@ -618,6 +626,10 @@ SELECT containers.id, containers.description, architecture, type, ephemeral, sta
 	arg2 := []interface{}{&args.ID, &description, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate, &used, &args.Node, &nodeAddress}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return args, ErrNoSuchObject
+		}
+
 		return args, err
 	}
 
@@ -786,6 +798,10 @@ func (c *Cluster) ContainerConfigGet(id int, key string) (string, error) {
 	arg1 := []interface{}{id, key}
 	arg2 := []interface{}{&value}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	if err == sql.ErrNoRows {
+		return "", ErrNoSuchObject
+	}
+
 	return value, err
 }
 
