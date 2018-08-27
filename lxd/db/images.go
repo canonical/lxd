@@ -548,7 +548,6 @@ func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, au
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-
 		publicInt := 0
 		if public {
 			publicInt = 1
