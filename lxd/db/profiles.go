@@ -233,7 +233,7 @@ func (c *Cluster) ProfileContainersGet(profile string) ([]string, error) {
 	q := `SELECT containers.name FROM containers JOIN containers_profiles
 		ON containers.id == containers_profiles.container_id
 		JOIN profiles ON containers_profiles.profile_id == profiles.id
-		WHERE profiles.name == ?`
+		WHERE profiles.name == ? AND containers.type == 0`
 
 	results := []string{}
 	inargs := []interface{}{profile}
