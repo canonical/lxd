@@ -69,6 +69,7 @@ SELECT nodes.name FROM storage_volumes
 		if err == sql.ErrNoRows {
 			return "", ErrNoSuchObject
 		}
+
 		return "", err
 	}
 
