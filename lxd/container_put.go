@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -113,8 +112,8 @@ func containerSnapRestore(s *state.State, name string, snap string, stateful boo
 	source, err := containerLoadByName(s, snap)
 	if err != nil {
 		switch err {
-		case sql.ErrNoRows:
-			return fmt.Errorf("snapshot %s does not exist", snap)
+		case db.ErrNoSuchObject:
+			return fmt.Errorf("Snapshot %s does not exist", snap)
 		default:
 			return err
 		}

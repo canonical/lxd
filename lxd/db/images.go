@@ -178,6 +178,10 @@ func (c *Cluster) ImageExists(fingerprint string) (bool, error) {
 	inargs := []interface{}{fingerprint}
 	outargs := []interface{}{&exists}
 	err = dbQueryRowScan(c.db, query, inargs, outargs)
+	if err == sql.ErrNoRows {
+		return exists, ErrNoSuchObject
+	}
+
 	return exists, err
 }
 
@@ -220,6 +224,10 @@ func (c *Cluster) ImageGet(fingerprint string, public bool, strictMatching bool)
 
 	err = dbQueryRowScan(c.db, query, inargs, outfmt)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, nil, ErrNoSuchObject
+		}
+
 		return -1, nil, err // Likely: there are no rows for this fingerprint
 	}
 
@@ -548,7 +556,6 @@ func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, au
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-
 		publicInt := 0
 		if public {
 			publicInt = 1

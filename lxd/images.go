@@ -246,7 +246,11 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
 	_, _, err = d.cluster.ImageGet(info.Fingerprint, false, true)
-	if err == nil {
+	if err != db.ErrNoSuchObject {
+		if err != nil {
+			return nil, err
+		}
+
 		return nil, fmt.Errorf("The image already exists: %s", info.Fingerprint)
 	}
 
@@ -709,7 +713,11 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		// Apply any provided alias
 		for _, alias := range req.Aliases {
 			_, _, err := d.cluster.ImageAliasGet(alias.Name, true)
-			if err == nil {
+			if err != db.ErrNoSuchObject {
+				if err != nil {
+					return err
+				}
+
 				return fmt.Errorf("Alias already exists: %s", alias.Name)
 			}
 
@@ -1462,7 +1470,11 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 
 	// This is just to see if the alias name already exists.
 	_, _, err := d.cluster.ImageAliasGet(req.Name, true)
-	if err == nil {
+	if err != db.ErrNoSuchObject {
+		if err != nil {
+			return InternalError(err)
+		}
+
 		return Conflict(fmt.Errorf("Alias '%s' already exists", req.Name))
 	}
 

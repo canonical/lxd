@@ -1,5 +1,9 @@
 package db
 
+import (
+	"database/sql"
+)
+
 // CertInfo is here to pass the certificates content
 // from the database around
 type CertInfo struct {
@@ -68,6 +72,10 @@ func (c *Cluster) CertificateGet(fingerprint string) (cert *CertInfo, err error)
 		WHERE fingerprint LIKE ?`
 
 	if err = dbQueryRowScan(c.db, query, inargs, outfmt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNoSuchObject
+		}
+
 		return nil, err
 	}
 
