@@ -232,7 +232,11 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		// Remove the our old server certificate from the trust store,
 		// since it's not needed anymore.
 		_, err = d.cluster.CertificateGet(fingerprint)
-		if err == nil {
+		if err != db.ErrNoSuchObject {
+			if err != nil {
+				return err
+			}
+
 			err := d.cluster.CertDelete(fingerprint)
 			if err != nil {
 				return errors.Wrap(err, "failed to delete joining node's certificate")
