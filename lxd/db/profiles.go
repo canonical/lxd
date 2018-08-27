@@ -37,6 +37,10 @@ func (c *Cluster) ProfileGet(name string) (int64, *api.Profile, error) {
 	arg2 := []interface{}{&id, &description}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, nil, ErrNoSuchObject
+		}
+
 		return -1, nil, err
 	}
 
