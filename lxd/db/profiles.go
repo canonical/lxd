@@ -71,7 +71,7 @@ func (c *Cluster) ProfileCreate(profile string, description string, config map[s
 
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
-		result, err := tx.tx.Exec("INSERT INTO profiles (name, description) VALUES (?, ?)", profile, description)
+		result, err := tx.tx.Exec("INSERT INTO profiles (name, description, project_id) VALUES (?, ?, 1)", profile, description)
 		if err != nil {
 			return err
 		}
