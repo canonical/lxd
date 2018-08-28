@@ -725,7 +725,7 @@ func (c *Cluster) ContainerCreate(args ContainerArgs) (int, error) {
 			args.LastUsedDate = time.Unix(0, 0).UTC()
 		}
 
-		str := fmt.Sprintf("INSERT INTO containers (node_id, name, architecture, type, ephemeral, creation_date, last_use_date, stateful) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+		str := fmt.Sprintf("INSERT INTO containers (node_id, name, architecture, type, ephemeral, creation_date, last_use_date, stateful, project_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)")
 		stmt, err := tx.tx.Prepare(str)
 		if err != nil {
 			return err

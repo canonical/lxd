@@ -469,7 +469,7 @@ func (c *Cluster) ImageAliasesMove(source int, destination int) error {
 
 // ImageAliasAdd inserts an alias ento the database.
 func (c *Cluster) ImageAliasAdd(name string, imageID int, desc string) error {
-	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
+	stmt := `INSERT INTO images_aliases (name, image_id, description, project_id) values (?, ?, ?, 1)`
 	err := exec(c.db, stmt, name, imageID, desc)
 	return err
 }
@@ -566,7 +566,7 @@ func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, au
 			autoUpdateInt = 1
 		}
 
-		stmt, err := tx.tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		stmt, err := tx.tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date, project_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`)
 		if err != nil {
 			return err
 		}

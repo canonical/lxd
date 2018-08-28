@@ -226,7 +226,7 @@ func TestNodeIsEmpty_Containers(t *testing.T) {
 	assert.Equal(t, "", message)
 
 	_, err = tx.Tx().Exec(`
-INSERT INTO containers (id, node_id, name, architecture, type) VALUES (1, ?, 'foo', 1, 1)
+INSERT INTO containers (id, node_id, name, architecture, type, project_id) VALUES (1, ?, 'foo', 1, 1, 1)
 `, id)
 	require.NoError(t, err)
 
@@ -252,8 +252,8 @@ func TestNodeIsEmpty_Images(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = tx.Tx().Exec(`
-INSERT INTO images (id, fingerprint, filename, size, architecture, upload_date)
-  VALUES (1, 'abc', 'foo', 123, 1, ?)`, time.Now())
+INSERT INTO images (id, fingerprint, filename, size, architecture, upload_date, project_id)
+  VALUES (1, 'abc', 'foo', 123, 1, ?, 1)`, time.Now())
 	require.NoError(t, err)
 
 	_, err = tx.Tx().Exec(`
@@ -285,7 +285,7 @@ func TestNodeWithLeastContainers(t *testing.T) {
 
 	// Add a container to the default node (ID 1)
 	_, err = tx.Tx().Exec(`
-INSERT INTO containers (id, node_id, name, architecture, type) VALUES (1, 1, 'foo', 1, 1)
+INSERT INTO containers (id, node_id, name, architecture, type, project_id) VALUES (1, 1, 'foo', 1, 1, 1)
 `)
 	require.NoError(t, err)
 
@@ -305,7 +305,7 @@ func TestNodeWithLeastContainers_OfflineNode(t *testing.T) {
 
 	// Add a container to the newly created node.
 	_, err = tx.Tx().Exec(`
-INSERT INTO containers (id, node_id, name, architecture, type) VALUES (1, ?, 'foo', 1, 1)
+INSERT INTO containers (id, node_id, name, architecture, type, project_id) VALUES (1, ?, 'foo', 1, 1, 1)
 `, id)
 	require.NoError(t, err)
 
