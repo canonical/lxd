@@ -205,7 +205,7 @@ func TestContainerArgsNodeList(t *testing.T) {
 
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 	stmt := `
-INSERT INTO containers(node_id, name, architecture, type) VALUES (?, ?, 1, ?)
+INSERT INTO containers(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
 `
 	_, err := tx.Tx().Exec(stmt, nodeID, name, db.CTypeRegular)
 	require.NoError(t, err)

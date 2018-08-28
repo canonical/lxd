@@ -372,3 +372,92 @@ func TestUpdateFromV10(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []int{0}, types)
 }
+
+func TestUpdateFromV11(t *testing.T) {
+	schema := cluster.Schema()
+	db, err := schema.ExerciseUpdate(11, func(db *sql.DB) {
+		// Insert a node.
+		_, err := db.Exec(
+			"INSERT INTO nodes VALUES (1, 'n1', '', '1.2.3.4:666', 1, 32, ?, 0)",
+			time.Now())
+		require.NoError(t, err)
+
+		// Insert a container.
+		_, err = db.Exec(`
+INSERT INTO containers VALUES (1, 1, 'bionic', 1, 1, 0, ?, 0, ?, 'Bionic Beaver')
+`, time.Now(), time.Now())
+		require.NoError(t, err)
+
+		// Insert an image.
+		_, err = db.Exec(`
+INSERT INTO images VALUES (1, 'abcd', 'img.tgz', 123, 0, 0, NULL, NULL, ?, 0, NULL, 0)
+`, time.Now())
+		require.NoError(t, err)
+
+		// Insert an image alias.
+		_, err = db.Exec(`
+INSERT INTO images_aliases VALUES (1, 'my-img', 1, NULL)
+`, time.Now())
+		require.NoError(t, err)
+
+		// Insert some profiles.
+		_, err = db.Exec(`
+INSERT INTO profiles VALUES (1, 'default', NULL);
+INSERT INTO profiles VALUES(2, 'users', '');
+INSERT INTO profiles_config VALUES(2, 2, 'boot.autostart', 'false');
+INSERT INTO profiles_config VALUES(3, 2, 'limits.cpu', '50%');
+INSERT INTO profiles_devices VALUES(1, 1, 'eth0', 1);
+INSERT INTO profiles_devices VALUES(2, 1, 'root', 1);
+INSERT INTO profiles_devices_config VALUES(1, 1, 'nictype', 'bridged');
+INSERT INTO profiles_devices_config VALUES(2, 1, 'parent', 'lxdbr0');
+INSERT INTO profiles_devices_config VALUES(3, 2, 'path', '/');
+INSERT INTO profiles_devices_config VALUES(4, 2, 'pool', 'default');
+`, time.Now())
+		require.NoError(t, err)
+
+	})
+	require.NoError(t, err)
+
+	tx, err := db.Begin()
+	require.NoError(t, err)
+
+	defer tx.Rollback()
+
+	// Check that a project_id column has been added to the various talbles
+	// and that existing rows default to 1 (the ID of the default project).
+	for _, table := range []string{"containers", "images", "images_aliases"} {
+		count, err := query.Count(tx, table, "")
+		require.NoError(t, err)
+		assert.Equal(t, 1, count)
+
+		stmt := fmt.Sprintf("SELECT project_id FROM %s", table)
+		ids, err := query.SelectIntegers(tx, stmt)
+		require.NoError(t, err)
+		assert.Equal(t, []int{1}, ids)
+	}
+
+	// Create a new project.
+	_, err = tx.Exec(`
+INSERT INTO projects VALUES (2, 'staging', 'Staging environment')`)
+	require.NoError(t, err)
+
+	// Check that it's possible to have two containers with the same name
+	// as long as they are in different projects.
+	_, err = tx.Exec(`
+INSERT INTO containers VALUES (2, 1, 'xenial', 1, 1, 0, ?, 0, ?, 'Xenial Xerus', 1)
+`, time.Now(), time.Now())
+	require.NoError(t, err)
+
+	_, err = tx.Exec(`
+INSERT INTO containers VALUES (3, 1, 'xenial', 1, 1, 0, ?, 0, ?, 'Xenial Xerus', 2)
+`, time.Now(), time.Now())
+	require.NoError(t, err)
+
+	// Check that it's not possible to have two containers with the same name
+	// in the same project.
+
+	_, err = tx.Exec(`
+INSERT INTO containers VALUES (4, 1, 'xenial', 1, 1, 0, ?, 0, ?, 'Xenial Xerus', 1)
+`, time.Now(), time.Now())
+	assert.EqualError(t, err, "UNIQUE constraint failed: containers.project_id, containers.name")
+}
