@@ -253,7 +253,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	store := gateway.ServerStore()
 	dial := gateway.DialFunc()
 	state.Cluster, err = db.OpenCluster(
-		"db.bin", store, address, "/unused/db/dir", dqlite.WithDialFunc(dial))
+		"db.bin", store, address, "/unused/db/dir", 5*time.Second, dqlite.WithDialFunc(dial))
 	require.NoError(f.t, err)
 
 	f.gateways[len(f.gateways)] = gateway
