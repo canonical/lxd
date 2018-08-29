@@ -477,6 +477,7 @@ func clusterPutDisable(d *Daemon) Response {
 	store := d.gateway.ServerStore()
 	d.cluster, err = db.OpenCluster(
 		"db.bin", store, address, "/unused/db/dir",
+		d.config.DqliteSetupTimeout,
 		dqlite.WithDialFunc(d.gateway.DialFunc()),
 		dqlite.WithContext(d.gateway.Context()),
 	)

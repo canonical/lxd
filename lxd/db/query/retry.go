@@ -16,7 +16,7 @@ import (
 func Retry(f func() error) error {
 	// TODO: the retry loop should be configurable.
 	var err error
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 5; i++ {
 		err = f()
 		if err != nil {
 			logger.Debugf("Database error: %#v", err)
