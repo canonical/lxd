@@ -475,9 +475,10 @@ func (d *Daemon) init() error {
 		store := d.gateway.ServerStore()
 		d.cluster, err = db.OpenCluster(
 			"db.bin", store, address, dir,
+			d.config.DqliteSetupTimeout,
 			dqlite.WithDialFunc(d.gateway.DialFunc()),
 			dqlite.WithContext(d.gateway.Context()),
-			dqlite.WithConnectionTimeout(d.config.DqliteSetupTimeout),
+			dqlite.WithConnectionTimeout(10*time.Second),
 			dqlite.WithLogFunc(cluster.DqliteLog),
 		)
 		if err == nil {
