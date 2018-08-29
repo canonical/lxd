@@ -11,7 +11,9 @@ import (
 	"os"
 	"time"
 
+	dqlite "github.com/CanonicalLtd/go-dqlite"
 	"github.com/mattn/go-sqlite3"
+	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -509,7 +511,7 @@ func PreconditionFailed(err error) Response {
  * SmartError returns the right error message based on err.
  */
 func SmartError(err error) Response {
-	switch err {
+	switch errors.Cause(err) {
 	case nil:
 		return EmptySyncResponse
 	case os.ErrNotExist:
@@ -524,6 +526,8 @@ func SmartError(err error) Response {
 		return Conflict(nil)
 	case sqlite3.ErrConstraintUnique:
 		return Conflict(nil)
+	case dqlite.ErrNoAvailableLeader:
+		return Unavailable(err)
 	default:
 		return InternalError(err)
 	}
