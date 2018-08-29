@@ -63,7 +63,9 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return nil
 		})
 		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			response := SmartError(err)
+			response.Render(rw)
+			return
 		}
 	}
 

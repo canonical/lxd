@@ -8,7 +8,6 @@ import (
 
 	"github.com/CanonicalLtd/go-dqlite"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
@@ -158,15 +157,15 @@ type Cluster struct {
 // database matches our version, and possibly trigger a schema update. If the
 // schema update can't be performed right now, because some nodes are still
 // behind, an Upgrading error is returned.
-func OpenCluster(name string, store dqlite.ServerStore, address, dir string, options ...dqlite.DriverOption) (*Cluster, error) {
+func OpenCluster(name string, store dqlite.ServerStore, address, dir string, timeout time.Duration, options ...dqlite.DriverOption) (*Cluster, error) {
 	db, err := cluster.Open(name, store, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database")
 	}
 
-	// Test that the cluster database is operational. We wait up to 10
-	// minutes, in case there's no quorum of nodes online yet.
-	timeout := time.After(10 * time.Minute)
+	// Test that the cluster database is operational. We wait up to the
+	// given timeout , in case there's no quorum of nodes online yet.
+	timer := time.After(timeout)
 	for i := 0; ; i++ {
 		// Log initial attempts at debug level, but use warn
 		// level after the 5'th attempt (about 10 seconds).
@@ -186,7 +185,7 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, opt
 		}
 
 		cause := errors.Cause(err)
-		if cause != context.DeadlineExceeded {
+		if cause != dqlite.ErrNoAvailableLeader {
 			return nil, err
 		}
 
@@ -199,7 +198,7 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, opt
 
 		time.Sleep(2 * time.Second)
 		select {
-		case <-timeout:
+		case <-timer:
 			return nil, fmt.Errorf("failed to connect to cluster database")
 		default:
 		}
