@@ -178,6 +178,15 @@ type ContainerServer interface {
 	RenameProfile(name string, profile api.ProfilePost) (err error)
 	DeleteProfile(name string) (err error)
 
+	// Project functions
+	GetProjectNames() (names []string, err error)
+	GetProjects() (projects []api.Project, err error)
+	GetProject(name string) (project *api.Project, ETag string, err error)
+	CreateProject(project api.ProjectsPost) (err error)
+	UpdateProject(name string, project api.ProjectPut, ETag string) (err error)
+	RenameProject(name string, project api.ProjectPost) (op Operation, err error)
+	DeleteProject(name string) (err error)
+
 	// Storage pool functions ("storage" API extension)
 	GetStoragePoolNames() (names []string, err error)
 	GetStoragePools() (pools []api.StoragePool, err error)
