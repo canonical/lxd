@@ -126,6 +126,7 @@ var APIExtensions = []string{
 	"nvidia_runtime_config",
 	"storage_api_volume_snapshots",
 	"storage_unmapped",
+	"projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
