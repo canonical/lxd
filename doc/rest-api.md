@@ -215,6 +215,8 @@ won't work and PUT needs to be used instead.
          * [`/1.0/operations/<uuid>/websocket`](#10operationsuuidwebsocket)
      * [`/1.0/profiles`](#10profiles)
        * [`/1.0/profiles/<name>`](#10profilesname)
+     * [`/1.0/projects`](#10projects)
+       * [`/1.0/projects/<name>`](#10projectsname)
      * [`/1.0/storage-pools`](#10storage-pools)
        * [`/1.0/storage-pools/<name>`](#10storage-poolsname)
          * [`/1.0/storage-pools/<name>/resources`](#10storage-poolsnameresources)
@@ -2239,6 +2241,132 @@ Input (none at present):
 HTTP code for this should be 202 (Accepted).
 
 Attempting to delete the `default` profile will return the 403 (Forbidden) HTTP code.
+
+## `/1.0/projects`
+### GET
+ * Description: List of configuration projects
+ * Introduced: with API extension `projects`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs to defined projects
+
+Return:
+
+    [
+        "/1.0/projects/default"
+    ]
+
+### POST
+ * Description: define a new project
+ * Introduced: with API extension `projects`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "name": "test",
+        "features": {
+            "images": True,
+            "profiles": True,
+        },
+        "description": "Some description string"
+    }
+
+## `/1.0/projects/<name>`
+### GET
+ * Description: project configuration
+ * Introduced: with API extension `projects`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the project content
+
+Output:
+
+    {
+        "name": "test",
+        "features": {
+            "images": True,
+            "profiles": True,
+        },
+        "description": "Some description string",
+        "used_by": [
+            "/1.0/containers/blah"
+        ]
+    }
+
+### PUT (ETag supported)
+ * Description: replace the project information
+ * Introduced: with API extension `projects`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "features": {
+            "images": True,
+            "profiles": True,
+        },
+        "description": "Some description string"
+    }
+
+Same dict as used for initial creation and coming from GET. The name
+property can't be changed (see POST for that).
+
+### PATCH (ETag supported)
+ * Description: update the project information
+ * Introduced: with API extension `projects`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input:
+
+    {
+        "features": {
+            "images": False
+        },
+        "description": "Some description string"
+    }
+
+### POST
+ * Description: rename a project
+ * Introduced: with API extension `projects`
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input (rename a project):
+
+    {
+        "name": "new-name"
+    }
+
+HTTP return value must be 204 (No content) and Location must point to
+the renamed resource.
+
+Renaming to an existing name must return the 409 (Conflict) HTTP code.
+
+Attempting to rename the `default` project will return the 403 (Forbidden) HTTP code.
+
+### DELETE
+ * Description: remove a project
+ * Introduced: with API extension `projects`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
+
+Input (none at present):
+
+    {
+    }
+
+HTTP code for this should be 202 (Accepted).
+
+Attempting to delete the `default` project will return the 403 (Forbidden) HTTP code.
 
 ## `/1.0/storage-pools`
 ### GET
