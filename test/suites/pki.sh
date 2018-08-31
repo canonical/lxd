@@ -10,11 +10,22 @@ test_pki() {
     set -e
     cd "${TEST_DIR}/pki"
     # shellcheck disable=SC1091
-    . ./vars
-    ./clean-all
-    ./pkitool --initca
-    ./pkitool --server 127.0.0.1
-    ./pkitool lxd-client
+    if [ -e pkitool ]; then
+        . ./vars
+        ./clean-all
+        ./pkitool --initca
+        ./pkitool --server 127.0.0.1
+        ./pkitool lxd-client
+    else
+        ./easyrsa init-pki
+        echo "lxd" | ./easyrsa build-ca nopass
+        ./easyrsa build-server-full 127.0.0.1 nopass
+        ./easyrsa build-client-full lxd-client nopass
+        mkdir keys
+        cp pki/private/* keys/
+        cp pki/issued/* keys/
+        cp pki/ca.crt keys/
+    fi
   )
 
   # Setup the daemon
