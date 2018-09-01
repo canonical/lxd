@@ -16,6 +16,7 @@ type Remote struct {
 	Protocol string `yaml:"protocol,omitempty"`
 	AuthType string `yaml:"auth_type,omitempty"`
 	Static   bool   `yaml:"-"`
+	Project  string `yaml:"project,omitempty"`
 }
 
 // ParseRemote splits remote and object
@@ -64,6 +65,10 @@ func (c *Config) GetContainerServer(name string) (lxd.ContainerServer, error) {
 			return nil, err
 		}
 
+		if remote.Project != "" && remote.Project != "default" {
+			d = d.UseProject(remote.Project)
+		}
+
 		return d, nil
 	}
 
@@ -75,6 +80,10 @@ func (c *Config) GetContainerServer(name string) (lxd.ContainerServer, error) {
 	d, err := lxd.ConnectLXD(remote.Addr, args)
 	if err != nil {
 		return nil, err
+	}
+
+	if remote.Project != "" && remote.Project != "default" {
+		d = d.UseProject(remote.Project)
 	}
 
 	return d, nil
