@@ -200,7 +200,7 @@ func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	var err error
 
 	_, _, err = s.db.ImageGet("unknown", false, false)
-	s.Equal(err, sql.ErrNoRows)
+	s.Equal(err, ErrNoSuchObject)
 }
 
 func (s *dbTestSuite) Test_ImageExists_true() {
