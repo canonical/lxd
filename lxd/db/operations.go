@@ -50,6 +50,7 @@ const (
 	OperationVolumeCreate
 	OperationVolumeMigrate
 	OperationVolumeMove
+	OperationProjectRename
 )
 
 // Description return a human-readable description of the operation type.
@@ -121,6 +122,8 @@ func (t OperationType) Description() string {
 		return "Migrating storage volume"
 	case OperationVolumeMove:
 		return "Moving storage volume"
+	case OperationProjectRename:
+		return "Renaming project"
 	default:
 		return "Executing operation"
 

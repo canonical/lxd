@@ -122,6 +122,7 @@ var APIExtensions = []string{
 	"container_full",
 	"candid_authentication",
 	"backup_compression",
+	"projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

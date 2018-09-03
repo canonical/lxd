@@ -579,3 +579,9 @@ core.macaroon.endpoint.
 ## backup\_compression
 This introduces a new backups.compression\_algorithm config key which
 allows configuration of backup compression.
+
+## projects
+Add a new project API, supporting creation, update and deletion of projects.
+
+Projects can hold containers, profiles or images at this point and let
+you get a separate view of your LXD resources by switching to it.
