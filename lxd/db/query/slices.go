@@ -4,7 +4,54 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/pkg/errors"
 )
+
+// SelectURIs returns a list of LXD API URI strings for the resource yielded by
+// the given query.
+//
+// The f argument must be a function that formats the entity URI using the
+// columns yielded by the query.
+func SelectURIs(stmt *sql.Stmt, f func(a ...interface{}) string, args ...interface{}) ([]string, error) {
+	rows, err := stmt.Query(args...)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to query URIs")
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, errors.Wrap(err, "Rows columns")
+	}
+
+	params := make([]interface{}, len(columns))
+
+	dest := make([]interface{}, len(params))
+	for i := range params {
+		params[i] = ""
+		dest[i] = &params[i]
+	}
+
+	uris := []string{}
+
+	for rows.Next() {
+		err := rows.Scan(dest...)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to scan URI params")
+		}
+
+		uri := f(params...)
+		uris = append(uris, uri)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to close URI result set")
+	}
+
+	return uris, nil
+}
 
 // SelectStrings executes a statement which must yield rows with a single string
 // column. It returns the list of column values.
