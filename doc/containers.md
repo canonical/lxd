@@ -228,9 +228,9 @@ Different network interface types have different additional properties, the curr
 Key                     | Type      | Default           | Required  | Used by                           | API extension                          | Description
 :--                     | :--       | :--               | :--       | :--                               | :--                                    | :--
 nictype                 | string    | -                 | yes       | all                               | -                                      | The device type, one of "bridged", "macvlan", "p2p", "physical", or "sriov"
-limits.ingress          | string    | -                 | no        | bridged, p2p                      | -                                      | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
-limits.egress           | string    | -                 | no        | bridged, p2p                      | -                                      | I/O limit in bit/s (supports kbit, Mbit, Gbit suffixes)
-limits.max              | string    | -                 | no        | bridged, p2p                      | -                                      | Same as modifying both limits.read and limits.write
+limits.ingress          | string    | -                 | no        | bridged, p2p                      | -                                      | I/O limit in bit/s for incoming traffic (supports kbit, Mbit, Gbit suffixes)
+limits.egress           | string    | -                 | no        | bridged, p2p                      | -                                      | I/O limit in bit/s for outgoing traffic (supports kbit, Mbit, Gbit suffixes)
+limits.max              | string    | -                 | no        | bridged, p2p                      | -                                      | Same as modifying both limits.ingress and limits.egress
 name                    | string    | kernel assigned   | no        | all                               | -                                      | The name of the interface inside the container
 host\_name              | string    | randomly assigned | no        | bridged, macvlan, p2p, sriov      | -                                      | The name of the interface inside the host
 hwaddr                  | string    | randomly assigned | no        | all                               | -                                      | The MAC address of the new interface
