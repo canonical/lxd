@@ -221,8 +221,12 @@ func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
 		}{})
 		return []interface{}{&objects[i].ID, &objects[i].Name}
 	}
-	stmt := "SELECT id, name FROM containers WHERE SUBSTR(name,1,?)=? AND type=?"
-	err := query.SelectObjects(c.tx, dest, stmt, length, prefix, CTypeSnapshot)
+	stmt, err := c.tx.Prepare("SELECT id, name FROM containers WHERE SUBSTR(name,1,?)=? AND type=?")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, length, prefix, CTypeSnapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +353,7 @@ func (c *ClusterTx) ContainerArgsNodeList() ([]ContainerArgs, error) {
 
 func (c *ClusterTx) containerArgsList(local bool) ([]ContainerArgs, error) {
 	// First query the containers table.
-	stmt := `
+	sql := `
 SELECT containers.id, nodes.name, type, creation_date, architecture,
        coalesce(containers.description, ''), ephemeral, last_use_date,
        containers.name, stateful
@@ -358,10 +362,10 @@ SELECT containers.id, nodes.name, type, creation_date, architecture,
   WHERE type=0
 `
 	if local {
-		stmt += " AND nodes.id=?"
+		sql += " AND nodes.id=?"
 	}
 
-	stmt += `
+	sql += `
 ORDER BY containers.name
 `
 
@@ -388,7 +392,12 @@ ORDER BY containers.name
 		args = append(args, c.nodeID)
 	}
 
-	err := query.SelectObjects(c.tx, dest, stmt, args...)
+	stmt, err := c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query containers")
 	}
@@ -403,18 +412,18 @@ ORDER BY containers.name
 	}
 
 	// Query the containers_config table.
-	stmt = `
+	sql = `
 SELECT container_id, key, value
   FROM containers_config
   JOIN containers ON containers.id=container_id
 `
 	if local {
-		stmt += `
+		sql += `
   JOIN nodes ON nodes.id=containers.node_id
   WHERE nodes.id=? AND containers.type=0
 `
 	} else {
-		stmt += `
+		sql += `
   WHERE containers.type=0
 `
 	}
@@ -439,7 +448,12 @@ SELECT container_id, key, value
 		}
 	}
 
-	err = query.SelectObjects(c.tx, dest, stmt, args...)
+	stmt, err = c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query containers config")
 	}
@@ -449,7 +463,7 @@ SELECT container_id, key, value
 	}
 
 	// Query the containers_devices/containers_devices_config tables.
-	stmt = `
+	sql = `
 SELECT container_id, containers_devices.name, containers_devices.type,
        coalesce(containers_devices_config.key, ''), coalesce(containers_devices_config.value, '')
   FROM containers_devices
@@ -457,12 +471,12 @@ SELECT container_id, containers_devices.name, containers_devices.type,
   JOIN containers ON containers.id=container_id
 `
 	if local {
-		stmt += `
+		sql += `
   JOIN nodes ON nodes.id=containers.node_id
   WHERE nodes.id=? AND containers.type=0
 `
 	} else {
-		stmt += `
+		sql += `
   WHERE containers.type=0
 `
 	}
@@ -493,7 +507,12 @@ SELECT container_id, containers_devices.name, containers_devices.type,
 		}
 	}
 
-	err = query.SelectObjects(c.tx, dest, stmt, args...)
+	stmt, err = c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query containers devices")
 	}
@@ -520,24 +539,24 @@ SELECT container_id, containers_devices.name, containers_devices.type,
 	}
 
 	// Query the profiles table
-	stmt = `
+	sql = `
 SELECT container_id, profiles.name FROM containers_profiles
   JOIN profiles ON containers_profiles.profile_id=profiles.id
   JOIN containers ON containers.id=container_id
 `
 
 	if local {
-		stmt += `
+		sql += `
   JOIN nodes ON nodes.id=containers.node_id
   WHERE nodes.id=? AND containers.type=0
 `
 	} else {
-		stmt += `
+		sql += `
   WHERE containers.type=0
 `
 	}
 
-	stmt += `
+	sql += `
 ORDER BY containers_profiles.apply_order
 `
 
@@ -558,7 +577,12 @@ ORDER BY containers_profiles.apply_order
 		}
 	}
 
-	err = query.SelectObjects(c.tx, dest, stmt, args...)
+	stmt, err = c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query containers profiles")
 	}

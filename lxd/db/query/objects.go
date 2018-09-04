@@ -8,8 +8,8 @@ import (
 
 // SelectObjects executes a statement which must yield rows with a specific
 // columns schema. It invokes the given Dest hook for each yielded row.
-func SelectObjects(tx *sql.Tx, dest Dest, query string, args ...interface{}) error {
-	rows, err := tx.Query(query, args...)
+func SelectObjects(stmt *sql.Stmt, dest Dest, args ...interface{}) error {
+	rows, err := stmt.Query(args...)
 	if err != nil {
 		return err
 	}
