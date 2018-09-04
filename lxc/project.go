@@ -334,7 +334,6 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("%s: %v %s\n", remote, conf.Remotes[remote], conf.Remotes[remote].Project)
 	currentProject := conf.Remotes[remote].Project
 	if currentProject == "" {
 		currentProject = "default"
