@@ -85,8 +85,12 @@ func (c *ClusterTx) StoragePoolIDsNotPending() (map[string]int64, error) {
 		return []interface{}{&pools[i].id, &pools[i].name}
 
 	}
-	stmt := "SELECT id, name FROM storage_pools WHERE NOT state=?"
-	err := query.SelectObjects(c.tx, dest, stmt, storagePoolPending)
+	stmt, err := c.tx.Prepare("SELECT id, name FROM storage_pools WHERE NOT state=?")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, storagePoolPending)
 	if err != nil {
 		return nil, err
 	}
@@ -204,8 +208,12 @@ func (c *ClusterTx) StoragePoolCreatePending(node, name, driver string, conf map
 		}
 		return []interface{}{&pool.id, &pool.driver, &pool.state}
 	}
-	stmt := "SELECT id, driver, state FROM storage_pools WHERE name=?"
-	err := query.SelectObjects(c.tx, dest, stmt, name)
+	stmt, err := c.tx.Prepare("SELECT id, driver, state FROM storage_pools WHERE name=?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, name)
 	if err != nil {
 		return err
 	}

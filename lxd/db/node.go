@@ -225,13 +225,18 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	} else {
 		args = append([]interface{}{0}, args...)
 	}
-	stmt := `
+	sql := `
 SELECT id, name, address, description, schema, api_extensions, heartbeat FROM nodes WHERE pending=? `
 	if where != "" {
-		stmt += fmt.Sprintf("AND %s ", where)
+		sql += fmt.Sprintf("AND %s ", where)
 	}
-	stmt += "ORDER BY id"
-	err := query.SelectObjects(c.tx, dest, stmt, args...)
+	sql += "ORDER BY id"
+	stmt, err := c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch nodes")
 	}
@@ -344,8 +349,13 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 		return []interface{}{&images[i].fingerprint, &images[i].nodeID}
 
 	}
-	err = query.SelectObjects(c.tx, dest, `
+	stmt, err := c.tx.Prepare(`
 SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_nodes.image_id`)
+	if err != nil {
+		return "", err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to get image list for node %d", id)
 	}

@@ -22,7 +22,12 @@ func (n *NodeTx) RaftNodes() ([]RaftNode, error) {
 		nodes = append(nodes, RaftNode{})
 		return []interface{}{&nodes[i].ID, &nodes[i].Address}
 	}
-	err := query.SelectObjects(n.tx, dest, "SELECT id, address FROM raft_nodes ORDER BY id")
+	stmt, err := n.tx.Prepare("SELECT id, address FROM raft_nodes ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch raft nodes")
 	}

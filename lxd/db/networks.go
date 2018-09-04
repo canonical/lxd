@@ -47,8 +47,12 @@ func (c *ClusterTx) NetworkIDsNotPending() (map[string]int64, error) {
 		return []interface{}{&networks[i].id, &networks[i].name}
 
 	}
-	stmt := "SELECT id, name FROM networks WHERE NOT state=?"
-	err := query.SelectObjects(c.tx, dest, stmt, networkPending)
+	stmt, err := c.tx.Prepare("SELECT id, name FROM networks WHERE NOT state=?")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, networkPending)
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +162,12 @@ func (c *ClusterTx) NetworkCreatePending(node, name string, conf map[string]stri
 		}
 		return []interface{}{&network.id, &network.state}
 	}
-	stmt := "SELECT id, state FROM networks WHERE name=?"
-	err := query.SelectObjects(c.tx, dest, stmt, name)
+	stmt, err := c.tx.Prepare("SELECT id, state FROM networks WHERE name=?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, name)
 	if err != nil {
 		return err
 	}

@@ -18,20 +18,19 @@ func TestSelectObjects_Error(t *testing.T) {
 		error string
 	}{
 		{
-			func(int) []interface{} { return nil },
-			"garbage",
-			"near \"garbage\": syntax error",
-		},
-		{
 			func(int) []interface{} { return make([]interface{}, 1) },
 			"SELECT id, name FROM test",
 			"sql: expected 2 destination arguments in Scan, not 1",
 		},
 	}
 	for _, c := range cases {
-		subtest.Run(t, c.query, func(t *testing.T) {
+		t.Run(c.query, func(t *testing.T) {
 			tx := newTxForObjects(t)
-			err := query.SelectObjects(tx, c.dest, c.query)
+
+			stmt, err := tx.Prepare(c.query)
+			require.NoError(t, err)
+
+			err = query.SelectObjects(stmt, c.dest)
 			assert.EqualError(t, err, c.error)
 		})
 	}
@@ -51,8 +50,10 @@ func TestSelectObjects(t *testing.T) {
 		return []interface{}{&object.ID, &object.Name}
 	}
 
-	stmt := "SELECT id, name FROM test WHERE name=?"
-	err := query.SelectObjects(tx, dest, stmt, "bar")
+	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
+	require.NoError(t, err)
+
+	err = query.SelectObjects(stmt, dest, "bar")
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, object.ID)
@@ -106,8 +107,10 @@ func TestUpsertObject_Insert(t *testing.T) {
 		return []interface{}{&object.ID, &object.Name}
 	}
 
-	stmt := "SELECT id, name FROM test WHERE name=?"
-	err = query.SelectObjects(tx, dest, stmt, "egg")
+	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
+	require.NoError(t, err)
+
+	err = query.SelectObjects(stmt, dest, "egg")
 	require.NoError(t, err)
 
 	assert.Equal(t, 2, object.ID)
@@ -133,8 +136,10 @@ func TestUpsertObject_Update(t *testing.T) {
 		return []interface{}{&object.ID, &object.Name}
 	}
 
-	stmt := "SELECT id, name FROM test WHERE name=?"
-	err = query.SelectObjects(tx, dest, stmt, "egg")
+	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
+	require.NoError(t, err)
+
+	err = query.SelectObjects(stmt, dest, "egg")
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, object.ID)
