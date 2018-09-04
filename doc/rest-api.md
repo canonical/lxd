@@ -2267,10 +2267,8 @@ Input:
 
     {
         "name": "test",
-        "features": {
-            "images": True,
-            "profiles": True,
-        },
+        "features.images": True,
+        "features.profiles": True,
         "description": "Some description string"
     }
 
@@ -2286,10 +2284,8 @@ Output:
 
     {
         "name": "test",
-        "features": {
-            "images": True,
-            "profiles": True,
-        },
+        "features.images": True,
+        "features.profiles": True,
         "description": "Some description string",
         "used_by": [
             "/1.0/containers/blah"
@@ -2306,10 +2302,8 @@ Output:
 Input:
 
     {
-        "features": {
-            "images": True,
-            "profiles": True,
-        },
+        "features.images": True,
+        "features.profiles": True,
         "description": "Some description string"
     }
 
@@ -2326,9 +2320,7 @@ property can't be changed (see POST for that).
 Input:
 
     {
-        "features": {
-            "images": False
-        },
+        "features.images": True,
         "description": "Some description string"
     }
 

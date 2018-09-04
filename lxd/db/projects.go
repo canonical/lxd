@@ -77,10 +77,8 @@ func (c *Cluster) Projects() ([]api.Project, error) {
 			Name: r[1].(string),
 		}
 		project.Description = r[2].(string)
-		project.Features = &api.ProjectFeatures{
-			Images:   r[3].(int) == 1,
-			Profiles: r[4].(int) == 1,
-		}
+		project.HasImages = r[3].(int) == 1
+		project.HasProfiles = r[4].(int) == 1
 
 		// Fill in UsedBy
 		entries, ok := usedBy[r[0].(int64)]
@@ -138,10 +136,8 @@ func (c *Cluster) ProjectGet(name string) (int64, *api.Project, error) {
 		Name: name,
 	}
 	project.Description = description.String
-	project.Features = &api.ProjectFeatures{
-		Images:   hasImages == 1,
-		Profiles: hasProfiles == 1,
-	}
+	project.HasImages = hasImages == 1
+	project.HasProfiles = hasProfiles == 1
 
 	// Fill UsedBy
 	project.UsedBy = []string{}
@@ -193,12 +189,12 @@ func (c *Cluster) ProjectGet(name string) (int64, *api.Project, error) {
 func (c *Cluster) ProjectCreate(project api.ProjectsPost) (int64, error) {
 	// Convert to integers
 	hasImages := 0
-	if project.Features.Images {
+	if project.HasImages {
 		hasImages = 1
 	}
 
 	hasProfiles := 0
-	if project.Features.Profiles {
+	if project.HasProfiles {
 		hasProfiles = 1
 	}
 
@@ -238,10 +234,8 @@ func (c *Cluster) ProjectCreateDefault() error {
 		Name: "default",
 	}
 	defaultProject.Description = "Default LXD project"
-	defaultProject.Features = &api.ProjectFeatures{
-		Images:   true,
-		Profiles: true,
-	}
+	defaultProject.HasImages = true
+	defaultProject.HasProfiles = true
 
 	_, err := c.ProjectCreate(defaultProject)
 	if err != nil {
@@ -281,12 +275,12 @@ func (c *Cluster) ProjectRename(name string, project api.ProjectPost) error {
 func (c *Cluster) ProjectUpdate(name string, project api.ProjectPut) error {
 	// Convert to integers
 	hasImages := 0
-	if project.Features != nil && project.Features.Images {
+	if project.HasImages {
 		hasImages = 1
 	}
 
 	hasProfiles := 0
-	if project.Features != nil && project.Features.Profiles {
+	if project.HasProfiles {
 		hasProfiles = 1
 	}
 

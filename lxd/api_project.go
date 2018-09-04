@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -47,14 +46,14 @@ func apiProjectsGet(d *Daemon, r *http.Request) Response {
 	}
 
 	// List of URLs
-	projects, err := d.cluster.ProjectNames()
+	var urls []string
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		urls, err = tx.ProjectsURIs()
+		return err
+	})
 	if err != nil {
 		return SmartError(err)
-	}
-
-	urls := []string{}
-	for _, name := range projects {
-		urls = append(urls, fmt.Sprintf("/%s/projects/%s", version.APIVersion, name))
 	}
 
 	return SyncResponse(true, urls)
@@ -63,6 +62,9 @@ func apiProjectsGet(d *Daemon, r *http.Request) Response {
 func apiProjectsPost(d *Daemon, r *http.Request) Response {
 	// Parse the request
 	project := api.ProjectsPost{}
+	project.Config = map[string]string{}
+	project.Config["features.images"] = "true"
+	project.Config["features.profiles"] = "true"
 
 	err := json.NewDecoder(r.Body).Decode(&project)
 	if err != nil {
@@ -87,14 +89,6 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid project name '%s'", project.Name))
 	}
 
-	// Fill the features if not set by the client
-	if project.Features == nil {
-		project.Features = &api.ProjectFeatures{
-			Images:   true,
-			Profiles: true,
-		}
-	}
-
 	// Create the database entry
 	_, err = d.cluster.ProjectCreate(project)
 	if err != nil {
@@ -113,7 +107,12 @@ func apiProjectGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	etag := []interface{}{project.Description, *project.Features}
+	etag := []interface{}{
+		project.Description,
+		project.Config["features.images"],
+		project.Config["features.profiles"],
+	}
+
 	return SyncResponseETag(true, project, etag)
 }
 
@@ -127,7 +126,11 @@ func apiProjectPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate ETag
-	etag := []interface{}{project.Description, *project.Features}
+	etag := []interface{}{
+		project.Description,
+		project.Config["features.images"],
+		project.Config["features.profiles"],
+	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
@@ -141,12 +144,15 @@ func apiProjectPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	// Flag indicating if any feature has changed.
+	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
+
 	// Sanity checks
-	if project.Name == "default" && !reflect.DeepEqual(req.Features, project.Features) {
+	if project.Name == "default" && featuresChanged {
 		return BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
-	if len(project.UsedBy) != 0 && !reflect.DeepEqual(req.Features, project.Features) {
+	if len(project.UsedBy) != 0 && featuresChanged {
 		return BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
 	}
 
@@ -169,7 +175,11 @@ func apiProjectPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Validate ETag
-	etag := []interface{}{project.Description, *project.Features}
+	etag := []interface{}{
+		project.Description,
+		project.Config["features.images"],
+		project.Config["features.profiles"],
+	}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return PreconditionFailed(err)
@@ -199,27 +209,25 @@ func apiProjectPatch(d *Daemon, r *http.Request) Response {
 		req.Description = project.Description
 	}
 
-	features, err := reqRaw.GetMap("features")
-	if err == nil {
-		_, err = features.GetBool("images")
-		if err != nil {
-			req.Features.Images = project.Features.Images
-		}
-
-		_, err = features.GetBool("profiles")
-		if err != nil {
-			req.Features.Profiles = project.Features.Profiles
-		}
-	} else {
-		req.Features = project.Features
+	_, err = reqRaw.GetBool("features.images")
+	if err != nil {
+		req.Config["features.images"] = project.Config["features.images"]
 	}
 
+	_, err = reqRaw.GetBool("features.profiles")
+	if err != nil {
+		req.Config["features.images"] = project.Config["features.profiles"]
+	}
+
+	// Flag indicating if any feature has changed.
+	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
+
 	// Sanity checks
-	if project.Name == "default" && !reflect.DeepEqual(req.Features, project.Features) {
+	if project.Name == "default" && featuresChanged {
 		return BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
-	if len(project.UsedBy) != 0 && !reflect.DeepEqual(req.Features, project.Features) {
+	if len(project.UsedBy) != 0 && featuresChanged {
 		return BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
 	}
 

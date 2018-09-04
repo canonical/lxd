@@ -16,20 +16,12 @@ type ProjectPost struct {
 	Name string `json:"name" yaml:"name"`
 }
 
-// ProjectFeatures represents the list of features enabled for the project
-//
-// API extension: projects
-type ProjectFeatures struct {
-	Images   bool `json:"images" yaml:"images"`
-	Profiles bool `json:"profiles" yaml:"profiles"`
-}
-
 // ProjectPut represents the modifiable fields of a LXD project
 //
 // API extension: projects
 type ProjectPut struct {
-	Description string           `json:"description" yaml:"description"`
-	Features    *ProjectFeatures `json:"features" yaml:"features"`
+	Description string            `json:"description" yaml:"description"`
+	Config      map[string]string `json:"config" yaml:"config"`
 }
 
 // Project represents a LXD project

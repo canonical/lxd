@@ -180,7 +180,9 @@ INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '
 
 		// Default project
 		stmt = `
-INSERT INTO projects (name, description, has_images, has_profiles) VALUES ('default', 'Default LXD project', 1, 1);
+INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
 `
 		_, err = tx.Exec(stmt)
 		if err != nil {
