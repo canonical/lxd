@@ -43,7 +43,12 @@ func selectNodesVersions(tx *sql.Tx) ([][2]int, error) {
 		return []interface{}{&versions[i][0], &versions[i][1]}
 	}
 
-	err := query.SelectObjects(tx, dest, "SELECT schema, api_extensions FROM nodes")
+	stmt, err := tx.Prepare("SELECT schema, api_extensions FROM nodes")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest)
 	if err != nil {
 		return nil, err
 	}

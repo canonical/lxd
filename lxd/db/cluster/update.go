@@ -119,7 +119,7 @@ SELECT storage_volumes.id FROM storage_volumes
 		Type          int
 		Description   string
 	}, len(volumeIDs))
-	stmt := `
+	sql := `
 SELECT
     storage_volumes.id,
     storage_volumes.name,
@@ -131,7 +131,12 @@ FROM storage_volumes
     JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
     WHERE storage_pools.driver='ceph'
 `
-	err = query.SelectObjects(tx, func(i int) []interface{} {
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, func(i int) []interface{} {
 		return []interface{}{
 			&volumes[i].ID,
 			&volumes[i].Name,
@@ -140,7 +145,7 @@ FROM storage_volumes
 			&volumes[i].Type,
 			&volumes[i].Description,
 		}
-	}, stmt)
+	})
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current volumes")
 	}

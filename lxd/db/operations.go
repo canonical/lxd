@@ -79,13 +79,18 @@ func (c *ClusterTx) operations(where string, args ...interface{}) ([]Operation, 
 			&operations[i].NodeAddress,
 		}
 	}
-	stmt := `
+	sql := `
 SELECT operations.id, uuid, nodes.address FROM operations JOIN nodes ON nodes.id = node_id `
 	if where != "" {
-		stmt += fmt.Sprintf("WHERE %s ", where)
+		sql += fmt.Sprintf("WHERE %s ", where)
 	}
-	stmt += "ORDER BY operations.id"
-	err := query.SelectObjects(c.tx, dest, stmt, args...)
+	sql += "ORDER BY operations.id"
+	stmt, err := c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch operations")
 	}

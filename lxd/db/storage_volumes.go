@@ -25,12 +25,17 @@ func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, name string, typ in
 		return []interface{}{&nodes[i].id, &nodes[i].address}
 
 	}
-	stmt := `
+	sql := `
 SELECT nodes.id, nodes.address
   FROM nodes JOIN storage_volumes ON storage_volumes.node_id=nodes.id
     WHERE storage_volumes.storage_pool_id=? AND storage_volumes.name=? AND storage_volumes.type=?
 `
-	err := query.SelectObjects(c.tx, dest, stmt, poolID, name, typ)
+	stmt, err := c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, poolID, name, typ)
 	if err != nil {
 		return nil, err
 	}
