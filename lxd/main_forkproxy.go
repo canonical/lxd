@@ -141,8 +141,6 @@ void forkproxy()
 			strerror(errno));
 		_exit(EXIT_FAILURE);
 	}
-	fprintf(stderr, "Created anonymous pair {%d,%d} of unix sockets\n",
-		sk_fds[0], sk_fds[1]);
 
 	pid = fork();
 	if (pid < 0) {
@@ -337,7 +335,6 @@ func rearmUDPFd(epFd C.int, connFd C.int) {
 }
 
 func listenerInstance(epFd C.int, lAddr *proxyAddress, cAddr *proxyAddress, connFd C.int, lStruct *lStruct, proxy bool) error {
-	fmt.Printf("Starting %s <-> %s proxy\n", lAddr.connType, cAddr.connType)
 	if lAddr.connType == "udp" {
 		// This only handles udp <-> udp. The C constructor will have
 		// verified this before.
@@ -666,7 +663,6 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		if ret < 0 {
 			return fmt.Errorf("Failed to add listener fd to epoll instance")
 		}
-		fmt.Printf("Added listener socket file descriptor %d to epoll instance\n", int(f.Fd()))
 	}
 
 	for {
