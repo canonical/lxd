@@ -143,6 +143,7 @@ type Cluster struct {
 	db     *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
 	nodeID int64   // Node ID of this LXD instance.
 	mu     sync.RWMutex
+	stmts  map[int]*sql.Stmt // Prepared statements by code.
 }
 
 // OpenCluster creates a new Cluster object for interacting with the dqlite
@@ -209,11 +210,18 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 		return nil, errors.Wrap(err, "failed to ensure schema")
 	}
 
-	cluster := &Cluster{
-		db: db,
-	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
+
+	stmts, err := cluster.PrepareStmts(db)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to prepare statements")
+	}
+
+	cluster := &Cluster{
+		db:    db,
+		stmts: stmts,
+	}
 
 	// Figure out the ID of this node.
 	err = cluster.Transaction(func(tx *ClusterTx) error {
@@ -300,6 +308,7 @@ func (c *Cluster) ExitExclusive(f func(*ClusterTx) error) error {
 func (c *Cluster) transaction(f func(*ClusterTx) error) error {
 	clusterTx := &ClusterTx{
 		nodeID: c.nodeID,
+		stmts:  c.stmts,
 	}
 
 	return query.Retry(func() error {
@@ -320,6 +329,9 @@ func (c *Cluster) NodeID(id int64) {
 
 // Close the database facade.
 func (c *Cluster) Close() error {
+	for _, stmt := range c.stmts {
+		stmt.Close()
+	}
 	return c.db.Close()
 }
 
