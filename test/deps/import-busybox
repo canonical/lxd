@@ -53,8 +53,9 @@ class UnixHTTPConnection(http.client.HTTPConnection):
 class LXD(object):
     workdir = None
 
-    def __init__(self, path):
+    def __init__(self, path, project="default"):
         self.lxd = UnixHTTPConnection(path)
+        self.project = project
 
         # Create our workdir
         self.workdir = tempfile.mkdtemp()
@@ -66,11 +67,13 @@ class LXD(object):
 
     def rest_call(self, path, data=None, method="GET", headers={}):
         if method == "GET" and data:
+            data["project"] = self.project
             self.lxd.request(
                 method,
                 "%s?%s" % "&".join(["%s=%s" % (key, value)
                                     for key, value in data.items()]), headers)
         else:
+            path += "?project=%s" % self.project
             self.lxd.request(method, path, data, headers)
 
         r = self.lxd.getresponse()
@@ -317,8 +320,6 @@ if __name__ == "__main__":
         print("LXD isn't running.")
         sys.exit(1)
 
-    lxd = LXD(lxd_socket)
-
     def setup_alias(aliases, fingerprint):
         existing = lxd.aliases_list()
 
@@ -375,10 +376,14 @@ if __name__ == "__main__":
                         default=False, help="Set the split image's filename")
     parser.add_argument("--template", type=str,
                         default="", help="Trigger test template")
+    parser.add_argument("--project", type=str,
+                        default="default", help="Project to use")
     parser.set_defaults(func=import_busybox)
 
     # Call the function
     args = parser.parse_args()
+
+    lxd = LXD(lxd_socket, project=args.project)
 
     try:
         args.func(parser, args)
