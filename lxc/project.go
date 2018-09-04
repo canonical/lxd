@@ -100,6 +100,9 @@ func (c *cmdProjectCreate) Run(cmd *cobra.Command, args []string) error {
 	// Create the project
 	project := api.ProjectsPost{}
 	project.Name = resource.name
+	project.Config = map[string]string{}
+	project.Config["features.images"] = "true"
+	project.Config["features.profiles"] = "true"
 
 	err = resource.server.CreateProject(project)
 	if err != nil {
@@ -340,12 +343,12 @@ func (c *cmdProjectList) Run(cmd *cobra.Command, args []string) error {
 	data := [][]string{}
 	for _, project := range projects {
 		images := i18n.G("NO")
-		if project.Features.Images {
+		if project.Config["features.images"] == "true" {
 			images = i18n.G("YES")
 		}
 
 		profiles := i18n.G("NO")
-		if project.Features.Profiles {
+		if project.Config["features.profiles"] == "true" {
 			profiles = i18n.G("YES")
 		}
 
