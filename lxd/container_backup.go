@@ -17,10 +17,11 @@ import (
 )
 
 func containerBackupsGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	cname := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, cname)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -62,10 +63,11 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupsPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -73,7 +75,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -154,11 +156,12 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -176,11 +179,12 @@ func containerBackupGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -229,11 +233,12 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupDelete(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -269,11 +274,12 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupExportGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}

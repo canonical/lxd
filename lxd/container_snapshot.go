@@ -19,10 +19,11 @@ import (
 )
 
 func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	cname := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, cname)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -68,10 +69,11 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -85,7 +87,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	 * 2. copy the database info over
 	 * 3. copy over the rootfs
 	 */
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -150,10 +152,11 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 }
 
 func snapshotHandler(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	containerName := mux.Vars(r)["name"]
 	snapshotName := mux.Vars(r)["snapshotName"]
 
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, containerName)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, containerName)
 	if err != nil {
 		return SmartError(err)
 	}

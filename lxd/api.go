@@ -107,3 +107,12 @@ func setCORSHeaders(rw http.ResponseWriter, req *http.Request, config *cluster.C
 func isClusterNotification(r *http.Request) bool {
 	return r.Header.Get("User-Agent") == "lxd-cluster-notifier"
 }
+
+// Extract the project query parameter from the given request.
+func projectParam(request *http.Request) string {
+	project := queryParam(request, "project")
+	if project == "" {
+		project = "default"
+	}
+	return project
+}

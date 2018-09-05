@@ -337,6 +337,8 @@ type internalImportPost struct {
 }
 
 func internalImport(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
+
 	req := &internalImportPost{}
 	// Parse the request.
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -791,7 +793,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if containerErr == nil {
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := d.cluster.ContainerRemove(req.Name)
+		err := d.cluster.ContainerRemove(project, req.Name)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -844,7 +846,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		if snapErr == nil {
-			err := d.cluster.ContainerRemove(snap.Name)
+			err := d.cluster.ContainerRemove(project, snap.Name)
 			if err != nil {
 				return SmartError(err)
 			}

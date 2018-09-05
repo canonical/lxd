@@ -191,9 +191,9 @@ func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Respons
 // ForwardedResponseIfContainerIsRemote redirects a request to the node running
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
-func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, name string) (Response, error) {
+func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, name string) (Response, error) {
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, name, cert)
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert)
 	if err != nil {
 		return nil, err
 	}

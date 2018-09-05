@@ -25,6 +25,8 @@ var internalClusterContainerMovedCmd = Command{
 }
 
 func containerPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
+
 	name := mux.Vars(r)["name"]
 	targetNode := r.FormValue("target")
 
@@ -66,7 +68,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			targetNodeOffline = node.IsOffline(config.OfflineThreshold())
 
 			// Load source node.
-			address, err := tx.ContainerNodeAddress(name)
+			address, err := tx.ContainerNodeAddress("default", name)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get address of container's node")
 			}
@@ -117,7 +119,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	// and we'll either forward the request or load the container.
 	if targetNode == "" || !sourceNodeOffline {
 		// Handle requests targeted to a container on a different node
-		response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+		response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -125,7 +127,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			return response
 		}
 
-		c, err = containerLoadByName(d.State(), name)
+		c, err = containerLoadByProjectAndName(d.State(), project, name)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -462,7 +464,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, oldName, new
 
 		// Create the container mount point on the target node
 		cert := d.endpoints.NetworkCert()
-		client, err := cluster.ConnectIfContainerIsRemote(d.cluster, newName, cert)
+		client, err := cluster.ConnectIfContainerIsRemote(d.cluster, "default", newName, cert)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to target node")
 		}

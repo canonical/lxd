@@ -264,6 +264,21 @@ func ForLocalInspection(db *sql.DB) *Cluster {
 	return &Cluster{db: db}
 }
 
+// ForLocalInspectionWithPreparedStmts is the same as ForLocalInspection but it
+// also prepares the statements used in auto-generated database code.
+func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
+	c := ForLocalInspection(db)
+
+	stmts, err := cluster.PrepareStmts(c.db)
+	if err != nil {
+		return nil, errors.Wrap(err, "Prepare database statements")
+	}
+
+	c.stmts = stmts
+
+	return c, nil
+}
+
 // Transaction creates a new ClusterTx object and transactionally executes the
 // cluster database interactions invoked by the given function. If the function
 // returns no error, all database changes are committed to the cluster database

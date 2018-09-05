@@ -28,7 +28,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-func createFromImage(d *Daemon, req *api.ContainersPost) Response {
+func createFromImage(d *Daemon, project string, req *api.ContainersPost) Response {
 	var hash string
 	var err error
 
@@ -93,6 +93,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 	run := func(op *operation) error {
 		args := db.ContainerArgs{
+			Project:     project,
 			Config:      req.Config,
 			Ctype:       db.CTypeRegular,
 			Description: req.Description,
@@ -141,8 +142,9 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
-func createFromNone(d *Daemon, req *api.ContainersPost) Response {
+func createFromNone(d *Daemon, project string, req *api.ContainersPost) Response {
 	args := db.ContainerArgs{
+		Project:     project,
 		Config:      req.Config,
 		Ctype:       db.CTypeRegular,
 		Description: req.Description,
@@ -176,7 +178,7 @@ func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
-func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
+func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
@@ -192,6 +194,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 	// Prepare the container creation request
 	args := db.ContainerArgs{
+		Project:      project,
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
@@ -205,7 +208,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	// Early profile validation
-	profiles, err := d.cluster.Profiles()
+	profiles, err := d.cluster.Profiles(project)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -442,7 +445,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
-func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
+func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response {
 	if req.Source.Source == "" {
 		return BadRequest(fmt.Errorf("must specify a source container"))
 	}
@@ -506,6 +509,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	args := db.ContainerArgs{
+		Project:      project,
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
@@ -667,7 +671,12 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Name == "" {
-		cs, err := d.cluster.ContainersList(db.CTypeRegular)
+		var names []string
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			names, err = tx.ContainerNames(project)
+			return err
+		})
 		if err != nil {
 			return SmartError(err)
 		}
@@ -676,7 +685,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		for {
 			i++
 			req.Name = strings.ToLower(petname.Generate(2, "-"))
-			if !shared.StringInSlice(req.Name, cs) {
+			if !shared.StringInSlice(req.Name, names) {
 				break
 			}
 
@@ -712,15 +721,17 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
 	}
 
+	project := projectParam(r)
+
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(d, &req)
+		return createFromImage(d, project, &req)
 	case "none":
-		return createFromNone(d, &req)
+		return createFromNone(d, project, &req)
 	case "migration":
-		return createFromMigration(d, &req)
+		return createFromMigration(d, project, &req)
 	case "copy":
-		return createFromCopy(d, &req)
+		return createFromCopy(d, project, &req)
 	default:
 		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
 	}

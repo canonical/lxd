@@ -83,6 +83,33 @@ type ContainerFilter struct {
 	Node    string // If non-empty, return only containers on this node.
 }
 
+// ContainerToArgs is a convenience to convert the new Container db struct into
+// the legacy ContainerArgs.
+func ContainerToArgs(container *Container) ContainerArgs {
+	args := ContainerArgs{
+		ID:           container.ID,
+		Project:      container.Project,
+		Name:         container.Name,
+		Node:         container.Node,
+		Ctype:        ContainerType(container.Type),
+		Architecture: container.Architecture,
+		Ephemeral:    container.Ephemeral,
+		CreationDate: container.CreationDate,
+		Stateful:     container.Stateful,
+		LastUsedDate: container.LastUseDate,
+		Description:  container.Description,
+		Config:       container.Config,
+		Devices:      container.Devices,
+		Profiles:     container.Profiles,
+	}
+
+	if args.Devices == nil {
+		args.Devices = types.Devices{}
+	}
+
+	return args
+}
+
 // ContainerArgs is a value object holding all db-related details about a
 // container.
 type ContainerArgs struct {
@@ -130,11 +157,21 @@ const (
 	CTypeSnapshot ContainerType = 1
 )
 
+// ContainerNames returns the names of all containers the given project.
+func (c *ClusterTx) ContainerNames(project string) ([]string, error) {
+	stmt := `
+SELECT containers.name FROM containers
+  JOIN projects ON projects.id = containers.project_id
+  WHERE projects.name = ? AND containers.type = ?
+`
+	return query.SelectStrings(c.tx, stmt, project, CTypeRegular)
+}
+
 // ContainerNodeAddress returns the address of the node hosting the container
-// with the given name.
+// with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) ContainerNodeAddress(name string) (string, error) {
+func (c *ClusterTx) ContainerNodeAddress(project string, name string) (string, error) {
 	stmt := `
 SELECT nodes.id, nodes.address
   FROM nodes JOIN containers ON containers.node_id = nodes.id
@@ -180,7 +217,7 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) ContainersListByNodeAddress() (map[string][]string, error) {
+func (c *ClusterTx) ContainersListByNodeAddress(project string) (map[string][]string, error) {
 	offlineThreshold, err := c.NodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -188,11 +225,14 @@ func (c *ClusterTx) ContainersListByNodeAddress() (map[string][]string, error) {
 
 	stmt := `
 SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
-  FROM containers JOIN nodes ON nodes.id = containers.node_id
+  FROM containers
+  JOIN nodes ON nodes.id = containers.node_id
+  JOIN projects ON projects.id = containers.project_id
   WHERE containers.type=?
+    AND projects.name = ?
   ORDER BY containers.id
 `
-	rows, err := c.tx.Query(stmt, CTypeRegular)
+	rows, err := c.tx.Query(stmt, CTypeRegular, project)
 	if err != nil {
 		return nil, err
 	}
@@ -226,13 +266,16 @@ SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
 
 // ContainersByNodeName returns a map associating each container to the name of
 // its node.
-func (c *ClusterTx) ContainersByNodeName() (map[string]string, error) {
+func (c *ClusterTx) ContainersByNodeName(project string) (map[string]string, error) {
 	stmt := `
 SELECT containers.name, nodes.name
-  FROM containers JOIN nodes ON nodes.id = containers.node_id
+  FROM containers
+  JOIN nodes ON nodes.id = containers.node_id
+  JOIN projects ON projects.id = containers.project_id
   WHERE containers.type=?
+    AND projects.name = ?
 `
-	rows, err := c.tx.Query(stmt, CTypeRegular)
+	rows, err := c.tx.Query(stmt, CTypeRegular, project)
 	if err != nil {
 		return nil, err
 	}
@@ -393,14 +436,31 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 	return nil
 }
 
-// ContainerArgsList returns all container objects alll node.
-func (c *ClusterTx) ContainerArgsList() ([]ContainerArgs, error) {
-	return c.containerArgsList(false)
+// ContainerNodeList returns all container objects on the local node.
+func (c *ClusterTx) ContainerNodeList() ([]Container, error) {
+	node, err := c.NodeName()
+	if err != nil {
+		return nil, errors.Wrap(err, "Local node name")
+	}
+	filter := ContainerFilter{
+		Node: node,
+	}
+
+	return c.ContainerList(filter)
 }
 
-// ContainerArgsNodeList returns all container objects on the local node.
-func (c *ClusterTx) ContainerArgsNodeList() ([]ContainerArgs, error) {
-	return c.containerArgsList(true)
+// ContainerNodeProjectList returns all container objects on the local node within the given project.
+func (c *ClusterTx) ContainerNodeProjectList(project string) ([]Container, error) {
+	node, err := c.NodeName()
+	if err != nil {
+		return nil, errors.Wrap(err, "Local node name")
+	}
+	filter := ContainerFilter{
+		Project: project,
+		Node:    node,
+	}
+
+	return c.ContainerList(filter)
 }
 
 func (c *ClusterTx) containerArgsList(local bool) ([]ContainerArgs, error) {
@@ -653,32 +713,31 @@ func (c *ClusterTx) ContainerConfigInsert(id int, config map[string]string) erro
 }
 
 // ContainerRemove removes the container with the given name from the database.
-func (c *Cluster) ContainerRemove(name string) error {
-	id, err := c.ContainerID(name)
-	if err != nil {
-		return err
-	}
-
-	err = exec(c.db, "DELETE FROM containers WHERE id=?", id)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (c *Cluster) ContainerRemove(project, name string) error {
+	return c.Transaction(func(tx *ClusterTx) error {
+		return tx.ContainerDelete(project, name)
+	})
 }
 
-// ContainerName returns the name of the container with the given ID.
-func (c *Cluster) ContainerName(id int) (string, error) {
-	q := "SELECT name FROM containers WHERE id=?"
+// ContainerProjectAndName returns the project and the name of the container
+// with the given ID.
+func (c *Cluster) ContainerProjectAndName(id int) (string, string, error) {
+	q := `
+SELECT projects.name, containers.name
+  FROM containers
+  JOIN projects ON projects.id = containers.project_id
+WHERE containers.id=?
+`
+	project := ""
 	name := ""
 	arg1 := []interface{}{id}
-	arg2 := []interface{}{&name}
+	arg2 := []interface{}{&project, &name}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err == sql.ErrNoRows {
-		return "", ErrNoSuchObject
+		return "", "", ErrNoSuchObject
 	}
 
-	return name, err
+	return project, name, err
 }
 
 // ContainerID returns the ID of the container with the given name.

@@ -20,11 +20,13 @@ import (
  * the named snapshot
  */
 func containerPut(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
+
 	// Get the container
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -32,7 +34,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return NotFound(err)
 	}

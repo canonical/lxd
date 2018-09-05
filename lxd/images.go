@@ -164,6 +164,7 @@ func compressFile(path string, compress string) (string, error) {
 func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir string) (*api.Image, error) {
 	info := api.Image{}
 	info.Properties = map[string]string{}
+	project := projectParam(r)
 	name := req.Source.Name
 	ctype := req.Source.Type
 	if ctype == "" || name == "" {
@@ -191,7 +192,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 		info.Public = false
 	}
 
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return nil, err
 	}
@@ -609,6 +610,8 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 }
 
 func imagesPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
+
 	var err error
 
 	// create a directory under which we keep everything while building
@@ -668,7 +671,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		if name != "" {
 			post.Seek(0, 0)
 			r.Body = post
-			response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+			response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 			if err != nil {
 				cleanup(builddir, post)
 				return SmartError(err)

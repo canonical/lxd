@@ -119,7 +119,7 @@ func patchLeftoverProfileConfig(name string, d *Daemon) error {
 }
 
 func patchInvalidProfileNames(name string, d *Daemon) error {
-	profiles, err := d.cluster.Profiles()
+	profiles, err := d.cluster.Profiles("default")
 	if err != nil {
 		return err
 	}
@@ -1724,7 +1724,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 	// appropriate device including a pool is added to the default profile
 	// or the user explicitly passes the pool the container's storage volume
 	// is supposed to be created on.
-	profiles, err := d.cluster.Profiles()
+	profiles, err := d.cluster.Profiles("default")
 	if err == nil {
 		for _, pName := range profiles {
 			pID, p, err := d.cluster.ProfileGet(pName)
