@@ -37,11 +37,11 @@ func Connect(address string, cert *shared.CertInfo, notify bool) (lxd.ContainerS
 // running the container with the given name. If it's not the local node will
 // connect to it and return the connected client, otherwise it will just return
 // nil.
-func ConnectIfContainerIsRemote(cluster *db.Cluster, name string, cert *shared.CertInfo) (lxd.ContainerServer, error) {
+func ConnectIfContainerIsRemote(cluster *db.Cluster, project, name string, cert *shared.CertInfo) (lxd.ContainerServer, error) {
 	var address string // Node address
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		address, err = tx.ContainerNodeAddress(name)
+		address, err = tx.ContainerNodeAddress(project, name)
 		return err
 	})
 	if err != nil {

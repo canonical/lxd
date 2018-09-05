@@ -293,6 +293,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	c := &containerLXC{
 		state:        s,
 		id:           args.ID,
+		project:      args.Project,
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
@@ -502,6 +503,7 @@ func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLX
 	return &containerLXC{
 		state:        s,
 		id:           args.ID,
+		project:      args.Project,
 		name:         args.Name,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
@@ -526,6 +528,7 @@ type containerLXC struct {
 	lastUsedDate time.Time
 	ephemeral    bool
 	id           int
+	project      string
 	name         string
 	description  string
 	stateful     bool
@@ -3500,7 +3503,7 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Remove the database record
-	if err := c.state.Cluster.ContainerRemove(c.Name()); err != nil {
+	if err := c.state.Cluster.ContainerRemove(c.project, c.Name()); err != nil {
 		logger.Error("Failed deleting container entry", log.Ctx{"name": c.Name(), "err": err})
 		return err
 	}
@@ -3612,7 +3615,9 @@ func (c *containerLXC) Rename(newName string) error {
 	}
 
 	// Rename the database entry
-	err = c.state.Cluster.ContainerRename(oldName, newName)
+	err = c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.ContainerRename(c.project, oldName, newName)
+	})
 	if err != nil {
 		logger.Error("Failed renaming container", ctxMap)
 		return err
@@ -3638,7 +3643,9 @@ func (c *containerLXC) Rename(newName string) error {
 			// Rename the snapshot
 			baseSnapName := filepath.Base(sname)
 			newSnapshotName := newName + shared.SnapshotDelimiter + baseSnapName
-			err := c.state.Cluster.ContainerRename(sname, newSnapshotName)
+			err := c.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+				return tx.ContainerRename(c.project, sname, newSnapshotName)
+			})
 			if err != nil {
 				logger.Error("Failed renaming container", ctxMap)
 				return err
@@ -3857,7 +3864,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Validate the new profiles
-	profiles, err := c.state.Cluster.Profiles()
+	profiles, err := c.state.Cluster.Profiles(args.Project)
 	if err != nil {
 		return err
 	}

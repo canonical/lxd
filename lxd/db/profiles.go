@@ -62,9 +62,14 @@ type ProfileFilter struct {
 }
 
 // Profiles returns a string list of profiles.
-func (c *Cluster) Profiles() ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM profiles")
-	inargs := []interface{}{}
+func (c *Cluster) Profiles(project string) ([]string, error) {
+	q := fmt.Sprintf(`
+SELECT profiles.name
+ FROM profiles
+ JOIN projects ON projects.id = profiles.project_id
+WHERE projects.name = ?
+`)
+	inargs := []interface{}{project}
 	var name string
 	outfmt := []interface{}{name}
 	result, err := queryScan(c.db, q, inargs, outfmt)

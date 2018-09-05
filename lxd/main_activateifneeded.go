@@ -104,7 +104,11 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d.cluster = db.ForLocalInspection(sqldb)
+	d.cluster, err = db.ForLocalInspectionWithPreparedStmts(sqldb)
+	if err != nil {
+		return err
+	}
+
 	result, err := d.cluster.ContainersList(db.CTypeRegular)
 	if err != nil {
 		return err

@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/pkg/errors"
 )
 
 // Helper functions
@@ -1007,6 +1008,10 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 
 func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, error) {
 	// Set default values
+	if args.Project == "" {
+		args.Project = "default"
+	}
+
 	if args.Profiles == nil {
 		args.Profiles = []string{"default"}
 	}
@@ -1058,7 +1063,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate profiles
-	profiles, err := s.Cluster.Profiles()
+	profiles, err := s.Cluster.Profiles(args.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -1076,8 +1081,50 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		checkedProfiles = append(checkedProfiles, profile)
 	}
 
-	// Create the container entry
-	id, err := s.Cluster.ContainerCreate(args)
+	if args.CreationDate.IsZero() {
+		args.CreationDate = time.Now().UTC()
+	}
+
+	if args.LastUsedDate.IsZero() {
+		args.LastUsedDate = time.Unix(0, 0).UTC()
+	}
+
+	var id int64
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		node, err := tx.NodeName()
+		if err != nil {
+			return err
+		}
+
+		// TODO: this check should probably be performed by the db
+		// package itself.
+		exists, err := tx.ProjectExists(args.Project)
+		if err != nil {
+			return errors.Wrapf(err, "Check if project %q exists", args.Project)
+		}
+		if !exists {
+			return fmt.Errorf("Project %q does not exist", args.Project)
+		}
+
+		// Create the container entry
+		container := db.Container{
+			Project:      args.Project,
+			Name:         args.Name,
+			Node:         node,
+			Type:         int(args.Ctype),
+			Architecture: args.Architecture,
+			Ephemeral:    args.Ephemeral,
+			CreationDate: args.CreationDate,
+			Stateful:     args.Stateful,
+			LastUseDate:  args.LastUsedDate,
+			Description:  args.Description,
+			Config:       args.Config,
+			Devices:      args.Devices,
+			Profiles:     args.Profiles,
+		}
+		id, err = tx.ContainerCreate(container)
+		return err
+	})
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
 			thing := "Container"
@@ -1092,7 +1139,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Wipe any existing log for this container name
 	os.RemoveAll(shared.LogPath(args.Name))
 
-	args.ID = id
+	args.ID = int(id)
 
 	// Read the timestamp from the database
 	dbArgs, err := s.Cluster.ContainerGet(args.Name)
@@ -1106,7 +1153,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Setup the container struct and finish creation (storage and idmap)
 	c, err := containerLXCCreate(s, args)
 	if err != nil {
-		s.Cluster.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Project, args.Name)
 		return nil, err
 	}
 
@@ -1161,30 +1208,50 @@ func containerConfigureInternal(c container) error {
 
 func containerLoadById(s *state.State, id int) (container, error) {
 	// Get the DB record
-	name, err := s.Cluster.ContainerName(id)
+	project, name, err := s.Cluster.ContainerProjectAndName(id)
 	if err != nil {
 		return nil, err
 	}
 
-	return containerLoadByName(s, name)
+	return containerLoadByProjectAndName(s, project, name)
 }
 
-func containerLoadByName(s *state.State, name string) (container, error) {
+func containerLoadByProjectAndName(s *state.State, project, name string) (container, error) {
 	// Get the DB record
-	args, err := s.Cluster.ContainerGet(name)
+	var container *db.Container
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+
+		container, err = tx.ContainerGet(project, name)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to fetch container %q in project %q", name, project)
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
+
+	args := db.ContainerToArgs(container)
 
 	return containerLXCLoad(s, args, nil)
 }
 
+// TODO: this should be dropped in favor of containerLoadByProjectAndName
+func containerLoadByName(s *state.State, name string) (container, error) {
+	return containerLoadByProjectAndName(s, "default", name)
+}
+
 func containerLoadAll(s *state.State) ([]container, error) {
-	// Get all the container arguments
-	var cts []db.ContainerArgs
+	// Get all the containers
+	var cts []db.Container
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		filter := db.ContainerFilter{
+			Project: "default",
+		}
 		var err error
-		cts, err = tx.ContainerArgsList()
+		cts, err = tx.ContainerList(filter)
 		if err != nil {
 			return err
 		}
@@ -1198,12 +1265,13 @@ func containerLoadAll(s *state.State) ([]container, error) {
 	return containerLoadAllInternal(cts, s)
 }
 
+// Load all containers of this nodes.
 func containerLoadNodeAll(s *state.State) ([]container, error) {
 	// Get all the container arguments
-	var cts []db.ContainerArgs
+	var cts []db.Container
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		cts, err = tx.ContainerArgsNodeList()
+		cts, err = tx.ContainerNodeList()
 		if err != nil {
 			return err
 		}
@@ -1217,7 +1285,27 @@ func containerLoadNodeAll(s *state.State) ([]container, error) {
 	return containerLoadAllInternal(cts, s)
 }
 
-func containerLoadAllInternal(cts []db.ContainerArgs, s *state.State) ([]container, error) {
+// Load all containers of this nodes under the given project.
+func containerLoadNodeProjectAll(s *state.State, project string) ([]container, error) {
+	// Get all the container arguments
+	var cts []db.Container
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		cts, err = tx.ContainerNodeProjectList(project)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return containerLoadAllInternal(cts, s)
+}
+
+func containerLoadAllInternal(cts []db.Container, s *state.State) ([]container, error) {
 	// Figure out what profiles are in use
 	profiles := map[string]api.Profile{}
 	for _, cArgs := range cts {
@@ -1241,12 +1329,14 @@ func containerLoadAllInternal(cts []db.ContainerArgs, s *state.State) ([]contain
 
 	// Load the container structs
 	containers := []container{}
-	for _, args := range cts {
+	for _, container := range cts {
 		// Figure out the container's profiles
 		cProfiles := []api.Profile{}
-		for _, name := range args.Profiles {
+		for _, name := range container.Profiles {
 			cProfiles = append(cProfiles, profiles[name])
 		}
+
+		args := db.ContainerToArgs(&container)
 
 		ct, err := containerLXCLoad(s, args, cProfiles)
 		if err != nil {

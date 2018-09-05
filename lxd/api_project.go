@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
@@ -35,28 +36,22 @@ var projectCmd = Command{
 func apiProjectsGet(d *Daemon, r *http.Request) Response {
 	recursion := util.IsRecursionRequest(r)
 
-	// Recursive query
-	if recursion {
-		projects, err := d.cluster.Projects()
-		if err != nil {
-			return SmartError(err)
-		}
-
-		return SyncResponse(true, projects)
-	}
-
-	// List of URLs
-	var urls []string
+	var result interface{}
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		urls, err = tx.ProjectsURIs()
+		if recursion {
+			filter := db.ProjectFilter{}
+			result, err = tx.ProjectList(filter)
+		} else {
+			result, err = tx.ProjectURIs()
+		}
 		return err
 	})
 	if err != nil {
 		return SmartError(err)
 	}
 
-	return SyncResponse(true, urls)
+	return SyncResponse(true, result)
 }
 
 func apiProjectsPost(d *Daemon, r *http.Request) Response {
@@ -76,11 +71,6 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	_, entry, _ := d.cluster.ProjectGet(project.Name)
-	if entry != nil {
-		return BadRequest(fmt.Errorf("The project already exists"))
-	}
-
 	if strings.Contains(project.Name, "/") {
 		return BadRequest(fmt.Errorf("Project names may not contain slashes"))
 	}
@@ -89,8 +79,10 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid project name '%s'", project.Name))
 	}
 
-	// Create the database entry
-	_, err = d.cluster.ProjectCreate(project)
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		_, err := tx.ProjectCreate(project)
+		return err
+	})
 	if err != nil {
 		return SmartError(fmt.Errorf("Error inserting %s into database: %s", project.Name, err))
 	}
@@ -102,7 +94,12 @@ func apiProjectGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the database entry
-	_, project, err := d.cluster.ProjectGet(name)
+	var project *api.Project
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		project, err = tx.ProjectGet(name)
+		return err
+	})
 	if err != nil {
 		return SmartError(err)
 	}
@@ -120,7 +117,12 @@ func apiProjectPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the current data
-	_, project, err := d.cluster.ProjectGet(name)
+	var project *api.Project
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		project, err = tx.ProjectGet(name)
+		return err
+	})
 	if err != nil {
 		return SmartError(err)
 	}
@@ -157,7 +159,9 @@ func apiProjectPut(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update the database entry
-	err = d.cluster.ProjectUpdate(name, req)
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.ProjectUpdate(name, req)
+	})
 	if err != nil {
 		return SmartError(err)
 	}
@@ -169,7 +173,12 @@ func apiProjectPatch(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
 	// Get the current data
-	_, project, err := d.cluster.ProjectGet(name)
+	var project *api.Project
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		project, err = tx.ProjectGet(name)
+		return err
+	})
 	if err != nil {
 		return SmartError(err)
 	}
@@ -232,7 +241,9 @@ func apiProjectPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update the database entry
-	err = d.cluster.ProjectUpdate(name, req)
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.ProjectUpdate(name, req)
+	})
 	if err != nil {
 		return SmartError(err)
 	}
@@ -256,30 +267,31 @@ func apiProjectPost(d *Daemon, r *http.Request) Response {
 		return Forbidden(fmt.Errorf("The 'default' project cannot be renamed"))
 	}
 
-	_, newProject, err := d.cluster.ProjectGet(req.Name)
-	if err != db.ErrNoSuchObject {
-		if err != nil {
-			return InternalError(err)
-		}
-
-		if newProject != nil {
-			return BadRequest(fmt.Errorf("A project named '%s' already exists", req.Name))
-		}
-	}
-
-	// FIXME: Allow renaming non-empty projects
-	_, project, err := d.cluster.ProjectGet(name)
-	if err != nil {
-		return SmartError(err)
-	}
-
-	if len(project.UsedBy) != 0 {
-		return BadRequest(fmt.Errorf("Only empty projects can be renamed at this time"))
-	}
-
 	// Perform the rename
 	run := func(op *operation) error {
-		return d.cluster.ProjectRename(name, req)
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			project, err := tx.ProjectGet(name)
+			if err != nil {
+				return errors.Wrapf(err, "Fetch project %q", name)
+			}
+			// FIXME: Allow renaming non-empty projects
+			if len(project.UsedBy) != 0 {
+				return fmt.Errorf("Only empty projects can be removed")
+			}
+
+			project, err = tx.ProjectGet(req.Name)
+			if err != nil && err != db.ErrNoSuchObject {
+				return errors.Wrapf(err, "Check if project %q exists", req.Name)
+			}
+
+			if project != nil {
+				return fmt.Errorf("A project named '%s' already exists", req.Name)
+			}
+
+			return tx.ProjectRename(name, req.Name)
+		})
+
+		return err
 	}
 
 	op, err := operationCreate(d.cluster, operationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil)
@@ -298,17 +310,18 @@ func apiProjectDelete(d *Daemon, r *http.Request) Response {
 		return Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
 	}
 
-	_, project, err := d.cluster.ProjectGet(name)
-	if err != nil {
-		return SmartError(err)
-	}
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		project, err := tx.ProjectGet(name)
+		if err != nil {
+			return errors.Wrapf(err, "Fetch project %q", name)
+		}
+		if len(project.UsedBy) != 0 {
+			return fmt.Errorf("Only empty projects can be removed")
+		}
 
-	if len(project.UsedBy) != 0 {
-		return BadRequest(fmt.Errorf("Only empty projects can be removed"))
-	}
+		return tx.ProjectDelete(name)
+	})
 
-	// Perform the removal
-	err = d.cluster.ProjectDelete(name)
 	if err != nil {
 		return SmartError(err)
 	}

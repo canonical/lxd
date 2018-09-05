@@ -40,7 +40,7 @@ var profileCmd = Command{
 
 /* This is used for both profiles post and profile put */
 func profilesGet(d *Daemon, r *http.Request) Response {
-	results, err := d.cluster.Profiles()
+	results, err := d.cluster.Profiles("default")
 	if err != nil {
 		return SmartError(err)
 	}
@@ -169,6 +169,9 @@ func getContainersWithProfile(s *state.State, profile string) []container {
 }
 
 func profilePut(d *Daemon, r *http.Request) Response {
+	// Get the project
+	project := projectParam(r)
+
 	// Get the profile
 	name := mux.Vars(r)["name"]
 
@@ -181,7 +184,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return BadRequest(err)
 		}
-		err = doProfileUpdateCluster(d, name, old)
+		err = doProfileUpdateCluster(d, project, name, old)
 		return SmartError(err)
 
 	}
@@ -203,7 +206,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = doProfileUpdate(d, name, id, profile, req)
+	err = doProfileUpdate(d, project, name, id, profile, req)
 
 	if err == nil && !isClusterNotification(r) {
 		// Notify all other nodes. If a node is down, it will be ignored.
@@ -223,6 +226,9 @@ func profilePut(d *Daemon, r *http.Request) Response {
 }
 
 func profilePatch(d *Daemon, r *http.Request) Response {
+	// Get the project
+	project := projectParam(r)
+
 	// Get the profile
 	name := mux.Vars(r)["name"]
 	id, profile, err := d.cluster.ProfileGet(name)
@@ -285,7 +291,7 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	return SmartError(doProfileUpdate(d, name, id, profile, req))
+	return SmartError(doProfileUpdate(d, project, name, id, profile, req))
 }
 
 // The handler for the post operation.
