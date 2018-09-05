@@ -17,7 +17,7 @@ used in LXD's source code.`,
 			return fmt.Errorf("Not implemented")
 		},
 	}
-	cmd.AddCommand(newDB())
+	cmd.AddCommand(newDb())
 
 	return cmd
 }
