@@ -350,21 +350,6 @@ func (c *Cluster) Begin() (*sql.Tx, error) {
 	return begin(c.db)
 }
 
-// UpdateSchemasDotGo updates the schema.go files in the local/ and cluster/
-// sub-packages.
-func UpdateSchemasDotGo() error {
-	err := node.SchemaDotGo()
-	if err != nil {
-		return fmt.Errorf("failed to update node schema.go: %v", err)
-	}
-	err = cluster.SchemaDotGo()
-	if err != nil {
-		return fmt.Errorf("failed to update cluster schema.go: %v", err)
-	}
-
-	return nil
-}
-
 func isNoMatchError(err error) bool {
 	if err == nil {
 		return false
