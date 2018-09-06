@@ -183,18 +183,24 @@ func TestContainerPool(t *testing.T) {
 	_, err = cluster.StoragePoolVolumeCreate("c1", "", db.StoragePoolVolumeTypeContainer, false, poolID, nil)
 	require.NoError(t, err)
 
-	args := db.ContainerArgs{
-		Name: "c1",
-		Devices: types.Devices{
-			"root": types.Device{
-				"path": "/",
-				"pool": "default",
-				"type": "disk",
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		container := db.Container{
+			Project: "default",
+			Name:    "c1",
+			Node:    "none",
+			Devices: types.Devices{
+				"root": types.Device{
+					"path": "/",
+					"pool": "default",
+					"type": "disk",
+				},
 			},
-		},
-	}
-	_, err = cluster.ContainerCreate(args)
+		}
+		_, err := tx.ContainerCreate(container)
+		return err
+	})
 	require.NoError(t, err)
+
 	poolName, err := cluster.ContainerPool("c1")
 	require.NoError(t, err)
 	assert.Equal(t, "default", poolName)

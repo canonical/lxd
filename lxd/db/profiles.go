@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -121,56 +120,6 @@ func (c *Cluster) ProfileGet(name string) (int64, *api.Profile, error) {
 	profile.Devices = devices
 
 	return id, &profile, nil
-}
-
-// ProfileCreate creates a new profile.
-func (c *Cluster) ProfileCreate(profile string, description string, config map[string]string,
-	devices types.Devices) (int64, error) {
-
-	var id int64
-	err := c.Transaction(func(tx *ClusterTx) error {
-		result, err := tx.tx.Exec("INSERT INTO profiles (name, description, project_id) VALUES (?, ?, 1)", profile, description)
-		if err != nil {
-			return err
-		}
-		id, err = result.LastInsertId()
-		if err != nil {
-			return err
-		}
-
-		err = ProfileConfigAdd(tx.tx, id, config)
-		if err != nil {
-			return err
-		}
-
-		err = DevicesAdd(tx.tx, "profile", id, devices)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		id = -1
-	}
-
-	return id, nil
-}
-
-// ProfileCreateDefault creates the default profile.
-func (c *Cluster) ProfileCreateDefault() error {
-	id, _, _ := c.ProfileGet("default")
-
-	if id != -1 {
-		// default profile already exists
-		return nil
-	}
-
-	_, err := c.ProfileCreate("default", "Default LXD profile", map[string]string{}, types.Devices{})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // ProfileConfig gets the profile configuration map from the DB.
