@@ -83,7 +83,7 @@ func NewTestClusterTx(t *testing.T) (*ClusterTx, func()) {
 
 	var err error
 
-	clusterTx := &ClusterTx{nodeID: cluster.nodeID}
+	clusterTx := &ClusterTx{nodeID: cluster.nodeID, stmts: cluster.stmts}
 	clusterTx.tx, err = cluster.db.Begin()
 	require.NoError(t, err)
 
