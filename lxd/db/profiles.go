@@ -8,6 +8,59 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
+// Code generation directives.
+//
+//go:generate -command mapper lxd-generate db mapper -t profiles.mapper.go
+//go:generate mapper reset
+//
+//go:generate mapper stmt -p db -e profile names
+//go:generate mapper stmt -p db -e profile objects
+//go:generate mapper stmt -p db -e profile objects-by-Project
+//go:generate mapper stmt -p db -e profile objects-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile config-ref
+//go:generate mapper stmt -p db -e profile config-ref-by-Project
+//go:generate mapper stmt -p db -e profile config-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile devices-ref
+//go:generate mapper stmt -p db -e profile devices-ref-by-Project
+//go:generate mapper stmt -p db -e profile devices-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile used-by-ref
+//go:generate mapper stmt -p db -e profile used-by-ref-by-Project
+//go:generate mapper stmt -p db -e profile used-by-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile id
+//go:generate mapper stmt -p db -e profile create struct=Profile
+//go:generate mapper stmt -p db -e profile create-config-ref
+//go:generate mapper stmt -p db -e profile create-devices-ref
+//go:generate mapper stmt -p db -e profile rename
+//go:generate mapper stmt -p db -e profile delete
+//
+//go:generate mapper method -p db -e profile List
+//go:generate mapper method -p db -e profile Get
+//go:generate mapper method -p db -e profile Exists struct=Profile
+//go:generate mapper method -p db -e profile ID struct=Profile
+//go:generate mapper method -p db -e profile ConfigRef
+//go:generate mapper method -p db -e profile DevicesRef
+//go:generate mapper method -p db -e profile UsedByRef
+//go:generate mapper method -p db -e profile Create struct=Profile
+//go:generate mapper method -p db -e profile Rename
+//go:generate mapper method -p db -e profile Delete
+
+// Profile is a value object holding db-related details about a profile.
+type Profile struct {
+	ID          int
+	Project     string `db:"primary=yes&join=projects.name"`
+	Name        string `db:"primary=yes"`
+	Description string `db:"coalesce=''"`
+	Config      map[string]string
+	Devices     map[string]map[string]string
+	UsedBy      []string
+}
+
+// ProfileFilter can be used to filter results yielded by ProfileList.
+type ProfileFilter struct {
+	Project string
+	Name    string
+}
+
 // Profiles returns a string list of profiles.
 func (c *Cluster) Profiles() ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM profiles")

@@ -15,6 +15,74 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
+// Code generation directives.
+//
+//go:generate -command mapper lxd-generate db mapper -t containers.mapper.go
+//go:generate mapper reset
+//
+//go:generate mapper stmt -p db -e container objects
+//go:generate mapper stmt -p db -e container objects-by-Project
+//go:generate mapper stmt -p db -e container objects-by-Node
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Node
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Name
+//go:generate mapper stmt -p db -e container profiles-ref
+//go:generate mapper stmt -p db -e container profiles-ref-by-Project
+//go:generate mapper stmt -p db -e container profiles-ref-by-Node
+//go:generate mapper stmt -p db -e container profiles-ref-by-Project-and-Node
+//go:generate mapper stmt -p db -e container profiles-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e container config-ref
+//go:generate mapper stmt -p db -e container config-ref-by-Project
+//go:generate mapper stmt -p db -e container config-ref-by-Node
+//go:generate mapper stmt -p db -e container config-ref-by-Project-and-Node
+//go:generate mapper stmt -p db -e container config-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e container devices-ref
+//go:generate mapper stmt -p db -e container devices-ref-by-Project
+//go:generate mapper stmt -p db -e container devices-ref-by-Node
+//go:generate mapper stmt -p db -e container devices-ref-by-Project-and-Node
+//go:generate mapper stmt -p db -e container devices-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e container id
+//go:generate mapper stmt -p db -e container create struct=Container
+//go:generate mapper stmt -p db -e container create-config-ref
+//go:generate mapper stmt -p db -e container create-devices-ref
+//go:generate mapper stmt -p db -e container rename
+//go:generate mapper stmt -p db -e container delete
+//
+//go:generate mapper method -p db -e container List
+//go:generate mapper method -p db -e container Get
+//go:generate mapper method -p db -e container ID struct=Container
+//go:generate mapper method -p db -e container Exists struct=Container
+//go:generate mapper method -p db -e container Create struct=Container
+//go:generate mapper method -p db -e container ProfilesRef
+//go:generate mapper method -p db -e container ConfigRef
+//go:generate mapper method -p db -e container DevicesRef
+//go:generate mapper method -p db -e container Rename
+//go:generate mapper method -p db -e container Delete
+
+// Container is a value object holding db-related details about a container.
+type Container struct {
+	ID           int
+	Project      string `db:"primary=yes&join=projects.name"`
+	Name         string `db:"primary=yes"`
+	Node         string `db:"join=nodes.name"`
+	Type         int
+	Architecture int
+	Ephemeral    bool
+	CreationDate time.Time
+	Stateful     bool
+	LastUseDate  time.Time
+	Description  string `db:"coalesce=''"`
+	Config       map[string]string
+	Devices      map[string]map[string]string
+	Profiles     []string
+}
+
+// ContainerFilter can be used to filter results yielded by ContainerList.
+type ContainerFilter struct {
+	Project string // If non-empty, return only containers within this project.
+	Name    string // If non-empty, return only containers with this name.
+	Node    string // If non-empty, return only containers on this node.
+}
+
 // ContainerArgs is a value object holding all db-related details about a
 // container.
 type ContainerArgs struct {
@@ -24,6 +92,7 @@ type ContainerArgs struct {
 	Ctype ContainerType
 
 	// Creation only
+	Project      string
 	BaseImage    string
 	CreationDate time.Time
 
@@ -188,23 +257,6 @@ SELECT containers.name, nodes.name
 	return result, nil
 }
 
-// ContainerID returns the ID of the container with the given name.
-func (c *ClusterTx) ContainerID(name string) (int64, error) {
-	stmt := "SELECT id FROM containers WHERE name=?"
-	ids, err := query.SelectIntegers(c.tx, stmt, name)
-	if err != nil {
-		return -1, err
-	}
-	switch len(ids) {
-	case 0:
-		return -1, ErrNoSuchObject
-	case 1:
-		return int64(ids[0]), nil
-	default:
-		return -1, fmt.Errorf("more than one container has the given name")
-	}
-}
-
 // SnapshotIDsAndNames returns a map of snapshot IDs to snapshot names for the
 // container with the given name.
 func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
@@ -262,7 +314,7 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 
 	// Update the name of the container and of its snapshots, and the node
 	// ID they are associated with.
-	containerID, err := c.ContainerID(oldName)
+	containerID, err := c.ContainerID("default", oldName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's ID")
 	}
