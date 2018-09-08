@@ -340,7 +340,7 @@ func (op *operation) WaitFinal(timeout int) (bool, error) {
 		timer := time.NewTimer(time.Duration(timeout) * time.Second)
 		select {
 		case <-op.chanDone:
-			return false, nil
+			return true, nil
 
 		case <-timer.C:
 			return false, nil
