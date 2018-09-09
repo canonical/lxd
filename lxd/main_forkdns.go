@@ -47,7 +47,16 @@ func (h *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 
 		// Send back the answer
-		msg.Answer = resp.Answer
+		answers := []dns.RR{}
+		for _, answer := range resp.Answer {
+			rr, err := dns.NewRR(strings.Replace(answer.String(), ".__internal.", fmt.Sprintf(".%s.", h.domain), -1))
+			if err != nil {
+				continue
+			}
+
+			answers = append(answers, rr)
+		}
+		msg.Answer = answers
 		w.WriteMsg(&msg)
 		return
 	}
