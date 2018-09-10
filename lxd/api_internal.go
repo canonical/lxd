@@ -797,6 +797,12 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 	}
 
+	// Prepare root disk entry if needed
+	rootDev := map[string]string{}
+	rootDev["type"] = "disk"
+	rootDev["path"] = "/"
+	rootDev["pool"] = containerPoolName
+
 	for _, snap := range existingSnapshots {
 		// Check if an entry for the snapshot already exists in the db.
 		_, snapErr := d.cluster.ContainerID(snap.Name)
@@ -851,6 +857,25 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			return SmartError(err)
 		}
 
+		// Add root device if missing
+		root, _, _ := shared.GetRootDiskDevice(snap.Devices)
+		if root == "" {
+			if snap.Devices == nil {
+				snap.Devices = map[string]map[string]string{}
+			}
+
+			rootDevName := "root"
+			for i := 0; i < 100; i++ {
+				if snap.Devices[rootDevName] == nil {
+					break
+				}
+				rootDevName = fmt.Sprintf("root%d", i)
+				continue
+			}
+
+			snap.Devices[rootDevName] = rootDev
+		}
+
 		_, err = containerCreateInternal(d.State(), db.ContainerArgs{
 			Architecture: arch,
 			BaseImage:    baseImage,
@@ -883,6 +908,25 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	baseImage := backup.Container.Config["volatile.base_image"]
+
+	// Add root device if missing
+	root, _, _ := shared.GetRootDiskDevice(backup.Container.Devices)
+	if root == "" {
+		if backup.Container.Devices == nil {
+			backup.Container.Devices = map[string]map[string]string{}
+		}
+
+		rootDevName := "root"
+		for i := 0; i < 100; i++ {
+			if backup.Container.Devices[rootDevName] == nil {
+				break
+			}
+			rootDevName = fmt.Sprintf("root%d", i)
+			continue
+		}
+
+		backup.Container.Devices[rootDevName] = rootDev
+	}
 
 	arch, err := osarch.ArchitectureId(backup.Container.Architecture)
 	if err != nil {
