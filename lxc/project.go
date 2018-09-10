@@ -164,7 +164,13 @@ func (c *cmdProjectDelete) Run(cmd *cobra.Command, args []string) error {
 		fmt.Printf(i18n.G("Project %s deleted")+"\n", resource.name)
 	}
 
-	return nil
+	// Switch back to default project
+	conf := c.global.conf
+	rc := conf.Remotes[conf.DefaultRemote]
+	rc.Project = "default"
+	conf.Remotes[conf.DefaultRemote] = rc
+
+	return conf.SaveConfig(c.global.confPath)
 }
 
 // Edit
