@@ -1123,7 +1123,16 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 			Profiles:     args.Profiles,
 		}
 		id, err = tx.ContainerCreate(container)
-		return err
+
+		if err != nil {
+			return errors.Wrap(err, "Add container info to the database")
+		}
+
+		if id < 1 {
+			return errors.Wrapf(err, "Unexpected container database ID %d", id)
+		}
+
+		return nil
 	})
 	if err != nil {
 		if err == db.ErrAlreadyDefined {

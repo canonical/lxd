@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,6 +22,7 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	"github.com/pkg/errors"
 	"gopkg.in/lxc/go-lxc.v2"
 	"gopkg.in/yaml.v2"
 
@@ -1877,7 +1877,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	// Load the go-lxc struct
 	err := c.initLXC(true)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "Load go-lxc struct")
 	}
 
 	// Check that we're not already running
@@ -1936,7 +1936,7 @@ func (c *containerLXC) startCommon() (string, error) {
 	if ok {
 		err := c.initStorage()
 		if err != nil {
-			return "", err
+			return "", errors.Wrap(err, "Initialize storage")
 		}
 
 		size, err := shared.ParseByteSizeString(newSize)
@@ -1945,13 +1945,13 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 		err = c.storage.StorageEntitySetQuota(storagePoolVolumeTypeContainer, size, c)
 		if err != nil {
-			return "", err
+			return "", errors.Wrap(err, "Set storage quota")
 		}
 
 		// Remove the volatile key from the DB
 		err = c.state.Cluster.ContainerConfigRemove(c.id, "volatile.apply_quota")
 		if err != nil {
-			return "", err
+			return "", errors.Wrap(err, "Remove volatile.apply_quota config key")
 		}
 
 		// Remove the volatile key from the in-memory configs
@@ -1962,12 +1962,12 @@ func (c *containerLXC) startCommon() (string, error) {
 	/* Deal with idmap changes */
 	idmap, err := c.IdmapSet()
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "Set ID map")
 	}
 
 	lastIdmap, err := c.LastIdmapSet()
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "Set last ID map")
 	}
 
 	var jsonIdmap string
@@ -1987,7 +1987,7 @@ func (c *containerLXC) startCommon() (string, error) {
 
 		ourStart, err = c.StorageStart()
 		if err != nil {
-			return "", err
+			return "", errors.Wrap(err, "Storage start")
 		}
 
 		if lastIdmap != nil {
@@ -2053,7 +2053,7 @@ func (c *containerLXC) startCommon() (string, error) {
 
 	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "Set volatile.last_state.idmap config key on container %q (id %d)", c.name, c.id)
 	}
 
 	// Generate the Seccomp profile
@@ -2424,7 +2424,7 @@ func (c *containerLXC) Start(stateful bool) error {
 	// Setup a new operation
 	op, err := c.createOperation("start", false, false)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Create container start operation")
 	}
 	defer op.Done(nil)
 
@@ -2436,13 +2436,13 @@ func (c *containerLXC) Start(stateful bool) error {
 	// Run the shared start code
 	configPath, err := c.startCommon()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Common start logic")
 	}
 
 	// Ensure that the container storage volume is mounted.
 	_, err = c.StorageStart()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Storage start")
 	}
 
 	ctxMap = log.Ctx{"name": c.name,
@@ -2472,7 +2472,7 @@ func (c *containerLXC) Start(stateful bool) error {
 
 		err := c.Migrate(&criuMigrationArgs)
 		if err != nil && !c.IsRunning() {
-			return err
+			return errors.Wrap(err, "Migrate")
 		}
 
 		os.RemoveAll(c.StatePath())
@@ -2481,7 +2481,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		err = c.state.Cluster.ContainerSetStateful(c.id, false)
 		if err != nil {
 			logger.Error("Failed starting container", ctxMap)
-			return err
+			return errors.Wrap(err, "Start container")
 		}
 
 		logger.Info("Started container", ctxMap)
@@ -2497,7 +2497,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		c.stateful = false
 		err = c.state.Cluster.ContainerSetStateful(c.id, false)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Persist stateful flag")
 		}
 	}
 
@@ -3407,7 +3407,7 @@ func (c *containerLXC) Delete() error {
 	logger.Info("Deleting container", ctxMap)
 
 	if c.IsDeleteProtected() && !c.IsSnapshot() {
-		err := errors.New("Container is protected")
+		err := fmt.Errorf("Container is protected")
 		logger.Warn("Failed to delete container", log.Ctx{"name": c.Name(), "err": err})
 		return err
 	}
@@ -3835,6 +3835,10 @@ func writeBackupFile(c container) error {
 
 func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Set sane defaults for unset keys
+	if args.Project == "" {
+		args.Project = "default"
+	}
+
 	if args.Architecture == 0 {
 		args.Architecture = c.architecture
 	}
@@ -4029,13 +4033,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	c.cConfig = false
 	err = c.initLXC(true)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Initialize LXC")
 	}
 
 	// Initialize storage interface for the container.
 	err = c.initStorage()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Initialize storage")
 	}
 
 	// If apparmor changed, re-validate the apparmor profile
@@ -4688,7 +4692,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 		err = c.addDiskDevices(diskDevices, c.insertDiskDevice)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Add disk devices")
 		}
 
 		updateDiskLimit := false
@@ -4805,25 +4809,25 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		err = db.ContainerConfigInsert(tx, c.id, c.localConfig)
 		if err != nil {
 			tx.Rollback()
-			return err
+			return errors.Wrap(err, "Config insert")
 		}
 
 		err = db.ContainerProfilesInsert(tx, c.id, c.profiles)
 		if err != nil {
 			tx.Rollback()
-			return err
+			return errors.Wrap(err, "Profiles insert")
 		}
 
 		err = db.DevicesAdd(tx, "container", int64(c.id), c.localDevices)
 		if err != nil {
 			tx.Rollback()
-			return err
+			return errors.Wrap(err, "Device add")
 		}
 
 		err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral)
 		if err != nil {
 			tx.Rollback()
-			return err
+			return errors.Wrap(err, "Container update")
 		}
 
 		if err := db.TxCommit(tx); err != nil {
@@ -7091,7 +7095,7 @@ func (c *containerLXC) doNat(proxy string, device types.Device) error {
 	}
 
 	if IPv4Addr == "" && IPv6Addr == "" {
-		return errors.New("NIC IP doesn't match proxy target IP")
+		return fmt.Errorf("NIC IP doesn't match proxy target IP")
 	}
 
 	iptablesComment := fmt.Sprintf("%s (%s)", c.Name(), proxy)

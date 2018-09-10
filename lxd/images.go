@@ -718,7 +718,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			_, _, err := d.cluster.ImageAliasGet(alias.Name, true)
 			if err != db.ErrNoSuchObject {
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "Fetch image alias %q", alias.Name)
 				}
 
 				return fmt.Errorf("Alias already exists: %s", alias.Name)
@@ -726,12 +726,12 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 			id, _, err := d.cluster.ImageGet(info.Fingerprint, false, false)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Fetch image %q", info.Fingerprint)
 			}
 
 			err = d.cluster.ImageAliasAdd(alias.Name, id, alias.Description)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Add new image alias to the database")
 			}
 		}
 
