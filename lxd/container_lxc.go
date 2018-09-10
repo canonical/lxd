@@ -3373,12 +3373,29 @@ func (c *containerLXC) Delete() error {
 		return err
 	}
 
+	// Check if we're dealing with "lxd import"
+	isImport := false
+	if c.storage != nil {
+		_, poolName, _ := c.storage.GetContainerPoolInfo()
+
+		if c.IsSnapshot() {
+			cName, _, _ := containerGetParentAndSnapshotName(c.name)
+			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", cName, ".importing")) {
+				isImport = true
+			}
+		} else {
+			if shared.PathExists(shared.VarPath("storage-pools", poolName, "containers", c.name, ".importing")) {
+				isImport = true
+			}
+		}
+	}
+
 	// Attempt to initialize storage interface for the container.
 	c.initStorage()
 
 	if c.IsSnapshot() {
 		// Remove the snapshot
-		if c.storage != nil {
+		if c.storage != nil && !isImport {
 			err := c.storage.ContainerSnapshotDelete(c)
 			if err != nil {
 				logger.Warn("Failed to delete snapshot", log.Ctx{"name": c.Name(), "err": err})
@@ -3410,7 +3427,7 @@ func (c *containerLXC) Delete() error {
 		c.cleanup()
 
 		// Delete the container from disk
-		if c.storage != nil {
+		if c.storage != nil && !isImport {
 			_, poolName, _ := c.storage.GetContainerPoolInfo()
 			containerMountPoint := getContainerMountPoint(poolName, c.Name())
 			if shared.PathExists(c.Path()) ||
