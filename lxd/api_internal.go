@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -398,8 +399,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	}
 
 	// Read in the backup.yaml file.
-	backupYamlPath := shared.VarPath("storage-pools", containerPoolName,
-		"containers", req.Name, "backup.yaml")
+	backupYamlPath := filepath.Join(containerMntPoint, "backup.yaml")
 	backup, err := slurpBackupFile(backupYamlPath)
 	if err != nil {
 		return SmartError(err)
@@ -802,6 +802,14 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	rootDev["type"] = "disk"
 	rootDev["path"] = "/"
 	rootDev["pool"] = containerPoolName
+
+	// Mark the filesystem as going through an import
+	fd, err := os.Create(filepath.Join(containerMntPoint, ".importing"))
+	if err != nil {
+		return InternalError(err)
+	}
+	fd.Close()
+	defer os.Remove(fd.Name())
 
 	for _, snap := range existingSnapshots {
 		// Check if an entry for the snapshot already exists in the db.
