@@ -624,7 +624,9 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	targetNode := r.FormValue("target")
+	project := projectParam(r)
+
+	targetNode := queryParam(r, "target")
 	if targetNode == "" {
 		// If no target node was specified, pick the node with the
 		// least number of containers. If there's just one node, or if
@@ -720,8 +722,6 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	if strings.Contains(req.Name, shared.SnapshotDelimiter) {
 		return BadRequest(fmt.Errorf("Invalid container name: '%s' is reserved for snapshots", shared.SnapshotDelimiter))
 	}
-
-	project := projectParam(r)
 
 	switch req.Source.Type {
 	case "image":

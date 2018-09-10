@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	log "github.com/lxc/lxd/shared/log15"
@@ -115,4 +116,25 @@ func projectParam(request *http.Request) string {
 		project = "default"
 	}
 	return project
+}
+
+// Extract the given query parameter directly from the URL, never from an
+// encoded body.
+func queryParam(request *http.Request, key string) string {
+	var values url.Values
+	var err error
+
+	if request.URL != nil {
+		values, err = url.ParseQuery(request.URL.RawQuery)
+		if err != nil {
+			logger.Warnf("Failed to parse query string %q: %v", request.URL.RawQuery, err)
+			return ""
+		}
+	}
+
+	if values == nil {
+		values = make(url.Values)
+	}
+
+	return values.Get(key)
 }
