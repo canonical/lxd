@@ -34,14 +34,15 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 	connectAddr := device["connect"]
 	listenAddr := device["listen"]
 
-	connectionType := strings.SplitN(connectAddr, ":", 2)[0]
-	listenerType := strings.SplitN(listenAddr, ":", 2)[0]
+	connectionFields := strings.SplitN(connectAddr, ":", 2)
+	listenerFields := strings.SplitN(listenAddr, ":", 2)
 
-	if !shared.StringInSlice(connectionType, []string{"tcp", "udp", "unix"}) {
-		return nil, fmt.Errorf("Proxy device doesn't support the connection type: %s", connectionType)
+	if !shared.StringInSlice(connectionFields[0], []string{"tcp", "udp", "unix"}) {
+		return nil, fmt.Errorf("Proxy device doesn't support the connection type: %s", connectionFields[0])
 	}
-	if !shared.StringInSlice(listenerType, []string{"tcp", "udp", "unix"}) {
-		return nil, fmt.Errorf("Proxy device doesn't support the listener type: %s", listenerType)
+
+	if !shared.StringInSlice(listenerFields[0], []string{"tcp", "udp", "unix"}) {
+		return nil, fmt.Errorf("Proxy device doesn't support the listener type: %s", listenerFields[0])
 	}
 
 	listenPid := "-1"
@@ -57,6 +58,14 @@ func setupProxyProcInfo(c container, device map[string]string) (*proxyProcInfo, 
 		connectPid = lxdPid
 	} else {
 		return nil, fmt.Errorf("Invalid binding side given. Must be \"host\" or \"container\"")
+	}
+
+	if connectionFields[0] == "unix" && !strings.HasPrefix(connectionFields[1], "@") && bindVal == "container" {
+		connectAddr = fmt.Sprintf("%s:%s", connectionFields[0], shared.HostPath(connectionFields[1]))
+	}
+
+	if listenerFields[0] == "unix" && !strings.HasPrefix(connectionFields[1], "@") && bindVal == "host" {
+		listenAddr = fmt.Sprintf("%s:%s", listenerFields[0], shared.HostPath(listenerFields[1]))
 	}
 
 	p := &proxyProcInfo{
