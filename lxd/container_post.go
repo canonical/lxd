@@ -28,7 +28,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	project := projectParam(r)
 
 	name := mux.Vars(r)["name"]
-	targetNode := r.FormValue("target")
+	targetNode := queryParam(r, "target")
 
 	// Flag indicating whether the node running the container is offline.
 	sourceNodeOffline := false
