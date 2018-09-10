@@ -295,7 +295,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 			continue
 		}
 
-		args.Devices["root"] = rootDev
+		args.Devices[rootDevName] = rootDev
 	} else if localRootDiskDeviceKey != "" && localRootDiskDevice["pool"] == "" {
 		args.Devices[localRootDiskDeviceKey]["pool"] = storagePool
 	}
