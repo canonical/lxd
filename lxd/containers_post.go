@@ -540,7 +540,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	targetNode := r.FormValue("target")
+	targetNode := queryParam(r, "target")
 	if targetNode == "" {
 		// If no target node was specified, pick the node with the
 		// least number of containers. If there's just one node, or if

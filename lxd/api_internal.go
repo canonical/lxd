@@ -113,7 +113,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	target := r.FormValue("target")
+	target := queryParam(r, "target")
 	if target == "" {
 		target = "unknown"
 	}

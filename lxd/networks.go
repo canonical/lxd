@@ -110,7 +110,7 @@ func networksPost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	targetNode := r.FormValue("target")
+	targetNode := queryParam(r, "target")
 	if targetNode != "" {
 		// A targetNode was specified, let's just define the node's
 		// network without actually creating it. The only legal key
@@ -330,7 +330,7 @@ func networkGet(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	targetNode := r.FormValue("target")
+	targetNode := queryParam(r, "target")
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return SmartError(err)
