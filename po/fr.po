@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-08-14 14:49-0400\n"
+"POT-Creation-Date: 2018-09-10 17:00-0400\n"
 "PO-Revision-Date: 2018-03-06 13:50+0000\n"
 "Last-Translator: Alban Vidal <alban.vidal@zordhak.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -398,7 +398,7 @@ msgstr "Mise à jour auto. : %s"
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:111 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
+#: lxc/copy.go:110 lxc/init.go:122 lxc/publish.go:175 lxc/storage.go:123
 #: lxc/storage_volume.go:454
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -409,7 +409,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr "Mauvaise propriété : %s"
 
-#: lxc/copy.go:122
+#: lxc/copy.go:121
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -579,7 +579,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:308 lxc/init.go:230
+#: lxc/copy.go:313 lxc/init.go:233
 #, c-format
 msgid "Container name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -725,12 +725,12 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Created: %s"
 msgstr "Créé : %s"
 
-#: lxc/init.go:99
+#: lxc/init.go:102
 #, c-format
 msgid "Creating %s"
 msgstr "Création de %s"
 
-#: lxc/init.go:97
+#: lxc/init.go:100
 msgid "Creating the container"
 msgstr "Création du conteneur"
 
@@ -1055,7 +1055,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to create alias %s"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/copy.go:303
+#: lxc/copy.go:308
 #, fuzzy
 msgid "Failed to get the new container name"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -2249,7 +2249,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/init.go:202
+#: lxc/init.go:205
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
@@ -2615,7 +2615,7 @@ msgstr ""
 "Le conteneur est en cours d'exécution. Utiliser --force pour qu'il soit "
 "arrêté et redémarré."
 
-#: lxc/init.go:281
+#: lxc/init.go:284
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 "Le conteneur que vous démarrez n'est attaché à aucune interface réseau."
@@ -2630,12 +2630,12 @@ msgstr "Le périphérique n'existe pas"
 msgid "The device doesn't exist"
 msgstr "Le périphérique n'existe pas"
 
-#: lxc/init.go:265
+#: lxc/init.go:268
 #, fuzzy, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
 
-#: lxc/init.go:261
+#: lxc/init.go:264
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr "L'image locale '%s' n'a pas été trouvée, essayer '%s:' à la place."
@@ -2670,11 +2670,11 @@ msgstr "Temps d'attente du conteneur avant de le tuer"
 msgid "Timestamps:"
 msgstr "Horodatage :"
 
-#: lxc/init.go:283
+#: lxc/init.go:286
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 
-#: lxc/init.go:282
+#: lxc/init.go:285
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
@@ -2688,7 +2688,7 @@ msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
 "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
 
-#: lxc/copy.go:104
+#: lxc/copy.go:103
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -2704,7 +2704,7 @@ msgstr ""
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:277
+#: lxc/copy.go:282
 #, fuzzy, c-format
 msgid "Transferring container: %s"
 msgstr "Transfert de l'image : %s"
@@ -3031,7 +3031,7 @@ msgstr ""
 msgid "device"
 msgstr ""
 
-#: lxc/init.go:224
+#: lxc/init.go:227
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr "pas d'image, conteneur ou instantané affecté sur ce serveur"
 

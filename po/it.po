@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-08-14 14:49-0400\n"
+"POT-Creation-Date: 2018-09-10 17:00-0400\n"
 "PO-Revision-Date: 2017-08-18 14:22+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -320,7 +320,7 @@ msgstr "Aggiornamento automatico: %s"
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:111 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
+#: lxc/copy.go:110 lxc/init.go:122 lxc/publish.go:175 lxc/storage.go:123
 #: lxc/storage_volume.go:454
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -331,7 +331,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr "Proprietà errata: %s"
 
-#: lxc/copy.go:122
+#: lxc/copy.go:121
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -490,7 +490,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:308 lxc/init.go:230
+#: lxc/copy.go:313 lxc/init.go:233
 #, c-format
 msgid "Container name is: %s"
 msgstr "Il nome del container è: %s"
@@ -613,12 +613,12 @@ msgstr ""
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:99
+#: lxc/init.go:102
 #, c-format
 msgid "Creating %s"
 msgstr "Creazione di %s in corso"
 
-#: lxc/init.go:97
+#: lxc/init.go:100
 msgid "Creating the container"
 msgstr "Creazione del container in corso"
 
@@ -924,7 +924,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:303
+#: lxc/copy.go:308
 msgid "Failed to get the new container name"
 msgstr ""
 
@@ -2001,7 +2001,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr ""
 
-#: lxc/init.go:202
+#: lxc/init.go:205
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -2338,7 +2338,7 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:281
+#: lxc/init.go:284
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr ""
 
@@ -2351,12 +2351,12 @@ msgstr "La periferica esiste già"
 msgid "The device doesn't exist"
 msgstr ""
 
-#: lxc/init.go:265
+#: lxc/init.go:268
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 
-#: lxc/init.go:261
+#: lxc/init.go:264
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -2391,11 +2391,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:283
+#: lxc/init.go:286
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:282
+#: lxc/init.go:285
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -2407,7 +2407,7 @@ msgstr ""
 msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
 
-#: lxc/copy.go:104
+#: lxc/copy.go:103
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -2423,7 +2423,7 @@ msgstr ""
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:277
+#: lxc/copy.go:282
 #, c-format
 msgid "Transferring container: %s"
 msgstr ""
@@ -2723,7 +2723,7 @@ msgstr ""
 msgid "device"
 msgstr ""
 
-#: lxc/init.go:224
+#: lxc/init.go:227
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
 

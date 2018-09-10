@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-08-14 14:49-0400\n"
+"POT-Creation-Date: 2018-09-10 17:00-0400\n"
 "PO-Revision-Date: 2018-04-16 01:37+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -302,7 +302,7 @@ msgstr "自動更新: %s"
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:111 lxc/init.go:119 lxc/publish.go:175 lxc/storage.go:123
+#: lxc/copy.go:110 lxc/init.go:122 lxc/publish.go:175 lxc/storage.go:123
 #: lxc/storage_volume.go:454
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -313,7 +313,7 @@ msgstr "不適切な キー=値 のペア: %s"
 msgid "Bad property: %s"
 msgstr "不正なイメージプロパティ形式: %s"
 
-#: lxc/copy.go:122
+#: lxc/copy.go:121
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -481,7 +481,7 @@ msgstr "コンソールログ:"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:308 lxc/init.go:230
+#: lxc/copy.go:313 lxc/init.go:233
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -610,12 +610,12 @@ msgstr "プロファイルを適用しないコンテナを作成します"
 msgid "Created: %s"
 msgstr "作成日時: %s"
 
-#: lxc/init.go:99
+#: lxc/init.go:102
 #, c-format
 msgid "Creating %s"
 msgstr "%s を作成中"
 
-#: lxc/init.go:97
+#: lxc/init.go:100
 msgid "Creating the container"
 msgstr "コンテナを作成中"
 
@@ -937,7 +937,7 @@ msgstr "クラスタメンバの名前を変更します"
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
 
-#: lxc/copy.go:303
+#: lxc/copy.go:308
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナ名が取得できません"
 
@@ -2127,7 +2127,7 @@ msgstr ""
 msgid "Retrieve the container's console log"
 msgstr "コンテナのコンソールログを取得します"
 
-#: lxc/init.go:202
+#: lxc/init.go:205
 #, c-format
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
@@ -2467,7 +2467,7 @@ msgstr ""
 "コンテナは現在実行中です。停止して、再起動するために --force を使用してくだ\n"
 "さい。"
 
-#: lxc/init.go:281
+#: lxc/init.go:284
 msgid "The container you are starting doesn't have any network attached to it."
 msgstr "起動しようとしたコンテナに接続されているネットワークがありません。"
 
@@ -2480,14 +2480,14 @@ msgstr "デバイスはすでに存在します"
 msgid "The device doesn't exist"
 msgstr "デバイスが存在しません"
 
-#: lxc/init.go:265
+#: lxc/init.go:268
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 "ローカルイメージ '%s' が見つかりません。代わりに '%s:%s' を試してみてくださ"
 "い。"
 
-#: lxc/init.go:261
+#: lxc/init.go:264
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -2524,12 +2524,12 @@ msgstr "コンテナを強制停止するまでの時間"
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
-#: lxc/init.go:283
+#: lxc/init.go:286
 msgid "To attach a network to a container, use: lxc network attach"
 msgstr ""
 "コンテナにネットワークを接続するには、lxc network attach を使用してください"
 
-#: lxc/init.go:282
+#: lxc/init.go:285
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
@@ -2545,7 +2545,7 @@ msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
 "さい"
 
-#: lxc/copy.go:104
+#: lxc/copy.go:103
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -2561,7 +2561,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
-#: lxc/copy.go:277
+#: lxc/copy.go:282
 #, c-format
 msgid "Transferring container: %s"
 msgstr "コンテナを転送中: %s"
@@ -2866,7 +2866,7 @@ msgstr ""
 msgid "device"
 msgstr ""
 
-#: lxc/init.go:224
+#: lxc/init.go:227
 msgid "didn't get any affected image, container or snapshot from server"
 msgstr ""
 "サーバから変更されたイメージ、コンテナ、スナップショットを取得できませんで\n"
