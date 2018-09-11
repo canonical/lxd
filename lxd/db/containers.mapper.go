@@ -19,28 +19,40 @@ SELECT containers.id, projects.name AS project, containers.name, nodes.name AS n
   ORDER BY projects.id, containers.name
 `)
 
-var containerObjectsByProject = cluster.RegisterStmt(`
+var containerObjectsByType = cluster.RegisterStmt(`
 SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
-  WHERE project = ? ORDER BY projects.id, containers.name
+  WHERE containers.type = ? ORDER BY projects.id, containers.name
 `)
 
-var containerObjectsByNode = cluster.RegisterStmt(`
+var containerObjectsByProjectAndType = cluster.RegisterStmt(`
 SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
-  WHERE node = ? ORDER BY projects.id, containers.name
+  WHERE project = ? AND containers.type = ? ORDER BY projects.id, containers.name
 `)
 
-var containerObjectsByProjectAndNode = cluster.RegisterStmt(`
+var containerObjectsByNodeAndType = cluster.RegisterStmt(`
 SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
-  WHERE project = ? AND node = ? ORDER BY projects.id, containers.name
+  WHERE node = ? AND containers.type = ? ORDER BY projects.id, containers.name
+`)
+
+var containerObjectsByProjectAndNodeAndType = cluster.RegisterStmt(`
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
+  FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  WHERE project = ? AND node = ? AND containers.type = ? ORDER BY projects.id, containers.name
 `)
 
 var containerObjectsByProjectAndName = cluster.RegisterStmt(`
 SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
   WHERE project = ? AND containers.name = ? ORDER BY projects.id, containers.name
+`)
+
+var containerObjectsByProjectAndNameAndType = cluster.RegisterStmt(`
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
+  FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
+  WHERE project = ? AND containers.name = ? AND containers.type = ? ORDER BY projects.id, containers.name
 `)
 
 var containerProfilesRef = cluster.RegisterStmt(`
@@ -151,16 +163,27 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	if filter.Node != "" {
 		criteria["Node"] = filter.Node
 	}
+	if filter.Type != -1 {
+		criteria["Type"] = filter.Type
+	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(containerObjectsByProjectAndNode)
+	if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(containerObjectsByProjectAndNameAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(containerObjectsByProjectAndNodeAndType)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
+			filter.Type,
 		}
 	} else if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(containerObjectsByProjectAndName)
@@ -168,15 +191,22 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Node"] != nil {
-		stmt = c.stmt(containerObjectsByNode)
+	} else if criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(containerObjectsByNodeAndType)
 		args = []interface{}{
 			filter.Node,
+			filter.Type,
 		}
-	} else if criteria["Project"] != nil {
-		stmt = c.stmt(containerObjectsByProject)
+	} else if criteria["Project"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(containerObjectsByProjectAndType)
 		args = []interface{}{
 			filter.Project,
+			filter.Type,
+		}
+	} else if criteria["Type"] != nil {
+		stmt = c.stmt(containerObjectsByType)
+		args = []interface{}{
+			filter.Type,
 		}
 	} else {
 		stmt = c.stmt(containerObjects)
@@ -245,6 +275,7 @@ func (c *ClusterTx) ContainerGet(project string, name string) (*Container, error
 	filter := ContainerFilter{}
 	filter.Project = project
 	filter.Name = name
+	filter.Type = -1
 
 	objects, err := c.ContainerList(filter)
 	if err != nil {
@@ -404,9 +435,6 @@ func (c *ClusterTx) ContainerProfilesRef(filter ContainerFilter) (map[string][]s
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
-	if filter.Node != "" {
-		criteria["Node"] = filter.Node
-	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
@@ -424,15 +452,15 @@ func (c *ClusterTx) ContainerProfilesRef(filter ContainerFilter) (map[string][]s
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Node"] != nil {
-		stmt = c.stmt(containerProfilesRefByNode)
-		args = []interface{}{
-			filter.Node,
-		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(containerProfilesRefByProject)
 		args = []interface{}{
 			filter.Project,
+		}
+	} else if criteria["Node"] != nil {
+		stmt = c.stmt(containerProfilesRefByNode)
+		args = []interface{}{
+			filter.Node,
 		}
 	} else {
 		stmt = c.stmt(containerProfilesRef)
@@ -492,25 +520,22 @@ func (c *ClusterTx) ContainerConfigRef(filter ContainerFilter) (map[string]map[s
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
-	if filter.Node != "" {
-		criteria["Node"] = filter.Node
-	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Name"] != nil {
-		stmt = c.stmt(containerConfigRefByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-		}
-	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+	if criteria["Project"] != nil && criteria["Node"] != nil {
 		stmt = c.stmt(containerConfigRefByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+		stmt = c.stmt(containerConfigRefByProjectAndName)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
 		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(containerConfigRefByProject)
@@ -585,25 +610,22 @@ func (c *ClusterTx) ContainerDevicesRef(filter ContainerFilter) (map[string]map[
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
-	if filter.Node != "" {
-		criteria["Node"] = filter.Node
-	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(containerDevicesRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(containerDevicesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(containerDevicesRefByProjectAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
 		}
 	} else if criteria["Node"] != nil {
 		stmt = c.stmt(containerDevicesRefByNode)
