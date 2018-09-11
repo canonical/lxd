@@ -1089,7 +1089,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		args.LastUsedDate = time.Unix(0, 0).UTC()
 	}
 
-	var id int64
+	var container db.Container
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		node, err := tx.NodeName()
 		if err != nil {
@@ -1107,7 +1107,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		}
 
 		// Create the container entry
-		container := db.Container{
+		container = db.Container{
 			Project:      args.Project,
 			Name:         args.Name,
 			Node:         node,
@@ -1122,14 +1122,22 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 			Devices:      args.Devices,
 			Profiles:     args.Profiles,
 		}
-		id, err = tx.ContainerCreate(container)
 
+		_, err = tx.ContainerCreate(container)
 		if err != nil {
 			return errors.Wrap(err, "Add container info to the database")
 		}
 
-		if id < 1 {
-			return errors.Wrapf(err, "Unexpected container database ID %d", id)
+		// Read back the container, to get ID and creation time.
+		c, err := tx.ContainerGet(args.Project, args.Name)
+		if err != nil {
+			return errors.Wrap(err, "Fetch created container from the database")
+		}
+
+		container = *c
+
+		if container.ID < 1 {
+			return errors.Wrapf(err, "Unexpected container database ID %d", container.ID)
 		}
 
 		return nil
@@ -1148,16 +1156,9 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Wipe any existing log for this container name
 	os.RemoveAll(shared.LogPath(args.Name))
 
-	args.ID = int(id)
-
-	// Read the timestamp from the database
-	dbArgs, err := s.Cluster.ContainerGet(args.Name)
-	if err != nil {
-		s.Cluster.ContainerRemove(args.Name)
-		return nil, err
-	}
-	args.CreationDate = dbArgs.CreationDate
-	args.LastUsedDate = dbArgs.LastUsedDate
+	args.ID = container.ID
+	args.CreationDate = container.CreationDate
+	args.LastUsedDate = container.LastUseDate
 
 	// Setup the container struct and finish creation (storage and idmap)
 	c, err := containerLXCCreate(s, args)
