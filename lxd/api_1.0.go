@@ -366,7 +366,9 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 
 func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]string, nodeConfig *node.Config, clusterConfig *cluster.Config) error {
 	maasChanged := false
-	for key, value := range clusterChanged {
+	candidChanged := false
+
+	for key := range clusterChanged {
 		switch key {
 		case "core.proxy_http":
 			fallthrough
@@ -378,11 +380,12 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			fallthrough
 		case "maas.api.key":
 			maasChanged = true
+		case "candid.domains":
+			fallthrough
+		case "candid.expiry":
+			fallthrough
 		case "candid.api.url":
-			err := d.setupExternalAuthentication(value)
-			if err != nil {
-				return err
-			}
+			candidChanged = true
 		case "images.auto_update_interval":
 			if !d.os.MockMode {
 				d.taskAutoUpdate.Reset()
@@ -417,5 +420,17 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			return err
 		}
 	}
+
+	if candidChanged {
+		endpoint := clusterConfig.CandidEndpoint()
+		expiry := clusterConfig.CandidExpiry()
+		domains := clusterConfig.CandidDomains()
+
+		err := d.setupExternalAuthentication(endpoint, expiry, domains)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

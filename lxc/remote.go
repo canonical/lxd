@@ -16,6 +16,9 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
+	schemaform "gopkg.in/juju/environschema.v1/form"
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
+	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
@@ -78,6 +81,7 @@ type cmdRemoteAdd struct {
 	flagPublic     bool
 	flagProtocol   string
 	flagAuthType   string
+	flagDomain     string
 }
 
 func (c *cmdRemoteAdd) Command() *cobra.Command {
@@ -93,6 +97,7 @@ func (c *cmdRemoteAdd) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagProtocol, "protocol", "", i18n.G("Server protocol (lxd or simplestreams)")+"``")
 	cmd.Flags().StringVar(&c.flagAuthType, "auth-type", "", i18n.G("Server authentication type (tls or candid)")+"``")
 	cmd.Flags().BoolVar(&c.flagPublic, "public", false, i18n.G("Public image server"))
+	cmd.Flags().StringVar(&c.flagDomain, "domain", "", i18n.G("Candid domain to use")+"``")
 
 	return cmd
 }
@@ -219,6 +224,22 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType}
+
+	conf.SetAuthInteractor([]httpbakery.Interactor{
+		form.Interactor{Filler: schemaform.IOFiller{}},
+		httpbakery.WebBrowserInteractor{
+			OpenWebBrowser: func(uri *url.URL) error {
+				if c.flagDomain != "" {
+					query := uri.Query()
+					query.Set("domain", c.flagDomain)
+					uri.RawQuery = query.Encode()
+				}
+
+				fmt.Println(uri)
+				return nil
+			},
+		},
+	})
 
 	// Attempt to connect
 	var d lxd.ImageServer

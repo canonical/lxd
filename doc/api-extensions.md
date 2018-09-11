@@ -579,3 +579,9 @@ core.macaroon.endpoint.
 ## backup\_compression
 This introduces a new backups.compression\_algorithm config key which
 allows configuration of backup compression.
+
+## candid\_config
+This introduces the config keys `candid.domains` and `candid.expiry`. The
+former allows specifying allowed/valid Candid domains, the latter makes the
+macaroon's expiry configurable. The `lxc remote add` command now has a
+`--domain` flag which allows specifying a Candid domain.
