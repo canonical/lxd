@@ -280,7 +280,7 @@ func containersShutdown(s *state.State) error {
 }
 
 func containerDeleteSnapshots(s *state.State, project, cname string) error {
-	results, err := s.Cluster.ContainerGetSnapshots(cname)
+	results, err := s.Cluster.ContainerGetSnapshots(project, cname)
 	if err != nil {
 		return err
 	}
