@@ -70,6 +70,11 @@ func (c *Config) CandidEndpoint() string {
 	return c.m.GetString("candid.api.url")
 }
 
+// CandidExpiry returns the cookie expiry of the macaroon.
+func (c *Config) CandidExpiry() int64 {
+	return c.m.GetInt64("candid.expiry")
+}
+
 // AutoUpdateInterval returns the configured images auto update interval.
 func (c *Config) AutoUpdateInterval() time.Duration {
 	n := c.m.GetInt64("images.auto_update_interval")
@@ -212,6 +217,7 @@ var ConfigSchema = config.Schema{
 	"core.proxy_ignore_hosts":        {},
 	"core.trust_password":            {Hidden: true, Setter: passwordSetter},
 	"candid.api.url":                 {},
+	"candid.expiry":                  {Type: config.Int64, Default: "3600"},
 	"images.auto_update_cached":      {Type: config.Bool, Default: "true"},
 	"images.auto_update_interval":    {Type: config.Int64, Default: "6"},
 	"images.compression_algorithm":   {Default: "gzip", Validator: validateCompression},
