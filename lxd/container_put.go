@@ -83,7 +83,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	} else {
 		// Snapshot Restore
 		do = func(op *operation) error {
-			return containerSnapRestore(d.State(), name, configRaw.Restore, configRaw.Stateful)
+			return containerSnapRestore(d.State(), project, name, configRaw.Restore, configRaw.Stateful)
 		}
 
 		opType = db.OperationSnapshotRestore
@@ -100,18 +100,18 @@ func containerPut(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func containerSnapRestore(s *state.State, name string, snap string, stateful bool) error {
+func containerSnapRestore(s *state.State, project, name, snap string, stateful bool) error {
 	// normalize snapshot name
 	if !shared.IsSnapshot(snap) {
 		snap = name + shared.SnapshotDelimiter + snap
 	}
 
-	c, err := containerLoadByName(s, name)
+	c, err := containerLoadByProjectAndName(s, project, name)
 	if err != nil {
 		return err
 	}
 
-	source, err := containerLoadByName(s, snap)
+	source, err := containerLoadByProjectAndName(s, project, snap)
 	if err != nil {
 		switch err {
 		case db.ErrNoSuchObject:

@@ -115,7 +115,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, name := range result {
-		c, err := containerLoadByName(d.State(), name)
+		c, err := containerLoadByProjectAndName(d.State(), "default", name)
 		if err != nil {
 			sqldb.Close()
 			return err

@@ -450,7 +450,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 		return BadRequest(fmt.Errorf("must specify a source container"))
 	}
 
-	source, err := containerLoadByName(d.State(), req.Source.Source)
+	source, err := containerLoadByProjectAndName(d.State(), project, req.Source.Source)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -541,7 +541,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 	return OperationResponse(op)
 }
 
-func createFromBackup(d *Daemon, data io.Reader) Response {
+func createFromBackup(d *Daemon, project string, data io.Reader) Response {
 	// Write the data to a temp file
 	f, err := ioutil.TempFile("", "lxd_backup_")
 	if err != nil {
@@ -585,7 +585,7 @@ func createFromBackup(d *Daemon, data io.Reader) Response {
 			return errors.New(resp.String())
 		}
 
-		c, err := containerLoadByName(d.State(), bInfo.Name)
+		c, err := containerLoadByProjectAndName(d.State(), project, bInfo.Name)
 		if err != nil {
 			return err
 		}
@@ -611,11 +611,12 @@ func createFromBackup(d *Daemon, data io.Reader) Response {
 }
 
 func containersPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	logger.Debugf("Responding to container create")
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createFromBackup(d, r.Body)
+		return createFromBackup(d, project, r.Body)
 	}
 
 	// Parse the request
@@ -623,8 +624,6 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
 	}
-
-	project := projectParam(r)
 
 	targetNode := queryParam(r, "target")
 	if targetNode == "" {

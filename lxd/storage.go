@@ -461,7 +461,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 		if len(volumeUsedBy) > 1 {
 			for _, ctName := range volumeUsedBy {
-				ct, err := containerLoadByName(s, ctName)
+				ct, err := containerLoadByProjectAndName(s, "default", ctName)
 				if err != nil {
 					continue
 				}

@@ -157,7 +157,7 @@ func getContainersWithProfile(s *state.State, profile string) []container {
 	}
 
 	for _, name := range output {
-		c, err := containerLoadByName(s, name)
+		c, err := containerLoadByProjectAndName(s, "default", name)
 		if err != nil {
 			logger.Error("Failed opening container", log.Ctx{"container": name})
 			continue

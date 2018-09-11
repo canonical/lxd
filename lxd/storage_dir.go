@@ -745,14 +745,14 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 	}
 
 	for _, snap := range snapshots {
-		sourceSnapshot, err := containerLoadByName(srcState, snap.Name())
+		sourceSnapshot, err := containerLoadByProjectAndName(srcState, "default", snap.Name())
 		if err != nil {
 			return err
 		}
 
 		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-		targetSnapshot, err := containerLoadByName(s.s, newSnapName)
+		targetSnapshot, err := containerLoadByProjectAndName(s.s, "default", newSnapName)
 		if err != nil {
 			return err
 		}

@@ -1077,7 +1077,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				}
 
 				// Load the container from the database.
-				ctStruct, err := containerLoadByName(d.State(), ct)
+				ctStruct, err := containerLoadByProjectAndName(d.State(), "default", ct)
 				if err != nil {
 					logger.Errorf("Failed to load LVM container %s: %s", ct, err)
 					return err
@@ -1230,7 +1230,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					}
 
 					// Load the snapshot from the database.
-					csStruct, err := containerLoadByName(d.State(), cs)
+					csStruct, err := containerLoadByProjectAndName(d.State(), "default", cs)
 					if err != nil {
 						logger.Errorf("Failed to load LVM container %s: %s", cs, err)
 						return err
@@ -1805,7 +1805,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 
 	// Make sure all containers and snapshots have a valid disk configuration
 	for _, ct := range allcontainers {
-		c, err := containerLoadByName(d.State(), ct)
+		c, err := containerLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			continue
 		}
@@ -1912,7 +1912,7 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 
 	for _, ct := range cts {
 		// Load the container from the database.
-		c, err := containerLoadByName(d.State(), ct)
+		c, err := containerLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			logger.Errorf("Failed to open container '%s': %v", ct, err)
 			continue
@@ -2691,7 +2691,7 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 		}
 
 		// Load the container from the database.
-		c, err := containerLoadByName(d.State(), ct)
+		c, err := containerLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			logger.Errorf("Failed to load container %s: %s", ct, err)
 			return err
@@ -2915,7 +2915,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 
 	for _, ct := range cRegular {
 		// load the container from the database
-		ctStruct, err := containerLoadByName(d.State(), ct)
+		ctStruct, err := containerLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			return err
 		}

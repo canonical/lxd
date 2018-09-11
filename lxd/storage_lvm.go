@@ -1194,12 +1194,12 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 
 		logger.Debugf("Copying LVM container storage for snapshot %s to %s", snap.Name(), newSnapName)
 
-		sourceSnapshot, err := containerLoadByName(srcState, snap.Name())
+		sourceSnapshot, err := containerLoadByProjectAndName(srcState, "default", snap.Name())
 		if err != nil {
 			return err
 		}
 
-		targetSnapshot, err := containerLoadByName(s.s, newSnapName)
+		targetSnapshot, err := containerLoadByProjectAndName(s.s, "default", newSnapName)
 		if err != nil {
 			return err
 		}

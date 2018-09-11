@@ -3196,7 +3196,7 @@ func (c *containerLXC) Snapshots() ([]container, error) {
 	// Build the snapshot list
 	containers := []container{}
 	for _, snapName := range snaps {
-		snap, err := containerLoadByName(c.state, snapName)
+		snap, err := containerLoadByProjectAndName(c.state, c.project, snapName)
 		if err != nil {
 			return nil, err
 		}
@@ -3443,7 +3443,7 @@ func (c *containerLXC) Delete() error {
 		}
 	} else {
 		// Remove all snapshots
-		err := containerDeleteSnapshots(c.state, c.Name())
+		err := containerDeleteSnapshots(c.state, c.Project(), c.Name())
 		if err != nil {
 			logger.Warn("Failed to delete snapshots", log.Ctx{"name": c.Name(), "err": err})
 			return err
@@ -5021,7 +5021,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 		var arch string
 		if c.IsSnapshot() {
 			parentName, _, _ := containerGetParentAndSnapshotName(c.name)
-			parent, err := containerLoadByName(c.state, parentName)
+			parent, err := containerLoadByProjectAndName(c.state, c.project, parentName)
 			if err != nil {
 				tw.Close()
 				logger.Error("Failed exporting container", ctxMap)
@@ -8545,6 +8545,10 @@ func (c *containerLXC) DaemonState() *state.State {
 	//        handles" to database/OS state and then need a way to get a
 	//        reference to it.
 	return c.state
+}
+
+func (c *containerLXC) Project() string {
+	return c.project
 }
 
 func (c *containerLXC) Name() string {
