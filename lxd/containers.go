@@ -279,14 +279,14 @@ func containersShutdown(s *state.State) error {
 	return nil
 }
 
-func containerDeleteSnapshots(s *state.State, cname string) error {
+func containerDeleteSnapshots(s *state.State, project, cname string) error {
 	results, err := s.Cluster.ContainerGetSnapshots(cname)
 	if err != nil {
 		return err
 	}
 
 	for _, sname := range results {
-		sc, err := containerLoadByName(s, sname)
+		sc, err := containerLoadByProjectAndName(s, project, sname)
 		if err != nil {
 			logger.Error(
 				"containerDeleteSnapshots: Failed to load the snapshotcontainer",

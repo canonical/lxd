@@ -31,7 +31,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	c, err := containerLoadByName(d.State(), cname)
+	c, err := containerLoadByProjectAndName(d.State(), project, cname)
 	if err != nil {
 		return SmartError(err)
 	}

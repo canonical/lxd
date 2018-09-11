@@ -253,6 +253,7 @@ func (s *consoleWs) Do(op *operation) error {
 }
 
 func containerConsolePost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	post := api.ContainerConsolePost{}
@@ -268,7 +269,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 
 	// Forward the request if the container is remote.
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, "default", name, cert)
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -284,7 +285,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 		return ForwardedOperationResponse(&opAPI)
 	}
 
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}

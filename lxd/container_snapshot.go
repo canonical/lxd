@@ -33,7 +33,7 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	c, err := containerLoadByName(d.State(), cname)
+	c, err := containerLoadByProjectAndName(d.State(), project, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -168,9 +168,9 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return SmartError(err)
 	}
-	sc, err := containerLoadByName(
+	sc, err := containerLoadByProjectAndName(
 		d.State(),
-		containerName+
+		"default", containerName+
 			shared.SnapshotDelimiter+
 			snapshotName)
 	if err != nil {

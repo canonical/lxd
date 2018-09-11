@@ -606,6 +606,7 @@ type container interface {
 
 	// Properties
 	Id() int
+	Project() string
 	Name() string
 	Description() string
 	Architecture() int
@@ -1246,11 +1247,6 @@ func containerLoadByProjectAndName(s *state.State, project, name string) (contai
 	args := db.ContainerToArgs(container)
 
 	return containerLXCLoad(s, args, nil)
-}
-
-// TODO: this should be dropped in favor of containerLoadByProjectAndName
-func containerLoadByName(s *state.State, name string) (container, error) {
-	return containerLoadByProjectAndName(s, "default", name)
 }
 
 func containerLoadAll(s *state.State) ([]container, error) {

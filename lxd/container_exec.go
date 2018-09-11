@@ -332,6 +332,7 @@ func (s *execWs) Do(op *operation) error {
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	post := api.ContainerExecPost{}
@@ -362,7 +363,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return ForwardedOperationResponse(&opAPI)
 	}
 
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}

@@ -469,7 +469,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, oldName, new
 			return errors.Wrap(err, "Failed to connect to target node")
 		}
 		if client == nil {
-			err := containerPostCreateContainerMountPoint(d, newName)
+			err := containerPostCreateContainerMountPoint(d, c.Project(), newName)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
 			}
@@ -502,8 +502,9 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, oldName, new
 // At the moment it's used for ceph-based containers, where the target node needs
 // to create the appropriate mount points.
 func internalClusterContainerMovedPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	containerName := mux.Vars(r)["name"]
-	err := containerPostCreateContainerMountPoint(d, containerName)
+	err := containerPostCreateContainerMountPoint(d, project, containerName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -512,8 +513,8 @@ func internalClusterContainerMovedPost(d *Daemon, r *http.Request) Response {
 
 // Used after to create the appropriate mounts point after a container has been
 // moved.
-func containerPostCreateContainerMountPoint(d *Daemon, containerName string) error {
-	c, err := containerLoadByName(d.State(), containerName)
+func containerPostCreateContainerMountPoint(d *Daemon, project, containerName string) error {
+	c, err := containerLoadByProjectAndName(d.State(), project, containerName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to load moved container on target node")
 	}
