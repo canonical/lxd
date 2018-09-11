@@ -3188,7 +3188,7 @@ func (c *containerLXC) RenderState() (*api.ContainerState, error) {
 
 func (c *containerLXC) Snapshots() ([]container, error) {
 	// Get all the snapshots
-	snaps, err := c.state.Cluster.ContainerGetSnapshots(c.name)
+	snaps, err := c.state.Cluster.ContainerGetSnapshots(c.Project(), c.name)
 	if err != nil {
 		return nil, err
 	}
@@ -3633,7 +3633,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	if !c.IsSnapshot() {
 		// Rename all the snapshots
-		results, err := c.state.Cluster.ContainerGetSnapshots(oldName)
+		results, err := c.state.Cluster.ContainerGetSnapshots(c.project, oldName)
 		if err != nil {
 			logger.Error("Failed renaming container", ctxMap)
 			return err

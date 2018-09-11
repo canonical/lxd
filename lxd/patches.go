@@ -458,7 +458,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := d.cluster.ContainerGetSnapshots(ct)
+		ctSnapshots, err := d.cluster.ContainerGetSnapshots("default", ct)
 		if err != nil {
 			return err
 		}
@@ -1134,7 +1134,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := d.cluster.ContainerGetSnapshots(ct)
+		ctSnapshots, err := d.cluster.ContainerGetSnapshots("default", ct)
 		if err != nil {
 			return err
 		}
@@ -1581,7 +1581,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := d.cluster.ContainerGetSnapshots(ct)
+		ctSnapshots, err := d.cluster.ContainerGetSnapshots("default", ct)
 		if err != nil {
 			logger.Errorf("Failed to query database")
 			return err

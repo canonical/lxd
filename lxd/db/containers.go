@@ -778,14 +778,19 @@ func (c *Cluster) ContainerLastUsedUpdate(id int, date time.Time) error {
 }
 
 // ContainerGetSnapshots returns the names of all snapshots of the container
-// with the given name.
-func (c *Cluster) ContainerGetSnapshots(name string) ([]string, error) {
+// in the given project with the given name.
+func (c *Cluster) ContainerGetSnapshots(project, name string) ([]string, error) {
 	result := []string{}
 
 	regexp := name + shared.SnapshotDelimiter
 	length := len(regexp)
-	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
-	inargs := []interface{}{CTypeSnapshot, length, regexp}
+	q := `
+SELECT containers.name
+  FROM containers
+  JOIN projects ON projects.id = containers.project_id
+WHERE projects.name=? AND containers.type=? AND SUBSTR(containers.name,1,?)=?
+`
+	inargs := []interface{}{project, CTypeSnapshot, length, regexp}
 	outfmt := []interface{}{name}
 	dbResults, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
