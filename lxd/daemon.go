@@ -84,6 +84,31 @@ type DaemonConfig struct {
 	DqliteSetupTimeout time.Duration // How long to wait for the cluster database to be up
 }
 
+// IdentityClientWrapper is a wrapper around an IdentityClient.
+type IdentityClientWrapper struct {
+	client       identchecker.IdentityClient
+	ValidDomains []string
+}
+
+func newIdentityClientWrapper(client identchecker.IdentityClient) *IdentityClientWrapper {
+	return &IdentityClientWrapper{client: client, ValidDomains: []string{}}
+}
+
+func (m *IdentityClientWrapper) IdentityFromContext(ctx context.Context) (identchecker.Identity, []checkers.Caveat, error) {
+	return m.client.IdentityFromContext(ctx)
+}
+
+func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared map[string]string) (identchecker.Identity, error) {
+	// Validate domains since Candid doesn't do that
+	fields := strings.SplitN(declared["username"], "@", 2)
+	// If no ValidDomains have been specified, all are valid
+	if len(m.ValidDomains) > 0 && len(fields) > 1 && !shared.StringInSlice(fields[1], m.ValidDomains) {
+		return nil, fmt.Errorf("Unsupported domain: %s", fields[1])
+	}
+
+	return m.client.DeclaredIdentity(ctx, declared)
+}
+
 // NewDaemon returns a new Daemon object with the given configuration.
 func NewDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	return &Daemon{
@@ -570,6 +595,7 @@ func (d *Daemon) init() error {
 
 	/* Setup the proxy handler, external authentication and MAAS */
 	var candidExpiry int64
+	candidDomains := ""
 	candidEndpoint := ""
 	maasAPIURL := ""
 	maasAPIKey := ""
@@ -600,6 +626,7 @@ func (d *Daemon) init() error {
 		)
 		candidEndpoint = config.CandidEndpoint()
 		candidExpiry = config.CandidExpiry()
+		candidDomains = config.CandidDomains()
 		maasAPIURL, maasAPIKey = config.MAASController()
 		return nil
 	})
@@ -607,7 +634,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	err = d.setupExternalAuthentication(candidEndpoint, candidExpiry)
+	err = d.setupExternalAuthentication(candidEndpoint, candidExpiry, candidDomains)
 	if err != nil {
 		return err
 	}
@@ -811,7 +838,12 @@ func (d *Daemon) Stop() error {
 }
 
 // Setup external authentication
-func (d *Daemon) setupExternalAuthentication(authEndpoint string, expiry int64) error {
+func (d *Daemon) setupExternalAuthentication(authEndpoint string, expiry int64, domains string) error {
+	authDomains := []string{}
+	for _, domain := range strings.Split(domains, ",") {
+		authDomains = append(authDomains, strings.TrimSpace(domain))
+	}
+
 	if authEndpoint == "" {
 		d.externalAuth = nil
 		return nil
@@ -823,20 +855,26 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string, expiry int64) 
 	if err != nil {
 		return err
 	}
+
+	idmClientWrapper := newIdentityClientWrapper(idmClient)
+	idmClientWrapper.ValidDomains = authDomains
+
 	key, err := bakery.GenerateKey()
 	if err != nil {
 		return err
 	}
+
 	pkLocator := httpbakery.NewThirdPartyLocator(nil, nil)
 	if strings.HasPrefix(authEndpoint, "http://") {
 		pkLocator.AllowInsecure()
 	}
+
 	bakery := identchecker.NewBakery(identchecker.BakeryParams{
 		Key:            key,
 		Location:       authEndpoint,
 		Locator:        pkLocator,
 		Checker:        httpbakery.NewChecker(),
-		IdentityClient: idmClient,
+		IdentityClient: idmClientWrapper,
 		Authorizer: identchecker.ACLAuthorizer{
 			GetACL: func(ctx context.Context, op bakery.Op) ([]string, bool, error) {
 				return []string{identchecker.Everyone}, false, nil
