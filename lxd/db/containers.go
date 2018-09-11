@@ -809,12 +809,16 @@ WHERE projects.name=? AND containers.type=? AND SUBSTR(containers.name,1,?)=?
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names
-func (c *Cluster) ContainerNextSnapshot(name string) int {
+func (c *Cluster) ContainerNextSnapshot(project string, name string) int {
 	base := name + shared.SnapshotDelimiter + "snap"
 	length := len(base)
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
+	q := `
+SELECT containers.name
+  FROM containers
+  JOIN projects ON projects.id = containers.project_id
+ WHERE projects.name=? AND containers.type=? AND SUBSTR(containers.name,1,?)=?`
 	var numstr string
-	inargs := []interface{}{CTypeSnapshot, length, base}
+	inargs := []interface{}{project, CTypeSnapshot, length, base}
 	outfmt := []interface{}{numstr}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
