@@ -148,7 +148,7 @@ func profileGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, resp, etag)
 }
 
-func getContainersWithProfile(s *state.State, profile string) []container {
+func getContainersWithProfile(s *state.State, project, profile string) []container {
 	results := []container{}
 
 	output, err := s.Cluster.ProfileContainersGet(profile)
@@ -157,7 +157,7 @@ func getContainersWithProfile(s *state.State, profile string) []container {
 	}
 
 	for _, name := range output {
-		c, err := containerLoadByProjectAndName(s, "default", name)
+		c, err := containerLoadByProjectAndName(s, project, name)
 		if err != nil {
 			logger.Error("Failed opening container", log.Ctx{"container": name})
 			continue
@@ -336,6 +336,7 @@ func profilePost(d *Daemon, r *http.Request) Response {
 
 // The handler for the delete operation.
 func profileDelete(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	if name == "default" {
@@ -347,7 +348,7 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	clist := getContainersWithProfile(d.State(), name)
+	clist := getContainersWithProfile(d.State(), project, name)
 	if len(clist) != 0 {
 		return BadRequest(fmt.Errorf("Profile is currently in use"))
 	}
