@@ -103,6 +103,7 @@ var APIExtensions = []string{
 	"storage_api_remote_volume_handling",
 	"nvidia_runtime",
 	"candid_authentication",
+	"candid_config",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

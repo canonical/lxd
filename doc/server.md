@@ -11,6 +11,8 @@ currently supported:
 Key                             | Type      | Default   | API extension            | Description
 :--                             | :---      | :------   | :------------            | :----------
 candid.api.url                  | string    | -         | candid\_authentication   | URL of the the external authentication endpoint using Candid
+candid.expiry                   | integer   | 3600      | candid\_config           | Candid macaroon expiry in seconds
+candid.domains                  | string    | -         | candid\_config           | Comma-separated list of allowed Candid domains (empty string means all domains are valid)
 cluster.offline\_threshold      | integer   | 20        | clustering               | Number of seconds after which an unresponsive node is considered offline
 core.https\_address             | string    | -         | -                        | Address to bind for the remote API
 core.https\_allowed\_credentials| boolean   | -         | -                        | Whether to set Access-Control-Allow-Credentials http header value to "true"

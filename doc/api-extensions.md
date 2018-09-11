@@ -458,3 +458,9 @@ container.
 ## candid\_authentication
 This introduces the new candid.api.url config option and removes
 core.macaroon.endpoint.
+
+## candid\_config
+This introduces the config keys `candid.domains` and `candid.expiry`. The
+former allows specifying allowed/valid Candid domains, the latter makes the
+macaroon's expiry configurable. The `lxc remote add` command now has a
+`--domain` flag which allows specifying a Candid domain.
