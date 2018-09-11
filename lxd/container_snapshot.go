@@ -107,7 +107,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	if req.Name == "" {
 		// come up with a name
-		i := d.cluster.ContainerNextSnapshot(name)
+		i := d.cluster.ContainerNextSnapshot(project, name)
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
