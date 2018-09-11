@@ -72,6 +72,7 @@ type Daemon struct {
 
 type externalAuth struct {
 	endpoint string
+	expiry   int64
 	bakery   *identchecker.Bakery
 }
 
@@ -175,9 +176,10 @@ func getBakeryOps(r *http.Request) []bakery.Op {
 	}}
 }
 
-func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError) {
+func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError, expiry int64) {
 	ctx := httpbakery.ContextWithRequest(context.TODO(), r)
-	caveats := append(derr.Caveats, checkers.TimeBeforeCaveat(time.Now().Add(5*time.Minute)))
+	caveats := append(derr.Caveats,
+		checkers.TimeBeforeCaveat(time.Now().Add(time.Duration(expiry)*time.Second)))
 
 	// Mint an appropriate macaroon and send it back to the client.
 	m, err := b.Oven.NewMacaroon(
@@ -258,7 +260,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 				fmt.Sprintf("allowing untrusted %s", r.Method),
 				log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		} else if derr, ok := err.(*bakery.DischargeRequiredError); ok {
-			writeMacaroonsRequiredResponse(d.externalAuth.bakery, r, w, derr)
+			writeMacaroonsRequiredResponse(d.externalAuth.bakery, r, w, derr, d.externalAuth.expiry)
 			return
 		} else {
 			logger.Warn(
@@ -567,6 +569,7 @@ func (d *Daemon) init() error {
 	pruneLeftoverImages(d)
 
 	/* Setup the proxy handler, external authentication and MAAS */
+	var candidExpiry int64
 	candidEndpoint := ""
 	maasAPIURL := ""
 	maasAPIKey := ""
@@ -596,6 +599,7 @@ func (d *Daemon) init() error {
 			config.ProxyHTTPS(), config.ProxyHTTP(), config.ProxyIgnoreHosts(),
 		)
 		candidEndpoint = config.CandidEndpoint()
+		candidExpiry = config.CandidExpiry()
 		maasAPIURL, maasAPIKey = config.MAASController()
 		return nil
 	})
@@ -603,7 +607,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	err = d.setupExternalAuthentication(candidEndpoint)
+	err = d.setupExternalAuthentication(candidEndpoint, candidExpiry)
 	if err != nil {
 		return err
 	}
@@ -807,7 +811,7 @@ func (d *Daemon) Stop() error {
 }
 
 // Setup external authentication
-func (d *Daemon) setupExternalAuthentication(authEndpoint string) error {
+func (d *Daemon) setupExternalAuthentication(authEndpoint string, expiry int64) error {
 	if authEndpoint == "" {
 		d.externalAuth = nil
 		return nil
@@ -841,6 +845,7 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string) error {
 	})
 	d.externalAuth = &externalAuth{
 		endpoint: authEndpoint,
+		expiry:   expiry,
 		bakery:   bakery,
 	}
 	return nil
