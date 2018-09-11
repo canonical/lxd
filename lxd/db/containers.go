@@ -21,10 +21,12 @@ import (
 //go:generate mapper reset
 //
 //go:generate mapper stmt -p db -e container objects
-//go:generate mapper stmt -p db -e container objects-by-Project
-//go:generate mapper stmt -p db -e container objects-by-Node
-//go:generate mapper stmt -p db -e container objects-by-Project-and-Node
+//go:generate mapper stmt -p db -e container objects-by-Type
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Type
+//go:generate mapper stmt -p db -e container objects-by-Node-and-Type
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Node-and-Type
 //go:generate mapper stmt -p db -e container objects-by-Project-and-Name
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Name-and-Type
 //go:generate mapper stmt -p db -e container profiles-ref
 //go:generate mapper stmt -p db -e container profiles-ref-by-Project
 //go:generate mapper stmt -p db -e container profiles-ref-by-Node
@@ -78,9 +80,10 @@ type Container struct {
 
 // ContainerFilter can be used to filter results yielded by ContainerList.
 type ContainerFilter struct {
-	Project string // If non-empty, return only containers within this project.
-	Name    string // If non-empty, return only containers with this name.
-	Node    string // If non-empty, return only containers on this node.
+	Project string
+	Name    string
+	Node    string
+	Type    int
 }
 
 // ContainerToArgs is a convenience to convert the new Container db struct into
@@ -444,6 +447,7 @@ func (c *ClusterTx) ContainerNodeList() ([]Container, error) {
 	}
 	filter := ContainerFilter{
 		Node: node,
+		Type: int(CTypeRegular),
 	}
 
 	return c.ContainerList(filter)
@@ -458,6 +462,7 @@ func (c *ClusterTx) ContainerNodeProjectList(project string) ([]Container, error
 	filter := ContainerFilter{
 		Project: project,
 		Node:    node,
+		Type:    int(CTypeRegular),
 	}
 
 	return c.ContainerList(filter)

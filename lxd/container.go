@@ -1255,6 +1255,7 @@ func containerLoadAll(s *state.State) ([]container, error) {
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.ContainerFilter{
 			Project: "default",
+			Type:    int(db.CTypeRegular),
 		}
 		var err error
 		cts, err = tx.ContainerList(filter)
