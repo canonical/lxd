@@ -380,6 +380,8 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			fallthrough
 		case "maas.api.key":
 			maasChanged = true
+		case "candid.domains":
+			fallthrough
 		case "candid.expiry":
 			fallthrough
 		case "candid.api.url":
@@ -422,8 +424,9 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	if candidChanged {
 		endpoint := clusterConfig.CandidEndpoint()
 		expiry := clusterConfig.CandidExpiry()
+		domains := clusterConfig.CandidDomains()
 
-		err := d.setupExternalAuthentication(endpoint, expiry)
+		err := d.setupExternalAuthentication(endpoint, expiry, domains)
 		if err != nil {
 			return err
 		}
