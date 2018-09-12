@@ -123,6 +123,7 @@ var APIExtensions = []string{
 	"candid_authentication",
 	"backup_compression",
 	"candid_config",
+	"nvidia_runtime_config",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
