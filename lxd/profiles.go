@@ -13,6 +13,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -73,6 +74,7 @@ func profilesGet(d *Daemon, r *http.Request) Response {
 }
 
 func profilesPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	req := api.ProfilesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
@@ -107,7 +109,17 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update DB entry
-	_, err = d.cluster.ProfileCreate(req.Name, req.Description, req.Config, req.Devices)
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		profile := db.Profile{
+			Project:     project,
+			Name:        req.Name,
+			Description: req.Description,
+			Config:      req.Config,
+			Devices:     req.Devices,
+		}
+		_, err := tx.ProfileCreate(profile)
+		return err
+	})
 	if err != nil {
 		return SmartError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
