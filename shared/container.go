@@ -206,7 +206,10 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"migration.incremental.memory.iterations": IsUint32,
 	"migration.incremental.memory.goal":       IsUint32,
 
-	"nvidia.runtime": IsBool,
+	"nvidia.runtime":             IsBool,
+	"nvidia.driver.capabilities": IsAny,
+	"nvidia.require.cuda":        IsAny,
+	"nvidia.require.driver":      IsAny,
 
 	"security.nesting":       IsBool,
 	"security.privileged":    IsBool,
