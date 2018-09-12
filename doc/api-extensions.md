@@ -585,3 +585,11 @@ This introduces the config keys `candid.domains` and `candid.expiry`. The
 former allows specifying allowed/valid Candid domains, the latter makes the
 macaroon's expiry configurable. The `lxc remote add` command now has a
 `--domain` flag which allows specifying a Candid domain.
+
+## nvidia\_runtime\_config
+This introduces a few extra config keys when using nvidia.runtime and the libnvidia-container library.
+Those keys translate pretty much directly to the matching nvidia-container environment variables:
+
+ - nvidia.driver.capabilities => NVIDIA\_DRIVER\_CAPABILITIES
+ - nvidia.require.cuda => NVIDIA\_REQUIRE\_CUDA
+ - nvidia.require.driver => NVIDIA\_REQUIRE\_DRIVER

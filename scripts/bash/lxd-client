@@ -82,6 +82,7 @@ _have lxc && {
       limits.memory.swap limits.memory.swap.priority limits.network.priority \
       limits.processes linux.kernel_modules migration.incremental.memory \
       migration.incremental.memory.goal nvidia.runtime \
+      nvidia.driver.capabilities nvidia.require.cuda nvidia.require.driver \
       migration.incremental.memory.iterations raw.apparmor raw.idmap raw.lxc \
       raw.seccomp security.idmap.base security.idmap.isolated \
       security.idmap.size security.devlxd security.devlxd.images \
