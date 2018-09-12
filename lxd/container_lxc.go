@@ -1229,9 +1229,33 @@ func (c *containerLXC) initLXC(config bool) error {
 			return err
 		}
 
-		err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=compute,utility")
-		if err != nil {
-			return err
+		nvidiaDriver := c.expandedConfig["nvidia.driver.capabilities"]
+		if nvidiaDriver == "" {
+			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=all")
+			if err != nil {
+				return err
+			}
+		} else {
+			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_DRIVER_CAPABILITIES=%s", nvidiaDriver))
+			if err != nil {
+				return err
+			}
+		}
+
+		nvidiaRequireCuda := c.expandedConfig["nvidia.require.cuda"]
+		if nvidiaRequireCuda == "" {
+			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_CUDA=%s", nvidiaRequireCuda))
+			if err != nil {
+				return err
+			}
+		}
+
+		nvidiaRequireDriver := c.expandedConfig["nvidia.require.driver"]
+		if nvidiaRequireDriver == "" {
+			err = lxcSetConfigItem(cc, "lxc.environment", fmt.Sprintf("NVIDIA_REQUIRE_DRIVER=%s", nvidiaRequireDriver))
+			if err != nil {
+				return err
+			}
 		}
 
 		err = lxcSetConfigItem(cc, "lxc.hook.mount", hookPath)
