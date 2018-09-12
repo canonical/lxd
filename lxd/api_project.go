@@ -290,19 +290,22 @@ func apiProjectPost(d *Daemon, r *http.Request) Response {
 	// Perform the rename
 	run := func(op *operation) error {
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			project, err := tx.ProjectGet(name)
-			if err != nil {
-				return errors.Wrapf(err, "Fetch project %q", name)
-			}
-			// TODO[projects]: Is allowing renaming non-empty projects fine?
-
-			project, err = tx.ProjectGet(req.Name)
+			project, err := tx.ProjectGet(req.Name)
 			if err != nil && err != db.ErrNoSuchObject {
 				return errors.Wrapf(err, "Check if project %q exists", req.Name)
 			}
 
 			if project != nil {
 				return fmt.Errorf("A project named '%s' already exists", req.Name)
+			}
+
+			project, err = tx.ProjectGet(name)
+			if err != nil {
+				return errors.Wrapf(err, "Fetch project %q", name)
+			}
+
+			if !apiProjectIsEmpty(project) {
+				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
 			return tx.ProjectRename(name, req.Name)
