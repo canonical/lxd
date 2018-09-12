@@ -937,6 +937,9 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	for _, volume := range volumes {
 		usedby := strconv.Itoa(len(volume.UsedBy))
 		entry := []string{volume.Type, volume.Name, volume.Description, usedby}
+		if strings.Contains(volume.Name, "/") {
+			entry[0] = fmt.Sprintf("%s (snapshot)", volume.Type)
+		}
 		if resource.server.IsClustered() {
 			entry = append(entry, volume.Location)
 		}
