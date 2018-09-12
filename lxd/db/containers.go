@@ -670,8 +670,11 @@ func (c *Cluster) ContainerConfig(id int) (map[string]string, error) {
 	return config, nil
 }
 
-// ContainersList returns the names of all the containers of the given type.
-func (c *Cluster) ContainersList(cType ContainerType) ([]string, error) {
+// LegacyContainersList returns the names of all the containers of the given type.
+//
+// NOTE: this is a pre-projects legacy API that is used only by patches. Don't
+// use it for new code.
+func (c *Cluster) LegacyContainersList(cType ContainerType) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? ORDER BY name")
 	inargs := []interface{}{cType}
 	var container string

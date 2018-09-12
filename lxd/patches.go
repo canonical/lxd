@@ -216,13 +216,13 @@ func patchStorageApi(name string, d *Daemon) error {
 	// Check if this LXD instace currently has any containers, snapshots, or
 	// images configured. If so, we create a default storage pool in the
 	// database. Otherwise, the user will have to run LXD init.
-	cRegular, err := d.cluster.ContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := d.cluster.ContainersList(db.CTypeSnapshot)
+	cSnapshots, err := d.cluster.LegacyContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -1884,13 +1884,13 @@ func patchStorageApiV1(name string, d *Daemon) error {
 		return nil
 	}
 
-	cRegular, err := d.cluster.ContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := d.cluster.ContainersList(db.CTypeSnapshot)
+	cSnapshots, err := d.cluster.LegacyContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -1905,7 +1905,7 @@ func patchStorageApiV1(name string, d *Daemon) error {
 }
 
 func patchContainerConfigRegen(name string, d *Daemon) error {
-	cts, err := d.cluster.ContainersList(db.CTypeRegular)
+	cts, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -2654,7 +2654,7 @@ func patchStorageApiCephSizeRemove(name string, d *Daemon) error {
 }
 
 func patchDevicesNewNamingScheme(name string, d *Daemon) error {
-	cts, err := d.cluster.ContainersList(db.CTypeRegular)
+	cts, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to retrieve containers from database")
 		return err
@@ -2908,7 +2908,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		}
 	}
 
-	cRegular, err := d.cluster.ContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
@@ -2975,7 +2975,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 	}
 
 	// Get all containers
-	containers, err := d.cluster.ContainersList(db.CTypeRegular)
+	containers, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		if err != db.ErrNoSuchObject {
 			return err
@@ -3138,7 +3138,7 @@ func patchUpdateFromV10(d *Daemon) error {
 }
 
 func patchUpdateFromV11(d *Daemon) error {
-	cNames, err := d.cluster.ContainersList(db.CTypeSnapshot)
+	cNames, err := d.cluster.LegacyContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -3209,7 +3209,7 @@ func patchUpdateFromV15(d *Daemon) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
 
-	cNames, err := d.cluster.ContainersList(db.CTypeRegular)
+	cNames, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
