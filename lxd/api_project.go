@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -81,7 +82,26 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		_, err := tx.ProjectCreate(project)
-		return err
+		if err != nil {
+			return errors.Wrap(err, "Add project to database")
+		}
+
+		if project.Config["features.profiles"] == "true" {
+			// Create a default profile
+			profile := db.Profile{}
+			profile.Project = project.Name
+			profile.Name = "default"
+			profile.Description = fmt.Sprintf("Default LXD profile for project %s", project.Name)
+			profile.Config = map[string]string{}
+			profile.Devices = types.Devices{}
+
+			_, err = tx.ProfileCreate(profile)
+			if err != nil {
+				return errors.Wrap(err, "Add default profile to database")
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
 		return SmartError(fmt.Errorf("Error inserting %s into database: %s", project.Name, err))
@@ -274,10 +294,7 @@ func apiProjectPost(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return errors.Wrapf(err, "Fetch project %q", name)
 			}
-			// FIXME: Allow renaming non-empty projects
-			if len(project.UsedBy) != 0 {
-				return fmt.Errorf("Only empty projects can be removed")
-			}
+			// TODO[projects]: Is allowing renaming non-empty projects fine?
 
 			project, err = tx.ProjectGet(req.Name)
 			if err != nil && err != db.ErrNoSuchObject {
@@ -315,8 +332,12 @@ func apiProjectDelete(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return errors.Wrapf(err, "Fetch project %q", name)
 		}
-		if len(project.UsedBy) != 0 {
-			return fmt.Errorf("Only empty projects can be removed")
+		if len(project.UsedBy) > 0 {
+			// Check if the only entity left is the default profile
+			// its default profile.
+			if len(project.UsedBy) != 1 || !strings.Contains(project.UsedBy[0], "/profiles/default") {
+				return fmt.Errorf("Only empty projects can be removed")
+			}
 		}
 
 		return tx.ProjectDelete(name)
