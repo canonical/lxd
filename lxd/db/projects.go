@@ -1,5 +1,7 @@
 package db
 
+import "github.com/pkg/errors"
+
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t projects.mapper.go
@@ -35,4 +37,17 @@ package db
 // ProjectFilter can be used to filter results yielded by ProjectList.
 type ProjectFilter struct {
 	Name string // If non-empty, return only the project with this name.
+}
+
+// ProjectHasProfiles is a helper to check if a project has the profiles
+// feature enabled.
+func (c *ClusterTx) ProjectHasProfiles(name string) (bool, error) {
+	project, err := c.ProjectGet(name)
+	if err != nil {
+		return false, errors.Wrap(err, "fetch project")
+	}
+
+	enabled := project.Config["features.profiles"] == "true"
+
+	return enabled, nil
 }

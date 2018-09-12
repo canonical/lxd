@@ -40,11 +40,11 @@ func apiProjectsGet(d *Daemon, r *http.Request) Response {
 	var result interface{}
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
+		filter := db.ProjectFilter{}
 		if recursion {
-			filter := db.ProjectFilter{}
 			result, err = tx.ProjectList(filter)
 		} else {
-			result, err = tx.ProjectURIs()
+			result, err = tx.ProjectURIs(filter)
 		}
 		return err
 	})
