@@ -41,36 +41,45 @@ var profileCmd = Command{
 
 /* This is used for both profiles post and profile put */
 func profilesGet(d *Daemon, r *http.Request) Response {
-	results, err := d.cluster.Profiles("default")
+	project := projectParam(r)
+
+	recursion := util.IsRecursionRequest(r)
+
+	var result interface{}
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		filter := db.ProfileFilter{
+			Project: project,
+		}
+		if recursion {
+			profiles, err := tx.ProfileList(filter)
+			if err != nil {
+				return err
+			}
+			apiProfiles := make([]*api.Profile, len(profiles))
+			for i, profile := range profiles {
+				apiProfiles[i] = db.ProfileToAPI(&profile)
+			}
+
+			result = apiProfiles
+		} else {
+			result, err = tx.ProfileURIs(filter)
+		}
+		return err
+	})
 	if err != nil {
 		return SmartError(err)
 	}
 
-	recursion := util.IsRecursionRequest(r)
-
-	resultString := make([]string, len(results))
-	resultMap := make([]*api.Profile, len(results))
-	i := 0
-	for _, name := range results {
-		if !recursion {
-			url := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, name)
-			resultString[i] = url
-		} else {
-			profile, err := doProfileGet(d.State(), name)
-			if err != nil {
-				logger.Error("Failed to get profile", log.Ctx{"profile": name})
-				continue
-			}
-			resultMap[i] = profile
-		}
-		i++
-	}
-
-	if !recursion {
-		return SyncResponse(true, resultString)
-	}
-
-	return SyncResponse(true, resultMap)
+	return SyncResponse(true, result)
 }
 
 func profilesPost(d *Daemon, r *http.Request) Response {
@@ -149,9 +158,30 @@ func doProfileGet(s *state.State, name string) (*api.Profile, error) {
 }
 
 func profileGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	resp, err := doProfileGet(d.State(), name)
+	var resp *api.Profile
+
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		profile, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return errors.Wrap(err, "Fetch profile")
+		}
+
+		resp = db.ProfileToAPI(profile)
+
+		return nil
+	})
 	if err != nil {
 		return SmartError(err)
 	}

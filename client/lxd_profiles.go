@@ -24,7 +24,7 @@ func (r *ProtocolLXD) GetProfileNames() ([]string, error) {
 	names := []string{}
 	for _, url := range urls {
 		fields := strings.Split(url, "/profiles/")
-		names = append(names, fields[len(fields)-1])
+		names = append(names, strings.Split(fields[len(fields)-1], "?")[0])
 	}
 
 	return names, nil

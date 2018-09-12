@@ -57,6 +57,20 @@ type Profile struct {
 	UsedBy      []string
 }
 
+// ProfileToAPI is a convenience to convert a Profile db struct into
+// an API profile struct.
+func ProfileToAPI(profile *Profile) *api.Profile {
+	p := &api.Profile{
+		Name:   profile.Name,
+		UsedBy: profile.UsedBy,
+	}
+	p.Description = profile.Description
+	p.Config = profile.Config
+	p.Devices = profile.Devices
+
+	return p
+}
+
 // ProfileFilter can be used to filter results yielded by ProfileList.
 type ProfileFilter struct {
 	Project string
