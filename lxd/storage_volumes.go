@@ -70,6 +70,12 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) Response {
 			return InternalError(err)
 		}
 
+		if apiEndpoint == storagePoolVolumeAPIEndpointContainers {
+			apiEndpoint = "container"
+		} else if apiEndpoint == storagePoolVolumeAPIEndpointImages {
+			apiEndpoint = "image"
+		}
+
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume.Name))
 		} else {
@@ -132,6 +138,13 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) Response {
 			if err != nil {
 				return InternalError(err)
 			}
+
+			if apiEndpoint == storagePoolVolumeAPIEndpointContainers {
+				apiEndpoint = "container"
+			} else if apiEndpoint == storagePoolVolumeAPIEndpointImages {
+				apiEndpoint = "image"
+			}
+
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s", version.APIVersion, poolName, apiEndpoint, volume))
 		} else {
 			_, vol, err := d.cluster.StoragePoolNodeVolumeGetType(volume, volumeType, poolID)
