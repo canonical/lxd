@@ -140,11 +140,11 @@ INSERT INTO containers_devices_config (container_device_id, key, value)
 `)
 
 var containerRename = cluster.RegisterStmt(`
-UPDATE containers SET name = ? WHERE (SELECT id FROM projects WHERE name = ?) AND name = ?
+UPDATE containers SET name = ? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
 `)
 
 var containerDelete = cluster.RegisterStmt(`
-DELETE FROM containers WHERE (SELECT id FROM projects WHERE name = ?) AND name = ?
+DELETE FROM containers WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
 `)
 
 // ContainerList returns all available containers.
@@ -171,18 +171,18 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(containerObjectsByProjectAndNameAndType)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-			filter.Type,
-		}
-	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+	if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(containerObjectsByProjectAndNodeAndType)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(containerObjectsByProjectAndNameAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
 			filter.Type,
 		}
 	} else if criteria["Project"] != nil && criteria["Name"] != nil {
@@ -244,7 +244,11 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	}
 
 	for i := range objects {
-		objects[i].Config = configObjects[objects[i].Name]
+		value := configObjects[objects[i].Name]
+		if value == nil {
+			value = map[string]string{}
+		}
+		objects[i].Config = value
 	}
 
 	// Fill field Devices.
@@ -254,7 +258,11 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	}
 
 	for i := range objects {
-		objects[i].Devices = devicesObjects[objects[i].Name]
+		value := devicesObjects[objects[i].Name]
+		if value == nil {
+			value = map[string]map[string]string{}
+		}
+		objects[i].Devices = value
 	}
 
 	// Fill field Profiles.
@@ -264,7 +272,11 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	}
 
 	for i := range objects {
-		objects[i].Profiles = profilesObjects[objects[i].Name]
+		value := profilesObjects[objects[i].Name]
+		if value == nil {
+			value = []string{}
+		}
+		objects[i].Profiles = value
 	}
 
 	return objects, nil
@@ -452,15 +464,15 @@ func (c *ClusterTx) ContainerProfilesRef(filter ContainerFilter) (map[string][]s
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil {
-		stmt = c.stmt(containerProfilesRefByProject)
-		args = []interface{}{
-			filter.Project,
-		}
 	} else if criteria["Node"] != nil {
 		stmt = c.stmt(containerProfilesRefByNode)
 		args = []interface{}{
 			filter.Node,
+		}
+	} else if criteria["Project"] != nil {
+		stmt = c.stmt(containerProfilesRefByProject)
+		args = []interface{}{
+			filter.Project,
 		}
 	} else {
 		stmt = c.stmt(containerProfilesRef)
@@ -525,27 +537,27 @@ func (c *ClusterTx) ContainerConfigRef(filter ContainerFilter) (map[string]map[s
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
-		stmt = c.stmt(containerConfigRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(containerConfigRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
-		stmt = c.stmt(containerConfigRefByProject)
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(containerConfigRefByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
+			filter.Node,
 		}
 	} else if criteria["Node"] != nil {
 		stmt = c.stmt(containerConfigRefByNode)
 		args = []interface{}{
 			filter.Node,
+		}
+	} else if criteria["Project"] != nil {
+		stmt = c.stmt(containerConfigRefByProject)
+		args = []interface{}{
+			filter.Project,
 		}
 	} else {
 		stmt = c.stmt(containerConfigRef)
@@ -627,15 +639,15 @@ func (c *ClusterTx) ContainerDevicesRef(filter ContainerFilter) (map[string]map[
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Node"] != nil {
-		stmt = c.stmt(containerDevicesRefByNode)
-		args = []interface{}{
-			filter.Node,
-		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(containerDevicesRefByProject)
 		args = []interface{}{
 			filter.Project,
+		}
+	} else if criteria["Node"] != nil {
+		stmt = c.stmt(containerDevicesRefByNode)
+		args = []interface{}{
+			filter.Node,
 		}
 	} else {
 		stmt = c.stmt(containerDevicesRef)

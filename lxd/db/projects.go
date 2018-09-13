@@ -6,6 +6,7 @@ package db
 //go:generate mapper reset
 //
 //go:generate mapper stmt -e project names
+//go:generate mapper stmt -e project names-by-Name
 //go:generate mapper stmt -e project objects
 //go:generate mapper stmt -e project objects-by-Name
 //go:generate mapper stmt -e project used-by-ref

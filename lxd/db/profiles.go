@@ -13,6 +13,8 @@ import (
 //go:generate mapper reset
 //
 //go:generate mapper stmt -p db -e profile names
+//go:generate mapper stmt -p db -e profile names-by-Project
+//go:generate mapper stmt -p db -e profile names-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile objects
 //go:generate mapper stmt -p db -e profile objects-by-Project
 //go:generate mapper stmt -p db -e profile objects-by-Project-and-Name
@@ -32,6 +34,7 @@ import (
 //go:generate mapper stmt -p db -e profile rename
 //go:generate mapper stmt -p db -e profile delete
 //
+//go:generate mapper method -p db -e profile URIs
 //go:generate mapper method -p db -e profile List
 //go:generate mapper method -p db -e profile Get
 //go:generate mapper method -p db -e profile Exists struct=Profile

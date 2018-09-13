@@ -19,6 +19,12 @@ SELECT projects.name
   ORDER BY projects.name
 `)
 
+var projectNamesByName = cluster.RegisterStmt(`
+SELECT projects.name
+  FROM projects
+  WHERE projects.name = ? ORDER BY projects.name
+`)
+
 var projectObjects = cluster.RegisterStmt(`
 SELECT projects.description, projects.name
   FROM projects
@@ -77,12 +83,31 @@ DELETE FROM projects WHERE name = ?
 `)
 
 // ProjectURIs returns all available project URIs.
-func (c *ClusterTx) ProjectURIs() ([]string, error) {
-	stmt := c.stmt(projectNames)
-	code := cluster.EntityTypes["project"]
-	uri := cluster.EntityURIs[code]
+func (c *ClusterTx) ProjectURIs(filter ProjectFilter) ([]string, error) {
+	// Check which filter criteria are active.
+	criteria := map[string]interface{}{}
+	if filter.Name != "" {
+		criteria["Name"] = filter.Name
+	}
 
-	return query.SelectURIs(stmt, uri)
+	// Pick the prepared statement and arguments to use based on active criteria.
+	var stmt *sql.Stmt
+	var args []interface{}
+
+	if criteria["Name"] != nil {
+		stmt = c.stmt(projectNamesByName)
+		args = []interface{}{
+			filter.Name,
+		}
+	} else {
+		stmt = c.stmt(projectNames)
+		args = []interface{}{}
+	}
+
+	code := cluster.EntityTypes["project"]
+	formatter := cluster.EntityFormatURIs[code]
+
+	return query.SelectURIs(stmt, formatter, args...)
 }
 
 // ProjectList returns all available projects.
@@ -132,7 +157,11 @@ func (c *ClusterTx) ProjectList(filter ProjectFilter) ([]api.Project, error) {
 	}
 
 	for i := range objects {
-		objects[i].Config = configObjects[objects[i].Name]
+		value := configObjects[objects[i].Name]
+		if value == nil {
+			value = map[string]string{}
+		}
+		objects[i].Config = value
 	}
 
 	// Fill field UsedBy.
@@ -142,7 +171,11 @@ func (c *ClusterTx) ProjectList(filter ProjectFilter) ([]api.Project, error) {
 	}
 
 	for i := range objects {
-		objects[i].UsedBy = usedByObjects[objects[i].Name]
+		value := usedByObjects[objects[i].Name]
+		if value == nil {
+			value = []string{}
+		}
+		objects[i].UsedBy = value
 	}
 
 	return objects, nil
