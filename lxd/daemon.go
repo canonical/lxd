@@ -431,6 +431,14 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	/* Check if Netlink RTM_GET{ADDR,LINK} requests are fully netnsid aware. */
+	d.os.NetnsGetifaddrs = CanUseNetnsGetifaddrs()
+	if d.os.NetnsGetifaddrs {
+		logger.Debugf("Running kernel supports netnsid-based network retrieval")
+	} else {
+		logger.Debugf("Running kernel does not support netnsid-based network retrieval")
+	}
+
 	/* Initialize the database */
 	dump, err := initializeDbObject(d)
 	if err != nil {

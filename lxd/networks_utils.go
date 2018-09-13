@@ -1129,47 +1129,6 @@ func networkGetState(netIf net.Interface) api.NetworkState {
 	}
 
 	// Get counters
-	content, err := ioutil.ReadFile("/proc/net/dev")
-	if err == nil {
-		for _, line := range strings.Split(string(content), "\n") {
-			fields := strings.Fields(line)
-
-			if len(fields) != 17 {
-				continue
-			}
-
-			intName := strings.TrimSuffix(fields[0], ":")
-			if intName != netIf.Name {
-				continue
-			}
-
-			rxBytes, err := strconv.ParseInt(fields[1], 10, 64)
-			if err != nil {
-				continue
-			}
-
-			rxPackets, err := strconv.ParseInt(fields[2], 10, 64)
-			if err != nil {
-				continue
-			}
-
-			txBytes, err := strconv.ParseInt(fields[9], 10, 64)
-			if err != nil {
-				continue
-			}
-
-			txPackets, err := strconv.ParseInt(fields[10], 10, 64)
-			if err != nil {
-				continue
-			}
-
-			network.Counters.BytesSent = txBytes
-			network.Counters.BytesReceived = rxBytes
-			network.Counters.PacketsSent = txPackets
-			network.Counters.PacketsReceived = rxPackets
-			break
-		}
-	}
-
+	network.Counters = shared.NetworkGetCounters(netIf.Name)
 	return network
 }

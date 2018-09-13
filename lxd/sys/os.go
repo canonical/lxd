@@ -57,6 +57,7 @@ type OS struct {
 	CGroupPidsController    bool
 	CGroupSwapAccounting    bool
 	InotifyWatch            InotifyInfo
+	NetnsGetifaddrs         bool
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
