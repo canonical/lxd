@@ -344,17 +344,15 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 		return Forbidden(errors.New("The 'default' profile cannot be deleted"))
 	}
 
-	_, _, err := d.cluster.ProfileGet(project, name)
-	if err != nil {
-		return SmartError(err)
-	}
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		profile, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return err
+		}
+		if len(profile.UsedBy) > 0 {
+			return fmt.Errorf("Profile is currently in use")
+		}
 
-	clist := getContainersWithProfile(d.State(), project, name)
-	if len(clist) != 0 {
-		return BadRequest(fmt.Errorf("Profile is currently in use"))
-	}
-
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		return tx.ProfileDelete(project, name)
 	})
 	if err != nil {
