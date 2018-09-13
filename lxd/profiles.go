@@ -90,11 +90,6 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	_, profile, _ := d.cluster.ProfileGet(project, req.Name)
-	if profile != nil {
-		return BadRequest(fmt.Errorf("The profile already exists"))
-	}
-
 	if strings.Contains(req.Name, "/") {
 		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
@@ -115,6 +110,20 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 
 	// Update DB entry
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		current, _ := tx.ProfileGet(project, req.Name)
+		if current != nil {
+			return fmt.Errorf("The profile already exists")
+		}
+
 		profile := db.Profile{
 			Project:     project,
 			Name:        req.Name,
@@ -122,7 +131,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 			Config:      req.Config,
 			Devices:     req.Devices,
 		}
-		_, err := tx.ProfileCreate(profile)
+		_, err = tx.ProfileCreate(profile)
 		return err
 	})
 	if err != nil {
@@ -187,9 +196,31 @@ func profilePut(d *Daemon, r *http.Request) Response {
 
 	}
 
-	id, profile, err := d.cluster.ProfileGet(project, name)
+	var id int64
+	var profile *api.Profile
+
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		current, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to retrieve profile='%s'", name)
+		}
+
+		profile = db.ProfileToAPI(current)
+		id = int64(current.ID)
+
+		return nil
+	})
 	if err != nil {
-		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
+		return SmartError(err)
 	}
 
 	// Validate the ETag
@@ -229,9 +260,32 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 
 	// Get the profile
 	name := mux.Vars(r)["name"]
-	id, profile, err := d.cluster.ProfileGet(project, name)
+
+	var id int64
+	var profile *api.Profile
+
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		current, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to retrieve profile='%s'", name)
+		}
+
+		profile = db.ProfileToAPI(current)
+		id = int64(current.ID)
+
+		return nil
+	})
 	if err != nil {
-		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
+		return SmartError(err)
 	}
 
 	// Validate the ETag
@@ -320,8 +374,17 @@ func profilePost(d *Daemon, r *http.Request) Response {
 	}
 
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
 		// Check that the name isn't already in use
-		_, err := tx.ProfileGet(project, req.Name)
+		_, err = tx.ProfileGet(project, req.Name)
 		if err == nil {
 			return fmt.Errorf("Name '%s' already in use", req.Name)
 		}
@@ -345,6 +408,15 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
 		profile, err := tx.ProfileGet(project, name)
 		if err != nil {
 			return err
