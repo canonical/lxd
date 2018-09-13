@@ -303,7 +303,7 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 
 	commit()
 
-	result, err = s.db.ProfileConfig("theprofile")
+	result, err = s.db.ProfileConfig("default", "theprofile")
 	s.Nil(err)
 
 	expected = map[string]string{"thekey": "thevalue", "something": "something else"}

@@ -125,15 +125,16 @@ func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) 
 }
 
 // ProfileConfig gets the profile configuration map from the DB.
-func (c *Cluster) ProfileConfig(name string) (map[string]string, error) {
+func (c *Cluster) ProfileConfig(project, name string) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT
             key, value
         FROM profiles_config
         JOIN profiles ON profiles_config.profile_id=profiles.id
-		WHERE name=?`
-	inargs := []interface{}{name}
+        JOIN projects ON projects.id = profiles.project_id
+        WHERE projects.name=? AND name=?`
+	inargs := []interface{}{project, name}
 	outfmt := []interface{}{key, value}
 	results, err := queryScan(c.db, query, inargs, outfmt)
 	if err != nil {

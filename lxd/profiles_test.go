@@ -49,7 +49,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_config entries left.
-	config, err := cluster.ProfileConfig("theprofile")
+	config, err := cluster.ProfileConfig("default", "theprofile")
 	if err == nil {
 		t.Fatal("found the profile!")
 	}

@@ -200,7 +200,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 			continue
 		}
 		// Use the config currently in the database.
-		profileConfig, err := d.cluster.ProfileConfig(profileName)
+		profileConfig, err := d.cluster.ProfileConfig(args.Project, profileName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to load profile config for '%s'", profileName)
 		}

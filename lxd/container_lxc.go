@@ -1761,7 +1761,7 @@ func (c *containerLXC) expandConfig(profiles []api.Profile) error {
 		}
 	} else {
 		for i, name := range c.profiles {
-			profileConfig, err := c.state.Cluster.ProfileConfig(name)
+			profileConfig, err := c.state.Cluster.ProfileConfig(c.project, name)
 			if err != nil {
 				return err
 			}
