@@ -14,9 +14,21 @@ import (
 var _ = api.ServerEnvironment{}
 
 var profileNames = cluster.RegisterStmt(`
-SELECT profiles.name
+SELECT projects.name AS project, profiles.name
   FROM profiles JOIN projects ON project_id = projects.id
   ORDER BY projects.id, profiles.name
+`)
+
+var profileNamesByProject = cluster.RegisterStmt(`
+SELECT projects.name AS project, profiles.name
+  FROM profiles JOIN projects ON project_id = projects.id
+  WHERE project = ? ORDER BY projects.id, profiles.name
+`)
+
+var profileNamesByProjectAndName = cluster.RegisterStmt(`
+SELECT projects.name AS project, profiles.name
+  FROM profiles JOIN projects ON project_id = projects.id
+  WHERE project = ? AND profiles.name = ? ORDER BY projects.id, profiles.name
 `)
 
 var profileObjects = cluster.RegisterStmt(`
@@ -98,12 +110,49 @@ INSERT INTO profiles_devices_config (profile_device_id, key, value)
 `)
 
 var profileRename = cluster.RegisterStmt(`
-UPDATE profiles SET name = ? WHERE (SELECT id FROM projects WHERE name = ?) AND name = ?
+UPDATE profiles SET name = ? WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
 `)
 
 var profileDelete = cluster.RegisterStmt(`
-DELETE FROM profiles WHERE (SELECT id FROM projects WHERE name = ?) AND name = ?
+DELETE FROM profiles WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
 `)
+
+// ProfileURIs returns all available profile URIs.
+func (c *ClusterTx) ProfileURIs(filter ProfileFilter) ([]string, error) {
+	// Check which filter criteria are active.
+	criteria := map[string]interface{}{}
+	if filter.Project != "" {
+		criteria["Project"] = filter.Project
+	}
+	if filter.Name != "" {
+		criteria["Name"] = filter.Name
+	}
+
+	// Pick the prepared statement and arguments to use based on active criteria.
+	var stmt *sql.Stmt
+	var args []interface{}
+
+	if criteria["Project"] != nil && criteria["Name"] != nil {
+		stmt = c.stmt(profileNamesByProjectAndName)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+		}
+	} else if criteria["Project"] != nil {
+		stmt = c.stmt(profileNamesByProject)
+		args = []interface{}{
+			filter.Project,
+		}
+	} else {
+		stmt = c.stmt(profileNames)
+		args = []interface{}{}
+	}
+
+	code := cluster.EntityTypes["profile"]
+	formatter := cluster.EntityFormatURIs[code]
+
+	return query.SelectURIs(stmt, formatter, args...)
+}
 
 // ProfileList returns all available profiles.
 func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
@@ -163,7 +212,11 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	for i := range objects {
-		objects[i].Config = configObjects[objects[i].Name]
+		value := configObjects[objects[i].Name]
+		if value == nil {
+			value = map[string]string{}
+		}
+		objects[i].Config = value
 	}
 
 	// Fill field Devices.
@@ -173,7 +226,11 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	for i := range objects {
-		objects[i].Devices = devicesObjects[objects[i].Name]
+		value := devicesObjects[objects[i].Name]
+		if value == nil {
+			value = map[string]map[string]string{}
+		}
+		objects[i].Devices = value
 	}
 
 	// Fill field UsedBy.
@@ -183,7 +240,11 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	for i := range objects {
-		objects[i].UsedBy = usedByObjects[objects[i].Name]
+		value := usedByObjects[objects[i].Name]
+		if value == nil {
+			value = []string{}
+		}
+		objects[i].UsedBy = value
 	}
 
 	return objects, nil
