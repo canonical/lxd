@@ -34,7 +34,9 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Delete the profile we just created with dbapi.ProfileDelete
-	err = cluster.ProfileDelete("theprofile")
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.ProfileDelete("default", "theprofile")
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

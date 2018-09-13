@@ -376,7 +376,9 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Profile is currently in use"))
 	}
 
-	err = d.cluster.ProfileDelete(name)
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.ProfileDelete(project, name)
+	})
 	if err != nil {
 		return SmartError(err)
 	}

@@ -170,21 +170,6 @@ func (c *Cluster) ProfileConfig(project, name string) (map[string]string, error)
 	return config, nil
 }
 
-// ProfileDelete deletes the profile with the given name.
-func (c *Cluster) ProfileDelete(name string) error {
-	id, _, err := c.ProfileGet("default", name)
-	if err != nil {
-		return err
-	}
-
-	err = exec(c.db, "DELETE FROM profiles WHERE id=?", id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // ProfileUpdate renames the profile with the given name to the given new name.
 func (c *Cluster) ProfileUpdate(name string, newName string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
