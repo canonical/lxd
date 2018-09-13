@@ -295,6 +295,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		id:           args.ID,
 		project:      args.Project,
 		name:         args.Name,
+		node:         args.Node,
 		description:  args.Description,
 		ephemeral:    args.Ephemeral,
 		architecture: args.Architecture,

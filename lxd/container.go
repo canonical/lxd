@@ -690,7 +690,7 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 		}
 
 		// Get the default profile
-		_, profile, err := s.Cluster.ProfileGet("default")
+		_, profile, err := s.Cluster.ProfileGet("default", "default")
 		if err != nil {
 			return err
 		}
@@ -1157,9 +1157,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Wipe any existing log for this container name
 	os.RemoveAll(shared.LogPath(args.Name))
 
-	args.ID = container.ID
-	args.CreationDate = container.CreationDate
-	args.LastUsedDate = container.LastUseDate
+	args = db.ContainerToArgs(&container)
 
 	// Setup the container struct and finish creation (storage and idmap)
 	c, err := containerLXCCreate(s, args)
@@ -1326,7 +1324,7 @@ func containerLoadAllInternal(cts []db.Container, s *state.State) ([]container, 
 
 	// Get the profile data
 	for name := range profiles {
-		_, profile, err := s.Cluster.ProfileGet(name)
+		_, profile, err := s.Cluster.ProfileGet("default", name)
 		if err != nil {
 			return nil, err
 		}

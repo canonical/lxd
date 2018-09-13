@@ -243,7 +243,7 @@ func backupGetInfo(r io.ReadSeeker) (*backupInfo, error) {
 // the default profile will be used.
 func backupFixStoragePool(c *db.Cluster, b backupInfo) error {
 	// Get the default profile
-	_, profile, err := c.ProfileGet("default")
+	_, profile, err := c.ProfileGet("default", "default")
 	if err != nil {
 		return err
 	}
