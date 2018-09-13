@@ -170,15 +170,6 @@ func (c *Cluster) ProfileConfig(project, name string) (map[string]string, error)
 	return config, nil
 }
 
-// ProfileUpdate renames the profile with the given name to the given new name.
-func (c *Cluster) ProfileUpdate(name string, newName string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		_, err := tx.tx.Exec("UPDATE profiles SET name=? WHERE name=?", newName, name)
-		return err
-	})
-	return err
-}
-
 // ProfileDescriptionUpdate updates the description of the profile with the given ID.
 func ProfileDescriptionUpdate(tx *sql.Tx, id int64, description string) error {
 	_, err := tx.Exec("UPDATE profiles SET description=? WHERE id=?", description, id)
