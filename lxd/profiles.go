@@ -335,12 +335,6 @@ func profilePost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	// Check that the name isn't already in use
-	id, _, _ := d.cluster.ProfileGet(project, req.Name)
-	if id > 0 {
-		return Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
-	}
-
 	if strings.Contains(req.Name, "/") {
 		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
@@ -349,7 +343,15 @@ func profilePost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
-	err := d.cluster.ProfileUpdate(name, req.Name)
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Check that the name isn't already in use
+		_, err := tx.ProfileGet(project, req.Name)
+		if err == nil {
+			return fmt.Errorf("Name '%s' already in use", req.Name)
+		}
+
+		return tx.ProfileRename(project, name, req.Name)
+	})
 	if err != nil {
 		return SmartError(err)
 	}
