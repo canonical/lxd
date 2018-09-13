@@ -242,7 +242,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
 		for _, pName := range req.Profiles {
-			_, p, err := d.cluster.ProfileGet(pName)
+			_, p, err := d.cluster.ProfileGet(project, pName)
 			if err != nil {
 				return SmartError(err)
 			}

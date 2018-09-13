@@ -94,7 +94,7 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	_, profile, _ := d.cluster.ProfileGet(req.Name)
+	_, profile, _ := d.cluster.ProfileGet(project, req.Name)
 	if profile != nil {
 		return BadRequest(fmt.Errorf("The profile already exists"))
 	}
@@ -135,26 +135,6 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
-}
-
-func doProfileGet(s *state.State, name string) (*api.Profile, error) {
-	_, profile, err := s.Cluster.ProfileGet(name)
-	if err != nil {
-		return nil, err
-	}
-
-	cts, err := s.Cluster.ProfileContainersGet(name)
-	if err != nil {
-		return nil, err
-	}
-
-	usedBy := []string{}
-	for _, ct := range cts {
-		usedBy = append(usedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
-	}
-	profile.UsedBy = usedBy
-
-	return profile, nil
 }
 
 func profileGet(d *Daemon, r *http.Request) Response {
@@ -231,7 +211,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 
 	}
 
-	id, profile, err := d.cluster.ProfileGet(name)
+	id, profile, err := d.cluster.ProfileGet(project, name)
 	if err != nil {
 		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
 	}
@@ -273,7 +253,7 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 
 	// Get the profile
 	name := mux.Vars(r)["name"]
-	id, profile, err := d.cluster.ProfileGet(name)
+	id, profile, err := d.cluster.ProfileGet(project, name)
 	if err != nil {
 		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
 	}
@@ -338,6 +318,7 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 
 // The handler for the post operation.
 func profilePost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	if name == "default" {
@@ -355,7 +336,7 @@ func profilePost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _, _ := d.cluster.ProfileGet(req.Name)
+	id, _, _ := d.cluster.ProfileGet(project, req.Name)
 	if id > 0 {
 		return Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
 	}
@@ -385,7 +366,7 @@ func profileDelete(d *Daemon, r *http.Request) Response {
 		return Forbidden(errors.New("The 'default' profile cannot be deleted"))
 	}
 
-	_, err := doProfileGet(d.State(), name)
+	_, _, err := d.cluster.ProfileGet(project, name)
 	if err != nil {
 		return SmartError(err)
 	}

@@ -102,41 +102,26 @@ WHERE projects.name = ?
 }
 
 // ProfileGet returns the profile with the given name.
-func (c *Cluster) ProfileGet(name string) (int64, *api.Profile, error) {
-	id := int64(-1)
-	description := sql.NullString{}
+func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) {
+	var result *api.Profile
+	var id int64
 
-	q := "SELECT id, description FROM profiles WHERE name=?"
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id, &description}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return -1, nil, ErrNoSuchObject
+	err := c.Transaction(func(tx *ClusterTx) error {
+		profile, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return err
 		}
 
-		return -1, nil, err
-	}
+		result = ProfileToAPI(profile)
+		id = int64(profile.ID)
 
-	config, err := c.ProfileConfig(name)
+		return nil
+	})
 	if err != nil {
 		return -1, nil, err
 	}
 
-	devices, err := c.Devices(name, true)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	profile := api.Profile{
-		Name: name,
-	}
-
-	profile.Config = config
-	profile.Description = description.String
-	profile.Devices = devices
-
-	return id, &profile, nil
+	return id, result, nil
 }
 
 // ProfileConfig gets the profile configuration map from the DB.
@@ -186,7 +171,7 @@ func (c *Cluster) ProfileConfig(name string) (map[string]string, error) {
 
 // ProfileDelete deletes the profile with the given name.
 func (c *Cluster) ProfileDelete(name string) error {
-	id, _, err := c.ProfileGet(name)
+	id, _, err := c.ProfileGet("default", name)
 	if err != nil {
 		return err
 	}

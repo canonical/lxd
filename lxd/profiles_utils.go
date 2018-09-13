@@ -44,7 +44,7 @@ func doProfileUpdate(d *Daemon, project, name string, id int64, profile *api.Pro
 			// Check what profile the device comes from
 			profiles := container.Profiles
 			for i := len(profiles) - 1; i >= 0; i-- {
-				_, profile, err := d.cluster.ProfileGet(profiles[i])
+				_, profile, err := d.cluster.ProfileGet("default", profiles[i])
 				if err != nil {
 					return err
 				}

@@ -141,7 +141,7 @@ func profilesUsingPoolGetNames(db *db.Cluster, poolName string) ([]string, error
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := db.ProfileGet(pName)
+		_, profile, err := db.ProfileGet("default", pName)
 		if err != nil {
 			return usedBy, err
 		}
