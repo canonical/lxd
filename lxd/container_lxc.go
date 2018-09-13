@@ -6056,35 +6056,46 @@ func (c *containerLXC) memoryState() api.ContainerStateMemory {
 
 func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 	result := map[string]api.ContainerStateNetwork{}
+	var networks *map[string]api.ContainerStateNetwork
 
 	pid := c.InitPID()
 	if pid < 1 {
 		return result
 	}
 
-	// Get the network state from the container
-	out, err := shared.RunCommand(
-		c.state.OS.ExecPath,
-		"forknet",
-		"info",
-		fmt.Sprintf("%d", pid))
+	if c.state.OS.NetnsGetifaddrs {
+		nw, err := shared.NetnsGetifaddrs(int32(pid))
+		if err != nil {
+			logger.Error("Failed to retrieve network information via netlink", log.Ctx{"container": c.name, "pid": pid})
+			return result
+		}
+		networks = &nw
+	} else {
 
-	// Process forkgetnet response
-	if err != nil {
-		logger.Error("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "output": out, "pid": pid})
-		return result
-	}
+		// Get the network state from the container
+		out, err := shared.RunCommand(
+			c.state.OS.ExecPath,
+			"forknet",
+			"info",
+			fmt.Sprintf("%d", pid))
 
-	networks := map[string]api.ContainerStateNetwork{}
+		// Process forkgetnet response
+		if err != nil {
+			logger.Error("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "output": out, "pid": pid})
+			return result
+		}
 
-	err = json.Unmarshal([]byte(out), &networks)
-	if err != nil {
-		logger.Error("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
-		return result
+		nw := map[string]api.ContainerStateNetwork{}
+		err = json.Unmarshal([]byte(out), &nw)
+		if err != nil {
+			logger.Error("Failure to read forkgetnet json", log.Ctx{"container": c.name, "err": err})
+			return result
+		}
+		networks = &nw
 	}
 
 	// Add HostName field
-	for netName, net := range networks {
+	for netName, net := range *networks {
 		net.HostName = c.getHostInterface(netName)
 		result[netName] = net
 	}
