@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/shared/api"
+	"github.com/pkg/errors"
 )
 
 // Code generation directives.
@@ -133,12 +134,12 @@ func (c *Cluster) ProfileConfig(project, name string) (map[string]string, error)
         FROM profiles_config
         JOIN profiles ON profiles_config.profile_id=profiles.id
         JOIN projects ON projects.id = profiles.project_id
-        WHERE projects.name=? AND name=?`
+        WHERE projects.name=? AND profiles.name=?`
 	inargs := []interface{}{project, name}
 	outfmt := []interface{}{key, value}
 	results, err := queryScan(c.db, query, inargs, outfmt)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get profile '%s'", name)
+		return nil, errors.Wrapf(err, "Failed to get profile '%s'", name)
 	}
 
 	if len(results) == 0 {
@@ -219,14 +220,15 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 
 // ProfileContainersGet gets the names of the containers associated with the
 // profile with the given name.
-func (c *Cluster) ProfileContainersGet(profile string) ([]string, error) {
+func (c *Cluster) ProfileContainersGet(project, profile string) ([]string, error) {
 	q := `SELECT containers.name FROM containers JOIN containers_profiles
 		ON containers.id == containers_profiles.container_id
 		JOIN profiles ON containers_profiles.profile_id == profiles.id
-		WHERE profiles.name == ? AND containers.type == 0`
+		JOIN projects ON projects.id == profiles.project_id
+		WHERE projects.name == ? AND profiles.name == ? AND containers.type == 0`
 
 	results := []string{}
-	inargs := []interface{}{profile}
+	inargs := []interface{}{project, profile}
 	var name string
 	outfmt := []interface{}{name}
 

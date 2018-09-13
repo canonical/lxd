@@ -14,14 +14,10 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 var profilesCmd = Command{
@@ -168,26 +164,6 @@ func profileGet(d *Daemon, r *http.Request) Response {
 
 	etag := []interface{}{resp.Config, resp.Description, resp.Devices}
 	return SyncResponseETag(true, resp, etag)
-}
-
-func getContainersWithProfile(s *state.State, project, profile string) []container {
-	results := []container{}
-
-	output, err := s.Cluster.ProfileContainersGet(profile)
-	if err != nil {
-		return results
-	}
-
-	for _, name := range output {
-		c, err := containerLoadByProjectAndName(s, project, name)
-		if err != nil {
-			logger.Error("Failed opening container", log.Ctx{"container": name})
-			continue
-		}
-		results = append(results, c)
-	}
-
-	return results
 }
 
 func profilePut(d *Daemon, r *http.Request) Response {
