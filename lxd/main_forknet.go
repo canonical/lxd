@@ -3,11 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared"
 )
 
 /*
@@ -93,15 +92,9 @@ func (c *cmdForknet) Command() *cobra.Command {
 }
 
 func (c *cmdForknet) RunInfo(cmd *cobra.Command, args []string) error {
-	networks := map[string]api.NetworkState{}
-
-	interfaces, err := net.Interfaces()
+	networks, err := shared.NetnsGetifaddrs(-1)
 	if err != nil {
 		return err
-	}
-
-	for _, iface := range interfaces {
-		networks[iface.Name] = networkGetState(iface)
 	}
 
 	buf, err := json.Marshal(networks)
