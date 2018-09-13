@@ -34,6 +34,7 @@ package main
 #include <unistd.h>
 
 // External functions
+extern void checkfeature();
 extern void forkfile();
 extern void forkmount();
 extern void forknet();
@@ -231,19 +232,22 @@ __attribute__((constructor)) void init(void) {
 	while (*cmdline_cur != 0)
 		cmdline_cur++;
 	cmdline_cur++;
-	if (cmdline_size <= cmdline_cur - cmdline_buf)
+	if (cmdline_size <= cmdline_cur - cmdline_buf) {
+		checkfeature();
 		return;
+	}
 
 	// Intercepts some subcommands
-	if (strcmp(cmdline_cur, "forkfile") == 0) {
+	if (strcmp(cmdline_cur, "forkfile") == 0)
 		forkfile();
-	} else if (strcmp(cmdline_cur, "forkmount") == 0) {
+	else if (strcmp(cmdline_cur, "forkmount") == 0)
 		forkmount();
-	} else if (strcmp(cmdline_cur, "forknet") == 0) {
+	else if (strcmp(cmdline_cur, "forknet") == 0)
 		forknet();
-	} else if (strcmp(cmdline_cur, "forkproxy") == 0) {
+	else if (strcmp(cmdline_cur, "forkproxy") == 0)
 		forkproxy();
-	}
+	else if (strncmp(cmdline_cur, "-", 1) == 0 || strcmp(cmdline_cur, "daemon") == 0)
+		checkfeature();
 }
 */
 import "C"
