@@ -755,15 +755,15 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 	s := d.State()
 
 	// Get the image properties
-	_, img, err := s.Cluster.ImageGet(hash, false, false)
+	_, img, err := s.Cluster.ImageGet(args.Project, hash, false, false)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
 	}
 
 	// Check if the image is available locally or it's on another node.
 	nodeAddress, err := s.Cluster.ImageLocate(hash)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Locate image %s in the cluster", hash)
 	}
 	if nodeAddress != "" {
 		// The image is available from another node, let's try to
@@ -796,7 +796,7 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 	// Create the container
 	c, err := containerCreateInternal(s, args)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Create container")
 	}
 
 	err = s.Cluster.ImageLastAccessUpdate(hash, time.Now().UTC())
@@ -809,14 +809,14 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 	err = c.Storage().ContainerCreateFromImage(c, hash)
 	if err != nil {
 		c.Delete()
-		return nil, err
+		return nil, errors.Wrap(err, "Create container from image")
 	}
 
 	// Apply any post-storage configuration
 	err = containerConfigureInternal(c)
 	if err != nil {
 		c.Delete()
-		return nil, err
+		return nil, errors.Wrap(err, "Configure container")
 	}
 
 	return c, nil

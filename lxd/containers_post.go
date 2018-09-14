@@ -50,7 +50,7 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
-		hashes, err := d.cluster.ImagesGet(false)
+		hashes, err := d.cluster.ImagesGet(project, false)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -58,7 +58,7 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 		var image *api.Image
 
 		for _, imageHash := range hashes {
-			_, img, err := d.cluster.ImageGet(imageHash, false, true)
+			_, img, err := d.cluster.ImageGet(project, imageHash, false, true)
 			if err != nil {
 				continue
 			}
@@ -116,7 +116,7 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 				return err
 			}
 		} else {
-			_, info, err = d.cluster.ImageGet(hash, false, false)
+			_, info, err = d.cluster.ImageGet(project, hash, false, false)
 			if err != nil {
 				return err
 			}
@@ -316,7 +316,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
-	_, _, err = d.cluster.ImageGet(req.Source.BaseImage, false, true)
+	_, _, err = d.cluster.ImageGet(args.Project, req.Source.BaseImage, false, true)
 	if err != nil {
 		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
