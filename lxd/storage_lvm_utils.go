@@ -718,7 +718,7 @@ func storageLVMGetThinPoolUsers(s *state.State) ([]string, error) {
 		}
 	}
 
-	imageNames, err := s.Cluster.ImagesGet(false)
+	imageNames, err := s.Cluster.ImagesGet("default", false)
 	if err != nil {
 		return results, err
 	}

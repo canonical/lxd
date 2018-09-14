@@ -563,7 +563,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	for _, volume := range volumeNames {
-		_, imgInfo, err := d.cluster.ImageGet(volume, false, false)
+		_, imgInfo, err := d.cluster.ImageGet("default", volume, false, false)
 		if err != nil {
 			return InternalError(err)
 		}

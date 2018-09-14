@@ -5,6 +5,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -427,25 +428,6 @@ func (c *ClusterTx) ProjectRename(name string, to string) error {
 	if n != 1 {
 		return fmt.Errorf("Query affected %d rows instead of 1", n)
 	}
-	return nil
-}
-
-// ProjectUpdate updates the project matching the given key parameters.
-func (c *ClusterTx) ProjectUpdate(name string, object api.ProjectPut) error {
-	stmt := c.stmt(projectUpdate)
-	result, err := stmt.Exec(object.Description, name)
-	if err != nil {
-		return errors.Wrap(err, "Update project")
-	}
-
-	n, err := result.RowsAffected()
-	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
-	}
-	if n != 1 {
-		return fmt.Errorf("Query updated %d rows instead of 1", n)
-	}
-
 	return nil
 }
 

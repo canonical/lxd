@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/pkg/errors"
 )
 
 // ImageSourceProtocol maps image source protocol codes to human-readable
@@ -19,14 +20,33 @@ var ImageSourceProtocol = map[int]string{
 }
 
 // ImagesGet returns the names of all images (optionally only the public ones).
-func (c *Cluster) ImagesGet(public bool) ([]string, error) {
-	q := "SELECT fingerprint FROM images"
+func (c *Cluster) ImagesGet(project string, public bool) ([]string, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	q := `
+SELECT fingerprint
+  FROM images
+  JOIN projects ON projects.id = images.project_id
+ WHERE projects.name = ?
+`
 	if public == true {
-		q = "SELECT fingerprint FROM images WHERE public=1"
+		q += " AND public=1"
 	}
 
 	var fp string
-	inargs := []interface{}{}
+	inargs := []interface{}{project}
 	outfmt := []interface{}{fp}
 	dbResults, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
@@ -190,8 +210,21 @@ func (c *Cluster) ImageExists(fingerprint string) (bool, error) {
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) ImageGet(fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
-	var err error
+func (c *Cluster) ImageGet(project, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return -1, nil, err
+	}
+
 	var create, expire, used, upload *time.Time // These hold the db-returned times
 
 	// The object we'll actually return
@@ -204,18 +237,20 @@ func (c *Cluster) ImageGet(fingerprint string, public bool, strictMatching bool)
 		&image.Size, &image.Cached, &image.Public, &image.AutoUpdate, &arch,
 		&create, &expire, &used, &upload}
 
-	var inargs []interface{}
+	inargs := []interface{}{project}
 	query := `
         SELECT
-            id, fingerprint, filename, size, cached, public, auto_update, architecture,
+            images.id, fingerprint, filename, size, cached, public, auto_update, architecture,
             creation_date, expiry_date, last_use_date, upload_date
-        FROM images`
+        FROM images
+        JOIN projects ON projects.id = images.project_id
+       WHERE projects.name = ?`
 	if strictMatching {
-		inargs = []interface{}{fingerprint}
-		query += " WHERE fingerprint = ?"
+		inargs = append(inargs, fingerprint)
+		query += " AND fingerprint = ?"
 	} else {
-		inargs = []interface{}{fingerprint + "%"}
-		query += " WHERE fingerprint LIKE ?"
+		inargs = append(inargs, fingerprint+"%")
+		query += " AND fingerprint LIKE ?"
 	}
 
 	if public {
@@ -233,7 +268,13 @@ func (c *Cluster) ImageGet(fingerprint string, public bool, strictMatching bool)
 
 	// Validate we only have a single match
 	if !strictMatching {
-		query = "SELECT COUNT(id) FROM images WHERE fingerprint LIKE ?"
+		query = `
+SELECT COUNT(images.id)
+  FROM images
+  JOIN projects ON projects.id = images.project_id
+ WHERE projects.name = ?
+   AND fingerprint LIKE ?
+`
 		count := 0
 		outfmt := []interface{}{&count}
 
@@ -377,7 +418,7 @@ WHERE images.fingerprint = ?
 // ImageAssociateNode creates a new entry in the images_nodes table for
 // tracking that the current node has the given image.
 func (c *Cluster) ImageAssociateNode(fingerprint string) error {
-	imageID, _, err := c.ImageGet(fingerprint, false, true)
+	imageID, _, err := c.ImageGet("default", fingerprint, false, true)
 	if err != nil {
 		return err
 	}

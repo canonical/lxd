@@ -22,7 +22,7 @@ func (suite *daemonImagesTestSuite) TestUseCachedImagesIfAvailable() {
 	// Create an image with alias "test" and fingerprint "abcd".
 	err := suite.d.cluster.ImageInsert("abcd", "foo.xz", 1, false, true, "amd64", time.Now(), time.Now(), map[string]string{})
 	suite.Req.Nil(err)
-	id, _, err := suite.d.cluster.ImageGet("abcd", false, true)
+	id, _, err := suite.d.cluster.ImageGet("default", "abcd", false, true)
 	suite.Req.Nil(err)
 	err = suite.d.cluster.ImageSourceInsert(id, "img.srv", "simplestreams", "", "test")
 	suite.Req.Nil(err)

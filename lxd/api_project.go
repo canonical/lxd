@@ -174,7 +174,7 @@ func apiProjectPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
-	if len(project.UsedBy) != 0 && featuresChanged {
+	if !apiProjectIsEmpty(project) && featuresChanged {
 		return BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
 	}
 
@@ -256,7 +256,7 @@ func apiProjectPatch(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
-	if len(project.UsedBy) != 0 && featuresChanged {
+	if !apiProjectIsEmpty(project) && featuresChanged {
 		return BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
 	}
 
@@ -335,12 +335,8 @@ func apiProjectDelete(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return errors.Wrapf(err, "Fetch project %q", name)
 		}
-		if len(project.UsedBy) > 0 {
-			// Check if the only entity left is the default profile
-			// its default profile.
-			if len(project.UsedBy) != 1 || !strings.Contains(project.UsedBy[0], "/profiles/default") {
-				return fmt.Errorf("Only empty projects can be removed")
-			}
+		if !apiProjectIsEmpty(project) {
+			return fmt.Errorf("Only empty projects can be removed")
 		}
 
 		return tx.ProjectDelete(name)
@@ -351,4 +347,16 @@ func apiProjectDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	return EmptySyncResponse
+}
+
+// Check if a project is empty.
+func apiProjectIsEmpty(project *api.Project) bool {
+	if len(project.UsedBy) > 0 {
+		// Check if the only entity is the default profile.
+		if len(project.UsedBy) == 1 && strings.Contains(project.UsedBy[0], "/profiles/default") {
+			return true
+		}
+		return false
+	}
+	return true
 }
