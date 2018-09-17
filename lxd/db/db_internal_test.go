@@ -237,7 +237,7 @@ func (s *dbTestSuite) Test_ImageAliasGet_alias_does_not_exists() {
 func (s *dbTestSuite) Test_ImageAliasAdd() {
 	var err error
 
-	err = s.db.ImageAliasAdd("Chaosphere", 1, "Someone will like the name")
+	err = s.db.ImageAliasAdd("default", "Chaosphere", 1, "Someone will like the name")
 	s.Nil(err)
 
 	_, alias, err := s.db.ImageAliasGet("default", "Chaosphere", true)

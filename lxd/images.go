@@ -729,7 +729,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 				return errors.Wrapf(err, "Fetch image %q", info.Fingerprint)
 			}
 
-			err = d.cluster.ImageAliasAdd(alias.Name, id, alias.Description)
+			err = d.cluster.ImageAliasAdd(project, alias.Name, id, alias.Description)
 			if err != nil {
 				return errors.Wrapf(err, "Add new image alias to the database")
 			}
@@ -1508,7 +1508,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = d.cluster.ImageAliasAdd(req.Name, id, req.Description)
+	err = d.cluster.ImageAliasAdd(project, req.Name, id, req.Description)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1567,7 +1567,7 @@ func aliasDelete(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	err = d.cluster.ImageAliasDelete(name)
+	err = d.cluster.ImageAliasDelete(project, name)
 	if err != nil {
 		return SmartError(err)
 	}

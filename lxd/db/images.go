@@ -489,7 +489,9 @@ func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int
 			 FROM images_aliases
 			 INNER JOIN images
 			 ON images_aliases.image_id=images.id
-			 WHERE images_aliases.name=?`
+                         INNER JOIN projects
+                         ON images_aliases.project_id=projects.id
+			 WHERE projects.name=? AND images_aliases.name=?`
 	if !isTrustedClient {
 		q = q + ` AND images.public=1`
 	}
@@ -498,7 +500,7 @@ func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int
 	id := -1
 	entry := api.ImageAliasesEntry{}
 
-	arg1 := []interface{}{name}
+	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&id, &fingerprint, &description}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
@@ -523,8 +525,12 @@ func (c *Cluster) ImageAliasRename(id int, name string) error {
 }
 
 // ImageAliasDelete deletes the alias with the given name.
-func (c *Cluster) ImageAliasDelete(name string) error {
-	err := exec(c.db, "DELETE FROM images_aliases WHERE name=?", name)
+func (c *Cluster) ImageAliasDelete(project, name string) error {
+	err := exec(c.db, `
+DELETE
+  FROM images_aliases
+ WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
+`, project, name)
 	return err
 }
 
@@ -535,9 +541,12 @@ func (c *Cluster) ImageAliasesMove(source int, destination int) error {
 }
 
 // ImageAliasAdd inserts an alias ento the database.
-func (c *Cluster) ImageAliasAdd(name string, imageID int, desc string) error {
-	stmt := `INSERT INTO images_aliases (name, image_id, description, project_id) values (?, ?, ?, 1)`
-	err := exec(c.db, stmt, name, imageID, desc)
+func (c *Cluster) ImageAliasAdd(project, name string, imageID int, desc string) error {
+	stmt := `
+INSERT INTO images_aliases (name, image_id, description, project_id)
+     VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
+`
+	err := exec(c.db, stmt, name, imageID, desc, project)
 	return err
 }
 
