@@ -206,7 +206,7 @@ func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 func (s *dbTestSuite) Test_ImageExists_true() {
 	var err error
 
-	exists, err := s.db.ImageExists("fingerprint")
+	exists, err := s.db.ImageExists("default", "fingerprint")
 	s.Nil(err)
 	s.True(exists)
 }
@@ -214,7 +214,7 @@ func (s *dbTestSuite) Test_ImageExists_true() {
 func (s *dbTestSuite) Test_ImageExists_false() {
 	var err error
 
-	exists, err := s.db.ImageExists("foobar")
+	exists, err := s.db.ImageExists("default", "foobar")
 	s.Nil(err)
 	s.False(exists)
 }
