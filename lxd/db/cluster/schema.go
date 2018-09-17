@@ -377,7 +377,7 @@ CREATE TABLE storage_pools_nodes (
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
-CREATE TABLE storage_volumes (
+CREATE TABLE "storage_volumes" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
     storage_pool_id INTEGER NOT NULL,
@@ -385,9 +385,11 @@ CREATE TABLE storage_volumes (
     type INTEGER NOT NULL,
     description TEXT,
     snapshot INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (storage_pool_id, node_id, name, type),
+    project_id INTEGER NOT NULL,
+    UNIQUE (storage_pool_id, node_id, project_id, name, type),
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
-    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
 CREATE TABLE storage_volumes_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
