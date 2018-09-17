@@ -191,11 +191,16 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 }
 
 // ImageExists returns whether an image with the given fingerprint exists.
-func (c *Cluster) ImageExists(fingerprint string) (bool, error) {
+func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) {
 	var exists bool
 	var err error
-	query := "SELECT COUNT(*) > 0 FROM images WHERE fingerprint=?"
-	inargs := []interface{}{fingerprint}
+	query := `
+SELECT COUNT(*) > 0
+  FROM images
+  JOIN projects ON projects.id = images.project_id
+ WHERE projects.name = ? AND fingerprint=?
+`
+	inargs := []interface{}{project, fingerprint}
 	outargs := []interface{}{&exists}
 	err = dbQueryRowScan(c.db, query, inargs, outargs)
 	if err == sql.ErrNoRows {

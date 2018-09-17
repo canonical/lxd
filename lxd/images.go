@@ -380,7 +380,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 	return info, nil
 }
 
-func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) (*api.Image, error) {
+func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string, post *os.File) (*api.Image, error) {
 	info := api.Image{}
 	var imageMeta *api.ImageMetadata
 	logger := logging.AddContext(logger.Log, log.Ctx{"function": "getImgPostInfo"})
@@ -568,7 +568,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) 
 	}
 
 	// Check if the image already exists
-	exists, err := d.cluster.ImageExists(info.Fingerprint)
+	exists, err := d.cluster.ImageExists(project, info.Fingerprint)
 	if err != nil {
 		return nil, err
 	}
@@ -694,7 +694,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 		if imageUpload {
 			/* Processing image upload */
-			info, err = getImgPostInfo(d, r, builddir, post)
+			info, err = getImgPostInfo(d, r, builddir, project, post)
 		} else {
 			if req.Source.Type == "image" {
 				/* Processing image copy from remote */
