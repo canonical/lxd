@@ -112,6 +112,10 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 			return nil, err
 		}
 
+		if remote.Project != "" && remote.Project != "default" {
+			d = d.UseProject(remote.Project)
+		}
+
 		return d, nil
 	}
 
@@ -139,6 +143,10 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 	d, err := lxd.ConnectLXD(remote.Addr, args)
 	if err != nil {
 		return nil, err
+	}
+
+	if remote.Project != "" && remote.Project != "default" {
+		d = d.UseProject(remote.Project)
 	}
 
 	return d, nil
