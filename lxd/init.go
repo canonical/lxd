@@ -18,8 +18,7 @@ type initDataNode struct {
 }
 
 type initDataCluster struct {
-	api.ClusterPut  `yaml:",inline"`
-	ClusterPassword string `json:"cluster_password" yaml:"cluster_password"`
+	api.ClusterPut `yaml:",inline"`
 }
 
 // Helper to initialize node-specific entities on a LXD instance using the
