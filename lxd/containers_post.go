@@ -38,7 +38,7 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 		if req.Source.Server != "" {
 			hash = req.Source.Alias
 		} else {
-			_, alias, err := d.cluster.ImageAliasGet(req.Source.Alias, true)
+			_, alias, err := d.cluster.ImageAliasGet(project, req.Source.Alias, true)
 			if err != nil {
 				return SmartError(err)
 			}
