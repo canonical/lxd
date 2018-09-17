@@ -222,7 +222,7 @@ func (s *dbTestSuite) Test_ImageExists_false() {
 func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
 	var err error
 
-	_, alias, err := s.db.ImageAliasGet("somealias", true)
+	_, alias, err := s.db.ImageAliasGet("default", "somealias", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
@@ -230,7 +230,7 @@ func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
 func (s *dbTestSuite) Test_ImageAliasGet_alias_does_not_exists() {
 	var err error
 
-	_, _, err = s.db.ImageAliasGet("whatever", true)
+	_, _, err = s.db.ImageAliasGet("default", "whatever", true)
 	s.Equal(err, ErrNoSuchObject)
 }
 
@@ -240,7 +240,7 @@ func (s *dbTestSuite) Test_ImageAliasAdd() {
 	err = s.db.ImageAliasAdd("Chaosphere", 1, "Someone will like the name")
 	s.Nil(err)
 
-	_, alias, err := s.db.ImageAliasGet("Chaosphere", true)
+	_, alias, err := s.db.ImageAliasGet("default", "Chaosphere", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }

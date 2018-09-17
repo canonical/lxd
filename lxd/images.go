@@ -715,7 +715,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 
 		// Apply any provided alias
 		for _, alias := range req.Aliases {
-			_, _, err := d.cluster.ImageAliasGet(alias.Name, true)
+			_, _, err := d.cluster.ImageAliasGet(project, alias.Name, true)
 			if err != db.ErrNoSuchObject {
 				if err != nil {
 					return errors.Wrapf(err, "Fetch image alias %q", alias.Name)
@@ -1494,7 +1494,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// This is just to see if the alias name already exists.
-	_, _, err := d.cluster.ImageAliasGet(req.Name, true)
+	_, _, err := d.cluster.ImageAliasGet(project, req.Name, true)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return InternalError(err)
@@ -1517,6 +1517,7 @@ func aliasesPost(d *Daemon, r *http.Request) Response {
 }
 
 func aliasesGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
 	names, err := d.cluster.ImageAliasesGet()
@@ -1531,7 +1532,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 			responseStr = append(responseStr, url)
 
 		} else {
-			_, alias, err := d.cluster.ImageAliasGet(name, d.checkTrustedClient(r) == nil)
+			_, alias, err := d.cluster.ImageAliasGet(project, name, d.checkTrustedClient(r) == nil)
 			if err != nil {
 				continue
 			}
@@ -1547,9 +1548,10 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 }
 
 func aliasGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	_, alias, err := d.cluster.ImageAliasGet(name, d.checkTrustedClient(r) == nil)
+	_, alias, err := d.cluster.ImageAliasGet(project, name, d.checkTrustedClient(r) == nil)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1558,8 +1560,9 @@ func aliasGet(d *Daemon, r *http.Request) Response {
 }
 
 func aliasDelete(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
-	_, _, err := d.cluster.ImageAliasGet(name, true)
+	_, _, err := d.cluster.ImageAliasGet(project, name, true)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1576,7 +1579,7 @@ func aliasPut(d *Daemon, r *http.Request) Response {
 	// Get current value
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
-	id, alias, err := d.cluster.ImageAliasGet(name, true)
+	id, alias, err := d.cluster.ImageAliasGet(project, name, true)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1613,7 +1616,7 @@ func aliasPatch(d *Daemon, r *http.Request) Response {
 	// Get current value
 	project := projectParam(r)
 	name := mux.Vars(r)["name"]
-	id, alias, err := d.cluster.ImageAliasGet(name, true)
+	id, alias, err := d.cluster.ImageAliasGet(project, name, true)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1663,6 +1666,7 @@ func aliasPatch(d *Daemon, r *http.Request) Response {
 }
 
 func aliasPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	req := api.ImageAliasesEntryPost{}
@@ -1671,12 +1675,12 @@ func aliasPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Check that the name isn't already in use
-	id, _, _ := d.cluster.ImageAliasGet(req.Name, true)
+	id, _, _ := d.cluster.ImageAliasGet(project, req.Name, true)
 	if id > 0 {
 		return Conflict(fmt.Errorf("Alias '%s' already in use", req.Name))
 	}
 
-	id, _, err := d.cluster.ImageAliasGet(name, true)
+	id, _, err := d.cluster.ImageAliasGet(project, name, true)
 	if err != nil {
 		return SmartError(err)
 	}

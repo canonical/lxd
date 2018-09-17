@@ -483,8 +483,8 @@ func (c *Cluster) ImageAliasesGet() ([]string, error) {
 	return names, nil
 }
 
-// ImageAliasGet returns the alias with the given name.
-func (c *Cluster) ImageAliasGet(name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+// ImageAliasGet returns the alias with the given name in the given project.
+func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
 	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
