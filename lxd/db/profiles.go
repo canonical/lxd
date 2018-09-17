@@ -80,6 +80,20 @@ type ProfileFilter struct {
 
 // Profiles returns a string list of profiles.
 func (c *Cluster) Profiles(project string) ([]string, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	q := fmt.Sprintf(`
 SELECT profiles.name
  FROM profiles
@@ -108,6 +122,14 @@ func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) 
 	var id int64
 
 	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+
 		profile, err := tx.ProfileGet(project, name)
 		if err != nil {
 			return err
@@ -127,6 +149,20 @@ func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) 
 
 // ProfileConfig gets the profile configuration map from the DB.
 func (c *Cluster) ProfileConfig(project, name string) (map[string]string, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	var key, value string
 	query := `
         SELECT
@@ -221,6 +257,20 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 // ProfileContainersGet gets the names of the containers associated with the
 // profile with the given name.
 func (c *Cluster) ProfileContainersGet(project, profile string) ([]string, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	q := `SELECT containers.name FROM containers JOIN containers_profiles
 		ON containers.id == containers_profiles.container_id
 		JOIN profiles ON containers_profiles.profile_id == profiles.id
