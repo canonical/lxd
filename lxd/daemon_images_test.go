@@ -20,7 +20,7 @@ type daemonImagesTestSuite struct {
 // newer image even if available, and just use the cached one.
 func (suite *daemonImagesTestSuite) TestUseCachedImagesIfAvailable() {
 	// Create an image with alias "test" and fingerprint "abcd".
-	err := suite.d.cluster.ImageInsert("abcd", "foo.xz", 1, false, true, "amd64", time.Now(), time.Now(), map[string]string{})
+	err := suite.d.cluster.ImageInsert("default", "abcd", "foo.xz", 1, false, true, "amd64", time.Now(), time.Now(), map[string]string{})
 	suite.Req.Nil(err)
 	id, _, err := suite.d.cluster.ImageGet("default", "abcd", false, true)
 	suite.Req.Nil(err)

@@ -595,7 +595,7 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 }
 
 // ImageInsert inserts a new image.
-func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
+func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -612,13 +612,13 @@ func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, au
 			autoUpdateInt = 1
 		}
 
-		stmt, err := tx.tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date, project_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`)
+		stmt, err := tx.tx.Prepare(`INSERT INTO images (project_id, fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		if err != nil {
 			return err
 		}
 		defer stmt.Close()
 
-		result, err := stmt.Exec(fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC())
+		result, err := stmt.Exec(project, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC())
 		if err != nil {
 			return err
 		}

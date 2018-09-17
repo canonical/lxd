@@ -519,7 +519,7 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 	}
 
 	// Create the database entry
-	err = d.cluster.ImageInsert(info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
+	err = d.cluster.ImageInsert("default", info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
 	if err != nil {
 		return nil, err
 	}

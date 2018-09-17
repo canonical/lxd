@@ -14,7 +14,7 @@ func TestImageLocate(t *testing.T) {
 	defer cleanup()
 
 	err := cluster.ImageInsert(
-		"abc", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{})
+		"default", "abc", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{})
 	require.NoError(t, err)
 
 	address, err := cluster.ImageLocate("abc")
