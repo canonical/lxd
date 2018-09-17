@@ -210,6 +210,27 @@ SELECT COUNT(*) > 0
 	return exists, err
 }
 
+// ImageIsReferencedByOtherProjects returns true if the image with the given
+// fingerprint is referenced by projects other than the given one.
+func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint string) (bool, error) {
+	var referenced bool
+	var err error
+	query := `
+SELECT COUNT(*) > 0
+  FROM images
+  JOIN projects ON projects.id = images.project_id
+ WHERE projects.name != ? AND fingerprint=?
+`
+	inargs := []interface{}{project, fingerprint}
+	outargs := []interface{}{&referenced}
+	err = dbQueryRowScan(c.db, query, inargs, outargs)
+	if err == sql.ErrNoRows {
+		return referenced, nil
+	}
+
+	return referenced, err
+}
+
 // ImageGet gets an Image object from the database.
 // If strictMatching is false, The fingerprint argument will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
