@@ -1204,6 +1204,22 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 			return err
 		}
 
+		// Check if the image being deleted is actually still
+		// referenced by other projects. In that case we don't want to
+		// physically delete it just yet, but just to remove the
+		// relevant database entry.
+		referenced, err := d.cluster.ImageIsReferencedByOtherProjects(project, imgInfo.Fingerprint)
+		if err != nil {
+			return err
+		}
+		if referenced {
+			err := d.cluster.ImageDelete(imgID)
+			if err != nil {
+				return errors.Wrap(err, "Error deleting image info from the database")
+			}
+			return nil
+		}
+
 		poolIDs, err := d.cluster.ImageGetPools(imgInfo.Fingerprint)
 		if err != nil {
 			return err
