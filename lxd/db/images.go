@@ -192,8 +192,21 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 
 // ImageExists returns whether an image with the given fingerprint exists.
 func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
 	var exists bool
-	var err error
 	query := `
 SELECT COUNT(*) > 0
   FROM images
@@ -213,8 +226,21 @@ SELECT COUNT(*) > 0
 // ImageIsReferencedByOtherProjects returns true if the image with the given
 // fingerprint is referenced by projects other than the given one.
 func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint string) (bool, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
 	var referenced bool
-	var err error
 	query := `
 SELECT COUNT(*) > 0
   FROM images
@@ -485,6 +511,23 @@ func (c *Cluster) ImageAliasesGet() ([]string, error) {
 
 // ImageAliasGet returns the alias with the given name in the given project.
 func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+	id := -1
+	entry := api.ImageAliasesEntry{}
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return id, entry, err
+	}
+
 	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
@@ -497,12 +540,10 @@ func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int
 	}
 
 	var fingerprint, description string
-	id := -1
-	entry := api.ImageAliasesEntry{}
 
 	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&id, &fingerprint, &description}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	err = dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, entry, ErrNoSuchObject
@@ -526,7 +567,21 @@ func (c *Cluster) ImageAliasRename(id int, name string) error {
 
 // ImageAliasDelete deletes the alias with the given name.
 func (c *Cluster) ImageAliasDelete(project, name string) error {
-	err := exec(c.db, `
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	err = exec(c.db, `
 DELETE
   FROM images_aliases
  WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
@@ -542,11 +597,25 @@ func (c *Cluster) ImageAliasesMove(source int, destination int) error {
 
 // ImageAliasAdd inserts an alias ento the database.
 func (c *Cluster) ImageAliasAdd(project, name string, imageID int, desc string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	stmt := `
 INSERT INTO images_aliases (name, image_id, description, project_id)
      VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 `
-	err := exec(c.db, stmt, name, imageID, desc, project)
+	err = exec(c.db, stmt, name, imageID, desc, project)
 	return err
 }
 
@@ -626,6 +695,20 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 
 // ImageInsert inserts a new image.
 func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
