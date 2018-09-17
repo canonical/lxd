@@ -86,6 +86,7 @@ ALTER TABLE containers ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE images ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE images_aliases ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE profiles ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE storage_volumes ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
 
 -- Create new versions of the above tables, this time with the FOREIGN key constraint
 CREATE TABLE new_containers (
@@ -140,6 +141,20 @@ CREATE TABLE new_profiles (
     description TEXT,
     project_id INTEGER NOT NULL,
     UNIQUE (project_id, name),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE new_storage_volumes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (storage_pool_id, node_id, project_id, name, type),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
 
@@ -263,6 +278,7 @@ INSERT INTO profiles_devices_config_copy SELECT * FROM profiles_devices_config;
 INSERT INTO new_containers SELECT * FROM containers;
 INSERT INTO new_images SELECT * FROM images;
 INSERT INTO new_profiles SELECT * FROM profiles;
+INSERT INTO new_storage_volumes SELECT * FROM storage_volumes;
 
 -- Drop the old table and rename the new ones. This will trigger cascading
 -- deletes on all tables that have direct or indirect references to the old
@@ -275,6 +291,9 @@ ALTER TABLE new_images RENAME TO images;
 
 DROP TABLE profiles;
 ALTER TABLE new_profiles RENAME TO profiles;
+
+DROP TABLE storage_volumes;
+ALTER TABLE new_storage_volumes RENAME TO storage_volumes;
 
 INSERT INTO new_images_aliases SELECT * FROM images_aliases_copy;
 

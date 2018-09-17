@@ -134,8 +134,8 @@ func (c *ClusterTx) StoragePoolNodeJoinCeph(poolID, nodeID int64) error {
 
 	// Create entries of all the ceph volumes for the new node.
 	_, err = c.tx.Exec(`
-INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, description)
-  SELECT name, storage_pool_id, ?, type, description
+INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, description, project_id)
+  SELECT name, storage_pool_id, ?, type, description, 1
     FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 `, nodeID, poolID, otherNodeID)
 	if err != nil {
@@ -955,7 +955,7 @@ func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, 
 
 		for _, nodeID := range nodeIDs {
 			result, err := tx.tx.Exec(`
-INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, description) VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, description, project_id) VALUES (?, ?, ?, ?, ?, ?, 1)
 `,
 				poolID, nodeID, volumeType, snapshot, volumeName, volumeDescription)
 			if err != nil {
