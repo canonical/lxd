@@ -738,8 +738,8 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 }
 
 // Things we do have to care about
-func (s *storageZfs) ContainerStorageReady(name string) bool {
-	fs := fmt.Sprintf("containers/%s", name)
+func (s *storageZfs) ContainerStorageReady(container container) bool {
+	fs := fmt.Sprintf("containers/%s", container.Name())
 	return zfsFilesystemEntityExists(s.getOnDiskPoolName(), fs)
 }
 

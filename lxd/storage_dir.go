@@ -436,8 +436,8 @@ func (s *storageDir) StoragePoolVolumeRename(newName string) error {
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 
-func (s *storageDir) ContainerStorageReady(name string) bool {
-	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+func (s *storageDir) ContainerStorageReady(container container) bool {
+	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
 	ok, _ := shared.PathIsEmpty(containerMntPoint)
 	return !ok
 }

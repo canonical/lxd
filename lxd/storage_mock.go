@@ -109,7 +109,7 @@ func (s *storageMock) StoragePoolUpdate(writable *api.StoragePoolPut, changedCon
 	return nil
 }
 
-func (s *storageMock) ContainerStorageReady(name string) bool {
+func (s *storageMock) ContainerStorageReady(container container) bool {
 	return true
 }
 

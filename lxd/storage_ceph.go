@@ -715,7 +715,8 @@ func (s *storageCeph) StoragePoolUpdate(writable *api.StoragePoolPut, changedCon
 	return nil
 }
 
-func (s *storageCeph) ContainerStorageReady(name string) bool {
+func (s *storageCeph) ContainerStorageReady(container container) bool {
+	name := container.Name()
 	logger.Debugf(`Checking if RBD storage volume for container "%s" on storage pool "%s" is ready`, name, s.pool.Name)
 
 	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, name,
