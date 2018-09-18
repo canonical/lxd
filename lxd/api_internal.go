@@ -369,7 +369,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	containerMntPoints := []string{}
 	containerPoolName := ""
 	for _, poolName := range storagePoolNames {
-		containerMntPoint := getContainerMountPoint("default", poolName, req.Name)
+		containerMntPoint := getContainerMountPoint(project, poolName, req.Name)
 		if shared.PathExists(containerMntPoint) {
 			containerMntPoints = append(containerMntPoints, containerMntPoint)
 			containerPoolName = poolName
@@ -623,7 +623,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			}
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
 			snapPath := containerPath(snapName, true)
-			err = lvmContainerDeleteInternal(poolName, req.Name,
+			err = lvmContainerDeleteInternal(project, poolName, req.Name,
 				true, onDiskPoolName, snapPath)
 		case "ceph":
 			clusterName := "ceph"

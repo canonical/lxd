@@ -273,7 +273,7 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
-		targetContainerMntPoint = getContainerMountPoint("default", targetPool, targetContainerName)
+		targetContainerMntPoint = getContainerMountPoint(sourceContainer.Project(), targetPool, targetContainerName)
 		err = createContainerMountpoint(targetContainerMntPoint, targetContainerPath, snapshotContainer.IsPrivileged())
 	}
 	if err != nil {
@@ -381,12 +381,12 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 	if err != nil {
 		return err
 	}
-	sourceContainerMntPoint := getContainerMountPoint("default", sourcePool, sourceName)
+	sourceContainerMntPoint := getContainerMountPoint(source.Project(), sourcePool, sourceName)
 	if source.IsSnapshot() {
 		sourceContainerMntPoint = getSnapshotMountPoint(sourcePool, sourceName)
 	}
 
-	targetContainerMntPoint := getContainerMountPoint("default", s.pool.Name, targetName)
+	targetContainerMntPoint := getContainerMountPoint(target.Project(), s.pool.Name, targetName)
 	if target.IsSnapshot() {
 		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetName)
 	}
@@ -425,7 +425,7 @@ func (s *storageLvm) copyContainer(target container, source container) error {
 		return err
 	}
 
-	targetContainerMntPoint := getContainerMountPoint("default", targetPool, target.Name())
+	targetContainerMntPoint := getContainerMountPoint(target.Project(), targetPool, target.Name())
 	err = createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
@@ -481,7 +481,7 @@ func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
 	logger.Debugf(`Mounted non-thinpool LVM storage volume for container "%s" on storage pool "%s"`, containerName, s.pool.Name)
 
 	imagePath := shared.VarPath("images", fp)
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint(c.Project(), s.pool.Name, containerName)
 	err = unpackImage(imagePath, containerMntPoint, storageTypeLvm, s.s.OS.RunningInUserNS)
 	if err != nil {
 		logger.Errorf(`Failed to unpack image "%s" into non-thinpool LVM storage volume "%s" for container "%s" on storage pool "%s": %s`, imagePath, containerMntPoint, containerName, s.pool.Name, err)

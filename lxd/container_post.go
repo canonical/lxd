@@ -527,7 +527,7 @@ func containerPostCreateContainerMountPoint(d *Daemon, project, containerName st
 		return errors.Wrap(err, "Failed to create container snapshot names")
 	}
 
-	containerMntPoint := getContainerMountPoint("default", poolName, containerName)
+	containerMntPoint := getContainerMountPoint(c.Project(), poolName, containerName)
 	err = createContainerMountpoint(containerMntPoint, c.Path(), c.IsPrivileged())
 	if err != nil {
 		return errors.Wrap(err, "Failed to create container mount point on target node")

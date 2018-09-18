@@ -594,11 +594,11 @@ func zfsFilesystemEntityExists(pool string, path string) bool {
 	return detectedName == vdev
 }
 
-func (s *storageZfs) doContainerMount(name string, privileged bool) (bool, error) {
+func (s *storageZfs) doContainerMount(project, name string, privileged bool) (bool, error) {
 	logger.Debugf("Mounting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	fs := fmt.Sprintf("containers/%s", name)
-	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name, name)
+	containerPoolVolumeMntPoint := getContainerMountPoint(project, s.pool.Name, name)
 
 	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
@@ -658,7 +658,7 @@ func (s *storageZfs) doContainerMount(name string, privileged bool) (bool, error
 	return ourMount, nil
 }
 
-func (s *storageZfs) doContainerDelete(name string) error {
+func (s *storageZfs) doContainerDelete(project, name string) error {
 	logger.Debugf("Deleting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	poolName := s.getOnDiskPoolName()
@@ -746,7 +746,7 @@ func (s *storageZfs) doContainerDelete(name string) error {
 	return nil
 }
 
-func (s *storageZfs) doContainerCreate(name string, privileged bool) error {
+func (s *storageZfs) doContainerCreate(project, name string, privileged bool) error {
 	logger.Debugf("Creating empty ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerPath := shared.VarPath("containers", name)
@@ -754,7 +754,7 @@ func (s *storageZfs) doContainerCreate(name string, privileged bool) error {
 	fs := fmt.Sprintf("containers/%s", containerName)
 	poolName := s.getOnDiskPoolName()
 	dataset := fmt.Sprintf("%s/%s", poolName, fs)
-	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
+	containerPoolVolumeMntPoint := getContainerMountPoint(project, s.pool.Name, containerName)
 
 	// Create volume.
 	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none", "canmount=noauto")
