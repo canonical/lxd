@@ -352,7 +352,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 		logger.Debugf(`Received RBD storage volume "%s"`, recvName)
 	}
 
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint(c.Project(), s.pool.Name, containerName)
 	err = createContainerMountpoint(
 		containerMntPoint,
 		c.Path(),

@@ -970,7 +970,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 			return err
 		}
 	} else {
-		containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
+		containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
 		containerPath := container.Path()
 		err := os.MkdirAll(containerMntPoint, 0711)
 		if err != nil {
@@ -1013,7 +1013,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 		}
 	}()
 
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
 	containerPath := container.Path()
 	err = os.MkdirAll(containerMntPoint, 0711)
 	if err != nil {
@@ -1074,13 +1074,13 @@ func (s *storageLvm) ContainerCanRestore(container container, sourceContainer co
 	return nil
 }
 
-func lvmContainerDeleteInternal(poolName string, ctName string, isSnapshot bool, vgName string, ctPath string) error {
+func lvmContainerDeleteInternal(project, poolName string, ctName string, isSnapshot bool, vgName string, ctPath string) error {
 	containerMntPoint := ""
 	containerLvmName := containerNameToLVName(ctName)
 	if isSnapshot {
 		containerMntPoint = getSnapshotMountPoint(poolName, ctName)
 	} else {
-		containerMntPoint = getContainerMountPoint("default", poolName, ctName)
+		containerMntPoint = getContainerMountPoint(project, poolName, ctName)
 	}
 
 	if shared.IsMountPoint(containerMntPoint) {
@@ -1123,7 +1123,7 @@ func (s *storageLvm) ContainerDelete(container container) error {
 
 	containerName := container.Name()
 	poolName := s.getOnDiskPoolName()
-	err := lvmContainerDeleteInternal(s.pool.Name, containerName, container.IsSnapshot(), poolName, container.Path())
+	err := lvmContainerDeleteInternal(container.Project(), s.pool.Name, containerName, container.IsSnapshot(), poolName, container.Path())
 	if err != nil {
 		return err
 	}
@@ -1218,17 +1218,17 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 }
 
 func (s *storageLvm) ContainerMount(c container) (bool, error) {
-	return s.doContainerMount(c.Name())
+	return s.doContainerMount(c.Project(), c.Name())
 }
 
-func (s *storageLvm) doContainerMount(name string) (bool, error) {
+func (s *storageLvm) doContainerMount(project, name string) (bool, error) {
 	logger.Debugf("Mounting LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerLvmName := containerNameToLVName(name)
 	lvFsType := s.getLvmFilesystem()
 	poolName := s.getOnDiskPoolName()
 	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, name)
+	containerMntPoint := getContainerMountPoint(project, s.pool.Name, name)
 	if shared.IsSnapshot(name) {
 		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
 	}
@@ -1358,9 +1358,9 @@ func (s *storageLvm) ContainerRename(container container, newContainerName strin
 			}
 		}
 
-		oldContainerMntPoint := getContainerMountPoint("default", s.pool.Name, oldName)
+		oldContainerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, oldName)
 		oldContainerMntPointSymlink := container.Path()
-		newContainerMntPoint := getContainerMountPoint("default", s.pool.Name, newContainerName)
+		newContainerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, newContainerName)
 		newContainerMntPointSymlink := shared.VarPath("containers", newContainerName)
 		err = renameContainerMountpoint(oldContainerMntPoint, oldContainerMntPointSymlink, newContainerMntPoint, newContainerMntPointSymlink)
 		if err != nil {
@@ -1454,8 +1454,8 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 
 		poolName := s.getOnDiskPoolName()
 		sourceName := source.Name()
-		targetContainerMntPoint := getContainerMountPoint("default", poolName, targetName)
-		sourceContainerMntPoint := getContainerMountPoint("default", poolName, sourceName)
+		targetContainerMntPoint := getContainerMountPoint(target.Project(), poolName, targetName)
+		sourceContainerMntPoint := getContainerMountPoint(target.Project(), poolName, sourceName)
 		if source.IsSnapshot() {
 			sourceContainerMntPoint = getSnapshotMountPoint(poolName, sourceName)
 		}
@@ -1706,7 +1706,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 
 	// Make a temporary snapshot of the container
 	sourceLvmDatasetSnapshot := fmt.Sprintf("snapshot-%s", uuid.NewRandom().String())
-	tmpContainerMntPoint := getContainerMountPoint("default", s.pool.Name, sourceLvmDatasetSnapshot)
+	tmpContainerMntPoint := getContainerMountPoint(source.Project(), s.pool.Name, sourceLvmDatasetSnapshot)
 	err = os.MkdirAll(tmpContainerMntPoint, 0700)
 	if err != nil {
 		return err
@@ -1723,7 +1723,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 		containerNameToLVName(sourceLvmDatasetSnapshot))
 
 	// Mount the temporary snapshot
-	_, err = s.doContainerMount(sourceLvmDatasetSnapshot)
+	_, err = s.doContainerMount(source.Project(), sourceLvmDatasetSnapshot)
 	if err != nil {
 		return err
 	}
@@ -1832,7 +1832,7 @@ func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool
 
 	defer func() {
 		if tryUndo {
-			lvmContainerDeleteInternal(s.pool.Name, containerName, false, poolName,
+			lvmContainerDeleteInternal("default", s.pool.Name, containerName, false, poolName,
 				containerPath)
 		}
 	}()
@@ -1861,7 +1861,7 @@ func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool
 		return "", err
 	}
 
-	_, err = s.doContainerMount(containerName)
+	_, err = s.doContainerMount("default", containerName)
 	if err != nil {
 		return "", err
 	}
