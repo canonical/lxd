@@ -365,17 +365,17 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	}
 
 	// Create a new database entry for the container's storage volume
-	_, err = s.Cluster.StoragePoolVolumeCreate(args.Name, "", storagePoolVolumeTypeContainer, false, poolID, volumeConfig)
+	_, err = s.Cluster.StoragePoolVolumeCreate(args.Project, args.Name, "", storagePoolVolumeTypeContainer, false, poolID, volumeConfig)
 	if err != nil {
 		c.Delete()
 		return nil, err
 	}
 
 	// Initialize the container storage
-	cStorage, err := storagePoolVolumeContainerCreateInit(s, storagePool, args.Name)
+	cStorage, err := storagePoolVolumeContainerCreateInit(s, args.Project, storagePool, args.Name)
 	if err != nil {
 		c.Delete()
-		s.Cluster.StoragePoolVolumeDelete(args.Name, storagePoolVolumeTypeContainer, poolID)
+		s.Cluster.StoragePoolVolumeDelete(args.Project, args.Name, storagePoolVolumeTypeContainer, poolID)
 		logger.Error("Failed to initialize container storage", ctxMap)
 		return nil, err
 	}
@@ -1739,7 +1739,7 @@ func (c *containerLXC) initStorage() error {
 		return nil
 	}
 
-	s, err := storagePoolVolumeContainerLoadInit(c.state, c.Name())
+	s, err := storagePoolVolumeContainerLoadInit(c.state, c.Project(), c.Name())
 	if err != nil {
 		return err
 	}
@@ -3517,7 +3517,7 @@ func (c *containerLXC) Delete() error {
 		poolID, _, _ := c.storage.GetContainerPoolInfo()
 
 		// Remove volume from storage pool.
-		err := c.state.Cluster.StoragePoolVolumeDelete(c.Name(), storagePoolVolumeTypeContainer, poolID)
+		err := c.state.Cluster.StoragePoolVolumeDelete(c.Project(), c.Name(), storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return err
 		}
@@ -3733,6 +3733,7 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 	c.localConfig[key] = value
 
 	args := db.ContainerArgs{
+		Project:      c.project,
 		Architecture: c.architecture,
 		Config:       c.localConfig,
 		Description:  c.description,
@@ -3741,7 +3742,12 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 		Profiles:     c.profiles,
 	}
 
-	return c.Update(args, false)
+	err := c.Update(args, false)
+	if err != nil {
+		errors.Wrap(err, "Failed to update container")
+	}
+
+	return err
 }
 
 type backupFile struct {
@@ -3800,7 +3806,7 @@ func writeBackupFile(c container) error {
 		return err
 	}
 
-	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetType(c.Name(), storagePoolVolumeTypeContainer, poolID)
+	_, volume, err := s.Cluster.StoragePoolNodeVolumeGetTypeByProject(c.Project(), c.Name(), storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,7 @@ type StorageVolumeArgs struct {
 // volume with the given name if defined.
 //
 // The empty string is used in place of the address of the current node.
-func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, name string, typ int) ([]string, error) {
+func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, project, name string, typ int) ([]string, error) {
 	nodes := []struct {
 		id      int64
 		address string
@@ -49,15 +49,17 @@ func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, name string, typ in
 	}
 	sql := `
 SELECT nodes.id, nodes.address
-  FROM nodes JOIN storage_volumes ON storage_volumes.node_id=nodes.id
-    WHERE storage_volumes.storage_pool_id=? AND storage_volumes.name=? AND storage_volumes.type=?
+  FROM nodes
+  JOIN storage_volumes ON storage_volumes.node_id=nodes.id
+  JOIN projects ON projects.id = storage_volumes.project_id
+ WHERE storage_volumes.storage_pool_id=? AND projects.name=? AND storage_volumes.name=? AND storage_volumes.type=?
 `
 	stmt, err := c.tx.Prepare(sql)
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
-	err = query.SelectObjects(stmt, dest, poolID, name, typ)
+	err = query.SelectObjects(stmt, dest, poolID, project, name, typ)
 	if err != nil {
 		return nil, err
 	}

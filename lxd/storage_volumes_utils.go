@@ -35,7 +35,8 @@ const (
 	storagePoolVolumeAPIEndpointCustom     string = "custom"
 )
 
-var supportedVolumeTypes = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeImage, storagePoolVolumeTypeCustom}
+var supportedVolumeTypesExceptImages = []int{storagePoolVolumeTypeContainer, storagePoolVolumeTypeCustom}
+var supportedVolumeTypes = append(supportedVolumeTypesExceptImages, storagePoolVolumeTypeImage)
 
 func storagePoolVolumeTypeNameToType(volumeTypeName string) (int, error) {
 	switch volumeTypeName {
@@ -104,7 +105,7 @@ func storagePoolVolumeRestore(state *state.State, poolName string, volumeName st
 }
 
 func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName string, volumeType int, newDescription string, newConfig map[string]string) error {
-	s, err := storagePoolVolumeInit(state, poolName, volumeName, volumeType)
+	s, err := storagePoolVolumeInit(state, "default", poolName, volumeName, volumeType)
 	if err != nil {
 		return err
 	}
@@ -201,31 +202,9 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 	return nil
 }
 
-func storagePoolVolumeSnapshotUpdate(state *state.State, poolName string, volumeName string, volumeType int, newDescription string) error {
-	s, err := storagePoolVolumeInit(state, poolName, volumeName, volumeType)
-	if err != nil {
-		return err
-	}
-
-	oldWritable := s.GetStoragePoolVolumeWritable()
-	oldDescription := oldWritable.Description
-
-	poolID, err := state.Cluster.StoragePoolGetID(poolName)
-	if err != nil {
-		return err
-	}
-
-	// Update the database if something changed
-	if newDescription != oldDescription {
-		return state.Cluster.StoragePoolVolumeUpdate(volumeName, volumeType, poolID, newDescription, oldWritable.Config)
-	}
-
-	return nil
-}
-
-func storagePoolVolumeUsedByContainersGet(s *state.State, volumeName string,
+func storagePoolVolumeUsedByContainersGet(s *state.State, project, volumeName string,
 	volumeTypeName string) ([]string, error) {
-	cts, err := containerLoadAll(s)
+	cts, err := containerLoadByProject(s, project)
 	if err != nil {
 		return []string{}, err
 	}
@@ -419,7 +398,7 @@ func storagePoolVolumeUsedByRunningContainersWithProfilesGet(s *state.State,
 }
 
 // volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
-func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeName string) ([]string, error) {
+func storagePoolVolumeUsedByGet(s *state.State, project, volumeName string, volumeTypeName string) ([]string, error) {
 	// Handle container volumes
 	if volumeTypeName == "container" {
 		cName, sName, snap := containerGetParentAndSnapshotName(volumeName)
@@ -438,7 +417,7 @@ func storagePoolVolumeUsedByGet(s *state.State, volumeName string, volumeTypeNam
 
 	// Look for containers using this volume
 	ctsUsingVolume, err := storagePoolVolumeUsedByContainersGet(s,
-		volumeName, volumeTypeName)
+		project, volumeName, volumeTypeName)
 	if err != nil {
 		return []string{}, err
 	}
@@ -540,7 +519,7 @@ func storagePoolVolumeDBCreate(s *state.State, poolName string, volumeName, volu
 	}
 
 	// Create the database entry for the storage volume.
-	_, err = s.Cluster.StoragePoolVolumeCreate(volumeName, volumeDescription, volumeType, snapshot, poolID, volumeConfig)
+	_, err = s.Cluster.StoragePoolVolumeCreate("default", volumeName, volumeDescription, volumeType, snapshot, poolID, volumeConfig)
 	if err != nil {
 		return fmt.Errorf("Error inserting %s of type %s into database: %s", poolName, volumeTypeName, err)
 	}
@@ -586,14 +565,14 @@ func storagePoolVolumeDBCreateInternal(state *state.State, poolName string, vol 
 
 	volumeType, err := storagePoolVolumeTypeNameToType(volumeTypeName)
 	if err != nil {
-		state.Cluster.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
+		state.Cluster.StoragePoolVolumeDelete("default", volumeName, volumeType, poolID)
 		return nil, err
 	}
 
 	// Initialize new storage volume on the target storage pool.
-	s, err := storagePoolVolumeInit(state, poolName, volumeName, volumeType)
+	s, err := storagePoolVolumeInit(state, "default", poolName, volumeName, volumeType)
 	if err != nil {
-		state.Cluster.StoragePoolVolumeDelete(volumeName, volumeType, poolID)
+		state.Cluster.StoragePoolVolumeDelete("default", volumeName, volumeType, poolID)
 		return nil, err
 	}
 
@@ -615,7 +594,7 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 		poolID, _, _ := s.GetContainerPoolInfo()
 		volumeType, err := storagePoolVolumeTypeNameToType(vol.Type)
 		if err == nil {
-			state.Cluster.StoragePoolVolumeDelete(vol.Name, volumeType, poolID)
+			state.Cluster.StoragePoolVolumeDelete("default", vol.Name, volumeType, poolID)
 		}
 		return err
 	}

@@ -65,7 +65,7 @@ func ConnectIfVolumeIsRemote(cluster *db.Cluster, poolID int64, volumeName strin
 	var addresses []string // Node addresses
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		addresses, err = tx.StorageVolumeNodeAddresses(poolID, volumeName, volumeType)
+		addresses, err = tx.StorageVolumeNodeAddresses(poolID, "default", volumeName, volumeType)
 		return err
 	})
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
@@ -630,6 +631,7 @@ func (s *storageBtrfs) StoragePoolVolumeDelete() error {
 	}
 
 	err = s.s.Cluster.StoragePoolVolumeDelete(
+		"default",
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -747,7 +749,7 @@ func (s *storageBtrfs) StoragePoolVolumeRename(newName string) error {
 		return err
 	}
 
-	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, s.volume.Name, storagePoolVolumeTypeNameCustom)
+	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, "default", s.volume.Name, storagePoolVolumeTypeNameCustom)
 	if err != nil {
 		return err
 	}
@@ -876,7 +878,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to mount storage pool")
 	}
 
 	// We can only create the btrfs subvolume under the mounted storage
@@ -889,7 +891,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	if !shared.PathExists(containerSubvolumePath) {
 		err := os.MkdirAll(containerSubvolumePath, containersDirMode)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to create volume directory")
 		}
 	}
 
@@ -920,7 +922,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 		lxdStorageMapLock.Unlock()
 
 		if imgerr != nil {
-			return imgerr
+			return errors.Wrap(imgerr, "Failed to create image volume")
 		}
 	}
 
@@ -931,26 +933,30 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	containerSubvolumeName := getContainerMountPoint(s.pool.Name, container.Name())
 	err = s.btrfsPoolVolumesSnapshot(imageMntPoint, containerSubvolumeName, false, false)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to storage pool volume snapshot")
 	}
 
 	// Create the mountpoint for the container at:
 	// ${LXD_DIR}/containers/<name>
 	err = createContainerMountpoint(containerSubvolumeName, container.Path(), container.IsPrivileged())
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to create container mountpoint")
 	}
 
 	if !container.IsPrivileged() {
 		err := s.shiftRootfs(container, nil)
 		if err != nil {
 			s.ContainerDelete(container)
-			return err
+			return errors.Wrap(err, "Failed to shift rootfs")
 		}
 	}
 
 	logger.Debugf("Created BTRFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
-	return container.TemplateApply("create")
+	err = container.TemplateApply("create")
+	if err != nil {
+		return errors.Wrap(err, "Failed to apply container template")
+	}
+	return nil
 }
 
 func (s *storageBtrfs) ContainerCanRestore(container container, sourceContainer container) error {
@@ -1082,7 +1088,7 @@ func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source contain
 	}
 
 	// setup storage for the source volume
-	srcStorage, err := storagePoolVolumeInit(s.s, sourcePool, source.Name(), storagePoolVolumeTypeContainer)
+	srcStorage, err := storagePoolVolumeInit(s.s, "default", sourcePool, source.Name(), storagePoolVolumeTypeContainer)
 	if err != nil {
 		return err
 	}
@@ -2967,7 +2973,7 @@ func (s *storageBtrfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) er
 	}
 
 	// setup storage for the source volume
-	srcStorage, err := storagePoolVolumeInit(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	srcStorage, err := storagePoolVolumeInit(s.s, "default", source.Pool, source.Name, storagePoolVolumeTypeCustom)
 	if err != nil {
 		logger.Errorf("Failed to initialize storage for BTRFS storage volume \"%s\" on storage pool \"%s\": %s", source.Name, source.Pool, err)
 		return err
