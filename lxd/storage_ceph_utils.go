@@ -735,7 +735,7 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 		return err
 	}
 
-	targetContainerMountPoint := getContainerMountPoint(s.pool.Name,
+	targetContainerMountPoint := getContainerMountPoint("default", s.pool.Name,
 		target.Name())
 	err = createContainerMountpoint(targetContainerMountPoint, target.Path(),
 		target.IsPrivileged())
@@ -828,7 +828,7 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		return err
 	}
 
-	targetContainerMountPoint := getContainerMountPoint(s.pool.Name,
+	targetContainerMountPoint := getContainerMountPoint("default", s.pool.Name,
 		target.Name())
 	err = createContainerMountpoint(targetContainerMountPoint,
 		target.Path(), target.IsPrivileged())
@@ -1771,7 +1771,7 @@ func (s *storageCeph) doContainerCreate(name string, privileged bool) error {
 	logger.Debugf(`Created filesystem type "%s" on device path "%s" for RBD storage volume for container "%s" on storage pool "%s"`, RBDFilesystem, RBDDevPath, name, s.pool.Name)
 
 	containerPath := shared.VarPath("containers", name)
-	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, name)
 	err = createContainerMountpoint(containerMntPoint, containerPath, privileged)
 	if err != nil {
 		logger.Errorf(`Failed to create mountpoint "%s" for RBD storage volume for container "%s" on storage pool "%s": %s"`, containerMntPoint, name, s.pool.Name, err)
@@ -1799,7 +1799,7 @@ func (s *storageCeph) doContainerCreate(name string, privileged bool) error {
 
 func (s *storageCeph) doContainerMount(name string) (bool, error) {
 	RBDFilesystem := s.getRBDFilesystem()
-	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, name)
 	if shared.IsSnapshot(name) {
 		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
 	}

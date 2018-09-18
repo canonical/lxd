@@ -588,7 +588,7 @@ func getStoragePoolMountPoint(poolName string) string {
 }
 
 // ${LXD_DIR}/storage-pools/<pool>containers/<container_name>
-func getContainerMountPoint(poolName string, containerName string) string {
+func getContainerMountPoint(project string, poolName string, containerName string) string {
 	return shared.VarPath("storage-pools", poolName, "containers", containerName)
 }
 

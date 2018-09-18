@@ -598,7 +598,7 @@ func (s *storageZfs) doContainerMount(name string, privileged bool) (bool, error
 	logger.Debugf("Mounting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	fs := fmt.Sprintf("containers/%s", name)
-	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, name)
+	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name, name)
 
 	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
@@ -664,7 +664,7 @@ func (s *storageZfs) doContainerDelete(name string) error {
 	poolName := s.getOnDiskPoolName()
 	containerName := name
 	fs := fmt.Sprintf("containers/%s", containerName)
-	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
 
 	if zfsFilesystemEntityExists(poolName, fs) {
 		removable := true
@@ -754,7 +754,7 @@ func (s *storageZfs) doContainerCreate(name string, privileged bool) error {
 	fs := fmt.Sprintf("containers/%s", containerName)
 	poolName := s.getOnDiskPoolName()
 	dataset := fmt.Sprintf("%s/%s", poolName, fs)
-	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
 
 	// Create volume.
 	msg, err := zfsPoolVolumeCreate(dataset, "mountpoint=none", "canmount=noauto")

@@ -801,7 +801,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 
 	containerPath := container.Path()
 	containerName := container.Name()
-	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name,
+	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name,
 		containerName)
 
 	imageStoragePoolLockID := getImageCreateLockID(s.pool.Name, fingerprint)
@@ -1002,7 +1002,7 @@ func (s *storageCeph) ContainerDelete(container container) error {
 
 	// umount
 	containerPath := container.Path()
-	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
 	if shared.PathExists(containerMntPoint) {
 		_, err := s.ContainerUmount(containerName, containerPath)
 		if err != nil {
@@ -1085,7 +1085,7 @@ func (s *storageCeph) doCrossPoolContainerCopy(target container, source containe
 		return err
 	}
 
-	destContainerMntPoint := getContainerMountPoint(targetPool, target.Name())
+	destContainerMntPoint := getContainerMountPoint("default", targetPool, target.Name())
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	// Extract container
 	if !containerOnly {
@@ -1118,7 +1118,7 @@ func (s *storageCeph) doCrossPoolContainerCopy(target container, source containe
 		}
 	}
 
-	srcContainerMntPoint := getContainerMountPoint(sourcePool, source.Name())
+	srcContainerMntPoint := getContainerMountPoint("default", sourcePool, source.Name())
 	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit)
 	if err != nil {
 		s.StoragePoolVolumeDelete()
@@ -1163,7 +1163,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		sourceContainerName)
 
 	targetContainerName := target.Name()
-	targetContainerMountPoint := getContainerMountPoint(s.pool.Name,
+	targetContainerMountPoint := getContainerMountPoint("default", s.pool.Name,
 		targetContainerName)
 	if containerOnly || len(snapshots) == 0 {
 		if s.pool.Config["ceph.rbd.clone_copy"] != "" &&
@@ -1187,6 +1187,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		// create mountpoint for container
 		targetContainerPath := target.Path()
 		targetContainerMountPoint := getContainerMountPoint(
+			"default",
 			s.pool.Name,
 			targetContainerName)
 		err = createContainerMountpoint(
@@ -1392,7 +1393,7 @@ func (s *storageCeph) ContainerMount(c container) (bool, error) {
 func (s *storageCeph) ContainerUmount(name string, path string) (bool, error) {
 	logger.Debugf("Unmounting RBD storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
-	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, name)
 	if shared.IsSnapshot(name) {
 		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
 	}
@@ -1515,9 +1516,9 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	}()
 
 	// Create new mountpoint on the storage pool.
-	oldContainerMntPoint := getContainerMountPoint(s.pool.Name, oldName)
+	oldContainerMntPoint := getContainerMountPoint("default", s.pool.Name, oldName)
 	oldContainerMntPointSymlink := containerPath
-	newContainerMntPoint := getContainerMountPoint(s.pool.Name, newName)
+	newContainerMntPoint := getContainerMountPoint("default", s.pool.Name, newName)
 	newContainerMntPointSymlink := shared.VarPath("containers", newName)
 	err = renameContainerMountpoint(
 		oldContainerMntPoint,
@@ -1630,7 +1631,7 @@ func (s *storageCeph) ContainerGetUsage(container container) (int64, error) {
 }
 
 func (s *storageCeph) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
-	containerMntPoint := getContainerMountPoint(s.pool.Name, sourceContainer.Name())
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, sourceContainer.Name())
 	if shared.IsMountPoint(containerMntPoint) {
 		// This is costly but we need to ensure that all cached data has
 		// been committed to disk. If we don't then the rbd snapshot of
@@ -1980,7 +1981,7 @@ func (s *storageCeph) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, t
 		return err
 	}
 
-	containerMntPoint := getContainerMountPoint(s.pool.Name, info.Name)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, info.Name)
 	// Extract container
 	for _, snap := range info.Snapshots {
 		cur := fmt.Sprintf("backup/snapshots/%s", snap)
@@ -2431,7 +2432,7 @@ func (s *storageCeph) StorageEntitySetQuota(volumeType int, size int64, data int
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName,
 			s.OSDPoolName, storagePoolVolumeTypeNameContainer,
 			s.volume.Name, true, s.UserName)
-		mountpoint = getContainerMountPoint(s.pool.Name, ctName)
+		mountpoint = getContainerMountPoint("default", s.pool.Name, ctName)
 		volumeName = ctName
 	default:
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName,

@@ -3469,7 +3469,7 @@ func (c *containerLXC) Delete() error {
 		// Delete the container from disk
 		if c.storage != nil && !isImport {
 			_, poolName, _ := c.storage.GetContainerPoolInfo()
-			containerMountPoint := getContainerMountPoint(poolName, c.Name())
+			containerMountPoint := getContainerMountPoint("default", poolName, c.Name())
 			if shared.PathExists(c.Path()) ||
 				shared.PathExists(containerMountPoint) {
 				err := c.storage.ContainerDelete(c)

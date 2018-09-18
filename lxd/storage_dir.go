@@ -471,7 +471,7 @@ func (s *storageDir) StoragePoolVolumeRename(newName string) error {
 }
 
 func (s *storageDir) ContainerStorageReady(name string) bool {
-	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, name)
 	ok, _ := shared.PathIsEmpty(containerMntPoint)
 	return !ok
 }
@@ -489,7 +489,7 @@ func (s *storageDir) ContainerCreate(container container) error {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, container.Name())
 	err = createContainerMountpoint(containerMntPoint, container.Path(), container.IsPrivileged())
 	if err != nil {
 		return err
@@ -528,7 +528,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 
 	privileged := container.IsPrivileged()
 	containerName := container.Name()
-	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
 	err = createContainerMountpoint(containerMntPoint, container.Path(), privileged)
 	if err != nil {
 		return err
@@ -585,7 +585,7 @@ func (s *storageDir) ContainerDelete(container container) error {
 	// Delete the container on its storage pool:
 	// ${POOL}/containers/<container_name>
 	containerName := container.Name()
-	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
 	if shared.PathExists(containerMntPoint) {
 		err := os.RemoveAll(containerMntPoint)
 		if err != nil {
@@ -628,11 +628,11 @@ func (s *storageDir) ContainerDelete(container container) error {
 func (s *storageDir) copyContainer(target container, source container) error {
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
-	sourceContainerMntPoint := getContainerMountPoint(sourcePool, source.Name())
+	sourceContainerMntPoint := getContainerMountPoint("default", sourcePool, source.Name())
 	if source.IsSnapshot() {
 		sourceContainerMntPoint = getSnapshotMountPoint(sourcePool, source.Name())
 	}
-	targetContainerMntPoint := getContainerMountPoint(targetPool, target.Name())
+	targetContainerMntPoint := getContainerMountPoint("default", targetPool, target.Name())
 
 	err := createContainerMountpoint(targetContainerMntPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
@@ -789,9 +789,9 @@ func (s *storageDir) ContainerRename(container container, newName string) error 
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	oldContainerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
+	oldContainerMntPoint := getContainerMountPoint("default", s.pool.Name, container.Name())
 	oldContainerSymlink := shared.VarPath("containers", container.Name())
-	newContainerMntPoint := getContainerMountPoint(s.pool.Name, newName)
+	newContainerMntPoint := getContainerMountPoint("default", s.pool.Name, newName)
 	newContainerSymlink := shared.VarPath("containers", newName)
 	err = renameContainerMountpoint(oldContainerMntPoint, oldContainerSymlink, newContainerMntPoint, newContainerSymlink)
 	if err != nil {
@@ -897,7 +897,7 @@ func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, source
 
 	_, sourcePool, _ := sourceContainer.Storage().GetContainerPoolInfo()
 	sourceContainerName := sourceContainer.Name()
-	sourceContainerMntPoint := getContainerMountPoint(sourcePool, sourceContainerName)
+	sourceContainerMntPoint := getContainerMountPoint("default", sourcePool, sourceContainerName)
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	err = rsync(snapshotContainer, sourceContainerMntPoint, targetContainerMntPoint, bwlimit)
 	if err != nil {
@@ -1164,7 +1164,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 	}
 
 	// Create mountpoints
-	containerMntPoint := getContainerMountPoint(s.pool.Name, info.Name)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, info.Name)
 	err = createContainerMountpoint(containerMntPoint, containerPath(info.Name, false), info.Privileged)
 	if err != nil {
 		return err

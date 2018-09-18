@@ -369,7 +369,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	containerMntPoints := []string{}
 	containerPoolName := ""
 	for _, poolName := range storagePoolNames {
-		containerMntPoint := getContainerMountPoint(poolName, req.Name)
+		containerMntPoint := getContainerMountPoint("default", poolName, req.Name)
 		if shared.PathExists(containerMntPoint) {
 			containerMntPoints = append(containerMntPoints, containerMntPoint)
 			containerPoolName = poolName
