@@ -3640,12 +3640,12 @@ func writeBackupFile(c container) error {
 
 	ci, _, err := c.Render()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to render container metadata")
 	}
 
 	snapshots, err := c.Snapshots()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to get snapshots")
 	}
 
 	var sis []*api.ContainerSnapshot
@@ -3725,19 +3725,19 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Validate the new config
 	err := containerValidConfig(c.state.OS, args.Config, false, false)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Invalid config")
 	}
 
 	// Validate the new devices
 	err = containerValidDevices(c.state.Cluster, args.Devices, false, false)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Invalid devices")
 	}
 
 	// Validate the new profiles
 	profiles, err := c.state.Cluster.Profiles()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to get project profiles")
 	}
 
 	for _, name := range args.Profiles {
@@ -3854,12 +3854,12 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Expand the config and refresh the LXC config
 	err = c.expandConfig(nil)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Expand config")
 	}
 
 	err = c.expandDevices(nil)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Expand devices")
 	}
 
 	// Diff the configurations
@@ -3886,13 +3886,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Do some validation of the config diff
 	err = containerValidConfig(c.state.OS, c.expandedConfig, false, true)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Invalid expanded config")
 	}
 
 	// Do some validation of the devices diff
 	err = containerValidDevices(c.state.Cluster, c.expandedDevices, false, true)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Invalid expanded devices")
 	}
 
 	// Run through initLXC to catch anything we missed
@@ -3913,7 +3913,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
 		err = AAParseProfile(c)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Parse AppArmor profile")
 		}
 	}
 
@@ -3931,7 +3931,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				c.expandedConfig["raw.idmap"],
 			)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Failed to get ID map")
 			}
 		}
 
@@ -4703,7 +4703,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to update database")
 	}
 
 	/* we can call Update in some cases when the directory doesn't exist
@@ -4713,7 +4713,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	if c.storage.ContainerStorageReady(c.Name()) {
 		err := writeBackupFile(c)
 		if err != nil && !os.IsNotExist(err) {
-			return err
+			return errors.Wrap(err, "Failed to write backup file")
 		}
 	}
 
@@ -5277,7 +5277,7 @@ func (c *containerLXC) TemplateApply(trigger string) error {
 		// The two events are mutually exclusive so only keep the last one
 		err := c.ConfigKeySet("volatile.apply_template", trigger)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to set apply_template volatile key")
 		}
 
 		return nil
@@ -5296,14 +5296,14 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 	// Parse the metadata
 	content, err := ioutil.ReadFile(fname)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to read metadata")
 	}
 
 	metadata := new(api.ImageMetadata)
 	err = yaml.Unmarshal(content, &metadata)
 
 	if err != nil {
-		return fmt.Errorf("Could not parse %s: %v", fname, err)
+		return errors.Wrapf(err, "Could not parse %s", fname)
 	}
 
 	// Go through the templates
@@ -5333,7 +5333,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 			// Open the existing file
 			w, err = os.Create(fullpath)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Failed to create template file")
 			}
 		} else {
 			// Create a new one
@@ -5344,7 +5344,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 			if !c.IsPrivileged() {
 				idmapset, err := c.IdmapSet()
 				if err != nil {
-					return err
+					return errors.Wrap(err, "Failed to set ID map")
 				}
 
 				uid, gid = idmapset.ShiftIntoNs(0, 0)
@@ -5370,7 +5370,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		// Read the template
 		tplString, err := ioutil.ReadFile(filepath.Join(c.TemplatesPath(), tpl.Template))
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to read template file")
 		}
 
 		// Restrict filesystem access to within the container's rootfs
@@ -5378,7 +5378,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 
 		tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to render template")
 		}
 
 		// Figure out the architecture
@@ -5386,7 +5386,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		if err != nil {
 			arch, err = osarch.ArchitectureName(c.state.OS.Architectures[0])
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Failed to detect system architecture")
 			}
 		}
 
