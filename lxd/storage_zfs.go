@@ -776,7 +776,7 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 	logger.Debugf("Unmounting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	fs := fmt.Sprintf("containers/%s", name)
-	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, name)
+	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name, name)
 
 	containerUmountLockID := getContainerUmountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
@@ -850,7 +850,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	containerPath := container.Path()
 	containerName := container.Name()
 	fs := fmt.Sprintf("containers/%s", containerName)
-	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
 
 	poolName := s.getOnDiskPoolName()
 	fsImage := fmt.Sprintf("images/%s", fingerprint)
@@ -968,7 +968,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 
 	targetContainerName := target.Name()
 	targetContainerPath := target.Path()
-	targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
+	targetContainerMountPoint := getContainerMountPoint("default", s.pool.Name, targetContainerName)
 
 	sourceZfsDataset := ""
 	sourceZfsDatasetSnapshot := ""
@@ -1128,7 +1128,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 		return err
 	}
 
-	targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetName)
+	targetContainerMountPoint := getContainerMountPoint("default", s.pool.Name, targetName)
 	targetfs := fmt.Sprintf("containers/%s", targetName)
 
 	err = zfsPoolVolumeSet(poolName, targetfs, "canmount", "noauto")
@@ -1252,7 +1252,7 @@ func (s *storageZfs) doCrossPoolContainerCopy(target container, source container
 	}
 	defer s.ContainerUmount(target.Name(), shared.VarPath("containers", target.Name()))
 
-	destContainerMntPoint := getContainerMountPoint(targetPool, target.Name())
+	destContainerMntPoint := getContainerMountPoint("default", targetPool, target.Name())
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	if !containerOnly {
 		for _, snap := range snapshots {
@@ -1272,7 +1272,7 @@ func (s *storageZfs) doCrossPoolContainerCopy(target container, source container
 		}
 	}
 
-	srcContainerMntPoint := getContainerMountPoint(sourcePool, source.Name())
+	srcContainerMntPoint := getContainerMountPoint("default", sourcePool, source.Name())
 	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit)
 	if err != nil {
 		logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
@@ -1319,7 +1319,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 	} else {
 		targetContainerName := target.Name()
 		targetContainerPath := target.Path()
-		targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
+		targetContainerMountPoint := getContainerMountPoint("default", s.pool.Name, targetContainerName)
 		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
 		if err != nil {
 			return err
@@ -1438,7 +1438,7 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	}()
 
 	// Set the new mountpoint for the dataset.
-	newContainerMntPoint := getContainerMountPoint(s.pool.Name, newName)
+	newContainerMntPoint := getContainerMountPoint("default", s.pool.Name, newName)
 	err = zfsPoolVolumeSet(poolName, newZfsDataset, "mountpoint", newContainerMntPoint)
 	if err != nil {
 		return err
@@ -1451,7 +1451,7 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	}
 
 	// Create new mountpoint on the storage pool.
-	oldContainerMntPoint := getContainerMountPoint(s.pool.Name, oldName)
+	oldContainerMntPoint := getContainerMountPoint("default", s.pool.Name, oldName)
 	oldContainerMntPointSymlink := container.Path()
 	newContainerMntPointSymlink := shared.VarPath("containers", newName)
 	err = renameContainerMountpoint(oldContainerMntPoint, oldContainerMntPointSymlink, newContainerMntPoint, newContainerMntPointSymlink)
@@ -1563,7 +1563,7 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 	}
 
 	// Shortcut for refquota
-	mountpoint := getContainerMountPoint(s.pool.Name, container.Name())
+	mountpoint := getContainerMountPoint("default", s.pool.Name, container.Name())
 	if property == "referenced" && shared.IsMountPoint(mountpoint) {
 		var stat syscall.Statfs_t
 		err := syscall.Statfs(mountpoint, &stat)
@@ -2042,7 +2042,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	}
 
 	// Make a temporary copy of the container
-	containersPath := getContainerMountPoint(s.pool.Name, "")
+	containersPath := getContainerMountPoint("default", s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, source.Name())
 	if err != nil {
 		return err
@@ -2132,7 +2132,7 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 
 func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := containerGetParentAndSnapshotName(info.Name)
-	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
 	err := createContainerMountpoint(containerMntPoint, containerPath(info.Name, false), info.Privileged)
 	if err != nil {
 		return err
@@ -2253,7 +2253,7 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadS
 		return err
 	}
 
-	containerMntPoint := getContainerMountPoint(s.pool.Name, info.Name)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, info.Name)
 	// Extract container
 	for _, snap := range info.Snapshots {
 		// Extract snapshots
@@ -2731,7 +2731,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	 * unmounted, so we do this before receiving anything.
 	 */
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
-	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, container.Name())
 	if shared.IsMountPoint(containerMntPoint) {
 		err := zfsUmount(poolName, zfsName, containerMntPoint)
 		if err != nil {

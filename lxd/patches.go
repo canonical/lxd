@@ -378,7 +378,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 
 	if len(cRegular) > 0 {
 		// ${LXD_DIR}/storage-pools/<name>
-		containersSubvolumePath := getContainerMountPoint(defaultPoolName, "")
+		containersSubvolumePath := getContainerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(containersSubvolumePath) {
 			err := os.MkdirAll(containersSubvolumePath, 0711)
 			if err != nil {
@@ -425,7 +425,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		// subvolume of the subvolume of the storage pool:
 		// mv ${LXD_DIR}/containers/<container_name> ${LXD_DIR}/storage-pools/<pool>/<container_name>
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
+		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
@@ -710,7 +710,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Create the new path where containers will be located on the
 		// new storage api.
-		containersMntPoint := getContainerMountPoint(defaultPoolName, "")
+		containersMntPoint := getContainerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(containersMntPoint) {
 			err := os.MkdirAll(containersMntPoint, 0711)
 			if err != nil {
@@ -720,7 +720,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Simply rename the container when they are directories.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
+		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
@@ -973,7 +973,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	if len(cRegular) > 0 {
 		// Create generic containers folder on the storage pool.
-		newContainersMntPoint := getContainerMountPoint(defaultPoolName, "")
+		newContainersMntPoint := getContainerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(newContainersMntPoint) {
 			err = os.MkdirAll(newContainersMntPoint, 0711)
 			if err != nil {
@@ -1030,7 +1030,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Create the new path where containers will be located on the
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
-		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
+		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
 		ctLvName := containerNameToLVName(ct)
 		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, ctLvName)
 		containerLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeAPIEndpointContainers, ctLvName)
@@ -1497,7 +1497,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	if len(cRegular) > 0 {
-		containersSubvolumePath := getContainerMountPoint(poolName, "")
+		containersSubvolumePath := getContainerMountPoint("default", poolName, "")
 		if !shared.PathExists(containersSubvolumePath) {
 			err := os.MkdirAll(containersSubvolumePath, 0711)
 			if err != nil {
@@ -1561,7 +1561,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// Changing the mountpoint property should have actually created
 		// the path but in case it somehow didn't let's do it ourselves.
 		doesntMatter := false
-		newContainerMntPoint := getContainerMountPoint(poolName, ct)
+		newContainerMntPoint := getContainerMountPoint("default", poolName, ct)
 		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
 			logger.Warnf("Failed to create mountpoint for the container: %s", newContainerMntPoint)
