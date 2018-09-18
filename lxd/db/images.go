@@ -493,10 +493,29 @@ func (c *Cluster) ImageDelete(id int) error {
 }
 
 // ImageAliasesGet returns the names of the aliases of all images.
-func (c *Cluster) ImageAliasesGet() ([]string, error) {
-	q := "SELECT name FROM images_aliases"
+func (c *Cluster) ImageAliasesGet(project string) ([]string, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	q := `
+SELECT images_aliases.name
+  FROM images_aliases
+  JOIN projects ON projects.id=images_aliases.project_id
+ WHERE projects.name=?
+`
 	var name string
-	inargs := []interface{}{}
+	inargs := []interface{}{project}
 	outfmt := []interface{}{name}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
