@@ -8588,11 +8588,19 @@ func (c *containerLXC) Path() string {
 }
 
 func (c *containerLXC) DevicesPath() string {
-	return shared.VarPath("devices", c.Name())
+	name := c.Name()
+	if c.Project() != "default" {
+		name = fmt.Sprintf("%s_%s", c.Project(), name)
+	}
+	return shared.VarPath("devices", name)
 }
 
 func (c *containerLXC) LogPath() string {
-	return shared.LogPath(c.Name())
+	name := c.Name()
+	if c.Project() != "default" {
+		name = fmt.Sprintf("%s_%s", c.Project(), name)
+	}
+	return shared.LogPath(name)
 }
 
 func (c *containerLXC) LogFilePath() string {
