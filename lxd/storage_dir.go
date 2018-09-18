@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
@@ -504,7 +505,7 @@ func (s *storageDir) ContainerCreate(container container) error {
 
 	err = container.TemplateApply("create")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Apply template")
 	}
 
 	revert = false
