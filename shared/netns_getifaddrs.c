@@ -433,7 +433,7 @@ static int __rtnl_enumerate(int link_af, int addr_af, __s32 netns_id,
 	r = __netlink_recv(fd, 1, RTM_GETLINK, link_af, netns_id,
 			   &getlink_netnsid_aware, cb, ctx);
 	if (!r)
-		r = __netlink_recv(fd, 2, RTM_GETADDR, netns_id, addr_af,
+		r = __netlink_recv(fd, 2, RTM_GETADDR, addr_af, netns_id,
 				   &getaddr_netnsid_aware, cb, ctx);
 
 	saved_errno = errno;
