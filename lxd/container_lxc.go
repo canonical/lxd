@@ -4125,7 +4125,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Apply disk quota changes
 	if newRootDiskDeviceSize != oldRootDiskDeviceSize {
 		storageTypeName := c.storage.GetStorageTypeName()
-		storageIsReady := c.storage.ContainerStorageReady(c.Name())
+		storageIsReady := c.storage.ContainerStorageReady(c)
 		if (storageTypeName == "lvm" || storageTypeName == "ceph") && isRunning || !storageIsReady {
 			c.localConfig["volatile.apply_quota"] = newRootDiskDeviceSize
 		} else {
@@ -4850,7 +4850,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	 * yet before container creation; this is okay, because at the end of
 	 * container creation we write the backup file, so let's not worry about
 	 * ENOENT. */
-	if c.storage.ContainerStorageReady(c.Name()) {
+	if c.storage.ContainerStorageReady(c) {
 		err := writeBackupFile(c)
 		if err != nil && !os.IsNotExist(err) {
 			return errors.Wrap(err, "Failed to write backup file")
