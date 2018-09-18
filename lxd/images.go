@@ -1520,7 +1520,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 	project := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
-	names, err := d.cluster.ImageAliasesGet()
+	names, err := d.cluster.ImageAliasesGet(project)
 	if err != nil {
 		return BadRequest(err)
 	}
