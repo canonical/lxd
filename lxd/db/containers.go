@@ -177,12 +177,14 @@ SELECT containers.name FROM containers
 func (c *ClusterTx) ContainerNodeAddress(project string, name string) (string, error) {
 	stmt := `
 SELECT nodes.id, nodes.address
-  FROM nodes JOIN containers ON containers.node_id = nodes.id
-    WHERE containers.name = ?
+  FROM nodes
+  JOIN containers ON containers.node_id = nodes.id
+  JOIN projects ON projects.id = containers.project_id
+ WHERE projects.name = ? AND containers.name = ?
 `
 	var address string
 	var id int64
-	rows, err := c.tx.Query(stmt, name)
+	rows, err := c.tx.Query(stmt, project, name)
 	if err != nil {
 		return "", err
 	}
