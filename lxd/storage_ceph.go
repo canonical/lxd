@@ -851,9 +851,14 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		}
 	}
 
+	volumeName := containerName
+	if container.Project() != "default" {
+		volumeName = fmt.Sprintf("%s_%s", container.Project(), volumeName)
+	}
+
 	err := cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, fingerprint,
 		storagePoolVolumeTypeNameImage, "readonly", s.OSDPoolName,
-		containerName, storagePoolVolumeTypeNameContainer, s.UserName)
+		volumeName, storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to clone new RBD storage volume for container "%s": %s`, containerName, err)
 		return err
