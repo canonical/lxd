@@ -303,17 +303,29 @@ func AANamespace(c container) string {
 	 */
 	lxddir := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
 	lxddir = mkApparmorName(lxddir)
-	return fmt.Sprintf("lxd-%s_<%s>", c.Name(), lxddir)
+	name := c.Name()
+	if c.Project() != "default" {
+		name = fmt.Sprintf("%s_%s", c.Project(), name)
+	}
+	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
 func AAProfileFull(c container) string {
 	lxddir := shared.VarPath("")
 	lxddir = mkApparmorName(lxddir)
-	return fmt.Sprintf("lxd-%s_<%s>", c.Name(), lxddir)
+	name := c.Name()
+	if c.Project() != "default" {
+		name = fmt.Sprintf("%s_%s", c.Project(), name)
+	}
+	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
 func AAProfileShort(c container) string {
-	return fmt.Sprintf("lxd-%s", c.Name())
+	name := c.Name()
+	if c.Project() != "default" {
+		name = fmt.Sprintf("%s_%s", c.Project(), name)
+	}
+	return fmt.Sprintf("lxd-%s", name)
 }
 
 // getProfileContent generates the apparmor profile template from the given

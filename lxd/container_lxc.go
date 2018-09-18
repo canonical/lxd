@@ -909,7 +909,11 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Load the go-lxc struct
-	cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
+	cname := c.Name()
+	if c.Project() != "default" {
+		cname = fmt.Sprintf("%s_%s", c.Project(), cname)
+	}
+	cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
 	if err != nil {
 		return err
 	}
@@ -1704,7 +1708,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup shmounts
-	err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", shared.VarPath("shmounts", c.Name())))
+	err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", c.ShmountsPath()))
 	if err != nil {
 		return err
 	}
@@ -2358,12 +2362,12 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", err
 	}
 
-	err = os.MkdirAll(shared.VarPath("devices", c.Name()), 0711)
+	err = os.MkdirAll(c.DevicesPath(), 0711)
 	if err != nil {
 		return "", err
 	}
 
-	err = os.MkdirAll(shared.VarPath("shmounts", c.Name()), 0711)
+	err = os.MkdirAll(c.ShmountsPath(), 0711)
 	if err != nil {
 		return "", err
 	}
@@ -2502,11 +2506,16 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 	}
 
+	name := c.name
+	if c.Project() != "default" {
+		name = fmt.Sprintf("%s_%s", c.Project(), name)
+	}
+
 	// Start the LXC container
 	out, err := shared.RunCommand(
 		c.state.OS.ExecPath,
 		"forkstart",
-		c.name,
+		name,
 		c.state.OS.LxcPath,
 		configPath)
 
@@ -3396,7 +3405,7 @@ func (c *containerLXC) cleanup() {
 	os.Remove(c.DevicesPath())
 
 	// Remove the shmounts path
-	os.RemoveAll(shared.VarPath("shmounts", c.Name()))
+	os.RemoveAll(c.ShmountsPath())
 }
 
 func (c *containerLXC) Delete() error {
@@ -6363,12 +6372,12 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	// Create the temporary mount target
 	var tmpMount string
 	if shared.IsDir(source) {
-		tmpMount, err = ioutil.TempDir(shared.VarPath("shmounts", c.name), "lxdmount_")
+		tmpMount, err = ioutil.TempDir(c.ShmountsPath(), "lxdmount_")
 		if err != nil {
 			return fmt.Errorf("Failed to create shmounts path: %s", err)
 		}
 	} else {
-		f, err := ioutil.TempFile(shared.VarPath("shmounts", c.name), "lxdmount_")
+		f, err := ioutil.TempFile(c.ShmountsPath(), "lxdmount_")
 		if err != nil {
 			return fmt.Errorf("Failed to create shmounts path: %s", err)
 		}
@@ -7545,7 +7554,11 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		}
 
 		// Attempt to include all existing interfaces
-		cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
+		cname := c.Name()
+		if c.Project() != "default" {
+			cname = fmt.Sprintf("%s_%s", c.Project(), cname)
+		}
+		cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
 		if err == nil {
 			defer lxc.Release(cc)
 
@@ -7802,7 +7815,11 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct
-	cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
+	cname := c.Name()
+	if c.Project() != "default" {
+		cname = fmt.Sprintf("%s_%s", c.Project(), cname)
+	}
+	cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
 	if err != nil {
 		return err
 	}
@@ -8593,6 +8610,14 @@ func (c *containerLXC) DevicesPath() string {
 		name = fmt.Sprintf("%s_%s", c.Project(), name)
 	}
 	return shared.VarPath("devices", name)
+}
+
+func (c *containerLXC) ShmountsPath() string {
+	name := c.Name()
+	if c.Project() != "default" {
+		name = fmt.Sprintf("%s_%s", c.Project(), name)
+	}
+	return shared.VarPath("shmounts", name)
 }
 
 func (c *containerLXC) LogPath() string {
