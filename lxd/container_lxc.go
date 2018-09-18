@@ -7085,6 +7085,12 @@ func (c *containerLXC) fillSriovNetworkDevice(name string, m types.Device, reser
 		return nil, err
 	}
 
+	// Ensure parent is up (needed for Intel at least)
+	_, err = shared.RunCommand("ip", "link", "set", "dev", m["parent"], "up")
+	if err != nil {
+		return nil, err
+	}
+
 	// Check if any VFs are already enabled
 	nicName := ""
 	for i := 0; i < sriovNum; i++ {
