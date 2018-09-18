@@ -916,8 +916,8 @@ func (s *storageLvm) StoragePoolVolumeRename(newName string) error {
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 
-func (s *storageLvm) ContainerStorageReady(name string) bool {
-	containerLvmName := containerNameToLVName(name)
+func (s *storageLvm) ContainerStorageReady(container container) bool {
+	containerLvmName := containerNameToLVName(container.Name())
 	poolName := s.getOnDiskPoolName()
 	containerLvmPath := getLvmDevPath(poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
 	ok, _ := storageLVExists(containerLvmPath)

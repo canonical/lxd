@@ -813,8 +813,8 @@ func (s *storageBtrfs) SetStoragePoolVolumeWritable(writable *api.StorageVolumeP
 }
 
 // Functions dealing with container storage.
-func (s *storageBtrfs) ContainerStorageReady(name string) bool {
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, name)
+func (s *storageBtrfs) ContainerStorageReady(container container) bool {
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, container.Name())
 	return isBtrfsSubVolume(containerMntPoint)
 }
 
