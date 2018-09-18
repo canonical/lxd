@@ -783,7 +783,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 		// Remove the storage volume db entry for the container since
 		// force was specified.
-		err := d.cluster.StoragePoolVolumeDelete(req.Name,
+		err := d.cluster.StoragePoolVolumeDelete("default", req.Name,
 			storagePoolVolumeTypeContainer, poolID)
 		if err != nil {
 			return SmartError(err)
@@ -853,7 +853,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		if csVolErr == nil {
-			err := d.cluster.StoragePoolVolumeDelete(snap.Name,
+			err := d.cluster.StoragePoolVolumeDelete("default", snap.Name,
 				storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				return SmartError(err)

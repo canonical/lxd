@@ -299,7 +299,7 @@ func storageCoreInit(driver string) (storage, error) {
 	return nil, fmt.Errorf("invalid storage type")
 }
 
-func storageInit(s *state.State, poolName string, volumeName string, volumeType int) (storage, error) {
+func storageInit(s *state.State, project, poolName, volumeName string, volumeType int) (storage, error) {
 	// Load the storage pool.
 	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
 	if err != nil {
@@ -316,7 +316,7 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 	// Load the storage volume.
 	volume := &api.StorageVolume{}
 	if volumeName != "" && volumeType >= 0 {
-		_, volume, err = s.Cluster.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+		_, volume, err = s.Cluster.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -400,11 +400,11 @@ func storageInit(s *state.State, poolName string, volumeName string, volumeType 
 }
 
 func storagePoolInit(s *state.State, poolName string) (storage, error) {
-	return storageInit(s, poolName, "", -1)
+	return storageInit(s, "default", poolName, "", -1)
 }
 
 func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName string, volumeType int, c container) (storage, error) {
-	st, err := storageInit(s, poolName, volumeName, volumeType)
+	st, err := storageInit(s, "default", poolName, volumeName, volumeType)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +454,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 	if !reflect.DeepEqual(nextIdmap, lastIdmap) {
 		logger.Debugf("Shifting storage volume")
 		volumeUsedBy, err := storagePoolVolumeUsedByContainersGet(s,
-			volumeName, volumeTypeName)
+			"default", volumeName, volumeTypeName)
 		if err != nil {
 			return nil, err
 		}
@@ -559,27 +559,27 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 	return st, nil
 }
 
-func storagePoolVolumeInit(s *state.State, poolName string, volumeName string, volumeType int) (storage, error) {
+func storagePoolVolumeInit(s *state.State, project, poolName, volumeName string, volumeType int) (storage, error) {
 	// No need to detect storage here, its a new container.
-	return storageInit(s, poolName, volumeName, volumeType)
+	return storageInit(s, project, poolName, volumeName, volumeType)
 }
 
 func storagePoolVolumeImageInit(s *state.State, poolName string, imageFingerprint string) (storage, error) {
-	return storagePoolVolumeInit(s, poolName, imageFingerprint, storagePoolVolumeTypeImage)
+	return storagePoolVolumeInit(s, "default", poolName, imageFingerprint, storagePoolVolumeTypeImage)
 }
 
-func storagePoolVolumeContainerCreateInit(s *state.State, poolName string, containerName string) (storage, error) {
-	return storagePoolVolumeInit(s, poolName, containerName, storagePoolVolumeTypeContainer)
+func storagePoolVolumeContainerCreateInit(s *state.State, project string, poolName string, containerName string) (storage, error) {
+	return storagePoolVolumeInit(s, project, poolName, containerName, storagePoolVolumeTypeContainer)
 }
 
-func storagePoolVolumeContainerLoadInit(s *state.State, containerName string) (storage, error) {
+func storagePoolVolumeContainerLoadInit(s *state.State, project, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
 	poolName, err := s.Cluster.ContainerPool(containerName)
 	if err != nil {
 		return nil, err
 	}
 
-	return storagePoolVolumeInit(s, poolName, containerName, storagePoolVolumeTypeContainer)
+	return storagePoolVolumeInit(s, project, poolName, containerName, storagePoolVolumeTypeContainer)
 }
 
 // {LXD_DIR}/storage-pools/<pool>

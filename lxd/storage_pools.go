@@ -622,7 +622,7 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 	}
 
 	if len(volumeNames) > 0 {
-		volumes, err := cluster.StoragePoolVolumesGet(poolID, supportedVolumeTypes)
+		volumes, err := cluster.StoragePoolVolumesGet("default", poolID, supportedVolumeTypes)
 		if err != nil {
 			return InternalError(err)
 		}

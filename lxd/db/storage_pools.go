@@ -687,12 +687,17 @@ func (c *Cluster) StoragePoolVolumesGetNames(poolID int64) ([]string, error) {
 
 // StoragePoolVolumesGet returns all storage volumes attached to a given
 // storage pool on any node.
-func (c *Cluster) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
+func (c *Cluster) StoragePoolVolumesGet(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	var nodeIDs []int
 
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		nodeIDs, err = query.SelectIntegers(tx.tx, "SELECT DISTINCT node_id FROM storage_volumes WHERE storage_pool_id=?", poolID)
+		nodeIDs, err = query.SelectIntegers(tx.tx, `
+SELECT DISTINCT node_id
+  FROM storage_volumes
+  JOIN projects ON projects.id = storage_volumes.project_id
+ WHERE projects.name=? AND storage_pool_id=?
+`, project, poolID)
 		return err
 	})
 	if err != nil {
@@ -701,7 +706,7 @@ func (c *Cluster) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api
 	volumes := []*api.StorageVolume{}
 
 	for _, nodeID := range nodeIDs {
-		nodeVolumes, err := c.storagePoolVolumesGet(poolID, int64(nodeID), volumeTypes)
+		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, int64(nodeID), volumeTypes)
 		if err != nil {
 			return nil, err
 		}
@@ -713,22 +718,22 @@ func (c *Cluster) StoragePoolVolumesGet(poolID int64, volumeTypes []int) ([]*api
 // StoragePoolNodeVolumesGet returns all storage volumes attached to a given
 // storage pool on the current node.
 func (c *Cluster) StoragePoolNodeVolumesGet(poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
-	return c.storagePoolVolumesGet(poolID, c.nodeID, volumeTypes)
+	return c.storagePoolVolumesGet("default", poolID, c.nodeID, volumeTypes)
 }
 
 // Returns all storage volumes attached to a given storage pool on the given
 // node.
-func (c *Cluster) storagePoolVolumesGet(poolID, nodeID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
+func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	// Get all storage volumes of all types attached to a given storage
 	// pool.
 	result := []*api.StorageVolume{}
 	for _, volumeType := range volumeTypes {
-		volumeNames, err := c.StoragePoolVolumesGetType(volumeType, poolID, nodeID)
+		volumeNames, err := c.StoragePoolVolumesGetType(project, volumeType, poolID, nodeID)
 		if err != nil && err != sql.ErrNoRows {
 			return nil, errors.Wrap(err, "failed to fetch volume types")
 		}
 		for _, volumeName := range volumeNames {
-			_, volume, err := c.StoragePoolVolumeGetType(volumeName, volumeType, poolID, nodeID)
+			_, volume, err := c.StoragePoolVolumeGetType(project, volumeName, volumeType, poolID, nodeID)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to fetch volume type")
 			}
@@ -745,10 +750,15 @@ func (c *Cluster) storagePoolVolumesGet(poolID, nodeID int64, volumeTypes []int)
 
 // StoragePoolVolumesGetType get all storage volumes attached to a given
 // storage pool of a given volume type, on the given node.
-func (c *Cluster) StoragePoolVolumesGetType(volumeType int, poolID, nodeID int64) ([]string, error) {
+func (c *Cluster) StoragePoolVolumesGetType(project string, volumeType int, poolID, nodeID int64) ([]string, error) {
 	var poolName string
-	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND node_id=? AND type=?"
-	inargs := []interface{}{poolID, nodeID, volumeType}
+	query := `
+SELECT storage_volumes.name
+  FROM storage_volumes
+  JOIN projects ON projects.id=storage_volumes.project_id
+ WHERE projects.name=? AND storage_pool_id=? AND node_id=? AND type=?
+`
+	inargs := []interface{}{project, poolID, nodeID, volumeType}
 	outargs := []interface{}{poolName}
 
 	result, err := queryScan(c.db, query, inargs, outargs)
@@ -790,13 +800,13 @@ func (c *Cluster) StoragePoolVolumeSnapshotsGetType(volumeName string, volumeTyp
 // StoragePoolNodeVolumesGetType returns all storage volumes attached to a
 // given storage pool of a given volume type, on the current node.
 func (c *Cluster) StoragePoolNodeVolumesGetType(volumeType int, poolID int64) ([]string, error) {
-	return c.StoragePoolVolumesGetType(volumeType, poolID, c.nodeID)
+	return c.StoragePoolVolumesGetType("default", volumeType, poolID, c.nodeID)
 }
 
 // StoragePoolVolumeGetType returns a single storage volume attached to a
 // given storage pool of a given type, on the node with the given ID.
-func (c *Cluster) StoragePoolVolumeGetType(volumeName string, volumeType int, poolID, nodeID int64) (int64, *api.StorageVolume, error) {
-	volumeID, err := c.StoragePoolVolumeGetTypeID(volumeName, volumeType, poolID, nodeID)
+func (c *Cluster) StoragePoolVolumeGetType(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, *api.StorageVolume, error) {
+	volumeID, err := c.StoragePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
 	if err != nil {
 		return -1, nil, err
 	}
@@ -835,7 +845,13 @@ func (c *Cluster) StoragePoolVolumeGetType(volumeName string, volumeType int, po
 // StoragePoolNodeVolumeGetType gets a single storage volume attached to a
 // given storage pool of a given type, on the current node.
 func (c *Cluster) StoragePoolNodeVolumeGetType(volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
-	return c.StoragePoolVolumeGetType(volumeName, volumeType, poolID, c.nodeID)
+	return c.StoragePoolNodeVolumeGetTypeByProject("default", volumeName, volumeType, poolID)
+}
+
+// StoragePoolNodeVolumeGetTypeByProject gets a single storage volume attached to a
+// given storage pool of a given type, on the current node in the given project.
+func (c *Cluster) StoragePoolNodeVolumeGetTypeByProject(project, volumeName string, volumeType int, poolID int64) (int64, *api.StorageVolume, error) {
+	return c.StoragePoolVolumeGetType(project, volumeName, volumeType, poolID, c.nodeID)
 }
 
 // StoragePoolVolumeUpdate updates the storage volume attached to a given storage
@@ -871,8 +887,8 @@ func (c *Cluster) StoragePoolVolumeUpdate(volumeName string, volumeType int, poo
 
 // StoragePoolVolumeDelete deletes the storage volume attached to a given storage
 // pool.
-func (c *Cluster) StoragePoolVolumeDelete(volumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := c.StoragePoolNodeVolumeGetType(volumeName, volumeType, poolID)
+func (c *Cluster) StoragePoolVolumeDelete(project, volumeName string, volumeType int, poolID int64) error {
+	volumeID, _, err := c.StoragePoolNodeVolumeGetTypeByProject(project, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
@@ -936,7 +952,7 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, volumeName str
 
 // StoragePoolVolumeCreate creates a new storage volume attached to a given
 // storage pool.
-func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, volumeType int, snapshot bool, poolID int64, volumeConfig map[string]string) (int64, error) {
+func (c *Cluster) StoragePoolVolumeCreate(project, volumeName, volumeDescription string, volumeType int, snapshot bool, poolID int64, volumeConfig map[string]string) (int64, error) {
 	var thisVolumeID int64
 
 	err := c.Transaction(func(tx *ClusterTx) error {
@@ -955,9 +971,9 @@ func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, 
 
 		for _, nodeID := range nodeIDs {
 			result, err := tx.tx.Exec(`
-INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, description, project_id) VALUES (?, ?, ?, ?, ?, ?, 1)
+INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, description, project_id) VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 `,
-				poolID, nodeID, volumeType, snapshot, volumeName, volumeDescription)
+				poolID, nodeID, volumeType, snapshot, volumeName, volumeDescription, project)
 			if err != nil {
 				return err
 			}
@@ -988,15 +1004,15 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, des
 
 // StoragePoolVolumeGetTypeID returns the ID of a storage volume on a given
 // storage pool of a given storage volume type, on the given node.
-func (c *Cluster) StoragePoolVolumeGetTypeID(volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
+func (c *Cluster) StoragePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	volumeID := int64(-1)
 	query := `SELECT storage_volumes.id
 FROM storage_volumes
-JOIN storage_pools
-ON storage_volumes.storage_pool_id = storage_pools.id
-WHERE storage_volumes.storage_pool_id=? AND storage_volumes.node_id=?
+JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
+JOIN projects ON storage_volumes.project_id = projects.id
+WHERE projects.name=? AND storage_volumes.storage_pool_id=? AND storage_volumes.node_id=?
 AND storage_volumes.name=? AND storage_volumes.type=?`
-	inargs := []interface{}{poolID, nodeID, volumeName, volumeType}
+	inargs := []interface{}{project, poolID, nodeID, volumeName, volumeType}
 	outargs := []interface{}{&volumeID}
 
 	err := dbQueryRowScan(c.db, query, inargs, outargs)
@@ -1013,7 +1029,7 @@ AND storage_volumes.name=? AND storage_volumes.type=?`
 // StoragePoolNodeVolumeGetTypeID get the ID of a storage volume on a given
 // storage pool of a given storage volume type, on the current node.
 func (c *Cluster) StoragePoolNodeVolumeGetTypeID(volumeName string, volumeType int, poolID int64) (int64, error) {
-	return c.StoragePoolVolumeGetTypeID(volumeName, volumeType, poolID, c.nodeID)
+	return c.StoragePoolVolumeGetTypeID("default", volumeName, volumeType, poolID, c.nodeID)
 }
 
 // XXX: this was extracted from lxd/storage_volume_utils.go, we find a way to

@@ -1247,12 +1247,12 @@ func containerLoadByProjectAndName(s *state.State, project, name string) (contai
 	return containerLXCLoad(s, args, nil)
 }
 
-func containerLoadAll(s *state.State) ([]container, error) {
+func containerLoadByProject(s *state.State, project string) ([]container, error) {
 	// Get all the containers
 	var cts []db.Container
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.ContainerFilter{
-			Project: "default",
+			Project: project,
 			Type:    int(db.CTypeRegular),
 		}
 		var err error
@@ -1268,6 +1268,11 @@ func containerLoadAll(s *state.State) ([]container, error) {
 	}
 
 	return containerLoadAllInternal(cts, s)
+}
+
+// Legacy interface.
+func containerLoadAll(s *state.State) ([]container, error) {
+	return containerLoadByProject(s, "default")
 }
 
 // Load all containers of this nodes.

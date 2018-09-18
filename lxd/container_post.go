@@ -408,7 +408,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, oldName, new
 			if pool.Driver != "ceph" {
 				return fmt.Errorf("Source container's storage pool is not of type ceph")
 			}
-			si, err := storagePoolVolumeContainerLoadInit(d.State(), c.Name())
+			si, err := storagePoolVolumeContainerLoadInit(d.State(), "default", c.Name())
 			if err != nil {
 				return errors.Wrap(err, "Failed to initialize source container's storage pool")
 			}
