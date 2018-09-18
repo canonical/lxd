@@ -587,8 +587,11 @@ func getStoragePoolMountPoint(poolName string) string {
 	return shared.VarPath("storage-pools", poolName)
 }
 
-// ${LXD_DIR}/storage-pools/<pool>containers/<container_name>
+// ${LXD_DIR}/storage-pools/<pool>/containers/[<project_name>_]<container_name>
 func getContainerMountPoint(project string, poolName string, containerName string) string {
+	if project != "default" {
+		containerName = fmt.Sprintf("%s_%s", project, containerName)
+	}
 	return shared.VarPath("storage-pools", poolName, "containers", containerName)
 }
 

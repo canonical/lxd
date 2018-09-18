@@ -3821,7 +3821,7 @@ func writeBackupFile(c container) error {
 		return err
 	}
 
-	f, err := os.Create(shared.VarPath("containers", c.Name(), "backup.yaml"))
+	f, err := os.Create(filepath.Join(c.Path(), "backup.yaml"))
 	if err != nil {
 		return err
 	}
@@ -8580,7 +8580,11 @@ func (c *containerLXC) State() string {
 
 // Various container paths
 func (c *containerLXC) Path() string {
-	return containerPath(c.Name(), c.IsSnapshot())
+	name := c.Name()
+	if c.Project() != "default" {
+		name = fmt.Sprintf("%s_%s", c.Project(), name)
+	}
+	return containerPath(name, c.IsSnapshot())
 }
 
 func (c *containerLXC) DevicesPath() string {

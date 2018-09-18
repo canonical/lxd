@@ -489,7 +489,7 @@ func (s *storageDir) ContainerCreate(container container) error {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, container.Name())
+	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	err = createContainerMountpoint(containerMntPoint, container.Path(), container.IsPrivileged())
 	if err != nil {
 		return err
@@ -528,7 +528,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 
 	privileged := container.IsPrivileged()
 	containerName := container.Name()
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
 	err = createContainerMountpoint(containerMntPoint, container.Path(), privileged)
 	if err != nil {
 		return err
