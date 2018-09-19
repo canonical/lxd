@@ -593,3 +593,17 @@ Those keys translate pretty much directly to the matching nvidia-container envir
  - nvidia.driver.capabilities => NVIDIA\_DRIVER\_CAPABILITIES
  - nvidia.require.cuda => NVIDIA\_REQUIRE\_CUDA
  - nvidia.require.driver => NVIDIA\_REQUIRE\_DRIVER
+
+## storage\_api\_volume\_snapshots
+Add support for storage volume snapshots. They work like container snapshots,
+only for volumes.
+
+This adds the following new endpoint (see [RESTful API](rest-api.md) for details):
+
+* `GET /1.0/storage-pools/<pool>/volumes/<type>/<name>/snapshots`
+* `POST /1.0/storage-pools/<pool>/volumes/<type>/<name>/snapshots`
+
+* `GET /1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`
+* `PUT /1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`
+* `POST /1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`
+* `DELETE /1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`
