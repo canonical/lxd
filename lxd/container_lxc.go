@@ -909,10 +909,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Load the go-lxc struct
-	cname := c.Name()
-	if c.Project() != "default" {
-		cname = fmt.Sprintf("%s_%s", c.Project(), cname)
-	}
+	cname := projectPrefix(c.Project(), c.Name())
 	cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
 	if err != nil {
 		return err
@@ -2506,10 +2503,7 @@ func (c *containerLXC) Start(stateful bool) error {
 		}
 	}
 
-	name := c.name
-	if c.Project() != "default" {
-		name = fmt.Sprintf("%s_%s", c.Project(), name)
-	}
+	name := projectPrefix(c.Project(), c.name)
 
 	// Start the LXC container
 	out, err := shared.RunCommand(
@@ -7554,10 +7548,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		}
 
 		// Attempt to include all existing interfaces
-		cname := c.Name()
-		if c.Project() != "default" {
-			cname = fmt.Sprintf("%s_%s", c.Project(), cname)
-		}
+		cname := projectPrefix(c.Project(), c.Name())
 		cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
 		if err == nil {
 			defer lxc.Release(cc)
@@ -7815,10 +7806,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct
-	cname := c.Name()
-	if c.Project() != "default" {
-		cname = fmt.Sprintf("%s_%s", c.Project(), cname)
-	}
+	cname := projectPrefix(c.Project(), c.Name())
 	cc, err := lxc.NewContainer(cname, c.state.OS.LxcPath)
 	if err != nil {
 		return err
@@ -8597,34 +8585,22 @@ func (c *containerLXC) State() string {
 
 // Various container paths
 func (c *containerLXC) Path() string {
-	name := c.Name()
-	if c.Project() != "default" {
-		name = fmt.Sprintf("%s_%s", c.Project(), name)
-	}
+	name := projectPrefix(c.Project(), c.Name())
 	return containerPath(name, c.IsSnapshot())
 }
 
 func (c *containerLXC) DevicesPath() string {
-	name := c.Name()
-	if c.Project() != "default" {
-		name = fmt.Sprintf("%s_%s", c.Project(), name)
-	}
+	name := projectPrefix(c.Project(), c.Name())
 	return shared.VarPath("devices", name)
 }
 
 func (c *containerLXC) ShmountsPath() string {
-	name := c.Name()
-	if c.Project() != "default" {
-		name = fmt.Sprintf("%s_%s", c.Project(), name)
-	}
+	name := projectPrefix(c.Project(), c.Name())
 	return shared.VarPath("shmounts", name)
 }
 
 func (c *containerLXC) LogPath() string {
-	name := c.Name()
-	if c.Project() != "default" {
-		name = fmt.Sprintf("%s_%s", c.Project(), name)
-	}
+	name := projectPrefix(c.Project(), c.Name())
 	return shared.LogPath(name)
 }
 

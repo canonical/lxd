@@ -787,10 +787,7 @@ func containerNameToLVName(project, containerName string) string {
 }
 
 func getLvmDevPath(project, lvmPool string, volumeType string, lvmVolume string) string {
-	if project != "default" {
-		lvmVolume = fmt.Sprintf("%s_%s", project, lvmVolume)
-	}
-
+	lvmVolume = projectPrefix(project, lvmVolume)
 	if volumeType == "" {
 		return fmt.Sprintf("/dev/%s/%s", lvmPool, lvmVolume)
 	}
@@ -807,9 +804,7 @@ func getLVName(lvmPool string, volumeType string, lvmVolume string) string {
 }
 
 func getPrefixedLvName(project, volumeType string, lvmVolume string) string {
-	if project != "default" {
-		lvmVolume = fmt.Sprintf("%s_%s", project, lvmVolume)
-	}
+	lvmVolume = projectPrefix(project, lvmVolume)
 	return fmt.Sprintf("%s_%s", volumeType, lvmVolume)
 }
 
