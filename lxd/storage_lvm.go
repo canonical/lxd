@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
@@ -954,11 +955,11 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	containerPath := container.Path()
 	err = os.MkdirAll(containerMntPoint, 0711)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Create container mount point directory at %s", containerMntPoint)
 	}
 	err = createContainerMountpoint(containerMntPoint, containerPath, container.IsPrivileged())
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Create container mount point")
 	}
 
 	poolName := s.getOnDiskPoolName()
@@ -973,7 +974,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 
 	ourMount, err := s.ContainerMount(container)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Container mount")
 	}
 	if ourMount {
 		defer s.ContainerUmount(containerName, containerPath)
@@ -985,13 +986,13 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 		err = os.Chmod(containerMntPoint, 0711)
 	}
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Set mount point permissions")
 	}
 
 	if !container.IsPrivileged() {
 		err := s.shiftRootfs(container, nil)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Shift rootfs")
 		}
 	}
 
@@ -1181,7 +1182,7 @@ func (s *storageLvm) doContainerMount(name string) (bool, error) {
 	lxdStorageMapLock.Unlock()
 
 	if mounterr != nil {
-		return false, mounterr
+		return false, errors.Wrapf(mounterr, "Mount %s onto %s", containerLvmPath, containerMntPoint)
 	}
 
 	logger.Debugf("Mounted LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
