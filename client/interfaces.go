@@ -197,6 +197,15 @@ type ContainerServer interface {
 	MoveStoragePoolVolume(pool string, source ContainerServer, sourcePool string, volume api.StorageVolume, args *StoragePoolVolumeMoveArgs) (op RemoteOperation, err error)
 	MigrateStoragePoolVolume(pool string, volume api.StorageVolumePost) (op Operation, err error)
 
+	// Storage volume snapshot functions ("storage_api_volume_snapshots" API extension)
+	CreateStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshot api.StorageVolumeSnapshotsPost) (op Operation, err error)
+	DeleteStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string) (op Operation, err error)
+	GetStoragePoolVolumeSnapshotNames(pool string, volumeType string, volumeName string) (names []string, err error)
+	GetStoragePoolVolumeSnapshots(pool string, volumeType string, volumeName string) (snapshots []api.StorageVolumeSnapshot, err error)
+	GetStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string) (snapshot *api.StorageVolumeSnapshot, ETag string, err error)
+	RenameStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string, snapshot api.StorageVolumeSnapshotPost) (op Operation, err error)
+	UpdateStoragePoolVolumeSnapshot(pool string, volumeType string, volumeName string, snapshotName string, volume api.StorageVolumeSnapshotPut, ETag string) (err error)
+
 	// Cluster functions ("cluster" API extensions)
 	GetCluster() (cluster *api.Cluster, ETag string, err error)
 	UpdateCluster(cluster api.ClusterPut, ETag string) (op Operation, err error)
@@ -319,6 +328,9 @@ type StoragePoolVolumeCopyArgs struct {
 
 	// The transfer mode, can be "pull" (default), "push" or "relay"
 	Mode string
+
+	// API extension: storage_api_volume_snapshots
+	VolumeOnly bool
 }
 
 // The StoragePoolVolumeMoveArgs struct is used to pass additional options
