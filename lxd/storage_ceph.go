@@ -851,11 +851,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		}
 	}
 
-	volumeName := containerName
-	if container.Project() != "default" {
-		volumeName = fmt.Sprintf("%s_%s", container.Project(), volumeName)
-	}
-
+	volumeName := projectPrefix(container.Project(), containerName)
 	err := cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, fingerprint,
 		storagePoolVolumeTypeNameImage, "readonly", s.OSDPoolName,
 		volumeName, storagePoolVolumeTypeNameContainer, s.UserName)

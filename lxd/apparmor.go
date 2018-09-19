@@ -303,28 +303,19 @@ func AANamespace(c container) string {
 	 */
 	lxddir := strings.Replace(strings.Trim(shared.VarPath(""), "/"), "/", "-", -1)
 	lxddir = mkApparmorName(lxddir)
-	name := c.Name()
-	if c.Project() != "default" {
-		name = fmt.Sprintf("%s_%s", c.Project(), name)
-	}
+	name := projectPrefix(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
 func AAProfileFull(c container) string {
 	lxddir := shared.VarPath("")
 	lxddir = mkApparmorName(lxddir)
-	name := c.Name()
-	if c.Project() != "default" {
-		name = fmt.Sprintf("%s_%s", c.Project(), name)
-	}
+	name := projectPrefix(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s_<%s>", name, lxddir)
 }
 
 func AAProfileShort(c container) string {
-	name := c.Name()
-	if c.Project() != "default" {
-		name = fmt.Sprintf("%s_%s", c.Project(), name)
-	}
+	name := projectPrefix(c.Project(), c.Name())
 	return fmt.Sprintf("lxd-%s", name)
 }
 

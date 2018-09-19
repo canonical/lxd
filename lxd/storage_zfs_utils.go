@@ -597,10 +597,7 @@ func zfsFilesystemEntityExists(pool string, path string) bool {
 func (s *storageZfs) doContainerMount(project, name string, privileged bool) (bool, error) {
 	logger.Debugf("Mounting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
-	volumeName := name
-	if project != "default" {
-		volumeName = fmt.Sprintf("%s_%s", project, name)
-	}
+	volumeName := projectPrefix(project, name)
 	fs := fmt.Sprintf("containers/%s", volumeName)
 	containerPoolVolumeMntPoint := getContainerMountPoint(project, s.pool.Name, name)
 
