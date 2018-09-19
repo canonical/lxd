@@ -306,7 +306,7 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 	// gets confused and wants both of them unmounted. So unmount
 	// the source as well.
 	if LVFilesystem == "btrfs" {
-		ourUmount, err := s.ContainerUmount(source.Name(), source.Path())
+		ourUmount, err := s.ContainerUmount(source, source.Path())
 		if err != nil {
 			return err
 		}
@@ -490,7 +490,7 @@ func (s *storageLvm) containerCreateFromImageLv(c container, fp string) error {
 	}
 	logger.Debugf(`Unpacked image "%s" into non-thinpool LVM storage volume "%s" for container "%s" on storage pool "%s"`, imagePath, containerMntPoint, containerName, s.pool.Name)
 
-	s.ContainerUmount(containerName, containerPath)
+	s.ContainerUmount(c, containerPath)
 
 	return nil
 }
