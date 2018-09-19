@@ -79,7 +79,7 @@ type StorageVolumeSource struct {
 	Websockets  map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 
 	// API extension: storage_api_volume_snapshots
-	VolumeOnly bool `json:"volume_only yaml:"volume_only"`
+	VolumeOnly bool `json:"volume_only" yaml:"volume_only"`
 }
 
 // Writable converts a full StorageVolume struct into a StorageVolumePut struct

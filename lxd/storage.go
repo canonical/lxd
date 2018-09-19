@@ -164,6 +164,11 @@ type storage interface {
 	SetStoragePoolVolumeWritable(writable *api.StorageVolumePut)
 	GetStoragePoolVolume() *api.StorageVolume
 
+	// Functions dealing with custom storage volume snapshots.
+	StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error
+	StoragePoolVolumeSnapshotDelete() error
+	StoragePoolVolumeSnapshotRename(newName string) error
+
 	// Functions dealing with container storage volumes.
 	// ContainerCreate creates an empty container (no rootfs/metadata.yaml)
 	ContainerCreate(container container) error
@@ -581,9 +586,9 @@ func getContainerMountPoint(poolName string, containerName string) string {
 	return shared.VarPath("storage-pools", poolName, "containers", containerName)
 }
 
-// ${LXD_DIR}/storage-pools/<pool>/snapshots/<snapshot_name>
+// ${LXD_DIR}/storage-pools/<pool>/containers-snapshots/<snapshot_name>
 func getSnapshotMountPoint(poolName string, snapshotName string) string {
-	return shared.VarPath("storage-pools", poolName, "snapshots", snapshotName)
+	return shared.VarPath("storage-pools", poolName, "containers-snapshots", snapshotName)
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/images/<fingerprint>
@@ -594,6 +599,11 @@ func getImageMountPoint(poolName string, fingerprint string) string {
 // ${LXD_DIR}/storage-pools/<pool>/custom/<storage_volume>
 func getStoragePoolVolumeMountPoint(poolName string, volumeName string) string {
 	return shared.VarPath("storage-pools", poolName, "custom", volumeName)
+}
+
+// ${LXD_DIR}/storage-pools/<pool>/custom-snapshots/<custom volume name>/<snapshot name>
+func getStoragePoolVolumeSnapshotMountPoint(poolName string, snapshotName string) string {
+	return shared.VarPath("storage-pools", poolName, "custom-snapshots", snapshotName)
 }
 
 func createContainerMountpoint(mountPoint string, mountPointSymlink string, privileged bool) error {
