@@ -1031,7 +1031,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
 		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
-		ctLvName := containerNameToLVName("default", ct)
+		ctLvName := containerNameToLVName(ct)
 		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, ctLvName)
 		containerLvDevPath := getLvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, ctLvName)
 		if !shared.PathExists(containerLvDevPath) {
@@ -1187,7 +1187,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			os.Remove(oldSnapshotMntPoint + ".lv")
 
 			// Make sure we use a valid lv name.
-			csLvName := containerNameToLVName("default", cs)
+			csLvName := containerNameToLVName(cs)
 			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, csLvName)
 			snapshotLvDevPath := getLvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, csLvName)
 			if !shared.PathExists(snapshotLvDevPath) {
@@ -2349,7 +2349,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 			// It shouldn't be possible that false volume types
 			// exist in the db, so it's safe to ignore the error.
 			volumeTypeApiEndpoint, _ := storagePoolVolumeTypeNameToAPIEndpoint(volume.Type)
-			lvmName := containerNameToLVName("default", volume.Name)
+			lvmName := containerNameToLVName(volume.Name)
 			lvmLvDevPath := getLvmDevPath("default", poolName, volumeTypeApiEndpoint, lvmName)
 			size, err := lvmGetLVSize(lvmLvDevPath)
 			if err != nil {

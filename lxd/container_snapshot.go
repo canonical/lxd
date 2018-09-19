@@ -122,6 +122,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 
 	snapshot := func(op *operation) error {
 		args := db.ContainerArgs{
+			Project:      c.Project(),
 			Architecture: c.Architecture(),
 			Config:       c.LocalConfig(),
 			Ctype:        db.CTypeSnapshot,

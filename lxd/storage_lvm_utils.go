@@ -165,8 +165,8 @@ func (s *storageLvm) renameLVByPath(oldName string, newName string, volumeType s
 	return lvmLVRename(poolName, oldLvmName, newLvmName)
 }
 
-func removeLV(vgName string, volumeType string, lvName string) error {
-	lvmVolumePath := getLvmDevPath("default", vgName, volumeType, lvName)
+func removeLV(project, vgName string, volumeType string, lvName string) error {
+	lvmVolumePath := getLvmDevPath(project, vgName, volumeType, lvName)
 	output, err := shared.TryRunCommand("lvremove", "-f", lvmVolumePath)
 
 	if err != nil {
@@ -245,8 +245,8 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 
 	sourceContainerName := sourceContainer.Name()
 	targetContainerName := snapshotContainer.Name()
-	sourceContainerLvmName := containerNameToLVName("default", sourceContainerName)
-	targetContainerLvmName := containerNameToLVName("default", targetContainerName)
+	sourceContainerLvmName := containerNameToLVName(sourceContainerName)
+	targetContainerLvmName := containerNameToLVName(targetContainerName)
 	logger.Debugf("Creating snapshot: %s to %s", sourceContainerName, targetContainerName)
 
 	poolName := s.getOnDiskPoolName()
@@ -298,7 +298,7 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 	LVFilesystem := s.getLvmFilesystem()
 	poolName := s.getOnDiskPoolName()
 	containerName := target.Name()
-	containerLvmName := containerNameToLVName("default", containerName)
+	containerLvmName := containerNameToLVName(containerName)
 	containerLvDevPath := getLvmDevPath("default", poolName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
 
@@ -407,7 +407,7 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 	}
 
 	if readonly {
-		targetLvmName := containerNameToLVName("default", targetName)
+		targetLvmName := containerNameToLVName(targetName)
 		poolName := s.getOnDiskPoolName()
 		output, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointContainers, targetLvmName))
 		if err != nil {
@@ -545,7 +545,7 @@ func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) erro
 	}
 
 	containerName := c.Name()
-	containerLvmName := containerNameToLVName("default", containerName)
+	containerLvmName := containerNameToLVName(containerName)
 	_, err := s.createSnapshotLV(c.Project(), poolName, fp, storagePoolVolumeAPIEndpointImages, containerLvmName, storagePoolVolumeAPIEndpointContainers, false, s.useThinpool)
 	if err != nil {
 		return errors.Wrap(err, "Create snapshot")
@@ -780,8 +780,7 @@ func lvmLVRename(vgName string, oldName string, newName string) error {
 	return nil
 }
 
-func containerNameToLVName(project, containerName string) string {
-	containerName = projectPrefix(project, containerName)
+func containerNameToLVName(containerName string) string {
 	lvName := strings.Replace(containerName, "-", "--", -1)
 	return strings.Replace(lvName, shared.SnapshotDelimiter, "-", -1)
 }

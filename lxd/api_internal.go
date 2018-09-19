@@ -674,7 +674,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				return BadRequest(needForce)
 			}
 		case "lvm":
-			ctLvmName := containerNameToLVName("default", snap.Name)
+			ctLvmName := containerNameToLVName(snap.Name)
 			ctLvName := getLVName(poolName,
 				storagePoolVolumeAPIEndpointContainers,
 				ctLvmName)

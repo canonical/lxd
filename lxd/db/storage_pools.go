@@ -863,7 +863,7 @@ func (c *Cluster) StoragePoolVolumeUpdate(volumeName string, volumeType int, poo
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, volumeName, volumeType, poolID, func(volumeID int64) error {
+		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, "default", volumeName, volumeType, poolID, func(volumeID int64) error {
 			err = StorageVolumeConfigClear(tx.tx, volumeID)
 			if err != nil {
 				return err
@@ -894,7 +894,7 @@ func (c *Cluster) StoragePoolVolumeDelete(project, volumeName string, volumeType
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, volumeName, volumeType, poolID, func(volumeID int64) error {
+		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
 			_, err := tx.tx.Exec("DELETE FROM storage_volumes WHERE id=?", volumeID)
 			return err
 		})
@@ -912,7 +912,7 @@ func (c *Cluster) StoragePoolVolumeRename(oldVolumeName string, newVolumeName st
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, oldVolumeName, volumeType, poolID, func(volumeID int64) error {
+		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, "default", oldVolumeName, volumeType, poolID, func(volumeID int64) error {
 			_, err := tx.tx.Exec("UPDATE storage_volumes SET name=? WHERE id=? AND type=?", newVolumeName, volumeID, volumeType)
 			return err
 		})
@@ -924,7 +924,7 @@ func (c *Cluster) StoragePoolVolumeRename(oldVolumeName string, newVolumeName st
 
 // This a convenience to replicate a certain volume change to all nodes if the
 // underlying driver is ceph.
-func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, volumeName string, volumeType int, poolID int64, f func(int64) error) error {
+func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, project, volumeName string, volumeType int, poolID int64, f func(int64) error) error {
 	driver, err := storagePoolDriverGet(tx, poolID)
 	if err != nil {
 		return err
@@ -934,7 +934,7 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, volumeName str
 	// If this is a ceph volume, we want to duplicate the change across the
 	// the rows for all other nodes.
 	if driver == "ceph" {
-		volumeIDs, err = storageVolumeIDsGet(tx, volumeName, volumeType, poolID)
+		volumeIDs, err = storageVolumeIDsGet(tx, project, volumeName, volumeType, poolID)
 		if err != nil {
 			return err
 		}
