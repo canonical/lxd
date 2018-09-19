@@ -1825,9 +1825,10 @@ func (s *storageCeph) doContainerMount(project string, name string) (bool, error
 	ourMount := false
 	RBDDevPath := ""
 	if !shared.IsMountPoint(containerMntPoint) {
+		volumeName := projectPrefix(project, name)
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName,
 			s.OSDPoolName, storagePoolVolumeTypeNameContainer,
-			name, true, s.UserName)
+			volumeName, true, s.UserName)
 		if ret >= 0 {
 			mountFlags, mountOptions := lxdResolveMountoptions(s.getRBDMountOptions())
 			mounterr = tryMount(RBDDevPath, containerMntPoint,
