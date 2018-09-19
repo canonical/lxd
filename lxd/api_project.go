@@ -166,27 +166,7 @@ func apiProjectPut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	// Flag indicating if any feature has changed.
-	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
-
-	// Sanity checks
-	if project.Name == "default" && featuresChanged {
-		return BadRequest(fmt.Errorf("You can't change the features of the default project"))
-	}
-
-	if !apiProjectIsEmpty(project) && featuresChanged {
-		return BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
-	}
-
-	// Update the database entry
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.ProjectUpdate(name, req)
-	})
-	if err != nil {
-		return SmartError(err)
-	}
-
-	return EmptySyncResponse
+	return apiProjectChange(d, project, req)
 }
 
 func apiProjectPatch(d *Daemon, r *http.Request) Response {
@@ -248,6 +228,11 @@ func apiProjectPatch(d *Daemon, r *http.Request) Response {
 		req.Config["features.images"] = project.Config["features.profiles"]
 	}
 
+	return apiProjectChange(d, project, req)
+}
+
+// Common logic between PUT and PATCH.
+func apiProjectChange(d *Daemon, project *api.Project, req api.ProjectPut) Response {
 	// Flag indicating if any feature has changed.
 	featuresChanged := req.Config["features.images"] != project.Config["features.images"] || req.Config["features.profiles"] != project.Config["features.profiles"]
 
@@ -261,9 +246,24 @@ func apiProjectPatch(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update the database entry
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.ProjectUpdate(name, req)
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := tx.ProjectUpdate(project.Name, req)
+		if err != nil {
+			return errors.Wrap(err, "Persist profile changes")
+		}
+
+		if req.Config["features.profiles"] != project.Config["features.profiles"] && req.Config["features.profiles"] != "true" {
+			// Delete the project-specific default profile.
+			err = tx.ProfileDelete(project.Name, "default")
+			if err != nil {
+				return errors.Wrap(err, "Delete project default profile")
+			}
+		}
+
+		return nil
+
 	})
+
 	if err != nil {
 		return SmartError(err)
 	}
