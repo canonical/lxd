@@ -49,9 +49,9 @@ func (s *storageBtrfs) getContainerSubvolumePath(poolName string) string {
 	return shared.VarPath("storage-pools", poolName, "containers")
 }
 
-// ${LXD_DIR}/storage-pools/<pool>/snapshots
+// ${LXD_DIR}/storage-pools/<pool>/containers-snapshots
 func getSnapshotSubvolumePath(poolName string, containerName string) string {
-	return shared.VarPath("storage-pools", poolName, "snapshots", containerName)
+	return shared.VarPath("storage-pools", poolName, "containers-snapshots", containerName)
 }
 
 // ${LXD_DIR}/storage-pools/<pool>/images
@@ -62,6 +62,11 @@ func (s *storageBtrfs) getImageSubvolumePath(poolName string) string {
 // ${LXD_DIR}/storage-pools/<pool>/custom
 func (s *storageBtrfs) getCustomSubvolumePath(poolName string) string {
 	return shared.VarPath("storage-pools", poolName, "custom")
+}
+
+// ${LXD_DIR}/storage-pools/<pool>/custom-snapshots
+func (s *storageBtrfs) getCustomSnapshotSubvolumePath(poolName string) string {
+	return shared.VarPath("storage-pools", poolName, "custom-snapshots")
 }
 
 func (s *storageBtrfs) StorageCoreInit() error {
@@ -262,6 +267,12 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
 	}
 
+	dummyDir = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, "")
+	err = btrfsSubVolumeCreate(dummyDir)
+	if err != nil {
+		return fmt.Errorf("Could not create btrfs subvolume: %s", dummyDir)
+	}
+
 	err = s.StoragePoolCheck()
 	if err != nil {
 		return err
@@ -334,7 +345,10 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 	}
 
 	// Remove the mountpoint for the storage pool.
-	os.RemoveAll(getStoragePoolMountPoint(s.pool.Name))
+	err = os.RemoveAll(getStoragePoolMountPoint(s.pool.Name))
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 
 	logger.Infof("Deleted BTRFS storage pool \"%s\"", s.pool.Name)
 	return nil
@@ -541,8 +555,17 @@ func (s *storageBtrfs) StoragePoolVolumeCreate() error {
 		return err
 	}
 
+	isSnapshot := strings.Contains(s.volume.Name, "/")
+
 	// Create subvolume path on the storage pool.
-	customSubvolumePath := s.getCustomSubvolumePath(s.pool.Name)
+	var customSubvolumePath string
+
+	if isSnapshot {
+		customSubvolumePath = s.getCustomSnapshotSubvolumePath(s.pool.Name)
+	} else {
+		customSubvolumePath = s.getCustomSubvolumePath(s.pool.Name)
+	}
+
 	if !shared.PathExists(customSubvolumePath) {
 		err := os.MkdirAll(customSubvolumePath, 0700)
 		if err != nil {
@@ -551,7 +574,14 @@ func (s *storageBtrfs) StoragePoolVolumeCreate() error {
 	}
 
 	// Create subvolume.
-	customSubvolumeName := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	var customSubvolumeName string
+
+	if isSnapshot {
+		customSubvolumeName = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	} else {
+		customSubvolumeName = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	}
+
 	err = btrfsSubVolumeCreate(customSubvolumeName)
 	if err != nil {
 		return err
@@ -629,7 +659,50 @@ func (s *storageBtrfs) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageBtrfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
-	logger.Infof(`Updating BTRFS storage volume "%s"`, s.pool.Name)
+	if writable.Restore != "" {
+		logger.Debugf(`Restoring BTRFS storage volume "%s" from snapshot "%s"`,
+			s.volume.Name, writable.Restore)
+
+		// The storage pool must be mounted.
+		_, err := s.StoragePoolMount()
+		if err != nil {
+			return err
+		}
+
+		// Create a backup so we can revert.
+		targetVolumeSubvolumeName := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+		backupTargetVolumeSubvolumeName := fmt.Sprintf("%s.tmp", targetVolumeSubvolumeName)
+		err = os.Rename(targetVolumeSubvolumeName, backupTargetVolumeSubvolumeName)
+		if err != nil {
+			return err
+		}
+		undo := true
+		defer func() {
+			if undo {
+				os.Rename(backupTargetVolumeSubvolumeName, targetVolumeSubvolumeName)
+			}
+		}()
+
+		sourceVolumeSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(
+			s.pool.Name, fmt.Sprintf("%s/%s", s.volume.Name, writable.Restore))
+		err = s.btrfsPoolVolumesSnapshot(sourceVolumeSubvolumeName,
+			targetVolumeSubvolumeName, false, true)
+		if err != nil {
+			return err
+		}
+
+		undo = false
+		err = btrfsSubVolumesDelete(backupTargetVolumeSubvolumeName)
+		if err != nil {
+			return err
+		}
+
+		logger.Debugf(`Restored BTRFS storage volume "%s" from snapshot "%s"`,
+			s.volume.Name, writable.Restore)
+		return nil
+	}
+
+	logger.Infof(`Updating BTRFS storage volume "%s"`, s.volume.Name)
 
 	changeable := changeableStoragePoolVolumeProperties["btrfs"]
 	unchangeable := []string{}
@@ -661,7 +734,7 @@ func (s *storageBtrfs) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, c
 		}
 	}
 
-	logger.Infof(`Updated BTRFS storage volume "%s"`, s.pool.Name)
+	logger.Infof(`Updated BTRFS storage volume "%s"`, s.volume.Name)
 	return nil
 }
 
@@ -693,8 +766,40 @@ func (s *storageBtrfs) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renamed BTRFS storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, newName,
+	err = s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, newName,
 		storagePoolVolumeTypeCustom, s.poolID)
+	if err != nil {
+		return err
+	}
+
+	// Get volumes attached to source storage volume
+	volumes, err := s.s.Cluster.StoragePoolVolumeSnapshotsGetType(s.volume.Name,
+		storagePoolVolumeTypeCustom, s.poolID)
+	if err != nil {
+		return err
+	}
+
+	for _, vol := range volumes {
+		_, snapshotName, _ := containerGetParentAndSnapshotName(vol)
+		oldVolumeName := fmt.Sprintf("%s%s%s", s.volume.Name, shared.SnapshotDelimiter, snapshotName)
+		newVolumeName := fmt.Sprintf("%s%s%s", newName, shared.SnapshotDelimiter, snapshotName)
+
+		// Rename volume snapshots
+		oldPath = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, oldVolumeName)
+		newPath = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, newVolumeName)
+		err = os.Rename(oldPath, newPath)
+		if err != nil {
+			return err
+		}
+
+		err = s.s.Cluster.StoragePoolVolumeRename(oldVolumeName, newVolumeName,
+			storagePoolVolumeTypeCustom, s.poolID)
+		if err != nil {
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func (s *storageBtrfs) GetStoragePoolVolumeWritable() api.StorageVolumePut {
@@ -880,7 +985,7 @@ func (s *storageBtrfs) ContainerDelete(container container) error {
 	snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, container.Name())
 	if shared.PathExists(snapshotMntPoint) {
 		err := os.RemoveAll(snapshotMntPoint)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
@@ -947,7 +1052,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 
 	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
 	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", targetParentName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
@@ -1179,7 +1284,7 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 
 	// Create a backup so we can revert.
 	targetContainerSubvolumeName := getContainerMountPoint(s.pool.Name, container.Name())
-	backupTargetContainerSubvolumeName := fmt.Sprintf("%s.back", targetContainerSubvolumeName)
+	backupTargetContainerSubvolumeName := fmt.Sprintf("%s.tmp", targetContainerSubvolumeName)
 	err = os.Rename(targetContainerSubvolumeName, backupTargetContainerSubvolumeName)
 	if err != nil {
 		return err
@@ -1248,7 +1353,11 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 			// Remove the backup, we made
 			return btrfsSubVolumesDelete(backupTargetContainerSubvolumeName)
 		}
-		os.RemoveAll(backupTargetContainerSubvolumeName)
+
+		err = os.RemoveAll(backupTargetContainerSubvolumeName)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
 	}
 
 	logger.Debugf("Restored BTRFS storage volume for container \"%s\" from %s to %s", s.volume.Name, sourceContainer.Name(), container.Name())
@@ -1281,7 +1390,7 @@ func (s *storageBtrfs) doContainerSnapshotCreate(targetName string, sourceName s
 		}
 	}
 
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", s.volume.Name)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", s.volume.Name)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		if !shared.PathExists(snapshotMntPointSymlinkTarget) {
@@ -1469,7 +1578,7 @@ func (s *storageBtrfs) ContainerSnapshotCreateEmpty(snapshotContainer container)
 		return err
 	}
 
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		err := createContainerMountpoint(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink, snapshotContainer.IsPrivileged())
@@ -1532,6 +1641,7 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup b
 			// Figure out previous and current subvolumes
 			prev := ""
 			if i > 0 {
+				// /var/lib/lxd/storage-pools/<pool>/containers-snapshots/<container>/<snapshot>
 				prev = getSnapshotMountPoint(s.pool.Name, snapshots[i-1].Name())
 			}
 			cur := getSnapshotMountPoint(s.pool.Name, snap.Name())
@@ -1745,7 +1855,7 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 
 		// create mountpoint
 		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", containerName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 		err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
@@ -1972,7 +2082,7 @@ func (s *storageBtrfs) ImageDelete(fingerprint string) error {
 	// ${LXD_DIR}/images/<fingerprint>.
 	if shared.PathExists(imageSubvolumeName) {
 		err := os.RemoveAll(imageSubvolumeName)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
@@ -2600,7 +2710,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			return err
 		}
 
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", containerPool, "snapshots", containerName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", containerPool, "containers-snapshots", containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -2647,7 +2757,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 				return err
 			}
 
-			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", containerName)
+			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", containerName)
 			snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 			err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
@@ -2668,7 +2778,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 			wrapper := StorageProgressWriter(op, "fs_progress", *snap.Name)
 			err = btrfsRecv(*(snap.Name), tmpSnapshotMntPoint, snapshotMntPoint, true, wrapper)
 			os.RemoveAll(tmpSnapshotMntPoint)
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				return err
 			}
 		}
@@ -2809,12 +2919,35 @@ func (s *storageBtrfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) er
 	logger.Infof("Copying BTRFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 	successMsg := fmt.Sprintf("Copied BTRFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 
-	srcMountPoint := getStoragePoolVolumeMountPoint(source.Pool, source.Name)
-	dstMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	isSrcSnapshot := strings.Contains(source.Name, "/")
+	isDstSnapshot := strings.Contains(s.volume.Name, "/")
+
+	var srcMountPoint string
+	var dstMountPoint string
+
+	if isSrcSnapshot {
+		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(source.Pool, source.Name)
+	} else {
+		srcMountPoint = getStoragePoolVolumeMountPoint(source.Pool, source.Name)
+	}
+
+	if isDstSnapshot {
+		dstMountPoint = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	} else {
+		dstMountPoint = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	}
 
 	if s.pool.Name == source.Pool {
+		var customDir string
+
 		// Ensure that the directories immediately preceding the subvolume directory exist.
-		customDir := getStoragePoolVolumeMountPoint(s.pool.Name, "")
+		if isDstSnapshot {
+			volName, _, _ := containerGetParentAndSnapshotName(s.volume.Name)
+			customDir = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, volName)
+		} else {
+			customDir = getStoragePoolVolumeMountPoint(s.pool.Name, "")
+		}
+
 		if !shared.PathExists(customDir) {
 			err := os.MkdirAll(customDir, customDirMode)
 			if err != nil {
@@ -2836,7 +2969,7 @@ func (s *storageBtrfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) er
 	// setup storage for the source volume
 	srcStorage, err := storagePoolVolumeInit(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
 	if err != nil {
-		logger.Errorf("Failed to initialize storage for BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		logger.Errorf("Failed to initialize storage for BTRFS storage volume \"%s\" on storage pool \"%s\": %s", source.Name, source.Pool, err)
 		return err
 	}
 
@@ -2891,4 +3024,116 @@ func (s *storageBtrfs) GetStoragePoolVolume() *api.StorageVolume {
 
 func (s *storageBtrfs) GetState() *state.State {
 	return s.s
+}
+
+func (s *storageBtrfs) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
+	logger.Infof("Creating BTRFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	// Create subvolume path on the storage pool.
+	customSubvolumePath := s.getCustomSubvolumePath(s.pool.Name)
+	err := os.MkdirAll(customSubvolumePath, 0700)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	_, _, ok := containerGetParentAndSnapshotName(target.Name)
+	if !ok {
+		return err
+	}
+
+	customSnapshotSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	err = os.MkdirAll(customSnapshotSubvolumeName, snapshotsDirMode)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
+	err = s.btrfsPoolVolumesSnapshot(sourcePath, targetPath, true, true)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Created BTRFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
+}
+
+func (s *storageBtrfs) StoragePoolVolumeSnapshotDelete() error {
+	logger.Infof("Deleting BTRFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	snapshotSubvolumeName := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	if shared.PathExists(snapshotSubvolumeName) && isBtrfsSubVolume(snapshotSubvolumeName) {
+		err := btrfsSubVolumesDelete(snapshotSubvolumeName)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := os.RemoveAll(snapshotSubvolumeName)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	sourceName, _, _ := containerGetParentAndSnapshotName(s.volume.Name)
+	storageVolumeSnapshotPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
+	empty, err := shared.PathIsEmpty(storageVolumeSnapshotPath)
+	if err == nil && empty {
+		err := os.RemoveAll(storageVolumeSnapshotPath)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	err = s.s.Cluster.StoragePoolVolumeDelete(
+		s.volume.Name,
+		storagePoolVolumeTypeCustom,
+		s.poolID)
+	if err != nil {
+		logger.Errorf(`Failed to delete database entry for BTRFS storage volume "%s" on storage pool "%s"`,
+			s.volume.Name, s.pool.Name)
+	}
+
+	logger.Infof("Deleted BTRFS storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
+}
+
+func (s *storageBtrfs) StoragePoolVolumeSnapshotRename(newName string) error {
+	logger.Infof("Renaming BTRFS storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
+	var fullSnapshotName string
+
+	if strings.Contains(newName, "/") {
+		// When renaming volume snapshots, newName will contain the full snapshot name
+		fullSnapshotName = newName
+	} else {
+		sourceName, _, ok := containerGetParentAndSnapshotName(s.volume.Name)
+		if !ok {
+			return fmt.Errorf("Not a snapshot name")
+		}
+
+		fullSnapshotName = fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
+	}
+
+	oldPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	newPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, fullSnapshotName)
+
+	if !shared.PathExists(newPath) {
+		err := os.MkdirAll(newPath, customDirMode)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := os.Rename(oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Renamed BTRFS storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
+
+	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, fullSnapshotName, storagePoolVolumeTypeCustom, s.poolID)
 }
