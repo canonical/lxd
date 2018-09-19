@@ -81,9 +81,9 @@ type ProfileFilter struct {
 // Profiles returns a string list of profiles.
 func (c *Cluster) Profiles(project string) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return errors.Wrap(err, "Check if project has profiles")
 		}
 		if !enabled {
 			project = "default"
@@ -122,9 +122,9 @@ func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) 
 	var id int64
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return errors.Wrap(err, "Check if project has profiles")
 		}
 		if !enabled {
 			project = "default"
@@ -150,9 +150,9 @@ func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) 
 // ProfileConfig gets the profile configuration map from the DB.
 func (c *Cluster) ProfileConfig(project, name string) (map[string]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return errors.Wrap(err, "Check if project has profiles")
 		}
 		if !enabled {
 			project = "default"
@@ -258,9 +258,9 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 // profile with the given name.
 func (c *Cluster) ProfileContainersGet(project, profile string) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return errors.Wrap(err, "Check if project has profiles")
 		}
 		if !enabled {
 			project = "default"
