@@ -59,6 +59,9 @@ type StorageVolumePut struct {
 
 	// API extension: entity_description
 	Description string `json:"description" yaml:"description"`
+
+	// API extension: storage_api_volume_snapshots
+	Restore string `json:"restore,omitempty" yaml:"restore,omitempty"`
 }
 
 // StorageVolumeSource represents the creation source for a new storage volume.
@@ -74,6 +77,9 @@ type StorageVolumeSource struct {
 	Mode        string            `json:"mode,omitempty" yaml:"mode,omitempty"`
 	Operation   string            `json:"operation,omitempty" yaml:"operation,omitempty"`
 	Websockets  map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+
+	// API extension: storage_api_volume_snapshots
+	VolumeOnly bool `json:"volume_only yaml:"volume_only"`
 }
 
 // Writable converts a full StorageVolume struct into a StorageVolumePut struct
