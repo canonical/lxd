@@ -1,5 +1,9 @@
 package main
 
+import (
+	"github.com/lxc/lxd/shared/logger"
+)
+
 /*
 #define _GNU_SOURCE
 #include <errno.h>
@@ -18,6 +22,7 @@ package main
 #include "../shared/netns_getifaddrs.c"
 
 bool netnsid_aware = false;
+char errbuf[4096];
 
 static int netns_set_nsid(int fd)
 {
@@ -66,44 +71,44 @@ void checkfeature() {
 
 	hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
 	if (hostnetns_fd < 0) {
-		fprintf(stderr, "Failed to preserve host network namespace\n");
+		(void)sprintf(errbuf, "%s", "Failed to preserve host network namespace\n");
 		goto on_error;
 	}
 
 	ret = unshare(CLONE_NEWNET);
 	if (ret < 0) {
-		fprintf(stderr, "Failed to unshare network namespace\n");
+		(void)sprintf(errbuf, "%s", "Failed to unshare network namespace\n");
 		goto on_error;
 	}
 
 	newnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
 	if (newnetns_fd < 0) {
-		fprintf(stderr, "Failed to preserve new network namespace\n");
+		(void)sprintf(errbuf, "%s", "Failed to preserve new network namespace\n");
 		goto on_error;
 	}
 
-	ret = setns(hostnetns_fd, CLONE_NEWNET);
+	ret = netns_set_nsid(hostnetns_fd);
 	if (ret < 0) {
-		fprintf(stderr, "Failed to attach to host network namespace\n");
+		(void)sprintf(errbuf, "%s", "failed to set network namespace identifier\n");
 		goto on_error;
 	}
 
-	ret = netns_set_nsid(newnetns_fd);
-	if (ret < 0) {
-		fprintf(stderr, "failed to set network namespace identifier\n");
-		goto on_error;
-	}
-
-	netnsid = netns_get_nsid(newnetns_fd);
+	netnsid = netns_get_nsid(hostnetns_fd);
 	if (netnsid < 0) {
-		fprintf(stderr, "Failed to get network namespace identifier\n");
+		(void)sprintf(errbuf, "%s", "Failed to get network namespace identifier\n");
 		goto on_error;
 	}
 
 	ret = netns_getifaddrs(&ifaddrs, netnsid, &netnsid_aware);
 	netns_freeifaddrs(ifaddrs);
+	if (ret < 0) {
+		(void)sprintf(errbuf, "%s", "Netlink is not fully network namespace id aware\n");
+		goto on_error;
+	}
+
+	ret = setns(hostnetns_fd, CLONE_NEWNET);
 	if (ret < 0)
-		fprintf(stderr, "Netlink is not fully network namespace id aware\n");
+		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace\n");
 
 on_error:
 	if (hostnetns_fd >= 0)
@@ -112,9 +117,18 @@ on_error:
 	if (newnetns_fd >= 0)
 		close(newnetns_fd);
 }
+
+static bool is_empty_string(char *s)
+{
+	return (errbuf[0] == '\0');
+}
 */
 import "C"
 
 func CanUseNetnsGetifaddrs() bool {
+	if !bool(C.is_empty_string(&C.errbuf[0])) {
+		logger.Errorf("%s", C.GoString(&C.errbuf[0]))
+	}
+
 	return bool(C.netnsid_aware)
 }
