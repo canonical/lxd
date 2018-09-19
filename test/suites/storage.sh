@@ -370,6 +370,12 @@ test_storage() {
     lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5 c11pool5-renamed
     lxc storage volume rename "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5-renamed c11pool5
 
+    lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool5" c12pool5
+    # should create snap0
+    lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-pool5" c12pool5
+    # should create snap1
+    lxc storage volume snapshot "lxdtest-$(basename "${LXD_DIR}")-pool5" c12pool5
+
     if [ "$lxd_backend" = "lvm" ]; then
       lxc init testimage c10pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
       lxc list -c b c10pool6 | grep "lxdtest-$(basename "${LXD_DIR}")-pool6"
@@ -614,6 +620,7 @@ test_storage() {
 
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool5" c9pool5
     lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool5" c11pool5
+    lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-pool5" c12pool5
 
     if [ "$lxd_backend" = "lvm" ]; then
       lxc delete -f c1pool6
