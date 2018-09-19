@@ -876,7 +876,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 	}()
 
 	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName,
-		containerName, storagePoolVolumeTypeNameContainer, s.UserName)
+		volumeName, storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for container "%s"`, containerName)
 		return err
@@ -890,7 +890,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		}
 
 		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
-			containerName, storagePoolVolumeTypeNameContainer,
+			volumeName, storagePoolVolumeTypeNameContainer,
 			s.UserName, true)
 		if err != nil {
 			logger.Warnf(`Failed to unmap RBD storage volume for container "%s": %s`, containerName, err)
