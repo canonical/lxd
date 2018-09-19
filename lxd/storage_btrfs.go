@@ -1049,7 +1049,7 @@ func (s *storageBtrfs) ContainerMount(c container) (bool, error) {
 	return true, nil
 }
 
-func (s *storageBtrfs) ContainerUmount(name string, path string) (bool, error) {
+func (s *storageBtrfs) ContainerUmount(c container, path string) (bool, error) {
 	return true, nil
 }
 

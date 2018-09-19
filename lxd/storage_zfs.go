@@ -694,8 +694,9 @@ func (s *storageZfs) ContainerMount(c container) (bool, error) {
 	return s.doContainerMount(c.Name(), c.IsPrivileged())
 }
 
-func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
+func (s *storageZfs) ContainerUmount(c container, path string) (bool, error) {
 	logger.Debugf("Unmounting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	name := c.Name()
 
 	fs := fmt.Sprintf("containers/%s", name)
 	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, name)
@@ -755,7 +756,7 @@ func (s *storageZfs) ContainerCreate(container container) error {
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(container.Name(), container.Path())
+		defer s.ContainerUmount(container, container.Path())
 	}
 
 	err = container.TemplateApply("create")
@@ -823,7 +824,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(containerName, containerPath)
+		defer s.ContainerUmount(container, containerPath)
 	}
 
 	privileged := container.IsPrivileged()
@@ -937,7 +938,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 			return err
 		}
 		if ourMount {
-			defer s.ContainerUmount(targetContainerName, targetContainerPath)
+			defer s.ContainerUmount(target, targetContainerPath)
 		}
 
 		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
@@ -1068,7 +1069,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(targetName, targetContainerMountPoint)
+		defer s.ContainerUmount(target, targetContainerMountPoint)
 	}
 
 	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
@@ -1262,7 +1263,7 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	oldName := container.Name()
 
 	// Unmount the dataset.
-	_, err := s.ContainerUmount(oldName, "")
+	_, err := s.ContainerUmount(container, "")
 	if err != nil {
 		return err
 	}
@@ -1290,7 +1291,8 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	}
 
 	// Unmount the dataset.
-	_, err = s.ContainerUmount(newName, "")
+	container.(*containerLXC).name = newName
+	_, err = s.ContainerUmount(container, "")
 	if err != nil {
 		return err
 	}

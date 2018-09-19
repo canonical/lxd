@@ -715,7 +715,7 @@ func (s *storageDir) ContainerMount(c container) (bool, error) {
 	return s.StoragePoolMount()
 }
 
-func (s *storageDir) ContainerUmount(name string, path string) (bool, error) {
+func (s *storageDir) ContainerUmount(c container, path string) (bool, error) {
 	return true, nil
 }
 

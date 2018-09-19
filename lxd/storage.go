@@ -174,7 +174,7 @@ type storage interface {
 	ContainerDelete(c container) error
 	ContainerCopy(target container, source container, containerOnly bool) error
 	ContainerMount(c container) (bool, error)
-	ContainerUmount(name string, path string) (bool, error)
+	ContainerUmount(c container, path string) (bool, error)
 	ContainerRename(container container, newName string) error
 	ContainerRestore(container container, sourceContainer container) error
 	ContainerGetUsage(container container) (int64, error)

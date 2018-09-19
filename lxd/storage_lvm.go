@@ -786,7 +786,7 @@ func (s *storageLvm) StoragePoolUpdate(writable *api.StoragePoolPut, changedConf
 
 func (s *storageLvm) StoragePoolVolumeUpdate(writable *api.StorageVolumePut,
 	changedConfig []string) error {
-	logger.Infof(`Updating LVM storage volume "%s"`, s.pool.Name)
+	logger.Infof(`Updating LVM storage volume "%s"`, s.volume.Name)
 
 	changeable := changeableStoragePoolVolumeProperties["lvm"]
 	unchangeable := []string{}
@@ -977,7 +977,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 		return errors.Wrap(err, "Container mount")
 	}
 	if ourMount {
-		defer s.ContainerUmount(containerName, containerPath)
+		defer s.ContainerUmount(container, containerPath)
 	}
 
 	if container.IsPrivileged() {
@@ -1189,9 +1189,13 @@ func (s *storageLvm) doContainerMount(name string) (bool, error) {
 	return ourMount, nil
 }
 
-func (s *storageLvm) ContainerUmount(name string, path string) (bool, error) {
-	logger.Debugf("Unmounting LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+func (s *storageLvm) ContainerUmount(c container, path string) (bool, error) {
+	name := c.Name()
+	return s.umount(name, path)
+}
 
+func (s *storageLvm) umount(name string, path string) (bool, error) {
+	logger.Debugf("Unmounting LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	containerMntPoint := getContainerMountPoint(s.pool.Name, name)
 	if shared.IsSnapshot(name) {
 		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
@@ -1243,7 +1247,7 @@ func (s *storageLvm) ContainerRename(container container, newContainerName strin
 	oldLvmName := containerNameToLVName(oldName)
 	newLvmName := containerNameToLVName(newContainerName)
 
-	_, err := s.ContainerUmount(oldName, container.Path())
+	_, err := s.ContainerUmount(container, container.Path())
 	if err != nil {
 		return err
 	}
@@ -1330,7 +1334,7 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 	targetLvmName := containerNameToLVName(targetName)
 	targetPath := target.Path()
 	if s.useThinpool {
-		ourUmount, err := target.Storage().ContainerUmount(targetName, targetPath)
+		ourUmount, err := target.Storage().ContainerUmount(target, targetPath)
 		if err != nil {
 			return err
 		}
