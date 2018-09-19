@@ -953,7 +953,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(containerName, containerPath)
+		defer s.ContainerUmount(container, containerPath)
 	}
 
 	if !privileged {
@@ -1006,7 +1006,7 @@ func (s *storageCeph) ContainerDelete(container container) error {
 	containerPath := container.Path()
 	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
 	if shared.PathExists(containerMntPoint) {
-		_, err := s.ContainerUmount(containerName, containerPath)
+		_, err := s.ContainerUmount(container, containerPath)
 		if err != nil {
 			return err
 		}
@@ -1358,7 +1358,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(target.Name(), targetContainerMountPoint)
+		defer s.ContainerUmount(target, targetContainerMountPoint)
 	}
 
 	err = s.setUnprivUserACL(source, targetContainerMountPoint)
@@ -1392,8 +1392,9 @@ func (s *storageCeph) ContainerMount(c container) (bool, error) {
 	return ourMount, nil
 }
 
-func (s *storageCeph) ContainerUmount(name string, path string) (bool, error) {
+func (s *storageCeph) ContainerUmount(c container, path string) (bool, error) {
 	logger.Debugf("Unmounting RBD storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	name := c.Name()
 
 	containerMntPoint := getContainerMountPoint("default", s.pool.Name, name)
 	if shared.IsSnapshot(name) {
@@ -1449,7 +1450,7 @@ func (s *storageCeph) ContainerRename(c container, newName string) error {
 	logger.Debugf(`Renaming RBD storage volume for container "%s" from "%s" to "%s"`, oldName, oldName, newName)
 
 	// unmount
-	_, err := s.ContainerUmount(oldName, containerPath)
+	_, err := s.ContainerUmount(c, containerPath)
 	if err != nil {
 		return err
 	}

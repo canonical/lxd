@@ -6346,7 +6346,7 @@ func (c *containerLXC) StorageStop() (bool, error) {
 	if c.IsSnapshot() {
 		isOurOperation, err = c.storage.ContainerSnapshotStop(c)
 	} else {
-		isOurOperation, err = c.storage.ContainerUmount(c.Name(), c.Path())
+		isOurOperation, err = c.storage.ContainerUmount(c, c.Path())
 	}
 
 	return isOurOperation, err
