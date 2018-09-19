@@ -817,7 +817,11 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 
 // Things we do have to care about
 func (s *storageZfs) ContainerStorageReady(container container) bool {
-	fs := fmt.Sprintf("containers/%s", container.Name())
+	volumeName := container.Name()
+	if container.Project() != "default" {
+		volumeName = fmt.Sprintf("%s_%s", container.Project(), volumeName)
+	}
+	fs := fmt.Sprintf("containers/%s", volumeName)
 	return zfsFilesystemEntityExists(s.getOnDiskPoolName(), fs)
 }
 
@@ -849,7 +853,11 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 
 	containerPath := container.Path()
 	containerName := container.Name()
-	fs := fmt.Sprintf("containers/%s", containerName)
+	volumeName := containerName
+	if container.Project() != "default" {
+		volumeName = fmt.Sprintf("%s_%s", container.Project(), containerName)
+	}
+	fs := fmt.Sprintf("containers/%s", volumeName)
 	containerPoolVolumeMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
 
 	poolName := s.getOnDiskPoolName()

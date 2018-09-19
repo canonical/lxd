@@ -597,7 +597,11 @@ func zfsFilesystemEntityExists(pool string, path string) bool {
 func (s *storageZfs) doContainerMount(project, name string, privileged bool) (bool, error) {
 	logger.Debugf("Mounting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
-	fs := fmt.Sprintf("containers/%s", name)
+	volumeName := name
+	if project != "default" {
+		volumeName = fmt.Sprintf("%s_%s", project, name)
+	}
+	fs := fmt.Sprintf("containers/%s", volumeName)
 	containerPoolVolumeMntPoint := getContainerMountPoint(project, s.pool.Name, name)
 
 	containerMountLockID := getContainerMountLockID(s.pool.Name, name)
@@ -629,7 +633,7 @@ func (s *storageZfs) doContainerMount(project, name string, privileged bool) (bo
 	// Since we're using mount() directly zfs will not automatically create
 	// the mountpoint for us. So let's check and do it if needed.
 	if !shared.PathExists(containerPoolVolumeMntPoint) {
-		err := createContainerMountpoint(containerPoolVolumeMntPoint, shared.VarPath("containers", name), privileged)
+		err := createContainerMountpoint(containerPoolVolumeMntPoint, shared.VarPath(fs), privileged)
 		if err != nil {
 			return false, err
 		}
