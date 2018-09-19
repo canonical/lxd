@@ -777,7 +777,7 @@ func (s *storageZfs) ContainerUmount(c container, path string) (bool, error) {
 	name := c.Name()
 
 	fs := fmt.Sprintf("containers/%s", name)
-	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name, name)
+	containerPoolVolumeMntPoint := getContainerMountPoint(c.Project(), s.pool.Name, name)
 
 	containerUmountLockID := getContainerUmountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()

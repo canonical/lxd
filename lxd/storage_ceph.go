@@ -1396,7 +1396,7 @@ func (s *storageCeph) ContainerUmount(c container, path string) (bool, error) {
 	logger.Debugf("Unmounting RBD storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	name := c.Name()
 
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, name)
+	containerMntPoint := getContainerMountPoint(c.Project(), s.pool.Name, name)
 	if shared.IsSnapshot(name) {
 		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
 	}
