@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
@@ -303,7 +304,7 @@ func storageInit(s *state.State, project, poolName, volumeName string, volumeTyp
 	// Load the storage pool.
 	poolID, pool, err := s.Cluster.StoragePoolGet(poolName)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Load storage pool %q", poolName)
 	}
 
 	driver := pool.Driver
@@ -574,9 +575,9 @@ func storagePoolVolumeContainerCreateInit(s *state.State, project string, poolNa
 
 func storagePoolVolumeContainerLoadInit(s *state.State, project, containerName string) (storage, error) {
 	// Get the storage pool of a given container.
-	poolName, err := s.Cluster.ContainerPool(containerName)
+	poolName, err := s.Cluster.ContainerPool(project, containerName)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Load storage pool for container %q in project %q", containerName, project)
 	}
 
 	return storagePoolVolumeInit(s, project, poolName, containerName, storagePoolVolumeTypeContainer)

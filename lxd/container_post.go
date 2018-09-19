@@ -68,7 +68,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			targetNodeOffline = node.IsOffline(config.OfflineThreshold())
 
 			// Load source node.
-			address, err := tx.ContainerNodeAddress("default", name)
+			address, err := tx.ContainerNodeAddress(project, name)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get address of container's node")
 			}
@@ -168,7 +168,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 			}
 
 			// Check if we are migrating a ceph-based container.
-			poolName, err := d.cluster.ContainerPool(name)
+			poolName, err := d.cluster.ContainerPool(project, name)
 			if err != nil {
 				err = errors.Wrap(err, "Failed to fetch container's pool name")
 				return SmartError(err)
@@ -179,7 +179,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 				return SmartError(err)
 			}
 			if pool.Driver == "ceph" {
-				return containerPostClusteringMigrateWithCeph(d, c, name, req.Name, targetNode)
+				return containerPostClusteringMigrateWithCeph(d, c, project, name, req.Name, targetNode)
 			}
 
 			// If this is not a ceph-based container, make sure
@@ -391,7 +391,7 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 }
 
 // Special case migrating a container backed by ceph across two cluster nodes.
-func containerPostClusteringMigrateWithCeph(d *Daemon, c container, oldName, newName, newNode string) Response {
+func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, oldName, newName, newNode string) Response {
 	run := func(*operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
@@ -408,7 +408,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, oldName, new
 			if pool.Driver != "ceph" {
 				return fmt.Errorf("Source container's storage pool is not of type ceph")
 			}
-			si, err := storagePoolVolumeContainerLoadInit(d.State(), "default", c.Name())
+			si, err := storagePoolVolumeContainerLoadInit(d.State(), c.Project(), c.Name())
 			if err != nil {
 				return errors.Wrap(err, "Failed to initialize source container's storage pool")
 			}
@@ -431,7 +431,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, oldName, new
 			if err != nil {
 				return err
 			}
-			poolName, err = tx.ContainerPool(newName)
+			poolName, err = tx.ContainerPool(project, newName)
 			if err != nil {
 				return err
 			}

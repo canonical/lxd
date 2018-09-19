@@ -344,7 +344,7 @@ func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
 func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
-	poolName, err := c.ContainerPool(oldName)
+	poolName, err := c.ContainerPool("default", oldName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's storage pool name")
 	}
@@ -853,26 +853,30 @@ SELECT containers.name
 // ContainerPool returns the storage pool of a given container.
 //
 // This is a non-transactional variant of ClusterTx.ContainerPool().
-func (c *Cluster) ContainerPool(containerName string) (string, error) {
+func (c *Cluster) ContainerPool(project, containerName string) (string, error) {
 	var poolName string
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		poolName, err = tx.ContainerPool(containerName)
+		poolName, err = tx.ContainerPool(project, containerName)
 		return err
 	})
 	return poolName, err
 }
 
 // ContainerPool returns the storage pool of a given container.
-func (c *ClusterTx) ContainerPool(containerName string) (string, error) {
+func (c *ClusterTx) ContainerPool(project, containerName string) (string, error) {
 	// Get container storage volume. Since container names are globally
 	// unique, and their storage volumes carry the same name, their storage
 	// volumes are unique too.
 	poolName := ""
-	query := `SELECT storage_pools.name FROM storage_pools
-JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
-WHERE storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type=?`
-	inargs := []interface{}{c.nodeID, containerName, StoragePoolVolumeTypeContainer}
+	query := `
+SELECT storage_pools.name FROM storage_pools
+  JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
+  JOIN containers ON containers.name=storage_volumes.name
+  JOIN projects ON projects.id=containers.project_id
+ WHERE projects.name=? AND storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type=?
+`
+	inargs := []interface{}{project, c.nodeID, containerName, StoragePoolVolumeTypeContainer}
 	outargs := []interface{}{&poolName}
 
 	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)

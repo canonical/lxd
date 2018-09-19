@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -57,7 +58,7 @@ func (s *storageCeph) StoragePoolInit() error {
 
 	err = s.StorageCoreInit()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Storage pool init")
 	}
 
 	// set cluster name
@@ -765,7 +766,7 @@ func (s *storageCeph) ContainerStorageReady(container container) bool {
 	name := container.Name()
 	logger.Debugf(`Checking if RBD storage volume for container "%s" on storage pool "%s" is ready`, name, s.pool.Name)
 
-	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, name,
+	ok := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, projectPrefix(container.Project(), name),
 		storagePoolVolumeTypeNameContainer, s.UserName)
 	if !ok {
 		logger.Debugf(`RBD storage volume for container "%s" on storage pool "%s" does not exist`, name, s.pool.Name)
@@ -1007,17 +1008,19 @@ func (s *storageCeph) ContainerDelete(container container) error {
 	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
 	if shared.PathExists(containerMntPoint) {
 		_, err := s.ContainerUmount(container, containerPath)
+		logger.Errorf("Failed to unmount RBD storage volume for container %q on storage pool %q: %v", containerName, s.pool.Name, err)
 		if err != nil {
 			return err
 		}
 	}
 
+	volumeName := projectPrefix(container.Project(), containerName)
 	rbdVolumeExists := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
-		containerName, storagePoolVolumeTypeNameContainer, s.UserName)
+		volumeName, storagePoolVolumeTypeNameContainer, s.UserName)
 
 	// delete
 	if rbdVolumeExists {
-		ret := cephContainerDelete(s.ClusterName, s.OSDPoolName, containerName,
+		ret := cephContainerDelete(s.ClusterName, s.OSDPoolName, volumeName,
 			storagePoolVolumeTypeNameContainer, s.UserName)
 		if ret < 0 {
 			msg := fmt.Sprintf(`Failed to delete RBD storage volume for `+

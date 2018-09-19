@@ -3434,7 +3434,10 @@ func (c *containerLXC) Delete() error {
 	}
 
 	// Attempt to initialize storage interface for the container.
-	c.initStorage()
+	err := c.initStorage()
+	if err != nil {
+		logger.Warnf("Failed to init storage: %v", err)
+	}
 
 	if c.IsSnapshot() {
 		// Remove the snapshot
@@ -8633,7 +8636,7 @@ func (c *containerLXC) StatePath() string {
 }
 
 func (c *containerLXC) StoragePool() (string, error) {
-	poolName, err := c.state.Cluster.ContainerPool(c.Name())
+	poolName, err := c.state.Cluster.ContainerPool(c.Project(), c.Name())
 	if err != nil {
 		return "", err
 	}
