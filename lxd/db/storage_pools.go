@@ -756,6 +756,29 @@ func (c *Cluster) StoragePoolVolumesGetType(volumeType int, poolID, nodeID int64
 	return response, nil
 }
 
+// StoragePoolVolumeSnapshotsGetType get all snapshots of a storage volume
+// attached to a given storage pool of a given volume type, on the given node.
+func (c *Cluster) StoragePoolVolumeSnapshotsGetType(volumeName string, volumeType int, poolID int64) ([]string, error) {
+	result := []string{}
+	regexp := volumeName + shared.SnapshotDelimiter
+	length := len(regexp)
+
+	query := "SELECT name FROM storage_volumes WHERE storage_pool_id=? AND node_id=? AND type=? AND snapshot=? AND SUBSTR(name,1,?)=?"
+	inargs := []interface{}{poolID, c.nodeID, volumeType, true, length, regexp}
+	outfmt := []interface{}{volumeName}
+
+	dbResults, err := queryScan(c.db, query, inargs, outfmt)
+	if err != nil {
+		return result, err
+	}
+
+	for _, r := range dbResults {
+		result = append(result, r[0].(string))
+	}
+
+	return result, nil
+}
+
 // StoragePoolNodeVolumesGetType returns all storage volumes attached to a
 // given storage pool of a given volume type, on the current node.
 func (c *Cluster) StoragePoolNodeVolumesGetType(volumeType int, poolID int64) ([]string, error) {
@@ -905,8 +928,9 @@ func storagePoolVolumeReplicateIfCeph(tx *sql.Tx, volumeID int64, volumeName str
 
 // StoragePoolVolumeCreate creates a new storage volume attached to a given
 // storage pool.
-func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, volumeType int, poolID int64, volumeConfig map[string]string) (int64, error) {
+func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, volumeType int, snapshot bool, poolID int64, volumeConfig map[string]string) (int64, error) {
 	var thisVolumeID int64
+
 	err := c.Transaction(func(tx *ClusterTx) error {
 		nodeIDs := []int{int(c.nodeID)}
 		driver, err := storagePoolDriverGet(tx.tx, poolID)
@@ -923,9 +947,9 @@ func (c *Cluster) StoragePoolVolumeCreate(volumeName, volumeDescription string, 
 
 		for _, nodeID := range nodeIDs {
 			result, err := tx.tx.Exec(`
-INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description) VALUES (?, ?, ?, ?, ?)
+INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, description) VALUES (?, ?, ?, ?, ?, ?)
 `,
-				poolID, nodeID, volumeType, volumeName, volumeDescription)
+				poolID, nodeID, volumeType, snapshot, volumeName, volumeDescription)
 			if err != nil {
 				return err
 			}

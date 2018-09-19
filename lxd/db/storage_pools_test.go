@@ -165,7 +165,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	volumeID, err := cluster.StoragePoolVolumeCreate("v1", "", 1, poolID, config)
+	volumeID, err := cluster.StoragePoolVolumeCreate("v1", "", 1, false, poolID, config)
 	require.NoError(t, err)
 
 	// The returned volume ID is the one of the volume created on the local
