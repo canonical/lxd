@@ -1273,13 +1273,12 @@ func (s *storageLvm) doContainerMount(project, name string) (bool, error) {
 }
 
 func (s *storageLvm) ContainerUmount(c container, path string) (bool, error) {
-	name := c.Name()
-	return s.umount(name, path)
+	return s.umount(c.Project(), c.Name(), path)
 }
 
-func (s *storageLvm) umount(name string, path string) (bool, error) {
+func (s *storageLvm) umount(project, name string, path string) (bool, error) {
 	logger.Debugf("Unmounting LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, name)
+	containerMntPoint := getContainerMountPoint(project, s.pool.Name, name)
 	if shared.IsSnapshot(name) {
 		containerMntPoint = getSnapshotMountPoint(s.pool.Name, name)
 	}
@@ -1732,7 +1731,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 	if err != nil {
 		return err
 	}
-	defer s.umount(sourceLvmDatasetSnapshot, "")
+	defer s.umount("default", sourceLvmDatasetSnapshot, "")
 
 	// Copy the container
 	containerPath := fmt.Sprintf("%s/container", tmpPath)
