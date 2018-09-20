@@ -5920,15 +5920,18 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 		return result
 	}
 
-	if c.state.OS.NetnsGetifaddrs {
+	couldUseNetnsGetifaddrs := c.state.OS.NetnsGetifaddrs
+	if couldUseNetnsGetifaddrs {
 		nw, err := shared.NetnsGetifaddrs(int32(pid))
 		if err != nil {
+			couldUseNetnsGetifaddrs = false
 			logger.Error("Failed to retrieve network information via netlink", log.Ctx{"container": c.name, "pid": pid})
-			return result
+		} else {
+			networks = &nw
 		}
-		networks = &nw
-	} else {
+	}
 
+	if !couldUseNetnsGetifaddrs {
 		// Get the network state from the container
 		out, err := shared.RunCommand(
 			c.state.OS.ExecPath,
@@ -5941,6 +5944,11 @@ func (c *containerLXC) networkState() map[string]api.ContainerStateNetwork {
 			logger.Error("Error calling 'lxd forkgetnet", log.Ctx{"container": c.name, "output": out, "pid": pid})
 			return result
 		}
+
+		// If we can use netns_getifaddrs() but it failed and the setns() +
+		// netns_getifaddrs() succeeded we should just always fallback to the
+		// setns() + netns_getifaddrs() style retrieval.
+		c.state.OS.NetnsGetifaddrs = false
 
 		nw := map[string]api.ContainerStateNetwork{}
 		err = json.Unmarshal([]byte(out), &nw)
