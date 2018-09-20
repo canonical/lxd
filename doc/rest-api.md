@@ -2281,27 +2281,27 @@ Return:
 Return:
 
     [
-        "/1.0/storage-pools/default/volumes/containers/alp1",
-        "/1.0/storage-pools/default/volumes/containers/alp10",
-        "/1.0/storage-pools/default/volumes/containers/alp11",
-        "/1.0/storage-pools/default/volumes/containers/alp12",
-        "/1.0/storage-pools/default/volumes/containers/alp13",
-        "/1.0/storage-pools/default/volumes/containers/alp14",
-        "/1.0/storage-pools/default/volumes/containers/alp15",
-        "/1.0/storage-pools/default/volumes/containers/alp16",
-        "/1.0/storage-pools/default/volumes/containers/alp17",
-        "/1.0/storage-pools/default/volumes/containers/alp18",
-        "/1.0/storage-pools/default/volumes/containers/alp19",
-        "/1.0/storage-pools/default/volumes/containers/alp2",
-        "/1.0/storage-pools/default/volumes/containers/alp20",
-        "/1.0/storage-pools/default/volumes/containers/alp3",
-        "/1.0/storage-pools/default/volumes/containers/alp4",
-        "/1.0/storage-pools/default/volumes/containers/alp5",
-        "/1.0/storage-pools/default/volumes/containers/alp6",
-        "/1.0/storage-pools/default/volumes/containers/alp7",
-        "/1.0/storage-pools/default/volumes/containers/alp8",
-        "/1.0/storage-pools/default/volumes/containers/alp9",
-        "/1.0/storage-pools/default/volumes/images/62e850a334bb9d99cac00b2e618e0291e5e7bb7db56c4246ecaf8e46fa0631a6"
+        "/1.0/storage-pools/default/volumes/container/alp1",
+        "/1.0/storage-pools/default/volumes/container/alp10",
+        "/1.0/storage-pools/default/volumes/container/alp11",
+        "/1.0/storage-pools/default/volumes/container/alp12",
+        "/1.0/storage-pools/default/volumes/container/alp13",
+        "/1.0/storage-pools/default/volumes/container/alp14",
+        "/1.0/storage-pools/default/volumes/container/alp15",
+        "/1.0/storage-pools/default/volumes/container/alp16",
+        "/1.0/storage-pools/default/volumes/container/alp17",
+        "/1.0/storage-pools/default/volumes/container/alp18",
+        "/1.0/storage-pools/default/volumes/container/alp19",
+        "/1.0/storage-pools/default/volumes/container/alp2",
+        "/1.0/storage-pools/default/volumes/container/alp20",
+        "/1.0/storage-pools/default/volumes/container/alp3",
+        "/1.0/storage-pools/default/volumes/container/alp4",
+        "/1.0/storage-pools/default/volumes/container/alp5",
+        "/1.0/storage-pools/default/volumes/container/alp6",
+        "/1.0/storage-pools/default/volumes/container/alp7",
+        "/1.0/storage-pools/default/volumes/container/alp8",
+        "/1.0/storage-pools/default/volumes/container/alp9",
+        "/1.0/storage-pools/default/volumes/image/62e850a334bb9d99cac00b2e618e0291e5e7bb7db56c4246ecaf8e46fa0631a6"
     ]
 
 ### POST
