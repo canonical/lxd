@@ -1231,7 +1231,7 @@ func (c *containerLXC) initLXC(config bool) error {
 
 		nvidiaDriver := c.expandedConfig["nvidia.driver.capabilities"]
 		if nvidiaDriver == "" {
-			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=all")
+			err = lxcSetConfigItem(cc, "lxc.environment", "NVIDIA_DRIVER_CAPABILITIES=compute,utility")
 			if err != nil {
 				return err
 			}
