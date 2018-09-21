@@ -1882,7 +1882,7 @@ func (s *storageCeph) doContainerSnapshotCreate(targetName string, sourceName st
 
 	targetContainerMntPoint := getSnapshotMountPoint(s.pool.Name, targetName)
 	sourceOnlyName, _, _ := containerGetParentAndSnapshotName(sourceName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", sourceOnlyName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceOnlyName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceOnlyName)
 	err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {

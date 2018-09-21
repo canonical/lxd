@@ -69,7 +69,7 @@ func TestContainerPool(t *testing.T) {
 
 	poolID, err := cluster.StoragePoolCreate("default", "", "dir", nil)
 	require.NoError(t, err)
-	_, err = cluster.StoragePoolVolumeCreate("c1", "", db.StoragePoolVolumeTypeContainer, poolID, nil)
+	_, err = cluster.StoragePoolVolumeCreate("c1", "", db.StoragePoolVolumeTypeContainer, false, poolID, nil)
 	require.NoError(t, err)
 
 	args := db.ContainerArgs{

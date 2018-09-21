@@ -260,16 +260,8 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 	}
 
 	if len(snapshots) > 0 {
-		snapshotMntPointSymlinkTarget := shared.VarPath(
-			"storage-pools",
-			s.pool.Name,
-			"snapshots",
-			containerName)
-
-		snapshotMntPointSymlink := shared.VarPath(
-			"snapshots",
-			containerName)
-
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", containerName)
+		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(
 				snapshotMntPointSymlinkTarget,

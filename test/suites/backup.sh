@@ -104,7 +104,7 @@ test_container_import() {
     lxc start ctImport
     rm "${LXD_DIR}/containers/ctImport"
     if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "btrfs" ]; then
-      rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0"
+      rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
     fi
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill_lxc "${pid}"
@@ -116,7 +116,7 @@ test_container_import() {
     lxc info ctImport | grep snap0
     [ -L "${LXD_DIR}/containers/ctImport" ] && [ -d "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers/ctImport" ]
     if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "btrfs" ]; then
-      [ -L "${LXD_DIR}/snapshots/ctImport" ] && [ -d "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0" ]
+      [ -L "${LXD_DIR}/snapshots/ctImport" ] && [ -d "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0" ]
     fi
     lxc start ctImport
     lxc delete --force ctImport
@@ -126,8 +126,8 @@ test_container_import() {
     lxc start ctImport
     case "$lxd_backend" in
       btrfs)
-        btrfs subvolume delete "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0"
-        rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0"
+        btrfs subvolume delete "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
+        rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
         ;;
       ceph)
         rbd unmap "lxdtest-$(basename "${LXD_DIR}")/container_ctImport@snapshot_snap0" || true
@@ -135,7 +135,7 @@ test_container_import() {
         rbd snap rm "lxdtest-$(basename "${LXD_DIR}")/container_ctImport@snapshot_snap0"
         ;;
       dir)
-        rm -r "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0"
+        rm -r "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
         ;;
       lvm)
         lvremove -f "lxdtest-$(basename "${LXD_DIR}")/containers_ctImport-snap0"
@@ -158,8 +158,8 @@ test_container_import() {
     lxc start ctImport
     case "$lxd_backend" in
       btrfs)
-        btrfs subvolume delete "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0"
-        rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0"
+        btrfs subvolume delete "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
+        rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
         ;;
       ceph)
         rbd unmap "lxdtest-$(basename "${LXD_DIR}")/container_ctImport@snapshot_snap0" || true
@@ -167,7 +167,7 @@ test_container_import() {
         rbd snap rm "lxdtest-$(basename "${LXD_DIR}")/container_ctImport@snapshot_snap0"
         ;;
       dir)
-        rm -r "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/snapshots/ctImport/snap0"
+        rm -r "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
         ;;
       lvm)
         lvremove -f "lxdtest-$(basename "${LXD_DIR}")/containers_ctImport-snap0"

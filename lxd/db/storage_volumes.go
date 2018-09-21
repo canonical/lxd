@@ -4,9 +4,31 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared"
 )
+
+// StorageVolumeArgs is a value object holding all db-related details about a
+// storage volume.
+type StorageVolumeArgs struct {
+	Name string
+
+	// At least one of Type or TypeName must be set.
+	Type     int
+	TypeName string
+
+	// At least one of PoolID or PoolName must be set.
+	PoolID   int64
+	PoolName string
+
+	Snapshot bool
+
+	Config       map[string]string
+	Description  string
+	CreationDate time.Time
+}
 
 // StorageVolumeNodeAddresses returns the addresses of all nodes on which the
 // volume with the given name if defined.
@@ -116,6 +138,43 @@ func (c *Cluster) StorageVolumeDescriptionGet(volumeID int64) (string, error) {
 	}
 
 	return description.String, nil
+}
+
+// StorageVolumeNextSnapshot returns the index the next snapshot of the storage
+// volume with the given name should have.
+//
+// Note, the code below doesn't deal with snapshots of snapshots.
+// To do that, we'll need to weed out based on # slashes in names
+func (c *Cluster) StorageVolumeNextSnapshot(name string, typ int) int {
+	base := name + shared.SnapshotDelimiter + "snap"
+	length := len(base)
+	q := fmt.Sprintf("SELECT name FROM storage_volumes WHERE type=? AND snapshot=? AND SUBSTR(name,1,?)=?")
+	var numstr string
+	inargs := []interface{}{typ, true, length, base}
+	outfmt := []interface{}{numstr}
+	results, err := queryScan(c.db, q, inargs, outfmt)
+	if err != nil {
+		return 0
+	}
+	max := 0
+
+	for _, r := range results {
+		numstr = r[0].(string)
+		if len(numstr) <= length {
+			continue
+		}
+		substr := numstr[length:]
+		var num int
+		count, err := fmt.Sscanf(substr, "%d", &num)
+		if err != nil || count != 1 {
+			continue
+		}
+		if num >= max {
+			max = num + 1
+		}
+	}
+
+	return max
 }
 
 // StorageVolumeDescriptionUpdate updates the description of a storage volume.
