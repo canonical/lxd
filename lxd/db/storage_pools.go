@@ -905,14 +905,14 @@ func (c *Cluster) StoragePoolVolumeDelete(project, volumeName string, volumeType
 }
 
 // StoragePoolVolumeRename renames the storage volume attached to a given storage pool.
-func (c *Cluster) StoragePoolVolumeRename(oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
-	volumeID, _, err := c.StoragePoolNodeVolumeGetType(oldVolumeName, volumeType, poolID)
+func (c *Cluster) StoragePoolVolumeRename(project, oldVolumeName string, newVolumeName string, volumeType int, poolID int64) error {
+	volumeID, _, err := c.StoragePoolNodeVolumeGetTypeByProject(project, oldVolumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, "default", oldVolumeName, volumeType, poolID, func(volumeID int64) error {
+		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, oldVolumeName, volumeType, poolID, func(volumeID int64) error {
 			_, err := tx.tx.Exec("UPDATE storage_volumes SET name=? WHERE id=? AND type=?", newVolumeName, volumeID, volumeType)
 			return err
 		})

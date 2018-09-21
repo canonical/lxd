@@ -190,7 +190,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 		assert.Equal(t, "volume 1", volume.Description)
 		assert.Equal(t, config, volume.Config)
 	}
-	err = cluster.StoragePoolVolumeRename("v1", "v1-new", 1, poolID)
+	err = cluster.StoragePoolVolumeRename("default", "v1", "v1-new", 1, poolID)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
 		_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1-new", 1, poolID, nodeID)

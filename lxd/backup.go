@@ -89,6 +89,7 @@ type backup struct {
 }
 
 type backupInfo struct {
+	Project         string   `json:"project" yaml:"project"`
 	Name            string   `json:"name" yaml:"name"`
 	Backend         string   `json:"backend" yaml:"backend"`
 	Privileged      bool     `json:"privileged" yaml:"privileged"`

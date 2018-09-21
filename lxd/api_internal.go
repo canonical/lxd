@@ -486,7 +486,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if len(backup.Snapshots) > 0 {
 		switch backup.Pool.Driver {
 		case "btrfs":
-			snapshotsDirPath := getSnapshotMountPoint(poolName, req.Name)
+			snapshotsDirPath := getSnapshotMountPoint(project, poolName, req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
 				return InternalError(err)
@@ -498,7 +498,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			}
 			snapshotsDir.Close()
 		case "dir":
-			snapshotsDirPath := getSnapshotMountPoint(poolName, req.Name)
+			snapshotsDirPath := getSnapshotMountPoint(project, poolName, req.Name)
 			snapshotsDir, err := os.Open(snapshotsDirPath)
 			if err != nil {
 				return InternalError(err)
@@ -612,10 +612,10 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		switch backup.Pool.Driver {
 		case "btrfs":
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = btrfsSnapshotDeleteInternal(poolName, snapName)
+			err = btrfsSnapshotDeleteInternal(project, poolName, snapName)
 		case "dir":
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = dirSnapshotDeleteInternal(poolName, snapName)
+			err = dirSnapshotDeleteInternal(project, poolName, snapName)
 		case "lvm":
 			onDiskPoolName := backup.Pool.Config["lvm.vg_name"]
 			if onDiskPoolName == "" {
@@ -647,7 +647,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		case "zfs":
 			onDiskPoolName := backup.Pool.Config["zfs.pool_name"]
 			snapName := fmt.Sprintf("%s/%s", req.Name, od)
-			err = zfsSnapshotDeleteInternal(poolName, snapName,
+			err = zfsSnapshotDeleteInternal(project, poolName, snapName,
 				onDiskPoolName)
 		}
 		if err != nil {
@@ -658,7 +658,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	for _, snap := range backup.Snapshots {
 		switch backup.Pool.Driver {
 		case "btrfs":
-			snpMntPt := getSnapshotMountPoint(backup.Pool.Name, snap.Name)
+			snpMntPt := getSnapshotMountPoint(project, backup.Pool.Name, snap.Name)
 			if !shared.PathExists(snpMntPt) || !isBtrfsSubVolume(snpMntPt) {
 				if req.Force {
 					continue
@@ -666,7 +666,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 				return BadRequest(needForce)
 			}
 		case "dir":
-			snpMntPt := getSnapshotMountPoint(backup.Pool.Name, snap.Name)
+			snpMntPt := getSnapshotMountPoint(project, backup.Pool.Name, snap.Name)
 			if !shared.PathExists(snpMntPt) {
 				if req.Force {
 					continue
@@ -887,6 +887,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		_, err = containerCreateInternal(d.State(), db.ContainerArgs{
+			Project:      project,
 			Architecture: arch,
 			BaseImage:    baseImage,
 			Config:       snap.Config,
@@ -904,7 +905,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		}
 
 		// Recreate missing mountpoints and symlinks.
-		snapshotMountPoint := getSnapshotMountPoint(backup.Pool.Name,
+		snapshotMountPoint := getSnapshotMountPoint(project, backup.Pool.Name,
 			snap.Name)
 		sourceName, _, _ := containerGetParentAndSnapshotName(snap.Name)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)

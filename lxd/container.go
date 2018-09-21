@@ -1244,7 +1244,12 @@ func containerLoadByProjectAndName(s *state.State, project, name string) (contai
 
 	args := db.ContainerToArgs(container)
 
-	return containerLXCLoad(s, args, nil)
+	c, err := containerLXCLoad(s, args, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to load container")
+	}
+
+	return c, nil
 }
 
 func containerLoadByProject(s *state.State, project string) ([]container, error) {
