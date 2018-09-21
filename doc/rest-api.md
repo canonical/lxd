@@ -221,6 +221,8 @@ won't work and PUT needs to be used instead.
          * [`/1.0/storage-pools/<name>/volumes`](#10storage-poolsnamevolumes)
            * [`/1.0/storage-pools/<name>/volumes/<type>`](#10storage-poolsnamevolumestype)
              * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>`](#10storage-poolspoolvolumestypename)
+               * [`/1.0/storage-pools/<pool>/volumes/<type>/<name>/snapshots`](#10storage-poolspoolvolumestypenamesnapshots)
+                 * [`/1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`](#10storage-poolspoolvolumestypevolumesnapshotsname)
      * [`/1.0/resources`](#10resources)
      * [`/1.0/cluster`](#10cluster)
        * [`/1.0/cluster/members`](#10clustermembers)
@@ -2583,8 +2585,8 @@ Return:
 
 
 ### PUT (ETag supported)
- * Description: replace the storage volume information
- * Introduced: with API extension `storage`
+ * Description: replace the storage volume information or restore from snapshot
+ * Introduced: with API extension `storage`, `storage_api_volume_snapshots`
  * Authentication: trusted
  * Operation: sync
  * Return: standard return value or standard error
@@ -2602,6 +2604,10 @@ Return:
             "lvm.vg_name": "pool1",
             "volume.size": "10737418240"
         }
+    }
+
+    {
+        "restore": "snapshot-name"
     }
 
 ### PATCH (ETag supported)
@@ -2630,6 +2636,79 @@ Input (none at present):
 
     {
     }
+
+
+## `/1.0/storage-pools/<pool>/volumes/<type>/<name>/snapshots`
+### GET
+ * Description: List of volume snapshots
+ * Authentication: trusted
+ * Operation: sync
+ * Return: list of URLs for snapshots for this volume
+
+Return value:
+
+    [
+        "/1.0/storage-pools/default/volumes/custom/foo/snapshots/snap0"
+    ]
+
+### POST
+ * Description: create a new volume snapshot
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input:
+
+    {
+        "name": "my-snapshot",          # Name of the snapshot
+    }
+
+## `/1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/name`
+### GET
+ * Description: Snapshot information
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the snapshot
+
+Return:
+
+    {
+        "config": {},
+        "description": "",
+        "name": "snap0"
+    }
+
+### PUT
+ * Description: Volume snapshot information
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict representing the volume snapshot
+
+Input:
+
+    {
+        "description": "new-description"
+    }
+
+### POST
+ * Description: used to rename the volume snapshot
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input:
+
+    {
+        "name": "new-name"
+    }
+
+### DELETE
+ * Description: remove the volume snapshot
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+HTTP code for this should be 202 (Accepted).
 
 ## `/1.0/resources`
 ### GET

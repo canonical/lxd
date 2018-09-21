@@ -124,6 +124,7 @@ var APIExtensions = []string{
 	"backup_compression",
 	"candid_config",
 	"nvidia_runtime_config",
+	"storage_api_volume_snapshots",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

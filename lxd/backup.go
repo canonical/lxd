@@ -295,7 +295,7 @@ func backupFixStoragePool(c *db.Cluster, b backupInfo) error {
 	}
 
 	for _, snap := range b.Snapshots {
-		err = f(shared.VarPath("storage-pools", pool.Name, "snapshots", b.Name, snap,
+		err = f(shared.VarPath("storage-pools", pool.Name, "containers-snapshots", b.Name, snap,
 			"backup.yaml"))
 		if err != nil {
 			return err

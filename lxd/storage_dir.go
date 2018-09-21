@@ -333,7 +333,16 @@ func (s *storageDir) StoragePoolVolumeCreate() error {
 		return fmt.Errorf("no \"source\" property found for the storage pool")
 	}
 
-	storageVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	isSnapshot := strings.Contains(s.volume.Name, "/")
+
+	var storageVolumePath string
+
+	if isSnapshot {
+		storageVolumePath = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	} else {
+		storageVolumePath = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	}
+
 	err = os.MkdirAll(storageVolumePath, 0711)
 	if err != nil {
 		return err
@@ -383,11 +392,33 @@ func (s *storageDir) StoragePoolVolumeUmount() (bool, error) {
 }
 
 func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, changedConfig []string) error {
-	logger.Infof(`Updating DIR storage volume "%s"`, s.pool.Name)
+	if writable.Restore == "" {
+		logger.Infof(`Updating DIR storage volume "%s"`, s.volume.Name)
+	}
 
 	_, err := s.StoragePoolMount()
 	if err != nil {
 		return err
+	}
+
+	if writable.Restore != "" {
+		logger.Infof(`Restoring DIR storage volume "%s" from snapshot "%s"`,
+			s.volume.Name, writable.Restore)
+
+		sourcePath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name,
+			fmt.Sprintf("%s/%s", s.volume.Name, writable.Restore))
+		targetPath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+
+		// Restore using rsync
+		bwlimit := s.pool.Config["rsync.bwlimit"]
+		output, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit)
+		if err != nil {
+			return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
+		}
+
+		logger.Infof(`Restored DIR storage volume "%s" from snapshot "%s"`,
+			s.volume.Name, writable.Restore)
+		return nil
 	}
 
 	changeable := changeableStoragePoolVolumeProperties["dir"]
@@ -402,7 +433,7 @@ func (s *storageDir) StoragePoolVolumeUpdate(writable *api.StorageVolumePut, cha
 		return updateStoragePoolVolumeError(unchangeable, "dir")
 	}
 
-	logger.Infof(`Updated DIR storage volume "%s"`, s.pool.Name)
+	logger.Infof(`Updated DIR storage volume "%s"`, s.volume.Name)
 	return nil
 }
 
@@ -634,7 +665,7 @@ func (s *storageDir) copySnapshot(target container, targetPool string, source co
 
 	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
 	containersPath := getSnapshotMountPoint(targetPool, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", targetPool, "snapshots", targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", targetPool, "containers-snapshots", targetParentName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
@@ -936,8 +967,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name,
 		targetContainerName)
 	sourceName, _, _ := containerGetParentAndSnapshotName(targetContainerName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
-		s.pool.Name, "snapshots", sourceName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceName)
 	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 	err = createSnapshotMountpoint(targetContainerMntPoint,
 		snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -1134,8 +1164,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 
 	// Create mountpoints
 	containerMntPoint := getContainerMountPoint(s.pool.Name, info.Name)
-	err = createContainerMountpoint(containerMntPoint, containerPath(info.Name, false),
-		info.Privileged)
+	err = createContainerMountpoint(containerMntPoint, containerPath(info.Name, false), info.Privileged)
 	if err != nil {
 		return err
 	}
@@ -1158,11 +1187,9 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 	if len(info.Snapshots) > 0 {
 		// Create mountpoints
 		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, info.Name)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name,
-			"snapshots", info.Name)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", info.Name)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", info.Name)
-		err := createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget,
-			snapshotMntPointSymlink)
+		err := createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			return err
 		}
@@ -1266,8 +1293,24 @@ func (s *storageDir) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 		return err
 	}
 
-	srcMountPoint := getStoragePoolVolumeMountPoint(source.Pool, source.Name)
-	dstMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	var srcMountPoint string
+	var dstMountPoint string
+
+	isSrcSnapshot := strings.Contains(source.Name, "/")
+	isDstSnapshot := strings.Contains(s.volume.Name, "/")
+
+	if isSrcSnapshot {
+		srcMountPoint = getStoragePoolVolumeSnapshotMountPoint(source.Pool, source.Name)
+	} else {
+		srcMountPoint = getStoragePoolVolumeMountPoint(source.Pool, source.Name)
+	}
+
+	if isDstSnapshot {
+		dstMountPoint = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	} else {
+		dstMountPoint = getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	}
+
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit)
 	if err != nil {
@@ -1298,4 +1341,109 @@ func (s *storageDir) GetStoragePoolVolume() *api.StorageVolume {
 
 func (s *storageDir) GetState() *state.State {
 	return s.s
+}
+
+func (s *storageDir) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
+	logger.Infof("Creating DIR storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	sourceName, _, ok := containerGetParentAndSnapshotName(target.Name)
+	if !ok {
+		return fmt.Errorf("Not a snapshot name")
+	}
+
+	targetPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, target.Name)
+	err = os.MkdirAll(targetPath, 0711)
+	if err != nil {
+		return err
+	}
+
+	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, sourceName)
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+	msg, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit)
+	if err != nil {
+		return fmt.Errorf("Failed to rsync: %s: %s", string(msg), err)
+	}
+
+	logger.Infof("Created DIR storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
+}
+
+func (s *storageDir) StoragePoolVolumeSnapshotDelete() error {
+	logger.Infof("Deleting DIR storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+
+	source := s.pool.Config["source"]
+	if source == "" {
+		return fmt.Errorf("no \"source\" property found for the storage pool")
+	}
+
+	storageVolumePath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	err := os.RemoveAll(storageVolumePath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	sourceName, _, _ := containerGetParentAndSnapshotName(s.volume.Name)
+	storageVolumeSnapshotPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, sourceName)
+	empty, err := shared.PathIsEmpty(storageVolumeSnapshotPath)
+	if err == nil && empty {
+		os.RemoveAll(storageVolumeSnapshotPath)
+	}
+
+	err = s.s.Cluster.StoragePoolVolumeDelete(
+		s.volume.Name,
+		storagePoolVolumeTypeCustom,
+		s.poolID)
+	if err != nil {
+		logger.Errorf(`Failed to delete database entry for DIR storage volume "%s" on storage pool "%s"`,
+			s.volume.Name, s.pool.Name)
+	}
+
+	logger.Infof("Deleted DIR storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	return nil
+}
+
+func (s *storageDir) StoragePoolVolumeSnapshotRename(newName string) error {
+	logger.Infof("Renaming DIR storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
+	var fullSnapshotName string
+
+	if strings.Contains(newName, "/") {
+		// When renaming volume snapshots, newName will contain the full snapshot name
+		fullSnapshotName = newName
+	} else {
+		sourceName, _, ok := containerGetParentAndSnapshotName(s.volume.Name)
+		if !ok {
+			return fmt.Errorf("Not a snapshot name")
+		}
+
+		fullSnapshotName = fmt.Sprintf("%s%s%s", sourceName, shared.SnapshotDelimiter, newName)
+	}
+
+	oldPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
+	newPath := getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, fullSnapshotName)
+
+	if !shared.PathExists(newPath) {
+		err := os.MkdirAll(newPath, customDirMode)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := os.Rename(oldPath, newPath)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Renamed DIR storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
+
+	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, fullSnapshotName, storagePoolVolumeTypeCustom, s.poolID)
 }
