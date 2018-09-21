@@ -3081,7 +3081,7 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 		// FIXME: Render shouldn't directly access the go-lxc struct
 		cState, err := c.getLxcState()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errors.Wrap(err, "Get container stated")
 		}
 		statusCode := lxcStatusCode(cState)
 
@@ -3632,7 +3632,7 @@ func (c *containerLXC) Rename(newName string) error {
 
 	// Rename storage volume for the container.
 	poolID, _, _ := c.storage.GetContainerPoolInfo()
-	err = c.state.Cluster.StoragePoolVolumeRename(oldName, newName, storagePoolVolumeTypeContainer, poolID)
+	err = c.state.Cluster.StoragePoolVolumeRename(c.project, oldName, newName, storagePoolVolumeTypeContainer, poolID)
 	if err != nil {
 		logger.Error("Failed renaming storage volume", ctxMap)
 		return err
@@ -3659,7 +3659,7 @@ func (c *containerLXC) Rename(newName string) error {
 			}
 
 			// Rename storage volume for the snapshot.
-			err = c.state.Cluster.StoragePoolVolumeRename(sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
+			err = c.state.Cluster.StoragePoolVolumeRename(c.project, sname, newSnapshotName, storagePoolVolumeTypeContainer, poolID)
 			if err != nil {
 				logger.Error("Failed renaming storage volume", ctxMap)
 				return err

@@ -534,8 +534,9 @@ func containerPostCreateContainerMountPoint(d *Daemon, project, containerName st
 	}
 
 	for _, snapshotName := range snapshotNames {
-		mntPoint := getSnapshotMountPoint(poolName, snapshotName)
-		snapshotsSymlinkTarget := shared.VarPath("storage-pools", poolName, "containers-snapshots", containerName)
+		mntPoint := getSnapshotMountPoint(project, poolName, snapshotName)
+		snapshotsSymlinkTarget := shared.VarPath("storage-pools",
+			poolName, "containers-snapshots", containerName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 		err := createSnapshotMountpoint(mntPoint, snapshotsSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {

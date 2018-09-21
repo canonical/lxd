@@ -303,7 +303,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 		}
 		logger.Debugf(`Received RBD storage volume "%s"`, curSnapName)
 
-		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, fmt.Sprintf("%s/%s", containerName, *snap.Name))
+		snapshotMntPoint := getSnapshotMountPoint(c.Project(), s.pool.Name, fmt.Sprintf("%s/%s", containerName, *snap.Name))
 		if !shared.PathExists(snapshotMntPoint) {
 			err := os.MkdirAll(snapshotMntPoint, 0700)
 			if err != nil {

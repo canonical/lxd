@@ -158,9 +158,9 @@ func (s *storageLvm) setOnDiskPoolName(newName string) {
 	s.pool.Config["source"] = newName
 }
 
-func (s *storageLvm) renameLVByPath(oldName string, newName string, volumeType string) error {
-	oldLvmName := getPrefixedLvName("default", volumeType, oldName)
-	newLvmName := getPrefixedLvName("default", volumeType, newName)
+func (s *storageLvm) renameLVByPath(project, oldName string, newName string, volumeType string) error {
+	oldLvmName := getPrefixedLvName(project, volumeType, oldName)
+	newLvmName := getPrefixedLvName(project, volumeType, newName)
 	poolName := s.getOnDiskPoolName()
 	return lvmLVRename(poolName, oldLvmName, newLvmName)
 }
@@ -178,7 +178,13 @@ func removeLV(project, vgName string, volumeType string, lvName string) error {
 }
 
 func (s *storageLvm) createSnapshotLV(project, vgName string, origLvName string, origVolumeType string, lvName string, volumeType string, readonly bool, makeThinLv bool) (string, error) {
-	sourceLvmVolumePath := getLvmDevPath("default", vgName, origVolumeType, origLvName)
+	sourceProject := project
+	if origVolumeType == storagePoolVolumeAPIEndpointImages {
+		// Image volumes are shared across projects.
+		sourceProject = "default"
+	}
+
+	sourceLvmVolumePath := getLvmDevPath(sourceProject, vgName, origVolumeType, origLvName)
 	isRecent, err := lvmVersionIsAtLeast(s.sTypeVersion, "2.02.99")
 	if err != nil {
 		return "", fmt.Errorf("Error checking LVM version: %v", err)
@@ -265,20 +271,20 @@ func (s *storageLvm) createSnapshotContainer(snapshotContainer container, source
 	targetIsSnapshot := snapshotContainer.IsSnapshot()
 	targetPool, err := snapshotContainer.StoragePool()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Get snapshot storage pool")
 	}
 	if targetIsSnapshot {
-		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetContainerName)
+		targetContainerMntPoint = getSnapshotMountPoint(sourceContainer.Project(), s.pool.Name, targetContainerName)
 		sourceName, _, _ := containerGetParentAndSnapshotName(sourceContainerName)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceName)
-		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(sourceContainer.Project(), sourceName))
+		snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(sourceContainer.Project(), sourceName))
 		err = createSnapshotMountpoint(targetContainerMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	} else {
 		targetContainerMntPoint = getContainerMountPoint(sourceContainer.Project(), targetPool, targetContainerName)
 		err = createContainerMountpoint(targetContainerMntPoint, targetContainerPath, snapshotContainer.IsPrivileged())
 	}
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Create mount point")
 	}
 
 	tryUndo = false
@@ -332,9 +338,9 @@ func (s *storageLvm) copySnapshot(target container, source container) error {
 	}
 
 	targetParentName, _, _ := containerGetParentAndSnapshotName(target.Name())
-	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", targetParentName)
-	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
+	containersPath := getSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(target.Project(), targetParentName))
+	snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(target.Project(), targetParentName))
 	err = createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
@@ -384,12 +390,12 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 	}
 	sourceContainerMntPoint := getContainerMountPoint(source.Project(), sourcePool, sourceName)
 	if source.IsSnapshot() {
-		sourceContainerMntPoint = getSnapshotMountPoint(sourcePool, sourceName)
+		sourceContainerMntPoint = getSnapshotMountPoint(source.Project(), sourcePool, sourceName)
 	}
 
 	targetContainerMntPoint := getContainerMountPoint(target.Project(), s.pool.Name, targetName)
 	if target.IsSnapshot() {
-		targetContainerMntPoint = getSnapshotMountPoint(s.pool.Name, targetName)
+		targetContainerMntPoint = getSnapshotMountPoint(source.Project(), s.pool.Name, targetName)
 	}
 
 	if source.IsRunning() {
@@ -567,7 +573,7 @@ func lvmGetLVCount(vgName string) (int, error) {
 func lvmLvIsWritable(lvName string) (bool, error) {
 	output, err := shared.TryRunCommand("lvs", "--noheadings", "-o", "lv_attr", lvName)
 	if err != nil {
-		return false, fmt.Errorf("Error retrieving attributes for logical volume \"%s\"", lvName)
+		return false, errors.Wrapf(err, "Error retrieving attributes for logical volume %q", lvName)
 	}
 
 	output = strings.TrimSpace(output)

@@ -171,7 +171,7 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 	}
 	sc, err := containerLoadByProjectAndName(
 		d.State(),
-		"default", containerName+
+		project, containerName+
 			shared.SnapshotDelimiter+
 			snapshotName)
 	if err != nil {

@@ -560,6 +560,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
+	bInfo.Project = project
 
 	run := func(op *operation) error {
 		// Dump tarball to storage

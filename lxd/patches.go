@@ -469,7 +469,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// Create the snapshots directory in
 			// the new storage pool:
 			// ${LXD_DIR}/storage-pools/<pool>/snapshots
-			newSnapshotsMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
+			newSnapshotsMntPoint := getSnapshotMountPoint("default", defaultPoolName, ct)
 			if !shared.PathExists(newSnapshotsMntPoint) {
 				err := os.MkdirAll(newSnapshotsMntPoint, 0700)
 				if err != nil {
@@ -512,7 +512,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// We need to create a new snapshot since we can't move
 			// readonly snapshots.
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
-			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
+			newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, cs)
 			if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 				err = btrfsSnapshot(oldSnapshotMntPoint, newSnapshotMntPoint, true)
 				if err != nil {
@@ -550,7 +550,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// storage pool:
 			// ${LXD_DIR}/snapshots/<container_name> to ${LXD_DIR}/storage-pools/<pool>/snapshots/<container_name>
 			snapshotsPath := shared.VarPath("snapshots", ct)
-			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
+			newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, ct)
 			os.Remove(snapshotsPath)
 			if !shared.PathExists(snapshotsPath) {
 				err := os.Symlink(newSnapshotMntPoint, snapshotsPath)
@@ -768,7 +768,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Now simply rename the snapshots directory as well.
-		newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
+		newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 			if err != nil {
@@ -1175,7 +1175,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Create the snapshots directory in the new storage
 			// pool:
 			// ${LXD_DIR}/storage-pools/<pool>/snapshots
-			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
+			newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, cs)
 			if !shared.PathExists(newSnapshotMntPoint) {
 				err := os.MkdirAll(newSnapshotMntPoint, 0700)
 				if err != nil {
@@ -1280,7 +1280,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// storage pool:
 			// ${LXD_DIR}/snapshots/<container_name> to ${LXD_DIR}/storage-pools/<pool>/snapshots/<container_name>
 			snapshotsPath := shared.VarPath("snapshots", ct)
-			newSnapshotsPath := getSnapshotMountPoint(defaultPoolName, ct)
+			newSnapshotsPath := getSnapshotMountPoint("default", defaultPoolName, ct)
 			if shared.PathExists(snapshotsPath) {
 				// On a broken update snapshotsPath will contain
 				// empty directories that need to be removed.
@@ -1623,7 +1623,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 			// Create the new mountpoint for snapshots in the new
 			// storage api.
-			newSnapshotMntPoint := getSnapshotMountPoint(poolName, cs)
+			newSnapshotMntPoint := getSnapshotMountPoint("default", poolName, cs)
 			if !shared.PathExists(newSnapshotMntPoint) {
 				err = os.MkdirAll(newSnapshotMntPoint, 0711)
 				if err != nil {
@@ -1638,7 +1638,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 		// Create a symlink for this container's snapshots.
 		if len(ctSnapshots) != 0 {
-			newSnapshotsMntPoint := getSnapshotMountPoint(poolName, ct)
+			newSnapshotsMntPoint := getSnapshotMountPoint("default", poolName, ct)
 			if !shared.PathExists(newSnapshotsMntPoint) {
 				err := os.Symlink(newSnapshotsMntPoint, snapshotsPath)
 				if err != nil {
