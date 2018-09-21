@@ -915,7 +915,8 @@ Column shorthand chars:
 
     l - Shortest image alias (and optionally number of other aliases)
     L - Newline-separated list of all image aliases
-    f - Fingerprint
+    f - Fingerprint (short)
+    F - Fingerprint (long)
     p - Whether image is public
     d - Description
     a - Architecture
@@ -933,6 +934,7 @@ func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 		'l': {i18n.G("ALIAS"), c.aliasColumnData},
 		'L': {i18n.G("ALIASES"), c.aliasesColumnData},
 		'f': {i18n.G("FINGERPRINT"), c.fingerprintColumnData},
+		'F': {i18n.G("FINGERPRINT"), c.fingerprintFullColumnData},
 		'p': {i18n.G("PUBLIC"), c.publicColumnData},
 		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData},
 		'a': {i18n.G("ARCH"), c.architectureColumnData},
@@ -980,6 +982,10 @@ func (c *cmdImageList) aliasesColumnData(image api.Image) string {
 
 func (c *cmdImageList) fingerprintColumnData(image api.Image) string {
 	return image.Fingerprint[0:12]
+}
+
+func (c *cmdImageList) fingerprintFullColumnData(image api.Image) string {
+	return image.Fingerprint
 }
 
 func (c *cmdImageList) publicColumnData(image api.Image) string {
