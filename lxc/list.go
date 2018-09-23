@@ -71,7 +71,7 @@ which container attributes to output when displaying in table or csv
 format.
 
 Column arguments are either pre-defined shorthand chars (see below),
-or (extended) config keys.
+(extended) config keys, or by setting the LXC_LIST_COLUMNS environment variable.
 
 Commas between consecutive shorthand chars are optional.
 
@@ -473,6 +473,10 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		}
 
 		c.flagColumns = "nsacPt"
+	}
+
+	if envFlagColumns := os.Getenv("LXC_LIST_COLUMNS"); envFlagColumns != "" {
+		c.flagColumns = envFlagColumns
 	}
 
 	if clustered {
