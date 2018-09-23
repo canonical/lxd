@@ -229,7 +229,6 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 			case IFLA_MTU:
 				memcpy(&ifs->ifa.ifa_mtu, __RTA_DATA(rta),
 				       sizeof(int));
-				printf("%d\n", ifs->ifa.ifa_mtu);
 				break;
 			case IFLA_TARGET_NETNSID:
 				*netnsid_aware = true;
