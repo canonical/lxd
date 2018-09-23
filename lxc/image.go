@@ -907,7 +907,8 @@ or part of the image hash or part of the image alias name.
 
 The -c option takes a (optionally comma-separated) list of arguments
 that control which image attributes to output when displaying in table
-or csv format.
+or csv format.  The column arguments can also be set by the
+LXC_IMAGE_LIST_COLUMNS environment variable.
 
 Default column layout is: lfpdasu
 
@@ -938,6 +939,10 @@ func (c *cmdImageList) parseColumns() ([]imageColumn, error) {
 		'a': {i18n.G("ARCH"), c.architectureColumnData},
 		's': {i18n.G("SIZE"), c.sizeColumnData},
 		'u': {i18n.G("UPLOAD DATE"), c.uploadDateColumnData},
+	}
+
+	if envFlagColumns := os.Getenv("LXC_IMAGE_LIST_COLUMNS"); envFlagColumns != "" {
+		c.flagColumns = envFlagColumns
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")
