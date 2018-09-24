@@ -52,6 +52,7 @@ type OS struct {
 	CGroupCPUacctController bool
 	CGroupCPUsetController  bool
 	CGroupDevicesController bool
+	CGroupFreezerController bool
 	CGroupMemoryController  bool
 	CGroupNetPrioController bool
 	CGroupPidsController    bool
