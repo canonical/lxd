@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-09-21 09:33+0200\n"
+"POT-Creation-Date: 2018-09-24 15:22-0400\n"
 "PO-Revision-Date: 2018-09-08 19:22+0000\n"
 "Last-Translator: m4sk1n <me@m4sk.in>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -174,7 +174,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/image.go:966
+#: lxc/image.go:968
 #, c-format
 msgid "%s (%d more)"
 msgstr ""
@@ -198,15 +198,15 @@ msgstr ""
 msgid "(none)"
 msgstr ""
 
-#: lxc/alias.go:127 lxc/image.go:933 lxc/image_alias.go:228
+#: lxc/alias.go:127 lxc/image.go:934 lxc/image_alias.go:228
 msgid "ALIAS"
 msgstr ""
 
-#: lxc/image.go:934
+#: lxc/image.go:935
 msgid "ALIASES"
 msgstr ""
 
-#: lxc/image.go:938
+#: lxc/image.go:940
 msgid "ARCH"
 msgstr ""
 
@@ -463,7 +463,7 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:924 lxc/list.go:112
+#: lxc/image.go:925 lxc/list.go:112
 msgid "Columns"
 msgstr ""
 
@@ -640,7 +640,7 @@ msgstr ""
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:937 lxc/image_alias.go:230 lxc/list.go:457 lxc/network.go:861
+#: lxc/image.go:939 lxc/image_alias.go:230 lxc/list.go:457 lxc/network.go:861
 #: lxc/operation.go:156 lxc/storage.go:550 lxc/storage_volume.go:1121
 msgid "DESCRIPTION"
 msgstr ""
@@ -711,7 +711,7 @@ msgstr ""
 #: lxc/file.go:42 lxc/file.go:75 lxc/file.go:124 lxc/file.go:187
 #: lxc/file.go:377 lxc/image.go:42 lxc/image.go:131 lxc/image.go:265
 #: lxc/image.go:316 lxc/image.go:439 lxc/image.go:579 lxc/image.go:788
-#: lxc/image.go:902 lxc/image.go:1225 lxc/image.go:1302 lxc/image_alias.go:26
+#: lxc/image.go:902 lxc/image.go:1231 lxc/image.go:1308 lxc/image_alias.go:26
 #: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
 #: lxc/image_alias.go:250 lxc/import.go:25 lxc/info.go:29 lxc/init.go:35
 #: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:48 lxc/manpage.go:19
@@ -842,7 +842,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:948 lxc/list.go:496
+#: lxc/image.go:950 lxc/list.go:496
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -944,7 +944,8 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:174 lxc/image.go:935 lxc/image_alias.go:229
+#: lxc/config_trust.go:174 lxc/image.go:936 lxc/image.go:937
+#: lxc/image_alias.go:229
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -1004,7 +1005,7 @@ msgstr ""
 msgid "Force using the local unix socket"
 msgstr ""
 
-#: lxc/image.go:925 lxc/list.go:113 lxc/network.go:803 lxc/remote.go:444
+#: lxc/image.go:926 lxc/list.go:113 lxc/network.go:803 lxc/remote.go:444
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
@@ -1078,7 +1079,7 @@ msgstr ""
 msgid "Ignore the container state"
 msgstr ""
 
-#: lxc/image.go:1285
+#: lxc/image.go:1291
 msgid "Image already up to date."
 msgstr ""
 
@@ -1090,7 +1091,7 @@ msgstr ""
 msgid "Image exported successfully!"
 msgstr ""
 
-#: lxc/image.go:288 lxc/image.go:1248
+#: lxc/image.go:288 lxc/image.go:1254
 msgid "Image identifier missing"
 msgstr ""
 
@@ -1104,7 +1105,7 @@ msgstr ""
 msgid "Image imported with fingerprint: %s"
 msgstr ""
 
-#: lxc/image.go:1283
+#: lxc/image.go:1289
 msgid "Image refreshed successfully!"
 msgstr ""
 
@@ -1159,7 +1160,7 @@ msgstr ""
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 
-#: lxc/image.go:1209 lxc/list.go:366 lxc/network.go:903 lxc/remote.go:528
+#: lxc/image.go:1215 lxc/list.go:366 lxc/network.go:903 lxc/remote.go:528
 #, c-format
 msgid "Invalid format %q"
 msgstr ""
@@ -1365,7 +1366,8 @@ msgid ""
 "\n"
 "    l - Shortest image alias (and optionally number of other aliases)\n"
 "    L - Newline-separated list of all image aliases\n"
-"    f - Fingerprint\n"
+"    f - Fingerprint (short)\n"
+"    F - Fingerprint (long)\n"
 "    p - Whether image is public\n"
 "    d - Description\n"
 "    a - Architecture\n"
@@ -1774,7 +1776,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:936 lxc/remote.go:490
+#: lxc/image.go:938 lxc/remote.go:490
 msgid "PUBLIC"
 msgstr ""
 
@@ -1918,11 +1920,11 @@ msgstr ""
 msgid "Recursively transfer files"
 msgstr ""
 
-#: lxc/image.go:1224 lxc/image.go:1225
+#: lxc/image.go:1230 lxc/image.go:1231
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/image.go:1253
+#: lxc/image.go:1259
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr ""
@@ -2074,7 +2076,7 @@ msgstr ""
 msgid "Run command against all containers"
 msgstr ""
 
-#: lxc/image.go:939
+#: lxc/image.go:941
 msgid "SIZE"
 msgstr ""
 
@@ -2203,7 +2205,7 @@ msgstr ""
 msgid "Show full device configuration for containers or profiles"
 msgstr ""
 
-#: lxc/image.go:1301 lxc/image.go:1302
+#: lxc/image.go:1307 lxc/image.go:1308
 msgid "Show image properties"
 msgstr ""
 
@@ -2516,7 +2518,7 @@ msgstr ""
 msgid "Type: persistent"
 msgstr ""
 
-#: lxc/image.go:940
+#: lxc/image.go:942
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -2534,7 +2536,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/image.go:955 lxc/list.go:510
+#: lxc/image.go:957 lxc/list.go:510
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
@@ -3212,7 +3214,7 @@ msgstr ""
 msgid "network"
 msgstr ""
 
-#: lxc/image.go:821 lxc/image.go:826 lxc/image.go:989
+#: lxc/image.go:821 lxc/image.go:826 lxc/image.go:995
 msgid "no"
 msgstr ""
 
@@ -3262,7 +3264,7 @@ msgstr ""
 msgid "query [<remote>:]<API path>"
 msgstr ""
 
-#: lxc/image.go:1223
+#: lxc/image.go:1229
 msgid "refresh [<remote>:]<image> [[<remote>:]<image>...]"
 msgstr ""
 
@@ -3380,7 +3382,7 @@ msgstr ""
 msgid "show [<remote>:]<container|profile>"
 msgstr ""
 
-#: lxc/image.go:1300
+#: lxc/image.go:1306
 msgid "show [<remote>:]<image>"
 msgstr ""
 
@@ -3509,6 +3511,6 @@ msgstr ""
 msgid "y"
 msgstr ""
 
-#: lxc/delete.go:46 lxc/image.go:823 lxc/image.go:828 lxc/image.go:987
+#: lxc/delete.go:46 lxc/image.go:823 lxc/image.go:828 lxc/image.go:993
 msgid "yes"
 msgstr ""
