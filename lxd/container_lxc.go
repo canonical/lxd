@@ -2741,7 +2741,7 @@ func (c *containerLXC) Stop(stateful bool) error {
 	if c.state.OS.CGroupPidsController {
 		// Attempt to disable forking new processes
 		c.CGroupSet("pids.max", "0")
-	} else {
+	} else if c.state.OS.CGroupFreezerController {
 		// Attempt to freeze the container
 		freezer := make(chan bool, 1)
 		go func() {
@@ -2937,14 +2937,20 @@ func (c *containerLXC) Freeze() error {
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate}
 
-	// Check that we're not already frozen
-	if c.IsFrozen() {
-		return fmt.Errorf("The container is already frozen")
-	}
-
 	// Check that we're running
 	if !c.IsRunning() {
 		return fmt.Errorf("The container isn't running")
+	}
+
+	// Check if the CGroup is available
+	if !c.state.OS.CGroupFreezerController {
+		logger.Info("Unable to freeze container (lack of kernel support)", ctxMap)
+		return nil
+	}
+
+	// Check that we're not already frozen
+	if c.IsFrozen() {
+		return fmt.Errorf("The container is already frozen")
 	}
 
 	logger.Info("Freezing container", ctxMap)
@@ -2977,14 +2983,20 @@ func (c *containerLXC) Unfreeze() error {
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate}
 
-	// Check that we're frozen
-	if !c.IsFrozen() {
-		return fmt.Errorf("The container is already running")
-	}
-
 	// Check that we're running
 	if !c.IsRunning() {
 		return fmt.Errorf("The container isn't running")
+	}
+
+	// Check if the CGroup is available
+	if !c.state.OS.CGroupFreezerController {
+		logger.Info("Unable to unfreeze container (lack of kernel support)", ctxMap)
+		return nil
+	}
+
+	// Check that we're frozen
+	if !c.IsFrozen() {
+		return fmt.Errorf("The container is already running")
 	}
 
 	logger.Info("Unfreezing container", ctxMap)

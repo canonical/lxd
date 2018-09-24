@@ -172,12 +172,20 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 			return nil
 		}
 	case shared.Freeze:
+		if !d.os.CGroupFreezerController {
+			return BadRequest(fmt.Errorf("This system doesn't support freezing containers"))
+		}
+
 		opType = db.OperationContainerFreeze
 		do = func(op *operation) error {
 			c.SetOperation(op)
 			return c.Freeze()
 		}
 	case shared.Unfreeze:
+		if !d.os.CGroupFreezerController {
+			return BadRequest(fmt.Errorf("This system doesn't support unfreezing containers"))
+		}
+
 		opType = db.OperationContainerUnfreeze
 		do = func(op *operation) error {
 			c.SetOperation(op)
