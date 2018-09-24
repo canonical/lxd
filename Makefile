@@ -52,7 +52,7 @@ deps:
 	cd "$(GOPATH)/deps/dqlite" && \
 		autoreconf -i && \
 		PKG_CONFIG_PATH="$(GOPATH)/deps/sqlite/" ./configure && \
-		make CFLAGS="-I$(GOPATH)/deps/sqlite/"
+		make CFLAGS="-I$(GOPATH)/deps/sqlite/" LDFLAGS="-L$(GOPATH)/deps/sqlite/.libs/"
 
 	# environment
 	@echo ""
