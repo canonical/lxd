@@ -91,6 +91,8 @@ Pre-defined column shorthand chars:
   S - Number of snapshots
   t - Type (persistent or ephemeral)
   L - Location of the container (e.g. its cluster member)
+  f - Base Image Fingerprint (short)
+  F - Base Image Fingerprint (long)
 
 Custom columns are defined with "key[:name][:maxWidth]":
   KEY: The (extended) config key to display
@@ -101,7 +103,7 @@ Custom columns are defined with "key[:name][:maxWidth]":
   Defaults to -1 (unlimited). Use 0 to limit to the column header size.`))
 
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc list -c n,volatile.base_image:"BASE IMAGE":0,s46,volatile.eth0.hwaddr:MAC
+		`lxc list -c nFs46,volatile.eth0.hwaddr:MAC
   Show containers using the "NAME", "BASE IMAGE", "STATE", "IPV4", "IPV6" and "MAC" columns.
   "BASE IMAGE" and "MAC" are custom columns generated from container configuration keys.
 
@@ -464,6 +466,8 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		's': {i18n.G("STATE"), c.statusColumnData, false, false},
 		't': {i18n.G("TYPE"), c.typeColumnData, false, false},
 		'b': {i18n.G("STORAGE POOL"), c.StoragePoolColumnData, false, false},
+		'f': {i18n.G("BASE IMAGE"), c.baseImageColumnData, false, false},
+		'F': {i18n.G("BASE IMAGE"), c.baseImageFullColumnData, false, false},
 	}
 
 	if c.flagFast {
@@ -568,6 +572,27 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 	}
 
 	return columns, needsData, nil
+}
+
+func (c *cmdList) getBaseImage(cInfo api.ContainerFull, long bool) string {
+	v, ok := cInfo.Config["volatile.base_image"]
+	if !ok {
+		return ""
+	}
+
+	if !long && len(v) >= 12 {
+		v = v[:12]
+	}
+
+	return v
+}
+
+func (c *cmdList) baseImageColumnData(cInfo api.ContainerFull) string {
+	return c.getBaseImage(cInfo, false)
+}
+
+func (c *cmdList) baseImageFullColumnData(cInfo api.ContainerFull) string {
+	return c.getBaseImage(cInfo, true)
 }
 
 func (c *cmdList) nameColumnData(cInfo api.ContainerFull) string {
