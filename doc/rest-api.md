@@ -423,7 +423,7 @@ Return value:
         "/1.0/containers/blah1"
     ]
 
-### POST
+### POST (optional `?target=<member>`)
  * Description: Create a new container
  * Authentication: trusted
  * Operation: async
