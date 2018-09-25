@@ -62,6 +62,7 @@ void forknet() {
 	}
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 type cmdForknet struct {
