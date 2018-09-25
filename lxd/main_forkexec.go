@@ -9,8 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"gopkg.in/lxc/go-lxc.v2"
-
-	"github.com/lxc/lxd/shared"
 )
 
 type cmdForkexec struct {
@@ -46,15 +44,20 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Missing required arguments")
 	}
 
+	name := args[0]
+	lxcpath := args[1]
+	configPath := args[2]
+
 	// Only root should run this
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("This must be run as root")
 	}
 
-	name := args[0]
-	lxcpath := args[1]
-	configPath := args[2]
+	// Get the status
+	fdStatus := os.NewFile(uintptr(6), "attachedPid")
+	defer fdStatus.Close()
 
+	// Load the container
 	d, err := lxc.NewContainer(name, lxcpath)
 	if err != nil {
 		return fmt.Errorf("Error initializing container for start: %q", err)
@@ -65,31 +68,14 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Error opening startup config file: %q", err)
 	}
 
-	syscall.Dup3(int(os.Stdin.Fd()), 200, 0)
-	syscall.Dup3(int(os.Stdout.Fd()), 201, 0)
-	syscall.Dup3(int(os.Stderr.Fd()), 202, 0)
-
-	syscall.Close(int(os.Stdin.Fd()))
-	syscall.Close(int(os.Stdout.Fd()))
-	syscall.Close(int(os.Stderr.Fd()))
-
+	// Setup attach arguments
 	opts := lxc.DefaultAttachOptions
 	opts.ClearEnv = true
-	opts.StdinFd = 200
-	opts.StdoutFd = 201
-	opts.StderrFd = 202
+	opts.StdinFd = 3
+	opts.StdoutFd = 4
+	opts.StderrFd = 5
 
-	logPath := shared.LogPath(name, "forkexec.log")
-	if shared.PathExists(logPath) {
-		os.Remove(logPath)
-	}
-
-	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
-	if err == nil {
-		syscall.Dup3(int(logFile.Fd()), 1, 0)
-		syscall.Dup3(int(logFile.Fd()), 2, 0)
-	}
-
+	// Parse the command line
 	env := []string{}
 	command := []string{}
 
@@ -121,19 +107,19 @@ func (c *cmdForkexec) Run(cmd *cobra.Command, args []string) error {
 
 	opts.Env = env
 
+	// Exec the command
 	status, err := d.RunCommandNoWait(command, opts)
 	if err != nil {
 		return fmt.Errorf("Failed running command: %q", err)
 	}
-	// Send the PID of the executing process.
-	w := os.NewFile(uintptr(3), "attachedPid")
-	defer w.Close()
 
-	err = json.NewEncoder(w).Encode(status)
+	// Send the PID of the executing process.
+	err = json.NewEncoder(fdStatus).Encode(status)
 	if err != nil {
 		return fmt.Errorf("Failed sending PID of executing command: %q", err)
 	}
 
+	// Handle exit code
 	var ws syscall.WaitStatus
 	wpid, err := syscall.Wait4(status, &ws, 0, nil)
 	if err != nil || wpid != status {
