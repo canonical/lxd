@@ -260,6 +260,7 @@ void forkproxy()
 	}
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 const forkproxyUDSSockFDNum int = C.FORKPROXY_UDS_SOCK_FD_NUM

@@ -30,4 +30,5 @@ __attribute__((constructor)) void init(void) {
 	// We're done, jump back to Go
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
