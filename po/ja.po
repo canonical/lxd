@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-09-24 15:22-0400\n"
+"POT-Creation-Date: 2018-09-25 11:38-0400\n"
 "PO-Revision-Date: 2018-09-06 08:20+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -183,7 +183,7 @@ msgstr ""
 msgid "ARCH"
 msgstr ""
 
-#: lxc/list.go:455
+#: lxc/list.go:457
 msgid "ARCHITECTURE"
 msgstr ""
 
@@ -297,6 +297,10 @@ msgstr "認証タイプ '%s' はサーバではサポートされていません
 msgid "Auto update: %s"
 msgstr "自動更新: %s"
 
+#: lxc/list.go:469 lxc/list.go:470
+msgid "BASE IMAGE"
+msgstr ""
+
 #: lxc/export.go:126
 msgid "Backup exported successfully!"
 msgstr "バックアップのエクスポートが成功しました!"
@@ -354,7 +358,7 @@ msgstr "CPU使用量:"
 msgid "CREATED"
 msgstr ""
 
-#: lxc/list.go:456
+#: lxc/list.go:458
 msgid "CREATED AT"
 msgstr ""
 
@@ -387,7 +391,7 @@ msgstr "標準入力から読み込めません: %s"
 msgid "Can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/list.go:472
+#: lxc/list.go:476
 msgid "Can't specify --fast with --columns"
 msgstr "--fast と --columns は同時に指定できません"
 
@@ -395,7 +399,7 @@ msgstr "--fast と --columns は同時に指定できません"
 msgid "Can't specify a different remote for rename"
 msgstr "リネームの場合は異なるリモートを指定できません"
 
-#: lxc/list.go:484
+#: lxc/list.go:488
 msgid "Can't specify column L when not clustered"
 msgstr "クラスタでない場合はカラムとして L は指定できません"
 
@@ -443,7 +447,7 @@ msgstr "クラスタメンバ名"
 msgid "Clustering enabled"
 msgstr "クラスタリングが有効になりました"
 
-#: lxc/image.go:925 lxc/list.go:112
+#: lxc/image.go:925 lxc/list.go:114
 msgid "Columns"
 msgstr "カラムレイアウト"
 
@@ -633,7 +637,7 @@ msgstr "コンテナを作成中"
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:939 lxc/image_alias.go:230 lxc/list.go:457 lxc/network.go:861
+#: lxc/image.go:939 lxc/image_alias.go:230 lxc/list.go:459 lxc/network.go:861
 #: lxc/operation.go:156 lxc/storage.go:550 lxc/storage_volume.go:1121
 msgid "DESCRIPTION"
 msgstr ""
@@ -791,7 +795,7 @@ msgstr "ディスク使用量:"
 msgid "Don't show progress information"
 msgstr ""
 
-#: lxc/list.go:637
+#: lxc/list.go:662
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -835,7 +839,7 @@ msgstr "ストレージプールの設定をYAMLで編集します"
 msgid "Edit storage volume configurations as YAML"
 msgstr "ストレージボリュームの設定をYAMLで編集します"
 
-#: lxc/image.go:950 lxc/list.go:496
+#: lxc/image.go:950 lxc/list.go:500
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -980,7 +984,7 @@ msgstr "エイリアス %s の削除に失敗しました"
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
 
-#: lxc/list.go:114
+#: lxc/list.go:116
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Fast モード (--columns=nsacPt と同じ)"
 
@@ -1013,7 +1017,7 @@ msgstr "稼働中のコンテナを強制的に削除します"
 msgid "Force using the local unix socket"
 msgstr "強制的にローカルのUNIXソケットを使います"
 
-#: lxc/image.go:926 lxc/list.go:113 lxc/network.go:803 lxc/remote.go:444
+#: lxc/image.go:926 lxc/list.go:115 lxc/network.go:803 lxc/remote.go:444
 msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
@@ -1065,11 +1069,11 @@ msgstr "ID"
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/list.go:453
+#: lxc/list.go:455
 msgid "IPV4"
 msgstr "IPV4"
 
-#: lxc/list.go:454
+#: lxc/list.go:456
 msgid "IPV6"
 msgstr "IPV6"
 
@@ -1162,35 +1166,35 @@ msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
 msgid "Invalid certificate"
 msgstr "不正な証明書です"
 
-#: lxc/list.go:521
+#: lxc/list.go:525
 #, c-format
 msgid "Invalid config key '%s' in '%s'"
 msgstr "'%s' は正しくない設定項目 (key) です (%s 中の)"
 
-#: lxc/list.go:516
+#: lxc/list.go:520
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 "不正な設定項目のカラムフォーマットです (フィールド数が多すぎます): '%s'"
 
-#: lxc/image.go:1215 lxc/list.go:366 lxc/network.go:903 lxc/remote.go:528
+#: lxc/image.go:1215 lxc/list.go:368 lxc/network.go:903 lxc/remote.go:528
 #, c-format
 msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
 
-#: lxc/list.go:539
+#: lxc/list.go:543
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
 msgstr ""
 "'%s' は最大幅の値として不正です (-1 もしくは 0 もしくは正の整数でなくてはなり"
 "ません) ('%s' 中の)"
 
-#: lxc/list.go:536
+#: lxc/list.go:540
 #, c-format
 msgid "Invalid max width (must be an integer) '%s' in '%s'"
 msgstr "'%s' は最大幅の値として不正です (整数でなくてはなりません) ('%s' 中の)"
 
-#: lxc/list.go:527
+#: lxc/list.go:531
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
@@ -1229,11 +1233,11 @@ msgstr "IPアドレス:"
 msgid "Keep the image up to date after initial copy"
 msgstr "最初にコピーした後も常にイメージを最新の状態に保つ"
 
-#: lxc/list.go:458
+#: lxc/list.go:460
 msgid "LAST USED AT"
 msgstr ""
 
-#: lxc/list.go:480 lxc/storage_volume.go:1125
+#: lxc/list.go:484 lxc/storage_volume.go:1125
 msgid "LOCATION"
 msgstr ""
 
@@ -1291,6 +1295,7 @@ msgid "List containers"
 msgstr "コンテナを一覧表示します"
 
 #: lxc/list.go:48
+#, fuzzy
 msgid ""
 "List containers\n"
 "\n"
@@ -1340,6 +1345,8 @@ msgid ""
 "  S - Number of snapshots\n"
 "  t - Type (persistent or ephemeral)\n"
 "  L - Location of the container (e.g. its cluster member)\n"
+"  f - Base Image Fingerprint (short)\n"
+"  F - Base Image Fingerprint (long)\n"
 "\n"
 "Custom columns are defined with \"key[:name][:maxWidth]\":\n"
 "  KEY: The (extended) config key to display\n"
@@ -1770,7 +1777,7 @@ msgstr "ディレクトリからのインポートは root で実行する必要
 msgid "Must supply container name for: "
 msgstr "コンテナ名を指定する必要があります: "
 
-#: lxc/cluster.go:124 lxc/list.go:459 lxc/network.go:858 lxc/profile.go:622
+#: lxc/cluster.go:124 lxc/list.go:461 lxc/network.go:858 lxc/profile.go:622
 #: lxc/remote.go:486 lxc/storage.go:549 lxc/storage_volume.go:1120
 msgid "NAME"
 msgstr ""
@@ -1875,19 +1882,19 @@ msgstr "バックグラウンド操作 %s を削除しました"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "ターミナルモードを上書きします (auto, interactive, non-interactive)"
 
-#: lxc/list.go:640
+#: lxc/list.go:665
 msgid "PERSISTENT"
 msgstr ""
 
-#: lxc/list.go:461
+#: lxc/list.go:463
 msgid "PID"
 msgstr "PID"
 
-#: lxc/list.go:460
+#: lxc/list.go:462
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:462
+#: lxc/list.go:464
 msgid "PROFILES"
 msgstr ""
 
@@ -2207,7 +2214,7 @@ msgstr "すべてのコンテナに対してコマンドを実行します"
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:463
+#: lxc/list.go:465
 msgid "SNAPSHOTS"
 msgstr ""
 
@@ -2215,7 +2222,7 @@ msgstr ""
 msgid "SOURCE"
 msgstr ""
 
-#: lxc/cluster.go:127 lxc/list.go:464 lxc/network.go:865 lxc/storage.go:554
+#: lxc/cluster.go:127 lxc/list.go:466 lxc/network.go:865 lxc/storage.go:554
 msgid "STATE"
 msgstr ""
 
@@ -2227,7 +2234,7 @@ msgstr ""
 msgid "STATUS"
 msgstr ""
 
-#: lxc/list.go:466
+#: lxc/list.go:468
 msgid "STORAGE POOL"
 msgstr ""
 
@@ -2512,7 +2519,7 @@ msgstr "デフォルトのリモートを切り替えます"
 msgid "TARGET"
 msgstr ""
 
-#: lxc/list.go:465 lxc/network.go:859 lxc/network.go:965 lxc/operation.go:155
+#: lxc/list.go:467 lxc/network.go:859 lxc/network.go:965 lxc/operation.go:155
 #: lxc/storage_volume.go:1119
 msgid "TYPE"
 msgstr ""
@@ -2675,7 +2682,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
 
-#: lxc/image.go:957 lxc/list.go:510
+#: lxc/image.go:957 lxc/list.go:514
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
@@ -3269,10 +3276,10 @@ msgstr "lxc init ubuntu:16.04 u1"
 msgid "lxc launch ubuntu:16.04 u1"
 msgstr "lxc launch ubuntu:16.04 u1"
 
-#: lxc/list.go:103
+#: lxc/list.go:105
+#, fuzzy
 msgid ""
-"lxc list -c n,volatile.base_image:\"BASE IMAGE\":0,s46,volatile.eth0.hwaddr:"
-"MAC\n"
+"lxc list -c nFs46,volatile.eth0.hwaddr:MAC\n"
 "  Show containers using the \"NAME\", \"BASE IMAGE\", \"STATE\", \"IPV4\", "
 "\"IPV6\" and \"MAC\" columns.\n"
 "  \"BASE IMAGE\" and \"MAC\" are custom columns generated from container "
