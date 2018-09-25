@@ -123,6 +123,7 @@ static bool is_empty_string(char *s)
 	return (errbuf[0] == '\0');
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 func CanUseNetnsGetifaddrs() bool {
