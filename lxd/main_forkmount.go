@@ -215,6 +215,7 @@ void forkmount() {
 	}
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 type cmdForkmount struct {

@@ -238,6 +238,7 @@ out:
 	return ret;
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 const ABSTRACT_UNIX_SOCK_LEN int = C.ABSTRACT_UNIX_SOCK_LEN
