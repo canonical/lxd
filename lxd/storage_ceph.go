@@ -1279,6 +1279,7 @@ func (s *storageCeph) ContainerUmount(name string, path string) (bool, error) {
 		if _, ok := <-waitChannel; ok {
 			logger.Warnf("Received value over semaphore, this should not have happened")
 		}
+
 		// Give the benefit of the doubt and assume that the other
 		// thread actually succeeded in unmounting the storage volume.
 		logger.Debugf("RBD storage volume for container \"%s\" on storage pool \"%s\" appears to be already unmounted", s.volume.Name, s.pool.Name)
@@ -1469,19 +1470,19 @@ func (s *storageCeph) ContainerRestore(target container, source container) error
 
 	logger.Debugf(`Restoring RBD storage volume for container "%s" from %s to %s`, targetName, sourceName, targetName)
 
-	ourStorageStop, err := source.StorageStop()
+	ourStop, err := source.StorageStop()
 	if err != nil {
 		return err
 	}
-	if !ourStorageStop {
+	if ourStop {
 		defer source.StorageStart()
 	}
 
-	ourStorageStop, err = target.StorageStop()
+	ourStop, err = target.StorageStop()
 	if err != nil {
 		return err
 	}
-	if !ourStorageStop {
+	if ourStop {
 		defer target.StorageStart()
 	}
 
@@ -1738,38 +1739,40 @@ func (s *storageCeph) ContainerSnapshotStart(c container) (bool, error) {
 }
 
 func (s *storageCeph) ContainerSnapshotStop(c container) (bool, error) {
-	containerName := c.Name()
-	logger.Debugf(`Stopping RBD storage volume for snapshot "%s" on storage pool "%s"`, containerName, s.pool.Name)
+	logger.Debugf(`Stopping RBD storage volume for snapshot "%s" on storage pool "%s"`, c.Name(), s.pool.Name)
 
+	containerName := c.Name()
 	containerMntPoint := getSnapshotMountPoint(s.pool.Name, containerName)
-	if shared.IsMountPoint(containerMntPoint) {
-		err := tryUnmount(containerMntPoint, syscall.MNT_DETACH)
-		if err != nil {
-			logger.Errorf("Failed to unmount %s: %s", containerMntPoint,
-				err)
-			return false, err
-		}
-		logger.Debugf("Unmounted %s", containerMntPoint)
+
+	// Check if already unmounted
+	if !shared.IsMountPoint(containerMntPoint) {
+		return false, nil
 	}
+
+	// Unmount
+	err := tryUnmount(containerMntPoint, syscall.MNT_DETACH)
+	if err != nil {
+		logger.Errorf("Failed to unmount %s: %s", containerMntPoint, err)
+		return false, err
+	}
+
+	logger.Debugf("Unmounted %s", containerMntPoint)
 
 	containerOnlyName, snapOnlyName, _ := containerGetParentAndSnapshotName(containerName)
 	cloneName := fmt.Sprintf("%s_%s_start_clone", containerOnlyName, snapOnlyName)
-	// unmap
-	err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, cloneName,
-		"snapshots", s.UserName, true)
+
+	// Unmap the RBD volume
+	err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, cloneName, "snapshots", s.UserName, true)
 	if err != nil {
 		logger.Warnf(`Failed to unmap RBD storage volume for container "%s" on storage pool "%s": %s`, containerName, s.pool.Name, err)
 	} else {
 		logger.Debugf(`Unmapped RBD storage volume for container "%s" on storage pool "%s"`, containerName, s.pool.Name)
 	}
 
-	rbdVolumeExists := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName,
-		cloneName, "snapshots", s.UserName)
-
+	rbdVolumeExists := cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, cloneName, "snapshots", s.UserName)
 	if rbdVolumeExists {
-		// delete
-		err = cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName, cloneName,
-			"snapshots", s.UserName)
+		// Delete the temporary RBD volume
+		err = cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName, cloneName, "snapshots", s.UserName)
 		if err != nil {
 			logger.Errorf(`Failed to delete clone of RBD storage volume for container "%s" on storage pool "%s": %s`, containerName, s.pool.Name, err)
 			return false, err
