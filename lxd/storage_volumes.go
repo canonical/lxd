@@ -657,7 +657,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 
 			for _, vol := range volumes {
 				// Rename volume snapshots
-				snapshot, err := storagePoolVolumeInit(d.State(), poolName,
+				snapshot, err := storagePoolVolumeInit(d.State(), "default", poolName,
 					vol, storagePoolVolumeTypeCustom)
 				if err != nil {
 					return err
@@ -1094,7 +1094,7 @@ func storagePoolVolumeTypeDelete(d *Daemon, r *http.Request, volumeTypeName stri
 		}
 
 		for _, snapshot := range snapshots {
-			s, err := storagePoolVolumeInit(d.State(), poolName, snapshot, volumeType)
+			s, err := storagePoolVolumeInit(d.State(), project, poolName, snapshot, volumeType)
 			if err != nil {
 				return NotFound(err)
 			}

@@ -87,7 +87,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Ensure that the storage volume exists.
-	storage, err := storagePoolVolumeInit(d.State(), poolName, volumeName, volumeType)
+	storage, err := storagePoolVolumeInit(d.State(), "default", poolName, volumeName, volumeType)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -200,7 +200,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) Response {
 				continue
 			}
 
-			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), vol.Name, vol.Type)
+			volumeUsedBy, err := storagePoolVolumeUsedByGet(d.State(), "default", vol.Name, vol.Type)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -280,7 +280,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), poolName, fullSnapshotName, volumeType)
+	s, err := storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
 	if err != nil {
 		return NotFound(err)
 	}
@@ -484,7 +484,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	s, err := storagePoolVolumeInit(d.State(), poolName, fullSnapshotName, volumeType)
+	s, err := storagePoolVolumeInit(d.State(), "default", poolName, fullSnapshotName, volumeType)
 	if err != nil {
 		return NotFound(err)
 	}
