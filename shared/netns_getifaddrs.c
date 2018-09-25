@@ -485,8 +485,9 @@ static char *get_packet_address(struct sockaddr *sockaddr_ptr, char *buf, size_t
 	char *slider = buf;
 	unsigned char *m = ((struct sockaddr_ll *)sockaddr_ptr)->sll_addr;
 	unsigned char n = ((struct sockaddr_ll *)sockaddr_ptr)->sll_halen;
+	unsigned char i = 0;
 
-	for (unsigned char i = 0; i < n; i++) {
+	for (i = 0; i < n; i++) {
 		int ret;
 
 		ret = snprintf(slider, buflen, "%02x%s", m[i], (i + 1) < n ? ":" : "");
