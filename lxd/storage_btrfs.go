@@ -794,7 +794,7 @@ func (s *storageBtrfs) StoragePoolVolumeRename(newName string) error {
 			return err
 		}
 
-		err = s.s.Cluster.StoragePoolVolumeRename(oldVolumeName, newVolumeName,
+		err = s.s.Cluster.StoragePoolVolumeRename("default", oldVolumeName, newVolumeName,
 			storagePoolVolumeTypeCustom, s.poolID)
 		if err != nil {
 			return nil
@@ -3096,6 +3096,7 @@ func (s *storageBtrfs) StoragePoolVolumeSnapshotDelete() error {
 	}
 
 	err = s.s.Cluster.StoragePoolVolumeDelete(
+		"default",
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -3141,5 +3142,5 @@ func (s *storageBtrfs) StoragePoolVolumeSnapshotRename(newName string) error {
 
 	logger.Infof("Renamed BTRFS storage volume on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
 
-	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, fullSnapshotName, storagePoolVolumeTypeCustom, s.poolID)
+	return s.s.Cluster.StoragePoolVolumeRename("default", s.volume.Name, fullSnapshotName, storagePoolVolumeTypeCustom, s.poolID)
 }

@@ -1162,7 +1162,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeCreate("default", "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
+				_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err

@@ -971,7 +971,7 @@ func (c *Cluster) StoragePoolVolumeCreate(project, volumeName, volumeDescription
 
 		for _, nodeID := range nodeIDs {
 			result, err := tx.tx.Exec(`
-INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, description, project_id) VALUES (?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?))
+INSERT INTO storage_volumes (storage_pool_id, node_id, type, snapshot, name, description, project_id) VALUES (?, ?, ?, ?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 `,
 				poolID, nodeID, volumeType, snapshot, volumeName, volumeDescription, project)
 			if err != nil {

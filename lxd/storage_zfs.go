@@ -2929,7 +2929,7 @@ func (s *storageZfs) StoragePoolResources() (*api.ResourcesStoragePool, error) {
 func (s *storageZfs) doCrossPoolStorageVolumeCopy(source *api.StorageVolumeSource) error {
 	successMsg := fmt.Sprintf("Copied ZFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 	// setup storage for the source volume
-	srcStorage, err := storagePoolVolumeInit(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	srcStorage, err := storagePoolVolumeInit(s.s, "default", source.Pool, source.Name, storagePoolVolumeTypeCustom)
 	if err != nil {
 		logger.Errorf("Failed to initialize ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
@@ -3182,11 +3182,6 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 		zfsRecvCmd.Stderr = os.Stderr
 
 		err = zfsRecvCmd.Start()
-	}
-
-	if s.pool.Name != source.Pool {
-		// setup storage for the source volume
-		srcStorage, err := storagePoolVolumeInit(s.s, "default", source.Pool, source.Name, storagePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -3309,6 +3304,7 @@ func (s *storageZfs) StoragePoolVolumeSnapshotDelete() error {
 	}
 
 	err = s.s.Cluster.StoragePoolVolumeDelete(
+		"default",
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -3338,5 +3334,5 @@ func (s *storageZfs) StoragePoolVolumeSnapshotRename(newName string) error {
 
 	logger.Infof("Renamed ZFS storage volume snapshot on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
 
-	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, fmt.Sprintf("%s/%s", sourceName, newName), storagePoolVolumeTypeCustom, s.poolID)
+	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, "default", fmt.Sprintf("%s/%s", sourceName, newName), storagePoolVolumeTypeCustom, s.poolID)
 }

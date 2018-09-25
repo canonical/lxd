@@ -151,6 +151,7 @@ CREATE TABLE new_storage_volumes (
     node_id INTEGER NOT NULL,
     type INTEGER NOT NULL,
     description TEXT,
+    snapshot INTEGER NOT NULL DEFAULT 0,
     project_id INTEGER NOT NULL,
     UNIQUE (storage_pool_id, node_id, project_id, name, type),
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
