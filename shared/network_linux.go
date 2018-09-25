@@ -18,6 +18,7 @@ import (
 /*
 #include "../shared/netns_getifaddrs.c"
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error) {

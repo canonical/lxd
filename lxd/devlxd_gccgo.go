@@ -33,6 +33,7 @@ void getucred(int sock, uint *uid, uint *gid, int *pid) {
 	return;
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 func getUcred(fd int) (uint32, uint32, int32, error) {

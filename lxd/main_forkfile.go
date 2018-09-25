@@ -440,6 +440,7 @@ void forkfile() {
 	}
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 type cmdForkfile struct {

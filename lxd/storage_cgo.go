@@ -268,6 +268,7 @@ int unset_autoclear_loop_device(int fd_loop)
 	return ioctl(fd_loop, LOOP_SET_STATUS64, &lo64);
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
 
 import (

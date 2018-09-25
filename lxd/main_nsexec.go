@@ -250,4 +250,5 @@ __attribute__((constructor)) void init(void) {
 		checkfeature();
 }
 */
+// #cgo CFLAGS: -std=gnu11 -Wvla
 import "C"
