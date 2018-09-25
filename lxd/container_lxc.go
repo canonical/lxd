@@ -5755,12 +5755,21 @@ func (c *containerLXC) ConsoleLog(opts lxc.ConsoleLogOptions) (string, error) {
 }
 
 func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.File, stdout *os.File, stderr *os.File, wait bool) (*exec.Cmd, int, int, error) {
+	// Prepare the environment
 	envSlice := []string{}
 
 	for k, v := range env {
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
+	// Setup logfile
+	logPath := filepath.Join(c.LogPath(), "forkexec.log")
+	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
+	if err != nil {
+		return nil, -1, -1, err
+	}
+
+	// Prepare the subcommand
 	args := []string{c.state.OS.ExecPath, "forkexec", c.name, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
@@ -5774,26 +5783,28 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	cmd := exec.Cmd{}
 	cmd.Path = c.state.OS.ExecPath
 	cmd.Args = args
-	cmd.Stdin = stdin
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
 
-	r, w, err := shared.Pipe()
-	defer r.Close()
+	cmd.Stdin = nil
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+
+	// Setup communication PIPE
+	rStatus, wStatus, err := shared.Pipe()
+	defer rStatus.Close()
 	if err != nil {
 		return nil, -1, -1, err
 	}
 
-	cmd.ExtraFiles = []*os.File{w}
+	cmd.ExtraFiles = []*os.File{stdin, stdout, stderr, wStatus}
 	err = cmd.Start()
 	if err != nil {
-		w.Close()
+		wStatus.Close()
 		return nil, -1, -1, err
 	}
-	w.Close()
+	wStatus.Close()
 
 	attachedPid := -1
-	if err := json.NewDecoder(r).Decode(&attachedPid); err != nil {
+	if err := json.NewDecoder(rStatus).Decode(&attachedPid); err != nil {
 		logger.Errorf("Failed to retrieve PID of executing child process: %s", err)
 		return nil, -1, -1, err
 	}
