@@ -655,7 +655,7 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 	// Now create the empty storage
 	err = c.Storage().ContainerCreate(c)
 	if err != nil {
-		d.cluster.ContainerRemove(args.Name)
+		c.Delete()
 		return nil, err
 	}
 
@@ -742,7 +742,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 	// Now create the empty snapshot
 	err = c.Storage().ContainerSnapshotCreateEmpty(c)
 	if err != nil {
-		s.Cluster.ContainerRemove(args.Name)
+		c.Delete()
 		return nil, err
 	}
 
@@ -799,14 +799,14 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 
 	err = s.Cluster.ImageLastAccessUpdate(hash, time.Now().UTC())
 	if err != nil {
-		s.Cluster.ContainerRemove(args.Name)
+		c.Delete()
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
 	// Now create the storage from an image
 	err = c.Storage().ContainerCreateFromImage(c, hash)
 	if err != nil {
-		s.Cluster.ContainerRemove(args.Name)
+		c.Delete()
 		return nil, err
 	}
 
@@ -841,7 +841,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	if !containerOnly {
 		snapshots, err := sourceContainer.Snapshots()
 		if err != nil {
-			s.Cluster.ContainerRemove(args.Name)
+			ct.Delete()
 			return nil, err
 		}
 
@@ -882,6 +882,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 			// Create the snapshots.
 			cs, err := containerCreateInternal(s, csArgs)
 			if err != nil {
+				ct.Delete()
 				return nil, err
 			}
 
@@ -892,10 +893,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 	// Now clone the storage.
 	err = ct.Storage().ContainerCopy(ct, sourceContainer, containerOnly)
 	if err != nil {
-		for _, v := range csList {
-			s.Cluster.ContainerRemove((*v).Name())
-		}
-		s.Cluster.ContainerRemove(args.Name)
+		ct.Delete()
 		return nil, err
 	}
 
@@ -911,7 +909,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 			// Apply any post-storage configuration.
 			err = containerConfigureInternal(*cs)
 			if err != nil {
-				(*cs).Delete()
+				ct.Delete()
 				return nil, err
 			}
 		}
@@ -974,12 +972,13 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 	// Clone the container
 	err = sourceContainer.Storage().ContainerSnapshotCreate(c, sourceContainer)
 	if err != nil {
-		s.Cluster.ContainerRemove(args.Name)
+		c.Delete()
 		return nil, err
 	}
 
 	ourStart, err := c.StorageStart()
 	if err != nil {
+		c.Delete()
 		return nil, err
 	}
 	if ourStart {
