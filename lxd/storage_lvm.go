@@ -1399,14 +1399,6 @@ func (s *storageLvm) ContainerRename(container container, newContainerName strin
 func (s *storageLvm) ContainerRestore(target container, source container) error {
 	logger.Debugf("Restoring LVM storage volume for container \"%s\" from %s to %s", s.volume.Name, source.Name(), target.Name())
 
-	ourStart, err := source.StorageStart()
-	if err != nil {
-		return err
-	}
-	if ourStart {
-		defer source.StorageStop()
-	}
-
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	if s.pool.Name != sourcePool {
 		return fmt.Errorf("containers must be on the same pool to be restored")
@@ -1419,9 +1411,12 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 	targetLvmName := containerNameToLVName(targetName)
 	targetPath := target.Path()
 	if s.useThinpool {
-		_, err = target.Storage().ContainerUmount(targetName, targetPath)
+		ourUmount, err := target.Storage().ContainerUmount(targetName, targetPath)
 		if err != nil {
 			return err
+		}
+		if ourUmount {
+			defer target.Storage().ContainerMount(target)
 		}
 
 		poolName := s.getOnDiskPoolName()
@@ -1439,18 +1434,21 @@ func (s *storageLvm) ContainerRestore(target container, source container) error 
 		if err != nil {
 			return fmt.Errorf("Error creating snapshot LV: %v", err)
 		}
-
-		_, err = target.Storage().ContainerMount(target)
-		if err != nil {
-			return err
-		}
 	} else {
-		ourMount, err := target.Storage().ContainerMount(target)
+		ourStart, err := source.StorageStart()
 		if err != nil {
 			return err
 		}
-		if ourMount {
-			defer target.Storage().ContainerUmount(targetName, targetPath)
+		if ourStart {
+			defer source.StorageStop()
+		}
+
+		ourStart, err = target.StorageStart()
+		if err != nil {
+			return err
+		}
+		if ourStart {
+			defer target.StorageStop()
 		}
 
 		poolName := s.getOnDiskPoolName()
