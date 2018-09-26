@@ -532,7 +532,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
 	err = createContainerMountpoint(containerMntPoint, container.Path(), privileged)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Create container mount point")
 	}
 	revert := true
 	defer func() {
@@ -545,19 +545,19 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 	imagePath := shared.VarPath("images", imageFingerprint)
 	err = unpackImage(imagePath, containerMntPoint, storageTypeDir, s.s.OS.RunningInUserNS)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Unpack image")
 	}
 
 	if !privileged {
 		err := s.shiftRootfs(container, nil)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Shift rootfs")
 		}
 	}
 
 	err = container.TemplateApply("create")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Apply template")
 	}
 
 	revert = false
@@ -1166,10 +1166,10 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 	}
 
 	// Create mountpoints
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, info.Name)
-	err = createContainerMountpoint(containerMntPoint, containerPath(info.Name, false), info.Privileged)
+	containerMntPoint := getContainerMountPoint(info.Project, s.pool.Name, info.Name)
+	err = createContainerMountpoint(containerMntPoint, containerPath(projectPrefix(info.Project, info.Name), false), info.Privileged)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Create container mount point")
 	}
 
 	// Prepare tar arguments
@@ -1191,7 +1191,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 		// Create mountpoints
 		snapshotMntPoint := getSnapshotMountPoint(info.Project, s.pool.Name, info.Name)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name,
-			"containers-snapshots", info.Name)
+			"containers-snapshots", projectPrefix(info.Project, info.Name))
 		snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(info.Project, info.Name))
 		err := createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget,
 			snapshotMntPointSymlink)

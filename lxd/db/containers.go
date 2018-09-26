@@ -906,18 +906,22 @@ func (c *Cluster) ContainerBackupID(name string) (int, error) {
 }
 
 // ContainerGetBackup returns the backup with the given name.
-func (c *Cluster) ContainerGetBackup(name string) (ContainerBackupArgs, error) {
+func (c *Cluster) ContainerGetBackup(project, name string) (ContainerBackupArgs, error) {
 	args := ContainerBackupArgs{}
 	args.Name = name
 
 	containerOnlyInt := -1
 	optimizedStorageInt := -1
 	q := `
-SELECT id, container_id, creation_date, expiry_date, container_only, optimized_storage
+SELECT containers_backups.id, containers_backups.container_id,
+       containers_backups.creation_date, containers_backups.expiry_date,
+       containers_backups.container_only, containers_backups.optimized_storage
     FROM containers_backups
-    WHERE name=?
+    JOIN containers ON containers.id=containers_backups.container_id
+    JOIN projects ON projects.id=containers.project_id
+    WHERE projects.name=? AND containers_backups.name=?
 `
-	arg1 := []interface{}{name}
+	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&args.ID, &args.ContainerID, &args.CreationDate,
 		&args.ExpiryDate, &containerOnlyInt, &optimizedStorageInt}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
@@ -942,13 +946,14 @@ SELECT id, container_id, creation_date, expiry_date, container_only, optimized_s
 
 // ContainerGetBackups returns the names of all backups of the container
 // with the given name.
-func (c *Cluster) ContainerGetBackups(name string) ([]string, error) {
+func (c *Cluster) ContainerGetBackups(project, name string) ([]string, error) {
 	var result []string
 
 	q := `SELECT containers_backups.name FROM containers_backups
 JOIN containers ON containers_backups.container_id=containers.id
-WHERE containers.name=?`
-	inargs := []interface{}{name}
+JOIN projects ON projects.id=containers.id
+WHERE projects.name=? AND containers.name=?`
+	inargs := []interface{}{project, name}
 	outfmt := []interface{}{name}
 	dbResults, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {

@@ -3213,7 +3213,7 @@ func (c *containerLXC) Snapshots() ([]container, error) {
 
 func (c *containerLXC) Backups() ([]backup, error) {
 	// Get all the backups
-	backupNames, err := c.state.Cluster.ContainerGetBackups(c.name)
+	backupNames, err := c.state.Cluster.ContainerGetBackups(c.project, c.name)
 	if err != nil {
 		return nil, err
 	}
@@ -3221,7 +3221,7 @@ func (c *containerLXC) Backups() ([]backup, error) {
 	// Build the backup list
 	backups := []backup{}
 	for _, backupName := range backupNames {
-		backup, err := backupLoadByName(c.state, backupName)
+		backup, err := backupLoadByName(c.state, c.project, backupName)
 		if err != nil {
 			return nil, err
 		}
@@ -3775,8 +3775,9 @@ func writeBackupFile(c container) error {
 	}
 
 	/* deal with the container occasionally not being monuted */
-	if !shared.PathExists(c.RootfsPath()) {
-		logger.Warn("Unable to update backup.yaml at this time", log.Ctx{"name": c.Name()})
+	rootfs := c.RootfsPath()
+	if !shared.PathExists(rootfs) {
+		logger.Warn("Unable to update backup.yaml at this time", log.Ctx{"name": c.Name(), "rootfs": rootfs})
 		return nil
 	}
 

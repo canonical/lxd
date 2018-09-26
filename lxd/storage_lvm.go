@@ -1606,7 +1606,7 @@ func (s *storageLvm) ContainerSnapshotStop(container container) (bool, error) {
 		}
 	}
 
-	containerLvmPath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
+	containerLvmPath := getLvmDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
 	wasWritableAtCheck, err := lvmLvIsWritable(containerLvmPath)
 	if err != nil {
 		return false, err
@@ -1750,7 +1750,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 }
 
 func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
-	containerPath, err := s.doContainerBackupLoad(info.Name, info.Privileged, false)
+	containerPath, err := s.doContainerBackupLoad(info.Project, info.Name, info.Privileged, false)
 	if err != nil {
 		return err
 	}
@@ -1771,7 +1771,7 @@ func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 	}
 
 	for _, snap := range info.Snapshots {
-		containerPath, err := s.doContainerBackupLoad(fmt.Sprintf("%s/%s", info.Name, snap),
+		containerPath, err := s.doContainerBackupLoad(info.Project, fmt.Sprintf("%s/%s", info.Name, snap),
 			info.Privileged, true)
 		if err != nil {
 			return err
@@ -1796,15 +1796,15 @@ func (s *storageLvm) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 	return nil
 }
 
-func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool,
+func (s *storageLvm) doContainerBackupLoad(project, containerName string, privileged bool,
 	snapshot bool) (string, error) {
 	tryUndo := true
 
 	var containerPath string
 	if snapshot {
-		containerPath = shared.VarPath("snapshots", containerName)
+		containerPath = shared.VarPath("snapshots", projectPrefix(project, containerName))
 	} else {
-		containerPath = shared.VarPath("containers", containerName)
+		containerPath = shared.VarPath("containers", projectPrefix(project, containerName))
 	}
 	containerLvmName := containerNameToLVName(containerName)
 	thinPoolName := s.getLvmThinpoolName()
@@ -1823,11 +1823,11 @@ func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool
 	}
 
 	if !snapshot {
-		err = lvmCreateLv("default", poolName, thinPoolName, containerLvmName, lvFsType, lvSize,
+		err = lvmCreateLv(project, poolName, thinPoolName, containerLvmName, lvFsType, lvSize,
 			storagePoolVolumeAPIEndpointContainers, s.useThinpool)
 	} else {
 		cname, _, _ := containerGetParentAndSnapshotName(containerName)
-		_, err = s.createSnapshotLV("default", poolName, cname, storagePoolVolumeAPIEndpointContainers,
+		_, err = s.createSnapshotLV(project, poolName, cname, storagePoolVolumeAPIEndpointContainers,
 			containerLvmName, storagePoolVolumeAPIEndpointContainers, false, s.useThinpool)
 	}
 	if err != nil {
@@ -1836,16 +1836,16 @@ func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool
 
 	defer func() {
 		if tryUndo {
-			lvmContainerDeleteInternal("default", s.pool.Name, containerName, false, poolName,
+			lvmContainerDeleteInternal(project, s.pool.Name, containerName, false, poolName,
 				containerPath)
 		}
 	}()
 
 	var containerMntPoint string
 	if snapshot {
-		containerMntPoint = getSnapshotMountPoint("default", s.pool.Name, containerName)
+		containerMntPoint = getSnapshotMountPoint(project, s.pool.Name, containerName)
 	} else {
-		containerMntPoint = getContainerMountPoint("default", s.pool.Name, containerName)
+		containerMntPoint = getContainerMountPoint(project, s.pool.Name, containerName)
 	}
 	err = os.MkdirAll(containerMntPoint, 0711)
 	if err != nil {
@@ -1854,8 +1854,8 @@ func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool
 
 	if snapshot {
 		cname, _, _ := containerGetParentAndSnapshotName(containerName)
-		snapshotMntPointSymlink := shared.VarPath("snapshots", cname)
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", cname)
+		snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(project, cname))
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(project, cname))
 		err = createSnapshotMountpoint(containerMntPoint, snapshotMntPointSymlinkTarget,
 			snapshotMntPointSymlink)
 	} else {
@@ -1865,7 +1865,7 @@ func (s *storageLvm) doContainerBackupLoad(containerName string, privileged bool
 		return "", err
 	}
 
-	_, err = s.doContainerMount("default", containerName)
+	_, err = s.doContainerMount(project, containerName)
 	if err != nil {
 		return "", err
 	}

@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -567,7 +568,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader) Response {
 		f.Seek(0, 0)
 		err = containerCreateFromBackup(d.State(), *bInfo, f)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Create container from backup")
 		}
 
 		body, err := json.Marshal(&internalImportPost{
@@ -575,25 +576,29 @@ func createFromBackup(d *Daemon, project string, data io.Reader) Response {
 			Force: true,
 		})
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Marshal internal import request")
 		}
 
-		resp := internalImport(d, &http.Request{
+		req := &http.Request{
 			Body: ioutil.NopCloser(bytes.NewReader(body)),
-		})
+		}
+		req.URL = &url.URL{
+			RawQuery: fmt.Sprintf("project=%s", project),
+		}
+		resp := internalImport(d, req)
 
 		if resp.String() != "success" {
-			return errors.New(resp.String())
+			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
 
 		c, err := containerLoadByProjectAndName(d.State(), project, bInfo.Name)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Load container")
 		}
 
 		_, err = c.StorageStop()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Stop storage pool")
 		}
 
 		return nil

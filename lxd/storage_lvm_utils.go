@@ -305,7 +305,7 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 	poolName := s.getOnDiskPoolName()
 	containerName := target.Name()
 	containerLvmName := containerNameToLVName(containerName)
-	containerLvDevPath := getLvmDevPath("default", poolName,
+	containerLvDevPath := getLvmDevPath(target.Project(), poolName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
 
 	// If btrfstune sees two btrfs filesystems with the same UUID it

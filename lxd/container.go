@@ -690,7 +690,7 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 		}
 
 		// Get the default profile
-		_, profile, err := s.Cluster.ProfileGet("default", "default")
+		_, profile, err := s.Cluster.ProfileGet(info.Project, "default")
 		if err != nil {
 			return err
 		}

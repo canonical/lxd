@@ -752,7 +752,7 @@ func (s *storageZfs) doContainerCreate(project, name string, privileged bool) er
 
 	containerPath := shared.VarPath("containers", projectPrefix(project, name))
 	containerName := name
-	fs := fmt.Sprintf("containers/%s", containerName)
+	fs := fmt.Sprintf("containers/%s", projectPrefix(project, containerName))
 	poolName := s.getOnDiskPoolName()
 	dataset := fmt.Sprintf("%s/%s", poolName, fs)
 	containerPoolVolumeMntPoint := getContainerMountPoint(project, s.pool.Name, containerName)
