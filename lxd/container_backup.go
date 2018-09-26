@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
@@ -136,7 +137,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 
 		err := backupCreate(d.State(), args, c)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Create backup")
 		}
 
 		return nil
@@ -170,7 +171,7 @@ func containerBackupGet(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), fullName)
+	backup, err := backupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -204,7 +205,7 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 	}
 
 	oldName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), oldName)
+	backup, err := backupLoadByName(d.State(), project, oldName)
 	if err != nil {
 		SmartError(err)
 	}
@@ -247,7 +248,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), fullName)
+	backup, err := backupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -288,7 +289,7 @@ func containerBackupExportGet(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), fullName)
+	backup, err := backupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return SmartError(err)
 	}

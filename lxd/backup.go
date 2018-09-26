@@ -17,20 +17,21 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/pkg/errors"
 )
 
 // Load a backup from the database
-func backupLoadByName(s *state.State, name string) (*backup, error) {
+func backupLoadByName(s *state.State, project, name string) (*backup, error) {
 	// Get the backup database record
-	args, err := s.Cluster.ContainerGetBackup(name)
+	args, err := s.Cluster.ContainerGetBackup(project, name)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Load backup from database")
 	}
 
 	// Load the container it belongs to
 	c, err := containerLoadById(s, args.ContainerID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Load container from database")
 	}
 
 	// Return the backup struct
@@ -55,20 +56,20 @@ func backupCreate(s *state.State, args db.ContainerBackupArgs, sourceContainer c
 			return fmt.Errorf("backup '%s' already exists", args.Name)
 		}
 
-		return err
+		return errors.Wrap(err, "Insert backup info into database")
 	}
 
 	// Get the backup struct
-	b, err := backupLoadByName(s, args.Name)
+	b, err := backupLoadByName(s, sourceContainer.Project(), args.Name)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Load backup object")
 	}
 
 	// Now create the empty snapshot
 	err = sourceContainer.Storage().ContainerBackupCreate(*b, sourceContainer)
 	if err != nil {
 		s.Cluster.ContainerBackupRemove(args.Name)
-		return err
+		return errors.Wrap(err, "Backup storage")
 	}
 
 	return nil

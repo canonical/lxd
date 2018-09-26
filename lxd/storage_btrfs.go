@@ -1748,7 +1748,7 @@ func (s *storageBtrfs) doContainerBackupCreateVanilla(tmpPath string, backup bac
 
 	// Make a temporary copy of the container
 	sourceVolume := getContainerMountPoint(source.Project(), s.pool.Name, source.Name())
-	containersPath := getContainerMountPoint(source.Project(), s.pool.Name, "")
+	containersPath := getContainerMountPoint("default", s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, source.Name())
 	if err != nil {
 		return err
@@ -1916,12 +1916,12 @@ func (s *storageBtrfs) doContainerBackupLoadOptimized(info backupInfo, data io.R
 
 func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	// create the main container
-	err := s.doContainerCreate("default", info.Name, info.Privileged)
+	err := s.doContainerCreate(info.Project, info.Name, info.Privileged)
 	if err != nil {
 		return err
 	}
 
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, info.Name)
+	containerMntPoint := getContainerMountPoint(info.Project, s.pool.Name, info.Name)
 	// Extract container
 	for _, snap := range info.Snapshots {
 		cur := fmt.Sprintf("backup/snapshots/%s", snap)
@@ -1944,7 +1944,7 @@ func (s *storageBtrfs) doContainerBackupLoadVanilla(info backupInfo, data io.Rea
 		}
 
 		// create snapshot
-		err = s.doContainerSnapshotCreate("default", fmt.Sprintf("%s/%s", info.Name, snap), info.Name)
+		err = s.doContainerSnapshotCreate(info.Project, fmt.Sprintf("%s/%s", info.Name, snap), info.Name)
 		if err != nil {
 			return err
 		}

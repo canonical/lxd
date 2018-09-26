@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
 )
 
 type storageShared struct {
@@ -43,7 +44,7 @@ func (s *storageShared) shiftRootfs(c container, skipper func(dir string, absPat
 
 	idmapset, err := c.IdmapSet()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Get ID map")
 	}
 
 	if idmapset == nil {
@@ -53,7 +54,7 @@ func (s *storageShared) shiftRootfs(c container, skipper func(dir string, absPat
 	err = idmapset.ShiftRootfs(rpath, skipper)
 	if err != nil {
 		logger.Debugf("Shift of rootfs %s failed: %s", rpath, err)
-		return err
+		return errors.Wrap(err, "Shift rootfs")
 	}
 
 	/* Set an acl so the container root can descend the container dir */

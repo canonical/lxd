@@ -1600,7 +1600,7 @@ func (s *storageCeph) cephRBDVolumeDumpToFile(sourceVolumeName string, file stri
 func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, source container) error {
 	sourceIsSnapshot := source.IsSnapshot()
 	sourceContainerName := source.Name()
-	sourceContainerOnlyName := sourceContainerName
+	sourceContainerOnlyName := projectPrefix(source.Project(), sourceContainerName)
 	sourceSnapshotOnlyName := ""
 
 	// Prepare for rsync
@@ -1618,7 +1618,8 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 	snapshotName := fmt.Sprintf("zombie_snapshot_%s", uuid.NewRandom().String())
 	if sourceIsSnapshot {
 		sourceContainerOnlyName, sourceSnapshotOnlyName, _ = containerGetParentAndSnapshotName(sourceContainerName)
-		snapshotName = fmt.Sprintf("snapshot_%s", sourceSnapshotOnlyName)
+		sourceContainerOnlyName = projectPrefix(source.Project(), sourceContainerOnlyName)
+		snapshotName = fmt.Sprintf("snapshot_%s", projectPrefix(source.Project(), sourceSnapshotOnlyName))
 	} else {
 		// This is costly but we need to ensure that all cached data has
 		// been committed to disk. If we don't then the rbd snapshot of
@@ -1627,11 +1628,11 @@ func (s *storageCeph) cephRBDVolumeBackupCreate(tmpPath string, backup backup, s
 		syscall.Sync()
 
 		// create snapshot
-		err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName, sourceContainerName, storagePoolVolumeTypeNameContainer, snapshotName, s.UserName)
+		err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName, sourceContainerOnlyName, storagePoolVolumeTypeNameContainer, snapshotName, s.UserName)
 		if err != nil {
 			return err
 		}
-		defer cephRBDSnapshotDelete(s.ClusterName, s.OSDPoolName, sourceContainerName, storagePoolVolumeTypeNameContainer, snapshotName, s.UserName)
+		defer cephRBDSnapshotDelete(s.ClusterName, s.OSDPoolName, sourceContainerOnlyName, storagePoolVolumeTypeNameContainer, snapshotName, s.UserName)
 	}
 
 	// Protect volume so we can create clones of it
@@ -1725,7 +1726,8 @@ func (s *storageCeph) doContainerCreate(project, name string, privileged bool) e
 	logger.Debugf(`Retrieved size "%s" of RBD storage volume for container "%s" on storage pool "%s"`, RBDSize, name, s.pool.Name)
 
 	// create volume
-	err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, name, storagePoolVolumeTypeNameContainer, RBDSize, s.UserName)
+	volumeName := projectPrefix(project, name)
+	err = cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, volumeName, storagePoolVolumeTypeNameContainer, RBDSize, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to create RBD storage volume for container "%s" on storage pool "%s": %s`, name, s.pool.Name, err)
 		return err
@@ -1737,13 +1739,13 @@ func (s *storageCeph) doContainerCreate(project, name string, privileged bool) e
 			return
 		}
 
-		err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName, name, storagePoolVolumeTypeNameContainer, s.UserName)
+		err := cephRBDVolumeDelete(s.ClusterName, s.OSDPoolName, volumeName, storagePoolVolumeTypeNameContainer, s.UserName)
 		if err != nil {
 			logger.Warnf(`Failed to delete RBD storage volume for container "%s" on storage pool "%s": %s`, name, s.pool.Name, err)
 		}
 	}()
 
-	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, name, storagePoolVolumeTypeNameContainer, s.UserName)
+	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, volumeName, storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		logger.Errorf(`Failed to map RBD storage volume for container "%s" on storage pool "%s": %s`, name, s.pool.Name, err)
 		return err
@@ -1755,7 +1757,7 @@ func (s *storageCeph) doContainerCreate(project, name string, privileged bool) e
 			return
 		}
 
-		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, name, storagePoolVolumeTypeNameContainer, s.UserName, true)
+		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, volumeName, storagePoolVolumeTypeNameContainer, s.UserName, true)
 		if err != nil {
 			logger.Warnf(`Failed to unmap RBD storage volume for container "%s" on storage pool "%s": %s`, name, s.pool.Name, err)
 		}

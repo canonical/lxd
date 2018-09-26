@@ -539,7 +539,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
 			snaps, err := cephRBDVolumeListSnapshots(clusterName,
-				onDiskPoolName, req.Name,
+				onDiskPoolName, projectPrefix(project, req.Name),
 				storagePoolVolumeTypeNameContainer, userName)
 			if err != nil {
 				if err != db.ErrNoSuchObject {
@@ -637,9 +637,9 @@ func internalImport(d *Daemon, r *http.Request) Response {
 			}
 
 			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
-			snapName := fmt.Sprintf("snapshot_%s", od)
+			snapName := fmt.Sprintf("snapshot_%s", projectPrefix(project, od))
 			ret := cephContainerSnapshotDelete(clusterName,
-				onDiskPoolName, req.Name,
+				onDiskPoolName, projectPrefix(project, req.Name),
 				storagePoolVolumeTypeNameContainer, snapName, userName)
 			if ret < 0 {
 				err = fmt.Errorf(`Failed to delete snapshot`)
@@ -702,6 +702,8 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 			onDiskPoolName := backup.Pool.Config["ceph.osd.pool_name"]
 			ctName, csName, _ := containerGetParentAndSnapshotName(snap.Name)
+			ctName = projectPrefix(project, ctName)
+			csName = projectPrefix(project, csName)
 			snapshotName := fmt.Sprintf("snapshot_%s", csName)
 
 			exists := cephRBDSnapshotExists(clusterName,
@@ -908,6 +910,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		snapshotMountPoint := getSnapshotMountPoint(project, backup.Pool.Name,
 			snap.Name)
 		sourceName, _, _ := containerGetParentAndSnapshotName(snap.Name)
+		sourceName = projectPrefix(project, sourceName)
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", backup.Pool.Name, "containers-snapshots", sourceName)
 		snapshotMntPointSymlink := shared.VarPath("snapshots", sourceName)
 		err = createSnapshotMountpoint(snapshotMountPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
@@ -942,6 +945,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 	_, err = containerCreateInternal(d.State(), db.ContainerArgs{
+		Project:      project,
 		Architecture: arch,
 		BaseImage:    baseImage,
 		Config:       backup.Container.Config,
@@ -959,7 +963,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	containerPath := containerPath(req.Name, false)
+	containerPath := containerPath(projectPrefix(project, req.Name), false)
 	isPrivileged := false
 	if backup.Container.Config["security.privileged"] == "" {
 		isPrivileged = true

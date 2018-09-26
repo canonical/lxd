@@ -1008,8 +1008,8 @@ func (s *storageCeph) ContainerDelete(container container) error {
 	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
 	if shared.PathExists(containerMntPoint) {
 		_, err := s.ContainerUmount(container, containerPath)
-		logger.Errorf("Failed to unmount RBD storage volume for container %q on storage pool %q: %v", containerName, s.pool.Name, err)
 		if err != nil {
+			logger.Errorf("Failed to unmount RBD storage volume for container %q on storage pool %q: %v", containerName, s.pool.Name, err)
 			return err
 		}
 	}
@@ -1055,7 +1055,7 @@ func (s *storageCeph) doCrossPoolContainerCopy(target container, source containe
 	}
 
 	// setup storage for the source volume
-	srcStorage, err := storagePoolVolumeInit(s.s, "default", sourcePool, source.Name(), storagePoolVolumeTypeContainer)
+	srcStorage, err := storagePoolVolumeInit(s.s, source.Project(), sourcePool, source.Name(), storagePoolVolumeTypeContainer)
 	if err != nil {
 		return err
 	}
@@ -1416,7 +1416,7 @@ func (s *storageCeph) ContainerUmount(c container, path string) (bool, error) {
 		containerMntPoint = getSnapshotMountPoint(c.Project(), s.pool.Name, name)
 	}
 
-	containerUmountLockID := getContainerUmountLockID(s.pool.Name, name)
+	containerUmountLockID := getContainerUmountLockID(s.pool.Name, projectPrefix(c.Project(), name))
 	lxdStorageMapLock.Lock()
 	if waitChannel, ok := lxdStorageOngoingOperationMap[containerUmountLockID]; ok {
 		lxdStorageMapLock.Unlock()
@@ -1993,18 +1993,18 @@ func (s *storageCeph) ContainerBackupCreate(backup backup, source container) err
 // - dump the container contents into the rbd storage volume.
 func (s *storageCeph) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	// create the main container
-	err := s.doContainerCreate("default", info.Name, info.Privileged)
+	err := s.doContainerCreate(info.Project, info.Name, info.Privileged)
 	if err != nil {
 		return err
 	}
 
 	// mount container
-	_, err = s.doContainerMount("default", info.Name)
+	_, err = s.doContainerMount(info.Project, info.Name)
 	if err != nil {
 		return err
 	}
 
-	containerMntPoint := getContainerMountPoint("default", s.pool.Name, info.Name)
+	containerMntPoint := getContainerMountPoint(info.Project, s.pool.Name, info.Name)
 	// Extract container
 	for _, snap := range info.Snapshots {
 		cur := fmt.Sprintf("backup/snapshots/%s", snap)
