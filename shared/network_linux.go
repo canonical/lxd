@@ -65,6 +65,10 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 			}
 		}
 
+		if addr.ifa_addr == nil {
+			continue
+		}
+
 		if addr.ifa_addr.sa_family == C.AF_INET || addr.ifa_addr.sa_family == C.AF_INET6 {
 			netState := "down"
 			netType := "unknown"
