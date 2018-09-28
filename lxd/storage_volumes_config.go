@@ -49,19 +49,27 @@ func updateStoragePoolVolumeError(unchangeable []string, driverName string) erro
 // property which can be manipulated by setting a root disk device "size"
 // property.
 var changeableStoragePoolVolumeProperties = map[string][]string{
-	"btrfs": {"size"},
+	"btrfs": {
+		"security.unmapped",
+		"size",
+	},
 
 	"ceph": {
 		"block.mount_options",
+		"security.unmapped",
 		"size"},
 
-	"dir": {""},
+	"dir": {
+		"security.unmapped",
+	},
 
 	"lvm": {
 		"block.mount_options",
+		"security.unmapped",
 		"size"},
 
 	"zfs": {
+		"security.unmapped",
 		"size",
 		"zfs.remove_snapshots",
 		"zfs.use_refquota"},
@@ -79,6 +87,9 @@ var storageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	},
 	"block.mount_options": func(value string) ([]string, error) {
 		return []string{"ceph", "lvm"}, shared.IsAny(value)
+	},
+	"security.unmapped": func(value string) ([]string, error) {
+		return supportedPoolTypes, shared.IsBool(value)
 	},
 	"size": func(value string) ([]string, error) {
 		if value == "" {
