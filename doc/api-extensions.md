@@ -607,3 +607,12 @@ This adds the following new endpoint (see [RESTful API](rest-api.md) for details
 * `PUT /1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`
 * `POST /1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`
 * `DELETE /1.0/storage-pools/<pool>/volumes/<type>/<volume>/snapshots/<name>`
+
+## storage\_unmapped
+Introduces a new `security.unmapped` boolean on storage volumes.
+
+Setting it to true will flush the current map on the volume and prevent
+any further idmap tracking and remapping on the volume.
+
+This can be used to share data between isolated containers after
+attaching it to the container which requires write access.

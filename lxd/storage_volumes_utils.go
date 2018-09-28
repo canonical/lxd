@@ -175,6 +175,13 @@ func storagePoolVolumeUpdate(state *state.State, poolName string, volumeName str
 		s.SetStoragePoolVolumeWritable(&newWritable)
 	}
 
+	// Unset idmap keys if volume is unmapped
+	if shared.IsTrue(newConfig["security.unmapped"]) {
+		delete(newConfig, "volatile.idmap.last")
+		delete(newConfig, "volatile.idmap.next")
+	}
+
+	// Get the pool ID
 	poolID, err := state.Cluster.StoragePoolGetID(poolName)
 	if err != nil {
 		return err
