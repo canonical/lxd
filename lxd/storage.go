@@ -411,6 +411,12 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 
 	poolVolumePut := st.GetStoragePoolVolumeWritable()
 
+	// Check if unmapped
+	if shared.IsTrue(poolVolumePut.Config["security.unmapped"]) {
+		// No need to look at containers and maps for unmapped volumes
+		return st, nil
+	}
+
 	// get last idmapset
 	var lastIdmap *idmap.IdmapSet
 	if poolVolumePut.Config["volatile.idmap.last"] != "" {
