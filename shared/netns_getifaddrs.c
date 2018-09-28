@@ -46,7 +46,8 @@ struct netns_ifaddrs {
 	} ifa_ifu;
 
 	// If you don't know what this is for don't touch it.
-	void *ifa_data;
+	int ifa_stats_type;
+	struct rtnl_link_stats64 ifa_stats64;
 };
 
 #define __ifa_broadaddr ifa_ifu.ifu_broadaddr
@@ -175,7 +176,7 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 	if (h->nlmsg_type == RTM_NEWLINK) {
 		for (rta = __NLMSG_RTA(h, sizeof(*ifi)); __NLMSG_RTAOK(rta, h);
 		     rta = __RTA_NEXT(rta)) {
-			if (rta->rta_type != IFLA_STATS)
+			if (rta->rta_type != IFLA_STATS64)
 				continue;
 
 			stats_len = __RTA_DATALEN(rta);
@@ -221,9 +222,9 @@ static int nl_msg_to_ifaddr(void *pctx, bool *netnsid_aware, struct nlmsghdr *h)
 					    __RTA_DATA(rta), __RTA_DATALEN(rta),
 					    ifi->ifi_index, ifi->ifi_type);
 				break;
-			case IFLA_STATS:
-				ifs->ifa.ifa_data = (void *)(ifs + 1);
-				memcpy(ifs->ifa.ifa_data, __RTA_DATA(rta),
+			case IFLA_STATS64:
+				ifs->ifa.ifa_stats_type = IFLA_STATS64;
+				memcpy(&ifs->ifa.ifa_stats64, __RTA_DATA(rta),
 				       __RTA_DATALEN(rta));
 				break;
 			case IFLA_MTU:
