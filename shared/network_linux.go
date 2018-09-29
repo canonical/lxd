@@ -65,11 +65,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 			}
 		}
 
-		if addr.ifa_addr == nil {
-			continue
-		}
-
-		if addr.ifa_addr.sa_family == C.AF_INET || addr.ifa_addr.sa_family == C.AF_INET6 {
+		if addr.ifa_addr != nil && (addr.ifa_addr.sa_family == C.AF_INET || addr.ifa_addr.sa_family == C.AF_INET6) {
 			netState := "down"
 			netType := "unknown"
 
@@ -136,8 +132,7 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 			addNetwork.State = netState
 			addNetwork.Type = netType
 			addNetwork.Mtu = int(addr.ifa_mtu)
-		} else if addr.ifa_addr.sa_family == C.AF_PACKET {
-
+		} else if addr.ifa_addr != nil && addr.ifa_addr.sa_family == C.AF_PACKET {
 			if (addr.ifa_flags & C.IFF_LOOPBACK) == 0 {
 				var buf [1024]C.char
 
@@ -148,14 +143,13 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.ContainerStateNetwork, error
 
 				addNetwork.Hwaddr = C.GoString(hwaddr)
 			}
+		}
 
-			stats := (*C.struct_rtnl_link_stats)(addr.ifa_data)
-			if stats != nil {
-				addNetwork.Counters.BytesReceived = int64(stats.rx_bytes)
-				addNetwork.Counters.BytesSent = int64(stats.tx_bytes)
-				addNetwork.Counters.PacketsReceived = int64(stats.rx_packets)
-				addNetwork.Counters.PacketsSent = int64(stats.tx_packets)
-			}
+		if addr.ifa_stats_type == C.IFLA_STATS64 {
+			addNetwork.Counters.BytesReceived = int64(addr.ifa_stats64.rx_bytes)
+			addNetwork.Counters.BytesSent = int64(addr.ifa_stats64.tx_bytes)
+			addNetwork.Counters.PacketsReceived = int64(addr.ifa_stats64.rx_packets)
+			addNetwork.Counters.PacketsSent = int64(addr.ifa_stats64.tx_packets)
 		}
 		ifName := C.GoString(addr.ifa_name)
 
