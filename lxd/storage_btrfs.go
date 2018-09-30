@@ -339,7 +339,7 @@ func (s *storageBtrfs) StoragePoolDelete() error {
 				err = btrfsSubVolumesDelete(source)
 			}
 		}
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
