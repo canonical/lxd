@@ -293,7 +293,7 @@ const MS_LAZYTIME uintptr = C.MS_LAZYTIME
 func prepareLoopDev(source string, flags int) (*os.File, error) {
 	cLoopDev := C.malloc(C.size_t(C.LO_NAME_SIZE))
 	if cLoopDev == nil {
-		return nil, fmt.Errorf("failed to allocate memory in C")
+		return nil, fmt.Errorf("Failed to allocate memory in C")
 	}
 	defer C.free(cLoopDev)
 
@@ -307,9 +307,9 @@ func prepareLoopDev(source string, flags int) (*os.File, error) {
 	loopFd, err := C.prepare_loop_dev(cSource, (*C.char)(cLoopDev), C.int(flags))
 	if loopFd < 0 {
 		if err != nil {
-			return nil, fmt.Errorf("failed to prepare loop device: %s", err)
+			return nil, fmt.Errorf("Failed to prepare loop device: %s", err)
 		}
-		return nil, fmt.Errorf("failed to prepare loop device")
+		return nil, fmt.Errorf("Failed to prepare loop device")
 	}
 
 	return os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev))), nil
@@ -321,7 +321,7 @@ func setAutoclearOnLoopDev(loopFd int) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("failed to set LO_FLAGS_AUTOCLEAR")
+		return fmt.Errorf("Failed to set LO_FLAGS_AUTOCLEAR")
 	}
 
 	return nil
@@ -333,7 +333,7 @@ func unsetAutoclearOnLoopDev(loopFd int) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("failed to unset LO_FLAGS_AUTOCLEAR")
+		return fmt.Errorf("Failed to unset LO_FLAGS_AUTOCLEAR")
 	}
 
 	return nil
@@ -342,7 +342,7 @@ func unsetAutoclearOnLoopDev(loopFd int) error {
 func loopDeviceHasBackingFile(loopDevice string, loopFile string) (*os.File, error) {
 	lidx := strings.LastIndex(loopDevice, "/")
 	if lidx < 0 {
-		return nil, fmt.Errorf("invalid loop device path: \"%s\"", loopDevice)
+		return nil, fmt.Errorf("Invalid loop device path: \"%s\"", loopDevice)
 	}
 
 	loopName := loopDevice[(lidx + 1):]
