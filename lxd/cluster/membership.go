@@ -397,7 +397,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 
 		// Migrate outstanding operations.
 		for _, operation := range operations {
-			_, err := tx.OperationAdd(operation.UUID, operation.Type)
+			_, err := tx.OperationAdd("", operation.UUID, operation.Type)
 			if err != nil {
 				return errors.Wrapf(err, "failed to migrate operation %s", operation.UUID)
 			}

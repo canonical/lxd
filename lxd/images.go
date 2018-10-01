@@ -743,7 +743,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		return nil
 	}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationImageDownload, nil, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationImageDownload, nil, nil, run, nil, nil)
 	if err != nil {
 		cleanup(builddir, post)
 		return InternalError(err)
@@ -1299,7 +1299,7 @@ func imageDelete(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["images"] = []string{fingerprint}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationImageDelete, resources, nil, rmimg, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationImageDelete, resources, nil, rmimg, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -1797,7 +1797,7 @@ func imageSecret(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["images"] = []string{imgInfo.Fingerprint}
 
-	op, err := operationCreate(d.cluster, operationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassToken, db.OperationImageToken, resources, meta, nil, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -1874,7 +1874,7 @@ func imageRefresh(d *Daemon, r *http.Request) Response {
 		return autoUpdateImage(d, op, imageId, imageInfo)
 	}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationImageRefresh, nil, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationImageRefresh, nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

@@ -209,7 +209,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 				return InternalError(err)
 			}
 
-			op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerMigrate, resources, nil, ws.Do, nil, nil)
+			op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerMigrate, resources, nil, ws.Do, nil, nil)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -218,7 +218,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 		}
 
 		// Pull mode
-		op, err := operationCreate(d.cluster, operationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationContainerMigrate, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -239,7 +239,7 @@ func containerPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerRename, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerRename, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -382,7 +382,7 @@ func containerPostClusteringMigrate(d *Daemon, c container, oldName, newName, ne
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{oldName}
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, c.Project(), operationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -489,7 +489,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, old
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{oldName}
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, c.Project(), operationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
