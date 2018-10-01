@@ -308,8 +308,11 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		localDevices: args.Devices,
 	}
 
-	ctxMap := log.Ctx{"name": c.name,
-		"ephemeral": c.ephemeral}
+	ctxMap := log.Ctx{
+		"project":   args.Project,
+		"name":      c.name,
+		"ephemeral": c.ephemeral,
+	}
 
 	logger.Info("Creating container", ctxMap)
 
@@ -2447,7 +2450,9 @@ func (c *containerLXC) Start(stateful bool) error {
 		return errors.Wrap(err, "Storage start")
 	}
 
-	ctxMap = log.Ctx{"name": c.name,
+	ctxMap = log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
 		"action":    op.action,
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
@@ -2679,7 +2684,9 @@ func (c *containerLXC) Stop(stateful bool) error {
 		return err
 	}
 
-	ctxMap = log.Ctx{"name": c.name,
+	ctxMap = log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
 		"action":    op.action,
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
@@ -2796,7 +2803,9 @@ func (c *containerLXC) Shutdown(timeout time.Duration) error {
 		return err
 	}
 
-	ctxMap = log.Ctx{"name": c.name,
+	ctxMap = log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
 		"action":    "shutdown",
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
@@ -2860,7 +2869,9 @@ func (c *containerLXC) OnStop(target string) error {
 
 	// Log user actions
 	if op == nil {
-		ctxMap := log.Ctx{"name": c.name,
+		ctxMap := log.Ctx{
+			"project":   c.project,
+			"name":      c.name,
 			"action":    target,
 			"created":   c.creationDate,
 			"ephemeral": c.ephemeral,
@@ -2939,7 +2950,9 @@ func (c *containerLXC) OnStop(target string) error {
 
 // Freezer functions
 func (c *containerLXC) Freeze() error {
-	ctxMap := log.Ctx{"name": c.name,
+	ctxMap := log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate}
@@ -2985,7 +2998,9 @@ func (c *containerLXC) Freeze() error {
 }
 
 func (c *containerLXC) Unfreeze() error {
-	ctxMap := log.Ctx{"name": c.name,
+	ctxMap := log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate}
@@ -3286,7 +3301,9 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 		}
 	}
 
-	ctxMap = log.Ctx{"name": c.name,
+	ctxMap = log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate,
@@ -3403,7 +3420,9 @@ func (c *containerLXC) cleanup() {
 }
 
 func (c *containerLXC) Delete() error {
-	ctxMap := log.Ctx{"name": c.name,
+	ctxMap := log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate}
@@ -3546,7 +3565,9 @@ func (c *containerLXC) Delete() error {
 
 func (c *containerLXC) Rename(newName string) error {
 	oldName := c.Name()
-	ctxMap := log.Ctx{"name": c.name,
+	ctxMap := log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate,
@@ -4948,7 +4969,9 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 }
 
 func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
-	ctxMap := log.Ctx{"name": c.name,
+	ctxMap := log.Ctx{
+		"project":   c.project,
+		"name":      c.name,
 		"created":   c.creationDate,
 		"ephemeral": c.ephemeral,
 		"used":      c.lastUsedDate}
@@ -5225,7 +5248,9 @@ type CriuMigrationArgs struct {
 }
 
 func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
-	ctxMap := log.Ctx{"name": c.name,
+	ctxMap := log.Ctx{
+		"project":      c.project,
+		"name":         c.name,
 		"created":      c.creationDate,
 		"ephemeral":    c.ephemeral,
 		"used":         c.lastUsedDate,
