@@ -162,9 +162,15 @@ func (c *ClusterTx) OperationsUUIDs() ([]string, error) {
 }
 
 // OperationNodes returns a list of nodes that have running operations
-func (c *ClusterTx) OperationNodes() ([]string, error) {
-	stmt := "SELECT DISTINCT nodes.address FROM operations JOIN nodes ON nodes.id = node_id"
-	return query.SelectStrings(c.tx, stmt)
+func (c *ClusterTx) OperationNodes(project string) ([]string, error) {
+	stmt := `
+SELECT DISTINCT nodes.address
+  FROM operations
+  LEFT OUTER JOIN projects ON projects.id = operations.project_id
+  JOIN nodes ON nodes.id = operations.node_id
+ WHERE projects.name = ? OR operations.project_id IS NULL
+`
+	return query.SelectStrings(c.tx, stmt, project)
 }
 
 // OperationByUUID returns the operation with the given UUID.

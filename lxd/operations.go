@@ -65,6 +65,7 @@ func (t operationClass) String() string {
 }
 
 type operation struct {
+	project     string
 	id          string
 	class       operationClass
 	createdAt   time.Time
@@ -400,6 +401,7 @@ func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 func operationCreate(cluster *db.Cluster, project string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
 	// Main attributes
 	op := operation{}
+	op.project = project
 	op.id = uuid.NewRandom().String()
 	op.description = opType.Description()
 	op.class = opClass
@@ -560,6 +562,7 @@ func operationAPIDelete(d *Daemon, r *http.Request) Response {
 }
 
 func operationsAPIGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
 	localOperationURLs := func() (shared.Jmap, error) {
@@ -572,6 +575,9 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 		body := shared.Jmap{}
 
 		for _, v := range ops {
+			if v.project != "" && v.project != project {
+				continue
+			}
 			status := strings.ToLower(v.status.String())
 			_, ok := body[status]
 			if !ok {
@@ -594,6 +600,9 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 		body := shared.Jmap{}
 
 		for _, v := range ops {
+			if v.project != "" && v.project != project {
+				continue
+			}
 			status := strings.ToLower(v.status.String())
 			_, ok := body[status]
 			if !ok {
@@ -660,12 +669,12 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 		return SyncResponse(true, md)
 	}
 
-	// Get all nodes with running operations
+	// Get all nodes with running operations in this project.
 	var nodes []string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		nodes, err = tx.OperationNodes()
+		nodes, err = tx.OperationNodes(project)
 		if err != nil {
 			return err
 		}
