@@ -37,6 +37,10 @@
 #define IFA_TARGET_NETNSID 10
 #endif
 
+#ifndef RTM_GETNSID
+#define RTM_GETNSID 90
+#endif
+
 #define IFADDRS_HASH_SIZE 64
 
 #define __NETLINK_ALIGN(len) (((len) + 3) & ~3)
