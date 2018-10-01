@@ -24,6 +24,14 @@
 	((struct rtattr *)(((char *)(r)) + NLMSG_ALIGN(sizeof(struct rtgenmsg))))
 #endif
 
+#ifndef RTM_GETLINK
+#define RTM_GETLINK 18
+#endif
+
+#ifndef RTM_GETNSID
+#define RTM_GETNSID 90
+#endif
+
 #ifdef IFLA_IF_NETNSID
 #ifndef IFLA_TARGET_NETNSID
 #define IFLA_TARGET_NETNSID = IFLA_IF_NETNSID
