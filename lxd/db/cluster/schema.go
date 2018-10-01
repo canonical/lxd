@@ -229,13 +229,15 @@ CREATE TABLE nodes (
     UNIQUE (name),
     UNIQUE (address)
 );
-CREATE TABLE operations (
+CREATE TABLE "operations" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     uuid TEXT NOT NULL,
     node_id TEXT NOT NULL,
     type INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER,
     UNIQUE (uuid),
-    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
 CREATE TABLE "profiles" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,

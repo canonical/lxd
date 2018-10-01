@@ -186,8 +186,8 @@ func (c *ClusterTx) OperationByUUID(uuid string) (Operation, error) {
 
 // OperationAdd adds a new operations to the table.
 func (c *ClusterTx) OperationAdd(uuid string, typ OperationType) (int64, error) {
-	columns := []string{"uuid", "node_id", "type"}
-	values := []interface{}{uuid, c.nodeID, typ}
+	columns := []string{"uuid", "node_id", "type", "project_id"}
+	values := []interface{}{uuid, c.nodeID, typ, 1}
 	return query.UpsertObject(c.tx, "operations", columns, values)
 }
 

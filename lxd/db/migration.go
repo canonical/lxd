@@ -98,6 +98,7 @@ var preClusteringTablesRequiringProjectID = []string{
 	"images_aliases",
 	"profiles",
 	"storage_volumes",
+	"operations",
 }
 
 // ImportPreClusteringData imports the data loaded with LoadPreClusteringData.
