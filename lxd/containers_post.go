@@ -135,7 +135,7 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -171,7 +171,7 @@ func createFromNone(d *Daemon, project string, req *api.ContainersPost) Response
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -432,12 +432,12 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 
 	var op *operation
 	if push {
-		op, err = operationCreate(d.cluster, operationClassWebsocket, db.OperationContainerCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operationCreate(d.cluster, project, operationClassWebsocket, db.OperationContainerCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
 	} else {
-		op, err = operationCreate(d.cluster, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+		op, err = operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -534,7 +534,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name, req.Source.Source}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -607,7 +607,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{bInfo.Name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationBackupRestore,
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationBackupRestore,
 		resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)

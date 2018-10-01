@@ -397,7 +397,7 @@ func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 	return nil
 }
 
-func operationCreate(cluster *db.Cluster, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
+func operationCreate(cluster *db.Cluster, project string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
 	// Main attributes
 	op := operation{}
 	op.id = uuid.NewRandom().String()
@@ -444,7 +444,7 @@ func operationCreate(cluster *db.Cluster, opClass operationClass, opType db.Oper
 	operationsLock.Unlock()
 
 	err = op.cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.OperationAdd(op.id, opType)
+		_, err := tx.OperationAdd(project, op.id, opType)
 		return err
 	})
 	if err != nil {

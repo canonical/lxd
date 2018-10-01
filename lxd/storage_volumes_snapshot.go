@@ -139,7 +139,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["storage_volumes"] = []string{volumeName}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationVolumeSnapshotCreate, resources, nil, snapshot, nil, nil)
+	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeSnapshotCreate, resources, nil, snapshot, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -297,7 +297,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationVolumeSnapshotDelete, resources, nil, snapshotRename, nil, nil)
+	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeSnapshotDelete, resources, nil, snapshotRename, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -435,7 +435,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operationCreate(d.cluster, operationClassTask, opDescription, resources, nil, do, nil, nil)
+	op, err := operationCreate(d.cluster, "", operationClassTask, opDescription, resources, nil, do, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -501,7 +501,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["storage_volume_snapshots"] = []string{volumeName}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationVolumeSnapshotDelete, resources, nil, snapshotDelete, nil, nil)
+	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationVolumeSnapshotDelete, resources, nil, snapshotDelete, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

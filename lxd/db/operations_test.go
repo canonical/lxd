@@ -13,7 +13,7 @@ func TestOperation(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	id, err := tx.OperationAdd("abcd", db.OperationContainerCreate)
+	id, err := tx.OperationAdd("default", "abcd", db.OperationContainerCreate)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 

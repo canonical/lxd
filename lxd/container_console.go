@@ -332,7 +332,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{ws.container.Name()}
 
-	op, err := operationCreate(d.cluster, operationClassWebsocket, db.OperationConsoleShow,
+	op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationConsoleShow,
 		resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 	if err != nil {
 		return InternalError(err)

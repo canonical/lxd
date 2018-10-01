@@ -314,7 +314,7 @@ func apiProjectPost(d *Daemon, r *http.Request) Response {
 		return err
 	}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

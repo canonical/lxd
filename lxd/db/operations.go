@@ -185,9 +185,21 @@ func (c *ClusterTx) OperationByUUID(uuid string) (Operation, error) {
 }
 
 // OperationAdd adds a new operations to the table.
-func (c *ClusterTx) OperationAdd(uuid string, typ OperationType) (int64, error) {
+func (c *ClusterTx) OperationAdd(project, uuid string, typ OperationType) (int64, error) {
+	var projectID interface{}
+
+	if project != "" {
+		var err error
+		projectID, err = c.ProjectID(project)
+		if err != nil {
+			return -1, errors.Wrap(err, "Fetch project ID")
+		}
+	} else {
+		projectID = nil
+	}
+
 	columns := []string{"uuid", "node_id", "type", "project_id"}
-	values := []interface{}{uuid, c.nodeID, typ, 1}
+	values := []interface{}{uuid, c.nodeID, typ, projectID}
 	return query.UpsertObject(c.tx, "operations", columns, values)
 }
 

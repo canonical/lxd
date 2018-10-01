@@ -144,7 +144,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationSnapshotCreate, resources, nil, snapshot, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -259,7 +259,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 				return InternalError(err)
 			}
 
-			op, err := operationCreate(d.cluster, operationClassTask, db.OperationSnapshotTransfer, resources, nil, ws.Do, nil, nil)
+			op, err := operationCreate(d.cluster, sc.Project(), operationClassTask, db.OperationSnapshotTransfer, resources, nil, ws.Do, nil, nil)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -268,7 +268,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 		}
 
 		// Pull mode
-		op, err := operationCreate(d.cluster, operationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operationCreate(d.cluster, sc.Project(), operationClassWebsocket, db.OperationSnapshotTransfer, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -301,7 +301,7 @@ func snapshotPost(d *Daemon, r *http.Request, sc container, containerName string
 	resources := map[string][]string{}
 	resources["containers"] = []string{containerName}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil)
+	op, err := operationCreate(d.cluster, sc.Project(), operationClassTask, db.OperationSnapshotRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -317,7 +317,7 @@ func snapshotDelete(sc container, name string) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{sc.Name()}
 
-	op, err := operationCreate(sc.DaemonState().Cluster, operationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
+	op, err := operationCreate(sc.DaemonState().Cluster, sc.Project(), operationClassTask, db.OperationSnapshotDelete, resources, nil, remove, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
