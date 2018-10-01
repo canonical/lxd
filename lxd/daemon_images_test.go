@@ -40,7 +40,7 @@ func (suite *daemonImagesTestSuite) TestUseCachedImagesIfAvailable() {
 
 	// Request an image with alias "test" and check that it's the
 	// one we created above.
-	op, err := operationCreate(suite.d.cluster, operationClassTask, db.OperationImageDownload, map[string][]string{}, nil, nil, nil, nil)
+	op, err := operationCreate(suite.d.cluster, "default", operationClassTask, db.OperationImageDownload, map[string][]string{}, nil, nil, nil, nil)
 	suite.Req.Nil(err)
 	image, err := suite.d.ImageDownload(op, "img.srv", "simplestreams", "", "", "test", false, false, "", true)
 	suite.Req.Nil(err)
