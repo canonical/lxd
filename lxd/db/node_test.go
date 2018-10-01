@@ -329,7 +329,7 @@ func TestNodeWithLeastContainers_Pending(t *testing.T) {
 
 	// Add a pending container to the default node (ID 1)
 	_, err = tx.Tx().Exec(`
-INSERT INTO operations (id, uuid, node_id, type) VALUES (1, 'abc', 1, ?)
+INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1, ?, 1)
 `, db.OperationContainerCreate)
 	require.NoError(t, err)
 

@@ -87,6 +87,7 @@ ALTER TABLE images ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE images_aliases ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE profiles ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE storage_volumes ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE operations ADD COLUMN project_id INTEGER;
 
 -- Create new versions of the above tables, this time with the FOREIGN key constraint
 CREATE TABLE new_containers (
@@ -155,6 +156,17 @@ CREATE TABLE new_storage_volumes (
     project_id INTEGER NOT NULL,
     UNIQUE (storage_pool_id, node_id, project_id, name, type),
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE new_operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    uuid TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER,
+    UNIQUE (uuid),
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
 );
@@ -280,6 +292,7 @@ INSERT INTO new_containers SELECT * FROM containers;
 INSERT INTO new_images SELECT * FROM images;
 INSERT INTO new_profiles SELECT * FROM profiles;
 INSERT INTO new_storage_volumes SELECT * FROM storage_volumes;
+INSERT INTO new_operations SELECT * FROM operations;
 
 -- Drop the old table and rename the new ones. This will trigger cascading
 -- deletes on all tables that have direct or indirect references to the old
@@ -301,6 +314,9 @@ INSERT INTO new_images_aliases SELECT * FROM images_aliases_copy;
 DROP TABLE images_aliases;
 DROP TABLE images_aliases_copy;
 ALTER TABLE new_images_aliases RENAME TO images_aliases;
+
+DROP TABLE operations;
+ALTER TABLE new_operations RENAME TO operations;
 
 -- Restore the content of the tables with direct or indirect references.
 INSERT INTO containers_backups SELECT * FROM containers_backups_copy;
