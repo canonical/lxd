@@ -232,8 +232,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 					uri.RawQuery = query.Encode()
 				}
 
-				fmt.Println(uri)
-				return nil
+				return httpbakery.OpenWebBrowser(uri)
 			},
 		},
 	})
