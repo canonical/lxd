@@ -117,6 +117,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c container, 
 	}
 
 	listener := eventListener{
+		project:      c.Project(),
 		active:       make(chan bool, 1),
 		connection:   conn,
 		id:           uuid.NewRandom().String(),
