@@ -464,12 +464,12 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, old
 
 		// Create the container mount point on the target node
 		cert := d.endpoints.NetworkCert()
-		client, err := cluster.ConnectIfContainerIsRemote(d.cluster, "default", newName, cert)
+		client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, newName, cert)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to target node")
 		}
 		if client == nil {
-			err := containerPostCreateContainerMountPoint(d, c.Project(), newName)
+			err := containerPostCreateContainerMountPoint(d, project, newName)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
 			}
@@ -489,7 +489,7 @@ func containerPostClusteringMigrateWithCeph(d *Daemon, c container, project, old
 
 	resources := map[string][]string{}
 	resources["containers"] = []string{oldName}
-	op, err := operationCreate(d.cluster, c.Project(), operationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerMigrate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
