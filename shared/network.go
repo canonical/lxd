@@ -69,7 +69,10 @@ func finalizeTLSConfig(tlsConfig *tls.Config, tlsRemoteCert *x509.Certificate) {
 	if tlsRemoteCert != nil {
 		caCertPool := tlsConfig.RootCAs
 		if caCertPool == nil {
-			caCertPool = x509.NewCertPool()
+			caCertPool, _ = x509.SystemCertPool()
+			if caCertPool == nil {
+				caCertPool = x509.NewCertPool()
+			}
 		}
 
 		// Make it a valid RootCA

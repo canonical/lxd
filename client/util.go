@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -29,6 +30,54 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 	// Allow overriding the proxy
 	if proxy != nil {
 		transport.Proxy = proxy
+	}
+
+	// Special TLS handling
+	transport.DialTLS = func(network string, addr string) (net.Conn, error) {
+		tlsDial := func(network string, addr string, config *tls.Config, resetName bool) (net.Conn, error) {
+			// TCP connection
+			conn, err := transport.Dial(network, addr)
+			if err != nil {
+				return nil, err
+			}
+
+			// Setup TLS
+			if resetName {
+				hostName, _, err := net.SplitHostPort(addr)
+				if err != nil {
+					hostName = addr
+				}
+
+				config = config.Clone()
+				config.ServerName = hostName
+			}
+			tlsConn := tls.Client(conn, config)
+
+			// Validate the connection
+			err = tlsConn.Handshake()
+			if err != nil {
+				conn.Close()
+				return nil, err
+			}
+
+			if !config.InsecureSkipVerify {
+				err := tlsConn.VerifyHostname(config.ServerName)
+				if err != nil {
+					conn.Close()
+					return nil, err
+				}
+			}
+
+			return tlsConn, nil
+		}
+
+		conn, err := tlsDial(network, addr, transport.TLSClientConfig, false)
+		if err != nil {
+			// We may have gotten redirected to a non-LXD machine
+			return tlsDial(network, addr, transport.TLSClientConfig, true)
+		}
+
+		return conn, nil
 	}
 
 	// Define the http client
