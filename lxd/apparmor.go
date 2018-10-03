@@ -338,6 +338,7 @@ func getAAProfileContent(c container) string {
 	if shared.PathExists("/proc/self/ns/cgroup") {
 		profile += "\n  ### Feature: cgroup namespace\n"
 		profile += "  mount fstype=cgroup -> /sys/fs/cgroup/**,\n"
+		profile += "  mount fstype=cgroup2 -> /sys/fs/cgroup/**,\n"
 	}
 
 	state := c.DaemonState()
