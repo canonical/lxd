@@ -182,9 +182,13 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 
 	if d.externalAuth != nil && r.Header.Get(httpbakery.BakeryProtocolHeader) != "" {
 		ctx := httpbakery.ContextWithRequest(context.TODO(), r)
-		authChecker := d.externalAuth.bakery.Checker.Auth(
-			httpbakery.RequestMacaroons(r)...)
-		ops := getBakeryOps(r)
+		authChecker := d.externalAuth.bakery.Checker.Auth(httpbakery.RequestMacaroons(r)...)
+
+		ops := []bakery.Op{{
+			Entity: r.URL.Path,
+			Action: r.Method,
+		}}
+
 		_, err := authChecker.Allow(ctx, ops...)
 		return err
 	}
@@ -196,14 +200,6 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 	}
 
 	return fmt.Errorf("unauthorized")
-}
-
-// Return the bakery operations implied by the given HTTP request
-func getBakeryOps(r *http.Request) []bakery.Op {
-	return []bakery.Op{{
-		Entity: r.URL.Path,
-		Action: r.Method,
-	}}
 }
 
 func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError, expiry int64) {
