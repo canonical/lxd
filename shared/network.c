@@ -276,7 +276,7 @@ static int addattr(struct nlmsghdr *n, size_t maxlen, int type,
 	return 0;
 }
 
-static __s32 netns_get_nsid(int netns_fd)
+static __s32 netns_get_nsid(__s32 netns_fd)
 {
 	int fd, ret;
 	ssize_t len;
