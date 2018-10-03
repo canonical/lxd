@@ -53,9 +53,11 @@ type usbDevice struct {
 	vendor  string
 	product string
 
-	path  string
-	major int
-	minor int
+	path        string
+	major       int
+	minor       int
+	ueventParts []string
+	ueventLen   int
 }
 
 // /dev/nvidia[0-9]+
@@ -378,7 +380,7 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 	return gpus, nvidiaDevices, nil
 }
 
-func createUSBDevice(action string, vendor string, product string, major string, minor string, busnum string, devnum string, devname string) (usbDevice, error) {
+func createUSBDevice(action string, vendor string, product string, major string, minor string, busnum string, devnum string, devname string, ueventParts []string, ueventLen int) (usbDevice, error) {
 	majorInt, err := strconv.Atoi(major)
 	if err != nil {
 		return usbDevice{}, err
@@ -414,6 +416,8 @@ func createUSBDevice(action string, vendor string, product string, major string,
 		path,
 		majorInt,
 		minorInt,
+		ueventParts,
+		ueventLen,
 	}, nil
 }
 
@@ -448,29 +452,32 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 	go func(chCPU chan []string, chNetwork chan []string, chUSB chan usbDevice) {
 		b := make([]byte, UEVENT_BUFFER_SIZE*2)
 		for {
-			_, err := syscall.Read(fd, b)
+			r, err := syscall.Read(fd, b)
 			if err != nil {
 				continue
 			}
 
+			ueventBuf := make([]byte, r)
+			copy(ueventBuf, b)
+			ueventLen := 0
+			ueventParts := strings.Split(string(ueventBuf), "\x00")
 			props := map[string]string{}
-			last := 0
-			for i, e := range b {
-				if i == len(b) || e == 0 {
-					msg := string(b[last+1 : i])
-					last = i
-					if len(msg) == 0 || msg == "\x00" {
-						continue
-					}
-
-					fields := strings.SplitN(msg, "=", 2)
-					if len(fields) != 2 {
-						continue
-					}
-
-					props[fields[0]] = fields[1]
+			for _, part := range ueventParts {
+				if strings.HasPrefix(part, "SEQNUM=") {
+					continue
 				}
+
+				ueventLen += len(part) + 1
+
+				fields := strings.SplitN(part, "=", 2)
+				if len(fields) != 2 {
+					continue
+				}
+
+				props[fields[0]] = fields[1]
 			}
+
+			ueventLen--
 
 			if props["SUBSYSTEM"] == "cpu" {
 				if props["DRIVER"] != "processor" {
@@ -503,10 +510,6 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 			}
 
 			if props["SUBSYSTEM"] == "usb" {
-				if props["ACTION"] != "add" && props["ACTION"] != "remove" {
-					continue
-				}
-
 				parts := strings.Split(props["PRODUCT"], "/")
 				if len(parts) < 2 {
 					continue
@@ -554,6 +557,8 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 					busnum,
 					devnum,
 					devname,
+					ueventParts[:len(ueventParts)-1],
+					ueventLen,
 				)
 				if err != nil {
 					logger.Error("Error reading usb device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
@@ -863,10 +868,15 @@ func deviceUSBEvent(s *state.State, usb usbDevice) {
 					logger.Error("Failed to remove usb device", log.Ctx{"err": err, "usb": usb, "container": c.Name()})
 					return
 				}
-			} else {
-				logger.Error("Unknown action for usb device", log.Ctx{"usb": usb})
-				continue
 			}
+
+			ueventArray := make([]string, 4)
+			ueventArray[0] = "forkuevent"
+			ueventArray[1] = "inject"
+			ueventArray[2] = fmt.Sprintf("%d", c.InitPID())
+			ueventArray[3] = fmt.Sprintf("%d", usb.ueventLen)
+			ueventArray = append(ueventArray, usb.ueventParts...)
+			shared.RunCommand(s.OS.ExecPath, ueventArray...)
 		}
 	}
 }
@@ -1392,6 +1402,8 @@ func deviceLoadUsb() ([]usbDevice, error) {
 			values["busnum"],
 			values["devnum"],
 			values["devname"],
+			[]string{},
+			0,
 		)
 		if err != nil {
 			if os.IsNotExist(err) {
