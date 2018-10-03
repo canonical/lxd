@@ -22,7 +22,10 @@ import (
 #include "../shared/netns_getifaddrs.c"
 
 bool netnsid_aware = false;
+bool uevent_aware = false;
 char errbuf[4096];
+
+extern int can_inject_uevent(const char *uevent, size_t len);
 
 static int netns_set_nsid(int fd)
 {
@@ -64,13 +67,14 @@ static int netns_set_nsid(int fd)
 	return 0;
 }
 
-void checkfeature() {
+void is_netnsid_aware(int *hostnetns_fd)
+{
 	int netnsid, ret;
 	struct netns_ifaddrs *ifaddrs;
-	int hostnetns_fd = -1, newnetns_fd = -1;
+	int newnetns_fd = -1;
 
-	hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
-	if (hostnetns_fd < 0) {
+	*hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
+	if (*hostnetns_fd < 0) {
 		(void)sprintf(errbuf, "%s", "Failed to preserve host network namespace\n");
 		goto on_error;
 	}
@@ -87,13 +91,13 @@ void checkfeature() {
 		goto on_error;
 	}
 
-	ret = netns_set_nsid(hostnetns_fd);
+	ret = netns_set_nsid(*hostnetns_fd);
 	if (ret < 0) {
 		(void)sprintf(errbuf, "%s", "failed to set network namespace identifier\n");
 		goto on_error;
 	}
 
-	netnsid = netns_get_nsid(hostnetns_fd);
+	netnsid = netns_get_nsid(*hostnetns_fd);
 	if (netnsid < 0) {
 		(void)sprintf(errbuf, "%s", "Failed to get network namespace identifier\n");
 		goto on_error;
@@ -106,16 +110,31 @@ void checkfeature() {
 		goto on_error;
 	}
 
-	ret = setns(hostnetns_fd, CLONE_NEWNET);
+	ret = setns(*hostnetns_fd, CLONE_NEWNET);
 	if (ret < 0)
 		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace\n");
 
 on_error:
-	if (hostnetns_fd >= 0)
-		close(hostnetns_fd);
-
 	if (newnetns_fd >= 0)
 		close(newnetns_fd);
+}
+
+void is_uevent_aware()
+{
+	if (can_inject_uevent("dummy", 6) < 0)
+		return;
+
+	uevent_aware = true;
+}
+
+void checkfeature() {
+	int hostnetns_fd = -1;
+
+	is_netnsid_aware(&hostnetns_fd);
+	is_uevent_aware();
+
+	if (hostnetns_fd >= 0)
+		close(hostnetns_fd);
 }
 
 static bool is_empty_string(char *s)
@@ -132,4 +151,8 @@ func CanUseNetnsGetifaddrs() bool {
 	}
 
 	return bool(C.netnsid_aware)
+}
+
+func CanUseUeventInjection() bool {
+	return bool(C.uevent_aware)
 }
