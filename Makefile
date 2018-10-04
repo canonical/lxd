@@ -25,6 +25,11 @@ client:
 	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./lxc
 	@echo "LXD client built successfully"
 
+.PHONY: lxd-p2c
+lxd-p2c:
+	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
+	@echo "LXD-P2C built successfully"
+
 .PHONY: deps
 deps:
 	# sqlite
