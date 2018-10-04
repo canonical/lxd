@@ -27,6 +27,9 @@ type Config struct {
 	// The UserAgent to pass for all queries
 	UserAgent string `yaml:"-"`
 
+	// PromptPassword is a helper function used when encountering an encrypted key
+	PromptPassword func(filename string) (string, error) `yaml:"-"`
+
 	authInteractor []httpbakery.Interactor
 
 	cookiejar *cookiejar.Jar

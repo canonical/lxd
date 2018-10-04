@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -160,6 +162,25 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		content, err := ioutil.ReadFile(c.ConfigPath("client.key"))
 		if err != nil {
 			return nil, err
+		}
+
+		pemKey, _ := pem.Decode(content)
+		if x509.IsEncryptedPEMBlock(pemKey) {
+			if c.PromptPassword == nil {
+				return nil, fmt.Errorf("Private key is password protected and no helper was configured")
+			}
+
+			password, err := c.PromptPassword("client.crt")
+			if err != nil {
+				return nil, err
+			}
+
+			derKey, err := x509.DecryptPEMBlock(pemKey, []byte(password))
+			if err != nil {
+				return nil, err
+			}
+
+			content = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: derKey})
 		}
 
 		args.TLSClientKey = string(content)
