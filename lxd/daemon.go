@@ -435,6 +435,14 @@ func (d *Daemon) init() error {
 		logger.Debugf("Running kernel does not support netnsid-based network retrieval")
 	}
 
+	/* Check if uevent injection is supported. */
+	d.os.UeventInjection = CanUseUeventInjection()
+	if d.os.UeventInjection {
+		logger.Debugf("Running kernel supports uevent injection")
+	} else {
+		logger.Debugf("Running kernel does not support uevent injection")
+	}
+
 	/* Initialize the database */
 	dump, err := initializeDbObject(d)
 	if err != nil {

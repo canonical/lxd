@@ -39,6 +39,7 @@ extern void forkfile();
 extern void forkmount();
 extern void forknet();
 extern void forkproxy();
+extern void forkuevent();
 
 // Command line parsing and tracking
 #define CMDLINE_SIZE (8 * PATH_MAX)
@@ -246,6 +247,8 @@ __attribute__((constructor)) void init(void) {
 		forknet();
 	else if (strcmp(cmdline_cur, "forkproxy") == 0)
 		forkproxy();
+	else if (strcmp(cmdline_cur, "forkuevent") == 0)
+		forkuevent();
 	else if (strncmp(cmdline_cur, "-", 1) == 0 || strcmp(cmdline_cur, "daemon") == 0)
 		checkfeature();
 }

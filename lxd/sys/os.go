@@ -59,6 +59,7 @@ type OS struct {
 	CGroupSwapAccounting    bool
 	InotifyWatch            InotifyInfo
 	NetnsGetifaddrs         bool
+	UeventInjection         bool
 
 	MockMode bool // If true some APIs will be mocked (for testing)
 }
