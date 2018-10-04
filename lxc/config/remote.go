@@ -147,6 +147,10 @@ func (c *Config) getConnectionArgs(name string) (*lxd.ConnectionArgs, error) {
 		args.CookieJar = c.cookiejar
 	}
 
+	if strings.HasPrefix(remote.Addr, "unix:") || remote.Protocol == "simplestreams" {
+		return &args, nil
+	}
+
 	// Client certificate
 	if shared.PathExists(c.ConfigPath("client.crt")) {
 		content, err := ioutil.ReadFile(c.ConfigPath("client.crt"))
