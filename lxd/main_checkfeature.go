@@ -64,65 +64,70 @@ static int netns_set_nsid(int fd)
 	return 0;
 }
 
-void is_netnsid_aware(int *hostnetns_fd)
+void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 {
-	int netnsid, ret;
+	int sock_fd, netnsid, ret;
 	struct netns_ifaddrs *ifaddrs;
-	int newnetns_fd = -1;
 
 	*hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
 	if (*hostnetns_fd < 0) {
 		(void)sprintf(errbuf, "%s", "Failed to preserve host network namespace\n");
-		goto on_error;
+		return;
 	}
 
 	ret = unshare(CLONE_NEWNET);
 	if (ret < 0) {
 		(void)sprintf(errbuf, "%s", "Failed to unshare network namespace\n");
-		goto on_error;
+		return;
 	}
 
-	newnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
-	if (newnetns_fd < 0) {
+	*newnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
+	if (*newnetns_fd < 0) {
 		(void)sprintf(errbuf, "%s", "Failed to preserve new network namespace\n");
-		goto on_error;
+		return;
 	}
 
 	ret = netns_set_nsid(*hostnetns_fd);
 	if (ret < 0) {
 		(void)sprintf(errbuf, "%s", "failed to set network namespace identifier\n");
-		goto on_error;
+		return;
 	}
 
 	netnsid = netns_get_nsid(*hostnetns_fd);
 	if (netnsid < 0) {
 		(void)sprintf(errbuf, "%s", "Failed to get network namespace identifier\n");
-		goto on_error;
+		return;
 	}
 
-	ret = netns_getifaddrs(&ifaddrs, netnsid, &netnsid_aware);
-	netns_freeifaddrs(ifaddrs);
+	sock_fd = socket(PF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE);
+	if (sock_fd < 0) {
+		(void)sprintf(errbuf, "%s", "Failed to open netlink routing socket\n");
+		return;
+	}
+
+	ret = setsockopt(sock_fd, SOL_NETLINK, NETLINK_DUMP_STRICT_CHK, &(int){1}, sizeof(int));
+	close(sock_fd);
 	if (ret < 0) {
-		(void)sprintf(errbuf, "%s", "Netlink is not fully network namespace id aware\n");
-		goto on_error;
+		(void)sprintf(errbuf, "%s", "Failed to set NETLINK_DUMP_STRICT_CHK socket option\n");
+		return;
 	}
-
-	ret = setns(*hostnetns_fd, CLONE_NEWNET);
-	if (ret < 0)
-		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace\n");
-
-on_error:
-	if (newnetns_fd >= 0)
-		close(newnetns_fd);
+	netnsid_aware = true;
 }
 
 void checkfeature() {
-	int hostnetns_fd = -1;
+	int hostnetns_fd = -1, newnetns_fd = -1;
 
-	is_netnsid_aware(&hostnetns_fd);
+	is_netnsid_aware(&hostnetns_fd, &newnetns_fd);
+
+	if (setns(hostnetns_fd, CLONE_NEWNET) < 0)
+		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace\n");
 
 	if (hostnetns_fd >= 0)
 		close(hostnetns_fd);
+
+	if (newnetns_fd >= 0)
+		close(newnetns_fd);
+
 }
 
 static bool is_empty_string(char *s)
