@@ -24,6 +24,14 @@
 	((struct rtattr *)(((char *)(r)) + NLMSG_ALIGN(sizeof(struct rtgenmsg))))
 #endif
 
+#ifndef SOL_NETLINK
+#define SOL_NETLINK 270
+#endif
+
+#ifndef NETLINK_DUMP_STRICT_CHK
+#define NETLINK_DUMP_STRICT_CHK 12
+#endif
+
 #ifndef RTM_GETLINK
 #define RTM_GETLINK 18
 #endif
