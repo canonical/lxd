@@ -58,9 +58,17 @@ func apiProjectsGet(d *Daemon, r *http.Request) Response {
 func apiProjectsPost(d *Daemon, r *http.Request) Response {
 	// Parse the request
 	project := api.ProjectsPost{}
-	project.Config = map[string]string{}
-	project.Config["features.images"] = "true"
-	project.Config["features.profiles"] = "true"
+
+	// Set default features
+	if project.Config == nil {
+		project.Config = map[string]string{}
+	}
+	for _, feature := range []string{"features.images", "features.profiles"} {
+		_, ok := project.Config[feature]
+		if !ok {
+			project.Config[feature] = "true"
+		}
+	}
 
 	err := json.NewDecoder(r.Body).Decode(&project)
 	if err != nil {
