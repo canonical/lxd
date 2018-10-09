@@ -87,6 +87,7 @@ test_projects_containers() {
 
   # Trying to change features of a project which is in use fails
   ! lxc project show foo| sed 's/features.profiles:.*/features.profiles: "false"/' | lxc project edit foo
+  ! lxc project set foo "features.profiles" "false"
   lxc project show foo | grep -q 'features.profiles: "true"'
 
   # Create a container with the same name in the default project
@@ -320,7 +321,7 @@ test_projects_images_default() {
   # Create a new project, without the features.images config.
   lxc project create foo
   lxc project switch foo
-  lxc project show foo | sed 's/features.images:.*/features.images: "false"/' | lxc project edit foo
+  lxc project set foo "features.images" "false"
 
   # The project can see images from the defaut project
   lxc image list | grep -q testimage
