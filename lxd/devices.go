@@ -1277,7 +1277,7 @@ func deviceParseDiskLimit(readSpeed string, writeSpeed string) (int64, int64, in
 		bps := int64(0)
 		iops := int64(0)
 
-		if readSpeed == "" {
+		if value == "" {
 			return bps, iops, nil
 		}
 
