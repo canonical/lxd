@@ -1395,6 +1395,7 @@ func (c *containerLXC) initLXC(config bool) error {
 		}
 
 		hasDiskLimits := false
+		hasRootLimit := false
 		for _, name := range c.expandedDevices.DeviceNames() {
 			m := c.expandedDevices[name]
 			if m["type"] != "disk" {
@@ -1402,15 +1403,34 @@ func (c *containerLXC) initLXC(config bool) error {
 			}
 
 			if m["limits.read"] != "" || m["limits.write"] != "" || m["limits.max"] != "" {
+				if m["path"] == "/" {
+					hasRootLimit = true
+				}
+
 				hasDiskLimits = true
-				break
 			}
 		}
 
 		if hasDiskLimits {
+			ourStart := false
+
+			if hasRootLimit {
+				ourStart, err = c.StorageStart()
+				if err != nil {
+					return err
+				}
+			}
+
 			diskLimits, err := c.getDiskLimits()
 			if err != nil {
 				return err
+			}
+
+			if hasRootLimit && ourStart {
+				_, err = c.StorageStop()
+				if err != nil {
+					return err
+				}
 			}
 
 			for block, limit := range diskLimits {
