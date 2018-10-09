@@ -140,7 +140,7 @@ import "C"
 
 func CanUseNetnsGetifaddrs() bool {
 	if !bool(C.is_empty_string(&C.errbuf[0])) {
-		logger.Errorf("%s", C.GoString(&C.errbuf[0]))
+		logger.Debugf("%s", C.GoString(&C.errbuf[0]))
 	}
 
 	return bool(C.netnsid_aware)
