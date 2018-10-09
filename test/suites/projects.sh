@@ -18,7 +18,7 @@ test_projects_crud() {
 
   # All features are enabled by default
   lxc project show foo | grep -q 'features.images: "true"'
-  lxc project show foo | grep -q 'features.profiles: "true"'
+  lxc project get foo "features.profiles" | grep -q 'true'
 
   # Trying to create a project with the same name fails
   ! lxc project create foo
