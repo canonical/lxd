@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
+	"strings"
 	"syscall"
 
 	"github.com/olekukonko/tablewriter"
@@ -70,8 +71,9 @@ func (c *cmdProject) Command() *cobra.Command {
 
 // Create
 type cmdProjectCreate struct {
-	global  *cmdGlobal
-	project *cmdProject
+	global     *cmdGlobal
+	project    *cmdProject
+	flagConfig []string
 }
 
 func (c *cmdProjectCreate) Command() *cobra.Command {
@@ -80,6 +82,7 @@ func (c *cmdProjectCreate) Command() *cobra.Command {
 	cmd.Short = i18n.G("Create projects")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Create projects`))
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new project")+"``")
 
 	cmd.RunE = c.Run
 
@@ -108,9 +111,16 @@ func (c *cmdProjectCreate) Run(cmd *cobra.Command, args []string) error {
 	// Create the project
 	project := api.ProjectsPost{}
 	project.Name = resource.name
+
 	project.Config = map[string]string{}
-	project.Config["features.images"] = "true"
-	project.Config["features.profiles"] = "true"
+	for _, entry := range c.flagConfig {
+		if !strings.Contains(entry, "=") {
+			return fmt.Errorf(i18n.G("Bad key=value pair: %s"), entry)
+		}
+
+		fields := strings.SplitN(entry, "=", 2)
+		project.Config[fields[0]] = fields[1]
+	}
 
 	err = resource.server.CreateProject(project)
 	if err != nil {

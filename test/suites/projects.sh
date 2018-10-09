@@ -232,9 +232,8 @@ test_projects_profiles() {
 # Use global profiles in a project.
 test_projects_profiles_default() {
   # Create a new project, without the features.profiles config.
-  lxc project create foo
+  lxc project create -c features.profiles=false foo
   lxc project switch foo
-  lxc project show foo | sed 's/features.profiles:.*/features.profiles: "false"/' | lxc project edit foo
 
   # Import an image into the project and grab its fingerprint
   deps/import-busybox --project foo
