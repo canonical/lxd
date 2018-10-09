@@ -2,12 +2,14 @@ package utils
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/termios"
 )
 
 // ProgressRenderer tracks the progress information
@@ -18,6 +20,22 @@ type ProgressRenderer struct {
 	wait      time.Time
 	done      bool
 	lock      sync.Mutex
+	terminal  int
+}
+
+func (p *ProgressRenderer) truncate(msg string) string {
+	width, _, err := termios.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		return msg
+	}
+
+	newSize := len(msg)
+	if width < newSize {
+		newSize = width
+	}
+
+	msg = msg[0:newSize]
+	return msg
 }
 
 // Done prints the final status and prevents any update
@@ -38,6 +56,9 @@ func (p *ProgressRenderer) Done(msg string) {
 	if msg == "" && p.maxLength == 0 {
 		return
 	}
+
+	// Truncate msg to terminal length
+	msg = p.truncate(msg)
 
 	// Print the new message
 	if msg != "" {
@@ -71,6 +92,19 @@ func (p *ProgressRenderer) Update(status string) {
 		return
 	}
 
+	// Skip status updates when not dealing with a terminal
+	if p.terminal == 0 {
+		if !termios.IsTerminal(int(os.Stdout.Fd())) {
+			p.terminal = -1
+		}
+
+		p.terminal = 1
+	}
+
+	if p.terminal != 1 {
+		return
+	}
+
 	// Print the new message
 	msg := "%s"
 	if p.Format != "" {
@@ -78,6 +112,9 @@ func (p *ProgressRenderer) Update(status string) {
 	}
 
 	msg = fmt.Sprintf("\r"+msg, status)
+
+	// Truncate msg to terminal length
+	msg = p.truncate(msg)
 
 	if len(msg) > p.maxLength {
 		p.maxLength = len(msg)
@@ -102,6 +139,9 @@ func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
 	// Render the new message
 	p.wait = time.Now().Add(timeout)
 	msg := fmt.Sprintf("\r%s", status)
+
+	// Truncate msg to terminal length
+	msg = p.truncate(msg)
 
 	if len(msg) > p.maxLength {
 		p.maxLength = len(msg)
