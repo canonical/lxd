@@ -152,15 +152,15 @@ func (op *operation) setupListener() error {
 	_, err := op.listener.AddHandler([]string{"operation"}, func(data interface{}) {
 		<-chReady
 
+		// We don't want concurrency while processing events
+		op.handlerLock.Lock()
+		defer op.handlerLock.Unlock()
+
 		// Get an operation struct out of this data
 		newOp := op.extractOperation(data)
 		if newOp == nil {
 			return
 		}
-
-		// We don't want concurrency while processing events
-		op.handlerLock.Lock()
-		defer op.handlerLock.Unlock()
 
 		// Check if we're done already (because of another event)
 		if op.listener == nil {
