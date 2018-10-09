@@ -74,44 +74,44 @@ void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 
 	*hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
 	if (*hostnetns_fd < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to preserve host network namespace\n");
+		(void)sprintf(errbuf, "%s", "Failed to preserve host network namespace");
 		return;
 	}
 
 	ret = unshare(CLONE_NEWNET);
 	if (ret < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to unshare network namespace\n");
+		(void)sprintf(errbuf, "%s", "Failed to unshare network namespace");
 		return;
 	}
 
 	*newnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
 	if (*newnetns_fd < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to preserve new network namespace\n");
+		(void)sprintf(errbuf, "%s", "Failed to preserve new network namespace");
 		return;
 	}
 
 	ret = netns_set_nsid(*hostnetns_fd);
 	if (ret < 0) {
-		(void)sprintf(errbuf, "%s", "failed to set network namespace identifier\n");
+		(void)sprintf(errbuf, "%s", "failed to set network namespace identifier");
 		return;
 	}
 
 	netnsid = netns_get_nsid(*hostnetns_fd);
 	if (netnsid < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to get network namespace identifier\n");
+		(void)sprintf(errbuf, "%s", "Failed to get network namespace identifier");
 		return;
 	}
 
 	sock_fd = socket(PF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE);
 	if (sock_fd < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to open netlink routing socket\n");
+		(void)sprintf(errbuf, "%s", "Failed to open netlink routing socket");
 		return;
 	}
 
 	ret = setsockopt(sock_fd, SOL_NETLINK, NETLINK_DUMP_STRICT_CHK, &(int){1}, sizeof(int));
 	close(sock_fd);
 	if (ret < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to set NETLINK_DUMP_STRICT_CHK socket option\n");
+		(void)sprintf(errbuf, "%s", "Failed to set NETLINK_DUMP_STRICT_CHK socket option");
 		return;
 	}
 	netnsid_aware = true;
@@ -132,7 +132,7 @@ void checkfeature() {
 	is_uevent_aware();
 
 	if (setns(hostnetns_fd, CLONE_NEWNET) < 0)
-		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace\n");
+		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace");
 
 	if (hostnetns_fd >= 0)
 		close(hostnetns_fd);
