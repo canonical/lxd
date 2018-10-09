@@ -41,6 +41,10 @@ func (c *cmdProject) Command() *cobra.Command {
 	projectEditCmd := cmdProjectEdit{global: c.global, project: c}
 	cmd.AddCommand(projectEditCmd.Command())
 
+	// Get
+	projectGetCmd := cmdProjectGet{global: c.global, project: c}
+	cmd.AddCommand(projectGetCmd.Command())
+
 	// List
 	projectListCmd := cmdProjectList{global: c.global, project: c}
 	cmd.AddCommand(projectListCmd.Command())
@@ -290,6 +294,53 @@ func (c *cmdProjectEdit) Run(cmd *cobra.Command, args []string) error {
 		break
 	}
 
+	return nil
+}
+
+// Get
+type cmdProjectGet struct {
+	global  *cmdGlobal
+	project *cmdProject
+}
+
+func (c *cmdProjectGet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("get [<remote>:]<project> <key>")
+	cmd.Short = i18n.G("Get values for project configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Get values for project configuration keys`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProjectGet) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing project name"))
+	}
+
+	// Get the configuration key
+	project, _, err := resource.server.GetProject(resource.name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n", project.Config[args[1]])
 	return nil
 }
 
