@@ -439,8 +439,12 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 			parts := strings.Split(string(cmdline), " ")
 			name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
 
-			// FIXME[projects]: how to figure out the project name here?
-			return containerLoadByProjectAndName(d.State(), "default", name)
+			project := "default"
+			if strings.Contains(name, "_") {
+				project = strings.Split(name, "_")[0]
+			}
+
+			return containerLoadByProjectAndName(d.State(), project, name)
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
