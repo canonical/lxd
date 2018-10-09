@@ -58,6 +58,10 @@ func (c *cmdProject) Command() *cobra.Command {
 	projectSetCmd := cmdProjectSet{global: c.global, project: c}
 	cmd.AddCommand(projectSetCmd.Command())
 
+	// Unset
+	projectUnsetCmd := cmdProjectUnset{global: c.global, project: c, projectSet: &projectSetCmd}
+	cmd.AddCommand(projectUnsetCmd.Command())
+
 	// Show
 	projectShowCmd := cmdProjectShow{global: c.global, project: c}
 	cmd.AddCommand(projectShowCmd.Command())
@@ -560,6 +564,36 @@ func (c *cmdProjectSet) Run(cmd *cobra.Command, args []string) error {
 	project.Config[key] = value
 
 	return resource.server.UpdateProject(resource.name, project.Writable(), etag)
+}
+
+// Unset
+type cmdProjectUnset struct {
+	global     *cmdGlobal
+	project    *cmdProject
+	projectSet *cmdProjectSet
+}
+
+func (c *cmdProjectUnset) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("unset [<remote>:]<project> <key>")
+	cmd.Short = i18n.G("Unset project configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Unset project configuration keys`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProjectUnset) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	args = append(args, "")
+	return c.projectSet.Run(cmd, args)
 }
 
 // Show
