@@ -2244,7 +2244,7 @@ Attempting to delete the `default` profile will return the 403 (Forbidden) HTTP 
 
 ## `/1.0/projects`
 ### GET
- * Description: List of configuration projects
+ * Description: List of projects
  * Introduced: with API extension `projects`
  * Authentication: trusted
  * Operation: sync
