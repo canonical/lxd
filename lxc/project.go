@@ -53,6 +53,10 @@ func (c *cmdProject) Command() *cobra.Command {
 	projectRenameCmd := cmdProjectRename{global: c.global, project: c}
 	cmd.AddCommand(projectRenameCmd.Command())
 
+	// Set
+	projectSetCmd := cmdProjectSet{global: c.global, project: c}
+	cmd.AddCommand(projectSetCmd.Command())
+
 	// Show
 	projectShowCmd := cmdProjectShow{global: c.global, project: c}
 	cmd.AddCommand(projectShowCmd.Command())
@@ -487,6 +491,65 @@ func (c *cmdProjectRename) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// Set
+type cmdProjectSet struct {
+	global  *cmdGlobal
+	project *cmdProject
+}
+
+func (c *cmdProjectSet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = i18n.G("set [<remote>:]<project> <key> <value>")
+	cmd.Short = i18n.G("Set project configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Set project configuration keys`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdProjectSet) Run(cmd *cobra.Command, args []string) error {
+	// Sanity checks
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing project name"))
+	}
+
+	// Set the configuration key
+	key := args[1]
+	value := args[2]
+
+	if !termios.IsTerminal(int(syscall.Stdin)) && value == "-" {
+		buf, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
+		}
+		value = string(buf[:])
+	}
+
+	project, etag, err := resource.server.GetProject(resource.name)
+	if err != nil {
+		return err
+	}
+
+	project.Config[key] = value
+
+	return resource.server.UpdateProject(resource.name, project.Writable(), etag)
 }
 
 // Show
