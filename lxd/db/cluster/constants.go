@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/lxc/lxd/shared/version"
 )
@@ -37,10 +38,20 @@ var EntityURIs = map[int]string{
 // used to format its URI.
 var EntityFormatURIs = map[int]func(a ...interface{}) string{
 	TypeContainer: func(a ...interface{}) string {
-		return fmt.Sprintf(EntityURIs[TypeContainer], a[1], a[0])
+		uri := fmt.Sprintf(EntityURIs[TypeContainer], a[1], a[0])
+		if a[0] == "default" {
+			return strings.Split(uri, fmt.Sprintf("?project=%s", a[0]))[0]
+		}
+
+		return uri
 	},
 	TypeProfile: func(a ...interface{}) string {
-		return fmt.Sprintf(EntityURIs[TypeProfile], a[1], a[0])
+		uri := fmt.Sprintf(EntityURIs[TypeProfile], a[1], a[0])
+		if a[0] == "default" {
+			return strings.Split(uri, fmt.Sprintf("?project=%s", a[0]))[0]
+		}
+
+		return uri
 	},
 }
 
