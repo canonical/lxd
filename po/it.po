@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-10-09 10:47+0200\n"
+"POT-Creation-Date: 2018-10-10 17:07-0400\n"
 "PO-Revision-Date: 2017-08-18 14:22+0000\n"
 "Last-Translator: Alberto Donato <alberto.donato@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -168,7 +168,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/project.go:220
+#: lxc/project.go:227
 #, fuzzy
 msgid ""
 "### This is a yaml representation of the project.\n"
@@ -430,7 +430,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr "Impossibile effettuare il pull di una directory senza --recursive"
 
-#: lxc/config.go:400 lxc/network.go:1083 lxc/profile.go:801 lxc/project.go:554
+#: lxc/config.go:400 lxc/network.go:1083 lxc/profile.go:801 lxc/project.go:561
 #: lxc/storage.go:622 lxc/storage_volume.go:1333
 #, c-format
 msgid "Can't read from stdin: %s"
@@ -524,7 +524,7 @@ msgid "Config key/value to apply to the target container"
 msgstr ""
 
 #: lxc/config.go:195 lxc/config.go:259 lxc/config_metadata.go:144
-#: lxc/image.go:409 lxc/network.go:642 lxc/profile.go:499 lxc/project.go:298
+#: lxc/image.go:409 lxc/network.go:642 lxc/profile.go:499 lxc/project.go:305
 #: lxc/storage.go:303 lxc/storage_volume.go:919 lxc/storage_volume.go:949
 #, c-format
 msgid "Config parsing error: %s"
@@ -771,9 +771,9 @@ msgstr ""
 #: lxc/profile.go:301 lxc/profile.go:355 lxc/profile.go:405 lxc/profile.go:529
 #: lxc/profile.go:577 lxc/profile.go:641 lxc/profile.go:717 lxc/profile.go:767
 #: lxc/profile.go:826 lxc/profile.go:880 lxc/project.go:30 lxc/project.go:87
-#: lxc/project.go:152 lxc/project.go:208 lxc/project.go:328 lxc/project.go:376
-#: lxc/project.go:465 lxc/project.go:520 lxc/project.go:580 lxc/project.go:609
-#: lxc/project.go:662 lxc/publish.go:34 lxc/query.go:30 lxc/remote.go:40
+#: lxc/project.go:152 lxc/project.go:215 lxc/project.go:335 lxc/project.go:383
+#: lxc/project.go:472 lxc/project.go:527 lxc/project.go:587 lxc/project.go:616
+#: lxc/project.go:669 lxc/publish.go:34 lxc/query.go:30 lxc/remote.go:40
 #: lxc/remote.go:91 lxc/remote.go:403 lxc/remote.go:439 lxc/remote.go:544
 #: lxc/remote.go:606 lxc/remote.go:656 lxc/remote.go:694 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33 lxc/storage.go:89
@@ -883,7 +883,7 @@ msgstr ""
 msgid "Edit profile configurations as YAML"
 msgstr ""
 
-#: lxc/project.go:207 lxc/project.go:208
+#: lxc/project.go:214 lxc/project.go:215
 msgid "Edit project configurations as YAML"
 msgstr ""
 
@@ -1093,7 +1093,7 @@ msgstr ""
 msgid "Get values for profile configuration keys"
 msgstr ""
 
-#: lxc/project.go:327 lxc/project.go:328
+#: lxc/project.go:334 lxc/project.go:335
 msgid "Get values for project configuration keys"
 msgstr ""
 
@@ -1113,7 +1113,7 @@ msgstr ""
 msgid "ID"
 msgstr ""
 
-#: lxc/project.go:444
+#: lxc/project.go:451
 msgid "IMAGES"
 msgstr ""
 
@@ -1449,7 +1449,7 @@ msgstr ""
 msgid "List profiles"
 msgstr ""
 
-#: lxc/project.go:375 lxc/project.go:376
+#: lxc/project.go:382 lxc/project.go:383
 msgid "List projects"
 msgstr ""
 
@@ -1677,8 +1677,8 @@ msgstr ""
 msgid "Missing profile name"
 msgstr ""
 
-#: lxc/project.go:112 lxc/project.go:176 lxc/project.go:252 lxc/project.go:352
-#: lxc/project.go:489 lxc/project.go:544 lxc/project.go:633
+#: lxc/project.go:112 lxc/project.go:181 lxc/project.go:259 lxc/project.go:359
+#: lxc/project.go:496 lxc/project.go:551 lxc/project.go:640
 #, fuzzy
 msgid "Missing project name"
 msgstr "Il nome del container è: %s"
@@ -1741,13 +1741,13 @@ msgid "Must supply container name for: "
 msgstr ""
 
 #: lxc/cluster.go:124 lxc/list.go:461 lxc/network.go:858 lxc/profile.go:622
-#: lxc/project.go:443 lxc/remote.go:485 lxc/storage.go:549
+#: lxc/project.go:450 lxc/remote.go:485 lxc/storage.go:549
 #: lxc/storage_volume.go:1120
 msgid "NAME"
 msgstr ""
 
-#: lxc/network.go:844 lxc/operation.go:141 lxc/project.go:419
-#: lxc/project.go:424 lxc/remote.go:460 lxc/remote.go:465
+#: lxc/network.go:844 lxc/operation.go:141 lxc/project.go:426
+#: lxc/project.go:431 lxc/remote.go:460 lxc/remote.go:465
 msgid "NO"
 msgstr ""
 
@@ -1858,7 +1858,7 @@ msgstr ""
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:464 lxc/project.go:445
+#: lxc/list.go:464 lxc/project.go:452
 msgid "PROFILES"
 msgstr ""
 
@@ -1893,7 +1893,7 @@ msgstr "Creazione del container in corso"
 msgid "Pid: %d"
 msgstr ""
 
-#: lxc/network.go:643 lxc/profile.go:500 lxc/project.go:299 lxc/storage.go:304
+#: lxc/network.go:643 lxc/profile.go:500 lxc/project.go:306 lxc/storage.go:304
 #: lxc/storage_volume.go:920 lxc/storage_volume.go:950
 msgid "Press enter to open the editor again"
 msgstr ""
@@ -1982,12 +1982,12 @@ msgstr ""
 msgid "Project %s created"
 msgstr ""
 
-#: lxc/project.go:186
+#: lxc/project.go:191
 #, c-format
 msgid "Project %s deleted"
 msgstr ""
 
-#: lxc/project.go:504
+#: lxc/project.go:511
 #, c-format
 msgid "Project %s renamed to %s"
 msgstr ""
@@ -2045,7 +2045,7 @@ msgstr ""
 msgid "Remote %s already exists"
 msgstr "il remote %s esiste già"
 
-#: lxc/project.go:689 lxc/remote.go:564 lxc/remote.go:626 lxc/remote.go:676
+#: lxc/project.go:696 lxc/remote.go:564 lxc/remote.go:626 lxc/remote.go:676
 #: lxc/remote.go:714
 #, fuzzy, c-format
 msgid "Remote %s doesn't exist"
@@ -2124,7 +2124,7 @@ msgstr ""
 msgid "Rename profiles"
 msgstr ""
 
-#: lxc/project.go:464 lxc/project.go:465
+#: lxc/project.go:471 lxc/project.go:472
 msgid "Rename projects"
 msgstr ""
 
@@ -2262,7 +2262,7 @@ msgstr ""
 msgid "Set profile configuration keys"
 msgstr ""
 
-#: lxc/project.go:519 lxc/project.go:520
+#: lxc/project.go:526 lxc/project.go:527
 msgid "Set project configuration keys"
 msgstr ""
 
@@ -2346,7 +2346,7 @@ msgstr ""
 msgid "Show profile configurations"
 msgstr ""
 
-#: lxc/project.go:608 lxc/project.go:609
+#: lxc/project.go:615 lxc/project.go:616
 msgid "Show project options"
 msgstr ""
 
@@ -2503,7 +2503,7 @@ msgstr ""
 msgid "Swap (peak)"
 msgstr ""
 
-#: lxc/project.go:661 lxc/project.go:662
+#: lxc/project.go:668 lxc/project.go:669
 msgid "Switch the current project"
 msgstr ""
 
@@ -2658,7 +2658,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: lxc/network.go:862 lxc/profile.go:623 lxc/project.go:446 lxc/storage.go:558
+#: lxc/network.go:862 lxc/profile.go:623 lxc/project.go:453 lxc/storage.go:558
 #: lxc/storage_volume.go:1122
 msgid "USED BY"
 msgstr ""
@@ -2699,7 +2699,7 @@ msgstr ""
 msgid "Unset profile configuration keys"
 msgstr ""
 
-#: lxc/project.go:579 lxc/project.go:580
+#: lxc/project.go:586 lxc/project.go:587
 msgid "Unset project configuration keys"
 msgstr ""
 
@@ -2748,8 +2748,8 @@ msgstr ""
 msgid "Whether or not to snapshot the container's running state"
 msgstr ""
 
-#: lxc/network.go:846 lxc/operation.go:143 lxc/project.go:421
-#: lxc/project.go:426 lxc/remote.go:462 lxc/remote.go:467
+#: lxc/network.go:846 lxc/operation.go:143 lxc/project.go:428
+#: lxc/project.go:433 lxc/remote.go:462 lxc/remote.go:467
 msgid "YES"
 msgstr ""
 
@@ -2875,7 +2875,7 @@ msgstr ""
 msgid "create [<remote>:]<project>"
 msgstr ""
 
-#: lxc/project.go:431
+#: lxc/project.go:438
 msgid "current"
 msgstr ""
 
@@ -2997,7 +2997,7 @@ msgstr ""
 msgid "edit [<remote>:]<profile>"
 msgstr ""
 
-#: lxc/project.go:206
+#: lxc/project.go:213
 msgid "edit [<remote>:]<project>"
 msgstr ""
 
@@ -3056,7 +3056,7 @@ msgstr ""
 msgid "get [<remote>:]<profile> <key>"
 msgstr ""
 
-#: lxc/project.go:326
+#: lxc/project.go:333
 msgid "get [<remote>:]<project> <key>"
 msgstr ""
 
@@ -3115,7 +3115,7 @@ msgid "list"
 msgstr ""
 
 #: lxc/cluster.go:61 lxc/config_trust.go:112 lxc/network.go:796
-#: lxc/operation.go:98 lxc/profile.go:574 lxc/project.go:373 lxc/storage.go:493
+#: lxc/operation.go:98 lxc/profile.go:574 lxc/project.go:380 lxc/storage.go:493
 msgid "list [<remote>:]"
 msgstr ""
 
@@ -3299,7 +3299,7 @@ msgid ""
 "    Update a profile using the content of profile.yaml"
 msgstr ""
 
-#: lxc/project.go:210
+#: lxc/project.go:217
 msgid ""
 "lxc project edit <project> < project.yaml\n"
 "    Update a project using the content of project.yaml"
@@ -3499,7 +3499,7 @@ msgstr ""
 msgid "rename [<remote>:]<profile> <new-name>"
 msgstr ""
 
-#: lxc/project.go:462
+#: lxc/project.go:469
 msgid "rename [<remote>:]<project> <new-name>"
 msgstr ""
 
@@ -3535,7 +3535,7 @@ msgstr ""
 msgid "set [<remote>:]<profile> <key> <value>"
 msgstr ""
 
-#: lxc/project.go:518
+#: lxc/project.go:525
 msgid "set [<remote>:]<project> <key> <value>"
 msgstr ""
 
@@ -3587,7 +3587,7 @@ msgstr ""
 msgid "show [<remote>:]<profile>"
 msgstr ""
 
-#: lxc/project.go:607
+#: lxc/project.go:614
 msgid "show [<remote>:]<project>"
 msgstr ""
 
@@ -3631,7 +3631,7 @@ msgstr ""
 msgid "switch <remote>"
 msgstr ""
 
-#: lxc/project.go:660
+#: lxc/project.go:667
 msgid "switch [<remote>:] <project>"
 msgstr ""
 
@@ -3676,7 +3676,7 @@ msgstr ""
 msgid "unset [<remote>:]<profile> <key>"
 msgstr ""
 
-#: lxc/project.go:578
+#: lxc/project.go:585
 msgid "unset [<remote>:]<project> <key>"
 msgstr ""
 
