@@ -55,7 +55,7 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 
 	file, err := os.Open(shared.HostPath(args[len(args)-1]))
 	if err != nil {
-		return nil
+		return err
 	}
 	defer file.Close()
 
