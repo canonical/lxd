@@ -384,8 +384,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, post *os.File) 
 	var imageMeta *api.ImageMetadata
 	logger := logging.AddContext(logger.Log, log.Ctx{"function": "getImgPostInfo"})
 
-	public, _ := strconv.Atoi(r.Header.Get("X-LXD-public"))
-	info.Public = public == 1
+	info.Public = shared.IsTrue(r.Header.Get("X-LXD-public"))
 	propHeaders := r.Header[http.CanonicalHeaderKey("X-LXD-properties")]
 	ctype, ctypeParams, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
