@@ -9,10 +9,11 @@ import (
 )
 
 func containerDelete(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -20,7 +21,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -36,7 +37,7 @@ func containerDelete(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerDelete, resources, nil, rmct, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerDelete, resources, nil, rmct, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

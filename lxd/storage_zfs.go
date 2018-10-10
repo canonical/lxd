@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
@@ -516,6 +517,7 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 	}
 
 	err := s.s.Cluster.StoragePoolVolumeDelete(
+		"default",
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -732,7 +734,7 @@ func (s *storageZfs) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renaming ZFS storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, s.volume.Name, storagePoolVolumeTypeNameCustom)
+	usedBy, err := storagePoolVolumeUsedByContainersGet(s.s, "default", s.volume.Name, storagePoolVolumeTypeNameCustom)
 	if err != nil {
 		return err
 	}
@@ -762,20 +764,21 @@ func (s *storageZfs) StoragePoolVolumeRename(newName string) error {
 	logger.Infof(`Renamed ZFS storage volume on storage pool "%s" from "%s" to "%s`,
 		s.pool.Name, s.volume.Name, newName)
 
-	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, newName,
+	return s.s.Cluster.StoragePoolVolumeRename("default", s.volume.Name, newName,
 		storagePoolVolumeTypeCustom, s.poolID)
 }
 
 // Things we don't need to care about
 func (s *storageZfs) ContainerMount(c container) (bool, error) {
-	return s.doContainerMount(c.Name(), c.IsPrivileged())
+	return s.doContainerMount(c.Project(), c.Name(), c.IsPrivileged())
 }
 
-func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
+func (s *storageZfs) ContainerUmount(c container, path string) (bool, error) {
 	logger.Debugf("Unmounting ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
+	name := c.Name()
 
-	fs := fmt.Sprintf("containers/%s", name)
-	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, name)
+	fs := fmt.Sprintf("containers/%s", projectPrefix(c.Project(), name))
+	containerPoolVolumeMntPoint := getContainerMountPoint(c.Project(), s.pool.Name, name)
 
 	containerUmountLockID := getContainerUmountLockID(s.pool.Name, name)
 	lxdStorageMapLock.Lock()
@@ -815,15 +818,16 @@ func (s *storageZfs) ContainerUmount(name string, path string) (bool, error) {
 }
 
 // Things we do have to care about
-func (s *storageZfs) ContainerStorageReady(name string) bool {
-	fs := fmt.Sprintf("containers/%s", name)
+func (s *storageZfs) ContainerStorageReady(container container) bool {
+	volumeName := projectPrefix(container.Project(), container.Name())
+	fs := fmt.Sprintf("containers/%s", volumeName)
 	return zfsFilesystemEntityExists(s.getOnDiskPoolName(), fs)
 }
 
 func (s *storageZfs) ContainerCreate(container container) error {
-	err := s.doContainerCreate(container.Name(), container.IsPrivileged())
+	err := s.doContainerCreate(container.Project(), container.Name(), container.IsPrivileged())
 	if err != nil {
-		s.doContainerDelete(container.Name())
+		s.doContainerDelete(container.Project(), container.Name())
 		return err
 	}
 
@@ -832,7 +836,7 @@ func (s *storageZfs) ContainerCreate(container container) error {
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(container.Name(), container.Path())
+		defer s.ContainerUmount(container, container.Path())
 	}
 
 	err = container.TemplateApply("create")
@@ -848,8 +852,9 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 
 	containerPath := container.Path()
 	containerName := container.Name()
-	fs := fmt.Sprintf("containers/%s", containerName)
-	containerPoolVolumeMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	volumeName := projectPrefix(container.Project(), containerName)
+	fs := fmt.Sprintf("containers/%s", volumeName)
+	containerPoolVolumeMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
 
 	poolName := s.getOnDiskPoolName()
 	fsImage := fmt.Sprintf("images/%s", fingerprint)
@@ -882,7 +887,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 		}
 	}
 
-	err := zfsPoolVolumeClone(poolName, fsImage, "readonly", fs, containerPoolVolumeMntPoint)
+	err := zfsPoolVolumeClone(container.Project(), poolName, fsImage, "readonly", fs, containerPoolVolumeMntPoint)
 	if err != nil {
 		return err
 	}
@@ -900,7 +905,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(containerName, containerPath)
+		defer s.ContainerUmount(container, containerPath)
 	}
 
 	privileged := container.IsPrivileged()
@@ -951,7 +956,7 @@ func (s *storageZfs) ContainerCanRestore(container container, sourceContainer co
 }
 
 func (s *storageZfs) ContainerDelete(container container) error {
-	err := s.doContainerDelete(container.Name())
+	err := s.doContainerDelete(container.Project(), container.Name())
 	if err != nil {
 		return err
 	}
@@ -967,7 +972,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 
 	targetContainerName := target.Name()
 	targetContainerPath := target.Path()
-	targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
+	targetContainerMountPoint := getContainerMountPoint(target.Project(), s.pool.Name, targetContainerName)
 
 	sourceZfsDataset := ""
 	sourceZfsDatasetSnapshot := ""
@@ -981,9 +986,9 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 
 	revert := true
 	if sourceZfsDatasetSnapshot == "" {
-		if zfsFilesystemEntityExists(poolName, fmt.Sprintf("containers/%s", sourceName)) {
+		if zfsFilesystemEntityExists(poolName, fmt.Sprintf("containers/%s", projectPrefix(source.Project(), sourceName))) {
 			sourceZfsDatasetSnapshot = fmt.Sprintf("copy-%s", uuid.NewRandom().String())
-			sourceZfsDataset = fmt.Sprintf("containers/%s", sourceName)
+			sourceZfsDataset = fmt.Sprintf("containers/%s", projectPrefix(source.Project(), sourceName))
 			err := zfsPoolVolumeSnapshotCreate(poolName, sourceZfsDataset, sourceZfsDatasetSnapshot)
 			if err != nil {
 				return err
@@ -996,14 +1001,14 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 			}()
 		}
 	} else {
-		if zfsFilesystemEntityExists(poolName, fmt.Sprintf("containers/%s@snapshot-%s", sourceName, sourceZfsDatasetSnapshot)) {
-			sourceZfsDataset = fmt.Sprintf("containers/%s", sourceName)
+		if zfsFilesystemEntityExists(poolName, fmt.Sprintf("containers/%s@snapshot-%s", projectPrefix(source.Project(), sourceName), sourceZfsDatasetSnapshot)) {
+			sourceZfsDataset = fmt.Sprintf("containers/%s", projectPrefix(source.Project(), sourceName))
 			sourceZfsDatasetSnapshot = fmt.Sprintf("snapshot-%s", sourceZfsDatasetSnapshot)
 		}
 	}
 
 	if sourceZfsDataset != "" {
-		err := zfsPoolVolumeClone(poolName, sourceZfsDataset, sourceZfsDatasetSnapshot, targetZfsDataset, targetContainerMountPoint)
+		err := zfsPoolVolumeClone(target.Project(), poolName, sourceZfsDataset, sourceZfsDatasetSnapshot, targetZfsDataset, targetContainerMountPoint)
 		if err != nil {
 			return err
 		}
@@ -1019,7 +1024,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 			return err
 		}
 		if ourMount {
-			defer s.ContainerUmount(targetContainerName, targetContainerPath)
+			defer s.ContainerUmount(target, targetContainerPath)
 		}
 
 		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
@@ -1085,7 +1090,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 		sourceDataset = fmt.Sprintf("%s/containers/%s@%s", poolName, sourceName, snapshotSuffix)
 		targetSnapshotDataset = fmt.Sprintf("%s/containers/%s@%s", poolName, targetName, snapshotSuffix)
 
-		fs := fmt.Sprintf("containers/%s", sourceName)
+		fs := fmt.Sprintf("containers/%s", projectPrefix(source.Project(), sourceName))
 		err := zfsPoolVolumeSnapshotCreate(poolName, fs, snapshotSuffix)
 		if err != nil {
 			return err
@@ -1127,7 +1132,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 		return err
 	}
 
-	targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetName)
+	targetContainerMountPoint := getContainerMountPoint(target.Project(), s.pool.Name, targetName)
 	targetfs := fmt.Sprintf("containers/%s", targetName)
 
 	err = zfsPoolVolumeSet(poolName, targetfs, "canmount", "noauto")
@@ -1150,7 +1155,7 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 		return err
 	}
 	if ourMount {
-		defer s.ContainerUmount(targetName, targetContainerMountPoint)
+		defer s.ContainerUmount(target, targetContainerMountPoint)
 	}
 
 	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
@@ -1165,9 +1170,9 @@ func (s *storageZfs) copyWithoutSnapshotFull(target container, source container)
 func (s *storageZfs) copyWithSnapshots(target container, source container, parentSnapshot string) error {
 	sourceName := source.Name()
 	targetParentName, targetSnapOnlyName, _ := containerGetParentAndSnapshotName(target.Name())
-	containersPath := getSnapshotMountPoint(s.pool.Name, targetParentName)
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", targetParentName)
-	snapshotMntPointSymlink := shared.VarPath("snapshots", targetParentName)
+	containersPath := getSnapshotMountPoint(target.Project(), s.pool.Name, targetParentName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(target.Project(), targetParentName))
+	snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(target.Project(), targetParentName))
 	err := createSnapshotMountpoint(containersPath, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 	if err != nil {
 		return err
@@ -1216,7 +1221,7 @@ func (s *storageZfs) doCrossPoolContainerCopy(target container, source container
 	}
 
 	// setup storage for the source volume
-	srcStorage, err := storagePoolVolumeInit(s.s, sourcePool, source.Name(), storagePoolVolumeTypeContainer)
+	srcStorage, err := storagePoolVolumeInit(s.s, "default", sourcePool, source.Name(), storagePoolVolumeTypeContainer)
 	if err != nil {
 		return err
 	}
@@ -1240,22 +1245,22 @@ func (s *storageZfs) doCrossPoolContainerCopy(target container, source container
 	}
 
 	// create the main container
-	err = s.doContainerCreate(target.Name(), target.IsPrivileged())
+	err = s.doContainerCreate(target.Project(), target.Name(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
 
-	_, err = s.doContainerMount(target.Name(), target.IsPrivileged())
+	_, err = s.doContainerMount(target.Project(), target.Name(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
-	defer s.ContainerUmount(target.Name(), shared.VarPath("containers", target.Name()))
+	defer s.ContainerUmount(target, shared.VarPath("containers", projectPrefix(target.Project(), target.Name())))
 
-	destContainerMntPoint := getContainerMountPoint(targetPool, target.Name())
+	destContainerMntPoint := getContainerMountPoint(target.Project(), targetPool, target.Name())
 	bwlimit := s.pool.Config["rsync.bwlimit"]
 	if !containerOnly {
 		for _, snap := range snapshots {
-			srcSnapshotMntPoint := getSnapshotMountPoint(sourcePool, snap.Name())
+			srcSnapshotMntPoint := getSnapshotMountPoint(target.Project(), sourcePool, snap.Name())
 			_, err = rsyncLocalCopy(srcSnapshotMntPoint, destContainerMntPoint, bwlimit)
 			if err != nil {
 				logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
@@ -1264,14 +1269,14 @@ func (s *storageZfs) doCrossPoolContainerCopy(target container, source container
 
 			// create snapshot
 			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
-			err = s.doContainerSnapshotCreate(fmt.Sprintf("%s/%s", target.Name(), snapOnlyName), target.Name())
+			err = s.doContainerSnapshotCreate(snap.Project(), fmt.Sprintf("%s/%s", target.Name(), snapOnlyName), target.Name())
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	srcContainerMntPoint := getContainerMountPoint(sourcePool, source.Name())
+	srcContainerMntPoint := getContainerMountPoint(source.Project(), sourcePool, source.Name())
 	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit)
 	if err != nil {
 		logger.Errorf("Failed to rsync into ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
@@ -1318,7 +1323,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 	} else {
 		targetContainerName := target.Name()
 		targetContainerPath := target.Path()
-		targetContainerMountPoint := getContainerMountPoint(s.pool.Name, targetContainerName)
+		targetContainerMountPoint := getContainerMountPoint(target.Project(), s.pool.Name, targetContainerName)
 		err = createContainerMountpoint(targetContainerMountPoint, targetContainerPath, target.IsPrivileged())
 		if err != nil {
 			return err
@@ -1331,7 +1336,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 				prev = snapshots[i-1].Name()
 			}
 
-			sourceSnapshot, err := containerLoadByName(s.s, snap.Name())
+			sourceSnapshot, err := containerLoadByProjectAndName(s.s, source.Project(), snap.Name())
 			if err != nil {
 				return err
 			}
@@ -1339,7 +1344,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
 			prevSnapOnlyName = snapOnlyName
 			newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-			targetSnapshot, err := containerLoadByName(s.s, newSnapName)
+			targetSnapshot, err := containerLoadByProjectAndName(s.s, source.Project(), newSnapName)
 			if err != nil {
 				return err
 			}
@@ -1354,7 +1359,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 
 		// send actual container
 		tmpSnapshotName := fmt.Sprintf("copy-send-%s", uuid.NewRandom().String())
-		err = zfsPoolVolumeSnapshotCreate(poolName, fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
+		err = zfsPoolVolumeSnapshotCreate(poolName, fmt.Sprintf("containers/%s", projectPrefix(source.Project(), source.Name())), tmpSnapshotName)
 		if err != nil {
 			return err
 		}
@@ -1416,7 +1421,7 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	oldName := container.Name()
 
 	// Unmount the dataset.
-	_, err := s.ContainerUmount(oldName, "")
+	_, err := s.ContainerUmount(container, "")
 	if err != nil {
 		return err
 	}
@@ -1437,30 +1442,31 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	}()
 
 	// Set the new mountpoint for the dataset.
-	newContainerMntPoint := getContainerMountPoint(s.pool.Name, newName)
+	newContainerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, newName)
 	err = zfsPoolVolumeSet(poolName, newZfsDataset, "mountpoint", newContainerMntPoint)
 	if err != nil {
 		return err
 	}
 
 	// Unmount the dataset.
-	_, err = s.ContainerUmount(newName, "")
+	container.(*containerLXC).name = newName
+	_, err = s.ContainerUmount(container, "")
 	if err != nil {
 		return err
 	}
 
 	// Create new mountpoint on the storage pool.
-	oldContainerMntPoint := getContainerMountPoint(s.pool.Name, oldName)
+	oldContainerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, oldName)
 	oldContainerMntPointSymlink := container.Path()
-	newContainerMntPointSymlink := shared.VarPath("containers", newName)
+	newContainerMntPointSymlink := shared.VarPath("containers", projectPrefix(container.Project(), newName))
 	err = renameContainerMountpoint(oldContainerMntPoint, oldContainerMntPointSymlink, newContainerMntPoint, newContainerMntPointSymlink)
 	if err != nil {
 		return err
 	}
 
 	// Rename the snapshot mountpoint on the storage pool.
-	oldSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, oldName)
-	newSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, newName)
+	oldSnapshotMntPoint := getSnapshotMountPoint(container.Project(), s.pool.Name, oldName)
+	newSnapshotMntPoint := getSnapshotMountPoint(container.Project(), s.pool.Name, newName)
 	if shared.PathExists(oldSnapshotMntPoint) {
 		err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 		if err != nil {
@@ -1469,7 +1475,7 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	}
 
 	// Remove old symlink.
-	oldSnapshotPath := shared.VarPath("snapshots", oldName)
+	oldSnapshotPath := shared.VarPath("snapshots", projectPrefix(container.Project(), oldName))
 	if shared.PathExists(oldSnapshotPath) {
 		err := os.Remove(oldSnapshotPath)
 		if err != nil {
@@ -1478,7 +1484,7 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	}
 
 	// Create new symlink.
-	newSnapshotPath := shared.VarPath("snapshots", newName)
+	newSnapshotPath := shared.VarPath("snapshots", projectPrefix(container.Project(), newName))
 	if shared.PathExists(newSnapshotPath) {
 		err := os.Symlink(newSnapshotMntPoint, newSnapshotPath)
 		if err != nil {
@@ -1562,7 +1568,7 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 	}
 
 	// Shortcut for refquota
-	mountpoint := getContainerMountPoint(s.pool.Name, container.Name())
+	mountpoint := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	if property == "referenced" && shared.IsMountPoint(mountpoint) {
 		var stat syscall.Statfs_t
 		err := syscall.Statfs(mountpoint, &stat)
@@ -1586,7 +1592,7 @@ func (s *storageZfs) ContainerGetUsage(container container) (int64, error) {
 	return valueInt, nil
 }
 
-func (s *storageZfs) doContainerSnapshotCreate(targetName string, sourceName string) error {
+func (s *storageZfs) doContainerSnapshotCreate(project, targetName string, sourceName string) error {
 	snapshotContainerName := targetName
 	logger.Debugf("Creating ZFS storage volume for snapshot \"%s\" on storage pool \"%s\"", snapshotContainerName, s.pool.Name)
 
@@ -1595,13 +1601,13 @@ func (s *storageZfs) doContainerSnapshotCreate(targetName string, sourceName str
 	cName, snapshotSnapOnlyName, _ := containerGetParentAndSnapshotName(snapshotContainerName)
 	snapName := fmt.Sprintf("snapshot-%s", snapshotSnapOnlyName)
 
-	sourceZfsDataset := fmt.Sprintf("containers/%s", cName)
+	sourceZfsDataset := fmt.Sprintf("containers/%s", projectPrefix(project, cName))
 	err := zfsPoolVolumeSnapshotCreate(s.getOnDiskPoolName(), sourceZfsDataset, snapName)
 	if err != nil {
 		return err
 	}
 
-	snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, snapshotContainerName)
+	snapshotMntPoint := getSnapshotMountPoint(project, s.pool.Name, snapshotContainerName)
 	if !shared.PathExists(snapshotMntPoint) {
 		err := os.MkdirAll(snapshotMntPoint, 0700)
 		if err != nil {
@@ -1609,8 +1615,8 @@ func (s *storageZfs) doContainerSnapshotCreate(targetName string, sourceName str
 		}
 	}
 
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", sourceName)
-	snapshotMntPointSymlink := shared.VarPath("snapshots", sourceContainerName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(project, sourceName))
+	snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(project, sourceContainerName))
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
@@ -1623,7 +1629,7 @@ func (s *storageZfs) doContainerSnapshotCreate(targetName string, sourceName str
 }
 
 func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
-	err := s.doContainerSnapshotCreate(snapshotContainer.Name(), sourceContainer.Name())
+	err := s.doContainerSnapshotCreate(sourceContainer.Project(), snapshotContainer.Name(), sourceContainer.Name())
 	if err != nil {
 		s.ContainerSnapshotDelete(snapshotContainer)
 		return err
@@ -1631,16 +1637,16 @@ func (s *storageZfs) ContainerSnapshotCreate(snapshotContainer container, source
 	return nil
 }
 
-func zfsSnapshotDeleteInternal(poolName string, ctName string, onDiskPoolName string) error {
+func zfsSnapshotDeleteInternal(project, poolName string, ctName string, onDiskPoolName string) error {
 	sourceContainerName, sourceContainerSnapOnlyName, _ := containerGetParentAndSnapshotName(ctName)
 	snapName := fmt.Sprintf("snapshot-%s", sourceContainerSnapOnlyName)
 
 	if zfsFilesystemEntityExists(onDiskPoolName,
 		fmt.Sprintf("containers/%s@%s",
-			sourceContainerName, snapName)) {
+			projectPrefix(project, sourceContainerName), snapName)) {
 		removable, err := zfsPoolVolumeSnapshotRemovable(onDiskPoolName,
 			fmt.Sprintf("containers/%s",
-				sourceContainerName),
+				projectPrefix(project, sourceContainerName)),
 			snapName)
 		if err != nil {
 			return err
@@ -1649,12 +1655,12 @@ func zfsSnapshotDeleteInternal(poolName string, ctName string, onDiskPoolName st
 		if removable {
 			err = zfsPoolVolumeSnapshotDestroy(onDiskPoolName,
 				fmt.Sprintf("containers/%s",
-					sourceContainerName),
+					projectPrefix(project, sourceContainerName)),
 				snapName)
 		} else {
 			err = zfsPoolVolumeSnapshotRename(onDiskPoolName,
 				fmt.Sprintf("containers/%s",
-					sourceContainerName),
+					projectPrefix(project, sourceContainerName)),
 				snapName,
 				fmt.Sprintf("copy-%s", uuid.NewRandom().String()))
 		}
@@ -1665,7 +1671,7 @@ func zfsSnapshotDeleteInternal(poolName string, ctName string, onDiskPoolName st
 
 	// Delete the snapshot on its storage pool:
 	// ${POOL}/snapshots/<snapshot_name>
-	snapshotContainerMntPoint := getSnapshotMountPoint(poolName, ctName)
+	snapshotContainerMntPoint := getSnapshotMountPoint(project, poolName, ctName)
 	if shared.PathExists(snapshotContainerMntPoint) {
 		err := os.RemoveAll(snapshotContainerMntPoint)
 		if err != nil {
@@ -1676,7 +1682,7 @@ func zfsSnapshotDeleteInternal(poolName string, ctName string, onDiskPoolName st
 	// Check if we can remove the snapshot symlink:
 	// ${LXD_DIR}/snapshots/<container_name> to ${POOL}/snapshots/<container_name>
 	// by checking if the directory is empty.
-	snapshotContainerPath := getSnapshotMountPoint(poolName, sourceContainerName)
+	snapshotContainerPath := getSnapshotMountPoint(project, poolName, sourceContainerName)
 	empty, _ := shared.PathIsEmpty(snapshotContainerPath)
 	if empty == true {
 		// Remove the snapshot directory for the container:
@@ -1686,7 +1692,7 @@ func zfsSnapshotDeleteInternal(poolName string, ctName string, onDiskPoolName st
 			return err
 		}
 
-		snapshotSymlink := shared.VarPath("snapshots", sourceContainerName)
+		snapshotSymlink := shared.VarPath("snapshots", projectPrefix(project, sourceContainerName))
 		if shared.PathExists(snapshotSymlink) {
 			err := os.Remove(snapshotSymlink)
 			if err != nil {
@@ -1696,7 +1702,7 @@ func zfsSnapshotDeleteInternal(poolName string, ctName string, onDiskPoolName st
 	}
 
 	// Legacy
-	snapPath := shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", sourceContainerName, sourceContainerSnapOnlyName))
+	snapPath := shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", projectPrefix(project, sourceContainerName), sourceContainerSnapOnlyName))
 	if shared.PathExists(snapPath) {
 		err := os.Remove(snapPath)
 		if err != nil {
@@ -1705,7 +1711,7 @@ func zfsSnapshotDeleteInternal(poolName string, ctName string, onDiskPoolName st
 	}
 
 	// Legacy
-	parent := shared.VarPath(fmt.Sprintf("snapshots/%s", sourceContainerName))
+	parent := shared.VarPath(fmt.Sprintf("snapshots/%s", projectPrefix(project, sourceContainerName)))
 	if ok, _ := shared.PathIsEmpty(parent); ok {
 		err := os.Remove(parent)
 		if err != nil {
@@ -1720,7 +1726,7 @@ func (s *storageZfs) ContainerSnapshotDelete(snapshotContainer container) error 
 	logger.Debugf("Deleting ZFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	poolName := s.getOnDiskPoolName()
-	err := zfsSnapshotDeleteInternal(s.pool.Name, snapshotContainer.Name(),
+	err := zfsSnapshotDeleteInternal(snapshotContainer.Project(), s.pool.Name, snapshotContainer.Name(),
 		poolName)
 	if err != nil {
 		return err
@@ -1743,7 +1749,7 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 
 	if oldZfsDatasetName != newZfsDatasetName {
 		err := zfsPoolVolumeSnapshotRename(
-			s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", oldcName), oldZfsDatasetName, newZfsDatasetName)
+			s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", projectPrefix(snapshotContainer.Project(), oldcName)), oldZfsDatasetName, newZfsDatasetName)
 		if err != nil {
 			return err
 		}
@@ -1753,10 +1759,10 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 		if !revert {
 			return
 		}
-		s.ContainerSnapshotRename(snapshotContainer, oldName)
+		//s.ContainerSnapshotRename(snapshotContainer, oldName)
 	}()
 
-	oldStyleSnapshotMntPoint := shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", oldcName, oldSnapOnlyName))
+	oldStyleSnapshotMntPoint := shared.VarPath(fmt.Sprintf("snapshots/%s/%s.zfs", projectPrefix(snapshotContainer.Project(), oldcName), oldSnapOnlyName))
 	if shared.PathExists(oldStyleSnapshotMntPoint) {
 		err := os.Remove(oldStyleSnapshotMntPoint)
 		if err != nil {
@@ -1764,7 +1770,7 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 		}
 	}
 
-	oldSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, oldName)
+	oldSnapshotMntPoint := getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, oldName)
 	if shared.PathExists(oldSnapshotMntPoint) {
 		err := os.Remove(oldSnapshotMntPoint)
 		if err != nil {
@@ -1772,7 +1778,7 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 		}
 	}
 
-	newSnapshotMntPoint := getSnapshotMountPoint(s.pool.Name, newName)
+	newSnapshotMntPoint := getSnapshotMountPoint(snapshotContainer.Project(), s.pool.Name, newName)
 	if !shared.PathExists(newSnapshotMntPoint) {
 		err := os.MkdirAll(newSnapshotMntPoint, 0700)
 		if err != nil {
@@ -1780,8 +1786,8 @@ func (s *storageZfs) ContainerSnapshotRename(snapshotContainer container, newNam
 		}
 	}
 
-	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", oldcName)
-	snapshotMntPointSymlink := shared.VarPath("snapshots", oldcName)
+	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(snapshotContainer.Project(), oldcName))
+	snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(snapshotContainer.Project(), oldcName))
 	if !shared.PathExists(snapshotMntPointSymlink) {
 		err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
@@ -1799,13 +1805,13 @@ func (s *storageZfs) ContainerSnapshotStart(container container) (bool, error) {
 	logger.Debugf("Initializing ZFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	cName, sName, _ := containerGetParentAndSnapshotName(container.Name())
-	sourceFs := fmt.Sprintf("containers/%s", cName)
+	sourceFs := fmt.Sprintf("containers/%s", projectPrefix(container.Project(), cName))
 	sourceSnap := fmt.Sprintf("snapshot-%s", sName)
-	destFs := fmt.Sprintf("snapshots/%s/%s", cName, sName)
+	destFs := fmt.Sprintf("snapshots/%s/%s", projectPrefix(container.Project(), cName), sName)
 
 	poolName := s.getOnDiskPoolName()
-	snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, container.Name())
-	err := zfsPoolVolumeClone(poolName, sourceFs, sourceSnap, destFs, snapshotMntPoint)
+	snapshotMntPoint := getSnapshotMountPoint(container.Project(), s.pool.Name, container.Name())
+	err := zfsPoolVolumeClone(container.Project(), poolName, sourceFs, sourceSnap, destFs, snapshotMntPoint)
 	if err != nil {
 		return false, err
 	}
@@ -1823,7 +1829,7 @@ func (s *storageZfs) ContainerSnapshotStop(container container) (bool, error) {
 	logger.Debugf("Stopping ZFS storage volume for snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	cName, sName, _ := containerGetParentAndSnapshotName(container.Name())
-	destFs := fmt.Sprintf("snapshots/%s/%s", cName, sName)
+	destFs := fmt.Sprintf("snapshots/%s/%s", projectPrefix(container.Project(), cName), sName)
 
 	err := zfsPoolVolumeDestroy(s.getOnDiskPoolName(), destFs)
 	if err != nil {
@@ -1855,7 +1861,7 @@ func (s *storageZfs) doContainerOnlyBackup(tmpPath string, backup backup, source
 		snapshotSuffix = uuid.NewRandom().String()
 		sourceDataset = fmt.Sprintf("%s/containers/%s@%s", poolName, sourceName, snapshotSuffix)
 
-		fs := fmt.Sprintf("containers/%s", sourceName)
+		fs := fmt.Sprintf("containers/%s", projectPrefix(source.Project(), sourceName))
 		err := zfsPoolVolumeSnapshotCreate(poolName, fs, snapshotSuffix)
 		if err != nil {
 			return err
@@ -1936,7 +1942,7 @@ func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup bac
 				prev = snapshots[i-1].Name()
 			}
 
-			sourceSnapshot, err := containerLoadByName(s.s, snap.Name())
+			sourceSnapshot, err := containerLoadByProjectAndName(s.s, source.Project(), snap.Name())
 			if err != nil {
 				return err
 			}
@@ -1952,15 +1958,15 @@ func (s *storageZfs) doContainerBackupCreateOptimized(tmpPath string, backup bac
 		// Dump the container to a file
 		poolName := s.getOnDiskPoolName()
 		tmpSnapshotName := fmt.Sprintf("backup-%s", uuid.NewRandom().String())
-		err = zfsPoolVolumeSnapshotCreate(poolName, fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
+		err = zfsPoolVolumeSnapshotCreate(poolName, fmt.Sprintf("containers/%s", projectPrefix(source.Project(), source.Name())), tmpSnapshotName)
 		if err != nil {
 			return err
 		}
 
-		currentSnapshotDataset := fmt.Sprintf("%s/containers/%s@%s", poolName, source.Name(), tmpSnapshotName)
+		currentSnapshotDataset := fmt.Sprintf("%s/containers/%s@%s", poolName, projectPrefix(source.Project(), source.Name()), tmpSnapshotName)
 		args := []string{"send", currentSnapshotDataset}
 		if prevSnapOnlyName != "" {
-			parentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, source.Name(), prevSnapOnlyName)
+			parentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, projectPrefix(source.Project(), source.Name()), prevSnapOnlyName)
 			args = append(args, "-i", parentSnapshotDataset)
 		}
 
@@ -2000,6 +2006,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	}
 
 	bwlimit := s.pool.Config["rsync.bwlimit"]
+	project := backup.container.Project()
 
 	// Handle snapshots
 	if !backup.containerOnly {
@@ -2008,14 +2015,14 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 		// Retrieve the snapshots
 		snapshots, err := source.Snapshots()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Retrieve snaphots")
 		}
 
 		// Create the snapshot path
 		if len(snapshots) > 0 {
 			err = os.MkdirAll(snapshotsPath, 0711)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Create snapshot path")
 			}
 		}
 
@@ -2025,37 +2032,37 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 			// Mount the snapshot to a usable path
 			_, err := s.ContainerSnapshotStart(snap)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Mount snapshot")
 			}
 
-			snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, snap.Name())
+			snapshotMntPoint := getSnapshotMountPoint(project, s.pool.Name, snap.Name())
 			target := fmt.Sprintf("%s/%s", snapshotsPath, snapName)
 
 			// Copy the snapshot
 			err = rsync(snapshotMntPoint, target, bwlimit)
 			s.ContainerSnapshotStop(snap)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "Copy snapshot")
 			}
 		}
 	}
 
 	// Make a temporary copy of the container
-	containersPath := getContainerMountPoint(s.pool.Name, "")
+	containersPath := getContainerMountPoint("default", s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, source.Name())
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Create temporary copy dir")
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
 	err = os.Chmod(tmpContainerMntPoint, 0700)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Change temporary mount point permissions")
 	}
 
 	snapshotSuffix := uuid.NewRandom().String()
 	sourceName := source.Name()
-	fs := fmt.Sprintf("containers/%s", sourceName)
+	fs := fmt.Sprintf("containers/%s", projectPrefix(project, sourceName))
 	sourceZfsDatasetSnapshot := fmt.Sprintf("snapshot-%s", snapshotSuffix)
 	poolName := s.getOnDiskPoolName()
 	err = zfsPoolVolumeSnapshotCreate(poolName, fs, sourceZfsDatasetSnapshot)
@@ -2065,9 +2072,9 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	defer zfsPoolVolumeSnapshotDestroy(poolName, fs, sourceZfsDatasetSnapshot)
 
 	targetZfsDataset := fmt.Sprintf("containers/%s", snapshotSuffix)
-	err = zfsPoolVolumeClone(poolName, fs, sourceZfsDatasetSnapshot, targetZfsDataset, tmpContainerMntPoint)
+	err = zfsPoolVolumeClone(source.Project(), poolName, fs, sourceZfsDatasetSnapshot, targetZfsDataset, tmpContainerMntPoint)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Clone volume")
 	}
 	defer zfsPoolVolumeDestroy(poolName, targetZfsDataset)
 
@@ -2075,7 +2082,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	if !shared.IsMountPoint(tmpContainerMntPoint) {
 		err = zfsMount(poolName, targetZfsDataset)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Mount temporary copy")
 		}
 		defer zfsUmount(poolName, targetZfsDataset, tmpContainerMntPoint)
 	}
@@ -2084,7 +2091,7 @@ func (s *storageZfs) doContainerBackupCreateVanilla(tmpPath string, backup backu
 	containerPath := fmt.Sprintf("%s/container", tmpPath)
 	err = rsync(tmpContainerMntPoint, containerPath, bwlimit)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Copy container")
 	}
 
 	return nil
@@ -2111,12 +2118,12 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 	if backup.optimizedStorage {
 		err = s.doContainerBackupCreateOptimized(tmpPath, backup, source)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Optimized backup")
 		}
 	} else {
 		err = s.doContainerBackupCreateVanilla(tmpPath, backup, source)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Vanilla backup")
 		}
 	}
 
@@ -2131,7 +2138,7 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 
 func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	containerName, _, _ := containerGetParentAndSnapshotName(info.Name)
-	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
 	err := createContainerMountpoint(containerMntPoint, containerPath(info.Name, false), info.Privileged)
 	if err != nil {
 		return err
@@ -2189,9 +2196,9 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 		}
 
 		// create mountpoint
-		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, fmt.Sprintf("%s/%s", containerName, snapshotOnlyName))
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", containerName)
-		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
+		snapshotMntPoint := getSnapshotMountPoint(info.Project, s.pool.Name, fmt.Sprintf("%s/%s", containerName, snapshotOnlyName))
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(info.Project, containerName))
+		snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(info.Project, containerName))
 		err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 		if err != nil {
 			// can't use defer because it needs to run before the mount
@@ -2231,7 +2238,7 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 		return err
 	}
 
-	_, err = s.doContainerMount(containerName, info.Privileged)
+	_, err = s.doContainerMount("default", containerName, info.Privileged)
 	if err != nil {
 		return err
 	}
@@ -2241,18 +2248,18 @@ func (s *storageZfs) doContainerBackupLoadOptimized(info backupInfo, data io.Rea
 
 func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadSeeker, tarArgs []string) error {
 	// create the main container
-	err := s.doContainerCreate(info.Name, info.Privileged)
+	err := s.doContainerCreate(info.Project, info.Name, info.Privileged)
 	if err != nil {
-		s.doContainerDelete(info.Name)
-		return err
+		s.doContainerDelete(info.Project, info.Name)
+		return errors.Wrap(err, "Create container")
 	}
 
-	_, err = s.doContainerMount(info.Name, info.Privileged)
+	_, err = s.doContainerMount(info.Project, info.Name, info.Privileged)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Mount container")
 	}
 
-	containerMntPoint := getContainerMountPoint(s.pool.Name, info.Name)
+	containerMntPoint := getContainerMountPoint(info.Project, s.pool.Name, info.Name)
 	// Extract container
 	for _, snap := range info.Snapshots {
 		// Extract snapshots
@@ -2272,13 +2279,13 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadS
 		err = shared.RunCommandWithFds(data, nil, "tar", args...)
 		if err != nil {
 			logger.Errorf("Failed to untar \"%s\" into \"%s\": %s", cur, containerMntPoint, err)
-			return err
+			return errors.Wrap(err, "Unpack")
 		}
 
 		// create snapshot
-		err = s.doContainerSnapshotCreate(fmt.Sprintf("%s/%s", info.Name, snap), info.Name)
+		err = s.doContainerSnapshotCreate(info.Project, fmt.Sprintf("%s/%s", info.Name, snap), info.Name)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Create snapshot")
 		}
 	}
 
@@ -2295,7 +2302,7 @@ func (s *storageZfs) doContainerBackupLoadVanilla(info backupInfo, data io.ReadS
 	err = shared.RunCommandWithFds(data, nil, "tar", args...)
 	if err != nil {
 		logger.Errorf("Failed to untar \"backup/container\" into \"%s\": %s", containerMntPoint, err)
-		return err
+		return errors.Wrap(err, "Extract")
 	}
 
 	return nil
@@ -2671,7 +2678,7 @@ func (s *storageZfs) MigrationSource(ct container, containerOnly bool) (Migratio
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", ct.Name(), shared.SnapshotDelimiter, snap[len("snapshot-"):])
-		snapshot, err := containerLoadByName(s.s, lxdName)
+		snapshot, err := containerLoadByProjectAndName(s.s, ct.Project(), lxdName)
 		if err != nil {
 			return nil, err
 		}
@@ -2730,7 +2737,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	 * unmounted, so we do this before receiving anything.
 	 */
 	zfsName := fmt.Sprintf("containers/%s", container.Name())
-	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
+	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, container.Name())
 	if shared.IsMountPoint(containerMntPoint) {
 		err := zfsUmount(poolName, zfsName, containerMntPoint)
 		if err != nil {
@@ -2739,8 +2746,8 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	}
 
 	if len(snapshots) > 0 {
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", s.volume.Name)
-		snapshotMntPointSymlink := shared.VarPath("snapshots", container.Name())
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(container.Project(), s.volume.Name))
+		snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(container.Project(), container.Name()))
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
@@ -2789,7 +2796,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 			return err
 		}
 
-		snapshotMntPoint := getSnapshotMountPoint(poolName, fmt.Sprintf("%s/%s", container.Name(), *snap.Name))
+		snapshotMntPoint := getSnapshotMountPoint(container.Project(), poolName, fmt.Sprintf("%s/%s", container.Name(), *snap.Name))
 		if !shared.PathExists(snapshotMntPoint) {
 			err := os.MkdirAll(snapshotMntPoint, 0700)
 			if err != nil {
@@ -2924,7 +2931,7 @@ func (s *storageZfs) StoragePoolResources() (*api.ResourcesStoragePool, error) {
 func (s *storageZfs) doCrossPoolStorageVolumeCopy(source *api.StorageVolumeSource) error {
 	successMsg := fmt.Sprintf("Copied ZFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 	// setup storage for the source volume
-	srcStorage, err := storagePoolVolumeInit(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	srcStorage, err := storagePoolVolumeInit(s.s, "default", source.Pool, source.Name, storagePoolVolumeTypeCustom)
 	if err != nil {
 		logger.Errorf("Failed to initialize ZFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
@@ -3097,7 +3104,7 @@ func (s *storageZfs) copyVolumeWithoutSnapshotsSparse(source *api.StorageVolumeS
 	}
 
 	if sourceZfsDataset != "" {
-		err := zfsPoolVolumeClone(poolName, sourceZfsDataset, sourceZfsDatasetSnapshot, targetZfsDataset, targetVolumePath)
+		err := zfsPoolVolumeClone("default", poolName, sourceZfsDataset, sourceZfsDatasetSnapshot, targetZfsDataset, targetVolumePath)
 		if err != nil {
 			return err
 		}
@@ -3299,6 +3306,7 @@ func (s *storageZfs) StoragePoolVolumeSnapshotDelete() error {
 	}
 
 	err = s.s.Cluster.StoragePoolVolumeDelete(
+		"default",
 		s.volume.Name,
 		storagePoolVolumeTypeCustom,
 		s.poolID)
@@ -3328,5 +3336,5 @@ func (s *storageZfs) StoragePoolVolumeSnapshotRename(newName string) error {
 
 	logger.Infof("Renamed ZFS storage volume snapshot on storage pool \"%s\" from \"%s\" to \"%s\"", s.pool.Name, s.volume.Name, newName)
 
-	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, fmt.Sprintf("%s/%s", sourceName, newName), storagePoolVolumeTypeCustom, s.poolID)
+	return s.s.Cluster.StoragePoolVolumeRename(s.volume.Name, "default", fmt.Sprintf("%s/%s", sourceName, newName), storagePoolVolumeTypeCustom, s.poolID)
 }

@@ -34,7 +34,7 @@ type StorageVolumeArgs struct {
 // volume with the given name if defined.
 //
 // The empty string is used in place of the address of the current node.
-func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, name string, typ int) ([]string, error) {
+func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, project, name string, typ int) ([]string, error) {
 	nodes := []struct {
 		id      int64
 		address string
@@ -47,12 +47,19 @@ func (c *ClusterTx) StorageVolumeNodeAddresses(poolID int64, name string, typ in
 		return []interface{}{&nodes[i].id, &nodes[i].address}
 
 	}
-	stmt := `
+	sql := `
 SELECT nodes.id, nodes.address
-  FROM nodes JOIN storage_volumes ON storage_volumes.node_id=nodes.id
-    WHERE storage_volumes.storage_pool_id=? AND storage_volumes.name=? AND storage_volumes.type=?
+  FROM nodes
+  JOIN storage_volumes ON storage_volumes.node_id=nodes.id
+  JOIN projects ON projects.id = storage_volumes.project_id
+ WHERE storage_volumes.storage_pool_id=? AND projects.name=? AND storage_volumes.name=? AND storage_volumes.type=?
 `
-	err := query.SelectObjects(c.tx, dest, stmt, poolID, name, typ)
+	stmt, err := c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, poolID, project, name, typ)
 	if err != nil {
 		return nil, err
 	}
@@ -218,10 +225,13 @@ func StorageVolumeConfigClear(tx *sql.Tx, volumeID int64) error {
 
 // Get the IDs of all volumes with the given name and type associated with the
 // given pool, regardless of their node_id column.
-func storageVolumeIDsGet(tx *sql.Tx, volumeName string, volumeType int, poolID int64) ([]int64, error) {
+func storageVolumeIDsGet(tx *sql.Tx, project, volumeName string, volumeType int, poolID int64) ([]int64, error) {
 	ids, err := query.SelectIntegers(tx, `
-SELECT id FROM storage_volumes WHERE name=? AND type=? AND storage_pool_id=?
-`, volumeName, volumeType, poolID)
+SELECT storage_volumes.id
+  FROM storage_volumes
+  JOIN projects ON projects.id = storage_volumes.project_id
+ WHERE projects.name=? AND storage_volumes.name=? AND storage_volumes.type=? AND storage_pool_id=?
+`, project, volumeName, volumeType, poolID)
 	if err != nil {
 		return nil, err
 	}

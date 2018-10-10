@@ -135,13 +135,13 @@ func storagePoolUsedByGet(state *state.State, poolID int64, poolName string) ([]
 func profilesUsingPoolGetNames(db *db.Cluster, poolName string) ([]string, error) {
 	usedBy := []string{}
 
-	profiles, err := db.Profiles()
+	profiles, err := db.Profiles("default")
 	if err != nil {
 		return usedBy, err
 	}
 
 	for _, pName := range profiles {
-		_, profile, err := db.ProfileGet(pName)
+		_, profile, err := db.ProfileGet("default", pName)
 		if err != nil {
 			return usedBy, err
 		}

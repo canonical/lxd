@@ -89,6 +89,23 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 	return &resources, nil
 }
 
+// UseProject returns a client that will use a specific project.
+func (r *ProtocolLXD) UseProject(name string) ContainerServer {
+	return &ProtocolLXD{
+		server:               r.server,
+		http:                 r.http,
+		httpCertificate:      r.httpCertificate,
+		httpHost:             r.httpHost,
+		httpProtocol:         r.httpProtocol,
+		httpUserAgent:        r.httpUserAgent,
+		bakeryClient:         r.bakeryClient,
+		bakeryInteractor:     r.bakeryInteractor,
+		requireAuthenticated: r.requireAuthenticated,
+		clusterTarget:        r.clusterTarget,
+		project:              name,
+	}
+}
+
 // UseTarget returns a client that will target a specific cluster member.
 // Use this member-specific operations such as specific container
 // placement, preparing a new storage pool or network, ...
@@ -103,6 +120,7 @@ func (r *ProtocolLXD) UseTarget(name string) ContainerServer {
 		bakeryClient:         r.bakeryClient,
 		bakeryInteractor:     r.bakeryInteractor,
 		requireAuthenticated: r.requireAuthenticated,
+		project:              r.project,
 		clusterTarget:        name,
 	}
 }

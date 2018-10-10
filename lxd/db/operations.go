@@ -53,6 +53,7 @@ const (
 	OperationVolumeSnapshotCreate
 	OperationVolumeSnapshotDelete
 	OperationVolumeSnapshotUpdate
+	OperationProjectRename
 )
 
 // Description return a human-readable description of the operation type.
@@ -130,6 +131,8 @@ func (t OperationType) Description() string {
 		return "Deleting storage volume snapshot"
 	case OperationVolumeSnapshotUpdate:
 		return "Updating storage volume snapshot"
+	case OperationProjectRename:
+		return "Renaming project"
 	default:
 		return "Executing operation"
 
@@ -159,9 +162,15 @@ func (c *ClusterTx) OperationsUUIDs() ([]string, error) {
 }
 
 // OperationNodes returns a list of nodes that have running operations
-func (c *ClusterTx) OperationNodes() ([]string, error) {
-	stmt := "SELECT DISTINCT nodes.address FROM operations JOIN nodes ON nodes.id = node_id"
-	return query.SelectStrings(c.tx, stmt)
+func (c *ClusterTx) OperationNodes(project string) ([]string, error) {
+	stmt := `
+SELECT DISTINCT nodes.address
+  FROM operations
+  LEFT OUTER JOIN projects ON projects.id = operations.project_id
+  JOIN nodes ON nodes.id = operations.node_id
+ WHERE projects.name = ? OR operations.project_id IS NULL
+`
+	return query.SelectStrings(c.tx, stmt, project)
 }
 
 // OperationByUUID returns the operation with the given UUID.
@@ -182,9 +191,21 @@ func (c *ClusterTx) OperationByUUID(uuid string) (Operation, error) {
 }
 
 // OperationAdd adds a new operations to the table.
-func (c *ClusterTx) OperationAdd(uuid string, typ OperationType) (int64, error) {
-	columns := []string{"uuid", "node_id", "type"}
-	values := []interface{}{uuid, c.nodeID, typ}
+func (c *ClusterTx) OperationAdd(project, uuid string, typ OperationType) (int64, error) {
+	var projectID interface{}
+
+	if project != "" {
+		var err error
+		projectID, err = c.ProjectID(project)
+		if err != nil {
+			return -1, errors.Wrap(err, "Fetch project ID")
+		}
+	} else {
+		projectID = nil
+	}
+
+	columns := []string{"uuid", "node_id", "type", "project_id"}
+	values := []interface{}{uuid, c.nodeID, typ, projectID}
 	return query.UpsertObject(c.tx, "operations", columns, values)
 }
 
@@ -216,13 +237,18 @@ func (c *ClusterTx) operations(where string, args ...interface{}) ([]Operation, 
 			&operations[i].Type,
 		}
 	}
-	stmt := `
+	sql := `
 SELECT operations.id, uuid, nodes.address, type FROM operations JOIN nodes ON nodes.id = node_id `
 	if where != "" {
-		stmt += fmt.Sprintf("WHERE %s ", where)
+		sql += fmt.Sprintf("WHERE %s ", where)
 	}
-	stmt += "ORDER BY operations.id"
-	err := query.SelectObjects(c.tx, dest, stmt, args...)
+	sql += "ORDER BY operations.id"
+	stmt, err := c.tx.Prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch operations")
 	}

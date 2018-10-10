@@ -69,6 +69,7 @@ type ContainerServer interface {
 	RequireAuthenticated(authenticated bool)
 	IsClustered() (clustered bool)
 	UseTarget(name string) (client ContainerServer)
+	UseProject(name string) (client ContainerServer)
 
 	// Certificate functions
 	GetCertificateFingerprints() (fingerprints []string, err error)
@@ -176,6 +177,15 @@ type ContainerServer interface {
 	UpdateProfile(name string, profile api.ProfilePut, ETag string) (err error)
 	RenameProfile(name string, profile api.ProfilePost) (err error)
 	DeleteProfile(name string) (err error)
+
+	// Project functions
+	GetProjectNames() (names []string, err error)
+	GetProjects() (projects []api.Project, err error)
+	GetProject(name string) (project *api.Project, ETag string, err error)
+	CreateProject(project api.ProjectsPost) (err error)
+	UpdateProject(name string, project api.ProjectPut, ETag string) (err error)
+	RenameProject(name string, project api.ProjectPost) (op Operation, err error)
+	DeleteProject(name string) (err error)
 
 	// Storage pool functions ("storage" API extension)
 	GetStoragePoolNames() (names []string, err error)

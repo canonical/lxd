@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
@@ -17,10 +18,11 @@ import (
 )
 
 func containerBackupsGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	cname := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, cname)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -30,7 +32,7 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	c, err := containerLoadByName(d.State(), cname)
+	c, err := containerLoadByProjectAndName(d.State(), project, cname)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -62,10 +64,11 @@ func containerBackupsGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupsPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -73,7 +76,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -134,7 +137,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 
 		err := backupCreate(d.State(), args, c)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Create backup")
 		}
 
 		return nil
@@ -144,7 +147,7 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 	resources["containers"] = []string{name}
 	resources["backups"] = []string{req.Name}
 
-	op, err := operationCreate(d.cluster, operationClassTask,
+	op, err := operationCreate(d.cluster, project, operationClassTask,
 		db.OperationBackupCreate, resources, nil, backup, nil, nil)
 	if err != nil {
 		return InternalError(err)
@@ -154,11 +157,12 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -167,7 +171,7 @@ func containerBackupGet(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), fullName)
+	backup, err := backupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -176,11 +180,12 @@ func containerBackupGet(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -200,7 +205,7 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 	}
 
 	oldName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), oldName)
+	backup, err := backupLoadByName(d.State(), project, oldName)
 	if err != nil {
 		SmartError(err)
 	}
@@ -219,7 +224,7 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, operationClassTask,
+	op, err := operationCreate(d.cluster, project, operationClassTask,
 		db.OperationBackupRename, resources, nil, rename, nil, nil)
 	if err != nil {
 		return InternalError(err)
@@ -229,11 +234,12 @@ func containerBackupPost(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupDelete(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -242,7 +248,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), fullName)
+	backup, err := backupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -259,7 +265,7 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["container"] = []string{name}
 
-	op, err := operationCreate(d.cluster, operationClassTask,
+	op, err := operationCreate(d.cluster, project, operationClassTask,
 		db.OperationBackupRemove, resources, nil, remove, nil, nil)
 	if err != nil {
 		return InternalError(err)
@@ -269,11 +275,12 @@ func containerBackupDelete(d *Daemon, r *http.Request) Response {
 }
 
 func containerBackupExportGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 	backupName := mux.Vars(r)["backupName"]
 
 	// Handle requests targeted to a container on a different node
-	response, err := ForwardedResponseIfContainerIsRemote(d, r, name)
+	response, err := ForwardedResponseIfContainerIsRemote(d, r, project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -282,7 +289,7 @@ func containerBackupExportGet(d *Daemon, r *http.Request) Response {
 	}
 
 	fullName := name + shared.SnapshotDelimiter + backupName
-	backup, err := backupLoadByName(d.State(), fullName)
+	backup, err := backupLoadByName(d.State(), project, fullName)
 	if err != nil {
 		return SmartError(err)
 	}

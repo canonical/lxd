@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -30,7 +31,7 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 	r.eventListeners = []*EventListener{}
 
 	// Setup a new connection with LXD
-	conn, err := r.websocket("/events")
+	conn, err := r.websocket(fmt.Sprintf("/events?project=%s", r.project))
 	if err != nil {
 		return nil, err
 	}

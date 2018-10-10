@@ -15,14 +15,14 @@ import (
 )
 
 const fixtures string = `
-    INSERT INTO containers (node_id, name, architecture, type) VALUES (1, 'thename', 1, 1);
-    INSERT INTO profiles (name) VALUES ('theprofile');
+    INSERT INTO containers (node_id, name, architecture, type, project_id) VALUES (1, 'thename', 1, 1, 1);
+    INSERT INTO profiles (name, project_id) VALUES ('theprofile', 1);
     INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
     INSERT INTO containers_config (container_id, key, value) VALUES (1, 'thekey', 'thevalue');
     INSERT INTO containers_devices (container_id, name, type) VALUES (1, 'somename', 1);
     INSERT INTO containers_devices_config (key, value, container_device_id) VALUES ('configkey', 'configvalue', 1);
-    INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date, auto_update) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176, 1);
-    INSERT INTO images_aliases (name, image_id, description) VALUES ('somealias', 1, 'some description');
+    INSERT INTO images (fingerprint, filename, size, architecture, creation_date, expiry_date, upload_date, auto_update, project_id) VALUES ('fingerprint', 'filename', 1024, 0,  1431547174,  1431547175,  1431547176, 1, 1);
+    INSERT INTO images_aliases (name, image_id, description, project_id) VALUES ('somealias', 1, 'some description', 1);
     INSERT INTO images_properties (image_id, type, key, value) VALUES (1, 0, 'thekey', 'some value');
     INSERT INTO profiles_config (profile_id, key, value) VALUES (2, 'thekey', 'thevalue');
     INSERT INTO profiles_devices (profile_id, name, type) VALUES (2, 'devicename', 1);
@@ -187,7 +187,7 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 	var err error
 	var result *api.Image
 
-	_, result, err = s.db.ImageGet("fingerprint", false, false)
+	_, result, err = s.db.ImageGet("default", "fingerprint", false, false)
 	s.Nil(err)
 	s.NotNil(result)
 	s.Equal(result.Filename, "filename")
@@ -199,14 +199,14 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	var err error
 
-	_, _, err = s.db.ImageGet("unknown", false, false)
+	_, _, err = s.db.ImageGet("default", "unknown", false, false)
 	s.Equal(err, ErrNoSuchObject)
 }
 
 func (s *dbTestSuite) Test_ImageExists_true() {
 	var err error
 
-	exists, err := s.db.ImageExists("fingerprint")
+	exists, err := s.db.ImageExists("default", "fingerprint")
 	s.Nil(err)
 	s.True(exists)
 }
@@ -214,7 +214,7 @@ func (s *dbTestSuite) Test_ImageExists_true() {
 func (s *dbTestSuite) Test_ImageExists_false() {
 	var err error
 
-	exists, err := s.db.ImageExists("foobar")
+	exists, err := s.db.ImageExists("default", "foobar")
 	s.Nil(err)
 	s.False(exists)
 }
@@ -222,7 +222,7 @@ func (s *dbTestSuite) Test_ImageExists_false() {
 func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
 	var err error
 
-	_, alias, err := s.db.ImageAliasGet("somealias", true)
+	_, alias, err := s.db.ImageAliasGet("default", "somealias", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
@@ -230,23 +230,23 @@ func (s *dbTestSuite) Test_ImageAliasGet_alias_exists() {
 func (s *dbTestSuite) Test_ImageAliasGet_alias_does_not_exists() {
 	var err error
 
-	_, _, err = s.db.ImageAliasGet("whatever", true)
+	_, _, err = s.db.ImageAliasGet("default", "whatever", true)
 	s.Equal(err, ErrNoSuchObject)
 }
 
 func (s *dbTestSuite) Test_ImageAliasAdd() {
 	var err error
 
-	err = s.db.ImageAliasAdd("Chaosphere", 1, "Someone will like the name")
+	err = s.db.ImageAliasAdd("default", "Chaosphere", 1, "Someone will like the name")
 	s.Nil(err)
 
-	_, alias, err := s.db.ImageAliasGet("Chaosphere", true)
+	_, alias, err := s.db.ImageAliasGet("default", "Chaosphere", true)
 	s.Nil(err)
 	s.Equal(alias.Target, "fingerprint")
 }
 
 func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint() {
-	imageID, _, err := s.db.ImageGet("fingerprint", false, false)
+	imageID, _, err := s.db.ImageGet("default", "fingerprint", false, false)
 	s.Nil(err)
 
 	err = s.db.ImageSourceInsert(imageID, "server.remote", "simplestreams", "", "test")
@@ -258,7 +258,7 @@ func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint() {
 }
 
 func (s *dbTestSuite) Test_ImageSourceGetCachedFingerprint_no_match() {
-	imageID, _, err := s.db.ImageGet("fingerprint", false, false)
+	imageID, _, err := s.db.ImageGet("default", "fingerprint", false, false)
 	s.Nil(err)
 
 	err = s.db.ImageSourceInsert(imageID, "server.remote", "simplestreams", "", "test")
@@ -303,7 +303,7 @@ func (s *dbTestSuite) Test_dbProfileConfig() {
 
 	commit()
 
-	result, err = s.db.ProfileConfig("theprofile")
+	result, err = s.db.ProfileConfig("default", "theprofile")
 	s.Nil(err)
 
 	expected = map[string]string{"thekey": "thevalue", "something": "something else"}

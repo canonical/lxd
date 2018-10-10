@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,22 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/subtest"
 )
+
+func TestSelectURIs(t *testing.T) {
+	tx := newTxForSlices(t)
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare("SELECT id, name FROM test ORDER BY name")
+	require.NoError(t, err)
+	defer stmt.Close()
+
+	uris, err := query.SelectURIs(stmt, func(a ...interface{}) string {
+		return fmt.Sprintf("/1.0/test/%s/%d", a[1], a[0])
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"/1.0/test/bar/1", "/1.0/test/foo/0"}, uris)
+}
 
 // Exercise possible failure modes.
 func TestStrings_Error(t *testing.T) {

@@ -332,6 +332,7 @@ func (s *execWs) Do(op *operation) error {
 }
 
 func containerExecPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	post := api.ContainerExecPost{}
@@ -346,7 +347,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 
 	// Forward the request if the container is remote.
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, name, cert)
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -362,7 +363,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		return ForwardedOperationResponse(&opAPI)
 	}
 
-	c, err := containerLoadByName(d.State(), name)
+	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -456,7 +457,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		resources := map[string][]string{}
 		resources["containers"] = []string{ws.container.Name()}
 
-		op, err := operationCreate(d.cluster, operationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
+		op, err := operationCreate(d.cluster, project, operationClassWebsocket, db.OperationCommandExec, resources, ws.Metadata(), ws.Do, nil, ws.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -508,7 +509,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationCommandExec, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}

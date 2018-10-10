@@ -119,7 +119,7 @@ func patchLeftoverProfileConfig(name string, d *Daemon) error {
 }
 
 func patchInvalidProfileNames(name string, d *Daemon) error {
-	profiles, err := d.cluster.Profiles()
+	profiles, err := d.cluster.Profiles("default")
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,9 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 	for _, profile := range profiles {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
 			logger.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
-			err := d.cluster.ProfileDelete(profile)
+			err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				return tx.ProfileDelete("default", profile)
+			})
 			if err != nil {
 				return err
 			}
@@ -216,25 +218,25 @@ func patchStorageApi(name string, d *Daemon) error {
 	// Check if this LXD instace currently has any containers, snapshots, or
 	// images configured. If so, we create a default storage pool in the
 	// database. Otherwise, the user will have to run LXD init.
-	cRegular, err := d.cluster.ContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := d.cluster.ContainersList(db.CTypeSnapshot)
+	cSnapshots, err := d.cluster.LegacyContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing public images.
-	imgPublic, err := d.cluster.ImagesGet(true)
+	imgPublic, err := d.cluster.ImagesGet("default", true)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing private images.
-	imgPrivate, err := d.cluster.ImagesGet(false)
+	imgPrivate, err := d.cluster.ImagesGet("default", false)
 	if err != nil {
 		return err
 	}
@@ -376,7 +378,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 
 	if len(cRegular) > 0 {
 		// ${LXD_DIR}/storage-pools/<name>
-		containersSubvolumePath := getContainerMountPoint(defaultPoolName, "")
+		containersSubvolumePath := getContainerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(containersSubvolumePath) {
 			err := os.MkdirAll(containersSubvolumePath, 0711)
 			if err != nil {
@@ -409,7 +411,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate(ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -423,7 +425,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		// subvolume of the subvolume of the storage pool:
 		// mv ${LXD_DIR}/containers/<container_name> ${LXD_DIR}/storage-pools/<pool>/<container_name>
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
+		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
@@ -458,7 +460,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := d.cluster.ContainerGetSnapshots(ct)
+		ctSnapshots, err := d.cluster.ContainerGetSnapshots("default", ct)
 		if err != nil {
 			return err
 		}
@@ -467,7 +469,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// Create the snapshots directory in
 			// the new storage pool:
 			// ${LXD_DIR}/storage-pools/<pool>/snapshots
-			newSnapshotsMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
+			newSnapshotsMntPoint := getSnapshotMountPoint("default", defaultPoolName, ct)
 			if !shared.PathExists(newSnapshotsMntPoint) {
 				err := os.MkdirAll(newSnapshotsMntPoint, 0700)
 				if err != nil {
@@ -497,7 +499,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeCreate(cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
+				_, err := d.cluster.StoragePoolVolumeCreate("default", cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err
@@ -510,7 +512,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// We need to create a new snapshot since we can't move
 			// readonly snapshots.
 			oldSnapshotMntPoint := shared.VarPath("snapshots", cs)
-			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
+			newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, cs)
 			if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 				err = btrfsSnapshot(oldSnapshotMntPoint, newSnapshotMntPoint, true)
 				if err != nil {
@@ -548,7 +550,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			// storage pool:
 			// ${LXD_DIR}/snapshots/<container_name> to ${LXD_DIR}/storage-pools/<pool>/snapshots/<container_name>
 			snapshotsPath := shared.VarPath("snapshots", ct)
-			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
+			newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, ct)
 			os.Remove(snapshotsPath)
 			if !shared.PathExists(snapshotsPath) {
 				err := os.Symlink(newSnapshotMntPoint, snapshotsPath)
@@ -578,7 +580,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate(img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -696,7 +698,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate(ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -708,7 +710,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Create the new path where containers will be located on the
 		// new storage api.
-		containersMntPoint := getContainerMountPoint(defaultPoolName, "")
+		containersMntPoint := getContainerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(containersMntPoint) {
 			err := os.MkdirAll(containersMntPoint, 0711)
 			if err != nil {
@@ -718,7 +720,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Simply rename the container when they are directories.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
+		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
@@ -766,7 +768,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Now simply rename the snapshots directory as well.
-		newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, ct)
+		newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldSnapshotMntPoint) && !shared.PathExists(newSnapshotMntPoint) {
 			err := os.Rename(oldSnapshotMntPoint, newSnapshotMntPoint)
 			if err != nil {
@@ -813,7 +815,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate(cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 				return err
@@ -843,7 +845,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate(img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -971,7 +973,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	if len(cRegular) > 0 {
 		// Create generic containers folder on the storage pool.
-		newContainersMntPoint := getContainerMountPoint(defaultPoolName, "")
+		newContainersMntPoint := getContainerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(newContainersMntPoint) {
 			err = os.MkdirAll(newContainersMntPoint, 0711)
 			if err != nil {
@@ -1005,7 +1007,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate(ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -1028,10 +1030,10 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Create the new path where containers will be located on the
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
-		newContainerMntPoint := getContainerMountPoint(defaultPoolName, ct)
+		newContainerMntPoint := getContainerMountPoint("default", defaultPoolName, ct)
 		ctLvName := containerNameToLVName(ct)
 		newContainerLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, ctLvName)
-		containerLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeAPIEndpointContainers, ctLvName)
+		containerLvDevPath := getLvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, ctLvName)
 		if !shared.PathExists(containerLvDevPath) {
 			oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, ctLvName)
 			// If the old LVM device path for the logical volume
@@ -1070,14 +1072,14 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 				// Initialize storage interface for the new
 				// container.
-				ctStorage, err := storagePoolVolumeContainerLoadInit(d.State(), ct)
+				ctStorage, err := storagePoolVolumeContainerLoadInit(d.State(), "default", ct)
 				if err != nil {
 					logger.Errorf("Failed to initialize new storage interface for LVM container %s: %s", ct, err)
 					return err
 				}
 
 				// Load the container from the database.
-				ctStruct, err := containerLoadByName(d.State(), ct)
+				ctStruct, err := containerLoadByProjectAndName(d.State(), "default", ct)
 				if err != nil {
 					logger.Errorf("Failed to load LVM container %s: %s", ct, err)
 					return err
@@ -1134,7 +1136,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := d.cluster.ContainerGetSnapshots(ct)
+		ctSnapshots, err := d.cluster.ContainerGetSnapshots("default", ct)
 		if err != nil {
 			return err
 		}
@@ -1160,7 +1162,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeCreate(cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
+				_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err
@@ -1173,7 +1175,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Create the snapshots directory in the new storage
 			// pool:
 			// ${LXD_DIR}/storage-pools/<pool>/snapshots
-			newSnapshotMntPoint := getSnapshotMountPoint(defaultPoolName, cs)
+			newSnapshotMntPoint := getSnapshotMountPoint("default", defaultPoolName, cs)
 			if !shared.PathExists(newSnapshotMntPoint) {
 				err := os.MkdirAll(newSnapshotMntPoint, 0700)
 				if err != nil {
@@ -1187,7 +1189,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// Make sure we use a valid lv name.
 			csLvName := containerNameToLVName(cs)
 			newSnapshotLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointContainers, csLvName)
-			snapshotLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeAPIEndpointContainers, csLvName)
+			snapshotLvDevPath := getLvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointContainers, csLvName)
 			if !shared.PathExists(snapshotLvDevPath) {
 				oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, csLvName)
 				if shared.PathExists(oldLvDevPath) {
@@ -1223,14 +1225,14 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 					// Initialize storage interface for the new
 					// snapshot.
-					csStorage, err := storagePoolVolumeContainerLoadInit(d.State(), cs)
+					csStorage, err := storagePoolVolumeContainerLoadInit(d.State(), "default", cs)
 					if err != nil {
 						logger.Errorf("Failed to initialize new storage interface for LVM container %s: %s", cs, err)
 						return err
 					}
 
 					// Load the snapshot from the database.
-					csStruct, err := containerLoadByName(d.State(), cs)
+					csStruct, err := containerLoadByProjectAndName(d.State(), "default", cs)
 					if err != nil {
 						logger.Errorf("Failed to load LVM container %s: %s", cs, err)
 						return err
@@ -1278,7 +1280,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// storage pool:
 			// ${LXD_DIR}/snapshots/<container_name> to ${LXD_DIR}/storage-pools/<pool>/snapshots/<container_name>
 			snapshotsPath := shared.VarPath("snapshots", ct)
-			newSnapshotsPath := getSnapshotMountPoint(defaultPoolName, ct)
+			newSnapshotsPath := getSnapshotMountPoint("default", defaultPoolName, ct)
 			if shared.PathExists(snapshotsPath) {
 				// On a broken update snapshotsPath will contain
 				// empty directories that need to be removed.
@@ -1331,7 +1333,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate(img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -1367,7 +1369,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 		// Rename the logical volume device.
 		newImageLvName := fmt.Sprintf("%s_%s", storagePoolVolumeAPIEndpointImages, img)
-		imageLvDevPath := getLvmDevPath(defaultPoolName, storagePoolVolumeAPIEndpointImages, img)
+		imageLvDevPath := getLvmDevPath("default", defaultPoolName, storagePoolVolumeAPIEndpointImages, img)
 		oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, img)
 		// Only create logical volumes for images that have a logical
 		// volume on the pre-storage-api LXD instance. If not, we don't
@@ -1383,7 +1385,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			// This image didn't exist as a logical volume on the
 			// old LXD instance so we need to kick it from the
 			// storage volumes database for this pool.
-			err := d.cluster.StoragePoolVolumeDelete(img, storagePoolVolumeTypeImage, poolID)
+			err := d.cluster.StoragePoolVolumeDelete("default", img, storagePoolVolumeTypeImage, poolID)
 			if err != nil {
 				return err
 			}
@@ -1495,7 +1497,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	if len(cRegular) > 0 {
-		containersSubvolumePath := getContainerMountPoint(poolName, "")
+		containersSubvolumePath := getContainerMountPoint("default", poolName, "")
 		if !shared.PathExists(containersSubvolumePath) {
 			err := os.MkdirAll(containersSubvolumePath, 0711)
 			if err != nil {
@@ -1523,7 +1525,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate(ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", ct, "", storagePoolVolumeTypeContainer, false, poolID, containerPoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for container \"%s\"", ct)
 				return err
@@ -1559,7 +1561,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// Changing the mountpoint property should have actually created
 		// the path but in case it somehow didn't let's do it ourselves.
 		doesntMatter := false
-		newContainerMntPoint := getContainerMountPoint(poolName, ct)
+		newContainerMntPoint := getContainerMountPoint("default", poolName, ct)
 		err = createContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
 			logger.Warnf("Failed to create mountpoint for the container: %s", newContainerMntPoint)
@@ -1581,7 +1583,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		}
 
 		// Check if we need to account for snapshots for this container.
-		ctSnapshots, err := d.cluster.ContainerGetSnapshots(ct)
+		ctSnapshots, err := d.cluster.ContainerGetSnapshots("default", ct)
 		if err != nil {
 			logger.Errorf("Failed to query database")
 			return err
@@ -1609,7 +1611,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 				}
 			} else if err == db.ErrNoSuchObject {
 				// Insert storage volumes for containers into the database.
-				_, err := d.cluster.StoragePoolVolumeCreate(cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
+				_, err := d.cluster.StoragePoolVolumeCreate("default", cs, "", storagePoolVolumeTypeContainer, false, poolID, snapshotPoolVolumeConfig)
 				if err != nil {
 					logger.Errorf("Could not insert a storage volume for snapshot \"%s\"", cs)
 					return err
@@ -1621,7 +1623,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 			// Create the new mountpoint for snapshots in the new
 			// storage api.
-			newSnapshotMntPoint := getSnapshotMountPoint(poolName, cs)
+			newSnapshotMntPoint := getSnapshotMountPoint("default", poolName, cs)
 			if !shared.PathExists(newSnapshotMntPoint) {
 				err = os.MkdirAll(newSnapshotMntPoint, 0711)
 				if err != nil {
@@ -1636,7 +1638,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 
 		// Create a symlink for this container's snapshots.
 		if len(ctSnapshots) != 0 {
-			newSnapshotsMntPoint := getSnapshotMountPoint(poolName, ct)
+			newSnapshotsMntPoint := getSnapshotMountPoint("default", poolName, ct)
 			if !shared.PathExists(newSnapshotsMntPoint) {
 				err := os.Symlink(newSnapshotsMntPoint, snapshotsPath)
 				if err != nil {
@@ -1665,7 +1667,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			}
 		} else if err == db.ErrNoSuchObject {
 			// Insert storage volumes for containers into the database.
-			_, err := d.cluster.StoragePoolVolumeCreate(img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
+			_, err := d.cluster.StoragePoolVolumeCreate("default", img, "", storagePoolVolumeTypeImage, false, poolID, imagePoolVolumeConfig)
 			if err != nil {
 				logger.Errorf("Could not insert a storage volume for image \"%s\"", img)
 				return err
@@ -1724,10 +1726,10 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 	// appropriate device including a pool is added to the default profile
 	// or the user explicitly passes the pool the container's storage volume
 	// is supposed to be created on.
-	profiles, err := d.cluster.Profiles()
+	profiles, err := d.cluster.Profiles("default")
 	if err == nil {
 		for _, pName := range profiles {
-			pID, p, err := d.cluster.ProfileGet(pName)
+			pID, p, err := d.cluster.ProfileGet("default", pName)
 			if err != nil {
 				logger.Errorf("Could not query database: %s", err)
 				return err
@@ -1805,7 +1807,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 
 	// Make sure all containers and snapshots have a valid disk configuration
 	for _, ct := range allcontainers {
-		c, err := containerLoadByName(d.State(), ct)
+		c, err := containerLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			continue
 		}
@@ -1884,13 +1886,13 @@ func patchStorageApiV1(name string, d *Daemon) error {
 		return nil
 	}
 
-	cRegular, err := d.cluster.ContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	// Get list of existing snapshots.
-	cSnapshots, err := d.cluster.ContainersList(db.CTypeSnapshot)
+	cSnapshots, err := d.cluster.LegacyContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -1905,14 +1907,14 @@ func patchStorageApiV1(name string, d *Daemon) error {
 }
 
 func patchContainerConfigRegen(name string, d *Daemon) error {
-	cts, err := d.cluster.ContainersList(db.CTypeRegular)
+	cts, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	for _, ct := range cts {
 		// Load the container from the database.
-		c, err := containerLoadByName(d.State(), ct)
+		c, err := containerLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			logger.Errorf("Failed to open container '%s': %v", ct, err)
 			continue
@@ -2011,7 +2013,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 }
 
 func patchStorageApiDirCleanup(name string, d *Daemon) error {
-	fingerprints, err := d.cluster.ImagesGet(false)
+	fingerprints, err := d.cluster.ImagesGet("default", false)
 	if err != nil {
 		return err
 	}
@@ -2348,7 +2350,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 			// exist in the db, so it's safe to ignore the error.
 			volumeTypeApiEndpoint, _ := storagePoolVolumeTypeNameToAPIEndpoint(volume.Type)
 			lvmName := containerNameToLVName(volume.Name)
-			lvmLvDevPath := getLvmDevPath(poolName, volumeTypeApiEndpoint, lvmName)
+			lvmLvDevPath := getLvmDevPath("default", poolName, volumeTypeApiEndpoint, lvmName)
 			size, err := lvmGetLVSize(lvmLvDevPath)
 			if err != nil {
 				logger.Errorf("Failed to detect size of logical volume: %s", err)
@@ -2593,13 +2595,13 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 }
 
 func patchFixUploadedAt(name string, d *Daemon) error {
-	images, err := d.cluster.ImagesGet(false)
+	images, err := d.cluster.ImagesGet("default", false)
 	if err != nil {
 		return err
 	}
 
 	for _, fingerprint := range images {
-		id, image, err := d.cluster.ImageGet(fingerprint, false, true)
+		id, image, err := d.cluster.ImageGet("default", fingerprint, false, true)
 		if err != nil {
 			return err
 		}
@@ -2654,7 +2656,7 @@ func patchStorageApiCephSizeRemove(name string, d *Daemon) error {
 }
 
 func patchDevicesNewNamingScheme(name string, d *Daemon) error {
-	cts, err := d.cluster.ContainersList(db.CTypeRegular)
+	cts, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		logger.Errorf("Failed to retrieve containers from database")
 		return err
@@ -2691,7 +2693,7 @@ func patchDevicesNewNamingScheme(name string, d *Daemon) error {
 		}
 
 		// Load the container from the database.
-		c, err := containerLoadByName(d.State(), ct)
+		c, err := containerLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			logger.Errorf("Failed to load container %s: %s", ct, err)
 			return err
@@ -2887,7 +2889,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		}
 
 		for _, vol := range volumes {
-			volStruct, err := storagePoolVolumeInit(d.State(), poolName, vol, storagePoolVolumeTypeCustom)
+			volStruct, err := storagePoolVolumeInit(d.State(), "default", poolName, vol, storagePoolVolumeTypeCustom)
 			if err != nil {
 				return err
 			}
@@ -2908,14 +2910,14 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		}
 	}
 
-	cRegular, err := d.cluster.ContainersList(db.CTypeRegular)
+	cRegular, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}
 
 	for _, ct := range cRegular {
 		// load the container from the database
-		ctStruct, err := containerLoadByName(d.State(), ct)
+		ctStruct, err := containerLoadByProjectAndName(d.State(), "default", ct)
 		if err != nil {
 			return err
 		}
@@ -2975,7 +2977,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 	}
 
 	// Get all containers
-	containers, err := d.cluster.ContainersList(db.CTypeRegular)
+	containers, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		if err != db.ErrNoSuchObject {
 			return err
@@ -3138,7 +3140,7 @@ func patchUpdateFromV10(d *Daemon) error {
 }
 
 func patchUpdateFromV11(d *Daemon) error {
-	cNames, err := d.cluster.ContainersList(db.CTypeSnapshot)
+	cNames, err := d.cluster.LegacyContainersList(db.CTypeSnapshot)
 	if err != nil {
 		return err
 	}
@@ -3209,7 +3211,7 @@ func patchUpdateFromV15(d *Daemon) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
 
-	cNames, err := d.cluster.ContainersList(db.CTypeRegular)
+	cNames, err := d.cluster.LegacyContainersList(db.CTypeRegular)
 	if err != nil {
 		return err
 	}

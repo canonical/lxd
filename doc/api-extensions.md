@@ -616,3 +616,9 @@ any further idmap tracking and remapping on the volume.
 
 This can be used to share data between isolated containers after
 attaching it to the container which requires write access.
+
+## projects
+Add a new project API, supporting creation, update and deletion of projects.
+
+Projects can hold containers, profiles or images at this point and let
+you get a separate view of your LXD resources by switching to it.

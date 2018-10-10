@@ -4,14 +4,103 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/pkg/errors"
 )
 
+// Code generation directives.
+//
+//go:generate -command mapper lxd-generate db mapper -t profiles.mapper.go
+//go:generate mapper reset
+//
+//go:generate mapper stmt -p db -e profile names
+//go:generate mapper stmt -p db -e profile names-by-Project
+//go:generate mapper stmt -p db -e profile names-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile objects
+//go:generate mapper stmt -p db -e profile objects-by-Project
+//go:generate mapper stmt -p db -e profile objects-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile config-ref
+//go:generate mapper stmt -p db -e profile config-ref-by-Project
+//go:generate mapper stmt -p db -e profile config-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile devices-ref
+//go:generate mapper stmt -p db -e profile devices-ref-by-Project
+//go:generate mapper stmt -p db -e profile devices-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile used-by-ref
+//go:generate mapper stmt -p db -e profile used-by-ref-by-Project
+//go:generate mapper stmt -p db -e profile used-by-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile id
+//go:generate mapper stmt -p db -e profile create struct=Profile
+//go:generate mapper stmt -p db -e profile create-config-ref
+//go:generate mapper stmt -p db -e profile create-devices-ref
+//go:generate mapper stmt -p db -e profile rename
+//go:generate mapper stmt -p db -e profile delete
+//
+//go:generate mapper method -p db -e profile URIs
+//go:generate mapper method -p db -e profile List
+//go:generate mapper method -p db -e profile Get
+//go:generate mapper method -p db -e profile Exists struct=Profile
+//go:generate mapper method -p db -e profile ID struct=Profile
+//go:generate mapper method -p db -e profile ConfigRef
+//go:generate mapper method -p db -e profile DevicesRef
+//go:generate mapper method -p db -e profile UsedByRef
+//go:generate mapper method -p db -e profile Create struct=Profile
+//go:generate mapper method -p db -e profile Rename
+//go:generate mapper method -p db -e profile Delete
+
+// Profile is a value object holding db-related details about a profile.
+type Profile struct {
+	ID          int
+	Project     string `db:"primary=yes&join=projects.name"`
+	Name        string `db:"primary=yes"`
+	Description string `db:"coalesce=''"`
+	Config      map[string]string
+	Devices     map[string]map[string]string
+	UsedBy      []string
+}
+
+// ProfileToAPI is a convenience to convert a Profile db struct into
+// an API profile struct.
+func ProfileToAPI(profile *Profile) *api.Profile {
+	p := &api.Profile{
+		Name:   profile.Name,
+		UsedBy: profile.UsedBy,
+	}
+	p.Description = profile.Description
+	p.Config = profile.Config
+	p.Devices = profile.Devices
+
+	return p
+}
+
+// ProfileFilter can be used to filter results yielded by ProfileList.
+type ProfileFilter struct {
+	Project string
+	Name    string
+}
+
 // Profiles returns a string list of profiles.
-func (c *Cluster) Profiles() ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM profiles")
-	inargs := []interface{}{}
+func (c *Cluster) Profiles(project string) ([]string, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has profiles")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	q := fmt.Sprintf(`
+SELECT profiles.name
+ FROM profiles
+ JOIN projects ON projects.id = profiles.project_id
+WHERE projects.name = ?
+`)
+	inargs := []interface{}{project}
 	var name string
 	outfmt := []interface{}{name}
 	result, err := queryScan(c.db, q, inargs, outfmt)
@@ -28,107 +117,65 @@ func (c *Cluster) Profiles() ([]string, error) {
 }
 
 // ProfileGet returns the profile with the given name.
-func (c *Cluster) ProfileGet(name string) (int64, *api.Profile, error) {
-	id := int64(-1)
-	description := sql.NullString{}
+func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) {
+	var result *api.Profile
+	var id int64
 
-	q := "SELECT id, description FROM profiles WHERE name=?"
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id, &description}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return -1, nil, ErrNoSuchObject
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has profiles")
+		}
+		if !enabled {
+			project = "default"
 		}
 
-		return -1, nil, err
-	}
+		profile, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return err
+		}
 
-	config, err := c.ProfileConfig(name)
+		result = ProfileToAPI(profile)
+		id = int64(profile.ID)
+
+		return nil
+	})
 	if err != nil {
 		return -1, nil, err
 	}
 
-	devices, err := c.Devices(name, true)
-	if err != nil {
-		return -1, nil, err
-	}
-
-	profile := api.Profile{
-		Name: name,
-	}
-
-	profile.Config = config
-	profile.Description = description.String
-	profile.Devices = devices
-
-	return id, &profile, nil
+	return id, result, nil
 }
 
-// ProfileCreate creates a new profile.
-func (c *Cluster) ProfileCreate(profile string, description string, config map[string]string,
-	devices types.Devices) (int64, error) {
-
-	var id int64
+// ProfileConfig gets the profile configuration map from the DB.
+func (c *Cluster) ProfileConfig(project, name string) (map[string]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		result, err := tx.tx.Exec("INSERT INTO profiles (name, description) VALUES (?, ?)", profile, description)
+		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Check if project has profiles")
 		}
-		id, err = result.LastInsertId()
-		if err != nil {
-			return err
-		}
-
-		err = ProfileConfigAdd(tx.tx, id, config)
-		if err != nil {
-			return err
-		}
-
-		err = DevicesAdd(tx.tx, "profile", id, devices)
-		if err != nil {
-			return err
+		if !enabled {
+			project = "default"
 		}
 		return nil
 	})
 	if err != nil {
-		id = -1
+		return nil, err
 	}
 
-	return id, nil
-}
-
-// ProfileCreateDefault creates the default profile.
-func (c *Cluster) ProfileCreateDefault() error {
-	id, _, _ := c.ProfileGet("default")
-
-	if id != -1 {
-		// default profile already exists
-		return nil
-	}
-
-	_, err := c.ProfileCreate("default", "Default LXD profile", map[string]string{}, types.Devices{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ProfileConfig gets the profile configuration map from the DB.
-func (c *Cluster) ProfileConfig(name string) (map[string]string, error) {
 	var key, value string
 	query := `
         SELECT
             key, value
         FROM profiles_config
         JOIN profiles ON profiles_config.profile_id=profiles.id
-		WHERE name=?`
-	inargs := []interface{}{name}
+        JOIN projects ON projects.id = profiles.project_id
+        WHERE projects.name=? AND profiles.name=?`
+	inargs := []interface{}{project, name}
 	outfmt := []interface{}{key, value}
 	results, err := queryScan(c.db, query, inargs, outfmt)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get profile '%s'", name)
+		return nil, errors.Wrapf(err, "Failed to get profile '%s'", name)
 	}
 
 	if len(results) == 0 {
@@ -158,30 +205,6 @@ func (c *Cluster) ProfileConfig(name string) (map[string]string, error) {
 	}
 
 	return config, nil
-}
-
-// ProfileDelete deletes the profile with the given name.
-func (c *Cluster) ProfileDelete(name string) error {
-	id, _, err := c.ProfileGet(name)
-	if err != nil {
-		return err
-	}
-
-	err = exec(c.db, "DELETE FROM profiles WHERE id=?", id)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ProfileUpdate renames the profile with the given name to the given new name.
-func (c *Cluster) ProfileUpdate(name string, newName string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		_, err := tx.tx.Exec("UPDATE profiles SET name=? WHERE name=?", newName, name)
-		return err
-	})
-	return err
 }
 
 // ProfileDescriptionUpdate updates the description of the profile with the given ID.
@@ -233,14 +256,29 @@ func ProfileConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 
 // ProfileContainersGet gets the names of the containers associated with the
 // profile with the given name.
-func (c *Cluster) ProfileContainersGet(profile string) ([]string, error) {
+func (c *Cluster) ProfileContainersGet(project, profile string) ([]string, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has profiles")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	q := `SELECT containers.name FROM containers JOIN containers_profiles
 		ON containers.id == containers_profiles.container_id
 		JOIN profiles ON containers_profiles.profile_id == profiles.id
-		WHERE profiles.name == ? AND containers.type == 0`
+		JOIN projects ON projects.id == profiles.project_id
+		WHERE projects.name == ? AND profiles.name == ? AND containers.type == 0`
 
 	results := []string{}
-	inargs := []interface{}{profile}
+	inargs := []interface{}{project, profile}
 	var name string
 	outfmt := []interface{}{name}
 

@@ -13,14 +13,11 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 var profilesCmd = Command{
@@ -40,39 +37,49 @@ var profileCmd = Command{
 
 /* This is used for both profiles post and profile put */
 func profilesGet(d *Daemon, r *http.Request) Response {
-	results, err := d.cluster.Profiles()
+	project := projectParam(r)
+
+	recursion := util.IsRecursionRequest(r)
+
+	var result interface{}
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		filter := db.ProfileFilter{
+			Project: project,
+		}
+		if recursion {
+			profiles, err := tx.ProfileList(filter)
+			if err != nil {
+				return err
+			}
+			apiProfiles := make([]*api.Profile, len(profiles))
+			for i, profile := range profiles {
+				apiProfiles[i] = db.ProfileToAPI(&profile)
+			}
+
+			result = apiProfiles
+		} else {
+			result, err = tx.ProfileURIs(filter)
+		}
+		return err
+	})
 	if err != nil {
 		return SmartError(err)
 	}
 
-	recursion := util.IsRecursionRequest(r)
-
-	resultString := make([]string, len(results))
-	resultMap := make([]*api.Profile, len(results))
-	i := 0
-	for _, name := range results {
-		if !recursion {
-			url := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, name)
-			resultString[i] = url
-		} else {
-			profile, err := doProfileGet(d.State(), name)
-			if err != nil {
-				logger.Error("Failed to get profile", log.Ctx{"profile": name})
-				continue
-			}
-			resultMap[i] = profile
-		}
-		i++
-	}
-
-	if !recursion {
-		return SyncResponse(true, resultString)
-	}
-
-	return SyncResponse(true, resultMap)
+	return SyncResponse(true, result)
 }
 
 func profilesPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	req := api.ProfilesPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest(err)
@@ -81,11 +88,6 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	// Sanity checks
 	if req.Name == "" {
 		return BadRequest(fmt.Errorf("No name provided"))
-	}
-
-	_, profile, _ := d.cluster.ProfileGet(req.Name)
-	if profile != nil {
-		return BadRequest(fmt.Errorf("The profile already exists"))
 	}
 
 	if strings.Contains(req.Name, "/") {
@@ -107,7 +109,31 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	}
 
 	// Update DB entry
-	_, err = d.cluster.ProfileCreate(req.Name, req.Description, req.Config, req.Devices)
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		current, _ := tx.ProfileGet(project, req.Name)
+		if current != nil {
+			return fmt.Errorf("The profile already exists")
+		}
+
+		profile := db.Profile{
+			Project:     project,
+			Name:        req.Name,
+			Description: req.Description,
+			Config:      req.Config,
+			Devices:     req.Devices,
+		}
+		_, err = tx.ProfileCreate(profile)
+		return err
+	})
 	if err != nil {
 		return SmartError(
 			fmt.Errorf("Error inserting %s into database: %s", req.Name, err))
@@ -116,30 +142,31 @@ func profilesPost(d *Daemon, r *http.Request) Response {
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
-func doProfileGet(s *state.State, name string) (*api.Profile, error) {
-	_, profile, err := s.Cluster.ProfileGet(name)
-	if err != nil {
-		return nil, err
-	}
-
-	cts, err := s.Cluster.ProfileContainersGet(name)
-	if err != nil {
-		return nil, err
-	}
-
-	usedBy := []string{}
-	for _, ct := range cts {
-		usedBy = append(usedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, ct))
-	}
-	profile.UsedBy = usedBy
-
-	return profile, nil
-}
-
 func profileGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
-	resp, err := doProfileGet(d.State(), name)
+	var resp *api.Profile
+
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		profile, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return errors.Wrap(err, "Fetch profile")
+		}
+
+		resp = db.ProfileToAPI(profile)
+
+		return nil
+	})
 	if err != nil {
 		return SmartError(err)
 	}
@@ -148,27 +175,10 @@ func profileGet(d *Daemon, r *http.Request) Response {
 	return SyncResponseETag(true, resp, etag)
 }
 
-func getContainersWithProfile(s *state.State, profile string) []container {
-	results := []container{}
-
-	output, err := s.Cluster.ProfileContainersGet(profile)
-	if err != nil {
-		return results
-	}
-
-	for _, name := range output {
-		c, err := containerLoadByName(s, name)
-		if err != nil {
-			logger.Error("Failed opening container", log.Ctx{"container": name})
-			continue
-		}
-		results = append(results, c)
-	}
-
-	return results
-}
-
 func profilePut(d *Daemon, r *http.Request) Response {
+	// Get the project
+	project := projectParam(r)
+
 	// Get the profile
 	name := mux.Vars(r)["name"]
 
@@ -181,14 +191,36 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return BadRequest(err)
 		}
-		err = doProfileUpdateCluster(d, name, old)
+		err = doProfileUpdateCluster(d, project, name, old)
 		return SmartError(err)
 
 	}
 
-	id, profile, err := d.cluster.ProfileGet(name)
+	var id int64
+	var profile *api.Profile
+
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		current, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to retrieve profile='%s'", name)
+		}
+
+		profile = db.ProfileToAPI(current)
+		id = int64(current.ID)
+
+		return nil
+	})
 	if err != nil {
-		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
+		return SmartError(err)
 	}
 
 	// Validate the ETag
@@ -203,7 +235,7 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	err = doProfileUpdate(d, name, id, profile, req)
+	err = doProfileUpdate(d, project, name, id, profile, req)
 
 	if err == nil && !isClusterNotification(r) {
 		// Notify all other nodes. If a node is down, it will be ignored.
@@ -223,11 +255,37 @@ func profilePut(d *Daemon, r *http.Request) Response {
 }
 
 func profilePatch(d *Daemon, r *http.Request) Response {
+	// Get the project
+	project := projectParam(r)
+
 	// Get the profile
 	name := mux.Vars(r)["name"]
-	id, profile, err := d.cluster.ProfileGet(name)
+
+	var id int64
+	var profile *api.Profile
+
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		current, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to retrieve profile='%s'", name)
+		}
+
+		profile = db.ProfileToAPI(current)
+		id = int64(current.ID)
+
+		return nil
+	})
 	if err != nil {
-		return SmartError(fmt.Errorf("Failed to retrieve profile='%s'", name))
+		return SmartError(err)
 	}
 
 	// Validate the ETag
@@ -285,11 +343,12 @@ func profilePatch(d *Daemon, r *http.Request) Response {
 		}
 	}
 
-	return SmartError(doProfileUpdate(d, name, id, profile, req))
+	return SmartError(doProfileUpdate(d, project, name, id, profile, req))
 }
 
 // The handler for the post operation.
 func profilePost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	if name == "default" {
@@ -306,12 +365,6 @@ func profilePost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("No name provided"))
 	}
 
-	// Check that the name isn't already in use
-	id, _, _ := d.cluster.ProfileGet(req.Name)
-	if id > 0 {
-		return Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
-	}
-
 	if strings.Contains(req.Name, "/") {
 		return BadRequest(fmt.Errorf("Profile names may not contain slashes"))
 	}
@@ -320,7 +373,24 @@ func profilePost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid profile name '%s'", req.Name))
 	}
 
-	err := d.cluster.ProfileUpdate(name, req.Name)
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
+
+		if !hasProfiles {
+			project = "default"
+		}
+
+		// Check that the name isn't already in use
+		_, err = tx.ProfileGet(project, req.Name)
+		if err == nil {
+			return fmt.Errorf("Name '%s' already in use", req.Name)
+		}
+
+		return tx.ProfileRename(project, name, req.Name)
+	})
 	if err != nil {
 		return SmartError(err)
 	}
@@ -330,23 +400,33 @@ func profilePost(d *Daemon, r *http.Request) Response {
 
 // The handler for the delete operation.
 func profileDelete(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	name := mux.Vars(r)["name"]
 
 	if name == "default" {
 		return Forbidden(errors.New("The 'default' profile cannot be deleted"))
 	}
 
-	_, err := doProfileGet(d.State(), name)
-	if err != nil {
-		return SmartError(err)
-	}
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hasProfiles, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check project features")
+		}
 
-	clist := getContainersWithProfile(d.State(), name)
-	if len(clist) != 0 {
-		return BadRequest(fmt.Errorf("Profile is currently in use"))
-	}
+		if !hasProfiles {
+			project = "default"
+		}
 
-	err = d.cluster.ProfileDelete(name)
+		profile, err := tx.ProfileGet(project, name)
+		if err != nil {
+			return err
+		}
+		if len(profile.UsedBy) > 0 {
+			return fmt.Errorf("Profile is currently in use")
+		}
+
+		return tx.ProfileDelete(project, name)
+	})
 	if err != nil {
 		return SmartError(err)
 	}
