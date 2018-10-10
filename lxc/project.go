@@ -165,6 +165,11 @@ func (c *cmdProjectDelete) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse remote
+	remoteName, _, err := c.global.conf.ParseRemote(args[0])
+	if err != nil {
+		return err
+	}
+
 	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
@@ -187,12 +192,14 @@ func (c *cmdProjectDelete) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Switch back to default project
-	conf := c.global.conf
-	rc := conf.Remotes[conf.DefaultRemote]
-	rc.Project = "default"
-	conf.Remotes[conf.DefaultRemote] = rc
+	if resource.name == c.global.conf.Remotes[remoteName].Project {
+		rc := c.global.conf.Remotes[remoteName]
+		rc.Project = ""
+		c.global.conf.Remotes[remoteName] = rc
+		return c.global.conf.SaveConfig(c.global.confPath)
+	}
 
-	return conf.SaveConfig(c.global.confPath)
+	return nil
 }
 
 // Edit
