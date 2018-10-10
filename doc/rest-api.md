@@ -2267,8 +2267,10 @@ Input:
 
     {
         "name": "test",
-        "features.images": True,
-        "features.profiles": True,
+        "config": {
+            "features.images": "true",
+            "features.profiles": "true",
+        },
         "description": "Some description string"
     }
 
@@ -2284,8 +2286,10 @@ Output:
 
     {
         "name": "test",
-        "features.images": True,
-        "features.profiles": True,
+        "config": {
+            "features.images": "true",
+            "features.profiles": "true",
+        },
         "description": "Some description string",
         "used_by": [
             "/1.0/containers/blah"
@@ -2302,8 +2306,10 @@ Output:
 Input:
 
     {
-        "features.images": True,
-        "features.profiles": True,
+        "config": {
+            "features.images": "true",
+            "features.profiles": "true",
+        },
         "description": "Some description string"
     }
 
@@ -2320,7 +2326,9 @@ property can't be changed (see POST for that).
 Input:
 
     {
-        "features.images": True,
+        "config": {
+            "features.images": "true",
+        },
         "description": "Some description string"
     }
 
