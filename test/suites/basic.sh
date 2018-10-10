@@ -47,8 +47,9 @@ test_basic_usage() {
 
   # Re-import the image
   mv "${LXD_DIR}/${sum}.tar.xz" "${LXD_DIR}/testimage.tar.xz"
-  lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage user.foo=bar
+  lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage user.foo=bar --public
   lxc image show testimage | grep -q "user.foo: bar"
+  lxc image show testimage | grep -q "public: true"
   lxc image delete testimage
   lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage
   rm "${LXD_DIR}/testimage.tar.xz"
