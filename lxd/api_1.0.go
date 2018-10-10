@@ -396,6 +396,8 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			fallthrough
 		case "candid.expiry":
 			fallthrough
+		case "candid.api.key":
+			fallthrough
 		case "candid.api.url":
 			candidChanged = true
 		case "images.auto_update_interval":
@@ -435,10 +437,11 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 
 	if candidChanged {
 		endpoint := clusterConfig.CandidEndpoint()
+		endpointKey := clusterConfig.CandidEndpointKey()
 		expiry := clusterConfig.CandidExpiry()
 		domains := clusterConfig.CandidDomains()
 
-		err := d.setupExternalAuthentication(endpoint, expiry, domains)
+		err := d.setupExternalAuthentication(endpoint, endpointKey, expiry, domains)
 		if err != nil {
 			return err
 		}
