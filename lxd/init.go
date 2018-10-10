@@ -370,7 +370,9 @@ func initDataClusterApply(d lxd.ContainerServer, config *initDataCluster) error 
 		}
 
 		// Configure the cluster
-		op, err := d.UpdateCluster(config.ClusterPut, etag)
+		configPut := config.ClusterPut
+		configPut.ClusterPassword = ""
+		op, err := d.UpdateCluster(configPut, etag)
 		if err != nil {
 			return errors.Wrap(err, "Failed to configure cluster")
 		}
