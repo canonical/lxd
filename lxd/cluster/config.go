@@ -70,6 +70,11 @@ func (c *Config) CandidEndpoint() string {
 	return c.m.GetString("candid.api.url")
 }
 
+// CandidEndpointKey returns the public key for the API endpoint
+func (c *Config) CandidEndpointKey() string {
+	return c.m.GetString("candid.api.key")
+}
+
 // CandidExpiry returns the cookie expiry of the macaroon.
 func (c *Config) CandidExpiry() int64 {
 	return c.m.GetInt64("candid.expiry")
@@ -221,6 +226,7 @@ var ConfigSchema = config.Schema{
 	"core.proxy_https":               {},
 	"core.proxy_ignore_hosts":        {},
 	"core.trust_password":            {Hidden: true, Setter: passwordSetter},
+	"candid.api.key":                 {},
 	"candid.api.url":                 {},
 	"candid.domains":                 {},
 	"candid.expiry":                  {Type: config.Int64, Default: "3600"},

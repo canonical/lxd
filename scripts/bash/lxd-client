@@ -67,7 +67,8 @@ _have lxc && {
     global_keys="backups.compression_algorithm,
       core.https_address core.https_allowed_credentials \
       core.https_allowed_headers core.https_allowed_methods \
-      core.https_allowed_origin candid.api.url candid.expiry candid.domains \
+      core.https_allowed_origin candid.api.url candid.api.key candid.expiry \
+      candid.domains \
       core.proxy_https core.proxy_http core.proxy_ignore_hosts \
       core.trust_password core.debug_address cluster.offline_threshold \
       images.auto_update_cached images.auto_update_interval \

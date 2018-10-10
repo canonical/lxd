@@ -90,20 +90,27 @@ type IdentityClientWrapper struct {
 	ValidDomains []string
 }
 
-func newIdentityClientWrapper(client identchecker.IdentityClient) *IdentityClientWrapper {
-	return &IdentityClientWrapper{client: client, ValidDomains: []string{}}
-}
-
 func (m *IdentityClientWrapper) IdentityFromContext(ctx context.Context) (identchecker.Identity, []checkers.Caveat, error) {
 	return m.client.IdentityFromContext(ctx)
 }
 
 func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared map[string]string) (identchecker.Identity, error) {
-	// Validate domains since Candid doesn't do that
+	// Extract the domain from the username
 	fields := strings.SplitN(declared["username"], "@", 2)
-	// If no ValidDomains have been specified, all are valid
-	if len(m.ValidDomains) > 0 && len(fields) > 1 && !shared.StringInSlice(fields[1], m.ValidDomains) {
-		return nil, fmt.Errorf("Unsupported domain: %s", fields[1])
+
+	// Only validate domain if we have a list of valid domains
+	if len(m.ValidDomains) > 0 {
+		// If no domain was provided by candid, reject the request
+		if len(fields) < 2 {
+			logger.Warnf("Failed candid client authentication: no domain provided")
+			return nil, fmt.Errorf("Missing domain in candid reply")
+		}
+
+		// Check that it was a valid domain
+		if !shared.StringInSlice(fields[1], m.ValidDomains) {
+			logger.Warnf("Failed candid client authentication: untrusted domain \"%s\"", fields[1])
+			return nil, fmt.Errorf("Untrusted candid domain")
+		}
 	}
 
 	return m.client.DeclaredIdentity(ctx, declared)
@@ -620,6 +627,7 @@ func (d *Daemon) init() error {
 	var candidExpiry int64
 	candidDomains := ""
 	candidEndpoint := ""
+	candidEndpointKey := ""
 	maasAPIURL := ""
 	maasAPIKey := ""
 	maasMachine := ""
@@ -648,6 +656,7 @@ func (d *Daemon) init() error {
 			config.ProxyHTTPS(), config.ProxyHTTP(), config.ProxyIgnoreHosts(),
 		)
 		candidEndpoint = config.CandidEndpoint()
+		candidEndpointKey = config.CandidEndpointKey()
 		candidExpiry = config.CandidExpiry()
 		candidDomains = config.CandidDomains()
 		maasAPIURL, maasAPIKey = config.MAASController()
@@ -657,7 +666,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	err = d.setupExternalAuthentication(candidEndpoint, candidExpiry, candidDomains)
+	err = d.setupExternalAuthentication(candidEndpoint, candidEndpointKey, candidExpiry, candidDomains)
 	if err != nil {
 		return err
 	}
@@ -861,17 +870,24 @@ func (d *Daemon) Stop() error {
 }
 
 // Setup external authentication
-func (d *Daemon) setupExternalAuthentication(authEndpoint string, expiry int64, domains string) error {
+func (d *Daemon) setupExternalAuthentication(authEndpoint string, authPubkey string, expiry int64, domains string) error {
+	// Parse the list of domains
 	authDomains := []string{}
 	for _, domain := range strings.Split(domains, ",") {
+		if domain == "" {
+			continue
+		}
+
 		authDomains = append(authDomains, strings.TrimSpace(domain))
 	}
 
+	// Allow disable external authentication
 	if authEndpoint == "" {
 		d.externalAuth = nil
 		return nil
 	}
 
+	// Setup the candid client
 	idmClient, err := candidclient.New(candidclient.NewParams{
 		BaseURL: authEndpoint,
 	})
@@ -879,19 +895,40 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string, expiry int64, 
 		return err
 	}
 
-	idmClientWrapper := newIdentityClientWrapper(idmClient)
-	idmClientWrapper.ValidDomains = authDomains
+	idmClientWrapper := &IdentityClientWrapper{
+		client:       idmClient,
+		ValidDomains: authDomains,
+	}
 
+	// Generate an internal private key
 	key, err := bakery.GenerateKey()
 	if err != nil {
 		return err
 	}
 
-	pkLocator := httpbakery.NewThirdPartyLocator(nil, nil)
-	if strings.HasPrefix(authEndpoint, "http://") {
-		pkLocator.AllowInsecure()
+	pkCache := bakery.NewThirdPartyStore()
+	pkLocator := httpbakery.NewThirdPartyLocator(nil, pkCache)
+	if authPubkey != "" {
+		// Parse the public key
+		pkKey := bakery.Key{}
+		err := pkKey.UnmarshalText([]byte(authPubkey))
+		if err != nil {
+			return err
+		}
+
+		// Add the key information
+		pkCache.AddInfo(authEndpoint, bakery.ThirdPartyInfo{
+			PublicKey: bakery.PublicKey{Key: pkKey},
+			Version:   3,
+		})
+
+		// Allow http URLs if we have a public key set
+		if strings.HasPrefix(authEndpoint, "http://") {
+			pkLocator.AllowInsecure()
+		}
 	}
 
+	// Setup the bakery
 	bakery := identchecker.NewBakery(identchecker.BakeryParams{
 		Key:            key,
 		Location:       authEndpoint,
@@ -904,11 +941,14 @@ func (d *Daemon) setupExternalAuthentication(authEndpoint string, expiry int64, 
 			},
 		},
 	})
+
+	// Store our settings
 	d.externalAuth = &externalAuth{
 		endpoint: authEndpoint,
 		expiry:   expiry,
 		bakery:   bakery,
 	}
+
 	return nil
 }
 
