@@ -7,6 +7,8 @@ test_macaroon_auth() {
     ensure_has_localhost_remote "$LXD_ADDR"
 
     lxc config set candid.api.url "$identity_endpoint"
+    key=$(curl -s "${identity_endpoint}/discharge/info" | jq .PublicKey)
+    lxc config set candid.api.key "${key}"
 
     # invalid credentials make the remote add fail
     # shellcheck disable=SC2039

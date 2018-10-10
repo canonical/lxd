@@ -127,6 +127,7 @@ var APIExtensions = []string{
 	"storage_api_volume_snapshots",
 	"storage_unmapped",
 	"projects",
+	"candid_config_key",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

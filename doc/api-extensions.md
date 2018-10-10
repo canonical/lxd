@@ -622,3 +622,8 @@ Add a new project API, supporting creation, update and deletion of projects.
 
 Projects can hold containers, profiles or images at this point and let
 you get a separate view of your LXD resources by switching to it.
+
+## candid\_config\_key
+This introduces a new `candid.api.key` option which allows for setting
+the expected public key for the endpoint, allowing for safe use of a
+HTTP-only candid server.
