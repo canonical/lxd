@@ -10,6 +10,7 @@ currently supported:
 
 Key                             | Type      | Default   | API extension            | Description
 :--                             | :---      | :------   | :------------            | :----------
+candid.api.key                  | string    | -         | candid\_config\_key      | Public key of the candid server (required for HTTP-only servers)
 candid.api.url                  | string    | -         | candid\_authentication   | URL of the the external authentication endpoint using Candid
 candid.expiry                   | integer   | 3600      | candid\_config           | Candid macaroon expiry in seconds
 candid.domains                  | string    | -         | candid\_config           | Comma-separated list of allowed Candid domains (empty string means all domains are valid)

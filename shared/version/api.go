@@ -104,6 +104,7 @@ var APIExtensions = []string{
 	"nvidia_runtime",
 	"candid_authentication",
 	"candid_config",
+	"candid_config_key",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

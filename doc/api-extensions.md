@@ -464,3 +464,8 @@ This introduces the config keys `candid.domains` and `candid.expiry`. The
 former allows specifying allowed/valid Candid domains, the latter makes the
 macaroon's expiry configurable. The `lxc remote add` command now has a
 `--domain` flag which allows specifying a Candid domain.
+
+## candid\_config\_key
+This introduces a new `candid.api.key` option which allows for setting
+the expected public key for the endpoint, allowing for safe use of a
+HTTP-only candid server.
