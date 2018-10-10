@@ -58,13 +58,13 @@ func (p *ProgressRenderer) Done(msg string) {
 		msg = ""
 	}
 
+	// Truncate msg to terminal length
+	msg = p.truncate(msg)
+
 	// If we're not printing a completion message and nothing was printed before just return
 	if msg == "" && p.maxLength == 0 {
 		return
 	}
-
-	// Truncate msg to terminal length
-	msg = p.truncate(msg)
 
 	// Print the new message
 	if msg != "" {
@@ -122,10 +122,15 @@ func (p *ProgressRenderer) Update(status string) {
 		msg = p.Format
 	}
 
-	msg = fmt.Sprintf("\r"+msg, status)
+	msg = fmt.Sprintf(msg, status)
 
 	// Truncate msg to terminal length
-	msg = p.truncate(msg)
+	msg = "\r" + p.truncate(msg)
+
+	// Don't print if empty and never printed
+	if len(msg) == 1 && p.maxLength == 0 {
+		return
+	}
 
 	if len(msg) > p.maxLength {
 		p.maxLength = len(msg)
@@ -149,10 +154,15 @@ func (p *ProgressRenderer) Warn(status string, timeout time.Duration) {
 
 	// Render the new message
 	p.wait = time.Now().Add(timeout)
-	msg := fmt.Sprintf("\r%s", status)
+	msg := fmt.Sprintf("%s", status)
 
 	// Truncate msg to terminal length
-	msg = p.truncate(msg)
+	msg = "\r" + p.truncate(msg)
+
+	// Don't print if empty and never printed
+	if len(msg) == 1 && p.maxLength == 0 {
+		return
+	}
 
 	if len(msg) > p.maxLength {
 		p.maxLength = len(msg)
