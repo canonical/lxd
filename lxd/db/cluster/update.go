@@ -287,6 +287,15 @@ CREATE TABLE profiles_devices_config_copy (
 );
 INSERT INTO profiles_devices_config_copy SELECT * FROM profiles_devices_config;
 
+CREATE TABLE storage_volumes_config_copy (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (storage_volume_id, key)
+);
+INSERT INTO storage_volumes_config_copy SELECT * FROM storage_volumes_config;
+
 -- Copy existing data into the new tables with the project_id reference
 INSERT INTO new_containers SELECT * FROM containers;
 INSERT INTO new_images SELECT * FROM images;
@@ -321,8 +330,8 @@ ALTER TABLE new_operations RENAME TO operations;
 -- Restore the content of the tables with direct or indirect references.
 INSERT INTO containers_backups SELECT * FROM containers_backups_copy;
 INSERT INTO containers_config SELECT * FROM containers_config_copy;
-INSERT INTO containers_devices_config SELECT * FROM containers_devices_config_copy;
 INSERT INTO containers_devices SELECT * FROM containers_devices_copy;
+INSERT INTO containers_devices_config SELECT * FROM containers_devices_config_copy;
 INSERT INTO containers_profiles SELECT * FROM containers_profiles_copy;
 INSERT INTO images_nodes SELECT * FROM images_nodes_copy;
 INSERT INTO images_properties SELECT * FROM images_properties_copy;
@@ -330,6 +339,7 @@ INSERT INTO images_source SELECT * FROM images_source_copy;
 INSERT INTO profiles_config SELECT * FROM profiles_config_copy;
 INSERT INTO profiles_devices SELECT * FROM profiles_devices_copy;
 INSERT INTO profiles_devices_config SELECT * FROM profiles_devices_config_copy;
+INSERT INTO storage_volumes_config SELECT * FROM storage_volumes_config_copy;
 
 -- Drop the copies.
 DROP TABLE containers_backups_copy;
@@ -343,6 +353,7 @@ DROP TABLE images_source_copy;
 DROP TABLE profiles_config_copy;
 DROP TABLE profiles_devices_copy;
 DROP TABLE profiles_devices_config_copy;
+DROP TABLE storage_volumes_config_copy;
 
 -- Create some indexes to speed up queries filtered by project ID and node ID
 CREATE INDEX containers_node_id_idx ON containers (node_id);
