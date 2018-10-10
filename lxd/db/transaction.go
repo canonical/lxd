@@ -1,6 +1,9 @@
 package db
 
-import "database/sql"
+import (
+	"database/sql"
+	"fmt"
+)
 
 // NodeTx models a single interaction with a LXD node-local database.
 //
@@ -25,11 +28,20 @@ func (n *NodeTx) Tx() *sql.Tx {
 // It wraps low-level sql.Tx objects and offers a high-level API to fetch and
 // update data.
 type ClusterTx struct {
-	tx     *sql.Tx // Handle to a transaction in the cluster dqlite database.
-	nodeID int64   // Node ID of this LXD instance.
+	tx     *sql.Tx           // Handle to a transaction in the cluster dqlite database.
+	nodeID int64             // Node ID of this LXD instance.
+	stmts  map[int]*sql.Stmt // Prepared statements by code.
 }
 
 // NodeID sets the the node NodeID associated with this cluster transaction.
 func (c *ClusterTx) NodeID(id int64) {
 	c.nodeID = id
+}
+
+func (c *ClusterTx) stmt(code int) *sql.Stmt {
+	stmt, ok := c.stmts[code]
+	if !ok {
+		panic(fmt.Sprintf("No prepared statement registered with code %d", code))
+	}
+	return c.tx.Stmt(stmt)
 }

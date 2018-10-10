@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/pkg/errors"
 )
 
 // ImageSourceProtocol maps image source protocol codes to human-readable
@@ -19,14 +20,33 @@ var ImageSourceProtocol = map[int]string{
 }
 
 // ImagesGet returns the names of all images (optionally only the public ones).
-func (c *Cluster) ImagesGet(public bool) ([]string, error) {
-	q := "SELECT fingerprint FROM images"
+func (c *Cluster) ImagesGet(project string, public bool) ([]string, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	q := `
+SELECT fingerprint
+  FROM images
+  JOIN projects ON projects.id = images.project_id
+ WHERE projects.name = ?
+`
 	if public == true {
-		q = "SELECT fingerprint FROM images WHERE public=1"
+		q += " AND public=1"
 	}
 
 	var fp string
-	inargs := []interface{}{}
+	inargs := []interface{}{project}
 	outfmt := []interface{}{fp}
 	dbResults, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
@@ -171,11 +191,29 @@ func (c *Cluster) ImageSourceGetCachedFingerprint(server string, protocol string
 }
 
 // ImageExists returns whether an image with the given fingerprint exists.
-func (c *Cluster) ImageExists(fingerprint string) (bool, error) {
+func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
 	var exists bool
-	var err error
-	query := "SELECT COUNT(*) > 0 FROM images WHERE fingerprint=?"
-	inargs := []interface{}{fingerprint}
+	query := `
+SELECT COUNT(*) > 0
+  FROM images
+  JOIN projects ON projects.id = images.project_id
+ WHERE projects.name = ? AND fingerprint=?
+`
+	inargs := []interface{}{project, fingerprint}
 	outargs := []interface{}{&exists}
 	err = dbQueryRowScan(c.db, query, inargs, outargs)
 	if err == sql.ErrNoRows {
@@ -185,13 +223,60 @@ func (c *Cluster) ImageExists(fingerprint string) (bool, error) {
 	return exists, err
 }
 
+// ImageIsReferencedByOtherProjects returns true if the image with the given
+// fingerprint is referenced by projects other than the given one.
+func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint string) (bool, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	var referenced bool
+	query := `
+SELECT COUNT(*) > 0
+  FROM images
+  JOIN projects ON projects.id = images.project_id
+ WHERE projects.name != ? AND fingerprint=?
+`
+	inargs := []interface{}{project, fingerprint}
+	outargs := []interface{}{&referenced}
+	err = dbQueryRowScan(c.db, query, inargs, outargs)
+	if err == sql.ErrNoRows {
+		return referenced, nil
+	}
+
+	return referenced, err
+}
+
 // ImageGet gets an Image object from the database.
 // If strictMatching is false, The fingerprint argument will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one image with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) ImageGet(fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
-	var err error
+func (c *Cluster) ImageGet(project, fingerprint string, public bool, strictMatching bool) (int, *api.Image, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return -1, nil, err
+	}
+
 	var create, expire, used, upload *time.Time // These hold the db-returned times
 
 	// The object we'll actually return
@@ -204,18 +289,20 @@ func (c *Cluster) ImageGet(fingerprint string, public bool, strictMatching bool)
 		&image.Size, &image.Cached, &image.Public, &image.AutoUpdate, &arch,
 		&create, &expire, &used, &upload}
 
-	var inargs []interface{}
+	inargs := []interface{}{project}
 	query := `
         SELECT
-            id, fingerprint, filename, size, cached, public, auto_update, architecture,
+            images.id, fingerprint, filename, size, cached, public, auto_update, architecture,
             creation_date, expiry_date, last_use_date, upload_date
-        FROM images`
+        FROM images
+        JOIN projects ON projects.id = images.project_id
+       WHERE projects.name = ?`
 	if strictMatching {
-		inargs = []interface{}{fingerprint}
-		query += " WHERE fingerprint = ?"
+		inargs = append(inargs, fingerprint)
+		query += " AND fingerprint = ?"
 	} else {
-		inargs = []interface{}{fingerprint + "%"}
-		query += " WHERE fingerprint LIKE ?"
+		inargs = append(inargs, fingerprint+"%")
+		query += " AND fingerprint LIKE ?"
 	}
 
 	if public {
@@ -233,7 +320,13 @@ func (c *Cluster) ImageGet(fingerprint string, public bool, strictMatching bool)
 
 	// Validate we only have a single match
 	if !strictMatching {
-		query = "SELECT COUNT(id) FROM images WHERE fingerprint LIKE ?"
+		query = `
+SELECT COUNT(images.id)
+  FROM images
+  JOIN projects ON projects.id = images.project_id
+ WHERE projects.name = ?
+   AND fingerprint LIKE ?
+`
 		count := 0
 		outfmt := []interface{}{&count}
 
@@ -377,7 +470,7 @@ WHERE images.fingerprint = ?
 // ImageAssociateNode creates a new entry in the images_nodes table for
 // tracking that the current node has the given image.
 func (c *Cluster) ImageAssociateNode(fingerprint string) error {
-	imageID, _, err := c.ImageGet(fingerprint, false, true)
+	imageID, _, err := c.ImageGet("default", fingerprint, false, true)
 	if err != nil {
 		return err
 	}
@@ -400,10 +493,29 @@ func (c *Cluster) ImageDelete(id int) error {
 }
 
 // ImageAliasesGet returns the names of the aliases of all images.
-func (c *Cluster) ImageAliasesGet() ([]string, error) {
-	q := "SELECT name FROM images_aliases"
+func (c *Cluster) ImageAliasesGet(project string) ([]string, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	q := `
+SELECT images_aliases.name
+  FROM images_aliases
+  JOIN projects ON projects.id=images_aliases.project_id
+ WHERE projects.name=?
+`
 	var name string
-	inargs := []interface{}{}
+	inargs := []interface{}{project}
 	outfmt := []interface{}{name}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
@@ -416,24 +528,41 @@ func (c *Cluster) ImageAliasesGet() ([]string, error) {
 	return names, nil
 }
 
-// ImageAliasGet returns the alias with the given name.
-func (c *Cluster) ImageAliasGet(name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+// ImageAliasGet returns the alias with the given name in the given project.
+func (c *Cluster) ImageAliasGet(project, name string, isTrustedClient bool) (int, api.ImageAliasesEntry, error) {
+	id := -1
+	entry := api.ImageAliasesEntry{}
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return id, entry, err
+	}
+
 	q := `SELECT images_aliases.id, images.fingerprint, images_aliases.description
 			 FROM images_aliases
 			 INNER JOIN images
 			 ON images_aliases.image_id=images.id
-			 WHERE images_aliases.name=?`
+                         INNER JOIN projects
+                         ON images_aliases.project_id=projects.id
+			 WHERE projects.name=? AND images_aliases.name=?`
 	if !isTrustedClient {
 		q = q + ` AND images.public=1`
 	}
 
 	var fingerprint, description string
-	id := -1
-	entry := api.ImageAliasesEntry{}
 
-	arg1 := []interface{}{name}
+	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&id, &fingerprint, &description}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
+	err = dbQueryRowScan(c.db, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, entry, ErrNoSuchObject
@@ -456,8 +585,26 @@ func (c *Cluster) ImageAliasRename(id int, name string) error {
 }
 
 // ImageAliasDelete deletes the alias with the given name.
-func (c *Cluster) ImageAliasDelete(name string) error {
-	err := exec(c.db, "DELETE FROM images_aliases WHERE name=?", name)
+func (c *Cluster) ImageAliasDelete(project, name string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	err = exec(c.db, `
+DELETE
+  FROM images_aliases
+ WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
+`, project, name)
 	return err
 }
 
@@ -468,9 +615,26 @@ func (c *Cluster) ImageAliasesMove(source int, destination int) error {
 }
 
 // ImageAliasAdd inserts an alias ento the database.
-func (c *Cluster) ImageAliasAdd(name string, imageID int, desc string) error {
-	stmt := `INSERT INTO images_aliases (name, image_id, description) values (?, ?, ?)`
-	err := exec(c.db, stmt, name, imageID, desc)
+func (c *Cluster) ImageAliasAdd(project, name string, imageID int, desc string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	stmt := `
+INSERT INTO images_aliases (name, image_id, description, project_id)
+     VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
+`
+	err = exec(c.db, stmt, name, imageID, desc, project)
 	return err
 }
 
@@ -549,7 +713,21 @@ func (c *Cluster) ImageUpdate(id int, fname string, sz int64, public bool, autoU
 }
 
 // ImageInsert inserts a new image.
-func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
+func (c *Cluster) ImageInsert(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string) error {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasImages(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has images")
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -566,13 +744,13 @@ func (c *Cluster) ImageInsert(fp string, fname string, sz int64, public bool, au
 			autoUpdateInt = 1
 		}
 
-		stmt, err := tx.tx.Prepare(`INSERT INTO images (fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		stmt, err := tx.tx.Prepare(`INSERT INTO images (project_id, fingerprint, filename, size, public, auto_update, architecture, creation_date, expiry_date, upload_date) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 		if err != nil {
 			return err
 		}
 		defer stmt.Close()
 
-		result, err := stmt.Exec(fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC())
+		result, err := stmt.Exec(project, fp, fname, sz, publicInt, autoUpdateInt, arch, createdAt, expiresAt, time.Now().UTC())
 		if err != nil {
 			return err
 		}

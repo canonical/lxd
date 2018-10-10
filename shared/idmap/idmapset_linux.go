@@ -14,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
 )
 
 type IdRange struct {
@@ -481,7 +482,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	tmp := filepath.Dir(dir)
 	tmp, err := filepath.EvalSymlinks(tmp)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Expand symlinks")
 	}
 	dir = filepath.Join(tmp, filepath.Base(dir))
 	dir = strings.TrimRight(dir, "/")

@@ -163,7 +163,7 @@ func ForwardedResponse(client lxd.ContainerServer, request *http.Request) Respon
 // ForwardedResponseIfTargetIsRemote redirects a request to the request has a
 // targetNode parameter pointing to a node which is not the local one.
 func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Response {
-	targetNode := request.FormValue("target")
+	targetNode := queryParam(request, "target")
 	if targetNode == "" {
 		return nil
 	}
@@ -191,9 +191,9 @@ func ForwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) Respons
 // ForwardedResponseIfContainerIsRemote redirects a request to the node running
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
-func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, name string) (Response, error) {
+func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, project, name string) (Response, error) {
 	cert := d.endpoints.NetworkCert()
-	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, name, cert)
+	client, err := cluster.ConnectIfContainerIsRemote(d.cluster, project, name, cert)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func ForwardedResponseIfContainerIsRemote(d *Daemon, r *http.Request, name strin
 // This is used when no targetNode is specified, and saves users some typing
 // when the volume name/type is unique to a node.
 func ForwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolID int64, volumeName string, volumeType int) Response {
-	if r.FormValue("target") != "" {
+	if queryParam(r, "target") != "" {
 		return nil
 	}
 

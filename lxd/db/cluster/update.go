@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
@@ -41,6 +42,450 @@ var updates = map[int]schema.Update{
 	9:  updateFromV8,
 	10: updateFromV9,
 	11: updateFromV10,
+	12: updateFromV11,
+}
+
+func updateFromV11(tx *sql.Tx) error {
+	// Before doing anything save the counts of all tables, so we can later
+	// check that we don't accidentally delete or add anything.
+	counts1, err := query.CountAll(tx)
+	if err != nil {
+		return errors.Wrap(err, "Failed to count rows in current tables")
+	}
+
+	stmts := fmt.Sprintf(`
+CREATE TABLE projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    UNIQUE (name)
+);
+
+CREATE TABLE projects_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+    UNIQUE (project_id, key)
+);
+
+CREATE VIEW projects_config_ref (name, key, value) AS
+   SELECT projects.name, projects_config.key, projects_config.value
+     FROM projects_config
+     JOIN projects ON projects.id=projects_config.project_id;
+
+-- Insert the default project, with ID 1
+INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
+
+-- Add a project_id column to all tables that need to be project-scoped.
+-- The column is added without the FOREIGN KEY constraint
+ALTER TABLE containers ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE images ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE images_aliases ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE profiles ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE storage_volumes ADD COLUMN project_id INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE operations ADD COLUMN project_id INTEGER;
+
+-- Create new versions of the above tables, this time with the FOREIGN key constraint
+CREATE TABLE new_containers (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    node_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    architecture INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    ephemeral INTEGER NOT NULL DEFAULT 0,
+    creation_date DATETIME NOT NULL DEFAULT 0,
+    stateful INTEGER NOT NULL DEFAULT 0,
+    last_use_date DATETIME,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE new_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    public INTEGER NOT NULL DEFAULT 0,
+    architecture INTEGER NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    upload_date DATETIME NOT NULL,
+    cached INTEGER NOT NULL DEFAULT 0,
+    last_use_date DATETIME,
+    auto_update INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL,
+    UNIQUE (project_id, fingerprint),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE new_images_aliases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    image_id INTEGER NOT NULL,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE new_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE new_storage_volumes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    description TEXT,
+    snapshot INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL,
+    UNIQUE (storage_pool_id, node_id, project_id, name, type),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+CREATE TABLE new_operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    uuid TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER,
+    UNIQUE (uuid),
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+);
+
+-- Create copy version of all the tables that have direct or indirect references
+-- to the tables above, which we are going to drop. The copy just have the data,
+-- without FOREIGN KEY references.
+CREATE TABLE containers_backups_copy (
+    id INTEGER NOT NULL,
+    container_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    container_only INTEGER NOT NULL default 0,
+    optimized_storage INTEGER NOT NULL default 0,
+    UNIQUE (container_id, name)
+);
+INSERT INTO containers_backups_copy SELECT * FROM containers_backups;
+
+CREATE TABLE containers_config_copy (
+    id INTEGER NOT NULL,
+    container_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (container_id, key)
+);
+INSERT INTO containers_config_copy SELECT * FROM containers_config;
+
+CREATE TABLE containers_devices_copy (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL default 0,
+    UNIQUE (container_id, name)
+);
+INSERT INTO containers_devices_copy SELECT * FROM containers_devices;
+
+CREATE TABLE containers_devices_config_copy (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (container_device_id, key)
+);
+INSERT INTO containers_devices_config_copy SELECT * FROM containers_devices_config;
+
+CREATE TABLE containers_profiles_copy (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    container_id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    apply_order INTEGER NOT NULL default 0,
+    UNIQUE (container_id, profile_id)
+);
+INSERT INTO containers_profiles_copy SELECT * FROM containers_profiles;
+
+CREATE TABLE images_aliases_copy (
+    id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    image_id INTEGER NOT NULL,
+    description TEXT,
+    project_id INTEGER NOT NULL,
+    UNIQUE (name)
+);
+INSERT INTO images_aliases_copy SELECT * FROM images_aliases;
+
+CREATE TABLE images_nodes_copy (
+    id INTEGER NOT NULL,
+    image_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    UNIQUE (image_id, node_id)
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);
+INSERT INTO images_nodes_copy SELECT * FROM images_nodes;
+
+CREATE TABLE images_properties_copy (
+    id INTEGER NOT NULL,
+    image_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT
+);
+INSERT INTO images_properties_copy SELECT * FROM images_properties;
+
+CREATE TABLE images_source_copy (
+    id INTEGER NOT NULL,
+    image_id INTEGER NOT NULL,
+    server TEXT NOT NULL,
+    protocol INTEGER NOT NULL,
+    certificate TEXT NOT NULL,
+    alias TEXT NOT NULL
+);
+INSERT INTO images_source_copy SELECT * FROM images_source;
+
+CREATE TABLE profiles_config_copy (
+    id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (profile_id, key)
+);
+INSERT INTO profiles_config_copy SELECT * FROM profiles_config;
+
+CREATE TABLE profiles_devices_copy (
+    id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL default 0,
+    UNIQUE (profile_id, name)
+);
+INSERT INTO profiles_devices_copy SELECT * FROM profiles_devices;
+
+CREATE TABLE profiles_devices_config_copy (
+    id INTEGER NOT NULL,
+    profile_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (profile_device_id, key)
+);
+INSERT INTO profiles_devices_config_copy SELECT * FROM profiles_devices_config;
+
+-- Copy existing data into the new tables with the project_id reference
+INSERT INTO new_containers SELECT * FROM containers;
+INSERT INTO new_images SELECT * FROM images;
+INSERT INTO new_profiles SELECT * FROM profiles;
+INSERT INTO new_storage_volumes SELECT * FROM storage_volumes;
+INSERT INTO new_operations SELECT * FROM operations;
+
+-- Drop the old table and rename the new ones. This will trigger cascading
+-- deletes on all tables that have direct or indirect references to the old
+-- table, but we have a copy of them that we will use for restoring.
+DROP TABLE containers;
+ALTER TABLE new_containers RENAME TO containers;
+
+DROP TABLE images;
+ALTER TABLE new_images RENAME TO images;
+
+DROP TABLE profiles;
+ALTER TABLE new_profiles RENAME TO profiles;
+
+DROP TABLE storage_volumes;
+ALTER TABLE new_storage_volumes RENAME TO storage_volumes;
+
+INSERT INTO new_images_aliases SELECT * FROM images_aliases_copy;
+
+DROP TABLE images_aliases;
+DROP TABLE images_aliases_copy;
+ALTER TABLE new_images_aliases RENAME TO images_aliases;
+
+DROP TABLE operations;
+ALTER TABLE new_operations RENAME TO operations;
+
+-- Restore the content of the tables with direct or indirect references.
+INSERT INTO containers_backups SELECT * FROM containers_backups_copy;
+INSERT INTO containers_config SELECT * FROM containers_config_copy;
+INSERT INTO containers_devices_config SELECT * FROM containers_devices_config_copy;
+INSERT INTO containers_devices SELECT * FROM containers_devices_copy;
+INSERT INTO containers_profiles SELECT * FROM containers_profiles_copy;
+INSERT INTO images_nodes SELECT * FROM images_nodes_copy;
+INSERT INTO images_properties SELECT * FROM images_properties_copy;
+INSERT INTO images_source SELECT * FROM images_source_copy;
+INSERT INTO profiles_config SELECT * FROM profiles_config_copy;
+INSERT INTO profiles_devices SELECT * FROM profiles_devices_copy;
+INSERT INTO profiles_devices_config SELECT * FROM profiles_devices_config_copy;
+
+-- Drop the copies.
+DROP TABLE containers_backups_copy;
+DROP TABLE containers_config_copy;
+DROP TABLE containers_devices_copy;
+DROP TABLE containers_devices_config_copy;
+DROP TABLE containers_profiles_copy;
+DROP TABLE images_nodes_copy;
+DROP TABLE images_properties_copy;
+DROP TABLE images_source_copy;
+DROP TABLE profiles_config_copy;
+DROP TABLE profiles_devices_copy;
+DROP TABLE profiles_devices_config_copy;
+
+-- Create some indexes to speed up queries filtered by project ID and node ID
+CREATE INDEX containers_node_id_idx ON containers (node_id);
+CREATE INDEX containers_project_id_idx ON containers (project_id);
+CREATE INDEX containers_project_id_and_name_idx ON containers (project_id, name);
+CREATE INDEX containers_project_id_and_node_id_idx ON containers (project_id, node_id);
+CREATE INDEX containers_project_id_and_node_id_and_name_idx ON containers (project_id, node_id, name);
+CREATE INDEX images_project_id_idx ON images (project_id);
+CREATE INDEX images_aliases_project_id_idx ON images_aliases (project_id);
+CREATE INDEX profiles_project_id_idx ON profiles (project_id);
+`)
+	_, err = tx.Exec(stmts)
+	if err != nil {
+		return errors.Wrap(err, "Failed to add project_id column")
+	}
+
+	// Create a view to easily query all resources using a certain project
+	stmt := fmt.Sprintf(`
+CREATE VIEW projects_used_by_ref (name, value) AS
+  SELECT projects.name, printf('%s', containers.name, projects.name)
+    FROM containers JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name, printf('%s', images.fingerprint)
+    FROM images JOIN projects ON project_id=projects.id UNION
+  SELECT projects.name, printf('%s', profiles.name, projects.name)
+    FROM profiles JOIN projects ON project_id=projects.id
+`, EntityURIs[TypeContainer], EntityURIs[TypeImage], EntityURIs[TypeProfile])
+	_, err = tx.Exec(stmt)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create projects_used_by_ref view")
+	}
+
+	// Create a view to easily query all profiles used by a certain container
+	stmt = fmt.Sprintf(`
+CREATE VIEW containers_profiles_ref (project, node, name, value) AS
+   SELECT projects.name, nodes.name, containers.name, profiles.name
+     FROM containers_profiles
+       JOIN containers ON containers.id=containers_profiles.container_id
+       JOIN profiles ON profiles.id=containers_profiles.profile_id
+       JOIN projects ON projects.id=containers.project_id
+       JOIN nodes ON nodes.id=containers.node_id
+     ORDER BY containers_profiles.apply_order
+`)
+	_, err = tx.Exec(stmt)
+	if err != nil {
+		return errors.Wrap(err, "Failed to containers_profiles_ref view")
+	}
+
+	// Create a view to easily query the config of a certain container.
+	stmt = fmt.Sprintf(`
+CREATE VIEW containers_config_ref (project, node, name, key, value) AS
+   SELECT projects.name, nodes.name, containers.name, containers_config.key, containers_config.value
+     FROM containers_config
+       JOIN containers ON containers.id=containers_config.container_id
+       JOIN projects ON projects.id=containers.project_id
+       JOIN nodes ON nodes.id=containers.node_id
+`)
+	_, err = tx.Exec(stmt)
+	if err != nil {
+		return errors.Wrap(err, "Failed to containers_config_ref view")
+	}
+
+	// Create a view to easily query the devices of a certain container.
+	stmt = fmt.Sprintf(`
+CREATE VIEW containers_devices_ref (project, node, name, device, type, key, value) AS
+   SELECT projects.name, nodes.name, containers.name,
+          containers_devices.name, containers_devices.type,
+          coalesce(containers_devices_config.key, ''), coalesce(containers_devices_config.value, '')
+   FROM containers_devices
+     LEFT OUTER JOIN containers_devices_config ON containers_devices_config.container_device_id=containers_devices.id
+     JOIN containers ON containers.id=containers_devices.container_id
+     JOIN projects ON projects.id=containers.project_id
+     JOIN nodes ON nodes.id=containers.node_id
+`)
+	_, err = tx.Exec(stmt)
+	if err != nil {
+		return errors.Wrap(err, "Failed to containers_devices_ref view")
+	}
+
+	// Create a view to easily query the config of a certain profile.
+	stmt = fmt.Sprintf(`
+CREATE VIEW profiles_config_ref (project, name, key, value) AS
+   SELECT projects.name, profiles.name, profiles_config.key, profiles_config.value
+     FROM profiles_config
+     JOIN profiles ON profiles.id=profiles_config.profile_id
+     JOIN projects ON projects.id=profiles.project_id
+`)
+	_, err = tx.Exec(stmt)
+	if err != nil {
+		return errors.Wrap(err, "Failed to profiles_config_ref view")
+	}
+
+	// Create a view to easily query the devices of a certain profile.
+	stmt = fmt.Sprintf(`
+CREATE VIEW profiles_devices_ref (project, name, device, type, key, value) AS
+   SELECT projects.name, profiles.name,
+          profiles_devices.name, profiles_devices.type,
+          coalesce(profiles_devices_config.key, ''), coalesce(profiles_devices_config.value, '')
+   FROM profiles_devices
+     LEFT OUTER JOIN profiles_devices_config ON profiles_devices_config.profile_device_id=profiles_devices.id
+     JOIN profiles ON profiles.id=profiles_devices.profile_id
+     JOIN projects ON projects.id=profiles.project_id
+`)
+	_, err = tx.Exec(stmt)
+	if err != nil {
+		return errors.Wrap(err, "Failed to profiles_devices_ref view")
+	}
+
+	// Create a view to easily query all resources using a certain profile
+	stmt = fmt.Sprintf(`
+CREATE VIEW profiles_used_by_ref (project, name, value) AS
+  SELECT projects.name, profiles.name, printf('%s', containers.name, projects.name)
+    FROM profiles
+    JOIN projects ON projects.id=profiles.project_id
+    JOIN containers_profiles
+      ON containers_profiles.profile_id=profiles.id
+    JOIN containers
+      ON containers.id=containers_profiles.container_id
+`, EntityURIs[TypeContainer])
+	_, err = tx.Exec(stmt)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create profiles_used_by_ref view")
+	}
+
+	// Check that the count of all rows in the database is unchanged
+	// (i.e. we didn't accidentally delete or add anything).
+	counts2, err := query.CountAll(tx)
+	if err != nil {
+		return errors.Wrap(err, "Failed to count rows in updated tables")
+	}
+
+	delete(counts2, "projects")
+
+	for table, count1 := range counts1 {
+		if table == "sqlite_sequence" {
+			continue
+		}
+		count2 := counts2[table]
+		if count1 != count2 {
+			return fmt.Errorf("Row count mismatch in table '%s': %d vs %d", table, count1, count2)
+		}
+	}
+
+	return err
 }
 
 func updateFromV10(tx *sql.Tx) error {
@@ -168,7 +613,7 @@ SELECT storage_volumes.id FROM storage_volumes
 		Type          int
 		Description   string
 	}, len(volumeIDs))
-	stmt := `
+	sql := `
 SELECT
     storage_volumes.id,
     storage_volumes.name,
@@ -180,7 +625,12 @@ FROM storage_volumes
     JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id
     WHERE storage_pools.driver='ceph'
 `
-	err = query.SelectObjects(tx, func(i int) []interface{} {
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, func(i int) []interface{} {
 		return []interface{}{
 			&volumes[i].ID,
 			&volumes[i].Name,
@@ -189,7 +639,7 @@ FROM storage_volumes
 			&volumes[i].Type,
 			&volumes[i].Description,
 		}
-	}, stmt)
+	})
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch current volumes")
 	}

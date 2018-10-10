@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
 )
 
 type storageShared struct {
@@ -43,7 +44,7 @@ func (s *storageShared) shiftRootfs(c container, skipper func(dir string, absPat
 
 	idmapset, err := c.IdmapSet()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Get ID map")
 	}
 
 	if idmapset == nil {
@@ -53,7 +54,7 @@ func (s *storageShared) shiftRootfs(c container, skipper func(dir string, absPat
 	err = idmapset.ShiftRootfs(rpath, skipper)
 	if err != nil {
 		logger.Debugf("Shift of rootfs %s failed: %s", rpath, err)
-		return err
+		return errors.Wrap(err, "Shift rootfs")
 	}
 
 	/* Set an acl so the container root can descend the container dir */
@@ -108,7 +109,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 	}
 
 	// Create a db entry for the storage volume of the image.
-	_, err = s.s.Cluster.StoragePoolVolumeCreate(fingerprint, "", storagePoolVolumeTypeImage, false, s.poolID, volumeConfig)
+	_, err = s.s.Cluster.StoragePoolVolumeCreate("default", fingerprint, "", storagePoolVolumeTypeImage, false, s.poolID, volumeConfig)
 	if err != nil {
 		// Try to delete the db entry on error.
 		s.deleteImageDbPoolVolume(fingerprint)
@@ -119,7 +120,7 @@ func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {
 }
 
 func (s *storageShared) deleteImageDbPoolVolume(fingerprint string) error {
-	err := s.s.Cluster.StoragePoolVolumeDelete(fingerprint, storagePoolVolumeTypeImage, s.poolID)
+	err := s.s.Cluster.StoragePoolVolumeDelete("default", fingerprint, storagePoolVolumeTypeImage, s.poolID)
 	if err != nil {
 		return err
 	}

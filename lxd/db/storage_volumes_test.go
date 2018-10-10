@@ -27,7 +27,7 @@ func TestStorageVolumeNodeAddresses(t *testing.T) {
 	addVolume(t, tx, poolID, nodeID3, "volume2")
 	addVolume(t, tx, poolID, nodeID2, "volume2")
 
-	addresses, err := tx.StorageVolumeNodeAddresses(poolID, "volume1", 1)
+	addresses, err := tx.StorageVolumeNodeAddresses(poolID, "default", "volume1", 1)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"", "1.2.3.4:666"}, addresses)
@@ -48,7 +48,7 @@ INSERT INTO storage_pools(name, driver) VALUES (?, 'dir')
 
 func addVolume(t *testing.T, tx *db.ClusterTx, poolID, nodeID int64, name string) {
 	stmt := `
-INSERT INTO storage_volumes(storage_pool_id, node_id, name, type) VALUES (?, ?, ?, 1)
+INSERT INTO storage_volumes(storage_pool_id, node_id, name, type, project_id) VALUES (?, ?, ?, 1, 1)
 `
 	_, err := tx.Tx().Exec(stmt, poolID, nodeID, name)
 	require.NoError(t, err)

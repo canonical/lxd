@@ -417,7 +417,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 
 	daemon := daemons[1]
 	err := daemon.State().Cluster.ImageInsert(
-		"abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil)
+		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil)
 	require.NoError(t, err)
 
 	client := f.ClientUnix(daemons[1])
@@ -447,7 +447,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 
 	daemon := daemons[1]
 	err := daemon.State().Cluster.ImageInsert(
-		"abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil)
+		"default", "abc", "foo", 123, false, false, "amd64", time.Now(), time.Now(), nil)
 	require.NoError(t, err)
 
 	client := f.ClientUnix(daemons[1])
@@ -457,7 +457,7 @@ func TestCluster_LeaveForce(t *testing.T) {
 	// The image is gone, since the deleted node was the only one having a
 	// copy of it.
 	daemon = daemons[0]
-	images, err := daemon.State().Cluster.ImagesGet(false)
+	images, err := daemon.State().Cluster.ImagesGet("default", false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{}, images)
 }

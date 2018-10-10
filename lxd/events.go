@@ -42,16 +42,16 @@ func logContextMap(ctx []interface{}) map[string]string {
 }
 
 func (h eventsHandler) Log(r *log.Record) error {
-	eventSend("logging", api.EventLogging{
+	eventSend("", "logging", api.EventLogging{
 		Message: r.Msg,
 		Level:   r.Lvl.String(),
 		Context: logContextMap(r.Ctx)})
 	return nil
 }
 
-func eventSendLifecycle(action, source string,
+func eventSendLifecycle(project, action, source string,
 	context map[string]interface{}) error {
-	eventSend("lifecycle", api.EventLifecycle{
+	eventSend(project, "lifecycle", api.EventLifecycle{
 		Action:  action,
 		Source:  source,
 		Context: context})
@@ -62,6 +62,7 @@ var eventsLock sync.Mutex
 var eventListeners map[string]*eventListener = make(map[string]*eventListener)
 
 type eventListener struct {
+	project      string
 	connection   *websocket.Conn
 	messageTypes []string
 	active       chan bool
@@ -88,6 +89,7 @@ func (r *eventsServe) String() string {
 }
 
 func eventsSocket(r *http.Request, w http.ResponseWriter) error {
+	project := projectParam(r)
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
 		typeStr = "logging,operation,lifecycle"
@@ -99,6 +101,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 	}
 
 	listener := eventListener{
+		project:      project,
 		active:       make(chan bool, 1),
 		connection:   c,
 		id:           uuid.NewRandom().String(),
@@ -125,11 +128,12 @@ func eventsGet(d *Daemon, r *http.Request) Response {
 	return &eventsServe{req: r}
 }
 
-func eventSend(eventType string, eventMessage interface{}) error {
+func eventSend(project, eventType string, eventMessage interface{}) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
 	event["timestamp"] = time.Now()
 	event["metadata"] = eventMessage
+	event["project"] = project
 
 	return eventBroadcast(event)
 }
@@ -144,6 +148,10 @@ func eventBroadcast(event shared.Jmap) error {
 	eventsLock.Lock()
 	listeners := eventListeners
 	for _, listener := range listeners {
+		if event["project"] != "" && event["project"] != listener.project {
+			continue
+		}
+
 		if isForward && listener.noForward {
 			continue
 		}

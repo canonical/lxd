@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -28,7 +29,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
-func createFromImage(d *Daemon, req *api.ContainersPost) Response {
+func createFromImage(d *Daemon, project string, req *api.ContainersPost) Response {
 	var hash string
 	var err error
 
@@ -38,7 +39,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		if req.Source.Server != "" {
 			hash = req.Source.Alias
 		} else {
-			_, alias, err := d.cluster.ImageAliasGet(req.Source.Alias, true)
+			_, alias, err := d.cluster.ImageAliasGet(project, req.Source.Alias, true)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -50,7 +51,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 			return BadRequest(fmt.Errorf("Property match is only supported for local images"))
 		}
 
-		hashes, err := d.cluster.ImagesGet(false)
+		hashes, err := d.cluster.ImagesGet(project, false)
 		if err != nil {
 			return SmartError(err)
 		}
@@ -58,7 +59,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		var image *api.Image
 
 		for _, imageHash := range hashes {
-			_, img, err := d.cluster.ImageGet(imageHash, false, true)
+			_, img, err := d.cluster.ImageGet(project, imageHash, false, true)
 			if err != nil {
 				continue
 			}
@@ -93,6 +94,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 
 	run := func(op *operation) error {
 		args := db.ContainerArgs{
+			Project:     project,
 			Config:      req.Config,
 			Ctype:       db.CTypeRegular,
 			Description: req.Description,
@@ -115,7 +117,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 				return err
 			}
 		} else {
-			_, info, err = d.cluster.ImageGet(hash, false, false)
+			_, info, err = d.cluster.ImageGet(project, hash, false, false)
 			if err != nil {
 				return err
 			}
@@ -133,7 +135,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -141,8 +143,9 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
-func createFromNone(d *Daemon, req *api.ContainersPost) Response {
+func createFromNone(d *Daemon, project string, req *api.ContainersPost) Response {
 	args := db.ContainerArgs{
+		Project:     project,
 		Config:      req.Config,
 		Ctype:       db.CTypeRegular,
 		Description: req.Description,
@@ -168,7 +171,7 @@ func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -176,7 +179,7 @@ func createFromNone(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
-func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
+func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Response {
 	// Validate migration mode
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
@@ -192,6 +195,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 	// Prepare the container creation request
 	args := db.ContainerArgs{
+		Project:      project,
 		Architecture: architecture,
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
@@ -205,7 +209,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	// Early profile validation
-	profiles, err := d.cluster.Profiles()
+	profiles, err := d.cluster.Profiles(project)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -239,7 +243,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	// If we don't have a valid pool yet, look through profiles
 	if storagePool == "" {
 		for _, pName := range req.Profiles {
-			_, p, err := d.cluster.ProfileGet(pName)
+			_, p, err := d.cluster.ProfileGet(project, pName)
 			if err != nil {
 				return SmartError(err)
 			}
@@ -313,7 +317,7 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	 * point and just negotiate it over the migration control
 	 * socket. Anyway, it'll happen later :)
 	 */
-	_, _, err = d.cluster.ImageGet(req.Source.BaseImage, false, true)
+	_, _, err = d.cluster.ImageGet(args.Project, req.Source.BaseImage, false, true)
 	if err != nil {
 		c, err = containerCreateAsEmpty(d, args)
 		if err != nil {
@@ -428,12 +432,12 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 
 	var op *operation
 	if push {
-		op, err = operationCreate(d.cluster, operationClassWebsocket, db.OperationContainerCreate, resources, sink.Metadata(), run, nil, sink.Connect)
+		op, err = operationCreate(d.cluster, project, operationClassWebsocket, db.OperationContainerCreate, resources, sink.Metadata(), run, nil, sink.Connect)
 		if err != nil {
 			return InternalError(err)
 		}
 	} else {
-		op, err = operationCreate(d.cluster, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+		op, err = operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -442,12 +446,12 @@ func createFromMigration(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
-func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
+func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response {
 	if req.Source.Source == "" {
 		return BadRequest(fmt.Errorf("must specify a source container"))
 	}
 
-	source, err := containerLoadByName(d.State(), req.Source.Source)
+	source, err := containerLoadByProjectAndName(d.State(), project, req.Source.Source)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -506,6 +510,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	}
 
 	args := db.ContainerArgs{
+		Project:      project,
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
@@ -529,7 +534,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name, req.Source.Source}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -537,7 +542,7 @@ func createFromCopy(d *Daemon, req *api.ContainersPost) Response {
 	return OperationResponse(op)
 }
 
-func createFromBackup(d *Daemon, data io.Reader) Response {
+func createFromBackup(d *Daemon, project string, data io.Reader) Response {
 	// Write the data to a temp file
 	f, err := ioutil.TempFile("", "lxd_backup_")
 	if err != nil {
@@ -556,13 +561,14 @@ func createFromBackup(d *Daemon, data io.Reader) Response {
 	if err != nil {
 		return BadRequest(err)
 	}
+	bInfo.Project = project
 
 	run := func(op *operation) error {
 		// Dump tarball to storage
 		f.Seek(0, 0)
 		err = containerCreateFromBackup(d.State(), *bInfo, f)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Create container from backup")
 		}
 
 		body, err := json.Marshal(&internalImportPost{
@@ -570,25 +576,29 @@ func createFromBackup(d *Daemon, data io.Reader) Response {
 			Force: true,
 		})
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Marshal internal import request")
 		}
 
-		resp := internalImport(d, &http.Request{
+		req := &http.Request{
 			Body: ioutil.NopCloser(bytes.NewReader(body)),
-		})
+		}
+		req.URL = &url.URL{
+			RawQuery: fmt.Sprintf("project=%s", project),
+		}
+		resp := internalImport(d, req)
 
 		if resp.String() != "success" {
-			return errors.New(resp.String())
+			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
 
-		c, err := containerLoadByName(d.State(), bInfo.Name)
+		c, err := containerLoadByProjectAndName(d.State(), project, bInfo.Name)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Load container")
 		}
 
 		_, err = c.StorageStop()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Stop storage pool")
 		}
 
 		return nil
@@ -597,7 +607,7 @@ func createFromBackup(d *Daemon, data io.Reader) Response {
 	resources := map[string][]string{}
 	resources["containers"] = []string{bInfo.Name}
 
-	op, err := operationCreate(d.cluster, operationClassTask, db.OperationBackupRestore,
+	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationBackupRestore,
 		resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
@@ -607,11 +617,12 @@ func createFromBackup(d *Daemon, data io.Reader) Response {
 }
 
 func containersPost(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	logger.Debugf("Responding to container create")
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createFromBackup(d, r.Body)
+		return createFromBackup(d, project, r.Body)
 	}
 
 	// Parse the request
@@ -620,7 +631,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
-	targetNode := r.FormValue("target")
+	targetNode := queryParam(r, "target")
 	if targetNode == "" {
 		// If no target node was specified, pick the node with the
 		// least number of containers. If there's just one node, or if
@@ -667,7 +678,12 @@ func containersPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Name == "" {
-		cs, err := d.cluster.ContainersList(db.CTypeRegular)
+		var names []string
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			names, err = tx.ContainerNames(project)
+			return err
+		})
 		if err != nil {
 			return SmartError(err)
 		}
@@ -676,7 +692,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 		for {
 			i++
 			req.Name = strings.ToLower(petname.Generate(2, "-"))
-			if !shared.StringInSlice(req.Name, cs) {
+			if !shared.StringInSlice(req.Name, names) {
 				break
 			}
 
@@ -714,13 +730,13 @@ func containersPost(d *Daemon, r *http.Request) Response {
 
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(d, &req)
+		return createFromImage(d, project, &req)
 	case "none":
-		return createFromNone(d, &req)
+		return createFromNone(d, project, &req)
 	case "migration":
-		return createFromMigration(d, &req)
+		return createFromMigration(d, project, &req)
 	case "copy":
-		return createFromCopy(d, &req)
+		return createFromCopy(d, project, &req)
 	default:
 		return BadRequest(fmt.Errorf("unknown source type %s", req.Source.Type))
 	}

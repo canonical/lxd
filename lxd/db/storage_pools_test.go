@@ -165,17 +165,17 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 
 	config := map[string]string{"k": "v"}
-	volumeID, err := cluster.StoragePoolVolumeCreate("v1", "", 1, false, poolID, config)
+	volumeID, err := cluster.StoragePoolVolumeCreate("default", "v1", "", 1, false, poolID, config)
 	require.NoError(t, err)
 
 	// The returned volume ID is the one of the volume created on the local
 	// node (node 1).
-	thisVolumeID, _, err := cluster.StoragePoolVolumeGetType("v1", 1, poolID, 1)
+	thisVolumeID, _, err := cluster.StoragePoolVolumeGetType("default", "v1", 1, poolID, 1)
 	require.NoError(t, err)
 	assert.Equal(t, volumeID, thisVolumeID)
 
 	// Another volume was created for the second node.
-	_, volume, err := cluster.StoragePoolVolumeGetType("v1", 1, poolID, 2)
+	_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1", 1, poolID, 2)
 	require.NoError(t, err)
 	assert.NotNil(t, volume)
 	assert.Equal(t, config, volume.Config)
@@ -185,25 +185,25 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	err = cluster.StoragePoolVolumeUpdate("v1", 1, poolID, "volume 1", config)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
-		_, volume, err := cluster.StoragePoolVolumeGetType("v1", 1, poolID, nodeID)
+		_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1", 1, poolID, nodeID)
 		require.NoError(t, err)
 		assert.Equal(t, "volume 1", volume.Description)
 		assert.Equal(t, config, volume.Config)
 	}
-	err = cluster.StoragePoolVolumeRename("v1", "v1-new", 1, poolID)
+	err = cluster.StoragePoolVolumeRename("default", "v1", "v1-new", 1, poolID)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
-		_, volume, err := cluster.StoragePoolVolumeGetType("v1-new", 1, poolID, nodeID)
+		_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1-new", 1, poolID, nodeID)
 		require.NoError(t, err)
 		assert.NotNil(t, volume)
 	}
 	require.NoError(t, err)
 
 	// Delete the volume
-	err = cluster.StoragePoolVolumeDelete("v1-new", 1, poolID)
+	err = cluster.StoragePoolVolumeDelete("default", "v1-new", 1, poolID)
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
-		_, volume, err := cluster.StoragePoolVolumeGetType("v1-new", 1, poolID, nodeID)
+		_, volume, err := cluster.StoragePoolVolumeGetType("default", "v1-new", 1, poolID, nodeID)
 		assert.Equal(t, db.ErrNoSuchObject, err)
 		assert.Nil(t, volume)
 	}

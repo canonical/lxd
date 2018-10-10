@@ -68,6 +68,8 @@ var api10 = []Command{
 	operationWebsocket,
 	profileCmd,
 	profilesCmd,
+	projectCmd,
+	projectsCmd,
 	serverResourceCmd,
 	serverResourceCmd,
 	storagePoolCmd,
@@ -169,6 +171,11 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		architectures = append(architectures, architectureName)
 	}
 
+	project := r.FormValue("project")
+	if project == "" {
+		project = "default"
+	}
+
 	env := api.ServerEnvironment{
 		Addresses:              addresses,
 		Architectures:          architectures,
@@ -179,6 +186,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		Kernel:                 uname.Sysname,
 		KernelArchitecture:     uname.Machine,
 		KernelVersion:          uname.Release,
+		Project:                project,
 		Server:                 "lxd",
 		ServerPid:              os.Getpid(),
 		ServerVersion:          version.Version,

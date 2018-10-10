@@ -41,6 +41,10 @@ func LoadConfig(path string) (*Config, error) {
 
 	// Apply the static remotes
 	for k, v := range StaticRemotes {
+		if c.Remotes[k].Project != "" {
+			v.Project = c.Remotes[k].Project
+		}
+
 		c.Remotes[k] = v
 	}
 
@@ -66,6 +70,10 @@ func (c *Config) SaveConfig(path string) error {
 
 	// Remove the static remotes
 	for k := range StaticRemotes {
+		if k == "local" {
+			continue
+		}
+
 		delete(conf.Remotes, k)
 	}
 
@@ -77,7 +85,7 @@ func (c *Config) SaveConfig(path string) error {
 	defer f.Close()
 
 	// Write the new config
-	data, err := yaml.Marshal(c)
+	data, err := yaml.Marshal(conf)
 	if err != nil {
 		return fmt.Errorf("Unable to marshal the configuration: %v", err)
 	}

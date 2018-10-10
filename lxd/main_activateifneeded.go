@@ -104,14 +104,24 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d.cluster = db.ForLocalInspection(sqldb)
-	result, err := d.cluster.ContainersList(db.CTypeRegular)
+	d.cluster, err = db.ForLocalInspectionWithPreparedStmts(sqldb)
 	if err != nil {
 		return err
 	}
 
-	for _, name := range result {
-		c, err := containerLoadByName(d.State(), name)
+	var containers []db.Container
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		filter := db.ContainerFilter{Type: int(db.CTypeRegular)}
+		var err error
+		containers, err = tx.ContainerList(filter)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, container := range containers {
+		c, err := containerLoadByProjectAndName(d.State(), container.Project, container.Name)
 		if err != nil {
 			sqldb.Close()
 			return err

@@ -178,14 +178,28 @@ INSERT INTO nodes(id, name, address, schema, api_extensions) VALUES(1, 'none', '
 			return false, err
 		}
 
+		// Default project
 		stmt = `
-INSERT INTO profiles (name, description) VALUES ('default', 'Default LXD profile')
+INSERT INTO projects (name, description) VALUES ('default', 'Default LXD project');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.images', 'true');
+INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.profiles', 'true');
 `
 		_, err = tx.Exec(stmt)
 		if err != nil {
 			tx.Rollback()
 			return false, err
 		}
+
+		// Default profile
+		stmt = `
+INSERT INTO profiles (name, description, project_id) VALUES ('default', 'Default LXD profile', 1)
+`
+		_, err = tx.Exec(stmt)
+		if err != nil {
+			tx.Rollback()
+			return false, err
+		}
+
 		err = tx.Commit()
 		if err != nil {
 			return false, err

@@ -206,7 +206,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool) (Migratio
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", containerName, shared.SnapshotDelimiter, snap[len("snapshot_"):])
-		snapshot, err := containerLoadByName(s.s, lxdName)
+		snapshot, err := containerLoadByProjectAndName(s.s, c.Project(), lxdName)
 		if err != nil {
 			logger.Errorf(`Failed to load snapshot "%s" for RBD storage volume "%s" on storage pool "%s": %s`, lxdName, containerName, s.pool.Name, err)
 			return nil, err
@@ -303,7 +303,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 		}
 		logger.Debugf(`Received RBD storage volume "%s"`, curSnapName)
 
-		snapshotMntPoint := getSnapshotMountPoint(s.pool.Name, fmt.Sprintf("%s/%s", containerName, *snap.Name))
+		snapshotMntPoint := getSnapshotMountPoint(c.Project(), s.pool.Name, fmt.Sprintf("%s/%s", containerName, *snap.Name))
 		if !shared.PathExists(snapshotMntPoint) {
 			err := os.MkdirAll(snapshotMntPoint, 0700)
 			if err != nil {
@@ -352,7 +352,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 		logger.Debugf(`Received RBD storage volume "%s"`, recvName)
 	}
 
-	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint(c.Project(), s.pool.Name, containerName)
 	err = createContainerMountpoint(
 		containerMntPoint,
 		c.Path(),

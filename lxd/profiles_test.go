@@ -17,8 +17,8 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	// Insert a container and a related profile. Dont't forget that the profile
 	// we insert is profile ID 2 (there is a default profile already).
 	statements := `
-    INSERT INTO containers (node_id, name, architecture, type) VALUES (1, 'thename', 1, 1);
-    INSERT INTO profiles (name) VALUES ('theprofile');
+    INSERT INTO containers (node_id, name, architecture, type, project_id) VALUES (1, 'thename', 1, 1, 1);
+    INSERT INTO profiles (name, project_id) VALUES ('theprofile', 1);
     INSERT INTO containers_profiles (container_id, profile_id) VALUES (1, 2);
     INSERT INTO profiles_devices (name, profile_id) VALUES ('somename', 2);
     INSERT INTO profiles_config (key, value, profile_id) VALUES ('thekey', 'thevalue', 2);
@@ -34,7 +34,9 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Delete the profile we just created with dbapi.ProfileDelete
-	err = cluster.ProfileDelete("theprofile")
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.ProfileDelete("default", "theprofile")
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +51,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_config entries left.
-	config, err := cluster.ProfileConfig("theprofile")
+	config, err := cluster.ProfileConfig("default", "theprofile")
 	if err == nil {
 		t.Fatal("found the profile!")
 	}

@@ -90,6 +90,17 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 	return dump, nil
 }
 
+// List of tables existing before clustering that had no project_id column and
+// that now require it.
+var preClusteringTablesRequiringProjectID = []string{
+	"containers",
+	"images",
+	"images_aliases",
+	"profiles",
+	"storage_volumes",
+	"operations",
+}
+
 // ImportPreClusteringData imports the data loaded with LoadPreClusteringData.
 func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 	tx, err := c.db.Begin()
@@ -107,6 +118,7 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 
 	for _, table := range preClusteringTables {
 		logger.Debugf("Migrating data for table %s", table)
+
 		for i, row := range dump.Data[table] {
 			for i, element := range row {
 				// Convert []byte columns to string. This is safe to do since
@@ -193,6 +205,13 @@ func (c *Cluster) ImportPreClusteringData(dump *Dump) error {
 			case "storage_volumes":
 				appendNodeID()
 			}
+
+			if shared.StringInSlice(table, preClusteringTablesRequiringProjectID) {
+				// These tables have a project_id reference in the new schema.
+				columns = append(columns, "project_id")
+				row = append(row, 1) // Reference the default project.
+			}
+
 			stmt := fmt.Sprintf("INSERT INTO %s(%s)", table, strings.Join(columns, ", "))
 			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
 			result, err := tx.Exec(stmt, row...)

@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/pkg/errors"
 )
 
 // Helper functions
@@ -605,6 +606,7 @@ type container interface {
 
 	// Properties
 	Id() int
+	Project() string
 	Name() string
 	Description() string
 	Architecture() int
@@ -688,7 +690,7 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 		}
 
 		// Get the default profile
-		_, profile, err := s.Cluster.ProfileGet("default")
+		_, profile, err := s.Cluster.ProfileGet(info.Project, "default")
 		if err != nil {
 			return err
 		}
@@ -753,15 +755,15 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 	s := d.State()
 
 	// Get the image properties
-	_, img, err := s.Cluster.ImageGet(hash, false, false)
+	_, img, err := s.Cluster.ImageGet(args.Project, hash, false, false)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
 	}
 
 	// Check if the image is available locally or it's on another node.
 	nodeAddress, err := s.Cluster.ImageLocate(hash)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Locate image %s in the cluster", hash)
 	}
 	if nodeAddress != "" {
 		// The image is available from another node, let's try to
@@ -794,7 +796,7 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 	// Create the container
 	c, err := containerCreateInternal(s, args)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Create container")
 	}
 
 	err = s.Cluster.ImageLastAccessUpdate(hash, time.Now().UTC())
@@ -807,14 +809,14 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 	err = c.Storage().ContainerCreateFromImage(c, hash)
 	if err != nil {
 		c.Delete()
-		return nil, err
+		return nil, errors.Wrap(err, "Create container from image")
 	}
 
 	// Apply any post-storage configuration
 	err = containerConfigureInternal(c)
 	if err != nil {
 		c.Delete()
-		return nil, err
+		return nil, errors.Wrap(err, "Configure container")
 	}
 
 	return c, nil
@@ -996,7 +998,7 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 		os.RemoveAll(sourceContainer.StatePath())
 	}
 
-	eventSendLifecycle("container-snapshot-created",
+	eventSendLifecycle(sourceContainer.Project(), "container-snapshot-created",
 		fmt.Sprintf("/1.0/containers/%s", sourceContainer.Name()),
 		map[string]interface{}{
 			"snapshot_name": args.Name,
@@ -1007,6 +1009,10 @@ func containerCreateAsSnapshot(s *state.State, args db.ContainerArgs, sourceCont
 
 func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, error) {
 	// Set default values
+	if args.Project == "" {
+		args.Project = "default"
+	}
+
 	if args.Profiles == nil {
 		args.Profiles = []string{"default"}
 	}
@@ -1058,7 +1064,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	}
 
 	// Validate profiles
-	profiles, err := s.Cluster.Profiles()
+	profiles, err := s.Cluster.Profiles(args.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -1076,8 +1082,67 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		checkedProfiles = append(checkedProfiles, profile)
 	}
 
-	// Create the container entry
-	id, err := s.Cluster.ContainerCreate(args)
+	if args.CreationDate.IsZero() {
+		args.CreationDate = time.Now().UTC()
+	}
+
+	if args.LastUsedDate.IsZero() {
+		args.LastUsedDate = time.Unix(0, 0).UTC()
+	}
+
+	var container db.Container
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		node, err := tx.NodeName()
+		if err != nil {
+			return err
+		}
+
+		// TODO: this check should probably be performed by the db
+		// package itself.
+		exists, err := tx.ProjectExists(args.Project)
+		if err != nil {
+			return errors.Wrapf(err, "Check if project %q exists", args.Project)
+		}
+		if !exists {
+			return fmt.Errorf("Project %q does not exist", args.Project)
+		}
+
+		// Create the container entry
+		container = db.Container{
+			Project:      args.Project,
+			Name:         args.Name,
+			Node:         node,
+			Type:         int(args.Ctype),
+			Architecture: args.Architecture,
+			Ephemeral:    args.Ephemeral,
+			CreationDate: args.CreationDate,
+			Stateful:     args.Stateful,
+			LastUseDate:  args.LastUsedDate,
+			Description:  args.Description,
+			Config:       args.Config,
+			Devices:      args.Devices,
+			Profiles:     args.Profiles,
+		}
+
+		_, err = tx.ContainerCreate(container)
+		if err != nil {
+			return errors.Wrap(err, "Add container info to the database")
+		}
+
+		// Read back the container, to get ID and creation time.
+		c, err := tx.ContainerGet(args.Project, args.Name)
+		if err != nil {
+			return errors.Wrap(err, "Fetch created container from the database")
+		}
+
+		container = *c
+
+		if container.ID < 1 {
+			return errors.Wrapf(err, "Unexpected container database ID %d", container.ID)
+		}
+
+		return nil
+	})
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
 			thing := "Container"
@@ -1092,21 +1157,12 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Wipe any existing log for this container name
 	os.RemoveAll(shared.LogPath(args.Name))
 
-	args.ID = id
-
-	// Read the timestamp from the database
-	dbArgs, err := s.Cluster.ContainerGet(args.Name)
-	if err != nil {
-		s.Cluster.ContainerRemove(args.Name)
-		return nil, err
-	}
-	args.CreationDate = dbArgs.CreationDate
-	args.LastUsedDate = dbArgs.LastUsedDate
+	args = db.ContainerToArgs(&container)
 
 	// Setup the container struct and finish creation (storage and idmap)
 	c, err := containerLXCCreate(s, args)
 	if err != nil {
-		s.Cluster.ContainerRemove(args.Name)
+		s.Cluster.ContainerRemove(args.Project, args.Name)
 		return nil, err
 	}
 
@@ -1161,30 +1217,51 @@ func containerConfigureInternal(c container) error {
 
 func containerLoadById(s *state.State, id int) (container, error) {
 	// Get the DB record
-	name, err := s.Cluster.ContainerName(id)
+	project, name, err := s.Cluster.ContainerProjectAndName(id)
 	if err != nil {
 		return nil, err
 	}
 
-	return containerLoadByName(s, name)
+	return containerLoadByProjectAndName(s, project, name)
 }
 
-func containerLoadByName(s *state.State, name string) (container, error) {
+func containerLoadByProjectAndName(s *state.State, project, name string) (container, error) {
 	// Get the DB record
-	args, err := s.Cluster.ContainerGet(name)
-	if err != nil {
-		return nil, err
-	}
-
-	return containerLXCLoad(s, args, nil)
-}
-
-func containerLoadAll(s *state.State) ([]container, error) {
-	// Get all the container arguments
-	var cts []db.ContainerArgs
+	var container *db.Container
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		cts, err = tx.ContainerArgsList()
+
+		container, err = tx.ContainerGet(project, name)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to fetch container %q in project %q", name, project)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	args := db.ContainerToArgs(container)
+
+	c, err := containerLXCLoad(s, args, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to load container")
+	}
+
+	return c, nil
+}
+
+func containerLoadByProject(s *state.State, project string) ([]container, error) {
+	// Get all the containers
+	var cts []db.Container
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		filter := db.ContainerFilter{
+			Project: project,
+			Type:    int(db.CTypeRegular),
+		}
+		var err error
+		cts, err = tx.ContainerList(filter)
 		if err != nil {
 			return err
 		}
@@ -1198,12 +1275,18 @@ func containerLoadAll(s *state.State) ([]container, error) {
 	return containerLoadAllInternal(cts, s)
 }
 
+// Legacy interface.
+func containerLoadAll(s *state.State) ([]container, error) {
+	return containerLoadByProject(s, "default")
+}
+
+// Load all containers of this nodes.
 func containerLoadNodeAll(s *state.State) ([]container, error) {
 	// Get all the container arguments
-	var cts []db.ContainerArgs
+	var cts []db.Container
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		cts, err = tx.ContainerArgsNodeList()
+		cts, err = tx.ContainerNodeList()
 		if err != nil {
 			return err
 		}
@@ -1217,7 +1300,27 @@ func containerLoadNodeAll(s *state.State) ([]container, error) {
 	return containerLoadAllInternal(cts, s)
 }
 
-func containerLoadAllInternal(cts []db.ContainerArgs, s *state.State) ([]container, error) {
+// Load all containers of this nodes under the given project.
+func containerLoadNodeProjectAll(s *state.State, project string) ([]container, error) {
+	// Get all the container arguments
+	var cts []db.Container
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		cts, err = tx.ContainerNodeProjectList(project)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return containerLoadAllInternal(cts, s)
+}
+
+func containerLoadAllInternal(cts []db.Container, s *state.State) ([]container, error) {
 	// Figure out what profiles are in use
 	profiles := map[string]api.Profile{}
 	for _, cArgs := range cts {
@@ -1231,7 +1334,7 @@ func containerLoadAllInternal(cts []db.ContainerArgs, s *state.State) ([]contain
 
 	// Get the profile data
 	for name := range profiles {
-		_, profile, err := s.Cluster.ProfileGet(name)
+		_, profile, err := s.Cluster.ProfileGet("default", name)
 		if err != nil {
 			return nil, err
 		}
@@ -1241,12 +1344,14 @@ func containerLoadAllInternal(cts []db.ContainerArgs, s *state.State) ([]contain
 
 	// Load the container structs
 	containers := []container{}
-	for _, args := range cts {
+	for _, container := range cts {
 		// Figure out the container's profiles
 		cProfiles := []api.Profile{}
-		for _, name := range args.Profiles {
+		for _, name := range container.Profiles {
 			cProfiles = append(cProfiles, profiles[name])
 		}
+
+		args := db.ContainerToArgs(&container)
 
 		ct, err := containerLXCLoad(s, args, cProfiles)
 		if err != nil {

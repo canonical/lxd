@@ -52,18 +52,21 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 		recursion = 0
 	}
 
+	// Parse the project field
+	project := projectParam(r)
+
 	// Get the list and location of all containers
 	var result map[string][]string // Containers by node address
 	var nodes map[string]string    // Node names by container
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		result, err = tx.ContainersListByNodeAddress()
+		result, err = tx.ContainersListByNodeAddress(project)
 		if err != nil {
 			return err
 		}
 
-		nodes, err = tx.ContainersByNodeName()
+		nodes, err = tx.ContainersByNodeName(project)
 		if err != nil {
 			return err
 		}
@@ -77,7 +80,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 	// Get the local containers
 	nodeCts := map[string]container{}
 	if recursion > 0 {
-		cts, err := containerLoadNodeAll(d.State())
+		cts, err := containerLoadNodeProjectAll(d.State(), project)
 		if err != nil {
 			return nil, err
 		}

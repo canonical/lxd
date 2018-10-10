@@ -76,9 +76,11 @@ update-protobuf:
 	protoc --go_out=. ./lxd/migration/migrate.proto
 
 .PHONY: update-schema
-update-schema:
-	go run -v -tags "$(TAG_SQLITE3)" ./lxd/schema.go
-	@echo "Schema source code updated"
+generate:
+	cd shared/generate && go build -o lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
+	mv shared/generate/lxd-generate $(GOPATH)/bin
+	go generate ./...
+	@echo "Code generation completed"
 
 .PHONY: debug
 debug:

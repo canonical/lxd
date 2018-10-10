@@ -490,6 +490,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			state := s.container.DaemonState()
 			actionScriptOp, err := operationCreate(
 				state.Cluster,
+				s.container.Project(),
 				operationClassWebsocket,
 				db.OperationContainerLiveMigrate,
 				nil,

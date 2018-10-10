@@ -65,6 +65,7 @@ func (t operationClass) String() string {
 }
 
 type operation struct {
+	project     string
 	id          string
 	class       operationClass
 	createdAt   time.Time
@@ -149,7 +150,7 @@ func (op *operation) Run() (chan error, error) {
 				logger.Debugf("Failure for %s operation: %s: %s", op.class.String(), op.id, err)
 
 				_, md, _ := op.Render()
-				eventSend("operation", md)
+				eventSend(op.project, "operation", md)
 				return
 			}
 
@@ -162,7 +163,7 @@ func (op *operation) Run() (chan error, error) {
 			op.lock.Lock()
 			logger.Debugf("Success for %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
-			eventSend("operation", md)
+			eventSend(op.project, "operation", md)
 			op.lock.Unlock()
 		}(op, chanRun)
 	}
@@ -170,7 +171,7 @@ func (op *operation) Run() (chan error, error) {
 
 	logger.Debugf("Started %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend("operation", md)
+	eventSend(op.project, "operation", md)
 
 	return chanRun, nil
 }
@@ -202,7 +203,7 @@ func (op *operation) Cancel() (chan error, error) {
 
 				logger.Debugf("Failed to cancel %s operation: %s: %s", op.class.String(), op.id, err)
 				_, md, _ := op.Render()
-				eventSend("operation", md)
+				eventSend(op.project, "operation", md)
 				return
 			}
 
@@ -214,13 +215,13 @@ func (op *operation) Cancel() (chan error, error) {
 
 			logger.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 			_, md, _ := op.Render()
-			eventSend("operation", md)
+			eventSend(op.project, "operation", md)
 		}(op, oldStatus, chanCancel)
 	}
 
 	logger.Debugf("Cancelling %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend("operation", md)
+	eventSend(op.project, "operation", md)
 
 	if op.canceler != nil {
 		err := op.canceler.Cancel()
@@ -239,7 +240,7 @@ func (op *operation) Cancel() (chan error, error) {
 
 	logger.Debugf("Cancelled %s operation: %s", op.class.String(), op.id)
 	_, md, _ = op.Render()
-	eventSend("operation", md)
+	eventSend(op.project, "operation", md)
 
 	return chanCancel, nil
 }
@@ -366,7 +367,7 @@ func (op *operation) UpdateResources(opResources map[string][]string) error {
 
 	logger.Debugf("Updated resources for %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend("operation", md)
+	eventSend(op.project, "operation", md)
 
 	return nil
 }
@@ -392,14 +393,15 @@ func (op *operation) UpdateMetadata(opMetadata interface{}) error {
 
 	logger.Debugf("Updated metadata for %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend("operation", md)
+	eventSend(op.project, "operation", md)
 
 	return nil
 }
 
-func operationCreate(cluster *db.Cluster, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
+func operationCreate(cluster *db.Cluster, project string, opClass operationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*operation) error, onCancel func(*operation) error, onConnect func(*operation, *http.Request, http.ResponseWriter) error) (*operation, error) {
 	// Main attributes
 	op := operation{}
+	op.project = project
 	op.id = uuid.NewRandom().String()
 	op.description = opType.Description()
 	op.class = opClass
@@ -444,7 +446,7 @@ func operationCreate(cluster *db.Cluster, opClass operationClass, opType db.Oper
 	operationsLock.Unlock()
 
 	err = op.cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.OperationAdd(op.id, opType)
+		_, err := tx.OperationAdd(project, op.id, opType)
 		return err
 	})
 	if err != nil {
@@ -453,7 +455,7 @@ func operationCreate(cluster *db.Cluster, opClass operationClass, opType db.Oper
 
 	logger.Debugf("New %s operation: %s", op.class.String(), op.id)
 	_, md, _ := op.Render()
-	eventSend("operation", md)
+	eventSend(op.project, "operation", md)
 
 	return &op, nil
 }
@@ -560,6 +562,7 @@ func operationAPIDelete(d *Daemon, r *http.Request) Response {
 }
 
 func operationsAPIGet(d *Daemon, r *http.Request) Response {
+	project := projectParam(r)
 	recursion := util.IsRecursionRequest(r)
 
 	localOperationURLs := func() (shared.Jmap, error) {
@@ -572,6 +575,9 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 		body := shared.Jmap{}
 
 		for _, v := range ops {
+			if v.project != "" && v.project != project {
+				continue
+			}
 			status := strings.ToLower(v.status.String())
 			_, ok := body[status]
 			if !ok {
@@ -594,6 +600,9 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 		body := shared.Jmap{}
 
 		for _, v := range ops {
+			if v.project != "" && v.project != project {
+				continue
+			}
 			status := strings.ToLower(v.status.String())
 			_, ok := body[status]
 			if !ok {
@@ -660,12 +669,12 @@ func operationsAPIGet(d *Daemon, r *http.Request) Response {
 		return SyncResponse(true, md)
 	}
 
-	// Get all nodes with running operations
+	// Get all nodes with running operations in this project.
 	var nodes []string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		nodes, err = tx.OperationNodes()
+		nodes, err = tx.OperationNodes(project)
 		if err != nil {
 			return err
 		}

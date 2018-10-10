@@ -15,6 +15,104 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 )
 
+// Code generation directives.
+//
+//go:generate -command mapper lxd-generate db mapper -t containers.mapper.go
+//go:generate mapper reset
+//
+//go:generate mapper stmt -p db -e container objects
+//go:generate mapper stmt -p db -e container objects-by-Type
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Type
+//go:generate mapper stmt -p db -e container objects-by-Node-and-Type
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Node-and-Type
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Name
+//go:generate mapper stmt -p db -e container objects-by-Project-and-Name-and-Type
+//go:generate mapper stmt -p db -e container profiles-ref
+//go:generate mapper stmt -p db -e container profiles-ref-by-Project
+//go:generate mapper stmt -p db -e container profiles-ref-by-Node
+//go:generate mapper stmt -p db -e container profiles-ref-by-Project-and-Node
+//go:generate mapper stmt -p db -e container profiles-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e container config-ref
+//go:generate mapper stmt -p db -e container config-ref-by-Project
+//go:generate mapper stmt -p db -e container config-ref-by-Node
+//go:generate mapper stmt -p db -e container config-ref-by-Project-and-Node
+//go:generate mapper stmt -p db -e container config-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e container devices-ref
+//go:generate mapper stmt -p db -e container devices-ref-by-Project
+//go:generate mapper stmt -p db -e container devices-ref-by-Node
+//go:generate mapper stmt -p db -e container devices-ref-by-Project-and-Node
+//go:generate mapper stmt -p db -e container devices-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e container id
+//go:generate mapper stmt -p db -e container create struct=Container
+//go:generate mapper stmt -p db -e container create-config-ref
+//go:generate mapper stmt -p db -e container create-devices-ref
+//go:generate mapper stmt -p db -e container rename
+//go:generate mapper stmt -p db -e container delete
+//
+//go:generate mapper method -p db -e container List
+//go:generate mapper method -p db -e container Get
+//go:generate mapper method -p db -e container ID struct=Container
+//go:generate mapper method -p db -e container Exists struct=Container
+//go:generate mapper method -p db -e container Create struct=Container
+//go:generate mapper method -p db -e container ProfilesRef
+//go:generate mapper method -p db -e container ConfigRef
+//go:generate mapper method -p db -e container DevicesRef
+//go:generate mapper method -p db -e container Rename
+//go:generate mapper method -p db -e container Delete
+
+// Container is a value object holding db-related details about a container.
+type Container struct {
+	ID           int
+	Project      string `db:"primary=yes&join=projects.name"`
+	Name         string `db:"primary=yes"`
+	Node         string `db:"join=nodes.name"`
+	Type         int
+	Architecture int
+	Ephemeral    bool
+	CreationDate time.Time
+	Stateful     bool
+	LastUseDate  time.Time
+	Description  string `db:"coalesce=''"`
+	Config       map[string]string
+	Devices      map[string]map[string]string
+	Profiles     []string
+}
+
+// ContainerFilter can be used to filter results yielded by ContainerList.
+type ContainerFilter struct {
+	Project string
+	Name    string
+	Node    string
+	Type    int
+}
+
+// ContainerToArgs is a convenience to convert the new Container db struct into
+// the legacy ContainerArgs.
+func ContainerToArgs(container *Container) ContainerArgs {
+	args := ContainerArgs{
+		ID:           container.ID,
+		Project:      container.Project,
+		Name:         container.Name,
+		Node:         container.Node,
+		Ctype:        ContainerType(container.Type),
+		Architecture: container.Architecture,
+		Ephemeral:    container.Ephemeral,
+		CreationDate: container.CreationDate,
+		Stateful:     container.Stateful,
+		LastUsedDate: container.LastUseDate,
+		Description:  container.Description,
+		Config:       container.Config,
+		Devices:      container.Devices,
+		Profiles:     container.Profiles,
+	}
+
+	if args.Devices == nil {
+		args.Devices = types.Devices{}
+	}
+
+	return args
+}
+
 // ContainerArgs is a value object holding all db-related details about a
 // container.
 type ContainerArgs struct {
@@ -24,6 +122,7 @@ type ContainerArgs struct {
 	Ctype ContainerType
 
 	// Creation only
+	Project      string
 	BaseImage    string
 	CreationDate time.Time
 
@@ -61,19 +160,31 @@ const (
 	CTypeSnapshot ContainerType = 1
 )
 
+// ContainerNames returns the names of all containers the given project.
+func (c *ClusterTx) ContainerNames(project string) ([]string, error) {
+	stmt := `
+SELECT containers.name FROM containers
+  JOIN projects ON projects.id = containers.project_id
+  WHERE projects.name = ? AND containers.type = ?
+`
+	return query.SelectStrings(c.tx, stmt, project, CTypeRegular)
+}
+
 // ContainerNodeAddress returns the address of the node hosting the container
-// with the given name.
+// with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) ContainerNodeAddress(name string) (string, error) {
+func (c *ClusterTx) ContainerNodeAddress(project string, name string) (string, error) {
 	stmt := `
 SELECT nodes.id, nodes.address
-  FROM nodes JOIN containers ON containers.node_id = nodes.id
-    WHERE containers.name = ?
+  FROM nodes
+  JOIN containers ON containers.node_id = nodes.id
+  JOIN projects ON projects.id = containers.project_id
+ WHERE projects.name = ? AND containers.name = ?
 `
 	var address string
 	var id int64
-	rows, err := c.tx.Query(stmt, name)
+	rows, err := c.tx.Query(stmt, project, name)
 	if err != nil {
 		return "", err
 	}
@@ -111,7 +222,7 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) ContainersListByNodeAddress() (map[string][]string, error) {
+func (c *ClusterTx) ContainersListByNodeAddress(project string) (map[string][]string, error) {
 	offlineThreshold, err := c.NodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -119,11 +230,14 @@ func (c *ClusterTx) ContainersListByNodeAddress() (map[string][]string, error) {
 
 	stmt := `
 SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
-  FROM containers JOIN nodes ON nodes.id = containers.node_id
+  FROM containers
+  JOIN nodes ON nodes.id = containers.node_id
+  JOIN projects ON projects.id = containers.project_id
   WHERE containers.type=?
+    AND projects.name = ?
   ORDER BY containers.id
 `
-	rows, err := c.tx.Query(stmt, CTypeRegular)
+	rows, err := c.tx.Query(stmt, CTypeRegular, project)
 	if err != nil {
 		return nil, err
 	}
@@ -157,13 +271,16 @@ SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
 
 // ContainersByNodeName returns a map associating each container to the name of
 // its node.
-func (c *ClusterTx) ContainersByNodeName() (map[string]string, error) {
+func (c *ClusterTx) ContainersByNodeName(project string) (map[string]string, error) {
 	stmt := `
 SELECT containers.name, nodes.name
-  FROM containers JOIN nodes ON nodes.id = containers.node_id
+  FROM containers
+  JOIN nodes ON nodes.id = containers.node_id
+  JOIN projects ON projects.id = containers.project_id
   WHERE containers.type=?
+    AND projects.name = ?
 `
-	rows, err := c.tx.Query(stmt, CTypeRegular)
+	rows, err := c.tx.Query(stmt, CTypeRegular, project)
 	if err != nil {
 		return nil, err
 	}
@@ -188,23 +305,6 @@ SELECT containers.name, nodes.name
 	return result, nil
 }
 
-// ContainerID returns the ID of the container with the given name.
-func (c *ClusterTx) ContainerID(name string) (int64, error) {
-	stmt := "SELECT id FROM containers WHERE name=?"
-	ids, err := query.SelectIntegers(c.tx, stmt, name)
-	if err != nil {
-		return -1, err
-	}
-	switch len(ids) {
-	case 0:
-		return -1, ErrNoSuchObject
-	case 1:
-		return int64(ids[0]), nil
-	default:
-		return -1, fmt.Errorf("more than one container has the given name")
-	}
-}
-
 // SnapshotIDsAndNames returns a map of snapshot IDs to snapshot names for the
 // container with the given name.
 func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
@@ -221,8 +321,12 @@ func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
 		}{})
 		return []interface{}{&objects[i].ID, &objects[i].Name}
 	}
-	stmt := "SELECT id, name FROM containers WHERE SUBSTR(name,1,?)=? AND type=?"
-	err := query.SelectObjects(c.tx, dest, stmt, length, prefix, CTypeSnapshot)
+	stmt, err := c.tx.Prepare("SELECT id, name FROM containers WHERE SUBSTR(name,1,?)=? AND type=?")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	err = query.SelectObjects(stmt, dest, length, prefix, CTypeSnapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +344,7 @@ func (c *ClusterTx) SnapshotIDsAndNames(name string) (map[int]string, error) {
 func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
-	poolName, err := c.ContainerPool(oldName)
+	poolName, err := c.ContainerPool("default", oldName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's storage pool name")
 	}
@@ -258,7 +362,7 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 
 	// Update the name of the container and of its snapshots, and the node
 	// ID they are associated with.
-	containerID, err := c.ContainerID(oldName)
+	containerID, err := c.ContainerID("default", oldName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get container's ID")
 	}
@@ -337,238 +441,33 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 	return nil
 }
 
-// ContainerArgsList returns all container objects alll node.
-func (c *ClusterTx) ContainerArgsList() ([]ContainerArgs, error) {
-	return c.containerArgsList(false)
+// ContainerNodeList returns all container objects on the local node.
+func (c *ClusterTx) ContainerNodeList() ([]Container, error) {
+	node, err := c.NodeName()
+	if err != nil {
+		return nil, errors.Wrap(err, "Local node name")
+	}
+	filter := ContainerFilter{
+		Node: node,
+		Type: int(CTypeRegular),
+	}
+
+	return c.ContainerList(filter)
 }
 
-// ContainerArgsNodeList returns all container objects on the local node.
-func (c *ClusterTx) ContainerArgsNodeList() ([]ContainerArgs, error) {
-	return c.containerArgsList(true)
-}
-
-func (c *ClusterTx) containerArgsList(local bool) ([]ContainerArgs, error) {
-	// First query the containers table.
-	stmt := `
-SELECT containers.id, nodes.name, type, creation_date, architecture,
-       coalesce(containers.description, ''), ephemeral, last_use_date,
-       containers.name, stateful
-  FROM containers
-  JOIN nodes ON containers.node_id=nodes.id
-  WHERE type=0
-`
-	if local {
-		stmt += " AND nodes.id=?"
-	}
-
-	stmt += `
-ORDER BY containers.name
-`
-
-	containers := make([]ContainerArgs, 0)
-
-	dest := func(i int) []interface{} {
-		containers = append(containers, ContainerArgs{})
-		return []interface{}{
-			&containers[i].ID,
-			&containers[i].Node,
-			&containers[i].Ctype,
-			&containers[i].CreationDate,
-			&containers[i].Architecture,
-			&containers[i].Description,
-			&containers[i].Ephemeral,
-			&containers[i].LastUsedDate,
-			&containers[i].Name,
-			&containers[i].Stateful,
-		}
-	}
-
-	args := make([]interface{}, 0)
-	if local {
-		args = append(args, c.nodeID)
-	}
-
-	err := query.SelectObjects(c.tx, dest, stmt, args...)
+// ContainerNodeProjectList returns all container objects on the local node within the given project.
+func (c *ClusterTx) ContainerNodeProjectList(project string) ([]Container, error) {
+	node, err := c.NodeName()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to query containers")
+		return nil, errors.Wrap(err, "Local node name")
+	}
+	filter := ContainerFilter{
+		Project: project,
+		Node:    node,
+		Type:    int(CTypeRegular),
 	}
 
-	// Make an index to populate configs and devices.
-	index := make(map[int]*ContainerArgs, len(containers))
-	for i := range containers {
-		index[containers[i].ID] = &containers[i]
-		containers[i].Config = map[string]string{}
-		containers[i].Devices = types.Devices{}
-		containers[i].Profiles = make([]string, 0)
-	}
-
-	// Query the containers_config table.
-	stmt = `
-SELECT container_id, key, value
-  FROM containers_config
-  JOIN containers ON containers.id=container_id
-`
-	if local {
-		stmt += `
-  JOIN nodes ON nodes.id=containers.node_id
-  WHERE nodes.id=? AND containers.type=0
-`
-	} else {
-		stmt += `
-  WHERE containers.type=0
-`
-	}
-
-	configs := make([]struct {
-		ContainerID int64
-		Key         string
-		Value       string
-	}, 0)
-
-	dest = func(i int) []interface{} {
-		configs = append(configs, struct {
-			ContainerID int64
-			Key         string
-			Value       string
-		}{})
-
-		return []interface{}{
-			&configs[i].ContainerID,
-			&configs[i].Key,
-			&configs[i].Value,
-		}
-	}
-
-	err = query.SelectObjects(c.tx, dest, stmt, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to query containers config")
-	}
-
-	for _, config := range configs {
-		index[int(config.ContainerID)].Config[config.Key] = config.Value
-	}
-
-	// Query the containers_devices/containers_devices_config tables.
-	stmt = `
-SELECT container_id, containers_devices.name, containers_devices.type,
-       coalesce(containers_devices_config.key, ''), coalesce(containers_devices_config.value, '')
-  FROM containers_devices
-  LEFT OUTER JOIN containers_devices_config ON containers_devices_config.container_device_id=containers_devices.id
-  JOIN containers ON containers.id=container_id
-`
-	if local {
-		stmt += `
-  JOIN nodes ON nodes.id=containers.node_id
-  WHERE nodes.id=? AND containers.type=0
-`
-	} else {
-		stmt += `
-  WHERE containers.type=0
-`
-	}
-
-	devices := make([]struct {
-		ContainerID int64
-		Name        string
-		Type        int64
-		Key         string
-		Value       string
-	}, 0)
-
-	dest = func(i int) []interface{} {
-		devices = append(devices, struct {
-			ContainerID int64
-			Name        string
-			Type        int64
-			Key         string
-			Value       string
-		}{})
-
-		return []interface{}{
-			&devices[i].ContainerID,
-			&devices[i].Name,
-			&devices[i].Type,
-			&devices[i].Key,
-			&devices[i].Value,
-		}
-	}
-
-	err = query.SelectObjects(c.tx, dest, stmt, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to query containers devices")
-	}
-
-	for _, device := range devices {
-		cid := int(device.ContainerID)
-		_, ok := index[cid].Devices[device.Name]
-		if !ok {
-			// First time we see this device, let's int the config
-			// and add the type.
-			index[cid].Devices[device.Name] = make(map[string]string)
-
-			typ, err := dbDeviceTypeToString(int(device.Type))
-			if err != nil {
-				return nil, errors.Wrapf(err, "unexpected device type code '%d'", device.Type)
-			}
-			index[cid].Devices[device.Name]["type"] = typ
-		}
-
-		if device.Key != "" {
-			index[cid].Devices[device.Name][device.Key] = device.Value
-		}
-
-	}
-
-	// Query the profiles table
-	stmt = `
-SELECT container_id, profiles.name FROM containers_profiles
-  JOIN profiles ON containers_profiles.profile_id=profiles.id
-  JOIN containers ON containers.id=container_id
-`
-
-	if local {
-		stmt += `
-  JOIN nodes ON nodes.id=containers.node_id
-  WHERE nodes.id=? AND containers.type=0
-`
-	} else {
-		stmt += `
-  WHERE containers.type=0
-`
-	}
-
-	stmt += `
-ORDER BY containers_profiles.apply_order
-`
-
-	profiles := make([]struct {
-		ContainerID int64
-		Name        string
-	}, 0)
-
-	dest = func(i int) []interface{} {
-		profiles = append(profiles, struct {
-			ContainerID int64
-			Name        string
-		}{})
-
-		return []interface{}{
-			&profiles[i].ContainerID,
-			&profiles[i].Name,
-		}
-	}
-
-	err = query.SelectObjects(c.tx, dest, stmt, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to query containers profiles")
-	}
-
-	for _, profile := range profiles {
-		id := int(profile.ContainerID)
-		index[id].Profiles = append(index[id].Profiles, profile.Name)
-	}
-
-	return containers, nil
+	return c.ContainerList(filter)
 }
 
 // ContainerConfigInsert inserts a new config for the container with the given ID.
@@ -577,32 +476,31 @@ func (c *ClusterTx) ContainerConfigInsert(id int, config map[string]string) erro
 }
 
 // ContainerRemove removes the container with the given name from the database.
-func (c *Cluster) ContainerRemove(name string) error {
-	id, err := c.ContainerID(name)
-	if err != nil {
-		return err
-	}
-
-	err = exec(c.db, "DELETE FROM containers WHERE id=?", id)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (c *Cluster) ContainerRemove(project, name string) error {
+	return c.Transaction(func(tx *ClusterTx) error {
+		return tx.ContainerDelete(project, name)
+	})
 }
 
-// ContainerName returns the name of the container with the given ID.
-func (c *Cluster) ContainerName(id int) (string, error) {
-	q := "SELECT name FROM containers WHERE id=?"
+// ContainerProjectAndName returns the project and the name of the container
+// with the given ID.
+func (c *Cluster) ContainerProjectAndName(id int) (string, string, error) {
+	q := `
+SELECT projects.name, containers.name
+  FROM containers
+  JOIN projects ON projects.id = containers.project_id
+WHERE containers.id=?
+`
+	project := ""
 	name := ""
 	arg1 := []interface{}{id}
-	arg2 := []interface{}{&name}
+	arg2 := []interface{}{&project, &name}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
 	if err == sql.ErrNoRows {
-		return "", ErrNoSuchObject
+		return "", "", ErrNoSuchObject
 	}
 
-	return name, err
+	return project, name, err
 }
 
 // ContainerID returns the ID of the container with the given name.
@@ -615,147 +513,6 @@ func (c *Cluster) ContainerID(name string) (int, error) {
 	if err == sql.ErrNoRows {
 		return -1, ErrNoSuchObject
 	}
-
-	return id, err
-}
-
-// ContainerGet returns the container with the given name.
-func (c *Cluster) ContainerGet(name string) (ContainerArgs, error) {
-	var used *time.Time    // Hold the db-returned time
-	var nodeAddress string // Hold the db-returned node address
-	description := sql.NullString{}
-
-	args := ContainerArgs{}
-	args.Name = name
-
-	ephemInt := -1
-	statefulInt := -1
-	q := `
-SELECT containers.id, containers.description, architecture, type, ephemeral, stateful,
-       creation_date, last_use_date, nodes.name, nodes.address
-  FROM containers JOIN nodes ON node_id = nodes.id
-  WHERE containers.name=?
-`
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&args.ID, &description, &args.Architecture, &args.Ctype, &ephemInt, &statefulInt, &args.CreationDate, &used, &args.Node, &nodeAddress}
-	err := dbQueryRowScan(c.db, q, arg1, arg2)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return args, ErrNoSuchObject
-		}
-
-		return args, err
-	}
-
-	args.Description = description.String
-
-	if args.ID == -1 {
-		return args, fmt.Errorf("Unknown container")
-	}
-
-	if ephemInt == 1 {
-		args.Ephemeral = true
-	}
-
-	if statefulInt == 1 {
-		args.Stateful = true
-	}
-
-	if used != nil {
-		args.LastUsedDate = *used
-	} else {
-		args.LastUsedDate = time.Unix(0, 0).UTC()
-	}
-
-	config, err := c.ContainerConfig(args.ID)
-	if err != nil {
-		return args, err
-	}
-	args.Config = config
-
-	profiles, err := c.ContainerProfiles(args.ID)
-	if err != nil {
-		return args, err
-	}
-	args.Profiles = profiles
-
-	/* get container_devices */
-	args.Devices = types.Devices{}
-	newdevs, err := c.Devices(name, false)
-	if err != nil {
-		return args, err
-	}
-
-	for k, v := range newdevs {
-		args.Devices[k] = v
-	}
-
-	if nodeAddress == "0.0.0.0" {
-		// This means we're not clustered, so omit the node name
-		args.Node = ""
-	}
-
-	return args, nil
-}
-
-// ContainerCreate creates a new container and returns its ID.
-func (c *Cluster) ContainerCreate(args ContainerArgs) (int, error) {
-	_, err := c.ContainerID(args.Name)
-	if err == nil {
-		return 0, ErrAlreadyDefined
-	}
-
-	var id int
-	err = c.Transaction(func(tx *ClusterTx) error {
-		ephemInt := 0
-		if args.Ephemeral == true {
-			ephemInt = 1
-		}
-
-		statefulInt := 0
-		if args.Stateful == true {
-			statefulInt = 1
-		}
-
-		if args.CreationDate.IsZero() {
-			args.CreationDate = time.Now().UTC()
-		}
-
-		if args.LastUsedDate.IsZero() {
-			args.LastUsedDate = time.Unix(0, 0).UTC()
-		}
-
-		str := fmt.Sprintf("INSERT INTO containers (node_id, name, architecture, type, ephemeral, creation_date, last_use_date, stateful) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-		stmt, err := tx.tx.Prepare(str)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-		result, err := stmt.Exec(c.nodeID, args.Name, args.Architecture, args.Ctype, ephemInt, args.CreationDate.Unix(), args.LastUsedDate.Unix(), statefulInt)
-		if err != nil {
-			return err
-		}
-
-		id64, err := result.LastInsertId()
-		if err != nil {
-			return fmt.Errorf("Error inserting %s into database", args.Name)
-		}
-		// TODO: is this really int64? we should fix it everywhere if so
-		id = int(id64)
-		if err := ContainerConfigInsert(tx.tx, id, args.Config); err != nil {
-			return err
-		}
-
-		if err := ContainerProfilesInsert(tx.tx, id, args.Profiles); err != nil {
-			return err
-		}
-
-		if err := DevicesAdd(tx.tx, "container", int64(id), args.Devices); err != nil {
-			return err
-		}
-
-		return nil
-	})
 
 	return id, err
 }
@@ -915,8 +672,11 @@ func (c *Cluster) ContainerConfig(id int) (map[string]string, error) {
 	return config, nil
 }
 
-// ContainersList returns the names of all the containers of the given type.
-func (c *Cluster) ContainersList(cType ContainerType) ([]string, error) {
+// LegacyContainersList returns the names of all the containers of the given type.
+//
+// NOTE: this is a pre-projects legacy API that is used only by patches. Don't
+// use it for new code.
+func (c *Cluster) LegacyContainersList(cType ContainerType) ([]string, error) {
 	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? ORDER BY name")
 	inargs := []interface{}{cType}
 	var container string
@@ -992,32 +752,6 @@ func (c *Cluster) ContainerSetState(id int, state string) error {
 	return err
 }
 
-// ContainerRename renames a container from the given current name to the new
-// one.
-func (c *Cluster) ContainerRename(oldName string, newName string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		str := fmt.Sprintf("UPDATE containers SET name = ? WHERE name = ?")
-		stmt, err := tx.tx.Prepare(str)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-
-		logger.Debug(
-			"Calling SQL Query",
-			log.Ctx{
-				"query":   "UPDATE containers SET name = ? WHERE name = ?",
-				"oldName": oldName,
-				"newName": newName})
-		if _, err := stmt.Exec(newName, oldName); err != nil {
-			return err
-		}
-
-		return nil
-	})
-	return err
-}
-
 // ContainerUpdate updates the description, architecture and ephemeral flag of
 // the container with the given ID.
 func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, ephemeral bool) error {
@@ -1049,14 +783,19 @@ func (c *Cluster) ContainerLastUsedUpdate(id int, date time.Time) error {
 }
 
 // ContainerGetSnapshots returns the names of all snapshots of the container
-// with the given name.
-func (c *Cluster) ContainerGetSnapshots(name string) ([]string, error) {
+// in the given project with the given name.
+func (c *Cluster) ContainerGetSnapshots(project, name string) ([]string, error) {
 	result := []string{}
 
 	regexp := name + shared.SnapshotDelimiter
 	length := len(regexp)
-	q := "SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?"
-	inargs := []interface{}{CTypeSnapshot, length, regexp}
+	q := `
+SELECT containers.name
+  FROM containers
+  JOIN projects ON projects.id = containers.project_id
+WHERE projects.name=? AND containers.type=? AND SUBSTR(containers.name,1,?)=?
+`
+	inargs := []interface{}{project, CTypeSnapshot, length, regexp}
 	outfmt := []interface{}{name}
 	dbResults, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
@@ -1075,12 +814,16 @@ func (c *Cluster) ContainerGetSnapshots(name string) ([]string, error) {
 //
 // Note, the code below doesn't deal with snapshots of snapshots.
 // To do that, we'll need to weed out based on # slashes in names
-func (c *Cluster) ContainerNextSnapshot(name string) int {
+func (c *Cluster) ContainerNextSnapshot(project string, name string) int {
 	base := name + shared.SnapshotDelimiter + "snap"
 	length := len(base)
-	q := fmt.Sprintf("SELECT name FROM containers WHERE type=? AND SUBSTR(name,1,?)=?")
+	q := `
+SELECT containers.name
+  FROM containers
+  JOIN projects ON projects.id = containers.project_id
+ WHERE projects.name=? AND containers.type=? AND SUBSTR(containers.name,1,?)=?`
 	var numstr string
-	inargs := []interface{}{CTypeSnapshot, length, base}
+	inargs := []interface{}{project, CTypeSnapshot, length, base}
 	outfmt := []interface{}{numstr}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
@@ -1110,26 +853,30 @@ func (c *Cluster) ContainerNextSnapshot(name string) int {
 // ContainerPool returns the storage pool of a given container.
 //
 // This is a non-transactional variant of ClusterTx.ContainerPool().
-func (c *Cluster) ContainerPool(containerName string) (string, error) {
+func (c *Cluster) ContainerPool(project, containerName string) (string, error) {
 	var poolName string
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		poolName, err = tx.ContainerPool(containerName)
+		poolName, err = tx.ContainerPool(project, containerName)
 		return err
 	})
 	return poolName, err
 }
 
 // ContainerPool returns the storage pool of a given container.
-func (c *ClusterTx) ContainerPool(containerName string) (string, error) {
+func (c *ClusterTx) ContainerPool(project, containerName string) (string, error) {
 	// Get container storage volume. Since container names are globally
 	// unique, and their storage volumes carry the same name, their storage
 	// volumes are unique too.
 	poolName := ""
-	query := `SELECT storage_pools.name FROM storage_pools
-JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
-WHERE storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type=?`
-	inargs := []interface{}{c.nodeID, containerName, StoragePoolVolumeTypeContainer}
+	query := `
+SELECT storage_pools.name FROM storage_pools
+  JOIN storage_volumes ON storage_pools.id=storage_volumes.storage_pool_id
+  JOIN containers ON containers.name=storage_volumes.name
+  JOIN projects ON projects.id=containers.project_id
+ WHERE projects.name=? AND storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.type=?
+`
+	inargs := []interface{}{project, c.nodeID, containerName, StoragePoolVolumeTypeContainer}
 	outargs := []interface{}{&poolName}
 
 	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
@@ -1159,18 +906,22 @@ func (c *Cluster) ContainerBackupID(name string) (int, error) {
 }
 
 // ContainerGetBackup returns the backup with the given name.
-func (c *Cluster) ContainerGetBackup(name string) (ContainerBackupArgs, error) {
+func (c *Cluster) ContainerGetBackup(project, name string) (ContainerBackupArgs, error) {
 	args := ContainerBackupArgs{}
 	args.Name = name
 
 	containerOnlyInt := -1
 	optimizedStorageInt := -1
 	q := `
-SELECT id, container_id, creation_date, expiry_date, container_only, optimized_storage
+SELECT containers_backups.id, containers_backups.container_id,
+       containers_backups.creation_date, containers_backups.expiry_date,
+       containers_backups.container_only, containers_backups.optimized_storage
     FROM containers_backups
-    WHERE name=?
+    JOIN containers ON containers.id=containers_backups.container_id
+    JOIN projects ON projects.id=containers.project_id
+    WHERE projects.name=? AND containers_backups.name=?
 `
-	arg1 := []interface{}{name}
+	arg1 := []interface{}{project, name}
 	arg2 := []interface{}{&args.ID, &args.ContainerID, &args.CreationDate,
 		&args.ExpiryDate, &containerOnlyInt, &optimizedStorageInt}
 	err := dbQueryRowScan(c.db, q, arg1, arg2)
@@ -1195,13 +946,14 @@ SELECT id, container_id, creation_date, expiry_date, container_only, optimized_s
 
 // ContainerGetBackups returns the names of all backups of the container
 // with the given name.
-func (c *Cluster) ContainerGetBackups(name string) ([]string, error) {
+func (c *Cluster) ContainerGetBackups(project, name string) ([]string, error) {
 	var result []string
 
 	q := `SELECT containers_backups.name FROM containers_backups
 JOIN containers ON containers_backups.container_id=containers.id
-WHERE containers.name=?`
-	inargs := []interface{}{name}
+JOIN projects ON projects.id=containers.id
+WHERE projects.name=? AND containers.name=?`
+	inargs := []interface{}{project, name}
 	outfmt := []interface{}{name}
 	dbResults, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {

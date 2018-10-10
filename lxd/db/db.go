@@ -143,6 +143,7 @@ type Cluster struct {
 	db     *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
 	nodeID int64   // Node ID of this LXD instance.
 	mu     sync.RWMutex
+	stmts  map[int]*sql.Stmt // Prepared statements by code.
 }
 
 // OpenCluster creates a new Cluster object for interacting with the dqlite
@@ -209,11 +210,18 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 		return nil, errors.Wrap(err, "failed to ensure schema")
 	}
 
-	cluster := &Cluster{
-		db: db,
-	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
+
+	stmts, err := cluster.PrepareStmts(db)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to prepare statements")
+	}
+
+	cluster := &Cluster{
+		db:    db,
+		stmts: stmts,
+	}
 
 	// Figure out the ID of this node.
 	err = cluster.Transaction(func(tx *ClusterTx) error {
@@ -254,6 +262,21 @@ var ErrSomeNodesAreBehind = fmt.Errorf("some nodes are behind this node's versio
 // with the legacy patches that need to interact with the database.
 func ForLocalInspection(db *sql.DB) *Cluster {
 	return &Cluster{db: db}
+}
+
+// ForLocalInspectionWithPreparedStmts is the same as ForLocalInspection but it
+// also prepares the statements used in auto-generated database code.
+func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
+	c := ForLocalInspection(db)
+
+	stmts, err := cluster.PrepareStmts(c.db)
+	if err != nil {
+		return nil, errors.Wrap(err, "Prepare database statements")
+	}
+
+	c.stmts = stmts
+
+	return c, nil
 }
 
 // Transaction creates a new ClusterTx object and transactionally executes the
@@ -300,6 +323,7 @@ func (c *Cluster) ExitExclusive(f func(*ClusterTx) error) error {
 func (c *Cluster) transaction(f func(*ClusterTx) error) error {
 	clusterTx := &ClusterTx{
 		nodeID: c.nodeID,
+		stmts:  c.stmts,
 	}
 
 	return query.Retry(func() error {
@@ -320,6 +344,9 @@ func (c *Cluster) NodeID(id int64) {
 
 // Close the database facade.
 func (c *Cluster) Close() error {
+	for _, stmt := range c.stmts {
+		stmt.Close()
+	}
 	return c.db.Close()
 }
 
@@ -336,21 +363,6 @@ func (c *Cluster) DB() *sql.DB {
 // FIXME: legacy method.
 func (c *Cluster) Begin() (*sql.Tx, error) {
 	return begin(c.db)
-}
-
-// UpdateSchemasDotGo updates the schema.go files in the local/ and cluster/
-// sub-packages.
-func UpdateSchemasDotGo() error {
-	err := node.SchemaDotGo()
-	if err != nil {
-		return fmt.Errorf("failed to update node schema.go: %v", err)
-	}
-	err = cluster.SchemaDotGo()
-	if err != nil {
-		return fmt.Errorf("failed to update cluster schema.go: %v", err)
-	}
-
-	return nil
 }
 
 func isNoMatchError(err error) bool {

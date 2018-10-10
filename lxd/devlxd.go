@@ -117,6 +117,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c container, 
 	}
 
 	listener := eventListener{
+		project:      c.Project(),
 		active:       make(chan bool, 1),
 		connection:   conn,
 		id:           uuid.NewRandom().String(),
@@ -438,7 +439,12 @@ func findContainerForPid(pid int32, d *Daemon) (container, error) {
 			parts := strings.Split(string(cmdline), " ")
 			name := strings.TrimSuffix(parts[len(parts)-1], "\x00")
 
-			return containerLoadByName(d.State(), name)
+			project := "default"
+			if strings.Contains(name, "_") {
+				project = strings.Split(name, "_")[0]
+			}
+
+			return containerLoadByProjectAndName(d.State(), project, name)
 		}
 
 		status, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/status", pid))

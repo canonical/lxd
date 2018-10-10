@@ -44,6 +44,19 @@ func TestCount(t *testing.T) {
 	}
 }
 
+func TestCountAll(t *testing.T) {
+	tx := newTxForCount(t)
+	defer tx.Rollback()
+
+	counts, err := query.CountAll(tx)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]int{
+		"test":  2,
+		"test2": 1,
+	}, counts)
+}
+
 // Return a new transaction against an in-memory SQLite database with a single
 // test table and a few rows.
 func newTxForCount(t *testing.T) *sql.Tx {
@@ -54,6 +67,12 @@ func newTxForCount(t *testing.T) *sql.Tx {
 	assert.NoError(t, err)
 
 	_, err = db.Exec("INSERT INTO test VALUES (1), (2)")
+	assert.NoError(t, err)
+
+	_, err = db.Exec("CREATE TABLE test2 (id INTEGER)")
+	assert.NoError(t, err)
+
+	_, err = db.Exec("INSERT INTO test2 VALUES (1)")
 	assert.NoError(t, err)
 
 	tx, err := db.Begin()

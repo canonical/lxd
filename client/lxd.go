@@ -38,6 +38,7 @@ type ProtocolLXD struct {
 	requireAuthenticated bool
 
 	clusterTarget string
+	project       string
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server
@@ -234,11 +235,17 @@ func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag s
 		return nil, "", err
 	}
 
-	// Extract query fields and update for cluster targeting
+	// Extract query fields and update for cluster targeting or project
 	values := fields.Query()
 	if r.clusterTarget != "" {
 		if values.Get("target") == "" {
 			values.Set("target", r.clusterTarget)
+		}
+	}
+
+	if r.project != "" {
+		if values.Get("project") == "" {
+			values.Set("project", r.project)
 		}
 	}
 	fields.RawQuery = values.Encode()

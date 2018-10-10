@@ -1689,6 +1689,9 @@ func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, 
 	// Build the URL
 	uri := fmt.Sprintf("%s/1.0/containers/%s/backups/%s/export", r.httpHost,
 		url.QueryEscape(containerName), url.QueryEscape(name))
+	if r.project != "" {
+		uri += fmt.Sprintf("?project=%s", url.QueryEscape(r.project))
+	}
 
 	// Prepare the download request
 	request, err := http.NewRequest("GET", uri, nil)

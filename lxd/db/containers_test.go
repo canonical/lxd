@@ -10,6 +10,117 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestContainerList(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	nodeID1 := int64(1) // This is the default local node
+
+	nodeID2, err := tx.NodeAdd("node2", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	addContainer(t, tx, nodeID2, "c1")
+	addContainer(t, tx, nodeID1, "c2")
+	addContainer(t, tx, nodeID2, "c3")
+
+	addContainerConfig(t, tx, "c2", "x", "y")
+	addContainerConfig(t, tx, "c3", "z", "w")
+	addContainerConfig(t, tx, "c3", "a", "b")
+
+	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
+	addContainerDevice(t, tx, "c3", "root", "disk", map[string]string{"x": "y"})
+
+	filter := db.ContainerFilter{Type: int(db.CTypeRegular)}
+	containers, err := tx.ContainerList(filter)
+	require.NoError(t, err)
+	assert.Len(t, containers, 3)
+
+	c1 := containers[0]
+	assert.Equal(t, "c1", c1.Name)
+	assert.Equal(t, "node2", c1.Node)
+	assert.Equal(t, map[string]string{}, c1.Config)
+	assert.Len(t, c1.Devices, 0)
+
+	c2 := containers[1]
+	assert.Equal(t, "c2", c2.Name)
+	assert.Equal(t, map[string]string{"x": "y"}, c2.Config)
+	assert.Equal(t, "none", c2.Node)
+	assert.Len(t, c2.Devices, 1)
+	assert.Equal(t, map[string]string{"type": "nic"}, c2.Devices["eth0"])
+
+	c3 := containers[2]
+	assert.Equal(t, "c3", c3.Name)
+	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, c3.Config)
+	assert.Equal(t, "node2", c3.Node)
+	assert.Len(t, c3.Devices, 1)
+	assert.Equal(t, map[string]string{"type": "disk", "x": "y"}, c3.Devices["root"])
+}
+
+func TestContainerList_FilterByNode(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	nodeID1 := int64(1) // This is the default local node
+
+	nodeID2, err := tx.NodeAdd("node2", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	addContainer(t, tx, nodeID2, "c1")
+	addContainer(t, tx, nodeID1, "c2")
+	addContainer(t, tx, nodeID2, "c3")
+
+	filter := db.ContainerFilter{
+		Project: "default",
+		Node:    "node2",
+		Type:    int(db.CTypeRegular),
+	}
+
+	containers, err := tx.ContainerList(filter)
+	require.NoError(t, err)
+	assert.Len(t, containers, 2)
+
+	assert.Equal(t, 1, containers[0].ID)
+	assert.Equal(t, "c1", containers[0].Name)
+	assert.Equal(t, "node2", containers[0].Node)
+	assert.Equal(t, 3, containers[1].ID)
+	assert.Equal(t, "c3", containers[1].Name)
+	assert.Equal(t, "node2", containers[1].Node)
+}
+
+func TestContainerCreate(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	object := db.Container{
+		Project:      "default",
+		Name:         "c1",
+		Type:         0,
+		Node:         "none",
+		Architecture: 1,
+		Ephemeral:    true,
+		Stateful:     true,
+		LastUseDate:  time.Now(),
+		Description:  "container 1",
+		Config:       map[string]string{"x": "y"},
+		Devices:      map[string]map[string]string{"root": {"type": "disk", "x": "y"}},
+		Profiles:     []string{"default"},
+	}
+
+	id, err := tx.ContainerCreate(object)
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(1), id)
+
+	c1, err := tx.ContainerGet("default", "c1")
+	require.NoError(t, err)
+
+	assert.Equal(t, "c1", c1.Name)
+	assert.Equal(t, map[string]string{"x": "y"}, c1.Config)
+	assert.Len(t, c1.Devices, 1)
+	assert.Equal(t, map[string]string{"type": "disk", "x": "y"}, c1.Devices["root"])
+	assert.Equal(t, []string{"default"}, c1.Profiles)
+}
+
 // Containers are grouped by node address.
 func TestContainersListByNodeAddress(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
@@ -29,7 +140,7 @@ func TestContainersListByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID3, "c3")
 	addContainer(t, tx, nodeID2, "c4")
 
-	result, err := tx.ContainersListByNodeAddress()
+	result, err := tx.ContainersListByNodeAddress("default")
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -53,7 +164,7 @@ func TestContainersByNodeName(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c1")
 	addContainer(t, tx, nodeID1, "c2")
 
-	result, err := tx.ContainersByNodeName()
+	result, err := tx.ContainersByNodeName("default")
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -69,22 +180,28 @@ func TestContainerPool(t *testing.T) {
 
 	poolID, err := cluster.StoragePoolCreate("default", "", "dir", nil)
 	require.NoError(t, err)
-	_, err = cluster.StoragePoolVolumeCreate("c1", "", db.StoragePoolVolumeTypeContainer, false, poolID, nil)
+	_, err = cluster.StoragePoolVolumeCreate("default", "c1", "", db.StoragePoolVolumeTypeContainer, false, poolID, nil)
 	require.NoError(t, err)
 
-	args := db.ContainerArgs{
-		Name: "c1",
-		Devices: types.Devices{
-			"root": types.Device{
-				"path": "/",
-				"pool": "default",
-				"type": "disk",
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		container := db.Container{
+			Project: "default",
+			Name:    "c1",
+			Node:    "none",
+			Devices: types.Devices{
+				"root": types.Device{
+					"path": "/",
+					"pool": "default",
+					"type": "disk",
+				},
 			},
-		},
-	}
-	_, err = cluster.ContainerCreate(args)
+		}
+		_, err := tx.ContainerCreate(container)
+		return err
+	})
 	require.NoError(t, err)
-	poolName, err := cluster.ContainerPool("c1")
+
+	poolName, err := cluster.ContainerPool("default", "c1")
 	require.NoError(t, err)
 	assert.Equal(t, "default", poolName)
 }
@@ -113,55 +230,8 @@ func TestContainersNodeList(t *testing.T) {
 	assert.Equal(t, names, []string{"c1"})
 }
 
-// All containers are loaded in bulk.
-func TestContainerArgsList(t *testing.T) {
-	tx, cleanup := db.NewTestClusterTx(t)
-	defer cleanup()
-
-	nodeID1 := int64(1) // This is the default local node
-
-	nodeID2, err := tx.NodeAdd("node2", "1.2.3.4:666")
-	require.NoError(t, err)
-
-	addContainer(t, tx, nodeID2, "c1")
-	addContainer(t, tx, nodeID1, "c2")
-	addContainer(t, tx, nodeID1, "c3")
-	addContainer(t, tx, nodeID1, "c4")
-
-	addContainerConfig(t, tx, "c2", "x", "y")
-	addContainerConfig(t, tx, "c3", "z", "w")
-	addContainerConfig(t, tx, "c3", "a", "b")
-
-	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
-	addContainerDevice(t, tx, "c4", "root", "disk", map[string]string{"x": "y"})
-
-	containers, err := tx.ContainerArgsList()
-	require.NoError(t, err)
-	assert.Len(t, containers, 4)
-
-	assert.Equal(t, "c1", containers[0].Name)
-	assert.Equal(t, "c2", containers[1].Name)
-	assert.Equal(t, "c3", containers[2].Name)
-	assert.Equal(t, "c4", containers[3].Name)
-
-	assert.Equal(t, "node2", containers[0].Node)
-	assert.Equal(t, "none", containers[1].Node)
-	assert.Equal(t, "none", containers[2].Node)
-	assert.Equal(t, "none", containers[3].Node)
-
-	assert.Equal(t, map[string]string{}, containers[0].Config)
-	assert.Equal(t, map[string]string{"x": "y"}, containers[1].Config)
-	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, containers[2].Config)
-	assert.Equal(t, map[string]string{}, containers[3].Config)
-
-	assert.Equal(t, types.Devices{}, containers[0].Devices)
-	assert.Equal(t, types.Devices{"eth0": map[string]string{"type": "nic"}}, containers[1].Devices)
-	assert.Equal(t, types.Devices{}, containers[2].Devices)
-	assert.Equal(t, types.Devices{"root": map[string]string{"type": "disk", "x": "y"}}, containers[3].Devices)
-}
-
 // All containers on a node are loaded in bulk.
-func TestContainerArgsNodeList(t *testing.T) {
+func TestContainerNodeList(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
@@ -182,7 +252,7 @@ func TestContainerArgsNodeList(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c4", "root", "disk", map[string]string{"x": "y"})
 
-	containers, err := tx.ContainerArgsNodeList()
+	containers, err := tx.ContainerNodeList()
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
 
@@ -196,16 +266,16 @@ func TestContainerArgsNodeList(t *testing.T) {
 
 	assert.Equal(t, map[string]string{"x": "y"}, containers[0].Config)
 	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, containers[1].Config)
-	assert.Equal(t, map[string]string{}, containers[2].Config)
+	assert.Len(t, containers[2].Config, 0)
 
-	assert.Equal(t, types.Devices{"eth0": map[string]string{"type": "nic"}}, containers[0].Devices)
-	assert.Equal(t, types.Devices{}, containers[1].Devices)
-	assert.Equal(t, types.Devices{"root": map[string]string{"type": "disk", "x": "y"}}, containers[2].Devices)
+	assert.Equal(t, map[string]map[string]string{"eth0": {"type": "nic"}}, containers[0].Devices)
+	assert.Len(t, containers[1].Devices, 0)
+	assert.Equal(t, map[string]map[string]string{"root": {"type": "disk", "x": "y"}}, containers[2].Devices)
 }
 
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 	stmt := `
-INSERT INTO containers(node_id, name, architecture, type) VALUES (?, ?, 1, ?)
+INSERT INTO containers(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
 `
 	_, err := tx.Tx().Exec(stmt, nodeID, name, db.CTypeRegular)
 	require.NoError(t, err)

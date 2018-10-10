@@ -120,7 +120,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	targetNode := r.FormValue("target")
+	targetNode := queryParam(r, "target")
 	if targetNode == "" {
 		count, err := cluster.Count(d.State())
 		if err != nil {
@@ -287,7 +287,7 @@ func storagePoolGet(d *Daemon, r *http.Request) Response {
 	}
 	pool.UsedBy = poolUsedBy
 
-	targetNode := r.FormValue("target")
+	targetNode := queryParam(r, "target")
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
@@ -563,7 +563,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) Response {
 	}
 
 	for _, volume := range volumeNames {
-		_, imgInfo, err := d.cluster.ImageGet(volume, false, false)
+		_, imgInfo, err := d.cluster.ImageGet("default", volume, false, false)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -622,7 +622,7 @@ func storagePoolDeleteCheckPreconditions(cluster *db.Cluster, poolName string, p
 	}
 
 	if len(volumeNames) > 0 {
-		volumes, err := cluster.StoragePoolVolumesGet(poolID, supportedVolumeTypes)
+		volumes, err := cluster.StoragePoolVolumesGet("default", poolID, supportedVolumeTypes)
 		if err != nil {
 			return InternalError(err)
 		}

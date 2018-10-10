@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
@@ -71,7 +72,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 
 	op, err := d.CreateContainerBackup(name, req)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Create container backup")
 	}
 
 	// Wait until backup is done
@@ -120,7 +121,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		os.Remove(targetName)
 		progress.Done("")
-		return err
+		return errors.Wrap(err, "Fetch container backup file")
 	}
 
 	progress.Done(i18n.G("Backup exported successfully!"))
