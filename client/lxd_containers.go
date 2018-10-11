@@ -267,6 +267,16 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 			return nil, fmt.Errorf("The source server is missing the required \"container_push_target\" API extension")
 		}
 
+		if args.Refresh {
+			if !r.HasExtension("container_incremental_copy") {
+				return nil, fmt.Errorf("The target server is missing the required \"container_incremental_copy\" API extension")
+			}
+
+			if !source.HasExtension("container_incremental_copy") {
+				return nil, fmt.Errorf("The source server is missing the required \"container_incremental_copy\" API extension")
+			}
+		}
+
 		// Allow overriding the target name
 		if args.Name != "" {
 			req.Name = args.Name
@@ -274,6 +284,7 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 
 		req.Source.Live = args.Live
 		req.Source.ContainerOnly = args.ContainerOnly
+		req.Source.Refresh = args.Refresh
 	}
 
 	if req.Source.Live {
@@ -287,7 +298,7 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 
 	destInfo, err := r.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get source connection info: %v", err)
+		return nil, fmt.Errorf("Failed to get destination connection info: %v", err)
 	}
 
 	// Optimization for the local copy case
@@ -334,11 +345,13 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 		// Create the container
 		req.Source.Type = "migration"
 		req.Source.Mode = "push"
+		req.Source.Refresh = args.Refresh
 
 		op, err := r.CreateContainer(req)
 		if err != nil {
 			return nil, err
 		}
+
 		opAPI := op.Get()
 
 		targetSecrets := map[string]string{}

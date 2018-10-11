@@ -363,6 +363,10 @@ type ContainerCopyArgs struct {
 
 	// The transfer mode, can be "pull" (default), "push" or "relay"
 	Mode string
+
+	// API extension: container_incremental_copy
+	// Perform an incremental copy
+	Refresh bool
 }
 
 // The ContainerSnapshotCopyArgs struct is used to pass additional options during container copy
