@@ -60,6 +60,7 @@ message MigrationHeader {
 	repeated Snapshot			snapshots	= 5;
 	optional bool				predump		= 7;
 	optional rsyncFeatures		rsyncFeatures = 8;
+	optional bool				refresh		= 9;
 }
 
 message MigrationControl {
