@@ -336,7 +336,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
-		return nil, err
+		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
 	// Retrieve the container's storage pool
