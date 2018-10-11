@@ -112,7 +112,7 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 			}
 			info, err = d.ImageDownload(
 				op, req.Source.Server, req.Source.Protocol, req.Source.Certificate,
-				req.Source.Secret, hash, true, autoUpdate, "", true)
+				req.Source.Secret, hash, true, autoUpdate, "", true, project)
 			if err != nil {
 				return err
 			}

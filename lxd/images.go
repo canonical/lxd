@@ -274,7 +274,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	return &info, nil
 }
 
-func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, error) {
+func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation, project string) (*api.Image, error) {
 	var err error
 	var hash string
 
@@ -286,7 +286,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image
 		return nil, fmt.Errorf("must specify one of alias or fingerprint for init from image")
 	}
 
-	info, err := d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, false, req.AutoUpdate, "", false)
+	info, err := d.ImageDownload(op, req.Source.Server, req.Source.Protocol, req.Source.Certificate, req.Source.Secret, hash, false, req.AutoUpdate, "", false, project)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func imgPostRemoteInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image
 	return info, nil
 }
 
-func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, error) {
+func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation, project string) (*api.Image, error) {
 	var err error
 
 	if req.Source.URL == "" {
@@ -355,7 +355,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation) (*api.Image, e
 	}
 
 	// Import the image
-	info, err := d.ImageDownload(op, url, "direct", "", "", hash, false, req.AutoUpdate, "", false)
+	info, err := d.ImageDownload(op, url, "direct", "", "", hash, false, req.AutoUpdate, "", false, project)
 	if err != nil {
 		return nil, err
 	}
@@ -697,10 +697,10 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		} else {
 			if req.Source.Type == "image" {
 				/* Processing image copy from remote */
-				info, err = imgPostRemoteInfo(d, req, op)
+				info, err = imgPostRemoteInfo(d, req, op, project)
 			} else if req.Source.Type == "url" {
 				/* Processing image copy from URL */
-				info, err = imgPostURLInfo(d, req, op)
+				info, err = imgPostURLInfo(d, req, op, project)
 			} else {
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
@@ -883,7 +883,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) {
 		//        goroutine and simply abort when the context expires.
 		ch := make(chan struct{})
 		go func() {
-			autoUpdateImage(d, nil, id, info)
+			autoUpdateImage(d, nil, id, info, "default")
 			ch <- struct{}{}
 		}()
 		select {
@@ -898,7 +898,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) {
 
 // Update a single image.  The operation can be nil, if no progress tracking is needed.
 // Returns whether the image has been updated.
-func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
+func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image, project string) error {
 	fingerprint := info.Fingerprint
 	_, source, err := d.cluster.ImageSourceGet(id)
 	if err != nil {
@@ -941,7 +941,7 @@ func autoUpdateImage(d *Daemon, op *operation, id int, info *api.Image) error {
 	// Update the image on each pool where it currently exists.
 	hash := fingerprint
 	for _, poolName := range poolNames {
-		newInfo, err := d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, false, true, poolName, false)
+		newInfo, err := d.ImageDownload(op, source.Server, source.Protocol, source.Certificate, "", source.Alias, false, true, poolName, false, project)
 
 		if err != nil {
 			logger.Error("Failed to update the image", log.Ctx{"err": err, "fp": fingerprint})
@@ -1870,7 +1870,7 @@ func imageRefresh(d *Daemon, r *http.Request) Response {
 
 	// Begin background operation
 	run := func(op *operation) error {
-		return autoUpdateImage(d, op, imageId, imageInfo)
+		return autoUpdateImage(d, op, imageId, imageInfo, project)
 	}
 
 	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationImageRefresh, nil, nil, run, nil, nil)
