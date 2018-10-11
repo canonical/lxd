@@ -1,8 +1,10 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
 )
@@ -46,14 +48,26 @@ type ProjectFilter struct {
 // ProjectHasProfiles is a helper to check if a project has the profiles
 // feature enabled.
 func (c *ClusterTx) ProjectHasProfiles(name string) (bool, error) {
-	project, err := c.ProjectGet(name)
+	return projectHasProfiles(c.tx, name)
+}
+
+func projectHasProfiles(tx *sql.Tx, name string) (bool, error) {
+	stmt := `
+SELECT projects_config.value
+  FROM projects_config
+  JOIN projects ON projects.id=projects_config.project_id
+ WHERE projects.name=? AND projects_config.key='features.profiles'
+`
+	values, err := query.SelectStrings(tx, stmt, name)
 	if err != nil {
-		return false, errors.Wrap(err, "fetch project")
+		return false, errors.Wrap(err, "Fetch project config")
 	}
 
-	enabled := project.Config["features.profiles"] == "true"
+	if len(values) == 0 {
+		return false, nil
+	}
 
-	return enabled, nil
+	return values[0] == "true", nil
 }
 
 // ProjectHasImages is a helper to check if a project has the images

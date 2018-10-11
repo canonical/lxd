@@ -1828,7 +1828,7 @@ func (c *containerLXC) expandDevices(profiles []api.Profile) error {
 		}
 	} else {
 		for _, p := range c.profiles {
-			devices, err := c.state.Cluster.Devices(p, true)
+			devices, err := c.state.Cluster.Devices(c.project, p, true)
 			if err != nil {
 				return err
 			}
