@@ -757,6 +757,11 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 		return nil, nil, err
 	}
 
+	requestURL, err = r.setQueryAttributes(requestURL)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
 		return nil, nil, err
@@ -836,7 +841,14 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Prepare the HTTP request
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/1.0/containers/%s/files?path=%s", r.httpHost, url.QueryEscape(containerName), url.QueryEscape(path)), args.Content)
+	requestURL := fmt.Sprintf("%s/1.0/containers/%s/files?path=%s", r.httpHost, url.QueryEscape(containerName), url.QueryEscape(path))
+
+	requestURL, err := r.setQueryAttributes(requestURL)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", requestURL, args.Content)
 	if err != nil {
 		return err
 	}
@@ -1283,6 +1295,12 @@ func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
 func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.ReadCloser, error) {
 	// Prepare the HTTP request
 	url := fmt.Sprintf("%s/1.0/containers/%s/logs/%s", r.httpHost, url.QueryEscape(name), url.QueryEscape(filename))
+
+	url, err := r.setQueryAttributes(url)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -1377,6 +1395,12 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 	}
 
 	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, url.QueryEscape(containerName), url.QueryEscape(templateName))
+
+	url, err := r.setQueryAttributes(url)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -1388,7 +1412,7 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 	}
 
 	// Send the request
-	resp, err := r.http.Do(req)
+	resp, err := r.do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -1420,6 +1444,12 @@ func (r *ProtocolLXD) setContainerTemplateFile(containerName string, templateNam
 	}
 
 	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, url.QueryEscape(containerName), url.QueryEscape(templateName))
+
+	url, err := r.setQueryAttributes(url)
+	if err != nil {
+		return err
+	}
+
 	req, err := http.NewRequest(httpMethod, url, content)
 	if err != nil {
 		return err
@@ -1432,7 +1462,7 @@ func (r *ProtocolLXD) setContainerTemplateFile(containerName string, templateNam
 	}
 
 	// Send the request
-	resp, err := r.http.Do(req)
+	resp, err := r.do(req)
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
 		_, _, err := lxdParseResponse(resp)
@@ -1532,6 +1562,12 @@ func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *Contain
 
 	// Prepare the HTTP request
 	url := fmt.Sprintf("%s/1.0/containers/%s/console", r.httpHost, url.QueryEscape(containerName))
+
+	url, err := r.setQueryAttributes(url)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
