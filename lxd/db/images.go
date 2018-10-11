@@ -340,6 +340,58 @@ SELECT COUNT(images.id)
 		}
 	}
 
+	err = c.imageFill(id, &image, create, expire, used, upload, arch)
+	if err != nil {
+		return -1, nil, errors.Wrapf(err, "Fill image details")
+	}
+
+	return id, &image, nil
+}
+
+// ImageGetFromAnyProject returns an image matching the given fingerprint, if
+// it exists in any project.
+func (c *Cluster) ImageGetFromAnyProject(fingerprint string) (int, *api.Image, error) {
+	var create, expire, used, upload *time.Time // These hold the db-returned times
+
+	// The object we'll actually return
+	image := api.Image{}
+	id := -1
+	arch := -1
+
+	// These two humongous things will be filled by the call to DbQueryRowScan
+	outfmt := []interface{}{&id, &image.Fingerprint, &image.Filename,
+		&image.Size, &image.Cached, &image.Public, &image.AutoUpdate, &arch,
+		&create, &expire, &used, &upload}
+
+	inargs := []interface{}{fingerprint}
+	query := `
+        SELECT
+            images.id, fingerprint, filename, size, cached, public, auto_update, architecture,
+            creation_date, expiry_date, last_use_date, upload_date
+        FROM images
+        WHERE fingerprint = ?
+        LIMIT 1`
+
+	err := dbQueryRowScan(c.db, query, inargs, outfmt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, nil, ErrNoSuchObject
+		}
+
+		return -1, nil, err // Likely: there are no rows for this fingerprint
+	}
+
+	err = c.imageFill(id, &image, create, expire, used, upload, arch)
+	if err != nil {
+		return -1, nil, errors.Wrapf(err, "Fill image details")
+	}
+
+	return id, &image, nil
+}
+
+// Fill extra image fields such as properties and alias. This is called after
+// fetching a single row from the images table.
+func (c *Cluster) imageFill(id int, image *api.Image, create, expire, used, upload *time.Time, arch int) error {
 	// Some of the dates can be nil in the DB, let's process them.
 	if create != nil {
 		image.CreatedAt = *create
@@ -367,11 +419,11 @@ SELECT COUNT(images.id)
 	// Get the properties
 	q := "SELECT key, value FROM images_properties where image_id=?"
 	var key, value, name, desc string
-	inargs = []interface{}{id}
-	outfmt = []interface{}{key, value}
+	inargs := []interface{}{id}
+	outfmt := []interface{}{key, value}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
-		return -1, nil, err
+		return err
 	}
 
 	properties := map[string]string{}
@@ -389,7 +441,7 @@ SELECT COUNT(images.id)
 	outfmt = []interface{}{name, desc}
 	results, err = queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
-		return -1, nil, err
+		return err
 	}
 
 	aliases := []api.ImageAlias{}
@@ -407,7 +459,7 @@ SELECT COUNT(images.id)
 		image.UpdateSource = &source
 	}
 
-	return id, &image, nil
+	return nil
 }
 
 // ImageLocate returns the address of an online node that has a local copy of
