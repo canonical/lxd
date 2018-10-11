@@ -861,16 +861,44 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 func autoUpdateImages(ctx context.Context, d *Daemon) {
 	logger.Infof("Updating images")
 
-	images, err := d.cluster.ImagesGet("default", false)
+	projectNames := []string{}
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		projects, err := tx.ProjectList(db.ProjectFilter{})
+		if err != nil {
+			return err
+		}
+
+		for _, project := range projects {
+			projectNames = append(projectNames, project.Name)
+		}
+
+		return nil
+	})
 	if err != nil {
-		logger.Error("Unable to retrieve the list of images", log.Ctx{"err": err})
+		logger.Error("Unable to retrieve project names", log.Ctx{"err": err})
 		return
 	}
 
-	for _, fingerprint := range images {
-		id, info, err := d.cluster.ImageGet("default", fingerprint, false, true)
+	for _, project := range projectNames {
+		err := autoUpdateImagesInProject(ctx, d, project)
 		if err != nil {
-			logger.Error("Error loading image", log.Ctx{"err": err, "fp": fingerprint})
+			logger.Errorf("Unable to update images for project %s: %v", project, err)
+		}
+	}
+
+	logger.Infof("Done updating images")
+}
+
+func autoUpdateImagesInProject(ctx context.Context, d *Daemon, project string) error {
+	images, err := d.cluster.ImagesGet(project, false)
+	if err != nil {
+		return errors.Wrap(err, "Unable to retrieve the list of images")
+	}
+
+	for _, fingerprint := range images {
+		id, info, err := d.cluster.ImageGet(project, fingerprint, false, true)
+		if err != nil {
+			logger.Error("Error loading image", log.Ctx{"err": err, "fp": fingerprint, "project": project})
 			continue
 		}
 
@@ -883,17 +911,17 @@ func autoUpdateImages(ctx context.Context, d *Daemon) {
 		//        goroutine and simply abort when the context expires.
 		ch := make(chan struct{})
 		go func() {
-			autoUpdateImage(d, nil, id, info, "default")
+			autoUpdateImage(d, nil, id, info, project)
 			ch <- struct{}{}
 		}()
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		case <-ch:
 		}
 	}
 
-	logger.Infof("Done updating images")
+	return nil
 }
 
 // Update a single image.  The operation can be nil, if no progress tracking is needed.
