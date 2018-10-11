@@ -138,22 +138,38 @@ func dbDeviceConfig(db *sql.DB, id int, isprofile bool) (types.Device, error) {
 }
 
 // Devices returns the devices matching the given filters.
-func (c *Cluster) Devices(qName string, isprofile bool) (types.Devices, error) {
+func (c *Cluster) Devices(project, qName string, isprofile bool) (types.Devices, error) {
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return err
+		}
+		if !enabled {
+			project = "default"
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	var q string
 	if isprofile {
 		q = `SELECT profiles_devices.id, profiles_devices.name, profiles_devices.type
-			FROM profiles_devices JOIN profiles
-			ON profiles_devices.profile_id = profiles.id
-   		WHERE profiles.name=?`
+			FROM profiles_devices
+                        JOIN profiles ON profiles_devices.profile_id = profiles.id
+                        JOIN projects ON projects.id=profiles.project_id
+   		WHERE projects.name=? AND profiles.name=?`
 	} else {
 		q = `SELECT containers_devices.id, containers_devices.name, containers_devices.type
-			FROM containers_devices JOIN containers
-			ON containers_devices.container_id = containers.id
-			WHERE containers.name=?`
+			FROM containers_devices
+                        JOIN containers	ON containers_devices.container_id = containers.id
+                        JOIN projects ON projects.id=containers.project_id
+			WHERE projects.name=? AND containers.name=?`
 	}
 	var id, dtype int
 	var name, stype string
-	inargs := []interface{}{qName}
+	inargs := []interface{}{project, qName}
 	outfmt := []interface{}{id, name, dtype}
 	results, err := queryScan(c.db, q, inargs, outfmt)
 	if err != nil {
