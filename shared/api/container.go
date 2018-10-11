@@ -132,4 +132,7 @@ type ContainerSource struct {
 
 	// API extension: container_only_migration
 	ContainerOnly bool `json:"container_only,omitempty" yaml:"container_only,omitempty"`
+
+	// API extension: container_incremental_copy
+	Refresh bool `json:"refresh,omitempty" yaml:"refresh,omitempty"`
 }
