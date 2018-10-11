@@ -433,6 +433,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		err := storagePoolDBCreate(d.State(), containerPoolName, "",
 			backup.Pool.Driver, backup.Pool.Config)
 		if err != nil {
+			err = errors.Wrap(err, "Create storage pool database entry")
 			return SmartError(err)
 		}
 
@@ -458,6 +459,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 
 	initPool, err := storagePoolInit(d.State(), backup.Pool.Name)
 	if err != nil {
+		err = errors.Wrap(err, "Initialize storage")
 		return InternalError(err)
 	}
 
@@ -955,6 +957,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 		Stateful:     backup.Container.Stateful,
 	})
 	if err != nil {
+		err = errors.Wrap(err, "Create container")
 		return SmartError(err)
 	}
 
