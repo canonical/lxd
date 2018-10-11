@@ -391,7 +391,11 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	}
 
 	// Prepare the HTTP request
-	reqURL := fmt.Sprintf("%s/1.0/images", r.httpHost)
+	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0/images", r.httpHost))
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest("POST", reqURL, body)
 	if err != nil {
 		return nil, err
