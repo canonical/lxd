@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -243,8 +244,33 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		}
 	}
 
-	// Check if the image already exists (partial hash match)
+	// Check if the image already exists in this project (partial hash match)
 	_, imgInfo, err := d.cluster.ImageGet(project, fp, false, true)
+	if err == db.ErrNoSuchObject {
+		// Check if the image already exists in some other project.
+		_, imgInfo, err = d.cluster.ImageGetFromAnyProject(fp)
+		if err == nil {
+			// We just need to insert the database data, no actual download necessary.
+			err = d.cluster.ImageInsert(
+				project, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, false,
+				imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt,
+				imgInfo.Properties)
+			if err != nil {
+				return nil, err
+			}
+
+			var id int
+			id, imgInfo, err = d.cluster.ImageGet(project, fp, false, true)
+			if err != nil {
+				return nil, err
+			}
+			err = d.cluster.ImageSourceInsert(id, server, protocol, certificate, alias)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	if err == nil {
 		logger.Debug("Image already exists in the db", log.Ctx{"image": fp})
 		info = imgInfo
