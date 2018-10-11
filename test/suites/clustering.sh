@@ -935,7 +935,7 @@ test_clustering_shutdown_nodes() {
   wait "$(cat one.pid)"
 
   # Container foo shouldn't be running anymore
-  ! ps -q "$(cat foo.pid)"
+  [ ! -e "/proc/$(cat foo.pid)" ]
 
   rm -f one.pid two.pid three.pid foo.pid
 
