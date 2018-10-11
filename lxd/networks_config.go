@@ -53,6 +53,7 @@ var networkConfigKeys = map[string]func(value string) error{
 	"tunnel.TARGET.group":     networkValidAddressV4,
 	"tunnel.TARGET.id":        shared.IsInt64,
 	"tunnel.TARGET.interface": networkValidName,
+	"tunnel.TARGET.ttl":       shared.IsUint8,
 
 	"ipv4.address": func(value string) error {
 		if shared.IsOneOf(value, []string{"none", "auto"}) == nil {

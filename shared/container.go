@@ -29,6 +29,19 @@ func IsInt64(value string) error {
 	return nil
 }
 
+func IsUint8(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	_, err := strconv.ParseUint(value, 10, 8)
+	if err != nil {
+		return fmt.Errorf("Invalid value for an integer: %s. Must be between 0 and 255", value)
+	}
+
+	return nil
+}
+
 func IsUint32(value string) error {
 	if value == "" {
 		return nil

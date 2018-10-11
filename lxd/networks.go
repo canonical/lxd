@@ -1629,6 +1629,12 @@ func (n *network) Start() error {
 				tunId = "1"
 			}
 			cmd = append(cmd, []string{"id", tunId}...)
+
+			tunTtl := getConfig("ttl")
+			if tunTtl == "" {
+				tunTtl = "1"
+			}
+			cmd = append(cmd, []string{"ttl", tunTtl}...)
 		}
 
 		// Create the interface
