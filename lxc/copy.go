@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -27,6 +28,7 @@ type cmdCopy struct {
 	flagStateless     bool
 	flagStorage       string
 	flagTarget        string
+	flagRefresh       bool
 }
 
 func (c *cmdCopy) Command() *cobra.Command {
@@ -48,6 +50,7 @@ func (c *cmdCopy) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the container with no profiles applied"))
+	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Perform an incremental copy"))
 
 	return cmd
 }
@@ -134,6 +137,8 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	var op lxd.RemoteOperation
+	var writable api.ContainerPut
+
 	if shared.IsSnapshot(sourceName) {
 		if containerOnly {
 			return fmt.Errorf(i18n.G("--container-only can't be passed when the source is a snapshot"))
@@ -144,6 +149,10 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			Name: destName,
 			Mode: mode,
 			Live: stateful,
+		}
+
+		if c.flagRefresh {
+			return fmt.Errorf(i18n.G("--refresh can only be used with containers"))
 		}
 
 		// Copy of a snapshot into a new container
@@ -232,6 +241,7 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			Live:          stateful,
 			ContainerOnly: containerOnly,
 			Mode:          mode,
+			Refresh:       c.flagRefresh,
 		}
 
 		// Copy of a container into a new container
@@ -312,6 +322,8 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		if err != nil {
 			return err
 		}
+
+		writable = entry.Writable()
 	}
 
 	// Watch the background operation
@@ -333,6 +345,38 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 		return err
 	}
 	progress.Done("")
+
+	if c.flagRefresh {
+		_, etag, err := dest.GetContainer(destName)
+		if err != nil {
+			return fmt.Errorf("Failed to refresh target container '%s': %v", destName, err)
+		}
+
+		op, err := dest.UpdateContainer(destName, writable, etag)
+		if err != nil {
+			return err
+		}
+
+		// Watch the background operation
+		progress := utils.ProgressRenderer{
+			Format: i18n.G("Refreshing container: %s"),
+			Quiet:  c.global.flagQuiet,
+		}
+
+		_, err = op.AddHandler(progress.UpdateOp)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
+
+		// Wait for the copy to complete
+		err = utils.CancelableWait(op, &progress)
+		if err != nil {
+			progress.Done("")
+			return err
+		}
+		progress.Done("")
+	}
 
 	// If choosing a random name, show it to the user
 	if destResource == "" {
@@ -377,7 +421,7 @@ func (c *cmdCopy) Run(cmd *cobra.Command, args []string) error {
 		mode = c.flagMode
 	}
 
-	stateful := !c.flagStateless
+	stateful := !c.flagStateless && !c.flagRefresh
 
 	// If not target name is specified, one will be chosed by the server
 	if len(args) < 2 {
