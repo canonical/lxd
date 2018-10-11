@@ -5,6 +5,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -423,7 +424,7 @@ func (c *ClusterTx) ContainerCreate(object Container) (int64, error) {
 	}
 
 	// Insert profiles reference.
-	err = ContainerProfilesInsert(c.tx, int(id), object.Profiles)
+	err = ContainerProfilesInsert(c.tx, int(id), object.Project, object.Profiles)
 	if err != nil {
 		return -1, errors.Wrap(err, "Insert profiles for container")
 	}

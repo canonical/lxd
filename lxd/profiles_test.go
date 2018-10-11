@@ -42,7 +42,7 @@ func Test_removing_a_profile_deletes_associated_configuration_entries(t *testing
 	}
 
 	// Make sure there are 0 profiles_devices entries left.
-	devices, err := cluster.Devices("theprofile", true)
+	devices, err := cluster.Devices("default", "theprofile", true)
 	if err != nil {
 		t.Fatal(err)
 	}

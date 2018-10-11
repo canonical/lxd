@@ -215,7 +215,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 			continue
 		}
 		// Use the config currently in the database.
-		devices, err := d.cluster.Devices(profileName, true)
+		devices, err := d.cluster.Devices(args.Project, profileName, true)
 		if err != nil {
 			return errors.Wrapf(err, "failed to load profile devices for '%s'", profileName)
 		}

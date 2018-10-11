@@ -53,6 +53,9 @@ test_projects_containers() {
   deps/import-busybox --project foo --alias testimage
   fingerprint="$(lxc image list -c f --format json | jq -r .[0].fingerprint)"
 
+  # Add a root device to the default profile of the project
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+
   # Create a container in the project
   lxc init testimage c1
 
@@ -118,6 +121,9 @@ test_projects_snapshots() {
   # Import an image into the project
   deps/import-busybox --project foo --alias testimage
 
+  # Add a root device to the default profile of the project
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+
   # Create a container in the project
   lxc init testimage c1
 
@@ -156,6 +162,9 @@ test_projects_backups() {
 
   # Import an image into the project
   deps/import-busybox --project foo --alias testimage
+
+  # Add a root device to the default profile of the project
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
 
   # Create a container in the project
   lxc init testimage c1
