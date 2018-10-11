@@ -250,6 +250,7 @@ type migrationSink struct {
 	allConnected chan bool
 	push         bool
 	rsyncArgs    []string
+	refresh      bool
 }
 
 type MigrationSinkArgs struct {
@@ -268,6 +269,8 @@ type MigrationSinkArgs struct {
 
 	// transport specific fields
 	RsyncArgs []string
+
+	Refresh bool
 }
 
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
