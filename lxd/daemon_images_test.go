@@ -42,7 +42,7 @@ func (suite *daemonImagesTestSuite) TestUseCachedImagesIfAvailable() {
 	// one we created above.
 	op, err := operationCreate(suite.d.cluster, "default", operationClassTask, db.OperationImageDownload, map[string][]string{}, nil, nil, nil, nil)
 	suite.Req.Nil(err)
-	image, err := suite.d.ImageDownload(op, "img.srv", "simplestreams", "", "", "test", false, false, "", true)
+	image, err := suite.d.ImageDownload(op, "img.srv", "simplestreams", "", "", "test", false, false, "", true, "default")
 	suite.Req.Nil(err)
 	suite.Req.Equal("abcd", image.Fingerprint)
 }
