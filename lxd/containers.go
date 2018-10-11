@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -208,9 +209,18 @@ func containersShutdown(s *state.State) error {
 		}
 
 		for _, file := range files {
+			project := "default"
+			name := file.Name()
+			if strings.Contains(name, "_") {
+				fields := strings.Split(file.Name(), "_")
+				project = fields[0]
+				name = fields[1]
+			}
+
 			c, err := containerLXCLoad(s, db.ContainerArgs{
-				Name:   file.Name(),
-				Config: make(map[string]string),
+				Project: project,
+				Name:    name,
+				Config:  make(map[string]string),
 			}, nil)
 			if err != nil {
 				return err
