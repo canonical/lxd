@@ -522,7 +522,7 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 	if expanded {
 		_, _, err := shared.GetRootDiskDevice(devices)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Detect root disk device")
 		}
 	}
 
@@ -1050,7 +1050,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	// Validate container devices
 	err = containerValidDevices(s.Cluster, args.Devices, false, false)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
 	// Validate architecture
@@ -1163,7 +1163,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 	c, err := containerLXCCreate(s, args)
 	if err != nil {
 		s.Cluster.ContainerRemove(args.Project, args.Name)
-		return nil, err
+		return nil, errors.Wrap(err, "Create LXC container")
 	}
 
 	return c, nil
