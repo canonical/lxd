@@ -336,7 +336,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	if err != nil {
 		c.Delete()
 		logger.Error("Failed creating container", ctxMap)
-		return nil, err
+		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
 	// Retrieve the container's storage pool
@@ -1828,7 +1828,7 @@ func (c *containerLXC) expandDevices(profiles []api.Profile) error {
 		}
 	} else {
 		for _, p := range c.profiles {
-			devices, err := c.state.Cluster.Devices(p, true)
+			devices, err := c.state.Cluster.Devices(c.project, p, true)
 			if err != nil {
 				return err
 			}
@@ -4867,7 +4867,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			return errors.Wrap(err, "Config insert")
 		}
 
-		err = db.ContainerProfilesInsert(tx, c.id, c.profiles)
+		err = db.ContainerProfilesInsert(tx, c.id, c.project, c.profiles)
 		if err != nil {
 			tx.Rollback()
 			return errors.Wrap(err, "Profiles insert")

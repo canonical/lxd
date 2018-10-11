@@ -596,21 +596,38 @@ func (c *Cluster) ContainerSetStateful(id int, stateful bool) error {
 }
 
 // ContainerProfilesInsert associates the container with the given ID with the
-// profiles with the given names.
-func ContainerProfilesInsert(tx *sql.Tx, id int, profiles []string) error {
+// profiles with the given names in the given project.
+func ContainerProfilesInsert(tx *sql.Tx, id int, project string, profiles []string) error {
+	enabled, err := projectHasProfiles(tx, project)
+	if err != nil {
+		return errors.Wrap(err, "Check if project has profiles")
+	}
+	if !enabled {
+		project = "default"
+	}
+
 	applyOrder := 1
-	str := `INSERT INTO containers_profiles (container_id, profile_id, apply_order) VALUES
-		(?, (SELECT id FROM profiles WHERE name=?), ?);`
+	str := `
+INSERT INTO containers_profiles (container_id, profile_id, apply_order)
+  VALUES (
+    ?,
+    (SELECT profiles.id
+     FROM profiles
+     JOIN projects ON projects.id=profiles.project_id
+     WHERE projects.name=? AND profiles.name=?),
+    ?
+  )
+`
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	for _, p := range profiles {
-		_, err = stmt.Exec(id, p, applyOrder)
+	for _, profile := range profiles {
+		_, err = stmt.Exec(id, project, profile, applyOrder)
 		if err != nil {
 			logger.Debugf("Error adding profile %s to container: %s",
-				p, err)
+				profile, err)
 			return err
 		}
 		applyOrder = applyOrder + 1
