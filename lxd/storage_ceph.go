@@ -1048,7 +1048,7 @@ func (s *storageCeph) ContainerDelete(container container) error {
 // - for each snapshot dump the contents into the empty storage volume and
 //   after each dump take a snapshot of the rbd storage volume
 // - dump the container contents into the rbd storage volume.
-func (s *storageCeph) doCrossPoolContainerCopy(target container, source container, containerOnly bool) error {
+func (s *storageCeph) doCrossPoolContainerCopy(target container, source container, containerOnly bool, refresh bool, refreshSnapshots []container) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
@@ -1073,15 +1073,21 @@ func (s *storageCeph) doCrossPoolContainerCopy(target container, source containe
 		return err
 	}
 
-	snapshots, err := source.Snapshots()
-	if err != nil {
-		return err
-	}
+	var snapshots []container
 
-	// create the main container
-	err = s.doContainerCreate(target.Project(), target.Name(), target.IsPrivileged())
-	if err != nil {
-		return err
+	if refresh {
+		snapshots = refreshSnapshots
+	} else {
+		snapshots, err = source.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		// create the main container
+		err = s.doContainerCreate(target.Project(), target.Name(), target.IsPrivileged())
+		if err != nil {
+			return err
+		}
 	}
 
 	// mount container
@@ -1126,7 +1132,10 @@ func (s *storageCeph) doCrossPoolContainerCopy(target container, source containe
 	srcContainerMntPoint := getContainerMountPoint(source.Project(), sourcePool, source.Name())
 	_, err = rsyncLocalCopy(srcContainerMntPoint, destContainerMntPoint, bwlimit)
 	if err != nil {
-		s.StoragePoolVolumeDelete()
+		if !refresh {
+			s.StoragePoolVolumeDelete()
+		}
+
 		logger.Errorf("Failed to rsync into BTRFS storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 		return err
 	}
@@ -1156,7 +1165,7 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return s.doCrossPoolContainerCopy(target, source, containerOnly)
+		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
 	}
 
 	snapshots, err := source.Snapshots()
@@ -1393,6 +1402,20 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 	revert = false
 
 	return nil
+}
+
+func (s *storageCeph) ContainerRefresh(target container, source container, snapshots []container) error {
+	logger.Debugf(`Refreshing RBD container storage for %s from %s`, target.Name(), source.Name())
+
+	ourStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer source.StorageStop()
+	}
+
+	return s.doCrossPoolContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
 }
 
 func (s *storageCeph) ContainerMount(c container) (bool, error) {
