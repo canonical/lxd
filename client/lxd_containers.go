@@ -1388,7 +1388,7 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 	}
 
 	// Send the request
-	resp, err := r.http.Do(req)
+	resp, err := r.do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -1432,7 +1432,7 @@ func (r *ProtocolLXD) setContainerTemplateFile(containerName string, templateNam
 	}
 
 	// Send the request
-	resp, err := r.http.Do(req)
+	resp, err := r.do(req)
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
 		_, _, err := lxdParseResponse(resp)
