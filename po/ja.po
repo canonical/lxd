@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
 "POT-Creation-Date: 2018-10-07 17:51-0400\n"
-"PO-Revision-Date: 2018-04-16 01:37+0000\n"
+"PO-Revision-Date: 2018-10-11 20:07+0900\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -163,7 +163,7 @@ msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
 #: lxc/file.go:705
-#, fuzzy, c-format
+#, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' はサポートされないタイプのファイルです。"
 
@@ -379,7 +379,6 @@ msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
 
 #: lxc/remote.go:597
-#, fuzzy
 msgid "Can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
@@ -388,7 +387,6 @@ msgid "Can't specify --fast with --columns"
 msgstr "--fast と --columns は同時に指定できません"
 
 #: lxc/rename.go:51
-#, fuzzy
 msgid "Can't specify a different remote for rename"
 msgstr "リネームの場合は異なるリモートを指定できません。"
 
@@ -397,7 +395,6 @@ msgid "Can't specify column L when not clustered"
 msgstr "クラスタでない場合はカラムとして L は指定できません"
 
 #: lxc/file.go:450
-#, fuzzy
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -437,9 +434,8 @@ msgid "Cluster member name"
 msgstr "クラスタメンバ名"
 
 #: lxc/cluster.go:360
-#, fuzzy
 msgid "Clustering enabled"
-msgstr "クラスタメンバ名"
+msgstr "クラスタリングが有効になりました"
 
 #: lxc/image.go:912 lxc/list.go:112
 msgid "Columns"
@@ -466,9 +462,8 @@ msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
 #: lxc/move.go:48
-#, fuzzy
 msgid "Config key/value to apply to the target container"
-msgstr "新しいコンテナに適用するキー/値の設定"
+msgstr "移動先のコンテナに適用するキー/値の設定"
 
 #: lxc/config.go:195 lxc/config.go:259 lxc/config_metadata.go:144
 #: lxc/image.go:405 lxc/network.go:633 lxc/profile.go:490 lxc/storage.go:298
@@ -932,9 +927,8 @@ msgid "FINGERPRINT"
 msgstr ""
 
 #: lxc/move.go:211
-#, fuzzy
 msgid "Failed to connect to cluster member"
-msgstr "クラスタメンバの名前を変更します"
+msgstr "クラスタメンバへの接続に失敗しました"
 
 #: lxc/utils.go:202
 #, c-format
@@ -1602,9 +1596,8 @@ msgid "Memory usage:"
 msgstr "メモリ消費量:"
 
 #: lxc/move.go:224
-#, fuzzy
 msgid "Migration API failure"
-msgstr "ソースのホスト上でマイグレーションが失敗しました: %s"
+msgstr "マイグレーション API が失敗しました: %s"
 
 #: lxc/move.go:229
 msgid "Migration operation failure"
@@ -1681,9 +1674,8 @@ msgstr ""
 
 #: lxc/network.go:413 lxc/network.go:498 lxc/storage_volume.go:591
 #: lxc/storage_volume.go:672
-#, fuzzy
 msgid "More than one device matches, specify the device name"
-msgstr "複数のデバイスとマッチします。デバイス名を指定してください。"
+msgstr "複数のデバイスとマッチします。デバイス名を指定してください"
 
 #: lxc/file.go:226
 msgid "More than one file to download, but target is not a directory"
@@ -1767,18 +1759,16 @@ msgid "New aliases to add to the image"
 msgstr "イメージに新しいエイリアスを追加します"
 
 #: lxc/copy.go:41 lxc/move.go:49
-#, fuzzy
 msgid "New key/value to apply to a specific device"
-msgstr "新しいコンテナに適用するキー/値の設定"
+msgstr "新しいデバイスに適用するキー/値の設定"
 
 #: lxc/network.go:422 lxc/network.go:507
 msgid "No device found for this network"
 msgstr "このネットワークに対するデバイスがありません"
 
 #: lxc/storage_volume.go:600 lxc/storage_volume.go:681
-#, fuzzy
 msgid "No device found for this storage volume"
-msgstr "このストレージボリュームに対するデバイスがありません。"
+msgstr "このストレージボリュームに対するデバイスがありません"
 
 #: lxc/storage_volume.go:323
 msgid "No storage pool for source volume specified"
@@ -1794,23 +1784,20 @@ msgid "No value found in %q"
 msgstr "%q に設定する値が指定されていません"
 
 #: lxc/storage_volume.go:164 lxc/storage_volume.go:243
-#, fuzzy
 msgid "Only \"custom\" volumes can be attached to containers"
-msgstr "\"カスタム\" のボリュームのみがコンテナにアタッチできます。"
+msgstr "\"カスタム\" のボリュームのみがコンテナにアタッチできます"
 
 #: lxc/remote.go:151
 msgid "Only https URLs are supported for simplestreams"
 msgstr "simplestreams は https の URL のみサポートします"
 
 #: lxc/image.go:657
-#, fuzzy
 msgid "Only https:// is supported for remote image import"
-msgstr "リモートイメージのインポートは https:// のみをサポートします。"
+msgstr "リモートイメージのインポートは https:// のみをサポートします"
 
 #: lxc/network.go:609 lxc/network.go:995
-#, fuzzy
 msgid "Only managed networks can be modified"
-msgstr "管理対象のネットワークのみ変更できます。"
+msgstr "管理対象のネットワークのみ変更できます"
 
 #: lxc/operation.go:83
 #, c-format
@@ -1854,9 +1841,9 @@ msgid "Packets sent"
 msgstr "送信パケット"
 
 #: lxc/main.go:265
-#, fuzzy, c-format
+#, c-format
 msgid "Password for %s: "
-msgstr "%s の管理者パスワード: "
+msgstr "%s のパスワード: "
 
 #: lxc/action.go:49 lxc/action.go:50
 msgid "Pause containers"
@@ -1938,9 +1925,8 @@ msgid "Profile to apply to the new container"
 msgstr "新しいコンテナに適用するプロファイル"
 
 #: lxc/move.go:50
-#, fuzzy
 msgid "Profile to apply to the target container"
-msgstr "新しいコンテナに適用するプロファイル"
+msgstr "移動先のコンテナに適用するプロファイル"
 
 #: lxc/profile.go:225
 #, c-format
@@ -2178,9 +2164,8 @@ msgid "Send a raw query to LXD"
 msgstr "直接リクエスト (raw query) を LXD に送ります"
 
 #: lxc/remote.go:95
-#, fuzzy
 msgid "Server authentication type (tls or candid)"
-msgstr "サーバの認証タイプ (tls もしくは macaroons)"
+msgstr "サーバの認証タイプ (tls もしくは candid)"
 
 #: lxc/remote.go:280
 msgid "Server certificate NACKed by user"
@@ -2463,18 +2448,16 @@ msgid "The --stateless flag can't be used with --target"
 msgstr ""
 
 #: lxc/delete.go:104
-#, fuzzy
 msgid "The container is currently running, stop it first or pass --force"
-msgstr "コンテナは実行中です。先に停止させるか、--force を指定してください。"
+msgstr "コンテナは実行中です。先に停止させるか、--force を指定してください"
 
 #: lxc/publish.go:109
-#, fuzzy
 msgid ""
 "The container is currently running. Use --force to have it stopped and "
 "restarted"
 msgstr ""
 "コンテナは現在実行中です。停止して、再起動するために --force を使用してくだ\n"
-"さい。"
+"さい"
 
 #: lxc/init.go:284
 msgid "The container you are starting doesn't have any network attached to it."
@@ -2548,11 +2531,8 @@ msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
 #: lxc/main.go:299
-#, fuzzy
 msgid "To start your first container, try: lxc launch ubuntu:18.04"
-msgstr ""
-"初めてコンテナを起動するには、\"lxc launch ubuntu:16.04\" と実行してみてくだ"
-"さい"
+msgstr "初めてコンテナを起動するには、\"lxc launch ubuntu:18.04\" と実行してみてください"
 
 #: lxc/copy.go:103
 msgid "To use --target, the destination remote must be a cluster"
@@ -2622,9 +2602,8 @@ msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
 
 #: lxc/move.go:51
-#, fuzzy
 msgid "Unset all profiles on the target container"
-msgstr "コンテナにプロファイルを割り当てます"
+msgstr "移動先のコンテナのすべてのプロファイルを削除します"
 
 #: lxc/config_device.go:649 lxc/config_device.go:650
 msgid "Unset container device configuration keys"
@@ -2660,12 +2639,9 @@ msgid "User aborted delete operation"
 msgstr "ユーザが削除操作を中断しました"
 
 #: lxc/utils/cancel.go:40
-#, fuzzy
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep running"
-msgstr ""
-"ユーザからのシグナルを 3 度受信したので exit しました。リモート操作は実行し続"
-"けます。"
+msgstr "ユーザからのシグナルを 3 度受信したので exit しました。リモート操作は実行し続けます"
 
 #: lxc/query.go:38
 msgid "Wait for the operation to complete"
