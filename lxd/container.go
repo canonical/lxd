@@ -1531,7 +1531,3 @@ func containerCompareSnapshots(source container, target container) ([]container,
 
 	return toSync, toDelete, nil
 }
-
-func containerGetOutdatedSnapshots(source container, target container) ([]container, error) {
-	return nil, fmt.Errorf("go away")
-}
