@@ -68,7 +68,7 @@ msgstr ""
 "### Ceci est une représentation yaml des propriétés de l'image.\n"
 "### Toute ligne commençant par un '# sera ignorée.\n"
 "###\n"
-"### Caque propriété est représentée par une ligne unique :\n"
+"### Chaque propriété est représentée par une ligne unique :\n"
 "### Un exemple serait :\n"
 "###  description: Mon image personnalisée"
 
