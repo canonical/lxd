@@ -225,14 +225,11 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 	return lxdParseResponse(resp)
 }
 
-func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag string) (*api.Response, string, error) {
-	// Generate the URL
-	url := fmt.Sprintf("%s/1.0%s", r.httpHost, path)
-
+func (r *ProtocolLXD) setQueryAttributes(uri string) (string, error) {
 	// Parse the full URI
-	fields, err := neturl.Parse(url)
+	fields, err := neturl.Parse(uri)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
 	// Extract query fields and update for cluster targeting or project
@@ -250,8 +247,21 @@ func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag s
 	}
 	fields.RawQuery = values.Encode()
 
+	return fields.String(), nil
+}
+
+func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag string) (*api.Response, string, error) {
+	// Generate the URL
+	url := fmt.Sprintf("%s/1.0%s", r.httpHost, path)
+
+	// Add project/target
+	url, err := r.setQueryAttributes(url)
+	if err != nil {
+		return nil, "", err
+	}
+
 	// Run the actual query
-	return r.rawQuery(method, fields.String(), data, ETag)
+	return r.rawQuery(method, url, data, ETag)
 }
 
 func (r *ProtocolLXD) queryStruct(method string, path string, data interface{}, ETag string, target interface{}) (string, error) {
