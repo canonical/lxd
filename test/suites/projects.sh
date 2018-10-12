@@ -254,9 +254,16 @@ test_projects_profiles_default() {
   # Switch back the default project
   lxc project switch default
 
-  # If we look at the global profile we see that it's being used by the
-  # container in the above project.
-  lxc profile show default | grep -q "/1.0/containers/c1?project=default"
+  # Create a container in the default project as well.
+  ensure_import_testimage
+  lxc init testimage c1
+
+  # If we look at the global profile we see that it's being used by both the
+  # container in the above project and the one we just created.
+  lxc profile show default | grep -E -q '^- /1.0/containers/c1$'
+  lxc profile show default | grep -E -q '^- /1.0/containers/c1\?project=foo$'
+
+  lxc delete c1
 
   lxc project switch foo
 
@@ -364,6 +371,8 @@ test_projects_storage() {
   lxc project switch default
 
   ! lxc storage volume list "${pool}" | grep -q custom
+
+  lxc project delete foo
 }
 
 # Interaction between projects and networks.
@@ -392,4 +401,6 @@ test_projects_network() {
   # Delete the project
   lxc image delete testimage
   lxc project delete foo
+
+  lxc network delete "${network}"
 }
