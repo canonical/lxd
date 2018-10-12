@@ -11,11 +11,18 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
+
+const VFS3FscapsUnsupported int32 = 0
+const VFS3FscapsSupported int32 = 1
+const VFS3FscapsUnknown int32 = -1
+
+var VFS3Fscaps int32 = VFS3FscapsUnknown
 
 type IdRange struct {
 	Isuid   bool
@@ -470,11 +477,13 @@ func (m IdmapSet) ShiftFromNs(uid int64, gid int64) (int64, int64) {
 }
 
 func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how string, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
-	v3Caps := true
-	if how == "in" {
-		if !supportsV3Fcaps(dir) {
-			logger.Debugf("System doesn't support unprivileged file capabilities")
-			v3Caps = false
+	if how == "in" && atomic.LoadInt32(&VFS3Fscaps) == VFS3FscapsUnknown {
+		if SupportsVFS3Fscaps(dir) {
+			atomic.StoreInt32(&VFS3Fscaps, VFS3FscapsSupported)
+			logger.Debugf("System supports unprivileged file capabilities")
+		} else {
+			atomic.StoreInt32(&VFS3Fscaps, VFS3FscapsUnsupported)
+			logger.Debugf("System does not support unprivileged file capabilities")
 		}
 	}
 
@@ -556,7 +565,7 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 						rootUid, _ = set.ShiftIntoNs(0, 0)
 					}
 
-					if how != "in" || v3Caps {
+					if how != "in" || atomic.LoadInt32(&VFS3Fscaps) == VFS3FscapsSupported {
 						err = SetCaps(path, caps, rootUid)
 						if err != nil {
 							logger.Warnf("Unable to set file capabilities on %s", path)
