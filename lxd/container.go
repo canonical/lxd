@@ -1275,6 +1275,31 @@ func containerLoadByProject(s *state.State, project string) ([]container, error)
 	return containerLoadAllInternal(cts, s)
 }
 
+// Load all containers across all projects.
+func containerLoadFromAllProjects(s *state.State) ([]container, error) {
+	var projects []string
+
+	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		projects, err = tx.ProjectNames()
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	containers := []container{}
+	for _, project := range projects {
+		projectContainers, err := containerLoadByProject(s, project)
+		if err != nil {
+			return nil, errors.Wrapf(nil, "Load containers in project %s", project)
+		}
+		containers = append(containers, projectContainers...)
+	}
+
+	return containers, nil
+}
+
 // Legacy interface.
 func containerLoadAll(s *state.State) ([]container, error) {
 	return containerLoadByProject(s, "default")
