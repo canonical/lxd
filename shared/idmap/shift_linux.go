@@ -299,7 +299,7 @@ func shiftAclType(path string, aclType _Ctype_acl_type_t, shiftIds func(uid int6
 	return nil
 }
 
-func supportsV3Fcaps(prefix string) bool {
+func SupportsVFS3Fscaps(prefix string) bool {
 	tmpfile, err := ioutil.TempFile(prefix, ".lxd_fcaps_v3_")
 	if err != nil {
 		return false
