@@ -347,3 +347,21 @@ test_projects_images_default() {
 
   lxc project delete foo
 }
+
+# Interaction between projects and storage pools.
+test_projects_storage() {
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  lxc storage volume create "${pool}" vol
+
+  lxc project create foo
+  lxc project switch foo
+
+  lxc storage volume list "${pool}" | grep custom | grep -q vol
+
+  lxc storage volume delete "${pool}" vol
+
+  lxc project switch default
+
+  ! lxc storage volume list "${pool}" | grep -q custom
+}
