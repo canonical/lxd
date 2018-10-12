@@ -36,6 +36,20 @@ test_projects_crud() {
   # Trying to rename a project using an existing name fails
   ! lxc project rename bar foo
 
+  lxc project switch foo
+
+  # Turning off the profiles feature makes the project see the default profile
+  # from the default project.
+  lxc project set foo features.profiles false
+  lxc profile show default | grep -E -q '^description: Default LXD profile$'
+
+  # Turning on the profiles feature creates a project-specific default
+  # profile.
+  lxc project set foo features.profiles true
+  lxc profile show default | grep -E -q '^description: Default LXD profile for project foo$'
+
+  lxc project switch default
+
   # Delete the projects
   lxc project delete foo
   lxc project delete bar
