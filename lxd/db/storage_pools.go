@@ -696,8 +696,8 @@ func (c *Cluster) StoragePoolVolumesGet(project string, poolID int64, volumeType
 SELECT DISTINCT node_id
   FROM storage_volumes
   JOIN projects ON projects.id = storage_volumes.project_id
- WHERE projects.name=? AND storage_pool_id=?
-`, project, poolID)
+ WHERE (projects.name=? OR storage_volumes.type=?) AND storage_pool_id=?
+`, project, StoragePoolVolumeTypeCustom, poolID)
 		return err
 	})
 	if err != nil {
@@ -756,9 +756,9 @@ func (c *Cluster) StoragePoolVolumesGetType(project string, volumeType int, pool
 SELECT storage_volumes.name
   FROM storage_volumes
   JOIN projects ON projects.id=storage_volumes.project_id
- WHERE projects.name=? AND storage_pool_id=? AND node_id=? AND type=?
+ WHERE (projects.name=? OR storage_volumes.type=?) AND storage_pool_id=? AND node_id=? AND type=?
 `
-	inargs := []interface{}{project, poolID, nodeID, volumeType}
+	inargs := []interface{}{project, StoragePoolVolumeTypeCustom, poolID, nodeID, volumeType}
 	outargs := []interface{}{poolName}
 
 	result, err := queryScan(c.db, query, inargs, outargs)
@@ -806,6 +806,12 @@ func (c *Cluster) StoragePoolNodeVolumesGetType(volumeType int, poolID int64) ([
 // StoragePoolVolumeGetType returns a single storage volume attached to a
 // given storage pool of a given type, on the node with the given ID.
 func (c *Cluster) StoragePoolVolumeGetType(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, *api.StorageVolume, error) {
+	// Custom volumes are "global", i.e. they are associated with the
+	// default project.
+	if volumeType == StoragePoolVolumeTypeCustom {
+		project = "default"
+	}
+
 	volumeID, err := c.StoragePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
 	if err != nil {
 		return -1, nil, err

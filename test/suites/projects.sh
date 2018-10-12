@@ -268,9 +268,16 @@ test_projects_profiles_default() {
   # Switch back the default project
   lxc project switch default
 
-  # If we look at the global profile we see that it's being used by the
-  # container in the above project.
-  lxc profile show default | grep -q "/1.0/containers/c1?project=default"
+  # Create a container in the default project as well.
+  ensure_import_testimage
+  lxc init testimage c1
+
+  # If we look at the global profile we see that it's being used by both the
+  # container in the above project and the one we just created.
+  lxc profile show default | grep -E -q '^- /1.0/containers/c1$'
+  lxc profile show default | grep -E -q '^- /1.0/containers/c1\?project=foo$'
+
+  lxc delete c1
 
   lxc project switch foo
 
@@ -360,4 +367,54 @@ test_projects_images_default() {
   lxc image delete foo-image
 
   lxc project delete foo
+}
+
+# Interaction between projects and storage pools.
+test_projects_storage() {
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  lxc storage volume create "${pool}" vol
+
+  lxc project create foo
+  lxc project switch foo
+
+  lxc storage volume list "${pool}" | grep custom | grep -q vol
+
+  lxc storage volume delete "${pool}" vol
+
+  lxc project switch default
+
+  ! lxc storage volume list "${pool}" | grep -q custom
+
+  lxc project delete foo
+}
+
+# Interaction between projects and networks.
+test_projects_network() {
+  # Standard bridge with random subnet and a bunch of options
+  network="lxdt$$"
+  lxc network create "${network}"
+
+  lxc project create foo
+  lxc project switch foo
+
+  # Import an image into the project
+  deps/import-busybox --project foo --alias testimage
+
+  # Add a root device to the default profile of the project
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  # Create a container in the project
+  lxc init -n "${network}" testimage c1
+
+  lxc network show "${network}" |grep -q "/1.0/containers/c1?project=foo"
+
+  # Delete the container
+  lxc delete c1
+
+  # Delete the project
+  lxc image delete testimage
+  lxc project delete foo
+
+  lxc network delete "${network}"
 }

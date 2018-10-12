@@ -51,6 +51,18 @@ func (c *ClusterTx) ProjectHasProfiles(name string) (bool, error) {
 	return projectHasProfiles(c.tx, name)
 }
 
+// ProjectNames returns the names of all available projects.
+func (c *ClusterTx) ProjectNames() ([]string, error) {
+	stmt := "SELECT name FROM projects"
+
+	names, err := query.SelectStrings(c.tx, stmt)
+	if err != nil {
+		return nil, errors.Wrap(err, "Fetch project names")
+	}
+
+	return names, nil
+}
+
 func projectHasProfiles(tx *sql.Tx, name string) (bool, error) {
 	stmt := `
 SELECT projects_config.value
