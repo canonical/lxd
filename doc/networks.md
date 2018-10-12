@@ -59,6 +59,7 @@ tunnel.NAME.local               | string    | gre or vxlan          | -         
 tunnel.NAME.port                | integer   | vxlan                 | 0                         | Specific port to use for the vxlan tunnel
 tunnel.NAME.protocol            | string    | standard mode         | -                         | Tunneling protocol ("vxlan" or "gre")
 tunnel.NAME.remote              | string    | gre or vxlan          | -                         | Remote address for the tunnel (not necessary for multicast vxlan)
+tunnel.NAME.ttl                 | integer   | vxlan                 | 1                         | Specific TTL to use for multicast routing topologies
 
 
 Those keys can be set using the lxc tool with:

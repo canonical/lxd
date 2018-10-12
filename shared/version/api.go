@@ -128,6 +128,7 @@ var APIExtensions = []string{
 	"storage_unmapped",
 	"projects",
 	"candid_config_key",
+	"network_vxlan_ttl",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
