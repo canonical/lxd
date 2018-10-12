@@ -365,3 +365,31 @@ test_projects_storage() {
 
   ! lxc storage volume list "${pool}" | grep -q custom
 }
+
+# Interaction between projects and networks.
+test_projects_network() {
+  # Standard bridge with random subnet and a bunch of options
+  network="lxdt$$"
+  lxc network create "${network}"
+
+  lxc project create foo
+  lxc project switch foo
+
+  # Import an image into the project
+  deps/import-busybox --project foo --alias testimage
+
+  # Add a root device to the default profile of the project
+  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  # Create a container in the project
+  lxc init -n "${network}" testimage c1
+
+  lxc network show "${network}" |grep -q "/1.0/containers/c1?project=foo"
+
+  # Delete the container
+  lxc delete c1
+
+  # Delete the project
+  lxc image delete testimage
+  lxc project delete foo
+}
