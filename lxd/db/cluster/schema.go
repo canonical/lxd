@@ -308,13 +308,15 @@ CREATE VIEW profiles_used_by_ref (project,
     profiles.name,
     printf('/1.0/containers/%s?project=%s',
     containers.name,
-    projects.name)
+    containers_projects.name)
     FROM profiles
     JOIN projects ON projects.id=profiles.project_id
     JOIN containers_profiles
       ON containers_profiles.profile_id=profiles.id
     JOIN containers
-      ON containers.id=containers_profiles.container_id;
+      ON containers.id=containers_profiles.container_id
+    JOIN projects AS containers_projects
+      ON containers_projects.id=containers.project_id;
 CREATE TABLE projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -402,5 +404,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (12, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (13, strftime("%s"))
 `

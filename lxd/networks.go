@@ -424,14 +424,18 @@ func doNetworkGet(d *Daemon, name string) (api.Network, error) {
 
 	// Look for containers using the interface
 	if n.Type != "loopback" {
-		cts, err := containerLoadAll(d.State())
+		cts, err := containerLoadFromAllProjects(d.State())
 		if err != nil {
 			return api.Network{}, err
 		}
 
 		for _, c := range cts {
 			if networkIsInUse(c, n.Name) {
-				n.UsedBy = append(n.UsedBy, fmt.Sprintf("/%s/containers/%s", version.APIVersion, c.Name()))
+				uri := fmt.Sprintf("/%s/containers/%s", version.APIVersion, c.Name())
+				if c.Project() != "default" {
+					uri += fmt.Sprintf("?project=%s", c.Project())
+				}
+				n.UsedBy = append(n.UsedBy, uri)
 			}
 		}
 	}
@@ -683,7 +687,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) Response {
 	leases := []api.NetworkLease{}
 
 	// Get all the containers
-	containers, err := containerLoadAll(d.State())
+	containers, err := containerLoadFromAllProjects(d.State())
 	if err != nil {
 		return SmartError(err)
 	}
@@ -861,7 +865,7 @@ func (n *network) IsRunning() bool {
 
 func (n *network) IsUsed() bool {
 	// Look for containers using the interface
-	cts, err := containerLoadAll(n.state)
+	cts, err := containerLoadFromAllProjects(n.state)
 	if err != nil {
 		return true
 	}
