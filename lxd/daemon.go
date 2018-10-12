@@ -36,6 +36,7 @@ import (
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 
@@ -435,6 +436,20 @@ func (d *Daemon) init() error {
 		logger.Debugf("Running kernel supports netnsid-based network retrieval")
 	} else {
 		logger.Debugf("Running kernel does not support netnsid-based network retrieval")
+	}
+
+	/*
+	 * During daemon startup we're the only thread that touches VFS3Fscaps
+	 * so we don't need to bother with atomic.StoreInt32() when touching
+	 * VFS3Fscaps.
+	 */
+	d.os.VFS3Fscaps = idmap.SupportsVFS3Fscaps("")
+	if d.os.VFS3Fscaps {
+		idmap.VFS3Fscaps = idmap.VFS3FscapsSupported
+		logger.Debugf("System supports unprivileged file capabilities")
+	} else {
+		idmap.VFS3Fscaps = idmap.VFS3FscapsUnsupported
+		logger.Debugf("System does not support unprivileged file capabilities")
 	}
 
 	/* Initialize the database */

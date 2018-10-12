@@ -479,10 +479,8 @@ func (set *IdmapSet) doUidshiftIntoContainer(dir string, testmode bool, how stri
 	if how == "in" && atomic.LoadInt32(&VFS3Fscaps) == VFS3FscapsUnknown {
 		if SupportsVFS3Fscaps(dir) {
 			atomic.StoreInt32(&VFS3Fscaps, VFS3FscapsSupported)
-			logger.Debugf("System supports unprivileged file capabilities")
 		} else {
 			atomic.StoreInt32(&VFS3Fscaps, VFS3FscapsUnsupported)
-			logger.Debugf("System does not support unprivileged file capabilities")
 		}
 	}
 
