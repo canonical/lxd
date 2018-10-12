@@ -32,7 +32,7 @@ _have lxc && {
     {
       COMPREPLY=( $( compgen -W "$( lxc profile list | tail -n +4 | awk '{print $2}' | egrep -v '^(\||^$)' )" "$cur" ) )
     }
-
+    
     _lxd_networks()
     {
       COMPREPLY=( $( compgen -W \
@@ -61,7 +61,7 @@ _have lxc && {
     fi
 
     lxc_cmds="config copy delete exec file finger help image info init launch \
-      list manpage monitor move network profile publish query remote rename \
+      list manpage monitor move network profile project publish query remote rename \
       restart restore shell snapshot start stop storage version"
 
     global_keys="backups.compression_algorithm,
