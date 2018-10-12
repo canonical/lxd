@@ -95,17 +95,9 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 		}
 
 		if project.Config["features.profiles"] == "true" {
-			// Create a default profile
-			profile := db.Profile{}
-			profile.Project = project.Name
-			profile.Name = "default"
-			profile.Description = fmt.Sprintf("Default LXD profile for project %s", project.Name)
-			profile.Config = map[string]string{}
-			profile.Devices = types.Devices{}
-
-			_, err = tx.ProfileCreate(profile)
+			err = apiProjectCreateDefaultProfile(tx, project.Name)
 			if err != nil {
-				return errors.Wrap(err, "Add default profile to database")
+				return err
 			}
 		}
 
@@ -116,6 +108,23 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 	}
 
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/projects/%s", version.APIVersion, project.Name))
+}
+
+// Create the default profile of a project.
+func apiProjectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
+	// Create a default profile
+	profile := db.Profile{}
+	profile.Project = project
+	profile.Name = "default"
+	profile.Description = fmt.Sprintf("Default LXD profile for project %s", project)
+	profile.Config = map[string]string{}
+	profile.Devices = types.Devices{}
+
+	_, err := tx.ProfileCreate(profile)
+	if err != nil {
+		return errors.Wrap(err, "Add default profile to database")
+	}
+	return nil
 }
 
 func apiProjectGet(d *Daemon, r *http.Request) Response {
@@ -260,11 +269,18 @@ func apiProjectChange(d *Daemon, project *api.Project, req api.ProjectPut) Respo
 			return errors.Wrap(err, "Persist profile changes")
 		}
 
-		if req.Config["features.profiles"] != project.Config["features.profiles"] && req.Config["features.profiles"] != "true" {
-			// Delete the project-specific default profile.
-			err = tx.ProfileDelete(project.Name, "default")
-			if err != nil {
-				return errors.Wrap(err, "Delete project default profile")
+		if req.Config["features.profiles"] != project.Config["features.profiles"] {
+			if req.Config["features.profiles"] == "true" {
+				err = apiProjectCreateDefaultProfile(tx, project.Name)
+				if err != nil {
+					return err
+				}
+			} else {
+				// Delete the project-specific default profile.
+				err = tx.ProfileDelete(project.Name, "default")
+				if err != nil {
+					return errors.Wrap(err, "Delete project default profile")
+				}
 			}
 		}
 
