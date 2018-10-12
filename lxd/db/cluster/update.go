@@ -43,6 +43,31 @@ var updates = map[int]schema.Update{
 	10: updateFromV9,
 	11: updateFromV10,
 	12: updateFromV11,
+	13: updateFromV12,
+}
+
+func updateFromV12(tx *sql.Tx) error {
+	stmts := `
+DROP VIEW profiles_used_by_ref;
+CREATE VIEW profiles_used_by_ref (project,
+    name,
+    value) AS
+  SELECT projects.name,
+    profiles.name,
+    printf('/1.0/containers/%s?project=%s',
+    containers.name,
+    containers_projects.name)
+    FROM profiles
+    JOIN projects ON projects.id=profiles.project_id
+    JOIN containers_profiles
+      ON containers_profiles.profile_id=profiles.id
+    JOIN containers
+      ON containers.id=containers_profiles.container_id
+    JOIN projects AS containers_projects
+      ON containers_projects.id=containers.project_id;
+`
+	_, err := tx.Exec(stmts)
+	return err
 }
 
 func updateFromV11(tx *sql.Tx) error {
