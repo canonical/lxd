@@ -139,8 +139,8 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t,
 		map[string]string{
-			"boot.autostart": "false",
-			"limits.cpu.allowance":     "50%"},
+			"boot.autostart":       "false",
+			"limits.cpu.allowance": "50%"},
 		profile.Config)
 	assert.Equal(t, map[string]map[string]string{}, profile.Devices)
 }
