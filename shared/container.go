@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -144,7 +145,29 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"boot.stop.priority":         IsInt64,
 	"boot.host_shutdown_timeout": IsInt64,
 
-	"limits.cpu": IsAny,
+	"limits.cpu": func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		// Validate the character set
+		match, _ := regexp.MatchString("^[-,0-9]*$", value)
+		if !match {
+			return fmt.Errorf("Invalid CPU limit syntax")
+		}
+
+		// Validate first character
+		if strings.HasPrefix(value, "-") || strings.HasPrefix(value, ",") {
+			return fmt.Errorf("CPU limit can't start with a separator")
+		}
+
+		// Validate last character
+		if strings.HasSuffix(value, "-") || strings.HasSuffix(value, ",") {
+			return fmt.Errorf("CPU limit can't end with a separator")
+		}
+
+		return nil
+	},
 	"limits.cpu.allowance": func(value string) error {
 		if value == "" {
 			return nil
