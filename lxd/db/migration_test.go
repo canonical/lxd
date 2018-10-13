@@ -139,8 +139,8 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t,
 		map[string]string{
-			"boot.autostart": "false",
-			"limits.cpu":     "50%"},
+			"boot.autostart":       "false",
+			"limits.cpu.allowance": "50%"},
 		profile.Config)
 	assert.Equal(t, map[string]map[string]string{}, profile.Devices)
 }
@@ -163,7 +163,7 @@ func newPreClusteringTx(t *testing.T) *sql.Tx {
 		"INSERT INTO profiles VALUES(1, 'default', 'Default LXD profile')",
 		"INSERT INTO profiles VALUES(2, 'users', '')",
 		"INSERT INTO profiles_config VALUES(2, 2, 'boot.autostart', 'false')",
-		"INSERT INTO profiles_config VALUES(3, 2, 'limits.cpu', '50%')",
+		"INSERT INTO profiles_config VALUES(3, 2, 'limits.cpu.allowance', '50%')",
 		"INSERT INTO profiles_devices VALUES(1, 1, 'eth0', 1)",
 		"INSERT INTO profiles_devices VALUES(2, 1, 'root', 1)",
 		"INSERT INTO profiles_devices_config VALUES(1, 1, 'nictype', 'bridged')",
