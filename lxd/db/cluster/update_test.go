@@ -405,7 +405,7 @@ INSERT INTO images_aliases VALUES (1, 'my-img', 1, NULL)
 INSERT INTO profiles VALUES (1, 'default', NULL);
 INSERT INTO profiles VALUES(2, 'users', '');
 INSERT INTO profiles_config VALUES(2, 2, 'boot.autostart', 'false');
-INSERT INTO profiles_config VALUES(3, 2, 'limits.cpu', '50%');
+INSERT INTO profiles_config VALUES(3, 2, 'limits.cpu.allowance', '50%');
 INSERT INTO profiles_devices VALUES(1, 1, 'eth0', 1);
 INSERT INTO profiles_devices VALUES(2, 1, 'root', 1);
 INSERT INTO profiles_devices_config VALUES(1, 1, 'nictype', 'bridged');
