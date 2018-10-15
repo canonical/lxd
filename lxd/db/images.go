@@ -521,8 +521,8 @@ WHERE images.fingerprint = ?
 
 // ImageAssociateNode creates a new entry in the images_nodes table for
 // tracking that the current node has the given image.
-func (c *Cluster) ImageAssociateNode(fingerprint string) error {
-	imageID, _, err := c.ImageGet("default", fingerprint, false, true)
+func (c *Cluster) ImageAssociateNode(project, fingerprint string) error {
+	imageID, _, err := c.ImageGet(project, fingerprint, false, true)
 	if err != nil {
 		return err
 	}

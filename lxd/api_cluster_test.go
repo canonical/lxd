@@ -427,7 +427,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 	// If we now associate the image with the other node as well, leaving
 	// the cluster is fine.
 	daemon = daemons[0]
-	err = daemon.State().Cluster.ImageAssociateNode("abc")
+	err = daemon.State().Cluster.ImageAssociateNode("default", "abc")
 	require.NoError(t, err)
 
 	err = client.DeleteClusterMember("rusp-0", false)
