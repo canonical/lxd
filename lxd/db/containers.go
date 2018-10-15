@@ -968,7 +968,7 @@ func (c *Cluster) ContainerGetBackups(project, name string) ([]string, error) {
 
 	q := `SELECT containers_backups.name FROM containers_backups
 JOIN containers ON containers_backups.container_id=containers.id
-JOIN projects ON projects.id=containers.id
+JOIN projects ON projects.id=containers.project_id
 WHERE projects.name=? AND containers.name=?`
 	inargs := []interface{}{project, name}
 	outfmt := []interface{}{name}
