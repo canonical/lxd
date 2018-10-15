@@ -116,5 +116,10 @@ func eventsConnect(address string, cert *shared.CertInfo) (*lxd.EventListener, e
 	if err != nil {
 		return nil, err
 	}
+
+	// Set the project to the special wildcard in order to get notified
+	// about all events across all projects.
+	client = client.UseProject("*")
+
 	return client.GetEvents()
 }
