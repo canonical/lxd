@@ -151,7 +151,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 				cert := d.endpoints.NetworkCert()
 
 				if recursion == 1 {
-					cs, err := doContainersGetFromNode(address, cert)
+					cs, err := doContainersGetFromNode(project, address, cert)
 					if err != nil {
 						for _, name := range containers {
 							resultListAppend(name, api.Container{}, err)
@@ -167,7 +167,7 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 					return
 				}
 
-				cs, err := doContainersFullGetFromNode(address, cert)
+				cs, err := doContainersFullGetFromNode(project, address, cert)
 				if err != nil {
 					for _, name := range containers {
 						resultFullListAppend(name, api.ContainerFull{}, err)
@@ -262,12 +262,14 @@ func doContainersGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 // Fetch information about the containers on the given remote node, using the
 // rest API and with a timeout of 30 seconds.
-func doContainersGetFromNode(node string, cert *shared.CertInfo) ([]api.Container, error) {
+func doContainersGetFromNode(project, node string, cert *shared.CertInfo) ([]api.Container, error) {
 	f := func() ([]api.Container, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
 		}
+
+		client = client.UseProject(project)
 
 		containers, err := client.GetContainers()
 		if err != nil {
@@ -297,12 +299,14 @@ func doContainersGetFromNode(node string, cert *shared.CertInfo) ([]api.Containe
 	return containers, err
 }
 
-func doContainersFullGetFromNode(node string, cert *shared.CertInfo) ([]api.ContainerFull, error) {
+func doContainersFullGetFromNode(project, node string, cert *shared.CertInfo) ([]api.ContainerFull, error) {
 	f := func() ([]api.ContainerFull, error) {
 		client, err := cluster.Connect(node, cert, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
 		}
+
+		client = client.UseProject(project)
 
 		containers, err := client.GetContainersFull()
 		if err != nil {

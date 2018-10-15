@@ -660,14 +660,17 @@ func containersPost(d *Daemon, r *http.Request) Response {
 				return SmartError(err)
 			}
 
+			client = client.UseProject(project)
+			client = client.UseTarget(targetNode)
+
 			logger.Debugf("Forward container post request to %s", address)
-			op, err := client.UseTarget(targetNode).CreateContainer(req)
+			op, err := client.CreateContainer(req)
 			if err != nil {
 				return SmartError(err)
 			}
 
 			opAPI := op.Get()
-			return ForwardedOperationResponse(&opAPI)
+			return ForwardedOperationResponse(project, &opAPI)
 		}
 	}
 

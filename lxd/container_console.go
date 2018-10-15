@@ -282,7 +282,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 		}
 
 		opAPI := op.Get()
-		return ForwardedOperationResponse(&opAPI)
+		return ForwardedOperationResponse(project, &opAPI)
 	}
 
 	c, err := containerLoadByProjectAndName(d.State(), project, name)
