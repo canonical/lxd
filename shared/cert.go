@@ -364,6 +364,12 @@ func GetRemoteCertificate(address string) (*x509.Certificate, error) {
 	}
 
 	tlsConfig.InsecureSkipVerify = true
+
+	// Support disabling of strict ciphers
+	if IsTrue(os.Getenv("LXD_INSECURE_TLS")) {
+		tlsConfig.CipherSuites = nil
+	}
+
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		Dial:            RFC3493Dialer,
