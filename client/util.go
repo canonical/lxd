@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/lxc/lxd/shared"
@@ -17,6 +18,11 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 	tlsConfig, err := shared.GetTLSConfigMem(tlsClientCert, tlsClientKey, tlsCA, tlsServerCert, insecureSkipVerify)
 	if err != nil {
 		return nil, err
+	}
+
+	// Support disabling of strict ciphers
+	if shared.IsTrue(os.Getenv("LXD_INSECURE_TLS")) {
+		tlsConfig.CipherSuites = nil
 	}
 
 	// Define the http transport
