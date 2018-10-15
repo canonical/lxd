@@ -1015,7 +1015,7 @@ test_clustering_projects() {
 
   # Create a container in the project.
   #LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project p1 --alias testimage
-  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage c1
 
   # The container is visible through both nodes
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep -q c1

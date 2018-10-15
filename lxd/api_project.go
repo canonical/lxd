@@ -84,6 +84,10 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Project names may not contain slashes"))
 	}
 
+	if project.Name == "*" {
+		return BadRequest(fmt.Errorf("Reserved project name"))
+	}
+
 	if shared.StringInSlice(project.Name, []string{".", ".."}) {
 		return BadRequest(fmt.Errorf("Invalid project name '%s'", project.Name))
 	}
