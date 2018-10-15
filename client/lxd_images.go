@@ -79,8 +79,17 @@ func (r *ProtocolLXD) GetPrivateImage(fingerprint string, secret string) (*api.I
 
 	// Build the API path
 	path := fmt.Sprintf("/images/%s", url.QueryEscape(fingerprint))
+	var err error
+	path, err = r.setQueryAttributes(path)
+	if err != nil {
+		return nil, "", err
+	}
+
 	if secret != "" {
-		path = fmt.Sprintf("%s?secret=%s", path, url.QueryEscape(secret))
+		path, err = setQueryParam(path, "secret", secret)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	// Fetch the raw value
@@ -99,9 +108,17 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 		return nil, fmt.Errorf("No file requested")
 	}
 
+	uri := fmt.Sprintf("/1.0/images/%s/export", url.QueryEscape(fingerprint))
+
+	var err error
+	uri, err = r.setQueryAttributes(uri)
+	if err != nil {
+		return nil, err
+	}
+
 	// Attempt to download from host
 	if secret == "" && shared.PathExists("/dev/lxd/sock") && os.Geteuid() == 0 {
-		unixURI := fmt.Sprintf("http://unix.socket/1.0/images/%s/export", url.QueryEscape(fingerprint))
+		unixURI := fmt.Sprintf("http://unix.socket%s", uri)
 
 		// Setup the HTTP client
 		devlxdHTTP, err := unixHTTPClient(nil, "/dev/lxd/sock")
@@ -114,9 +131,12 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 	}
 
 	// Build the URL
-	uri := fmt.Sprintf("%s/1.0/images/%s/export", r.httpHost, url.QueryEscape(fingerprint))
+	uri = fmt.Sprintf("%s%s", r.httpHost, uri)
 	if secret != "" {
-		uri = fmt.Sprintf("%s?secret=%s", uri, url.QueryEscape(secret))
+		uri, err = setQueryParam(uri, "secret", secret)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return lxdDownloadImage(fingerprint, uri, r.httpUserAgent, r.http, req)

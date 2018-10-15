@@ -1006,15 +1006,13 @@ test_clustering_projects() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
-  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
-
   # Create a test project
-  LXD_DIR="${LXD_ONE_DIR}" lxc project create p1 -c features.images=false
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create p1
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch p1
   LXD_DIR="${LXD_ONE_DIR}" lxc profile device add default root disk path="/" pool="data"
 
   # Create a container in the project.
-  #LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project p1 --alias testimage
+  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --project p1 --alias testimage
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 testimage c1
 
   # The container is visible through both nodes
@@ -1022,7 +1020,7 @@ test_clustering_projects() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q c1
 
   LXD_DIR="${LXD_ONE_DIR}" lxc delete c1
-  #LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch default
 
