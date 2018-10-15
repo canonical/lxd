@@ -1,8 +1,10 @@
 package cluster
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
@@ -77,6 +79,11 @@ func updateFromV11(tx *sql.Tx) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to count rows in current tables")
 	}
+
+	// Use a large timeout since the update might take a while, due to the
+	// new indexes being created.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 
 	stmts := fmt.Sprintf(`
 CREATE TABLE projects (
@@ -390,7 +397,7 @@ CREATE INDEX images_project_id_idx ON images (project_id);
 CREATE INDEX images_aliases_project_id_idx ON images_aliases (project_id);
 CREATE INDEX profiles_project_id_idx ON profiles (project_id);
 `)
-	_, err = tx.Exec(stmts)
+	_, err = tx.ExecContext(ctx, stmts)
 	if err != nil {
 		return errors.Wrap(err, "Failed to add project_id column")
 	}
