@@ -80,6 +80,18 @@ func updateFromV11(tx *sql.Tx) error {
 		return errors.Wrap(err, "Failed to count rows in current tables")
 	}
 
+	// Temporarily increase the cache size and disable page spilling, to
+	// avoid unnecessary writes to the WAL.
+	_, err = tx.Exec("PRAGMA cache_size=100000")
+	if err != nil {
+		return errors.Wrap(err, "Increase cache size")
+	}
+
+	_, err = tx.Exec("PRAGMA cache_spill=0")
+	if err != nil {
+		return errors.Wrap(err, "Disable spilling cache pages to disk")
+	}
+
 	// Use a large timeout since the update might take a while, due to the
 	// new indexes being created.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -526,6 +538,17 @@ CREATE VIEW profiles_used_by_ref (project, name, value) AS
 		if count1 != count2 {
 			return fmt.Errorf("Row count mismatch in table '%s': %d vs %d", table, count1, count2)
 		}
+	}
+
+	// Restore default cache values.
+	_, err = tx.Exec("PRAGMA cache_size=2000")
+	if err != nil {
+		return errors.Wrap(err, "Increase cache size")
+	}
+
+	_, err = tx.Exec("PRAGMA cache_spill=1")
+	if err != nil {
+		return errors.Wrap(err, "Disable spilling cache pages to disk")
 	}
 
 	return err
