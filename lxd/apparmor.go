@@ -431,6 +431,27 @@ func runApparmor(command string, c container) error {
 	return err
 }
 
+func getAACacheDir() string {
+	basePath := path.Join(aaPath, "cache")
+
+	major, minor, _, err := getAAParserVersion()
+	if err != nil {
+		return basePath
+	}
+
+	// multiple policy cache directories were only added in v2.13
+	if major >= 2 && minor <= 12 {
+		return basePath
+	}
+
+	output, err := shared.RunCommand("apparmor_parser", "-L", basePath, "--print-cache-dir")
+	if err != nil {
+		return basePath
+	}
+
+	return strings.TrimSpace(output)
+}
+
 func mkApparmorNamespace(c container, namespace string) error {
 	state := c.DaemonState()
 	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
@@ -531,21 +552,12 @@ func AADeleteProfile(c container) {
 	/* It's ok if these deletes fail: if the container was never started,
 	 * we'll have never written a profile or cached it.
 	 */
-	os.Remove(path.Join(aaPath, "cache", AAProfileShort(c)))
+	os.Remove(path.Join(getAACacheDir(), AAProfileShort(c)))
 	os.Remove(path.Join(aaPath, "profiles", AAProfileShort(c)))
 }
 
 func aaParserSupports(feature string) bool {
-	out, err := shared.RunCommand("apparmor_parser", "--version")
-	if err != nil {
-		return false
-	}
-
-	major := 0
-	minor := 0
-	micro := 0
-
-	_, err = fmt.Sscanf(strings.Split(out, "\n")[0], "AppArmor parser version %d.%d.%d", &major, &minor, &micro)
+	major, minor, micro, err := getAAParserVersion()
 	if err != nil {
 		return false
 	}
@@ -566,4 +578,17 @@ func aaParserSupports(feature string) bool {
 	}
 
 	return true
+}
+
+func getAAParserVersion() (major int, minor int, micro int, err error) {
+	var out string
+
+	out, err = shared.RunCommand("apparmor_parser", "--version")
+	if err != nil {
+		return
+	}
+
+	_, err = fmt.Sscanf(strings.Split(out, "\n")[0], "AppArmor parser version %d.%d.%d", &major, &minor, &micro)
+
+	return
 }
