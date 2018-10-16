@@ -148,7 +148,7 @@ func eventBroadcast(event shared.Jmap) error {
 	eventsLock.Lock()
 	listeners := eventListeners
 	for _, listener := range listeners {
-		if event["project"] != "" && event["project"] != listener.project {
+		if event["project"] != "" && listener.project != "*" && event["project"] != listener.project {
 			continue
 		}
 
