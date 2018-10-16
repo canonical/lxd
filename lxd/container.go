@@ -773,11 +773,15 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 		if err != nil {
 			return nil, err
 		}
+
+		client = client.UseProject(args.Project)
+
 		err = imageImportFromNode(filepath.Join(d.os.VarDir, "images"), client, hash)
 		if err != nil {
 			return nil, err
 		}
-		err = d.cluster.ImageAssociateNode(hash)
+
+		err = d.cluster.ImageAssociateNode(args.Project, hash)
 		if err != nil {
 			return nil, err
 		}

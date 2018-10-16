@@ -171,3 +171,18 @@ func remoteOperationError(msg string, errors map[string]error) error {
 
 	return nil
 }
+
+// Set the value of a query parameter in the given URI.
+func setQueryParam(uri, param, value string) (string, error) {
+	fields, err := url.Parse(uri)
+	if err != nil {
+		return "", err
+	}
+
+	values := fields.Query()
+	values.Set(param, url.QueryEscape(value))
+
+	fields.RawQuery = values.Encode()
+
+	return fields.String(), nil
+}
