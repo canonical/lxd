@@ -1,4 +1,6 @@
-# Pull requests:
+# Contributing
+
+## Pull requests:
 
 Changes to this project should be proposed as pull requests on Github
 at: <https://github.com/lxc/lxd>
@@ -7,7 +9,7 @@ Proposed changes will then go through code review there and once acked,
 be merged in the main branch.
 
 
-# License and copyright:
+## License and copyright:
 
 By default, any contribution to this project is made under the Apache
 2.0 license.
@@ -16,7 +18,7 @@ The author of a change remains the copyright holder of their code
 (no copyright assignment).
 
 
-# Developer Certificate of Origin:
+## Developer Certificate of Origin:
 
 To improve tracking of contributions to this project we use the DCO 1.1
 and use a "sign-off" procedure for all changes going into the branch.

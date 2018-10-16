@@ -1,4 +1,5 @@
-# Introduction
+# Idmaps for user namespace
+## Introduction
 LXD runs safe containers. This is achieved mostly through the use of
 user namespaces which make it possible to run containers unprivileged,
 greatly limiting the attack surface.
@@ -17,11 +18,11 @@ running as uid 100000.
 Allocations should always be of at least 65536 uids and gids to cover
 the POSIX range including root (0) and nobody (65534).
 
-# Kernel support
+## Kernel support
 User namespaces require a kernel >= 3.12, LXD will start even on older
 kernels but will refuse to start containers.
 
-# Allowed ranges
+## Allowed ranges
 On most hosts, LXD will check `/etc/subuid` and `/etc/subgid` for
 allocations for the "lxd" user and on first start, set the default
 profile to use the first 65536 uids and gids from that range.
@@ -39,11 +40,11 @@ on a host using an old version of shadow. In this mode, LXD will assume
 it can use any uids and gids above 65535 and will take the first 65536
 as its default map.
 
-# Varying ranges between hosts
+## Varying ranges between hosts
 The source map is sent when moving containers between hosts so that they
 can be remapped on the receiving host.
 
-# Different idmaps per container
+## Different idmaps per container
 LXD supports using different idmaps per container, to further isolate
 containers from each other. This is controlled with two per-container
 configuration keys, `security.idmap.isolated` and `security.idmap.size`.
@@ -63,7 +64,7 @@ want to use as the base for the container.
 
 These properties require a container reboot to take effect.
 
-# Custom idmaps
+## Custom idmaps
 LXD also supports customizing bits of the idmap, e.g. to allow users to bind
 mount parts of the host's filesystem into a container without the need for any
 uid-shifting filesystem. The per-container configuration key for this is
