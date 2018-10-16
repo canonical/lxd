@@ -1,4 +1,5 @@
-# Introduction
+# Production setup
+## Introduction
 So you've made it past trying out [LXD live online](https://linuxcontainers.org/lxd/try-it/),
 or on a server scavenged from random parts. You like what you see,
 and now you want to try doing some serious work with LXD.
@@ -8,7 +9,7 @@ to the server configuration will be needed, to avoid common pitfalls when
 using containers that require tens of thousands of file operations.
 
 
-## Common errors that may be encountered
+### Common errors that may be encountered
 
 `Failed to allocate directory watch: Too many open files`
 
@@ -18,8 +19,8 @@ using containers that require tens of thousands of file operations.
 
 `neighbour: ndisc_cache: neighbor table overflow!`
 
-# Server Changes
-## /etc/security/limits.conf
+## Server Changes
+### /etc/security/limits.conf
 
 Domain  | Type  | Item    | Value     | Default   | Description
 :-----  | :---  | :----   | :-------- | :-------- | :----------
@@ -31,7 +32,7 @@ root    | hard  | nofile  | 1048576   | unset     | maximum number of open files
 \*      | hard  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB)
 
 
-## /etc/sysctl.conf
+### /etc/sysctl.conf
 
 Parameter                       | Value     | Default | Description
 :-----                          | :---      | :---    | :---
@@ -49,19 +50,19 @@ Then, reboot the server.
 [1]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [2]: https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
 
-## Network Bandwidth Tweaking 
+### Network Bandwidth Tweaking 
 If you have at least 1GbE NIC on your lxd host with a lot of local activity (container - container connections, or host - container connections), or you have 1GbE or better internet connection on your lxd host it worth play with txqueuelen. These settings work even better with 10GbE NIC.
 
-### Server Changes
+#### Server Changes
 
-#### txqueuelen 
+##### txqueuelen 
 
 You need to change `txqueuelen` of your real NIC to 10000 (not sure about the best possible value for you), and change and change lxdbr0 interface `txqueuelen` to 10000.  
 In Debian-based distros you can change `txqueuelen` permanently in `/etc/network/interfaces`  
 You can add for ex.: `up ip link set eth0 txqueuelen 10000` to your interface configuration to set txqueuelen value on boot.  
 You could set it txqueuelen temporary (for test purpose) with `ifconfig <interface> txqueuelen 10000`
 
-#### /etc/sysctl.conf
+##### /etc/sysctl.conf
 
 You also need to increase `net.core.netdev_max_backlog` value.  
 You can add `net.core.netdev_max_backlog = 182757` to `/etc/sysctl.conf` to set it permanently (after reboot)
@@ -69,13 +70,13 @@ You set `netdev_max_backlog` temporary (for test purpose) with `echo 182757 > /p
 Note: You can find this value too high, most people prefer set `netdev_max_backlog` = `net.ipv4.tcp_mem` min. value.
 For example I use this values `net.ipv4.tcp_mem = 182757 243679 365514`
 
-### Containers changes
+#### Containers changes
 
 You also need to change txqueuelen value for all you ethernet interfaces in containers.  
 In Debian-based distros you can change txqueuelen permanently in `/etc/network/interfaces`  
 You can add for ex.: `up ip link set eth0 txqueuelen 10000` to your interface configuration to set txqueuelen value on boot.
 
-### Notes regarding this change
+#### Notes regarding this change
 
 10000 txqueuelen value commonly used with 10GbE NICs. Basically small txqueuelen values used with slow devices with a high latency, and higher with devices with low latency. I personally have like 3-5% improvement with these settings for local (host with container, container vs container) and internet connections. Good thing about txqueuelen value tweak, the more containers you use, the more you can be can benefit from this tweak. And you can always temporary set this values and check this tweak in your environment without lxd host reboot.
 

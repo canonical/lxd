@@ -1,3 +1,5 @@
+# Debugging
+
 Here are different ways to help troubleshooting `lxc` and `lxd` code.
 
 #### lxc --debug
