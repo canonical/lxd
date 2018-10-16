@@ -199,13 +199,20 @@ kill_lxd() {
     if [ "${check_leftovers}" = "true" ]; then
         echo "==> Checking for leftover files"
         rm -f "${daemon_dir}/containers/lxc-monitord.log"
-        rm -f "${daemon_dir}/security/apparmor/cache/.features"
+
+        # Support AppArmor policy cache directory
+        if apparmor_parser --help | grep -q -- --'print-cache.dir'; then
+          apparmor_cache_dir="$(apparmor_parser -L "${daemon_dir}"/security/apparmor/cache --print-cache-dir)"
+        else
+          apparmor_cache_dir="${daemon_dir}/security/apparmor/cache"
+        fi
+        rm -f "${apparmor_cache_dir}/.features"
         check_empty "${daemon_dir}/containers/"
         check_empty "${daemon_dir}/devices/"
         check_empty "${daemon_dir}/images/"
         # FIXME: Once container logging rework is done, uncomment
         # check_empty "${daemon_dir}/logs/"
-        check_empty "${daemon_dir}/security/apparmor/cache/"
+        check_empty "${apparmor_cache_dir}"
         check_empty "${daemon_dir}/security/apparmor/profiles/"
         check_empty "${daemon_dir}/security/seccomp/"
         check_empty "${daemon_dir}/shmounts/"
