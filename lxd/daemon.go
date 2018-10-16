@@ -754,6 +754,9 @@ func (d *Daemon) Ready() error {
 
 		/* Auto-update instance types */
 		d.tasks.Add(instanceRefreshTypesTask(d))
+
+		// Remove expired container backups
+		d.tasks.Add(pruneExpiredContainerBackupsTask(d))
 	}
 
 	d.tasks.Start()
