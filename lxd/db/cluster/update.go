@@ -73,6 +73,32 @@ CREATE VIEW profiles_used_by_ref (project,
 }
 
 func updateFromV11(tx *sql.Tx) error {
+	// There was at least a case of dangling references to rows in the
+	// containers table that don't exist anymore. So sanitize them before
+	// we move forward. See #5176.
+	stmts := `
+DELETE FROM containers_config WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM containers_backups WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM containers_devices WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM containers_devices_config WHERE container_device_id NOT IN (SELECT id FROM containers_devices);
+DELETE FROM containers_profiles WHERE container_id NOT IN (SELECT id FROM containers);
+DELETE FROM containers_profiles WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM images_aliases WHERE image_id NOT IN (SELECT id FROM images);
+DELETE FROM images_properties WHERE image_id NOT IN (SELECT id FROM images);
+DELETE FROM images_source WHERE image_id NOT IN (SELECT id FROM images);
+DELETE FROM networks_config WHERE network_id NOT IN (SELECT id FROM networks);
+DELETE FROM profiles_config WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM profiles_devices WHERE profile_id NOT IN (SELECT id FROM profiles);
+DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FROM profiles_devices);
+DELETE FROM storage_pools_config WHERE storage_pool_id NOT IN (SELECT id FROM storage_pools);
+DELETE FROM storage_volumes WHERE storage_pool_id NOT IN (SELECT id FROM storage_pools);
+DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FROM storage_volumes);
+`
+	_, err := tx.Exec(stmts)
+	if err != nil {
+		return errors.Wrap(err, "Remove dangling references to containers")
+	}
+
 	// Before doing anything save the counts of all tables, so we can later
 	// check that we don't accidentally delete or add anything.
 	counts1, err := query.CountAll(tx)
@@ -97,7 +123,7 @@ func updateFromV11(tx *sql.Tx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	stmts := fmt.Sprintf(`
+	stmts = fmt.Sprintf(`
 CREATE TABLE projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
