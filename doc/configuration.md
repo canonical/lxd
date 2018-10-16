@@ -1,4 +1,4 @@
-# Introduction
+# Configuration
 Current LXD stores configurations for a few components:
 
 - [Server](server.md)

@@ -1,4 +1,5 @@
-# Introduction
+# Communication between container and host
+## Introduction
 Communication between the hosted workload (container) and its host while
 not strictly needed is a pretty useful feature.
 
@@ -9,7 +10,7 @@ This file is a Unix socket which processes inside the container can
 connect to. It's multi-threaded so multiple clients can be connected at the
 same time.
 
-# Implementation details
+## Implementation details
 LXD on the host binds `/var/lib/lxd/devlxd` and starts listening for new
 connections on it.
 
@@ -20,21 +21,21 @@ The bind-mount is required so we can exceed 4096 containers, otherwise,
 LXD would have to bind a different socket for every container, quickly
 reaching the FD limit.
 
-# Authentication
+## Authentication
 Queries on `/dev/lxd/sock` will only return information related to the
 requesting container. To figure out where a request comes from, LXD will
 extract the initial socket ucred and compare that to the list of
 containers it manages.
 
-# Protocol
+## Protocol
 The protocol on `/dev/lxd/sock` is plain-text HTTP with JSON messaging, so very
 similar to the local version of the LXD protocol.
 
 Unlike the main LXD API, there is no background operation and no
 authentication support in the `/dev/lxd/sock` API.
 
-# REST-API
-## API structure
+## REST-API
+### API structure
  * /
    * /1.0
      * /1.0/config
@@ -43,9 +44,9 @@ authentication support in the `/dev/lxd/sock` API.
      * /1.0/images/{fingerprint}/export
      * /1.0/meta-data
 
-## API details
-### `/`
-#### GET
+### API details
+#### `/`
+##### GET
  * Description: List of supported APIs
  * Return: list of supported API endpoint URLs (by default `['/1.0']`)
 
@@ -56,8 +57,8 @@ Return value:
     "/1.0"
 ]
 ```
-### `/1.0`
-#### GET
+#### `/1.0`
+##### GET
  * Description: Information about the 1.0 API
  * Return: dict
 
@@ -68,8 +69,8 @@ Return value:
     "api_version": "1.0"
 }
 ```
-### `/1.0/config`
-#### GET
+#### `/1.0/config`
+##### GET
  * Description: List of configuration keys
  * Return: list of configuration keys URL
 
@@ -88,8 +89,8 @@ Return value:
 ]
 ```
 
-### `/1.0/config/<KEY>`
-#### GET
+#### `/1.0/config/<KEY>`
+##### GET
  * Description: Value of that key
  * Return: Plain-text value
 
@@ -97,8 +98,8 @@ Return value:
 
     blah
 
-### `/1.0/events`
-#### GET
+#### `/1.0/events`
+##### GET
  * Description: websocket upgrade
  * Return: none (never ending flow of events)
 
@@ -136,8 +137,8 @@ This never returns. Each notification is sent as a separate JSON dict:
         }
     }
 
-### `/1.0/images/<FINGERPRINT>/export`
-#### GET
+#### `/1.0/images/<FINGERPRINT>/export`
+##### GET
  * Description: Download a public/cached image from the host
  * Return: raw image or error
  * Access: Requires security.devlxd.images set to true
@@ -147,8 +148,8 @@ Return value:
     See /1.0/images/<FINGERPRINT>/export in the daemon API.
 
 
-### `/1.0/meta-data`
-#### GET
+#### `/1.0/meta-data`
+##### GET
  * Description: Container meta-data compatible with cloud-init
  * Return: cloud-init meta-data
 
