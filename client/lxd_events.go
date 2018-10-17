@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -38,9 +39,17 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 	// Add the listener
 	r.eventListeners = append(r.eventListeners, &listener)
 
-	// And spawn the listener
+	// Spawn a watcher that will close the websocket connection after all
+	// listeners are gone.
+	stopCh := make(chan struct{}, 0)
 	go func() {
 		for {
+			select {
+			case <-time.After(time.Minute):
+			case <-stopCh:
+				break
+			}
+
 			r.eventListenersLock.Lock()
 			if len(r.eventListeners) == 0 {
 				// We don't need the connection anymore, disconnect
@@ -51,7 +60,12 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 				break
 			}
 			r.eventListenersLock.Unlock()
+		}
+	}()
 
+	// Spawn the listener
+	go func() {
+		for {
 			_, data, err := conn.ReadMessage()
 			if err != nil {
 				// Prevent anything else from interacting with the listeners
@@ -67,6 +81,10 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 
 				// And remove them all from the list
 				r.eventListeners = []*EventListener{}
+
+				conn.Close()
+				close(stopCh)
+
 				return
 			}
 
