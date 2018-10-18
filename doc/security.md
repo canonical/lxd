@@ -1,4 +1,5 @@
-# Introduction
+# Security
+## Introduction
 Local communications over the UNIX socket happen over a cleartext HTTP
 socket and access is restricted by socket ownership and mode.
 
@@ -22,7 +23,7 @@ certificate for any client-server communication.
 To cause certificates to be regenerated, simply remove the old ones. On the
 next connection a new certificate will be generated.
 
-# Adding a remote with a default setup
+## Adding a remote with a default setup
 In the default setup, when the user adds a new server with `lxc remote add`,
 the server will be contacted over HTTPs, its certificate downloaded and the
 fingerprint will be shown to the user.
@@ -46,14 +47,14 @@ a TXT record, then if the domain is signed by DNSSEC, the client will
 automatically accept the fingerprint if it matches that in the DNS
 record.
 
-# Managing trusted clients
+## Managing trusted clients
 The list of certificates trusted by a LXD server can be obtained with `lxc
 config trust list`.
 
 To revoke trust to a client its certificate can be removed with `lxc config
 trust remove FINGERPRINT`.
 
-# Password prompt
+## Password prompt
 To establish a new trust relationship, a password must be set on the
 server and send by the client when adding itself.
 
@@ -67,8 +68,8 @@ A remote add operation should therefore go like this:
     trusted.
  4. Remote is now ready
 
-# Failure scenarios
-## Server certificate changes
+## Failure scenarios
+### Server certificate changes
 This will typically happen in two cases:
 
  * The server was fully reinstalled and so changed certificate
@@ -84,7 +85,7 @@ can be replaced by the new one or the remote be removed altogether and
 re-added.
 
 
-## Server trust relationship revoked
+### Server trust relationship revoked
 In this case, the server still uses the same certificate but all API
 calls return a 403 with an error indicating that the client isn't
 trusted.
@@ -93,7 +94,7 @@ This happens if another trusted client or the local server administrator
 removed the trust entry on the server.
 
 
-# Production setup
+## Production setup
 For production setup, it's recommended that `core.trust_password` is unset
 after all clients have been added.  This prevents brute-force attacks trying to
 guess the password.
