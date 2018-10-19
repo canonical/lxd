@@ -5983,7 +5983,8 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	}
 
 	// Prepare the subcommand
-	args := []string{c.state.OS.ExecPath, "forkexec", c.name, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
+	cname := projectPrefix(c.Project(), c.Name())
+	args := []string{c.state.OS.ExecPath, "forkexec", cname, c.state.OS.LxcPath, filepath.Join(c.LogPath(), "lxc.conf")}
 
 	args = append(args, "--")
 	args = append(args, "env")
