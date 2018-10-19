@@ -91,6 +91,7 @@ test_projects_containers() {
   # Start the container
   lxc start c1
   lxc list | grep c1 | grep -q RUNNING
+  echo "abc" | lxc exec c1 cat | grep -q abc
 
   # The container can't be managed when using the default project
   lxc project switch default
