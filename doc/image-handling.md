@@ -1,4 +1,5 @@
-# Introduction
+# Image handling
+## Introduction
 LXD uses an image based workflow. It comes with a built-in image store
 where the user or external tools can import images.
 
@@ -8,7 +9,7 @@ It's possible to spawn remote containers using local images or local
 containers using remote images. In such cases, the image may be cached
 on the target LXD.
 
-# Caching
+## Caching
 When spawning a container from a remote image, the remote image is
 downloaded into the local image store with the cached bit set. The image
 will be kept locally as a private image until either it's been unused
@@ -19,7 +20,7 @@ whichever comes first.
 LXD keeps track of image usage by updating the `last_used_at` image
 property every time a new container is spawned from the image.
 
-# Auto-update
+## Auto-update
 LXD can keep images up to date. By default, any image which comes from a
 remote server and was requested through an alias will be automatically
 updated by LXD. This can be changed with `images.auto_update_cached`.
@@ -36,7 +37,7 @@ image is removed from the store.
 The user can also request a particular image be kept up to date when
 manually copying an image from a remote server.
 
-# Image format
+## Image format
 LXD currently supports two LXD-specific image formats.
 
 The first is a unified tarball, where a single tarball
@@ -51,7 +52,7 @@ using for LXD-specific images.
 The latter is designed to allow for easy image building from existing
 non-LXD rootfs tarballs already available today.
 
-## Unified tarball
+### Unified tarball
 Tarball, can be compressed and contains:
 
  - `rootfs/`
@@ -60,7 +61,7 @@ Tarball, can be compressed and contains:
 
 In this mode, the image identifier is the SHA-256 of the tarball.
 
-## Split tarballs
+### Split tarballs
 Two (possibly compressed) tarballs. One for metadata, one for the rootfs.
 
 `metadata.tar` contains:
@@ -73,11 +74,11 @@ Two (possibly compressed) tarballs. One for metadata, one for the rootfs.
 In this mode the image identifier is the SHA-256 of the concatenation of
 the metadata and rootfs tarball (in that order).
 
-## Supported compression
+### Supported compression
 The tarball(s) can be compressed using bz2, gz, xz, lzma, tar (uncompressed) or
 it can also be a squashfs image.
 
-## Content
+### Content
 The rootfs directory (or tarball) contains a full file system tree of what will become the container's `/`.
 
 The templates directory contains pongo2-formatted templates of files inside the container.

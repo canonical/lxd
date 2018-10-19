@@ -1,4 +1,5 @@
-# Introduction
+# Database
+## Introduction
 So first of all, why a database?
 
 Rather than keeping the configuration and state within each container's
@@ -18,7 +19,7 @@ database, it's only a matter of accessing the already cached database
 with a pretty simple query.
 
 
-# Database engine
+## Database engine
 As this is a purely internal database with a single client and very
 little data, we'll be using sqlite3.
 
@@ -28,7 +29,7 @@ database accessible when the compute node itself isn't, wouldn't be
 terribly useful.
 
 
-# Design
+## Design
 The design of the database is made to be as close as possible to
 the [RESTful API](rest-api.md).
 
@@ -45,7 +46,7 @@ may cause a schema update and data being shuffled. In those cases, LXD
 will make a copy of the old database as ".old" to allow for a revert.
 
 
-# Tables
+## Tables
 The list of tables is:
 
  * certificates
@@ -74,12 +75,12 @@ You'll notice that compared to the REST API, there are three main differences:
     of a container at a given point in time, including its configuration and
     on-disk state. So having snapshots in a separate table would only be needless duplication.
 
-# Notes on sqlite3
+## Notes on sqlite3
 sqlite3 only supports 5 storage classes: NULL, INTEGER, REAL, TEXT and BLOB
 There are then a set of aliases for each of those storage classes which is what we use below.
 
-# Schema
-## certificates
+## Schema
+### certificates
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -92,7 +93,7 @@ certificate     | TEXT          | -             | NOT NULL          | PEM encode
 Index: UNIQUE ON id AND fingerprint
 
 
-## config (server configuration)
+### config (server configuration)
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -103,7 +104,7 @@ value           | TEXT          | -             |                   | Configurat
 Index: UNIQUE ON id AND key
 
 
-## containers
+### containers
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -118,7 +119,7 @@ creation\_date  | DATETIME      | -             |                   | Image crea
 Index: UNIQUE ON id AND name
 
 
-## containers\_config
+### containers\_config
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -132,7 +133,7 @@ Index: UNIQUE ON id AND container\_id + key
 Foreign keys: container\_id REFERENCES containers(id)
 
 
-## containers\_devices
+### containers\_devices
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -146,7 +147,7 @@ Index: UNIQUE ON id AND container\_id + name
 Foreign keys: container\_id REFERENCES containers(id)
 
 
-## containers\_devices\_config
+### containers\_devices\_config
 
 Column                  | Type          | Default       | Constraint        | Description
 :-----                  | :---          | :------       | :---------        | :----------
@@ -160,7 +161,7 @@ Index: UNIQUE ON id AND container\_device\_id + key
 Foreign keys: container\_device\_id REFERENCES containers\_devices(id)
 
 
-## containers\_profiles
+### containers\_profiles
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -174,7 +175,7 @@ Index: UNIQUE ON id AND container\_id + profile\_id
 Foreign keys: container\_id REFERENCES containers(id) and profile\_id REFERENCES profiles(id)
 
 
-## images
+### images
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -194,7 +195,7 @@ last\_use\_date | DATETIME      | -             |                   | Last time 
 Index: UNIQUE ON id AND fingerprint
 
 
-## images\_aliases
+### images\_aliases
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -208,7 +209,7 @@ Index: UNIQUE ON id AND name
 Foreign keys: image\_id REFERENCES images(id)
 
 
-## images\_properties
+### images\_properties
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -222,7 +223,7 @@ Index: UNIQUE ON id
 
 Foreign keys: image\_id REFERENCES images(id)
 
-## images\_source
+### images\_source
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -237,7 +238,7 @@ Index: UNIQUE ON id
 
 Foreign keys: image\_id REFERENCES images(id)
 
-## profiles
+### profiles
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -248,7 +249,7 @@ description     | TEXT          | -             |                   | Descriptio
 Index: UNIQUE on id AND name
 
 
-## profiles\_config
+### profiles\_config
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -262,7 +263,7 @@ Index: UNIQUE ON id AND profile\_id + key
 Foreign keys: profile\_id REFERENCES profiles(id)
 
 
-## profiles\_devices
+### profiles\_devices
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
@@ -276,7 +277,7 @@ Index: UNIQUE ON id AND profile\_id + name
 Foreign keys: profile\_id REFERENCES profiles(id)
 
 
-## profiles\_devices\_config
+### profiles\_devices\_config
 
 Column                  | Type          | Default       | Constraint        | Description
 :-----                  | :---          | :------       | :---------        | :----------
@@ -290,7 +291,7 @@ Index: UNIQUE ON id AND profile\_device\_id + key
 Foreign keys: profile\_device\_id REFERENCES profiles\_devices(id)
 
 
-## schema
+### schema
 
 Column          | Type          | Default       | Constraint        | Description
 :-----          | :---          | :------       | :---------        | :----------
