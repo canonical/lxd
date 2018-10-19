@@ -1,4 +1,5 @@
-# Introduction
+# Architectures
+## Introduction
 LXD just like LXC can run on just about any architecture that's
 supported by the Linux kernel and by Go.
 
@@ -18,7 +19,7 @@ soft-float and refers to both as "armv7". If useful to the user, the
 exact userspace ABI may be set as an image and container property,
 allowing easy query.
 
-# Architectures
+## Architectures
 
 ID    | Name          | Notes                           | Personalities
 :---  | :---          | :----                           | :------------
