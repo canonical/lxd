@@ -353,7 +353,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if client != nil {
-		url := fmt.Sprintf("/containers/%s/exec", name)
+		url := fmt.Sprintf("/containers/%s/exec?project=%s", name, project)
 		op, _, err := client.RawOperation("POST", url, post, "")
 		if err != nil {
 			return SmartError(err)
