@@ -5943,7 +5943,7 @@ func (c *containerLXC) Console(terminal *os.File) *exec.Cmd {
 	args := []string{
 		c.state.OS.ExecPath,
 		"forkconsole",
-		c.name,
+		projectPrefix(c.Project(), c.Name()),
 		c.state.OS.LxcPath,
 		filepath.Join(c.LogPath(), "lxc.conf"),
 		"tty=0",
