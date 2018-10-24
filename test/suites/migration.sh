@@ -222,6 +222,58 @@ migration() {
     lxc storage unset "lxdtest-$(basename "${LXD_DIR}")" zfs.clone_copy
   fi
 
+  lxc_remote init testimage l1:c1
+  lxc_remote copy l1:c1 l2:c2
+  lxc_remote copy l1:c1 l2:c2 --refresh
+
+  lxc_remote start l1:c1 l2:c2
+
+  # Make sure the testfile doesn't exist
+  ! lxc file pull l1:c1 -- /root/testfile1
+  ! lxc file pull l2:c2 -- /root/testfile1
+
+  #lxc_remote start l1:c1 l2:c2
+
+  # Containers may not be running when refreshing
+  ! lxc_remote copy l1:c1 l2:c2 --refresh
+
+  # Create test file in c1
+  echo test | lxc_remote file push - l1:c1/root/testfile1
+
+  lxc_remote stop -f l1:c1 l2:c2
+
+  # Refresh the container and validate the contents
+  lxc_remote copy l1:c1 l2:c2 --refresh
+  lxc_remote start l2:c2
+  lxc_remote file pull l2:c2/root/testfile1 .
+  lxc_remote stop -f l2:c2
+
+  # This will create snapshot c1/snap0
+  lxc_remote snapshot l1:c1
+
+  # Remove the testfile from c1 and refresh again
+  lxc_remote file delete l1:c1/root/testfile1
+  lxc_remote copy l1:c1 l2:c2 --refresh --container-only
+  lxc_remote start l2:c2
+  ! lxc_remote file pull l2:c2/root/testfile1 .
+  lxc_remote stop -f l2:c2
+
+  # Check whether snapshot c2/snap0 has been created
+  ! lxc_remote config show l2:c2/snap0
+  lxc_remote copy l1:c1 l2:c2 --refresh
+  lxc_remote ls l2:
+  lxc_remote config show l2:c2/snap0
+
+  # This will create snapshot c2/snap1
+  lxc_remote snapshot l2:c2
+  lxc_remote config show l2:c2/snap1
+
+  # This should remove c2/snap1
+  lxc_remote copy l1:c1 l2:c2 --refresh
+  ! lxc_remote config show l2:c2/snap1
+
+  lxc_remote rm -f l1:c1 l2:c2
+
   remote_pool1="lxdtest-$(basename "${LXD_DIR}")"
   remote_pool2="lxdtest-$(basename "${lxd2_dir}")"
 
