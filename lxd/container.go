@@ -398,7 +398,7 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 				return fmt.Errorf("Only the root disk may have a size quota")
 			}
 
-			if (m["path"] == "/" || !shared.IsDir(m["source"])) && m["recursive"] != "" {
+			if (m["path"] == "/" || !shared.IsDir(shared.HostPath(m["source"]))) && m["recursive"] != "" {
 				return fmt.Errorf("The recursive option is only supported for additional bind-mounted paths")
 			}
 
