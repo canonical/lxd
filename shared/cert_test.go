@@ -81,7 +81,7 @@ func TestGenerateMemCert(t *testing.T) {
 	if len(rest) != 0 {
 		t.Errorf("GenerateMemCert returned a key with trailing content: %q", string(rest))
 	}
-	if block.Type != "RSA PRIVATE KEY" {
-		t.Errorf("GenerateMemCert returned a cert with Type %q not \"RSA PRIVATE KEY\"", block.Type)
+	if block.Type != "EC PRIVATE KEY" {
+		t.Errorf("GenerateMemCert returned a cert with Type %q not \"EC PRIVATE KEY\"", block.Type)
 	}
 }
