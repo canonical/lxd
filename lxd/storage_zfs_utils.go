@@ -664,8 +664,8 @@ func (s *storageZfs) doContainerDelete(project, name string) error {
 
 	poolName := s.getOnDiskPoolName()
 	containerName := name
-	fs := fmt.Sprintf("containers/%s", containerName)
-	containerPoolVolumeMntPoint := getContainerMountPoint("default", s.pool.Name, containerName)
+	fs := fmt.Sprintf("containers/%s", projectPrefix(project, containerName))
+	containerPoolVolumeMntPoint := getContainerMountPoint(project, s.pool.Name, containerName)
 
 	if zfsFilesystemEntityExists(poolName, fs) {
 		removable := true

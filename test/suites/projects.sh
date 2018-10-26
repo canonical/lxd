@@ -114,7 +114,6 @@ test_projects_containers() {
   lxc start c1
   lxc list | grep c1 | grep -q RUNNING
   lxc stop --force c1
-  lxc delete c1
 
   # Delete the container
   lxc project switch foo
@@ -125,6 +124,12 @@ test_projects_containers() {
 
   # Delete the project
   lxc project delete foo
+
+  # The container in the default project can still be used
+  lxc start c1
+  lxc list | grep c1 | grep -q RUNNING
+  lxc stop --force c1
+  lxc delete c1
 }
 
 # Use snapshots in a project.
