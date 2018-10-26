@@ -6,6 +6,8 @@
 package shared
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -103,12 +105,23 @@ func (c *CertInfo) PublicKey() []byte {
 
 // PrivateKey is a convenience to encode the underlying private key.
 func (c *CertInfo) PrivateKey() []byte {
-	key, ok := c.KeyPair().PrivateKey.(*rsa.PrivateKey)
-	if !ok {
-		return nil
+	ecKey, ok := c.KeyPair().PrivateKey.(*ecdsa.PrivateKey)
+	if ok {
+		data, err := x509.MarshalECPrivateKey(ecKey)
+		if err != nil {
+			return nil
+		}
+
+		return pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: data})
 	}
-	data := x509.MarshalPKCS1PrivateKey(key)
-	return pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: data})
+
+	rsaKey, ok := c.KeyPair().PrivateKey.(*rsa.PrivateKey)
+	if ok {
+		data := x509.MarshalPKCS1PrivateKey(rsaKey)
+		return pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: data})
+	}
+
+	return nil
 }
 
 // Fingerprint returns the fingerprint of the public key.
@@ -250,7 +263,7 @@ func GenCert(certf string, keyf string, certtype bool) error {
 // GenerateMemCert creates client or server certificate and key pair,
 // returning them as byte arrays in memory.
 func GenerateMemCert(client bool) ([]byte, []byte, error) {
-	privk, err := rsa.GenerateKey(rand.Reader, 4096)
+	privk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate key: %v", err)
 	}
@@ -319,8 +332,14 @@ func GenerateMemCert(client bool) ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("Failed to create certificate: %v", err)
 	}
 
+	data, err := x509.MarshalECPrivateKey(privk)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	cert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	key := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privk)})
+	key := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: data})
+
 	return cert, key, nil
 }
 
