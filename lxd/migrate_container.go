@@ -379,7 +379,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
 	myType := s.container.Storage().MigrationType()
-	rsyncXattrs := true
+	rsyncHasFeature := true
 	header := migration.MigrationHeader{
 		Fs:            &myType,
 		Criu:          criuType,
@@ -387,7 +387,11 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		SnapshotNames: snapshotNames,
 		Snapshots:     snapshots,
 		Predump:       proto.Bool(use_pre_dumps),
-		RsyncFeatures: &migration.RsyncFeatures{Xattrs: &rsyncXattrs},
+		RsyncFeatures: &migration.RsyncFeatures{
+			Xattrs:   &rsyncHasFeature,
+			Delete:   &rsyncHasFeature,
+			Compress: &rsyncHasFeature,
+		},
 	}
 
 	err = s.send(&header)
@@ -792,11 +796,15 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 	mySink := c.src.container.Storage().MigrationSink
 	myType := c.src.container.Storage().MigrationType()
-	rsyncXattrs := true
+	rsyncHasFeature := true
 	resp := migration.MigrationHeader{
-		Fs:            &myType,
-		Criu:          criuType,
-		RsyncFeatures: &migration.RsyncFeatures{Xattrs: &rsyncXattrs},
+		Fs:   &myType,
+		Criu: criuType,
+		RsyncFeatures: &migration.RsyncFeatures{
+			Xattrs:   &rsyncHasFeature,
+			Delete:   &rsyncHasFeature,
+			Compress: &rsyncHasFeature,
+		},
 	}
 
 	// If the storage type the source has doesn't match what we have, then
@@ -878,8 +886,18 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 			args := MigrationSinkArgs{}
 			rsyncFeatures := header.GetRsyncFeatures()
+
+			// Handle rsync options
+			args.RsyncArgs = []string{}
 			if rsyncFeatures.GetXattrs() {
-				args.RsyncArgs = []string{"--xattrs"}
+				args.RsyncArgs = append(args.RsyncArgs, "--xattrs")
+			}
+			if rsyncFeatures.GetDelete() {
+				args.RsyncArgs = append(args.RsyncArgs, "--delete")
+			}
+			if rsyncFeatures.GetCompress() {
+				args.RsyncArgs = append(args.RsyncArgs, "--compress")
+				args.RsyncArgs = append(args.RsyncArgs, "--compress-level=2")
 			}
 
 			err = mySink(sendFinalFsDelta, c.src.container,

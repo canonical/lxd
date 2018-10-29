@@ -74,6 +74,9 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 		"--partial",
 		"--sparse",
 		"--xattrs",
+		"--delete",
+		"--compress",
+		"--compress-level=2",
 	}
 
 	// Ignore deletions (requires 3.1 or higher)
