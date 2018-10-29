@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
 )
@@ -145,6 +146,36 @@ func (c *Cluster) ProfileGet(project, name string) (int64, *api.Profile, error) 
 	}
 
 	return id, result, nil
+}
+
+// ProfilesGet returns the profiles with the given names in the given project.
+func (c *Cluster) ProfilesGet(project string, names []string) ([]api.Profile, error) {
+	profiles := make([]api.Profile, len(names))
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		enabled, err := tx.ProjectHasProfiles(project)
+		if err != nil {
+			return errors.Wrap(err, "Check if project has profiles")
+		}
+		if !enabled {
+			project = "default"
+		}
+
+		for i, name := range names {
+			profile, err := tx.ProfileGet(project, name)
+			if err != nil {
+				return errors.Wrapf(err, "Load profile %q", name)
+			}
+			profiles[i] = *ProfileToAPI(profile)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return profiles, nil
 }
 
 // ProfileConfig gets the profile configuration map from the DB.
@@ -307,4 +338,53 @@ DELETE FROM profiles_devices_config WHERE profile_device_id NOT IN (SELECT id FR
 	}
 
 	return nil
+}
+
+// ProfilesExpandConfig expands the given container config with the config
+// values of the given profiles.
+func ProfilesExpandConfig(config map[string]string, profiles []api.Profile) map[string]string {
+	expandedConfig := map[string]string{}
+
+	// Apply all the profiles
+	profileConfigs := make([]map[string]string, len(profiles))
+	for i, profile := range profiles {
+		profileConfigs[i] = profile.Config
+	}
+
+	for i := range profileConfigs {
+		for k, v := range profileConfigs[i] {
+			expandedConfig[k] = v
+		}
+	}
+
+	// Stick the given config on top
+	for k, v := range config {
+		expandedConfig[k] = v
+	}
+
+	return expandedConfig
+}
+
+// ProfilesExpandDevices expands the given container devices with the devices
+// defined in the given profiles.
+func ProfilesExpandDevices(devices types.Devices, profiles []api.Profile) types.Devices {
+	expandedDevices := types.Devices{}
+
+	// Apply all the profiles
+	profileDevices := make([]types.Devices, len(profiles))
+	for i, profile := range profiles {
+		profileDevices[i] = profile.Devices
+	}
+	for i := range profileDevices {
+		for k, v := range profileDevices[i] {
+			expandedDevices[k] = v
+		}
+	}
+
+	// Stick the given devices on top
+	for k, v := range devices {
+		expandedDevices[k] = v
+	}
+
+	return expandedDevices
 }

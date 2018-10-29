@@ -447,8 +447,8 @@ test_clustering_storage() {
     ! LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -q rsync.bwlimit
   fi
 
-  # Test migration of ceph-based containers
   if [ "${driver}" = "ceph" ]; then
+    # Test migration of ceph-based containers
     LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
     LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node2 -s pool1 testimage foo
 
@@ -504,6 +504,22 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force
 
     LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
+
+    # Attach a custom volume to a container on node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create pool1 v1
+    LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -s pool1 testimage baz
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume attach pool1 custom/v1 baz testDevice /opt
+
+    # Trying to attach a custom volume to a container on another node fails
+    LXD_DIR="${LXD_TWO_DIR}" lxc init --target node2 -s pool1 testimage buz
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume attach pool1 custom/v1 buz testDevice /opt
+
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume detach pool1 v1 baz
+
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume delete pool1 v1
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete baz
+    LXD_DIR="${LXD_ONE_DIR}" lxc delete buz
+
     LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
   fi
 

@@ -328,7 +328,7 @@ func containerValidConfig(sysOS *sys.OS, config map[string]string, profile bool,
 	return nil
 }
 
-func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, expanded bool) error {
+func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile bool, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
@@ -407,9 +407,22 @@ func containerValidDevices(db *db.Cluster, devices types.Devices, profile bool, 
 					return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 				}
 
-				_, err := db.StoragePoolGetID(m["pool"])
+				_, err := cluster.StoragePoolGetID(m["pool"])
 				if err != nil {
 					return fmt.Errorf("The \"%s\" storage pool doesn't exist", m["pool"])
+				}
+
+				if !profile && expanded && m["source"] != "" && m["path"] != "/" {
+					isAvailable, err := cluster.StorageVolumeIsAvailable(
+						m["pool"], m["source"])
+					if err != nil {
+						return errors.Wrap(err, "Check if volume is available")
+					}
+					if !isAvailable {
+						return fmt.Errorf(
+							"Storage volume %q is already attached to a container "+
+								"on a different node", m["source"])
+					}
 				}
 			}
 

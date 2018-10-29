@@ -9,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 
@@ -267,6 +268,44 @@ SELECT containers.name, nodes.id, nodes.address, nodes.heartbeat
 		return nil, err
 	}
 	return result, nil
+}
+
+// ContainerListExpanded loads all containers across all projects and expands
+// their config and devices using the profiles they are associated to.
+func (c *ClusterTx) ContainerListExpanded() ([]Container, error) {
+	containers, err := c.ContainerList(ContainerFilter{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Load containers")
+	}
+
+	profiles, err := c.ProfileList(ProfileFilter{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Load profiles")
+	}
+
+	// Index of all profiles by project and name.
+	profilesByProjectAndName := map[string]map[string]Profile{}
+	for _, profile := range profiles {
+		profilesByName, ok := profilesByProjectAndName[profile.Project]
+		if !ok {
+			profilesByName = map[string]Profile{}
+			profilesByProjectAndName[profile.Project] = profilesByName
+		}
+		profilesByName[profile.Name] = profile
+	}
+
+	for i, container := range containers {
+		profiles := make([]api.Profile, len(container.Profiles))
+		for j, name := range container.Profiles {
+			profile := profilesByProjectAndName[container.Project][name]
+			profiles[j] = *ProfileToAPI(&profile)
+		}
+
+		containers[i].Config = ProfilesExpandConfig(container.Config, profiles)
+		containers[i].Devices = ProfilesExpandDevices(container.Devices, profiles)
+	}
+
+	return containers, nil
 }
 
 // ContainersByNodeName returns a map associating each container to the name of
