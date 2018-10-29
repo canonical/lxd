@@ -161,8 +161,9 @@ func (s *storageZfs) zfsPoolCreate() error {
 
 	zpoolName := s.getOnDiskPoolName()
 	vdev := s.pool.Config["source"]
-	if vdev == "" {
-		vdev = filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
+	defaultVdev := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
+	if vdev == "" || vdev == defaultVdev {
+		vdev = defaultVdev
 		s.pool.Config["source"] = vdev
 
 		if s.pool.Config["zfs.pool_name"] == "" {
@@ -199,7 +200,7 @@ func (s *storageZfs) zfsPoolCreate() error {
 
 		if filepath.IsAbs(vdev) {
 			if !shared.IsBlockdevPath(vdev) {
-				return fmt.Errorf("custom loop file locations are not supported")
+				return fmt.Errorf("Custom loop file locations are not supported")
 			}
 
 			if s.pool.Config["zfs.pool_name"] == "" {
@@ -219,9 +220,10 @@ func (s *storageZfs) zfsPoolCreate() error {
 				return err
 			}
 		} else {
-			if s.pool.Config["zfs.pool_name"] != "" {
-				return fmt.Errorf("invalid combination of \"source\" and \"zfs.pool_name\" property")
+			if s.pool.Config["zfs.pool_name"] != "" && s.pool.Config["zfs.pool_name"] != vdev {
+				return fmt.Errorf("Invalid combination of \"source\" and \"zfs.pool_name\" property")
 			}
+
 			s.pool.Config["zfs.pool_name"] = vdev
 			s.dataset = vdev
 
