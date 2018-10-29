@@ -192,19 +192,9 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 		return nil
 	}
 
-	profileConfigs := make([]map[string]string, len(args.Profiles))
-	for i, profileName := range args.Profiles {
-		if profileName == name {
-			// Use the old config.
-			profileConfigs[i] = old.Config
-			continue
-		}
-		// Use the config currently in the database.
-		profileConfig, err := d.cluster.ProfileConfig(args.Project, profileName)
-		if err != nil {
-			return errors.Wrapf(err, "failed to load profile config for '%s'", profileName)
-		}
-		profileConfigs[i] = profileConfig
+	profiles, err := d.cluster.ProfilesGet(args.Project, args.Profiles)
+	if err != nil {
+		return err
 	}
 
 	profileDevices := make([]types.Devices, len(args.Profiles))
@@ -223,7 +213,8 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 	}
 
 	c := containerLXCInstantiate(d.State(), args)
-	c.expandConfigFromProfiles(profileConfigs)
+
+	c.expandConfig(profiles)
 	c.expandDevicesFromProfiles(profileDevices)
 
 	return c.Update(db.ContainerArgs{
