@@ -1351,24 +1351,31 @@ func containerLoadNodeProjectAll(s *state.State, project string) ([]container, e
 
 func containerLoadAllInternal(cts []db.Container, s *state.State) ([]container, error) {
 	// Figure out what profiles are in use
-	profiles := map[string]api.Profile{}
+	profiles := map[string]map[string]api.Profile{}
 	for _, cArgs := range cts {
+		projectProfiles, ok := profiles[cArgs.Project]
+		if !ok {
+			projectProfiles = map[string]api.Profile{}
+			profiles[cArgs.Project] = projectProfiles
+		}
 		for _, profile := range cArgs.Profiles {
-			_, ok := profiles[profile]
+			_, ok := projectProfiles[profile]
 			if !ok {
-				profiles[profile] = api.Profile{}
+				projectProfiles[profile] = api.Profile{}
 			}
 		}
 	}
 
 	// Get the profile data
-	for name := range profiles {
-		_, profile, err := s.Cluster.ProfileGet("default", name)
-		if err != nil {
-			return nil, err
-		}
+	for project, projectProfiles := range profiles {
+		for name := range projectProfiles {
+			_, profile, err := s.Cluster.ProfileGet(project, name)
+			if err != nil {
+				return nil, err
+			}
 
-		profiles[name] = *profile
+			projectProfiles[name] = *profile
+		}
 	}
 
 	// Load the container structs
@@ -1377,7 +1384,7 @@ func containerLoadAllInternal(cts []db.Container, s *state.State) ([]container, 
 		// Figure out the container's profiles
 		cProfiles := []api.Profile{}
 		for _, name := range container.Profiles {
-			cProfiles = append(cProfiles, profiles[name])
+			cProfiles = append(cProfiles, profiles[container.Project][name])
 		}
 
 		args := db.ContainerToArgs(&container)
