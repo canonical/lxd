@@ -1775,89 +1775,31 @@ func (c *containerLXC) initStorage() error {
 
 // Config handling
 func (c *containerLXC) expandConfig(profiles []api.Profile) error {
-	// Fetch profile configs
-	profileConfigs := make([]map[string]string, len(c.profiles))
-
-	// Apply all the profiles
-	if profiles != nil {
-		for i, profile := range profiles {
-			profileConfigs[i] = profile.Config
-		}
-	} else {
-		for i, name := range c.profiles {
-			profileConfig, err := c.state.Cluster.ProfileConfig(c.project, name)
-			if err != nil {
-				return err
-			}
-			profileConfigs[i] = profileConfig
+	if profiles == nil && len(c.profiles) > 0 {
+		var err error
+		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
+		if err != nil {
+			return err
 		}
 	}
 
-	c.expandConfigFromProfiles(profileConfigs)
+	c.expandedConfig = db.ProfilesExpandConfig(c.localConfig, profiles)
 
 	return nil
-}
-
-// Expand the container config using the given profile configs.
-func (c *containerLXC) expandConfigFromProfiles(profileConfigs []map[string]string) {
-	config := map[string]string{}
-
-	// Apply all the profiles
-	for i := range profileConfigs {
-		for k, v := range profileConfigs[i] {
-			config[k] = v
-		}
-	}
-
-	// Stick the local config on top
-	for k, v := range c.localConfig {
-		config[k] = v
-	}
-
-	c.expandedConfig = config
 }
 
 func (c *containerLXC) expandDevices(profiles []api.Profile) error {
-	// Fetch profile devices
-	profileDevices := make([]types.Devices, len(c.profiles))
-
-	// Apply all the profiles
-	if profiles != nil {
-		for i, profile := range profiles {
-			profileDevices[i] = profile.Devices
-		}
-	} else {
-		for _, p := range c.profiles {
-			devices, err := c.state.Cluster.Devices(c.project, p, true)
-			if err != nil {
-				return err
-			}
-			profileDevices = append(profileDevices, devices)
+	if profiles == nil && len(c.profiles) > 0 {
+		var err error
+		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
+		if err != nil {
+			return err
 		}
 	}
 
-	c.expandDevicesFromProfiles(profileDevices)
+	c.expandedDevices = db.ProfilesExpandDevices(c.localDevices, profiles)
 
 	return nil
-}
-
-// Expand the container config using the given profile devices.
-func (c *containerLXC) expandDevicesFromProfiles(profileDevices []types.Devices) {
-	devices := types.Devices{}
-
-	// Apply all the profiles
-	for i := range profileDevices {
-		for k, v := range profileDevices[i] {
-			devices[k] = v
-		}
-	}
-
-	// Stick local devices on top
-	for k, v := range c.localDevices {
-		devices[k] = v
-	}
-
-	c.expandedDevices = devices
 }
 
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
