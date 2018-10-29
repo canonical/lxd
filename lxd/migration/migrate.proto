@@ -48,6 +48,8 @@ message Snapshot {
 
 message rsyncFeatures {
 	optional bool		xattrs = 1;
+	optional bool		delete = 2;
+	optional bool		compress = 3;
 }
 
 message MigrationHeader {
