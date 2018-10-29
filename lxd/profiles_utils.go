@@ -6,7 +6,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
@@ -196,26 +195,19 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 	if err != nil {
 		return err
 	}
-
-	profileDevices := make([]types.Devices, len(args.Profiles))
 	for i, profileName := range args.Profiles {
 		if profileName == name {
-			// Use the old devices
-			profileDevices[i] = old.Devices
-			continue
+			// Use the old config and devices.
+			profiles[i].Config = old.Config
+			profiles[i].Devices = old.Devices
+			break
 		}
-		// Use the config currently in the database.
-		devices, err := d.cluster.Devices(args.Project, profileName, true)
-		if err != nil {
-			return errors.Wrapf(err, "failed to load profile devices for '%s'", profileName)
-		}
-		profileDevices[i] = devices
 	}
 
 	c := containerLXCInstantiate(d.State(), args)
 
 	c.expandConfig(profiles)
-	c.expandDevicesFromProfiles(profileDevices)
+	c.expandDevices(profiles)
 
 	return c.Update(db.ContainerArgs{
 		Architecture: c.Architecture(),
