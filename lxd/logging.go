@@ -79,6 +79,11 @@ func expireLogs(ctx context.Context, state *state.State) error {
 		default:
 		}
 
+		// We only care about container directories
+		if !entry.IsDir() {
+			continue
+		}
+
 		// Check if the container still exists
 		if shared.StringInSlice(entry.Name(), containers) {
 			// Remove any log file which wasn't modified in the past 48 hours
