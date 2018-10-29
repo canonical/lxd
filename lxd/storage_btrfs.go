@@ -130,8 +130,9 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 		source = shared.HostPath(s.pool.Config["source"])
 	}
 
-	if source == "" {
-		source = filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
+	defaultSource := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
+	if source == "" || source == defaultSource {
+		source = defaultSource
 		s.pool.Config["source"] = source
 
 		f, err := os.Create(source)
@@ -173,22 +174,22 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 				if isBtrfsSubVolume(source) {
 					subvols, err := btrfsSubVolumesGet(source)
 					if err != nil {
-						return fmt.Errorf("could not determine if existing BTRFS subvolume ist empty: %s", err)
+						return fmt.Errorf("Could not determine if existing BTRFS subvolume ist empty: %s", err)
 					}
 					if len(subvols) > 0 {
-						return fmt.Errorf("requested BTRFS subvolume exists but is not empty")
+						return fmt.Errorf("Requested BTRFS subvolume exists but is not empty")
 					}
 				} else {
 					cleanSource := filepath.Clean(source)
 					lxdDir := shared.VarPath()
 					poolMntPoint := getStoragePoolMountPoint(s.pool.Name)
 					if shared.PathExists(source) && !isOnBtrfs(source) {
-						return fmt.Errorf("existing path is neither a BTRFS subvolume nor does it reside on a BTRFS filesystem")
+						return fmt.Errorf("Existing path is neither a BTRFS subvolume nor does it reside on a BTRFS filesystem")
 					} else if strings.HasPrefix(cleanSource, lxdDir) {
 						if cleanSource != poolMntPoint {
 							return fmt.Errorf("BTRFS subvolumes requests in LXD directory \"%s\" are only valid under \"%s\"\n(e.g. source=%s)", shared.VarPath(), shared.VarPath("storage-pools"), poolMntPoint)
 						} else if s.s.OS.BackingFS != "btrfs" {
-							return fmt.Errorf("creation of BTRFS subvolume requested but \"%s\" does not reside on BTRFS filesystem", source)
+							return fmt.Errorf("Creation of BTRFS subvolume requested but \"%s\" does not reside on BTRFS filesystem", source)
 						}
 					}
 
@@ -199,7 +200,7 @@ func (s *storageBtrfs) StoragePoolCreate() error {
 				}
 			}
 		} else {
-			return fmt.Errorf("invalid \"source\" property")
+			return fmt.Errorf("Invalid \"source\" property")
 		}
 	}
 
