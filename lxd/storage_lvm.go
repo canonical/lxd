@@ -144,8 +144,9 @@ func (s *storageLvm) StoragePoolCreate() error {
 		}
 	}()
 
-	if source == "" {
-		source = filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
+	defaultSource := filepath.Join(shared.VarPath("disks"), fmt.Sprintf("%s.img", s.pool.Name))
+	if source == "" || source == defaultSource {
+		source = defaultSource
 		s.pool.Config["source"] = source
 
 		if s.pool.Config["lvm.vg_name"] == "" {
@@ -203,7 +204,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 		if filepath.IsAbs(source) {
 			pvName = source
 			if !shared.IsBlockdevPath(pvName) {
-				return fmt.Errorf("custom loop file locations are not supported")
+				return fmt.Errorf("Custom loop file locations are not supported")
 			}
 
 			if s.pool.Config["lvm.vg_name"] == "" {
@@ -228,10 +229,11 @@ func (s *storageLvm) StoragePoolCreate() error {
 			// The physical volume must already consist
 			pvExisted = true
 			vgName = source
-			if s.pool.Config["lvm.vg_name"] != "" {
+			if s.pool.Config["lvm.vg_name"] != "" && s.pool.Config["lvm.vg_name"] != vgName {
 				// User gave us something weird.
-				return fmt.Errorf("invalid combination of \"source\" and \"zfs.pool_name\" property")
+				return fmt.Errorf("Invalid combination of \"source\" and \"lvm.vg_name\" property")
 			}
+
 			s.pool.Config["lvm.vg_name"] = vgName
 			s.vgName = vgName
 
@@ -242,7 +244,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 
 			// Volume group must exist but doesn't.
 			if !vgExisted {
-				return fmt.Errorf("the requested volume group \"%s\" does not exist", vgName)
+				return fmt.Errorf("The requested volume group \"%s\" does not exist", vgName)
 			}
 		}
 	}
@@ -256,7 +258,7 @@ func (s *storageLvm) StoragePoolCreate() error {
 
 		output, err := shared.TryRunCommand("pvcreate", pvName)
 		if err != nil {
-			return fmt.Errorf("failed to create the physical volume for the lvm storage pool: %s", output)
+			return fmt.Errorf("Failed to create the physical volume for the lvm storage pool: %s", output)
 		}
 		defer func() {
 			if tryUndo {
