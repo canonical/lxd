@@ -87,6 +87,48 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	assert.Equal(t, "node2", containers[1].Node)
 }
 
+func TestContainerListExpanded(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	profile := db.Profile{
+		Project: "default",
+		Name:    "profile1",
+		Config:  map[string]string{"a": "1"},
+		Devices: map[string]map[string]string{"root": {"type": "disk", "b": "2"}},
+	}
+
+	_, err := tx.ProfileCreate(profile)
+	require.NoError(t, err)
+
+	container := db.Container{
+		Project:      "default",
+		Name:         "c1",
+		Node:         "none",
+		Type:         int(db.CTypeRegular),
+		Architecture: 1,
+		Ephemeral:    false,
+		Stateful:     true,
+		Config:       map[string]string{"c": "3"},
+		Devices:      map[string]map[string]string{"eth0": {"type": "nic", "d": "4"}},
+		Profiles:     []string{"default", "profile1"},
+	}
+
+	_, err = tx.ContainerCreate(container)
+	require.NoError(t, err)
+
+	containers, err := tx.ContainerListExpanded()
+	require.NoError(t, err)
+
+	assert.Len(t, containers, 1)
+
+	assert.Equal(t, containers[0].Config, map[string]string{"a": "1", "c": "3"})
+	assert.Equal(t, containers[0].Devices, map[string]map[string]string{
+		"root": {"type": "disk", "b": "2"},
+		"eth0": {"type": "nic", "d": "4"},
+	})
+}
+
 func TestContainerCreate(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
