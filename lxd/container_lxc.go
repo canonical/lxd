@@ -1789,46 +1789,17 @@ func (c *containerLXC) expandConfig(profiles []api.Profile) error {
 }
 
 func (c *containerLXC) expandDevices(profiles []api.Profile) error {
-	// Fetch profile devices
-	profileDevices := make([]types.Devices, len(c.profiles))
-
-	// Apply all the profiles
-	if profiles != nil {
-		for i, profile := range profiles {
-			profileDevices[i] = profile.Devices
-		}
-	} else {
-		for _, p := range c.profiles {
-			devices, err := c.state.Cluster.Devices(c.project, p, true)
-			if err != nil {
-				return err
-			}
-			profileDevices = append(profileDevices, devices)
+	if profiles == nil && len(c.profiles) > 0 {
+		var err error
+		profiles, err = c.state.Cluster.ProfilesGet(c.project, c.profiles)
+		if err != nil {
+			return err
 		}
 	}
 
-	c.expandDevicesFromProfiles(profileDevices)
+	c.expandedDevices = db.ProfilesExpandDevices(c.localDevices, profiles)
 
 	return nil
-}
-
-// Expand the container config using the given profile devices.
-func (c *containerLXC) expandDevicesFromProfiles(profileDevices []types.Devices) {
-	devices := types.Devices{}
-
-	// Apply all the profiles
-	for i := range profileDevices {
-		for k, v := range profileDevices[i] {
-			devices[k] = v
-		}
-	}
-
-	// Stick local devices on top
-	for k, v := range c.localDevices {
-		devices[k] = v
-	}
-
-	c.expandedDevices = devices
 }
 
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
