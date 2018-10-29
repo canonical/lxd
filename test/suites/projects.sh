@@ -68,7 +68,8 @@ test_projects_containers() {
   fingerprint="$(lxc image list -c f --format json | jq -r .[0].fingerprint)"
 
   # Add a root device to the default profile of the project
-  lxc profile device add default root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")"
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+  lxc profile device add default root disk path="/" pool="${pool}"
 
   # Create a container in the project
   lxc init testimage c1
@@ -78,7 +79,6 @@ test_projects_containers() {
   lxc info c1 | grep -q "Name: c1"
 
   # The container's volume is listed too.
-  pool="lxdtest-$(basename "${LXD_DIR}")"
   lxc storage volume list "${pool}" | grep -q c1
 
   # For backends with optimized storage, we can see the image volume inside the
