@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/lxc/lxd/shared/cancel"
@@ -918,10 +919,22 @@ func (e RunError) Error() string {
 func RunCommand(name string, arg ...string) (string, error) {
 	output, err := exec.Command(name, arg...).CombinedOutput()
 	if err != nil {
+
+		var exitCode = 255
+
+		exitError, ok := err.(*exec.ExitError)
+		if ok {
+			status, ok := exitError.Sys().(syscall.WaitStatus)
+			if ok {
+				exitCode = status.ExitStatus()
+			}
+		}
+
 		err := RunError{
-			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "), strings.TrimSpace(string(output))),
+			msg: fmt.Sprintf("Failed to run with ExitCode=%d: %s %s: %s", exitCode, name, strings.Join(arg, " "), strings.TrimSpace(string(output))),
 			Err: err,
 		}
+
 		return string(output), err
 	}
 
@@ -944,8 +957,19 @@ func RunCommandWithFds(stdin io.Reader, stdout io.Writer, name string, arg ...st
 
 	err := cmd.Run()
 	if err != nil {
+
+		var exitCode = 255
+
+		exitError, ok := err.(*exec.ExitError)
+		if ok {
+			status, ok := exitError.Sys().(syscall.WaitStatus)
+			if ok {
+				exitCode = status.ExitStatus()
+			}
+		}
+
 		err := RunError{
-			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "),
+			msg: fmt.Sprintf("Failed to run with ExitCode=%d: %s %s: %s", exitCode, name, strings.Join(arg, " "),
 				strings.TrimSpace(buffer.String())),
 			Err: err,
 		}
