@@ -348,8 +348,12 @@ func (m *Method) ref(buf *file.Buffer) error {
 
 	comment := fmt.Sprintf("returns entities used by %s.", lex.Plural(m.entity))
 
+	// The type of the returned index takes into account composite natural
+	// keys.
+	indexTyp := indexType(nk, retTyp)
+
 	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
-	rets := fmt.Sprintf("(map[string]%s, error)", retTyp)
+	rets := fmt.Sprintf("(%s, error)", indexTyp)
 
 	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
@@ -419,24 +423,37 @@ func (m *Method) ref(buf *file.Buffer) error {
 	buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s ref for %s\")", typ, lex.Plural(m.entity))
 	buf.L("}")
 	buf.N()
-	buf.L("// Build index by primary name.")
 
-	// TODO: properly account for composite natural keys
-	buf.L("index := map[string]%s{}", retTyp)
+	buf.L("// Build index by primary name.")
+	buf.L("index := %s{}", indexTyp)
 	buf.N()
 	buf.L("for _, object := range objects {")
-	buf.L("        item, ok := index[object.%s]", nk[len(nk)-1].Name)
+	needle := ""
+	for i, key := range nk[:len(nk)-1] {
+		needle += fmt.Sprintf("[object.%s]", key.Name)
+
+		subIndexTyp := indexType(nk[i+1:], retTyp)
+		buf.L("        _, ok := index%s", needle)
+		buf.L("        if !ok {")
+		buf.L("                subIndex := %s{}", subIndexTyp)
+		buf.L("                index%s = subIndex", needle)
+		buf.L("        }")
+		buf.N()
+	}
+
+	needle += fmt.Sprintf("[object.%s]", nk[len(nk)-1].Name)
+	buf.L("        item, ok := index%s", needle)
 	buf.L("        if !ok {")
 	buf.L("                item = %s{}", retTyp)
 	buf.L("        }")
 	buf.N()
 	if field.Type.Code == TypeSlice && IsColumnType(typ) {
-		buf.L("        index[object.%s] = append(item, object.Value)", nk[len(nk)-1].Name)
+		buf.L("        index%s = append(item, object.Value)", needle)
 	} else if field.Type.Code == TypeMap && field.Type.Name == "map[string]string" {
-		buf.L("        index[object.%s] = item", nk[len(nk)-1].Name)
+		buf.L("        index%s = item", needle)
 		buf.L("        item[object.Key] = object.Value")
 	} else if field.Type.Code == TypeMap && field.Type.Name == "map[string]map[string]string" {
-		buf.L("        index[object.%s] = item", nk[len(nk)-1].Name)
+		buf.L("        index%s = item", needle)
 		buf.L("        config, ok := item[object.Device]")
 		buf.L("        if !ok {")
 		buf.L("                // First time we see this device, let's int the config")
@@ -477,7 +494,20 @@ func (m *Method) fillSliceReferenceField(buf *file.Buffer, nk []*Field, field *F
 	buf.L("}")
 	buf.N()
 	buf.L("for i := range objects {")
-	buf.L("        value := %s[objects[i].%s]", objectsVar, nk[len(nk)-1].Name)
+	needle := ""
+	for i, key := range nk[:len(nk)-1] {
+		needle += fmt.Sprintf("[objects[i].%s]", key.Name)
+		subIndexTyp := indexType(nk[i+1:], field.Type.Name)
+		buf.L("        _, ok := %s%s", objectsVar, needle)
+		buf.L("        if !ok {")
+		buf.L("                subIndex := %s{}", subIndexTyp)
+		buf.L("                %s%s = subIndex", objectsVar, needle)
+		buf.L("        }")
+		buf.N()
+	}
+
+	needle += fmt.Sprintf("[objects[i].%s]", nk[len(nk)-1].Name)
+	buf.L("        value := %s%s", objectsVar, needle)
 	buf.L("        if value == nil {")
 	buf.L("                value = %s{}", field.Type.Name)
 	buf.L("        }")
