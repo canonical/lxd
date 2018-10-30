@@ -641,7 +641,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	logger.Infof("Loading configuration")
+	logger.Infof("Loading daemon configuration")
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {
