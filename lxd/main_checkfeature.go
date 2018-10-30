@@ -108,9 +108,11 @@ void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 	ret = setsockopt(sock_fd, SOL_NETLINK, NETLINK_DUMP_STRICT_CHK, &(int){1}, sizeof(int));
 	close(sock_fd);
 	if (ret < 0) {
-		(void)sprintf(errbuf, "%s", "Failed to set NETLINK_DUMP_STRICT_CHK socket option");
+		// NETLINK_DUMP_STRICT_CHK isn't supported
 		return;
 	}
+
+	// NETLINK_DUMP_STRICT_CHK is supported
 	netnsid_aware = true;
 }
 
