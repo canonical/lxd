@@ -336,7 +336,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 	idmaps := make([]*migration.IDMapType, 0)
 
-	idmapset, err := s.container.IdmapSet()
+	idmapset, err := s.container.LastIdmapSet()
 	if err != nil {
 		return err
 	}
