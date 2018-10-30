@@ -435,20 +435,20 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	/* Check if Netlink RTM_GET{ADDR,LINK} requests are fully netnsid aware. */
+	// Look for kernel features
+	logger.Infof("Kernel features:")
 	d.os.NetnsGetifaddrs = CanUseNetnsGetifaddrs()
 	if d.os.NetnsGetifaddrs {
-		logger.Debugf("Running kernel supports netnsid-based network retrieval")
+		logger.Infof(" - netnsid-based network retrieval: yes")
 	} else {
-		logger.Debugf("Running kernel does not support netnsid-based network retrieval")
+		logger.Infof(" - netnsid-based network retrieval: no")
 	}
 
-	/* Check if uevent injection is supported. */
 	d.os.UeventInjection = CanUseUeventInjection()
 	if d.os.UeventInjection {
-		logger.Debugf("Running kernel supports uevent injection")
+		logger.Infof(" - uevent injection: yes")
 	} else {
-		logger.Debugf("Running kernel does not support uevent injection")
+		logger.Infof(" - uevent injection: no")
 	}
 
 	/*
@@ -459,10 +459,10 @@ func (d *Daemon) init() error {
 	d.os.VFS3Fscaps = idmap.SupportsVFS3Fscaps("")
 	if d.os.VFS3Fscaps {
 		idmap.VFS3Fscaps = idmap.VFS3FscapsSupported
-		logger.Debugf("System supports unprivileged file capabilities")
+		logger.Infof(" - unprivileged file capabilities: yes")
 	} else {
 		idmap.VFS3Fscaps = idmap.VFS3FscapsUnsupported
-		logger.Debugf("System does not support unprivileged file capabilities")
+		logger.Infof(" - unprivileged file capabilities: no")
 	}
 
 	/* Initialize the database */
