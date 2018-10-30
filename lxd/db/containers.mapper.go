@@ -5,7 +5,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -245,7 +244,13 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	}
 
 	for i := range objects {
-		value := configObjects[objects[i].Name]
+		_, ok := configObjects[objects[i].Project]
+		if !ok {
+			subIndex := map[string]map[string]string{}
+			configObjects[objects[i].Project] = subIndex
+		}
+
+		value := configObjects[objects[i].Project][objects[i].Name]
 		if value == nil {
 			value = map[string]string{}
 		}
@@ -259,7 +264,13 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	}
 
 	for i := range objects {
-		value := devicesObjects[objects[i].Name]
+		_, ok := devicesObjects[objects[i].Project]
+		if !ok {
+			subIndex := map[string]map[string]map[string]string{}
+			devicesObjects[objects[i].Project] = subIndex
+		}
+
+		value := devicesObjects[objects[i].Project][objects[i].Name]
 		if value == nil {
 			value = map[string]map[string]string{}
 		}
@@ -273,7 +284,13 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 	}
 
 	for i := range objects {
-		value := profilesObjects[objects[i].Name]
+		_, ok := profilesObjects[objects[i].Project]
+		if !ok {
+			subIndex := map[string][]string{}
+			profilesObjects[objects[i].Project] = subIndex
+		}
+
+		value := profilesObjects[objects[i].Project][objects[i].Name]
 		if value == nil {
 			value = []string{}
 		}
@@ -432,7 +449,7 @@ func (c *ClusterTx) ContainerCreate(object Container) (int64, error) {
 }
 
 // ContainerProfilesRef returns entities used by containers.
-func (c *ClusterTx) ContainerProfilesRef(filter ContainerFilter) (map[string][]string, error) {
+func (c *ClusterTx) ContainerProfilesRef(filter ContainerFilter) (map[string]map[string][]string, error) {
 	// Result slice.
 	objects := make([]struct {
 		Project string
@@ -501,22 +518,28 @@ func (c *ClusterTx) ContainerProfilesRef(filter ContainerFilter) (map[string][]s
 	}
 
 	// Build index by primary name.
-	index := map[string][]string{}
+	index := map[string]map[string][]string{}
 
 	for _, object := range objects {
-		item, ok := index[object.Name]
+		_, ok := index[object.Project]
+		if !ok {
+			subIndex := map[string][]string{}
+			index[object.Project] = subIndex
+		}
+
+		item, ok := index[object.Project][object.Name]
 		if !ok {
 			item = []string{}
 		}
 
-		index[object.Name] = append(item, object.Value)
+		index[object.Project][object.Name] = append(item, object.Value)
 	}
 
 	return index, nil
 }
 
 // ContainerConfigRef returns entities used by containers.
-func (c *ClusterTx) ContainerConfigRef(filter ContainerFilter) (map[string]map[string]string, error) {
+func (c *ClusterTx) ContainerConfigRef(filter ContainerFilter) (map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
 		Project string
@@ -588,15 +611,21 @@ func (c *ClusterTx) ContainerConfigRef(filter ContainerFilter) (map[string]map[s
 	}
 
 	// Build index by primary name.
-	index := map[string]map[string]string{}
+	index := map[string]map[string]map[string]string{}
 
 	for _, object := range objects {
-		item, ok := index[object.Name]
+		_, ok := index[object.Project]
+		if !ok {
+			subIndex := map[string]map[string]string{}
+			index[object.Project] = subIndex
+		}
+
+		item, ok := index[object.Project][object.Name]
 		if !ok {
 			item = map[string]string{}
 		}
 
-		index[object.Name] = item
+		index[object.Project][object.Name] = item
 		item[object.Key] = object.Value
 	}
 
@@ -604,7 +633,7 @@ func (c *ClusterTx) ContainerConfigRef(filter ContainerFilter) (map[string]map[s
 }
 
 // ContainerDevicesRef returns entities used by containers.
-func (c *ClusterTx) ContainerDevicesRef(filter ContainerFilter) (map[string]map[string]map[string]string, error) {
+func (c *ClusterTx) ContainerDevicesRef(filter ContainerFilter) (map[string]map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
 		Project string
@@ -682,15 +711,21 @@ func (c *ClusterTx) ContainerDevicesRef(filter ContainerFilter) (map[string]map[
 	}
 
 	// Build index by primary name.
-	index := map[string]map[string]map[string]string{}
+	index := map[string]map[string]map[string]map[string]string{}
 
 	for _, object := range objects {
-		item, ok := index[object.Name]
+		_, ok := index[object.Project]
+		if !ok {
+			subIndex := map[string]map[string]map[string]string{}
+			index[object.Project] = subIndex
+		}
+
+		item, ok := index[object.Project][object.Name]
 		if !ok {
 			item = map[string]map[string]string{}
 		}
 
-		index[object.Name] = item
+		index[object.Project][object.Name] = item
 		config, ok := item[object.Device]
 		if !ok {
 			// First time we see this device, let's int the config
