@@ -132,6 +132,7 @@ type Endpoints struct {
 	listeners map[kind]net.Listener // Activer listeners by endpoint type.
 	servers   map[kind]*http.Server // HTTP servers by endpoint type.
 	cert      *shared.CertInfo      // Keypair and CA to use for TLS.
+	inherited map[kind]bool         // Store whether the listener came through socket activation
 
 	systemdListenFDsStart int // First socket activation FD, for tests.
 }
@@ -148,16 +149,18 @@ func (e *Endpoints) up(config *Config) error {
 		pprof:   pprofCreateServer(),
 	}
 	e.cert = config.Cert
+	e.inherited = map[kind]bool{}
 
 	var err error
 
 	// Check for socket activation.
 	systemdListeners := util.GetListeners(e.systemdListenFDsStart)
 	if len(systemdListeners) > 0 {
-		logger.Infof("LXD is socket activated")
 		e.listeners = activatedListeners(systemdListeners, e.cert)
+		for kind, _ := range e.listeners {
+			e.inherited[kind] = true
+		}
 	} else {
-		logger.Infof("LXD isn't socket activated")
 		e.listeners = map[kind]net.Listener{}
 
 		e.listeners[local], err = localCreateListener(config.UnixSocket, config.LocalUnixSocketGroup)
@@ -177,6 +180,7 @@ func (e *Endpoints) up(config *Config) error {
 		if ok {
 			logger.Infof("Replacing inherited TCP socket with configured one")
 			listener.Close()
+			e.inherited[network] = false
 		}
 
 		// Errors here are not fatal and are just logged.
@@ -253,8 +257,13 @@ func (e *Endpoints) serveHTTP(kind kind) {
 		return
 	}
 
+	ctx := log.Ctx{"socket": listener.Addr()}
+	if e.inherited[kind] {
+		ctx["inherited"] = true
+	}
+
 	message := fmt.Sprintf(" - binding %s", descriptions[kind])
-	logger.Info(message, log.Ctx{"socket": listener.Addr()})
+	logger.Info(message, ctx)
 
 	server := e.servers[kind]
 
