@@ -85,3 +85,14 @@ func destFunc(slice string, typ string, fields []*Field) string {
 
 	return f
 }
+
+// Return an index type of the form "map[string]map[string]...<typ>", with one
+// level of indexing for each given field.
+func indexType(fields []*Field, typ string) string {
+	index := ""
+	for range fields {
+		index += "map[string]"
+	}
+	index += typ
+	return index
+}

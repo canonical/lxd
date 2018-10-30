@@ -212,7 +212,13 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	for i := range objects {
-		value := configObjects[objects[i].Name]
+		_, ok := configObjects[objects[i].Project]
+		if !ok {
+			subIndex := map[string]map[string]string{}
+			configObjects[objects[i].Project] = subIndex
+		}
+
+		value := configObjects[objects[i].Project][objects[i].Name]
 		if value == nil {
 			value = map[string]string{}
 		}
@@ -226,7 +232,13 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	for i := range objects {
-		value := devicesObjects[objects[i].Name]
+		_, ok := devicesObjects[objects[i].Project]
+		if !ok {
+			subIndex := map[string]map[string]map[string]string{}
+			devicesObjects[objects[i].Project] = subIndex
+		}
+
+		value := devicesObjects[objects[i].Project][objects[i].Name]
 		if value == nil {
 			value = map[string]map[string]string{}
 		}
@@ -240,7 +252,13 @@ func (c *ClusterTx) ProfileList(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	for i := range objects {
-		value := usedByObjects[objects[i].Name]
+		_, ok := usedByObjects[objects[i].Project]
+		if !ok {
+			subIndex := map[string][]string{}
+			usedByObjects[objects[i].Project] = subIndex
+		}
+
+		value := usedByObjects[objects[i].Project][objects[i].Name]
 		if value == nil {
 			value = []string{}
 		}
@@ -314,7 +332,7 @@ func (c *ClusterTx) ProfileID(project string, name string) (int64, error) {
 }
 
 // ProfileConfigRef returns entities used by profiles.
-func (c *ClusterTx) ProfileConfigRef(filter ProfileFilter) (map[string]map[string]string, error) {
+func (c *ClusterTx) ProfileConfigRef(filter ProfileFilter) (map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
 		Project string
@@ -375,15 +393,21 @@ func (c *ClusterTx) ProfileConfigRef(filter ProfileFilter) (map[string]map[strin
 	}
 
 	// Build index by primary name.
-	index := map[string]map[string]string{}
+	index := map[string]map[string]map[string]string{}
 
 	for _, object := range objects {
-		item, ok := index[object.Name]
+		_, ok := index[object.Project]
+		if !ok {
+			subIndex := map[string]map[string]string{}
+			index[object.Project] = subIndex
+		}
+
+		item, ok := index[object.Project][object.Name]
 		if !ok {
 			item = map[string]string{}
 		}
 
-		index[object.Name] = item
+		index[object.Project][object.Name] = item
 		item[object.Key] = object.Value
 	}
 
@@ -391,7 +415,7 @@ func (c *ClusterTx) ProfileConfigRef(filter ProfileFilter) (map[string]map[strin
 }
 
 // ProfileDevicesRef returns entities used by profiles.
-func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[string]map[string]string, error) {
+func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
 		Project string
@@ -458,15 +482,21 @@ func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[stri
 	}
 
 	// Build index by primary name.
-	index := map[string]map[string]map[string]string{}
+	index := map[string]map[string]map[string]map[string]string{}
 
 	for _, object := range objects {
-		item, ok := index[object.Name]
+		_, ok := index[object.Project]
+		if !ok {
+			subIndex := map[string]map[string]map[string]string{}
+			index[object.Project] = subIndex
+		}
+
+		item, ok := index[object.Project][object.Name]
 		if !ok {
 			item = map[string]map[string]string{}
 		}
 
-		index[object.Name] = item
+		index[object.Project][object.Name] = item
 		config, ok := item[object.Device]
 		if !ok {
 			// First time we see this device, let's int the config
@@ -489,7 +519,7 @@ func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[stri
 }
 
 // ProfileUsedByRef returns entities used by profiles.
-func (c *ClusterTx) ProfileUsedByRef(filter ProfileFilter) (map[string][]string, error) {
+func (c *ClusterTx) ProfileUsedByRef(filter ProfileFilter) (map[string]map[string][]string, error) {
 	// Result slice.
 	objects := make([]struct {
 		Project string
@@ -547,15 +577,21 @@ func (c *ClusterTx) ProfileUsedByRef(filter ProfileFilter) (map[string][]string,
 	}
 
 	// Build index by primary name.
-	index := map[string][]string{}
+	index := map[string]map[string][]string{}
 
 	for _, object := range objects {
-		item, ok := index[object.Name]
+		_, ok := index[object.Project]
+		if !ok {
+			subIndex := map[string][]string{}
+			index[object.Project] = subIndex
+		}
+
+		item, ok := index[object.Project][object.Name]
 		if !ok {
 			item = []string{}
 		}
 
-		index[object.Name] = append(item, object.Value)
+		index[object.Project][object.Name] = append(item, object.Value)
 	}
 
 	return index, nil
