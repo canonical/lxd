@@ -684,18 +684,20 @@ func (d *Daemon) init() error {
 		readSavedClientCAList(d)
 
 		// Connect to MAAS
-		go func() {
-			for {
-				err = d.setupMAASController(maasAPIURL, maasAPIKey, maasMachine)
-				if err == nil {
-					logger.Info("Connected to MAAS controller")
-					break
-				}
+		if maasAPIURL != "" {
+			go func() {
+				for {
+					err = d.setupMAASController(maasAPIURL, maasAPIKey, maasMachine)
+					if err == nil {
+						logger.Info("Connected to MAAS controller", log.Ctx{"url": maasAPIURL})
+						break
+					}
 
-				logger.Warn("Unable to connect to MAAS, trying again in a minute", log.Ctx{"err": err})
-				time.Sleep(time.Minute)
-			}
-		}()
+					logger.Warn("Unable to connect to MAAS, trying again in a minute", log.Ctx{"url": maasAPIURL, "err": err})
+					time.Sleep(time.Minute)
+				}
+			}()
+		}
 	}
 
 	close(d.setupChan)
