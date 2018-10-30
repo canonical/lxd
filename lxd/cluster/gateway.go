@@ -294,7 +294,7 @@ func (g *Gateway) Kill() {
 
 // Shutdown this gateway, stopping the gRPC server and possibly the raft factory.
 func (g *Gateway) Shutdown() error {
-	logger.Info("Stop database gateway")
+	logger.Debugf("Stop database gateway")
 
 	if g.raft != nil {
 		err := g.raft.Shutdown()
@@ -444,7 +444,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 // Initialize the gateway, creating a new raft factory and gRPC server (if this
 // node is a database node), and a gRPC dialer.
 func (g *Gateway) init() error {
-	logger.Info("Initializing database gateway")
+	logger.Debugf("Initializing database gateway")
 	raft, err := newRaft(g.db, g.cert, g.options.latency)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create raft factory")
@@ -649,7 +649,7 @@ func DqliteLog(l dqlite.LogLevel, format string, a ...interface{}) {
 	case dqlite.LogDebug:
 		logger.Debugf(format, a...)
 	case dqlite.LogInfo:
-		logger.Infof(format, a...)
+		logger.Debugf(format, a...)
 	case dqlite.LogWarn:
 		logger.Warnf(format, a...)
 	case dqlite.LogError:

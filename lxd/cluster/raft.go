@@ -65,7 +65,7 @@ func newRaft(database *db.Node, cert *shared.CertInfo, latency float64) (*raftIn
 	if info == nil {
 		return nil, nil
 	}
-	logger.Info("Start database node", log15.Ctx{"id": info.ID, "address": info.Address})
+	logger.Debug("Start database node", log15.Ctx{"id": info.ID, "address": info.Address})
 
 	// Initialize a raft instance along with all needed dependencies.
 	instance, err := raftInstanceInit(database, info, cert, latency)
@@ -270,7 +270,7 @@ func (i *raftInstance) MembershipChanger() raftmembership.Changer {
 
 // Shutdown raft and any raft-related resource we have instantiated.
 func (i *raftInstance) Shutdown() error {
-	logger.Info("Stop raft instance")
+	logger.Debug("Stop raft instance")
 
 	// Invoke raft APIs asynchronously to allow for a timeout.
 	timeout := 10 * time.Second
@@ -461,7 +461,7 @@ func (o *raftLogWriter) Write(line []byte) (n int, err error) {
 	case "DEBUG":
 		logger.Debug(msg)
 	case "INFO":
-		logger.Info(msg)
+		logger.Debug(msg)
 	case "WARN":
 		logger.Warn(msg)
 	default:
