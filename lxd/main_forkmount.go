@@ -8,9 +8,12 @@ import (
 
 /*
 #define _GNU_SOURCE
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
+#include <limits.h>
+#include <lxc/lxccontainer.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +22,11 @@ import (
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#define VERSION_AT_LEAST(major, minor, micro)							\
+	((LXC_DEVEL == 1) || (!(major > LXC_VERSION_MAJOR ||					\
+	major == LXC_VERSION_MAJOR && minor > LXC_VERSION_MINOR ||				\
+	major == LXC_VERSION_MAJOR && minor == LXC_VERSION_MINOR && micro > LXC_VERSION_MICRO)))
 
 extern char* advance_arg(bool required);
 extern void error(char *msg);
@@ -118,7 +126,7 @@ void create(char *src, char *dest) {
 	}
 }
 
-void forkdomount(pid_t pid) {
+void do_lxd_forkmount(pid_t pid) {
 	char *src, *dest, *opts;
 
 	attach_userns(pid);
@@ -154,7 +162,7 @@ void forkdomount(pid_t pid) {
 	_exit(0);
 }
 
-void forkdoumount(pid_t pid) {
+void do_lxd_forkumount(pid_t pid) {
 	int ret;
 	char *path = NULL;
 
@@ -181,6 +189,113 @@ void forkdoumount(pid_t pid) {
 	_exit(0);
 }
 
+#if VERSION_AT_LEAST(3, 1, 0)
+static int lxc_safe_ulong(const char *numstr, unsigned long *converted)
+{
+	char *err = NULL;
+	unsigned long int uli;
+
+	while (isspace(*numstr))
+		numstr++;
+
+	if (*numstr == '-')
+		return -EINVAL;
+
+	errno = 0;
+	uli = strtoul(numstr, &err, 0);
+	if (errno == ERANGE && uli == ULONG_MAX)
+		return -ERANGE;
+
+	if (err == numstr || *err != '\0')
+		return -EINVAL;
+
+	*converted = uli;
+	return 0;
+}
+#endif
+
+void do_lxc_forkmount()
+{
+#if VERSION_AT_LEAST(3, 1, 0)
+	int ret;
+	char *config, *flags, *fstype, *lxcpath, *name, *source, *target;
+	struct lxc_container *c;
+	struct lxc_mount mnt = {0};
+	unsigned long mntflags = 0;
+
+	name = advance_arg(true);
+	lxcpath = advance_arg(true);
+	config = advance_arg(true);
+	source = advance_arg(true);
+	target = advance_arg(true);
+	fstype = advance_arg(true);
+	flags = advance_arg(true);
+
+	fprintf(stderr, "name:    %s\n", name);
+	fprintf(stderr, "lxcpath: %s\n", lxcpath);
+	fprintf(stderr, "config:  %s\n", config);
+	fprintf(stderr, "source:  %s\n", source);
+	fprintf(stderr, "target:  %s\n", target);
+	fprintf(stderr, "fstype:  %s\n", fstype);
+	fprintf(stderr, "flags:   %s\n", flags);
+
+	c = lxc_container_new(name, lxcpath);
+	if (!c)
+		_exit(1);
+
+	c->clear_config(c);
+
+	if (!c->load_config(c, config)) {
+		lxc_container_put(c);
+		_exit(1);
+	}
+
+	ret = lxc_safe_ulong(flags, &mntflags);
+	if (ret < 0) {
+		lxc_container_put(c);
+		_exit(1);
+	}
+
+	ret = c->mount(c, source, target, fstype, mntflags, NULL, &mnt);
+	lxc_container_put(c);
+	if (ret < 0)
+		_exit(1);
+
+	_exit(0);
+#endif
+}
+
+void do_lxc_forkumount()
+{
+#if VERSION_AT_LEAST(3, 1, 0)
+	int ret;
+	char *config, *lxcpath, *name, *target;
+	struct lxc_container *c;
+	struct lxc_mount mnt = {0};
+
+	name = advance_arg(true);
+	lxcpath = advance_arg(true);
+	config = advance_arg(true);
+	target = advance_arg(true);
+
+	c = lxc_container_new(name, lxcpath);
+	if (!c)
+		_exit(1);
+
+	c->clear_config(c);
+
+	if (!c->load_config(c, config)) {
+		lxc_container_put(c);
+		_exit(1);
+	}
+
+	ret = c->umount(c, target, MNT_DETACH, &mnt);
+	lxc_container_put(c);
+	if (ret < 0)
+		_exit(1);
+#endif
+}
+
 void forkmount() {
 	char *cur = NULL;
 
@@ -194,13 +309,6 @@ void forkmount() {
 		return;
 	}
 
-	// Get the pid
-	cur = advance_arg(false);
-	if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
-		return;
-	}
-	pid = atoi(cur);
-
 	// Check that we're root
 	if (geteuid() != 0) {
 		fprintf(stderr, "Error: forkmount requires root privileges\n");
@@ -208,14 +316,33 @@ void forkmount() {
 	}
 
 	// Call the subcommands
-	if (strcmp(command, "mount") == 0) {
-		forkdomount(pid);
-	} else if (strcmp(command, "umount") == 0) {
-		forkdoumount(pid);
+	if (strcmp(command, "lxd-mount") == 0) {
+		// Get the pid
+		cur = advance_arg(false);
+		if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
+			return;
+		}
+		pid = atoi(cur);
+
+		do_lxd_forkmount(pid);
+	} else if (strcmp(command, "lxc-mount") == 0) {
+		do_lxc_forkmount();
+	} else if (strcmp(command, "lxd-umount") == 0) {
+		// Get the pid
+		cur = advance_arg(false);
+		if (cur == NULL || (strcmp(cur, "--help") == 0 || strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0)) {
+			return;
+		}
+		pid = atoi(cur);
+
+		do_lxd_forkumount(pid);
+	} else if (strcmp(command, "lxc-umount") == 0) {
+		do_lxc_forkumount();
 	}
 }
 */
 // #cgo CFLAGS: -std=gnu11 -Wvla
+// #cgo LDFLAGS: -llxc
 import "C"
 
 type cmdForkmount struct {
