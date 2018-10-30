@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/types"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -85,6 +86,72 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	assert.Equal(t, 3, containers[1].ID)
 	assert.Equal(t, "c3", containers[1].Name)
 	assert.Equal(t, "node2", containers[1].Node)
+}
+
+func TestContainerList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	// Create a project with no features
+	project1 := api.ProjectsPost{}
+	project1.Name = "blah"
+	_, err := tx.ProjectCreate(project1)
+	require.NoError(t, err)
+
+	// Create a project with the profiles feature and a custom profile.
+	project2 := api.ProjectsPost{}
+	project2.Name = "test"
+	project2.Config = map[string]string{"features.profiles": "true"}
+	_, err = tx.ProjectCreate(project2)
+	require.NoError(t, err)
+
+	profile := db.Profile{
+		Project: "test",
+		Name:    "intranet",
+	}
+	_, err = tx.ProfileCreate(profile)
+	require.NoError(t, err)
+
+	// Create a container in project1 using the default profile from the
+	// default project.
+	c1p1 := db.Container{
+		Project:      "blah",
+		Name:         "c1",
+		Node:         "none",
+		Type:         int(db.CTypeRegular),
+		Architecture: 1,
+		Ephemeral:    false,
+		Stateful:     true,
+		Profiles:     []string{"default"},
+	}
+	_, err = tx.ContainerCreate(c1p1)
+	require.NoError(t, err)
+
+	// Create a container in project2 using the custom profile from the
+	// project.
+	c1p2 := db.Container{
+		Project:      "test",
+		Name:         "c1",
+		Node:         "none",
+		Type:         int(db.CTypeRegular),
+		Architecture: 1,
+		Ephemeral:    false,
+		Stateful:     true,
+		Profiles:     []string{"intranet"},
+	}
+	_, err = tx.ContainerCreate(c1p2)
+	require.NoError(t, err)
+
+	containers, err := tx.ContainerList(db.ContainerFilter{})
+	require.NoError(t, err)
+
+	assert.Len(t, containers, 2)
+
+	assert.Equal(t, "blah", containers[0].Project)
+	assert.Equal(t, []string{"default"}, containers[0].Profiles)
+
+	assert.Equal(t, "test", containers[1].Project)
+	assert.Equal(t, []string{"intranet"}, containers[1].Profiles)
 }
 
 func TestContainerListExpanded(t *testing.T) {
