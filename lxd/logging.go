@@ -19,13 +19,23 @@ import (
 // and will run once every 24h.
 func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		opRun := func(op *operation) error {
+			return expireLogs(ctx, state)
+		}
+
+		op, err := operationCreate(state.Cluster, operationClassTask, "Expiring log files", nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start log expiry operation", log.Ctx{"err": err})
+		}
+
 		logger.Infof("Expiring log files")
-		err := expireLogs(ctx, state)
+		_, err = op.Run()
 		if err != nil {
 			logger.Error("Failed to expire logs", log.Ctx{"err": err})
 		}
 		logger.Infof("Done expiring log files")
 	}
+
 	return f, task.Daily()
 }
 
