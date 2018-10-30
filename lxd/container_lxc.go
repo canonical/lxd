@@ -1728,7 +1728,11 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup shmounts
-	err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", c.ShmountsPath()))
+	if lxc.HasApiExtension("mount_injection") {
+		err = lxcSetConfigItem(cc, "lxc.mount.auto", fmt.Sprintf("shmounts:%s:/dev/.lxd-mounts", c.ShmountsPath()))
+	} else {
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", c.ShmountsPath()))
+	}
 	if err != nil {
 		return err
 	}
@@ -6355,45 +6359,56 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 		return fmt.Errorf("Can't insert mount into stopped container")
 	}
 
-	// Create the temporary mount target
-	var tmpMount string
-	if shared.IsDir(source) {
-		tmpMount, err = ioutil.TempDir(c.ShmountsPath(), "lxdmount_")
+	if lxc.HasApiExtension("mount_injection") {
+		configPath := filepath.Join(c.LogPath(), "lxc.conf")
+		if fstype == "" {
+			fstype = "none"
+		}
+
+		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-mount", c.Name(), c.state.OS.LxcPath, configPath, source, target, fstype, fmt.Sprintf("%d", flags))
 		if err != nil {
-			return fmt.Errorf("Failed to create shmounts path: %s", err)
+			return err
 		}
 	} else {
-		f, err := ioutil.TempFile(c.ShmountsPath(), "lxdmount_")
+		// Create the temporary mount target
+		var tmpMount string
+		if shared.IsDir(source) {
+			tmpMount, err = ioutil.TempDir(c.ShmountsPath(), "lxdmount_")
+			if err != nil {
+				return fmt.Errorf("Failed to create shmounts path: %s", err)
+			}
+		} else {
+			f, err := ioutil.TempFile(c.ShmountsPath(), "lxdmount_")
+			if err != nil {
+				return fmt.Errorf("Failed to create shmounts path: %s", err)
+			}
+
+			tmpMount = f.Name()
+			f.Close()
+		}
+		defer os.Remove(tmpMount)
+
+		// Mount the filesystem
+		err = syscall.Mount(source, tmpMount, fstype, uintptr(flags), "")
 		if err != nil {
-			return fmt.Errorf("Failed to create shmounts path: %s", err)
+			return fmt.Errorf("Failed to setup temporary mount: %s", err)
 		}
+		defer syscall.Unmount(tmpMount, syscall.MNT_DETACH)
 
-		tmpMount = f.Name()
-		f.Close()
-	}
-	defer os.Remove(tmpMount)
+		// Move the mount inside the container
+		mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
+		pidStr := fmt.Sprintf("%d", pid)
 
-	// Mount the filesystem
-	err = syscall.Mount(source, tmpMount, fstype, uintptr(flags), "")
-	if err != nil {
-		return fmt.Errorf("Failed to setup temporary mount: %s", err)
-	}
-	defer syscall.Unmount(tmpMount, syscall.MNT_DETACH)
+		out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-mount", pidStr, mntsrc, target)
 
-	// Move the mount inside the container
-	mntsrc := filepath.Join("/dev/.lxd-mounts", filepath.Base(tmpMount))
-	pidStr := fmt.Sprintf("%d", pid)
-
-	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "mount", pidStr, mntsrc, target)
-
-	if out != "" {
-		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
-			logger.Debugf("forkmount: %s", line)
+		if out != "" {
+			for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+				logger.Debugf("forkmount: %s", line)
+			}
 		}
-	}
-
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -6407,18 +6422,27 @@ func (c *containerLXC) removeMount(mount string) error {
 		return fmt.Errorf("Can't remove mount from stopped container")
 	}
 
-	// Remove the mount from the container
-	pidStr := fmt.Sprintf("%d", pid)
-	out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "umount", pidStr, mount)
-
-	if out != "" {
-		for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
-			logger.Debugf("forkumount: %s", line)
+	if lxc.HasApiExtension("mount_injection") {
+		configPath := filepath.Join(c.LogPath(), "lxc.conf")
+		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-umount", c.Name(), c.state.OS.LxcPath, configPath, mount)
+		if err != nil {
+			return err
 		}
-	}
+	} else {
 
-	if err != nil {
-		return err
+		// Remove the mount from the container
+		pidStr := fmt.Sprintf("%d", pid)
+		out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-umount", pidStr, mount)
+
+		if out != "" {
+			for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+				logger.Debugf("forkumount: %s", line)
+			}
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
