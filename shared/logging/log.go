@@ -19,14 +19,8 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 	var handlers []log.Handler
 	var syshandler log.Handler
 
-	// Format handler
-	format := LogfmtFormat()
-	if term.IsTty(os.Stderr.Fd()) {
-		format = TerminalFormat()
-	}
-
 	// System specific handler
-	syshandler = getSystemHandler(syslog, debug, format)
+	syshandler = getSystemHandler(syslog, debug, LogfmtFormat())
 	if syshandler != nil {
 		handlers = append(handlers, syshandler)
 	}
@@ -42,15 +36,20 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 				handlers,
 				log.LvlFilterHandler(
 					log.LvlInfo,
-					log.Must.FileHandler(logfile, format),
+					log.Must.FileHandler(logfile, LogfmtFormat()),
 				),
 			)
 		} else {
-			handlers = append(handlers, log.Must.FileHandler(logfile, format))
+			handlers = append(handlers, log.Must.FileHandler(logfile, LogfmtFormat()))
 		}
 	}
 
 	// StderrHandler
+	format := LogfmtFormat()
+	if term.IsTty(os.Stderr.Fd()) {
+		format = TerminalFormat()
+	}
+
 	if verbose || debug {
 		if !debug {
 			handlers = append(

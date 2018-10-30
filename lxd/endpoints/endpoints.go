@@ -151,7 +151,7 @@ func (e *Endpoints) up(config *Config) error {
 	systemdListeners := util.GetListeners(e.systemdListenFDsStart)
 	if len(systemdListeners) > 0 {
 		e.listeners = activatedListeners(systemdListeners, e.cert)
-		for kind, _ := range e.listeners {
+		for kind := range e.listeners {
 			e.inherited[kind] = true
 		}
 	} else {

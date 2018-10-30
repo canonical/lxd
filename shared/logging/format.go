@@ -62,7 +62,7 @@ func TerminalFormat() log.Format {
 		}
 
 		// print the keys logfmt style
-		logfmt(b, r.Ctx, color)
+		logfmt(b, r.Ctx, color, false)
 		return b.Bytes()
 	})
 }
@@ -72,12 +72,16 @@ func LogfmtFormat() log.Format {
 	return log.FormatFunc(func(r *log.Record) []byte {
 		common := []interface{}{r.KeyNames.Time, r.Time, r.KeyNames.Lvl, r.Lvl, r.KeyNames.Msg, r.Msg}
 		buf := &bytes.Buffer{}
-		logfmt(buf, append(common, r.Ctx...), 0)
+
+		logfmt(buf, common, 0, false)
+		buf.Truncate(buf.Len() - 1)
+		buf.WriteByte(' ')
+		logfmt(buf, r.Ctx, 0, true)
 		return buf.Bytes()
 	})
 }
 
-func logfmt(buf *bytes.Buffer, ctx []interface{}, color int) {
+func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, sorted bool) {
 	entries := []string{}
 
 	for i := 0; i < len(ctx); i += 2 {
@@ -95,7 +99,9 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int) {
 		}
 	}
 
-	sort.Strings(entries)
+	if sorted {
+		sort.Strings(entries)
+	}
 
 	for i, v := range entries {
 		if i != 0 {
