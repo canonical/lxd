@@ -53,7 +53,12 @@ func (s *execWs) Metadata() interface{} {
 		}
 	}
 
-	return shared.Jmap{"fds": fds}
+	return shared.Jmap{
+		"fds":         fds,
+		"command":     s.command,
+		"environment": s.env,
+		"interactive": s.interactive,
+	}
 }
 
 func (s *execWs) Connect(op *operation, r *http.Request, w http.ResponseWriter) error {
