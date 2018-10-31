@@ -54,6 +54,11 @@ const (
 	OperationVolumeSnapshotDelete
 	OperationVolumeSnapshotUpdate
 	OperationProjectRename
+	OperationImagesExpire
+	OperationImagesPruneLeftover
+	OperationImagesUpdate
+	OperationLogsExpire
+	OperationInstanceTypesUpdate
 )
 
 // Description return a human-readable description of the operation type.
@@ -133,6 +138,16 @@ func (t OperationType) Description() string {
 		return "Updating storage volume snapshot"
 	case OperationProjectRename:
 		return "Renaming project"
+	case OperationImagesExpire:
+		return "Cleaning up expired images"
+	case OperationImagesPruneLeftover:
+		return "Pruning leftover image files"
+	case OperationImagesUpdate:
+		return "Updating images"
+	case OperationLogsExpire:
+		return "Expiring log files"
+	case OperationInstanceTypesUpdate:
+		return "Updating instance types"
 	default:
 		return "Executing operation"
 

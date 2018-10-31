@@ -7,14 +7,17 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-	"golang.org/x/net/context"
+
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 type instanceType struct {
@@ -71,27 +74,40 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	// returning in case the context expires.
 	_, hasCancellationSupport := interface{}(&http.Request{}).(util.ContextAwareRequest)
 	f := func(ctx context.Context) {
-		if hasCancellationSupport {
-			instanceRefreshTypes(ctx, d)
-		} else {
-			ch := make(chan struct{})
+		opRun := func(op *operation) error {
+			if hasCancellationSupport {
+				return instanceRefreshTypes(ctx, d)
+			}
+
+			ch := make(chan error)
 			go func() {
-				instanceRefreshTypes(ctx, d)
-				ch <- struct{}{}
+				ch <- instanceRefreshTypes(ctx, d)
 			}()
 			select {
 			case <-ctx.Done():
-				return
-			case <-ch:
+				return nil
+			case err := <-ch:
+				return err
 			}
 		}
+
+		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationInstanceTypesUpdate, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start instance types update operation", log.Ctx{"err": err})
+		}
+
+		logger.Info("Updating instance types")
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to update instance types", log.Ctx{"err": err})
+		}
+		logger.Infof("Done updating instance types")
 	}
+
 	return f, task.Daily()
 }
 
 func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
-	logger.Info("Updating instance types")
-
 	// Attempt to download the new definitions
 	downloadParse := func(filename string, target interface{}) error {
 		url := fmt.Sprintf("https://images.linuxcontainers.org/meta/instance-types/%s", filename)
@@ -177,7 +193,6 @@ func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 		return err
 	}
 
-	logger.Infof("Done updating instance types")
 	return nil
 }
 
