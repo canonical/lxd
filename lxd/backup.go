@@ -10,13 +10,17 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 
@@ -139,33 +143,7 @@ func (b *backup) Rename(newName string) error {
 
 // Delete removes a container backup
 func (b *backup) Delete() error {
-	backupPath := shared.VarPath("backups", b.name)
-
-	// Delete the on-disk data
-	if shared.PathExists(backupPath) {
-		err := os.RemoveAll(backupPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Check if we can remove the container directory
-	backupsPath := shared.VarPath("backups", b.container.Name())
-	empty, _ := shared.PathIsEmpty(backupsPath)
-	if empty {
-		err := os.Remove(backupsPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Remove the database record
-	err := b.state.Cluster.ContainerBackupRemove(b.name)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return doBackupDelete(b.state, b.name, b.container.Name())
 }
 
 func (b *backup) Render() *api.ContainerBackup {
@@ -393,6 +371,90 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 
 	// Set permissions
 	err = os.Chmod(backupPath, 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		opRun := func(op *operation) error {
+			return pruneExpiredContainerBackups(ctx, d)
+		}
+
+		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationBackupsExpire, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start expired backups operation", log.Ctx{"err": err})
+		}
+
+		logger.Info("Pruning expired container backups")
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to expire backups", log.Ctx{"err": err})
+		}
+		logger.Info("Done pruning expired container backups")
+	}
+
+	f(context.Background())
+
+	first := true
+	schedule := func() (time.Duration, error) {
+		interval := time.Hour
+
+		if first {
+			first = false
+			return interval, task.ErrSkip
+		}
+
+		return interval, nil
+	}
+
+	return f, schedule
+}
+
+func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
+	// Get the list of expired backups.
+	backups, err := d.cluster.ContainerBackupsGetExpired()
+	if err != nil {
+		return errors.Wrap(err, "Unable to retrieve the list of expired container backups")
+	}
+
+	for _, backup := range backups {
+		containerName, _, _ := containerGetParentAndSnapshotName(backup)
+		err := doBackupDelete(d.State(), backup, containerName)
+		if err != nil {
+			return errors.Wrapf(err, "Error deleting container backup %s", backup)
+		}
+	}
+
+	return nil
+}
+
+func doBackupDelete(s *state.State, backupName, containerName string) error {
+	backupPath := shared.VarPath("backups", backupName)
+
+	// Delete the on-disk data
+	if shared.PathExists(backupPath) {
+		err := os.RemoveAll(backupPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Check if we can remove the container directory
+	backupsPath := shared.VarPath("backups", containerName)
+	empty, _ := shared.PathIsEmpty(backupsPath)
+	if empty {
+		err := os.Remove(backupsPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Remove the database record
+	err := s.Cluster.ContainerBackupRemove(backupName)
 	if err != nil {
 		return err
 	}

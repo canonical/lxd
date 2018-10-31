@@ -1106,3 +1106,39 @@ func (c *Cluster) ContainerBackupRename(oldName, newName string) error {
 	})
 	return err
 }
+
+// ContainerBackupsGetExpired returns a list of expired container backups.
+func (c *Cluster) ContainerBackupsGetExpired() ([]string, error) {
+	var result []string
+	var name string
+	var expiryDate string
+
+	q := `SELECT containers_backups.name, containers_backups.expiry_date FROM containers_backups`
+	outfmt := []interface{}{name, expiryDate}
+	dbResults, err := queryScan(c.db, q, nil, outfmt)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range dbResults {
+		timestamp := r[1]
+
+		var backupExpiry time.Time
+		err = backupExpiry.UnmarshalText([]byte(timestamp.(string)))
+		if err != nil {
+			return []string{}, err
+		}
+
+		if backupExpiry.IsZero() {
+			// Backup doesn't expire
+			continue
+		}
+
+		// Backup has expired
+		if time.Now().Unix()-backupExpiry.Unix() >= 0 {
+			result = append(result, r[0].(string))
+		}
+	}
+
+	return result, nil
+}

@@ -81,7 +81,9 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	req := api.ContainerBackupsPost{}
+	req := api.ContainerBackupsPost{
+		ExpiryDate: time.Now().Add(30 * time.Minute), // default expiry time of 30 minutes
+	}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return BadRequest(err)
