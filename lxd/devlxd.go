@@ -80,6 +80,50 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c co
 	return okResponse(value, "raw")
 }}
 
+var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	filtered := []string{}
+	for name, m := range c.ExpandedDevices() {
+		switch {
+		case m["type"] == "nic" && m["nictype"] == "ipvlan":
+			filtered = append(filtered, fmt.Sprintf("/1.0/device/%s", name))
+		default:
+			continue
+		}
+	}
+	return okResponse(filtered, "json")
+}}
+
+var devlxdDeviceOptionsGet = devLxdHandler{"/1.0/device/{key}", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	key := mux.Vars(r)["key"]
+
+	m, ok := c.ExpandedDevices()[key]
+	if !ok {
+		return &devLxdResponse{"not found", http.StatusNotFound, "raw"}
+	}
+
+	switch {
+	case m["type"] == "nic" && m["nictype"] == "ipvlan":
+		filtered := make(map[string]string, len(m))
+		for k, v := range m {
+			switch k {
+			case "type":
+				filtered[k] = v
+			case "ipv4.address":
+				filtered[k] = v
+			case "ipv6.address":
+				filtered[k] = v
+			case "nictype":
+				filtered[k] = v
+			default:
+				continue
+			}
+		}
+		return okResponse(filtered, "json")
+	default:
+		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
+	}
+}}
+
 var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c container, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	if !shared.IsTrue(c.ExpandedConfig()["security.devlxd.images"]) {
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
@@ -208,6 +252,8 @@ var handlers = []devLxdHandler{
 	}},
 	devlxdConfigGet,
 	devlxdConfigKeyGet,
+	devlxdDevicesGet,
+	devlxdDeviceOptionsGet,
 	devlxdMetadataGet,
 	devlxdEventsGet,
 	devlxdImageExport,
