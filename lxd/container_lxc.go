@@ -7966,10 +7966,18 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	}
 	defer cc.Release()
 
-	// Remove the interface from the container
-	err = cc.DetachInterfaceRename(m["name"], hostName)
+	// Check if interface exists inside container namespace
+	ifaces, err := cc.Interfaces()
 	if err != nil {
-		return fmt.Errorf("Failed to detach interface: %s: %s", m["name"], err)
+		return fmt.Errorf("Failed to list network interfaces: %v", err)
+	}
+
+	// Remove the interface from the container if it exists
+	if shared.StringInSlice(m["name"], ifaces) {
+		err = cc.DetachInterfaceRename(m["name"], hostName)
+		if err != nil {
+			return fmt.Errorf("Failed to detach interface: %s: %v", m["name"], err)
+		}
 	}
 
 	// If a veth, destroy it
