@@ -565,6 +565,36 @@ func networkValidAddress(value string) error {
 	return nil
 }
 
+func networkValidAddressV4List(value string) error {
+	for _, v := range strings.Fields(value) {
+		err := networkValidAddressV4(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func networkValidAddressV6List(value string) error {
+	for _, v := range strings.Fields(value) {
+		err := networkValidAddressV6(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func networkValidAddressList(value string) error {
+	for _, v := range strings.Fields(value) {
+		err := networkValidAddress(v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func networkValidAddressV4(value string) error {
 	if value == "" {
 		return nil
