@@ -105,6 +105,58 @@ func IsAny(value string) error {
 	return nil
 }
 
+func LeftSliceDifference(a []string, b []string) []string {
+	var out []string
+
+	for _, el1 := range a {
+		found := false
+		for _, el2 := range b {
+			if el1 == el2 {
+				found = true
+				break
+			}
+		}
+		// String not found. We add it to return slice
+		if !found {
+			out = append(out, el1)
+		}
+	}
+
+	return out
+}
+
+func RightSliceDifference(a []string, b []string) []string {
+	return LeftSliceDifference(b, a)
+}
+
+func SliceDifference(a []string, b []string) []string {
+	var out []string
+
+	// Loop two times, first to find a strings not in b,
+	// second loop to find b strings not in a
+	for i := 0; i < 2; i++ {
+		for _, el1 := range a {
+			found := false
+			for _, el2 := range b {
+				if el1 == el2 {
+					found = true
+					break
+				}
+			}
+			// String not found. We add it to return slice
+			if !found {
+				out = append(out, el1)
+			}
+		}
+		// Swap the slices, only if it was the first loop
+		if i == 0 {
+			a, b = b, a
+		}
+	}
+
+	return out
+}
+
 // IsRootDiskDevice returns true if the given device representation is
 // configured as root disk for a container. It typically get passed a specific
 // entry of api.Container.Devices.
