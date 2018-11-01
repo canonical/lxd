@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -1016,11 +1017,80 @@ func deviceNextInterfaceHWAddr() (string, error) {
 	return ret.String(), nil
 }
 
-func deviceNextVeth() string {
-	// Return a new random veth device name
-	randBytes := make([]byte, 4)
-	rand.Read(randBytes)
-	return "veth" + hex.EncodeToString(randBytes)
+func deviceGetInterfaceNames() ([]string, error) {
+	interfaces := make([]string, 0)
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, iface := range ifaces {
+		interfaces = append(interfaces, iface.Name)
+	}
+
+	return interfaces, nil
+}
+
+func deviceInterfaceValidName(value string) error {
+	// Validate the length
+	if len(value) < 2 {
+		return fmt.Errorf("Interface name is too short (minimum 2 characters)")
+	}
+
+	if len(value) > 15 {
+		return fmt.Errorf("Interface name is too long (maximum 15 characters)")
+	}
+
+	// Validate the character set
+	match, _ := regexp.MatchString("^[-_a-zA-Z0-9.]*$", value)
+	if !match {
+		return fmt.Errorf("Interface name contains invalid characters")
+	}
+
+	return nil
+}
+
+func deviceInterfaceNameAvailable(iface string) error {
+	err := deviceInterfaceValidName(iface)
+	if err != nil {
+		return err
+	}
+
+	interfaces, err := deviceGetInterfaceNames()
+	if err != nil {
+		return err
+	}
+
+	if shared.StringInSlice(iface, interfaces) {
+		return fmt.Errorf("Interface name: %s is in use", iface)
+	}
+
+	return nil
+}
+
+// Generate new interface name based on prefix (prefix length between 2,6)
+func deviceGenerateInterfaceName(prefix string) string {
+	for {
+		b := make([]byte, 4)
+		// Generate random bytes array
+		rand.Read(b)
+		// Fallback to "veth" than prefix length is out of range
+		if len(prefix) > 6 || len(prefix) < 2 {
+			prefix = "veth"
+		}
+		// Generate interface name
+		name := fmt.Sprintf("%s%08s", prefix, hex.EncodeToString(b))
+		// Validate interface name
+		if err := deviceInterfaceValidName(name); err != nil {
+			continue
+		}
+		// Check if interface exists
+		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", name)) {
+			continue
+		}
+		return name
+	}
 }
 
 func deviceRemoveInterface(nic string) error {

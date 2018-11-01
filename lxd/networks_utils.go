@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -85,20 +84,20 @@ func networkGetInterfaces(cluster *db.Cluster) ([]string, error) {
 		return nil, err
 	}
 
-	ifaces, err := net.Interfaces()
+	ifaces, err := deviceGetInterfaceNames()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, iface := range ifaces {
 		// Ignore veth pairs (for performance reasons)
-		if strings.HasPrefix(iface.Name, "veth") {
+		if strings.HasPrefix(iface, "veth") {
 			continue
 		}
 
 		// Append to the list
-		if !shared.StringInSlice(iface.Name, networks) {
-			networks = append(networks, iface.Name)
+		if !shared.StringInSlice(iface, networks) {
+			networks = append(networks, iface)
 		}
 	}
 
@@ -475,22 +474,7 @@ func networkValidName(value string) error {
 		return fmt.Errorf("Interface name cannot be prefix with veth")
 	}
 
-	// Validate the length
-	if len(value) < 2 {
-		return fmt.Errorf("Interface name is too short (minimum 2 characters)")
-	}
-
-	if len(value) > 15 {
-		return fmt.Errorf("Interface name is too long (maximum 15 characters)")
-	}
-
-	// Validate the character set
-	match, _ := regexp.MatchString("^[-_a-zA-Z0-9.]*$", value)
-	if !match {
-		return fmt.Errorf("Interface name contains invalid characters")
-	}
-
-	return nil
+	return deviceInterfaceValidName(value)
 }
 
 func networkValidPort(value string) error {

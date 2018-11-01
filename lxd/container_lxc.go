@@ -1632,7 +1632,7 @@ func (c *containerLXC) initLXC(config bool) error {
 				vethName = m["host_name"]
 			} else if shared.IsTrue(m["security.mac_filtering"]) {
 				// We need a known device name for MAC filtering
-				vethName = deviceNextVeth()
+				vethName = deviceGenerateInterfaceName("veth")
 			}
 
 			if vethName != "" {
@@ -7417,13 +7417,14 @@ func (c *containerLXC) restartProxyDevices() error {
 // Network device handling
 func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string, error) {
 	var dev, n1 string
+	var err error
 
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p", "macvlan"}) {
 		// Host Virtual NIC name
 		if m["host_name"] != "" {
 			n1 = m["host_name"]
 		} else {
-			n1 = deviceNextVeth()
+			n1 = deviceGenerateInterfaceName("veth")
 		}
 	}
 
@@ -7433,7 +7434,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 
 	// Handle bridged and p2p
 	if shared.StringInSlice(m["nictype"], []string{"bridged", "p2p"}) {
-		n2 := deviceNextVeth()
+		n2 := deviceGenerateInterfaceName("veth")
 
 		_, err := shared.RunCommand("ip", "link", "add", "dev", n1, "type", "veth", "peer", "name", n2)
 		if err != nil {
@@ -7955,7 +7956,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	} else if m["nictype"] == "sriov" {
 		hostName = m["host_name"]
 	} else {
-		hostName = deviceNextVeth()
+		hostName = deviceGenerateInterfaceName("veth")
 	}
 
 	// For some reason, having network config confuses detach, so get our own go-lxc struct
