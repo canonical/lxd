@@ -984,12 +984,12 @@ func (n *network) Start() error {
 
 	// IPv6 bridge configuration
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
-		err := networkSysctl(fmt.Sprintf("ipv6/conf/%s/autoconf", n.name), "0")
+		err := networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/autoconf", n.name), "0")
 		if err != nil {
 			return err
 		}
 
-		err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/accept_dad", n.name), "0")
+		err = networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_dad", n.name), "0")
 		if err != nil {
 			return err
 		}
@@ -1143,7 +1143,7 @@ func (n *network) Start() error {
 
 		// Allow forwarding
 		if n.config["bridge.mode"] == "fan" || n.config["ipv4.routing"] == "" || shared.IsTrue(n.config["ipv4.routing"]) {
-			err = networkSysctl("ipv4/ip_forward", "1")
+			err = networkSysctlSet("ipv4/ip_forward", "1")
 			if err != nil {
 				return err
 			}
@@ -1282,7 +1282,7 @@ func (n *network) Start() error {
 	// Configure IPv6
 	if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
 		// Enable IPv6 for the subnet
-		err := networkSysctl(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", n.name), "0")
+		err := networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", n.name), "0")
 		if err != nil {
 			return err
 		}
@@ -1354,7 +1354,7 @@ func (n *network) Start() error {
 					continue
 				}
 
-				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
+				err = networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/accept_ra", entry.Name()), "2")
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
@@ -1362,7 +1362,7 @@ func (n *network) Start() error {
 
 			// Then set forwarding for all of them
 			for _, entry := range entries {
-				err = networkSysctl(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
+				err = networkSysctlSet(fmt.Sprintf("ipv6/conf/%s/forwarding", entry.Name()), "1")
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
