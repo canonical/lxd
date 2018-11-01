@@ -981,13 +981,21 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 	return nil
 }
 
-func networkSysctl(path string, value string) error {
+func networkSysctlGet(path string) (string, error) {
+	// Read the current content
 	content, err := ioutil.ReadFile(fmt.Sprintf("/proc/sys/net/%s", path))
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	if strings.TrimSpace(string(content)) == value {
+	return string(content), nil
+}
+
+func networkSysctlSet(path string, value string) error {
+	// Get current value
+	current, err := networkSysctlGet(path)
+	if err == nil && current == value {
+		// Nothing to update
 		return nil
 	}
 
