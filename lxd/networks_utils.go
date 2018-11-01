@@ -552,14 +552,40 @@ func networkValidAddressCIDRV4(value string) error {
 	return nil
 }
 
-func networkValidAddressV4(value string) error {
+func networkValidAddress(value string) error {
 	if value == "" {
 		return nil
 	}
 
 	ip := net.ParseIP(value)
 	if ip == nil {
+		return fmt.Errorf("Not an IP address: %s", value)
+	}
+
+	return nil
+}
+
+func networkValidAddressV4(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip := net.ParseIP(value)
+	if ip == nil || ip.To4() == nil {
 		return fmt.Errorf("Not an IPv4 address: %s", value)
+	}
+
+	return nil
+}
+
+func networkValidAddressV6(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	ip := net.ParseIP(value)
+	if ip == nil || ip.To4() != nil {
+		return fmt.Errorf("Not an IPv6 address: %s", value)
 	}
 
 	return nil
