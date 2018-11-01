@@ -110,7 +110,7 @@ func networkIsInUse(c container, name string) bool {
 			continue
 		}
 
-		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan", "physical", "sriov"}) {
+		if !shared.StringInSlice(d["nictype"], []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
 			continue
 		}
 
@@ -1179,4 +1179,172 @@ func networkGetState(netIf net.Interface) api.NetworkState {
 	// Get counters
 	network.Counters = shared.NetworkGetCounters(netIf.Name)
 	return network
+}
+
+func networkConfigureIPVLANAddress(address, parentDevName string) error {
+	if address == "" {
+		return fmt.Errorf("Network address can not be empty for parent nic: %s", parentDevName)
+	}
+
+	// handle IPv4
+	if err := networkValidAddressV4(address); err == nil {
+		// add Local Route
+		_, err := shared.RunCommand("ip", "-4", "route", "add", "local", fmt.Sprintf("%s/32", address), "dev", parentDevName)
+		if err != nil {
+			runError, ok := err.(shared.RunError)
+			if !ok {
+				return err
+			}
+
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if !ok {
+				return err
+			}
+
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			switch waitStatus.ExitStatus() {
+			case 2: // RTNETLINK answers: File exists
+				// ignore this error
+			default:
+				return err
+			}
+		}
+		// add Proxy ARP record
+		_, err = shared.RunCommand("ip", "-4", "neigh", "add", "proxy", address, "dev", parentDevName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// handle IPv6
+	if err := networkValidAddressV6(address); err == nil {
+		// add Local Route
+		_, err := shared.RunCommand("ip", "-6", "route", "add", "local", fmt.Sprintf("%s/128", address), "dev", parentDevName)
+		if err != nil {
+			runError, ok := err.(shared.RunError)
+			if !ok {
+				return err
+			}
+
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if !ok {
+				return err
+			}
+
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			switch waitStatus.ExitStatus() {
+			case 2: // RTNETLINK answers: File exists
+				// ignore this error
+			default:
+				return err
+			}
+		}
+		// add Proxy NDP record
+		_, err = shared.RunCommand("ip", "-6", "neigh", "add", "proxy", address, "dev", parentDevName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func networkUnConfigureIPVLANAddress(address, parentDevName string) error {
+	if address == "" {
+		return fmt.Errorf("Network address can not be empty for parent nic: %s", parentDevName)
+	}
+
+	// handle IPv4
+	if err := networkValidAddressV4(address); err == nil {
+		// delete Local Route
+		_, err := shared.RunCommand("ip", "-4", "route", "del", "local", fmt.Sprintf("%s/32", address), "dev", parentDevName)
+		if err != nil {
+			runError, ok := err.(shared.RunError)
+			if !ok {
+				return err
+			}
+
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if !ok {
+				return err
+			}
+
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			switch waitStatus.ExitStatus() {
+			case 2: // RTNETLINK answers: No such process
+				// ignore this error
+			default:
+				return err
+			}
+		}
+		// delete Proxy ARP record
+		_, err = shared.RunCommand("ip", "-4", "neigh", "del", "proxy", address, "dev", parentDevName)
+		if err != nil {
+			runError, ok := err.(shared.RunError)
+			if !ok {
+				return err
+			}
+
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if !ok {
+				return err
+			}
+
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			switch waitStatus.ExitStatus() {
+			case 2: // RTNETLINK answers: No such file or directory
+				// ignore this error
+			default:
+				return err
+			}
+		}
+	}
+
+	// handle IPv6
+	if err := networkValidAddressV6(address); err == nil {
+		// delete Local Route
+		_, err := shared.RunCommand("ip", "-6", "route", "del", "local", fmt.Sprintf("%s/128", address), "dev", parentDevName)
+		if err != nil {
+			runError, ok := err.(shared.RunError)
+			if !ok {
+				return err
+			}
+
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if !ok {
+				return err
+			}
+
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			switch waitStatus.ExitStatus() {
+			case 2: // RTNETLINK answers: No such process
+				// ignore this error
+			default:
+				return err
+			}
+		}
+		// delete Proxy NDP record
+		_, err = shared.RunCommand("ip", "-6", "neigh", "del", "proxy", address, "dev", parentDevName)
+		if err != nil {
+			runError, ok := err.(shared.RunError)
+			if !ok {
+				return err
+			}
+
+			exitError, ok := runError.Err.(*exec.ExitError)
+			if !ok {
+				return err
+			}
+
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			switch waitStatus.ExitStatus() {
+			case 2: // RTNETLINK answers: No such file or directory
+				// ignore this error
+			default:
+				return err
+			}
+		}
+	}
+
+	return nil
 }

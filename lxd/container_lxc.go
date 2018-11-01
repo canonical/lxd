@@ -1587,7 +1587,7 @@ func (c *containerLXC) initLXC(config bool) error {
 				if err != nil {
 					return err
 				}
-			} else if m["nictype"] == "physical" || m["nictype"] == "sriov" {
+			} else if m["nictype"] == "physical" || m["nictype"] == "sriov" || m["nictype"] == "ipvlan" {
 				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.type", networkKeyPrefix, networkidx), "phys")
 				if err != nil {
 					return err
@@ -1642,8 +1642,8 @@ func (c *containerLXC) initLXC(config bool) error {
 				}
 			}
 
-			// MAC address
-			if m["hwaddr"] != "" {
+			// Set the MAC address, skip for IPVLAN type
+			if m["hwaddr"] != "" && m["nictype"] != "ipvlan" {
 				err = lxcSetConfigItem(cc, fmt.Sprintf("%s.%d.hwaddr", networkKeyPrefix, networkidx), m["hwaddr"])
 				if err != nil {
 					return err
@@ -1894,6 +1894,19 @@ func (c *containerLXC) startCommon() (string, error) {
 	// Check that we're not already running
 	if c.IsRunning() {
 		return "", fmt.Errorf("The container is already running")
+	}
+
+	// Generate needed device configs
+	for _, m := range c.expandedDevices {
+		switch m["type"] {
+		case "nic":
+			if m["nictype"] == "ipvlan" {
+				// Generate new interface name
+				if m["host_name"] == "" {
+					m["host_name"] = deviceGenerateInterfaceName("ipv")
+				}
+			}
+		}
 	}
 
 	// Sanity checks for devices
@@ -2304,6 +2317,90 @@ func (c *containerLXC) startCommon() (string, error) {
 				}
 
 				err := c.addInfinibandDevices(k, &ifDev, false)
+				if err != nil {
+					return "", err
+				}
+			}
+
+			// Handle IPVLAN network
+			if m["type"] == "nic" && m["nictype"] == "ipvlan" {
+				if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["parent"])) {
+					return "", fmt.Errorf("Parent network device %s does not exist", m["parent"])
+				}
+
+				// Check if IPv4 Forward is enabled on parent device, sysctl -w net.ipv4.conf.DEV.forwarding=1
+				val, err := networkSysctlGet(fmt.Sprintf("ipv4/conf/%s/forwarding", m["parent"]))
+				if err != nil {
+					return "", err
+				}
+				if val == "1" {
+					return "", fmt.Errorf("IPv4 Forward needs to be enabled for parent device, sysctl -w net.ipv4.conf.%s.forwarding=1", m["parent"])
+				}
+
+				// Check if IPv4 Proxy ARP is enabled on parent device, sysctl -w net.ipv4.conf.DEV.proxy_arp=1
+				val, err = networkSysctlGet(fmt.Sprintf("ipv4/conf/%s/proxy_arp", m["parent"]))
+				if err != nil {
+					return "", err
+				}
+				if val == "1" {
+					return "", fmt.Errorf("IPv4 Proxy ARP needs to be enabled for parent device, sysctl -w net.ipv4.conf.%s.proxy_arp=1", m["parent"])
+				}
+
+				// Check if IPv4 RP_Filter is disabled, sysctl -w net.ipv4.conf.DEV.rp_filter=0
+				val, err = networkSysctlGet(fmt.Sprintf("ipv4/conf/%s/rp_filter", m["parent"]))
+				if err != nil {
+					return "", err
+				}
+				if val == "0" {
+					return "", fmt.Errorf("IPv4 RP_Filter needs to be disabled for parent device, sysctl -w net.ipv4.conf.%s.rp_filter=0", m["parent"])
+				}
+
+				// Check IPv6 support, net.ipv6.conf.all.disable_ipv6
+				valIPv6Enabled, err := networkSysctlGet("ipv6/conf/all/disable_ipv6")
+				if err != nil {
+					return "", err
+				}
+
+				// Check IPv6 support, sysctl net.ipv6.conf.DEV.disable_ipv6
+				valIPv6EnabledOnInterface, err := networkSysctlGet(fmt.Sprintf("ipv6/conf/%s/disable_ipv6", m["parent"]))
+				if err != nil {
+					return "", err
+				}
+
+				if valIPv6Enabled == "0" && valIPv6EnabledOnInterface == "0" {
+					// Check if IPv6 Forward is enabled on parent device, sysctl -w net.ipv6.conf.DEV.forwarding=1
+					val, err = networkSysctlGet(fmt.Sprintf("ipv6/conf/%s/forwarding", m["parent"]))
+					if err != nil {
+						return "", err
+					}
+					if val != "1" {
+						return "", fmt.Errorf("IPv6 Forward needs to be enabled for parent device, sysctl -w net.ipv6.conf.%s.forwarding=1", m["parent"])
+					}
+
+					// Check if IPv6 Proxy NDP is enabled on parent device, sysctl -w net.ipv6.conf.DEV.proxy_ndp=1
+					val, err = networkSysctlGet(fmt.Sprintf("ipv6/conf/%s/proxy_ndp", m["parent"]))
+					if err != nil {
+						return "", err
+					}
+					if val != "1" {
+						return "", fmt.Errorf("IPv6 Proxy NDP needs to be enabled for parent device, sysctl -w net.ipv6.conf.%s.proxy_ndp=1", m["parent"])
+					}
+				}
+
+				// Create interface on host node
+				err = createIPVLANInterface(m["name"], m)
+				if err != nil {
+					return "", err
+				}
+
+				// Set IPVLAN interface name
+				err = lxcSetConfigItem(c.c, fmt.Sprintf("%s.%d.link", networkKeyPrefix, networkidx), m["host_name"])
+				if err != nil {
+					return "", err
+				}
+
+				// Configuring IP addresses for IPVLAN
+				err = createIPVLANConfiguration(m["name"], m)
 				if err != nil {
 					return "", err
 				}
@@ -2921,6 +3018,18 @@ func (c *containerLXC) OnStop(target string) error {
 
 		// Wait for other post-stop actions to be done
 		c.IsRunning()
+
+		// remove IPVLAN interface
+		err = c.removeIPVLANInterfaces()
+		if err != nil {
+			logger.Error("Failed to remove IPVLAN interface", log.Ctx{"container": c.Name(), "err": err})
+		}
+
+		// remove IPVLAN configuration
+		err = c.removeIPVLANConfigurations()
+		if err != nil {
+			logger.Error("Failed to unconfigure IPVLAN interface", log.Ctx{"container": c.Name(), "err": err})
+		}
 
 		// Unload the apparmor profile
 		err = AADestroy(c)
@@ -4813,6 +4922,93 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 						return err
 					}
 				}
+
+				// IPVLAN config update for IPv4
+				if shared.StringInSlice("ipv4.address", updateDiff) {
+
+					oldIPv4, ok := oldExpandedDevices[k]["ipv4.address"]
+					if !ok {
+						return errors.New("Failed to lookup old values for ipv4.address key")
+					}
+
+					newIPv4, ok := m["ipv4.address"]
+					if !ok {
+						return errors.New("Failed to lookup new values for ipv4.address key")
+					}
+
+					removedIPv4s := shared.LeftSliceDifference(
+						strings.Fields(oldIPv4),
+						strings.Fields(newIPv4),
+					)
+
+					addedIPv4s := shared.RightSliceDifference(
+						strings.Fields(oldIPv4),
+						strings.Fields(newIPv4),
+					)
+
+					if oldExpandedDevices[k]["nictype"] == "ipvlan" {
+						for _, addr := range removedIPv4s {
+							err := networkUnConfigureIPVLANAddress(addr, m["parent"])
+							if err != nil {
+								return err
+							}
+						}
+					}
+
+					if m["nictype"] == "ipvlan" {
+						for _, addr := range addedIPv4s {
+							err := networkConfigureIPVLANAddress(addr, m["parent"])
+							if err != nil {
+								return err
+							}
+						}
+					}
+
+				}
+
+				// IPVLAN config update for IPv6
+				if shared.StringInSlice("ipv6.address", updateDiff) {
+
+					oldIPv6, ok := oldExpandedDevices[k]["ipv6.address"]
+					if !ok {
+						return errors.New("Failed to lookup old values for ipv6.address key")
+					}
+
+					newIPv6, ok := m["ipv6.address"]
+					if !ok {
+						return errors.New("Failed to lookup new values for ipv6.address key")
+					}
+
+					removedIPv6s := shared.LeftSliceDifference(
+						strings.Fields(oldIPv6),
+						strings.Fields(newIPv6),
+					)
+
+					addedIPv6s := shared.RightSliceDifference(
+						strings.Fields(oldIPv6),
+						strings.Fields(newIPv6),
+					)
+
+					if oldExpandedDevices[k]["nictype"] == "ipvlan" {
+						for _, addr := range removedIPv6s {
+							err := networkUnConfigureIPVLANAddress(addr, m["parent"])
+							if err != nil {
+								return err
+							}
+						}
+					}
+
+					if m["nictype"] == "ipvlan" {
+						for _, addr := range addedIPv6s {
+							err := networkConfigureIPVLANAddress(addr, m["parent"])
+							if err != nil {
+								return err
+							}
+						}
+					}
+
+				}
+
 			} else if m["type"] == "proxy" {
 				err = c.updateProxyDevice(k, m)
 				if err != nil {
@@ -7414,7 +7610,7 @@ func (c *containerLXC) restartProxyDevices() error {
 	return nil
 }
 
-// Network device handling
+// Network device handling for "Live update"
 func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string, error) {
 	var dev, n1 string
 	var err error
@@ -7430,6 +7626,15 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 
 	if m["nictype"] == "sriov" {
 		dev = m["host_name"]
+	}
+
+	if m["nictype"] == "ipvlan" {
+		// IPVLAN NIC name in default namespace
+		if m["host_name"] != "" {
+			n1 = m["host_name"]
+		} else {
+			n1 = deviceGenerateInterfaceName("ipv")
+		}
 	}
 
 	// Handle bridged and p2p
@@ -7460,8 +7665,8 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 		dev = n2
 	}
 
-	// Handle physical and macvlan
-	if shared.StringInSlice(m["nictype"], []string{"macvlan", "physical"}) {
+	// Handle physical, macvlan, ipvlan
+	if shared.StringInSlice(m["nictype"], []string{"macvlan", "physical", "ipvlan"}) {
 		// Deal with VLAN
 		device := m["parent"]
 		if m["vlan"] != "" {
@@ -7491,10 +7696,26 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 
 			dev = n1
 		}
+
+		// Handle ipvlan
+		if m["nictype"] == "ipvlan" {
+			_, err := shared.RunCommand("ip", "link", "add", "dev", n1, "link", device, "type", "ipvlan", "mode", "l3s")
+			if err != nil {
+				return "", fmt.Errorf("Failed to create the new ipvlan interface: %s", err)
+			}
+
+			dev = n1
+
+			// Configuring IP addresses for IPVLAN
+			err = createIPVLANConfiguration(n1, m)
+			if err != nil {
+				return "", fmt.Errorf("Failed to configure the new ipvlan interface: %s", err)
+			}
+		}
 	}
 
-	// Set the MAC address
-	if m["hwaddr"] != "" {
+	// Set the MAC address, skip for IPVLAN type
+	if m["hwaddr"] != "" && m["nictype"] != "ipvlan" {
 		_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "address", m["hwaddr"])
 		if err != nil {
 			deviceRemoveInterface(dev)
@@ -7503,7 +7724,7 @@ func (c *containerLXC) createNetworkDevice(name string, m types.Device) (string,
 	}
 
 	// Bring the interface up
-	_, err := shared.RunCommand("ip", "link", "set", "dev", dev, "up")
+	_, err = shared.RunCommand("ip", "link", "set", "dev", dev, "up")
 	if err != nil {
 		deviceRemoveInterface(dev)
 		return "", fmt.Errorf("Failed to bring up the interface: %s", err)
@@ -7751,7 +7972,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 	}
 
 	// Fill in the MAC address
-	if m["nictype"] != "physical" && m["hwaddr"] == "" && m["type"] != "infiniband" {
+	if m["nictype"] != "physical" && m["hwaddr"] == "" && !shared.StringInSlice(m["type"], []string{"infiniband", "ipvlan"}) {
 		configKey := fmt.Sprintf("volatile.%s.hwaddr", name)
 		volatileHwaddr := c.localConfig[configKey]
 		if volatileHwaddr == "" {
@@ -7874,6 +8095,139 @@ func (c *containerLXC) removeNetworkFilter(hwaddr string, bridge string) error {
 	return nil
 }
 
+func createIPVLANConfiguration(name string, m types.Device) error {
+	if m["type"] == "nic" && m["nictype"] == "ipvlan" {
+		// Configure Proxy ARP
+		if val, ok := m["ipv4.address"]; ok {
+			for _, addr := range strings.Fields(val) {
+				err := networkConfigureIPVLANAddress(addr, m["parent"])
+				if err != nil {
+					return err
+				}
+			}
+		}
+		// Configure Proxy NDP
+		if val, ok := m["ipv6.address"]; ok {
+			for _, addr := range strings.Fields(val) {
+				err := networkConfigureIPVLANAddress(addr, m["parent"])
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func removeIPVLANConfiguration(name string, m types.Device) error {
+	if m["type"] == "nic" && m["nictype"] == "ipvlan" {
+		if val, ok := m["ipv4.address"]; ok {
+			for _, addr := range strings.Fields(val) {
+				err := networkUnConfigureIPVLANAddress(addr, m["parent"])
+				if err != nil {
+					return err
+				}
+			}
+		}
+		if val, ok := m["ipv6.address"]; ok {
+			for _, addr := range strings.Fields(val) {
+				err := networkUnConfigureIPVLANAddress(addr, m["parent"])
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *containerLXC) createIPVLANConfigurations() error {
+	for k, m := range c.expandedDevices {
+		err := createIPVLANConfiguration(k, m)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *containerLXC) removeIPVLANConfigurations() error {
+	for k, m := range c.expandedDevices {
+		err := removeIPVLANConfiguration(k, m)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createIPVLANInterface(name string, m types.Device) error {
+	if m["type"] == "nic" && m["nictype"] == "ipvlan" {
+		// Skip then no host name interface defined
+		if m["host_name"] == "" {
+			return nil
+		}
+		// Skip then interface exists inside default namespace
+		if shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) {
+			return nil
+		}
+		// Create IPVLAN interface inside default namespace
+		_, err := shared.RunCommand("ip", "link", "add", m["host_name"], "link", m["parent"], "type", "ipvlan", "mode", "l3s")
+		if err != nil {
+			return fmt.Errorf("Failed to create new IPVLAN interface: %s", err)
+		}
+	}
+
+	return nil
+}
+
+func removeIPVLANInterface(name string, m types.Device) error {
+	if m["type"] == "nic" {
+		// Skip then no host name interface defined
+		if m["host_name"] == "" {
+			return nil
+		}
+		// Skip then interface does no exists inside default namespace
+		if !shared.PathExists(fmt.Sprintf("/sys/class/net/%s", m["host_name"])) && m["host_name"] != "" {
+			return nil
+		}
+		// TODO: add check if this interface is IPVLAN
+		// Remove IPVLAN interface inside default namespace
+		err := deviceRemoveInterface(m["host_name"])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *containerLXC) createIPVLANInterfaces() error {
+	for k, m := range c.expandedDevices {
+		err := createIPVLANInterface(k, m)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *containerLXC) removeIPVLANInterfaces() error {
+	for k, m := range c.expandedDevices {
+		err := removeIPVLANInterface(k, m)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *containerLXC) removeNetworkFilters() error {
 	for k, m := range c.expandedDevices {
 		if m["type"] != "nic" || m["nictype"] != "bridged" {
@@ -7971,6 +8325,12 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	ifaces, err := cc.Interfaces()
 	if err != nil {
 		return fmt.Errorf("Failed to list network interfaces: %v", err)
+	}
+
+	// remove IPVLAN configuration, if exists
+	err = removeIPVLANConfiguration(name, m)
+	if err != nil {
+		return err
 	}
 
 	// Remove the interface from the container if it exists
