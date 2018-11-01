@@ -230,28 +230,29 @@ LXD supports different kind of network devices:
  - `physical`: Straight physical device passthrough from the host. The targeted device will vanish from the host and appear in the container.
  - `bridged`: Uses an existing bridge on the host and creates a virtual device pair to connect the host bridge to the container.
  - `macvlan`: Sets up a new network device based on an existing one but using a different MAC address.
+ - `ipvlan`: Sets up a new network device based on an existing one using a same MAC address.
  - `p2p`: Creates a virtual device pair, putting one side in the container and leaving the other side on the host.
  - `sriov`: Passes a virtual function of an SR-IOV enabled physical network device into the container.
 
 Different network interface types have different additional properties, the current list is:
 
-Key                     | Type      | Default           | Required  | Used by                           | API extension                          | Description
-:--                     | :--       | :--               | :--       | :--                               | :--                                    | :--
-nictype                 | string    | -                 | yes       | all                               | -                                      | The device type, one of "bridged", "macvlan", "p2p", "physical", or "sriov"
-limits.ingress          | string    | -                 | no        | bridged, p2p                      | -                                      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
-limits.egress           | string    | -                 | no        | bridged, p2p                      | -                                      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
-limits.max              | string    | -                 | no        | bridged, p2p                      | -                                      | Same as modifying both limits.ingress and limits.egress
-name                    | string    | kernel assigned   | no        | all                               | -                                      | The name of the interface inside the container
-host\_name              | string    | randomly assigned | no        | bridged, macvlan, p2p, sriov      | -                                      | The name of the interface inside the host
-hwaddr                  | string    | randomly assigned | no        | all                               | -                                      | The MAC address of the new interface
-mtu                     | integer   | parent MTU        | no        | all                               | -                                      | The MTU of the new interface
-parent                  | string    | -                 | yes       | bridged, macvlan, physical, sriov | -                                      | The name of the host device or bridge
-vlan                    | integer   | -                 | no        | macvlan, physical                 | network\_vlan, network\_vlan\_physical | The VLAN ID to attach to
-ipv4.address            | string    | -                 | no        | bridged                           | network                                | An IPv4 address to assign to the container through DHCP
-ipv6.address            | string    | -                 | no        | bridged                           | network                                | An IPv6 address to assign to the container through DHCP
-security.mac\_filtering | boolean   | false             | no        | bridged                           | network                                | Prevent the container from spoofing another's MAC address
-maas.subnet.ipv4        | string    | -                 | no        | bridged, macvlan, physical, sriov | maas\_network                          | MAAS IPv4 subnet to register the container in
-maas.subnet.ipv6        | string    | -                 | no        | bridged, macvlan, physical, sriov | maas\_network                          | MAAS IPv6 subnet to register the container in
+Key                     | Type      | Default           | Required  | Used by                                   | API extension                          | Description
+:--                     | :--       | :--               | :--       | :--                                       | :--                                    | :--
+nictype                 | string    | -                 | yes       | all                                       | -                                      | The device type, one of "bridged", "macvlan", "p2p", "physical", or "sriov"
+limits.ingress          | string    | -                 | no        | bridged, p2p                              | -                                      | I/O limit in bit/s for incoming traffic (various suffixes supported, see below)
+limits.egress           | string    | -                 | no        | bridged, p2p                              | -                                      | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
+limits.max              | string    | -                 | no        | bridged, p2p                              | -                                      | Same as modifying both limits.ingress and limits.egress
+name                    | string    | kernel assigned   | no        | all                                       | -                                      | The name of the interface inside the container
+host\_name              | string    | randomly assigned | no        | bridged, macvlan, p2p, sriov              | -                                      | The name of the interface inside the host
+hwaddr                  | string    | randomly assigned | no        | all                                       | -                                      | The MAC address of the new interface
+mtu                     | integer   | parent MTU        | no        | all                                       | -                                      | The MTU of the new interface
+parent                  | string    | -                 | yes       | bridged, ipvlan, macvlan, physical, sriov | -                                      | The name of the host device or bridge
+vlan                    | integer   | -                 | no        | macvlan, physical                         | network\_vlan, network\_vlan\_physical | The VLAN ID to attach to
+ipv4.address            | string    | -                 | no\*      | bridged, ipvlan                           | network                                | An IPv4 address to assign to the container through DHCP, for IPVLAN list of IPv4 for container (required at least one IPv4/IPv6)
+ipv6.address            | string    | -                 | no\*      | bridged, ipvlan                           | network                                | An IPv6 address to assign to the container through DHCP, for IPVLAN list of IPv4 for container (required at least one IPv4/IPv6)
+security.mac\_filtering | boolean   | false             | no        | bridged                                   | network                                | Prevent the container from spoofing another's MAC address
+maas.subnet.ipv4        | string    | -                 | no        | bridged, macvlan, physical, sriov         | maas\_network                          | MAAS IPv4 subnet to register the container in
+maas.subnet.ipv6        | string    | -                 | no        | bridged, macvlan, physical, sriov         | maas\_network                          | MAAS IPv6 subnet to register the container in
 
 #### bridged or macvlan for connection to physical network
 The `bridged` and `macvlan` interface types can both be used to connect
@@ -269,6 +270,35 @@ your containers to talk to the host itself.
 
 In such case, a bridge is preferable. A bridge will also let you use mac
 filtering and I/O limits which cannot be applied to a macvlan device.
+
+#### IPVLAN
+The `ipvlan` interface type can both be used to connect
+to an existing physical network without L2 support.
+
+This interface type is similar to `macvlan` but instead it uses parent MAC.
+This effectively saves MAC address table size of network devices.
+Also `ipvlan` in L3s mode support netfilter, so you can use iptables
+for container from hardware node.
+
+The downside to this is that `ipvlan` configuration is more cumbersome,
+lack of L2 forces you to use Proxy ARP and Proxy NDP, this issue is solved
+by LXD itself.
+
+Take notice that additional configuration on host node is required.
+For IPv4:
+  - IP Forwarding needs to be enabled:
+    `sysctl -w net.ipv4.ip_forward=1`
+  - Proxy ARP needs to be enabled for parent device:
+    `sysctl -w net.ipv4.conf.DEV.proxy_arp=1`
+  - RP_Filter needs to be disabled for parent device:
+    `sysctl -w net.ipv4.conf.DEV.rp_filter=0`
+For IPv6:
+  - IP Forwarding needs to be enabled:
+    `sysctl -w net.ipv6.conf.all.forwarding=1`
+  - Proxy NDP needs to be enabled for parent device:
+    `sysctl -w net.ipv6.conf.DEV.proxy_ndp=1`
+
+To expose IP configuration inside container LXD uses superpowers of DevLXD.
 
 #### SR-IOV
 The `sriov` interface type supports SR-IOV enabled network devices. These

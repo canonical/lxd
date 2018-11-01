@@ -40,6 +40,8 @@ authentication support in the `/dev/lxd/sock` API.
    * /1.0
      * /1.0/config
        * /1.0/config/{key}
+     * /1.0/devices
+       * /1.0/device/{key}
      * /1.0/events
      * /1.0/images/{fingerprint}/export
      * /1.0/meta-data
@@ -97,6 +99,37 @@ Return value:
 Return value:
 
     blah
+
+#### `/1.0/devices`
+##### GET
+ * Description: List of devices keys
+ * Return: list of devices keys URL
+
+Currently only `ipvlan` device keys are accessible to the container.
+
+Return value:
+
+```json
+[
+    "/1.0/device/eth0"
+]
+```
+
+#### `/1.0/device/<KEY>`
+##### GET
+ * Description: Value of that key
+ * Return: JSON multi-parameter value
+
+Return value:
+
+```json
+{
+  "ipv4.address": "80.80.90.60",
+  "ipv6.address": "2a02:2200:1:2eee:80:80:90:60",
+  "nictype": "ipvlan",
+  "type": "nic"
+}
+```
 
 #### `/1.0/events`
 ##### GET
