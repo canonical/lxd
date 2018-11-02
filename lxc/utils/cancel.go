@@ -11,7 +11,20 @@ import (
 )
 
 // CancelableWait waits for an operation and cancel it on SIGINT/SIGTERM
-func CancelableWait(op lxd.RemoteOperation, progress *ProgressRenderer) error {
+func CancelableWait(rawOp interface{}, progress *ProgressRenderer) error {
+	var op lxd.Operation
+	var rop lxd.RemoteOperation
+
+	// Check what type of operation we're dealing with
+	switch v := rawOp.(type) {
+	case lxd.Operation:
+		op = v
+	case lxd.RemoteOperation:
+		rop = v
+	default:
+		return fmt.Errorf("Invalid operation type for CancelableWait")
+	}
+
 	// Signal handling
 	chSignal := make(chan os.Signal)
 	signal.Notify(chSignal, os.Interrupt)
@@ -19,17 +32,27 @@ func CancelableWait(op lxd.RemoteOperation, progress *ProgressRenderer) error {
 	// Operation handling
 	chOperation := make(chan error)
 	go func() {
-		chOperation <- op.Wait()
+		if op != nil {
+			chOperation <- op.Wait()
+		} else {
+			chOperation <- rop.Wait()
+		}
 		close(chOperation)
 	}()
 
 	count := 0
 	for {
+		var err error
+
 		select {
 		case err := <-chOperation:
 			return err
 		case <-chSignal:
-			err := op.CancelTarget()
+			if op != nil {
+				err = op.Cancel()
+			} else {
+				err = rop.CancelTarget()
+			}
 			if err == nil {
 				return fmt.Errorf(i18n.G("Remote operation canceled by user"))
 			}
