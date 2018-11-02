@@ -464,6 +464,34 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return err
+	}
+
+	// If not already applied, run the daemon patch that shrinks the boltdb
+	// file. We can't run this daemon patch later on along with the other
+	// ones because it needs to run before we open the cluster database.
+	appliedPatches, err := d.db.Patches()
+	if err != nil {
+		return errors.Wrap(err, "Fetch applied daemon patches")
+	}
+	if !shared.StringInSlice("shrink_logs_db_file", appliedPatches) {
+		if !clustered {
+			// We actually run the patch only if this lxd daemon is
+			// not clustered.
+			err := patchShrinkLogsDBFile("", d)
+			if err != nil {
+				return errors.Wrap(err, "Shrink logs.db file")
+			}
+		}
+
+		err = d.db.PatchesMarkApplied("shrink_logs_db_file")
+		if err != nil {
+			return err
+		}
+	}
+
 	/* Setup dqlite */
 	clusterLogLevel := "ERROR"
 	if shared.StringInSlice("dqlite", trace) {
