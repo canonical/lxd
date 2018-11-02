@@ -279,6 +279,12 @@ func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
 	return c, nil
 }
 
+// SetDefaultTimeout sets the default go-dqlite driver timeout.
+func (c *Cluster) SetDefaultTimeout(timeout time.Duration) {
+	driver := c.db.Driver().(*dqlite.Driver)
+	driver.SetContextTimeout(timeout)
+}
+
 // Transaction creates a new ClusterTx object and transactionally executes the
 // cluster database interactions invoked by the given function. If the function
 // returns no error, all database changes are committed to the cluster database
