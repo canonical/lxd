@@ -84,6 +84,11 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 
 		size, err := shared.DownloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)
 		if err != nil {
+			// Handle cancelation
+			if err.Error() == "net/http: request canceled" {
+				return -1, err
+			}
+
 			// Try over https
 			url = fmt.Sprintf("%s/%s", r.httpHost, path)
 			size, err = shared.DownloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)

@@ -189,11 +189,14 @@ func (c *cmdAction) doAction(action string, conf *config.Config, nameArg string)
 		return err
 	}
 
-	err = op.Wait()
-	progress.Done("")
+	// Wait for operation to finish
+	err = utils.CancelableWait(op, &progress)
 	if err != nil {
+		progress.Done("")
 		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, nameArg)
 	}
+
+	progress.Done("")
 
 	return nil
 }

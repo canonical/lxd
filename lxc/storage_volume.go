@@ -431,7 +431,8 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = op.Wait()
+	// Wait for operation to finish
+	err = utils.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err
