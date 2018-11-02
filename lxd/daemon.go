@@ -529,17 +529,32 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return err
+	}
+
 	/* Open the cluster database */
 	for {
 		logger.Info("Initializing global database")
 		dir := filepath.Join(d.os.VarDir, "database")
 		store := d.gateway.ServerStore()
+
+		contextTimeout := 5 * time.Second
+		if !clustered {
+			// FIXME: this is a workaround for #5234. We set a very
+			// high timeout when we're not clustered, since there's
+			// actually no networking involved.
+			contextTimeout = time.Minute
+		}
+
 		d.cluster, err = db.OpenCluster(
 			"db.bin", store, address, dir,
 			d.config.DqliteSetupTimeout,
 			dqlite.WithDialFunc(d.gateway.DialFunc()),
 			dqlite.WithContext(d.gateway.Context()),
 			dqlite.WithConnectionTimeout(10*time.Second),
+			dqlite.WithContextTimeout(contextTimeout),
 			dqlite.WithLogFunc(cluster.DqliteLog),
 		)
 		if err == nil {
@@ -597,11 +612,6 @@ func (d *Daemon) init() error {
 	}
 
 	// Setup the user-agent
-	clustered, err := cluster.Enabled(d.db)
-	if err != nil {
-		return err
-	}
-
 	if clustered {
 		version.UserAgentFeatures([]string{"cluster"})
 	}
