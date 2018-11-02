@@ -323,7 +323,7 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 	}
 
 	// Wait for the copy to complete
-	err = op.Wait()
+	err = utils.CancelableWait(op, &progress)
 	if err != nil {
 		progress.Done("")
 		return err
