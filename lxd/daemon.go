@@ -606,7 +606,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Setup the user-agent
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err = cluster.Enabled(d.db)
 	if err != nil {
 		return err
 	}
