@@ -81,10 +81,27 @@ func containerBackupsPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	req := api.ContainerBackupsPost{
-		ExpiryDate: time.Now().Add(30 * time.Minute), // default expiry time of 30 minutes
+	rj := shared.Jmap{}
+	err = json.NewDecoder(r.Body).Decode(&rj)
+	if err != nil {
+		return InternalError(err)
 	}
-	err = json.NewDecoder(r.Body).Decode(&req)
+
+	expiry, _ := rj.GetString("expiry")
+	if expiry == "" {
+		// Disable expiration by setting it to zero time
+		rj["expiry"] = time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	// Create body with correct expiry
+	body, err := json.Marshal(rj)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	req := api.ContainerBackupsPost{}
+
+	err = json.Unmarshal(body, &req)
 	if err != nil {
 		return BadRequest(err)
 	}
