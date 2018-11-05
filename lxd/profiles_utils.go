@@ -216,6 +216,7 @@ func doProfileUpdateContainer(d *Daemon, name string, old api.ProfilePut, nodeNa
 		Devices:      c.LocalDevices(),
 		Ephemeral:    c.IsEphemeral(),
 		Profiles:     c.Profiles(),
+		Project:      c.Project(),
 	}, true)
 }
 
