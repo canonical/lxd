@@ -277,6 +277,8 @@ import (
 	"os"
 	"strings"
 	"unsafe"
+
+	"github.com/pkg/errors"
 )
 
 // LoFlagsAutoclear determines whether the loop device will autodestruct on last
@@ -307,9 +309,10 @@ func prepareLoopDev(source string, flags int) (*os.File, error) {
 	loopFd, err := C.prepare_loop_dev(cSource, (*C.char)(cLoopDev), C.int(flags))
 	if loopFd < 0 {
 		if err != nil {
-			return nil, fmt.Errorf("Failed to prepare loop device: %s", err)
+			return nil, errors.Wrapf(err, "Failed to prepare loop device for %q", source)
 		}
-		return nil, fmt.Errorf("Failed to prepare loop device")
+
+		return nil, fmt.Errorf("Failed to prepare loop device for %q", source)
 	}
 
 	return os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev))), nil
