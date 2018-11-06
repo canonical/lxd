@@ -136,6 +136,7 @@ func containerStatePut(d *Daemon, r *http.Request) Response {
 					Devices:      c.LocalDevices(),
 					Ephemeral:    false,
 					Profiles:     c.Profiles(),
+					Project:      c.Project(),
 				}
 
 				err := c.Update(args, false)
