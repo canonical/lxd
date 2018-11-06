@@ -3292,6 +3292,7 @@ func (c *containerLXC) Restore(sourceContainer container, stateful bool) error {
 		Devices:      sourceContainer.LocalDevices(),
 		Ephemeral:    sourceContainer.IsEphemeral(),
 		Profiles:     sourceContainer.Profiles(),
+		Project:      sourceContainer.Project(),
 	}
 
 	err = c.Update(args, false)
@@ -3726,13 +3727,13 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 	c.localConfig[key] = value
 
 	args := db.ContainerArgs{
-		Project:      c.project,
 		Architecture: c.architecture,
 		Config:       c.localConfig,
 		Description:  c.description,
 		Devices:      c.localDevices,
 		Ephemeral:    c.ephemeral,
 		Profiles:     c.profiles,
+		Project:      c.project,
 	}
 
 	err := c.Update(args, false)
