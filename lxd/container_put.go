@@ -68,6 +68,7 @@ func containerPut(d *Daemon, r *http.Request) Response {
 				Devices:      configRaw.Devices,
 				Ephemeral:    configRaw.Ephemeral,
 				Profiles:     configRaw.Profiles,
+				Project:      project,
 			}
 
 			// FIXME: should set to true when not migrating
