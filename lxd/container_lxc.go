@@ -3977,6 +3977,13 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		}
 	}
 
+	// Check for pool change
+	oldRootDiskDevicePool := oldExpandedDevices[oldRootDiskDeviceKey]["pool"]
+	newRootDiskDevicePool := c.expandedDevices[newRootDiskDeviceKey]["pool"]
+	if oldRootDiskDevicePool != newRootDiskDevicePool {
+		return fmt.Errorf("The storage pool of the root disk can only be changed through move")
+	}
+
 	// Deal with quota changes
 	oldRootDiskDeviceSize := oldExpandedDevices[oldRootDiskDeviceKey]["size"]
 	newRootDiskDeviceSize := c.expandedDevices[newRootDiskDeviceKey]["size"]
