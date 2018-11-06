@@ -191,7 +191,7 @@ on_error:
 	return fd_tmp;
 }
 
-int prepare_loop_dev(const char *source, char *loop_dev, int flags)
+static int prepare_loop_dev(const char *source, char *loop_dev, int flags)
 {
 	int ret;
 	struct loop_info64 lo64;
@@ -232,6 +232,19 @@ on_error:
 	}
 
 	return fd_loop;
+}
+
+static inline int prepare_loop_dev_retry(const char *source, char *loop_dev, int flags)
+{
+	int ret;
+	unsigned int idx = 0;
+
+	do {
+		ret = prepare_loop_dev(source, loop_dev, flags);
+		idx++;
+	} while (ret < 0 && errno == EBUSY && idx < 30);
+
+	return ret;
 }
 
 // Note that this does not guarantee to clear the loop device in time so that
@@ -304,7 +317,7 @@ func prepareLoopDev(source string, flags int) (*os.File, error) {
 		return os.NewFile(uintptr(loopFd), C.GoString((*C.char)(cLoopDev))), nil
 	}
 
-	loopFd, err := C.prepare_loop_dev(cSource, (*C.char)(cLoopDev), C.int(flags))
+	loopFd, err := C.prepare_loop_dev_retry(cSource, (*C.char)(cLoopDev), C.int(flags))
 	if loopFd < 0 {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to prepare loop device: %s", err)
