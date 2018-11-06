@@ -120,6 +120,7 @@ func containerPatch(d *Daemon, r *http.Request) Response {
 		Devices:      req.Devices,
 		Ephemeral:    req.Ephemeral,
 		Profiles:     req.Profiles,
+		Project:      project,
 	}
 
 	err = c.Update(args, false)
