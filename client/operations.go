@@ -83,11 +83,6 @@ func (op *operation) RemoveHandler(target *EventTarget) error {
 
 // Refresh pulls the current version of the operation and updates the struct
 func (op *operation) Refresh() error {
-	// Don't bother with a manual update if we are listening for events
-	if op.handlerReady {
-		return nil
-	}
-
 	// Get the current version of the operation
 	newOp, _, err := op.r.GetOperation(op.ID)
 	if err != nil {
@@ -136,6 +131,7 @@ func (op *operation) setupListener() error {
 	if op.handlerReady {
 		return nil
 	}
+	op.handlerReady = true
 
 	// Get a new listener
 	if op.listener == nil {
@@ -156,14 +152,14 @@ func (op *operation) setupListener() error {
 		op.handlerLock.Lock()
 		defer op.handlerLock.Unlock()
 
-		// Get an operation struct out of this data
-		newOp := op.extractOperation(data)
-		if newOp == nil {
+		// Check if we're done already (because of another event)
+		if op.listener == nil {
 			return
 		}
 
-		// Check if we're done already (because of another event)
-		if op.listener == nil {
+		// Get an operation struct out of this data
+		newOp := op.extractOperation(data)
+		if newOp == nil {
 			return
 		}
 
@@ -232,8 +228,6 @@ func (op *operation) setupListener() error {
 		op.listener.Disconnect()
 		op.listener = nil
 		close(op.chActive)
-
-		op.handlerReady = true
 		close(chReady)
 
 		if op.Err != "" {
@@ -244,7 +238,6 @@ func (op *operation) setupListener() error {
 	}
 
 	// Start processing background updates
-	op.handlerReady = true
 	close(chReady)
 
 	return nil
