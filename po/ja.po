@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-11-08 14:12-0500\n"
+"POT-Creation-Date: 2018-11-08 15:23-0500\n"
 "PO-Revision-Date: 2018-10-12 14:44+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -188,10 +188,14 @@ msgstr "'%s' はサポートされないタイプのファイルです"
 msgid "(none)"
 msgstr ""
 
-#: lxc/copy.go:139
+#: lxc/copy.go:144
 #, fuzzy
 msgid "--container-only can't be passed when the source is a snapshot"
 msgstr "--container-only と --target は同時に指定できません"
+
+#: lxc/copy.go:155
+msgid "--refresh can only be used with containers"
+msgstr ""
 
 #: lxc/alias.go:127 lxc/image.go:935 lxc/image_alias.go:228
 msgid "ALIAS"
@@ -332,7 +336,7 @@ msgstr "バックアップのエクスポートが成功しました!"
 msgid "Bad key/value pair: %s"
 msgstr "不適切なキー/値のペア: %s"
 
-#: lxc/copy.go:112 lxc/init.go:124 lxc/project.go:122 lxc/publish.go:175
+#: lxc/copy.go:115 lxc/init.go:124 lxc/project.go:122 lxc/publish.go:175
 #: lxc/storage.go:123 lxc/storage_volume.go:506
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -343,7 +347,7 @@ msgstr "不適切な キー=値 のペア: %s"
 msgid "Bad property: %s"
 msgstr "不正なイメージプロパティ形式: %s"
 
-#: lxc/copy.go:123
+#: lxc/copy.go:126
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -454,7 +458,7 @@ msgstr "クライアント証明書がサーバに格納されました: "
 msgid "Client version: %s\n"
 msgstr "クライアントバージョン: %s\n"
 
-#: lxc/copy.go:49 lxc/init.go:48 lxc/move.go:57 lxc/network.go:259
+#: lxc/copy.go:51 lxc/init.go:48 lxc/move.go:57 lxc/network.go:259
 #: lxc/network.go:674 lxc/network.go:1037 lxc/network.go:1106
 #: lxc/network.go:1168 lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:581
 #: lxc/storage.go:654 lxc/storage.go:737 lxc/storage_volume.go:307
@@ -490,7 +494,7 @@ msgstr ""
 "LXD の機能のすべてが、以下の色々なコマンドから操作できます。\n"
 "コマンドのヘルプは、--help をコマンドに付けて実行するだけです。"
 
-#: lxc/copy.go:41 lxc/init.go:42
+#: lxc/copy.go:43 lxc/init.go:42
 msgid "Config key/value to apply to the new container"
 msgstr "新しいコンテナに適用するキー/値の設定"
 
@@ -517,7 +521,7 @@ msgstr "コンソールログ:"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:353 lxc/init.go:239
+#: lxc/copy.go:397 lxc/init.go:239
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -527,7 +531,7 @@ msgstr "コンテナ名: %s"
 msgid "Container published with fingerprint: %s"
 msgstr "コンテナは以下のフィンガープリントで publish されます: %s"
 
-#: lxc/copy.go:47 lxc/move.go:55
+#: lxc/copy.go:49 lxc/move.go:55
 msgid "Copy a stateful container stateless"
 msgstr "ステートフルなコンテナをステートレスにコピーします"
 
@@ -535,7 +539,7 @@ msgstr "ステートフルなコンテナをステートレスにコピーしま
 msgid "Copy aliases from source"
 msgstr "ソースからエイリアスをコピーしました"
 
-#: lxc/copy.go:36 lxc/copy.go:37
+#: lxc/copy.go:38 lxc/copy.go:39
 msgid "Copy containers within or in between LXD instances"
 msgstr "LXD インスタンス内に、またはインスタンス間でコンテナをコピーします"
 
@@ -567,7 +571,7 @@ msgstr "プロファイルをコピーします"
 msgid "Copy storage volumes"
 msgstr "ストレージボリュームをコピーします"
 
-#: lxc/copy.go:46
+#: lxc/copy.go:48
 msgid "Copy the container without its snapshots"
 msgstr "コンテナをコピーします (スナップショットはコピーしません)"
 
@@ -645,7 +649,7 @@ msgstr "プロジェクトを作成します"
 msgid "Create storage pools"
 msgstr "ストレージプールを作成します"
 
-#: lxc/copy.go:50 lxc/init.go:49
+#: lxc/copy.go:52 lxc/init.go:49
 msgid "Create the container with no profiles applied"
 msgstr "プロファイルを適用しないコンテナを作成します"
 
@@ -738,7 +742,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_template.go:152 lxc/config_template.go:236
 #: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
 #: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
-#: lxc/copy.go:37 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:31
+#: lxc/copy.go:39 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:31
 #: lxc/file.go:42 lxc/file.go:75 lxc/file.go:124 lxc/file.go:187
 #: lxc/file.go:377 lxc/image.go:42 lxc/image.go:131 lxc/image.go:265
 #: lxc/image.go:316 lxc/image.go:439 lxc/image.go:579 lxc/image.go:789
@@ -919,7 +923,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "環境変数を設定します (例: HOME=/home/foo)"
 
-#: lxc/copy.go:44 lxc/init.go:44
+#: lxc/copy.go:46 lxc/init.go:44
 msgid "Ephemeral container"
 msgstr "Ephemeral コンテナ"
 
@@ -1021,7 +1025,7 @@ msgstr "クラスタメンバへの接続に失敗しました"
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
 
-#: lxc/copy.go:348
+#: lxc/copy.go:392
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナ名が取得できません"
 
@@ -1904,7 +1908,7 @@ msgstr "新しいエイリアスを定義する"
 msgid "New aliases to add to the image"
 msgstr "イメージに新しいエイリアスを追加します"
 
-#: lxc/copy.go:42 lxc/move.go:50
+#: lxc/copy.go:44 lxc/move.go:50
 msgid "New key/value to apply to a specific device"
 msgstr "指定するデバイスに適用する新しいキー/値"
 
@@ -1999,6 +2003,10 @@ msgstr "%s のパスワード: "
 msgid "Pause containers"
 msgstr "コンテナを一時停止します"
 
+#: lxc/copy.go:53
+msgid "Perform an incremental copy"
+msgstr ""
+
 #: lxc/info.go:146
 #, c-format
 msgid "Pid: %d"
@@ -2070,7 +2078,7 @@ msgstr "プロファイル %s が %s から削除されました"
 msgid "Profile %s renamed to %s"
 msgstr "プロファイル名 %s を %s に変更しました"
 
-#: lxc/copy.go:43 lxc/init.go:43
+#: lxc/copy.go:45 lxc/init.go:43
 msgid "Profile to apply to the new container"
 msgstr "新しいコンテナに適用するプロファイル"
 
@@ -2145,6 +2153,11 @@ msgstr "再帰的にファイルを転送します"
 #: lxc/image.go:1231 lxc/image.go:1232
 msgid "Refresh images"
 msgstr "イメージを更新します"
+
+#: lxc/copy.go:362
+#, fuzzy, c-format
+msgid "Refreshing container: %s"
+msgstr "コンテナのインポート中: %s"
 
 #: lxc/image.go:1260
 #, c-format
@@ -2584,7 +2597,7 @@ msgstr "ストレージプール %s を削除しました"
 msgid "Storage pool %s pending on member %s"
 msgstr "ストレージプール %s はメンバ %s 上でペンディング状態です"
 
-#: lxc/copy.go:48 lxc/init.go:46 lxc/move.go:56
+#: lxc/copy.go:50 lxc/init.go:46 lxc/move.go:56
 msgid "Storage pool name"
 msgstr "ストレージプール名"
 
@@ -2736,7 +2749,7 @@ msgstr ""
 "初めてコンテナを起動するには、\"lxc launch ubuntu:18.04\" と実行してみてくだ"
 "さい"
 
-#: lxc/copy.go:105
+#: lxc/copy.go:108
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 " --target オプションは、コピー先のリモートサーバがクラスタに属していなければ"
@@ -2746,7 +2759,7 @@ msgstr ""
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)"
 
-#: lxc/copy.go:45
+#: lxc/copy.go:47
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)"
 
@@ -2754,7 +2767,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
-#: lxc/copy.go:319
+#: lxc/copy.go:331
 #, c-format
 msgid "Transferring container: %s"
 msgstr "コンテナを転送中: %s"
@@ -2892,11 +2905,11 @@ msgstr "-t と -T は同時に指定できません"
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "--mode と同時に -t または -T は指定できません"
 
-#: lxc/copy.go:77
+#: lxc/copy.go:80
 msgid "You must specify a destination container name when using --target"
 msgstr "--target オプションを使うときはコピー先のコンテナ名を指定してください"
 
-#: lxc/copy.go:72 lxc/move.go:203
+#: lxc/copy.go:75 lxc/move.go:203
 msgid "You must specify a source container name"
 msgstr "コピー元のコンテナ名を指定してください"
 
@@ -2972,7 +2985,7 @@ msgstr ""
 msgid "copy [<remote>:]<profile> [<remote>:]<profile>"
 msgstr ""
 
-#: lxc/copy.go:34
+#: lxc/copy.go:36
 msgid "copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr ""
 
