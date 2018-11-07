@@ -192,9 +192,13 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 		// FIXME: this is a workaround for #5234.
 		d.cluster.SetDefaultTimeout(5 * time.Second)
 
+		// Start clustering tasks
+		d.startClusterTasks()
+
 		err := cluster.Bootstrap(d.State(), d.gateway, req.ServerName)
 		if err != nil {
 			d.cluster.SetDefaultTimeout(time.Minute)
+			d.stopClusterTasks()
 			return err
 		}
 
@@ -369,9 +373,13 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		// FIXME: this is a workaround for #5234.
 		d.cluster.SetDefaultTimeout(5 * time.Second)
 
+		// Start clustering tasks
+		d.startClusterTasks()
+
 		err = cluster.Join(d.State(), d.gateway, cert, req.ServerName, nodes)
 		if err != nil {
 			d.cluster.SetDefaultTimeout(time.Minute)
+			d.stopClusterTasks()
 			return err
 		}
 
@@ -506,6 +514,9 @@ func clusterPutDisable(d *Daemon) Response {
 	if err != nil {
 		return SmartError(err)
 	}
+
+	// Stop the clustering tasks
+	d.stopClusterTasks()
 
 	// Remove the cluster flag from the agent
 	version.UserAgentFeatures(nil)

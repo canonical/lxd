@@ -54,11 +54,12 @@ type Daemon struct {
 	readyChan    chan struct{} // Closed when LXD is fully ready
 	shutdownChan chan struct{}
 
-	// Tasks registry for long-running background tasks.
-	tasks task.Group
+	// Tasks registry for long-running background tasks
+	// Keep clustering tasks separate as they cause a lot of CPU wakeups
+	tasks        task.Group
+	clusterTasks task.Group
 
-	// Indexes of tasks that need to be reset when their execution interval
-	// changes.
+	// Indexes of tasks that need to be reset when their execution interval changes
 	taskPruneImages *task.Task
 	taskAutoUpdate  *task.Task
 
@@ -665,9 +666,6 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	/* Log expiry */
-	d.tasks.Add(expireLogsTask(d.State()))
-
 	// Cleanup leftover images
 	pruneLeftoverImages(d)
 
@@ -763,15 +761,35 @@ func (d *Daemon) init() error {
 	return nil
 }
 
+func (d *Daemon) startClusterTasks() {
+	// Heartbeats
+	d.clusterTasks.Add(cluster.Heartbeat(d.gateway, d.cluster))
+
+	// Events
+	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, eventForward))
+
+	// Cluster update trigger
+	d.clusterTasks.Add(cluster.KeepUpdated(d.State()))
+
+	// Start all background tasks
+	d.clusterTasks.Start()
+}
+
+func (d *Daemon) stopClusterTasks() {
+	d.clusterTasks.Stop(3 * time.Second)
+	d.clusterTasks = task.Group{}
+}
+
 func (d *Daemon) Ready() error {
-	/* Heartbeats */
-	d.tasks.Add(cluster.Heartbeat(d.gateway, d.cluster))
+	// Check if clustered
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return err
+	}
 
-	/* Events */
-	d.tasks.Add(cluster.Events(d.endpoints, d.cluster, eventForward))
-
-	/* Cluster update trigger */
-	d.tasks.Add(cluster.KeepUpdated(d.State()))
+	if clustered {
+		d.startClusterTasks()
+	}
 
 	// FIXME: There's no hard reason for which we should not run these
 	//        tasks in mock mode. However it requires that we tweak them so
@@ -780,28 +798,35 @@ func (d *Daemon) Ready() error {
 	//        for proper cancellation is something that has been started
 	//        but has not been fully completed.
 	if !d.os.MockMode {
+		// Log expiry (daily)
+		d.tasks.Add(expireLogsTask(d.State()))
+
+		// Remove expired images (daily)
 		d.taskPruneImages = d.tasks.Add(pruneExpiredImagesTask(d))
 
-		/* Auto-update images */
+		// Auto-update images (every 6 hours, configurable)
 		d.taskAutoUpdate = d.tasks.Add(autoUpdateImagesTask(d))
 
-		/* Auto-update instance types */
+		// Auto-update instance types (daily)
 		d.tasks.Add(instanceRefreshTypesTask(d))
 
-		// Remove expired container backups
+		// Remove expired container backups (hourly)
 		d.tasks.Add(pruneExpiredContainerBackupsTask(d))
 	}
 
+	// Start all background tasks
 	d.tasks.Start()
 
+	// Get daemon state struct
 	s := d.State()
 
-	/* Restore containers */
+	// Restore containers
 	containersRestart(s)
 
-	/* Re-balance in case things changed while LXD was down */
+	// Re-balance in case things changed while LXD was down
 	deviceTaskBalance(s)
 
+	// Unblock incoming requests
 	close(d.readyChan)
 
 	return nil
@@ -846,7 +871,8 @@ func (d *Daemon) Stop() error {
 		trackError(d.endpoints.Down())
 	}
 
-	trackError(d.tasks.Stop(3 * time.Second)) // Give tasks a bit of time to cleanup.
+	trackError(d.tasks.Stop(3 * time.Second))        // Give tasks a bit of time to cleanup.
+	trackError(d.clusterTasks.Stop(3 * time.Second)) // Give tasks a bit of time to cleanup.
 
 	shouldUnmount := false
 	if d.cluster != nil {
