@@ -3740,10 +3740,17 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		return errors.Wrap(err, "Failed to get project profiles")
 	}
 
-	for _, name := range args.Profiles {
-		if !shared.StringInSlice(name, profiles) {
-			return fmt.Errorf("Profile doesn't exist: %s", name)
+	checkedProfiles := []string{}
+	for _, profile := range args.Profiles {
+		if !shared.StringInSlice(profile, profiles) {
+			return fmt.Errorf("Requested profile '%s' doesn't exist", profile)
 		}
+
+		if shared.StringInSlice(profile, checkedProfiles) {
+			return fmt.Errorf("Duplicate profile found in request")
+		}
+
+		checkedProfiles = append(checkedProfiles, profile)
 	}
 
 	// Validate the new architecture
