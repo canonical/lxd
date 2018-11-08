@@ -135,6 +135,10 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 
 	var op lxd.RemoteOperation
 	if shared.IsSnapshot(sourceName) {
+		if containerOnly {
+			return fmt.Errorf(i18n.G("--container-only can't be passed when the source is a snapshot"))
+		}
+
 		// Prepare the container creation request
 		args := lxd.ContainerSnapshotCopyArgs{
 			Name: destName,
