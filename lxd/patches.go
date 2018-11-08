@@ -67,6 +67,7 @@ var patches = []patch{
 	{name: "candid_rename_config_key", run: patchCandidConfigKey},
 	{name: "move_backups", run: patchMoveBackups},
 	{name: "storage_api_rename_container_snapshots_dir", run: patchStorageApiRenameContainerSnapshotsDir},
+	{name: "storage_api_rename_container_snapshots_links", run: patchStorageApiUpdateContainerSnapshots},
 }
 
 type patch struct {
@@ -3209,6 +3210,53 @@ func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
 				continue
 			}
 
+			return err
+		}
+	}
+
+	return nil
+}
+
+func patchStorageApiUpdateContainerSnapshots(name string, d *Daemon) error {
+	snapshotLinksDir, err := os.Open(shared.VarPath("snapshots"))
+	if err != nil {
+		return err
+	}
+	defer snapshotLinksDir.Close()
+
+	// Get a list of all symlinks
+	snapshotLinks, err := snapshotLinksDir.Readdirnames(-1)
+	snapshotLinksDir.Close()
+	if err != nil {
+		return err
+	}
+
+	for _, linkName := range snapshotLinks {
+		targetName, err := os.Readlink(shared.VarPath("snapshots", linkName))
+		if err != nil {
+			return err
+		}
+
+		targetFields := strings.Split(targetName, "/")
+
+		if len(targetFields) < 4 {
+			continue
+		}
+
+		if targetFields[len(targetFields)-2] != "snapshots" {
+			continue
+		}
+
+		targetFields[len(targetFields)-2] = "containers-snapshots"
+		newTargetName := strings.Join(targetFields, "/")
+
+		err = os.Remove(shared.VarPath("snapshots", linkName))
+		if err != nil {
+			return err
+		}
+
+		err = os.Symlink(newTargetName, shared.VarPath("snapshots", linkName))
+		if err != nil {
 			return err
 		}
 	}
