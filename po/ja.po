@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-11-06 23:44-0500\n"
+"POT-Creation-Date: 2018-11-08 14:12-0500\n"
 "PO-Revision-Date: 2018-10-12 14:44+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -187,6 +187,11 @@ msgstr "'%s' はサポートされないタイプのファイルです"
 #: lxc/profile.go:224
 msgid "(none)"
 msgstr ""
+
+#: lxc/copy.go:139
+#, fuzzy
+msgid "--container-only can't be passed when the source is a snapshot"
+msgstr "--container-only と --target は同時に指定できません"
 
 #: lxc/alias.go:127 lxc/image.go:935 lxc/image_alias.go:228
 msgid "ALIAS"
@@ -512,7 +517,7 @@ msgstr "コンソールログ:"
 msgid "Container name is mandatory"
 msgstr "コンテナ名を指定する必要があります"
 
-#: lxc/copy.go:349 lxc/init.go:239
+#: lxc/copy.go:353 lxc/init.go:239
 #, c-format
 msgid "Container name is: %s"
 msgstr "コンテナ名: %s"
@@ -1016,7 +1021,7 @@ msgstr "クラスタメンバへの接続に失敗しました"
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
 
-#: lxc/copy.go:344
+#: lxc/copy.go:348
 msgid "Failed to get the new container name"
 msgstr "新しいコンテナ名が取得できません"
 
@@ -2749,7 +2754,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
-#: lxc/copy.go:315
+#: lxc/copy.go:319
 #, c-format
 msgid "Transferring container: %s"
 msgstr "コンテナを転送中: %s"
