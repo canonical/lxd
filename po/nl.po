@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-11-06 23:44-0500\n"
+"POT-Creation-Date: 2018-11-08 14:12-0500\n"
 "PO-Revision-Date: 2018-09-24 23:21+0000\n"
 "Last-Translator: idef1x <sjoerd@sjomar.eu>\n"
 "Language-Team: Dutch <https://hosted.weblate.org/projects/linux-containers/"
@@ -212,6 +212,10 @@ msgstr ""
 
 #: lxc/profile.go:224
 msgid "(none)"
+msgstr ""
+
+#: lxc/copy.go:139
+msgid "--container-only can't be passed when the source is a snapshot"
 msgstr ""
 
 #: lxc/alias.go:127 lxc/image.go:935 lxc/image_alias.go:228
@@ -526,7 +530,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:349 lxc/init.go:239
+#: lxc/copy.go:353 lxc/init.go:239
 #, c-format
 msgid "Container name is: %s"
 msgstr ""
@@ -997,7 +1001,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:344
+#: lxc/copy.go:348
 msgid "Failed to get the new container name"
 msgstr ""
 
@@ -2596,7 +2600,7 @@ msgstr ""
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:315
+#: lxc/copy.go:319
 #, c-format
 msgid "Transferring container: %s"
 msgstr ""
