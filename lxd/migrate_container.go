@@ -670,13 +670,12 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 
 func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:       migrationFields{container: args.Container, containerOnly: args.ContainerOnly},
-		dest:      migrationFields{containerOnly: args.ContainerOnly},
-		url:       args.Url,
-		dialer:    args.Dialer,
-		push:      args.Push,
-		rsyncArgs: args.RsyncArgs,
-		refresh:   args.Refresh,
+		src:     migrationFields{container: args.Container, containerOnly: args.ContainerOnly},
+		dest:    migrationFields{containerOnly: args.ContainerOnly},
+		url:     args.Url,
+		dialer:  args.Dialer,
+		push:    args.Push,
+		refresh: args.Refresh,
 	}
 
 	if sink.push {
@@ -785,6 +784,20 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 		return err
 	}
 
+	// Handle rsync options
+	c.rsyncArgs = []string{}
+	rsyncFeatures := header.GetRsyncFeatures()
+	if rsyncFeatures.GetXattrs() {
+		c.rsyncArgs = append(c.rsyncArgs, "--xattrs")
+	}
+	if rsyncFeatures.GetDelete() {
+		c.rsyncArgs = append(c.rsyncArgs, "--delete")
+	}
+	if rsyncFeatures.GetCompress() {
+		c.rsyncArgs = append(c.rsyncArgs, "--compress")
+		c.rsyncArgs = append(c.rsyncArgs, "--compress-level=2")
+	}
+
 	live := c.src.live
 	if c.push {
 		live = c.dest.live
@@ -805,15 +818,9 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}
 
 	myType := c.src.container.Storage().MigrationType()
-	rsyncHasFeature := true
 	resp := migration.MigrationHeader{
-		Fs:   &myType,
-		Criu: criuType,
-		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:   &rsyncHasFeature,
-			Delete:   &rsyncHasFeature,
-			Compress: &rsyncHasFeature,
-		},
+		Fs:            &myType,
+		Criu:          criuType,
 		Snapshots:     header.Snapshots,
 		SnapshotNames: header.SnapshotNames,
 		Refresh:       &c.refresh,
@@ -931,21 +938,8 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			}
 
 			args := MigrationSinkArgs{
-				Refresh: c.refresh,
-			}
-			rsyncFeatures := header.GetRsyncFeatures()
-
-			// Handle rsync options
-			args.RsyncArgs = []string{}
-			if rsyncFeatures.GetXattrs() {
-				args.RsyncArgs = append(args.RsyncArgs, "--xattrs")
-			}
-			if rsyncFeatures.GetDelete() {
-				args.RsyncArgs = append(args.RsyncArgs, "--delete")
-			}
-			if rsyncFeatures.GetCompress() {
-				args.RsyncArgs = append(args.RsyncArgs, "--compress")
-				args.RsyncArgs = append(args.RsyncArgs, "--compress-level=2")
+				Refresh:   c.refresh,
+				RsyncArgs: c.rsyncArgs,
 			}
 
 			err = mySink(sendFinalFsDelta, c.src.container,
