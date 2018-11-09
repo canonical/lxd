@@ -34,15 +34,16 @@ root    | hard  | nofile  | 1048576   | unset     | maximum number of open files
 
 ### /etc/sysctl.conf
 
-Parameter                       | Value     | Default | Description
-:-----                          | :---      | :---    | :---
-fs.inotify.max\_queued\_events  | 1048576   | 16384   | This specifies an upper limit on the number of events that can be queued to the corresponding inotify instance. [1]
-fs.inotify.max\_user\_instances | 1048576   | 128     | This specifies an upper limit on the number of inotify instances that can be created per real user ID. [1]
-fs.inotify.max\_user\_watches   | 1048576   | 8192    | This specifies an upper limit on the number of watches that can be created per real user ID. [1]
-vm.max\_map\_count              | 262144    | 65530   | This file contains the maximum number of memory map areas a process may have. Memory map areas are used as a side-effect of calling malloc, directly by mmap and mprotect, and also when loading shared libraries.
-kernel.dmesg\_restrict          | 1         | 0       | This denies container access to the messages in the kernel ring buffer. Please note that this also will deny access to non-root users on the host system.
-net.ipv4.neigh.default.gc_thresh3| 8192     | 1024    | This is the maximum number of entries in ARP table (IPv4). You should increase this if you create over 1024 containers. Otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and those containers will not be able to get a network configuration. [2]
-net.ipv6.neigh.default.gc_thresh3| 8192     | 1024    | This is the maximum number of entries in ARP table (IPv6). You should increase this if you plan to create over 1024 containers. Otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and those containers will not be able to get a network configuration. [2]
+Parameter                           | Value     | Default | Description
+:-----                              | :---      | :---    | :---
+fs.inotify.max\_queued\_events      | 1048576   | 16384   | This specifies an upper limit on the number of events that can be queued to the corresponding inotify instance. [1]
+fs.inotify.max\_user\_instances     | 1048576   | 128     | This specifies an upper limit on the number of inotify instances that can be created per real user ID. [1]
+fs.inotify.max\_user\_watches       | 1048576   | 8192    | This specifies an upper limit on the number of watches that can be created per real user ID. [1]
+vm.max\_map\_count                  | 262144    | 65530   | This file contains the maximum number of memory map areas a process may have. Memory map areas are used as a side-effect of calling malloc, directly by mmap and mprotect, and also when loading shared libraries.
+kernel.dmesg\_restrict              | 1         | 0       | This denies container access to the messages in the kernel ring buffer. Please note that this also will deny access to non-root users on the host system.
+net.ipv4.neigh.default.gc\_thresh3  | 8192      | 1024    | This is the maximum number of entries in ARP table (IPv4). You should increase this if you create over 1024 containers. Otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and those containers will not be able to get a network configuration. [2]
+net.ipv6.neigh.default.gc\_thresh3  | 8192      | 1024    | This is the maximum number of entries in ARP table (IPv6). You should increase this if you plan to create over 1024 containers. Otherwise, you will get the error `neighbour: ndisc_cache: neighbor table overflow!` when the ARP table gets full and those containers will not be able to get a network configuration. [2]
+kernel.keys.maxkeys                 | 2000      | 200     | This is the maximum number of keys a non-root user can use, should be higher than the number of containers
 
 Then, reboot the server.
 
