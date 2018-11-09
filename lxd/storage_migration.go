@@ -112,6 +112,27 @@ func rsyncStorageMigrationSource() (MigrationStorageSourceDriver, error) {
 	return rsyncStorageSourceDriver{nil, nil}, nil
 }
 
+func rsyncRefreshSource(c container, containerOnly bool, refreshSnapshots []string) (MigrationStorageSourceDriver, error) {
+	var snapshots = []container{}
+	if !containerOnly {
+		allSnapshots, err := c.Snapshots()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, snap := range allSnapshots {
+			_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+			if !shared.StringInSlice(snapName, refreshSnapshots) {
+				continue
+			}
+
+			snapshots = append(snapshots, snap)
+		}
+	}
+
+	return rsyncStorageSourceDriver{c, snapshots}, nil
+}
+
 func rsyncMigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error) {
 	var err error
 	var snapshots = []container{}
@@ -212,10 +233,31 @@ func rsyncMigrationSink(live bool, container container, snapshots []*migration.S
 		return fmt.Errorf("the container's root device is missing the pool property")
 	}
 
+	localSnapshots, err := container.Snapshots()
+	if err != nil {
+		return err
+	}
+
 	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
 	if isDirBackend {
 		if !containerOnly {
 			for _, snap := range snapshots {
+				isSnapshotOutdated := true
+
+				for _, localSnap := range localSnapshots {
+					if localSnap.Name() == snap.GetName() {
+						if localSnap.CreationDate().Unix() > snap.GetCreationDate() {
+							isSnapshotOutdated = false
+							break
+						}
+					}
+				}
+
+				// Only copy snapshot if it's outdated
+				if !isSnapshotOutdated {
+					continue
+				}
+
 				snapArgs := snapshotProtobufToContainerArgs(container.Name(), snap)
 
 				// Ensure that snapshot and parent container have the
@@ -230,9 +272,15 @@ func rsyncMigrationSink(live bool, container container, snapshots []*migration.S
 					}
 				}
 
-				s, err := containerCreateEmptySnapshot(container.DaemonState(), snapArgs)
+				// Try and a load container
+				s, err := containerLoadByProjectAndName(container.DaemonState(),
+					container.Project(), snapArgs.Name)
 				if err != nil {
-					return err
+					// Create the snapshot since it doesn't seem to exist
+					s, err = containerCreateEmptySnapshot(container.DaemonState(), snapArgs)
+					if err != nil {
+						return err
+					}
 				}
 
 				wrapper := StorageProgressWriter(op, "fs_progress", s.Name())
@@ -255,6 +303,22 @@ func rsyncMigrationSink(live bool, container container, snapshots []*migration.S
 	} else {
 		if !containerOnly {
 			for _, snap := range snapshots {
+				isSnapshotOutdated := true
+
+				for _, localSnap := range localSnapshots {
+					if localSnap.Name() == snap.GetName() {
+						if localSnap.CreationDate().Unix() > snap.GetCreationDate() {
+							isSnapshotOutdated = false
+							break
+						}
+					}
+				}
+
+				// Only copy snapshot if it's outdated
+				if !isSnapshotOutdated {
+					continue
+				}
+
 				snapArgs := snapshotProtobufToContainerArgs(container.Name(), snap)
 
 				// Ensure that snapshot and parent container have the
@@ -280,9 +344,13 @@ func rsyncMigrationSink(live bool, container container, snapshots []*migration.S
 					return err
 				}
 
-				_, err = containerCreateAsSnapshot(container.DaemonState(), snapArgs, container)
+				_, err = containerLoadByProjectAndName(container.DaemonState(),
+					container.Project(), snapArgs.Name)
 				if err != nil {
-					return err
+					_, err = containerCreateAsSnapshot(container.DaemonState(), snapArgs, container)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
