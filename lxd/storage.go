@@ -179,6 +179,7 @@ type storage interface {
 	ContainerCanRestore(target container, source container) error
 	ContainerDelete(c container) error
 	ContainerCopy(target container, source container, containerOnly bool) error
+	ContainerRefresh(target container, source container, snapshots []container) error
 	ContainerMount(c container) (bool, error)
 	ContainerUmount(c container, path string) (bool, error)
 	ContainerRename(container container, newName string) error

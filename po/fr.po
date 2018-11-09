@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-11-08 14:12-0500\n"
+"POT-Creation-Date: 2018-11-08 15:23-0500\n"
 "PO-Revision-Date: 2018-10-11 22:31+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -299,8 +299,12 @@ msgstr "'%s' n'est pas un format de fichier pris en charge."
 msgid "(none)"
 msgstr "(aucun)"
 
-#: lxc/copy.go:139
+#: lxc/copy.go:144
 msgid "--container-only can't be passed when the source is a snapshot"
+msgstr ""
+
+#: lxc/copy.go:155
+msgid "--refresh can only be used with containers"
 msgstr ""
 
 #: lxc/alias.go:127 lxc/image.go:935 lxc/image_alias.go:228
@@ -444,7 +448,7 @@ msgstr "Image copiée avec succès !"
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:112 lxc/init.go:124 lxc/project.go:122 lxc/publish.go:175
+#: lxc/copy.go:115 lxc/init.go:124 lxc/project.go:122 lxc/publish.go:175
 #: lxc/storage.go:123 lxc/storage_volume.go:506
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -455,7 +459,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr "Mauvaise propriété : %s"
 
-#: lxc/copy.go:123
+#: lxc/copy.go:126
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -567,7 +571,7 @@ msgstr "Certificat client enregistré sur le serveur : "
 msgid "Client version: %s\n"
 msgstr "Afficher la version du client"
 
-#: lxc/copy.go:49 lxc/init.go:48 lxc/move.go:57 lxc/network.go:259
+#: lxc/copy.go:51 lxc/init.go:48 lxc/move.go:57 lxc/network.go:259
 #: lxc/network.go:674 lxc/network.go:1037 lxc/network.go:1106
 #: lxc/network.go:1168 lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:581
 #: lxc/storage.go:654 lxc/storage.go:737 lxc/storage_volume.go:307
@@ -605,7 +609,7 @@ msgstr ""
 "commandes ci-dessous.\n"
 "Pour de l'aide avec l'une des commandes, simplement les utiliser avec --help."
 
-#: lxc/copy.go:41 lxc/init.go:42
+#: lxc/copy.go:43 lxc/init.go:42
 msgid "Config key/value to apply to the new container"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
@@ -634,7 +638,7 @@ msgstr ""
 msgid "Container name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
-#: lxc/copy.go:353 lxc/init.go:239
+#: lxc/copy.go:397 lxc/init.go:239
 #, c-format
 msgid "Container name is: %s"
 msgstr "Le nom du conteneur est : %s"
@@ -644,7 +648,7 @@ msgstr "Le nom du conteneur est : %s"
 msgid "Container published with fingerprint: %s"
 msgstr "Conteneur publié avec l'empreinte : %s"
 
-#: lxc/copy.go:47 lxc/move.go:55
+#: lxc/copy.go:49 lxc/move.go:55
 msgid "Copy a stateful container stateless"
 msgstr ""
 
@@ -652,7 +656,7 @@ msgstr ""
 msgid "Copy aliases from source"
 msgstr "Copier les alias depuis la source"
 
-#: lxc/copy.go:36 lxc/copy.go:37
+#: lxc/copy.go:38 lxc/copy.go:39
 #, fuzzy
 msgid "Copy containers within or in between LXD instances"
 msgstr "Copiez le conteneur sans ses instantanés"
@@ -682,7 +686,7 @@ msgstr ""
 msgid "Copy storage volumes"
 msgstr "Copie de l'image : %s"
 
-#: lxc/copy.go:46
+#: lxc/copy.go:48
 msgid "Copy the container without its snapshots"
 msgstr "Copiez le conteneur sans ses instantanés"
 
@@ -780,7 +784,7 @@ msgstr "Créé : %s"
 msgid "Create storage pools"
 msgstr "Copie de l'image : %s"
 
-#: lxc/copy.go:50 lxc/init.go:49
+#: lxc/copy.go:52 lxc/init.go:49
 #, fuzzy
 msgid "Create the container with no profiles applied"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -879,7 +883,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/config_template.go:152 lxc/config_template.go:236
 #: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
 #: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
-#: lxc/copy.go:37 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:31
+#: lxc/copy.go:39 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:31
 #: lxc/file.go:42 lxc/file.go:75 lxc/file.go:124 lxc/file.go:187
 #: lxc/file.go:377 lxc/image.go:42 lxc/image.go:131 lxc/image.go:265
 #: lxc/image.go:316 lxc/image.go:439 lxc/image.go:579 lxc/image.go:789
@@ -1053,7 +1057,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr "Variable d'environnement (de la forme HOME=/home/foo) à positionner"
 
-#: lxc/copy.go:44 lxc/init.go:44
+#: lxc/copy.go:46 lxc/init.go:44
 msgid "Ephemeral container"
 msgstr "Conteneur éphémère"
 
@@ -1155,7 +1159,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed to create alias %s"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/copy.go:348
+#: lxc/copy.go:392
 #, fuzzy
 msgid "Failed to get the new container name"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -2032,7 +2036,7 @@ msgstr "Nouvel alias à définir sur la cible"
 msgid "New aliases to add to the image"
 msgstr "Nouvel alias à définir sur la cible"
 
-#: lxc/copy.go:42 lxc/move.go:50
+#: lxc/copy.go:44 lxc/move.go:50
 #, fuzzy
 msgid "New key/value to apply to a specific device"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
@@ -2136,6 +2140,10 @@ msgstr "Mot de passe administrateur pour %s : "
 msgid "Pause containers"
 msgstr "Création du conteneur"
 
+#: lxc/copy.go:53
+msgid "Perform an incremental copy"
+msgstr ""
+
 #: lxc/info.go:146
 #, c-format
 msgid "Pid: %d"
@@ -2207,7 +2215,7 @@ msgstr "Profil %s supprimé de %s"
 msgid "Profile %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
 
-#: lxc/copy.go:43 lxc/init.go:43
+#: lxc/copy.go:45 lxc/init.go:43
 msgid "Profile to apply to the new container"
 msgstr "Profil à appliquer au nouveau conteneur"
 
@@ -2288,6 +2296,11 @@ msgstr "Pousser ou récupérer des fichiers récursivement"
 #, fuzzy
 msgid "Refresh images"
 msgstr "Récupération de l'image : %s"
+
+#: lxc/copy.go:362
+#, fuzzy, c-format
+msgid "Refreshing container: %s"
+msgstr "Ignorer l'état du conteneur (seulement pour start)"
 
 #: lxc/image.go:1260
 #, fuzzy, c-format
@@ -2758,7 +2771,7 @@ msgstr "Le réseau %s a été supprimé"
 msgid "Storage pool %s pending on member %s"
 msgstr "Le réseau %s a été créé"
 
-#: lxc/copy.go:48 lxc/init.go:46 lxc/move.go:56
+#: lxc/copy.go:50 lxc/init.go:46 lxc/move.go:56
 msgid "Storage pool name"
 msgstr "Nom de l'ensemble de stockage"
 
@@ -2914,7 +2927,7 @@ msgid "To start your first container, try: lxc launch ubuntu:18.04"
 msgstr ""
 "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
 
-#: lxc/copy.go:105
+#: lxc/copy.go:108
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -2922,7 +2935,7 @@ msgstr ""
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr ""
 
-#: lxc/copy.go:45
+#: lxc/copy.go:47
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr ""
 
@@ -2930,7 +2943,7 @@ msgstr ""
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
-#: lxc/copy.go:319
+#: lxc/copy.go:331
 #, fuzzy, c-format
 msgid "Transferring container: %s"
 msgstr "Transfert de l'image : %s"
@@ -3076,12 +3089,12 @@ msgstr "Il est impossible de passer -t et -T simultanément"
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr "impossible de copier vers le même nom de conteneur"
 
-#: lxc/copy.go:77
+#: lxc/copy.go:80
 #, fuzzy
 msgid "You must specify a destination container name when using --target"
 msgstr "vous devez spécifier un nom de conteneur source"
 
-#: lxc/copy.go:72 lxc/move.go:203
+#: lxc/copy.go:75 lxc/move.go:203
 #, fuzzy
 msgid "You must specify a source container name"
 msgstr "vous devez spécifier un nom de conteneur source"
@@ -3159,7 +3172,7 @@ msgstr ""
 msgid "copy [<remote>:]<profile> [<remote>:]<profile>"
 msgstr ""
 
-#: lxc/copy.go:34
+#: lxc/copy.go:36
 msgid "copy [<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr ""
 

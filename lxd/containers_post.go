@@ -304,57 +304,67 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		args.Devices[localRootDiskDeviceKey]["pool"] = storagePool
 	}
 
-	/* Only create a container from an image if we're going to
-	 * rsync over the top of it. In the case of a better file
-	 * transfer mechanism, let's just use that.
-	 *
-	 * TODO: we could invent some negotiation here, where if the
-	 * source and sink both have the same image, we can clone from
-	 * it, but we have to know before sending the snapshot that
-	 * we're sending the whole thing or just a delta from the
-	 * image, so one extra negotiation round trip is needed. An
-	 * alternative is to move actual container object to a later
-	 * point and just negotiate it over the migration control
-	 * socket. Anyway, it'll happen later :)
-	 */
-	_, _, err = d.cluster.ImageGet(args.Project, req.Source.BaseImage, false, true)
-	if err != nil {
-		c, err = containerCreateAsEmpty(d, args)
+	if req.Source.Refresh {
+		// Check if the container exists
+		c, err = containerLoadByProjectAndName(d.State(), project, req.Name)
 		if err != nil {
-			return InternalError(err)
+			req.Source.Refresh = false
 		}
-	} else {
-		// Retrieve the future storage pool
-		cM, err := containerLXCLoad(d.State(), args, nil)
+	}
+
+	if !req.Source.Refresh {
+		/* Only create a container from an image if we're going to
+		 * rsync over the top of it. In the case of a better file
+		 * transfer mechanism, let's just use that.
+		 *
+		 * TODO: we could invent some negotiation here, where if the
+		 * source and sink both have the same image, we can clone from
+		 * it, but we have to know before sending the snapshot that
+		 * we're sending the whole thing or just a delta from the
+		 * image, so one extra negotiation round trip is needed. An
+		 * alternative is to move actual container object to a later
+		 * point and just negotiate it over the migration control
+		 * socket. Anyway, it'll happen later :)
+		 */
+		_, _, err = d.cluster.ImageGet(args.Project, req.Source.BaseImage, false, true)
 		if err != nil {
-			return InternalError(err)
-		}
-
-		_, rootDiskDevice, err := shared.GetRootDiskDevice(cM.ExpandedDevices())
-		if err != nil {
-			return InternalError(err)
-		}
-
-		if rootDiskDevice["pool"] == "" {
-			return BadRequest(fmt.Errorf("The container's root device is missing the pool property"))
-		}
-
-		storagePool = rootDiskDevice["pool"]
-
-		ps, err := storagePoolInit(d.State(), storagePool)
-		if err != nil {
-			return InternalError(err)
-		}
-
-		if ps.MigrationType() == migration.MigrationFSType_RSYNC {
-			c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
+			c, err = containerCreateAsEmpty(d, args)
 			if err != nil {
 				return InternalError(err)
 			}
 		} else {
-			c, err = containerCreateAsEmpty(d, args)
+			// Retrieve the future storage pool
+			cM, err := containerLXCLoad(d.State(), args, nil)
 			if err != nil {
 				return InternalError(err)
+			}
+
+			_, rootDiskDevice, err := shared.GetRootDiskDevice(cM.ExpandedDevices())
+			if err != nil {
+				return InternalError(err)
+			}
+
+			if rootDiskDevice["pool"] == "" {
+				return BadRequest(fmt.Errorf("The container's root device is missing the pool property"))
+			}
+
+			storagePool = rootDiskDevice["pool"]
+
+			ps, err := storagePoolInit(d.State(), storagePool)
+			if err != nil {
+				return InternalError(err)
+			}
+
+			if ps.MigrationType() == migration.MigrationFSType_RSYNC {
+				c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
+				if err != nil {
+					return InternalError(err)
+				}
+			} else {
+				c, err = containerCreateAsEmpty(d, args)
+				if err != nil {
+					return InternalError(err)
+				}
 			}
 		}
 	}
@@ -363,20 +373,26 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 	if req.Source.Certificate != "" {
 		certBlock, _ := pem.Decode([]byte(req.Source.Certificate))
 		if certBlock == nil {
-			c.Delete()
+			if !req.Source.Refresh {
+				c.Delete()
+			}
 			return InternalError(fmt.Errorf("Invalid certificate"))
 		}
 
 		cert, err = x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			c.Delete()
+			if !req.Source.Refresh {
+				c.Delete()
+			}
 			return InternalError(err)
 		}
 	}
 
 	config, err := shared.GetTLSConfig("", "", "", cert)
 	if err != nil {
-		c.Delete()
+		if !req.Source.Refresh {
+			c.Delete()
+		}
 		return InternalError(err)
 	}
 
@@ -395,6 +411,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		Push:          push,
 		Live:          req.Source.Live,
 		ContainerOnly: req.Source.ContainerOnly,
+		Refresh:       req.Source.Refresh,
 	}
 
 	sink, err := NewMigrationSink(&migrationArgs)
@@ -408,13 +425,17 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		err = sink.Do(op)
 		if err != nil {
 			logger.Error("Error during migration sink", log.Ctx{"err": err})
-			c.Delete()
+			if !req.Source.Refresh {
+				c.Delete()
+			}
 			return fmt.Errorf("Error transferring container data: %s", err)
 		}
 
 		err = c.TemplateApply("copy")
 		if err != nil {
-			c.Delete()
+			if !req.Source.Refresh {
+				c.Delete()
+			}
 			return err
 		}
 
@@ -524,7 +545,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 	}
 
 	run := func(op *operation) error {
-		_, err := containerCreateAsCopy(d.State(), args, source, req.Source.ContainerOnly)
+		_, err := containerCreateAsCopy(d.State(), args, source, req.Source.ContainerOnly, req.Source.Refresh)
 		if err != nil {
 			return err
 		}

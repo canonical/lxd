@@ -136,6 +136,10 @@ func (s *storageMock) ContainerCopy(target container, source container, containe
 	return nil
 }
 
+func (s *storageMock) ContainerRefresh(target container, source container, snapshots []container) error {
+	return nil
+}
+
 func (s *storageMock) ContainerMount(c container) (bool, error) {
 	return true, nil
 }

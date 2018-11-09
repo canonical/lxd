@@ -686,6 +686,16 @@ func (s *storageDir) copySnapshot(target container, targetPool string, source co
 func (s *storageDir) ContainerCopy(target container, source container, containerOnly bool) error {
 	logger.Debugf("Copying DIR container storage %s to %s", source.Name(), target.Name())
 
+	err := s.doContainerCopy(target, source, containerOnly, false, nil)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Copied DIR container storage %s to %s", source.Name(), target.Name())
+	return nil
+}
+
+func (s *storageDir) doContainerCopy(target container, source container, containerOnly bool, refresh bool, refreshSnapshots []container) error {
 	_, err := s.StoragePoolMount()
 	if err != nil {
 		return err
@@ -732,17 +742,21 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 	}
 
 	if containerOnly {
-		logger.Debugf("Copied DIR container storage %s to %s", source.Name(), target.Name())
 		return nil
 	}
 
-	snapshots, err := source.Snapshots()
-	if err != nil {
-		return err
+	var snapshots []container
+
+	if refresh {
+		snapshots = refreshSnapshots
+	} else {
+		snapshots, err = source.Snapshots()
+		if err != nil {
+			return err
+		}
 	}
 
 	if len(snapshots) == 0 {
-		logger.Debugf("Copied DIR container storage %s to %s", source.Name(), target.Name())
 		return nil
 	}
 
@@ -765,7 +779,18 @@ func (s *storageDir) ContainerCopy(target container, source container, container
 		}
 	}
 
-	logger.Debugf("Copied DIR container storage %s to %s", source.Name(), target.Name())
+	return nil
+}
+
+func (s *storageDir) ContainerRefresh(target container, source container, snapshots []container) error {
+	logger.Debugf("Refreshing DIR container storage for %s from %s", target.Name(), source.Name())
+
+	err := s.doContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Refreshed DIR container storage for %s from %s", target.Name(), source.Name())
 	return nil
 }
 

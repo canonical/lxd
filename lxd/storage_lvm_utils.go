@@ -331,7 +331,7 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 	return nil
 }
 
-func (s *storageLvm) copySnapshot(target container, source container) error {
+func (s *storageLvm) copySnapshot(target container, source container, refresh bool) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
@@ -346,10 +346,10 @@ func (s *storageLvm) copySnapshot(target container, source container) error {
 		return err
 	}
 
-	if s.useThinpool && sourcePool == s.pool.Name {
+	if s.useThinpool && sourcePool == s.pool.Name && !refresh {
 		err = s.copyContainerThinpool(target, source, true)
 	} else {
-		err = s.copyContainerLv(target, source, true)
+		err = s.copyContainerLv(target, source, true, refresh)
 	}
 	if err != nil {
 		logger.Errorf("Error creating snapshot LV for copy: %s", err)
@@ -360,10 +360,19 @@ func (s *storageLvm) copySnapshot(target container, source container) error {
 }
 
 // Copy a container on a storage pool that does not use a thinpool.
-func (s *storageLvm) copyContainerLv(target container, source container, readonly bool) error {
-	err := s.ContainerCreate(target)
+func (s *storageLvm) copyContainerLv(target container, source container, readonly bool, refresh bool) error {
+	exists, err := storageLVExists(getLvmDevPath(target.Project(), s.getOnDiskPoolName(),
+		storagePoolVolumeAPIEndpointContainers, containerNameToLVName(target.Name())))
 	if err != nil {
 		return err
+	}
+
+	// Only create container/snapshot if it doesn't already exist
+	if !exists {
+		err := s.ContainerCreate(target)
+		if err != nil {
+			return err
+		}
 	}
 
 	targetName := target.Name()
@@ -426,7 +435,7 @@ func (s *storageLvm) copyContainerLv(target container, source container, readonl
 }
 
 // Copy an lvm container.
-func (s *storageLvm) copyContainer(target container, source container) error {
+func (s *storageLvm) copyContainer(target container, source container, refresh bool) error {
 	targetPool, err := target.StoragePool()
 	if err != nil {
 		return err
@@ -443,14 +452,14 @@ func (s *storageLvm) copyContainer(target container, source container) error {
 		return err
 	}
 
-	if s.useThinpool && targetPool == sourcePool {
+	if s.useThinpool && targetPool == sourcePool && !refresh {
 		// If the storage pool uses a thinpool we can have snapshots of
 		// snapshots.
 		err = s.copyContainerThinpool(target, source, false)
 	} else {
 		// If the storage pools does not use a thinpool we need to
 		// perform full copies.
-		err = s.copyContainerLv(target, source, false)
+		err = s.copyContainerLv(target, source, false, refresh)
 	}
 	if err != nil {
 		return err
