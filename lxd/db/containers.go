@@ -830,6 +830,14 @@ func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, e
 	return nil
 }
 
+// ContainerCreationUpdate updates the cration_date field of the container
+// with the given ID.
+func (c *Cluster) ContainerCreationUpdate(id int, date time.Time) error {
+	stmt := `UPDATE containers SET creation_date=? WHERE id=?`
+	err := exec(c.db, stmt, date, id)
+	return err
+}
+
 // ContainerLastUsedUpdate updates the last_use_date field of the container
 // with the given ID.
 func (c *Cluster) ContainerLastUsedUpdate(id int, date time.Time) error {

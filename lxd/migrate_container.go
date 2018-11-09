@@ -412,11 +412,15 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	}
 
 	bwlimit := ""
-	if *header.Fs != myType {
+	if header.GetRefresh() || *header.Fs != myType {
 		myType = migration.MigrationFSType_RSYNC
 		header.Fs = &myType
 
-		driver, _ = rsyncMigrationSource(s.container, s.containerOnly)
+		if header.GetRefresh() {
+			driver, _ = rsyncRefreshSource(s.container, s.containerOnly, header.GetSnapshotNames())
+		} else {
+			driver, _ = rsyncMigrationSource(s.container, s.containerOnly)
+		}
 
 		// Check if this storage pool has a rate limit set for rsync.
 		poolwritable := s.container.Storage().GetStoragePoolWritable()
@@ -672,6 +676,7 @@ func NewMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 		dialer:    args.Dialer,
 		push:      args.Push,
 		rsyncArgs: args.RsyncArgs,
+		refresh:   args.Refresh,
 	}
 
 	if sink.push {
@@ -795,6 +800,10 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}
 
 	mySink := c.src.container.Storage().MigrationSink
+	if c.refresh {
+		mySink = rsyncMigrationSink
+	}
+
 	myType := c.src.container.Storage().MigrationType()
 	rsyncHasFeature := true
 	resp := migration.MigrationHeader{
@@ -805,11 +814,48 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			Delete:   &rsyncHasFeature,
 			Compress: &rsyncHasFeature,
 		},
+		Snapshots:     header.Snapshots,
+		SnapshotNames: header.SnapshotNames,
+		Refresh:       &c.refresh,
+	}
+
+	if c.refresh {
+		// Get our existing snapshots
+		targetSnapshots, err := c.src.container.Snapshots()
+		if err != nil {
+			controller(err)
+			return err
+		}
+
+		// Get the remote snapshots
+		sourceSnapshots := header.GetSnapshots()
+
+		// Compare the two sets
+		syncSnapshots, deleteSnapshots := migrationCompareSnapshots(sourceSnapshots, targetSnapshots)
+
+		// Delete the extra local ones
+		for _, snap := range deleteSnapshots {
+			err := snap.Delete()
+			if err != nil {
+				controller(err)
+				return err
+			}
+		}
+
+		snapshotNames := []string{}
+		for _, snap := range syncSnapshots {
+			snapshotNames = append(snapshotNames, snap.GetName())
+		}
+
+		resp.Snapshots = syncSnapshots
+		resp.SnapshotNames = snapshotNames
+		header.Snapshots = syncSnapshots
+		header.SnapshotNames = snapshotNames
 	}
 
 	// If the storage type the source has doesn't match what we have, then
 	// we have to use rsync.
-	if *header.Fs != *resp.Fs {
+	if c.refresh || *header.Fs != *resp.Fs {
 		mySink = rsyncMigrationSink
 		myType = migration.MigrationFSType_RSYNC
 		resp.Fs = &myType
@@ -884,7 +930,9 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				sendFinalFsDelta = true
 			}
 
-			args := MigrationSinkArgs{}
+			args := MigrationSinkArgs{
+				Refresh: c.refresh,
+			}
 			rsyncFeatures := header.GetRsyncFeatures()
 
 			// Handle rsync options
@@ -1044,4 +1092,43 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 func (s *migrationSourceWs) ConnectContainerTarget(target api.ContainerPostTarget) error {
 	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
+}
+
+func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnapshots []container) ([]*migration.Snapshot, []container) {
+	// Compare source and target
+	sourceSnapshotsTime := map[string]int64{}
+	targetSnapshotsTime := map[string]int64{}
+
+	toDelete := []container{}
+	toSync := []*migration.Snapshot{}
+
+	for _, snap := range sourceSnapshots {
+		logger.Errorf("source snap: %v", snap.GetName())
+		snapName := snap.GetName()
+
+		sourceSnapshotsTime[snapName] = snap.GetCreationDate()
+	}
+
+	for _, snap := range targetSnapshots {
+		_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
+
+		targetSnapshotsTime[snapName] = snap.CreationDate().Unix()
+		existDate, exists := sourceSnapshotsTime[snapName]
+		if !exists {
+			toDelete = append(toDelete, snap)
+		} else if existDate != snap.CreationDate().Unix() {
+			toDelete = append(toDelete, snap)
+		}
+	}
+
+	for _, snap := range sourceSnapshots {
+		snapName := snap.GetName()
+
+		existDate, exists := targetSnapshotsTime[snapName]
+		if !exists || existDate != snap.GetCreationDate() {
+			toSync = append(toSync, snap)
+		}
+	}
+
+	return toSync, toDelete
 }

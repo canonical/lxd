@@ -1216,7 +1216,7 @@ func (s *storageZfs) copyWithSnapshots(target container, source container, paren
 	return nil
 }
 
-func (s *storageZfs) doCrossPoolContainerCopy(target container, source container, containerOnly bool) error {
+func (s *storageZfs) doCrossPoolContainerCopy(target container, source container, containerOnly bool, refresh bool, refreshSnapshots []container) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
@@ -1241,15 +1241,21 @@ func (s *storageZfs) doCrossPoolContainerCopy(target container, source container
 		return err
 	}
 
-	snapshots, err := source.Snapshots()
-	if err != nil {
-		return err
-	}
+	var snapshots []container
 
-	// create the main container
-	err = s.doContainerCreate(target.Project(), target.Name(), target.IsPrivileged())
-	if err != nil {
-		return err
+	if refresh {
+		snapshots = refreshSnapshots
+	} else {
+		snapshots, err = source.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		// create the main container
+		err = s.doContainerCreate(target.Project(), target.Name(), target.IsPrivileged())
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = s.doContainerMount(target.Project(), target.Name(), target.IsPrivileged())
@@ -1302,7 +1308,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return s.doCrossPoolContainerCopy(target, source, containerOnly)
+		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
 	}
 
 	snapshots, err := source.Snapshots()
@@ -1414,6 +1420,20 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 
 	logger.Debugf("Copied ZFS container storage %s to %s", source.Name(), target.Name())
 	return nil
+}
+
+func (s *storageZfs) ContainerRefresh(target container, source container, snapshots []container) error {
+	logger.Debugf("Refreshing ZFS container storage for %s from %s", target.Name(), source.Name())
+
+	ourStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer source.StorageStop()
+	}
+
+	return s.doCrossPoolContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
 }
 
 func (s *storageZfs) ContainerRename(container container, newName string) error {

@@ -631,3 +631,9 @@ HTTP-only candid server.
 ## network\_vxlan\_ttl
 This adds a new `tunnel.NAME.ttl` network configuration option which
 makes it possible to raise the ttl on VXLAN tunnels.
+
+## container\_incremental\_copy
+This adds support for incremental container copy. When copying a container
+using the `--refresh` flag, only the missing or outdated files will be
+copied over. Should the target container not exist yet, a normal copy operation
+is performed.

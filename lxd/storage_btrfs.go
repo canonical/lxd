@@ -1082,7 +1082,7 @@ func (s *storageBtrfs) copySnapshot(target container, source container) error {
 	return nil
 }
 
-func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source container, containerOnly bool) error {
+func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source container, containerOnly bool, refresh bool, refreshSnapshots []container) error {
 	sourcePool, err := source.StoragePool()
 	if err != nil {
 		return err
@@ -1107,15 +1107,21 @@ func (s *storageBtrfs) doCrossPoolContainerCopy(target container, source contain
 		return err
 	}
 
-	snapshots, err := source.Snapshots()
-	if err != nil {
-		return err
-	}
+	var snapshots []container
 
-	// create the main container
-	err = s.doContainerCreate(target.Project(), target.Name(), target.IsPrivileged())
-	if err != nil {
-		return err
+	if refresh {
+		snapshots = refreshSnapshots
+	} else {
+		snapshots, err = source.Snapshots()
+		if err != nil {
+			return err
+		}
+
+		// create the main container
+		err = s.doContainerCreate(target.Project(), target.Name(), target.IsPrivileged())
+		if err != nil {
+			return err
+		}
 	}
 
 	destContainerMntPoint := getContainerMountPoint(target.Project(), targetPool, target.Name())
@@ -1168,7 +1174,7 @@ func (s *storageBtrfs) ContainerCopy(target container, source container, contain
 	_, sourcePool, _ := source.Storage().GetContainerPoolInfo()
 	_, targetPool, _ := target.Storage().GetContainerPoolInfo()
 	if sourcePool != targetPool {
-		return s.doCrossPoolContainerCopy(target, source, containerOnly)
+		return s.doCrossPoolContainerCopy(target, source, containerOnly, false, nil)
 	}
 
 	err = s.copyContainer(target, source)
@@ -1212,6 +1218,26 @@ func (s *storageBtrfs) ContainerCopy(target container, source container, contain
 
 	logger.Debugf("Copied BTRFS container storage %s to %s", source.Name(), target.Name())
 	return nil
+}
+
+func (s *storageBtrfs) ContainerRefresh(target container, source container, snapshots []container) error {
+	logger.Debugf("Refreshing BTRFS container storage for %s from %s", target.Name(), source.Name())
+
+	// The storage pool needs to be mounted.
+	_, err := s.StoragePoolMount()
+	if err != nil {
+		return err
+	}
+
+	ourStart, err := source.StorageStart()
+	if err != nil {
+		return err
+	}
+	if ourStart {
+		defer source.StorageStop()
+	}
+
+	return s.doCrossPoolContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
 }
 
 func (s *storageBtrfs) ContainerMount(c container) (bool, error) {

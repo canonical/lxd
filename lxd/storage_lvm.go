@@ -1138,6 +1138,16 @@ func (s *storageLvm) ContainerDelete(container container) error {
 func (s *storageLvm) ContainerCopy(target container, source container, containerOnly bool) error {
 	logger.Debugf("Copying LVM container storage for container %s to %s", source.Name(), target.Name())
 
+	err := s.doContainerCopy(target, source, containerOnly, false, nil)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Copied LVM container storage for container %s to %s", source.Name(), target.Name())
+	return nil
+}
+
+func (s *storageLvm) doContainerCopy(target container, source container, containerOnly bool, refresh bool, refreshSnapshots []container) error {
 	ourStart, err := source.StorageStart()
 	if err != nil {
 		return err
@@ -1172,23 +1182,27 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 		srcState = srcStorage.GetState()
 	}
 
-	err = s.copyContainer(target, source)
+	err = s.copyContainer(target, source, refresh)
 	if err != nil {
 		return err
 	}
 
 	if containerOnly {
-		logger.Debugf("Copied LVM container storage %s to %s", source.Name(), target.Name())
 		return nil
 	}
 
-	snapshots, err := source.Snapshots()
-	if err != nil {
-		return err
+	var snapshots []container
+
+	if refresh {
+		snapshots = refreshSnapshots
+	} else {
+		snapshots, err = source.Snapshots()
+		if err != nil {
+			return err
+		}
 	}
 
 	if len(snapshots) == 0 {
-		logger.Debugf("Copied LVM container storage %s to %s", source.Name(), target.Name())
 		return nil
 	}
 
@@ -1208,7 +1222,7 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 			return err
 		}
 
-		err = s.copySnapshot(targetSnapshot, sourceSnapshot)
+		err = s.copySnapshot(targetSnapshot, sourceSnapshot, refresh)
 		if err != nil {
 			return err
 		}
@@ -1216,7 +1230,18 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 		logger.Debugf("Copied LVM container storage for snapshot %s to %s", snap.Name(), newSnapName)
 	}
 
-	logger.Debugf("Copied LVM container storage for container %s to %s", source.Name(), target.Name())
+	return nil
+}
+
+func (s *storageLvm) ContainerRefresh(target container, source container, snapshots []container) error {
+	logger.Debugf("Refreshing LVM container storage for %s from %s", target.Name(), source.Name())
+
+	err := s.doContainerCopy(target, source, len(snapshots) == 0, true, snapshots)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Refreshed LVM container storage for %s from %s", target.Name(), source.Name())
 	return nil
 }
 
