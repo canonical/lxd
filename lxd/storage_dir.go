@@ -802,7 +802,7 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 }
 
 func (s *storageDir) ContainerGetUsage(container container) (int64, error) {
-	return -1, fmt.Errorf("the directory container backend doesn't support quotas")
+	return -1, fmt.Errorf("The directory container backend doesn't support quotas")
 }
 
 func (s *storageDir) ContainerSnapshotCreate(snapshotContainer container, sourceContainer container) error {
@@ -1046,7 +1046,9 @@ func (s *storageDir) MigrationSink(live bool, container container, snapshots []*
 }
 
 func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
-	return fmt.Errorf("the directory container backend doesn't support quotas")
+	logger.Warnf("Skipping setting disk quota for '%s' as DIR backend doesn't support them", s.volume.Name)
+
+	return nil
 }
 
 func (s *storageDir) StoragePoolResources() (*api.ResourcesStoragePool, error) {
