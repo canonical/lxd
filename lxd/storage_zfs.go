@@ -1182,16 +1182,16 @@ func (s *storageZfs) copyWithSnapshots(target container, source container, paren
 
 	poolName := s.getOnDiskPoolName()
 	sourceParentName, sourceSnapOnlyName, _ := containerGetParentAndSnapshotName(sourceName)
-	currentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, sourceParentName, sourceSnapOnlyName)
+	currentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, projectPrefix(source.Project(), sourceParentName), sourceSnapOnlyName)
 	args := []string{"send", currentSnapshotDataset}
 	if parentSnapshot != "" {
 		parentName, parentSnaponlyName, _ := containerGetParentAndSnapshotName(parentSnapshot)
-		parentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, parentName, parentSnaponlyName)
+		parentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, projectPrefix(source.Project(), parentName), parentSnaponlyName)
 		args = append(args, "-i", parentSnapshotDataset)
 	}
 
 	zfsSendCmd := exec.Command("zfs", args...)
-	targetSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, targetParentName, targetSnapOnlyName)
+	targetSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, projectPrefix(target.Project(), targetParentName), targetSnapOnlyName)
 	zfsRecvCmd := exec.Command("zfs", "receive", "-F", targetSnapshotDataset)
 
 	zfsRecvCmd.Stdin, _ = zfsSendCmd.StdoutPipe()
@@ -1372,15 +1372,15 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 			return err
 		}
 
-		currentSnapshotDataset := fmt.Sprintf("%s/containers/%s@%s", poolName, source.Name(), tmpSnapshotName)
+		currentSnapshotDataset := fmt.Sprintf("%s/containers/%s@%s", poolName, projectPrefix(source.Project(), source.Name()), tmpSnapshotName)
 		args := []string{"send", currentSnapshotDataset}
 		if prevSnapOnlyName != "" {
-			parentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, source.Name(), prevSnapOnlyName)
+			parentSnapshotDataset := fmt.Sprintf("%s/containers/%s@snapshot-%s", poolName, projectPrefix(source.Project(), source.Name()), prevSnapOnlyName)
 			args = append(args, "-i", parentSnapshotDataset)
 		}
 
 		zfsSendCmd := exec.Command("zfs", args...)
-		targetSnapshotDataset := fmt.Sprintf("%s/containers/%s@%s", poolName, target.Name(), tmpSnapshotName)
+		targetSnapshotDataset := fmt.Sprintf("%s/containers/%s@%s", poolName, projectPrefix(target.Project(), target.Name()), tmpSnapshotName)
 		zfsRecvCmd := exec.Command("zfs", "receive", "-F", targetSnapshotDataset)
 
 		zfsRecvCmd.Stdin, _ = zfsSendCmd.StdoutPipe()
@@ -1402,10 +1402,10 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 			return err
 		}
 
-		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", source.Name()), tmpSnapshotName)
-		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", target.Name()), tmpSnapshotName)
+		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", projectPrefix(source.Project(), source.Name())), tmpSnapshotName)
+		zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", projectPrefix(target.Project(), target.Name())), tmpSnapshotName)
 
-		fs := fmt.Sprintf("containers/%s", target.Name())
+		fs := fmt.Sprintf("containers/%s", projectPrefix(target.Project(), target.Name()))
 		err = zfsPoolVolumeSet(poolName, fs, "canmount", "noauto")
 		if err != nil {
 			return err

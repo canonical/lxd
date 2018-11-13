@@ -154,6 +154,12 @@ test_projects_snapshots() {
   lxc rename c1/snap0 c1/foo
   lxc delete c1/foo
 
+  # Test copies
+  lxc snapshot c1
+  lxc snapshot c1
+  lxc copy c1 c2
+  lxc delete c2
+
   # Create a snapshot in this project and another one in the default project
   lxc snapshot c1
 
