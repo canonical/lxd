@@ -874,12 +874,9 @@ WHERE projects.name=? AND containers.type=? AND SUBSTR(containers.name,1,?)=?
 }
 
 // ContainerNextSnapshot returns the index the next snapshot of the container
-// with the given name should have.
-//
-// Note, the code below doesn't deal with snapshots of snapshots.
-// To do that, we'll need to weed out based on # slashes in names
-func (c *Cluster) ContainerNextSnapshot(project string, name string) int {
-	base := name + shared.SnapshotDelimiter + "snap"
+// with the given name and pattern should have.
+func (c *Cluster) ContainerNextSnapshot(project string, name string, pattern string) int {
+	base := name + shared.SnapshotDelimiter
 	length := len(base)
 	q := `
 SELECT containers.name
@@ -896,13 +893,11 @@ SELECT containers.name
 	max := 0
 
 	for _, r := range results {
-		numstr = r[0].(string)
-		if len(numstr) <= length {
-			continue
-		}
-		substr := numstr[length:]
+		snapOnlyName := strings.SplitN(r[0].(string), shared.SnapshotDelimiter, 2)[1]
+		fields := strings.SplitN(pattern, "%d", 2)
+
 		var num int
-		count, err := fmt.Sscanf(substr, "%d", &num)
+		count, err := fmt.Sscanf(snapOnlyName, fmt.Sprintf("%s%%d%s", fields[0], fields[1]), &num)
 		if err != nil || count != 1 {
 			continue
 		}
