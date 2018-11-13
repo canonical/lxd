@@ -980,7 +980,7 @@ func (s *storageZfs) copyWithoutSnapshotsSparse(target container, source contain
 	sourceZfsDatasetSnapshot := ""
 	sourceName, sourceSnapOnlyName, isSnapshotName := containerGetParentAndSnapshotName(sourceContainerName)
 
-	targetZfsDataset := fmt.Sprintf("containers/%s", targetContainerName)
+	targetZfsDataset := fmt.Sprintf("containers/%s", projectPrefix(target.Project(), targetContainerName))
 
 	if isSnapshotName {
 		sourceZfsDatasetSnapshot = sourceSnapOnlyName
@@ -1415,7 +1415,6 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 		if err != nil {
 			return err
 		}
-
 	}
 
 	logger.Debugf("Copied ZFS container storage %s to %s", source.Name(), target.Name())
