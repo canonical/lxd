@@ -49,8 +49,13 @@ func containerSnapshotsGet(d *Daemon, r *http.Request) Response {
 	for _, snap := range snaps {
 		_, snapName, _ := containerGetParentAndSnapshotName(snap.Name())
 		if !recursion {
-			url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cname, snapName)
-			resultString = append(resultString, url)
+			if snap.Project() == "default" {
+				url := fmt.Sprintf("/%s/containers/%s/snapshots/%s", version.APIVersion, cname, snapName)
+				resultString = append(resultString, url)
+			} else {
+				url := fmt.Sprintf("/%s/containers/%s/snapshots/%s?project=%s", version.APIVersion, cname, snapName, snap.Project())
+				resultString = append(resultString, url)
+			}
 		} else {
 			render, _, err := snap.Render()
 			if err != nil {
