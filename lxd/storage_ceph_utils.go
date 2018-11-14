@@ -707,8 +707,8 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 	logger.Debugf(`Creating non-sparse copy of RBD storage volume for container "%s" to "%s" without snapshots`, source.Name(), target.Name())
 
 	sourceIsSnapshot := source.IsSnapshot()
-	sourceContainerName := source.Name()
-	targetContainerName := target.Name()
+	sourceContainerName := projectPrefix(source.Project(), source.Name())
+	targetContainerName := projectPrefix(target.Project(), target.Name())
 	oldVolumeName := fmt.Sprintf("%s/container_%s", s.OSDPoolName,
 		sourceContainerName)
 	newVolumeName := fmt.Sprintf("%s/container_%s", s.OSDPoolName,
@@ -735,10 +735,8 @@ func (s *storageCeph) copyWithoutSnapshotsFull(target container,
 		return err
 	}
 
-	targetContainerMountPoint := getContainerMountPoint(target.Project(), s.pool.Name,
-		target.Name())
-	err = createContainerMountpoint(targetContainerMountPoint, target.Path(),
-		target.IsPrivileged())
+	targetContainerMountPoint := getContainerMountPoint(target.Project(), s.pool.Name, target.Name())
+	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -772,8 +770,8 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		target.Name())
 
 	sourceIsSnapshot := source.IsSnapshot()
-	sourceContainerName := source.Name()
-	targetContainerName := target.Name()
+	sourceContainerName := projectPrefix(source.Project(), source.Name())
+	targetContainerName := projectPrefix(target.Project(), target.Name())
 	sourceContainerOnlyName := sourceContainerName
 	sourceSnapshotOnlyName := ""
 	snapshotName := fmt.Sprintf("zombie_snapshot_%s",
@@ -828,10 +826,8 @@ func (s *storageCeph) copyWithoutSnapshotsSparse(target container,
 		return err
 	}
 
-	targetContainerMountPoint := getContainerMountPoint(target.Project(), s.pool.Name,
-		target.Name())
-	err = createContainerMountpoint(targetContainerMountPoint,
-		target.Path(), target.IsPrivileged())
+	targetContainerMountPoint := getContainerMountPoint(target.Project(), s.pool.Name, target.Name())
+	err = createContainerMountpoint(targetContainerMountPoint, target.Path(), target.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -1860,7 +1856,6 @@ func (s *storageCeph) doContainerSnapshotCreate(project, targetName string, sour
 	revert := true
 
 	_, targetSnapshotOnlyName, _ := containerGetParentAndSnapshotName(targetName)
-	targetSnapshotOnlyName = projectPrefix(project, targetSnapshotOnlyName)
 	targetSnapshotName := fmt.Sprintf("snapshot_%s", targetSnapshotOnlyName)
 	err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName,
 		projectPrefix(project, sourceName), storagePoolVolumeTypeNameContainer,
