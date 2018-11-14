@@ -936,6 +936,7 @@ func containerCreateAsCopy(s *state.State, args db.ContainerArgs, sourceContaine
 				Ephemeral:    snap.IsEphemeral(),
 				Name:         newSnapName,
 				Profiles:     snap.Profiles(),
+				Project:      args.Project,
 			}
 
 			// Create the snapshots.
