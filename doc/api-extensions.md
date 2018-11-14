@@ -642,3 +642,8 @@ is performed.
 As the name implies, the `vendorid` field on USB devices attached to
 containers has now been made optional, allowing for all USB devices to
 be passed to a container (similar to what's done for GPUs).
+
+## snapshot\_scheduling
+This adds support for snapshot scheduling. It introduces three new
+configuration keys: `snapshots.schedule`, `snapshots.schedule.stopped`, and
+`snapshots.pattern`. Snapshots can be created automatically up to every minute.
