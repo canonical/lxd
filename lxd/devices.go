@@ -852,7 +852,7 @@ func deviceUSBEvent(s *state.State, usb usbDevice) {
 				continue
 			}
 
-			if m["vendorid"] != usb.vendor || (m["productid"] != "" && m["productid"] != usb.product) {
+			if (m["vendorid"] != "" && m["vendorid"] != usb.vendor) || (m["productid"] != "" && m["productid"] != usb.product) {
 				continue
 			}
 
