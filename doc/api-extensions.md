@@ -637,3 +637,8 @@ This adds support for incremental container copy. When copying a container
 using the `--refresh` flag, only the missing or outdated files will be
 copied over. Should the target container not exist yet, a normal copy operation
 is performed.
+
+## usb\_optional\_vendorid
+As the name implies, the `vendorid` field on USB devices attached to
+containers has now been made optional, allowing for all USB devices to
+be passed to a container (similar to what's done for GPUs).
