@@ -849,7 +849,7 @@ func networkUpdateStatic(s *state.State, networkName string) error {
 				entries[d["parent"]] = [][]string{}
 			}
 
-			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], c.Name(), d["ipv4.address"], d["ipv6.address"]})
+			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], projectPrefix(c.Project(), c.Name()), d["ipv4.address"], d["ipv6.address"]})
 		}
 	}
 
