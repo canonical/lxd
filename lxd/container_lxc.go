@@ -1883,7 +1883,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			// the storage volume, not the path where it is mounted.
 			// So do only check for the existence of m["source"]
 			// when m["pool"] is empty.
-			if m["pool"] == "" && m["source"] != "" && !shared.PathExists(shared.HostPath(m["source"])) {
+			if m["pool"] == "" && m["source"] != "" && !shared.IsTrue(m["optional"]) && !shared.PathExists(shared.HostPath(m["source"])) {
 				return "", fmt.Errorf("Missing source '%s' for disk '%s'", m["source"], name)
 			}
 		case "nic":
