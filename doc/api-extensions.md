@@ -469,3 +469,8 @@ macaroon's expiry configurable. The `lxc remote add` command now has a
 This introduces a new `candid.api.key` option which allows for setting
 the expected public key for the endpoint, allowing for safe use of a
 HTTP-only candid server.
+
+## usb\_optional\_vendorid
+As the name implies, the `vendorid` field on USB devices attached to
+containers has now been made optional, allowing for all USB devices to
+be passed to a container (similar to what's done for GPUs).
