@@ -463,9 +463,7 @@ func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile b
 				}
 			}
 		} else if m["type"] == "usb" {
-			if m["vendorid"] == "" {
-				return fmt.Errorf("Missing vendorid for USB device")
-			}
+			// Nothing needed for usb.
 		} else if m["type"] == "gpu" {
 			if m["pci"] != "" && !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s", m["pci"])) {
 				return fmt.Errorf("Invalid PCI address (no device found): %s", m["pci"])
