@@ -400,7 +400,7 @@ The following properties exist:
 
 Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
-vendorid    | string    | -                 | yes       | The vendor id of the USB device.
+vendorid    | string    | -                 | no        | The vendor id of the USB device.
 productid   | string    | -                 | no        | The product id of the USB device.
 uid         | int       | 0                 | no        | UID of the device owner in the container
 gid         | int       | 0                 | no        | GID of the device owner in the container

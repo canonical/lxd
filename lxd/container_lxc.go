@@ -2109,7 +2109,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 
 			for _, usb := range usbs {
-				if usb.vendor != m["vendorid"] || (m["productid"] != "" && usb.product != m["productid"]) {
+				if (m["vendorid"] != "" && usb.vendor != m["vendorid"]) || (m["productid"] != "" && usb.product != m["productid"]) {
 					continue
 				}
 
@@ -4349,7 +4349,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 
 				/* if the device isn't present, we don't need to remove it */
 				for _, usb := range usbs {
-					if usb.vendor != m["vendorid"] || (m["productid"] != "" && usb.product != m["productid"]) {
+					if (m["vendorid"] != "" && usb.vendor != m["vendorid"]) || (m["productid"] != "" && usb.product != m["productid"]) {
 						continue
 					}
 
@@ -4485,7 +4485,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 
 				for _, usb := range usbs {
-					if usb.vendor != m["vendorid"] || (m["productid"] != "" && usb.product != m["productid"]) {
+					if (m["vendorid"] != "" && usb.vendor != m["vendorid"]) || (m["productid"] != "" && usb.product != m["productid"]) {
 						continue
 					}
 
