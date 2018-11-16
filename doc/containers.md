@@ -77,6 +77,9 @@ security.syscalls.blacklist             | string    | -                 | no    
 security.syscalls.blacklist\_compat     | boolean   | false             | no            | container\_syscall\_filtering        | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
 security.syscalls.blacklist\_default    | boolean   | true              | no            | container\_syscall\_filtering        | Enables the default syscall blacklist
 security.syscalls.whitelist             | string    | -                 | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to whitelist (mutually exclusive with security.syscalls.blacklist\*)
+snapshots.schedule                      | string    | -                 | no            | snapshot\_scheduling                 | Cron expression (`<minute> <hour> <dom> <month> <dow>`)
+snapshots.schedule.stopped              | bool      | false             | no            | snapshot\_scheduling                 | Controls whether or not stopped containers are to be snapshoted automatically
+snapshots.pattern                       | string    | auto-snapshot     | no            | snapshot\_scheduling                 | Pongo2 template string which represents the snapshot name
 user.\*                                 | string    | -                 | n/a           | -                                    | Free form user key/value storage (can be used in search)
 
 The following volatile keys are currently internally used by LXD:
@@ -540,3 +543,13 @@ memory dump and transfer it. If the threshold is not reached after the maximum
 number of allowed iterations specified via
 `migration.incremental.memory.iterations` LXD will request a final memory dump
 from CRIU and migrate the container.
+
+## Snapshot scheduling
+LXD supports scheduled snapshots which can be created at most once every minute.
+There are three configuration options. `snapshots.schedule` takes a shortened
+cron expression: `<minute> <hour> <day-of-month> <month> <day-of-week>`. If this is
+empty (default), no snapshots will be created. `snapshots.schedule.stopped`
+controls whether or not stopped container are to be automatically snapshotted.
+It defaults to `false`. `snapshots.pattern` takes a pongo2 template string,
+and the pongo2 context contains the `creation_date` variable. In order to avoid
+name colisions, snapshots will be suffixed with `-0`, `-1`, and so on.
