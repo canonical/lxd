@@ -440,7 +440,7 @@ func getAACacheDir() string {
 	}
 
 	// multiple policy cache directories were only added in v2.13
-	if major >= 2 && minor <= 12 {
+	if major < 2 || (major == 2 && minor < 13) {
 		return basePath
 	}
 
