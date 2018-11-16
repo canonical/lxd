@@ -131,6 +131,7 @@ var APIExtensions = []string{
 	"network_vxlan_ttl",
 	"container_incremental_copy",
 	"usb_optional_vendorid",
+	"snapshot_scheduling",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

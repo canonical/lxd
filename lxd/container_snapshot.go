@@ -111,9 +111,10 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 	}
 
 	if req.Name == "" {
-		// come up with a name
-		i := d.cluster.ContainerNextSnapshot(project, name)
-		req.Name = fmt.Sprintf("snap%d", i)
+		req.Name, err = containerDetermineNextSnapshotName(d, c, "snap%d")
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	// Validate the name

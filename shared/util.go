@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flosch/pongo2"
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/pkg/errors"
@@ -1103,4 +1104,26 @@ func (r *ReadSeeker) Read(p []byte) (n int, err error) {
 
 func (r *ReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	return r.Seeker.Seek(offset, whence)
+}
+
+// RenderTemplate renders a pongo2 template.
+func RenderTemplate(template string, ctx pongo2.Context) (string, error) {
+	// Load template from string
+	tpl, err := pongo2.FromString("{% autoescape off %}" + template + "{% endautoescape %}")
+	if err != nil {
+		return "", err
+	}
+
+	// Get rendered template
+	ret, err := tpl.Execute(ctx)
+	if err != nil {
+		return ret, err
+	}
+
+	// Looks like we're nesting templates so run pongo again
+	if strings.Contains(ret, "{{") || strings.Contains(ret, "{%") {
+		return RenderTemplate(ret, ctx)
+	}
+
+	return ret, err
 }
