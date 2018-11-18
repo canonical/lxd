@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2018-11-08 15:23-0500\n"
+"POT-Creation-Date: 2018-11-18 18:32-0500\n"
 "PO-Revision-Date: 2018-10-12 14:44+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -3355,8 +3355,9 @@ msgstr ""
 "    サーバの認証パスワードを blah に設定します。"
 
 #: lxc/export.go:33
+#, fuzzy
 msgid ""
-"lxc export u1 backup0.tar.xz\n"
+"lxc export u1 backup0.tar.gz\n"
 "    Download a backup tarball of the u1 container."
 msgstr ""
 "lxc export u1 backup0.tar.xz\n"
@@ -3396,9 +3397,10 @@ msgstr ""
 "    YAML ファイルからイメージプロパティをロードします"
 
 #: lxc/import.go:27
+#, fuzzy
 msgid ""
-"lxc import backup0.tar.xz\n"
-"    Create a new container using backup0.tar.xz as the source."
+"lxc import backup0.tar.gz\n"
+"    Create a new container using backup0.tar.gz as the source."
 msgstr ""
 "lxc import backup0.tar.xz\n"
 "    backup0.tar.xz を使って新しいコンテナを作成します。"

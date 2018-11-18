@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2018-11-08 23:16-0500\n"
+        "POT-Creation-Date: 2018-11-18 18:32-0500\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2988,7 +2988,7 @@ msgid   "lxc config set [<remote>:]<container> limits.cpu 2\n"
 msgstr  ""
 
 #: lxc/export.go:33
-msgid   "lxc export u1 backup0.tar.xz\n"
+msgid   "lxc export u1 backup0.tar.gz\n"
         "    Download a backup tarball of the u1 container."
 msgstr  ""
 
@@ -3011,8 +3011,8 @@ msgid   "lxc image edit <image>\n"
 msgstr  ""
 
 #: lxc/import.go:27
-msgid   "lxc import backup0.tar.xz\n"
-        "    Create a new container using backup0.tar.xz as the source."
+msgid   "lxc import backup0.tar.gz\n"
+        "    Create a new container using backup0.tar.gz as the source."
 msgstr  ""
 
 #: lxc/info.go:31
