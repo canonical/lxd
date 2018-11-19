@@ -690,10 +690,21 @@ func (c *cmdProjectSwitch) Run(cmd *cobra.Command, args []string) error {
 		project = args[1]
 	}
 
-	// make sure the remote exists
+	// Make sure the remote exists
 	rc, ok := conf.Remotes[remote]
 	if !ok {
 		return fmt.Errorf(i18n.G("Remote %s doesn't exist"), remote)
+	}
+
+	// Make sure the project exists
+	d, err := conf.GetContainerServer(remote)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = d.GetProject(project)
+	if err != nil {
+		return err
 	}
 
 	rc.Project = project
