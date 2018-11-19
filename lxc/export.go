@@ -31,7 +31,7 @@ func (c *cmdExport) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Export containers as backup tarballs.`))
 	cmd.Example = cli.FormatSection("", i18n.G(
-		`lxc export u1 backup0.tar.xz
+		`lxc export u1 backup0.tar.gz
     Download a backup tarball of the u1 container.`))
 
 	cmd.RunE = c.Run
@@ -97,7 +97,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	if len(args) > 1 {
 		targetName = args[1]
 	} else {
-		targetName = "backup.tar.xz"
+		targetName = "backup.tar.gz"
 	}
 
 	target, err := os.Create(shared.HostPath(targetName))
