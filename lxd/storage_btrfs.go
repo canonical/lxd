@@ -2770,7 +2770,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 	if !containerOnly {
 		for _, snap := range snapshots {
-			args := snapshotProtobufToContainerArgs(containerName, snap)
+			args := snapshotProtobufToContainerArgs(container.Project(), containerName, snap)
 
 			// Ensure that snapshot and parent container have the
 			// same storage pool in their local root disk device.
@@ -2797,7 +2797,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 				return err
 			}
 
-			tmpSnapshotMntPoint, err := ioutil.TempDir(containersPath, containerName)
+			tmpSnapshotMntPoint, err := ioutil.TempDir(containersPath, projectPrefix(container.Project(), containerName))
 			if err != nil {
 				return err
 			}
@@ -2824,7 +2824,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 	/* finally, do the real container */
 	wrapper := StorageProgressWriter(op, "fs_progress", containerName)
-	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, containerName)
+	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, projectPrefix(container.Project(), containerName))
 	if err != nil {
 		return err
 	}

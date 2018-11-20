@@ -2793,7 +2793,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	}
 
 	for _, snap := range snapshots {
-		args := snapshotProtobufToContainerArgs(container.Name(), snap)
+		args := snapshotProtobufToContainerArgs(container.Project(), container.Name(), snap)
 
 		// Ensure that snapshot and parent container have the
 		// same storage pool in their local root disk device.

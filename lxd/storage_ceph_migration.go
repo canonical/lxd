@@ -276,7 +276,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 	recvName := fmt.Sprintf("%s/container_%s", s.OSDPoolName, containerName)
 	for _, snap := range snapshots {
 		curSnapName := snap.GetName()
-		args := snapshotProtobufToContainerArgs(containerName, snap)
+		args := snapshotProtobufToContainerArgs(c.Project(), containerName, snap)
 
 		// Ensure that snapshot and parent container have the same
 		// storage pool in their local root disk device.  If the root
