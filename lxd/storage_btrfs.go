@@ -1018,7 +1018,7 @@ func (s *storageBtrfs) copyContainer(target container, source container) error {
 	}
 	targetContainerSubvolumeName := getContainerMountPoint(target.Project(), s.pool.Name, target.Name())
 
-	containersPath := getContainerMountPoint(source.Project(), s.pool.Name, "")
+	containersPath := getContainerMountPoint("default", s.pool.Name, "")
 	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if !shared.PathExists(containersPath) {
 		err := os.MkdirAll(containersPath, containersDirMode)
@@ -1692,7 +1692,7 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup b
 
 	// Make a temporary copy of the container
 	sourceVolume := getContainerMountPoint(source.Project(), s.pool.Name, source.Name())
-	containersPath := getContainerMountPoint(source.Project(), s.pool.Name, "")
+	containersPath := getContainerMountPoint("default", s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, source.Name())
 	if err != nil {
 		return err
@@ -2501,7 +2501,7 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
 	_, containerPool, _ := s.container.Storage().GetContainerPoolInfo()
 	containerName := s.container.Name()
-	containersPath := getContainerMountPoint(s.container.Project(), containerPool, "")
+	containersPath := getContainerMountPoint("default", containerPool, "")
 	sourceName := containerName
 
 	// Deal with sending a snapshot to create a container on another LXD
@@ -2672,7 +2672,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		// Remove the existing pre-created subvolume
 		err := btrfsSubVolumesDelete(targetPath)
 		if err != nil {
-			logger.Errorf("Failed to delete pre-created BTRFS subvolume: %s", btrfsPath)
+			logger.Errorf("Failed to delete pre-created BTRFS subvolume: %s: %v", btrfsPath, err)
 			return err
 		}
 
@@ -2765,12 +2765,12 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 	// A little neuroticism.
 	if parentStoragePool == "" {
-		return fmt.Errorf("detected that the container's root device is missing the pool property during BTRFS migration")
+		return fmt.Errorf("Detected that the container's root device is missing the pool property during BTRFS migration")
 	}
 
 	if !containerOnly {
 		for _, snap := range snapshots {
-			args := snapshotProtobufToContainerArgs(containerName, snap)
+			args := snapshotProtobufToContainerArgs(container.Project(), containerName, snap)
 
 			// Ensure that snapshot and parent container have the
 			// same storage pool in their local root disk device.
@@ -2797,7 +2797,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 				return err
 			}
 
-			tmpSnapshotMntPoint, err := ioutil.TempDir(containersPath, containerName)
+			tmpSnapshotMntPoint, err := ioutil.TempDir(containersPath, projectPrefix(container.Project(), containerName))
 			if err != nil {
 				return err
 			}
@@ -2810,8 +2810,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 			wrapper := StorageProgressWriter(op, "fs_progress", *snap.Name)
 			err = btrfsRecv(*(snap.Name), tmpSnapshotMntPoint, snapshotMntPoint, true, wrapper)
-			os.RemoveAll(tmpSnapshotMntPoint)
-			if err != nil && !os.IsNotExist(err) {
+			if err != nil {
 				return err
 			}
 		}
@@ -2825,7 +2824,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 	/* finally, do the real container */
 	wrapper := StorageProgressWriter(op, "fs_progress", containerName)
-	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, containerName)
+	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, projectPrefix(container.Project(), containerName))
 	if err != nil {
 		return err
 	}
