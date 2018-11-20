@@ -92,6 +92,12 @@ func apiProjectsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(fmt.Errorf("Invalid project name '%s'", project.Name))
 	}
 
+	// Validate the configuration
+	err = projectValidateConfig(project.Config)
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		_, err := tx.ProjectCreate(project)
 		if err != nil {
@@ -266,8 +272,14 @@ func apiProjectChange(d *Daemon, project *api.Project, req api.ProjectPut) Respo
 		return BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
 	}
 
+	// Validate the configuration
+	err := projectValidateConfig(req.Config)
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	// Update the database entry
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		err := tx.ProjectUpdate(project.Name, req)
 		if err != nil {
 			return errors.Wrap(err, "Persist profile changes")
@@ -395,4 +407,34 @@ func projectPrefix(project string, s string) string {
 		s = fmt.Sprintf("%s_%s", project, s)
 	}
 	return s
+}
+
+// Validate the project configuration
+var projectConfigKeys = map[string]func(value string) error{
+	"features.profiles": shared.IsBool,
+	"features.images":   shared.IsBool,
+}
+
+func projectValidateConfig(config map[string]string) error {
+	for k, v := range config {
+		key := k
+
+		// User keys are free for all
+		if strings.HasPrefix(key, "user.") {
+			continue
+		}
+
+		// Then validate
+		validator, ok := projectConfigKeys[key]
+		if !ok {
+			return fmt.Errorf("Invalid project configuration key: %s", k)
+		}
+
+		err := validator(v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
