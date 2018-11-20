@@ -246,6 +246,7 @@ migration() {
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote start l2:c2
   lxc_remote file pull l2:c2/root/testfile1 .
+  rm testfile1
   lxc_remote stop -f l2:c2
 
   # This will create snapshot c1/snap0
