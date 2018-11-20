@@ -135,4 +135,7 @@ type ContainerSource struct {
 
 	// API extension: container_incremental_copy
 	Refresh bool `json:"refresh,omitempty" yaml:"refresh,omitempty"`
+
+	// API extension: container_copy_project
+	Project string `json:"project,omitempty" yaml:"project,omitempty"`
 }
