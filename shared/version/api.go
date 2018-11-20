@@ -132,6 +132,7 @@ var APIExtensions = []string{
 	"container_incremental_copy",
 	"usb_optional_vendorid",
 	"snapshot_scheduling",
+	"container_copy_project",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
