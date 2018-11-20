@@ -303,6 +303,15 @@ func (r *ProtocolLXD) CopyContainer(source ContainerServer, container api.Contai
 
 	// Optimization for the local copy case
 	if destInfo.URL == sourceInfo.URL && !r.IsClustered() {
+		// Project handling
+		if destInfo.Project != sourceInfo.Project {
+			if !r.HasExtension("container_copy_project") {
+				return nil, fmt.Errorf("The server is missing the required \"container_copy_project\" API extension")
+			}
+
+			req.Source.Project = sourceInfo.Project
+		}
+
 		// Local copy source fields
 		req.Source.Type = "copy"
 		req.Source.Source = container.Name
