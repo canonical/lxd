@@ -472,7 +472,13 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 		return BadRequest(fmt.Errorf("must specify a source container"))
 	}
 
-	source, err := containerLoadByProjectAndName(d.State(), project, req.Source.Source)
+	sourceProject := req.Source.Project
+	if sourceProject == "" {
+		sourceProject = project
+	}
+	targetProject := project
+
+	source, err := containerLoadByProjectAndName(d.State(), sourceProject, req.Source.Source)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -531,7 +537,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 	}
 
 	args := db.ContainerArgs{
-		Project:      project,
+		Project:      targetProject,
 		Architecture: source.Architecture(),
 		BaseImage:    req.Source.BaseImage,
 		Config:       req.Config,
@@ -555,7 +561,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 	resources := map[string][]string{}
 	resources["containers"] = []string{req.Name, req.Source.Source}
 
-	op, err := operationCreate(d.cluster, project, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
+	op, err := operationCreate(d.cluster, targetProject, operationClassTask, db.OperationContainerCreate, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
 	}
