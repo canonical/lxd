@@ -995,7 +995,7 @@ func (s *storageDir) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 		targetContainerName)
 	sourceName, _, _ := containerGetParentAndSnapshotName(targetContainerName)
 	snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools",
-		s.pool.Name, "containers-snapshots", sourceName)
+		s.pool.Name, "containers-snapshots", projectPrefix(snapshotContainer.Project(), sourceName))
 	snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(snapshotContainer.Project(), sourceName))
 	err = createSnapshotMountpoint(targetContainerMntPoint,
 		snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
