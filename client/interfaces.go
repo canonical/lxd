@@ -238,6 +238,7 @@ type ConnectionInfo struct {
 	Certificate string
 	Protocol    string
 	URL         string
+	Project     string
 }
 
 // The ContainerBackupArgs struct is used when creating a container from a backup
