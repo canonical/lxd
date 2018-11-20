@@ -307,6 +307,38 @@ migration() {
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
 
+  # Test some migration between projects
+  lxc_remote project create l1:proj -c features.images=false -c features.profiles=false
+  lxc_remote project switch l1 proj
+
+  lxc_remote init testimage l1:c1
+  lxc_remote copy l1:c1 l2:
+  lxc_remote start l2:c1
+  lxc_remote delete l2:c1 -f
+
+  lxc_remote snapshot l1:c1
+  lxc_remote snapshot l1:c1
+  lxc_remote snapshot l1:c1
+  lxc_remote copy l1:c1 l2:
+  lxc_remote start l2:c1
+  lxc_remote stop l2:c1 -f
+  lxc_remote delete l1:c1
+
+  lxc_remote copy l2:c1 l1:
+  lxc_remote start l1:c1
+  lxc_remote delete l1:c1 -f
+
+  lxc_remote delete l2:c1/snap0
+  lxc_remote delete l2:c1/snap1
+  lxc_remote delete l2:c1/snap2
+  lxc_remote copy l2:c1 l1:
+  lxc_remote start l1:c1
+  lxc_remote delete l1:c1 -f
+  lxc_remote delete l2:c1
+
+  lxc_remote project switch l1 default
+  lxc_remote project delete l1:proj
+
   if ! which criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return
