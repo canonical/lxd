@@ -2672,7 +2672,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		// Remove the existing pre-created subvolume
 		err := btrfsSubVolumesDelete(targetPath)
 		if err != nil {
-			logger.Errorf("Failed to delete pre-created BTRFS subvolume: %s", btrfsPath)
+			logger.Errorf("Failed to delete pre-created BTRFS subvolume: %s: %v", btrfsPath, err)
 			return err
 		}
 
@@ -2765,7 +2765,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 	// A little neuroticism.
 	if parentStoragePool == "" {
-		return fmt.Errorf("detected that the container's root device is missing the pool property during BTRFS migration")
+		return fmt.Errorf("Detected that the container's root device is missing the pool property during BTRFS migration")
 	}
 
 	if !containerOnly {
@@ -2810,8 +2810,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 
 			wrapper := StorageProgressWriter(op, "fs_progress", *snap.Name)
 			err = btrfsRecv(*(snap.Name), tmpSnapshotMntPoint, snapshotMntPoint, true, wrapper)
-			os.RemoveAll(tmpSnapshotMntPoint)
-			if err != nil && !os.IsNotExist(err) {
+			if err != nil {
 				return err
 			}
 		}
