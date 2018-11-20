@@ -1205,7 +1205,7 @@ func (s *storageBtrfs) ContainerCopy(target container, source container, contain
 
 		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
 		newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-		targetSnapshot, err := containerLoadByProjectAndName(s.s, source.Project(), newSnapName)
+		targetSnapshot, err := containerLoadByProjectAndName(s.s, target.Project(), newSnapName)
 		if err != nil {
 			return err
 		}
