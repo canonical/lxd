@@ -28,6 +28,7 @@ type cmdCopy struct {
 	flagStateless     bool
 	flagStorage       string
 	flagTarget        string
+	flagTargetProject string
 	flagRefresh       bool
 }
 
@@ -49,6 +50,7 @@ func (c *cmdCopy) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the container with no profiles applied"))
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Perform an incremental copy"))
 
@@ -103,6 +105,12 @@ func (c *cmdCopy) copyContainer(conf *config.Config, sourceResource string,
 			return err
 		}
 	}
+
+	// Project copies
+	if c.flagTargetProject != "" {
+		dest = dest.UseProject(c.flagTargetProject)
+	}
+
 	// Confirm that --target is only used with a cluster
 	if c.flagTarget != "" && !dest.IsClustered() {
 		return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
