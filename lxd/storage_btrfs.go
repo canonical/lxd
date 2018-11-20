@@ -1018,7 +1018,7 @@ func (s *storageBtrfs) copyContainer(target container, source container) error {
 	}
 	targetContainerSubvolumeName := getContainerMountPoint(target.Project(), s.pool.Name, target.Name())
 
-	containersPath := getContainerMountPoint(source.Project(), s.pool.Name, "")
+	containersPath := getContainerMountPoint("default", s.pool.Name, "")
 	// Ensure that the directories immediately preceding the subvolume directory exist.
 	if !shared.PathExists(containersPath) {
 		err := os.MkdirAll(containersPath, containersDirMode)
@@ -1692,7 +1692,7 @@ func (s *storageBtrfs) doContainerBackupCreateOptimized(tmpPath string, backup b
 
 	// Make a temporary copy of the container
 	sourceVolume := getContainerMountPoint(source.Project(), s.pool.Name, source.Name())
-	containersPath := getContainerMountPoint(source.Project(), s.pool.Name, "")
+	containersPath := getContainerMountPoint("default", s.pool.Name, "")
 	tmpContainerMntPoint, err := ioutil.TempDir(containersPath, source.Name())
 	if err != nil {
 		return err
@@ -2501,7 +2501,7 @@ func (s *btrfsMigrationSourceDriver) send(conn *websocket.Conn, btrfsPath string
 func (s *btrfsMigrationSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
 	_, containerPool, _ := s.container.Storage().GetContainerPoolInfo()
 	containerName := s.container.Name()
-	containersPath := getContainerMountPoint(s.container.Project(), containerPool, "")
+	containersPath := getContainerMountPoint("default", containerPool, "")
 	sourceName := containerName
 
 	// Deal with sending a snapshot to create a container on another LXD
