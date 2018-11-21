@@ -33,6 +33,7 @@ type cmdGlobal struct {
 	flagHelpAll    bool
 	flagLogDebug   bool
 	flagLogVerbose bool
+	flagProject    string
 	flagQuiet      bool
 	flagVersion    bool
 }
@@ -57,6 +58,7 @@ For help with any of those, simply call them with --help.`))
 	app.PersistentFlags().BoolVar(&globalCmd.flagVersion, "version", false, i18n.G("Print version number"))
 	app.PersistentFlags().BoolVarP(&globalCmd.flagHelp, "help", "h", false, i18n.G("Print help"))
 	app.PersistentFlags().BoolVar(&globalCmd.flagForceLocal, "force-local", false, i18n.G("Force using the local unix socket"))
+	app.PersistentFlags().StringVar(&globalCmd.flagProject, "project", "", i18n.G("Override the source project"))
 	app.PersistentFlags().BoolVar(&globalCmd.flagLogDebug, "debug", false, i18n.G("Show all debug messages"))
 	app.PersistentFlags().BoolVarP(&globalCmd.flagLogVerbose, "verbose", "v", false, i18n.G("Show all information messages"))
 	app.PersistentFlags().BoolVarP(&globalCmd.flagQuiet, "quiet", "q", false, i18n.G("Don't show progress information"))
@@ -272,6 +274,11 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		c.conf = config.NewConfig(filepath.Dir(c.confPath), true)
+	}
+
+	// Override the project
+	if c.flagProject != "" {
+		c.conf.ProjectOverride = c.flagProject
 	}
 
 	// Setup password helper

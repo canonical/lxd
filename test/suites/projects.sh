@@ -132,6 +132,39 @@ test_projects_containers() {
   lxc delete c1
 }
 
+# Copy/move between projects
+test_projects_copy() {
+  ensure_import_testimage
+
+  # Create a couple of projects
+  lxc project create foo -c features.profiles=false -c features.images=false
+  lxc project create bar -c features.profiles=false -c features.images=false
+
+  # Create a container in the project
+  lxc --project foo init testimage c1
+  lxc --project foo copy c1 c1 --target-project bar
+  lxc --project bar start c1
+  lxc --project bar delete c1 -f
+
+  lxc --project foo snapshot c1
+  lxc --project foo snapshot c1
+  lxc --project foo snapshot c1
+
+  lxc --project foo copy c1 c1 --target-project bar
+  lxc --project foo start c1
+  lxc --project bar start c1
+
+  lxc --project foo delete c1 -f
+  lxc --project bar stop c1 -f
+  lxc --project bar move c1 c1 --target-project foo
+  lxc --project foo start c1
+  lxc --project foo delete c1 -f
+
+  # Clean things up
+  lxc project delete foo
+  lxc project delete bar
+}
+
 # Use snapshots in a project.
 test_projects_snapshots() {
   # Create a project and switch to it

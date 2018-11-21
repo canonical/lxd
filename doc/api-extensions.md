@@ -647,3 +647,7 @@ be passed to a container (similar to what's done for GPUs).
 This adds support for snapshot scheduling. It introduces three new
 configuration keys: `snapshots.schedule`, `snapshots.schedule.stopped`, and
 `snapshots.pattern`. Snapshots can be created automatically up to every minute.
+
+## container\_copy\_project
+Introduces a `project` field to the container source dict, allowing for
+copy/move of containers between projects.
