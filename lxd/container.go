@@ -1548,18 +1548,15 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		// Figure out which need snapshotting (if any)
 		containers := []container{}
 		for _, c := range allContainers {
-			logger.Debugf("considering: %v", c.Name())
 			schedule := c.LocalConfig()["snapshots.schedule"]
 
 			if schedule == "" {
-				logger.Debugf("skipping, empty schedule")
 				continue
 			}
 
 			// Extend our schedule to one that is accepted by the used cron parser
 			sched, err := cron.Parse(fmt.Sprintf("* %s", schedule))
 			if err != nil {
-				logger.Debugf("skipping, parsing error: %v", err)
 				continue
 			}
 
@@ -1568,13 +1565,11 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			next := sched.Next(now)
 
 			if now.Add(time.Minute).Before(next) {
-				logger.Debugf("skipping, %v is after %v", now.Add(time.Minute), next)
 				continue
 			}
 
 			// Check if the container is running
 			if !shared.IsTrue(c.LocalConfig()["snapshots.schedule.stopped"]) && !c.IsRunning() {
-				logger.Debugf("skipping, container is stopped")
 				continue
 			}
 
@@ -1694,7 +1689,6 @@ func containerDetermineNextSnapshotName(d *Daemon, c container, defaultPattern s
 
 	for _, snap := range snapshots {
 		_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
-		logger.Debugf("%s %s", snapOnlyName, pattern)
 		if snapOnlyName == pattern {
 			snapshotExists = true
 			break
