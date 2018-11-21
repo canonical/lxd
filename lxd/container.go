@@ -1558,8 +1558,6 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		logger.Info("Done creating scheduled container snapshots")
 	}
 
-	f(context.Background())
-
 	first := true
 	schedule := func() (time.Duration, error) {
 		interval := time.Minute
