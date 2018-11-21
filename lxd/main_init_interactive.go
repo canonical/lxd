@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -565,8 +566,27 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.ContainerServer, poo
 					defaultSize = 15
 				}
 
-				pool.Config["size"] = fmt.Sprintf("%dGB", cli.AskInt(
-					fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", defaultSize), 1, -1, fmt.Sprintf("%d", defaultSize)))
+				pool.Config["size"] = cli.AskString(
+					fmt.Sprintf("Size in GB of the new loop device (1GB minimum) [default=%dGB]: ", defaultSize),
+					fmt.Sprintf("%dGB", defaultSize),
+					func(input string) error {
+						input = strings.Split(input, "GB")[0]
+
+						result, err := strconv.ParseInt(input, 10, 64)
+						if err != nil {
+							return err
+						}
+
+						if result < 1 {
+							return fmt.Errorf("Minimum size is 1GB")
+						}
+
+						return nil
+					})
+
+				if !strings.HasSuffix(pool.Config["size"], "GB") {
+					pool.Config["size"] = fmt.Sprintf("%sGB", pool.Config["size"])
+				}
 			}
 		} else {
 			if pool.Driver == "ceph" {
