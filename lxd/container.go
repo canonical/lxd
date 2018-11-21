@@ -1539,8 +1539,54 @@ func containerCompareSnapshots(source container, target container) ([]container,
 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		// Load all local containers
+		allContainers, err := containerLoadNodeAll(d.State())
+		if err != nil {
+			logger.Error("Failed to load containers for scheduled snapshots", log.Ctx{"err": err})
+		}
+
+		// Figure out which need snapshotting (if any)
+		containers := []container{}
+		for _, c := range allContainers {
+			logger.Debugf("considering: %v", c.Name())
+			schedule := c.LocalConfig()["snapshots.schedule"]
+
+			if schedule == "" {
+				logger.Debugf("skipping, empty schedule")
+				continue
+			}
+
+			// Extend our schedule to one that is accepted by the used cron parser
+			sched, err := cron.Parse(fmt.Sprintf("* %s", schedule))
+			if err != nil {
+				logger.Debugf("skipping, parsing error: %v", err)
+				continue
+			}
+
+			// Check if it's time to snapshot
+			now := time.Now()
+			next := sched.Next(now)
+
+			if now.Add(time.Minute).Before(next) {
+				logger.Debugf("skipping, %v is after %v", now.Add(time.Minute), next)
+				continue
+			}
+
+			// Check if the container is running
+			if !shared.IsTrue(c.LocalConfig()["snapshots.schedule.stopped"]) && !c.IsRunning() {
+				logger.Debugf("skipping, container is stopped")
+				continue
+			}
+
+			containers = append(containers, c)
+		}
+
+		if len(containers) == 0 {
+			return
+		}
+
 		opRun := func(op *operation) error {
-			return autoCreateContainerSnapshots(ctx, d)
+			return autoCreateContainerSnapshots(ctx, d, containers)
 		}
 
 		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
@@ -1573,82 +1619,21 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func autoCreateContainerSnapshots(ctx context.Context, d *Daemon) error {
-	containers, err := d.cluster.ContainersNodeList(db.CTypeRegular)
-	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve the list of containers")
-	}
-
-	for _, container := range containers {
-		cId, err := d.cluster.ContainerID(container)
-		if err != nil {
-			return errors.Wrap(err, "Error retrieving container ID")
-		}
-
-		c, err := containerLoadById(d.State(), cId)
-		if err != nil {
-			return errors.Wrap(err, "Error loading container")
-		}
-
-		schedule := c.LocalConfig()["snapshots.schedule"]
-
-		if schedule == "" || (!shared.IsTrue(c.LocalConfig()["snapshots.schedule.stopped"]) && c.IsRunning()) {
-			continue
-		}
-
-		if len(strings.Split(schedule, " ")) != 5 {
-			logger.Error("Schedule must be of the form: <minute> <hour> <day-of-month> <month> <day-of-week>")
-			continue
-		}
-
-		// Extend our schedule to one that is accepted by the used cron parser
-		sched, err := cron.Parse(fmt.Sprintf("* %s", schedule))
-		if err != nil {
-			logger.Error("Error parsing schedule", log.Ctx{"err": err,
-				"container": container, "schedule": schedule})
-			continue
-		}
-
-		now := time.Now()
-		next := sched.Next(now).Format("2006-01-02T15:04")
-		skip := false
-
-		snapshots, err := c.Snapshots()
-		if err != nil {
-			logger.Error("Error retrieving snapshots", log.Ctx{"err": err,
-				"container": container})
-			continue
-		}
-
-		for _, snap := range snapshots {
-			// Check whether the container has been snapshotted within (at least)
-			// the last minute.
-			if snap.CreationDate().Format("2006-01-02T15:04") == next {
-				skip = true
-				break
-			}
-		}
-
-		// Skip snapshotting if the container has been snapshotted within (at
-		// least) the last minute, or it's not time yet.
-		if skip || now.Format("2006-01-02T15:04") != next {
-			continue
-		}
-
-		ch := make(chan struct{})
+func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, containers []container) error {
+	// Make the snapshots
+	for _, c := range containers {
+		ch := make(chan error)
 		go func() {
 			snapshotName, err := containerDetermineNextSnapshotName(d, c, "snap%d")
 			if err != nil {
-				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err,
-					"container": c})
-				ch <- struct{}{}
+				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err, "container": c})
+				ch <- nil
 				return
 			}
 
 			snapshotName = fmt.Sprintf("%s%s%s", c.Name(), shared.SnapshotDelimiter, snapshotName)
 
 			args := db.ContainerArgs{
-				Project:      c.Project(),
 				Architecture: c.Architecture(),
 				Config:       c.LocalConfig(),
 				Ctype:        db.CTypeSnapshot,
@@ -1656,16 +1641,16 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon) error {
 				Ephemeral:    c.IsEphemeral(),
 				Name:         snapshotName,
 				Profiles:     c.Profiles(),
+				Project:      c.Project(),
 				Stateful:     false,
 			}
 
 			_, err = containerCreateAsSnapshot(d.State(), args, c)
 			if err != nil {
-				logger.Error("Error creating snapshots", log.Ctx{"err": err,
-					"container": c})
+				logger.Error("Error creating snapshots", log.Ctx{"err": err, "container": c})
 			}
 
-			ch <- struct{}{}
+			ch <- nil
 		}()
 		select {
 		case <-ctx.Done():
