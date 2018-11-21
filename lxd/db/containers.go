@@ -288,6 +288,11 @@ func (c *ClusterTx) ContainerNodeMove(oldName, newName, newNode string) error {
 		}
 	}
 
+	// No need to update storage_volumes if the name is identical
+	if newName == oldName {
+		return nil
+	}
+
 	// Update the container's and snapshots' storage volume name (since this is ceph,
 	// there's a clone of the volume for each node).
 	count, err := c.NodesCount()
