@@ -1639,7 +1639,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon) error {
 
 		ch := make(chan struct{})
 		go func() {
-			snapshotName, err := containerDetermineNextSnapshotName(d, c, "auto-snapshot")
+			snapshotName, err := containerDetermineNextSnapshotName(d, c, "snap%d")
 			if err != nil {
 				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err,
 					"container": c})
