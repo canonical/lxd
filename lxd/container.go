@@ -1576,8 +1576,6 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 }
 
 func autoCreateContainerSnapshots(ctx context.Context, d *Daemon) error {
-	logger.Info("Creating scheduled container snapshots")
-
 	containers, err := d.cluster.ContainersNodeList(db.CTypeRegular)
 	if err != nil {
 		return errors.Wrap(err, "Unable to retrieve the list of containers")

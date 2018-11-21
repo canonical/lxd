@@ -26,6 +26,7 @@ type cmdMove struct {
 	flagStateless     bool
 	flagStorage       string
 	flagTarget        string
+	flagTargetProject string
 }
 
 func (c *cmdMove) Command() *cobra.Command {
@@ -55,6 +56,7 @@ lxc move <container>/<old snapshot name> <container>/<new snapshot name>
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful container stateless"))
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 
 	return cmd
 }
@@ -101,7 +103,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	// running, containers that are running should be live migrated (of
 	// course, this changing of hostname isn't supported right now, so this
 	// simply won't work).
-	if sourceRemote == destRemote && c.flagTarget == "" && c.flagStorage == "" {
+	if sourceRemote == destRemote && c.flagTarget == "" && c.flagStorage == "" && c.flagTargetProject == "" {
 		if c.flagConfig != nil || c.flagDevice != nil || c.flagProfile != nil || c.flagNoProfiles {
 			return fmt.Errorf(i18n.G("Can't override configuration or profiles in local rename"))
 		}
@@ -160,6 +162,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	cpy := cmdCopy{}
 	cpy.global = c.global
 	cpy.flagTarget = c.flagTarget
+	cpy.flagTargetProject = c.flagTargetProject
 	cpy.flagConfig = c.flagConfig
 	cpy.flagDevice = c.flagDevice
 	cpy.flagProfile = c.flagProfile

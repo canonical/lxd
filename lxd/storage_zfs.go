@@ -1352,7 +1352,7 @@ func (s *storageZfs) ContainerCopy(target container, source container, container
 			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap.Name())
 			prevSnapOnlyName = snapOnlyName
 			newSnapName := fmt.Sprintf("%s/%s", target.Name(), snapOnlyName)
-			targetSnapshot, err := containerLoadByProjectAndName(s.s, source.Project(), newSnapName)
+			targetSnapshot, err := containerLoadByProjectAndName(s.s, target.Project(), newSnapName)
 			if err != nil {
 				return err
 			}

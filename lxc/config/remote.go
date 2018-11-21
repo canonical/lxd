@@ -71,6 +71,10 @@ func (c *Config) GetContainerServer(name string) (lxd.ContainerServer, error) {
 			d = d.UseProject(remote.Project)
 		}
 
+		if c.ProjectOverride != "" {
+			d = d.UseProject(c.ProjectOverride)
+		}
+
 		return d, nil
 	}
 
@@ -86,6 +90,10 @@ func (c *Config) GetContainerServer(name string) (lxd.ContainerServer, error) {
 
 	if remote.Project != "" && remote.Project != "default" {
 		d = d.UseProject(remote.Project)
+	}
+
+	if c.ProjectOverride != "" {
+		d = d.UseProject(c.ProjectOverride)
 	}
 
 	return d, nil
@@ -114,6 +122,10 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 
 		if remote.Project != "" && remote.Project != "default" {
 			d = d.UseProject(remote.Project)
+		}
+
+		if c.ProjectOverride != "" {
+			d = d.UseProject(c.ProjectOverride)
 		}
 
 		return d, nil
@@ -147,6 +159,10 @@ func (c *Config) GetImageServer(name string) (lxd.ImageServer, error) {
 
 	if remote.Project != "" && remote.Project != "default" {
 		d = d.UseProject(remote.Project)
+	}
+
+	if c.ProjectOverride != "" {
+		d = d.UseProject(c.ProjectOverride)
 	}
 
 	return d, nil
