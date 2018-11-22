@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/pkg/errors"
 )
 
 // StorageVolumeNodeAddresses returns the addresses of all nodes on which the
@@ -205,4 +206,68 @@ func (c *Cluster) StorageVolumeMoveToLVMThinPoolNameKey() error {
 	}
 
 	return nil
+}
+
+// StorageVolumeIsAvailable checks that if a custom volume available for being attached.
+//
+// Always return true for non-Ceph volumes.
+//
+// For Ceph volumes, return true if the volume is either not attached to any
+// other container, or attached to containers on this node.
+func (c *Cluster) StorageVolumeIsAvailable(pool, volume string) (bool, error) {
+	isAvailable := false
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		id, err := tx.StoragePoolID(pool)
+		if err != nil {
+			return errors.Wrapf(err, "Fetch storage pool ID for %q", pool)
+		}
+
+		driver, err := tx.StoragePoolDriver(id)
+		if err != nil {
+			return errors.Wrapf(err, "Fetch storage pool driver for %q", pool)
+		}
+
+		if driver != "ceph" {
+			isAvailable = true
+			return nil
+		}
+
+		node, err := tx.NodeName()
+		if err != nil {
+			return errors.Wrapf(err, "Fetch node name")
+		}
+
+		containers, err := tx.ContainerListExpanded()
+		if err != nil {
+			return errors.Wrapf(err, "Fetch containers")
+		}
+
+		for _, container := range containers {
+			for _, device := range container.Devices {
+				if device["type"] != "disk" {
+					continue
+				}
+				if device["pool"] != pool {
+					continue
+				}
+				if device["source"] != volume {
+					continue
+				}
+				if container.Node != node {
+					// This ceph volume is already attached
+					// to a container on a different node.
+					return nil
+				}
+			}
+		}
+		isAvailable = true
+
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return isAvailable, nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 
@@ -1157,4 +1158,57 @@ WHERE storage_volumes.node_id=? AND storage_volumes.name=? AND storage_volumes.t
 	}
 
 	return poolName, nil
+}
+
+// Note: the code below was backported from the 3.x master branch, and it's
+//       mostly cut and paste from there to avoid re-inventing that logic.
+
+// Container is a value object holding db-related details about a container.
+type Container struct {
+	ID           int
+	Name         string `db:"primary=yes"`
+	Node         string `db:"join=nodes.name"`
+	Type         int
+	Architecture int
+	Ephemeral    bool
+	CreationDate time.Time
+	Stateful     bool
+	LastUseDate  time.Time
+	Description  string `db:"coalesce=''"`
+	Config       map[string]string
+	Devices      map[string]map[string]string
+	Profiles     []string
+}
+
+// ContainerListExpanded loads all containers expands their config and devices
+// using the profiles they are associated with.
+func (c *ClusterTx) ContainerListExpanded() ([]Container, error) {
+	containers, err := c.ContainerList()
+	if err != nil {
+		return nil, errors.Wrap(err, "Load containers")
+	}
+
+	profiles, err := c.ProfileList()
+	if err != nil {
+		return nil, errors.Wrap(err, "Load profiles")
+	}
+
+	// Index of all profiles by name.
+	profilesByName := map[string]Profile{}
+	for _, profile := range profiles {
+		profilesByName[profile.Name] = profile
+	}
+
+	for i, container := range containers {
+		profiles := make([]api.Profile, len(container.Profiles))
+		for j, name := range container.Profiles {
+			profile := profilesByName[name]
+			profiles[j] = *ProfileToAPI(&profile)
+		}
+
+		containers[i].Config = ProfilesExpandConfig(container.Config, profiles)
+		containers[i].Devices = ProfilesExpandDevices(container.Devices, profiles)
+	}
+
+	return containers, nil
 }
