@@ -696,6 +696,10 @@ func (s *storageCeph) getRBDMountOptions() string {
 		return s.pool.Config["volume.block.mount_options"]
 	}
 
+	if s.getRBDFilesystem() == "btrfs" {
+		return "user_subvol_rm_allowed,discard"
+	}
+
 	return "discard"
 }
 
