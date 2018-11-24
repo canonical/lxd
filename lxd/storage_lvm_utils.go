@@ -95,6 +95,10 @@ func (s *storageLvm) getLvmMountOptions() string {
 		return s.pool.Config["volume.block.mount_options"]
 	}
 
+	if s.getLvmFilesystem() == "btrfs" {
+		return "user_subvol_rm_allowed,discard"
+	}
+
 	return "discard"
 }
 
