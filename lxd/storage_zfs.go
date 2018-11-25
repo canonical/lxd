@@ -2013,7 +2013,7 @@ func (s *storageZfs) PreservesInodes() bool {
 	return true
 }
 
-func (s *storageZfs) MigrationSource(ct container, containerOnly bool) (MigrationStorageSourceDriver, error) {
+func (s *storageZfs) MigrationSource(ct container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	/* If the container is a snapshot, let's just send that; we don't need
 	* to send anything else, because that's all the user asked for.
 	 */
@@ -2410,8 +2410,8 @@ func (s *zfsMigrationSourceDriver) SendStorageVolume(conn *websocket.Conn, op *o
 	return fmt.Errorf(msg)
 }
 
-func (s *storageZfs) StorageMigrationSource() (MigrationStorageSourceDriver, error) {
-	return rsyncStorageMigrationSource()
+func (s *storageZfs) StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncStorageMigrationSource(args)
 }
 
 func (s *storageZfs) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {

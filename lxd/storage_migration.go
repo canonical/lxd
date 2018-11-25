@@ -43,6 +43,7 @@ type MigrationStorageSourceDriver interface {
 type rsyncStorageSourceDriver struct {
 	container container
 	snapshots []container
+	rsyncArgs []string
 }
 
 func (s rsyncStorageSourceDriver) Snapshots() []container {
@@ -66,7 +67,7 @@ func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *op
 	path := getStoragePoolVolumeMountPoint(pool.Name, volume.Name)
 	path = shared.AddSlash(path)
 	logger.Debugf("Starting to send storage volume %s on storage pool %s from %s", volume.Name, pool.Name, path)
-	return RsyncSend(volume.Name, path, conn, wrapper, bwlimit, state.OS.ExecPath)
+	return RsyncSend(volume.Name, path, conn, wrapper, s.rsyncArgs, bwlimit, state.OS.ExecPath)
 }
 
 func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
@@ -85,7 +86,7 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *ope
 			path := send.Path()
 			wrapper := StorageProgressReader(op, "fs_progress", send.Name())
 			state := s.container.DaemonState()
-			err = RsyncSend(ctName, shared.AddSlash(path), conn, wrapper, bwlimit, state.OS.ExecPath)
+			err = RsyncSend(ctName, shared.AddSlash(path), conn, wrapper, s.rsyncArgs, bwlimit, state.OS.ExecPath)
 			if err != nil {
 				return err
 			}
@@ -94,25 +95,25 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *ope
 
 	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
 	state := s.container.DaemonState()
-	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, wrapper, bwlimit, state.OS.ExecPath)
+	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, wrapper, s.rsyncArgs, bwlimit, state.OS.ExecPath)
 }
 
 func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
 	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	// resync anything that changed between our first send and the checkpoint
 	state := s.container.DaemonState()
-	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, nil, bwlimit, state.OS.ExecPath)
+	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, nil, s.rsyncArgs, bwlimit, state.OS.ExecPath)
 }
 
 func (s rsyncStorageSourceDriver) Cleanup() {
 	// noop
 }
 
-func rsyncStorageMigrationSource() (MigrationStorageSourceDriver, error) {
-	return rsyncStorageSourceDriver{nil, nil}, nil
+func rsyncStorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncStorageSourceDriver{nil, nil, args.RsyncArgs}, nil
 }
 
-func rsyncMigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error) {
+func rsyncMigrationSource(c container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	var err error
 	var snapshots = []container{}
 	if !containerOnly {
@@ -122,7 +123,7 @@ func rsyncMigrationSource(c container, containerOnly bool) (MigrationStorageSour
 		}
 	}
 
-	return rsyncStorageSourceDriver{c, snapshots}, nil
+	return rsyncStorageSourceDriver{c, snapshots, args.RsyncArgs}, nil
 }
 
 func snapshotProtobufToContainerArgs(containerName string, snap *migration.Snapshot) db.ContainerArgs {

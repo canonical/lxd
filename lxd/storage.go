@@ -222,7 +222,7 @@ type storage interface {
 	// We leave sending containers which are snapshots of other containers
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
-	MigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error)
+	MigrationSource(c container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
 	MigrationSink(
 		live bool,
 		c container,
@@ -233,7 +233,7 @@ type storage interface {
 		containerOnly bool,
 		args MigrationSinkArgs) error
 
-	StorageMigrationSource() (MigrationStorageSourceDriver, error)
+	StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
 	StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error
 }
 
