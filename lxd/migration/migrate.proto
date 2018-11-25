@@ -50,6 +50,7 @@ message rsyncFeatures {
 	optional bool		xattrs = 1;
 	optional bool		delete = 2;
 	optional bool		compress = 3;
+	optional bool		bidirectional = 4;
 }
 
 message MigrationHeader {

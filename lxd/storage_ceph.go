@@ -2734,8 +2734,8 @@ func (s *rbdMigrationSourceDriver) SendStorageVolume(conn *websocket.Conn, op *o
 	return fmt.Errorf(msg)
 }
 
-func (s *storageCeph) StorageMigrationSource() (MigrationStorageSourceDriver, error) {
-	return rsyncStorageMigrationSource()
+func (s *storageCeph) StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncStorageMigrationSource(args)
 }
 
 func (s *storageCeph) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
