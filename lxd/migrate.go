@@ -273,6 +273,11 @@ type MigrationSinkArgs struct {
 	Refresh bool
 }
 
+type MigrationSourceArgs struct {
+	// transport specific fields
+	RsyncArgs []string
+}
+
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
 	query := url.Values{"secret": []string{secret}}
 

@@ -220,6 +220,7 @@ type preDumpLoopArgs struct {
 	preDumpDir    string
 	dumpDir       string
 	final         bool
+	rsyncArgs     []string
 }
 
 // The function preDumpLoop is the main logic behind the pre-copy migration.
@@ -250,7 +251,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	// Send the pre-dump.
 	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	state := s.container.DaemonState()
-	err = RsyncSend(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.bwlimit, state.OS.ExecPath)
+	err = RsyncSend(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.rsyncArgs, args.bwlimit, state.OS.ExecPath)
 	if err != nil {
 		return final, err
 	}
@@ -355,14 +356,12 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		}
 	}
 
-	driver, fsErr := s.container.Storage().MigrationSource(s.container, s.containerOnly)
-
 	snapshots := []*migration.Snapshot{}
 	snapshotNames := []string{}
 	// Only send snapshots when requested.
 	if !s.containerOnly {
-		if fsErr == nil {
-			fullSnaps := driver.Snapshots()
+		fullSnaps, err := s.container.Snapshots()
+		if err == nil {
 			for _, snap := range fullSnaps {
 				snapshots = append(snapshots, snapshotToProtobuf(snap))
 				snapshotNames = append(snapshotNames, shared.ExtractSnapshotName(snap.Name()))
@@ -388,9 +387,10 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		Snapshots:     snapshots,
 		Predump:       proto.Bool(use_pre_dumps),
 		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:   &rsyncHasFeature,
-			Delete:   &rsyncHasFeature,
-			Compress: &rsyncHasFeature,
+			Xattrs:        &rsyncHasFeature,
+			Delete:        &rsyncHasFeature,
+			Compress:      &rsyncHasFeature,
+			Bidirectional: &rsyncHasFeature,
 		},
 	}
 
@@ -400,15 +400,41 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		return err
 	}
 
-	if fsErr != nil {
-		s.sendControl(fsErr)
-		return fsErr
-	}
-
 	err = s.recv(&header)
 	if err != nil {
 		s.sendControl(err)
 		return err
+	}
+
+	// Handle rsync options
+	rsyncArgs := []string{}
+	rsyncFeatures := header.GetRsyncFeatures()
+	if !rsyncFeatures.GetBidirectional() {
+		// If no bi-directional support, assume LXD 3.7 level
+		// NOTE: Do NOT extend this list of arguments
+		rsyncArgs = append(rsyncArgs, "--xattrs")
+		rsyncArgs = append(rsyncArgs, "--delete")
+		rsyncArgs = append(rsyncArgs, "--compress")
+		rsyncArgs = append(rsyncArgs, "--compress-level=2")
+	} else {
+		if rsyncFeatures.GetXattrs() {
+			rsyncArgs = append(rsyncArgs, "--xattrs")
+		}
+		if rsyncFeatures.GetDelete() {
+			rsyncArgs = append(rsyncArgs, "--delete")
+		}
+		if rsyncFeatures.GetCompress() {
+			rsyncArgs = append(rsyncArgs, "--compress")
+			rsyncArgs = append(rsyncArgs, "--compress-level=2")
+		}
+	}
+	sourceArgs := MigrationSourceArgs{rsyncArgs}
+
+	// Initialize storage driver
+	driver, fsErr := s.container.Storage().MigrationSource(s.container, s.containerOnly, sourceArgs)
+	if fsErr != nil {
+		s.sendControl(fsErr)
+		return fsErr
 	}
 
 	bwlimit := ""
@@ -417,9 +443,9 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		header.Fs = &myType
 
 		if header.GetRefresh() {
-			driver, _ = rsyncRefreshSource(s.container, s.containerOnly, header.GetSnapshotNames())
+			driver, _ = rsyncRefreshSource(s.container, s.containerOnly, header.GetSnapshotNames(), sourceArgs)
 		} else {
-			driver, _ = rsyncMigrationSource(s.container, s.containerOnly)
+			driver, _ = rsyncMigrationSource(s.container, s.containerOnly, sourceArgs)
 		}
 
 		// Check if this storage pool has a rate limit set for rsync.
@@ -561,6 +587,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 						preDumpDir:    preDumpDir,
 						dumpDir:       dumpDir,
 						final:         final,
+						rsyncArgs:     rsyncArgs,
 					}
 					final, err = s.preDumpLoop(&loop_args)
 					if err != nil {
@@ -631,7 +658,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		 */
 		ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 		state := s.container.DaemonState()
-		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn, nil, bwlimit, state.OS.ExecPath)
+		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn, nil, rsyncArgs, bwlimit, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
 		}
@@ -818,12 +845,19 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}
 
 	myType := c.src.container.Storage().MigrationType()
+	rsyncHasFeature := true
 	resp := migration.MigrationHeader{
 		Fs:            &myType,
 		Criu:          criuType,
 		Snapshots:     header.Snapshots,
 		SnapshotNames: header.SnapshotNames,
 		Refresh:       &c.refresh,
+		RsyncFeatures: &migration.RsyncFeatures{
+			Xattrs:        &rsyncHasFeature,
+			Delete:        &rsyncHasFeature,
+			Compress:      &rsyncHasFeature,
+			Bidirectional: &rsyncHasFeature,
+		},
 	}
 
 	if c.refresh {
