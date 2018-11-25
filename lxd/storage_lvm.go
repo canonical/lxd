@@ -2069,8 +2069,8 @@ func (s *storageLvm) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageLvm) MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error) {
-	return rsyncMigrationSource(container, containerOnly)
+func (s *storageLvm) MigrationSource(container container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncMigrationSource(container, containerOnly, args)
 }
 
 func (s *storageLvm) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
@@ -2278,8 +2278,8 @@ func (s *storageLvm) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	return nil
 }
 
-func (s *storageLvm) StorageMigrationSource() (MigrationStorageSourceDriver, error) {
-	return rsyncStorageMigrationSource()
+func (s *storageLvm) StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncStorageMigrationSource(args)
 }
 
 func (s *storageLvm) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {

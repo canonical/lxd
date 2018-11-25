@@ -159,7 +159,7 @@ func (s *storageCeph) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageCeph) MigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error) {
+func (s *storageCeph) MigrationSource(c container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	// If the container is a snapshot, let's just send that. We don't need
 	// to send anything else, because that's all the user asked for.
 	if c.IsSnapshot() {
