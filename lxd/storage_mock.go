@@ -226,7 +226,7 @@ func (s *storageMock) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageMock) MigrationSource(container container, containerOnly bool) (MigrationStorageSourceDriver, error) {
+func (s *storageMock) MigrationSource(container container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
@@ -246,7 +246,7 @@ func (s *storageMock) StoragePoolVolumeCopy(source *api.StorageVolumeSource) err
 	return nil
 }
 
-func (s *storageMock) StorageMigrationSource() (MigrationStorageSourceDriver, error) {
+func (s *storageMock) StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	return nil, nil
 }
 

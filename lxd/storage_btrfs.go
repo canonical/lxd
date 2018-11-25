@@ -2625,9 +2625,9 @@ func (s *storageBtrfs) PreservesInodes() bool {
 	return true
 }
 
-func (s *storageBtrfs) MigrationSource(c container, containerOnly bool) (MigrationStorageSourceDriver, error) {
+func (s *storageBtrfs) MigrationSource(c container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	if s.s.OS.RunningInUserNS {
-		return rsyncMigrationSource(c, containerOnly)
+		return rsyncMigrationSource(c, containerOnly, args)
 	}
 
 	/* List all the snapshots in order of reverse creation. The idea here
@@ -3038,8 +3038,8 @@ func (s *btrfsMigrationSourceDriver) SendStorageVolume(conn *websocket.Conn, op 
 	return fmt.Errorf(msg)
 }
 
-func (s *storageBtrfs) StorageMigrationSource() (MigrationStorageSourceDriver, error) {
-	return rsyncStorageMigrationSource()
+func (s *storageBtrfs) StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncStorageMigrationSource(args)
 }
 
 func (s *storageBtrfs) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {

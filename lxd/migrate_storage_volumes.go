@@ -51,9 +51,10 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 	header := migration.MigrationHeader{
 		Fs: &myType,
 		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:   &rsyncHasFeature,
-			Delete:   &rsyncHasFeature,
-			Compress: &rsyncHasFeature,
+			Xattrs:        &rsyncHasFeature,
+			Delete:        &rsyncHasFeature,
+			Compress:      &rsyncHasFeature,
+			Bidirectional: &rsyncHasFeature,
 		},
 	}
 
@@ -64,13 +65,6 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 		return err
 	}
 
-	driver, fsErr := s.storage.StorageMigrationSource()
-	if fsErr != nil {
-		logger.Errorf("Failed to initialize new storage volume migration driver")
-		s.sendControl(fsErr)
-		return fsErr
-	}
-
 	err = s.recv(&header)
 	if err != nil {
 		logger.Errorf("Failed to receive storage volume migration header")
@@ -78,12 +72,43 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 		return err
 	}
 
+	// Handle rsync options
+	rsyncArgs := []string{}
+	rsyncFeatures := header.GetRsyncFeatures()
+	if !rsyncFeatures.GetBidirectional() {
+		// If no bi-directional support, assume LXD 3.7 level
+		// NOTE: Do NOT extend this list of arguments
+		rsyncArgs = append(rsyncArgs, "--xattrs")
+		rsyncArgs = append(rsyncArgs, "--delete")
+		rsyncArgs = append(rsyncArgs, "--compress")
+		rsyncArgs = append(rsyncArgs, "--compress-level=2")
+	} else {
+		if rsyncFeatures.GetXattrs() {
+			rsyncArgs = append(rsyncArgs, "--xattrs")
+		}
+		if rsyncFeatures.GetDelete() {
+			rsyncArgs = append(rsyncArgs, "--delete")
+		}
+		if rsyncFeatures.GetCompress() {
+			rsyncArgs = append(rsyncArgs, "--compress")
+			rsyncArgs = append(rsyncArgs, "--compress-level=2")
+		}
+	}
+	sourceArgs := MigrationSourceArgs{rsyncArgs}
+
+	driver, fsErr := s.storage.StorageMigrationSource(sourceArgs)
+	if fsErr != nil {
+		logger.Errorf("Failed to initialize new storage volume migration driver")
+		s.sendControl(fsErr)
+		return fsErr
+	}
+
 	bwlimit := ""
 	if *header.Fs != myType {
 		myType = migration.MigrationFSType_RSYNC
 		header.Fs = &myType
 
-		driver, _ = rsyncStorageMigrationSource()
+		driver, _ = rsyncStorageMigrationSource(sourceArgs)
 
 		// Check if this storage pool has a rate limit set for rsync.
 		poolwritable := s.storage.GetStoragePoolWritable()
@@ -223,9 +248,10 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 	resp := migration.MigrationHeader{
 		Fs: &myType,
 		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:   &rsyncHasFeature,
-			Delete:   &rsyncHasFeature,
-			Compress: &rsyncHasFeature,
+			Xattrs:        &rsyncHasFeature,
+			Delete:        &rsyncHasFeature,
+			Compress:      &rsyncHasFeature,
+			Bidirectional: &rsyncHasFeature,
 		},
 	}
 
