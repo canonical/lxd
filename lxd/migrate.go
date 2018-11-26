@@ -273,6 +273,7 @@ type MigrationSinkArgs struct {
 type MigrationSourceArgs struct {
 	// transport specific fields
 	RsyncArgs []string
+	ZfsArgs   []string
 }
 
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {

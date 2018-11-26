@@ -53,6 +53,10 @@ message rsyncFeatures {
 	optional bool		bidirectional = 4;
 }
 
+message zfsFeatures {
+	optional bool		compress = 1;
+}
+
 message MigrationHeader {
 	required MigrationFSType		fs		= 1;
 	optional CRIUType			criu		= 2;
@@ -61,6 +65,8 @@ message MigrationHeader {
 	repeated Snapshot			snapshots	= 5;
 	optional bool				predump		= 7;
 	optional rsyncFeatures		rsyncFeatures = 8;
+	optional bool				refresh		= 9;
+	optional zfsFeatures		zfsFeatures = 10;
 }
 
 message MigrationControl {

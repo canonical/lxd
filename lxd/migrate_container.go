@@ -377,7 +377,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	// The protocol says we have to send a header no matter what, so let's
 	// do that, but then immediately send an error.
 	myType := s.container.Storage().MigrationType()
-	rsyncHasFeature := true
+	hasFeature := true
 	header := migration.MigrationHeader{
 		Fs:            &myType,
 		Criu:          criuType,
@@ -386,11 +386,17 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		Snapshots:     snapshots,
 		Predump:       proto.Bool(use_pre_dumps),
 		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:        &rsyncHasFeature,
-			Delete:        &rsyncHasFeature,
-			Compress:      &rsyncHasFeature,
-			Bidirectional: &rsyncHasFeature,
+			Xattrs:        &hasFeature,
+			Delete:        &hasFeature,
+			Compress:      &hasFeature,
+			Bidirectional: &hasFeature,
 		},
+	}
+
+	if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
+		header.ZfsFeatures = &migration.ZfsFeatures{
+			Compress: &hasFeature,
+		}
 	}
 
 	err = s.send(&header)
@@ -427,7 +433,17 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 			rsyncArgs = append(rsyncArgs, "--compress-level=2")
 		}
 	}
-	sourceArgs := MigrationSourceArgs{rsyncArgs}
+
+	// Handle zfs options
+	zfsArgs := []string{}
+	zfsFeatures := header.GetZfsFeatures()
+	if zfsFeatures.GetCompress() && len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
+		zfsArgs = append(zfsArgs, "-c")
+		zfsArgs = append(zfsArgs, "-L")
+	}
+
+	// Set source args
+	sourceArgs := MigrationSourceArgs{rsyncArgs, zfsArgs}
 
 	// Initialize storage driver
 	driver, fsErr := s.container.Storage().MigrationSource(s.container, s.containerOnly, sourceArgs)
@@ -834,16 +850,22 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 
 	mySink := c.src.container.Storage().MigrationSink
 	myType := c.src.container.Storage().MigrationType()
-	rsyncHasFeature := true
+	hasFeature := true
 	resp := migration.MigrationHeader{
 		Fs:   &myType,
 		Criu: criuType,
 		RsyncFeatures: &migration.RsyncFeatures{
-			Xattrs:        &rsyncHasFeature,
-			Delete:        &rsyncHasFeature,
-			Compress:      &rsyncHasFeature,
-			Bidirectional: &rsyncHasFeature,
+			Xattrs:        &hasFeature,
+			Delete:        &hasFeature,
+			Compress:      &hasFeature,
+			Bidirectional: &hasFeature,
 		},
+	}
+
+	if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
+		resp.ZfsFeatures = &migration.ZfsFeatures{
+			Compress: &hasFeature,
+		}
 	}
 
 	// If the storage type the source has doesn't match what we have, then
