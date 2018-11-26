@@ -7650,19 +7650,26 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 			}
 
 			// Update the database
-			err = query.Retry(func() error { return updateKey(configKey, volatileHwaddr) })
-			if err != nil {
-				// Check if something else filled it in behind our back
-				value, err1 := c.state.Cluster.ContainerConfigGet(c.id, configKey)
-				if err1 != nil || value == "" {
-					return nil, err
+			err = query.Retry(func() error {
+				err := updateKey(configKey, volatileHwaddr)
+				if err != nil {
+					// Check if something else filled it in behind our back
+					value, err1 := c.state.Cluster.ContainerConfigGet(c.id, configKey)
+					if err1 != nil || value == "" {
+						return err
+					}
+
+					c.localConfig[configKey] = value
+					c.expandedConfig[configKey] = value
+					return nil
 				}
 
-				c.localConfig[configKey] = value
-				c.expandedConfig[configKey] = value
-			} else {
 				c.localConfig[configKey] = volatileHwaddr
 				c.expandedConfig[configKey] = volatileHwaddr
+				return nil
+			})
+			if err != nil {
+				return nil, err
 			}
 		}
 		newDevice["hwaddr"] = volatileHwaddr
