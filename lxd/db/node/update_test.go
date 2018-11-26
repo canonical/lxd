@@ -43,3 +43,47 @@ func TestUpdateFromV36_DropTables(t *testing.T) {
 		assert.False(t, shared.StringInSlice(name, current))
 	}
 }
+
+// If clustering is enabled, the core.https_address config gets copied to
+// cluster.https_config.
+func TestUpdateFromV37_CopyCoreHTTPSAddress(t *testing.T) {
+	schema := node.Schema()
+	db, err := schema.ExerciseUpdate(38, func(db *sql.DB) {
+		_, err := db.Exec("INSERT INTO raft_nodes VALUES (1, '1.2.3.4:666')")
+		require.NoError(t, err)
+
+		_, err = db.Exec("INSERT INTO config VALUES (1, 'core.https_address', '1.2.3.4:666')")
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	var clusterAddress string
+	err = query.Transaction(db, func(tx *sql.Tx) error {
+		stmt := "SELECT value FROM config WHERE key='cluster.https_address'"
+		row := tx.QueryRow(stmt)
+		err := row.Scan(&clusterAddress)
+		return err
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, clusterAddress, "1.2.3.4:666")
+}
+
+// If clustering is not enabled, the core.https_address config does not get copied.
+func TestUpdateFromV37_NotClustered(t *testing.T) {
+	schema := node.Schema()
+	db, err := schema.ExerciseUpdate(38, func(db *sql.DB) {
+		_, err := db.Exec("INSERT INTO config VALUES (1, 'core.https_address', '1.2.3.4:666')")
+		require.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	var clusterAddress string
+	err = query.Transaction(db, func(tx *sql.Tx) error {
+		stmt := "SELECT value FROM config WHERE key='cluster.https_address'"
+		row := tx.QueryRow(stmt)
+		err := row.Scan(&clusterAddress)
+		return err
+	})
+	require.EqualError(t, err, "sql: no rows in result set")
+}

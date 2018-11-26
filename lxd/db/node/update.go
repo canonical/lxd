@@ -8,9 +8,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/pkg/errors"
 )
 
 // Schema for the local database.
@@ -90,6 +92,7 @@ var updates = map[int]schema.Update{
 	35: updateFromV34,
 	36: updateFromV35,
 	37: updateFromV36,
+	38: updateFromV37,
 }
 
 // UpdateFromPreClustering is the last schema version where clustering support
@@ -97,6 +100,31 @@ var updates = map[int]schema.Update{
 const UpdateFromPreClustering = 36
 
 // Schema updates begin here
+
+// Copy core.https_address to cluster.https_address in case this node is
+// clustered.
+func updateFromV37(tx *sql.Tx) error {
+	count, err := query.Count(tx, "raft_nodes", "")
+	if err != nil {
+		return errors.Wrap(err, "Fetch count of Raft nodes")
+	}
+
+	if count == 0 {
+		// This node is not clustered, nothing to do.
+		return nil
+	}
+
+	// Copy the core.https_address config.
+	_, err = tx.Exec(`
+INSERT INTO config (key, value)
+  SELECT 'cluster.https_address', value FROM config WHERE key = 'core.https_address'
+`)
+	if err != nil {
+		return errors.Wrap(err, "Insert cluster.https_address config")
+	}
+
+	return nil
+}
 
 // Add a raft_nodes table to be used when running in clustered mode. It lists
 // the current nodes in the LXD cluster that are participating to the dqlite
