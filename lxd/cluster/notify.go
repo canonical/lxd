@@ -31,12 +31,12 @@ const (
 // NewNotifier builds a Notifier that can be used to notify other peers using
 // the given policy.
 func NewNotifier(state *state.State, cert *shared.CertInfo, policy NotifierPolicy) (Notifier, error) {
-	address, err := node.HTTPSAddress(state.Node)
+	address, err := node.ClusterAddress(state.Node)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch node address")
 	}
 
-	// Fast-track the case where we're not networked at all.
+	// Fast-track the case where we're not clustered at all.
 	if address == "" {
 		nullNotifier := func(func(lxd.ContainerServer) error) error { return nil }
 		return nullNotifier, nil

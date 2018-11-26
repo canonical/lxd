@@ -36,7 +36,7 @@ func TestNewNotifier(t *testing.T) {
 	hook := func(client lxd.ContainerServer) error {
 		server, _, err := client.GetServer()
 		require.NoError(t, err)
-		peers <- server.Config["core.https_address"].(string)
+		peers <- server.Config["cluster.https_address"].(string)
 		return nil
 	}
 	assert.NoError(t, notifier(hook))
@@ -106,7 +106,7 @@ type notifyFixtures struct {
 // return a cleanup function.
 //
 // The address of the first node spawned will be saved as local
-// core.https_address.
+// cluster.https_address.
 func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 	servers := make([]*httptest.Server, n)
 	for i := 0; i < n; i++ {
@@ -135,7 +135,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 		config, err := node.ConfigLoad(tx)
 		require.NoError(h.t, err)
 		address := servers[0].Listener.Addr().String()
-		values := map[string]interface{}{"core.https_address": address}
+		values := map[string]interface{}{"cluster.https_address": address}
 		_, err = config.Patch(values)
 		require.NoError(h.t, err)
 		return nil
@@ -187,7 +187,7 @@ func newRestServer(cert *shared.CertInfo) *httptest.Server {
 
 	mux.HandleFunc("/1.0/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		config := map[string]interface{}{"core.https_address": server.Listener.Addr().String()}
+		config := map[string]interface{}{"cluster.https_address": server.Listener.Addr().String()}
 		metadata := api.ServerPut{Config: config}
 		util.WriteJSON(w, api.ResponseRaw{Metadata: metadata}, false)
 	})

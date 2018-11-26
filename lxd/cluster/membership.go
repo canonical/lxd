@@ -25,7 +25,7 @@ import (
 // Bootstrap turns a non-clustered LXD instance into the first (and leader)
 // node of a new LXD cluster.
 //
-// This instance must already have its core.https_address set and be listening
+// This instance must already have its cluster.https_address set and be listening
 // on the associated network address.
 func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	// Check parameters
@@ -39,13 +39,15 @@ func Bootstrap(state *state.State, gateway *Gateway, name string) error {
 	}
 
 	var address string
+
 	err = state.Node.Transaction(func(tx *db.NodeTx) error {
 		// Fetch current network address and raft nodes
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed to fetch node configuration")
 		}
-		address = config.HTTPSAddress()
+
+		address = config.ClusterAddress()
 
 		// Make sure node-local database state is in order.
 		err = membershipCheckNodeStateForBootstrapOrJoin(tx, address)
@@ -226,7 +228,7 @@ func Join(state *state.State, gateway *Gateway, cert *shared.CertInfo, name stri
 		if err != nil {
 			return errors.Wrap(err, "failed to fetch node configuration")
 		}
-		address = config.HTTPSAddress()
+		address = config.ClusterAddress()
 
 		// Make sure node-local database state is in order.
 		err = membershipCheckNodeStateForBootstrapOrJoin(tx, address)
@@ -830,18 +832,18 @@ func membershipCheckNodeStateForBootstrapOrJoin(tx *db.NodeTx, address string) e
 		return errors.Wrap(err, "failed to fetch current raft nodes")
 	}
 
-	hasNetworkAddress := address != ""
+	hasClusterAddress := address != ""
 	hasRaftNodes := len(nodes) > 0
 
 	// Sanity check that we're not in an inconsistent situation, where no
-	// network address is set, but still there are entries in the
+	// cluster address is set, but still there are entries in the
 	// raft_nodes table.
-	if !hasNetworkAddress && hasRaftNodes {
+	if !hasClusterAddress && hasRaftNodes {
 		return fmt.Errorf("inconsistent state: found leftover entries in raft_nodes")
 	}
 
-	if !hasNetworkAddress {
-		return fmt.Errorf("no core.https_address config is set on this node")
+	if !hasClusterAddress {
+		return fmt.Errorf("no cluster.https_address config is set on this node")
 	}
 	if hasRaftNodes {
 		return fmt.Errorf("the node is already part of a cluster")
