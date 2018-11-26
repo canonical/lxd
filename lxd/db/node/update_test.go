@@ -28,7 +28,7 @@ func TestUpdateFromV36_DropTables(t *testing.T) {
 	require.NoError(t, err)
 
 	var current []string
-	query.Transaction(db, func(tx *sql.Tx) error {
+	err = query.Transaction(db, func(tx *sql.Tx) error {
 		var err error
 		stmt := "SELECT name FROM sqlite_master WHERE type='table'"
 		current, err = query.SelectStrings(tx, stmt)
