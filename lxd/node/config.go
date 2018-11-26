@@ -37,6 +37,12 @@ func (c *Config) HTTPSAddress() string {
 	return c.m.GetString("core.https_address")
 }
 
+// ClusterAddress returns the address and port this LXD node should use for
+// cluster communication.
+func (c *Config) ClusterAddress() string {
+	return c.m.GetString("cluster.https_address")
+}
+
 // DebugAddress returns the address and port to setup the pprof listener on
 func (c *Config) DebugAddress() string {
 	return c.m.GetString("core.debug_address")
@@ -85,6 +91,22 @@ func HTTPSAddress(node *db.Node) (string, error) {
 	return config.HTTPSAddress(), nil
 }
 
+// ClusterAddress is a convenience for loading the node configuration and
+// returning the value of cluster.https_address.
+func ClusterAddress(node *db.Node) (string, error) {
+	var config *Config
+	err := node.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		config, err = ConfigLoad(tx)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return config.ClusterAddress(), nil
+}
+
 // DebugAddress is a convenience for loading the node configuration and
 // returning the value of core.debug_address.
 func DebugAddress(node *db.Node) (string, error) {
@@ -119,6 +141,9 @@ func (c *Config) update(values map[string]interface{}) (map[string]string, error
 var ConfigSchema = config.Schema{
 	// Network address for this LXD server
 	"core.https_address": {},
+
+	// Network address for cluster communication
+	"cluster.https_address": {},
 
 	// Network address for the debug server
 	"core.debug_address": {},
