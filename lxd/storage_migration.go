@@ -113,10 +113,10 @@ func rsyncStorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSour
 	return rsyncStorageSourceDriver{nil, nil, args.RsyncArgs}, nil
 }
 
-func rsyncRefreshSource(c container, containerOnly bool, refreshSnapshots []string, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	var snapshots = []container{}
-	if !containerOnly {
-		allSnapshots, err := c.Snapshots()
+	if !args.ContainerOnly {
+		allSnapshots, err := args.Container.Snapshots()
 		if err != nil {
 			return nil, err
 		}
@@ -131,20 +131,20 @@ func rsyncRefreshSource(c container, containerOnly bool, refreshSnapshots []stri
 		}
 	}
 
-	return rsyncStorageSourceDriver{c, snapshots, args.RsyncArgs}, nil
+	return rsyncStorageSourceDriver{args.Container, snapshots, args.RsyncArgs}, nil
 }
 
-func rsyncMigrationSource(c container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+func rsyncMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	var err error
 	var snapshots = []container{}
-	if !containerOnly {
-		snapshots, err = c.Snapshots()
+	if !args.ContainerOnly {
+		snapshots, err = args.Container.Snapshots()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return rsyncStorageSourceDriver{c, snapshots, args.RsyncArgs}, nil
+	return rsyncStorageSourceDriver{args.Container, snapshots, args.RsyncArgs}, nil
 }
 
 func snapshotProtobufToContainerArgs(project string, containerName string, snap *migration.Snapshot) db.ContainerArgs {

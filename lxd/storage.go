@@ -232,7 +232,7 @@ type storage interface {
 	// We leave sending containers which are snapshots of other containers
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
-	MigrationSource(c container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
+	MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
 	MigrationSink(
 		live bool,
 		c container,

@@ -159,25 +159,25 @@ func (s *storageCeph) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageCeph) MigrationSource(c container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+func (s *storageCeph) MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	// If the container is a snapshot, let's just send that. We don't need
 	// to send anything else, because that's all the user asked for.
-	if c.IsSnapshot() {
+	if args.Container.IsSnapshot() {
 		return &rbdMigrationSourceDriver{
-			container: c,
+			container: args.Container,
 			ceph:      s,
 		}, nil
 	}
 
 	driver := rbdMigrationSourceDriver{
-		container:        c,
+		container:        args.Container,
 		snapshots:        []container{},
 		rbdSnapshotNames: []string{},
 		ceph:             s,
 	}
 
-	containerName := c.Name()
-	if containerOnly {
+	containerName := args.Container.Name()
+	if args.ContainerOnly {
 		logger.Debugf(`Only migrating the RBD storage volume for container "%s" on storage pool "%s`, containerName, s.pool.Name)
 		return &driver, nil
 	}
@@ -186,7 +186,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool, args Migr
 	// that we send the oldest to newest snapshot, hopefully saving on xfer
 	// costs. Then, after all that, we send the container itself.
 	snapshots, err := cephRBDVolumeListSnapshots(s.ClusterName,
-		s.OSDPoolName, projectPrefix(c.Project(), containerName),
+		s.OSDPoolName, projectPrefix(args.Container.Project(), containerName),
 		storagePoolVolumeTypeNameContainer, s.UserName)
 	if err != nil {
 		if err != db.ErrNoSuchObject {
@@ -206,7 +206,7 @@ func (s *storageCeph) MigrationSource(c container, containerOnly bool, args Migr
 		}
 
 		lxdName := fmt.Sprintf("%s%s%s", containerName, shared.SnapshotDelimiter, snap[len("snapshot_"):])
-		snapshot, err := containerLoadByProjectAndName(s.s, c.Project(), lxdName)
+		snapshot, err := containerLoadByProjectAndName(s.s, args.Container.Project(), lxdName)
 		if err != nil {
 			logger.Errorf(`Failed to load snapshot "%s" for RBD storage volume "%s" on storage pool "%s": %s`, lxdName, containerName, s.pool.Name, err)
 			return nil, err

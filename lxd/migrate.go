@@ -274,7 +274,11 @@ type MigrationSinkArgs struct {
 }
 
 type MigrationSourceArgs struct {
-	// transport specific fields
+	// Container specific fields
+	Container     container
+	ContainerOnly bool
+
+	// Transport specific fields
 	RsyncArgs []string
 	ZfsArgs   []string
 }
