@@ -188,22 +188,22 @@ func snapshotProtobufToContainerArgs(project string, containerName string, snap 
 	return args
 }
 
-func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
-	err := storage.StoragePoolVolumeCreate()
+func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	err := args.Storage.StoragePoolVolumeCreate()
 	if err != nil {
 		return err
 	}
 
-	ourMount, err := storage.StoragePoolVolumeMount()
+	ourMount, err := args.Storage.StoragePoolVolumeMount()
 	if err != nil {
 		return err
 	}
 	if ourMount {
-		defer storage.StoragePoolVolumeUmount()
+		defer args.Storage.StoragePoolVolumeUmount()
 	}
 
-	pool := storage.GetStoragePool()
-	volume := storage.GetStoragePoolVolume()
+	pool := args.Storage.GetStoragePool()
+	volume := args.Storage.GetStoragePoolVolume()
 
 	wrapper := StorageProgressWriter(op, "fs_progress", volume.Name)
 	path := getStoragePoolVolumeMountPoint(pool.Name, volume.Name)

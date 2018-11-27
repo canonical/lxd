@@ -244,7 +244,7 @@ type storage interface {
 		args MigrationSinkArgs) error
 
 	StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
-	StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error
+	StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error
 }
 
 func storageCoreInit(driver string) (storage, error) {
