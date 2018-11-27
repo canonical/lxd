@@ -249,7 +249,7 @@ func (s *storageMock) StorageMigrationSource(args MigrationSourceArgs) (Migratio
 	return nil, nil
 }
 
-func (s *storageMock) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
+func (s *storageMock) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return nil
 }
 
