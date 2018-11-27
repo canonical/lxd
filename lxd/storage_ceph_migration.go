@@ -159,25 +159,25 @@ func (s *storageCeph) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageCeph) MigrationSource(c container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+func (s *storageCeph) MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	// If the container is a snapshot, let's just send that. We don't need
 	// to send anything else, because that's all the user asked for.
-	if c.IsSnapshot() {
+	if args.Container.IsSnapshot() {
 		return &rbdMigrationSourceDriver{
-			container: c,
+			container: args.Container,
 			ceph:      s,
 		}, nil
 	}
 
 	driver := rbdMigrationSourceDriver{
-		container:        c,
+		container:        args.Container,
 		snapshots:        []container{},
 		rbdSnapshotNames: []string{},
 		ceph:             s,
 	}
 
-	containerName := c.Name()
-	if containerOnly {
+	containerName := args.Container.Name()
+	if args.ContainerOnly {
 		logger.Debugf(`Only migrating the RBD storage volume for container "%s" on storage pool "%s`, containerName, s.pool.Name)
 		return &driver, nil
 	}

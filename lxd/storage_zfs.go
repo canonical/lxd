@@ -2016,23 +2016,23 @@ func (s *storageZfs) PreservesInodes() bool {
 	return true
 }
 
-func (s *storageZfs) MigrationSource(ct container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	/* If the container is a snapshot, let's just send that; we don't need
 	* to send anything else, because that's all the user asked for.
 	 */
-	if ct.IsSnapshot() {
-		return &zfsMigrationSourceDriver{container: ct, zfs: s, zfsArgs: args.ZfsArgs}, nil
+	if args.Container.IsSnapshot() {
+		return &zfsMigrationSourceDriver{container: args.Container, zfs: s, zfsArgs: args.ZfsArgs}, nil
 	}
 
 	driver := zfsMigrationSourceDriver{
-		container:        ct,
+		container:        args.Container,
 		snapshots:        []container{},
 		zfsSnapshotNames: []string{},
 		zfs:              s,
 		zfsArgs:          args.ZfsArgs,
 	}
 
-	if containerOnly {
+	if args.ContainerOnly {
 		return &driver, nil
 	}
 
@@ -2040,7 +2040,7 @@ func (s *storageZfs) MigrationSource(ct container, containerOnly bool, args Migr
 	* is that we send the oldest to newest snapshot, hopefully saving on
 	* xfer costs. Then, after all that, we send the container itself.
 	 */
-	snapshots, err := zfsPoolListSnapshots(s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", ct.Name()))
+	snapshots, err := zfsPoolListSnapshots(s.getOnDiskPoolName(), fmt.Sprintf("containers/%s", args.Container.Name()))
 	if err != nil {
 		return nil, err
 	}
@@ -2055,7 +2055,7 @@ func (s *storageZfs) MigrationSource(ct container, containerOnly bool, args Migr
 			continue
 		}
 
-		lxdName := fmt.Sprintf("%s%s%s", ct.Name(), shared.SnapshotDelimiter, snap[len("snapshot-"):])
+		lxdName := fmt.Sprintf("%s%s%s", args.Container.Name(), shared.SnapshotDelimiter, snap[len("snapshot-"):])
 		snapshot, err := containerLoadByName(s.s, lxdName)
 		if err != nil {
 			return nil, err

@@ -2036,9 +2036,9 @@ func (s *storageBtrfs) PreservesInodes() bool {
 	return true
 }
 
-func (s *storageBtrfs) MigrationSource(c container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
 	if s.s.OS.RunningInUserNS {
-		return rsyncMigrationSource(c, containerOnly, args)
+		return rsyncMigrationSource(args)
 	}
 
 	/* List all the snapshots in order of reverse creation. The idea here
@@ -2047,21 +2047,21 @@ func (s *storageBtrfs) MigrationSource(c container, containerOnly bool, args Mig
 	 */
 	var err error
 	var snapshots = []container{}
-	if !containerOnly {
-		snapshots, err = c.Snapshots()
+	if !args.ContainerOnly {
+		snapshots, err = args.Container.Snapshots()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	driver := &btrfsMigrationSourceDriver{
-		container:          c,
+		container:          args.Container,
 		snapshots:          snapshots,
 		btrfsSnapshotNames: []string{},
 		btrfs:              s,
 	}
 
-	if !containerOnly {
+	if !args.ContainerOnly {
 		for _, snap := range snapshots {
 			btrfsPath := getSnapshotMountPoint(s.pool.Name, snap.Name())
 			driver.btrfsSnapshotNames = append(driver.btrfsSnapshotNames, btrfsPath)

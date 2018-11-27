@@ -1728,8 +1728,8 @@ func (s *storageLvm) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageLvm) MigrationSource(container container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
-	return rsyncMigrationSource(container, containerOnly, args)
+func (s *storageLvm) MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncMigrationSource(args)
 }
 
 func (s *storageLvm) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {

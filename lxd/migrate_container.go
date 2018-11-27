@@ -443,10 +443,15 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	}
 
 	// Set source args
-	sourceArgs := MigrationSourceArgs{rsyncArgs, zfsArgs}
+	sourceArgs := MigrationSourceArgs{
+		Container:     s.container,
+		ContainerOnly: s.containerOnly,
+		RsyncArgs:     rsyncArgs,
+		ZfsArgs:       zfsArgs,
+	}
 
 	// Initialize storage driver
-	driver, fsErr := s.container.Storage().MigrationSource(s.container, s.containerOnly, sourceArgs)
+	driver, fsErr := s.container.Storage().MigrationSource(sourceArgs)
 	if fsErr != nil {
 		s.sendControl(fsErr)
 		return fsErr
@@ -457,7 +462,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		myType = migration.MigrationFSType_RSYNC
 		header.Fs = &myType
 
-		driver, _ = rsyncMigrationSource(s.container, s.containerOnly, sourceArgs)
+		driver, _ = rsyncMigrationSource(sourceArgs)
 
 		// Check if this storage pool has a rate limit set for rsync.
 		poolwritable := s.container.Storage().GetStoragePoolWritable()
