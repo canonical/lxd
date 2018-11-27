@@ -110,7 +110,10 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 	}
 
 	// Set source args
-	sourceArgs := MigrationSourceArgs{rsyncArgs, zfsArgs}
+	sourceArgs := MigrationSourceArgs{
+		RsyncArgs: rsyncArgs,
+		ZfsArgs:   zfsArgs,
+	}
 
 	driver, fsErr := s.storage.StorageMigrationSource(sourceArgs)
 	if fsErr != nil {
