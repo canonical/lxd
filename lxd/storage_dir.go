@@ -1108,8 +1108,8 @@ func (s *storageDir) StorageMigrationSource(args MigrationSourceArgs) (Migration
 	return rsyncStorageMigrationSource(args)
 }
 
-func (s *storageDir) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
-	return rsyncStorageMigrationSink(conn, op, storage, args)
+func (s *storageDir) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	return rsyncStorageMigrationSink(conn, op, args)
 }
 
 func (s *storageDir) GetStoragePool() *api.StoragePool {

@@ -2418,8 +2418,8 @@ func (s *storageZfs) StorageMigrationSource(args MigrationSourceArgs) (Migration
 	return rsyncStorageMigrationSource(args)
 }
 
-func (s *storageZfs) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
-	return rsyncStorageMigrationSink(conn, op, storage, args)
+func (s *storageZfs) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	return rsyncStorageMigrationSink(conn, op, args)
 }
 
 func (s *storageZfs) GetStoragePool() *api.StoragePool {

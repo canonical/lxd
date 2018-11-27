@@ -253,20 +253,21 @@ type migrationSink struct {
 }
 
 type MigrationSinkArgs struct {
+	// General migration fields
 	Url     string
 	Dialer  websocket.Dialer
 	Secrets map[string]string
 	Push    bool
 
-	// container specific fields
-	Live          bool
+	// Container specific fields
 	Container     container
 	ContainerOnly bool
+	Live          bool
 
-	// storage specific fields
+	// Storage specific fields
 	Storage storage
 
-	// transport specific fields
+	// Transport specific fields
 	RsyncArgs []string
 }
 

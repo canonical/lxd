@@ -2430,8 +2430,8 @@ func (s *storageBtrfs) StorageMigrationSource(args MigrationSourceArgs) (Migrati
 	return rsyncStorageMigrationSource(args)
 }
 
-func (s *storageBtrfs) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
-	return rsyncStorageMigrationSink(conn, op, storage, args)
+func (s *storageBtrfs) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	return rsyncStorageMigrationSink(conn, op, args)
 }
 
 func (s *storageBtrfs) GetStoragePool() *api.StoragePool {
