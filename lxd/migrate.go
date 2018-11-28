@@ -20,6 +20,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -254,27 +255,33 @@ type migrationSink struct {
 }
 
 type MigrationSinkArgs struct {
-	Url     string
+	// General migration fields
 	Dialer  websocket.Dialer
-	Secrets map[string]string
 	Push    bool
+	Secrets map[string]string
+	Url     string
 
-	// container specific fields
-	Live          bool
+	// Container specific fields
 	Container     container
 	ContainerOnly bool
+	Idmap         *idmap.IdmapSet
+	Live          bool
+	Refresh       bool
+	Snapshots     []*migration.Snapshot
 
-	// storage specific fields
+	// Storage specific fields
 	Storage storage
 
-	// transport specific fields
+	// Transport specific fields
 	RsyncArgs []string
-
-	Refresh bool
 }
 
 type MigrationSourceArgs struct {
-	// transport specific fields
+	// Container specific fields
+	Container     container
+	ContainerOnly bool
+
+	// Transport specific fields
 	RsyncArgs []string
 	ZfsArgs   []string
 }

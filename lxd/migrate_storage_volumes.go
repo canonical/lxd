@@ -110,7 +110,10 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 	}
 
 	// Set source args
-	sourceArgs := MigrationSourceArgs{rsyncArgs, zfsArgs}
+	sourceArgs := MigrationSourceArgs{
+		RsyncArgs: rsyncArgs,
+		ZfsArgs:   zfsArgs,
+	}
 
 	driver, fsErr := s.storage.StorageMigrationSource(sourceArgs)
 	if fsErr != nil {
@@ -285,20 +288,24 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 		resp.Fs = &myType
 	}
 
-	args := MigrationSinkArgs{}
 	rsyncFeatures := header.GetRsyncFeatures()
 
 	// Handle rsync options
-	args.RsyncArgs = []string{}
+	rsyncArgs := []string{}
 	if rsyncFeatures.GetXattrs() {
-		args.RsyncArgs = append(args.RsyncArgs, "--xattrs")
+		rsyncArgs = append(rsyncArgs, "--xattrs")
 	}
 	if rsyncFeatures.GetDelete() {
-		args.RsyncArgs = append(args.RsyncArgs, "--delete")
+		rsyncArgs = append(rsyncArgs, "--delete")
 	}
 	if rsyncFeatures.GetCompress() {
-		args.RsyncArgs = append(args.RsyncArgs, "--compress")
-		args.RsyncArgs = append(args.RsyncArgs, "--compress-level=2")
+		rsyncArgs = append(rsyncArgs, "--compress")
+		rsyncArgs = append(rsyncArgs, "--compress-level=2")
+	}
+
+	args := MigrationSinkArgs{
+		Storage:   c.dest.storage,
+		RsyncArgs: rsyncArgs,
 	}
 
 	err = sender(&resp)
@@ -315,7 +322,7 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 		fsConn = c.src.fsConn
 	}
 
-	err = mySink(fsConn, migrateOp, c.dest.storage, args)
+	err = mySink(fsConn, migrateOp, args)
 	if err != nil {
 		logger.Errorf("Failed to start storage volume migration sink")
 		controller(err)

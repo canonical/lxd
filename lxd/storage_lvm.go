@@ -17,7 +17,6 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -2069,12 +2068,12 @@ func (s *storageLvm) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageLvm) MigrationSource(container container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
-	return rsyncMigrationSource(container, containerOnly, args)
+func (s *storageLvm) MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return rsyncMigrationSource(args)
 }
 
-func (s *storageLvm) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
-	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly, args)
+func (s *storageLvm) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	return rsyncMigrationSink(conn, op, args)
 }
 
 func (s *storageLvm) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {
@@ -2282,8 +2281,8 @@ func (s *storageLvm) StorageMigrationSource(args MigrationSourceArgs) (Migration
 	return rsyncStorageMigrationSource(args)
 }
 
-func (s *storageLvm) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
-	return rsyncStorageMigrationSink(conn, op, storage, args)
+func (s *storageLvm) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	return rsyncStorageMigrationSink(conn, op, args)
 }
 
 func (s *storageLvm) GetStoragePool() *api.StoragePool {
