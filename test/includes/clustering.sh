@@ -119,8 +119,12 @@ spawn_lxd_and_bootstrap_cluster() {
   bridge="${2}"
   LXD_DIR="${3}"
   driver="dir"
-  if [ "$#" -eq  "4" ]; then
+  port=""
+  if [ "$#" -ge  "4" ]; then
       driver="${4}"
+  fi
+  if [ "$#" -ge  "5" ]; then
+      port="${5}"
   fi
 
   echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
@@ -134,6 +138,13 @@ spawn_lxd_and_bootstrap_cluster() {
 config:
   core.trust_password: sekret
   core.https_address: 10.1.1.101:8443
+EOF
+    if [ "${port}" != "" ]; then
+      cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  cluster.https_address: 10.1.1.101:${port}
+EOF
+    fi
+    cat >> "${LXD_DIR}/preseed.yaml" <<EOF
   images.auto_update_interval: 0
 storage_pools:
 - name: data
@@ -197,8 +208,12 @@ spawn_lxd_and_join_cluster() {
   target="${5}"
   LXD_DIR="${6}"
   driver="dir"
-  if [ "$#" -eq  "7" ]; then
+  port="8443"
+  if [ "$#" -ge  "7" ]; then
       driver="${7}"
+  fi
+  if [ "$#" -ge  "8" ]; then
+      port="${8}"
   fi
 
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
@@ -208,11 +223,17 @@ spawn_lxd_and_join_cluster() {
   (
     set -e
 
+    # If a custom cluster port was given, we need to first set the REST
+    # API address.
+    if [ "${port}" != "8443" ]; then
+      lxc config set core.https_address "10.1.1.10${index}:8443"
+    fi
+
     cat > "${LXD_DIR}/preseed.yaml" <<EOF
 cluster:
   enabled: true
   server_name: node${index}
-  server_address: 10.1.1.10${index}:8443
+  server_address: 10.1.1.10${index}:${port}
   cluster_address: 10.1.1.10${target}:8443
   cluster_certificate: "$cert"
   cluster_password: sekret
