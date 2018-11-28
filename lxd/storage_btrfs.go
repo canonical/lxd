@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -2660,9 +2659,9 @@ func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStora
 	return driver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
+func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	if s.s.OS.RunningInUserNS {
-		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly, args)
+		return rsyncMigrationSink(conn, op, args)
 	}
 
 	btrfsRecv := func(snapName string, btrfsPath string, targetPath string, isSnapshot bool, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
@@ -2734,17 +2733,17 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		return nil
 	}
 
-	containerName := container.Name()
-	_, containerPool, _ := container.Storage().GetContainerPoolInfo()
-	containersPath := getSnapshotMountPoint(container.Project(), containerPool, containerName)
-	if !containerOnly && len(snapshots) > 0 {
+	containerName := args.Container.Name()
+	_, containerPool, _ := args.Container.Storage().GetContainerPoolInfo()
+	containersPath := getSnapshotMountPoint(args.Container.Project(), containerPool, containerName)
+	if !args.ContainerOnly && len(args.Snapshots) > 0 {
 		err := os.MkdirAll(containersPath, containersDirMode)
 		if err != nil {
 			return err
 		}
 
-		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", containerPool, "containers-snapshots", projectPrefix(container.Project(), containerName))
-		snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(container.Project(), containerName))
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", containerPool, "containers-snapshots", projectPrefix(args.Container.Project(), containerName))
+		snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(args.Container.Project(), containerName))
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
@@ -2757,7 +2756,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 	// container's root disk device so we can simply
 	// retrieve it from the expanded devices.
 	parentStoragePool := ""
-	parentExpandedDevices := container.ExpandedDevices()
+	parentExpandedDevices := args.Container.ExpandedDevices()
 	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
@@ -2768,36 +2767,36 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		return fmt.Errorf("Detected that the container's root device is missing the pool property during BTRFS migration")
 	}
 
-	if !containerOnly {
-		for _, snap := range snapshots {
-			args := snapshotProtobufToContainerArgs(container.Project(), containerName, snap)
+	if !args.ContainerOnly {
+		for _, snap := range args.Snapshots {
+			ctArgs := snapshotProtobufToContainerArgs(args.Container.Project(), containerName, snap)
 
 			// Ensure that snapshot and parent container have the
 			// same storage pool in their local root disk device.
 			// If the root disk device for the snapshot comes from a
 			// profile on the new instance as well we don't need to
 			// do anything.
-			if args.Devices != nil {
-				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(args.Devices)
+			if ctArgs.Devices != nil {
+				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(ctArgs.Devices)
 				if snapLocalRootDiskDeviceKey != "" {
-					args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+					ctArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 				}
 			}
 
-			snapshotMntPoint := getSnapshotMountPoint(container.Project(), containerPool, args.Name)
-			_, err := containerCreateEmptySnapshot(container.DaemonState(), args)
+			snapshotMntPoint := getSnapshotMountPoint(args.Container.Project(), containerPool, ctArgs.Name)
+			_, err := containerCreateEmptySnapshot(args.Container.DaemonState(), ctArgs)
 			if err != nil {
 				return err
 			}
 
-			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(container.Project(), containerName))
-			snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(container.Project(), containerName))
+			snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "containers-snapshots", projectPrefix(args.Container.Project(), containerName))
+			snapshotMntPointSymlink := shared.VarPath("snapshots", projectPrefix(args.Container.Project(), containerName))
 			err = createSnapshotMountpoint(snapshotMntPoint, snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
 				return err
 			}
 
-			tmpSnapshotMntPoint, err := ioutil.TempDir(containersPath, projectPrefix(container.Project(), containerName))
+			tmpSnapshotMntPoint, err := ioutil.TempDir(containersPath, projectPrefix(args.Container.Project(), containerName))
 			if err != nil {
 				return err
 			}
@@ -2816,15 +2815,15 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		}
 	}
 
-	containersMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, "")
-	err := createContainerMountpoint(containersMntPoint, container.Path(), container.IsPrivileged())
+	containersMntPoint := getContainerMountPoint(args.Container.Project(), s.pool.Name, "")
+	err := createContainerMountpoint(containersMntPoint, args.Container.Path(), args.Container.IsPrivileged())
 	if err != nil {
 		return err
 	}
 
 	/* finally, do the real container */
 	wrapper := StorageProgressWriter(op, "fs_progress", containerName)
-	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, projectPrefix(container.Project(), containerName))
+	tmpContainerMntPoint, err := ioutil.TempDir(containersMntPoint, projectPrefix(args.Container.Project(), containerName))
 	if err != nil {
 		return err
 	}
@@ -2835,13 +2834,13 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		return err
 	}
 
-	containerMntPoint := getContainerMountPoint(container.Project(), s.pool.Name, containerName)
+	containerMntPoint := getContainerMountPoint(args.Container.Project(), s.pool.Name, containerName)
 	err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
 	if err != nil {
 		return err
 	}
 
-	if live {
+	if args.Live {
 		err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
 		if err != nil {
 			return err

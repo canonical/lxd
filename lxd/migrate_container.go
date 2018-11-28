@@ -999,13 +999,16 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			}
 
 			args := MigrationSinkArgs{
-				Refresh:   c.refresh,
-				RsyncArgs: c.rsyncArgs,
+				Container:     c.src.container,
+				ContainerOnly: c.src.containerOnly,
+				Idmap:         srcIdmap,
+				Live:          sendFinalFsDelta,
+				Refresh:       c.refresh,
+				RsyncArgs:     c.rsyncArgs,
+				Snapshots:     snapshots,
 			}
 
-			err = mySink(sendFinalFsDelta, c.src.container,
-				snapshots, fsConn, srcIdmap, migrateOp,
-				c.src.containerOnly, args)
+			err = mySink(fsConn, migrateOp, args)
 			if err != nil {
 				fsTransfer <- err
 				return

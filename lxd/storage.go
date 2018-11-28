@@ -233,15 +233,7 @@ type storage interface {
 	// already present on the target instance as an exercise for the
 	// enterprising developer.
 	MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
-	MigrationSink(
-		live bool,
-		c container,
-		objects []*migration.Snapshot,
-		conn *websocket.Conn,
-		srcIdmap *idmap.IdmapSet,
-		op *operation,
-		containerOnly bool,
-		args MigrationSinkArgs) error
+	MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error
 
 	StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
 	StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error

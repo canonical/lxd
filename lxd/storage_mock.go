@@ -8,7 +8,6 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -229,7 +228,7 @@ func (s *storageMock) MigrationSource(args MigrationSourceArgs) (MigrationStorag
 	return nil, nil
 }
 
-func (s *storageMock) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
+func (s *storageMock) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return nil
 }
 
