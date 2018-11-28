@@ -124,6 +124,14 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// If clustering is enabled, and no cluster.https_address network address
+	// was specified, we fallback to core.https_address.
+	if config.Cluster != nil &&
+		config.Node.Config["core.https_address"] != nil &&
+		config.Node.Config["cluster.https_address"] == nil {
+		config.Node.Config["cluster.https_address"] = config.Node.Config["core.https_address"]
+	}
+
 	// Detect if the user has chosen to join a cluster using the new
 	// cluster join API format, and use the dedicated API if so.
 	if config.Cluster != nil && config.Cluster.ClusterAddress != "" && config.Cluster.ServerAddress != "" {
