@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/gorilla/websocket"
@@ -9,7 +8,6 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -226,11 +224,11 @@ func (s *storageMock) PreservesInodes() bool {
 	return false
 }
 
-func (s *storageMock) MigrationSource(container container, containerOnly bool, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
-	return nil, fmt.Errorf("not implemented")
+func (s *storageMock) MigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
+	return nil, nil
 }
 
-func (s *storageMock) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
+func (s *storageMock) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return nil
 }
 
@@ -250,7 +248,7 @@ func (s *storageMock) StorageMigrationSource(args MigrationSourceArgs) (Migratio
 	return nil, nil
 }
 
-func (s *storageMock) StorageMigrationSink(conn *websocket.Conn, op *operation, storage storage, args MigrationSinkArgs) error {
+func (s *storageMock) StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	return nil
 }
 
