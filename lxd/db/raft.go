@@ -61,7 +61,7 @@ func (n *NodeTx) RaftNodeAddress(id int64) (string, error) {
 	}
 }
 
-// RaftNodeFirst adds a the first node if the cluster. It ensures that the
+// RaftNodeFirst adds a the first node of the cluster. It ensures that the
 // database ID is 1, to match the server ID of first raft log entry.
 //
 // This method is supposed to be called when there are no rows in raft_nodes,
