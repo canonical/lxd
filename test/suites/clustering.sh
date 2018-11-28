@@ -108,9 +108,10 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -q "node5"
 
   # Client certificate are shared across all nodes.
-  LXD_DIR="${LXD_ONE_DIR}" lxc remote add cluster 10.1.1.101:8443 --accept-certificate --password=sekret
-  LXD_DIR="${LXD_ONE_DIR}" lxc remote set-url cluster https://10.1.1.102:8443
+  lxc remote add cluster 10.1.1.101:8443 --accept-certificate --password=sekret
+  lxc remote set-url cluster https://10.1.1.102:8443
   lxc network list cluster: | grep -q "${bridge}"
+  lxc remote remove cluster
 
   # Shutdown a database node, and wait a few seconds so it will be
   # detected as down.
@@ -1039,6 +1040,79 @@ test_clustering_projects() {
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
 
   LXD_DIR="${LXD_ONE_DIR}" lxc project switch default
+
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 2
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+}
+
+test_clustering_address() {
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+
+  # Bootstrap the first node using a custom cluster port
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "dir" "8444"
+
+  # The bootstrap node appears in the list with its cluster-specific port
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q 8444
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "database: true"
+
+  # Add a remote using the core.https_address of the bootstrap node, and check
+  # that the REST API is exposed.
+  url="https://10.1.1.101:8443"
+  lxc remote add cluster --password sekret --accept-certificate "${url}"
+  lxc storage list cluster: | grep -q data
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/server.crt")
+
+  # Spawn a second node using a custom cluster port
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "dir" "8444"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q node2
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node2 | grep -q "database: true"
+
+  # The new node appears with its custom cluster port
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep ^url | grep -q 8444
+
+  # The core.https_address config value can be changed and the REST API is still
+  # accessible.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set "core.https_address" 10.1.1.101:9999
+  url="https://10.1.1.101:9999"
+  lxc remote set-url cluster "${url}"
+  lxc storage list cluster:| grep -q data
+
+  # The cluster.https_address config value can't be changed.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config set "cluster.https_address" "10.1.1.101:8448"
+
+  # Create a container using the REST API exposed over core.https_address.
+  LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --alias testimage
+  lxc init --target node2 testimage cluster:c1
+  lxc list cluster: | grep -q c1
+
+  # The core.https_address config value can be set to a wildcard address if
+  # the port is the same as cluster.https_address.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set "core.https_address" "0.0.0.0:8444"
+
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete c1
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
