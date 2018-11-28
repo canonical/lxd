@@ -18,7 +18,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 
 	"github.com/pborman/uuid"
@@ -2068,7 +2067,7 @@ func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 	return &driver, nil
 }
 
-func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
+func (s *storageZfs) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	poolName := s.getOnDiskPoolName()
 	zfsRecv := func(zfsName string, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 		zfsFsName := fmt.Sprintf("%s/%s", poolName, zfsName)
@@ -2114,8 +2113,8 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	 * of a snapshot also needs tha actual fs that it has snapshotted
 	 * unmounted, so we do this before receiving anything.
 	 */
-	zfsName := fmt.Sprintf("containers/%s", container.Name())
-	containerMntPoint := getContainerMountPoint(s.pool.Name, container.Name())
+	zfsName := fmt.Sprintf("containers/%s", args.Container.Name())
+	containerMntPoint := getContainerMountPoint(s.pool.Name, args.Container.Name())
 	if shared.IsMountPoint(containerMntPoint) {
 		err := zfsUmount(poolName, zfsName, containerMntPoint)
 		if err != nil {
@@ -2123,9 +2122,9 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 		}
 	}
 
-	if len(snapshots) > 0 {
+	if len(args.Snapshots) > 0 {
 		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", s.volume.Name)
-		snapshotMntPointSymlink := shared.VarPath("snapshots", container.Name())
+		snapshotMntPointSymlink := shared.VarPath("snapshots", args.Container.Name())
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(snapshotMntPointSymlinkTarget, snapshotMntPointSymlink)
 			if err != nil {
@@ -2138,7 +2137,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 	// container's root disk device so we can simply
 	// retrieve it from the expanded devices.
 	parentStoragePool := ""
-	parentExpandedDevices := container.ExpandedDevices()
+	parentExpandedDevices := args.Container.ExpandedDevices()
 	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
@@ -2149,32 +2148,32 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 		return fmt.Errorf("detected that the container's root device is missing the pool property during BTRFS migration")
 	}
 
-	for _, snap := range snapshots {
-		args := snapshotProtobufToContainerArgs(container.Name(), snap)
+	for _, snap := range args.Snapshots {
+		ctArgs := snapshotProtobufToContainerArgs(args.Container.Name(), snap)
 
 		// Ensure that snapshot and parent container have the
 		// same storage pool in their local root disk device.
 		// If the root disk device for the snapshot comes from a
 		// profile on the new instance as well we don't need to
 		// do anything.
-		if args.Devices != nil {
-			snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(args.Devices)
+		if ctArgs.Devices != nil {
+			snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(ctArgs.Devices)
 			if snapLocalRootDiskDeviceKey != "" {
-				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+				ctArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 			}
 		}
-		_, err := containerCreateEmptySnapshot(container.DaemonState(), args)
+		_, err := containerCreateEmptySnapshot(args.Container.DaemonState(), ctArgs)
 		if err != nil {
 			return err
 		}
 
 		wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
-		name := fmt.Sprintf("containers/%s@snapshot-%s", container.Name(), snap.GetName())
+		name := fmt.Sprintf("containers/%s@snapshot-%s", args.Container.Name(), snap.GetName())
 		if err := zfsRecv(name, wrapper); err != nil {
 			return err
 		}
 
-		snapshotMntPoint := getSnapshotMountPoint(poolName, fmt.Sprintf("%s/%s", container.Name(), *snap.Name))
+		snapshotMntPoint := getSnapshotMountPoint(poolName, fmt.Sprintf("%s/%s", args.Container.Name(), *snap.Name))
 		if !shared.PathExists(snapshotMntPoint) {
 			err := os.MkdirAll(snapshotMntPoint, 0700)
 			if err != nil {
@@ -2185,7 +2184,7 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 
 	defer func() {
 		/* clean up our migration-send snapshots that we got from recv. */
-		zfsSnapshots, err := zfsPoolListSnapshots(poolName, fmt.Sprintf("containers/%s", container.Name()))
+		zfsSnapshots, err := zfsPoolListSnapshots(poolName, fmt.Sprintf("containers/%s", args.Container.Name()))
 		if err != nil {
 			logger.Errorf("Failed listing snapshots post migration: %s", err)
 			return
@@ -2193,23 +2192,23 @@ func (s *storageZfs) MigrationSink(live bool, container container, snapshots []*
 
 		for _, snap := range zfsSnapshots {
 			// If we received a bunch of snapshots, remove the migration-send-* ones, if not, wipe any snapshot we got
-			if snapshots != nil && len(snapshots) > 0 && !strings.HasPrefix(snap, "migration-send") {
+			if args.Snapshots != nil && len(args.Snapshots) > 0 && !strings.HasPrefix(snap, "migration-send") {
 				continue
 			}
 
-			zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", container.Name()), snap)
+			zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("containers/%s", args.Container.Name()), snap)
 		}
 	}()
 
 	/* finally, do the real container */
-	wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
+	wrapper := StorageProgressWriter(op, "fs_progress", args.Container.Name())
 	if err := zfsRecv(zfsName, wrapper); err != nil {
 		return err
 	}
 
-	if live {
+	if args.Live {
 		/* and again for the post-running snapshot if this was a live migration */
-		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
+		wrapper := StorageProgressWriter(op, "fs_progress", args.Container.Name())
 		if err := zfsRecv(zfsName, wrapper); err != nil {
 			return err
 		}

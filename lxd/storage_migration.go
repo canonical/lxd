@@ -10,7 +10,6 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -190,19 +189,19 @@ func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, args Migrati
 	return RsyncRecv(path, conn, wrapper, args.RsyncArgs)
 }
 
-func rsyncMigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
-	ourStart, err := container.StorageStart()
+func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	ourStart, err := args.Container.StorageStart()
 	if err != nil {
 		return err
 	}
 	if ourStart {
-		defer container.StorageStop()
+		defer args.Container.StorageStop()
 	}
 
 	// At this point we have already figured out the parent container's root
 	// disk device so we can simply retrieve it from the expanded devices.
 	parentStoragePool := ""
-	parentExpandedDevices := container.ExpandedDevices()
+	parentExpandedDevices := args.Container.ExpandedDevices()
 	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
@@ -213,11 +212,11 @@ func rsyncMigrationSink(live bool, container container, snapshots []*migration.S
 		return fmt.Errorf("the container's root device is missing the pool property")
 	}
 
-	isDirBackend := container.Storage().GetStorageType() == storageTypeDir
+	isDirBackend := args.Container.Storage().GetStorageType() == storageTypeDir
 	if isDirBackend {
-		if !containerOnly {
-			for _, snap := range snapshots {
-				snapArgs := snapshotProtobufToContainerArgs(container.Name(), snap)
+		if !args.ContainerOnly {
+			for _, snap := range args.Snapshots {
+				snapArgs := snapshotProtobufToContainerArgs(args.Container.Name(), snap)
 
 				// Ensure that snapshot and parent container have the
 				// same storage pool in their local root disk device.
@@ -231,7 +230,7 @@ func rsyncMigrationSink(live bool, container container, snapshots []*migration.S
 					}
 				}
 
-				s, err := containerCreateEmptySnapshot(container.DaemonState(), snapArgs)
+				s, err := containerCreateEmptySnapshot(args.Container.DaemonState(), snapArgs)
 				if err != nil {
 					return err
 				}
@@ -241,22 +240,22 @@ func rsyncMigrationSink(live bool, container container, snapshots []*migration.S
 					return err
 				}
 
-				err = ShiftIfNecessary(container, srcIdmap)
+				err = ShiftIfNecessary(args.Container, args.Idmap)
 				if err != nil {
 					return err
 				}
 			}
 		}
 
-		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-		err = RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper, args.RsyncArgs)
+		wrapper := StorageProgressWriter(op, "fs_progress", args.Container.Name())
+		err = RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncArgs)
 		if err != nil {
 			return err
 		}
 	} else {
-		if !containerOnly {
-			for _, snap := range snapshots {
-				snapArgs := snapshotProtobufToContainerArgs(container.Name(), snap)
+		if !args.ContainerOnly {
+			for _, snap := range args.Snapshots {
+				snapArgs := snapshotProtobufToContainerArgs(args.Container.Name(), snap)
 
 				// Ensure that snapshot and parent container have the
 				// same storage pool in their local root disk device.
@@ -271,40 +270,40 @@ func rsyncMigrationSink(live bool, container container, snapshots []*migration.S
 				}
 
 				wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
-				err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper, args.RsyncArgs)
+				err := RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncArgs)
 				if err != nil {
 					return err
 				}
 
-				err = ShiftIfNecessary(container, srcIdmap)
+				err = ShiftIfNecessary(args.Container, args.Idmap)
 				if err != nil {
 					return err
 				}
 
-				_, err = containerCreateAsSnapshot(container.DaemonState(), snapArgs, container)
+				_, err = containerCreateAsSnapshot(args.Container.DaemonState(), snapArgs, args.Container)
 				if err != nil {
 					return err
 				}
 			}
 		}
 
-		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-		err = RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper, args.RsyncArgs)
+		wrapper := StorageProgressWriter(op, "fs_progress", args.Container.Name())
+		err = RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncArgs)
 		if err != nil {
 			return err
 		}
 	}
 
-	if live {
+	if args.Live {
 		/* now receive the final sync */
-		wrapper := StorageProgressWriter(op, "fs_progress", container.Name())
-		err := RsyncRecv(shared.AddSlash(container.Path()), conn, wrapper, args.RsyncArgs)
+		wrapper := StorageProgressWriter(op, "fs_progress", args.Container.Name())
+		err := RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncArgs)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = ShiftIfNecessary(container, srcIdmap)
+	err = ShiftIfNecessary(args.Container, args.Idmap)
 	if err != nil {
 		return err
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 
 	"github.com/pborman/uuid"
@@ -219,13 +218,11 @@ func (s *storageCeph) MigrationSource(args MigrationSourceArgs) (MigrationStorag
 	return &driver, nil
 }
 
-func (s *storageCeph) MigrationSink(live bool, c container,
-	snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet,
-	op *operation, containerOnly bool, args MigrationSinkArgs) error {
+func (s *storageCeph) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	// Check that we received a valid root disk device with a pool property
 	// set.
 	parentStoragePool := ""
-	parentExpandedDevices := c.ExpandedDevices()
+	parentExpandedDevices := args.Container.ExpandedDevices()
 	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
@@ -245,12 +242,9 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 	// the receiving LXD instance it also means that s.ClusterName has been
 	// set to the correct cluster name for that LXD instance. Yeah, I think
 	// that's actually correct.
-	containerName := c.Name()
-	if !cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, containerName,
-		storagePoolVolumeTypeNameContainer, s.UserName) {
-		err := cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName,
-			containerName, storagePoolVolumeTypeNameContainer, "0",
-			s.UserName)
+	containerName := args.Container.Name()
+	if !cephRBDVolumeExists(s.ClusterName, s.OSDPoolName, containerName, storagePoolVolumeTypeNameContainer, s.UserName) {
+		err := cephRBDVolumeCreate(s.ClusterName, s.OSDPoolName, containerName, storagePoolVolumeTypeNameContainer, "0", s.UserName)
 		if err != nil {
 			logger.Errorf(`Failed to create RBD storage volume "%s" for cluster "%s" in OSD pool "%s" on storage pool "%s": %s`, containerName, s.ClusterName, s.OSDPoolName, s.pool.Name, err)
 			return err
@@ -259,17 +253,9 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 			containerName, s.pool.Name)
 	}
 
-	if len(snapshots) > 0 {
-		snapshotMntPointSymlinkTarget := shared.VarPath(
-			"storage-pools",
-			s.pool.Name,
-			"snapshots",
-			containerName)
-
-		snapshotMntPointSymlink := shared.VarPath(
-			"snapshots",
-			containerName)
-
+	if len(args.Snapshots) > 0 {
+		snapshotMntPointSymlinkTarget := shared.VarPath("storage-pools", s.pool.Name, "snapshots", containerName)
+		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
 		if !shared.PathExists(snapshotMntPointSymlink) {
 			err := os.Symlink(
 				snapshotMntPointSymlinkTarget,
@@ -282,21 +268,21 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 
 	// Now we're ready to receive the actual fs.
 	recvName := fmt.Sprintf("%s/container_%s", s.OSDPoolName, containerName)
-	for _, snap := range snapshots {
+	for _, snap := range args.Snapshots {
 		curSnapName := snap.GetName()
-		args := snapshotProtobufToContainerArgs(containerName, snap)
+		ctArgs := snapshotProtobufToContainerArgs(containerName, snap)
 
 		// Ensure that snapshot and parent container have the same
 		// storage pool in their local root disk device.  If the root
 		// disk device for the snapshot comes from a profile on the new
 		// instance as well we don't need to do anything.
-		if args.Devices != nil {
-			snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(args.Devices)
+		if ctArgs.Devices != nil {
+			snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(ctArgs.Devices)
 			if snapLocalRootDiskDeviceKey != "" {
-				args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+				ctArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 			}
 		}
-		_, err := containerCreateEmptySnapshot(c.DaemonState(), args)
+		_, err := containerCreateEmptySnapshot(args.Container.DaemonState(), ctArgs)
 		if err != nil {
 			logger.Errorf(`Failed to create empty RBD storage volume for container "%s" on storage pool "%s: %s`, containerName, s.OSDPoolName, err)
 			return err
@@ -321,9 +307,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 	}
 
 	defer func() {
-		snaps, err := cephRBDVolumeListSnapshots(s.ClusterName,
-			s.OSDPoolName, containerName,
-			storagePoolVolumeTypeNameContainer, s.UserName)
+		snaps, err := cephRBDVolumeListSnapshots(s.ClusterName, s.OSDPoolName, containerName, storagePoolVolumeTypeNameContainer, s.UserName)
 		if err == nil {
 			for _, snap := range snaps {
 				snapOnlyName, _, _ := containerGetParentAndSnapshotName(snap)
@@ -331,10 +315,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 					continue
 				}
 
-				err := cephRBDSnapshotDelete(s.ClusterName,
-					s.OSDPoolName, containerName,
-					storagePoolVolumeTypeNameContainer,
-					snapOnlyName, s.UserName)
+				err := cephRBDSnapshotDelete(s.ClusterName, s.OSDPoolName, containerName, storagePoolVolumeTypeNameContainer, snapOnlyName, s.UserName)
 				if err != nil {
 					logger.Warnf(`Failed to delete RBD container storage for snapshot "%s" of container "%s"`, snapOnlyName, containerName)
 				}
@@ -351,7 +332,7 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 	}
 	logger.Debugf(`Received RBD storage volume "%s"`, recvName)
 
-	if live {
+	if args.Live {
 		err := s.rbdRecv(conn, recvName, wrapper)
 		if err != nil {
 			logger.Errorf(`Failed to receive RBD storage volume "%s": %s`, recvName, err)
@@ -363,8 +344,8 @@ func (s *storageCeph) MigrationSink(live bool, c container,
 	containerMntPoint := getContainerMountPoint(s.pool.Name, containerName)
 	err = createContainerMountpoint(
 		containerMntPoint,
-		c.Path(),
-		c.IsPrivileged())
+		args.Container.Path(),
+		args.Container.IsPrivileged())
 	if err != nil {
 		logger.Errorf(`Failed to create mountpoint "%s" for RBD storage volume for container "%s" on storage pool "%s": %s"`, containerMntPoint, containerName, s.pool.Name, err)
 		return err

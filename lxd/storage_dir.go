@@ -13,7 +13,6 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -1041,8 +1040,8 @@ func (s *storageDir) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 	return rsyncMigrationSource(args)
 }
 
-func (s *storageDir) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
-	return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly, args)
+func (s *storageDir) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
+	return rsyncMigrationSink(conn, op, args)
 }
 
 func (s *storageDir) StorageEntitySetQuota(volumeType int, size int64, data interface{}) error {

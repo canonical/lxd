@@ -21,7 +21,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -2071,9 +2070,9 @@ func (s *storageBtrfs) MigrationSource(args MigrationSourceArgs) (MigrationStora
 	return driver, nil
 }
 
-func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots []*migration.Snapshot, conn *websocket.Conn, srcIdmap *idmap.IdmapSet, op *operation, containerOnly bool, args MigrationSinkArgs) error {
+func (s *storageBtrfs) MigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
 	if s.s.OS.RunningInUserNS {
-		return rsyncMigrationSink(live, container, snapshots, conn, srcIdmap, op, containerOnly, args)
+		return rsyncMigrationSink(conn, op, args)
 	}
 
 	btrfsRecv := func(snapName string, btrfsPath string, targetPath string, isSnapshot bool, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
@@ -2145,10 +2144,10 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		return nil
 	}
 
-	containerName := container.Name()
-	_, containerPool, _ := container.Storage().GetContainerPoolInfo()
+	containerName := args.Container.Name()
+	_, containerPool, _ := args.Container.Storage().GetContainerPoolInfo()
 	containersPath := getSnapshotMountPoint(containerPool, containerName)
-	if !containerOnly && len(snapshots) > 0 {
+	if !args.ContainerOnly && len(args.Snapshots) > 0 {
 		err := os.MkdirAll(containersPath, containersDirMode)
 		if err != nil {
 			return err
@@ -2168,7 +2167,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 	// container's root disk device so we can simply
 	// retrieve it from the expanded devices.
 	parentStoragePool := ""
-	parentExpandedDevices := container.ExpandedDevices()
+	parentExpandedDevices := args.Container.ExpandedDevices()
 	parentLocalRootDiskDeviceKey, parentLocalRootDiskDevice, _ := shared.GetRootDiskDevice(parentExpandedDevices)
 	if parentLocalRootDiskDeviceKey != "" {
 		parentStoragePool = parentLocalRootDiskDevice["pool"]
@@ -2179,24 +2178,24 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		return fmt.Errorf("Detected that the container's root device is missing the pool property during BTRFS migration")
 	}
 
-	if !containerOnly {
-		for _, snap := range snapshots {
-			args := snapshotProtobufToContainerArgs(containerName, snap)
+	if !args.ContainerOnly {
+		for _, snap := range args.Snapshots {
+			ctArgs := snapshotProtobufToContainerArgs(containerName, snap)
 
 			// Ensure that snapshot and parent container have the
 			// same storage pool in their local root disk device.
 			// If the root disk device for the snapshot comes from a
 			// profile on the new instance as well we don't need to
 			// do anything.
-			if args.Devices != nil {
-				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(args.Devices)
+			if ctArgs.Devices != nil {
+				snapLocalRootDiskDeviceKey, _, _ := shared.GetRootDiskDevice(ctArgs.Devices)
 				if snapLocalRootDiskDeviceKey != "" {
-					args.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
+					ctArgs.Devices[snapLocalRootDiskDeviceKey]["pool"] = parentStoragePool
 				}
 			}
 
-			snapshotMntPoint := getSnapshotMountPoint(containerPool, args.Name)
-			_, err := containerCreateEmptySnapshot(container.DaemonState(), args)
+			snapshotMntPoint := getSnapshotMountPoint(containerPool, ctArgs.Name)
+			_, err := containerCreateEmptySnapshot(args.Container.DaemonState(), ctArgs)
 			if err != nil {
 				return err
 			}
@@ -2228,7 +2227,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 	}
 
 	containersMntPoint := getContainerMountPoint(s.pool.Name, "")
-	err := createContainerMountpoint(containersMntPoint, container.Path(), container.IsPrivileged())
+	err := createContainerMountpoint(containersMntPoint, args.Container.Path(), args.Container.IsPrivileged())
 	if err != nil {
 		return err
 	}
@@ -2252,7 +2251,7 @@ func (s *storageBtrfs) MigrationSink(live bool, container container, snapshots [
 		return err
 	}
 
-	if live {
+	if args.Live {
 		err = btrfsRecv("", tmpContainerMntPoint, containerMntPoint, false, wrapper)
 		if err != nil {
 			return err

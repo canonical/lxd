@@ -20,6 +20,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -254,15 +255,17 @@ type migrationSink struct {
 
 type MigrationSinkArgs struct {
 	// General migration fields
-	Url     string
 	Dialer  websocket.Dialer
-	Secrets map[string]string
 	Push    bool
+	Secrets map[string]string
+	Url     string
 
 	// Container specific fields
 	Container     container
 	ContainerOnly bool
+	Idmap         *idmap.IdmapSet
 	Live          bool
+	Snapshots     []*migration.Snapshot
 
 	// Storage specific fields
 	Storage storage
