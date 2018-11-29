@@ -9,16 +9,7 @@ setup_clustering_bridge() {
   ip addr add 10.1.1.1/16 dev "${name}"
 
   # shellcheck disable=SC2039
-  for i in {1..5}; do
-      # Retry a few times since the xtables lock might be hold.
-      if iptables -t nat -A POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE; then
-        break
-      fi
-      if [ "$i" -eq 5 ]; then
-        return 1
-      fi
-      sleep 0.1
-  done
+  iptables -w -t nat -A POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
   echo 1 > /proc/sys/net/ipv4/ip_forward
 }
 
@@ -28,17 +19,7 @@ teardown_clustering_bridge() {
   if [ -e "/sys/class/net/${name}" ]; then
       echo "==> Teardown clustering bridge ${name}"
       echo 0 > /proc/sys/net/ipv4/ip_forward
-      # shellcheck disable=SC2039
-      for i in {1..5}; do
-          # Retry a few times since the xtables lock might be hold.
-          if iptables -t nat -A POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE; then
-              break
-          fi
-          if [ "$i" -eq 5 ]; then
-              return 1
-          fi
-          sleep 0.1
-      done
+      iptables -w -t nat -A POSTROUTING -s 10.1.0.0/16 -d 0.0.0.0/0 -j MASQUERADE
       ip link del dev "${name}"
   fi
 }
