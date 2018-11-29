@@ -26,7 +26,19 @@ func zfsIsEnabled() bool {
 	return true
 }
 
-// zfsModuleVersionGet returhs the ZFS module version
+// zfsToolVersionGet returns the ZFS tools version
+func zfsToolVersionGet() (string, error) {
+	// This function is only really ever relevant on Ubuntu as the only
+	// distro that ships out of sync tools and kernel modules
+	out, err := shared.RunCommand("dpkg-query", "--showformat=${Version}", "--show", "zfsutils-linux")
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(out)), nil
+}
+
+// zfsModuleVersionGet returns the ZFS module version
 func zfsModuleVersionGet() (string, error) {
 	var zfsVersion string
 

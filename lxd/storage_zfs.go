@@ -64,9 +64,12 @@ func (s *storageZfs) StorageCoreInit() error {
 		return fmt.Errorf("The \"zfs\" tool is not enabled")
 	}
 
-	s.sTypeVersion, err = zfsModuleVersionGet()
+	s.sTypeVersion, err = zfsToolVersionGet()
 	if err != nil {
-		return err
+		s.sTypeVersion, err = zfsModuleVersionGet()
+		if err != nil {
+			return err
+		}
 	}
 
 	zfsVersion = s.sTypeVersion
