@@ -104,45 +104,45 @@ test_proxy_device_tcp() {
   lxc config device set nattest eth0 ipv6.address "${v6_addr}"
 
   lxc start nattest
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
 
   lxc config device add nattest validNAT proxy listen="tcp:127.0.0.1:1234" connect="tcp:${v4_addr}:1234" bind=host
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
 
   # enable NAT
   lxc config device set nattest validNAT nat true
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 2 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 2 ]
 
   lxc config device remove nattest validNAT
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
 
   lxc config device add nattest validNAT proxy listen="tcp:127.0.0.1:1234-1235" connect="tcp:${v4_addr}:1234" bind=host nat=true
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 4 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 4 ]
 
   lxc config device remove nattest validNAT
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
 
   lxc config device add nattest validNAT proxy listen="tcp:127.0.0.1:1234-1235" connect="tcp:${v4_addr}:1234-1235" bind=host nat=true
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 4 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 4 ]
 
   lxc config device remove nattest validNAT
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
 
   # IPv6 test
   lxc config device add nattest validNAT proxy listen="tcp:[::1]:1234" connect="tcp:[::]:1234" bind=host nat=true
-  [ "$(ip6tables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 2 ]
+  [ "$(ip6tables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 2 ]
 
   lxc config device unset nattest validNAT nat
-  [ "$(ip6tables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
+  [ "$(ip6tables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
 
   lxc config device remove nattest validNAT
 
   # This won't enable NAT
   lxc config device add nattest invalidNAT proxy listen="tcp:127.0.0.1:1234" connect="udp:${v4_addr}:1234" bind=host
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (invalidNAT)")" -eq 0 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (invalidNAT)")" -eq 0 ]
 
   lxc delete -f nattest
-  [ "$(iptables -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
+  [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
 
   lxc network delete lxdt$$
 }
