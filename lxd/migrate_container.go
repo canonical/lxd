@@ -1161,7 +1161,6 @@ func migrationCompareSnapshots(sourceSnapshots []*migration.Snapshot, targetSnap
 	toSync := []*migration.Snapshot{}
 
 	for _, snap := range sourceSnapshots {
-		logger.Errorf("source snap: %v", snap.GetName())
 		snapName := snap.GetName()
 
 		sourceSnapshotsTime[snapName] = snap.GetCreationDate()
