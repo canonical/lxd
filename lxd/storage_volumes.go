@@ -615,6 +615,7 @@ func storagePoolVolumeTypePost(d *Daemon, r *http.Request, volumeTypeName string
 		if err != nil {
 			return err
 		}
+
 		if len(ctsUsingVolume) > 0 {
 			return fmt.Errorf("Volume is still in use by running containers")
 		}
@@ -867,11 +868,19 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 	}
 
 	if req.Restore != "" {
-		if len(volume.UsedBy) != 0 {
-			return PreconditionFailed(fmt.Errorf("Cannot restore attached volume"))
+		ctsUsingVolume, err := storagePoolVolumeUsedByRunningContainersWithProfilesGet(d.State(), poolName, volume.Name, storagePoolVolumeTypeNameCustom, true)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		if len(ctsUsingVolume) != 0 {
+			return BadRequest(fmt.Errorf("Cannot restore custom volume used by running containers"))
 		}
 
 		err = storagePoolVolumeRestore(d.State(), poolName, volumeName, volumeType, req.Restore)
+		if err != nil {
+			return SmartError(err)
+		}
 	} else {
 		// Validate the configuration
 		err = storageVolumeValidateConfig(volumeName, req.Config, pool)
@@ -880,9 +889,9 @@ func storagePoolVolumeTypePut(d *Daemon, r *http.Request, volumeTypeName string)
 		}
 
 		err = storagePoolVolumeUpdate(d.State(), poolName, volumeName, volumeType, req.Description, req.Config)
-	}
-	if err != nil {
-		return SmartError(err)
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	return EmptySyncResponse
