@@ -26,9 +26,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
-	"github.com/pkg/errors"
 )
 
 const SnapshotDelimiter = "/"
