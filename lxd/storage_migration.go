@@ -40,9 +40,9 @@ type MigrationStorageSourceDriver interface {
 }
 
 type rsyncStorageSourceDriver struct {
-	container container
-	snapshots []container
-	rsyncArgs []string
+	container     container
+	snapshots     []container
+	rsyncFeatures []string
 }
 
 func (s rsyncStorageSourceDriver) Snapshots() []container {
@@ -66,7 +66,7 @@ func (s rsyncStorageSourceDriver) SendStorageVolume(conn *websocket.Conn, op *op
 	path := getStoragePoolVolumeMountPoint(pool.Name, volume.Name)
 	path = shared.AddSlash(path)
 	logger.Debugf("Starting to send storage volume %s on storage pool %s from %s", volume.Name, pool.Name, path)
-	return RsyncSend(volume.Name, path, conn, wrapper, s.rsyncArgs, bwlimit, state.OS.ExecPath)
+	return RsyncSend(volume.Name, path, conn, wrapper, s.rsyncFeatures, bwlimit, state.OS.ExecPath)
 }
 
 func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *operation, bwlimit string, containerOnly bool) error {
@@ -85,7 +85,7 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *ope
 			path := send.Path()
 			wrapper := StorageProgressReader(op, "fs_progress", send.Name())
 			state := s.container.DaemonState()
-			err = RsyncSend(projectPrefix(s.container.Project(), ctName), shared.AddSlash(path), conn, wrapper, s.rsyncArgs, bwlimit, state.OS.ExecPath)
+			err = RsyncSend(projectPrefix(s.container.Project(), ctName), shared.AddSlash(path), conn, wrapper, s.rsyncFeatures, bwlimit, state.OS.ExecPath)
 			if err != nil {
 				return err
 			}
@@ -94,14 +94,14 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *ope
 
 	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
 	state := s.container.DaemonState()
-	return RsyncSend(projectPrefix(s.container.Project(), ctName), shared.AddSlash(s.container.Path()), conn, wrapper, s.rsyncArgs, bwlimit, state.OS.ExecPath)
+	return RsyncSend(projectPrefix(s.container.Project(), ctName), shared.AddSlash(s.container.Path()), conn, wrapper, s.rsyncFeatures, bwlimit, state.OS.ExecPath)
 }
 
 func (s rsyncStorageSourceDriver) SendAfterCheckpoint(conn *websocket.Conn, bwlimit string) error {
 	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	// resync anything that changed between our first send and the checkpoint
 	state := s.container.DaemonState()
-	return RsyncSend(projectPrefix(s.container.Project(), ctName), shared.AddSlash(s.container.Path()), conn, nil, s.rsyncArgs, bwlimit, state.OS.ExecPath)
+	return RsyncSend(projectPrefix(s.container.Project(), ctName), shared.AddSlash(s.container.Path()), conn, nil, s.rsyncFeatures, bwlimit, state.OS.ExecPath)
 }
 
 func (s rsyncStorageSourceDriver) Cleanup() {
@@ -109,7 +109,7 @@ func (s rsyncStorageSourceDriver) Cleanup() {
 }
 
 func rsyncStorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
-	return rsyncStorageSourceDriver{nil, nil, args.RsyncArgs}, nil
+	return rsyncStorageSourceDriver{nil, nil, args.RsyncFeatures}, nil
 }
 
 func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
@@ -130,7 +130,7 @@ func rsyncRefreshSource(refreshSnapshots []string, args MigrationSourceArgs) (Mi
 		}
 	}
 
-	return rsyncStorageSourceDriver{args.Container, snapshots, args.RsyncArgs}, nil
+	return rsyncStorageSourceDriver{args.Container, snapshots, args.RsyncFeatures}, nil
 }
 
 func rsyncMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error) {
@@ -143,7 +143,7 @@ func rsyncMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDrive
 		}
 	}
 
-	return rsyncStorageSourceDriver{args.Container, snapshots, args.RsyncArgs}, nil
+	return rsyncStorageSourceDriver{args.Container, snapshots, args.RsyncFeatures}, nil
 }
 
 func snapshotProtobufToContainerArgs(project string, containerName string, snap *migration.Snapshot) db.ContainerArgs {
@@ -208,7 +208,7 @@ func rsyncStorageMigrationSink(conn *websocket.Conn, op *operation, args Migrati
 	path := getStoragePoolVolumeMountPoint(pool.Name, volume.Name)
 	path = shared.AddSlash(path)
 	logger.Debugf("Starting to receive storage volume %s on storage pool %s into %s", volume.Name, pool.Name, path)
-	return RsyncRecv(path, conn, wrapper, args.RsyncArgs)
+	return RsyncRecv(path, conn, wrapper, args.RsyncFeatures)
 }
 
 func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error {
@@ -285,7 +285,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 				}
 
 				wrapper := StorageProgressWriter(op, "fs_progress", s.Name())
-				if err := RsyncRecv(shared.AddSlash(s.Path()), conn, wrapper, args.RsyncArgs); err != nil {
+				if err := RsyncRecv(shared.AddSlash(s.Path()), conn, wrapper, args.RsyncFeatures); err != nil {
 					return err
 				}
 
@@ -297,7 +297,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 		}
 
 		wrapper := StorageProgressWriter(op, "fs_progress", args.Container.Name())
-		err = RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncArgs)
+		err = RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncFeatures)
 		if err != nil {
 			return err
 		}
@@ -335,7 +335,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 				}
 
 				wrapper := StorageProgressWriter(op, "fs_progress", snap.GetName())
-				err := RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncArgs)
+				err := RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncFeatures)
 				if err != nil {
 					return err
 				}
@@ -357,7 +357,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 		}
 
 		wrapper := StorageProgressWriter(op, "fs_progress", args.Container.Name())
-		err = RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncArgs)
+		err = RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncFeatures)
 		if err != nil {
 			return err
 		}
@@ -366,7 +366,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 	if args.Live {
 		/* now receive the final sync */
 		wrapper := StorageProgressWriter(op, "fs_progress", args.Container.Name())
-		err := RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncArgs)
+		err := RsyncRecv(shared.AddSlash(args.Container.Path()), conn, wrapper, args.RsyncFeatures)
 		if err != nil {
 			return err
 		}

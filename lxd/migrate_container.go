@@ -220,7 +220,7 @@ type preDumpLoopArgs struct {
 	preDumpDir    string
 	dumpDir       string
 	final         bool
-	rsyncArgs     []string
+	rsyncFeatures []string
 }
 
 // The function preDumpLoop is the main logic behind the pre-copy migration.
@@ -251,7 +251,7 @@ func (s *migrationSourceWs) preDumpLoop(args *preDumpLoopArgs) (bool, error) {
 	// Send the pre-dump.
 	ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	state := s.container.DaemonState()
-	err = RsyncSend(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.rsyncArgs, args.bwlimit, state.OS.ExecPath)
+	err = RsyncSend(ctName, shared.AddSlash(args.checkpointDir), s.criuConn, nil, args.rsyncFeatures, args.bwlimit, state.OS.ExecPath)
 	if err != nil {
 		return final, err
 	}
@@ -413,42 +413,22 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	}
 
 	// Handle rsync options
-	rsyncArgs := []string{}
-	rsyncFeatures := header.GetRsyncFeatures()
-	if !rsyncFeatures.GetBidirectional() {
+	rsyncFeatures := header.GetRsyncFeaturesSlice()
+	if !shared.StringInSlice("bidirectional", rsyncFeatures) {
 		// If no bi-directional support, assume LXD 3.7 level
 		// NOTE: Do NOT extend this list of arguments
-		rsyncArgs = append(rsyncArgs, "--xattrs")
-		rsyncArgs = append(rsyncArgs, "--delete")
-		rsyncArgs = append(rsyncArgs, "--compress")
-		rsyncArgs = append(rsyncArgs, "--compress-level=2")
-	} else {
-		if rsyncFeatures.GetXattrs() {
-			rsyncArgs = append(rsyncArgs, "--xattrs")
-		}
-		if rsyncFeatures.GetDelete() {
-			rsyncArgs = append(rsyncArgs, "--delete")
-		}
-		if rsyncFeatures.GetCompress() {
-			rsyncArgs = append(rsyncArgs, "--compress")
-			rsyncArgs = append(rsyncArgs, "--compress-level=2")
-		}
+		rsyncFeatures = []string{"xattrs", "delete", "compress"}
 	}
 
 	// Handle zfs options
-	zfsArgs := []string{}
-	zfsFeatures := header.GetZfsFeatures()
-	if zfsFeatures.GetCompress() && len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-		zfsArgs = append(zfsArgs, "-c")
-		zfsArgs = append(zfsArgs, "-L")
-	}
+	zfsFeatures := header.GetZfsFeaturesSlice()
 
 	// Set source args
 	sourceArgs := MigrationSourceArgs{
 		Container:     s.container,
 		ContainerOnly: s.containerOnly,
-		RsyncArgs:     rsyncArgs,
-		ZfsArgs:       zfsArgs,
+		RsyncFeatures: rsyncFeatures,
+		ZfsFeatures:   zfsFeatures,
 	}
 
 	// Initialize storage driver
@@ -608,7 +588,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 						preDumpDir:    preDumpDir,
 						dumpDir:       dumpDir,
 						final:         final,
-						rsyncArgs:     rsyncArgs,
+						rsyncFeatures: rsyncFeatures,
 					}
 					final, err = s.preDumpLoop(&loop_args)
 					if err != nil {
@@ -679,7 +659,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 		 */
 		ctName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 		state := s.container.DaemonState()
-		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn, nil, rsyncArgs, bwlimit, state.OS.ExecPath)
+		err = RsyncSend(ctName, shared.AddSlash(checkpointDir), s.criuConn, nil, rsyncFeatures, bwlimit, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
 		}
@@ -833,18 +813,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 	}
 
 	// Handle rsync options
-	c.rsyncArgs = []string{}
-	rsyncFeatures := header.GetRsyncFeatures()
-	if rsyncFeatures.GetXattrs() {
-		c.rsyncArgs = append(c.rsyncArgs, "--xattrs")
-	}
-	if rsyncFeatures.GetDelete() {
-		c.rsyncArgs = append(c.rsyncArgs, "--delete")
-	}
-	if rsyncFeatures.GetCompress() {
-		c.rsyncArgs = append(c.rsyncArgs, "--compress")
-		c.rsyncArgs = append(c.rsyncArgs, "--compress-level=2")
-	}
+	rsyncFeatures := header.GetRsyncFeaturesSlice()
 
 	live := c.src.live
 	if c.push {
@@ -1004,7 +973,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				Idmap:         srcIdmap,
 				Live:          sendFinalFsDelta,
 				Refresh:       c.refresh,
-				RsyncArgs:     c.rsyncArgs,
+				RsyncFeatures: rsyncFeatures,
 				Snapshots:     snapshots,
 			}
 
@@ -1048,7 +1017,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				for !sync.GetFinalPreDump() {
 					logger.Debugf("About to receive rsync")
 					// Transfer a CRIU pre-dump
-					err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil, c.rsyncArgs)
+					err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil, rsyncFeatures)
 					if err != nil {
 						restore <- err
 						return
@@ -1076,7 +1045,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 			}
 
 			// Final CRIU dump
-			err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil, c.rsyncArgs)
+			err = RsyncRecv(shared.AddSlash(imagesDir), criuConn, nil, rsyncFeatures)
 			if err != nil {
 				restore <- err
 				return
