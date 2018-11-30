@@ -111,7 +111,7 @@ func tryUnmount(path string, flags int) error {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	if err != nil && err == syscall.EBUSY {
+	if err != nil {
 		return err
 	}
 
