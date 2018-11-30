@@ -1623,7 +1623,6 @@ func (s *storageLvm) ContainerSnapshotStop(container container) (bool, error) {
 	snapshotMntPoint := getSnapshotMountPoint(container.Project(), s.pool.Name, containerName)
 
 	poolName := s.getOnDiskPoolName()
-	containerLvmName := containerNameToLVName(containerName)
 
 	if shared.IsMountPoint(snapshotMntPoint) {
 		err := tryUnmount(snapshotMntPoint, 0)
@@ -1632,13 +1631,14 @@ func (s *storageLvm) ContainerSnapshotStop(container container) (bool, error) {
 		}
 	}
 
-	containerLvmPath := getLvmDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName)
+	containerLvmPath := getLvmDevPath(container.Project(), poolName, storagePoolVolumeAPIEndpointContainers, containerNameToLVName(containerName))
 	wasWritableAtCheck, err := lvmLvIsWritable(containerLvmPath)
 	if err != nil {
 		return false, err
 	}
 
 	if wasWritableAtCheck {
+		containerLvmName := containerNameToLVName(projectPrefix(container.Project(), containerName))
 		output, err := shared.TryRunCommand("lvchange", "-pr", fmt.Sprintf("%s/%s_%s", poolName, storagePoolVolumeAPIEndpointContainers, containerLvmName))
 		if err != nil {
 			logger.Errorf("Failed to make LVM snapshot read-only: %s", output)
@@ -1757,11 +1757,11 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 	if err != nil {
 		return err
 	}
-	defer s.umount("default", sourceLvmDatasetSnapshot, "")
 
 	// Copy the container
 	containerPath := fmt.Sprintf("%s/container", tmpPath)
 	err = rsync(tmpContainerMntPoint, containerPath, bwlimit)
+	s.umount(source.Project(), sourceLvmDatasetSnapshot, "")
 	if err != nil {
 		return err
 	}
