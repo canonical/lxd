@@ -1893,7 +1893,7 @@ type zfsMigrationSourceDriver struct {
 	zfs              *storageZfs
 	runningSnapName  string
 	stoppedSnapName  string
-	zfsArgs          []string
+	zfsFeatures      []string
 }
 
 func (s *zfsMigrationSourceDriver) Snapshots() []container {
@@ -1904,7 +1904,15 @@ func (s *zfsMigrationSourceDriver) send(conn *websocket.Conn, zfsName string, zf
 	sourceParentName, _, _ := containerGetParentAndSnapshotName(s.container.Name())
 	poolName := s.zfs.getOnDiskPoolName()
 	args := []string{"send"}
-	args = append(args, s.zfsArgs...)
+
+	// Negotiated options
+	if s.zfsFeatures != nil && len(s.zfsFeatures) > 0 {
+		if shared.StringInSlice("compress", s.zfsFeatures) {
+			args = append(args, "-c")
+			args = append(args, "-L")
+		}
+	}
+
 	args = append(args, []string{fmt.Sprintf("%s/containers/%s@%s", poolName, sourceParentName, zfsName)}...)
 	if zfsParent != "" {
 		args = append(args, "-i", fmt.Sprintf("%s/containers/%s@%s", poolName, s.container.Name(), zfsParent))
@@ -2020,7 +2028,7 @@ func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 	* to send anything else, because that's all the user asked for.
 	 */
 	if args.Container.IsSnapshot() {
-		return &zfsMigrationSourceDriver{container: args.Container, zfs: s, zfsArgs: args.ZfsArgs}, nil
+		return &zfsMigrationSourceDriver{container: args.Container, zfs: s, zfsFeatures: args.ZfsFeatures}, nil
 	}
 
 	driver := zfsMigrationSourceDriver{
@@ -2028,7 +2036,7 @@ func (s *storageZfs) MigrationSource(args MigrationSourceArgs) (MigrationStorage
 		snapshots:        []container{},
 		zfsSnapshotNames: []string{},
 		zfs:              s,
-		zfsArgs:          args.ZfsArgs,
+		zfsFeatures:      args.ZfsFeatures,
 	}
 
 	if args.ContainerOnly {

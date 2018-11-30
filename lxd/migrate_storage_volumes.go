@@ -79,40 +79,20 @@ func (s *migrationSourceWs) DoStorage(migrateOp *operation) error {
 	}
 
 	// Handle rsync options
-	rsyncArgs := []string{}
-	rsyncFeatures := header.GetRsyncFeatures()
-	if !rsyncFeatures.GetBidirectional() {
+	rsyncFeatures := header.GetRsyncFeaturesSlice()
+	if !shared.StringInSlice("bidirectional", rsyncFeatures) {
 		// If no bi-directional support, assume LXD 3.7 level
 		// NOTE: Do NOT extend this list of arguments
-		rsyncArgs = append(rsyncArgs, "--xattrs")
-		rsyncArgs = append(rsyncArgs, "--delete")
-		rsyncArgs = append(rsyncArgs, "--compress")
-		rsyncArgs = append(rsyncArgs, "--compress-level=2")
-	} else {
-		if rsyncFeatures.GetXattrs() {
-			rsyncArgs = append(rsyncArgs, "--xattrs")
-		}
-		if rsyncFeatures.GetDelete() {
-			rsyncArgs = append(rsyncArgs, "--delete")
-		}
-		if rsyncFeatures.GetCompress() {
-			rsyncArgs = append(rsyncArgs, "--compress")
-			rsyncArgs = append(rsyncArgs, "--compress-level=2")
-		}
+		rsyncFeatures = []string{"xattrs", "delete", "compress"}
 	}
 
 	// Handle zfs options
-	zfsArgs := []string{}
-	zfsFeatures := header.GetZfsFeatures()
-	if zfsFeatures.GetCompress() && len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
-		zfsArgs = append(zfsArgs, "-c")
-		zfsArgs = append(zfsArgs, "-L")
-	}
+	zfsFeatures := header.GetZfsFeaturesSlice()
 
 	// Set source args
 	sourceArgs := MigrationSourceArgs{
-		RsyncArgs: rsyncArgs,
-		ZfsArgs:   zfsArgs,
+		RsyncFeatures: rsyncFeatures,
+		ZfsFeatures:   zfsFeatures,
 	}
 
 	driver, fsErr := s.storage.StorageMigrationSource(sourceArgs)
@@ -288,24 +268,12 @@ func (c *migrationSink) DoStorage(migrateOp *operation) error {
 		resp.Fs = &myType
 	}
 
-	rsyncFeatures := header.GetRsyncFeatures()
-
 	// Handle rsync options
-	rsyncArgs := []string{}
-	if rsyncFeatures.GetXattrs() {
-		rsyncArgs = append(rsyncArgs, "--xattrs")
-	}
-	if rsyncFeatures.GetDelete() {
-		rsyncArgs = append(rsyncArgs, "--delete")
-	}
-	if rsyncFeatures.GetCompress() {
-		rsyncArgs = append(rsyncArgs, "--compress")
-		rsyncArgs = append(rsyncArgs, "--compress-level=2")
-	}
+	rsyncFeatures := header.GetRsyncFeaturesSlice()
 
 	args := MigrationSinkArgs{
-		Storage:   c.dest.storage,
-		RsyncArgs: rsyncArgs,
+		Storage:       c.dest.storage,
+		RsyncFeatures: rsyncFeatures,
 	}
 
 	err = sender(&resp)
