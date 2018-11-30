@@ -308,7 +308,7 @@ func (s *storageLvm) copyContainerThinpool(target container, source container, r
 	LVFilesystem := s.getLvmFilesystem()
 	poolName := s.getOnDiskPoolName()
 	containerName := target.Name()
-	containerLvmName := containerNameToLVName(containerName)
+	containerLvmName := containerNameToLVName(projectPrefix(target.Name(), containerName))
 	containerLvDevPath := getLvmDevPath(target.Project(), poolName,
 		storagePoolVolumeAPIEndpointContainers, containerLvmName)
 
@@ -564,7 +564,7 @@ func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) erro
 	}
 
 	containerName := c.Name()
-	containerLvmName := containerNameToLVName(containerName)
+	containerLvmName := containerNameToLVName(projectPrefix(c.Project(), containerName))
 	_, err := s.createSnapshotLV(c.Project(), poolName, fp, storagePoolVolumeAPIEndpointImages, containerLvmName, storagePoolVolumeAPIEndpointContainers, false, s.useThinpool)
 	if err != nil {
 		return errors.Wrap(err, "Create snapshot")
