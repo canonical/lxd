@@ -62,7 +62,7 @@ func rsyncLocalCopy(source string, dest string, bwlimit string) (string, error) 
 	return msg, nil
 }
 
-func rsyncSendSetup(name string, path string, bwlimit string, execPath string, extraArgs []string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
+func rsyncSendSetup(name string, path string, bwlimit string, execPath string, features []string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	/*
 	 * The way rsync works, it invokes a subprocess that does the actual
 	 * talking (given to it by a -E argument). Since there isn't an easy
@@ -112,8 +112,8 @@ func rsyncSendSetup(name string, path string, bwlimit string, execPath string, e
 		"--sparse",
 	}
 
-	if extraArgs != nil && len(extraArgs) > 0 {
-		args = append(args, extraArgs...)
+	if features != nil && len(features) > 0 {
+		args = append(args, rsyncFeatureArgs(features)...)
 	}
 
 	args = append(args, []string{
@@ -148,8 +148,8 @@ func rsyncSendSetup(name string, path string, bwlimit string, execPath string, e
 
 // RsyncSend sets up the sending half of an rsync, to recursively send the
 // directory pointed to by path over the websocket.
-func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser, extraArgs []string, bwlimit string, execPath string) error {
-	cmd, dataSocket, stderr, err := rsyncSendSetup(name, path, bwlimit, execPath, extraArgs)
+func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(io.ReadCloser) io.ReadCloser, features []string, bwlimit string, execPath string) error {
+	cmd, dataSocket, stderr, err := rsyncSendSetup(name, path, bwlimit, execPath, features)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(
 // RsyncRecv sets up the receiving half of the websocket to rsync (the other
 // half set up by RsyncSend), putting the contents in the directory specified
 // by path.
-func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) io.WriteCloser, extraArgs []string) error {
+func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteCloser) io.WriteCloser, features []string) error {
 	args := []string{
 		"--server",
 		"-vlogDtpre.iLsfx",
@@ -196,8 +196,8 @@ func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteClos
 		"--sparse",
 	}
 
-	if extraArgs != nil && len(extraArgs) > 0 {
-		args = append(args, extraArgs...)
+	if features != nil && len(features) > 0 {
+		args = append(args, rsyncFeatureArgs(features)...)
 	}
 
 	args = append(args, []string{".", path}...)
@@ -245,4 +245,22 @@ func RsyncRecv(path string, conn *websocket.Conn, writeWrapper func(io.WriteClos
 	<-writeDone
 
 	return err
+}
+
+func rsyncFeatureArgs(features []string) []string {
+	args := []string{}
+	if shared.StringInSlice("xattrs", features) {
+		args = append(args, "--xattrs")
+	}
+
+	if shared.StringInSlice("delete", features) {
+		args = append(args, "--delete")
+	}
+
+	if shared.StringInSlice("compress", features) {
+		args = append(args, "--compress")
+		args = append(args, "--compress-level=2")
+	}
+
+	return args
 }

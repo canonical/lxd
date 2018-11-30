@@ -250,7 +250,6 @@ type migrationSink struct {
 	dialer       websocket.Dialer
 	allConnected chan bool
 	push         bool
-	rsyncArgs    []string
 	refresh      bool
 }
 
@@ -273,7 +272,7 @@ type MigrationSinkArgs struct {
 	Storage storage
 
 	// Transport specific fields
-	RsyncArgs []string
+	RsyncFeatures []string
 }
 
 type MigrationSourceArgs struct {
@@ -282,8 +281,8 @@ type MigrationSourceArgs struct {
 	ContainerOnly bool
 
 	// Transport specific fields
-	RsyncArgs []string
-	ZfsArgs   []string
+	RsyncFeatures []string
+	ZfsFeatures   []string
 }
 
 func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
