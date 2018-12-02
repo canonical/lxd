@@ -139,7 +139,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.ContainerServer) erro
 
 				certDigest := shared.CertFingerprint(cert)
 				fmt.Printf("Cluster fingerprint: %s\n", certDigest)
-				fmt.Printf("You can validate this fingerpring by running \"lxc info\" locally on an existing node.\n")
+				fmt.Printf("You can validate this fingerprint by running \"lxc info\" locally on an existing node.\n")
 				if !cli.AskBool("Is this the correct fingerprint? (yes/no) [default=no]: ", "no") {
 					return fmt.Errorf("User aborted configuration")
 				}
