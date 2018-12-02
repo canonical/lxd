@@ -2893,7 +2893,7 @@ func (s *storageZfs) StorageEntitySetQuota(volumeType int, size int64, data inte
 	switch volumeType {
 	case storagePoolVolumeTypeContainer:
 		c = data.(container)
-		fs = fmt.Sprintf("containers/%s", c.Name())
+		fs = fmt.Sprintf("containers/%s", projectPrefix(c.Project(), c.Name()))
 	case storagePoolVolumeTypeCustom:
 		fs = fmt.Sprintf("custom/%s", s.volume.Name)
 	}
