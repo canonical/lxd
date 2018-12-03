@@ -651,3 +651,15 @@ configuration keys: `snapshots.schedule`, `snapshots.schedule.stopped`, and
 ## container\_copy\_project
 Introduces a `project` field to the container source dict, allowing for
 copy/move of containers between projects.
+
+## clustering\_server\_address
+This adds support for configuring a server network address which differs from
+the REST API client network address. When bootstrapping a new cluster, clients
+can set the new ```cluster.https_address``` config key to specify the address of
+the initial server. When joining a new server, clients can set the
+```core.https_address``` config key of the joining server to the REST API
+address the joining server should listen at, and set the ```server_address```
+key in the ```PUT /1.0/cluster``` API to the address the joining server should
+use for clustering traffic (the value of ```server_address``` will be
+automatically copied to the ```cluster.https_address``` config key of the
+joining server).
