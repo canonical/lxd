@@ -1,11 +1,12 @@
 package util_test
 
 import (
+	"fmt"
 	"io"
+	"net"
 	"testing"
 
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,9 +44,51 @@ func TestCanonicalNetworkAddress(t *testing.T) {
 		"f921:7358:4510:3fce:ac2e:844:2a35:54e": "[f921:7358:4510:3fce:ac2e:844:2a35:54e]:8443",
 	}
 	for in, out := range cases {
-		subtest.Run(t, in, func(t *testing.T) {
+		t.Run(in, func(t *testing.T) {
 			assert.Equal(t, out, util.CanonicalNetworkAddress(in))
 		})
 	}
 
+}
+
+func TestIsAddressCovered(t *testing.T) {
+	cases := []struct {
+		address1 string
+		address2 string
+		covered  bool
+	}{
+		{"127.0.0.1:8443", "127.0.0.1:8443", true},
+		{"garbage", "127.0.0.1:8443", false},
+		{"127.0.0.1:8444", "garbage", false},
+		{"127.0.0.1:8444", "127.0.0.1:8443", false},
+		{"127.0.0.1:8443", "0.0.0.0:8443", true},
+		{"[::1]:8443", "0.0.0.0:8443", false},
+		{":8443", "0.0.0.0:8443", false},
+		{"127.0.0.1:8443", "[::]:8443", true},
+		{"[::1]:8443", "[::]:8443", true},
+		{"[::1]:8443", ":8443", true},
+		{":8443", "[::]:8443", true},
+		{"0.0.0.0:8443", "[::]:8443", true},
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%s-%s", c.address1, c.address2), func(t *testing.T) {
+			covered := util.IsAddressCovered(c.address1, c.address2)
+			if c.covered {
+				assert.True(t, covered)
+			} else {
+				assert.False(t, covered)
+			}
+		})
+	}
+}
+
+// This is a sanity check against Go's stdlib to make sure that when listening
+// to a port without specifying an address, then an IPv6 wildcard is assumed.
+func TestListenImplicitIPv6Wildcard(t *testing.T) {
+	listener, err := net.Listen("tcp", ":9999")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	assert.Equal(t, "[::]:9999", listener.Addr().String())
 }
