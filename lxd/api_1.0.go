@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -304,6 +305,16 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) Response {
 		if err != nil {
 			return errors.Wrap(err, "Failed to load node config")
 		}
+
+		// We currently don't allow changing the cluster.https_address
+		// once it's set.
+		curClusterAddress := newNodeConfig.ClusterAddress()
+		newClusterAddress, ok := nodeValues["cluster.https_address"]
+
+		if ok && curClusterAddress != "" && !util.IsAddressCovered(newClusterAddress.(string), curClusterAddress) {
+			return fmt.Errorf("Changing cluster.https_address is currently not supported")
+		}
+
 		if patch {
 			nodeChanged, err = newNodeConfig.Patch(nodeValues)
 		} else {
@@ -410,22 +421,41 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			}
 		}
 	}
-	for key, value := range nodeChanged {
-		switch key {
-		case "maas.machine":
-			maasChanged = true
-		case "core.https_address":
-			err := d.endpoints.NetworkUpdateAddress(value)
-			if err != nil {
-				return err
-			}
-		case "core.debug_address":
-			err := d.endpoints.PprofUpdateAddress(value)
-			if err != nil {
-				return err
-			}
+
+	// Look for changed values. We do it sequentially because some keys are
+	// correlated with others, and need to be processed first (for example
+	// core.https_address need to be processed before
+	// cluster.https_address).
+
+	_, ok := nodeChanged["maas.machine"]
+	if ok {
+		maasChanged = true
+	}
+
+	value, ok := nodeChanged["core.https_address"]
+	if ok {
+		err := d.endpoints.NetworkUpdateAddress(value)
+		if err != nil {
+			return err
 		}
 	}
+
+	value, ok = nodeChanged["cluster.https_address"]
+	if ok {
+		err := d.endpoints.ClusterUpdateAddress(value)
+		if err != nil {
+			return err
+		}
+	}
+
+	value, ok = nodeChanged["core.debug_address"]
+	if ok {
+		err := d.endpoints.PprofUpdateAddress(value)
+		if err != nil {
+			return err
+		}
+	}
+
 	if maasChanged {
 		url, key := clusterConfig.MAASController()
 		machine := nodeConfig.MAASMachine()

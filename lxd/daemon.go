@@ -537,6 +537,11 @@ func (d *Daemon) init() error {
 		return errors.Wrap(err, "Failed to fetch node address")
 	}
 
+	clusterAddress, err := node.ClusterAddress(d.db)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch cluster address")
+	}
+
 	debugAddress, err := node.DebugAddress(d.db)
 	if err != nil {
 		return errors.Wrap(err, "Failed to fetch debug address")
@@ -551,6 +556,7 @@ func (d *Daemon) init() error {
 		DevLxdServer:         DevLxdServer(d),
 		LocalUnixSocketGroup: d.config.Group,
 		NetworkAddress:       address,
+		ClusterAddress:       clusterAddress,
 		DebugAddress:         debugAddress,
 	}
 	d.endpoints, err = endpoints.Up(config)

@@ -26,7 +26,8 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 	}{
 		{
 			func(f *membershipFixtures) {
-				f.NetworkAddress("1.2.3.4:666")
+				f.ClusterAddress("1.2.3.4:666")
+				f.RaftNode("5.6.7.8:666")
 				filename := filepath.Join(f.state.OS.VarDir, "cluster.crt")
 				ioutil.WriteFile(filename, []byte{}, 0644)
 			},
@@ -34,11 +35,11 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 		},
 		{
 			func(*membershipFixtures) {},
-			"no core.https_address config is set on this node",
+			"no cluster.https_address config is set on this node",
 		},
 		{
 			func(f *membershipFixtures) {
-				f.NetworkAddress("1.2.3.4:666")
+				f.ClusterAddress("1.2.3.4:666")
 				f.RaftNode("5.6.7.8:666")
 			},
 			"the node is already part of a cluster",
@@ -51,7 +52,7 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 		},
 		{
 			func(f *membershipFixtures) {
-				f.NetworkAddress("1.2.3.4:666")
+				f.ClusterAddress("1.2.3.4:666")
 				f.ClusterNode("5.6.7.8:666")
 			},
 			"inconsistent state: found leftover entries in nodes",
@@ -89,7 +90,7 @@ func TestBootstrap(t *testing.T) {
 
 	address := server.Listener.Addr().String()
 	f := &membershipFixtures{t: t, state: state}
-	f.NetworkAddress(address)
+	f.ClusterAddress(address)
 
 	err := cluster.Bootstrap(state, gateway, "buzz")
 	require.NoError(t, err)
@@ -264,7 +265,7 @@ func TestJoin(t *testing.T) {
 	require.NoError(t, err)
 
 	targetF := &membershipFixtures{t: t, state: targetState}
-	targetF.NetworkAddress(targetAddress)
+	targetF.ClusterAddress(targetAddress)
 
 	err = cluster.Bootstrap(targetState, targetGateway, "buzz")
 	require.NoError(t, err)
@@ -300,7 +301,7 @@ func TestJoin(t *testing.T) {
 	require.NoError(t, err)
 
 	f := &membershipFixtures{t: t, state: state}
-	f.NetworkAddress(address)
+	f.ClusterAddress(address)
 
 	// Accept the joining node.
 	raftNodes, err := cluster.Accept(
@@ -387,7 +388,7 @@ func FLAKY_TestPromote(t *testing.T) {
 		"db.bin", store, targetAddress, "/unused/db/dir", 5*time.Second, dqlite.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 	targetF := &membershipFixtures{t: t, state: targetState}
-	targetF.NetworkAddress(targetAddress)
+	targetF.ClusterAddress(targetAddress)
 
 	err = cluster.Bootstrap(targetState, targetGateway, "buzz")
 	require.NoError(t, err)
@@ -403,7 +404,7 @@ func FLAKY_TestPromote(t *testing.T) {
 	address := server.Listener.Addr().String()
 	targetF.ClusterNode(address) // Add the non database node to the cluster database
 	f := &membershipFixtures{t: t, state: state}
-	f.NetworkAddress(address)
+	f.ClusterAddress(address)
 	f.RaftNode(targetAddress) // Insert the leader in our local list of database nodes
 
 	gateway := newGateway(t, state.Node, targetCert)
@@ -445,10 +446,21 @@ type membershipFixtures struct {
 }
 
 // Set core.https_address to the given value.
-func (h *membershipFixtures) NetworkAddress(address string) {
+func (h *membershipFixtures) CoreAddress(address string) {
 	err := h.state.Node.Transaction(func(tx *db.NodeTx) error {
 		config := map[string]string{
 			"core.https_address": address,
+		}
+		return tx.UpdateConfig(config)
+	})
+	require.NoError(h.t, err)
+}
+
+// Set cluster.https_address to the given value.
+func (h *membershipFixtures) ClusterAddress(address string) {
+	err := h.state.Node.Transaction(func(tx *db.NodeTx) error {
+		config := map[string]string{
+			"cluster.https_address": address,
 		}
 		return tx.UpdateConfig(config)
 	})

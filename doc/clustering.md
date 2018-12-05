@@ -294,3 +294,33 @@ returned.
 
 You can pass to this final ``network create`` command any configuration key
 which is not node-specific (see above).
+
+## Separate REST API and clustering networks
+
+You can configure different networks for the REST API endpoint of your clients
+and for internal traffic between the nodes of your cluster (for example in order
+to use a virtual address for your REST API, with DNS round robin).
+
+To do that, you need to bootstrap the first node of the cluster using the
+```cluster.https_address``` config key. For example, when using preseed:
+
+```yaml
+config:
+  core.trust_password: sekret
+  core.https_address: my.lxd.cluster:8443
+  cluster.https_address: 10.55.60.171:8443
+...
+```
+
+(the rest of the preseed YAML is the same as above).
+
+To join a new node, first set its REST API address, for instance using the
+```lxc``` client:
+
+```bash
+lxc config set core.https_address my.lxd.cluster:8443
+```
+
+and then use the ```PUT /1.0/cluster``` API endpoint as usual, specifying the
+address of the joining node with the ```server_address``` field. If you use
+preseed, the YAML payload would be exactly like the one above.

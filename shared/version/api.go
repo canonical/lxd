@@ -133,6 +133,7 @@ var APIExtensions = []string{
 	"usb_optional_vendorid",
 	"snapshot_scheduling",
 	"container_copy_project",
+	"clustering_server_address",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

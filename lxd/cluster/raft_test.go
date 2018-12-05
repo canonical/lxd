@@ -119,13 +119,13 @@ func newRaft(t *testing.T, db *db.Node, cert *shared.CertInfo) *cluster.RaftInst
 	return instance
 }
 
-// Set the core.https_address config key to the given address, and insert the
+// Set the cluster.https_address config key to the given address, and insert the
 // address into the raft_nodes table.
 //
 // This effectively makes the node act as a database raft node.
 func setRaftRole(t *testing.T, database *db.Node, address string) *dqlite.DatabaseServerStore {
 	require.NoError(t, database.Transaction(func(tx *db.NodeTx) error {
-		err := tx.UpdateConfig(map[string]string{"core.https_address": address})
+		err := tx.UpdateConfig(map[string]string{"cluster.https_address": address})
 		if err != nil {
 			return err
 		}
