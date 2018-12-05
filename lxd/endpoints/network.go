@@ -64,6 +64,8 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 		return nil
 	}
 
+	clusterAddress := e.ClusterAddress()
+
 	logger.Infof("Update network address")
 
 	e.mu.Lock()
@@ -72,9 +74,15 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 	// Close the previous socket
 	e.closeListener(network)
 
-	// If turning off listening, we're done
+	// If turning off listening, we're done.
 	if address == "" {
 		return nil
+	}
+
+	// If the new address covers the cluster one, turn off the cluster
+	// listener.
+	if clusterAddress != "" && util.IsAddressCovered(clusterAddress, address) {
+		e.closeListener(cluster)
 	}
 
 	// Attempt to setup the new listening socket
@@ -129,6 +137,13 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 	defer e.mu.Unlock()
 	e.cert = cert
 	listener, ok := e.listeners[network]
+	if !ok {
+		return
+	}
+	listener.(*networkListener).Config(cert)
+
+	// Update the cluster listener too, if enabled.
+	listener, ok = e.listeners[cluster]
 	if !ok {
 		return
 	}

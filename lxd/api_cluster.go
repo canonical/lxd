@@ -207,6 +207,31 @@ func clusterPutBootstrap(d *Daemon, req api.ClusterPut) Response {
 	resources := map[string][]string{}
 	resources["cluster"] = []string{}
 
+	// If there's no cluster.https_address set, but core.https_address is,
+	// let's default to it.
+	d.db.Transaction(func(tx *db.NodeTx) error {
+		config, err := node.ConfigLoad(tx)
+		if err != nil {
+			return errors.Wrap(err, "Fetch node configuration")
+		}
+
+		clusterAddress := config.ClusterAddress()
+		if clusterAddress != "" {
+			return nil
+		}
+
+		address := config.HTTPSAddress()
+
+		_, err = config.Patch(map[string]interface{}{
+			"cluster.https_address": address,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Copy core.https_address to cluster.https_address")
+		}
+
+		return nil
+	})
+
 	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationClusterBootstrap, resources, nil, run, nil, nil)
 	if err != nil {
 		return InternalError(err)
@@ -224,6 +249,14 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		return BadRequest(fmt.Errorf("No target cluster node certificate provided"))
 	}
 
+	clusterAddress, err := node.ClusterAddress(d.db)
+	if err != nil {
+		return SmartError(err)
+	}
+	if clusterAddress != "" {
+		return BadRequest(fmt.Errorf("This server is already clustered"))
+	}
+
 	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
 		return SmartError(err)
@@ -235,7 +268,17 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		}
 
 		// The user has provided a server address, and no networking
-		// was setup on this node, let's do the job and open the port.
+		// was setup on this node, let's do the job and open the
+		// port. We'll use the same address both for the REST API and
+		// for clustering.
+
+		// First try to listen to the provided address. If we fail, we
+		// won't actually update the database config.
+		err = d.endpoints.NetworkUpdateAddress(req.ServerAddress)
+		if err != nil {
+			return SmartError(err)
+		}
+
 		err := d.db.Transaction(func(tx *db.NodeTx) error {
 			config, err := node.ConfigLoad(tx)
 			if err != nil {
@@ -243,7 +286,8 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			}
 
 			_, err = config.Patch(map[string]interface{}{
-				"core.https_address": req.ServerAddress,
+				"core.https_address":    req.ServerAddress,
+				"cluster.https_address": req.ServerAddress,
 			})
 			return err
 		})
@@ -251,15 +295,34 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			return SmartError(err)
 		}
 
-		err = d.endpoints.NetworkUpdateAddress(req.ServerAddress)
-		if err != nil {
-			return SmartError(err)
-		}
-
 		address = req.ServerAddress
 	} else {
-		if req.ServerAddress != "" && req.ServerAddress != address {
-			return BadRequest(fmt.Errorf("A different core.https_address is already set on this node"))
+		if req.ServerAddress != "" {
+			// The user has previously set core.https_address and
+			// is now providing a cluster address as well. If they
+			// differ we need to listen to it.
+			if !util.IsAddressCovered(req.ServerAddress, address) {
+				err := d.endpoints.ClusterUpdateAddress(req.ServerAddress)
+				if err != nil {
+					return SmartError(err)
+				}
+				address = req.ServerAddress
+			}
+		}
+
+		// Update the cluster.https_address config key.
+		err := d.db.Transaction(func(tx *db.NodeTx) error {
+			config, err := node.ConfigLoad(tx)
+			if err != nil {
+				return errors.Wrap(err, "Failed to load cluster config")
+			}
+			_, err = config.Patch(map[string]interface{}{
+				"cluster.https_address": address,
+			})
+			return err
+		})
+		if err != nil {
+			return SmartError(err)
 		}
 	}
 
@@ -840,7 +903,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// knowning what nodes are part of the raft cluster.
-	address, err := node.HTTPSAddress(d.db)
+	address, err := node.ClusterAddress(d.db)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -911,7 +974,7 @@ type internalRaftNode struct {
 func internalClusterPostRebalance(d *Daemon, r *http.Request) Response {
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
-	localAddress, err := node.HTTPSAddress(d.db)
+	localAddress, err := node.ClusterAddress(d.db)
 	if err != nil {
 		return SmartError(err)
 	}

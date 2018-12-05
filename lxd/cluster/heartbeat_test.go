@@ -246,7 +246,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 
 	address := server.Listener.Addr().String()
 	mf := &membershipFixtures{t: f.t, state: state}
-	mf.NetworkAddress(address)
+	mf.ClusterAddress(address)
 
 	var err error
 	require.NoError(f.t, state.Cluster.Close())

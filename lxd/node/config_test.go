@@ -118,3 +118,27 @@ func TestHTTPSAddress(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "127.0.0.1:666", address)
 }
+
+// The cluster.https_address config key is fetched from the db with a new
+// transaction.
+func TestClusterAddress(t *testing.T) {
+	nodeDB, cleanup := db.NewTestNode(t)
+	defer cleanup()
+
+	address, err := node.ClusterAddress(nodeDB)
+	require.NoError(t, err)
+	assert.Equal(t, "", address)
+
+	err = nodeDB.Transaction(func(tx *db.NodeTx) error {
+		config, err := node.ConfigLoad(tx)
+		require.NoError(t, err)
+		_, err = config.Replace(map[string]interface{}{"cluster.https_address": "127.0.0.1:666"})
+		require.NoError(t, err)
+		return nil
+	})
+	require.NoError(t, err)
+
+	address, err = node.ClusterAddress(nodeDB)
+	require.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:666", address)
+}

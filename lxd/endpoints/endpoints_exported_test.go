@@ -38,6 +38,13 @@ func (e *Endpoints) NetworkAddressAndCert() (string, *shared.CertInfo) {
 	return e.NetworkAddress(), e.cert
 }
 
+// Return the cluster addresss and server certificate of the network
+// endpoint. This method is supposed to be used in conjunction with
+// the httpGetOverTLSSocket test helper.
+func (e *Endpoints) ClusterAddressAndCert() (string, *shared.CertInfo) {
+	return e.ClusterAddress(), e.cert
+}
+
 // Set the file descriptor number marker that will be used when detecting
 // socket activation. Needed because "go test" might open unrelated file
 // descriptor starting at number 3.
