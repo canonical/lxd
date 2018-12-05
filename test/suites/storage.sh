@@ -422,7 +422,7 @@ test_storage() {
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem xfs
       lxc init testimage c1pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
       lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.block.filesystem btrfs
-      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 100MB
+      lxc storage set "lxdtest-$(basename "${LXD_DIR}")-pool6" volume.size 120MB
       lxc init testimage c2pool6 -s "lxdtest-$(basename "${LXD_DIR}")-pool6"
 
       lxc storage volume create "lxdtest-$(basename "${LXD_DIR}")-pool6" c10pool6
