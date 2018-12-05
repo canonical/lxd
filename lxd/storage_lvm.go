@@ -386,6 +386,11 @@ func (s *storageLvm) StoragePoolDelete() error {
 		if err != nil {
 			logger.Warnf("Failed to set LO_FLAGS_AUTOCLEAR on loop device: %s, manual cleanup needed", err)
 		}
+
+		output, err := shared.TryRunCommand("pvremove", "-f", s.loopInfo.Name())
+		if err != nil {
+			logger.Warnf("Failed to destroy the physical volume for the lvm storage pool: %s", output)
+		}
 	}
 
 	if filepath.IsAbs(source) {
