@@ -218,13 +218,13 @@ func ShiftACL(path string, shiftIds func(uid int64, gid int64) (int64, int64)) e
 	return nil
 }
 
-func shiftAclType(path string, aclType _Ctype_acl_type_t, shiftIds func(uid int64, gid int64) (int64, int64)) error {
+func shiftAclType(path string, aclType int, shiftIds func(uid int64, gid int64) (int64, int64)) error {
 	// Convert the path to something usable with cgo
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 
 	// Read the current ACL set for the requested type
-	acl := C.acl_get_file(cpath, aclType)
+	acl := C.acl_get_file(cpath, C.uint(aclType))
 	if acl == nil {
 		return nil
 	}
@@ -290,7 +290,7 @@ func shiftAclType(path string, aclType _Ctype_acl_type_t, shiftIds func(uid int6
 
 	// Update the on-disk ACLs to match
 	if update {
-		ret := C.acl_set_file(cpath, aclType, newAcl)
+		ret := C.acl_set_file(cpath, C.uint(aclType), newAcl)
 		if ret == -1 {
 			return fmt.Errorf("Failed to change ACLs on %s", path)
 		}
