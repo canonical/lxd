@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"golang.org/x/net/context"
 )
@@ -99,7 +100,7 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			continue
 		}
 		logger.Debugf("Listening for events on node %s", node.Address)
-		listener.AddHandler(nil, func(event interface{}) { f(node.ID, event) })
+		listener.AddHandler(nil, func(event api.Event) { f(node.ID, event) })
 		listeners[node.ID] = listener
 	}
 	for id, listener := range listeners {

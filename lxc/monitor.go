@@ -93,22 +93,9 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	handler := func(message interface{}) {
+	handler := func(event api.Event) {
 		// Special handling for logging only output
 		if c.flagPretty && len(c.flagType) == 1 && shared.StringInSlice("logging", c.flagType) {
-			render, err := json.Marshal(&message)
-			if err != nil {
-				fmt.Printf("error: %s\n", err)
-				os.Exit(1)
-			}
-
-			event := api.Event{}
-			err = json.Unmarshal(render, &event)
-			if err != nil {
-				fmt.Printf("error: %s\n", err)
-				os.Exit(1)
-			}
-
 			logEntry := api.EventLogging{}
 			err = json.Unmarshal(event.Metadata, &logEntry)
 			if err != nil {
@@ -144,7 +131,7 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 			return
 		}
 
-		render, err := yaml.Marshal(&message)
+		render, err := yaml.Marshal(&event)
 		if err != nil {
 			fmt.Printf("error: %s\n", err)
 			os.Exit(1)
