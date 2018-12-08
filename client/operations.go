@@ -40,13 +40,14 @@ func (op *operation) AddHandler(function func(api.Operation)) (*EventTarget, err
 	}
 
 	// Wrap the function to filter unwanted messages
-	wrapped := func(data interface{}) {
-		newOp := op.extractOperation(data)
-		if newOp == nil {
+	wrapped := func(event api.Event) {
+		newOp := api.Operation{}
+		err := json.Unmarshal(event.Metadata, &newOp)
+		if err != nil || newOp.ID != op.ID {
 			return
 		}
 
-		function(*newOp)
+		function(newOp)
 	}
 
 	return op.listener.AddHandler([]string{"operation"}, wrapped)
@@ -145,7 +146,7 @@ func (op *operation) setupListener() error {
 
 	// Setup the handler
 	chReady := make(chan bool)
-	_, err := op.listener.AddHandler([]string{"operation"}, func(data interface{}) {
+	_, err := op.listener.AddHandler([]string{"operation"}, func(event api.Event) {
 		<-chReady
 
 		// We don't want concurrency while processing events
@@ -158,13 +159,14 @@ func (op *operation) setupListener() error {
 		}
 
 		// Get an operation struct out of this data
-		newOp := op.extractOperation(data)
-		if newOp == nil {
+		newOp := api.Operation{}
+		err := json.Unmarshal(event.Metadata, &newOp)
+		if err != nil || newOp.ID != op.ID {
 			return
 		}
 
 		// Update the struct
-		op.Operation = *newOp
+		op.Operation = newOp
 
 		// And check if we're done
 		if op.StatusCode.IsFinal() {
@@ -243,33 +245,6 @@ func (op *operation) setupListener() error {
 	return nil
 }
 
-func (op *operation) extractOperation(data interface{}) *api.Operation {
-	// Extract the metadata
-	meta, ok := data.(map[string]interface{})["metadata"]
-	if !ok {
-		return nil
-	}
-
-	// And attempt to decode it as JSON operation data
-	encoded, err := json.Marshal(meta)
-	if err != nil {
-		return nil
-	}
-
-	newOp := api.Operation{}
-	err = json.Unmarshal(encoded, &newOp)
-	if err != nil {
-		return nil
-	}
-
-	// And now check that it's what we want
-	if newOp.ID != op.ID {
-		return nil
-	}
-
-	return &newOp
-}
-
 // The remoteOperation type represents an ongoing LXD operation between two servers
 type remoteOperation struct {
 	targetOp Operation
@@ -295,7 +270,7 @@ func (op *remoteOperation) AddHandler(function func(api.Operation)) (*EventTarge
 	} else {
 		// Generate a mock EventTarget
 		target = &EventTarget{
-			function: func(interface{}) { function(api.Operation{}) },
+			function: func(api.Event) { function(api.Operation{}) },
 			types:    []string{"operation"},
 		}
 	}

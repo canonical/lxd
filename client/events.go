@@ -3,6 +3,8 @@ package lxd
 import (
 	"fmt"
 	"sync"
+
+	"github.com/lxc/lxd/shared/api"
 )
 
 // The EventListener struct is used to interact with a LXD event stream
@@ -18,12 +20,12 @@ type EventListener struct {
 
 // The EventTarget struct is returned to the caller of AddHandler and used in RemoveHandler
 type EventTarget struct {
-	function func(interface{})
+	function func(api.Event)
 	types    []string
 }
 
 // AddHandler adds a function to be called whenever an event is received
-func (e *EventListener) AddHandler(types []string, function func(interface{})) (*EventTarget, error) {
+func (e *EventListener) AddHandler(types []string, function func(api.Event)) (*EventTarget, error) {
 	if function == nil {
 		return nil, fmt.Errorf("A valid function must be provided")
 	}
