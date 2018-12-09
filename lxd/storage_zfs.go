@@ -3169,14 +3169,17 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	successMsg := fmt.Sprintf("Copied ZFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 
 	if source.Pool != s.pool.Name {
+		logger.Errorf("wtf")
 		return s.doCrossPoolStorageVolumeCopy(source)
 	}
 
 	var snapshots []string
 	var err error
 
+	poolName := s.getOnDiskPoolName()
+
 	if !strings.Contains(source.Name, "/") {
-		snapshots, err = zfsPoolListSnapshots(source.Pool, fmt.Sprintf("custom/%s", source.Name))
+		snapshots, err = zfsPoolListSnapshots(poolName, fmt.Sprintf("custom/%s", source.Name))
 		if err != nil {
 			return err
 		}
@@ -3188,7 +3191,6 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 		if s.pool.Config["zfs.clone_copy"] != "" && !shared.IsTrue(s.pool.Config["zfs.clone_copy"]) {
 			err = s.copyVolumeWithoutSnapshotsFull(source)
 		} else {
-			// TODO (monstermunchkin): implement
 			err = s.copyVolumeWithoutSnapshotsSparse(source)
 		}
 		if err != nil {
@@ -3196,8 +3198,6 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 		}
 	} else {
 		targetStorageVolumeMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-
-		poolName := s.getOnDiskPoolName()
 
 		tmpSnapshotName := fmt.Sprintf("copy-send-%s", uuid.NewRandom().String())
 		err := zfsPoolVolumeSnapshotCreate(poolName, fmt.Sprintf("custom/%s", source.Name), tmpSnapshotName)

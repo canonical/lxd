@@ -615,10 +615,12 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 	}
 	if err != nil {
 		poolID, _, _ := s.GetContainerPoolInfo()
-		volumeType, err := storagePoolVolumeTypeNameToType(vol.Type)
-		if err == nil {
+
+		volumeType, err1 := storagePoolVolumeTypeNameToType(vol.Type)
+		if err1 == nil {
 			state.Cluster.StoragePoolVolumeDelete("default", vol.Name, volumeType, poolID)
 		}
+
 		return err
 	}
 
@@ -666,10 +668,12 @@ func storagePoolVolumeSnapshotCreateInternal(state *state.State, poolName string
 	}
 	if err != nil {
 		poolID, _, _ := s.GetContainerPoolInfo()
-		volumeType, err := storagePoolVolumeTypeNameToType(vol.Type)
-		if err == nil {
+
+		volumeType, err1 := storagePoolVolumeTypeNameToType(vol.Type)
+		if err1 == nil {
 			state.Cluster.StoragePoolVolumeDelete("default", vol.Name, volumeType, poolID)
 		}
+
 		return err
 	}
 
