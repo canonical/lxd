@@ -397,14 +397,18 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		}
 
 		// Setup progress handler
-		body = &ioprogress.ProgressReader{
-			ReadCloser: tmpfile,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: size,
-				Handler: func(percent int64, speed int64) {
-					args.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+		if args.ProgressHandler != nil {
+			body = &ioprogress.ProgressReader{
+				ReadCloser: tmpfile,
+				Tracker: &ioprogress.ProgressTracker{
+					Length: size,
+					Handler: func(percent int64, speed int64) {
+						args.ProgressHandler(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+					},
 				},
-			},
+			}
+		} else {
+			body = tmpfile
 		}
 
 		contentType = w.FormDataContentType()
