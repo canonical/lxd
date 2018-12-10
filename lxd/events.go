@@ -129,26 +129,29 @@ func eventsGet(d *Daemon, r *http.Request) Response {
 }
 
 func eventSend(project, eventType string, eventMessage interface{}) error {
-	event := shared.Jmap{}
-	event["type"] = eventType
-	event["timestamp"] = time.Now()
-	event["metadata"] = eventMessage
-	event["project"] = project
+	encodedMessage, err := json.Marshal(eventMessage)
+	if err != nil {
+		return err
+	}
+	event := api.Event{
+		Type:      eventType,
+		Timestamp: time.Now(),
+		Metadata:  encodedMessage,
+	}
 
-	return eventBroadcast(event)
+	return eventBroadcast(project, event, false)
 }
 
-func eventBroadcast(event shared.Jmap) error {
+func eventBroadcast(project string, event api.Event, isForward bool) error {
 	body, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
 
-	_, isForward := event["node"]
 	eventsLock.Lock()
 	listeners := eventListeners
 	for _, listener := range listeners {
-		if event["project"] != "" && listener.project != "*" && event["project"] != listener.project {
+		if project != "" && listener.project != "*" && project != listener.project {
 			continue
 		}
 
@@ -156,7 +159,7 @@ func eventBroadcast(event shared.Jmap) error {
 			continue
 		}
 
-		if !shared.StringInSlice(event["type"].(string), listener.messageTypes) {
+		if !shared.StringInSlice(event.Type, listener.messageTypes) {
 			continue
 		}
 
@@ -175,7 +178,7 @@ func eventBroadcast(event shared.Jmap) error {
 				return
 			}
 
-			err = listener.connection.WriteMessage(websocket.TextMessage, body)
+			err := listener.connection.WriteMessage(websocket.TextMessage, body)
 			if err != nil {
 				// Remove the listener from the list
 				eventsLock.Lock()
@@ -196,11 +199,8 @@ func eventBroadcast(event shared.Jmap) error {
 }
 
 // Forward to the local events dispatcher an event received from another node .
-func eventForward(id int64, data interface{}) {
-	event := data.(map[string]interface{})
-	event["node"] = id
-
-	err := eventBroadcast(event)
+func eventForward(id int64, event api.Event) {
+	err := eventBroadcast("", event, true)
 	if err != nil {
 		logger.Warnf("Failed to forward event from node %d: %v", id, err)
 	}
