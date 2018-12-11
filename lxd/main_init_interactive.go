@@ -495,6 +495,18 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.ContainerServer, poo
 
 				// Ask for the number of placement groups
 				pool.Config["ceph.osd.pg_num"] = cli.AskString("Number of placement groups [default=32]: ", "32", nil)
+			}
+			if pool.Driver == "zfs" {
+				if os.Geteuid() != 0 {
+					return fmt.Errorf("In order to create a ZFS pool, we require root privileges")
+				}
+				poolvolumeexists, err := zfsPoolVolumeExists(pool.Name)
+				if err != nil {
+					return err
+				}
+				if poolvolumeexists {
+					return fmt.Errorf("'%s' ZFS pool already exists", pool.Name)
+				}
 			} else if cli.AskBool("Would you like to use an existing block device? (yes/no) [default=no]: ", "no") {
 				deviceExists := func(path string) error {
 					if !shared.IsBlockdevPath(path) {
@@ -554,6 +566,18 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.ContainerServer, poo
 			} else {
 				question := fmt.Sprintf("Name of the existing %s pool or dataset: ", strings.ToUpper(pool.Driver))
 				pool.Config["source"] = cli.AskString(question, "", nil)
+				if pool.Driver == "zfs" {
+					if os.Geteuid() != 0 {
+						return fmt.Errorf("In order to create a ZFS pool, we require root privileges")
+					}
+					poolvolumeexists, err := zfsPoolVolumeExists(question)
+					if err != nil {
+						return err
+					}
+					if poolvolumeexists {
+						return fmt.Errorf("'%s' ZFS pool or dataset does not exist", pool.Name)
+					}
+				}
 			}
 		}
 
