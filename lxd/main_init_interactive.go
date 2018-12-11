@@ -574,7 +574,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.ContainerServer, poo
 					if err != nil {
 						return err
 					}
-					if poolvolumeexists {
+					if poolvolumeexists == false {
 						return fmt.Errorf("'%s' ZFS pool or dataset does not exist", pool.Name)
 					}
 				}
