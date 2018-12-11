@@ -2457,9 +2457,16 @@ func (c *containerLXC) Start(stateful bool) error {
 			return errors.Wrap(err, "Start container")
 		}
 
-		logger.Info("Started container", ctxMap)
+		// Start proxy devices
+		err = c.restartProxyDevices()
+		if err != nil {
+			// Attempt to stop the container
+			c.Stop(false)
+			return err
+		}
 
-		return err
+		logger.Info("Started container", ctxMap)
+		return nil
 	} else if c.stateful {
 		/* stateless start required when we have state, let's delete it */
 		err := os.RemoveAll(c.StatePath())
@@ -2692,6 +2699,12 @@ func (c *containerLXC) Stop(stateful bool) error {
 			return err
 		}
 
+		err = op.Wait()
+		if err != nil && c.IsRunning() {
+			logger.Error("Failed stopping container", ctxMap)
+			return err
+		}
+
 		c.stateful = true
 		err = c.state.Cluster.ContainerSetStateful(c.id, true)
 		if err != nil {
@@ -2847,6 +2860,12 @@ func (c *containerLXC) OnStop(target string) error {
 		logger.Info(fmt.Sprintf("Container initiated %s", target), ctxMap)
 	}
 
+	// Record power state
+	err = c.state.Cluster.ContainerSetState(c.id, "STOPPED")
+	if err != nil {
+		logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
+	}
+
 	go func(c *containerLXC, target string, op *lxcContainerOperation) {
 		c.fromHook = false
 		err = nil
@@ -2898,12 +2917,6 @@ func (c *containerLXC) OnStop(target string) error {
 
 		// Trigger a rebalance
 		deviceTaskSchedulerTrigger("container", c.name, "stopped")
-
-		// Record current state
-		err = c.state.Cluster.ContainerSetState(c.id, "STOPPED")
-		if err != nil {
-			logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
-		}
 
 		// Destroy ephemeral containers
 		if c.ephemeral {
@@ -5348,6 +5361,16 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		if out != "" {
 			for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 				logger.Debugf("forkmigrate: %s", line)
+			}
+		}
+
+		if migrateErr == nil {
+			// Start proxy devices
+			err = c.restartProxyDevices()
+			if err != nil {
+				// Attempt to stop the container
+				c.Stop(false)
+				return err
 			}
 		}
 	} else if args.cmd == lxc.MIGRATE_FEATURE_CHECK {

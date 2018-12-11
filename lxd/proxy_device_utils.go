@@ -1,14 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -98,15 +97,15 @@ func killProxyProc(pidPath string) error {
 		return nil
 	}
 
-	// Check if it's a proxy process
-	cmdPath, err := os.Readlink(fmt.Sprintf("/proc/%s/exe", pidString))
+	// Check if it's forkdns
+	cmdArgs, err := ioutil.ReadFile(fmt.Sprintf("/proc/%s/cmdline", pidString))
 	if err != nil {
-		cmdPath = ""
+		os.Remove(pidPath)
+		return nil
 	}
 
-	// Deal with deleted paths
-	cmdName := filepath.Base(strings.Split(cmdPath, " ")[0])
-	if cmdName != "lxd" {
+	cmdFields := strings.Split(string(bytes.TrimRight(cmdArgs, string("\x00"))), string(byte(0)))
+	if len(cmdFields) < 5 || cmdFields[1] != "forkproxy" {
 		os.Remove(pidPath)
 		return nil
 	}
@@ -117,33 +116,11 @@ func killProxyProc(pidPath string) error {
 		return err
 	}
 
-	err = syscall.Kill(pidInt, syscall.SIGTERM)
+	// Actually kill the process
+	err = syscall.Kill(pidInt, syscall.SIGKILL)
 	if err != nil {
 		return err
 	}
-
-	go func() {
-		for i := 0; i < 6; i++ {
-			time.Sleep(500 * time.Millisecond)
-			// Check if the process still exists
-			if !shared.PathExists(fmt.Sprintf("/proc/%s", pidString)) {
-				return
-			}
-
-			// Check if it's a proxy process
-			cmdPath, err := os.Readlink(fmt.Sprintf("/proc/%s/exe", pidString))
-			if err != nil {
-				cmdPath = ""
-			}
-
-			// Deal with deleted paths
-			cmdName := filepath.Base(strings.Split(cmdPath, " ")[0])
-			if cmdName != "lxd" {
-				return
-			}
-		}
-		syscall.Kill(pidInt, syscall.SIGKILL)
-	}()
 
 	// Cleanup
 	os.Remove(pidPath)
