@@ -260,20 +260,32 @@ migration() {
     return
   fi
 
+  echo "==> CRIU: starting testing live-migration"
   lxc_remote launch testimage l1:migratee
 
-  # let the container do some interesting things
+  # Wait for the container to be done booting
   sleep 1
 
+  # Test stateful stop
   lxc_remote stop --stateful l1:migratee
   lxc_remote start l1:migratee
-  lxc_remote snapshot --stateful l1:migratee
-  lxc_remote stop -f l1:migratee
-  lxc_remote copy l1:migratee/snap0 l2:migratee
-  ! lxc_remote copy l1:migratee/snap0 l2:migratee-new-name
-  lxc_remote copy --stateless l1:migratee/snap0 l2:migratee-new-name
 
+  # Test stateful snapshots
+  lxc_remote snapshot --stateful l1:migratee
+  lxc_remote restore l1:migratee snap0
+
+  # Test live migration of container
+  lxc_remote move l1:migratee l2:migratee
+
+  # Test copy of stateful snapshot
+  lxc_remote copy l2:migratee/snap0 l1:migratee
+  ! lxc_remote copy l2:migratee/snap0 l1:migratee-new-name
+
+  # Test stateless copies
+  lxc_remote copy --stateless l2:migratee/snap0 l1:migratee-new-name
+
+  # Cleanup
   lxc_remote delete --force l1:migratee
   lxc_remote delete --force l2:migratee
-  lxc_remote delete --force l2:migratee-new-name
+  lxc_remote delete --force l1:migratee-new-name
 }
