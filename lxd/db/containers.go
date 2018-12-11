@@ -980,21 +980,9 @@ func (c *Cluster) ContainersResetState() error {
 // ContainerSetState sets the the power state of the container with the given ID.
 func (c *Cluster) ContainerSetState(id int, state string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		// Clear any existing entry
-		str := fmt.Sprintf("DELETE FROM containers_config WHERE container_id = ? AND key = 'volatile.last_state.power'")
+		// Set the new value
+		str := fmt.Sprintf("INSERT OR REPLACE INTO containers_config (container_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
 		stmt, err := tx.tx.Prepare(str)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
-
-		if _, err := stmt.Exec(id); err != nil {
-			return err
-		}
-
-		// Insert the new one
-		str = fmt.Sprintf("INSERT INTO containers_config (container_id, key, value) VALUES (?, 'volatile.last_state.power', ?)")
-		stmt, err = tx.tx.Prepare(str)
 		if err != nil {
 			return err
 		}
