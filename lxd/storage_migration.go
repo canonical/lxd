@@ -94,6 +94,17 @@ func (s rsyncStorageSourceDriver) SendWhileRunning(conn *websocket.Conn, op *ope
 
 	wrapper := StorageProgressReader(op, "fs_progress", s.container.Name())
 	state := s.container.DaemonState()
+
+	// Attempt to freeze the container to avoid changing files during transfer
+	if s.container.IsRunning() {
+		err := s.container.Freeze()
+		if err != nil {
+			logger.Errorf("Unable to freeze container during live-migration")
+		} else {
+			defer s.container.Unfreeze()
+		}
+	}
+
 	return RsyncSend(ctName, shared.AddSlash(s.container.Path()), conn, wrapper, s.rsyncFeatures, bwlimit, state.OS.ExecPath)
 }
 
