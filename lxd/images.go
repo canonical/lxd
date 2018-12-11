@@ -360,7 +360,7 @@ func imgPostURLInfo(d *Daemon, req api.ImagesPost, op *operation, project string
 		return nil, err
 	}
 
-	id, info, err := d.cluster.ImageGet("project", info.Fingerprint, false, false)
+	id, info, err := d.cluster.ImageGet(project, info.Fingerprint, false, false)
 	if err != nil {
 		return nil, err
 	}
