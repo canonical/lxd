@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Event handling functions
@@ -90,29 +91,27 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 			}
 
 			// Attempt to unpack the message
-			message := make(map[string]interface{})
-			err = json.Unmarshal(data, &message)
+			event := api.Event{}
+			err = json.Unmarshal(data, &event)
 			if err != nil {
 				continue
 			}
 
 			// Extract the message type
-			_, ok := message["type"]
-			if !ok {
+			if event.Type == "" {
 				continue
 			}
-			messageType := message["type"].(string)
 
 			// Send the message to all handlers
 			r.eventListenersLock.Lock()
 			for _, listener := range r.eventListeners {
 				listener.targetsLock.Lock()
 				for _, target := range listener.targets {
-					if target.types != nil && !shared.StringInSlice(messageType, target.types) {
+					if target.types != nil && !shared.StringInSlice(event.Type, target.types) {
 						continue
 					}
 
-					go target.function(message)
+					go target.function(event)
 				}
 				listener.targetsLock.Unlock()
 			}

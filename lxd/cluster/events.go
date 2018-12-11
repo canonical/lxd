@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"golang.org/x/net/context"
 )
@@ -17,7 +18,7 @@ import (
 // get notified about events.
 //
 // Whenever an event is received the given callback is invoked.
-func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, interface{})) (task.Func, task.Schedule) {
+func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, api.Event)) (task.Func, task.Schedule) {
 	listeners := map[int64]*lxd.EventListener{}
 
 	// Update our pool of event listeners. Since database queries are
@@ -41,7 +42,7 @@ func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, f func(int64, i
 	return update, schedule
 }
 
-func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, listeners map[int64]*lxd.EventListener, f func(int64, interface{})) {
+func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, listeners map[int64]*lxd.EventListener, f func(int64, api.Event)) {
 	// Get the current cluster nodes.
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
@@ -99,7 +100,7 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			continue
 		}
 		logger.Debugf("Listening for events on node %s", node.Address)
-		listener.AddHandler(nil, func(event interface{}) { f(node.ID, event) })
+		listener.AddHandler(nil, func(event api.Event) { f(node.ID, event) })
 		listeners[node.ID] = listener
 	}
 	for id, listener := range listeners {
