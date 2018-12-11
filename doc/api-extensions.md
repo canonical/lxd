@@ -663,3 +663,8 @@ key in the ```PUT /1.0/cluster``` API to the address the joining server should
 use for clustering traffic (the value of ```server_address``` will be
 automatically copied to the ```cluster.https_address``` config key of the
 joining server).
+
+## clustering\_image\_replication
+Enable image replication across the nodes in the cluster.
+A new cluster.images_minimal_replica configuration key was introduced can be used
+to specify to the minimal numbers of nodes for image replication.
