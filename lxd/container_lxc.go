@@ -2711,6 +2711,12 @@ func (c *containerLXC) Stop(stateful bool) error {
 			return err
 		}
 
+		err = op.Wait()
+		if err != nil && c.IsRunning() {
+			logger.Error("Failed stopping container", ctxMap)
+			return err
+		}
+
 		c.stateful = true
 		err = c.state.Cluster.ContainerSetStateful(c.id, true)
 		if err != nil {
@@ -2862,6 +2868,12 @@ func (c *containerLXC) OnStop(target string) error {
 		logger.Info(fmt.Sprintf("Container initiated %s", target), ctxMap)
 	}
 
+	// Record power state
+	err = c.state.Cluster.ContainerSetState(c.id, "STOPPED")
+	if err != nil {
+		logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
+	}
+
 	go func(c *containerLXC, target string, op *lxcContainerOperation) {
 		c.fromHook = false
 		err = nil
@@ -2913,12 +2925,6 @@ func (c *containerLXC) OnStop(target string) error {
 
 		// Trigger a rebalance
 		deviceTaskSchedulerTrigger("container", c.name, "stopped")
-
-		// Record current state
-		err = c.state.Cluster.ContainerSetState(c.id, "STOPPED")
-		if err != nil {
-			logger.Error("Failed to set container state", log.Ctx{"container": c.Name(), "err": err})
-		}
 
 		// Destroy ephemeral containers
 		if c.ephemeral {
