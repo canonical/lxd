@@ -2457,9 +2457,16 @@ func (c *containerLXC) Start(stateful bool) error {
 			return errors.Wrap(err, "Start container")
 		}
 
-		logger.Info("Started container", ctxMap)
+		// Start proxy devices
+		err = c.restartProxyDevices()
+		if err != nil {
+			// Attempt to stop the container
+			c.Stop(false)
+			return err
+		}
 
-		return err
+		logger.Info("Started container", ctxMap)
+		return nil
 	} else if c.stateful {
 		/* stateless start required when we have state, let's delete it */
 		err := os.RemoveAll(c.StatePath())
@@ -5348,6 +5355,16 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		if out != "" {
 			for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
 				logger.Debugf("forkmigrate: %s", line)
+			}
+		}
+
+		if migrateErr == nil {
+			// Start proxy devices
+			err = c.restartProxyDevices()
+			if err != nil {
+				// Attempt to stop the container
+				c.Stop(false)
+				return err
 			}
 		}
 	} else if args.cmd == lxc.MIGRATE_FEATURE_CHECK {
