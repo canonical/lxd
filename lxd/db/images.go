@@ -889,3 +889,53 @@ func (c *Cluster) ImageUploadedAt(id int, uploadedAt time.Time) error {
 	err := exec(c.db, "UPDATE images SET upload_date=? WHERE id=?", uploadedAt, id)
 	return err
 }
+
+// ImageGetNodesWithImage returns the addresses of online nodes which already have the image.
+func (c *Cluster) ImageGetNodesWithImage(fingerprint string) ([]string, error) {
+	q := `
+SELECT DISTINCT nodes.address FROM nodes
+  LEFT JOIN images_nodes ON images_nodes.node_id = nodes.id
+  LEFT JOIN images ON images_nodes.image_id = images.id
+WHERE images.fingerprint = ?
+	`
+	return c.getNodesByImageFingerprint(q, fingerprint)
+}
+
+// ImageGetNodesHasNoImage returns the addresses of online nodes which don't have the image.
+func (c *Cluster) ImageGetNodesHasNoImage(fingerprint string) ([]string, error) {
+	q := `
+SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
+  SELECT DISTINCT nodes.address FROM nodes
+    LEFT JOIN images_nodes ON images_nodes.node_id = nodes.id
+    LEFT JOIN images ON images_nodes.image_id = images.id
+  WHERE images.fingerprint = ?)
+`
+	return c.getNodesByImageFingerprint(q, fingerprint)
+}
+
+func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string) ([]string, error) {
+	var addresses []string // Addresses of online nodes with the image
+	err := c.Transaction(func(tx *ClusterTx) error {
+		offlineThreshold, err := tx.NodeOfflineThreshold()
+		if err != nil {
+			return err
+		}
+
+		allAddresses, err := query.SelectStrings(tx.tx, stmt, fingerprint)
+		if err != nil {
+			return err
+		}
+		for _, address := range allAddresses {
+			node, err := tx.NodeByAddress(address)
+			if err != nil {
+				return err
+			}
+			if node.IsOffline(offlineThreshold) {
+				continue
+			}
+			addresses = append(addresses, address)
+		}
+		return err
+	})
+	return addresses, err
+}

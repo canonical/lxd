@@ -127,6 +127,11 @@ func (c *Config) OfflineThreshold() time.Duration {
 	return time.Duration(n) * time.Second
 }
 
+// ImagesMinimalReplica returns the numbers of nodes for cluster images replication
+func (c *Config) ImagesMinimalReplica() int64 {
+	return c.m.GetInt64("cluster.images_minimal_replica")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]interface{} {
@@ -218,6 +223,7 @@ func configGet(cluster *db.Cluster) (*Config, error) {
 var ConfigSchema = config.Schema{
 	"backups.compression_algorithm":  {Default: "gzip", Validator: validateCompression},
 	"cluster.offline_threshold":      {Type: config.Int64, Default: offlineThresholdDefault(), Validator: offlineThresholdValidator},
+	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
 	"core.https_allowed_headers":     {},
 	"core.https_allowed_methods":     {},
 	"core.https_allowed_origin":      {},
@@ -257,11 +263,26 @@ func offlineThresholdValidator(value string) error {
 	// which is the lower bound granularity of the offline check.
 	threshold, err := strconv.Atoi(value)
 	if err != nil {
-		return fmt.Errorf("offline threshold is not a number")
+		return fmt.Errorf("Offline threshold is not a number")
 	}
+
 	if threshold <= heartbeatInterval {
-		return fmt.Errorf("value must be greater than '%d'", heartbeatInterval)
+		return fmt.Errorf("Value must be greater than '%d'", heartbeatInterval)
 	}
+
+	return nil
+}
+
+func imageMinimalReplicaValidator(value string) error {
+	count, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("Minimal image replica count is not a number")
+	}
+
+	if count < 1 && count != -1 {
+		return fmt.Errorf("Invalid value for image replica count")
+	}
+
 	return nil
 }
 
