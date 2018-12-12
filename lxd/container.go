@@ -615,7 +615,6 @@ type container interface {
 	IsSnapshot() bool
 	IsStateful() bool
 	IsNesting() bool
-	IsDeleteProtected() bool
 
 	// Hooks
 	OnStart() error

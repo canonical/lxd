@@ -3409,7 +3409,7 @@ func (c *containerLXC) Delete() error {
 
 	logger.Info("Deleting container", ctxMap)
 
-	if c.IsDeleteProtected() && !c.IsSnapshot() {
+	if shared.IsTrue(c.expandedConfig["security.protection.delete"]) && !c.IsSnapshot() {
 		err := fmt.Errorf("Container is protected")
 		logger.Warn("Failed to delete container", log.Ctx{"name": c.Name(), "err": err})
 		return err
@@ -8522,10 +8522,6 @@ func (c *containerLXC) IsRunning() bool {
 
 func (c *containerLXC) IsSnapshot() bool {
 	return c.cType == db.CTypeSnapshot
-}
-
-func (c *containerLXC) IsDeleteProtected() bool {
-	return shared.IsTrue(c.expandedConfig["security.protection.delete"])
 }
 
 // Various property query functions
