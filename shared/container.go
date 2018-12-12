@@ -256,6 +256,7 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"security.devlxd.images": IsBool,
 
 	"security.protection.delete": IsBool,
+	"security.protection.shift":  IsBool,
 
 	"security.idmap.base":     IsUint32,
 	"security.idmap.isolated": IsBool,

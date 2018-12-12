@@ -1953,6 +1953,10 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	if !reflect.DeepEqual(idmap, lastIdmap) {
+		if shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
+			return "", fmt.Errorf("Container is protected against filesystem shifting")
+		}
+
 		logger.Debugf("Container idmap changed, remapping")
 		c.updateProgress("Remapping container filesystem")
 
@@ -3409,7 +3413,7 @@ func (c *containerLXC) Delete() error {
 
 	logger.Info("Deleting container", ctxMap)
 
-	if c.IsDeleteProtected() && !c.IsSnapshot() {
+	if shared.IsTrue(c.expandedConfig["security.protection.delete"]) && !c.IsSnapshot() {
 		err := fmt.Errorf("Container is protected")
 		logger.Warn("Failed to delete container", log.Ctx{"name": c.Name(), "err": err})
 		return err
@@ -4998,6 +5002,10 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 	}
 
 	if idmap != nil {
+		if !c.IsSnapshot() && shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
+			return fmt.Errorf("Container is protected against filesystem shifting")
+		}
+
 		var err error
 
 		if c.Storage().GetStorageType() == storageTypeZfs {
@@ -8522,10 +8530,6 @@ func (c *containerLXC) IsRunning() bool {
 
 func (c *containerLXC) IsSnapshot() bool {
 	return c.cType == db.CTypeSnapshot
-}
-
-func (c *containerLXC) IsDeleteProtected() bool {
-	return shared.IsTrue(c.expandedConfig["security.protection.delete"])
 }
 
 // Various property query functions
