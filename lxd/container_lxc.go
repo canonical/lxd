@@ -1953,6 +1953,10 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	if !reflect.DeepEqual(idmap, lastIdmap) {
+		if shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
+			return "", fmt.Errorf("Container is protected against filesystem shifting")
+		}
+
 		logger.Debugf("Container idmap changed, remapping")
 		c.updateProgress("Remapping container filesystem")
 
@@ -4998,6 +5002,10 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 	}
 
 	if idmap != nil {
+		if !c.IsSnapshot() && shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
+			return fmt.Errorf("Container is protected against filesystem shifting")
+		}
+
 		var err error
 
 		if c.Storage().GetStorageType() == storageTypeZfs {
