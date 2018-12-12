@@ -202,6 +202,23 @@ lxc delete xenial
 lxc pull file xenial/etc/hosts .
 ```
 
+## Images
+
+By default, LXD will replicate images on as many cluster members as you
+have database members. This typically means up to 3 copies within the cluster.
+
+That number can be increased to improve fault tolerance and likelihood
+of the image being locally available.
+
+The special value of "-1" may be used to have the image copied on all nodes.
+
+
+You can disable the image replication in the cluster by setting the count down to 1:
+
+```bash
+lxc config set cluster.images_minimal_replica 1
+```
+
 ## Storage pools
 
 As mentioned above, all nodes must have identical storage pools. The

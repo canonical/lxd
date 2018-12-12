@@ -113,6 +113,9 @@ test_clustering_membership() {
   lxc network list cluster: | grep -q "${bridge}"
   lxc remote remove cluster
 
+  # Disable image replication
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica 1
+
   # Shutdown a database node, and wait a few seconds so it will be
   # detected as down.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 5
@@ -1125,4 +1128,146 @@ test_clustering_address() {
 
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
+}
+
+test_clustering_image_replication() {
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/server.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Image replication will be performed across all nodes in the cluster by default
+  images_minimal_replica1=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get cluster.images_minimal_replica)
+  images_minimal_replica2=$(LXD_DIR="${LXD_TWO_DIR}" lxc config get cluster.images_minimal_replica)
+  [ "$images_minimal_replica1" = "" ] || false
+  [ "$images_minimal_replica2" = "" ] || false
+
+  # Import the test image on node1
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
+
+  # The image is visible through both nodes
+  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -q testimage
+  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -q testimage
+
+  # The image tarball is available on both nodes
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | grep "Fingerprint:" | cut -f2 -d" ")
+  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+
+  # Delete the imported image
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+
+  # Spawn a third node
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  # Import the test image on node3
+  LXD_DIR="${LXD_THREE_DIR}" ensure_import_testimage
+
+  # The image is visible through all three nodes
+  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -q testimage
+  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -q testimage
+  LXD_DIR="${LXD_THREE_DIR}" lxc image list | grep -q testimage
+
+  # The image tarball is available on all three nodes
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | grep "Fingerprint:" | cut -f2 -d" ")
+  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+
+  # Delete the imported image
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+
+  # Import the image from the container
+  LXD_DIR="${LXD_ONE_DIR}" ensure_import_testimage
+  lxc launch testimage c1
+
+  # Modify the container's rootfs and create a new image from the container
+  lxc exec c1 -- touch /a
+  lxc stop c1 --force && lxc publish c1 --alias new-image
+
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info new-image | grep "Fingerprint:" | cut -f2 -d" ")
+  [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+
+  # Delete the imported image
+  LXD_DIR="${LXD_TWO_DIR}" lxc image delete new-image
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+
+  # Delete the container
+  lxc delete c1
+
+  # Delete the imported image
+  fingerprint=$(LXD_DIR="${LXD_ONE_DIR}" lxc image info testimage | grep "Fingerprint:" | cut -f2 -d" ")
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+
+  # Disable the image replication
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.images_minimal_replica 1
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.images_minimal_replica: "1"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.images_minimal_replica: "1"'
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -q 'cluster.images_minimal_replica: "1"'
+
+  # Import the test image on node2
+  LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
+
+  # The image is visible through all three nodes
+  LXD_DIR="${LXD_ONE_DIR}" lxc image list | grep -q testimage
+  LXD_DIR="${LXD_TWO_DIR}" lxc image list | grep -q testimage
+  LXD_DIR="${LXD_THREE_DIR}" lxc image list | grep -q testimage
+
+  # The image tarball is only available on node2
+  fingerprint=$(LXD_DIR="${LXD_TWO_DIR}" lxc image info testimage | grep "Fingerprint:" | cut -f2 -d" ")
+  [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+
+  # Delete the imported image
+  LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  sleep 2
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
 }
