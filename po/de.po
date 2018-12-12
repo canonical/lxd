@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
 "POT-Creation-Date: 2018-11-20 17:46-0500\n"
-"PO-Revision-Date: 2018-10-08 21:27+0000\n"
-"Last-Translator: Tim Rose <tim@netlope.de>\n"
+"PO-Revision-Date: 2018-11-30 03:10+0000\n"
+"Last-Translator: ssantos <ssantos@web.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/de/>\n"
 "Language: de\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 3.2.1\n"
+"X-Generator: Weblate 3.3-dev\n"
 
 #: lxc/storage.go:225
 #, fuzzy
@@ -296,12 +296,12 @@ msgstr "%s (%d mehr)"
 #: lxc/file.go:814
 #, c-format
 msgid "%s is not a directory"
-msgstr ""
+msgstr "%s ist kein Verzeichnis"
 
 #: lxc/utils/cancel.go:67
 #, c-format
 msgid "%v (interrupt two more times to force)"
-msgstr ""
+msgstr "%v (zwei weitere Male unterbrechen, um zu erzwingen)"
 
 #: lxc/file.go:708
 #, c-format
