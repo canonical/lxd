@@ -89,6 +89,23 @@ func zfsPoolCheck(pool string) error {
 	return nil
 }
 
+// zfsPoolVolumeExists verifies if a specific ZFS pool or volume exists.
+func zfsPoolVolumeExists(dataset string) (bool, error) {
+	output, err := shared.RunCommand(
+		"zfs", "list", "-Ho", "name")
+
+	if err != nil {
+		return false, err
+	}
+
+	for _, name := range strings.Split(output, "\n") {
+		if name == dataset {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func zfsPoolCreate(pool string, vdev string) error {
 	var output string
 	var err error
