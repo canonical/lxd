@@ -73,6 +73,7 @@ security.idmap.size                     | integer   | -                 | no    
 security.nesting                        | boolean   | false             | yes           | -                                    | Support running lxd (nested) inside the container
 security.privileged                     | boolean   | false             | no            | -                                    | Runs the container in privileged mode
 security.protection.delete              | boolean   | false             | yes           | container\_protection\_delete        | Prevents the container from being deleted
+security.protection.shift               | boolean   | false             | yes           | container\_protection\_shift         | Prevents the container's filesystem from being uid/gid shifted on startup
 security.syscalls.blacklist             | string    | -                 | no            | container\_syscall\_filtering        | A '\n' separated list of syscalls to blacklist
 security.syscalls.blacklist\_compat     | boolean   | false             | no            | container\_syscall\_filtering        | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
 security.syscalls.blacklist\_default    | boolean   | true              | no            | container\_syscall\_filtering        | Enables the default syscall blacklist

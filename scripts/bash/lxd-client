@@ -88,8 +88,8 @@ _have lxc && {
       raw.seccomp security.idmap.base security.idmap.isolated \
       security.idmap.size security.devlxd security.devlxd.images \
       security.nesting security.privileged security.protection.delete \
-      security.syscalls.blacklist security.syscalls.blacklist_compat \
-      security.syscalls.blacklist_default \
+      security.protection.shift security.syscalls.blacklist \
+      security.syscalls.blacklist_compat security.syscalls.blacklist_default \
       volatile.apply_quota volatile.apply_template volatile.base_image \
       volatile.idmap.base volatile.idmap.next volatile.last_state.idmap \
       volatile.last_state.power user.meta-data user.network-config \

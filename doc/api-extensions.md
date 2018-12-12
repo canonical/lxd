@@ -668,3 +668,7 @@ joining server).
 Enable image replication across the nodes in the cluster.
 A new cluster.images_minimal_replica configuration key was introduced can be used
 to specify to the minimal numbers of nodes for image replication.
+
+## container\_protection\_shift
+Enables setting the `security.protection.shift` option which prevents containers
+from having their filesystem shifted.
