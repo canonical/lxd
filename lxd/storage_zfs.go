@@ -3185,6 +3185,9 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 		}
 	}
 
+	targetStorageVolumeMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	fs := fmt.Sprintf("custom/%s", s.volume.Name)
+
 	if source.VolumeOnly || len(snapshots) == 0 {
 		var err error
 
@@ -3197,8 +3200,6 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 			return err
 		}
 	} else {
-		targetStorageVolumeMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-
 		tmpSnapshotName := fmt.Sprintf("copy-send-%s", uuid.NewRandom().String())
 		err := zfsPoolVolumeSnapshotCreate(poolName, fmt.Sprintf("custom/%s", source.Name), tmpSnapshotName)
 		if err != nil {
@@ -3235,13 +3236,33 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 
 		defer zfsPoolVolumeSnapshotDestroy(poolName, fmt.Sprintf("custom/%s", s.volume.Name), tmpSnapshotName)
 
-		fs := fmt.Sprintf("custom/%s", s.volume.Name)
 		err = zfsPoolVolumeSet(poolName, fs, "canmount", "noauto")
 		if err != nil {
 			return err
 		}
 
 		err = zfsPoolVolumeSet(poolName, fs, "mountpoint", targetStorageVolumeMountPoint)
+		if err != nil {
+			return err
+		}
+	}
+
+	if !shared.IsMountPoint(targetStorageVolumeMountPoint) {
+		err := zfsMount(poolName, fs)
+		if err != nil {
+			return err
+		}
+		defer zfsUmount(poolName, fs, targetStorageVolumeMountPoint)
+	}
+
+	// apply quota
+	if s.volume.Config["size"] != "" {
+		size, err := shared.ParseByteSizeString(s.volume.Config["size"])
+		if err != nil {
+			return err
+		}
+
+		err = s.StorageEntitySetQuota(storagePoolVolumeTypeCustom, size, nil)
 		if err != nil {
 			return err
 		}
