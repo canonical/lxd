@@ -2978,10 +2978,11 @@ Return:
 Return:
 
     {
-        "name": "lxd1",
+        "server_name": "lxd1",
         "url": "https://10.1.1.101:8443",
         "database": true,
-        "state": "Online"
+        "status": "Online",
+        "message":"fully operational"
     }
 
 #### POST
