@@ -309,6 +309,22 @@ func queryCurrentVersion(tx *sql.Tx) (int, error) {
 		}
 	}
 
+	// Fix broken schema version between 37 and 38
+	if hasVersion(37) && !hasVersion(38) {
+		count, err := query.Count(tx, "config", "key = 'cluster.https_address'")
+		if err != nil {
+			return -1, fmt.Errorf("Failed to check if cluster.https_address is set: %v", err)
+		}
+		if count == 1 {
+			// Insert the missing version.
+			err := insertSchemaVersion(tx, 38)
+			if err != nil {
+				return -1, fmt.Errorf("Failed to insert missing schema version 38")
+			}
+			versions = append(versions, 38)
+		}
+	}
+
 	current := 0
 	if len(versions) > 0 {
 		err = checkSchemaVersionsHaveNoHoles(versions)
