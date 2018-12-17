@@ -14,6 +14,7 @@ import (
 #include <libgen.h>
 #include <limits.h>
 #include <lxc/lxccontainer.h>
+#include <lxc/version.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
