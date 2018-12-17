@@ -1728,7 +1728,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup shmounts
-	if lxc.HasApiExtension("mount_injection") {
+	if lxc.HasApiExtension("mount_injection_file") {
 		err = lxcSetConfigItem(cc, "lxc.mount.auto", fmt.Sprintf("shmounts:%s:/dev/.lxd-mounts", c.ShmountsPath()))
 	} else {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", c.ShmountsPath()))
@@ -6409,7 +6409,7 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 		return fmt.Errorf("Can't insert mount into stopped container")
 	}
 
-	if lxc.HasApiExtension("mount_injection") {
+	if lxc.HasApiExtension("mount_injection_file") {
 		cname := projectPrefix(c.Project(), c.Name())
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
 		if fstype == "" {
@@ -6473,7 +6473,7 @@ func (c *containerLXC) removeMount(mount string) error {
 		return fmt.Errorf("Can't remove mount from stopped container")
 	}
 
-	if lxc.HasApiExtension("mount_injection") {
+	if lxc.HasApiExtension("mount_injection_file") {
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
 		cname := projectPrefix(c.Project(), c.Name())
 		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-umount", cname, c.state.OS.LxcPath, configPath, mount)
