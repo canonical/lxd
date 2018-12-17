@@ -1728,7 +1728,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup shmounts
-	if lxc.HasApiExtension("mount_injection") {
+	if lxc.HasApiExtension("mount_injection_file") {
 		err = lxcSetConfigItem(cc, "lxc.mount.auto", fmt.Sprintf("shmounts:%s:/dev/.lxd-mounts", c.ShmountsPath()))
 	} else {
 		err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s dev/.lxd-mounts none bind,create=dir 0 0", c.ShmountsPath()))
@@ -6409,13 +6409,14 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 		return fmt.Errorf("Can't insert mount into stopped container")
 	}
 
-	if lxc.HasApiExtension("mount_injection") {
+	if lxc.HasApiExtension("mount_injection_file") {
+		cname := projectPrefix(c.Project(), c.Name())
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
 		if fstype == "" {
 			fstype = "none"
 		}
 
-		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-mount", c.Name(), c.state.OS.LxcPath, configPath, source, target, fstype, fmt.Sprintf("%d", flags))
+		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-mount", cname, c.state.OS.LxcPath, configPath, source, target, fstype, fmt.Sprintf("%d", flags))
 		if err != nil {
 			return err
 		}
@@ -6472,14 +6473,14 @@ func (c *containerLXC) removeMount(mount string) error {
 		return fmt.Errorf("Can't remove mount from stopped container")
 	}
 
-	if lxc.HasApiExtension("mount_injection") {
+	if lxc.HasApiExtension("mount_injection_file") {
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
-		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-umount", c.Name(), c.state.OS.LxcPath, configPath, mount)
+		cname := projectPrefix(c.Project(), c.Name())
+		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-umount", cname, c.state.OS.LxcPath, configPath, mount)
 		if err != nil {
 			return err
 		}
 	} else {
-
 		// Remove the mount from the container
 		pidStr := fmt.Sprintf("%d", pid)
 		out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-umount", pidStr, mount)
