@@ -232,14 +232,6 @@ void do_lxc_forkmount()
 	fstype = advance_arg(true);
 	flags = advance_arg(true);
 
-	fprintf(stderr, "name:    %s\n", name);
-	fprintf(stderr, "lxcpath: %s\n", lxcpath);
-	fprintf(stderr, "config:  %s\n", config);
-	fprintf(stderr, "source:  %s\n", source);
-	fprintf(stderr, "target:  %s\n", target);
-	fprintf(stderr, "fstype:  %s\n", fstype);
-	fprintf(stderr, "flags:   %s\n", flags);
-
 	c = lxc_container_new(name, lxcpath);
 	if (!c)
 		_exit(1);
