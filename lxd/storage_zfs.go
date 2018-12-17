@@ -3101,7 +3101,7 @@ func (s *storageZfs) copyVolumeWithoutSnapshotsSparse(source *api.StorageVolumeS
 	sourceVolumePath := getStoragePoolVolumeMountPoint(source.Pool, source.Name)
 
 	targetVolumeName := s.volume.Name
-	targetVolumePath := getStoragePoolVolumeMountPoint(poolName, s.volume.Name)
+	targetVolumePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
 
 	sourceZfsDataset := ""
 	sourceZfsDatasetSnapshot := ""
@@ -3169,7 +3169,6 @@ func (s *storageZfs) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	successMsg := fmt.Sprintf("Copied ZFS storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 
 	if source.Pool != s.pool.Name {
-		logger.Errorf("wtf")
 		return s.doCrossPoolStorageVolumeCopy(source)
 	}
 
