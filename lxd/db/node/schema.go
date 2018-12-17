@@ -24,5 +24,5 @@ CREATE TABLE raft_nodes (
     UNIQUE (address)
 );
 
-INSERT INTO schema (version, updated_at) VALUES (37, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (38, strftime("%s"))
 `
