@@ -516,7 +516,7 @@ func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile b
 			}
 
 			if shared.IsTrue(m["nat"]) {
-				if m["bind"] != "host" {
+				if m["bind"] != "" && m["bind"] != "host" {
 					return fmt.Errorf("Only host-bound proxies can use NAT")
 				}
 
