@@ -6410,12 +6410,13 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 	}
 
 	if lxc.HasApiExtension("mount_injection") {
+		cname := projectPrefix(c.Project(), c.Name())
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
 		if fstype == "" {
 			fstype = "none"
 		}
 
-		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-mount", c.Name(), c.state.OS.LxcPath, configPath, source, target, fstype, fmt.Sprintf("%d", flags))
+		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-mount", cname, c.state.OS.LxcPath, configPath, source, target, fstype, fmt.Sprintf("%d", flags))
 		if err != nil {
 			return err
 		}
@@ -6474,12 +6475,12 @@ func (c *containerLXC) removeMount(mount string) error {
 
 	if lxc.HasApiExtension("mount_injection") {
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
-		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-umount", c.Name(), c.state.OS.LxcPath, configPath, mount)
+		cname := projectPrefix(c.Project(), c.Name())
+		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-umount", cname, c.state.OS.LxcPath, configPath, mount)
 		if err != nil {
 			return err
 		}
 	} else {
-
 		// Remove the mount from the container
 		pidStr := fmt.Sprintf("%d", pid)
 		out, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxd-umount", pidStr, mount)
