@@ -6416,6 +6416,10 @@ func (c *containerLXC) insertMount(source, target, fstype string, flags int) err
 			fstype = "none"
 		}
 
+		if !strings.HasPrefix(target, "/") {
+			target = "/" + target
+		}
+
 		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-mount", cname, c.state.OS.LxcPath, configPath, source, target, fstype, fmt.Sprintf("%d", flags))
 		if err != nil {
 			return err
@@ -6476,6 +6480,11 @@ func (c *containerLXC) removeMount(mount string) error {
 	if lxc.HasApiExtension("mount_injection_file") {
 		configPath := filepath.Join(c.LogPath(), "lxc.conf")
 		cname := projectPrefix(c.Project(), c.Name())
+
+		if !strings.HasPrefix(mount, "/") {
+			mount = "/" + mount
+		}
+
 		_, err := shared.RunCommand(c.state.OS.ExecPath, "forkmount", "lxc-umount", cname, c.state.OS.LxcPath, configPath, mount)
 		if err != nil {
 			return err
