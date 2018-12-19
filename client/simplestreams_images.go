@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -78,11 +79,11 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	resp := ImageFileResponse{}
 
 	// Download function
-	download := func(path string, filename string, sha256 string, target io.WriteSeeker) (int64, error) {
+	download := func(path string, filename string, hash string, target io.WriteSeeker) (int64, error) {
 		// Try over http
 		url := fmt.Sprintf("http://%s/%s", strings.TrimPrefix(r.httpHost, "https://"), path)
 
-		size, err := shared.DownloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)
+		size, err := shared.DownloadFileHash(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
 		if err != nil {
 			// Handle cancelation
 			if err.Error() == "net/http: request canceled" {
@@ -91,7 +92,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 
 			// Try over https
 			url = fmt.Sprintf("%s/%s", r.httpHost, path)
-			size, err = shared.DownloadFileSha256(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, sha256, target)
+			size, err = shared.DownloadFileHash(r.http, r.httpUserAgent, req.ProgressHandler, req.Canceler, filename, url, hash, sha256.New(), target)
 			if err != nil {
 				return -1, err
 			}
