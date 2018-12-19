@@ -60,7 +60,7 @@ func TestConfigLoad_OfflineThresholdValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = config.Patch(map[string]interface{}{"cluster.offline_threshold": "2"})
-	require.EqualError(t, err, "cannot set 'cluster.offline_threshold' to '2': value must be greater than '4'")
+	require.EqualError(t, err, "cannot set 'cluster.offline_threshold' to '2': Value must be greater than '4'")
 
 }
 
