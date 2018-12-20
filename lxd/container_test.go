@@ -47,6 +47,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 			Description: "unprivileged",
 			Config:      map[string]string{"security.privileged": "true"},
 			Devices:     types.Devices{},
+			Project:     "default",
 		}
 		_, err := tx.ProfileCreate(profile)
 		return err
