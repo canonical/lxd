@@ -326,7 +326,7 @@ test_basic_usage() {
   lxc exec foo ip link show | grep eth0
 
   # check that we can get the return code for a non- wait-for-websocket exec
-  op=$(my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["sleep", "1"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
+  op=$(my_curl -X POST "https://${LXD_ADDR}/1.0/containers/foo/exec" -d '{"command": ["echo", "test"], "environment": {}, "wait-for-websocket": false, "interactive": false}' | jq -r .operation)
   [ "$(my_curl "https://${LXD_ADDR}${op}/wait" | jq -r .metadata.metadata.return)" != "null" ]
 
   # test file transfer
@@ -477,10 +477,6 @@ test_basic_usage() {
   done
 
   [ "${REBOOTED}" = "true" ]
-
-  # Workaround for LXC bug which causes LXD to double-start containers
-  # on reboot
-  sleep 2
 
   lxc stop foo --force || true
   ! lxc list | grep -q foo || false
