@@ -16,10 +16,10 @@ test_proxy_device_tcp() {
   lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:$HOST_TCP_PORT" connect=tcp:127.0.0.1:4321 bind=host
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 1
+  sleep 0.5
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
-  kill -9 "${NSENTER_PID}" || true
+  kill -9 "${NSENTER_PID}" 2>/dev/null || true
 
   if [ "${ECHO}" != "${MESSAGE}" ]; then
     cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
@@ -31,10 +31,10 @@ test_proxy_device_tcp() {
   lxc restart -f proxyTester
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp-listen:4321 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 1
+  sleep 0.5
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
-  kill -9 "${NSENTER_PID}" || true
+  kill -9 "${NSENTER_PID}" 2>/dev/null || true
 
   if [ "${ECHO}" != "${MESSAGE}" ]; then
     cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
@@ -46,10 +46,10 @@ test_proxy_device_tcp() {
   lxc config device set proxyTester proxyDev connect tcp:127.0.0.1:1337
   nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat tcp-listen:1337 exec:/bin/cat &
   NSENTER_PID=$!
-  sleep 1
+  sleep 0.5
 
   ECHO=$( (echo "${MESSAGE}" ; sleep 0.1) | socat - tcp:127.0.0.1:"${HOST_TCP_PORT}")
-  kill -9 "${NSENTER_PID}" || true
+  kill -9 "${NSENTER_PID}" 2>/dev/null || true
 
   if [ "${ECHO}" != "${MESSAGE}" ]; then
     cat "${LXD_DIR}/logs/proxyTester/proxy.proxyDev.log"
