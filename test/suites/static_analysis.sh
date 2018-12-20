@@ -3,6 +3,11 @@ safe_pot_hash() {
 }
 
 test_static_analysis() {
+  if [ -n "${LXD_SKIP_STATIC:-}" ]; then
+    echo "==> SKIP: Asked to skip static analysis"
+    return
+  fi
+
   (
     set -e
 
