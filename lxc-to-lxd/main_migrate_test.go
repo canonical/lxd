@@ -281,7 +281,7 @@ func TestConvertStorageConfig(t *testing.T) {
 				"lxc.rootfs.path = dir:/tmp",
 				"lxc.mount.entry = /lib lib none ro,bind 0 0",
 				"lxc.mount.entry = /usr/lib usr/lib none ro,bind 1 0",
-				"lxc.mount.entry = /lib64 lib64 none ro,bind 0 0",
+				"lxc.mount.entry = /home home none ro,bind 0 0",
 				"lxc.mount.entry = /sys/kernel/security /sys/kernel/security none ro,bind,optional 1 0",
 				"lxc.mount.entry = /mnt /tmp/mnt none ro,bind 0 0",
 			},
@@ -301,8 +301,8 @@ func TestConvertStorageConfig(t *testing.T) {
 				"mount2": map[string]string{
 					"type":     "disk",
 					"readonly": "true",
-					"source":   "/lib64",
-					"path":     "/lib64",
+					"source":   "/home",
+					"path":     "/home",
 				},
 				"mount3": map[string]string{
 					"type":     "disk",
