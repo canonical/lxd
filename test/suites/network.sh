@@ -58,7 +58,7 @@ test_network() {
   # shellcheck disable=SC2034
   for i in $(seq 10); do
     lxc info nettest | grep -q fd42 && SUCCESS=1 && break
-    sleep 1
+    sleep 0.5
   done
 
   [ "${SUCCESS}" = "0" ] && (echo "Container static IP wasn't applied" && false)

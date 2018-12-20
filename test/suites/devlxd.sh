@@ -25,13 +25,6 @@ test_devlxd() {
   lxc exec devlxd devlxd-client monitor > "${TEST_DIR}/devlxd.log" &
   client=$!
 
-  sleep 3
-  lxc config set devlxd user.foo baz
-  lxc config set devlxd security.nesting false
-  lxc config device add devlxd mnt disk source="${TEST_DIR}" path=/mnt
-  lxc config device remove devlxd mnt
-
-  kill -9 "${client}"
   (
     cat << EOF
 metadata:
@@ -63,7 +56,32 @@ type: device
 
 EOF
   ) > "${TEST_DIR}/devlxd.expected"
-  [ "$(md5sum "${TEST_DIR}/devlxd.log" | cut -d' ' -f1)" = "$(md5sum "${TEST_DIR}/devlxd.expected" | cut -d' ' -f1)" ]
 
+  MATCH=0
+
+  # shellcheck disable=SC2034
+  for i in $(seq 5); do
+    lxc config set devlxd user.foo bar
+    lxc config set devlxd security.nesting true
+
+    true > "${TEST_DIR}/devlxd.log"
+
+    lxc config set devlxd user.foo baz
+    lxc config set devlxd security.nesting false
+    lxc config device add devlxd mnt disk source="${TEST_DIR}" path=/mnt
+    lxc config device remove devlxd mnt
+
+    if [ "$(tr -d '\0' < "${TEST_DIR}/devlxd.log" | md5sum | cut -d' ' -f1)" != "$(md5sum "${TEST_DIR}/devlxd.expected" | cut -d' ' -f1)" ]; then
+      sleep 1
+      continue
+    fi
+
+    MATCH=1
+    break
+  done
+
+  kill -9 "${client}"
   lxc delete devlxd --force
+
+  [ "${MATCH}" = "1" ] || false
 }

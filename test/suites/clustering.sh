@@ -120,7 +120,7 @@ test_clustering_membership() {
   # detected as down.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 5
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 10
+  sleep 5
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node3" | grep -q "OFFLINE"
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 20
 
@@ -132,7 +132,7 @@ test_clustering_membership() {
 
   # Sleep a bit to let a heartbeat occur and update the list of raft nodes
   # everywhere, showing that node 4 has been promoted to database node.
-  sleep 8
+  sleep 5
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep "node4" | grep -q "YES"
 
   # Now the preseeded network can be deleted, and all nodes are
@@ -160,7 +160,7 @@ test_clustering_membership() {
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_FIVE_DIR}/unix.socket"
   rm -f "${LXD_FOUR_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"
@@ -310,7 +310,7 @@ test_clustering_containers() {
   # containers.
   LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 5
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 10
+  sleep 5
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
 
@@ -330,7 +330,7 @@ test_clustering_containers() {
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
@@ -493,7 +493,7 @@ test_clustering_storage() {
     # Shutdown node 3, and wait for it to be considered offline.
     LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 5
     LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-    sleep 10
+    sleep 5
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
@@ -612,7 +612,7 @@ test_clustering_storage() {
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
@@ -684,7 +684,7 @@ test_clustering_network() {
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
@@ -774,7 +774,7 @@ test_clustering_upgrade() {
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
@@ -822,7 +822,7 @@ test_clustering_publish() {
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
@@ -891,7 +891,7 @@ EOF
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
@@ -920,7 +920,6 @@ test_clustering_join_api() {
   chmod +x "${LXD_TWO_DIR}"
   ns2="${prefix}2"
   LXD_ALT_CERT=1 LXD_NETNS="${ns2}" spawn_lxd "${LXD_TWO_DIR}" false
-  sleep 1
 
   op=$(curl --unix-socket "${LXD_TWO_DIR}/unix.socket" -X PUT "lxd/1.0/cluster" -d "{\"server_name\":\"node2\",\"enabled\":true,\"member_config\":[{\"entity\": \"storage-pool\",\"name\":\"data\",\"key\":\"source\",\"value\":\"\"}],\"server_address\":\"10.1.1.102:8443\",\"cluster_address\":\"10.1.1.101:8443\",\"cluster_certificate\":\"${cert}\",\"cluster_password\":\"sekret\"}" | jq -r .operation)
   curl --unix-socket "${LXD_TWO_DIR}/unix.socket" "lxd${op}/wait"
@@ -929,7 +928,7 @@ test_clustering_join_api() {
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
@@ -984,6 +983,7 @@ test_clustering_shutdown_nodes() {
   wait "$(cat two.pid)"
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   wait "$(cat three.pid)"
+
   # Make sure the database is not available to the first node
   sleep 5
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
@@ -1046,7 +1046,7 @@ test_clustering_projects() {
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
@@ -1119,7 +1119,7 @@ test_clustering_address() {
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
 
@@ -1259,7 +1259,7 @@ test_clustering_image_replication() {
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 2
+  sleep 0.5
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"

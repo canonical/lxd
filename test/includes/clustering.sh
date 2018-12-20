@@ -130,7 +130,6 @@ spawn_lxd_and_bootstrap_cluster() {
   echo "==> Spawn bootstrap cluster node in ${ns} with storage driver ${driver}"
 
   LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
-  sleep 1
   (
     set -e
 
@@ -219,7 +218,6 @@ spawn_lxd_and_join_cluster() {
   echo "==> Spawn additional cluster node in ${ns} with storage driver ${driver}"
 
   LXD_ALT_CERT=1 LXD_NETNS="${ns}" spawn_lxd "${LXD_DIR}" false
-  sleep 1
   (
     set -e
 
