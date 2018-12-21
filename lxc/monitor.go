@@ -131,7 +131,23 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 			return
 		}
 
-		render, err := yaml.Marshal(&event)
+		// Render as JSON (to expand RawMessage)
+		jsonRender, err := json.Marshal(&event)
+		if err != nil {
+			fmt.Printf("error: %s\n", err)
+			os.Exit(1)
+		}
+
+		// Read back to a clean interface
+		var rawEvent interface{}
+		err = json.Unmarshal(jsonRender, &rawEvent)
+		if err != nil {
+			fmt.Printf("error: %s\n", err)
+			os.Exit(1)
+		}
+
+		// And now print as YAML
+		render, err := yaml.Marshal(&rawEvent)
 		if err != nil {
 			fmt.Printf("error: %s\n", err)
 			os.Exit(1)
