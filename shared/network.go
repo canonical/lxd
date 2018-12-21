@@ -64,14 +64,15 @@ func InitTLSConfig() *tls.Config {
 }
 
 func finalizeTLSConfig(tlsConfig *tls.Config, tlsRemoteCert *x509.Certificate) {
+	// Setup RootCA
+	if tlsConfig.RootCAs == nil {
+		tlsConfig.RootCAs, _ = systemCertPool()
+	}
+
 	// Trusted certificates
 	if tlsRemoteCert != nil {
-		caCertPool := tlsConfig.RootCAs
-		if caCertPool == nil {
-			caCertPool, _ = systemCertPool()
-			if caCertPool == nil {
-				caCertPool = x509.NewCertPool()
-			}
+		if tlsConfig.RootCAs == nil {
+			tlsConfig.RootCAs = x509.NewCertPool()
 		}
 
 		// Make it a valid RootCA
@@ -79,8 +80,7 @@ func finalizeTLSConfig(tlsConfig *tls.Config, tlsRemoteCert *x509.Certificate) {
 		tlsRemoteCert.KeyUsage = x509.KeyUsageCertSign
 
 		// Setup the pool
-		caCertPool.AddCert(tlsRemoteCert)
-		tlsConfig.RootCAs = caCertPool
+		tlsConfig.RootCAs.AddCert(tlsRemoteCert)
 
 		// Set the ServerName
 		if tlsRemoteCert.DNSNames != nil {
