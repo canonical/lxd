@@ -213,6 +213,15 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
+	if !nodesVersionsMatch {
+		cluster := &Cluster{
+			db:    db,
+			stmts: map[int]*sql.Stmt{},
+		}
+
+		return cluster, ErrSomeNodesAreBehind
+	}
+
 	stmts, err := cluster.PrepareStmts(db)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to prepare statements")
@@ -244,10 +253,6 @@ func OpenCluster(name string, store dqlite.ServerStore, address, dir string, tim
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	if !nodesVersionsMatch {
-		err = ErrSomeNodesAreBehind
 	}
 
 	return cluster, err
