@@ -53,6 +53,10 @@ var EntityFormatURIs = map[int]func(a ...interface{}) string{
 
 		return uri
 	},
+	TypeProject: func(a ...interface{}) string {
+		uri := fmt.Sprintf(EntityURIs[TypeProject], a[0])
+		return uri
+	},
 }
 
 func init() {
