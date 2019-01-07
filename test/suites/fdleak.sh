@@ -21,6 +21,7 @@ test_fdleak() {
       lxc delete "leaktest${i}"
     done
 
+    lxc list
     sleep 5
 
     exit 0

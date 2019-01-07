@@ -411,7 +411,7 @@ func containerLXCCreate(s *state.State, storage storage, args db.ContainerArgs) 
 func containerLXCUnload(c *containerLXC) {
 	runtime.SetFinalizer(c, nil)
 	if c.c != nil {
-		lxc.Release(c.c)
+		c.c.Release()
 		c.c = nil
 	}
 }
@@ -837,6 +837,13 @@ func (c *containerLXC) initLXC(config bool) error {
 		return err
 	}
 
+	freeContainer := true
+	defer func() {
+		if freeContainer {
+			cc.Release()
+		}
+	}()
+
 	// Setup logging
 	logfile := c.LogFilePath()
 
@@ -860,7 +867,12 @@ func (c *containerLXC) initLXC(config bool) error {
 	// Allow for lightweight init
 	c.cConfig = config
 	if !config {
+		if c.c != nil {
+			c.c.Release()
+		}
+
 		c.c = cc
+		freeContainer = false
 		return nil
 	}
 
@@ -1502,7 +1514,11 @@ func (c *containerLXC) initLXC(config bool) error {
 		}
 	}
 
+	if c.c != nil {
+		c.c.Release()
+	}
 	c.c = cc
+	freeContainer = false
 
 	return nil
 }
@@ -2660,7 +2676,11 @@ func (c *containerLXC) Rename(newName string) error {
 	c.name = newName
 
 	// Invalidate the go-lxc cache
-	c.c = nil
+	if c.c != nil {
+		c.c.Release()
+		c.c = nil
+	}
+
 	c.cConfig = false
 
 	logger.Info("Renamed container", ctxMap)
@@ -2840,7 +2860,10 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			c.localConfig = oldLocalConfig
 			c.localDevices = oldLocalDevices
 			c.profiles = oldProfiles
-			c.c = nil
+			if c.c != nil {
+				c.c.Release()
+				c.c = nil
+			}
 			c.cConfig = false
 			c.initLXC(true)
 			deviceTaskSchedulerTrigger("container", c.name, "changed")
@@ -2899,7 +2922,10 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	}
 
 	// Run through initLXC to catch anything we missed
-	c.c = nil
+	if c.c != nil {
+		c.c.Release()
+		c.c = nil
+	}
 	c.cConfig = false
 	err = c.initLXC(true)
 	if err != nil {
@@ -5186,7 +5212,7 @@ func (c *containerLXC) fillNetworkDevice(name string, m types.Device) (types.Dev
 		// Attempt to include all existing interfaces
 		cc, err := lxc.NewContainer(c.Name(), c.state.OS.LxcPath)
 		if err == nil {
-			defer lxc.Release(cc)
+			defer cc.Release()
 
 			interfaces, err := cc.Interfaces()
 			if err == nil {
@@ -5363,7 +5389,7 @@ func (c *containerLXC) removeNetworkDevice(name string, m types.Device) error {
 	if err != nil {
 		return err
 	}
-	defer lxc.Release(cc)
+	defer cc.Release()
 
 	// Remove the interface from the container
 	err = cc.DetachInterfaceRename(m["name"], hostName)
