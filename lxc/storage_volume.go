@@ -549,8 +549,7 @@ func (c *cmdStorageVolumeDelete) Command() *cobra.Command {
 
 func (c *cmdStorageVolumeDelete) Run(cmd *cobra.Command, args []string) error {
 	// Sanity checks
-	// Sanity checks
-	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
 	}
