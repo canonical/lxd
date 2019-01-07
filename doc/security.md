@@ -5,9 +5,9 @@ socket and access is restricted by socket ownership and mode.
 
 Remote communications with the LXD daemon happen using JSON over HTTPS.
 The supported protocol must be TLS1.2 or better.
+
 All communications must use perfect forward secrecy and ciphers must be
-limited to strong elliptic curve ones (such as ECDHE-RSA or
-ECDHE-ECDSA).
+limited to strong elliptic curve ones (such as ECDHE-RSA or ECDHE-ECDSA).
 
 Any generated key should be at least 4096bit RSA and when using
 signatures, only SHA-2 signatures should be trusted.
@@ -38,14 +38,8 @@ it matches, the client certificate is added to the server's trust store
 and the client can now connect to the server without having to provide
 any additional credentials.
 
-This is a workflow that's very similar to that of ssh where an initial
+This is a workflow that's very similar to that of SSH where an initial
 connection to an unknown server triggers a prompt.
-
-A possible extension to that is to support something similar to ssh's
-fingerprint in DNS feature where the certificate fingerprint is added as
-a TXT record, then if the domain is signed by DNSSEC, the client will
-automatically accept the fingerprint if it matches that in the DNS
-record.
 
 ## Adding a remote with a PKI based setup
 In the PKI setup, a system administrator is managing a central PKI, that
@@ -94,10 +88,13 @@ presenting the token received from the authentication server.  The LXD server
 verifies the token, thus authenticating the request.  The token is stored as
 cookie and is presented by the client at each request to LXD.
 
-
 ## Managing trusted clients
 The list of certificates trusted by a LXD server can be obtained with `lxc
 config trust list`.
+
+Clients can manually be added using `lxc config trust add <file>`,
+removing the need for a shared trust password by letting an existing
+administrator add the new client certificate directly to the trust store.
 
 To revoke trust to a client its certificate can be removed with `lxc config
 trust remove FINGERPRINT`.
