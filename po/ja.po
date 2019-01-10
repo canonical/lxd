@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-01-08 15:52-0500\n"
+"POT-Creation-Date: 2019-01-10 07:59+0000\n"
 "PO-Revision-Date: 2018-10-12 14:44+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -163,7 +163,7 @@ msgid ""
 "### Note that the name is shown but cannot be changed"
 msgstr ""
 
-#: lxc/image.go:973
+#: lxc/image.go:974
 #, c-format
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
@@ -197,15 +197,15 @@ msgstr "--container-only と --target は同時に指定できません"
 msgid "--refresh can only be used with containers"
 msgstr ""
 
-#: lxc/alias.go:127 lxc/image.go:939 lxc/image_alias.go:228
+#: lxc/alias.go:127 lxc/image.go:940 lxc/image_alias.go:228
 msgid "ALIAS"
 msgstr ""
 
-#: lxc/image.go:940
+#: lxc/image.go:941
 msgid "ALIASES"
 msgstr ""
 
-#: lxc/image.go:945
+#: lxc/image.go:946
 msgid "ARCH"
 msgstr ""
 
@@ -474,7 +474,7 @@ msgstr "クラスタメンバ名"
 msgid "Clustering enabled"
 msgstr "クラスタリングが有効になりました"
 
-#: lxc/image.go:930 lxc/list.go:114
+#: lxc/image.go:931 lxc/list.go:114
 msgid "Columns"
 msgstr "カラムレイアウト"
 
@@ -675,7 +675,7 @@ msgstr "コンテナを作成中"
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:944 lxc/image_alias.go:230 lxc/list.go:459 lxc/network.go:861
+#: lxc/image.go:945 lxc/image_alias.go:230 lxc/list.go:459 lxc/network.go:861
 #: lxc/operation.go:156 lxc/storage.go:550 lxc/storage_volume.go:1121
 msgid "DESCRIPTION"
 msgstr ""
@@ -750,7 +750,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/file.go:42 lxc/file.go:75 lxc/file.go:124 lxc/file.go:187
 #: lxc/file.go:377 lxc/image.go:42 lxc/image.go:131 lxc/image.go:265
 #: lxc/image.go:316 lxc/image.go:439 lxc/image.go:579 lxc/image.go:793
-#: lxc/image.go:907 lxc/image.go:1236 lxc/image.go:1313 lxc/image_alias.go:26
+#: lxc/image.go:907 lxc/image.go:1237 lxc/image.go:1314 lxc/image_alias.go:26
 #: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
 #: lxc/image_alias.go:250 lxc/import.go:25 lxc/info.go:29 lxc/init.go:35
 #: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:49 lxc/manpage.go:19
@@ -888,7 +888,7 @@ msgstr "ストレージプールの設定をYAMLで編集します"
 msgid "Edit storage volume configurations as YAML"
 msgstr "ストレージボリュームの設定をYAMLで編集します"
 
-#: lxc/image.go:955 lxc/list.go:500
+#: lxc/image.go:956 lxc/list.go:500
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -1015,7 +1015,7 @@ msgstr "イメージのエクスポート中: %s"
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:174 lxc/image.go:941 lxc/image.go:942
+#: lxc/config_trust.go:174 lxc/image.go:942 lxc/image.go:943
 #: lxc/image_alias.go:229
 msgid "FINGERPRINT"
 msgstr ""
@@ -1076,7 +1076,7 @@ msgstr "稼働中のコンテナを強制的に削除します"
 msgid "Force using the local unix socket"
 msgstr "強制的にローカルのUNIXソケットを使います"
 
-#: lxc/image.go:931 lxc/list.go:115 lxc/network.go:803 lxc/remote.go:443
+#: lxc/image.go:932 lxc/list.go:115 lxc/network.go:803 lxc/remote.go:443
 msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
@@ -1158,7 +1158,7 @@ msgstr "初めてこのマシンで LXD を使う場合、lxd init と実行す�
 msgid "Ignore the container state"
 msgstr "コンテナの状態を無視します"
 
-#: lxc/image.go:1296
+#: lxc/image.go:1297
 msgid "Image already up to date."
 msgstr "イメージは更新済みです。"
 
@@ -1170,7 +1170,7 @@ msgstr "イメージのコピーが成功しました!"
 msgid "Image exported successfully!"
 msgstr "イメージのエクスポートが成功しました!"
 
-#: lxc/image.go:288 lxc/image.go:1259
+#: lxc/image.go:288 lxc/image.go:1260
 msgid "Image identifier missing"
 msgstr "イメージ名を指定してください"
 
@@ -1184,7 +1184,7 @@ msgstr "イメージ名を指定してください: %s"
 msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
 
-#: lxc/image.go:1294
+#: lxc/image.go:1295
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
@@ -1245,7 +1245,7 @@ msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 "不正な設定項目のカラムフォーマットです (フィールド数が多すぎます): '%s'"
 
-#: lxc/image.go:1220 lxc/list.go:368 lxc/network.go:903 lxc/remote.go:527
+#: lxc/image.go:1221 lxc/list.go:368 lxc/network.go:903 lxc/remote.go:527
 #, c-format
 msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
@@ -1501,6 +1501,7 @@ msgid "List images"
 msgstr "イメージを一覧表示します"
 
 #: lxc/image.go:907
+#, fuzzy
 msgid ""
 "List images\n"
 "\n"
@@ -1522,7 +1523,8 @@ msgid ""
 "    p - Whether image is public\n"
 "    d - Description\n"
 "    a - Architecture\n"
-"    s - Size"
+"    s - Size\n"
+"    u - Upload date"
 msgstr ""
 "イメージをリスト表示します\n"
 "\n"
@@ -1991,7 +1993,7 @@ msgstr ""
 msgid "PROTOCOL"
 msgstr ""
 
-#: lxc/image.go:943 lxc/remote.go:489
+#: lxc/image.go:944 lxc/remote.go:489
 msgid "PUBLIC"
 msgstr ""
 
@@ -2159,7 +2161,7 @@ msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
 msgid "Recursively transfer files"
 msgstr "再帰的にファイルを転送します"
 
-#: lxc/image.go:1235 lxc/image.go:1236
+#: lxc/image.go:1236 lxc/image.go:1237
 msgid "Refresh images"
 msgstr "イメージを更新します"
 
@@ -2168,7 +2170,7 @@ msgstr "イメージを更新します"
 msgid "Refreshing container: %s"
 msgstr "コンテナのインポート中: %s"
 
-#: lxc/image.go:1264
+#: lxc/image.go:1265
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
@@ -2332,7 +2334,7 @@ msgstr "イメージの取得中: %s"
 msgid "Run command against all containers"
 msgstr "すべてのコンテナに対してコマンドを実行します"
 
-#: lxc/image.go:946
+#: lxc/image.go:947
 msgid "SIZE"
 msgstr ""
 
@@ -2465,7 +2467,7 @@ msgstr "バックグラウンド操作の詳細を表示します"
 msgid "Show full device configuration for containers or profiles"
 msgstr "コンテナもしくはプロファイルのデバイス設定をすべて表示します"
 
-#: lxc/image.go:1312 lxc/image.go:1313
+#: lxc/image.go:1313 lxc/image.go:1314
 msgid "Show image properties"
 msgstr "イメージのプロパティを表示します"
 
@@ -2799,7 +2801,7 @@ msgstr "タイプ: ephemeral"
 msgid "Type: persistent"
 msgstr "タイプ: persistent"
 
-#: lxc/image.go:947
+#: lxc/image.go:948
 msgid "UPLOAD DATE"
 msgstr ""
 
@@ -2817,7 +2819,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
 
-#: lxc/image.go:962 lxc/list.go:514
+#: lxc/image.go:963 lxc/list.go:514
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
@@ -3641,7 +3643,7 @@ msgstr "名前"
 msgid "network"
 msgstr "network"
 
-#: lxc/image.go:826 lxc/image.go:831 lxc/image.go:1000
+#: lxc/image.go:826 lxc/image.go:831 lxc/image.go:1001
 msgid "no"
 msgstr ""
 
@@ -3701,7 +3703,7 @@ msgstr ""
 msgid "query [<remote>:]<API path>"
 msgstr ""
 
-#: lxc/image.go:1234
+#: lxc/image.go:1235
 msgid "refresh [<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "refresh [<remote>:]<image> [[<remote>:]<image>...]"
 
@@ -3829,7 +3831,7 @@ msgstr ""
 msgid "show [<remote>:]<container|profile>"
 msgstr ""
 
-#: lxc/image.go:1311
+#: lxc/image.go:1312
 msgid "show [<remote>:]<image>"
 msgstr ""
 
@@ -3970,7 +3972,7 @@ msgstr "volume"
 msgid "y"
 msgstr ""
 
-#: lxc/delete.go:46 lxc/image.go:828 lxc/image.go:833 lxc/image.go:998
+#: lxc/delete.go:46 lxc/image.go:828 lxc/image.go:833 lxc/image.go:999
 msgid "yes"
 msgstr ""
 
