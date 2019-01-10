@@ -925,7 +925,8 @@ Column shorthand chars:
     p - Whether image is public
     d - Description
     a - Architecture
-    s - Size`))
+    s - Size
+    u - Upload date`))
 
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", "lfpdasu", i18n.G("Columns")+"``")
 	cmd.Flags().StringVar(&c.flagFormat, "format", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
