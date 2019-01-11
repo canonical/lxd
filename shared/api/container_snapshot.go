@@ -24,12 +24,12 @@ type ContainerSnapshotPost struct {
 type ContainerSnapshot struct {
 	Architecture    string                       `json:"architecture" yaml:"architecture"`
 	Config          map[string]string            `json:"config" yaml:"config"`
-	CreationDate    time.Time                    `json:"created_at" yaml:"created_at"`
+	CreatedAt       time.Time                    `json:"created_at" yaml:"created_at"`
 	Devices         map[string]map[string]string `json:"devices" yaml:"devices"`
 	Ephemeral       bool                         `json:"ephemeral" yaml:"ephemeral"`
 	ExpandedConfig  map[string]string            `json:"expanded_config" yaml:"expanded_config"`
 	ExpandedDevices map[string]map[string]string `json:"expanded_devices" yaml:"expanded_devices"`
-	LastUsedDate    time.Time                    `json:"last_used_at" yaml:"last_used_at"`
+	LastUsedAt      time.Time                    `json:"last_used_at" yaml:"last_used_at"`
 	Name            string                       `json:"name" yaml:"name"`
 	Profiles        []string                     `json:"profiles" yaml:"profiles"`
 	Stateful        bool                         `json:"stateful" yaml:"stateful"`
