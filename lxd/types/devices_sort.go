@@ -32,9 +32,7 @@ func (devices sortableDevices) Less(i, j int) bool {
 }
 
 func (devices sortableDevices) Swap(i, j int) {
-	tmp := devices[i]
-	devices[i] = devices[j]
-	devices[j] = tmp
+	devices[i], devices[j] = devices[j], devices[i]
 }
 
 func (devices sortableDevices) Names() []string {
