@@ -43,7 +43,7 @@ Those tarballs will include all snapshots by default and an "optimized"
 tarball can be obtained if you know that you'll be restoring on a LXD
 server using the same storage pool backend.
 
-Those tarballs can be saved any way you want on any filesystem you wan
+Those tarballs can be saved any way you want on any filesystem you want
 and can be imported back into LXD using the `lxc import` command.
 
 ## Disaster recovery
