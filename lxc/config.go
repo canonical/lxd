@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -83,7 +84,7 @@ type cmdConfigEdit struct {
 
 func (c *cmdConfigEdit) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("edit [<remote>:][<container>]")
+	cmd.Use = i18n.G("edit [<remote>:][<container>[/<snapshot>]]")
 	cmd.Short = i18n.G("Edit container or server configurations as YAML")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Edit container or server configurations as YAML`))
@@ -137,6 +138,9 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
+	fields := strings.SplitN(resource.name, "/", 2)
+	isSnapshot := len(fields) == 2
+
 	// Edit the config
 	if resource.name != "" {
 		// If stdin isn't a terminal, read text from it
@@ -146,30 +150,78 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			newdata := api.ContainerPut{}
-			err = yaml.Unmarshal(contents, &newdata)
-			if err != nil {
-				return err
-			}
+			var op lxd.Operation
 
-			op, err := resource.server.UpdateContainer(resource.name, newdata, "")
-			if err != nil {
-				return err
+			if isSnapshot {
+				snapshot, _, err := resource.server.GetContainerSnapshot(fields[0], fields[1])
+				if err != nil {
+					return err
+				}
+
+				// The current expiry date needs to be set here explicitly, otherwise failing to
+				// provide a new value will reset the expiry date to zero time (no expiry).
+				newdata := api.ContainerSnapshotPut{
+					ExpiresAt: snapshot.ExpiresAt,
+				}
+
+				err = yaml.Unmarshal(contents, &newdata)
+				if err != nil {
+					return err
+				}
+
+				op, err = resource.server.UpdateContainerSnapshot(fields[0], fields[1], newdata, "")
+				if err != nil {
+					return err
+				}
+			} else {
+				newdata := api.ContainerPut{}
+				err = yaml.Unmarshal(contents, &newdata)
+				if err != nil {
+					return err
+				}
+
+				op, err = resource.server.UpdateContainer(resource.name, newdata, "")
+				if err != nil {
+					return err
+				}
 			}
 
 			return op.Wait()
 		}
 
-		// Extract the current value
-		container, etag, err := resource.server.GetContainer(resource.name)
-		if err != nil {
-			return err
-		}
+		var data []byte
+		var etag string
+		var currentExpiryDate time.Time
 
-		brief := container.Writable()
-		data, err := yaml.Marshal(&brief)
-		if err != nil {
-			return err
+		// Extract the current value
+		if isSnapshot {
+			var container *api.ContainerSnapshot
+
+			container, etag, err = resource.server.GetContainerSnapshot(fields[0], fields[1])
+			if err != nil {
+				return err
+			}
+
+			brief := container.Writable()
+			data, err = yaml.Marshal(&brief)
+			if err != nil {
+				return err
+			}
+
+			currentExpiryDate = brief.ExpiresAt
+		} else {
+			var container *api.Container
+
+			container, etag, err = resource.server.GetContainer(resource.name)
+			if err != nil {
+				return err
+			}
+
+			brief := container.Writable()
+			data, err = yaml.Marshal(&brief)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Spawn the editor
@@ -180,13 +232,29 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 
 		for {
 			// Parse the text received from the editor
-			newdata := api.ContainerPut{}
-			err = yaml.Unmarshal(content, &newdata)
-			if err == nil {
-				var op lxd.Operation
-				op, err = resource.server.UpdateContainer(resource.name, newdata, etag)
+			if isSnapshot {
+				newdata := api.ContainerSnapshotPut{
+					ExpiresAt: currentExpiryDate,
+				}
+
+				err = yaml.Unmarshal(content, &newdata)
 				if err == nil {
-					err = op.Wait()
+					var op lxd.Operation
+					op, err = resource.server.UpdateContainerSnapshot(fields[0], fields[1],
+						newdata, etag)
+					if err == nil {
+						err = op.Wait()
+					}
+				}
+			} else {
+				newdata := api.ContainerPut{}
+				err = yaml.Unmarshal(content, &newdata)
+				if err == nil {
+					var op lxd.Operation
+					op, err = resource.server.UpdateContainer(resource.name, newdata, etag)
+					if err == nil {
+						err = op.Wait()
+					}
 				}
 			}
 
@@ -447,7 +515,7 @@ type cmdConfigShow struct {
 
 func (c *cmdConfigShow) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = i18n.G("show [<remote>:][<container>]")
+	cmd.Use = i18n.G("show [<remote>:][<container>[/<snapshot>]]")
 	cmd.Short = i18n.G("Show container or server configurations")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Show container or server configurations`))
@@ -494,8 +562,8 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		// Container config
-		var brief api.ContainerPut
+		// Container or snapshot config
+		var brief interface{}
 
 		if shared.IsSnapshot(resource.name) {
 			// Snapshot
@@ -506,20 +574,14 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			brief = api.ContainerPut{
-				Profiles:  snap.Profiles,
-				Config:    snap.Config,
-				Devices:   snap.Devices,
-				Ephemeral: snap.Ephemeral,
-			}
+			writable := snap.Writable()
+			brief = &writable
+
+			brief.(*api.ContainerSnapshotPut).ExpiresAt = snap.ExpiresAt
 
 			if c.flagExpanded {
-				brief = api.ContainerPut{
-					Profiles:  snap.Profiles,
-					Config:    snap.ExpandedConfig,
-					Devices:   snap.ExpandedDevices,
-					Ephemeral: snap.Ephemeral,
-				}
+				brief.(*api.ContainerSnapshotPut).Config = snap.ExpandedConfig
+				brief.(*api.ContainerSnapshotPut).Devices = snap.ExpandedDevices
 			}
 		} else {
 			// Container
@@ -528,10 +590,12 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			brief = container.Writable()
+			writable := container.Writable()
+			brief = &writable
+
 			if c.flagExpanded {
-				brief.Config = container.ExpandedConfig
-				brief.Devices = container.ExpandedDevices
+				brief.(*api.ContainerPut).Config = container.ExpandedConfig
+				brief.(*api.ContainerPut).Devices = container.ExpandedDevices
 			}
 		}
 
