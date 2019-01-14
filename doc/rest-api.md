@@ -1087,6 +1087,18 @@ Input (none at present):
     {
     }
 
+### PUT
+ * Description: update the snapshot
+ * Authentication: trusted
+ * Operation: async
+ * Return: background operation or standard error
+
+Input:
+
+    {
+        "expires_at": "2019-01-16T12:34:56+02:00"
+    }
+
 HTTP code for this should be 202 (Accepted).
 
 ### `/1.0/containers/<name>/state`
