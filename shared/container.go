@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/robfig/cron.v2"
@@ -285,6 +286,11 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	},
 	"snapshots.schedule.stopped": IsBool,
 	"snapshots.pattern":          IsAny,
+	"snapshots.expiry": func(value string) error {
+		// Validate expression
+		_, err := GetSnapshotExpiry(time.Time{}, value)
+		return err
+	},
 
 	// Caller is responsible for full validation of any raw.* value
 	"raw.apparmor": IsAny,
