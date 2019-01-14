@@ -635,6 +635,7 @@ type container interface {
 	Profiles() []string
 	InitPID() int
 	State() string
+	ExpiryDate() time.Time
 
 	// Paths
 	Path() string
@@ -1129,6 +1130,9 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 		if err != nil {
 			return nil, err
 		}
+
+		// Unset expiry date since containers don't expire
+		args.ExpiryDate = time.Time{}
 	}
 
 	// Validate container config
@@ -1212,6 +1216,7 @@ func containerCreateInternal(s *state.State, args db.ContainerArgs) (container, 
 			Config:       args.Config,
 			Devices:      args.Devices,
 			Profiles:     args.Profiles,
+			ExpiryDate:   args.ExpiryDate,
 		}
 
 		_, err = tx.ContainerCreate(container)
@@ -1651,6 +1656,87 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, containers []c
 		case <-ctx.Done():
 			return nil
 		case <-ch:
+		}
+	}
+
+	return nil
+}
+
+func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		// Load all local containers
+		allContainers, err := containerLoadNodeAll(d.State())
+		if err != nil {
+			logger.Error("Failed to load containers for snapshot expiry", log.Ctx{"err": err})
+			return
+		}
+
+		// Figure out which need snapshotting (if any)
+		expiredSnapshots := []container{}
+		for _, c := range allContainers {
+			snapshots, err := c.Snapshots()
+			if err != nil {
+				logger.Error("Failed to list snapshots", log.Ctx{"err": err, "container": c.Name(), "project": c.Project()})
+				continue
+			}
+
+			for _, snapshot := range snapshots {
+				if snapshot.ExpiryDate().IsZero() {
+					// Snapshot doesn't expire
+					continue
+				}
+
+				if time.Now().Unix()-snapshot.ExpiryDate().Unix() >= 0 {
+					expiredSnapshots = append(expiredSnapshots, snapshot)
+				}
+			}
+		}
+
+		if len(expiredSnapshots) == 0 {
+			return
+		}
+
+		opRun := func(op *operation) error {
+			return pruneExpiredContainerSnapshots(ctx, d, expiredSnapshots)
+		}
+
+		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start expired snapshots operation", log.Ctx{"err": err})
+			return
+		}
+
+		logger.Info("Pruning expired container snapshots")
+
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to remove expired container snapshots", log.Ctx{"err": err})
+		}
+
+		logger.Info("Done pruning expired container snapshots")
+	}
+
+	first := true
+	schedule := func() (time.Duration, error) {
+		interval := time.Minute
+
+		if first {
+			first = false
+			return interval, task.ErrSkip
+		}
+
+		return interval, nil
+	}
+
+	return f, schedule
+}
+
+func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []container) error {
+	// Find snapshots to delete
+	for _, snapshot := range snapshots {
+		err := snapshot.Delete()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to delete expired snapshot '%s' in project '%s'", snapshot.Name(), snapshot.Project())
 		}
 	}
 

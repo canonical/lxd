@@ -55,6 +55,7 @@ var containerSnapshotCmd = Command{
 	get:    snapshotHandler,
 	post:   snapshotHandler,
 	delete: snapshotHandler,
+	put:    snapshotHandler,
 }
 
 var containerConsoleCmd = Command{
