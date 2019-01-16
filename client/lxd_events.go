@@ -82,7 +82,7 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 				}
 
 				// And remove them all from the list
-				r.eventListeners = []*EventListener{}
+				r.eventListeners = nil
 
 				conn.Close()
 				close(stopCh)
