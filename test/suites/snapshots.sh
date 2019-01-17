@@ -218,3 +218,22 @@ restore_and_compare_fs() {
     diff -r "${LXD_DIR}/containers/bar/rootfs" "${LXD_DIR}/snapshots/bar/${snap}/rootfs"
   fi
 }
+
+test_snap_expiry() {
+  # shellcheck disable=2039
+  local lxd_backend
+  lxd_backend=$(storage_backend "$LXD_DIR")
+
+  ensure_import_testimage
+  ensure_has_localhost_remote "${LXD_ADDR}"
+
+  lxc launch testimage c1
+  lxc snapshot c1
+  lxc config show c1/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+
+  lxc config set c1 snapshots.expiry '1d'
+  lxc snapshot c1
+  ! lxc config show c1/snap1 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+
+  lxc rm -f c1
+}
