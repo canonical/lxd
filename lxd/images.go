@@ -252,7 +252,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 			return nil, err
 		}
 
-		return nil, fmt.Errorf("The image already exists: %s", info.Fingerprint)
+		return &info, fmt.Errorf("The image already exists: %s", info.Fingerprint)
 	}
 
 	/* rename the the file to the expected name so our caller can use it */
@@ -718,6 +718,13 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 				imagePublishLock.Unlock()
 			}
 		}
+		// Set the metadata if possible, even if there is an error
+		if info != nil {
+			metadata := make(map[string]string)
+			metadata["fingerprint"] = info.Fingerprint
+			metadata["size"] = strconv.FormatInt(info.Size, 10)
+			op.UpdateMetadata(metadata)
+		}
 		if err != nil {
 			return err
 		}
@@ -750,11 +757,6 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			return errors.Wrapf(err, "Image sync between nodes")
 		}
 
-		// Set the metadata
-		metadata := make(map[string]string)
-		metadata["fingerprint"] = info.Fingerprint
-		metadata["size"] = strconv.FormatInt(info.Size, 10)
-		op.UpdateMetadata(metadata)
 		return nil
 	}
 
