@@ -353,7 +353,17 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 	}
 
 	if compress != "none" {
-		compressedPath, err := compressFile(backupPath, compress)
+		infile, err := os.Open(backupPath)
+		if err != nil {
+			return err
+		}
+		defer infile.Close()
+		compressed, err := os.Create(backupPath + ".compressed")
+		if err != nil {
+			return err
+		}
+		defer compressed.Close()
+		err = compressFile(compress, infile, compressed)
 		if err != nil {
 			return err
 		}
@@ -363,7 +373,7 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 			return err
 		}
 
-		err = os.Rename(compressedPath, backupPath)
+		err = os.Rename(compressed.Name(), backupPath)
 		if err != nil {
 			return err
 		}

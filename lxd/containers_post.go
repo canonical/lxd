@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/dustinkirkland/golang-petname"
@@ -23,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/types"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 
@@ -128,7 +130,14 @@ func createFromImage(d *Daemon, project string, req *api.ContainersPost) Respons
 			return err
 		}
 
-		_, err = containerCreateFromImage(d, args, info.Fingerprint)
+		metadata := make(map[string]string)
+		_, err = containerCreateFromImage(d, args, info.Fingerprint, &ioprogress.ProgressTracker{
+			Handler: func(percent, speed int64) {
+				metadata["stage"] = "create_container_from_image_unpack"
+				metadata["percent"] = strconv.FormatInt(percent, 10)
+				metadata["speed"] = strconv.FormatInt(speed, 10)
+				op.UpdateMetadata(metadata)
+			}})
 		return err
 	}
 
@@ -356,7 +365,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 			}
 
 			if ps.MigrationType() == migration.MigrationFSType_RSYNC {
-				c, err = containerCreateFromImage(d, args, req.Source.BaseImage)
+				c, err = containerCreateFromImage(d, args, req.Source.BaseImage, nil)
 				if err != nil {
 					return InternalError(err)
 				}

@@ -237,6 +237,9 @@ type storage interface {
 
 	StorageMigrationSource(args MigrationSourceArgs) (MigrationStorageSourceDriver, error)
 	StorageMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkArgs) error
+
+	// For tracking long operations such as unpacking an image.
+	SetProgressTracker(tracker *ioprogress.ProgressTracker)
 }
 
 func storageCoreInit(driver string) (storage, error) {

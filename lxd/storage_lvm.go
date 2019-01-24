@@ -1968,7 +1968,7 @@ func (s *storageLvm) ImageCreate(fingerprint string) error {
 		}
 
 		imagePath := shared.VarPath("images", fingerprint)
-		err = unpackImage(imagePath, imageMntPoint, storageTypeLvm, s.s.OS.RunningInUserNS)
+		err = unpackImage(imagePath, imageMntPoint, storageTypeLvm, s.s.OS.RunningInUserNS, s.tracker)
 		if err != nil {
 			return err
 		}

@@ -32,6 +32,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
@@ -97,14 +98,14 @@ var aliasCmd = Command{
    end for whichever finishes last. */
 var imagePublishLock sync.Mutex
 
-func unpackImage(imagefname string, destpath string, sType storageType, runningInUserns bool) error {
+func unpackImage(imagefname string, destpath string, sType storageType, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
 	blockBackend := false
 
 	if sType == storageTypeLvm || sType == storageTypeCeph {
 		blockBackend = true
 	}
 
-	err := shared.Unpack(imagefname, destpath, blockBackend, runningInUserns)
+	err := shared.Unpack(imagefname, destpath, blockBackend, runningInUserns, tracker)
 	if err != nil {
 		return err
 	}
@@ -116,7 +117,7 @@ func unpackImage(imagefname string, destpath string, sType storageType, runningI
 			return fmt.Errorf("Error creating rootfs directory")
 		}
 
-		err = shared.Unpack(imagefname+".rootfs", rootfsPath, blockBackend, runningInUserns)
+		err = shared.Unpack(imagefname+".rootfs", rootfsPath, blockBackend, runningInUserns, tracker)
 		if err != nil {
 			return err
 		}
@@ -129,7 +130,7 @@ func unpackImage(imagefname string, destpath string, sType storageType, runningI
 	return nil
 }
 
-func compressFile(path string, compress string) (string, error) {
+func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
 
 	args := []string{"-c"}
@@ -137,31 +138,18 @@ func compressFile(path string, compress string) (string, error) {
 		args = append(args, "-n")
 	}
 
-	args = append(args, path)
 	cmd := exec.Command(compress, args...)
-
-	outfile, err := os.Create(path + ".compressed")
-	if err != nil {
-		return "", err
-	}
-
-	defer outfile.Close()
+	cmd.Stdin = infile
 	cmd.Stdout = outfile
 
-	err = cmd.Run()
-	if err != nil {
-		os.Remove(outfile.Name())
-		return "", err
-	}
-
-	return outfile.Name(), nil
+	return cmd.Run()
 }
 
 /*
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir string) (*api.Image, error) {
+func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operation, builddir string) (*api.Image, error) {
 	info := api.Image{}
 	info.Properties = map[string]string{}
 	project := projectParam(r)
@@ -204,14 +192,33 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	}
 	defer os.Remove(tarfile.Name())
 
-	if err := c.Export(tarfile, req.Properties); err != nil {
-		tarfile.Close()
+	// Track progress writing tarfile
+	metadata := make(map[string]string)
+	tarfileProgressWriter := &ioprogress.ProgressWriter{
+		WriteCloser: tarfile,
+		Tracker: &ioprogress.ProgressTracker{
+			Handler: func(percent, speed int64) {
+				metadata["stage"] = "create_image_from_container_tar"
+				metadata["percent"] = strconv.FormatInt(percent, 10)
+				metadata["speed"] = strconv.FormatInt(speed, 10)
+				op.UpdateMetadata(metadata)
+			},
+		},
+	}
+	// Calculate (close estimate of) total size of tarfile
+	sumSize := func(path string, fi os.FileInfo, err error) error {
+		tarfileProgressWriter.Tracker.Length += fi.Size()
+		return nil
+	}
+	err = filepath.Walk(c.RootfsPath(), sumSize)
+	if err != nil {
 		return nil, err
 	}
-	tarfile.Close()
 
+	sha256 := sha256.New()
 	var compressedPath string
 	var compress string
+	var writer io.Writer
 
 	if req.CompressionAlgorithm != "" {
 		compress = req.CompressionAlgorithm
@@ -221,29 +228,66 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 			return nil, err
 		}
 	}
+	usingCompression := compress != "none"
 
-	if compress != "none" {
-		compressedPath, err = compressFile(tarfile.Name(), compress)
+	// If there is no compression, then calculate sha256 on tarfile
+	if usingCompression {
+		writer = tarfileProgressWriter
+	} else {
+		writer = io.MultiWriter(tarfileProgressWriter, sha256)
+		compressedPath = tarfile.Name()
+	}
+
+	if err := c.Export(writer, req.Properties); err != nil {
+		tarfile.Close()
+		return nil, err
+	}
+	tarfile.Close()
+
+	if usingCompression {
+		tarfile, err = os.Open(tarfile.Name())
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		compressedPath = tarfile.Name()
+		defer tarfile.Close()
+		fi, err := tarfile.Stat()
+		if err != nil {
+			return nil, err
+		}
+		// Track progress writing gzipped file
+		metadata = make(map[string]string)
+		tarfileProgressReader := &ioprogress.ProgressReader{
+			ReadCloser: tarfile,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: fi.Size(),
+				Handler: func(percent, speed int64) {
+					metadata["stage"] = "create_image_from_container_compress"
+					metadata["percent"] = strconv.FormatInt(percent, 10)
+					metadata["speed"] = strconv.FormatInt(speed, 10)
+					op.UpdateMetadata(metadata)
+				},
+			},
+		}
+		compressedPath = tarfile.Name() + ".compressed"
+		compressed, err := os.Create(compressedPath)
+		if err != nil {
+			return nil, err
+		}
+		defer compressed.Close()
+		defer os.Remove(compressed.Name())
+		// Calculate sha256 as we compress
+		writer := io.MultiWriter(compressed, sha256)
+		err = compressFile(compress, tarfileProgressReader, writer)
+		if err != nil {
+			return nil, err
+		}
 	}
-	defer os.Remove(compressedPath)
 
-	sha256 := sha256.New()
-	tarf, err := os.Open(compressedPath)
+	fi, err := os.Stat(compressedPath)
 	if err != nil {
 		return nil, err
 	}
-
-	info.Size, err = io.Copy(sha256, tarf)
-	tarf.Close()
-	if err != nil {
-		return nil, err
-	}
-
+	info.Size = fi.Size()
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
 	_, _, err = d.cluster.ImageGet(project, info.Fingerprint, false, true)
@@ -714,7 +758,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			} else {
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
-				info, err = imgPostContInfo(d, r, req, builddir)
+				info, err = imgPostContInfo(d, r, req, op, builddir)
 				imagePublishLock.Unlock()
 			}
 		}
