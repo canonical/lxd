@@ -1030,7 +1030,7 @@ func (c *containerLXC) initLXC(config bool) error {
 		"/sys/kernel/security"}
 
 	if c.IsPrivileged() && !c.state.OS.RunningInUserNS {
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", "mqueue dev/mqueue mqueue rw,relatime,create=dir,optional")
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", "mqueue dev/mqueue mqueue rw,relatime,create=dir,optional 0 0")
 		if err != nil {
 			return err
 		}
@@ -1044,12 +1044,12 @@ func (c *containerLXC) initLXC(config bool) error {
 		}
 
 		if shared.IsDir(mnt) {
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none rbind,create=dir,optional", mnt, strings.TrimPrefix(mnt, "/")))
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none rbind,create=dir,optional 0 0", mnt, strings.TrimPrefix(mnt, "/")))
 			if err != nil {
 				return err
 			}
 		} else {
-			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file,optional", mnt, strings.TrimPrefix(mnt, "/")))
+			err = lxcSetConfigItem(cc, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file,optional 0 0", mnt, strings.TrimPrefix(mnt, "/")))
 			if err != nil {
 				return err
 			}
@@ -1105,12 +1105,12 @@ func (c *containerLXC) initLXC(config bool) error {
 		 * mount extra /proc and /sys to work around kernel
 		 * restrictions on remounting them when covered
 		 */
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", "proc dev/.lxc/proc proc create=dir,optional")
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", "proc dev/.lxc/proc proc create=dir,optional 0 0")
 		if err != nil {
 			return err
 		}
 
-		err = lxcSetConfigItem(cc, "lxc.mount.entry", "sys dev/.lxc/sys sysfs create=dir,optional")
+		err = lxcSetConfigItem(cc, "lxc.mount.entry", "sys dev/.lxc/sys sysfs create=dir,optional 0 0")
 		if err != nil {
 			return err
 		}
@@ -1542,7 +1542,7 @@ func (c *containerLXC) initLXC(config bool) error {
 				fmt.Sprintf("%s %s %s",
 					shared.EscapePathFstab(sourceDevPath),
 					shared.EscapePathFstab(relativeDestPath),
-					"none bind,create=file"))
+					"none bind,create=file 0 0"))
 			if err != nil {
 				return err
 			}
@@ -1728,9 +1728,10 @@ func (c *containerLXC) initLXC(config bool) error {
 				}
 
 				err = lxcSetConfigItem(cc, "lxc.mount.entry",
-					fmt.Sprintf("%s %s none %sbind,%s",
+					fmt.Sprintf("%s %s none %sbind,%s 0 0",
 						shared.EscapePathFstab(sourceDevPath),
-						shared.EscapePathFstab(relativeDestPath), rbind,
+						shared.EscapePathFstab(relativeDestPath),
+						rbind,
 						strings.Join(options, ",")))
 				if err != nil {
 					return err
@@ -1854,7 +1855,7 @@ func (c *containerLXC) setupUnixDevice(prefix string, dev types.Device, major in
 
 	devPath := shared.EscapePathFstab(paths[0])
 	tgtPath := shared.EscapePathFstab(paths[1])
-	val := fmt.Sprintf("%s %s none bind,create=file", devPath, tgtPath)
+	val := fmt.Sprintf("%s %s none bind,create=file 0 0", devPath, tgtPath)
 
 	return lxcSetConfigItem(c.c, "lxc.mount.entry", val)
 }
@@ -6925,7 +6926,7 @@ func (c *containerLXC) addInfinibandDevicesPerPort(deviceName string, ifDev *IBF
 
 		// inform liblxc about the mount
 		err = lxcSetConfigItem(c.c, "lxc.mount.entry",
-			fmt.Sprintf("%s %s none bind,create=file",
+			fmt.Sprintf("%s %s none bind,create=file 0 0",
 				shared.EscapePathFstab(devPath),
 				shared.EscapePathFstab(relDestPath)))
 		if err != nil {
@@ -6970,7 +6971,7 @@ func (c *containerLXC) addInfinibandDevicesPerFun(deviceName string, ifDev *IBF,
 		}
 
 		// inform liblxc about the mount
-		err := lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file", hostDevPath, relativeDestPath))
+		err := lxcSetConfigItem(c.c, "lxc.mount.entry", fmt.Sprintf("%s %s none bind,create=file 0 0", hostDevPath, relativeDestPath))
 		if err != nil {
 			return err
 		}
