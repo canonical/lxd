@@ -863,6 +863,7 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationImagesUpdate, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start image update operation", log.Ctx{"err": err})
+			return
 		}
 
 		logger.Infof("Updating images")
@@ -1090,6 +1091,7 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationImagesExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired image operation", log.Ctx{"err": err})
+			return
 		}
 
 		logger.Infof("Pruning expired images")
