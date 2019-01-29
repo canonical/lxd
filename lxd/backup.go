@@ -387,6 +387,7 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationBackupsExpire, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start expired backups operation", log.Ctx{"err": err})
+			return
 		}
 
 		logger.Info("Pruning expired container backups")

@@ -94,6 +94,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationInstanceTypesUpdate, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start instance types update operation", log.Ctx{"err": err})
+			return
 		}
 
 		logger.Info("Updating instance types")

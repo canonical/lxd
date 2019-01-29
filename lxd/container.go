@@ -1586,6 +1586,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil)
 		if err != nil {
 			logger.Error("Failed to start create snapshot operation", log.Ctx{"err": err})
+			return
 		}
 
 		logger.Info("Creating scheduled container snapshots")
