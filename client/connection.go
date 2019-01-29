@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/simplestreams"
@@ -59,6 +60,9 @@ type ConnectionArgs struct {
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectLXD(url string, args *ConnectionArgs) (ContainerServer, error) {
 	logger.Debugf("Connecting to a remote LXD over HTTPs")
+
+	// Cleanup URL
+	url = strings.TrimSuffix(url, "/")
 
 	return httpsLXD(url, args)
 }
@@ -123,6 +127,9 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (ContainerServer, error) 
 func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 	logger.Debugf("Connecting to a remote public LXD over HTTPs")
 
+	// Cleanup URL
+	url = strings.TrimSuffix(url, "/")
+
 	return httpsLXD(url, args)
 }
 
@@ -131,6 +138,9 @@ func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error) {
 	logger.Debugf("Connecting to a remote simplestreams server")
+
+	// Cleanup URL
+	url = strings.TrimSuffix(url, "/")
 
 	// Use empty args if not specified
 	if args == nil {
