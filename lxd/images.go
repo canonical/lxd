@@ -580,7 +580,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 				return nil, err
 			}
 		} else {
-			return nil, fmt.Errorf("Image with same fingerprint already exists")
+			return &info, fmt.Errorf("Image with same fingerprint already exists")
 		}
 	} else {
 		// Create the database entry
