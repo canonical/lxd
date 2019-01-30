@@ -31,86 +31,244 @@ const AA_PROFILE_BASE = `
   network,
   umount,
 
-  # Allow us to receive signals from anywhere.
-  signal (receive),
-
-  # Allow us to send signals to ourselves
-  signal peer=@{profile_name},
-
-  # Allow other processes to read our /proc entries, futexes, perf tracing and
-  # kcmp for now (they will need 'read' in the first place). Administrators can
-  # override with:
-  #   deny ptrace (readby) ...
-  ptrace (readby),
-
-  # Allow other processes to trace us by default (they will need 'trace' in
-  # the first place). Administrators can override with:
-  #   deny ptrace (tracedby) ...
-  ptrace (tracedby),
-
-  # Allow us to ptrace ourselves
-  ptrace peer=@{profile_name},
-
-  # ignore DENIED message on / remount
+  # Hide common denials
   deny mount options=(ro, remount) -> /,
   deny mount options=(ro, remount, silent) -> /,
 
-  # allow tmpfs mounts everywhere
-  mount fstype=tmpfs,
+  # Allow normal signal handling
+  signal (receive),
+  signal peer=@{profile_name},
 
-  # allow hugetlbfs mounts everywhere
-  mount fstype=hugetlbfs,
+  # Allow normal process handling
+  ptrace (readby),
+  ptrace (tracedby),
+  ptrace peer=@{profile_name},
 
-  # allow mqueue mounts everywhere
-  mount fstype=mqueue,
-
-  # allow fuse mounts everywhere
-  mount fstype=fuse,
-  mount fstype=fuse.*,
-
-  # deny access under /proc/bus to avoid e.g. messing with pci devices directly
-  deny @{PROC}/bus/** wklx,
-
-  # deny writes in /proc/sys/fs but allow binfmt_misc to be mounted
+  # Handle binfmt
   mount fstype=binfmt_misc -> /proc/sys/fs/binfmt_misc/,
-  deny @{PROC}/sys/fs/** wklx,
+  deny /proc/sys/fs/binfmt_misc/{,**} rwklx,
 
-  # allow efivars to be mounted, writing to it will be blocked though
-  mount fstype=efivarfs -> /sys/firmware/efi/efivars/,
-
-  # block some other dangerous paths
-  deny @{PROC}/kcore rwklx,
-  deny @{PROC}/sysrq-trigger rwklx,
-
-  # deny writes in /sys except for /sys/fs/cgroup, also allow
-  # fusectl, securityfs and debugfs to be mounted there (read-only)
-  mount fstype=fusectl -> /sys/fs/fuse/connections/,
-  mount fstype=securityfs -> /sys/kernel/security/,
-  mount fstype=debugfs -> /sys/kernel/debug/,
-  deny mount fstype=debugfs -> /var/lib/ureadahead/debugfs/,
-  mount fstype=proc -> /proc/,
-  mount fstype=sysfs -> /sys/,
-  mount options=(rw, nosuid, nodev, noexec, remount) -> /sys/,
-  deny /sys/firmware/efi/efivars/** rwklx,
-  # note, /sys/kernel/security/** handled below
-  mount options=(move) /sys/fs/cgroup/cgmanager/ -> /sys/fs/cgroup/cgmanager.lower/,
+  # Handle cgroupfs
   mount options=(ro, nosuid, nodev, noexec, remount, strictatime) -> /sys/fs/cgroup/,
 
-  # deny reads from debugfs
+  # Handle debugfs
+  mount fstype=debugfs -> /sys/kernel/debug/,
   deny /sys/kernel/debug/{,**} rwklx,
 
-  # allow paths to be made slave, shared, private or unbindable
-  # FIXME: This currently doesn't work due to the apparmor parser treating those as allowing all mounts.
-#  mount options=(rw,make-slave) -> **,
-#  mount options=(rw,make-rslave) -> **,
-#  mount options=(rw,make-shared) -> **,
-#  mount options=(rw,make-rshared) -> **,
-#  mount options=(rw,make-private) -> **,
-#  mount options=(rw,make-rprivate) -> **,
-#  mount options=(rw,make-unbindable) -> **,
-#  mount options=(rw,make-runbindable) -> **,
+  # Handle efivarfs
+  mount fstype=efivarfs -> /sys/firmware/efi/efivars/,
+  deny /sys/firmware/efi/efivars/{,**} rwklx,
 
-  # allow bind-mounts of anything except /proc, /sys and /dev
+  # Handle fuse
+  mount fstype=fuse,
+  mount fstype=fuse.*,
+  mount fstype=fusectl -> /sys/fs/fuse/connections/,
+
+  # Handle hugetlbfs
+  mount fstype=hugetlbfs,
+
+  # Handle mqueue
+  mount fstype=mqueue,
+
+  # Handle proc
+  mount fstype=proc -> /proc/,
+  deny /proc/bus/** wklx,
+  deny /proc/kcore rwklx,
+  deny /proc/sysrq-trigger rwklx,
+  deny /proc/sys/fs/** wklx,
+
+  # Handle securityfs (access handled separately)
+  mount fstype=securityfs -> /sys/kernel/security/,
+
+  # Handle sysfs (access handled below)
+  mount fstype=sysfs -> /sys/,
+  mount options=(rw, nosuid, nodev, noexec, remount) -> /sys/,
+
+  # Handle tmpfs
+  mount fstype=tmpfs,
+
+  # Allow limited modification of mount propagation
+  mount options=(rw,slave) -> /,
+  mount options=(rw,rslave) -> /,
+  mount options=(rw,shared) -> /,
+  mount options=(rw,rshared) -> /,
+  mount options=(rw,private) -> /,
+  mount options=(rw,rprivate) -> /,
+  mount options=(rw,unbindable) -> /,
+  mount options=(rw,runbindable) -> /,
+
+  # Allow various ro-bind-*re*-mounts
+  mount options=(ro,remount,bind) /[^spd]*{,/**},
+  mount options=(ro,remount,bind) /d[^e]*{,/**},
+  mount options=(ro,remount,bind) /de[^v]*{,/**},
+  mount options=(ro,remount,bind) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind) /dev?*{,/**},
+  mount options=(ro,remount,bind) /p[^r]*{,/**},
+  mount options=(ro,remount,bind) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind) /proc?*{,/**},
+  mount options=(ro,remount,bind) /s[^y]*{,/**},
+  mount options=(ro,remount,bind) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind) /sys?*{,/**},
+
+  mount options=(ro,remount,bind,nodev) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,nodev) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,nodev) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,nodev) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,nodev) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,nodev) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,nodev) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,nodev) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,nodev) /dev?*{,/**},
+  mount options=(ro,remount,bind,nodev) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,nodev) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,nodev) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,nodev) /proc?*{,/**},
+  mount options=(ro,remount,bind,nodev) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,nodev) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,nodev) /sys?*{,/**},
+
+  mount options=(ro,remount,bind,nodev,nosuid) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /dev?*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /proc?*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,nodev,nosuid) /sys?*{,/**},
+
+  mount options=(ro,remount,bind,noexec) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,noexec) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,noexec) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,noexec) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,noexec) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,noexec) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,noexec) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,noexec) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,noexec) /dev?*{,/**},
+  mount options=(ro,remount,bind,noexec) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,noexec) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,noexec) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,noexec) /proc?*{,/**},
+  mount options=(ro,remount,bind,noexec) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,noexec) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,noexec) /sys?*{,/**},
+
+  mount options=(ro,remount,bind,noexec,nodev) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /dev?*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /proc?*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,noexec,nodev) /sys?*{,/**},
+
+  mount options=(ro,remount,bind,nosuid) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,nosuid) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /dev?*{,/**},
+  mount options=(ro,remount,bind,nosuid) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /proc?*{,/**},
+  mount options=(ro,remount,bind,nosuid) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,nosuid) /sys?*{,/**},
+
+  mount options=(ro,remount,bind,nosuid,nodev) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /dev?*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /proc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,nosuid,nodev) /sys?*{,/**},
+
+  mount options=(ro,remount,bind,nosuid,noexec) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /dev?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /proc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec) /sys?*{,/**},
+
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /dev?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /proc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,nodev) /sys?*{,/**},
+
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /[^spd]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /d[^e]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /de[^v]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /dev?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /p[^r]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /proc?*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /s[^y]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime) /sys?*{,/**},
+
+  # Allow bind-mounts of anything except /proc, /sys and /dev/.lxc
   mount options=(rw,bind) /[^spd]*{,/**},
   mount options=(rw,bind) /d[^e]*{,/**},
   mount options=(rw,bind) /de[^v]*{,/**},
@@ -128,25 +286,38 @@ const AA_PROFILE_BASE = `
   mount options=(rw,bind) /sy[^s]*{,/**},
   mount options=(rw,bind) /sys?*{,/**},
 
-  # allow read-only bind-mounts of anything except /proc, /sys and /dev
-  mount options=(ro,remount,bind) -> /[^spd]*{,/**},
-  mount options=(ro,remount,bind) -> /d[^e]*{,/**},
-  mount options=(ro,remount,bind) -> /de[^v]*{,/**},
-  mount options=(ro,remount,bind) -> /dev/.[^l]*{,/**},
-  mount options=(ro,remount,bind) -> /dev/.l[^x]*{,/**},
-  mount options=(ro,remount,bind) -> /dev/.lx[^c]*{,/**},
-  mount options=(ro,remount,bind) -> /dev/.lxc?*{,/**},
-  mount options=(ro,remount,bind) -> /dev/[^.]*{,/**},
-  mount options=(ro,remount,bind) -> /dev?*{,/**},
-  mount options=(ro,remount,bind) -> /p[^r]*{,/**},
-  mount options=(ro,remount,bind) -> /pr[^o]*{,/**},
-  mount options=(ro,remount,bind) -> /pro[^c]*{,/**},
-  mount options=(ro,remount,bind) -> /proc?*{,/**},
-  mount options=(ro,remount,bind) -> /s[^y]*{,/**},
-  mount options=(ro,remount,bind) -> /sy[^s]*{,/**},
-  mount options=(ro,remount,bind) -> /sys?*{,/**},
+  # Allow rbind-mounts of anything except /, /dev, /proc and /sys
+  mount options=(rw,rbind) /[^spd]*{,/**},
+  mount options=(rw,rbind) /d[^e]*{,/**},
+  mount options=(rw,rbind) /de[^v]*{,/**},
+  mount options=(rw,rbind) /dev?*{,/**},
+  mount options=(rw,rbind) /p[^r]*{,/**},
+  mount options=(rw,rbind) /pr[^o]*{,/**},
+  mount options=(rw,rbind) /pro[^c]*{,/**},
+  mount options=(rw,rbind) /proc?*{,/**},
+  mount options=(rw,rbind) /s[^y]*{,/**},
+  mount options=(rw,rbind) /sy[^s]*{,/**},
+  mount options=(rw,rbind) /sys?*{,/**},
 
-  # allow moving mounts except for /proc, /sys and /dev
+  # Allow read-only bind-mounts of anything except /proc, /sys and /dev/.lxc
+  mount options=(ro,remount,bind) /[^spd]*{,/**},
+  mount options=(ro,remount,bind) /d[^e]*{,/**},
+  mount options=(ro,remount,bind) /de[^v]*{,/**},
+  mount options=(ro,remount,bind) /dev/.[^l]*{,/**},
+  mount options=(ro,remount,bind) /dev/.l[^x]*{,/**},
+  mount options=(ro,remount,bind) /dev/.lx[^c]*{,/**},
+  mount options=(ro,remount,bind) /dev/.lxc?*{,/**},
+  mount options=(ro,remount,bind) /dev/[^.]*{,/**},
+  mount options=(ro,remount,bind) /dev?*{,/**},
+  mount options=(ro,remount,bind) /p[^r]*{,/**},
+  mount options=(ro,remount,bind) /pr[^o]*{,/**},
+  mount options=(ro,remount,bind) /pro[^c]*{,/**},
+  mount options=(ro,remount,bind) /proc?*{,/**},
+  mount options=(ro,remount,bind) /s[^y]*{,/**},
+  mount options=(ro,remount,bind) /sy[^s]*{,/**},
+  mount options=(ro,remount,bind) /sys?*{,/**},
+
+  # Allow moving mounts except for /proc, /sys and /dev/.lxc
   mount options=(rw,move) /[^spd]*{,/**},
   mount options=(rw,move) /d[^e]*{,/**},
   mount options=(rw,move) /de[^v]*{,/**},
@@ -164,7 +335,7 @@ const AA_PROFILE_BASE = `
   mount options=(rw,move) /sy[^s]*{,/**},
   mount options=(rw,move) /sys?*{,/**},
 
-  # generated by: lxc-generate-aa-rules.py container-rules.base
+  # Block dangerous paths under /proc/sys
   deny /proc/sys/[^kn]*{,/**} wklx,
   deny /proc/sys/k[^e]*{,/**} wklx,
   deny /proc/sys/ke[^r]*{,/**} wklx,
@@ -202,6 +373,8 @@ const AA_PROFILE_BASE = `
   deny /proc/sys/n[^e]*{,/**} wklx,
   deny /proc/sys/ne[^t]*{,/**} wklx,
   deny /proc/sys/net?*{,/**} wklx,
+
+  # Block dangerous paths under /sys
   deny /sys/[^fdck]*{,/**} wklx,
   deny /sys/c[^l]*{,/**} wklx,
   deny /sys/cl[^a]*{,/**} wklx,
@@ -244,47 +417,66 @@ const AA_PROFILE_BASE = `
 
 const AA_PROFILE_NESTING = `
   pivot_root,
+
+  # Allow sending signals and tracing children namespaces
   ptrace,
   signal,
 
+  # Prevent access to hidden proc/sys mounts
   deny /dev/.lxc/proc/** rw,
   deny /dev/.lxc/sys/** rw,
 
-  mount /var/lib/lxd/shmounts/ -> /var/lib/lxd/shmounts/,
-  mount none -> /var/lib/lxd/shmounts/,
+  # Allow mounting proc and sysfs in the container
   mount fstype=proc -> /usr/lib/*/lxc/**,
   mount fstype=sysfs -> /usr/lib/*/lxc/**,
-  mount options=(rw,bind),
-  mount options=(rw,rbind),
-  mount options=(rw,make-rshared),
 
-  # there doesn't seem to be a way to ask for:
+  # Allow nested LXD
+  mount none -> /var/lib/lxd/shmounts/,
+  mount /var/lib/lxd/shmounts/ -> /var/lib/lxd/shmounts/,
+  mount options=bind /var/lib/lxd/shmounts/** -> /var/lib/lxd/**,
+
+  # FIXME: There doesn't seem to be a way to ask for:
   # mount options=(ro,nosuid,nodev,noexec,remount,bind),
   # as we always get mount to $cdir/proc/sys with those flags denied
   # So allow all mounts until that is straightened out:
   mount,
-  mount options=bind /var/lib/lxd/shmounts/** -> /var/lib/lxd/**,
 `
 
 const AA_PROFILE_UNPRIVILEGED = `
   pivot_root,
 
   # Allow modifying mount propagation
-  mount options=(rw,make-slave) -> **,
-  mount options=(rw,make-rslave) -> **,
-  mount options=(rw,make-shared) -> **,
-  mount options=(rw,make-rshared) -> **,
-  mount options=(rw,make-private) -> **,
-  mount options=(rw,make-rprivate) -> **,
-  mount options=(rw,make-unbindable) -> **,
-  mount options=(rw,make-runbindable) -> **,
+  mount options=(rw,slave) -> **,
+  mount options=(rw,rslave) -> **,
+  mount options=(rw,shared) -> **,
+  mount options=(rw,rshared) -> **,
+  mount options=(rw,private) -> **,
+  mount options=(rw,rprivate) -> **,
+  mount options=(rw,unbindable) -> **,
+  mount options=(rw,runbindable) -> **,
 
   # Allow all bind-mounts
-  mount options=(rw,bind),
-  mount options=(rw,rbind),
+  mount options=(rw,bind) / -> /**,
+  mount options=(rw,bind) /** -> /**,
+  mount options=(rw,rbind) / -> /**,
+  mount options=(rw,rbind) /** -> /**,
+
+  # Allow common combinations of bind/remount
+  # NOTE: AppArmor bug effectively turns those into wildcards mount allow
+  mount options=(ro,remount,bind),
+  mount options=(ro,remount,bind,nodev),
+  mount options=(ro,remount,bind,nodev,nosuid),
+  mount options=(ro,remount,bind,noexec),
+  mount options=(ro,remount,bind,noexec,nodev),
+  mount options=(ro,remount,bind,nosuid),
+  mount options=(ro,remount,bind,nosuid,nodev),
+  mount options=(ro,remount,bind,nosuid,noexec),
+  mount options=(ro,remount,bind,nosuid,noexec,nodev),
+  mount options=(ro,remount,bind,nosuid,noexec,strictatime),
 
   # Allow remounting things read-only
-  mount options=(ro,remount),
+  mount options=(ro,remount) /,
+  mount options=(ro,remount) /**,
 `
 
 func mkApparmorName(name string) string {
@@ -377,7 +569,7 @@ func getAAProfileContent(c container) string {
 		profile += fmt.Sprintf("  change_profile -> \":%s://*\",\n", AANamespace(c))
 	} else {
 		profile += "\n  ### Feature: apparmor stacking (not present)\n"
-		profile += "  deny /sys/k*{,/**} rwklx,\n"
+		profile += "  deny /sys/k*{,/**} wklx,\n"
 	}
 
 	if c.IsNesting() {
