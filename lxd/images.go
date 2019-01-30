@@ -1902,8 +1902,8 @@ func imageImportFromNode(imagesDir string, client lxd.ContainerServer, fingerpri
 	defer rootfsFile.Close()
 
 	getReq := lxd.ImageFileRequest{
-		MetaFile:   io.WriteSeeker(metaFile),
-		RootfsFile: io.WriteSeeker(rootfsFile),
+		MetaFile:   metaFile,
+		RootfsFile: rootfsFile,
 	}
 	getResp, err := client.GetImageFile(fingerprint, getReq)
 	if err != nil {

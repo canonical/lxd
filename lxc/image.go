@@ -501,8 +501,8 @@ func (c *cmdImageExport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	req := lxd.ImageFileRequest{
-		MetaFile:        io.WriteSeeker(dest),
-		RootfsFile:      io.WriteSeeker(destRootfs),
+		MetaFile:        dest,
+		RootfsFile:      destRootfs,
 		ProgressHandler: progress.UpdateProgress,
 	}
 

@@ -1008,10 +1008,7 @@ func EscapePathFstab(path string) string {
 	return r.Replace(path)
 }
 
-func DownloadFileHash(httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, hashFunc hash.Hash, target io.WriteSeeker) (int64, error) {
-	// Always seek to the beginning
-	target.Seek(0, 0)
-
+func DownloadFileHash(httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, hashFunc hash.Hash, target io.Writer) (int64, error) {
 	// Prepare the download request
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

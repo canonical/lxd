@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"os"
 	"strings"
 	"time"
@@ -112,7 +111,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 	backupFileRequest := lxd.BackupFileRequest{
-		BackupFile:      io.WriteSeeker(target),
+		BackupFile:      target,
 		ProgressHandler: progress.UpdateProgress,
 	}
 

@@ -250,7 +250,7 @@ type ContainerBackupArgs struct {
 // The BackupFileRequest struct is used for a backup download request
 type BackupFileRequest struct {
 	// Writer for the backup file
-	BackupFile io.WriteSeeker
+	BackupFile io.Writer
 
 	// Progress handler (called whenever some progress is made)
 	ProgressHandler func(progress ioprogress.ProgressData)
@@ -286,10 +286,10 @@ type ImageCreateArgs struct {
 // The ImageFileRequest struct is used for an image download request
 type ImageFileRequest struct {
 	// Writer for the metadata file
-	MetaFile io.WriteSeeker
+	MetaFile io.Writer
 
 	// Writer for the rootfs file
-	RootfsFile io.WriteSeeker
+	RootfsFile io.Writer
 
 	// Progress handler (called whenever some progress is made)
 	ProgressHandler func(progress ioprogress.ProgressData)

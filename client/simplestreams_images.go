@@ -79,7 +79,7 @@ func (r *ProtocolSimpleStreams) GetImageFile(fingerprint string, req ImageFileRe
 	resp := ImageFileResponse{}
 
 	// Download function
-	download := func(path string, filename string, hash string, target io.WriteSeeker) (int64, error) {
+	download := func(path string, filename string, hash string, target io.Writer) (int64, error) {
 		// Try over http
 		url := fmt.Sprintf("http://%s/%s", strings.TrimPrefix(r.httpHost, "https://"), path)
 

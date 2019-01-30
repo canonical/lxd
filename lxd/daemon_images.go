@@ -431,8 +431,8 @@ func (d *Daemon) ImageDownload(op *operation, server string, protocol string, ce
 		// Download the image
 		var resp *lxd.ImageFileResponse
 		request := lxd.ImageFileRequest{
-			MetaFile:        io.WriteSeeker(dest),
-			RootfsFile:      io.WriteSeeker(destRootfs),
+			MetaFile:        dest,
+			RootfsFile:      destRootfs,
 			ProgressHandler: progress,
 			Canceler:        canceler,
 			DeltaSourceRetriever: func(fingerprint string, file string) string {
