@@ -695,12 +695,12 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 
 	// Get storage pool from index.yaml
 	pool, storageErr := storagePoolInit(s, info.Pool)
-	if storageErr != nil && storageErr != db.ErrNoSuchObject {
+	if storageErr != nil && errors.Cause(storageErr) != db.ErrNoSuchObject {
 		// Unexpected error
 		return storageErr
 	}
 
-	if storageErr == db.ErrNoSuchObject {
+	if errors.Cause(storageErr) == db.ErrNoSuchObject {
 		// The pool doesn't exist, and the backup is in binary format so we
 		// cannot alter the backup.yaml.
 		if info.HasBinaryFormat {
@@ -710,18 +710,18 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 		// Get the default profile
 		_, profile, err := s.Cluster.ProfileGet(info.Project, "default")
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to get default profile")
 		}
 
 		_, v, err := shared.GetRootDiskDevice(profile.Devices)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to get root disk device")
 		}
 
 		// Use the default-profile's root pool
 		pool, err = storagePoolInit(s, v["pool"])
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Failed to initialize storage pool")
 		}
 
 		fixBackupFile = true
