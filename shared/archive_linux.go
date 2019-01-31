@@ -76,18 +76,22 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool, t
 		args = append(args, "-C", path, "--numeric-owner", "--xattrs-include=*")
 		args = append(args, extractArgs...)
 		args = append(args, "-")
+
 		f, err := os.Open(file)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
+
 		reader = f
+
 		// Attach the ProgressTracker if supplied.
 		if tracker != nil {
 			fsinfo, err := f.Stat()
 			if err != nil {
 				return err
 			}
+
 			tracker.Length = fsinfo.Size()
 			reader = &ioprogress.ProgressReader{
 				ReadCloser: f,

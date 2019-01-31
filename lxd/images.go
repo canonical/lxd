@@ -205,11 +205,13 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 			},
 		},
 	}
+
 	// Calculate (close estimate of) total size of tarfile
 	sumSize := func(path string, fi os.FileInfo, err error) error {
 		tarfileProgressWriter.Tracker.Length += fi.Size()
 		return nil
 	}
+
 	err = filepath.Walk(c.RootfsPath(), sumSize)
 	if err != nil {
 		return nil, err
@@ -250,10 +252,12 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 			return nil, err
 		}
 		defer tarfile.Close()
+
 		fi, err := tarfile.Stat()
 		if err != nil {
 			return nil, err
 		}
+
 		// Track progress writing gzipped file
 		metadata = make(map[string]string)
 		tarfileProgressReader := &ioprogress.ProgressReader{
@@ -269,14 +273,18 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 			},
 		}
 		compressedPath = tarfile.Name() + ".compressed"
+
 		compressed, err := os.Create(compressedPath)
 		if err != nil {
 			return nil, err
 		}
+
 		defer compressed.Close()
 		defer os.Remove(compressed.Name())
+
 		// Calculate sha256 as we compress
 		writer := io.MultiWriter(compressed, sha256)
+
 		err = compressFile(compress, tarfileProgressReader, writer)
 		if err != nil {
 			return nil, err

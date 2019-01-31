@@ -358,11 +358,13 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 			return err
 		}
 		defer infile.Close()
+
 		compressed, err := os.Create(backupPath + ".compressed")
 		if err != nil {
 			return err
 		}
 		defer compressed.Close()
+
 		err = compressFile(compress, infile, compressed)
 		if err != nil {
 			return err

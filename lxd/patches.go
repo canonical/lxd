@@ -3159,11 +3159,13 @@ func patchMoveBackups(name string, d *Daemon) error {
 					return err
 				}
 				defer infile.Close()
+
 				compressed, err := os.Create(backupPath + ".compressed")
 				if err != nil {
 					return err
 				}
 				defer compressed.Close()
+
 				err = compressFile("xz", infile, compressed)
 				if err != nil {
 					return err
