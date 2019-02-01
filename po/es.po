@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-01-31 19:39+0100\n"
+"POT-Creation-Date: 2019-02-01 13:36+0000\n"
 "PO-Revision-Date: 2018-02-10 11:39+0000\n"
 "Last-Translator: Allan Esquivel Sibaja <allan.esquivel.sibaja@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -64,7 +64,7 @@ msgid ""
 "###   size: \"61203283968\""
 msgstr ""
 
-#: lxc/config.go:100
+#: lxc/config.go:101
 msgid ""
 "### This is a yaml representation of the configuration.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -472,7 +472,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr "No se puede jalar un directorio sin - recursivo"
 
-#: lxc/config.go:400 lxc/network.go:1083 lxc/profile.go:838 lxc/project.go:561
+#: lxc/config.go:468 lxc/network.go:1083 lxc/profile.go:838 lxc/project.go:561
 #: lxc/storage.go:622 lxc/storage_volume.go:1333
 #, c-format
 msgid "Can't read from stdin: %s"
@@ -499,7 +499,7 @@ msgstr ""
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
-#: lxc/config.go:413
+#: lxc/config.go:481
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
@@ -566,7 +566,7 @@ msgstr ""
 msgid "Config key/value to apply to the target container"
 msgstr ""
 
-#: lxc/config.go:195 lxc/config.go:259 lxc/config_metadata.go:144
+#: lxc/config.go:263 lxc/config.go:327 lxc/config_metadata.go:144
 #: lxc/image.go:409 lxc/network.go:642 lxc/profile.go:501 lxc/project.go:305
 #: lxc/storage.go:303 lxc/storage_volume.go:919 lxc/storage_volume.go:949
 #, c-format
@@ -788,9 +788,9 @@ msgstr ""
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:246 lxc/cluster.go:295 lxc/config.go:29
-#: lxc/config.go:88 lxc/config.go:289 lxc/config.go:355 lxc/config.go:452
-#: lxc/config.go:560 lxc/config_device.go:24 lxc/config_device.go:76
+#: lxc/cluster.go:197 lxc/cluster.go:246 lxc/cluster.go:295 lxc/config.go:30
+#: lxc/config.go:89 lxc/config.go:357 lxc/config.go:423 lxc/config.go:520
+#: lxc/config.go:624 lxc/config_device.go:24 lxc/config_device.go:76
 #: lxc/config_device.go:182 lxc/config_device.go:255 lxc/config_device.go:321
 #: lxc/config_device.go:410 lxc/config_device.go:500 lxc/config_device.go:589
 #: lxc/config_device.go:657 lxc/config_metadata.go:29 lxc/config_metadata.go:54
@@ -909,7 +909,7 @@ msgstr ""
 msgid "Edit container metadata files"
 msgstr ""
 
-#: lxc/config.go:87 lxc/config.go:88
+#: lxc/config.go:88 lxc/config.go:89
 msgid "Edit container or server configurations as YAML"
 msgstr ""
 
@@ -1127,7 +1127,7 @@ msgstr ""
 msgid "Get values for container device configuration keys"
 msgstr ""
 
-#: lxc/config.go:288 lxc/config.go:289
+#: lxc/config.go:356 lxc/config.go:357
 msgid "Get values for container or server configuration keys"
 msgstr ""
 
@@ -1565,7 +1565,7 @@ msgstr ""
 msgid "Manage command aliases"
 msgstr ""
 
-#: lxc/config.go:28 lxc/config.go:29
+#: lxc/config.go:29 lxc/config.go:30
 msgid "Manage container and server configuration options"
 msgstr ""
 
@@ -1949,7 +1949,7 @@ msgstr ""
 msgid "Press enter to open the editor again"
 msgstr ""
 
-#: lxc/config.go:196 lxc/config.go:260 lxc/config_metadata.go:145
+#: lxc/config.go:264 lxc/config.go:328 lxc/config_metadata.go:145
 #: lxc/config_template.go:205 lxc/image.go:410
 msgid "Press enter to start the editor again"
 msgstr ""
@@ -2305,7 +2305,7 @@ msgstr ""
 msgid "Set container device configuration keys"
 msgstr ""
 
-#: lxc/config.go:354 lxc/config.go:355
+#: lxc/config.go:422 lxc/config.go:423
 msgid "Set container or server configuration keys"
 msgstr ""
 
@@ -2357,7 +2357,7 @@ msgstr ""
 msgid "Show container metadata files"
 msgstr ""
 
-#: lxc/config.go:451 lxc/config.go:452
+#: lxc/config.go:519 lxc/config.go:520
 msgid "Show container or server configurations"
 msgstr ""
 
@@ -2425,7 +2425,7 @@ msgstr ""
 msgid "Show the default remote"
 msgstr ""
 
-#: lxc/config.go:455
+#: lxc/config.go:523
 msgid "Show the expanded configuration"
 msgstr ""
 
@@ -2738,7 +2738,7 @@ msgstr ""
 msgid "Unset container device configuration keys"
 msgstr ""
 
-#: lxc/config.go:559 lxc/config.go:560
+#: lxc/config.go:623 lxc/config.go:624
 msgid "Unset container or server configuration keys"
 msgstr ""
 
@@ -2873,7 +2873,7 @@ msgstr ""
 msgid "cluster"
 msgstr ""
 
-#: lxc/config.go:27
+#: lxc/config.go:28
 msgid "config"
 msgstr ""
 
@@ -3051,9 +3051,10 @@ msgstr ""
 msgid "edit [<remote>:]<project>"
 msgstr ""
 
-#: lxc/config.go:86
-msgid "edit [<remote>:][<container>]"
-msgstr ""
+#: lxc/config.go:87
+#, fuzzy
+msgid "edit [<remote>:][<container>[/<snapshot>]]"
+msgstr "No se puede proveer el nombre del container a la lista"
 
 #: lxc/cluster.go:293
 msgid "enable [<remote>:] <name>"
@@ -3110,7 +3111,7 @@ msgstr ""
 msgid "get [<remote>:]<project> <key>"
 msgstr ""
 
-#: lxc/config.go:287
+#: lxc/config.go:355
 msgid "get [<remote>:][<container>] <key>"
 msgstr ""
 
@@ -3218,13 +3219,13 @@ msgid ""
 "    Will mount the host's /share/c1 onto /opt in the container."
 msgstr ""
 
-#: lxc/config.go:90
+#: lxc/config.go:91
 msgid ""
 "lxc config edit <container> < container.yaml\n"
 "    Update the container configuration from config.yaml."
 msgstr ""
 
-#: lxc/config.go:357
+#: lxc/config.go:425
 msgid ""
 "lxc config set [<remote>:]<container> limits.cpu 2\n"
 "    Will set a CPU limit of \"2\" for the container.\n"
@@ -3449,7 +3450,7 @@ msgstr ""
 msgid "pause [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr ""
 
-#: lxc/config.go:52
+#: lxc/config.go:53
 msgid "please use `lxc profile`"
 msgstr ""
 
@@ -3589,7 +3590,7 @@ msgstr ""
 msgid "set [<remote>:]<project> <key> <value>"
 msgstr ""
 
-#: lxc/config.go:353
+#: lxc/config.go:421
 msgid "set [<remote>:][<container>] <key> <value>"
 msgstr ""
 
@@ -3641,9 +3642,10 @@ msgstr ""
 msgid "show [<remote>:]<project>"
 msgstr ""
 
-#: lxc/config.go:450
-msgid "show [<remote>:][<container>]"
-msgstr ""
+#: lxc/config.go:518
+#, fuzzy
+msgid "show [<remote>:][<container>[/<snapshot>]]"
+msgstr "No se puede proveer el nombre del container a la lista"
 
 #: lxc/snapshot.go:19
 msgid "snapshot [<remote>:]<container> [<snapshot name>]"
@@ -3730,7 +3732,7 @@ msgstr ""
 msgid "unset [<remote>:]<project> <key>"
 msgstr ""
 
-#: lxc/config.go:558
+#: lxc/config.go:622
 msgid "unset [<remote>:][<container>] <key>"
 msgstr ""
 
