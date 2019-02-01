@@ -191,14 +191,10 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	}
 	defer os.Remove(tarfile.Name())
 
-	if err := c.Export(tarfile, req.Properties); err != nil {
-		tarfile.Close()
-		return nil, err
-	}
-	tarfile.Close()
-
+	sha256 := sha256.New()
 	var compressedPath string
 	var compress string
+	var writer io.Writer
 
 	if req.CompressionAlgorithm != "" {
 		compress = req.CompressionAlgorithm
@@ -208,8 +204,24 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 			return nil, err
 		}
 	}
+	usingCompression := compress != "none"
 
-	if compress != "none" {
+	// If there is no compression, then calculate sha256 on tarfile
+	if usingCompression {
+		writer = tarfile
+	} else {
+		writer = io.MultiWriter(tarfile, sha256)
+		compressedPath = tarfile.Name()
+	}
+
+	err = c.Export(writer, req.Properties)
+	if err != nil {
+		tarfile.Close()
+		return nil, err
+	}
+	tarfile.Close()
+
+	if usingCompression {
 		tarfile, err = os.Open(tarfile.Name())
 		if err != nil {
 			return nil, err
@@ -223,28 +235,22 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 			return nil, err
 		}
 		defer compressed.Close()
+		defer os.Remove(compressed.Name())
 
-		err = compressFile(compress, tarfile, compressed)
+		// Calculate sha256 as we compress
+		writer := io.MultiWriter(compressed, sha256)
+
+		err = compressFile(compress, tarfile, writer)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		compressedPath = tarfile.Name()
 	}
-	defer os.Remove(compressedPath)
 
-	sha256 := sha256.New()
-	tarf, err := os.Open(compressedPath)
+	fi, err := os.Stat(compressedPath)
 	if err != nil {
 		return nil, err
 	}
-
-	info.Size, err = io.Copy(sha256, tarf)
-	tarf.Close()
-	if err != nil {
-		return nil, err
-	}
-
+	info.Size = fi.Size()
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 
 	_, _, err = d.cluster.ImageGet(project, info.Fingerprint, false, true)
