@@ -129,7 +129,7 @@ func unpackImage(imagefname string, destpath string, sType storageType, runningI
 	return nil
 }
 
-func compressFile(path string, compress string) (string, error) {
+func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
 	reproducible := []string{"gzip"}
 
 	args := []string{"-c"}
@@ -137,24 +137,11 @@ func compressFile(path string, compress string) (string, error) {
 		args = append(args, "-n")
 	}
 
-	args = append(args, path)
 	cmd := exec.Command(compress, args...)
-
-	outfile, err := os.Create(path + ".compressed")
-	if err != nil {
-		return "", err
-	}
-
-	defer outfile.Close()
+	cmd.Stdin = infile
 	cmd.Stdout = outfile
 
-	err = cmd.Run()
-	if err != nil {
-		os.Remove(outfile.Name())
-		return "", err
-	}
-
-	return outfile.Name(), nil
+	return cmd.Run()
 }
 
 /*
@@ -222,7 +209,21 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	}
 
 	if compress != "none" {
-		compressedPath, err = compressFile(tarfile.Name(), compress)
+		tarfile, err = os.Open(tarfile.Name())
+		if err != nil {
+			return nil, err
+		}
+		defer tarfile.Close()
+
+		compressedPath = tarfile.Name() + ".compressed"
+
+		compressed, err := os.Create(compressedPath)
+		if err != nil {
+			return nil, err
+		}
+		defer compressed.Close()
+
+		err = compressFile(compress, tarfile, compressed)
 		if err != nil {
 			return nil, err
 		}
