@@ -229,20 +229,28 @@ func backupGetInfo(r io.ReadSeeker) (*backupInfo, error) {
 // fixBackupStoragePool changes the pool information in the backup.yaml. This
 // is done only if the provided pool doesn't exist. In this case, the pool of
 // the default profile will be used.
-func backupFixStoragePool(c *db.Cluster, b backupInfo) error {
-	// Get the default profile
-	_, profile, err := c.ProfileGet("default", "default")
-	if err != nil {
-		return err
-	}
+func backupFixStoragePool(c *db.Cluster, b backupInfo, useDefaultPool bool) error {
+	var poolName string
 
-	_, v, err := shared.GetRootDiskDevice(profile.Devices)
-	if err != nil {
-		return err
+	if useDefaultPool {
+		// Get the default profile
+		_, profile, err := c.ProfileGet("default", "default")
+		if err != nil {
+			return err
+		}
+
+		_, v, err := shared.GetRootDiskDevice(profile.Devices)
+		if err != nil {
+			return err
+		}
+
+		poolName = v["pool"]
+	} else {
+		poolName = b.Pool
 	}
 
 	// Get the default's profile pool
-	_, pool, err := c.StoragePoolGet(v["pool"])
+	_, pool, err := c.StoragePoolGet(poolName)
 	if err != nil {
 		return err
 	}
@@ -256,7 +264,24 @@ func backupFixStoragePool(c *db.Cluster, b backupInfo) error {
 
 		// Change the pool in the backup.yaml
 		backup.Pool = pool
-		backup.Container.Devices["root"]["pool"] = "default"
+		if backup.Container.Devices != nil {
+			devName, _, err := shared.GetRootDiskDevice(backup.Container.Devices)
+			if err != nil {
+				return err
+			}
+
+			backup.Container.Devices[devName]["pool"] = poolName
+
+		}
+
+		if backup.Container.ExpandedDevices != nil {
+			devName, _, err := shared.GetRootDiskDevice(backup.Container.ExpandedDevices)
+			if err != nil {
+				return err
+			}
+
+			backup.Container.ExpandedDevices[devName]["pool"] = poolName
+		}
 
 		file, err := os.Create(path)
 		if err != nil {

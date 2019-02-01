@@ -689,7 +689,8 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 	return c, nil
 }
 
-func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeeker) error {
+func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeeker,
+	customPool bool) error {
 	var pool storage
 	var fixBackupFile = false
 
@@ -740,10 +741,9 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 		return err
 	}
 
-	if fixBackupFile {
-		// Use the default pool since the pool provided in the backup.yaml
-		// doesn't exist.
-		err = backupFixStoragePool(s.Cluster, info)
+	if fixBackupFile || customPool {
+		// Update the pool
+		err = backupFixStoragePool(s.Cluster, info, !customPool)
 		if err != nil {
 			return err
 		}
