@@ -246,6 +246,9 @@ type ConnectionInfo struct {
 type ContainerBackupArgs struct {
 	// The backup file
 	BackupFile io.Reader
+
+	// Storage pool to use
+	PoolName string
 }
 
 // The BackupFileRequest struct is used for a backup download request
