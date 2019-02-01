@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -16,6 +16,8 @@ import (
 
 type cmdImport struct {
 	global *cmdGlobal
+
+	flagStorage string
 }
 
 func (c *cmdImport) Command() *cobra.Command {
@@ -29,6 +31,7 @@ func (c *cmdImport) Command() *cobra.Command {
     Create a new container using backup0.tar.gz as the source.`))
 
 	cmd.RunE = c.Run
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 
 	return cmd
 }
@@ -69,15 +72,17 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 		Quiet:  c.global.flagQuiet,
 	}
 
-	createArgs := lxd.ContainerBackupArgs{}
-	createArgs.BackupFile = &ioprogress.ProgressReader{
-		ReadCloser: file,
-		Tracker: &ioprogress.ProgressTracker{
-			Length: fstat.Size(),
-			Handler: func(percent int64, speed int64) {
-				progress.UpdateProgress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+	createArgs := lxd.ContainerBackupArgs{
+		BackupFile: &ioprogress.ProgressReader{
+			ReadCloser: file,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: fstat.Size(),
+				Handler: func(percent int64, speed int64) {
+					progress.UpdateProgress(ioprogress.ProgressData{Text: fmt.Sprintf("%d%% (%s/s)", percent, shared.GetByteSizeString(speed, 2))})
+				},
 			},
 		},
+		PoolName: c.flagStorage,
 	}
 
 	op, err := resource.server.CreateContainerFromBackup(createArgs)
