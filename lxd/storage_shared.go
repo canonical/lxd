@@ -7,6 +7,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
@@ -22,6 +23,8 @@ type storageShared struct {
 	pool   *api.StoragePool
 
 	volume *api.StorageVolume
+
+	tracker *ioprogress.ProgressTracker
 }
 
 func (s *storageShared) GetStorageType() storageType {
@@ -34,6 +37,10 @@ func (s *storageShared) GetStorageTypeName() string {
 
 func (s *storageShared) GetStorageTypeVersion() string {
 	return s.sTypeVersion
+}
+
+func (s *storageShared) SetProgressTracker(tracker *ioprogress.ProgressTracker) {
+	s.tracker = tracker
 }
 
 func (s *storageShared) shiftRootfs(c container, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
