@@ -575,7 +575,7 @@ func createFromCopy(d *Daemon, project string, req *api.ContainersPost) Response
 	return OperationResponse(op)
 }
 
-func createFromBackup(d *Daemon, project string, data io.Reader) Response {
+func createFromBackup(d *Daemon, project string, data io.Reader, pool string) Response {
 	// Write the data to a temp file
 	f, err := ioutil.TempFile("", "lxd_backup_")
 	if err != nil {
@@ -598,12 +598,17 @@ func createFromBackup(d *Daemon, project string, data io.Reader) Response {
 	}
 	bInfo.Project = project
 
+	// Override pool
+	if pool != "" {
+		bInfo.Pool = pool
+	}
+
 	run := func(op *operation) error {
 		defer f.Close()
 
 		// Dump tarball to storage
 		f.Seek(0, 0)
-		err = containerCreateFromBackup(d.State(), *bInfo, f)
+		err = containerCreateFromBackup(d.State(), *bInfo, f, pool != "")
 		if err != nil {
 			return errors.Wrap(err, "Create container from backup")
 		}
@@ -659,7 +664,7 @@ func containersPost(d *Daemon, r *http.Request) Response {
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createFromBackup(d, project, r.Body)
+		return createFromBackup(d, project, r.Body, r.Header.Get("X-LXD-pool"))
 	}
 
 	// Parse the request
