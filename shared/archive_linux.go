@@ -8,6 +8,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -54,7 +55,7 @@ func DetectCompressionFile(f io.ReadSeeker) ([]string, string, []string, error) 
 	}
 }
 
-func Unpack(file string, path string, blockBackend bool, runningInUserns bool) error {
+func Unpack(file string, path string, blockBackend bool, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
 	extractArgs, extension, _, err := DetectCompression(file)
 	if err != nil {
 		return err
@@ -62,6 +63,7 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool) e
 
 	command := ""
 	args := []string{}
+	var reader io.Reader
 	if strings.HasPrefix(extension, ".tar") {
 		command = "tar"
 		if runningInUserns {
@@ -73,8 +75,32 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool) e
 		}
 		args = append(args, "-C", path, "--numeric-owner", "--xattrs-include=*")
 		args = append(args, extractArgs...)
-		args = append(args, file)
+		args = append(args, "-")
+
+		f, err := os.Open(file)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		reader = f
+
+		// Attach the ProgressTracker if supplied.
+		if tracker != nil {
+			fsinfo, err := f.Stat()
+			if err != nil {
+				return err
+			}
+
+			tracker.Length = fsinfo.Size()
+			reader = &ioprogress.ProgressReader{
+				ReadCloser: f,
+				Tracker:    tracker,
+			}
+		}
 	} else if strings.HasPrefix(extension, ".squashfs") {
+		// unsquashfs does not support reading from stdin,
+		// so ProgressTracker is not possible.
 		command = "unsquashfs"
 		args = append(args, "-f", "-d", path, "-n")
 
@@ -91,7 +117,7 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool) e
 		return fmt.Errorf("Unsupported image format: %s", extension)
 	}
 
-	output, err := RunCommand(command, args...)
+	err = RunCommandWithFds(reader, nil, command, args...)
 	if err != nil {
 		// Check if we ran out of space
 		fs := syscall.Statfs_t{}
@@ -110,14 +136,9 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool) e
 			}
 		}
 
-		co := output
 		logger.Debugf("Unpacking failed")
-		logger.Debugf(co)
-
-		// Truncate the output to a single line for inclusion in the error
-		// message.  The first line isn't guaranteed to pinpoint the issue,
-		// but it's better than nothing and better than a multi-line message.
-		return fmt.Errorf("Unpack failed, %s.  %s", err, strings.SplitN(co, "\n", 2)[0])
+		logger.Debugf(err.Error())
+		return fmt.Errorf("Unpack failed, %s.", err)
 	}
 
 	return nil

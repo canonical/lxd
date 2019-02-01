@@ -32,6 +32,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
@@ -97,14 +98,14 @@ var aliasCmd = Command{
    end for whichever finishes last. */
 var imagePublishLock sync.Mutex
 
-func unpackImage(imagefname string, destpath string, sType storageType, runningInUserns bool) error {
+func unpackImage(imagefname string, destpath string, sType storageType, runningInUserns bool, tracker *ioprogress.ProgressTracker) error {
 	blockBackend := false
 
 	if sType == storageTypeLvm || sType == storageTypeCeph {
 		blockBackend = true
 	}
 
-	err := shared.Unpack(imagefname, destpath, blockBackend, runningInUserns)
+	err := shared.Unpack(imagefname, destpath, blockBackend, runningInUserns, tracker)
 	if err != nil {
 		return err
 	}
@@ -116,7 +117,7 @@ func unpackImage(imagefname string, destpath string, sType storageType, runningI
 			return fmt.Errorf("Error creating rootfs directory")
 		}
 
-		err = shared.Unpack(imagefname+".rootfs", rootfsPath, blockBackend, runningInUserns)
+		err = shared.Unpack(imagefname+".rootfs", rootfsPath, blockBackend, runningInUserns, tracker)
 		if err != nil {
 			return err
 		}
