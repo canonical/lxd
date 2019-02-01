@@ -149,7 +149,7 @@ func compressFile(compress string, infile io.Reader, outfile io.Writer) error {
  * This function takes a container or snapshot from the local image server and
  * exports it as an image.
  */
-func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir string) (*api.Image, error) {
+func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operation, builddir string) (*api.Image, error) {
 	info := api.Image{}
 	info.Properties = map[string]string{}
 	name := req.Source.Name
@@ -191,6 +191,33 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 	}
 	defer os.Remove(tarfile.Name())
 
+	// Calculate (close estimate of) total size of tarfile
+	totalSize := int64(0)
+	sumSize := func(path string, fi os.FileInfo, err error) error {
+		if err == nil {
+			totalSize += fi.Size()
+		}
+		return nil
+	}
+
+	err = filepath.Walk(c.RootfsPath(), sumSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// Track progress writing tarfile
+	metadata := make(map[string]string)
+	tarfileProgressWriter := &ioprogress.ProgressWriter{
+		WriteCloser: tarfile,
+		Tracker: &ioprogress.ProgressTracker{
+			Handler: func(percent, speed int64) {
+				shared.SetProgressMetadata(metadata, "create_image_from_container_tar", "Image tar", percent, speed)
+				op.UpdateMetadata(metadata)
+			},
+			Length: totalSize,
+		},
+	}
+
 	sha256 := sha256.New()
 	var compressedPath string
 	var compress string
@@ -208,9 +235,9 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 
 	// If there is no compression, then calculate sha256 on tarfile
 	if usingCompression {
-		writer = tarfile
+		writer = tarfileProgressWriter
 	} else {
-		writer = io.MultiWriter(tarfile, sha256)
+		writer = io.MultiWriter(tarfileProgressWriter, sha256)
 		compressedPath = tarfile.Name()
 	}
 
@@ -228,6 +255,23 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 		}
 		defer tarfile.Close()
 
+		fi, err := tarfile.Stat()
+		if err != nil {
+			return nil, err
+		}
+
+		// Track progress writing gzipped file
+		metadata = make(map[string]string)
+		tarfileProgressReader := &ioprogress.ProgressReader{
+			ReadCloser: tarfile,
+			Tracker: &ioprogress.ProgressTracker{
+				Length: fi.Size(),
+				Handler: func(percent, speed int64) {
+					shared.SetProgressMetadata(metadata, "create_image_from_container_compress", "Image compress", percent, speed)
+					op.UpdateMetadata(metadata)
+				},
+			},
+		}
 		compressedPath = tarfile.Name() + ".compressed"
 
 		compressed, err := os.Create(compressedPath)
@@ -240,7 +284,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, builddir st
 		// Calculate sha256 as we compress
 		writer := io.MultiWriter(compressed, sha256)
 
-		err = compressFile(compress, tarfile, writer)
+		err = compressFile(compress, tarfileProgressReader, writer)
 		if err != nil {
 			return nil, err
 		}
@@ -709,7 +753,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 			} else {
 				/* Processing image creation from container */
 				imagePublishLock.Lock()
-				info, err = imgPostContInfo(d, r, req, builddir)
+				info, err = imgPostContInfo(d, r, req, op, builddir)
 				imagePublishLock.Unlock()
 			}
 		}
