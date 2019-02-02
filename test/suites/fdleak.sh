@@ -22,6 +22,7 @@ test_fdleak() {
     done
 
     lxc list
+    lxc query /internal/gc
 
     exit 0
   )
