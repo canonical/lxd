@@ -14,43 +14,43 @@ import (
 var _ = api.ServerEnvironment{}
 
 var containerObjects = cluster.RegisterStmt(`
-SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, ''), containers.expiry_date
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
   ORDER BY projects.id, containers.name
 `)
 
 var containerObjectsByType = cluster.RegisterStmt(`
-SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, ''), containers.expiry_date
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
   WHERE containers.type = ? ORDER BY projects.id, containers.name
 `)
 
 var containerObjectsByProjectAndType = cluster.RegisterStmt(`
-SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, ''), containers.expiry_date
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
   WHERE project = ? AND containers.type = ? ORDER BY projects.id, containers.name
 `)
 
 var containerObjectsByNodeAndType = cluster.RegisterStmt(`
-SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, ''), containers.expiry_date
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
   WHERE node = ? AND containers.type = ? ORDER BY projects.id, containers.name
 `)
 
 var containerObjectsByProjectAndNodeAndType = cluster.RegisterStmt(`
-SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, ''), containers.expiry_date
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
   WHERE project = ? AND node = ? AND containers.type = ? ORDER BY projects.id, containers.name
 `)
 
 var containerObjectsByProjectAndName = cluster.RegisterStmt(`
-SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, ''), containers.expiry_date
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
   WHERE project = ? AND containers.name = ? ORDER BY projects.id, containers.name
 `)
 
 var containerObjectsByProjectAndNameAndType = cluster.RegisterStmt(`
-SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, '')
+SELECT containers.id, projects.name AS project, containers.name, nodes.name AS node, containers.type, containers.architecture, containers.ephemeral, containers.creation_date, containers.stateful, containers.last_use_date, coalesce(containers.description, ''), containers.expiry_date
   FROM containers JOIN projects ON project_id = projects.id JOIN nodes ON node_id = nodes.id
   WHERE project = ? AND containers.name = ? AND containers.type = ? ORDER BY projects.id, containers.name
 `)
@@ -121,8 +121,8 @@ SELECT containers.id FROM containers JOIN projects ON project_id = projects.id J
 `)
 
 var containerCreate = cluster.RegisterStmt(`
-INSERT INTO containers (project_id, name, node_id, type, architecture, ephemeral, creation_date, stateful, last_use_date, description)
-  VALUES ((SELECT id FROM projects WHERE name = ?), ?, (SELECT id FROM nodes WHERE name = ?), ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO containers (project_id, name, node_id, type, architecture, ephemeral, creation_date, stateful, last_use_date, description, expiry_date)
+  VALUES ((SELECT id FROM projects WHERE name = ?), ?, (SELECT id FROM nodes WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
 var containerCreateConfigRef = cluster.RegisterStmt(`
@@ -228,6 +228,7 @@ func (c *ClusterTx) ContainerList(filter ContainerFilter) ([]Container, error) {
 			&objects[i].Stateful,
 			&objects[i].LastUseDate,
 			&objects[i].Description,
+			&objects[i].ExpiryDate,
 		}
 	}
 
@@ -375,7 +376,7 @@ func (c *ClusterTx) ContainerCreate(object Container) (int64, error) {
 		return -1, fmt.Errorf("This container already exists")
 	}
 
-	args := make([]interface{}, 10)
+	args := make([]interface{}, 11)
 
 	// Populate the statement arguments.
 	args[0] = object.Project
@@ -388,6 +389,7 @@ func (c *ClusterTx) ContainerCreate(object Container) (int64, error) {
 	args[7] = object.Stateful
 	args[8] = object.LastUseDate
 	args[9] = object.Description
+	args[10] = object.ExpiryDate
 
 	// Prepared statement to use.
 	stmt := c.stmt(containerCreate)

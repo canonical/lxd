@@ -306,6 +306,20 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 		profiles:     args.Profiles,
 		localConfig:  args.Config,
 		localDevices: args.Devices,
+		expiryDate:   args.ExpiryDate,
+	}
+
+	// Cleanup the zero values
+	if c.expiryDate.IsZero() {
+		c.expiryDate = time.Time{}
+	}
+
+	if c.creationDate.IsZero() {
+		c.creationDate = time.Time{}
+	}
+
+	if c.lastUsedDate.IsZero() {
+		c.lastUsedDate = time.Time{}
 	}
 
 	ctxMap := log.Ctx{
@@ -520,6 +534,7 @@ func containerLXCInstantiate(s *state.State, args db.ContainerArgs) *containerLX
 		localDevices: args.Devices,
 		stateful:     args.Stateful,
 		node:         args.Node,
+		expiryDate:   args.ExpiryDate,
 	}
 }
 
@@ -560,6 +575,8 @@ type containerLXC struct {
 
 	// Progress tracking
 	op *operation
+
+	expiryDate time.Time
 }
 
 func (c *containerLXC) createOperation(action string, reusable bool, reuse bool) (*lxcContainerOperation, error) {
@@ -3075,52 +3092,58 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(c.architecture)
 
-	// Prepare the ETag
-	etag := []interface{}{c.architecture, c.localConfig, c.localDevices, c.ephemeral, c.profiles}
-
 	if c.IsSnapshot() {
-		return &api.ContainerSnapshot{
-			Architecture:    architectureName,
-			Config:          c.localConfig,
-			CreationDate:    c.creationDate,
-			Devices:         c.localDevices,
-			Ephemeral:       c.ephemeral,
+		// Prepare the ETag
+		etag := []interface{}{c.expiryDate}
+
+		ct := api.ContainerSnapshot{
+			CreatedAt:       c.creationDate,
 			ExpandedConfig:  c.expandedConfig,
 			ExpandedDevices: c.expandedDevices,
-			LastUsedDate:    c.lastUsedDate,
+			LastUsedAt:      c.lastUsedDate,
 			Name:            strings.SplitN(c.name, "/", 2)[1],
-			Profiles:        c.profiles,
 			Stateful:        c.stateful,
-		}, etag, nil
-	} else {
-		// FIXME: Render shouldn't directly access the go-lxc struct
-		cState, err := c.getLxcState()
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "Get container stated")
 		}
-		statusCode := lxcStatusCode(cState)
-
-		ct := api.Container{
-			ExpandedConfig:  c.expandedConfig,
-			ExpandedDevices: c.expandedDevices,
-			Name:            c.name,
-			Status:          statusCode.String(),
-			StatusCode:      statusCode,
-			Location:        c.node,
-		}
-
-		ct.Description = c.description
 		ct.Architecture = architectureName
 		ct.Config = c.localConfig
-		ct.CreatedAt = c.creationDate
 		ct.Devices = c.localDevices
 		ct.Ephemeral = c.ephemeral
-		ct.LastUsedAt = c.lastUsedDate
 		ct.Profiles = c.profiles
-		ct.Stateful = c.stateful
+		ct.ExpiresAt = c.expiryDate
 
 		return &ct, etag, nil
 	}
+
+	// Prepare the ETag
+	etag := []interface{}{c.architecture, c.localConfig, c.localDevices, c.ephemeral, c.profiles}
+
+	// FIXME: Render shouldn't directly access the go-lxc struct
+	cState, err := c.getLxcState()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Get container stated")
+	}
+	statusCode := lxcStatusCode(cState)
+
+	ct := api.Container{
+		ExpandedConfig:  c.expandedConfig,
+		ExpandedDevices: c.expandedDevices,
+		Name:            c.name,
+		Status:          statusCode.String(),
+		StatusCode:      statusCode,
+		Location:        c.node,
+	}
+
+	ct.Description = c.description
+	ct.Architecture = architectureName
+	ct.Config = c.localConfig
+	ct.CreatedAt = c.creationDate
+	ct.Devices = c.localDevices
+	ct.Ephemeral = c.ephemeral
+	ct.LastUsedAt = c.lastUsedDate
+	ct.Profiles = c.profiles
+	ct.Stateful = c.stateful
+
+	return &ct, etag, nil
 }
 
 func (c *containerLXC) RenderFull() (*api.ContainerFull, interface{}, error) {
@@ -3776,6 +3799,7 @@ func (c *containerLXC) ConfigKeySet(key string, value string) error {
 		Ephemeral:    c.ephemeral,
 		Profiles:     c.profiles,
 		Project:      c.project,
+		ExpiryDate:   c.expiryDate,
 	}
 
 	err := c.Update(args, false)
@@ -4005,6 +4029,8 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 		return err
 	}
 
+	oldExpiryDate := c.expiryDate
+
 	// Define a function which reverts everything.  Defer this function
 	// so that it doesn't need to be explicitly called in every failing
 	// return path.  Track whether or not we want to undo the changes
@@ -4020,6 +4046,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			c.localConfig = oldLocalConfig
 			c.localDevices = oldLocalDevices
 			c.profiles = oldProfiles
+			c.expiryDate = oldExpiryDate
 			if c.c != nil {
 				c.c.Release()
 				c.c = nil
@@ -4037,6 +4064,7 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	c.localConfig = args.Config
 	c.localDevices = args.Devices
 	c.profiles = args.Profiles
+	c.expiryDate = args.ExpiryDate
 
 	// Expand the config and refresh the LXC config
 	err = c.expandConfig(nil)
@@ -4888,7 +4916,8 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 			return errors.Wrap(err, "Device add")
 		}
 
-		err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral)
+		err = db.ContainerUpdate(tx, c.id, c.description, c.architecture, c.ephemeral,
+			c.expiryDate)
 		if err != nil {
 			tx.Rollback()
 			return errors.Wrap(err, "Container update")
@@ -4991,8 +5020,16 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 	// Success, update the closure to mark that the changes should be kept.
 	undoChanges = false
 
-	eventSendLifecycle(c.project, "container-updated",
-		fmt.Sprintf("/1.0/containers/%s", c.name), nil)
+	var endpoint string
+
+	if c.IsSnapshot() {
+		cName, sName, _ := containerGetParentAndSnapshotName(c.name)
+		endpoint = fmt.Sprintf("/1.0/containers/%s/snapshots/%s", cName, sName)
+	} else {
+		endpoint = fmt.Sprintf("/1.0/containers/%s", c.name)
+	}
+
+	eventSendLifecycle(c.project, "container-updated", endpoint, nil)
 
 	return nil
 }
@@ -8750,6 +8787,15 @@ func (c *containerLXC) StoragePool() (string, error) {
 // Progress tracking
 func (c *containerLXC) SetOperation(op *operation) {
 	c.op = op
+}
+
+func (c *containerLXC) ExpiryDate() time.Time {
+	if c.IsSnapshot() {
+		return c.expiryDate
+	}
+
+	// Return zero time if the container is not a snapshot
+	return time.Time{}
 }
 
 func (c *containerLXC) updateProgress(progress string) {

@@ -136,6 +136,7 @@ var APIExtensions = []string{
 	"clustering_server_address",
 	"clustering_image_replication",
 	"container_protection_shift",
+	"snapshot_expiry",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

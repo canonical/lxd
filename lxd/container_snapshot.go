@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -126,6 +127,11 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		shared.SnapshotDelimiter +
 		req.Name
 
+	expiry, err := shared.GetSnapshotExpiry(time.Now(), c.LocalConfig()["snapshots.expiry"])
+	if err != nil {
+		return BadRequest(err)
+	}
+
 	snapshot := func(op *operation) error {
 		args := db.ContainerArgs{
 			Project:      c.Project(),
@@ -137,6 +143,7 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 			Name:         fullName,
 			Profiles:     c.Profiles(),
 			Stateful:     req.Stateful,
+			ExpiryDate:   expiry,
 		}
 
 		_, err := containerCreateAsSnapshot(d.State(), args, c)
@@ -191,9 +198,83 @@ func snapshotHandler(d *Daemon, r *http.Request) Response {
 		return snapshotPost(d, r, sc, containerName)
 	case "DELETE":
 		return snapshotDelete(sc, snapshotName)
+	case "PUT":
+		return snapshotPut(d, r, sc, snapshotName)
 	default:
 		return NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 	}
+}
+
+func snapshotPut(d *Daemon, r *http.Request, sc container, name string) Response {
+	// Validate the ETag
+	etag := []interface{}{sc.ExpiryDate()}
+	err := util.EtagCheck(r, etag)
+	if err != nil {
+		return PreconditionFailed(err)
+	}
+
+	rj := shared.Jmap{}
+
+	err = json.NewDecoder(r.Body).Decode(&rj)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	var do func(op *operation) error
+
+	_, err = rj.GetString("expires_at")
+	if err != nil {
+		// Skip updating the snapshot since the requested key wasn't provided
+		do = func(op *operation) error {
+			return nil
+		}
+	} else {
+		body, err := json.Marshal(rj)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		configRaw := api.ContainerSnapshotPut{}
+
+		err = json.Unmarshal(body, &configRaw)
+		if err != nil {
+			return BadRequest(err)
+		}
+
+		// Update container configuration
+		do = func(op *operation) error {
+			args := db.ContainerArgs{
+				Architecture: sc.Architecture(),
+				Config:       sc.LocalConfig(),
+				Description:  sc.Description(),
+				Devices:      sc.LocalDevices(),
+				Ephemeral:    sc.IsEphemeral(),
+				Profiles:     sc.Profiles(),
+				Project:      sc.Project(),
+				ExpiryDate:   configRaw.ExpiresAt,
+			}
+
+			err = sc.Update(args, false)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+	}
+
+	opType := db.OperationSnapshotUpdate
+
+	resources := map[string][]string{}
+	resources["containers"] = []string{name}
+
+	op, err := operationCreate(d.cluster, sc.Project(), operationClassTask, opType, resources, nil,
+		do, nil, nil)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return OperationResponse(op)
 }
 
 func snapshotGet(sc container, name string) Response {

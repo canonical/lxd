@@ -46,6 +46,12 @@ var updates = map[int]schema.Update{
 	11: updateFromV10,
 	12: updateFromV11,
 	13: updateFromV12,
+	14: updateFromV13,
+}
+
+func updateFromV13(tx *sql.Tx) error {
+	_, err := tx.Exec("ALTER TABLE containers ADD COLUMN expiry_date DATETIME;")
+	return err
 }
 
 func updateFromV12(tx *sql.Tx) error {

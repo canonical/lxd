@@ -32,6 +32,7 @@ CREATE TABLE "containers" (
     last_use_date DATETIME,
     description TEXT,
     project_id INTEGER NOT NULL,
+    expiry_date DATETIME,
     UNIQUE (project_id, name),
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
@@ -404,5 +405,5 @@ CREATE TABLE storage_volumes_config (
     FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes (id) ON DELETE CASCADE
 );
 
-INSERT INTO schema (version, updated_at) VALUES (13, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (14, strftime("%s"))
 `
