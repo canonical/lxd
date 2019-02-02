@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -38,6 +39,7 @@ var apiInternal = []Command{
 	internalClusterRebalanceCmd,
 	internalClusterPromoteCmd,
 	internalClusterContainerMovedCmd,
+	internalGarbageCollectorCmd,
 }
 
 var internalShutdownCmd = Command{
@@ -69,6 +71,11 @@ var internalSQLCmd = Command{
 var internalContainersCmd = Command{
 	name: "containers",
 	post: internalImport,
+}
+
+var internalGarbageCollectorCmd = Command{
+	name: "gc",
+	get:  internalGC,
 }
 
 func internalWaitReady(d *Daemon, r *http.Request) Response {
@@ -976,6 +983,14 @@ func internalImport(d *Daemon, r *http.Request) Response {
 	if err != nil {
 		return InternalError(err)
 	}
+
+	return EmptySyncResponse
+}
+
+func internalGC(d *Daemon, r *http.Request) Response {
+	logger.Infof("Started forced garbage collection run")
+	runtime.GC()
+	logger.Infof("Completed forced garbage collection run")
 
 	return EmptySyncResponse
 }
