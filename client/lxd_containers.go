@@ -1267,6 +1267,22 @@ func (r *ProtocolLXD) DeleteContainerSnapshot(containerName string, name string)
 	return op, nil
 }
 
+// UpdateContainerSnapshot requests that LXD updates the container snapshot
+func (r *ProtocolLXD) UpdateContainerSnapshot(containerName string, name string, container api.ContainerSnapshotPut, ETag string) (Operation, error) {
+	if !r.HasExtension("snapshot_expiry") {
+		return nil, fmt.Errorf("The server is missing the required \"snapshot_expiry\" API extension")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("PUT", fmt.Sprintf("/containers/%s/snapshots/%s",
+		url.QueryEscape(containerName), url.QueryEscape(name)), container, ETag)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}
+
 // GetContainerState returns a ContainerState entry for the provided container name
 func (r *ProtocolLXD) GetContainerState(name string) (*api.ContainerState, string, error) {
 	state := api.ContainerState{}

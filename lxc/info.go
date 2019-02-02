@@ -251,8 +251,8 @@ func (c *cmdInfo) containerInfo(d lxd.ContainerServer, remote config.Remote, nam
 		fields := strings.Split(snap.Name, shared.SnapshotDelimiter)
 		fmt.Printf("  %s", fields[len(fields)-1])
 
-		if shared.TimeIsSet(snap.CreationDate) {
-			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreationDate.UTC().Format(layout))
+		if shared.TimeIsSet(snap.CreatedAt) {
+			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreatedAt.UTC().Format(layout))
 		}
 
 		if snap.Stateful {

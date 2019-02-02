@@ -77,6 +77,7 @@ type Container struct {
 	Config       map[string]string
 	Devices      map[string]map[string]string
 	Profiles     []string
+	ExpiryDate   time.Time
 }
 
 // ContainerFilter can be used to filter results yielded by ContainerList.
@@ -105,6 +106,7 @@ func ContainerToArgs(container *Container) ContainerArgs {
 		Config:       container.Config,
 		Devices:      container.Devices,
 		Profiles:     container.Profiles,
+		ExpiryDate:   container.ExpiryDate,
 	}
 
 	if args.Devices == nil {
@@ -136,6 +138,7 @@ type ContainerArgs struct {
 	Name         string
 	Profiles     []string
 	Stateful     bool
+	ExpiryDate   time.Time
 }
 
 // ContainerBackupArgs is a value object holding all db-related details
@@ -803,8 +806,9 @@ func (c *Cluster) ContainerSetState(id int, state string) error {
 
 // ContainerUpdate updates the description, architecture and ephemeral flag of
 // the container with the given ID.
-func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, ephemeral bool) error {
-	str := fmt.Sprintf("UPDATE containers SET description=?, architecture=?, ephemeral=? WHERE id=?")
+func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, ephemeral bool,
+	expiryDate time.Time) error {
+	str := fmt.Sprintf("UPDATE containers SET description=?, architecture=?, ephemeral=?, expiry_date=? WHERE id=?")
 	stmt, err := tx.Prepare(str)
 	if err != nil {
 		return err
@@ -816,7 +820,12 @@ func ContainerUpdate(tx *sql.Tx, id int, description string, architecture int, e
 		ephemeralInt = 1
 	}
 
-	if _, err := stmt.Exec(description, architecture, ephemeralInt, id); err != nil {
+	if expiryDate.IsZero() {
+		_, err = stmt.Exec(description, architecture, ephemeralInt, "", id)
+	} else {
+		_, err = stmt.Exec(description, architecture, ephemeralInt, expiryDate, id)
+	}
+	if err != nil {
 		return err
 	}
 

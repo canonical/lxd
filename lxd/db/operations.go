@@ -60,6 +60,7 @@ const (
 	OperationLogsExpire
 	OperationInstanceTypesUpdate
 	OperationBackupsExpire
+	OperationSnapshotsExpire
 )
 
 // Description return a human-readable description of the operation type.
@@ -151,6 +152,8 @@ func (t OperationType) Description() string {
 		return "Updating instance types"
 	case OperationBackupsExpire:
 		return "Cleaning up expired backups"
+	case OperationSnapshotsExpire:
+		return "Cleaning up expired snapshots"
 	default:
 		return "Executing operation"
 

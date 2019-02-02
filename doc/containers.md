@@ -81,6 +81,7 @@ security.syscalls.whitelist             | string    | -                 | no    
 snapshots.schedule                      | string    | -                 | no            | snapshot\_scheduling                 | Cron expression (`<minute> <hour> <dom> <month> <dow>`)
 snapshots.schedule.stopped              | bool      | false             | no            | snapshot\_scheduling                 | Controls whether or not stopped containers are to be snapshoted automatically
 snapshots.pattern                       | string    | snap%d            | no            | snapshot\_scheduling                 | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+snapshots.expiry                        | string    | -                 | no            | snapshot\_expiry                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
 user.\*                                 | string    | -                 | n/a           | -                                    | Free form user key/value storage (can be used in search)
 
 The following volatile keys are currently internally used by LXD:
