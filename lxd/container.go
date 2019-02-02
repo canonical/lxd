@@ -1547,6 +1547,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		allContainers, err := containerLoadNodeAll(d.State())
 		if err != nil {
 			logger.Error("Failed to load containers for scheduled snapshots", log.Ctx{"err": err})
+			return
 		}
 
 		// Figure out which need snapshotting (if any)
