@@ -322,15 +322,15 @@ test_container_snapshot_config() {
     lxc snapshot foo
     lxc config show foo/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
 
-    echo 'expires_at: 2000-01-01T00:00:00Z' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -q 'expires_at: 2000-01-01T00:00:00Z'
+    echo 'expires_at: 2100-01-01T00:00:00Z' | lxc config edit foo/snap0
+    lxc config show foo/snap0 | grep -q 'expires_at: 2100-01-01T00:00:00Z'
 
     # Remove expiry date using zero time
     echo 'expires_at: 0001-01-01T00:00:00Z' | lxc config edit foo/snap0
     lxc config show foo/snap0 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
 
-    echo 'expires_at: 2000-01-01T00:00:00Z' | lxc config edit foo/snap0
-    lxc config show foo/snap0 | grep -q 'expires_at: 2000-01-01T00:00:00Z'
+    echo 'expires_at: 2100-01-01T00:00:00Z' | lxc config edit foo/snap0
+    lxc config show foo/snap0 | grep -q 'expires_at: 2100-01-01T00:00:00Z'
 
     # Remove expiry date using empty value
     echo 'expires_at:' | lxc config edit foo/snap0
