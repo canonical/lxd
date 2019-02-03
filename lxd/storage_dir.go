@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -513,7 +514,7 @@ func (s *storageDir) ContainerCreate(container container) error {
 	return nil
 }
 
-func (s *storageDir) ContainerCreateFromImage(container container, imageFingerprint string) error {
+func (s *storageDir) ContainerCreateFromImage(container container, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating DIR storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	_, err := s.StoragePoolMount()
@@ -1242,7 +1243,7 @@ func (s *storageDir) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, ta
 	return nil
 }
 
-func (s *storageDir) ImageCreate(fingerprint string) error {
+func (s *storageDir) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	return nil
 }
 
