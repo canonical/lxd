@@ -6,6 +6,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -115,7 +116,7 @@ func (s *storageMock) ContainerCreate(container container) error {
 }
 
 func (s *storageMock) ContainerCreateFromImage(
-	container container, imageFingerprint string) error {
+	container container, imageFingerprint string, tracker *ioprogress.ProgressTracker) error {
 
 	return nil
 }
@@ -186,7 +187,7 @@ func (s *storageMock) ContainerSnapshotCreateEmpty(snapshotContainer container) 
 	return nil
 }
 
-func (s *storageMock) ImageCreate(fingerprint string) error {
+func (s *storageMock) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	return nil
 }
 

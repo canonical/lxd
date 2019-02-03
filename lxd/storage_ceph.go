@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 
 	"github.com/pborman/uuid"
@@ -762,7 +763,7 @@ func (s *storageCeph) ContainerCreate(container container) error {
 	return nil
 }
 
-func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint string) error {
+func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf(`Creating RBD storage volume for container "%s" on storage pool "%s"`, s.volume.Name, s.pool.Name)
 
 	revert := true
@@ -803,7 +804,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 		}
 
 		if !ok {
-			imgerr = s.ImageCreate(fingerprint)
+			imgerr = s.ImageCreate(fingerprint, tracker)
 		}
 
 		lxdStorageMapLock.Lock()
@@ -1806,7 +1807,7 @@ func (s *storageCeph) ContainerSnapshotCreateEmpty(c container) error {
 	return nil
 }
 
-func (s *storageCeph) ImageCreate(fingerprint string) error {
+func (s *storageCeph) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf(`Creating RBD storage volume for image "%s" on storage pool "%s"`, fingerprint, s.pool.Name)
 
 	revert := true

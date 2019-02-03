@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 
 	"github.com/pborman/uuid"
@@ -771,7 +772,7 @@ func (s *storageZfs) ContainerCreate(container container) error {
 	return nil
 }
 
-func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint string) error {
+func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating ZFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerPath := container.Path()
@@ -795,7 +796,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 
 		var imgerr error
 		if !zfsFilesystemEntityExists(poolName, fsImage) {
-			imgerr = s.ImageCreate(fingerprint)
+			imgerr = s.ImageCreate(fingerprint, tracker)
 		}
 
 		lxdStorageMapLock.Lock()
@@ -1698,7 +1699,7 @@ func (s *storageZfs) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 // - mark new zfs volume images/<fingerprint> readonly
 // - remove mountpoint property from zfs volume images/<fingerprint>
 // - create read-write snapshot from zfs volume images/<fingerprint>
-func (s *storageZfs) ImageCreate(fingerprint string) error {
+func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating ZFS storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
 
 	poolName := s.getOnDiskPoolName()

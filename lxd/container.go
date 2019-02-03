@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -631,7 +632,7 @@ func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (contai
 	return c, nil
 }
 
-func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (container, error) {
+func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string, tracker *ioprogress.ProgressTracker) (container, error) {
 	s := d.State()
 
 	// Get the image properties
@@ -686,7 +687,7 @@ func containerCreateFromImage(d *Daemon, args db.ContainerArgs, hash string) (co
 	}
 
 	// Now create the storage from an image
-	err = c.Storage().ContainerCreateFromImage(c, hash)
+	err = c.Storage().ContainerCreateFromImage(c, hash, tracker)
 	if err != nil {
 		c.Delete()
 		return nil, err

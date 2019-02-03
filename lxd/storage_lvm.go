@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -932,7 +933,7 @@ func (s *storageLvm) ContainerCreate(container container) error {
 	return nil
 }
 
-func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint string) error {
+func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	tryUndo := true
@@ -1565,7 +1566,7 @@ func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 	return nil
 }
 
-func (s *storageLvm) ImageCreate(fingerprint string) error {
+func (s *storageLvm) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating LVM storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
 
 	tryUndo := true
