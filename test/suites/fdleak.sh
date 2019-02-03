@@ -22,12 +22,18 @@ test_fdleak() {
     done
 
     lxc list
-    sleep 5
+    lxc query /internal/gc
 
     exit 0
   )
-  afterfds=$(/bin/ls "/proc/${pid}/fd" | wc -l)
-  leakedfds=$((afterfds - beforefds))
+
+  for i in $(seq 10); do
+    afterfds=$(/bin/ls "/proc/${pid}/fd" | wc -l)
+    leakedfds=$((afterfds - beforefds))
+
+    [ "${leakedfds}" -gt 5 ] || break
+    sleep 1
+  done
 
   bad=0
   # shellcheck disable=SC2015
