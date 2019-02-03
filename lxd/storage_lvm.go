@@ -1673,6 +1673,8 @@ func (s *storageLvm) ContainerSnapshotCreateEmpty(snapshotContainer container) e
 }
 
 func (s *storageLvm) ContainerBackupCreate(backup backup, source container) error {
+	poolName := s.getOnDiskPoolName()
+
 	// Start storage
 	ourStart, err := source.StorageStart()
 	if err != nil {
@@ -1748,13 +1750,13 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 	}
 	defer os.RemoveAll(tmpContainerMntPoint)
 
-	_, err = s.createSnapshotLV(source.Project(), s.pool.Name, source.Name(),
+	_, err = s.createSnapshotLV(source.Project(), poolName, source.Name(),
 		storagePoolVolumeAPIEndpointContainers, containerNameToLVName(sourceLvmDatasetSnapshot),
 		storagePoolVolumeAPIEndpointContainers, false, s.useThinpool)
 	if err != nil {
 		return err
 	}
-	defer removeLV(source.Project(), s.pool.Name, storagePoolVolumeAPIEndpointContainers,
+	defer removeLV(source.Project(), poolName, storagePoolVolumeAPIEndpointContainers,
 		containerNameToLVName(sourceLvmDatasetSnapshot))
 
 	// Mount the temporary snapshot
