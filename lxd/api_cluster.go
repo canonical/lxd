@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/CanonicalLtd/go-dqlite"
@@ -118,6 +119,10 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 	for pool, config := range pools {
 		for key := range config {
+			if strings.HasPrefix(key, "volatile.") {
+				continue
+			}
+
 			key := api.ClusterMemberConfigKey{
 				Entity:      "storage-pool",
 				Name:        pool,
@@ -130,6 +135,10 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 	for network, config := range networks {
 		for key := range config {
+			if strings.HasPrefix(key, "volatile.") {
+				continue
+			}
+
 			key := api.ClusterMemberConfigKey{
 				Entity:      "network",
 				Name:        network,
