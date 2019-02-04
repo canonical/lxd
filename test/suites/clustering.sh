@@ -15,7 +15,7 @@ test_clustering_enable() {
     lxc launch testimage c1
 
     # A node name is required.
-    ! lxc cluster enable
+    ! lxc cluster enable || false
 
     # Enable clustering.
     lxc cluster enable node1
@@ -26,7 +26,7 @@ test_clustering_enable() {
     lxc list | grep c1 | grep -q node1
 
     # Clustering can't be enabled on an already clustered instance.
-    ! lxc cluster enable node2
+    ! lxc cluster enable node2 || false
 
     # Delete the container
     lxc stop c1 --force
@@ -125,7 +125,7 @@ test_clustering_membership() {
   LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 20
 
   # Trying to delete the preseeded network now fails, because a node is degraded.
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}" || false
 
   # Force the removal of the degraded node.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node3 --force
@@ -145,7 +145,7 @@ test_clustering_membership() {
   # Trying to delete a node which is the only one with a copy of
   # an image results in an error
   LXD_DIR="${LXD_FOUR_DIR}" ensure_import_testimage
-  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node3
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node3 || false
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
   # The image got deleted from the LXD_DIR tree.
@@ -154,7 +154,7 @@ test_clustering_membership() {
 
   # Remove a node gracefully.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3
-  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster list || false
 
   LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
   LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
@@ -223,13 +223,13 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
 
   # Trying to delete a node which has container results in an error
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 || false
 
   # Exec a command in the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc exec foo ls / | grep -q proc
 
   # Pull, push and delete files from the container via node1
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/non-existing-file "${TEST_DIR}/non-existing-file"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/non-existing-file "${TEST_DIR}/non-existing-file" || false
   mkdir "${TEST_DIR}/hello-world"
   echo "hello world" > "${TEST_DIR}/hello-world/text"
   LXD_DIR="${LXD_ONE_DIR}" lxc file push "${TEST_DIR}/hello-world/text" foo/hello-world-text
@@ -242,7 +242,7 @@ test_clustering_containers() {
   grep -q "hello world" "${TEST_DIR}/hello-world/text"
   rm -r "${TEST_DIR}/hello-world"
   LXD_DIR="${LXD_ONE_DIR}" lxc file delete foo/hello-world/text
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world/text "${TEST_DIR}/hello-world-text"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc file pull foo/hello-world/text "${TEST_DIR}/hello-world-text" || false
 
   # Stop the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc stop foo --force
@@ -260,7 +260,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak
   LXD_DIR="${LXD_ONE_DIR}" lxc rename foo/foo-bak foo/foo-bak-2
   LXD_DIR="${LXD_ONE_DIR}" lxc delete foo/foo-bak-2
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak-2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep -q foo-bak-2 || false
 
   # Export from node1 the image that was imported on node2
   LXD_DIR="${LXD_ONE_DIR}" lxc image export testimage "${TEST_DIR}/testimage"
@@ -271,7 +271,7 @@ test_clustering_containers() {
   LXD_DIR="${LXD_TWO_DIR}" lxc launch --target node1 testimage bar
   LXD_DIR="${LXD_TWO_DIR}" lxc stop bar --force
   LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q bar
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc list | grep -q bar || false
 
   # Create a container on node1 using a snapshot from node2.
   LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo foo-bak
@@ -378,7 +378,7 @@ test_clustering_storage() {
   LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep data | grep -q CREATED
 
   # Trying to pass config values other than 'source' results in an error
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo size=123 --target node1 || false
 
   # Define storage pools on the two nodes
   driver_config=""
@@ -406,7 +406,7 @@ test_clustering_storage() {
   fi
 
   LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node1
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node2
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q node2 || false
   if [ -n "${driver_config_node2}" ]; then
     # shellcheck disable=SC2086
     LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" ${driver_config_node2} --target node2
@@ -417,7 +417,7 @@ test_clustering_storage() {
 
   # The source config key is not legal for the final pool creation
   if [ "${driver}" = "dir" ]; then
-    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 dir source=/foo || false
   fi
 
   # Create the storage pool
@@ -432,7 +432,7 @@ test_clustering_storage() {
 
   # The 'source' config key is omitted when showing the cluster
   # configuration, and included when showing the node-specific one.
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q source
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep -q source || false
   source1="$(basename "${LXD_ONE_DIR}")"
   source2="$(basename "${LXD_TWO_DIR}")"
   if [ "${driver}" = "ceph" ]; then
@@ -448,7 +448,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc storage set pool1 rsync.bwlimit 10
     LXD_DIR="${LXD_TWO_DIR}" lxc storage show pool1 | grep rsync.bwlimit | grep -q 10
     LXD_DIR="${LXD_TWO_DIR}" lxc storage unset pool1 rsync.bwlimit
-    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -q rsync.bwlimit
+    ! LXD_DIR="${LXD_ONE_DIR}" lxc storage show pool1 | grep -q rsync.bwlimit || false
   fi
 
   if [ "${driver}" = "ceph" ]; then
@@ -516,7 +516,7 @@ test_clustering_storage() {
 
     # Trying to attach a custom volume to a container on another node fails
     LXD_DIR="${LXD_TWO_DIR}" lxc init --target node2 -s pool1 testimage buz
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume attach pool1 custom/v1 buz testDevice /opt
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume attach pool1 custom/v1 buz testDevice /opt || false
 
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume detach pool1 v1 baz
 
@@ -569,7 +569,7 @@ test_clustering_storage() {
 
   # Delete the storage pool
   LXD_DIR="${LXD_ONE_DIR}" lxc storage delete pool1
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -q pool1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc storage list | grep -q pool1 || false
 
   if [ "${driver}" != "ceph" ]; then
     # Create a volume on node1
@@ -590,9 +590,9 @@ test_clustering_storage() {
 
     # Trying to show, rename or delete the web volume without --target
     # fails, because it's not unique.
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data web webbaz
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data web
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume show data web || false
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume rename data web webbaz || false
+    ! LXD_DIR="${LXD_TWO_DIR}" lxc storage volume delete data web || false
 
     # Specifying the --target parameter shows, renames and deletes the
     # proper volume.
@@ -655,20 +655,20 @@ test_clustering_network() {
 
   # Trying to pass config values other than
   # 'bridge.external_interfaces' results in an error
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create foo ipv4.address=auto --target node1
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create foo ipv4.address=auto --target node1 || false
 
   net="${bridge}x"
 
   # Define networks on the two nodes
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
   LXD_DIR="${LXD_TWO_DIR}" lxc network show  "${net}" | grep -q node1
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc network show "${net}" | grep -q node2
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc network show "${net}" | grep -q node2 || false
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2 || false
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Pending
 
   # The bridge.external_interfaces config key is not legal for the final network creation
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo || false
 
   # Create the network
   LXD_DIR="${LXD_TWO_DIR}" lxc network create "${net}"
@@ -676,7 +676,7 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" --target node2 | grep status: | grep -q Created
 
   # FIXME: rename the network is not supported with clustering
-  ! LXD_DIR="${LXD_TWO_DIR}" lxc network rename "${net}" "${net}-foo"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc network rename "${net}" "${net}-foo" || false
 
   # Delete the networks
   LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${net}"
@@ -724,7 +724,7 @@ test_clustering_upgrade() {
   LXD_NETNS="${ns2}" respawn_lxd "${LXD_TWO_DIR}" false
 
   # The second daemon is blocked waiting for the other to be upgraded
-  ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5
+  ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: fully operational"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: waiting for other nodes to be upgraded"
@@ -738,7 +738,7 @@ test_clustering_upgrade() {
   LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=30
 
   # The cluster is again operational
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "OFFLINE"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "OFFLINE" || false
 
   # Now spawn a third node and test the upgrade with a 3-node cluster.
   setup_clustering_netns 3
@@ -755,7 +755,7 @@ test_clustering_upgrade() {
 
   # The second daemon is blocked waiting for the other two to be
   # upgraded
-  ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5
+  ! LXD_DIR="${LXD_TWO_DIR}" lxd waitready --timeout=5 || false
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "message: fully operational"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "message: waiting for other nodes to be upgraded"
@@ -769,7 +769,7 @@ test_clustering_upgrade() {
   LXD_NETNS="${ns3}" respawn_lxd "${LXD_THREE_DIR}" true
 
   # The cluster is again operational
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "OFFLINE"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "OFFLINE" || false
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
@@ -1104,7 +1104,7 @@ test_clustering_address() {
   lxc storage list cluster:| grep -q data
 
   # The cluster.https_address config value can't be changed.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config set "cluster.https_address" "10.1.1.101:8448"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config set "cluster.https_address" "10.1.1.101:8448" || false
 
   # Create a container using the REST API exposed over core.https_address.
   LXD_DIR="${LXD_ONE_DIR}" deps/import-busybox --alias testimage
