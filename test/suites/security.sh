@@ -74,16 +74,16 @@ test_security() {
     ensure_import_testimage
 
     # Verify that no privileged container can be created
-    ! lxc launch testimage c1 -c security.privileged=true
+    ! lxc launch testimage c1 -c security.privileged=true || false
 
     # Verify that unprivileged container can be created
     lxc launch testimage c1
 
     # Verify that we can't be tricked into using privileged containers
-    ! lxc config set c1 security.privileged true
-    ! lxc config set c1 raw.idmap "both 1000 1000"
-    ! lxc config set c1 raw.lxc "lxc.idmap="
-    ! lxc config set c1 raw.lxc "lxc.include="
+    ! lxc config set c1 security.privileged true || false
+    ! lxc config set c1 raw.idmap "both 1000 1000" || false
+    ! lxc config set c1 raw.lxc "lxc.idmap=" || false
+    ! lxc config set c1 raw.lxc "lxc.include=" || false
 
     # Verify that we can still unset and set to security.privileged to "false"
     lxc config set c1 security.privileged false
@@ -91,10 +91,10 @@ test_security() {
 
     # Verify that a profile can't be changed to trick us into using privileged
     # containers
-    ! lxc profile set default security.privileged true
-    ! lxc profile set default raw.idmap "both 1000 1000"
-    ! lxc profile set default raw.lxc "lxc.idmap="
-    ! lxc profile set default raw.lxc "lxc.include="
+    ! lxc profile set default security.privileged true || false
+    ! lxc profile set default raw.idmap "both 1000 1000" || false
+    ! lxc profile set default raw.lxc "lxc.idmap=" || false
+    ! lxc profile set default raw.lxc "lxc.include=" || false
 
     # Verify that we can still unset and set to security.privileged to "false"
     lxc profile set default security.privileged false
@@ -122,7 +122,7 @@ test_security_protection() {
   lxc init testimage c1
   lxc snapshot c1
   lxc delete c1/snap0
-  ! lxc delete c1
+  ! lxc delete c1 || false
 
   lxc config set c1 security.protection.delete false
   lxc delete c1
@@ -138,13 +138,13 @@ test_security_protection() {
   lxc start c1
   lxc stop c1 --force
 
-  ! lxc publish c1 --alias=protected
+  ! lxc publish c1 --alias=protected || false
   lxc snapshot c1
   lxc publish c1/snap0 --alias=protected
   lxc image delete protected
 
   lxc config set c1 security.privileged true
-  ! lxc start c1
+  ! lxc start c1 || false
   lxc config set c1 security.protection.shift false
   lxc start c1
   lxc stop c1 --force
