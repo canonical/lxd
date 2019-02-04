@@ -121,7 +121,7 @@ test_config_profiles() {
 
   # setting an invalid config item should error out when setting it, not get
   # into the database and never let the user edit the container again.
-  ! lxc config set foo raw.lxc lxc.notaconfigkey=invalid
+  ! lxc config set foo raw.lxc lxc.notaconfigkey=invalid || false
 
   # check that various profile application mechanisms work
   lxc profile create one
@@ -203,10 +203,10 @@ test_config_profiles() {
   lxc start foo
   lxc exec foo -- ls /mnt2/hosts
   lxc config device remove foo mnt2
-  ! lxc exec foo -- ls /mnt2/hosts
+  ! lxc exec foo -- ls /mnt2/hosts || false
   lxc stop foo --force
   lxc start foo
-  ! lxc exec foo -- ls /mnt2/hosts
+  ! lxc exec foo -- ls /mnt2/hosts || false
   lxc stop foo --force
 
   lxc config set foo user.prop value
@@ -214,8 +214,8 @@ test_config_profiles() {
   lxc config unset foo user.prop
 
   # Test for invalid raw.lxc
-  ! lxc config set foo raw.lxc a
-  ! lxc profile set default raw.lxc a
+  ! lxc config set foo raw.lxc a || false
+  ! lxc profile set default raw.lxc a || false
 
   bad=0
   lxc list user.prop=value | grep foo && bad=1
