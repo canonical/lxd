@@ -44,14 +44,14 @@ do_copy() {
   lxc copy c1 c2 ${pool}
 
   # Make sure the testfile doesn't exist
-  ! lxc exec c1 -- touch /root/testfile1
-  ! lxc exec c2 -- touch /root/testfile1
+  ! lxc exec c1 -- touch /root/testfile1 || false
+  ! lxc exec c2 -- touch /root/testfile1 || false
 
   lxc start c1 c2
 
   # Target container may not be running when refreshing
   # shellcheck disable=2086
-  ! lxc copy c1 c2 --refresh ${pool}
+  ! lxc copy c1 c2 --refresh ${pool} || false
 
   # Create test file in c1
   lxc exec c1 -- touch /root/testfile1
@@ -73,11 +73,11 @@ do_copy() {
   # shellcheck disable=2086
   lxc copy c1 c2 --refresh --container-only ${pool}
   lxc start c2
-  ! lxc exec c2 -- test -f /root/testfile1
+  ! lxc exec c2 -- test -f /root/testfile1 || false
   lxc stop -f c2
 
   # Check whether snapshot c2/snap0 has been created
-  ! lxc config show c2/snap0
+  ! lxc config show c2/snap0 || false
   # shellcheck disable=2086
   lxc copy c1 c2 --refresh ${pool}
   lxc config show c2/snap0
@@ -89,7 +89,7 @@ do_copy() {
   # This should remove c2/snap1
   # shellcheck disable=2086
   lxc copy c1 c2 --refresh ${pool}
-  ! lxc config show c2/snap1
+  ! lxc config show c2/snap1 || false
 
   lxc rm -f c1 c2
 }
