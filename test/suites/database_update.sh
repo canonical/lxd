@@ -33,8 +33,8 @@ EOF
   LXD_DIR="${LXD_MIGRATE_DIR}" lxd sql global "SELECT * FROM test" | grep -q "1"
 
   # The custom patch files were deleted.
-  ! [ -e "${LXD_MIGRATE_DIR}/database/patch.local.sql" ]
-  ! [ -e "${LXD_MIGRATE_DIR}/database/patch.global.sql" ]
+  ! [ -e "${LXD_MIGRATE_DIR}/database/patch.local.sql" ] || false
+  ! [ -e "${LXD_MIGRATE_DIR}/database/patch.global.sql" ] || false
 
   kill_lxd "$LXD_MIGRATE_DIR"
 }
@@ -62,7 +62,7 @@ INSERT INTO broken(n) VALUES(1);
 EOF
 
   # Starting LXD fails.
-  ! LXD_DIR="${LXD_RESTORE_DIR}" lxd --logfile "${LXD_RESTORE_DIR}/lxd.log" "${DEBUG-}" 2>&1
+  ! LXD_DIR="${LXD_RESTORE_DIR}" lxd --logfile "${LXD_RESTORE_DIR}/lxd.log" "${DEBUG-}" 2>&1 || false
 
   # Remove the broken patch
   rm -f "${LXD_RESTORE_DIR}/database/patch.global.sql"
