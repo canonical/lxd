@@ -12,7 +12,7 @@ test_macaroon_auth() {
 
     # invalid credentials make the remote add fail
     # shellcheck disable=SC2039
-    ! cat <<EOF | lxc remote add macaroon-remote "https://$LXD_ADDR" --auth-type candid --accept-certificate
+    ! cat || false <<EOF | lxc remote add macaroon-remote "https://$LXD_ADDR" --auth-type candid --accept-certificate
 wrong-user
 wrong-pass
 EOF
