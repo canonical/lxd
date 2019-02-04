@@ -378,6 +378,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	volumeConfig := map[string]string{}
 	err = storageVolumeFillDefault(storagePool, volumeConfig, pool)
 	if err != nil {
+		c.Delete()
 		return nil, err
 	}
 
