@@ -1449,6 +1449,11 @@ func (c *containerLXC) initLXC(config bool) error {
 			}
 		}
 
+		// Detect initial creation where the rootfs doesn't exist yet (can't mount it)
+		if !shared.PathExists(c.RootfsPath()) {
+			hasRootLimit = false
+		}
+
 		if hasDiskLimits {
 			ourStart := false
 
