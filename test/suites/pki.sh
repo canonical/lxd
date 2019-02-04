@@ -52,7 +52,7 @@ test_pki() {
   )
 
   # Confirm that a normal, non-PKI certificate doesn't
-  ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=foo
+  ! lxc_remote remote add pki-lxd "${LXD5_ADDR}" --accept-certificate --password=foo || false
 
   kill_lxd "${LXD5_DIR}"
 }
