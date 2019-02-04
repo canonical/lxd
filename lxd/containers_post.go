@@ -579,6 +579,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader) Response {
 
 	_, err = io.Copy(f, data)
 	if err != nil {
+		f.Close()
 		return InternalError(err)
 	}
 
@@ -586,11 +587,14 @@ func createFromBackup(d *Daemon, project string, data io.Reader) Response {
 	f.Seek(0, 0)
 	bInfo, err := backupGetInfo(f)
 	if err != nil {
+		f.Close()
 		return BadRequest(err)
 	}
 	bInfo.Project = project
 
 	run := func(op *operation) error {
+		defer f.Close()
+
 		// Dump tarball to storage
 		f.Seek(0, 0)
 		err = containerCreateFromBackup(d.State(), *bInfo, f)

@@ -2,10 +2,10 @@ package main
 
 import (
 	"archive/tar"
-	"bytes"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -175,14 +175,22 @@ func backupGetInfo(r io.ReadSeeker) (*backupInfo, error) {
 	}
 
 	if len(unpacker) > 0 {
-		var buf bytes.Buffer
+		cmd := exec.Command(unpacker[0], unpacker[1:]...)
+		cmd.Stdin = r
 
-		err := shared.RunCommandWithFds(r, &buf, unpacker[0], unpacker[1:]...)
+		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			return nil, err
 		}
+		defer stdout.Close()
 
-		tr = tar.NewReader(&buf)
+		err = cmd.Start()
+		if err != nil {
+			return nil, err
+		}
+		defer cmd.Wait()
+
+		tr = tar.NewReader(stdout)
 	} else {
 		tr = tar.NewReader(r)
 	}
