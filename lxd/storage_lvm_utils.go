@@ -548,7 +548,7 @@ func (s *storageLvm) containerCreateFromImageThinLv(c container, fp string) erro
 		}
 
 		if !ok {
-			imgerr = s.ImageCreate(fp)
+			imgerr = s.ImageCreate(fp, nil)
 		}
 
 		lxdStorageMapLock.Lock()

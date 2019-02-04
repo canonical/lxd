@@ -175,7 +175,7 @@ type storage interface {
 	ContainerCreate(container container) error
 
 	// ContainerCreateFromImage creates a container from a image.
-	ContainerCreateFromImage(c container, fingerprint string) error
+	ContainerCreateFromImage(c container, fingerprint string, tracker *ioprogress.ProgressTracker) error
 	ContainerCanRestore(target container, source container) error
 	ContainerDelete(c container) error
 	ContainerCopy(target container, source container, containerOnly bool) error
@@ -201,7 +201,7 @@ type storage interface {
 	ContainerSnapshotCreateEmpty(c container) error
 
 	// Functions dealing with image storage volumes.
-	ImageCreate(fingerprint string) error
+	ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error
 	ImageDelete(fingerprint string) error
 	ImageMount(fingerprint string) (bool, error)
 	ImageUmount(fingerprint string) (bool, error)

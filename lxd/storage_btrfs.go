@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -868,7 +869,7 @@ func (s *storageBtrfs) ContainerCreate(container container) error {
 }
 
 // And this function is why I started hating on btrfs...
-func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint string) error {
+func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating BTRFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	source := s.pool.Config["source"]
@@ -911,7 +912,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 
 		var imgerr error
 		if !shared.PathExists(imageMntPoint) || !isBtrfsSubVolume(imageMntPoint) {
-			imgerr = s.ImageCreate(fingerprint)
+			imgerr = s.ImageCreate(fingerprint, tracker)
 		}
 
 		lxdStorageMapLock.Lock()
@@ -2005,7 +2006,7 @@ func (s *storageBtrfs) ContainerBackupLoad(info backupInfo, data io.ReadSeeker, 
 	return s.doContainerBackupLoadVanilla(info, data, tarArgs)
 }
 
-func (s *storageBtrfs) ImageCreate(fingerprint string) error {
+func (s *storageBtrfs) ImageCreate(fingerprint string, tracker *ioprogress.ProgressTracker) error {
 	logger.Debugf("Creating BTRFS storage volume for image \"%s\" on storage pool \"%s\"", fingerprint, s.pool.Name)
 
 	// Create the subvolume.
@@ -2057,7 +2058,7 @@ func (s *storageBtrfs) ImageCreate(fingerprint string) error {
 
 	// Unpack the image in imageMntPoint.
 	imagePath := shared.VarPath("images", fingerprint)
-	err = unpackImage(imagePath, tmpImageSubvolumeName, storageTypeBtrfs, s.s.OS.RunningInUserNS, nil)
+	err = unpackImage(imagePath, tmpImageSubvolumeName, storageTypeBtrfs, s.s.OS.RunningInUserNS, tracker)
 	if err != nil {
 		return err
 	}
