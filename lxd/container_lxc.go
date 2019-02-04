@@ -378,6 +378,7 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	volumeConfig := map[string]string{}
 	err = storageVolumeFillDefault(storagePool, volumeConfig, pool)
 	if err != nil {
+		c.Delete()
 		return nil, err
 	}
 
@@ -1446,6 +1447,11 @@ func (c *containerLXC) initLXC(config bool) error {
 
 				hasDiskLimits = true
 			}
+		}
+
+		// Detect initial creation where the rootfs doesn't exist yet (can't mount it)
+		if !shared.PathExists(c.RootfsPath()) {
+			hasRootLimit = false
 		}
 
 		if hasDiskLimits {
