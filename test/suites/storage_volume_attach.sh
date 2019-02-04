@@ -75,7 +75,7 @@ test_storage_volume_attach() {
   ISOLATED_GID_BASE="$(lxc exec c1 -- cat /proc/self/gid_map | awk '{print $2}')"
   [ "$(stat -c %u:%g "${PATH_TO_CHECK}")" = "${ISOLATED_UID_BASE}:${ISOLATED_GID_BASE}" ]
 
-  ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")" testvolume c2 testvolume
+  ! lxc storage volume attach "lxdtest-$(basename "${LXD_DIR}")" testvolume c2 testvolume || false
 
   # give container standard mapping
   lxc config set c1 security.idmap.isolated false
