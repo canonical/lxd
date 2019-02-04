@@ -38,11 +38,11 @@ test_storage_volume_snapshots() {
   lxc file delete c1/mnt/testfile
 
   # Validate file
-  ! lxc exec c1 -- test -f /mnt/testfile
+  ! lxc exec c1 -- test -f /mnt/testfile || false
 
   # This should fail since you cannot restore a snapshot when the target volume
   # is attached to the container
-  ! lxc storage volume restore "${storage_pool}" "${storage_volume}" snap0
+  ! lxc storage volume restore "${storage_pool}" "${storage_volume}" snap0 || false
 
   lxc stop c1
   lxc storage volume restore "${storage_pool}" "${storage_volume}" snap0
