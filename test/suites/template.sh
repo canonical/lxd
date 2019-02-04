@@ -8,7 +8,7 @@ test_template() {
   lxc init template-test template
 
   # Confirm that template application is delayed to first start
-  ! lxc file pull template/template -
+  ! lxc file pull template/template - || false
 
   # Validate that the template is applied
   lxc start template
@@ -32,7 +32,7 @@ test_template() {
   lxc launch template-test template
 
   # Confirm that the template doesn't trigger on create
-  ! lxc file pull template/template -
+  ! lxc file pull template/template - || false
   if [ "$lxd_backend" = "lvm" ] || [ "$lxd_backend" = "ceph" ]; then
     lxc stop template --force
   fi
@@ -41,7 +41,7 @@ test_template() {
   lxc copy template template1
 
   # Confirm that template application is delayed to first start
-  ! lxc file pull template1/template -
+  ! lxc file pull template1/template - || false
 
   # Validate that the template is applied
   lxc start template1
@@ -75,7 +75,7 @@ test_template() {
   lxc init template-test template
 
   # Confirm that template application is delayed to first start
-  ! lxc file pull template/template -
+  ! lxc file pull template/template - || false
 
   # Validate that the template is applied
   lxc start template
