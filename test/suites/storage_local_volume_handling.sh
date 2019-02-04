@@ -76,7 +76,7 @@ test_storage_local_volume_handling() {
         lxc storage volume copy "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
         lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
         lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${driver}1/vol1"
-        ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1
+        ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}" vol1 || false
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
         lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1" vol1
         lxc storage delete "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
@@ -92,7 +92,7 @@ test_storage_local_volume_handling() {
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
 
           lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1"
-          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
+          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1 || false
           lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
 
@@ -102,7 +102,7 @@ test_storage_local_volume_handling() {
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
 
           lxc storage volume move "lxdtest-$(basename "${LXD_DIR}")-${target_driver}/vol1" "lxdtest-$(basename "${LXD_DIR}")-${source_driver}/vol1"
-          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1
+          ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${target_driver}" vol1 || false
           lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
           lxc storage volume delete "lxdtest-$(basename "${LXD_DIR}")-${source_driver}" vol1
         fi
