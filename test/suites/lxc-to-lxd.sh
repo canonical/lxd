@@ -17,9 +17,9 @@ test_lxc_to_lxd() {
   [ "$(lxc-ls -P "${LXC_DIR}" -1 | wc -l)" -eq "3" ]
 
   # Ensure no containers have been converted
-  ! lxc info c1
-  ! lxc info c2
-  ! lxc info c3
+  ! lxc info c1 || false
+  ! lxc info c2 || false
+  ! lxc info c3 || false
 
   # Convert single LXC container
   lxc-to-lxd --lxcpath "${LXC_DIR}" --containers c1
@@ -29,8 +29,8 @@ test_lxc_to_lxd() {
 
   # Ensure only c1 has been converted
   lxc info c1
-  ! lxc info c2
-  ! lxc info c3
+  ! lxc info c2 || false
+  ! lxc info c3 || false
 
   # Ensure the converted container is startable
   lxc start c1
@@ -45,7 +45,7 @@ test_lxc_to_lxd() {
   # Ensure all containers have been converted
   lxc info c1
   lxc info c2
-  ! lxc info c3
+  ! lxc info c3 || false
 
   # Convert all LXC containers
   lxc-to-lxd --lxcpath "${LXC_DIR}" --delete --all
