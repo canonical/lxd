@@ -9,7 +9,7 @@ test_devlxd() {
 
   lxc launch testimage devlxd -c security.devlxd=false
 
-  ! lxc exec devlxd -- test -S /dev/lxd/sock
+  ! lxc exec devlxd -- test -S /dev/lxd/sock || false
   lxc config unset devlxd security.devlxd
   lxc exec devlxd -- test -S /dev/lxd/sock
   lxc file push "${TEST_DIR}/devlxd-client" devlxd/bin/
@@ -20,7 +20,7 @@ test_devlxd() {
   lxc exec devlxd devlxd-client user.foo | grep bar
 
   lxc config set devlxd security.nesting true
-  ! lxc exec devlxd devlxd-client security.nesting | grep true
+  ! lxc exec devlxd devlxd-client security.nesting | grep true || false
 
   lxc exec devlxd devlxd-client monitor > "${TEST_DIR}/devlxd.log" &
   client=$!
