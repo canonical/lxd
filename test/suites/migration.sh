@@ -176,7 +176,7 @@ migration() {
 
   # Remote container only move.
   lxc_remote move l1:cccp l2:udssr --container-only --mode=relay
-  ! lxc_remote info l1:cccp
+  ! lxc_remote info l1:cccp || false
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
   lxc_remote delete l2:udssr
 
@@ -186,7 +186,7 @@ migration() {
 
   # Remote container with snapshots move.
   lxc_remote move l1:cccp l2:udssr --mode=push
-  ! lxc_remote info l1:cccp
+  ! lxc_remote info l1:cccp || false
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 2 ]
   lxc_remote delete l2:udssr
 
@@ -197,7 +197,7 @@ migration() {
 
   # Local container with snapshots move.
   lxc move cccp udssr --mode=pull
-  ! lxc info cccp
+  ! lxc info cccp || false
   [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
   lxc delete udssr
 
@@ -230,7 +230,7 @@ migration() {
   # remote storage volume migration in "pull" mode
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2"
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3"
-  ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
+  ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
@@ -240,7 +240,7 @@ migration() {
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=push
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3" --mode=push
-  ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
+  ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
@@ -250,7 +250,7 @@ migration() {
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=relay
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3" --mode=relay
-  ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
+  ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
@@ -279,7 +279,7 @@ migration() {
 
   # Test copy of stateful snapshot
   lxc_remote copy l2:migratee/snap0 l1:migratee
-  ! lxc_remote copy l2:migratee/snap0 l1:migratee-new-name
+  ! lxc_remote copy l2:migratee/snap0 l1:migratee-new-name || false
 
   # Test stateless copies
   lxc_remote copy --stateless l2:migratee/snap0 l1:migratee-new-name
