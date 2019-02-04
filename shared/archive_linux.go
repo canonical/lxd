@@ -46,7 +46,7 @@ func DetectCompressionFile(f io.ReadSeeker) ([]string, string, []string, error) 
 	case bytes.Equal(header[0:3], []byte{0x5d, 0x00, 0x00}):
 		return []string{"--lzma", "-xf"}, ".tar.lzma", []string{"lzma", "-d"}, nil
 	case bytes.Equal(header[257:262], []byte{'u', 's', 't', 'a', 'r'}):
-		return []string{"-xf"}, ".tar", []string{""}, nil
+		return []string{"-xf"}, ".tar", []string{}, nil
 	case bytes.Equal(header[0:4], []byte{'h', 's', 'q', 's'}):
 		return []string{""}, ".squashfs", nil, nil
 	default:
