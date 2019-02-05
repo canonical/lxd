@@ -19,8 +19,6 @@ test_storage() {
   lxc storage show "$storage_pool" | grep -q 'description: foo'
 
   lxc storage volume create "$storage_pool" "$storage_volume"
-  # Test resizing/applying quota to a storage volume's of type container fails.
-  ! lxc storage volume set "$storage_pool" "$storage_volume" size 200MB || false
 
   # Test setting description on a storage volume
   lxc storage volume show "$storage_pool" "$storage_volume" | sed 's/^description:.*/description: bar/' | lxc storage volume edit "$storage_pool" "$storage_volume"
