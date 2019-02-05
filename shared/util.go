@@ -1008,11 +1008,13 @@ func EscapePathFstab(path string) string {
 	return r.Replace(path)
 }
 
-func SetProgressMetadata(metadata map[string]string, stage, displayPrefix string, percent, speed int64) {
+func SetProgressMetadata(metadata map[string]interface{}, stage, displayPrefix string, percent, speed int64) {
+	progress := make(map[string]string)
 	// stage, percent, speed sent for API callers.
-	metadata["progress_stage"] = stage
-	metadata["progress_percent"] = strconv.FormatInt(percent, 10)
-	metadata["progress_speed"] = strconv.FormatInt(speed, 10)
+	progress["stage"] = stage
+	progress["percent"] = strconv.FormatInt(percent, 10)
+	progress["speed"] = strconv.FormatInt(speed, 10)
+	metadata["progress"] = progress
 	// <stage>_progress with formatted text sent for lxc cli.
 	metadata[stage+"_progress"] = fmt.Sprintf("%s: %d%% (%s/s)", displayPrefix, percent, GetByteSizeString(speed, 2))
 }
