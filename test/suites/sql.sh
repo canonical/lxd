@@ -1,7 +1,6 @@
 # Test the lxd sql command.
 test_sql() {
   # Invalid arguments
-  ! lxd sql || false
   ! lxd sql foo "SELECT * FROM CONFIG" || false
   ! lxd sql global "" || false
 
