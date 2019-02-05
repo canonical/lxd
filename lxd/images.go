@@ -206,7 +206,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	}
 
 	// Track progress writing tarfile
-	metadata := make(map[string]string)
+	metadata := make(map[string]interface{})
 	tarfileProgressWriter := &ioprogress.ProgressWriter{
 		WriteCloser: tarfile,
 		Tracker: &ioprogress.ProgressTracker{
@@ -261,7 +261,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 		}
 
 		// Track progress writing gzipped file
-		metadata = make(map[string]string)
+		metadata = make(map[string]interface{})
 		tarfileProgressReader := &ioprogress.ProgressReader{
 			ReadCloser: tarfile,
 			Tracker: &ioprogress.ProgressTracker{
