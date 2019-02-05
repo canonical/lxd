@@ -14,9 +14,6 @@ test_clustering_enable() {
     lxc profile device add default root disk path="/" pool="default"
     lxc launch testimage c1
 
-    # A node name is required.
-    ! lxc cluster enable || false
-
     # Enable clustering.
     lxc cluster enable node1
     lxc cluster list | grep -q node1
