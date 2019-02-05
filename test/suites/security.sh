@@ -81,7 +81,7 @@ test_security() {
 
     # Verify that we can't be tricked into using privileged containers
     ! lxc config set c1 security.privileged true || false
-    ! lxc config set c1 raw.idmap "both 1000 1000" || false
+    ! lxc config set c1 raw.idmap "both 0 1000" || false
     ! lxc config set c1 raw.lxc "lxc.idmap=" || false
     ! lxc config set c1 raw.lxc "lxc.include=" || false
 
@@ -92,7 +92,7 @@ test_security() {
     # Verify that a profile can't be changed to trick us into using privileged
     # containers
     ! lxc profile set default security.privileged true || false
-    ! lxc profile set default raw.idmap "both 1000 1000" || false
+    ! lxc profile set default raw.idmap "both 0 1000" || false
     ! lxc profile set default raw.lxc "lxc.idmap=" || false
     ! lxc profile set default raw.lxc "lxc.include=" || false
 
