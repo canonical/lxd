@@ -1008,6 +1008,15 @@ func EscapePathFstab(path string) string {
 	return r.Replace(path)
 }
 
+func SetProgressMetadata(metadata map[string]string, stage, displayPrefix string, percent, speed int64) {
+	// stage, percent, speed sent for API callers.
+	metadata["progress_stage"] = stage
+	metadata["progress_percent"] = strconv.FormatInt(percent, 10)
+	metadata["progress_speed"] = strconv.FormatInt(speed, 10)
+	// <stage>_progress with formatted text sent for lxc cli.
+	metadata[stage+"_progress"] = fmt.Sprintf("%s: %d%% (%s/s)", displayPrefix, percent, GetByteSizeString(speed, 2))
+}
+
 func DownloadFileHash(httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, hashFunc hash.Hash, target io.WriteSeeker) (int64, error) {
 	// Always seek to the beginning
 	target.Seek(0, 0)
