@@ -61,7 +61,7 @@ test_container_local_cross_pool_handling() {
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
         lxc delete -f c2
         lxc move c1 c2 -s "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
-        ! lxc list c1 || false
+        ! lxc info c1 || false
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
         lxc delete -f c2
 
@@ -74,7 +74,7 @@ test_container_local_cross_pool_handling() {
         ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap1 || false
         lxc delete -f c2
         lxc move c1 c2 -s "lxdtest-$(basename "${LXD_DIR}")-${driver}1" --container-only
-        ! lxc list c1 || false
+        ! lxc info c1 || false
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
         ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap0 || false
         ! lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap1 || false
@@ -89,7 +89,7 @@ test_container_local_cross_pool_handling() {
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap1
         lxc delete -f c2
         lxc move c1 c2 -s "lxdtest-$(basename "${LXD_DIR}")-${driver}1"
-        ! lxc list c1 || false
+        ! lxc info c1 || false
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap0
         lxc storage volume show "lxdtest-$(basename "${LXD_DIR}")-${driver}1" container/c2/snap1
