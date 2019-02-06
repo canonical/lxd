@@ -571,8 +571,8 @@ test_clustering_storage() {
   if [ "${driver}" != "ceph" ]; then
     # Create a volume on node1
     LXD_DIR="${LXD_ONE_DIR}" lxc storage volume create data web
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep -q node1
-    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep -q node1
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage volume list data | grep web | grep -q node1
+    LXD_DIR="${LXD_TWO_DIR}" lxc storage volume list data | grep web | grep -q node1
 
     # Since the volume name is unique to node1, it's possible to show, rename,
     # get the volume without specifying the --target parameter.
