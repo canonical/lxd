@@ -88,13 +88,66 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
 	}
 
-	// Send the request
-	op, _, err := r.queryOperation("POST", "/containers", args.BackupFile, "")
+	if args.PoolName == "" {
+		// Send the request
+		op, _, err := r.queryOperation("POST", "/containers", args.BackupFile, "")
+		if err != nil {
+			return nil, err
+		}
+
+		return op, nil
+	}
+
+	if !r.HasExtension("container_backup_override_pool") {
+		return nil, fmt.Errorf("The server is missing the required \"container_backup_override_pool\" API extension")
+	}
+
+	// Prepare the HTTP request
+	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0/containers", r.httpHost))
 	if err != nil {
 		return nil, err
 	}
 
-	return op, nil
+	req, err := http.NewRequest("POST", reqURL, args.BackupFile)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("X-LXD-pool", args.PoolName)
+
+	// Set the user agent
+	if r.httpUserAgent != "" {
+		req.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	// Send the request
+	resp, err := r.do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Handle errors
+	response, _, err := lxdParseResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get to the operation
+	respOperation, err := response.MetadataAsOperation()
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup an Operation wrapper
+	op := operation{
+		Operation: *respOperation,
+		r:         r,
+		chActive:  make(chan bool),
+	}
+
+	return &op, nil
 }
 
 // CreateContainer requests that LXD creates a new container
