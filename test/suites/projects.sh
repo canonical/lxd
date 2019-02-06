@@ -79,13 +79,13 @@ test_projects_containers() {
   lxc info c1 | grep -q "Name: c1"
 
   # The container's volume is listed too.
-  lxc storage volume list "${pool}" | grep -q c1
+  lxc storage volume list "${pool}" | grep container | grep -q c1
 
   # For backends with optimized storage, we can see the image volume inside the
   # project.
   driver="$(storage_backend "$LXD_DIR")"
   if [ "${driver}" != "dir" ]; then
-      lxc storage volume list "${pool}" | grep -q "${fingerprint}"
+      lxc storage volume list "${pool}" | grep image | grep -q "${fingerprint}"
   fi
 
   # Start the container
@@ -98,7 +98,7 @@ test_projects_containers() {
   ! lxc list | grep -q c1 || false
   ! lxc info c1 || false
   ! lxc delete c1 || false
-  ! lxc storage volume list "${pool}" | grep -q c1 || false
+  ! lxc storage volume list "${pool}" | grep container | grep -q c1 || false
 
   # Trying to delete a project which is in use fails
   ! lxc project delete foo || false
@@ -429,7 +429,7 @@ test_projects_storage() {
 
   lxc project switch default
 
-  ! lxc storage volume list "${pool}" | grep -q custom || false
+  ! lxc storage volume list "${pool}" | grep custom | grep -q vol || false
 
   lxc project delete foo
 }
