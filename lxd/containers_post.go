@@ -316,6 +316,10 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		if err != nil {
 			req.Source.Refresh = false
 		}
+
+		if c.IsRunning() {
+			return BadRequest(fmt.Errorf("Cannot refresh a running container"))
+		}
 	}
 
 	if !req.Source.Refresh {

@@ -108,7 +108,7 @@ test_idmap() {
 
   # Validate non-overlapping maps
   lxc exec idmap -- touch /a
-  ! lxc exec idmap -- chown 65536 /a
+  ! lxc exec idmap -- chown 65536 /a || false
   lxc exec idmap -- chown 65535 /a
   PID_1=$(lxc info idmap | grep ^Pid | awk '{print $2}')
   UID_1=$(stat -c '%u' "/proc/${PID_1}/root/a")
@@ -182,7 +182,7 @@ test_idmap() {
   lxc delete idmap1 idmap2 idmap3 --force
 
   # Test running out of ids
-  ! lxc launch testimage idmap1 -c security.idmap.isolated=true -c security.idmap.size=$((UIDs+1))
+  ! lxc launch testimage idmap1 -c security.idmap.isolated=true -c security.idmap.size=$((UIDs+1)) || false
 
   # Test raw id maps
   (

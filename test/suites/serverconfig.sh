@@ -18,7 +18,7 @@ test_server_config() {
   # test authentication type
   curl --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq .metadata.auth_methods | grep tls
   # only tls is enabled by default
-  ! curl --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq .metadata.auth_methods | grep candid
+  ! curl --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq .metadata.auth_methods | grep candid || false
   lxc config set candid.api.url "https://localhost:8081"
   # macaroons are also enabled
   curl --unix-socket "$LXD_DIR/unix.socket" "lxd/1.0" | jq .metadata.auth_methods | grep candid

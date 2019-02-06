@@ -1,9 +1,8 @@
 # Test the lxd sql command.
 test_sql() {
   # Invalid arguments
-  ! lxd sql
-  ! lxd sql foo "SELECT * FROM CONFIG"
-  ! lxd sql global ""
+  ! lxd sql foo "SELECT * FROM CONFIG" || false
+  ! lxd sql global "" || false
 
   # Local database query
   lxd sql local "SELECT * FROM config" | grep -q "core.https_address"

@@ -16,7 +16,7 @@ test_remote_url() {
   fi
 
   # an invalid protocol returns an error
-  ! lxc_remote remote add test "${url}" --accept-certificate --password foo --protocol foo
+  ! lxc_remote remote add test "${url}" --accept-certificate --password foo --protocol foo || false
 
   for url in ${urls}; do
     lxc_remote remote add test "${url}"
@@ -26,7 +26,7 @@ test_remote_url() {
 
 test_remote_admin() {
   lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --password bad || true
-  ! lxc_remote list badpass:
+  ! lxc_remote list badpass: || false
 
   lxc_remote remote add localhost "${LXD_ADDR}" --accept-certificate --password foo
   lxc_remote remote list | grep 'localhost'
@@ -39,7 +39,7 @@ test_remote_admin() {
   lxc_remote remote list | grep -v 'localhost'
   [ "$(lxc_remote remote get-default)" = "foo" ]
 
-  ! lxc_remote remote remove foo
+  ! lxc_remote remote remove foo || false
   lxc_remote remote set-default local
   lxc_remote remote remove foo
 
@@ -118,7 +118,7 @@ test_remote_usage() {
   lxc_remote publish pub lxd2: --alias bar --public a=b
   lxc_remote image show lxd2:bar | grep -q "a: b"
   lxc_remote image show lxd2:bar | grep -q "public: true"
-  ! lxc_remote image show bar
+  ! lxc_remote image show bar || false
   lxc_remote delete pub
 
   # test spawn from public server

@@ -101,7 +101,7 @@ test_basic_usage() {
   lxc list --format json | jq '.[]|select(.name="foo")' | grep '"name": "foo"'
 
   # Test list with --columns and --fast
-  ! lxc list --columns=nsp --fast
+  ! lxc list --columns=nsp --fast || false
 
   # Test container rename
   lxc move foo bar
@@ -177,12 +177,12 @@ test_basic_usage() {
   lxc image delete foo-image2
 
   # Test invalid container names
-  ! lxc init testimage -abc
-  ! lxc init testimage abc-
-  ! lxc init testimage 1234
-  ! lxc init testimage 12test
-  ! lxc init testimage a_b_c
-  ! lxc init testimage aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  ! lxc init testimage -abc || false
+  ! lxc init testimage abc- || false
+  ! lxc init testimage 1234 || false
+  ! lxc init testimage 12test || false
+  ! lxc init testimage a_b_c || false
+  ! lxc init testimage aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa || false
 
   # Test snapshot publish
   lxc snapshot bar
@@ -482,6 +482,6 @@ test_basic_usage() {
   ! lxc list | grep -q foo || false
 
   # Test renaming/deletion of the default profile
-  ! lxc profile rename default foobar
-  ! lxc profile delete default
+  ! lxc profile rename default foobar || false
+  ! lxc profile delete default || false
 }

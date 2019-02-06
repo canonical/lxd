@@ -176,7 +176,7 @@ migration() {
 
   # Remote container only move.
   lxc_remote move l1:cccp l2:udssr --container-only --mode=relay
-  ! lxc_remote info l1:cccp
+  ! lxc_remote info l1:cccp || false
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 0 ]
   lxc_remote delete l2:udssr
 
@@ -186,7 +186,7 @@ migration() {
 
   # Remote container with snapshots move.
   lxc_remote move l1:cccp l2:udssr --mode=push
-  ! lxc_remote info l1:cccp
+  ! lxc_remote info l1:cccp || false
   [ "$(lxc_remote info l2:udssr | grep -c snap)" -eq 2 ]
   lxc_remote delete l2:udssr
 
@@ -197,7 +197,7 @@ migration() {
 
   # Local container with snapshots move.
   lxc move cccp udssr --mode=pull
-  ! lxc info cccp
+  ! lxc info cccp || false
   [ "$(lxc info udssr | grep -c snap)" -eq 2 ]
   lxc delete udssr
 
@@ -229,13 +229,13 @@ migration() {
   lxc_remote start l1:c1 l2:c2
 
   # Make sure the testfile doesn't exist
-  ! lxc file pull l1:c1 -- /root/testfile1
-  ! lxc file pull l2:c2 -- /root/testfile1
+  ! lxc file pull l1:c1 -- /root/testfile1 || false
+  ! lxc file pull l2:c2 -- /root/testfile1 || false
 
   #lxc_remote start l1:c1 l2:c2
 
   # Containers may not be running when refreshing
-  ! lxc_remote copy l1:c1 l2:c2 --refresh
+  ! lxc_remote copy l1:c1 l2:c2 --refresh || false
 
   # Create test file in c1
   echo test | lxc_remote file push - l1:c1/root/testfile1
@@ -256,11 +256,11 @@ migration() {
   lxc_remote file delete l1:c1/root/testfile1
   lxc_remote copy l1:c1 l2:c2 --refresh --container-only
   lxc_remote start l2:c2
-  ! lxc_remote file pull l2:c2/root/testfile1 .
+  ! lxc_remote file pull l2:c2/root/testfile1 . || false
   lxc_remote stop -f l2:c2
 
   # Check whether snapshot c2/snap0 has been created
-  ! lxc_remote config show l2:c2/snap0
+  ! lxc_remote config show l2:c2/snap0 || false
   lxc_remote copy l1:c1 l2:c2 --refresh
   lxc_remote ls l2:
   lxc_remote config show l2:c2/snap0
@@ -271,7 +271,7 @@ migration() {
 
   # This should remove c2/snap1
   lxc_remote copy l1:c1 l2:c2 --refresh
-  ! lxc_remote config show l2:c2/snap1
+  ! lxc_remote config show l2:c2/snap1 || false
 
   lxc_remote rm -f l1:c1 l2:c2
 
@@ -283,7 +283,7 @@ migration() {
   # remote storage volume migration in "pull" mode
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2"
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3"
-  ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
+  ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
@@ -293,7 +293,7 @@ migration() {
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=push
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3" --mode=push
-  ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
+  ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
@@ -303,7 +303,7 @@ migration() {
 
   lxc_remote storage volume copy l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol2" --mode=relay
   lxc_remote storage volume move l1:"$remote_pool1/vol1" l2:"$remote_pool2/vol3" --mode=relay
-  ! lxc_remote storage volume list l1:"$remote_pool1/vol1"
+  ! lxc_remote storage volume list l1:"$remote_pool1/vol1" || false
 
   lxc_remote storage volume delete l2:"$remote_pool2" vol2
   lxc_remote storage volume delete l2:"$remote_pool2" vol3
@@ -364,7 +364,7 @@ migration() {
 
   # Test copy of stateful snapshot
   lxc_remote copy l2:migratee/snap0 l1:migratee
-  ! lxc_remote copy l2:migratee/snap0 l1:migratee-new-name
+  ! lxc_remote copy l2:migratee/snap0 l1:migratee-new-name || false
 
   # Test stateless copies
   lxc_remote copy --stateless l2:migratee/snap0 l1:migratee-new-name
