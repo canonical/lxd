@@ -159,8 +159,14 @@ func storagePoolValidateConfig(name string, driver string, config map[string]str
 			}
 		}
 
+		if driver != "lvm" {
+			if prfx(key, "lvm.") {
+				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
+			}
+		}
+
 		if driver != "lvm" && driver != "ceph" {
-			if prfx(key, "lvm.") || prfx(key, "volume.block.") || key == "volume.size" {
+			if prfx(key, "volume.block.") || key == "volume.size" {
 				return fmt.Errorf("the key %s cannot be used with %s storage pools", key, strings.ToUpper(driver))
 			}
 		}
