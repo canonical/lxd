@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-02-04 21:10+0100\n"
-"PO-Revision-Date: 2018-02-10 11:39+0000\n"
+"POT-Creation-Date: 2019-02-06 13:24-0500\n"
+"PO-Revision-Date: 2019-01-28 23:09+0000\n"
 "Last-Translator: Allan Esquivel Sibaja <allan.esquivel.sibaja@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
 "lxd/es/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2.19-dev\n"
+"X-Generator: Weblate 3.5-dev\n"
 
 #: lxc/storage.go:225
 msgid ""
@@ -267,7 +267,7 @@ msgstr ""
 msgid "--refresh can only be used with containers"
 msgstr ""
 
-#: lxc/alias.go:127 lxc/image_alias.go:228 lxc/image.go:940
+#: lxc/alias.go:127 lxc/image.go:940 lxc/image_alias.go:228
 msgid "ALIAS"
 msgstr "ALIAS"
 
@@ -532,7 +532,7 @@ msgstr ""
 #: lxc/storage_volume.go:1285 lxc/storage_volume.go:1368
 #: lxc/storage_volume.go:1461
 msgid "Cluster member name"
-msgstr ""
+msgstr "Nombre del Miembro del Cluster"
 
 #: lxc/cluster.go:366
 msgid "Clustering enabled"
@@ -544,7 +544,7 @@ msgstr "Columnas"
 
 #: lxc/main.go:48
 msgid "Command line client for LXD"
-msgstr ""
+msgstr "Cliente de Linea de Comandos para LXD"
 
 #: lxc/main.go:49
 msgid ""
@@ -589,7 +589,7 @@ msgstr "Nombre del contenedor es: %s"
 #: lxc/publish.go:259
 #, c-format
 msgid "Container published with fingerprint: %s"
-msgstr ""
+msgstr "Contenedor publicado con huella digital: %s"
 
 #: lxc/copy.go:50 lxc/move.go:56
 msgid "Copy a stateful container stateless"
@@ -642,7 +642,7 @@ msgstr ""
 #: lxc/image.go:218
 #, c-format
 msgid "Copying the image: %s"
-msgstr ""
+msgstr "Copiando la imagen: %s"
 
 #: lxc/storage_volume.go:363
 #, c-format
@@ -713,29 +713,29 @@ msgstr ""
 #: lxc/image.go:849 lxc/info.go:135
 #, c-format
 msgid "Created: %s"
-msgstr ""
+msgstr "Creado: %s"
 
 #: lxc/init.go:103
 #, c-format
 msgid "Creating %s"
-msgstr ""
+msgstr "Creando %s"
 
 #: lxc/init.go:101
 msgid "Creating the container"
-msgstr ""
+msgstr "Creando el contenedor"
 
 #: lxc/cluster.go:126
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image_alias.go:230 lxc/image.go:945 lxc/list.go:459 lxc/network.go:861
+#: lxc/image.go:945 lxc/image_alias.go:230 lxc/list.go:459 lxc/network.go:861
 #: lxc/operation.go:156 lxc/storage.go:550 lxc/storage_volume.go:1121
 msgid "DESCRIPTION"
-msgstr ""
+msgstr "DESCRIPCIÓN"
 
 #: lxc/storage.go:551
 msgid "DRIVER"
-msgstr ""
+msgstr "CONTROLADOR"
 
 #: lxc/publish.go:41
 msgid "Define a compression algorithm: for image or none"
@@ -788,52 +788,52 @@ msgstr ""
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:246 lxc/cluster.go:295
-#: lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:182
-#: lxc/config_device.go:255 lxc/config_device.go:321 lxc/config_device.go:410
-#: lxc/config_device.go:500 lxc/config_device.go:589 lxc/config_device.go:657
-#: lxc/config.go:30 lxc/config.go:89 lxc/config.go:357 lxc/config.go:423
-#: lxc/config.go:520 lxc/config.go:624 lxc/config_metadata.go:29
-#: lxc/config_metadata.go:54 lxc/config_metadata.go:176
-#: lxc/config_template.go:30 lxc/config_template.go:67
-#: lxc/config_template.go:110 lxc/config_template.go:152
-#: lxc/config_template.go:236 lxc/config_template.go:298 lxc/config_trust.go:30
-#: lxc/config_trust.go:59 lxc/config_trust.go:115 lxc/config_trust.go:197
-#: lxc/console.go:32 lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:39
-#: lxc/export.go:31 lxc/file.go:42 lxc/file.go:75 lxc/file.go:124
-#: lxc/file.go:187 lxc/file.go:377 lxc/image_alias.go:26 lxc/image_alias.go:59
-#: lxc/image_alias.go:106 lxc/image_alias.go:149 lxc/image_alias.go:250
-#: lxc/image.go:42 lxc/image.go:131 lxc/image.go:265 lxc/image.go:316
-#: lxc/image.go:439 lxc/image.go:579 lxc/image.go:793 lxc/image.go:907
-#: lxc/image.go:1237 lxc/image.go:1314 lxc/import.go:27 lxc/info.go:29
-#: lxc/init.go:35 lxc/launch.go:22 lxc/list.go:48 lxc/main.go:49
-#: lxc/manpage.go:19 lxc/monitor.go:31 lxc/move.go:37 lxc/network.go:34
-#: lxc/network.go:110 lxc/network.go:183 lxc/network.go:256 lxc/network.go:328
-#: lxc/network.go:378 lxc/network.go:463 lxc/network.go:548 lxc/network.go:671
-#: lxc/network.go:729 lxc/network.go:799 lxc/network.go:919 lxc/network.go:984
-#: lxc/network.go:1034 lxc/network.go:1103 lxc/network.go:1165
-#: lxc/operation.go:25 lxc/operation.go:54 lxc/operation.go:101
-#: lxc/operation.go:177 lxc/profile.go:32 lxc/profile.go:104 lxc/profile.go:167
-#: lxc/profile.go:247 lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407
-#: lxc/profile.go:531 lxc/profile.go:580 lxc/profile.go:678 lxc/profile.go:754
-#: lxc/profile.go:804 lxc/profile.go:863 lxc/profile.go:917 lxc/project.go:30
-#: lxc/project.go:87 lxc/project.go:152 lxc/project.go:215 lxc/project.go:335
-#: lxc/project.go:383 lxc/project.go:472 lxc/project.go:527 lxc/project.go:587
-#: lxc/project.go:616 lxc/project.go:669 lxc/publish.go:34 lxc/query.go:30
-#: lxc/remote.go:40 lxc/remote.go:91 lxc/remote.go:403 lxc/remote.go:439
-#: lxc/remote.go:544 lxc/remote.go:606 lxc/remote.go:656 lxc/remote.go:694
-#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
-#: lxc/storage.go:89 lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333
-#: lxc/storage.go:388 lxc/storage.go:496 lxc/storage.go:578 lxc/storage.go:650
-#: lxc/storage.go:734 lxc/storage_volume.go:34 lxc/storage_volume.go:141
-#: lxc/storage_volume.go:220 lxc/storage_volume.go:303
-#: lxc/storage_volume.go:464 lxc/storage_volume.go:541
-#: lxc/storage_volume.go:617 lxc/storage_volume.go:699
-#: lxc/storage_volume.go:780 lxc/storage_volume.go:980
-#: lxc/storage_volume.go:1069 lxc/storage_volume.go:1148
-#: lxc/storage_volume.go:1179 lxc/storage_volume.go:1282
-#: lxc/storage_volume.go:1359 lxc/storage_volume.go:1458
-#: lxc/storage_volume.go:1489 lxc/storage_volume.go:1560 lxc/version.go:22
+#: lxc/cluster.go:197 lxc/cluster.go:246 lxc/cluster.go:295 lxc/config.go:30
+#: lxc/config.go:89 lxc/config.go:357 lxc/config.go:423 lxc/config.go:520
+#: lxc/config.go:624 lxc/config_device.go:24 lxc/config_device.go:76
+#: lxc/config_device.go:182 lxc/config_device.go:255 lxc/config_device.go:321
+#: lxc/config_device.go:410 lxc/config_device.go:500 lxc/config_device.go:589
+#: lxc/config_device.go:657 lxc/config_metadata.go:29 lxc/config_metadata.go:54
+#: lxc/config_metadata.go:176 lxc/config_template.go:30
+#: lxc/config_template.go:67 lxc/config_template.go:110
+#: lxc/config_template.go:152 lxc/config_template.go:236
+#: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
+#: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
+#: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:31
+#: lxc/file.go:42 lxc/file.go:75 lxc/file.go:124 lxc/file.go:187
+#: lxc/file.go:377 lxc/image.go:42 lxc/image.go:131 lxc/image.go:265
+#: lxc/image.go:316 lxc/image.go:439 lxc/image.go:579 lxc/image.go:793
+#: lxc/image.go:907 lxc/image.go:1237 lxc/image.go:1314 lxc/image_alias.go:26
+#: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
+#: lxc/image_alias.go:250 lxc/import.go:27 lxc/info.go:29 lxc/init.go:35
+#: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:49 lxc/manpage.go:19
+#: lxc/monitor.go:31 lxc/move.go:37 lxc/network.go:34 lxc/network.go:110
+#: lxc/network.go:183 lxc/network.go:256 lxc/network.go:328 lxc/network.go:378
+#: lxc/network.go:463 lxc/network.go:548 lxc/network.go:671 lxc/network.go:729
+#: lxc/network.go:799 lxc/network.go:919 lxc/network.go:984 lxc/network.go:1034
+#: lxc/network.go:1103 lxc/network.go:1165 lxc/operation.go:25
+#: lxc/operation.go:54 lxc/operation.go:101 lxc/operation.go:177
+#: lxc/profile.go:32 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247
+#: lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531
+#: lxc/profile.go:580 lxc/profile.go:678 lxc/profile.go:754 lxc/profile.go:804
+#: lxc/profile.go:863 lxc/profile.go:917 lxc/project.go:30 lxc/project.go:87
+#: lxc/project.go:152 lxc/project.go:215 lxc/project.go:335 lxc/project.go:383
+#: lxc/project.go:472 lxc/project.go:527 lxc/project.go:587 lxc/project.go:616
+#: lxc/project.go:669 lxc/publish.go:34 lxc/query.go:30 lxc/remote.go:40
+#: lxc/remote.go:91 lxc/remote.go:403 lxc/remote.go:439 lxc/remote.go:544
+#: lxc/remote.go:606 lxc/remote.go:656 lxc/remote.go:694 lxc/rename.go:21
+#: lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33 lxc/storage.go:89
+#: lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388
+#: lxc/storage.go:496 lxc/storage.go:578 lxc/storage.go:650 lxc/storage.go:734
+#: lxc/storage_volume.go:34 lxc/storage_volume.go:141 lxc/storage_volume.go:220
+#: lxc/storage_volume.go:303 lxc/storage_volume.go:464
+#: lxc/storage_volume.go:541 lxc/storage_volume.go:617
+#: lxc/storage_volume.go:699 lxc/storage_volume.go:780
+#: lxc/storage_volume.go:980 lxc/storage_volume.go:1069
+#: lxc/storage_volume.go:1148 lxc/storage_volume.go:1179
+#: lxc/storage_volume.go:1282 lxc/storage_volume.go:1359
+#: lxc/storage_volume.go:1458 lxc/storage_volume.go:1489
+#: lxc/storage_volume.go:1560 lxc/version.go:22
 msgid "Description"
 msgstr ""
 
@@ -856,7 +856,7 @@ msgstr ""
 #: lxc/config_device.go:164
 #, c-format
 msgid "Device %s added to %s"
-msgstr ""
+msgstr "Dispositivo %s añadido a %s"
 
 #: lxc/config_device.go:391
 #, c-format
@@ -871,11 +871,11 @@ msgstr ""
 #: lxc/utils.go:133 lxc/utils.go:157
 #, c-format
 msgid "Device already exists: %s"
-msgstr ""
+msgstr "El dispostivo ya existe: %s"
 
 #: lxc/image.go:594
 msgid "Directory import is not available on this platform"
-msgstr ""
+msgstr "El directorio importado no está disponible en esta plataforma"
 
 #: lxc/exec.go:55
 msgid "Disable pseudo-terminal allocation"
@@ -887,7 +887,7 @@ msgstr ""
 
 #: lxc/info.go:183
 msgid "Disk usage:"
-msgstr ""
+msgstr "Uso del disco:"
 
 #: lxc/main.go:64
 msgid "Don't show progress information"
@@ -899,7 +899,7 @@ msgstr ""
 
 #: lxc/config_trust.go:177
 msgid "EXPIRY DATE"
-msgstr ""
+msgstr "FECHA DE EXPIRACIÓN"
 
 #: lxc/config_template.go:151 lxc/config_template.go:152
 msgid "Edit container file templates"
@@ -976,7 +976,7 @@ msgstr ""
 #: lxc/config_template.go:204
 #, c-format
 msgid "Error updating template file: %s"
-msgstr ""
+msgstr "Error actualizando el archivo de plantilla: %s"
 
 #: lxc/monitor.go:48
 msgid "Event type to listen for"
@@ -1004,11 +1004,11 @@ msgstr ""
 #: lxc/image.go:855
 #, c-format
 msgid "Expires: %s"
-msgstr ""
+msgstr "Expira: %s"
 
 #: lxc/image.go:857
 msgid "Expires: never"
-msgstr ""
+msgstr "Expira: nunca"
 
 #: lxc/image.go:438
 msgid "Export and download images"
@@ -1039,16 +1039,16 @@ msgstr "No se puede proveer el nombre del container a la lista"
 #: lxc/image.go:499
 #, c-format
 msgid "Exporting the image: %s"
-msgstr ""
+msgstr "Exportando la imagen: %s"
 
 #: lxc/config_template.go:279
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:174 lxc/image_alias.go:229 lxc/image.go:942
-#: lxc/image.go:943
+#: lxc/config_trust.go:174 lxc/image.go:942 lxc/image.go:943
+#: lxc/image_alias.go:229
 msgid "FINGERPRINT"
-msgstr ""
+msgstr "HUELLA DIGITAL"
 
 #: lxc/move.go:217
 msgid "Failed to connect to cluster member"
@@ -1079,12 +1079,12 @@ msgstr ""
 
 #: lxc/network.go:830 lxc/operation.go:129
 msgid "Filtering isn't supported yet"
-msgstr ""
+msgstr "El filtrado no está soportado aún"
 
 #: lxc/image.go:841
 #, c-format
 msgid "Fingerprint: %s"
-msgstr ""
+msgstr "Huella dactilar: %s"
 
 #: lxc/exec.go:54
 msgid "Force pseudo-terminal allocation"
@@ -1521,7 +1521,7 @@ msgstr ""
 
 #: lxc/info.go:279
 msgid "Log:"
-msgstr ""
+msgstr "Registro:"
 
 #: lxc/network.go:963
 msgid "MAC ADDRESS"
@@ -1973,7 +1973,7 @@ msgstr ""
 #: lxc/info.go:170
 #, c-format
 msgid "Processes: %d"
-msgstr ""
+msgstr "Procesos: %d"
 
 #: lxc/main_aliases.go:126 lxc/main_aliases.go:134
 #, c-format
@@ -1983,17 +1983,17 @@ msgstr ""
 #: lxc/profile.go:150
 #, c-format
 msgid "Profile %s added to %s"
-msgstr ""
+msgstr "Perfil %s añadido a %s"
 
 #: lxc/profile.go:340
 #, c-format
 msgid "Profile %s created"
-msgstr ""
+msgstr "Perfil %s creado"
 
 #: lxc/profile.go:391
 #, c-format
 msgid "Profile %s deleted"
-msgstr ""
+msgstr "Perfil %s eliminado"
 
 #: lxc/profile.go:712
 #, c-format
@@ -2003,16 +2003,16 @@ msgstr ""
 #: lxc/profile.go:737
 #, c-format
 msgid "Profile %s removed from %s"
-msgstr ""
+msgstr "Perfil %s eliminado de %s"
 
 #: lxc/profile.go:788
 #, c-format
 msgid "Profile %s renamed to %s"
-msgstr ""
+msgstr "Perfil %s renombrado a %s"
 
 #: lxc/copy.go:46 lxc/init.go:43
 msgid "Profile to apply to the new container"
-msgstr ""
+msgstr "Perfil para aplicar al nuevo contenedor"
 
 #: lxc/move.go:52
 msgid "Profile to apply to the target container"

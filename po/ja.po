@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-02-04 21:10+0100\n"
-"PO-Revision-Date: 2018-10-12 14:44+0000\n"
+"POT-Creation-Date: 2019-02-06 13:24-0500\n"
+"PO-Revision-Date: 2019-01-18 12:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 3.2.1\n"
+"X-Generator: Weblate 3.4-dev\n"
 
 #: lxc/storage.go:225
 msgid ""
@@ -189,15 +189,14 @@ msgid "(none)"
 msgstr ""
 
 #: lxc/copy.go:152
-#, fuzzy
 msgid "--container-only can't be passed when the source is a snapshot"
-msgstr "--container-only と --target は同時に指定できません"
+msgstr "--container-only はコピー元がスナップショットの場合は指定できません"
 
 #: lxc/copy.go:163
 msgid "--refresh can only be used with containers"
-msgstr ""
+msgstr "--refresh はコンテナの場合のみ使えます"
 
-#: lxc/alias.go:127 lxc/image_alias.go:228 lxc/image.go:940
+#: lxc/alias.go:127 lxc/image.go:940 lxc/image_alias.go:228
 msgid "ALIAS"
 msgstr ""
 
@@ -431,7 +430,6 @@ msgid "Can't specify column L when not clustered"
 msgstr "クラスタでない場合はカラムとして L は指定できません"
 
 #: lxc/file.go:451
-#, fuzzy
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -581,7 +579,7 @@ msgstr "ボリュームをコピーします (スナップショットはコピ�
 
 #: lxc/copy.go:53 lxc/move.go:59
 msgid "Copy to a project different from the source"
-msgstr ""
+msgstr "コピー／移動元とは異なるプロジェクトにコピーします"
 
 #: lxc/image.go:218
 #, c-format
@@ -675,7 +673,7 @@ msgstr "コンテナを作成中"
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image_alias.go:230 lxc/image.go:945 lxc/list.go:459 lxc/network.go:861
+#: lxc/image.go:945 lxc/image_alias.go:230 lxc/list.go:459 lxc/network.go:861
 #: lxc/operation.go:156 lxc/storage.go:550 lxc/storage_volume.go:1121
 msgid "DESCRIPTION"
 msgstr ""
@@ -735,52 +733,52 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:246 lxc/cluster.go:295
-#: lxc/config_device.go:24 lxc/config_device.go:76 lxc/config_device.go:182
-#: lxc/config_device.go:255 lxc/config_device.go:321 lxc/config_device.go:410
-#: lxc/config_device.go:500 lxc/config_device.go:589 lxc/config_device.go:657
-#: lxc/config.go:30 lxc/config.go:89 lxc/config.go:357 lxc/config.go:423
-#: lxc/config.go:520 lxc/config.go:624 lxc/config_metadata.go:29
-#: lxc/config_metadata.go:54 lxc/config_metadata.go:176
-#: lxc/config_template.go:30 lxc/config_template.go:67
-#: lxc/config_template.go:110 lxc/config_template.go:152
-#: lxc/config_template.go:236 lxc/config_template.go:298 lxc/config_trust.go:30
-#: lxc/config_trust.go:59 lxc/config_trust.go:115 lxc/config_trust.go:197
-#: lxc/console.go:32 lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:39
-#: lxc/export.go:31 lxc/file.go:42 lxc/file.go:75 lxc/file.go:124
-#: lxc/file.go:187 lxc/file.go:377 lxc/image_alias.go:26 lxc/image_alias.go:59
-#: lxc/image_alias.go:106 lxc/image_alias.go:149 lxc/image_alias.go:250
-#: lxc/image.go:42 lxc/image.go:131 lxc/image.go:265 lxc/image.go:316
-#: lxc/image.go:439 lxc/image.go:579 lxc/image.go:793 lxc/image.go:907
-#: lxc/image.go:1237 lxc/image.go:1314 lxc/import.go:27 lxc/info.go:29
-#: lxc/init.go:35 lxc/launch.go:22 lxc/list.go:48 lxc/main.go:49
-#: lxc/manpage.go:19 lxc/monitor.go:31 lxc/move.go:37 lxc/network.go:34
-#: lxc/network.go:110 lxc/network.go:183 lxc/network.go:256 lxc/network.go:328
-#: lxc/network.go:378 lxc/network.go:463 lxc/network.go:548 lxc/network.go:671
-#: lxc/network.go:729 lxc/network.go:799 lxc/network.go:919 lxc/network.go:984
-#: lxc/network.go:1034 lxc/network.go:1103 lxc/network.go:1165
-#: lxc/operation.go:25 lxc/operation.go:54 lxc/operation.go:101
-#: lxc/operation.go:177 lxc/profile.go:32 lxc/profile.go:104 lxc/profile.go:167
-#: lxc/profile.go:247 lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407
-#: lxc/profile.go:531 lxc/profile.go:580 lxc/profile.go:678 lxc/profile.go:754
-#: lxc/profile.go:804 lxc/profile.go:863 lxc/profile.go:917 lxc/project.go:30
-#: lxc/project.go:87 lxc/project.go:152 lxc/project.go:215 lxc/project.go:335
-#: lxc/project.go:383 lxc/project.go:472 lxc/project.go:527 lxc/project.go:587
-#: lxc/project.go:616 lxc/project.go:669 lxc/publish.go:34 lxc/query.go:30
-#: lxc/remote.go:40 lxc/remote.go:91 lxc/remote.go:403 lxc/remote.go:439
-#: lxc/remote.go:544 lxc/remote.go:606 lxc/remote.go:656 lxc/remote.go:694
-#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33
-#: lxc/storage.go:89 lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333
-#: lxc/storage.go:388 lxc/storage.go:496 lxc/storage.go:578 lxc/storage.go:650
-#: lxc/storage.go:734 lxc/storage_volume.go:34 lxc/storage_volume.go:141
-#: lxc/storage_volume.go:220 lxc/storage_volume.go:303
-#: lxc/storage_volume.go:464 lxc/storage_volume.go:541
-#: lxc/storage_volume.go:617 lxc/storage_volume.go:699
-#: lxc/storage_volume.go:780 lxc/storage_volume.go:980
-#: lxc/storage_volume.go:1069 lxc/storage_volume.go:1148
-#: lxc/storage_volume.go:1179 lxc/storage_volume.go:1282
-#: lxc/storage_volume.go:1359 lxc/storage_volume.go:1458
-#: lxc/storage_volume.go:1489 lxc/storage_volume.go:1560 lxc/version.go:22
+#: lxc/cluster.go:197 lxc/cluster.go:246 lxc/cluster.go:295 lxc/config.go:30
+#: lxc/config.go:89 lxc/config.go:357 lxc/config.go:423 lxc/config.go:520
+#: lxc/config.go:624 lxc/config_device.go:24 lxc/config_device.go:76
+#: lxc/config_device.go:182 lxc/config_device.go:255 lxc/config_device.go:321
+#: lxc/config_device.go:410 lxc/config_device.go:500 lxc/config_device.go:589
+#: lxc/config_device.go:657 lxc/config_metadata.go:29 lxc/config_metadata.go:54
+#: lxc/config_metadata.go:176 lxc/config_template.go:30
+#: lxc/config_template.go:67 lxc/config_template.go:110
+#: lxc/config_template.go:152 lxc/config_template.go:236
+#: lxc/config_template.go:298 lxc/config_trust.go:30 lxc/config_trust.go:59
+#: lxc/config_trust.go:115 lxc/config_trust.go:197 lxc/console.go:32
+#: lxc/copy.go:40 lxc/delete.go:30 lxc/exec.go:39 lxc/export.go:31
+#: lxc/file.go:42 lxc/file.go:75 lxc/file.go:124 lxc/file.go:187
+#: lxc/file.go:377 lxc/image.go:42 lxc/image.go:131 lxc/image.go:265
+#: lxc/image.go:316 lxc/image.go:439 lxc/image.go:579 lxc/image.go:793
+#: lxc/image.go:907 lxc/image.go:1237 lxc/image.go:1314 lxc/image_alias.go:26
+#: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
+#: lxc/image_alias.go:250 lxc/import.go:27 lxc/info.go:29 lxc/init.go:35
+#: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:49 lxc/manpage.go:19
+#: lxc/monitor.go:31 lxc/move.go:37 lxc/network.go:34 lxc/network.go:110
+#: lxc/network.go:183 lxc/network.go:256 lxc/network.go:328 lxc/network.go:378
+#: lxc/network.go:463 lxc/network.go:548 lxc/network.go:671 lxc/network.go:729
+#: lxc/network.go:799 lxc/network.go:919 lxc/network.go:984 lxc/network.go:1034
+#: lxc/network.go:1103 lxc/network.go:1165 lxc/operation.go:25
+#: lxc/operation.go:54 lxc/operation.go:101 lxc/operation.go:177
+#: lxc/profile.go:32 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247
+#: lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531
+#: lxc/profile.go:580 lxc/profile.go:678 lxc/profile.go:754 lxc/profile.go:804
+#: lxc/profile.go:863 lxc/profile.go:917 lxc/project.go:30 lxc/project.go:87
+#: lxc/project.go:152 lxc/project.go:215 lxc/project.go:335 lxc/project.go:383
+#: lxc/project.go:472 lxc/project.go:527 lxc/project.go:587 lxc/project.go:616
+#: lxc/project.go:669 lxc/publish.go:34 lxc/query.go:30 lxc/remote.go:40
+#: lxc/remote.go:91 lxc/remote.go:403 lxc/remote.go:439 lxc/remote.go:544
+#: lxc/remote.go:606 lxc/remote.go:656 lxc/remote.go:694 lxc/rename.go:21
+#: lxc/restore.go:24 lxc/snapshot.go:21 lxc/storage.go:33 lxc/storage.go:89
+#: lxc/storage.go:163 lxc/storage.go:213 lxc/storage.go:333 lxc/storage.go:388
+#: lxc/storage.go:496 lxc/storage.go:578 lxc/storage.go:650 lxc/storage.go:734
+#: lxc/storage_volume.go:34 lxc/storage_volume.go:141 lxc/storage_volume.go:220
+#: lxc/storage_volume.go:303 lxc/storage_volume.go:464
+#: lxc/storage_volume.go:541 lxc/storage_volume.go:617
+#: lxc/storage_volume.go:699 lxc/storage_volume.go:780
+#: lxc/storage_volume.go:980 lxc/storage_volume.go:1069
+#: lxc/storage_volume.go:1148 lxc/storage_volume.go:1179
+#: lxc/storage_volume.go:1282 lxc/storage_volume.go:1359
+#: lxc/storage_volume.go:1458 lxc/storage_volume.go:1489
+#: lxc/storage_volume.go:1560 lxc/version.go:22
 msgid "Description"
 msgstr "説明"
 
@@ -1015,8 +1013,8 @@ msgstr "イメージのエクスポート中: %s"
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:174 lxc/image_alias.go:229 lxc/image.go:942
-#: lxc/image.go:943
+#: lxc/config_trust.go:174 lxc/image.go:942 lxc/image.go:943
+#: lxc/image_alias.go:229
 msgid "FINGERPRINT"
 msgstr ""
 
@@ -1503,7 +1501,6 @@ msgid "List images"
 msgstr "イメージを一覧表示します"
 
 #: lxc/image.go:907
-#, fuzzy
 msgid ""
 "List images\n"
 "\n"
@@ -1549,7 +1546,8 @@ msgstr ""
 "    p - イメージがパブリックかどうか\n"
 "    d - 説明\n"
 "    a - アーキテクチャ\n"
-"    s - サイズ"
+"    s - サイズ\n"
+"    u - アップロード日"
 
 #: lxc/profile.go:579 lxc/profile.go:580
 msgid "List profiles"
@@ -1967,9 +1965,8 @@ msgid "Operation %s deleted"
 msgstr "バックグラウンド操作 %s を削除しました"
 
 #: lxc/main.go:61
-#, fuzzy
 msgid "Override the source project"
-msgstr "現在のプロジェクトを切り替えます"
+msgstr "プロジェクトを指定します"
 
 #: lxc/exec.go:53
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
@@ -2018,7 +2015,7 @@ msgstr "コンテナを一時停止します"
 
 #: lxc/copy.go:55
 msgid "Perform an incremental copy"
-msgstr ""
+msgstr "インクリメンタルコピーを実行します"
 
 #: lxc/info.go:146
 #, c-format
@@ -2168,9 +2165,9 @@ msgid "Refresh images"
 msgstr "イメージを更新します"
 
 #: lxc/copy.go:370
-#, fuzzy, c-format
+#, c-format
 msgid "Refreshing container: %s"
-msgstr "コンテナのインポート中: %s"
+msgstr "コンテナの更新中: %s"
 
 #: lxc/image.go:1265
 #, c-format
@@ -2569,7 +2566,7 @@ msgid "Starting %s"
 msgstr "%s を起動中"
 
 #: lxc/network.go:766
-#, fuzzy, c-format
+#, c-format
 msgid "State: %s"
 msgstr "状態: %s"
 
@@ -2765,8 +2762,8 @@ msgstr ""
 #: lxc/copy.go:116
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
-" --target オプションは、コピー先のリモートサーバがクラスタに属していなければ"
-"なりません"
+"--target オプションは、コピー先のリモートサーバがクラスタに属していなければな"
+"りません"
 
 #: lxc/storage_volume.go:1151
 msgid "Transfer mode, one of pull (default), push or relay"
@@ -3369,12 +3366,11 @@ msgstr ""
 "    サーバの認証パスワードを blah に設定します。"
 
 #: lxc/export.go:33
-#, fuzzy
 msgid ""
 "lxc export u1 backup0.tar.gz\n"
 "    Download a backup tarball of the u1 container."
 msgstr ""
-"lxc export u1 backup0.tar.xz\n"
+"lxc export u1 backup0.tar.gz\n"
 "    u1 コンテナのバックアップ tarball をダウンロードします。"
 
 #: lxc/file.go:189
@@ -3411,13 +3407,12 @@ msgstr ""
 "    YAML ファイルからイメージプロパティをロードします"
 
 #: lxc/import.go:29
-#, fuzzy
 msgid ""
 "lxc import backup0.tar.gz\n"
 "    Create a new container using backup0.tar.gz as the source."
 msgstr ""
-"lxc import backup0.tar.xz\n"
-"    backup0.tar.xz を使って新しいコンテナを作成します。"
+"lxc import backup0.tar.gz\n"
+"    backup0.tar.gz を使って新しいコンテナを作成します。"
 
 #: lxc/info.go:31
 msgid ""
