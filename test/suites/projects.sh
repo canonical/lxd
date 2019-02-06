@@ -21,7 +21,7 @@ test_projects_crud() {
   lxc project get foo "features.profiles" | grep -q 'true'
 
   # Trying to create a project with the same name fails
-  ! lxc project create foo
+  ! lxc project create foo || false
 
   # Rename the project
   lxc project rename foo bar
@@ -34,7 +34,7 @@ test_projects_crud() {
   lxc project create foo
 
   # Trying to rename a project using an existing name fails
-  ! lxc project rename bar foo
+  ! lxc project rename bar foo || false
 
   lxc project switch foo
 
@@ -79,13 +79,13 @@ test_projects_containers() {
   lxc info c1 | grep -q "Name: c1"
 
   # The container's volume is listed too.
-  lxc storage volume list "${pool}" | grep -q c1
+  lxc storage volume list "${pool}" | grep container | grep -q c1
 
   # For backends with optimized storage, we can see the image volume inside the
   # project.
   driver="$(storage_backend "$LXD_DIR")"
   if [ "${driver}" != "dir" ]; then
-      lxc storage volume list "${pool}" | grep -q "${fingerprint}"
+      lxc storage volume list "${pool}" | grep image | grep -q "${fingerprint}"
   fi
 
   # Start the container
@@ -95,17 +95,17 @@ test_projects_containers() {
 
   # The container can't be managed when using the default project
   lxc project switch default
-  ! lxc list | grep -q c1
-  ! lxc info c1
-  ! lxc delete c1
-  ! lxc storage volume list "${pool}" | grep -q c1
+  ! lxc list | grep -q c1 || false
+  ! lxc info c1 || false
+  ! lxc delete c1 || false
+  ! lxc storage volume list "${pool}" | grep container | grep -q c1 || false
 
   # Trying to delete a project which is in use fails
-  ! lxc project delete foo
+  ! lxc project delete foo || false
 
   # Trying to change features of a project which is in use fails
-  ! lxc project show foo| sed 's/features.profiles:.*/features.profiles: "false"/' | lxc project edit foo
-  ! lxc project set foo "features.profiles" "false"
+  ! lxc project show foo| sed 's/features.profiles:.*/features.profiles: "false"/' | lxc project edit foo || false
+  ! lxc project set foo "features.profiles" "false" || false
   lxc project show foo | grep -q 'features.profiles: "true"'
 
   # Create a container with the same name in the default project
@@ -272,7 +272,7 @@ test_projects_profiles() {
 
   # The profile is not visible in the default project
   lxc project switch default
-  ! lxc profile list | grep -q 'p1'
+  ! lxc profile list | grep -q 'p1' || false
 
   # A profile with the same name can be created in the default project
   lxc profile create p1
@@ -344,7 +344,7 @@ test_projects_images() {
 
   # The imported image is not visible in the default project.
   lxc project switch default
-  ! lxc image list | grep -q "${fingerprint}"
+  ! lxc image list | grep -q "${fingerprint}" || false
 
   # Switch back to the project and clean it up.
   lxc project switch foo
@@ -358,7 +358,7 @@ test_projects_images() {
 
   # However the image alias is not visible in the default project.
   lxc project switch default
-  ! lxc image list | grep -q foo-project
+  ! lxc image list | grep -q foo-project || false
 
   # Let's import the same image in the default project
   ensure_import_testimage
@@ -367,7 +367,7 @@ test_projects_images() {
   lxc project switch foo
 
   # The image alias from the default project is not visiable here
-  ! lxc image list | grep -q testimage
+  ! lxc image list | grep -q testimage || false
 
   # Rename the image alias in the project using the same it has in the default
   # one.
@@ -429,7 +429,7 @@ test_projects_storage() {
 
   lxc project switch default
 
-  ! lxc storage volume list "${pool}" | grep -q custom
+  ! lxc storage volume list "${pool}" | grep custom | grep -q vol || false
 
   lxc project delete foo
 }

@@ -11,18 +11,20 @@ test_macaroon_auth() {
     lxc config set candid.api.key "${key}"
 
     # invalid credentials make the remote add fail
-    # shellcheck disable=SC2039
-    ! cat <<EOF | lxc remote add macaroon-remote "https://$LXD_ADDR" --auth-type candid --accept-certificate
+    ! (
+    cat <<EOF
 wrong-user
 wrong-pass
 EOF
+    ) | lxc remote add macaroon-remote "https://$LXD_ADDR" --auth-type candid --accept-certificate || false
 
     # valid credentials work
-    # shellcheck disable=SC2039
-    cat <<EOF | lxc remote add macaroon-remote "https://$LXD_ADDR" --auth-type candid --accept-certificate
+    (
+    cat <<EOF
 user1
 pass1
 EOF
+    ) | lxc remote add macaroon-remote "https://$LXD_ADDR" --auth-type candid --accept-certificate
 
     # run a lxc command through the new remote
     lxc config show macaroon-remote: | grep -q candid.api.url

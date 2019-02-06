@@ -24,7 +24,7 @@ test_container_import() {
     lxc init testimage ctImport
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    ! lxd import ctImport
+    ! lxd import ctImport || false
     lxd import ctImport --force
     kill_lxc "${pid}"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
@@ -37,7 +37,7 @@ test_container_import() {
     lxc snapshot ctImport
     lxc start ctImport
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    ! lxd import ctImport
+    ! lxd import ctImport || false
     lxd import ctImport --force
     kill_lxc "${pid}"
     lxc info ctImport | grep snap0
@@ -50,7 +50,7 @@ test_container_import() {
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill_lxc "${pid}"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
-    ! lxd import ctImport
+    ! lxd import ctImport || false
     lxd import ctImport --force
     lxc info ctImport | grep snap0
     lxc start ctImport
@@ -62,7 +62,7 @@ test_container_import() {
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill_lxc "${pid}"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
-    ! lxd import ctImport
+    ! lxd import ctImport || false
     lxd import ctImport --force
     lxc info ctImport | grep snap0
     lxc start ctImport
@@ -76,7 +76,7 @@ test_container_import() {
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
-    ! lxd import ctImport
+    ! lxd import ctImport || false
     lxd import ctImport --force
     lxc info ctImport | grep snap0
     lxc start ctImport
@@ -111,7 +111,7 @@ test_container_import() {
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport'"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM containers WHERE name='ctImport/snap0'"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
-    ! lxd import ctImport
+    ! lxd import ctImport || false
     lxd import ctImport --force
     lxc info ctImport | grep snap0
     [ -L "${LXD_DIR}/containers/ctImport" ] && [ -d "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers/ctImport" ]
@@ -146,7 +146,7 @@ test_container_import() {
     esac
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill_lxc "${pid}"
-    ! lxd import ctImport
+    ! lxd import ctImport || false
     lxd import ctImport --force
     lxc info ctImport | grep snap0
     lxc start ctImport
@@ -178,7 +178,7 @@ test_container_import() {
     esac
     pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
     kill_lxc "${pid}"
-    ! lxd import ctImport
+    ! lxd import ctImport || false
     lxd import ctImport --force
     lxc info ctImport | grep snap0
     lxc start ctImport

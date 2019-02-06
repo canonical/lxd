@@ -47,26 +47,26 @@ test_storage_profiles() {
 
     # Check that we can't remove or change the root disk device since containers
     # are actually using it.
-    ! lxc profile device remove dummy rootfs
-    ! lxc profile device set dummy rootfs pool "lxdtest-$(basename "${LXD_DIR}")-pool2"
+    ! lxc profile device remove dummy rootfs || false
+    ! lxc profile device set dummy rootfs pool "lxdtest-$(basename "${LXD_DIR}")-pool2" || false
 
     # Give all the containers we started their own local root disk device.
     for i in $(seq 1 2); do
-      ! lxc config device add c"${i}" root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
+      ! lxc config device add c"${i}" root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1" || false
       lxc config device add c"${i}" rootfs disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
     done
 
     # Try to set new pool. This should fail since there is a single container
     # that has no local root disk device.
-    ! lxc profile device set dummy rootfs pool "lxdtest-$(basename "${LXD_DIR}")-pool2"
+    ! lxc profile device set dummy rootfs pool "lxdtest-$(basename "${LXD_DIR}")-pool2" || false
     # This should work since it doesn't change the pool property.
     lxc profile device set dummy rootfs pool "lxdtest-$(basename "${LXD_DIR}")-pool1"
     # Check that we can not remove the root disk device since there is a single
     # container that is still using it.
-    ! lxc profile device remove dummy rootfs
+    ! lxc profile device remove dummy rootfs || false
 
     # Give the last container a local root disk device.
-    ! lxc config device add c3 root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
+    ! lxc config device add c3 root disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1" || false
     lxc config device add c3 rootfs disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
 
     # Try to set new pool. This should work since the container has a local disk
@@ -77,16 +77,16 @@ test_storage_profiles() {
     lxc profile device remove dummy rootfs
 
     # Add back a root device to the profile.
-    ! lxc profile device add dummy rootfs1 disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1"
+    ! lxc profile device add dummy rootfs1 disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool1" || false
 
     # Try to add another root device to the profile that tries to set a pool
     # property. This should fail. This is also a test for whether it is possible
     # to put multiple disk devices on the same path. This must fail!
-    ! lxc profile device add dummy rootfs2 disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool2"
+    ! lxc profile device add dummy rootfs2 disk path="/" pool="lxdtest-$(basename "${LXD_DIR}")-pool2" || false
 
     # Add another root device to the profile that does not set a pool property.
     # This should not work since it would use the same path.
-    ! lxc profile device add dummy rootfs3 disk path="/"
+    ! lxc profile device add dummy rootfs3 disk path="/" || false
 
     # Create a second profile.
     lxc profile create dummyDup
@@ -98,15 +98,15 @@ test_storage_profiles() {
 
     # Verify that we cannot create a container with profiles that have
     # contradicting root devices.
-    ! lxc launch testimage cConflictingProfiles --p dummy -p dummyDup -p dummyNoDup
+    ! lxc launch testimage cConflictingProfiles --p dummy -p dummyDup -p dummyNoDup || false
 
     # And that even with a local disk, a container can't have multiple root devices
-    ! lxc launch testimage cConflictingProfiles -s "lxdtest-$(basename "${LXD_DIR}")-pool2" -p dummy -p dummyDup -p dummyNoDup
+    ! lxc launch testimage cConflictingProfiles -s "lxdtest-$(basename "${LXD_DIR}")-pool2" -p dummy -p dummyDup -p dummyNoDup || false
 
     # Check that we cannot assign conflicting profiles to a container that
     # relies on another profiles root disk device.
     lxc launch testimage cOnDefault
-    ! lxc profile assign cOnDefault default,dummyDup,dummyNoDup
+    ! lxc profile assign cOnDefault default,dummyDup,dummyNoDup || false
 
     # Verify that we can create a container with two profiles that speficy the
     # same root disk device.
@@ -116,14 +116,14 @@ test_storage_profiles() {
     lxc profile device remove dummy rootfs1
 
     # Try to remove the root disk device from the second profile.
-    ! lxc profile device remove dummyDup rootfs1
+    ! lxc profile device remove dummyDup rootfs1 || false
 
     # Test that we can't remove the root disk device from the containers config
     # when the profile it is attached to specifies no root device.
     for i in $(seq 1 3); do
-      ! lxc config device remove c"${i}" root
+      ! lxc config device remove c"${i}" root || false
       # Must fail.
-      ! lxc profile assign c"${i}" dummyDup,dummyNoDup
+      ! lxc profile assign c"${i}" dummyDup,dummyNoDup || false
     done
 
     lxc delete -f cNonConflictingProfiles

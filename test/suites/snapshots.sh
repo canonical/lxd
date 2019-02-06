@@ -233,7 +233,7 @@ test_snap_expiry() {
 
   lxc config set c1 snapshots.expiry '1d'
   lxc snapshot c1
-  ! lxc config show c1/snap1 | grep -q 'expires_at: 0001-01-01T00:00:00Z'
+  ! lxc config show c1/snap1 | grep -q 'expires_at: 0001-01-01T00:00:00Z' || false
 
   lxc rm -f c1
 }
