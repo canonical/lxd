@@ -186,14 +186,22 @@ func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(
 
 	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, readPipe, nil, nil)
 
+	chError := make(chan error, 1)
+	go func() {
+		err = cmd.Wait()
+		if err != nil {
+			dataSocket.Close()
+			readPipe.Close()
+		}
+		chError <- err
+	}()
+
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
 		cmd.Process.Kill()
-		cmd.Wait()
-		return err
 	}
 
-	err = cmd.Wait()
+	err = <-chError
 	if err != nil {
 		logger.Errorf("Rsync send failed: %s: %s: %s", path, err, string(output))
 	}
