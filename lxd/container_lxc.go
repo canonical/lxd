@@ -8219,6 +8219,19 @@ func (c *containerLXC) removeDiskDevice(name string, m types.Device) error {
 		return err
 	}
 
+	// Check if pool-specific action should be taken
+	if m["pool"] != "" {
+		s, err := storagePoolVolumeInit(c.state, "default", m["pool"], m["source"], storagePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		_, err = s.StoragePoolVolumeUmount()
+		if err != nil {
+			return err
+		}
+	}
+
 	// Remove the host side
 	err = os.Remove(devPath)
 	if err != nil {
