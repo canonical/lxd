@@ -186,13 +186,13 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	}
 
 	// Build the actual image file
-	tarfile, err := ioutil.TempFile(builddir, "lxd_build_tar_")
+	imageFile, err := ioutil.TempFile(builddir, "lxd_build_image_")
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(tarfile.Name())
+	defer os.Remove(imageFile.Name())
 
-	// Calculate (close estimate of) total size of tarfile
+	// Calculate (close estimate of) total size of input to image
 	totalSize := int64(0)
 	sumSize := func(path string, fi os.FileInfo, err error) error {
 		if err == nil {
@@ -206,13 +206,12 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 		return nil, err
 	}
 
-	// Track progress writing tarfile
+	// Track progress creating image.
 	metadata := make(map[string]interface{})
-	tarfileProgressWriter := &ioprogress.ProgressWriter{
-		WriteCloser: tarfile,
+	imageProgressWriter := &ioprogress.ProgressWriter{
 		Tracker: &ioprogress.ProgressTracker{
 			Handler: func(percent, speed int64) {
-				shared.SetProgressMetadata(metadata, "create_image_from_container_tar", "Image tar", percent, speed)
+				shared.SetProgressMetadata(metadata, "create_image_from_container_pack", "Image pack", percent, speed)
 				op.UpdateMetadata(metadata)
 			},
 			Length: totalSize,
@@ -220,7 +219,6 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	}
 
 	sha256 := sha256.New()
-	var compressedPath string
 	var compress string
 	var writer io.Writer
 
@@ -232,66 +230,40 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 			return nil, err
 		}
 	}
-	usingCompression := compress != "none"
 
-	// If there is no compression, then calculate sha256 on tarfile
-	if usingCompression {
-		writer = tarfileProgressWriter
+	// Setup tar, optional compress and sha256 to happen in one pass.
+	wg := sync.WaitGroup{}
+	var compressErr error
+	if compress != "none" {
+		wg.Add(1)
+		tarReader, tarWriter := io.Pipe()
+		imageProgressWriter.WriteCloser = tarWriter
+		writer = imageProgressWriter
+		compressWriter := io.MultiWriter(imageFile, sha256)
+		go func() {
+			defer wg.Done()
+			compressErr = compressFile(compress, tarReader, compressWriter)
+		}()
 	} else {
-		writer = io.MultiWriter(tarfileProgressWriter, sha256)
-		compressedPath = tarfile.Name()
+		imageProgressWriter.WriteCloser = imageFile
+		writer = io.MultiWriter(imageProgressWriter, sha256)
 	}
 
 	err = c.Export(writer, req.Properties)
+	// When compression is used, Close on imageProgressWriter/tarWriter
+	// is required for compressFile/gzip to know it is finished.
+	// Otherwise It is equivalent to imageFile.Close.
+	imageProgressWriter.Close()
+	wg.Wait()
 	if err != nil {
-		tarfile.Close()
 		return nil, err
 	}
-	tarfile.Close()
-
-	if usingCompression {
-		tarfile, err = os.Open(tarfile.Name())
-		if err != nil {
-			return nil, err
-		}
-		defer tarfile.Close()
-
-		fi, err := tarfile.Stat()
-		if err != nil {
-			return nil, err
-		}
-
-		// Track progress writing gzipped file
-		metadata = make(map[string]interface{})
-		tarfileProgressReader := &ioprogress.ProgressReader{
-			ReadCloser: tarfile,
-			Tracker: &ioprogress.ProgressTracker{
-				Length: fi.Size(),
-				Handler: func(percent, speed int64) {
-					shared.SetProgressMetadata(metadata, "create_image_from_container_compress", "Image compress", percent, speed)
-					op.UpdateMetadata(metadata)
-				},
-			},
-		}
-		compressedPath = tarfile.Name() + ".compressed"
-
-		compressed, err := os.Create(compressedPath)
-		if err != nil {
-			return nil, err
-		}
-		defer compressed.Close()
-		defer os.Remove(compressed.Name())
-
-		// Calculate sha256 as we compress
-		writer := io.MultiWriter(compressed, sha256)
-
-		err = compressFile(compress, tarfileProgressReader, writer)
-		if err != nil {
-			return nil, err
-		}
+	if compressErr != nil {
+		return nil, err
 	}
+	imageFile.Close()
 
-	fi, err := os.Stat(compressedPath)
+	fi, err := os.Stat(imageFile.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +281,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 
 	/* rename the the file to the expected name so our caller can use it */
 	finalName := shared.VarPath("images", info.Fingerprint)
-	err = shared.FileMove(compressedPath, finalName)
+	err = shared.FileMove(imageFile.Name(), finalName)
 	if err != nil {
 		return nil, err
 	}
