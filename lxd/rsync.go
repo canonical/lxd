@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
@@ -87,6 +88,7 @@ func rsyncSendSetup(name string, path string, bwlimit string, execPath string, f
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	defer l.Close()
 
 	/*
 	 * Here, the path /tmp/foo is ignored. Since we specify localhost,
@@ -135,15 +137,34 @@ func rsyncSendSetup(name string, path string, bwlimit string, execPath string, f
 		return nil, nil, nil, err
 	}
 
-	conn, err := l.Accept()
-	if err != nil {
+	var conn *net.Conn
+	chConn := make(chan *net.Conn, 1)
+
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			chConn <- nil
+			return
+		}
+
+		chConn <- &conn
+	}()
+
+	select {
+	case conn = <-chConn:
+		if conn == nil {
+			cmd.Process.Kill()
+			cmd.Wait()
+			return nil, nil, nil, fmt.Errorf("Failed to connect to rsync socket")
+		}
+
+	case <-time.After(10 * time.Second):
 		cmd.Process.Kill()
 		cmd.Wait()
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("rsync failed to spawn after 10s")
 	}
-	l.Close()
 
-	return cmd, conn, stderr, nil
+	return cmd, *conn, stderr, nil
 }
 
 // RsyncSend sets up the sending half of an rsync, to recursively send the
@@ -165,14 +186,22 @@ func RsyncSend(name string, path string, conn *websocket.Conn, readWrapper func(
 
 	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, readPipe, nil, nil)
 
+	chError := make(chan error, 1)
+	go func() {
+		err = cmd.Wait()
+		if err != nil {
+			dataSocket.Close()
+			readPipe.Close()
+		}
+		chError <- err
+	}()
+
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
 		cmd.Process.Kill()
-		cmd.Wait()
-		return err
 	}
 
-	err = cmd.Wait()
+	err = <-chError
 	if err != nil {
 		logger.Errorf("Rsync send failed: %s: %s: %s", path, err, string(output))
 	}
