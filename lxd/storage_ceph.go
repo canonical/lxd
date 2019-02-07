@@ -376,10 +376,6 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 		s.volume.Name, s.pool.Name)
 
 	defer func() {
-		if !revert {
-			return
-		}
-
 		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
 			s.volume.Name, storagePoolVolumeTypeNameCustom,
 			s.UserName, true)
