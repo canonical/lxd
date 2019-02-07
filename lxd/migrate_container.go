@@ -469,7 +469,7 @@ func (s *migrationSourceWs) Do(migrateOp *operation) error {
 	// without introducing the fragility of closing on err.
 	abort := func(err error) error {
 		driver.Cleanup()
-		s.sendControl(err)
+		go s.sendControl(err)
 		return err
 	}
 
