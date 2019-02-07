@@ -380,10 +380,6 @@ func (s *storageCeph) StoragePoolVolumeCreate() error {
 		s.volume.Name, s.pool.Name)
 
 	defer func() {
-		if !revert {
-			return
-		}
-
 		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
 			s.volume.Name, storagePoolVolumeTypeNameCustom,
 			s.UserName, true)
@@ -523,6 +519,13 @@ func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
 	ourMount := false
 	RBDDevPath := ""
 	if !shared.IsMountPoint(volumeMntPoint) {
+		if !shared.PathExists(volumeMntPoint) {
+			err := os.MkdirAll(volumeMntPoint, 0711)
+			if err != nil {
+				return false, err
+			}
+		}
+
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
 			storagePoolVolumeTypeNameCustom, s.volume.Name, true,
 			s.UserName)
@@ -580,7 +583,6 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 	if shared.IsMountPoint(volumeMntPoint) {
 		customerr = tryUnmount(volumeMntPoint, syscall.MNT_DETACH)
 		ourUmount = true
-		logger.Debugf(`Path "%s" is a mountpoint for RBD storage volume "%s" on storage pool "%s"`, volumeMntPoint, s.volume.Name, s.pool.Name)
 	}
 
 	lxdStorageMapLock.Lock()
@@ -593,6 +595,17 @@ func (s *storageCeph) StoragePoolVolumeUmount() (bool, error) {
 	if customerr != nil {
 		logger.Errorf(`Failed to unmount RBD storage volume "%s" on storage pool "%s": %s`, s.volume.Name, s.pool.Name, customerr)
 		return false, customerr
+	}
+
+	if ourUmount {
+		// Attempt to unmap
+		err := cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName,
+			s.volume.Name, storagePoolVolumeTypeNameCustom,
+			s.UserName, true)
+		if err != nil {
+			logger.Errorf(`Failed to unmap RBD storage volume for container "%s" on storage pool "%s": %s`, s.volume.Name, s.pool.Name, err)
+			return ourUmount, err
+		}
 	}
 
 	logger.Debugf(`Unmounted RBD storage volume "%s" on storage pool "%s"`,
