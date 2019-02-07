@@ -519,6 +519,13 @@ func (s *storageCeph) StoragePoolVolumeMount() (bool, error) {
 	ourMount := false
 	RBDDevPath := ""
 	if !shared.IsMountPoint(volumeMntPoint) {
+		if !shared.PathExists(volumeMntPoint) {
+			err := os.MkdirAll(volumeMntPoint, 0711)
+			if err != nil {
+				return false, err
+			}
+		}
+
 		RBDDevPath, ret = getRBDMappedDevPath(s.ClusterName, s.OSDPoolName,
 			storagePoolVolumeTypeNameCustom, s.volume.Name, true,
 			s.UserName)
