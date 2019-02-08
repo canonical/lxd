@@ -646,13 +646,13 @@ func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
 
 	case listFormatJSON:
 		enc := json.NewEncoder(os.Stdout)
-		err := enc.Encode(data)
+		err := enc.Encode(profiles)
 		if err != nil {
 			return err
 		}
 
 	case listFormatYAML:
-		out, err := yaml.Marshal(data)
+		out, err := yaml.Marshal(profiles)
 		if err != nil {
 			return err
 		}
