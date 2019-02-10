@@ -22,7 +22,7 @@ func (r *ProtocolLXD) GetCertificateFingerprints() ([]string, error) {
 
 	// Parse it
 	fingerprints := []string{}
-	for _, fingerprint := range fingerprints {
+	for _, fingerprint := range certificates {
 		fields := strings.Split(fingerprint, "/certificates/")
 		fingerprints = append(fingerprints, fields[len(fields)-1])
 	}
