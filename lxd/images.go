@@ -180,17 +180,28 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 		info.Public = false
 	}
 
+	// In 'nopersist' mode, stream container to req.Filename and do not write to db
+	noPersist := req.Source.Mode == "nopersist"
+
 	c, err := containerLoadByProjectAndName(d.State(), project, name)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build the actual image file
-	imageFile, err := ioutil.TempFile(builddir, "lxd_build_image_")
-	if err != nil {
-		return nil, err
+	var imageFile *os.File
+	if noPersist {
+		imageFile, err = os.Create(req.Filename)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		imageFile, err = ioutil.TempFile(builddir, "lxd_build_image_")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(imageFile.Name())
 	}
-	defer os.Remove(imageFile.Name())
 
 	// Calculate (close estimate of) total size of input to image
 	totalSize := int64(0)
@@ -269,6 +280,13 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	}
 	info.Size = fi.Size()
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
+	info.Architecture, _ = osarch.ArchitectureName(c.Architecture())
+	info.Properties = req.Properties
+
+	// In 'nopersist' mode, image has been written to req.Filename, and we are done
+	if noPersist {
+		return &info, nil
+	}
 
 	_, _, err = d.cluster.ImageGet(project, info.Fingerprint, false, true)
 	if err != db.ErrNoSuchObject {
@@ -285,9 +303,6 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	if err != nil {
 		return nil, err
 	}
-
-	info.Architecture, _ = osarch.ArchitectureName(c.Architecture())
-	info.Properties = req.Properties
 
 	// Create the database entry
 	err = d.cluster.ImageInsert(c.Project(), info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties)
