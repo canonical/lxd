@@ -19,17 +19,17 @@ func TestLoadPreClusteringData(t *testing.T) {
 	// config
 	assert.Equal(t, []string{"id", "key", "value"}, dump.Schema["config"])
 	assert.Len(t, dump.Data["config"], 3)
-	rows := []interface{}{int64(1), []byte("core.https_address"), []byte("1.2.3.4:666")}
+	rows := []interface{}{int64(1), "core.https_address", "1.2.3.4:666"}
 	assert.Equal(t, rows, dump.Data["config"][0])
-	rows = []interface{}{int64(2), []byte("core.trust_password"), []byte("sekret")}
+	rows = []interface{}{int64(2), "core.trust_password", "sekret"}
 	assert.Equal(t, rows, dump.Data["config"][1])
-	rows = []interface{}{int64(3), []byte("maas.machine"), []byte("mymaas")}
+	rows = []interface{}{int64(3), "maas.machine", "mymaas"}
 	assert.Equal(t, rows, dump.Data["config"][2])
 
 	// networks
 	assert.Equal(t, []string{"id", "name", "description"}, dump.Schema["networks"])
 	assert.Len(t, dump.Data["networks"], 1)
-	rows = []interface{}{int64(1), []byte("lxcbr0"), []byte("LXD bridge")}
+	rows = []interface{}{int64(1), "lxcbr0", "LXD bridge"}
 	assert.Equal(t, rows, dump.Data["networks"][0])
 }
 
