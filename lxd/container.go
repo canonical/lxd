@@ -1635,6 +1635,13 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, containers []c
 
 			snapshotName = fmt.Sprintf("%s%s%s", c.Name(), shared.SnapshotDelimiter, snapshotName)
 
+			expiry, err := shared.GetSnapshotExpiry(time.Now(), c.LocalConfig()["snapshots.expiry"])
+			if err != nil {
+				logger.Error("Error getting expiry date", log.Ctx{"err": err, "container": c})
+				ch <- nil
+				return
+			}
+
 			args := db.ContainerArgs{
 				Architecture: c.Architecture(),
 				Config:       c.LocalConfig(),
@@ -1645,6 +1652,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, containers []c
 				Profiles:     c.Profiles(),
 				Project:      c.Project(),
 				Stateful:     false,
+				ExpiryDate:   expiry,
 			}
 
 			_, err = containerCreateAsSnapshot(d.State(), args, c)
