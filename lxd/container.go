@@ -347,6 +347,20 @@ func containerValidDevices(cluster *db.Cluster, devices types.Devices, profile b
 			if shared.StringInSlice(m["nictype"], []string{"bridged", "macvlan", "physical", "sriov"}) && m["parent"] == "" {
 				return fmt.Errorf("Missing parent for %s type nic", m["nictype"])
 			}
+
+			if m["ipv4.address"] != "" {
+				err := networkValidAddressV4(m["ipv4.address"])
+				if err != nil {
+					return err
+				}
+			}
+
+			if m["ipv6.address"] != "" {
+				err := networkValidAddressV6(m["ipv6.address"])
+				if err != nil {
+					return err
+				}
+			}
 		} else if m["type"] == "infiniband" {
 			if m["nictype"] == "" {
 				return fmt.Errorf("Missing nic type")
