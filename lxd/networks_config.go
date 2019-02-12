@@ -47,10 +47,10 @@ var networkConfigKeys = map[string]func(value string) error{
 	"tunnel.TARGET.protocol": func(value string) error {
 		return shared.IsOneOf(value, []string{"gre", "vxlan"})
 	},
-	"tunnel.TARGET.local":     networkValidAddressV4,
-	"tunnel.TARGET.remote":    networkValidAddressV4,
+	"tunnel.TARGET.local":     networkValidAddress,
+	"tunnel.TARGET.remote":    networkValidAddress,
 	"tunnel.TARGET.port":      networkValidPort,
-	"tunnel.TARGET.group":     networkValidAddressV4,
+	"tunnel.TARGET.group":     networkValidAddress,
 	"tunnel.TARGET.id":        shared.IsInt64,
 	"tunnel.TARGET.interface": networkValidName,
 	"tunnel.TARGET.ttl":       shared.IsUint8,
