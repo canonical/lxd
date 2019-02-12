@@ -286,9 +286,7 @@ import "C"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"strings"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -353,25 +351,4 @@ func unsetAutoclearOnLoopDev(loopFd int) error {
 	}
 
 	return nil
-}
-
-func loopDeviceHasBackingFile(loopDevice string, loopFile string) (*os.File, error) {
-	lidx := strings.LastIndex(loopDevice, "/")
-	if lidx < 0 {
-		return nil, fmt.Errorf("Invalid loop device path: \"%s\"", loopDevice)
-	}
-
-	loopName := loopDevice[(lidx + 1):]
-	backingFile := fmt.Sprintf("/sys/block/%s/loop/backing_file", loopName)
-	contents, err := ioutil.ReadFile(backingFile)
-	if err != nil {
-		return nil, err
-	}
-
-	cleanBackingFile := strings.TrimSpace(string(contents))
-	if cleanBackingFile != loopFile {
-		return nil, fmt.Errorf("loop device has new backing file: \"%s\"", cleanBackingFile)
-	}
-
-	return os.OpenFile(loopDevice, os.O_RDWR, 0660)
 }
