@@ -41,17 +41,12 @@ extern void forknet();
 extern void forkproxy();
 
 // Command line parsing and tracking
-#define CMDLINE_SIZE (8 * PATH_MAX)
-char cmdline_buf[CMDLINE_SIZE];
-char *cmdline_cur = NULL;
-ssize_t cmdline_size = -1;
+#define CMDLINE_INDEX_SKIP_SELF 1
+size_t cmdline_index = CMDLINE_INDEX_SKIP_SELF;
+char **cmdline;
 
 char* advance_arg(bool required) {
-	while (*cmdline_cur != 0)
-		cmdline_cur++;
-
-	cmdline_cur++;
-	if (cmdline_size <= cmdline_cur - cmdline_buf) {
+	if (!cmdline[cmdline_index]) {
 		if (!required)
 			return NULL;
 
@@ -59,7 +54,7 @@ char* advance_arg(bool required) {
 		_exit(1);
 	}
 
-	return cmdline_cur;
+	return cmdline[cmdline_index++];
 }
 
 void error(char *msg)
@@ -209,44 +204,25 @@ void attach_userns(int pid) {
 	}
 }
 
-__attribute__((constructor)) void init(void) {
-	int cmdline;
+__attribute__((constructor)) void init(int argc, char *argv[]) {
+	cmdline = argv;
 
-	// Extract arguments
-	cmdline = open("/proc/self/cmdline", O_RDONLY);
-	if (cmdline < 0) {
-		error("error: open");
-		_exit(232);
-	}
-
-	memset(cmdline_buf, 0, sizeof(cmdline_buf));
-	if ((cmdline_size = read(cmdline, cmdline_buf, sizeof(cmdline_buf)-1)) < 0) {
-		close(cmdline);
-		error("error: read");
-		_exit(232);
-	}
-	close(cmdline);
-
-	// Skip the first argument (but don't fail on missing second argument)
-	cmdline_cur = cmdline_buf;
-	while (*cmdline_cur != 0)
-		cmdline_cur++;
-	cmdline_cur++;
-	if (cmdline_size <= cmdline_cur - cmdline_buf) {
+	char *cmd = advance_arg(false);
+	if (!cmd) {
 		checkfeature();
 		return;
 	}
 
 	// Intercepts some subcommands
-	if (strcmp(cmdline_cur, "forkfile") == 0)
+	if (strcmp(cmd, "forkfile") == 0)
 		forkfile();
-	else if (strcmp(cmdline_cur, "forkmount") == 0)
+	else if (strcmp(cmd, "forkmount") == 0)
 		forkmount();
-	else if (strcmp(cmdline_cur, "forknet") == 0)
+	else if (strcmp(cmd, "forknet") == 0)
 		forknet();
-	else if (strcmp(cmdline_cur, "forkproxy") == 0)
+	else if (strcmp(cmd, "forkproxy") == 0)
 		forkproxy();
-	else if (strncmp(cmdline_cur, "-", 1) == 0 || strcmp(cmdline_cur, "daemon") == 0)
+	else if (strncmp(cmd, "-", 1) == 0 || strcmp(cmdline[1], "daemon") == 0)
 		checkfeature();
 }
 */
