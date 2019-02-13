@@ -3085,19 +3085,21 @@ func (c *containerLXC) Render() (interface{}, interface{}, error) {
 	etag := []interface{}{c.architecture, c.localConfig, c.localDevices, c.ephemeral, c.profiles}
 
 	if c.IsSnapshot() {
-		return &api.ContainerSnapshot{
-			Architecture:    architectureName,
-			Config:          c.localConfig,
+		ct := api.ContainerSnapshot{
 			CreatedAt:       c.creationDate,
-			Devices:         c.localDevices,
-			Ephemeral:       c.ephemeral,
 			ExpandedConfig:  c.expandedConfig,
 			ExpandedDevices: c.expandedDevices,
 			LastUsedAt:      c.lastUsedDate,
 			Name:            strings.SplitN(c.name, "/", 2)[1],
-			Profiles:        c.profiles,
 			Stateful:        c.stateful,
-		}, etag, nil
+		}
+		ct.Architecture = architectureName
+		ct.Config = c.localConfig
+		ct.Devices = c.localDevices
+		ct.Ephemeral = c.ephemeral
+		ct.Profiles = c.profiles
+
+		return &ct, etag, nil
 	} else {
 		// FIXME: Render shouldn't directly access the go-lxc struct
 		cState, err := c.getLxcState()
