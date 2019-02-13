@@ -806,6 +806,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 
 				if fds["0"] != "" {
 					args.Stdin.Close()
+					<-dones[0]
 				}
 
 				for _, conn := range conns {
