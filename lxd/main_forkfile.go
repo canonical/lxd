@@ -409,10 +409,6 @@ void forkfile() {
 
 	// Get the subcommand
 	command = advance_arg(false);
-	if (command)
-		fprintf(stderr, "BBBB: %s\n", command);
-	else
-		fprintf(stderr, "CCCC\n");
 	if (command == NULL || (strcmp(command, "--help") == 0 || strcmp(command, "--version") == 0 || strcmp(command, "-h") == 0)) {
 		return;
 	}
