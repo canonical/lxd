@@ -842,9 +842,9 @@ func lvmCreateLv(project, vgName string, thinPoolName string, lvName string, lvF
 	lvmPoolVolumeName := getPrefixedLvName(project, volumeType, lvName)
 	if makeThinLv {
 		targetVg := fmt.Sprintf("%s/%s", vgName, thinPoolName)
-		output, err = shared.TryRunCommand("lvcreate", "--thin", "-n", lvmPoolVolumeName, "--virtualsize", lvSizeString, targetVg)
+		output, err = shared.TryRunCommand("lvcreate", "-Wy", "--yes", "--thin", "-n", lvmPoolVolumeName, "--virtualsize", lvSizeString, targetVg)
 	} else {
-		output, err = shared.TryRunCommand("lvcreate", "-n", lvmPoolVolumeName, "--size", lvSizeString, vgName)
+		output, err = shared.TryRunCommand("lvcreate", "-Wy", "--yes", "-n", lvmPoolVolumeName, "--size", lvSizeString, vgName)
 	}
 	if err != nil {
 		logger.Errorf("Could not create LV \"%s\": %s", lvmPoolVolumeName, output)
@@ -898,12 +898,14 @@ func createDefaultThinPool(sTypeVersion string, vgName string, thinPoolName stri
 	if isRecent {
 		output, err = shared.TryRunCommand(
 			"lvcreate",
+			"-Wy", "--yes",
 			"--poolmetadatasize", "1G",
 			"-l", "100%FREE",
 			"--thinpool", lvmThinPool)
 	} else {
 		output, err = shared.TryRunCommand(
 			"lvcreate",
+			"-Wy", "--yes",
 			"--poolmetadatasize", "1G",
 			"-L", "1G",
 			"--thinpool", lvmThinPool)
