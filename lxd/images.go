@@ -2032,7 +2032,7 @@ func imageSyncBetweenNodes(d *Daemon, fingerprint string) error {
 		return nil
 	}
 
-	addresses, err := d.cluster.ImageGetNodesHasNoImage(fingerprint)
+	addresses, err := d.cluster.ImageGetNodesWithoutImage(fingerprint)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get nodes for the image synchronization")
 	}
