@@ -247,7 +247,7 @@ func isJSONRequest(r *http.Request) bool {
 	return false
 }
 
-// State creates a new State instance liked to our internal db and os.
+// State creates a new State instance linked to our internal db and os.
 func (d *Daemon) State() *state.State {
 	return state.NewState(d.db, d.cluster, d.maas, d.os, d.endpoints)
 }
@@ -824,6 +824,9 @@ func (d *Daemon) Ready() error {
 
 		// Remove expired container snapshots (minutely)
 		d.tasks.Add(pruneExpiredContainerSnapshotsTask(d))
+
+		// Auto-sync images across the cluster (daily)
+		d.tasks.Add(autoSyncImagesTask(d))
 	}
 
 	// Start all background tasks

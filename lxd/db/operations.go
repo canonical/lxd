@@ -57,6 +57,7 @@ const (
 	OperationImagesExpire
 	OperationImagesPruneLeftover
 	OperationImagesUpdate
+	OperationImagesSynchronize
 	OperationLogsExpire
 	OperationInstanceTypesUpdate
 	OperationBackupsExpire
@@ -146,6 +147,8 @@ func (t OperationType) Description() string {
 		return "Pruning leftover image files"
 	case OperationImagesUpdate:
 		return "Updating images"
+	case OperationImagesSynchronize:
+		return "Synchronizing images"
 	case OperationLogsExpire:
 		return "Expiring log files"
 	case OperationInstanceTypesUpdate:
