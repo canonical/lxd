@@ -890,6 +890,28 @@ func (c *Cluster) ImageUploadedAt(id int, uploadedAt time.Time) error {
 	return err
 }
 
+// ImagesGetOnCurrentNode returns all images that the current LXD node instance has.
+func (c *Cluster) ImagesGetOnCurrentNode() ([]string, error) {
+	return c.ImagesGetByNodeID(c.nodeID)
+}
+
+// ImagesGetByNodeID returns all images that the LXD node instance has with the given node id.
+func (c *Cluster) ImagesGetByNodeID(id int64) ([]string, error) {
+	var addresses []string
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		stmt := `
+    SELECT images.fingerprint FROM images
+      LEFT JOIN images_nodes ON images.id = images_nodes.image_id
+      LEFT JOIN nodes ON images_nodes.node_id = nodes.id
+    WHERE nodes.id = ?
+    `
+		addresses, err = query.SelectStrings(tx.tx, stmt, id)
+		return err
+	})
+	return addresses, err
+}
+
 // ImageGetNodesWithImage returns the addresses of online nodes which already have the image.
 func (c *Cluster) ImageGetNodesWithImage(fingerprint string) ([]string, error) {
 	q := `
