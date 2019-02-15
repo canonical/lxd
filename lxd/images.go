@@ -787,7 +787,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		}
 
 		// Sync the images between each node in the cluster on demand
-		err = imageSyncBetweenNodes(d, req, info.Fingerprint)
+		err = imageSyncBetweenNodes(d, info.Fingerprint)
 		if err != nil {
 			return errors.Wrapf(err, "Image sync between nodes")
 		}
@@ -1995,7 +1995,7 @@ func imageRefresh(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func imageSyncBetweenNodes(d *Daemon, req api.ImagesPost, fingerprint string) error {
+func imageSyncBetweenNodes(d *Daemon, fingerprint string) error {
 	var desiredSyncNodeCount int64
 
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -2036,70 +2036,63 @@ func imageSyncBetweenNodes(d *Daemon, req api.ImagesPost, fingerprint string) er
 	if err != nil {
 		return errors.Wrap(err, "Failed to get nodes for the image synchronization")
 	}
-
-	min := func(x, y int64) int64 {
-		if x > y {
-			return y
-		}
-
-		return x
+	if len(addresses) <= 0 {
+		return nil
 	}
 
-	for idx := int64(0); idx < min(int64(len(addresses)), nodeCount); idx++ {
-		// We spread the image for the nodes inside of cluster and we need to double
-		// check if the image already exists via DB since when one certain node is
-		// going to create an image it will invoke the same routine.
-		syncNodeAddresses, err = d.cluster.ImageGetNodesWithImage(fingerprint)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get nodes for the image synchronization")
-		}
-
-		if shared.StringInSlice(addresses[idx], syncNodeAddresses) {
-			continue
-		}
-
-		client, err := cluster.Connect(addresses[idx], d.endpoints.NetworkCert(), true)
-		if err != nil {
-			return errors.Wrap(err, "Failed to connect node for image synchronization")
-		}
-
-		createArgs := &lxd.ImageCreateArgs{}
-		imageMetaPath := shared.VarPath("images", fingerprint)
-		imageRootfsPath := shared.VarPath("images", fingerprint+".rootfs")
-
-		metaFile, err := os.Open(imageMetaPath)
-		if err != nil {
-			return err
-		}
-		defer metaFile.Close()
-
-		createArgs.MetaFile = metaFile
-		createArgs.MetaName = filepath.Base(imageMetaPath)
-
-		if shared.PathExists(imageRootfsPath) {
-			rootfsFile, err := os.Open(imageRootfsPath)
-			if err != nil {
-				return err
-			}
-			defer rootfsFile.Close()
-
-			createArgs.RootfsFile = rootfsFile
-			createArgs.RootfsName = filepath.Base(imageRootfsPath)
-		}
-
-		image := api.ImagesPost{}
-		image.Filename = createArgs.MetaName
-
-		op, err := client.CreateImage(image, createArgs)
-		if err != nil {
-			return err
-		}
-
-		err = op.Wait()
-		if err != nil {
-			return err
-		}
+	// We spread the image for the nodes inside of cluster and we need to double
+	// check if the image already exists via DB since when one certain node is
+	// going to create an image it will invoke the same routine. Hence we only
+	// take the first node here as the target node for the image synchronization.
+	// In case the operation fails, the daily image synchronization task will check
+	// whether an image was synced successfully across the cluster and perform the
+	// same job if not.
+	targetNodeAddress := addresses[0]
+	syncNodeAddresses, err = d.cluster.ImageGetNodesWithImage(fingerprint)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get nodes for the image synchronization")
 	}
 
-	return nil
+	if shared.StringInSlice(targetNodeAddress, syncNodeAddresses) {
+		return nil
+	}
+
+	client, err := cluster.Connect(targetNodeAddress, d.endpoints.NetworkCert(), true)
+	if err != nil {
+		return errors.Wrap(err, "Failed to connect node for image synchronization")
+	}
+
+	createArgs := &lxd.ImageCreateArgs{}
+	imageMetaPath := shared.VarPath("images", fingerprint)
+	imageRootfsPath := shared.VarPath("images", fingerprint+".rootfs")
+
+	metaFile, err := os.Open(imageMetaPath)
+	if err != nil {
+		return err
+	}
+	defer metaFile.Close()
+
+	createArgs.MetaFile = metaFile
+	createArgs.MetaName = filepath.Base(imageMetaPath)
+
+	if shared.PathExists(imageRootfsPath) {
+		rootfsFile, err := os.Open(imageRootfsPath)
+		if err != nil {
+			return err
+		}
+		defer rootfsFile.Close()
+
+		createArgs.RootfsFile = rootfsFile
+		createArgs.RootfsName = filepath.Base(imageRootfsPath)
+	}
+
+	image := api.ImagesPost{}
+	image.Filename = createArgs.MetaName
+
+	op, err := client.CreateImage(image, createArgs)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
 }
