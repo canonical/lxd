@@ -7,6 +7,8 @@ github.com/lxc/lxd/shared/cancel
 github.com/lxc/lxd/shared/ioprogress
 github.com/lxc/lxd/shared/logger
 github.com/lxc/lxd/shared/simplestreams
+gopkg.in/juju/environschema.v1/form
 gopkg.in/macaroon-bakery.v2/bakery
 gopkg.in/macaroon-bakery.v2/httpbakery
+gopkg.in/macaroon-bakery.v2/httpbakery/form
 gopkg.in/yaml.v2

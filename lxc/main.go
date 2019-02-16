@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/macaroon-bakery.v2/httpbakery"
-	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
@@ -19,8 +17,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
-
-	schemaform "gopkg.in/juju/environschema.v1/form"
 )
 
 type cmdGlobal struct {
@@ -318,15 +314,6 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 		}
 
 		fmt.Fprintf(os.Stderr, i18n.G("To start your first container, try: lxc launch ubuntu:18.04")+"\n\n")
-	}
-
-	// Only setup macaroons if a config path exists (so the jar can be saved)
-	if shared.PathExists(c.confPath) {
-		// Add interactor for external authentication
-		c.conf.SetAuthInteractor([]httpbakery.Interactor{
-			form.Interactor{Filler: schemaform.IOFiller{}},
-			httpbakery.WebBrowserInteractor{},
-		})
 	}
 
 	// Set the user agent
