@@ -523,6 +523,50 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			return err
 		}
 
+		// Re-use the client handler and import the images from the leader node which
+		// owns all available images to the joined node
+		go func() {
+			leader, err := d.gateway.LeaderAddress()
+			if err != nil {
+				logger.Errorf("Failed to get current leader node: %v", err)
+				return
+			}
+			var nodeInfo db.NodeInfo
+			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				var err error
+				nodeInfo, err = tx.NodeByAddress(leader)
+				return err
+			})
+			if err != nil {
+				logger.Errorf("Failed to retrieve the information of leader node: %v", err)
+				return
+			}
+			fingerprints, err := d.cluster.ImagesGetByNodeID(nodeInfo.ID)
+			if err != nil {
+				logger.Errorf("Failed to retrieve the image fingerprints of leader node: %v", err)
+				return
+			}
+
+			imageImport := func(client lxd.ContainerServer, fingerprint string) error {
+				err := imageImportFromNode(filepath.Join(d.os.VarDir, "images"), client, fingerprint)
+				if err != nil {
+					return err
+				}
+
+				project := "default"
+				return d.cluster.ImageAssociateNode(project, fingerprint)
+			}
+
+			for _, f := range fingerprints {
+				go func(fingerprint string) {
+					err := imageImport(client, fingerprint)
+					if err != nil {
+						logger.Errorf("Failed to import an image %s from %s: %v", fingerprint, leader, err)
+					}
+				}(f)
+			}
+		}()
+
 		// Add the cluster flag from the agent
 		version.UserAgentFeatures([]string{"cluster"})
 
