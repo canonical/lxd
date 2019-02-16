@@ -5885,6 +5885,23 @@ func (c *containerLXC) Exec(command []string, env map[string]string, stdin *os.F
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 
+	// Mitigation for CVE-2019-5736
+	useRexec := false
+	if c.expandedConfig["raw.idmap"] != "" {
+		err := allowedUnprivilegedOnlyMap(c.expandedConfig["raw.idmap"])
+		if err != nil {
+			useRexec = true
+		}
+	}
+
+	if shared.IsTrue(c.expandedConfig["security.privileged"]) {
+		useRexec = true
+	}
+
+	if useRexec {
+		cmd.Env = append(os.Environ(), "LXC_MEMFD_REXEC=1")
+	}
+
 	// Setup communication PIPE
 	rStatus, wStatus, err := shared.Pipe()
 	defer rStatus.Close()
