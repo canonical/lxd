@@ -41,9 +41,16 @@ extern void forknet();
 extern void forkproxy();
 extern void forkuevent();
 
+// Make the compiler our memory housekeeper.
+static inline void __auto_free__(void *p)
+{
+	free(*(void **)p);
+}
+
+#define __do_free __attribute__((__cleanup__(__auto_free__)))
+
 // Command line parsing and tracking
-#define CMDLINE_SIZE (8 * PATH_MAX)
-char cmdline_buf[CMDLINE_SIZE];
+char *cmdline_buf = NULL;
 char *cmdline_cur = NULL;
 ssize_t cmdline_size = -1;
 
@@ -210,26 +217,68 @@ void attach_userns(int pid) {
 	}
 }
 
+static ssize_t lxc_read_nointr(int fd, void *buf, size_t count)
+{
+	ssize_t ret;
+again:
+	ret = read(fd, buf, count);
+	if (ret < 0 && errno == EINTR)
+		goto again;
+
+	return ret;
+}
+
+static char *file_to_buf(char *path, size_t *length)
+{
+	int fd;
+	char buf[PATH_MAX];
+	char *copy = NULL;
+
+	if (!length)
+		return NULL;
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return NULL;
+
+	*length = 0;
+	for (;;) {
+		int n;
+		char *old = copy;
+
+		n = lxc_read_nointr(fd, buf, sizeof(buf));
+		if (n < 0)
+			goto on_error;
+		if (!n)
+			break;
+
+		copy = realloc(old, (*length + n) * sizeof(*old));
+		if (!copy)
+			goto on_error;
+
+		memcpy(copy + *length, buf, n);
+		*length += n;
+	}
+
+	close(fd);
+	return copy;
+
+on_error:
+	close(fd);
+	free(copy);
+
+	return NULL;
+}
+
 __attribute__((constructor)) void init(void) {
-	int cmdline;
+	__do_free char *cmdline = NULL;
 
-	// Extract arguments
-	cmdline = open("/proc/self/cmdline", O_RDONLY);
-	if (cmdline < 0) {
-		error("error: open");
+	cmdline_buf = file_to_buf("/proc/self/cmdline", &cmdline_size);
+	if (!cmdline_buf)
 		_exit(232);
-	}
-
-	memset(cmdline_buf, 0, sizeof(cmdline_buf));
-	if ((cmdline_size = read(cmdline, cmdline_buf, sizeof(cmdline_buf)-1)) < 0) {
-		close(cmdline);
-		error("error: read");
-		_exit(232);
-	}
-	close(cmdline);
 
 	// Skip the first argument (but don't fail on missing second argument)
-	cmdline_cur = cmdline_buf;
+	cmdline = cmdline_cur = cmdline_buf;
 	while (*cmdline_cur != 0)
 		cmdline_cur++;
 	cmdline_cur++;
