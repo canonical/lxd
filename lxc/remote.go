@@ -14,9 +14,6 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
-	schemaform "gopkg.in/juju/environschema.v1/form"
-	"gopkg.in/macaroon-bakery.v2/httpbakery"
-	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
@@ -220,22 +217,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			}
 		}
 	}
-	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType}
-
-	conf.SetAuthInteractor([]httpbakery.Interactor{
-		form.Interactor{Filler: schemaform.IOFiller{}},
-		httpbakery.WebBrowserInteractor{
-			OpenWebBrowser: func(uri *url.URL) error {
-				if c.flagDomain != "" {
-					query := uri.Query()
-					query.Set("domain", c.flagDomain)
-					uri.RawQuery = query.Encode()
-				}
-
-				return httpbakery.OpenWebBrowser(uri)
-			},
-		},
-	})
+	conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
 
 	// Attempt to connect
 	var d lxd.ImageServer
@@ -599,8 +581,8 @@ func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 
 	delete(conf.Remotes, args[0])
 
-	certf := conf.ServerCertPath(args[0])
-	os.Remove(certf)
+	os.Remove(conf.ServerCertPath(args[0]))
+	os.Remove(conf.CookiesPath(args[0]))
 
 	return conf.SaveConfig(c.global.confPath)
 }
