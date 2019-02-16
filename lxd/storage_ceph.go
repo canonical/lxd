@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -2254,61 +2255,52 @@ func (s *storageCeph) StoragePoolResources() (*api.ResourcesStoragePool, error) 
 		"ceph",
 		"--name", fmt.Sprintf("client.%s", s.UserName),
 		"--cluster", s.ClusterName,
-		"df")
+		"df",
+		"-f", "json")
 	if err != nil {
 		return nil, err
 	}
 
-	msg := string(buf)
-	idx := strings.Index(msg, "GLOBAL:")
-	if idx < 0 {
-		return nil, fmt.Errorf(`Output did not contain expected ` +
-			`"GLOBAL:" string`)
+	// Temporary structs for parsing
+	type cephDfPoolStats struct {
+		BytesUsed      int64 `json:"bytes_used"`
+		BytesAvailable int64 `json:"max_avail"`
 	}
 
-	msg = msg[len("GLOBAL:")+1:]
-	msg = strings.TrimSpace(msg)
-
-	if !strings.HasPrefix(msg, "SIZE") {
-		return nil, fmt.Errorf(`Output "%s" did not contain expected `+
-			`"SIZE" string`, msg)
+	type cephDfPool struct {
+		Name  string          `json:"name"`
+		Stats cephDfPoolStats `json:"stats"`
 	}
 
-	lines := strings.Split(msg, "\n")
-	if len(lines) < 2 {
-		return nil, fmt.Errorf(`Output did not contain expected ` +
-			`resource information`)
+	type cephDf struct {
+		Pools []cephDfPool `json:"pools"`
 	}
 
-	properties := strings.Fields(lines[1])
-	if len(properties) < 3 {
-		return nil, fmt.Errorf(`Output is missing size properties`)
-	}
-
-	totalStr := strings.TrimSpace(properties[0])
-	usedStr := strings.TrimSpace(properties[2])
-
-	if totalStr == "" {
-		return nil, fmt.Errorf(`Failed to detect space available to ` +
-			`the Ceph cluster`)
-	}
-
-	total, err := parseCephSize(totalStr)
+	// Parse the JSON output
+	df := cephDf{}
+	err = json.Unmarshal([]byte(buf), &df)
 	if err != nil {
 		return nil, err
 	}
 
-	used := uint64(0)
-	if usedStr != "" {
-		used, err = parseCephSize(usedStr)
-		if err != nil {
-			return nil, err
+	var pool *cephDfPool
+	for _, entry := range df.Pools {
+		if entry.Name == s.OSDPoolName {
+			pool = &entry
+			break
 		}
 	}
 
+	if pool == nil {
+		return nil, fmt.Errorf("OSD pool missing in df output")
+	}
+
+	spaceUsed := uint64(pool.Stats.BytesUsed)
+	spaceAvailable := uint64(pool.Stats.BytesAvailable)
+
 	res := api.ResourcesStoragePool{}
-	res.Space.Total = total
-	res.Space.Used = used
+	res.Space.Total = spaceAvailable + spaceUsed
+	res.Space.Used = spaceUsed
 
 	return &res, nil
 }
