@@ -446,8 +446,19 @@ func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 		if rc.Protocol == "" {
 			rc.Protocol = "lxd"
 		}
-		if rc.AuthType == "" && !rc.Public {
-			rc.AuthType = "tls"
+
+		if rc.AuthType == "" {
+			if strings.HasPrefix(rc.Addr, "unix:") {
+				rc.AuthType = "file access"
+			} else if rc.Protocol == "simplestreams" {
+				rc.AuthType = "none"
+			} else {
+				rc.AuthType = "tls"
+			}
+		}
+
+		if rc.AuthType == "candid" && rc.Domain != "" {
+			rc.AuthType = fmt.Sprintf("%s (%s)", rc.AuthType, rc.Domain)
 		}
 
 		strName := name
