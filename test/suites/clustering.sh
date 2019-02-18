@@ -1166,17 +1166,22 @@ test_clustering_image_replication() {
   [ -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
   [ -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
 
-  # Delete the imported image
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
-  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
-  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
-
   # Spawn a third node
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_THREE_DIR}"
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  # Wait for the test image to be synced into the joined node on the background
+  sleep 5
+  [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+
+  # Delete the imported image
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
+  [ ! -f "${LXD_ONE_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_TWO_DIR}/images/${fingerprint}" ] || false
+  [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
 
   # Import the test image on node3
   LXD_DIR="${LXD_THREE_DIR}" ensure_import_testimage
