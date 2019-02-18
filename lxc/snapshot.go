@@ -6,12 +6,15 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
+
+	"time"
 )
 
 type cmdSnapshot struct {
 	global *cmdGlobal
 
 	flagStateful bool
+	flagNoExpiry bool
 }
 
 func (c *cmdSnapshot) Command() *cobra.Command {
@@ -29,6 +32,7 @@ running state, including process memory state, TCP connections, ...`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagStateful, "stateful", false, i18n.G("Whether or not to snapshot the container's running state"))
+	cmd.Flags().BoolVar(&c.flagNoExpiry, "no-expiry", false, i18n.G("Ignore any configured auto-expiry for the container"))
 
 	return cmd
 }
@@ -62,6 +66,10 @@ func (c *cmdSnapshot) Run(cmd *cobra.Command, args []string) error {
 	req := api.ContainerSnapshotsPost{
 		Name:     snapname,
 		Stateful: c.flagStateful,
+	}
+
+	if c.flagNoExpiry {
+		req.ExpiresAt = &time.Time{}
 	}
 
 	op, err := d.CreateContainerSnapshot(name, req)
