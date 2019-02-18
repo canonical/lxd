@@ -262,25 +262,28 @@ func backupFixStoragePool(c *db.Cluster, b backupInfo, useDefaultPool bool) erro
 			return err
 		}
 
+		rootDiskDeviceFound := false
+
 		// Change the pool in the backup.yaml
 		backup.Pool = pool
 		if backup.Container.Devices != nil {
 			devName, _, err := shared.GetRootDiskDevice(backup.Container.Devices)
-			if err != nil {
-				return err
+			if err == nil {
+				backup.Container.Devices[devName]["pool"] = poolName
+				rootDiskDeviceFound = true
 			}
-
-			backup.Container.Devices[devName]["pool"] = poolName
-
 		}
 
 		if backup.Container.ExpandedDevices != nil {
 			devName, _, err := shared.GetRootDiskDevice(backup.Container.ExpandedDevices)
-			if err != nil {
-				return err
+			if err == nil {
+				backup.Container.ExpandedDevices[devName]["pool"] = poolName
+				rootDiskDeviceFound = true
 			}
+		}
 
-			backup.Container.ExpandedDevices[devName]["pool"] = poolName
+		if !rootDiskDeviceFound {
+			return fmt.Errorf("No root device could be found")
 		}
 
 		file, err := os.Create(path)
