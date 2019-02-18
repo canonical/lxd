@@ -197,6 +197,7 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 		if err == nil {
 			totalSize += fi.Size()
 		}
+
 		return nil
 	}
 
@@ -209,8 +210,18 @@ func imgPostContInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operati
 	metadata := make(map[string]interface{})
 	imageProgressWriter := &ioprogress.ProgressWriter{
 		Tracker: &ioprogress.ProgressTracker{
-			Handler: func(percent, speed int64) {
-				shared.SetProgressMetadata(metadata, "create_image_from_container_pack", "Image pack", percent, speed)
+			Handler: func(value, speed int64) {
+				percent := int64(0)
+				processed := int64(0)
+
+				if totalSize > 0 {
+					percent = value
+					processed = totalSize * (percent / 100.0)
+				} else {
+					processed = value
+				}
+
+				shared.SetProgressMetadata(metadata, "create_image_from_container_pack", "Image pack", percent, processed, speed)
 				op.UpdateMetadata(metadata)
 			},
 			Length: totalSize,

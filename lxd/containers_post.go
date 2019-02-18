@@ -125,7 +125,7 @@ func createFromImage(d *Daemon, req *api.ContainersPost) Response {
 		metadata := make(map[string]interface{})
 		_, err = containerCreateFromImage(d, args, info.Fingerprint, &ioprogress.ProgressTracker{
 			Handler: func(percent, speed int64) {
-				shared.SetProgressMetadata(metadata, "create_container_from_image_unpack", "Unpack", percent, speed)
+				shared.SetProgressMetadata(metadata, "create_container_from_image_unpack", "Unpack", percent, 0, speed)
 				op.UpdateMetadata(metadata)
 			}})
 		return err
