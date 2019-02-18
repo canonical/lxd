@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-02-18 16:34-0500\n"
+"POT-Creation-Date: 2019-02-18 17:22-0500\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -451,7 +451,7 @@ msgstr "Image copiée avec succès !"
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:123 lxc/init.go:124 lxc/project.go:122 lxc/publish.go:175
+#: lxc/copy.go:123 lxc/init.go:124 lxc/project.go:122 lxc/publish.go:176
 #: lxc/storage.go:123 lxc/storage_volume.go:506
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -637,7 +637,7 @@ msgstr "Erreur lors de la lecture de la configuration : %s"
 msgid "Console log:"
 msgstr ""
 
-#: lxc/publish.go:79
+#: lxc/publish.go:80
 msgid "Container name is mandatory"
 msgstr "Le nom du conteneur est obligatoire"
 
@@ -646,7 +646,7 @@ msgstr "Le nom du conteneur est obligatoire"
 msgid "Container name is: %s"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/publish.go:259
+#: lxc/publish.go:276
 #, c-format
 msgid "Container published with fingerprint: %s"
 msgstr "Conteneur publié avec l'empreinte : %s"
@@ -823,7 +823,7 @@ msgstr "DESCRIPTION"
 msgid "DRIVER"
 msgstr "PILOTE"
 
-#: lxc/publish.go:41
+#: lxc/publish.go:42
 msgid "Define a compression algorithm: for image or none"
 msgstr "Définir un algorithme de compression : pour image ou aucun"
 
@@ -910,7 +910,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/profile.go:863 lxc/profile.go:917 lxc/project.go:30 lxc/project.go:87
 #: lxc/project.go:152 lxc/project.go:215 lxc/project.go:335 lxc/project.go:383
 #: lxc/project.go:472 lxc/project.go:527 lxc/project.go:587 lxc/project.go:616
-#: lxc/project.go:669 lxc/publish.go:34 lxc/query.go:30 lxc/remote.go:37
+#: lxc/project.go:669 lxc/publish.go:35 lxc/query.go:30 lxc/remote.go:37
 #: lxc/remote.go:88 lxc/remote.go:385 lxc/remote.go:421 lxc/remote.go:537
 #: lxc/remote.go:599 lxc/remote.go:649 lxc/remote.go:687 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:33 lxc/storage.go:89
@@ -1741,7 +1741,7 @@ msgstr ""
 msgid "Make image public"
 msgstr "Rendre l'image publique"
 
-#: lxc/publish.go:38
+#: lxc/publish.go:39
 msgid "Make the image public"
 msgstr "Rendre l'image publique"
 
@@ -2041,7 +2041,7 @@ msgstr "Nom du réseau"
 msgid "Network usage:"
 msgstr "  Réseau utilisé :"
 
-#: lxc/publish.go:39
+#: lxc/publish.go:40
 msgid "New alias to define at target"
 msgstr "Nouvel alias à définir sur la cible"
 
@@ -2281,10 +2281,15 @@ msgstr "Serveur d'images public"
 msgid "Public: %s"
 msgstr "Public : %s"
 
-#: lxc/publish.go:33 lxc/publish.go:34
+#: lxc/publish.go:34 lxc/publish.go:35
 #, fuzzy
 msgid "Publish containers as images"
 msgstr "Création du conteneur"
+
+#: lxc/publish.go:222
+#, fuzzy, c-format
+msgid "Publishing container: %s"
+msgstr "Ignorer l'état du conteneur (seulement pour start)"
 
 #: lxc/file.go:186 lxc/file.go:187
 #, fuzzy
@@ -2762,11 +2767,11 @@ msgstr "État : %s"
 msgid "Stop containers"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/publish.go:40
+#: lxc/publish.go:41
 msgid "Stop the container if currently running"
 msgstr "Arrêter le conteneur s'il est en cours d'exécution"
 
-#: lxc/publish.go:144
+#: lxc/publish.go:145
 msgid "Stopping container failed!"
 msgstr "L'arrêt du conteneur a échoué !"
 
@@ -2864,7 +2869,7 @@ msgid "The container is currently running, stop it first or pass --force"
 msgstr ""
 "Le conteneur est en cours d'exécution, l'arrêter d'abord ou ajouter --force."
 
-#: lxc/publish.go:109
+#: lxc/publish.go:110
 #, fuzzy
 msgid ""
 "The container is currently running. Use --force to have it stopped and "
@@ -2916,7 +2921,7 @@ msgstr "Le périphérique indiqué n'existe pas"
 msgid "The specified device doesn't match the network"
 msgstr "le périphérique indiqué ne correspond pas au réseau"
 
-#: lxc/publish.go:82
+#: lxc/publish.go:83
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr "Il n'existe pas d'\"image\".  Vouliez-vous un alias ?"
 
@@ -3854,7 +3859,7 @@ msgstr "Profils : %s"
 msgid "project"
 msgstr ""
 
-#: lxc/publish.go:32
+#: lxc/publish.go:33
 #, fuzzy
 msgid ""
 "publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] "
