@@ -8,6 +8,9 @@ import (
 type ContainerSnapshotsPost struct {
 	Name     string `json:"name" yaml:"name"`
 	Stateful bool   `json:"stateful" yaml:"stateful"`
+
+	// API extension: snapshot_expiry_creation
+	ExpiresAt *time.Time `json:"expires_at" yaml:"expires_at"`
 }
 
 // ContainerSnapshotPost represents the fields required to rename/move a LXD container snapshot
