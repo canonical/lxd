@@ -1584,7 +1584,11 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			now := time.Now()
 			next := sched.Next(now)
 
-			if now.Add(time.Minute).Before(next) {
+			// Ignore everything that is more precise than minutes.
+			now = now.Truncate(time.Minute)
+			next = next.Truncate(time.Minute)
+
+			if !now.Equal(next) {
 				continue
 			}
 
