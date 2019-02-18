@@ -138,6 +138,7 @@ var APIExtensions = []string{
 	"container_protection_shift",
 	"snapshot_expiry",
 	"container_backup_override_pool",
+	"snapshot_expiry_creation",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
