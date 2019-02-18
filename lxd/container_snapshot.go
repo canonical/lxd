@@ -127,9 +127,14 @@ func containerSnapshotsPost(d *Daemon, r *http.Request) Response {
 		shared.SnapshotDelimiter +
 		req.Name
 
-	expiry, err := shared.GetSnapshotExpiry(time.Now(), c.LocalConfig()["snapshots.expiry"])
-	if err != nil {
-		return BadRequest(err)
+	var expiry time.Time
+	if req.ExpiresAt != nil {
+		expiry = *req.ExpiresAt
+	} else {
+		expiry, err = shared.GetSnapshotExpiry(time.Now(), c.LocalConfig()["snapshots.expiry"])
+		if err != nil {
+			return BadRequest(err)
+		}
 	}
 
 	snapshot := func(op *operation) error {
