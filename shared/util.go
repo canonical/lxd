@@ -1007,15 +1007,29 @@ func EscapePathFstab(path string) string {
 	return r.Replace(path)
 }
 
-func SetProgressMetadata(metadata map[string]interface{}, stage, displayPrefix string, percent, speed int64) {
+func SetProgressMetadata(metadata map[string]interface{}, stage, displayPrefix string, percent, processed, speed int64) {
 	progress := make(map[string]string)
 	// stage, percent, speed sent for API callers.
 	progress["stage"] = stage
-	progress["percent"] = strconv.FormatInt(percent, 10)
+	if processed > 0 {
+		progress["processed"] = strconv.FormatInt(processed, 10)
+	}
+
+	if percent > 0 {
+		progress["percent"] = strconv.FormatInt(percent, 10)
+	}
+
 	progress["speed"] = strconv.FormatInt(speed, 10)
 	metadata["progress"] = progress
+
 	// <stage>_progress with formatted text sent for lxc cli.
-	metadata[stage+"_progress"] = fmt.Sprintf("%s: %d%% (%s/s)", displayPrefix, percent, GetByteSizeString(speed, 2))
+	if percent > 0 {
+		metadata[stage+"_progress"] = fmt.Sprintf("%s: %d%% (%s/s)", displayPrefix, percent, GetByteSizeString(speed, 2))
+	} else if processed > 0 {
+		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s (%s/s)", displayPrefix, GetByteSizeString(processed, 2), GetByteSizeString(speed, 2))
+	} else {
+		metadata[stage+"_progress"] = fmt.Sprintf("%s: %s/s", displayPrefix, GetByteSizeString(speed, 2))
+	}
 }
 
 func DownloadFileHash(httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, hashFunc hash.Hash, target io.WriteSeeker) (int64, error) {
