@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -216,10 +217,26 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = op.Wait()
+	// Watch the background operation
+	progress := utils.ProgressRenderer{
+		Format: i18n.G("Publishing container: %s"),
+		Quiet:  c.global.flagQuiet,
+	}
+
+	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
+		progress.Done("")
 		return err
 	}
+
+	// Wait for the copy to complete
+	err = utils.CancelableWait(op, &progress)
+	if err != nil {
+		progress.Done("")
+		return err
+	}
+	progress.Done("")
+
 	opAPI := op.Get()
 
 	// Grab the fingerprint
