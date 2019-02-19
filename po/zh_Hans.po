@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-02-18 16:34-0500\n"
+"POT-Creation-Date: 2019-02-18 17:22-0500\n"
 "PO-Revision-Date: 2018-09-11 19:15+0000\n"
 "Last-Translator: 0x0916 <w@laoqinren.net>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -330,7 +330,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:123 lxc/init.go:124 lxc/project.go:122 lxc/publish.go:175
+#: lxc/copy.go:123 lxc/init.go:124 lxc/project.go:122 lxc/publish.go:176
 #: lxc/storage.go:123 lxc/storage_volume.go:506
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -503,7 +503,7 @@ msgstr ""
 msgid "Console log:"
 msgstr ""
 
-#: lxc/publish.go:79
+#: lxc/publish.go:80
 msgid "Container name is mandatory"
 msgstr ""
 
@@ -512,7 +512,7 @@ msgstr ""
 msgid "Container name is: %s"
 msgstr ""
 
-#: lxc/publish.go:259
+#: lxc/publish.go:276
 #, c-format
 msgid "Container published with fingerprint: %s"
 msgstr ""
@@ -662,7 +662,7 @@ msgstr ""
 msgid "DRIVER"
 msgstr ""
 
-#: lxc/publish.go:41
+#: lxc/publish.go:42
 msgid "Define a compression algorithm: for image or none"
 msgstr ""
 
@@ -744,7 +744,7 @@ msgstr ""
 #: lxc/profile.go:863 lxc/profile.go:917 lxc/project.go:30 lxc/project.go:87
 #: lxc/project.go:152 lxc/project.go:215 lxc/project.go:335 lxc/project.go:383
 #: lxc/project.go:472 lxc/project.go:527 lxc/project.go:587 lxc/project.go:616
-#: lxc/project.go:669 lxc/publish.go:34 lxc/query.go:30 lxc/remote.go:37
+#: lxc/project.go:669 lxc/publish.go:35 lxc/query.go:30 lxc/remote.go:37
 #: lxc/remote.go:88 lxc/remote.go:385 lxc/remote.go:421 lxc/remote.go:537
 #: lxc/remote.go:599 lxc/remote.go:649 lxc/remote.go:687 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:24 lxc/storage.go:33 lxc/storage.go:89
@@ -1474,7 +1474,7 @@ msgstr ""
 msgid "Make image public"
 msgstr ""
 
-#: lxc/publish.go:38
+#: lxc/publish.go:39
 msgid "Make the image public"
 msgstr ""
 
@@ -1750,7 +1750,7 @@ msgstr ""
 msgid "Network usage:"
 msgstr ""
 
-#: lxc/publish.go:39
+#: lxc/publish.go:40
 msgid "New alias to define at target"
 msgstr ""
 
@@ -1978,8 +1978,13 @@ msgstr ""
 msgid "Public: %s"
 msgstr ""
 
-#: lxc/publish.go:33 lxc/publish.go:34
+#: lxc/publish.go:34 lxc/publish.go:35
 msgid "Publish containers as images"
+msgstr ""
+
+#: lxc/publish.go:222
+#, c-format
+msgid "Publishing container: %s"
 msgstr ""
 
 #: lxc/file.go:186 lxc/file.go:187
@@ -2416,11 +2421,11 @@ msgstr ""
 msgid "Stop containers"
 msgstr ""
 
-#: lxc/publish.go:40
+#: lxc/publish.go:41
 msgid "Stop the container if currently running"
 msgstr ""
 
-#: lxc/publish.go:144
+#: lxc/publish.go:145
 msgid "Stopping container failed!"
 msgstr ""
 
@@ -2511,7 +2516,7 @@ msgstr ""
 msgid "The container is currently running, stop it first or pass --force"
 msgstr ""
 
-#: lxc/publish.go:109
+#: lxc/publish.go:110
 msgid ""
 "The container is currently running. Use --force to have it stopped and "
 "restarted"
@@ -2557,7 +2562,7 @@ msgstr ""
 msgid "The specified device doesn't match the network"
 msgstr ""
 
-#: lxc/publish.go:82
+#: lxc/publish.go:83
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
@@ -3382,7 +3387,7 @@ msgstr ""
 msgid "project"
 msgstr ""
 
-#: lxc/publish.go:32
+#: lxc/publish.go:33
 msgid ""
 "publish [<remote>:]<container>[/<snapshot>] [<remote>:] [flags] "
 "[key=value...]"
