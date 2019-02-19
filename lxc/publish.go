@@ -220,7 +220,6 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	// Watch the background operation
 	progress := utils.ProgressRenderer{
 		Format: i18n.G("Publishing container: %s"),
-		Quiet:  c.global.flagQuiet,
 	}
 
 	_, err = op.AddHandler(progress.UpdateOp)
