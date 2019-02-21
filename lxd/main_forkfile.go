@@ -19,6 +19,8 @@ import (
 #include <unistd.h>
 #include <limits.h>
 
+#include "include/memory_utils.h"
+
 extern char* advance_arg(bool required);
 extern void error(char *msg);
 extern void attach_userns(int pid);
@@ -55,7 +57,7 @@ int copy(int target, int source, bool append)
 }
 
 int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
-	int host_fd = -1, container_fd = -1;
+	__do_close_prot_errno int host_fd = -1, container_fd = -1;
 	int ret = -1;
 	int container_open_flags;
 	struct stat st;
@@ -81,17 +83,17 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 
 		if (dosetns(pid, "mnt") < 0) {
 			error("error: setns");
-			goto close_host;
+			return -1;
 		}
 	} else {
 		if (chroot(rootfs) < 0) {
 			error("error: chroot");
-			goto close_host;
+			return -1;
 		}
 
 		if (chdir("/") < 0) {
 			error("error: chdir");
-			goto close_host;
+			return -1;
 		}
 	}
 
@@ -157,7 +159,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 
 	if (is_put && !is_dir_manip && exists && S_ISDIR(st.st_mode)) {
 		error("error: Path already exists as a directory");
-		goto close_host;
+		return -1;
 	}
 
 	if (exists && S_ISDIR(st.st_mode))
@@ -172,19 +174,19 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		link_length = readlink(container, link_target, PATH_MAX);
 		if (link_length < 0 || link_length >= PATH_MAX) {
 			error("error: readlink");
-			goto close_host;
+			return -1;
 		}
 		link_target[link_length] = '\0';
 
 		dprintf(host_fd, "%s\n", link_target);
-		goto close_container;
+		return -1;
 	}
 
 	umask(0);
 	container_fd = open(container, container_open_flags, 0);
 	if (container_fd < 0) {
 		error("error: open");
-		goto close_host;
+		return -1;
 	}
 	if (is_put) {
 		if (!exists) {
@@ -203,37 +205,38 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 
 		if (copy(container_fd, host_fd, append) < 0) {
 			error("error: copy");
-			goto close_container;
+			return -1;
 		}
 
 		if (mode != -1 && fchmod(container_fd, mode) < 0) {
 			error("error: chmod");
-			goto close_container;
+			return -1;
 		}
 
 		if (fchown(container_fd, uid, gid) < 0) {
 			error("error: chown");
-			goto close_container;
+			return -1;
 		}
 		ret = 0;
 	} else {
 		if (fstat(container_fd, &st) < 0) {
 			error("error: stat");
-			goto close_container;
+			return -1;
 		}
 
 		fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
 		fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
 		fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
 		if (S_ISDIR(st.st_mode)) {
-			DIR *fdir;
+			__do_closedir DIR *fdir = NULL;
 			struct dirent *de;
 
 			fdir = fdopendir(container_fd);
 			if (!fdir) {
 				error("error: fdopendir");
-				goto close_container;
+				return -1;
 			}
+			move_fd(container_fd);
 
 			fprintf(stderr, "type: directory\n");
 
@@ -255,9 +258,8 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 				fprintf(stderr, "\n");
 			}
 
-			closedir(fdir);
 			// container_fd is dead now that we fdopendir'd it
-			goto close_host;
+			return -1;
 		} else {
 			fprintf(stderr, "type: file\n");
 			ret = copy(host_fd, container_fd, false);
@@ -265,10 +267,7 @@ int manip_file_in_ns(char *rootfs, int pid, char *host, char *container, bool is
 		fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
 	}
 
-close_container:
-	close(container_fd);
-close_host:
-	close(host_fd);
+out:
 	return ret;
 }
 
