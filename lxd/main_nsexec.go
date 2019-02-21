@@ -212,9 +212,9 @@ again:
 
 static char *file_to_buf(char *path, size_t *length)
 {
-	int fd;
+	__do_close_prot_errno int fd = -EBADF;
+	__do_free char *copy = NULL;
 	char buf[PATH_MAX];
-	char *copy = NULL;
 
 	if (!length)
 		return NULL;
@@ -230,26 +230,19 @@ static char *file_to_buf(char *path, size_t *length)
 
 		n = lxc_read_nointr(fd, buf, sizeof(buf));
 		if (n < 0)
-			goto on_error;
+			return NULL;
 		if (!n)
 			break;
 
 		copy = realloc(old, (*length + n) * sizeof(*old));
 		if (!copy)
-			goto on_error;
+			return NULL;
 
 		memcpy(copy + *length, buf, n);
 		*length += n;
 	}
 
-	close(fd);
-	return copy;
-
-on_error:
-	close(fd);
-	free(copy);
-
-	return NULL;
+	return move_ptr(copy);
 }
 
 __attribute__((constructor)) void init(void) {
