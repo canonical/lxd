@@ -15,12 +15,12 @@ import (
 #include <stdio.h>
 #include <string.h>
 
-void getucred(int sock, uint *uid, uint *gid, int *pid) {
-	struct ucred peercred;
+void getucred(int sock, uint *uid, uint *gid, int *pid)
+{
+	struct ucred peercred = {0};
 	socklen_t len;
 
 	len = sizeof(struct ucred);
-
 	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peercred, &len) != 0 || len != sizeof(peercred)) {
 		fprintf(stderr, "getsockopt failed: %s\n", strerror(errno));
 		return;
