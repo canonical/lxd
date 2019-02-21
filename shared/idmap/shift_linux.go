@@ -33,6 +33,8 @@ import (
 // Needs to be included at the end
 #include <sys/xattr.h>
 
+#include "../../lxd/include/memory_utils.h"
+
 #ifndef VFS_CAP_REVISION_1
 #define VFS_CAP_REVISION_1 0x01000000
 #endif
@@ -90,7 +92,8 @@ int set_dummy_fs_ns_caps(const char *path)
 
 int shiftowner(char *basepath, char *path, int uid, int gid)
 {
-	int fd, ret;
+	__do_close_prot_errno int fd = -EBADF;
+	int ret;
 	char fdpath[PATH_MAX], realpath[PATH_MAX];
 	struct stat sb;
 
@@ -103,40 +106,34 @@ int shiftowner(char *basepath, char *path, int uid, int gid)
 	ret = sprintf(fdpath, "/proc/self/fd/%d", fd);
 	if (ret < 0) {
 		perror("Failed sprintf");
-		close(fd);
 		return 1;
 	}
 
 	ret = readlink(fdpath, realpath, PATH_MAX);
 	if (ret < 0) {
 		perror("Failed readlink");
-		close(fd);
 		return 1;
 	}
 
 	if (strlen(realpath) < strlen(basepath)) {
 		printf("Invalid path, source (%s) is outside of basepath (%s)\n", realpath, basepath);
-		close(fd);
 		return 1;
 	}
 
 	if (strncmp(realpath, basepath, strlen(basepath))) {
 		printf("Invalid path, source (%s) is outside of basepath " "(%s).\n", realpath, basepath);
-		close(fd);
 		return 1;
 	}
 
 	ret = fstat(fd, &sb);
 	if (ret < 0) {
 		perror("Failed fstat");
-		close(fd);
 		return 1;
 	}
 
 	ret = fchownat(fd, "", uid, gid, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
 	if (ret < 0) {
 		perror("Failed chown");
-		close(fd);
 		return 1;
 	}
 
@@ -144,12 +141,10 @@ int shiftowner(char *basepath, char *path, int uid, int gid)
 		ret = chmod(fdpath, sb.st_mode);
 		if (ret < 0) {
 			perror("Failed chmod");
-			close(fd);
 			return 1;
 		}
 	}
 
-	close(fd);
 	return 0;
 }
 */
