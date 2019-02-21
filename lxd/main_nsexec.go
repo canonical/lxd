@@ -33,6 +33,8 @@ package main
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "include/memory_utils.h"
+
 // External functions
 extern void checkfeature();
 extern void forkfile();
@@ -40,14 +42,6 @@ extern void forkmount();
 extern void forknet();
 extern void forkproxy();
 extern void forkuevent();
-
-// Make the compiler our memory housekeeper.
-static inline void __auto_free__(void *p)
-{
-	free(*(void **)p);
-}
-
-#define __do_free __attribute__((__cleanup__(__auto_free__)))
 
 // Command line parsing and tracking
 char *cmdline_buf = NULL;
@@ -85,7 +79,7 @@ void error(char *msg)
 }
 
 int dosetns(int pid, char *nstype) {
-	int mntns;
+	__do_close_prot_errno int mntns = -EBADF;
 	char buf[PATH_MAX];
 
 	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
@@ -97,10 +91,8 @@ int dosetns(int pid, char *nstype) {
 
 	if (setns(mntns, 0) < 0) {
 		error("error: setns");
-		close(mntns);
 		return -1;
 	}
-	close(mntns);
 
 	return 0;
 }
