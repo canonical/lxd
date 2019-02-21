@@ -163,7 +163,8 @@ static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 }
 
 void attach_userns(int pid) {
-	int ret, userns_fd;
+	__do_close_prot_errno int userns_fd = -EBADF;
+	int ret;
 
 	userns_fd = in_same_namespace(getpid(), pid, "user");
 	if (userns_fd < 0) {
@@ -174,7 +175,6 @@ void attach_userns(int pid) {
 	}
 
 	ret = setns(userns_fd, CLONE_NEWUSER);
-	close(userns_fd);
 	if (ret < 0) {
 		fprintf(stderr, "Failed setns to container user namespace: %s\n", strerror(errno));
 		_exit(EXIT_FAILURE);
