@@ -105,16 +105,18 @@ static int find_associated_loop_device(const char *loop_file,
 
 static int get_unused_loop_dev_legacy(char *loop_name)
 {
+	__do_closedir DIR *dir = NULL;
 	struct dirent *dp;
 	struct loop_info64 lo64;
-	DIR *dir;
-	int dfd = -1, fd = -1, ret = -1;
 
 	dir = opendir("/dev");
 	if (!dir)
 		return -1;
 
 	while ((dp = readdir(dir))) {
+		__do_close_prot_errno int dfd = -EBADF, fd = -EBADF;
+		int ret;
+
 		if (!dp)
 			break;
 
@@ -130,31 +132,18 @@ static int get_unused_loop_dev_legacy(char *loop_name)
 			continue;
 
 		ret = ioctl(fd, LOOP_GET_STATUS64, &lo64);
-		if (ret < 0) {
-			if (ioctl(fd, LOOP_GET_STATUS64, &lo64) == 0 ||
-			    errno != ENXIO) {
-				close(fd);
-				fd = -1;
+		if (ret < 0)
+			if (ioctl(fd, LOOP_GET_STATUS64, &lo64) == 0 || errno != ENXIO)
 				continue;
-			}
-		}
 
 		ret = snprintf(loop_name, LO_NAME_SIZE, "/dev/%s", dp->d_name);
-		if (ret < 0 || ret >= LO_NAME_SIZE) {
-			close(fd);
-			fd = -1;
+		if (ret < 0 || ret >= LO_NAME_SIZE)
 			continue;
-		}
 
-		break;
+		return move_fd(fd);
 	}
 
-	closedir(dir);
-
-	if (fd < 0)
-		return -1;
-
-	return fd;
+	return -1;
 }
 
 static int get_unused_loop_dev(char *name_loop)
