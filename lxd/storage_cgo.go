@@ -168,45 +168,34 @@ static int get_unused_loop_dev(char *name_loop)
 
 static int prepare_loop_dev(const char *source, char *loop_dev, int flags)
 {
+	__do_close_prot_errno int fd_img = -1, fd_loop = -1;
 	int ret;
 	struct loop_info64 lo64;
-	int fd_img = -1, fret = -1, fd_loop = -1;
 
 	fd_loop = get_unused_loop_dev(loop_dev);
 	if (fd_loop < 0) {
 		if (fd_loop == -ENODEV)
 			fd_loop = get_unused_loop_dev_legacy(loop_dev);
 		else
-			goto on_error;
+			return -1;
 	}
 
 	fd_img = open(source, O_RDWR | O_CLOEXEC);
 	if (fd_img < 0)
-		goto on_error;
+		return -1;
 
 	ret = ioctl(fd_loop, LOOP_SET_FD, fd_img);
 	if (ret < 0)
-		goto on_error;
+		return -1;
 
 	memset(&lo64, 0, sizeof(lo64));
 	lo64.lo_flags = flags;
 
 	ret = ioctl(fd_loop, LOOP_SET_STATUS64, &lo64);
 	if (ret < 0)
-		goto on_error;
+		return -1;
 
-	fret = 0;
-
-on_error:
-	if (fd_img >= 0)
-		close(fd_img);
-
-	if (fret < 0 && fd_loop >= 0) {
-		close(fd_loop);
-		fd_loop = -1;
-	}
-
-	return fd_loop;
+	return move_fd(fd_loop);
 }
 
 static inline int prepare_loop_dev_retry(const char *source, char *loop_dev, int flags)
