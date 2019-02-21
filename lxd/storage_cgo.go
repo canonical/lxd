@@ -19,9 +19,7 @@ package main
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#ifndef LO_FLAGS_AUTOCLEAR
-#define LO_FLAGS_AUTOCLEAR 4
-#endif
+#include "include/macro.h"
 
 #ifndef MS_LAZYTIME
 #define MS_LAZYTIME (1<<25)
