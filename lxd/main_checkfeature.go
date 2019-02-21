@@ -64,7 +64,8 @@ static int netns_set_nsid(int fd)
 
 void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 {
-	int sock_fd, netnsid, ret;
+	__do_close_prot_errno int sock_fd = -EBADF;
+	int netnsid, ret;
 	struct netns_ifaddrs *ifaddrs;
 
 	*hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
@@ -104,7 +105,6 @@ void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 	}
 
 	ret = setsockopt(sock_fd, SOL_NETLINK, NETLINK_DUMP_STRICT_CHK, &(int){1}, sizeof(int));
-	close(sock_fd);
 	if (ret < 0) {
 		// NETLINK_DUMP_STRICT_CHK isn't supported
 		return;
@@ -114,19 +114,14 @@ void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 	netnsid_aware = true;
 }
 
-void checkfeature() {
-	int hostnetns_fd = -1, newnetns_fd = -1;
+void checkfeature()
+{
+	__do_close_prot_errno int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
 
 	is_netnsid_aware(&hostnetns_fd, &newnetns_fd);
 
 	if (setns(hostnetns_fd, CLONE_NEWNET) < 0)
 		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace");
-
-	if (hostnetns_fd >= 0)
-		close(hostnetns_fd);
-
-	if (newnetns_fd >= 0)
-		close(newnetns_fd);
 
 }
 
