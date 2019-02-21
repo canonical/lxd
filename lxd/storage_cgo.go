@@ -20,6 +20,7 @@ package main
 #include <sys/types.h>
 
 #include "include/macro.h"
+#include "include/memory_utils.h"
 
 #ifndef MS_LAZYTIME
 #define MS_LAZYTIME (1<<25)
@@ -36,20 +37,21 @@ package main
 static int find_associated_loop_device(const char *loop_file,
 				       char *loop_dev_name)
 {
+	__do_closedir DIR *dir = NULL;
 	char looppath[LXD_MAX_LOOP_PATHLEN];
 	char buf[LXD_MAXPATH];
 	struct dirent *dp;
-	DIR *dir;
-	int dfd = -1, fd = -1;
 
 	dir = opendir("/sys/block");
 	if (!dir)
 		return -1;
 
 	while ((dp = readdir(dir))) {
+		__do_close_prot_errno int loop_path_fd = -EBADF;
 		int ret;
 		size_t totlen;
 		struct stat fstatbuf;
+		int dfd = -1;
 
 		if (!dp)
 			break;
@@ -69,17 +71,15 @@ static int find_associated_loop_device(const char *loop_file,
 		if (ret < 0)
 			continue;
 
-		fd = openat(dfd, looppath, O_RDONLY | O_CLOEXEC, 0);
+		loop_path_fd = openat(dfd, looppath, O_RDONLY | O_CLOEXEC, 0);
 		if (ret < 0)
 			continue;
 
 		// Clear buffer.
 		memset(buf, 0, sizeof(buf));
-		ret = read(fd, buf, sizeof(buf));
+		ret = read(loop_path_fd, buf, sizeof(buf));
 		if (ret < 0)
 			continue;
-		close(fd);
-		fd = -1;
 
 		totlen = strlen(buf);
 
@@ -97,16 +97,10 @@ static int find_associated_loop_device(const char *loop_file,
 			continue;
 
 		// Open fd to loop device.
-		fd = open(loop_dev_name, O_RDWR);
-		break;
+		return open(loop_dev_name, O_RDWR);
 	}
 
-	closedir(dir);
-
-	if (fd < 0)
-		return -1;
-
-	return fd;
+	return -1;
 }
 
 static int get_unused_loop_dev_legacy(char *loop_name)
