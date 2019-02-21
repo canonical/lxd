@@ -19,6 +19,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "../lxd/include/macro.h"
+
 #ifndef NETNS_RTA
 #define NETNS_RTA(r) \
 	((struct rtattr *)(((char *)(r)) + NLMSG_ALIGN(sizeof(struct rtgenmsg))))
@@ -93,15 +95,6 @@
 #define NLMSG_TAIL(nmsg)                      \
 	((struct rtattr *)(((void *)(nmsg)) + \
 			   __NETLINK_ALIGN((nmsg)->nlmsg_len)))
-
-enum {
-	__LXC_NETNSA_NONE,
-#define __LXC_NETNSA_NSID_NOT_ASSIGNED -1
-	__LXC_NETNSA_NSID,
-	__LXC_NETNSA_PID,
-	__LXC_NETNSA_FD,
-	__LXC_NETNSA_MAX,
-};
 
 static int netlink_open(int protocol)
 {
