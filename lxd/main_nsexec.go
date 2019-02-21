@@ -127,7 +127,8 @@ static int preserve_ns(const int pid, const char *ns)
 // in the same namespace returns -EINVAL, -1 if an error occurred.
 static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 {
-	int ns_fd1 = -1, ns_fd2 = -1, ret = -1;
+	__do_close_prot_errno int ns_fd1 = -1, ns_fd2 = -1;
+	int ret = -1;
 	struct stat ns_st1, ns_st2;
 
 	ns_fd1 = preserve_ns(pid1, ns);
@@ -137,38 +138,27 @@ static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 		if (errno == ENOENT)
 			return -EINVAL;
 
-		goto out;
+		return -1;
 	}
 
 	ns_fd2 = preserve_ns(pid2, ns);
 	if (ns_fd2 < 0)
-		goto out;
+		return -1;
 
 	ret = fstat(ns_fd1, &ns_st1);
 	if (ret < 0)
-		goto out;
+		return -1;
 
 	ret = fstat(ns_fd2, &ns_st2);
 	if (ret < 0)
-		goto out;
+		return -1;
 
 	// processes are in the same namespace
-	ret = -EINVAL;
 	if ((ns_st1.st_dev == ns_st2.st_dev ) && (ns_st1.st_ino == ns_st2.st_ino))
-		goto out;
+		return -EINVAL;
 
 	// processes are in different namespaces
-	ret = ns_fd2;
-	ns_fd2 = -1;
-
-out:
-
-	if (ns_fd1 >= 0)
-		close(ns_fd1);
-	if (ns_fd2 >= 0)
-		close(ns_fd2);
-
-	return ret;
+	return move_fd(ns_fd2);
 }
 
 void attach_userns(int pid) {
