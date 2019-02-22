@@ -24,6 +24,8 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "include/memory_utils.h"
+
 #define VERSION_AT_LEAST(major, minor, micro)							\
 	((LXC_DEVEL == 1) || (!(major > LXC_VERSION_MAJOR ||					\
 	major == LXC_VERSION_MAJOR && minor > LXC_VERSION_MINOR ||				\
@@ -38,20 +40,19 @@ int mkdir_p(const char *dir, mode_t mode)
 {
 	const char *tmp = dir;
 	const char *orig = dir;
-	char *makeme;
 
 	do {
+		__do_free char *makeme = NULL;
+
 		dir = tmp + strspn(tmp, "/");
 		tmp = dir + strcspn(dir, "/");
 		makeme = strndup(orig, dir - orig);
 		if (*makeme) {
 			if (mkdir(makeme, mode) && errno != EEXIST) {
 				fprintf(stderr, "failed to create directory '%s': %s\n", makeme, strerror(errno));
-				free(makeme);
 				return -1;
 			}
 		}
-		free(makeme);
 	} while(tmp != dir);
 
 	return 0;
@@ -73,9 +74,10 @@ void ensure_dir(char *dest) {
 	}
 }
 
-void ensure_file(char *dest) {
+void ensure_file(char *dest)
+{
+	__do_close_prot_errno int fd = -EBADF;
 	struct stat sb;
-	int fd;
 
 	if (stat(dest, &sb) == 0) {
 		if ((sb.st_mode & S_IFMT) != S_IFDIR)
@@ -91,11 +93,11 @@ void ensure_file(char *dest) {
 		fprintf(stderr, "Failed to mkdir %s: %s\n", dest, strerror(errno));
 		_exit(1);
 	}
-	close(fd);
 }
 
-void create(char *src, char *dest) {
-	char *dirdup;
+void create(char *src, char *dest)
+{
+	__do_free char *dirdup = NULL;
 	char *destdirname;
 
 	struct stat sb;
@@ -112,10 +114,8 @@ void create(char *src, char *dest) {
 
 	if (mkdir_p(destdirname, 0755) < 0) {
 		fprintf(stderr, "failed to create path: %s\n", destdirname);
-		free(dirdup);
 		_exit(1);
 	}
-	free(dirdup);
 
 	switch (sb.st_mode & S_IFMT) {
 	case S_IFDIR:

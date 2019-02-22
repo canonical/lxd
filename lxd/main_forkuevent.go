@@ -26,6 +26,7 @@ import (
 #include <unistd.h>
 
 #include "../shared/network.c"
+#include "include/memory_utils.h"
 
 #ifndef UEVENT_SEND
 #define UEVENT_SEND 16
@@ -42,7 +43,7 @@ struct nlmsg {
 
 static struct nlmsg *nlmsg_alloc(size_t size)
 {
-	struct nlmsg *nlmsg;
+	__do_free struct nlmsg *nlmsg = NULL;
 	size_t len = NLMSG_HDRLEN + NLMSG_ALIGN(size);
 
 	nlmsg = (struct nlmsg *)malloc(sizeof(struct nlmsg));
@@ -51,16 +52,13 @@ static struct nlmsg *nlmsg_alloc(size_t size)
 
 	nlmsg->nlmsghdr = (struct nlmsghdr *)malloc(len);
 	if (!nlmsg->nlmsghdr)
-		goto errout;
+		return NULL;
 
 	memset(nlmsg->nlmsghdr, 0, len);
 	nlmsg->cap = len;
 	nlmsg->nlmsghdr->nlmsg_len = NLMSG_HDRLEN;
 
-	return nlmsg;
-errout:
-	free(nlmsg);
-	return NULL;
+	return move_ptr(nlmsg);
 }
 
 static void *nlmsg_reserve_unaligned(struct nlmsg *nlmsg, size_t len)
@@ -83,9 +81,10 @@ static void *nlmsg_reserve_unaligned(struct nlmsg *nlmsg, size_t len)
 
 int can_inject_uevent(const char *uevent, size_t len)
 {
-	int ret, sock_fd;
+	__do_close_prot_errno int sock_fd = -EBADF;
+	__do_free struct nlmsg *nlmsg = NULL;
+	int ret;
 	char *umsg = NULL;
-	struct nlmsg *nlmsg = NULL;
 
 	sock_fd = netlink_open(NETLINK_KOBJECT_UEVENT);
 	if (sock_fd < 0) {
@@ -93,78 +92,56 @@ int can_inject_uevent(const char *uevent, size_t len)
 	}
 
 	nlmsg = nlmsg_alloc(len);
-	if (!nlmsg) {
-		ret = -1;
-		goto on_error;
-	}
+	if (!nlmsg)
+		return -1;
 
 	nlmsg->nlmsghdr->nlmsg_flags = NLM_F_REQUEST;
 	nlmsg->nlmsghdr->nlmsg_type = UEVENT_SEND;
 	nlmsg->nlmsghdr->nlmsg_pid = 0;
 
 	umsg = nlmsg_reserve_unaligned(nlmsg, len);
-	if (!umsg) {
-		ret = -1;
-		goto on_error;
-	}
+	if (!umsg)
+		return -1;
 
 	memcpy(umsg, uevent, len);
 
 	ret = __netlink_send(sock_fd, nlmsg->nlmsghdr);
-	if (ret < 0) {
-		ret = -1;
-		goto on_error;
-	}
+	if (ret < 0)
+		return -1;
 
-	ret = 0;
-
-on_error:
-	close(sock_fd);
-	free(nlmsg);
-	return ret;
+	return 0;
 }
 
 static int inject_uevent(const char *uevent, size_t len)
 {
-	int ret, sock_fd;
+	__do_close_prot_errno int sock_fd = -EBADF;
+	__do_free struct nlmsg *nlmsg = NULL;
+	int ret;
 	char *umsg = NULL;
-	struct nlmsg *nlmsg = NULL;
 
 	sock_fd = netlink_open(NETLINK_KOBJECT_UEVENT);
-	if (sock_fd < 0) {
+	if (sock_fd < 0)
 		return -1;
-	}
 
 	nlmsg = nlmsg_alloc(len);
-	if (!nlmsg) {
-		ret = -1;
-		goto on_error;
-	}
+	if (!nlmsg)
+		return -1;
 
 	nlmsg->nlmsghdr->nlmsg_flags = NLM_F_ACK | NLM_F_REQUEST;
 	nlmsg->nlmsghdr->nlmsg_type = UEVENT_SEND;
 	nlmsg->nlmsghdr->nlmsg_pid = 0;
 
 	umsg = nlmsg_reserve_unaligned(nlmsg, len);
-	if (!umsg) {
-		ret = -1;
-		goto on_error;
-	}
+	if (!umsg)
+		return -1;
 
 	memcpy(umsg, uevent, len);
 
 	ret = netlink_transaction(sock_fd, nlmsg->nlmsghdr, nlmsg->nlmsghdr);
-	if (ret < 0) {
-		ret = -1;
-		goto on_error;
-	}
+	if (ret < 0)
+		return -1;
 
-	ret = 0;
-
-on_error:
-	close(sock_fd);
-	free(nlmsg);
-	return ret;
+	return 0;
 }
 
 void forkuevent() {

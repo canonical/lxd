@@ -33,6 +33,8 @@ package main
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "include/memory_utils.h"
+
 // External functions
 extern void checkfeature();
 extern void forkfile();
@@ -40,14 +42,6 @@ extern void forkmount();
 extern void forknet();
 extern void forkproxy();
 extern void forkuevent();
-
-// Make the compiler our memory housekeeper.
-static inline void __auto_free__(void *p)
-{
-	free(*(void **)p);
-}
-
-#define __do_free __attribute__((__cleanup__(__auto_free__)))
 
 // Command line parsing and tracking
 char *cmdline_buf = NULL;
@@ -85,7 +79,7 @@ void error(char *msg)
 }
 
 int dosetns(int pid, char *nstype) {
-	int mntns;
+	__do_close_prot_errno int mntns = -EBADF;
 	char buf[PATH_MAX];
 
 	sprintf(buf, "/proc/%d/ns/%s", pid, nstype);
@@ -97,10 +91,8 @@ int dosetns(int pid, char *nstype) {
 
 	if (setns(mntns, 0) < 0) {
 		error("error: setns");
-		close(mntns);
 		return -1;
 	}
-	close(mntns);
 
 	return 0;
 }
@@ -136,7 +128,8 @@ static int preserve_ns(const int pid, const char *ns)
 // in the same namespace returns -EINVAL, -1 if an error occurred.
 static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 {
-	int ns_fd1 = -1, ns_fd2 = -1, ret = -1;
+	__do_close_prot_errno int ns_fd1 = -1, ns_fd2 = -1;
+	int ret = -1;
 	struct stat ns_st1, ns_st2;
 
 	ns_fd1 = preserve_ns(pid1, ns);
@@ -146,42 +139,32 @@ static int in_same_namespace(pid_t pid1, pid_t pid2, const char *ns)
 		if (errno == ENOENT)
 			return -EINVAL;
 
-		goto out;
+		return -1;
 	}
 
 	ns_fd2 = preserve_ns(pid2, ns);
 	if (ns_fd2 < 0)
-		goto out;
+		return -1;
 
 	ret = fstat(ns_fd1, &ns_st1);
 	if (ret < 0)
-		goto out;
+		return -1;
 
 	ret = fstat(ns_fd2, &ns_st2);
 	if (ret < 0)
-		goto out;
+		return -1;
 
 	// processes are in the same namespace
-	ret = -EINVAL;
 	if ((ns_st1.st_dev == ns_st2.st_dev ) && (ns_st1.st_ino == ns_st2.st_ino))
-		goto out;
+		return -EINVAL;
 
 	// processes are in different namespaces
-	ret = ns_fd2;
-	ns_fd2 = -1;
-
-out:
-
-	if (ns_fd1 >= 0)
-		close(ns_fd1);
-	if (ns_fd2 >= 0)
-		close(ns_fd2);
-
-	return ret;
+	return move_fd(ns_fd2);
 }
 
 void attach_userns(int pid) {
-	int ret, userns_fd;
+	__do_close_prot_errno int userns_fd = -EBADF;
+	int ret;
 
 	userns_fd = in_same_namespace(getpid(), pid, "user");
 	if (userns_fd < 0) {
@@ -192,7 +175,6 @@ void attach_userns(int pid) {
 	}
 
 	ret = setns(userns_fd, CLONE_NEWUSER);
-	close(userns_fd);
 	if (ret < 0) {
 		fprintf(stderr, "Failed setns to container user namespace: %s\n", strerror(errno));
 		_exit(EXIT_FAILURE);
@@ -230,9 +212,9 @@ again:
 
 static char *file_to_buf(char *path, size_t *length)
 {
-	int fd;
+	__do_close_prot_errno int fd = -EBADF;
+	__do_free char *copy = NULL;
 	char buf[PATH_MAX];
-	char *copy = NULL;
 
 	if (!length)
 		return NULL;
@@ -248,26 +230,19 @@ static char *file_to_buf(char *path, size_t *length)
 
 		n = lxc_read_nointr(fd, buf, sizeof(buf));
 		if (n < 0)
-			goto on_error;
+			return NULL;
 		if (!n)
 			break;
 
 		copy = realloc(old, (*length + n) * sizeof(*old));
 		if (!copy)
-			goto on_error;
+			return NULL;
 
 		memcpy(copy + *length, buf, n);
 		*length += n;
 	}
 
-	close(fd);
-	return copy;
-
-on_error:
-	close(fd);
-	free(copy);
-
-	return NULL;
+	return move_ptr(copy);
 }
 
 __attribute__((constructor)) void init(void) {
