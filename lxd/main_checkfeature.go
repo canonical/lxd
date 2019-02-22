@@ -20,6 +20,7 @@ import (
 #include <unistd.h>
 
 #include "../shared/netns_getifaddrs.c"
+#include "include/memory_utils.h"
 
 bool netnsid_aware = false;
 bool uevent_aware = false;
@@ -29,13 +30,13 @@ extern int can_inject_uevent(const char *uevent, size_t len);
 
 static int netns_set_nsid(int fd)
 {
-	int sockfd, ret;
+	__do_close_prot_errno int sockfd = -EBADF;
+	int ret;
 	char buf[NLMSG_ALIGN(sizeof(struct nlmsghdr)) +
 		 NLMSG_ALIGN(sizeof(struct rtgenmsg)) +
 		 NLMSG_ALIGN(1024)];
 	struct nlmsghdr *hdr;
 	struct rtgenmsg *msg;
-	int saved_errno;
 	__s32 ns_id = -1;
 	__u32 netns_fd = fd;
 
@@ -58,9 +59,6 @@ static int netns_set_nsid(int fd)
 	addattr(hdr, 1024, __LXC_NETNSA_NSID, &ns_id, sizeof(ns_id));
 
 	ret = netlink_transaction(sockfd, hdr, hdr);
-	saved_errno = errno;
-	close(sockfd);
-	errno = saved_errno;
 	if (ret < 0)
 		return -1;
 
@@ -69,7 +67,8 @@ static int netns_set_nsid(int fd)
 
 void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 {
-	int sock_fd, netnsid, ret;
+	__do_close_prot_errno int sock_fd = -EBADF;
+	int netnsid, ret;
 	struct netns_ifaddrs *ifaddrs;
 
 	*hostnetns_fd = open("/proc/self/ns/net", O_RDONLY | O_CLOEXEC);
@@ -109,7 +108,6 @@ void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 	}
 
 	ret = setsockopt(sock_fd, SOL_NETLINK, NETLINK_DUMP_STRICT_CHK, &(int){1}, sizeof(int));
-	close(sock_fd);
 	if (ret < 0) {
 		// NETLINK_DUMP_STRICT_CHK isn't supported
 		return;
@@ -127,20 +125,15 @@ void is_uevent_aware()
 	uevent_aware = true;
 }
 
-void checkfeature() {
-	int hostnetns_fd = -1, newnetns_fd = -1;
+void checkfeature()
+{
+	__do_close_prot_errno int hostnetns_fd = -EBADF, newnetns_fd = -EBADF;
 
 	is_netnsid_aware(&hostnetns_fd, &newnetns_fd);
 	is_uevent_aware();
 
 	if (setns(hostnetns_fd, CLONE_NEWNET) < 0)
 		(void)sprintf(errbuf, "%s", "Failed to attach to host network namespace");
-
-	if (hostnetns_fd >= 0)
-		close(hostnetns_fd);
-
-	if (newnetns_fd >= 0)
-		close(newnetns_fd);
 
 }
 
