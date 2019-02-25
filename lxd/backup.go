@@ -382,6 +382,11 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 		return err
 	}
 
+	err = os.RemoveAll(path)
+	if err != nil {
+		return err
+	}
+
 	// Compress it
 	compress, err := cluster.ConfigGetString(s.Cluster, "backups.compression_algorithm")
 	if err != nil {
