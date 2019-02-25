@@ -215,7 +215,7 @@ int lxc_abstract_unix_recv_fds(int fd, int *recvfds, int num_recvfds,
 	ret = recvmsg(fd, &msg, 0);
 	if (ret <= 0) {
 		fprintf(stderr, "%s - Failed to receive file descriptor\n", strerror(errno));
-		return -1;
+		return ret;
 	}
 
 	cmsg = CMSG_FIRSTHDR(&msg);
