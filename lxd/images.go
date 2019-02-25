@@ -27,6 +27,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
@@ -787,7 +788,7 @@ func imagesPost(d *Daemon, r *http.Request) Response {
 		}
 
 		// Sync the images between each node in the cluster on demand
-		err = imageSyncBetweenNodes(d, req, info.Fingerprint)
+		err = imageSyncBetweenNodes(d, info.Fingerprint)
 		if err != nil {
 			return errors.Wrapf(err, "Image sync between nodes")
 		}
@@ -1995,7 +1996,74 @@ func imageRefresh(d *Daemon, r *http.Request) Response {
 	return OperationResponse(op)
 }
 
-func imageSyncBetweenNodes(d *Daemon, req api.ImagesPost, fingerprint string) error {
+func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		opRun := func(op *operation) error {
+			return autoSyncImages(ctx, d)
+		}
+
+		op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationImagesSynchronize, nil, nil, opRun, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start image synchronization operation", log.Ctx{"err": err})
+			return
+		}
+
+		logger.Infof("Synchronizing images across the cluster")
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to synchronize images", log.Ctx{"err": err})
+			return
+		}
+		logger.Infof("Done synchronizing images across the cluster")
+	}
+
+	return f, task.Daily()
+}
+
+func autoSyncImages(ctx context.Context, d *Daemon) error {
+	// In order to only have one task operation executed per image when syncing the images
+	// across the cluster, only leader node can launch the task, no others.
+	localAddress, err := node.ClusterAddress(d.db)
+	if err != nil {
+		return err
+	}
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return err
+	}
+	if localAddress != leader {
+		logger.Debug("Skipping image synchronization since we're not leader")
+		return nil
+	}
+
+	// Check how many images the current node owns and automatically sync all
+	// available images to other nodes which don't have yet.
+	fingerprints, err := d.cluster.ImagesGetOnCurrentNode()
+	if err != nil {
+		return errors.Wrap(err, "Failed to query image fingerprints of the node")
+	}
+
+	for _, fingerprint := range fingerprints {
+		ch := make(chan error)
+		go func() {
+			err := imageSyncBetweenNodes(d, fingerprint)
+			if err != nil {
+				logger.Error("Failed to synchronize images", log.Ctx{"err": err, "fingerprint": fingerprint})
+			}
+			ch <- nil
+		}()
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ch:
+		}
+	}
+
+	return nil
+}
+
+func imageSyncBetweenNodes(d *Daemon, fingerprint string) error {
 	var desiredSyncNodeCount int64
 
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -2032,74 +2100,68 @@ func imageSyncBetweenNodes(d *Daemon, req api.ImagesPost, fingerprint string) er
 		return nil
 	}
 
-	addresses, err := d.cluster.ImageGetNodesHasNoImage(fingerprint)
+	addresses, err := d.cluster.ImageGetNodesWithoutImage(fingerprint)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get nodes for the image synchronization")
 	}
-
-	min := func(x, y int64) int64 {
-		if x > y {
-			return y
-		}
-
-		return x
+	if len(addresses) <= 0 {
+		return nil
 	}
 
-	for idx := int64(0); idx < min(int64(len(addresses)), nodeCount); idx++ {
-		// We spread the image for the nodes inside of cluster and we need to double
-		// check if the image already exists via DB since when one certain node is
-		// going to create an image it will invoke the same routine.
-		syncNodeAddresses, err = d.cluster.ImageGetNodesWithImage(fingerprint)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get nodes for the image synchronization")
-		}
-
-		if shared.StringInSlice(addresses[idx], syncNodeAddresses) {
-			continue
-		}
-
-		client, err := cluster.Connect(addresses[idx], d.endpoints.NetworkCert(), true)
-		if err != nil {
-			return errors.Wrap(err, "Failed to connect node for image synchronization")
-		}
-
-		createArgs := &lxd.ImageCreateArgs{}
-		imageMetaPath := shared.VarPath("images", fingerprint)
-		imageRootfsPath := shared.VarPath("images", fingerprint+".rootfs")
-
-		metaFile, err := os.Open(imageMetaPath)
-		if err != nil {
-			return err
-		}
-		defer metaFile.Close()
-
-		createArgs.MetaFile = metaFile
-		createArgs.MetaName = filepath.Base(imageMetaPath)
-
-		if shared.PathExists(imageRootfsPath) {
-			rootfsFile, err := os.Open(imageRootfsPath)
-			if err != nil {
-				return err
-			}
-			defer rootfsFile.Close()
-
-			createArgs.RootfsFile = rootfsFile
-			createArgs.RootfsName = filepath.Base(imageRootfsPath)
-		}
-
-		image := api.ImagesPost{}
-		image.Filename = createArgs.MetaName
-
-		op, err := client.CreateImage(image, createArgs)
-		if err != nil {
-			return err
-		}
-
-		err = op.Wait()
-		if err != nil {
-			return err
-		}
+	// We spread the image for the nodes inside of cluster and we need to double
+	// check if the image already exists via DB since when one certain node is
+	// going to create an image it will invoke the same routine.
+	// Also as the daily image synchronization task can be only launched by leader node,
+	// hence the leader node will have the image synced first with higher priority.
+	// In case the operation fails, the daily image synchronization task will check
+	// whether an image was synced successfully across the cluster and perform the
+	// same job if not.
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch the leader node address")
+	}
+	var targetNodeAddress string
+	if shared.StringInSlice(leader, addresses) {
+		targetNodeAddress = leader
+	} else {
+		targetNodeAddress = addresses[0]
+	}
+	client, err := cluster.Connect(targetNodeAddress, d.endpoints.NetworkCert(), true)
+	if err != nil {
+		return errors.Wrap(err, "Failed to connect node for image synchronization")
 	}
 
-	return nil
+	createArgs := &lxd.ImageCreateArgs{}
+	imageMetaPath := shared.VarPath("images", fingerprint)
+	imageRootfsPath := shared.VarPath("images", fingerprint+".rootfs")
+
+	metaFile, err := os.Open(imageMetaPath)
+	if err != nil {
+		return err
+	}
+	defer metaFile.Close()
+
+	createArgs.MetaFile = metaFile
+	createArgs.MetaName = filepath.Base(imageMetaPath)
+
+	if shared.PathExists(imageRootfsPath) {
+		rootfsFile, err := os.Open(imageRootfsPath)
+		if err != nil {
+			return err
+		}
+		defer rootfsFile.Close()
+
+		createArgs.RootfsFile = rootfsFile
+		createArgs.RootfsName = filepath.Base(imageRootfsPath)
+	}
+
+	image := api.ImagesPost{}
+	image.Filename = createArgs.MetaName
+
+	op, err := client.CreateImage(image, createArgs)
+	if err != nil {
+		return err
+	}
+
+	return op.Wait()
 }
