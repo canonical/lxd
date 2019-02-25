@@ -302,9 +302,10 @@ var udpSessions = map[string]*udpSession{}
 var udpSessionsLock sync.Mutex
 
 type udpSession struct {
-	client net.Addr
-	target net.Conn
-	timer  *time.Timer
+	client    net.Addr
+	target    net.Conn
+	timer     *time.Timer
+	timerLock sync.Mutex
 }
 
 func (c *cmdForkproxy) Command() *cobra.Command {
@@ -740,7 +741,10 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 					})
 				}
 
+				us.timerLock.Lock()
 				us.timer.Reset(30 * time.Minute)
+				us.timerLock.Unlock()
+
 				dst = us.target
 				dstUdp, dstIsUdp = dst.(*net.UDPConn)
 			}
@@ -775,7 +779,9 @@ func proxyCopy(dst net.Conn, src net.Conn) error {
 					return fmt.Errorf("Connection expired")
 				}
 
+				us.timerLock.Lock()
 				us.timer.Reset(30 * time.Minute)
+				us.timerLock.Unlock()
 
 				nw, ew = dstUdp.WriteTo(buf[0:nr], us.client)
 			} else {
