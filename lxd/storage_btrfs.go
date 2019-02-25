@@ -1819,7 +1819,6 @@ func (s *storageBtrfs) ContainerBackupCreate(backup backup, source container) er
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmpPath)
 
 	// Generate the actual backup
 	if backup.optimizedStorage {
