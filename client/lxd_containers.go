@@ -806,6 +806,12 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 
 				if fds["0"] != "" {
 					args.Stdin.Close()
+
+					// Empty the stdin channel but don't block on it as
+					// stdin may be stuck in Read()
+					go func() {
+						<-dones[0]
+					}()
 				}
 
 				for _, conn := range conns {
