@@ -154,8 +154,13 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Configure the terminal
-	cfd := int(syscall.Stdin)
+	stdinFd := int(syscall.Stdin)
+	stdoutFd := int(syscall.Stdout)
 
+	stdinTerminal := termios.IsTerminal(stdinFd)
+	stdoutTerminal := termios.IsTerminal(stdoutFd)
+
+	// Determine interaction mode
 	var interactive bool
 	if c.flagDisableStdin {
 		interactive = false
@@ -164,25 +169,29 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	} else if c.flagMode == "non-interactive" || c.flagForceNonInteractive {
 		interactive = false
 	} else {
-		interactive = termios.IsTerminal(cfd) && termios.IsTerminal(int(syscall.Stdout))
+		interactive = stdinTerminal && stdoutTerminal
 	}
 
+	// Record terminal state
 	var oldttystate *termios.State
-	if interactive {
-		oldttystate, err = termios.MakeRaw(cfd)
+	if interactive && stdinTerminal {
+		oldttystate, err = termios.MakeRaw(stdinFd)
 		if err != nil {
 			return err
 		}
-		defer termios.Restore(cfd, oldttystate)
+
+		defer termios.Restore(stdinFd, oldttystate)
 	}
 
+	// Setup interactive console handler
 	handler := c.controlSocketHandler
 	if !interactive {
 		handler = nil
 	}
 
+	// Grab current terminal dimensions
 	var width, height int
-	if interactive {
+	if stdoutTerminal {
 		width, height, err = termios.GetSize(int(syscall.Stdout))
 		if err != nil {
 			return err
@@ -239,7 +248,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 		 * Additionally, since os.Exit() exits without running deferred
 		 * functions, we restore the terminal explicitly.
 		 */
-		termios.Restore(cfd, oldttystate)
+		termios.Restore(stdinFd, oldttystate)
 	}
 
 	os.Exit(int(opAPI.Metadata["return"].(float64)))
