@@ -65,6 +65,9 @@ Examples:
 
 A regular expression matching a configuration item or its value. (e.g. volatile.eth0.hwaddr=00:16:3e:.*).
 
+When multiple filters are passed, they are added one on top of the other,
+selecting containers which satisfy them all.
+
 == Columns ==
 The -c option takes a comma separated list of arguments that control
 which container attributes to output when displaying in table or csv
@@ -177,7 +180,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Container) bool {
 			}
 
 			if state.ExpandedConfig[key] == value {
-				return true
+				continue
 			}
 
 			if !found {
@@ -191,7 +194,7 @@ func (c *cmdList) shouldShow(filters []string, state *api.Container) bool {
 
 			r, err := regexp.Compile(regexpValue)
 			if err == nil && r.MatchString(state.Name) == true {
-				return true
+				continue
 			}
 
 			if !strings.HasPrefix(state.Name, filter) {
