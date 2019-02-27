@@ -210,7 +210,7 @@ again:
 	return ret;
 }
 
-static char *file_to_buf(char *path, size_t *length)
+static char *file_to_buf(char *path, ssize_t *length)
 {
 	__do_close_prot_errno int fd = -EBADF;
 	__do_free char *copy = NULL;
