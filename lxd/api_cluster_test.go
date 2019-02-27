@@ -480,7 +480,7 @@ func TestCluster_LeaveWithImages(t *testing.T) {
 
 	client := f.ClientUnix(daemons[1])
 	err = client.DeleteClusterMember("rusp-0", false)
-	assert.EqualError(t, err, "node still has the following images: abc")
+	assert.EqualError(t, err, "Node still has the following images: abc")
 
 	// If we now associate the image with the other node as well, leaving
 	// the cluster is fine.
