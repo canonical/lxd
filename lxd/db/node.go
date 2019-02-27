@@ -380,6 +380,19 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 		return message, nil
 	}
 
+	// Check if the node has any custom volumes.
+	volumes, err := query.SelectStrings(
+		c.tx, "SELECT name FROM storage_volumes WHERE node_id=? AND type=?",
+		id, StoragePoolVolumeTypeCustom)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to get custom volumes for node %d", id)
+	}
+	if len(volumes) > 0 {
+		message := fmt.Sprintf(
+			"Node still has the following custom volumes: %s", strings.Join(volumes, ", "))
+		return message, nil
+	}
+
 	return "", nil
 }
 
