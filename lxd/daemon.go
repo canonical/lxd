@@ -579,7 +579,7 @@ func (d *Daemon) init() error {
 		}
 
 		d.cluster, err = db.OpenCluster(
-			"db.bin", store, address, dir,
+			"db.bin", store, clusterAddress, dir,
 			d.config.DqliteSetupTimeout,
 			dqlite.WithDialFunc(d.gateway.DialFunc()),
 			dqlite.WithContext(d.gateway.Context()),
