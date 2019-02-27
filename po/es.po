@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-02-26 22:22+0100\n"
+"POT-Creation-Date: 2019-02-27 15:05+0100\n"
 "PO-Revision-Date: 2019-01-28 23:09+0000\n"
 "Last-Translator: Allan Esquivel Sibaja <allan.esquivel.sibaja@gmail.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -534,7 +534,7 @@ msgstr ""
 msgid "Cluster member name"
 msgstr "Nombre del Miembro del Cluster"
 
-#: lxc/cluster.go:366
+#: lxc/cluster.go:405
 msgid "Clustering enabled"
 msgstr ""
 
@@ -724,7 +724,7 @@ msgstr "Creando %s"
 msgid "Creating the container"
 msgstr "Creando el contenedor"
 
-#: lxc/cluster.go:126
+#: lxc/cluster.go:128
 msgid "DATABASE"
 msgstr ""
 
@@ -787,8 +787,8 @@ msgstr ""
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:23 lxc/alias.go:55 lxc/alias.go:99 lxc/alias.go:147
-#: lxc/alias.go:198 lxc/cluster.go:27 lxc/cluster.go:64 lxc/cluster.go:147
-#: lxc/cluster.go:197 lxc/cluster.go:246 lxc/cluster.go:295 lxc/config.go:30
+#: lxc/alias.go:198 lxc/cluster.go:29 lxc/cluster.go:66 lxc/cluster.go:149
+#: lxc/cluster.go:199 lxc/cluster.go:249 lxc/cluster.go:334 lxc/config.go:30
 #: lxc/config.go:89 lxc/config.go:357 lxc/config.go:423 lxc/config.go:520
 #: lxc/config.go:624 lxc/config_device.go:24 lxc/config_device.go:76
 #: lxc/config_device.go:182 lxc/config_device.go:255 lxc/config_device.go:321
@@ -889,6 +889,10 @@ msgstr ""
 msgid "Disk usage:"
 msgstr "Uso del disco:"
 
+#: lxc/cluster.go:254
+msgid "Don't require user confirmation for using --force"
+msgstr ""
+
 #: lxc/main.go:60
 msgid "Don't show progress information"
 msgstr ""
@@ -946,11 +950,11 @@ msgstr ""
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
 
-#: lxc/cluster.go:294
+#: lxc/cluster.go:333
 msgid "Enable clustering on a single non-clustered LXD instance"
 msgstr ""
 
-#: lxc/cluster.go:295
+#: lxc/cluster.go:334
 msgid ""
 "Enable clustering on a single non-clustered LXD instance\n"
 "\n"
@@ -1090,7 +1094,7 @@ msgstr "Huella dactilar: %s"
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/cluster.go:250
+#: lxc/cluster.go:253
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
@@ -1104,6 +1108,30 @@ msgstr ""
 
 #: lxc/main.go:56
 msgid "Force using the local unix socket"
+msgstr ""
+
+#: lxc/cluster.go:261
+#, c-format
+msgid ""
+"Forcefully removing a server from the cluster should only be done as a last\n"
+"resort.\n"
+"\n"
+"The removed server will not be functional after this action and will require "
+"a\n"
+"full reset of LXD, losing any remaining container, image or storage volume\n"
+"that the server may have held.\n"
+"\n"
+"When possible, a graceful removal should be preferred, this will require you "
+"to\n"
+"move any affected container, image or storage volume to another server prior "
+"to\n"
+"the server being cleanly removed from the cluster.\n"
+"\n"
+"The --force flag should only be used if the server has died, been "
+"reinstalled\n"
+"or is otherwise never expected to come back up.\n"
+"\n"
+"Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
 #: lxc/image.go:932 lxc/list.go:118 lxc/network.go:803 lxc/profile.go:584
@@ -1341,7 +1369,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/cluster.go:99
+#: lxc/cluster.go:101
 msgid "LXD server isn't part of a cluster"
 msgstr ""
 
@@ -1363,7 +1391,7 @@ msgstr ""
 msgid "List aliases"
 msgstr "Aliases:"
 
-#: lxc/cluster.go:63 lxc/cluster.go:64
+#: lxc/cluster.go:65 lxc/cluster.go:66
 msgid "List all the cluster members"
 msgstr ""
 
@@ -1543,7 +1571,7 @@ msgstr ""
 msgid "MANAGED"
 msgstr ""
 
-#: lxc/cluster.go:128
+#: lxc/cluster.go:130
 msgid "MESSAGE"
 msgstr ""
 
@@ -1564,7 +1592,7 @@ msgstr ""
 msgid "Manage and attach containers to networks"
 msgstr ""
 
-#: lxc/cluster.go:26 lxc/cluster.go:27
+#: lxc/cluster.go:28 lxc/cluster.go:29
 msgid "Manage cluster members"
 msgstr ""
 
@@ -1651,12 +1679,12 @@ msgstr ""
 msgid "Manage trusted clients"
 msgstr ""
 
-#: lxc/cluster.go:277
+#: lxc/cluster.go:316
 #, c-format
 msgid "Member %s removed"
 msgstr ""
 
-#: lxc/cluster.go:227
+#: lxc/cluster.go:229
 #, c-format
 msgid "Member %s renamed to %s"
 msgstr ""
@@ -1791,7 +1819,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr ""
 
-#: lxc/cluster.go:124 lxc/list.go:464 lxc/network.go:858 lxc/profile.go:622
+#: lxc/cluster.go:126 lxc/list.go:464 lxc/network.go:858 lxc/profile.go:622
 #: lxc/project.go:450 lxc/remote.go:478 lxc/storage.go:549
 #: lxc/storage_volume.go:1120
 msgid "NAME"
@@ -2147,7 +2175,7 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
-#: lxc/cluster.go:245 lxc/cluster.go:246
+#: lxc/cluster.go:248 lxc/cluster.go:249
 msgid "Remove a member from the cluster"
 msgstr ""
 
@@ -2171,7 +2199,7 @@ msgstr ""
 msgid "Remove trusted clients"
 msgstr ""
 
-#: lxc/cluster.go:196 lxc/cluster.go:197
+#: lxc/cluster.go:198 lxc/cluster.go:199
 msgid "Rename a cluster member"
 msgstr ""
 
@@ -2272,7 +2300,7 @@ msgstr ""
 msgid "SOURCE"
 msgstr ""
 
-#: lxc/cluster.go:127 lxc/list.go:469 lxc/network.go:865 lxc/storage.go:554
+#: lxc/cluster.go:129 lxc/list.go:469 lxc/network.go:865 lxc/storage.go:554
 msgid "STATE"
 msgstr ""
 
@@ -2381,7 +2409,7 @@ msgstr ""
 msgid "Show content of container file templates"
 msgstr ""
 
-#: lxc/cluster.go:146 lxc/cluster.go:147
+#: lxc/cluster.go:148 lxc/cluster.go:149
 msgid "Show details of a cluster member"
 msgstr ""
 
@@ -2718,7 +2746,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:125 lxc/remote.go:479
+#: lxc/cluster.go:127 lxc/remote.go:479
 msgid "URL"
 msgstr ""
 
@@ -2784,7 +2812,7 @@ msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
 
-#: lxc/delete.go:47
+#: lxc/cluster.go:280 lxc/delete.go:47
 msgid "User aborted delete operation"
 msgstr ""
 
@@ -2881,7 +2909,7 @@ msgid ""
 "name>]"
 msgstr ""
 
-#: lxc/cluster.go:25
+#: lxc/cluster.go:27
 msgid "cluster"
 msgstr ""
 
@@ -3068,7 +3096,7 @@ msgstr ""
 msgid "edit [<remote>:][<container>[/<snapshot>]]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/cluster.go:293
+#: lxc/cluster.go:332
 msgid "enable [<remote>:] <name>"
 msgstr ""
 
@@ -3177,7 +3205,7 @@ msgstr ""
 msgid "list"
 msgstr ""
 
-#: lxc/cluster.go:61 lxc/config_trust.go:112 lxc/network.go:796
+#: lxc/cluster.go:63 lxc/config_trust.go:112 lxc/network.go:796
 #: lxc/operation.go:98 lxc/profile.go:577 lxc/project.go:380 lxc/storage.go:493
 msgid "list [<remote>:]"
 msgstr ""
@@ -3524,7 +3552,7 @@ msgstr ""
 msgid "remove [<remote>:]<container|profile> <name>..."
 msgstr ""
 
-#: lxc/cluster.go:243
+#: lxc/cluster.go:246
 msgid "remove [<remote>:]<member>"
 msgstr ""
 
@@ -3544,7 +3572,7 @@ msgstr ""
 msgid "rename [<remote>:]<container>[/<snapshot>] <container>[/<snapshot>]"
 msgstr ""
 
-#: lxc/cluster.go:194
+#: lxc/cluster.go:196
 msgid "rename [<remote>:]<member> <new-name>"
 msgstr ""
 
@@ -3626,7 +3654,7 @@ msgstr ""
 msgid "show [<remote>:]<image>"
 msgstr ""
 
-#: lxc/cluster.go:145
+#: lxc/cluster.go:147
 msgid "show [<remote>:]<member>"
 msgstr ""
 
@@ -3765,7 +3793,8 @@ msgstr "Columnas"
 msgid "y"
 msgstr ""
 
-#: lxc/delete.go:46 lxc/image.go:828 lxc/image.go:833 lxc/image.go:999
+#: lxc/cluster.go:279 lxc/delete.go:46 lxc/image.go:828 lxc/image.go:833
+#: lxc/image.go:999
 msgid "yes"
 msgstr ""
 
