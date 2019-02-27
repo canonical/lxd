@@ -125,7 +125,7 @@ test_clustering_membership() {
   ! LXD_DIR="${LXD_TWO_DIR}" lxc network delete "${bridge}" || false
 
   # Force the removal of the degraded node.
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node3 --force
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster remove node3 -q --force
 
   # Sleep a bit to let a heartbeat occur and update the list of raft nodes
   # everywhere, showing that node 4 has been promoted to database node.
@@ -507,7 +507,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
 
     LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
-    LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force
+    LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 -q --force
 
     LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
 
