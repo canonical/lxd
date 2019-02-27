@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-02-18 17:22-0500\n"
+"POT-Creation-Date: 2019-02-26 22:22+0100\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -323,7 +323,7 @@ msgstr "ALIAS"
 msgid "ARCH"
 msgstr "ARCH"
 
-#: lxc/list.go:457
+#: lxc/list.go:460
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
@@ -437,7 +437,7 @@ msgstr "Le type d'authentification '%s' n'est pas supporté par le serveur"
 msgid "Auto update: %s"
 msgstr "Mise à jour auto. : %s"
 
-#: lxc/list.go:469 lxc/list.go:470
+#: lxc/list.go:472 lxc/list.go:473
 msgid "BASE IMAGE"
 msgstr ""
 
@@ -500,7 +500,7 @@ msgstr "CPU utilisé :"
 msgid "CREATED"
 msgstr "CRÉÉ À"
 
-#: lxc/list.go:458
+#: lxc/list.go:461
 msgid "CREATED AT"
 msgstr "CRÉÉ À"
 
@@ -533,7 +533,7 @@ msgstr "Impossible de lire depuis stdin : %s"
 msgid "Can't remove the default remote"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/list.go:476
+#: lxc/list.go:479
 msgid "Can't specify --fast with --columns"
 msgstr ""
 
@@ -541,7 +541,7 @@ msgstr ""
 msgid "Can't specify a different remote for rename"
 msgstr ""
 
-#: lxc/list.go:488
+#: lxc/list.go:491
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
@@ -590,7 +590,7 @@ msgstr ""
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:931 lxc/list.go:114
+#: lxc/image.go:931 lxc/list.go:117
 msgid "Columns"
 msgstr "Colonnes"
 
@@ -814,7 +814,7 @@ msgstr "Création du conteneur"
 msgid "DATABASE"
 msgstr ""
 
-#: lxc/image.go:945 lxc/image_alias.go:230 lxc/list.go:459 lxc/network.go:861
+#: lxc/image.go:945 lxc/image_alias.go:230 lxc/list.go:462 lxc/network.go:861
 #: lxc/operation.go:156 lxc/storage.go:550 lxc/storage_volume.go:1121
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
@@ -985,7 +985,7 @@ msgstr "  Disque utilisé :"
 msgid "Don't show progress information"
 msgstr ""
 
-#: lxc/list.go:662
+#: lxc/list.go:665
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
@@ -1036,7 +1036,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:956 lxc/list.go:500
+#: lxc/image.go:956 lxc/list.go:503
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -1181,7 +1181,7 @@ msgstr ""
 msgid "Failed to walk path for %s: %s"
 msgstr ""
 
-#: lxc/list.go:116
+#: lxc/list.go:119
 #, fuzzy
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Mode rapide (identique à --columns=nsacPt"
@@ -1216,7 +1216,7 @@ msgstr "Forcer la suppression des conteneurs arrêtés"
 msgid "Force using the local unix socket"
 msgstr "Forcer l'utilisation de la socket unix locale"
 
-#: lxc/image.go:932 lxc/list.go:115 lxc/network.go:803 lxc/profile.go:584
+#: lxc/image.go:932 lxc/list.go:118 lxc/network.go:803 lxc/profile.go:584
 #: lxc/remote.go:425
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
@@ -1283,11 +1283,11 @@ msgstr ""
 msgid "IP ADDRESS"
 msgstr ""
 
-#: lxc/list.go:455
+#: lxc/list.go:458
 msgid "IPV4"
 msgstr "IPv4"
 
-#: lxc/list.go:456
+#: lxc/list.go:459
 msgid "IPV6"
 msgstr "IPv6"
 
@@ -1388,33 +1388,33 @@ msgstr "Schème d'URL invalide \"%s\" in \"%s\""
 msgid "Invalid certificate"
 msgstr "Certificat invalide"
 
-#: lxc/list.go:525
+#: lxc/list.go:528
 #, fuzzy, c-format
 msgid "Invalid config key '%s' in '%s'"
 msgstr "Clé de configuration invalide"
 
-#: lxc/list.go:520
+#: lxc/list.go:523
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
 
-#: lxc/image.go:1221 lxc/list.go:368 lxc/network.go:903 lxc/profile.go:662
+#: lxc/image.go:1221 lxc/list.go:371 lxc/network.go:903 lxc/profile.go:662
 #: lxc/remote.go:520
 #, fuzzy, c-format
 msgid "Invalid format %q"
 msgstr "Cible invalide %s"
 
-#: lxc/list.go:543
+#: lxc/list.go:546
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:540
+#: lxc/list.go:543
 #, c-format
 msgid "Invalid max width (must be an integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:531
+#: lxc/list.go:534
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
@@ -1453,11 +1453,11 @@ msgstr "IPs :"
 msgid "Keep the image up to date after initial copy"
 msgstr "Garder l'image à jour après la copie initiale"
 
-#: lxc/list.go:460
+#: lxc/list.go:463
 msgid "LAST USED AT"
 msgstr "DERNIÈRE UTILISATION À"
 
-#: lxc/list.go:484 lxc/storage_volume.go:1125
+#: lxc/list.go:487 lxc/storage_volume.go:1125
 msgid "LOCATION"
 msgstr ""
 
@@ -1542,6 +1542,9 @@ msgid ""
 "\n"
 "A regular expression matching a configuration item or its value. (e.g. "
 "volatile.eth0.hwaddr=00:16:3e:.*).\n"
+"\n"
+"When multiple filters are passed, they are added one on top of the other,\n"
+"selecting containers which satisfy them all.\n"
 "\n"
 "== Columns ==\n"
 "The -c option takes a comma separated list of arguments that control\n"
@@ -1996,7 +1999,7 @@ msgstr ""
 msgid "Must supply container name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/cluster.go:124 lxc/list.go:461 lxc/network.go:858 lxc/profile.go:622
+#: lxc/cluster.go:124 lxc/list.go:464 lxc/network.go:858 lxc/profile.go:622
 #: lxc/project.go:450 lxc/remote.go:478 lxc/storage.go:549
 #: lxc/storage_volume.go:1120
 msgid "NAME"
@@ -2117,19 +2120,19 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "Surcharger le mode terminal (auto, interactif ou non-interactif)"
 
-#: lxc/list.go:665
+#: lxc/list.go:668
 msgid "PERSISTENT"
 msgstr "PERSISTANT"
 
-#: lxc/list.go:463
+#: lxc/list.go:466
 msgid "PID"
 msgstr "PID"
 
-#: lxc/list.go:462
+#: lxc/list.go:465
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:464 lxc/project.go:452
+#: lxc/list.go:467 lxc/project.go:452
 msgid "PROFILES"
 msgstr "PROFILS"
 
@@ -2500,7 +2503,7 @@ msgstr ""
 msgid "SIZE"
 msgstr "TAILLE"
 
-#: lxc/list.go:465
+#: lxc/list.go:468
 msgid "SNAPSHOTS"
 msgstr "INSTANTANÉS"
 
@@ -2508,7 +2511,7 @@ msgstr "INSTANTANÉS"
 msgid "SOURCE"
 msgstr "SOURCE"
 
-#: lxc/cluster.go:127 lxc/list.go:466 lxc/network.go:865 lxc/storage.go:554
+#: lxc/cluster.go:127 lxc/list.go:469 lxc/network.go:865 lxc/storage.go:554
 msgid "STATE"
 msgstr "ÉTAT"
 
@@ -2521,7 +2524,7 @@ msgstr "STATIQUE"
 msgid "STATUS"
 msgstr "ÉTAT"
 
-#: lxc/list.go:468
+#: lxc/list.go:471
 msgid "STORAGE POOL"
 msgstr "ENSEMBLE DE STOCKAGE"
 
@@ -2846,7 +2849,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "TARGET"
 msgstr ""
 
-#: lxc/list.go:467 lxc/network.go:859 lxc/network.go:965 lxc/operation.go:155
+#: lxc/list.go:470 lxc/network.go:859 lxc/network.go:965 lxc/operation.go:155
 #: lxc/storage_volume.go:1119
 msgid "TYPE"
 msgstr "TYPE"
@@ -3008,7 +3011,7 @@ msgstr "UTILISÉ PAR"
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/image.go:963 lxc/list.go:514
+#: lxc/image.go:963 lxc/list.go:517
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
@@ -3658,7 +3661,7 @@ msgstr ""
 msgid "lxc launch ubuntu:16.04 u1"
 msgstr ""
 
-#: lxc/list.go:105
+#: lxc/list.go:108
 msgid ""
 "lxc list -c nFs46,volatile.eth0.hwaddr:MAC\n"
 "  Show containers using the \"NAME\", \"BASE IMAGE\", \"STATE\", \"IPV4\", "
