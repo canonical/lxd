@@ -232,7 +232,7 @@ INSERT INTO containers (id, node_id, name, architecture, type, project_id) VALUE
 
 	message, err = tx.NodeIsEmpty(id)
 	require.NoError(t, err)
-	assert.Equal(t, "node still has the following containers: foo", message)
+	assert.Equal(t, "Node still has the following containers: foo", message)
 
 	err = tx.NodeClear(id)
 	require.NoError(t, err)
@@ -262,7 +262,7 @@ INSERT INTO images_nodes(image_id, node_id) VALUES(1, ?)`, id)
 
 	message, err := tx.NodeIsEmpty(id)
 	require.NoError(t, err)
-	assert.Equal(t, "node still has the following images: abc", message)
+	assert.Equal(t, "Node still has the following images: abc", message)
 
 	// Insert a new image entry for node 1 (the default node).
 	_, err = tx.Tx().Exec(`
@@ -272,6 +272,28 @@ INSERT INTO images_nodes(image_id, node_id) VALUES(1, 1)`)
 	message, err = tx.NodeIsEmpty(id)
 	require.NoError(t, err)
 	assert.Equal(t, "", message)
+}
+
+// A node is considered empty only if it has no custom volumes on it.
+func TestNodeIsEmpty_CustomVolumes(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	id, err := tx.NodeAdd("buzz", "1.2.3.4:666")
+	require.NoError(t, err)
+
+	_, err = tx.Tx().Exec(`
+INSERT INTO storage_pools (id, name, driver) VALUES (1, 'local', 'zfs')`)
+	require.NoError(t, err)
+
+	_, err = tx.Tx().Exec(`
+INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, project_id)
+  VALUES ('data', 1, ?, ?, 1)`, id, db.StoragePoolVolumeTypeCustom)
+	require.NoError(t, err)
+
+	message, err := tx.NodeIsEmpty(id)
+	require.NoError(t, err)
+	assert.Equal(t, "Node still has the following custom volumes: data", message)
 }
 
 // If there are 2 online nodes, return the address of the one with the least
