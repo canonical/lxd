@@ -145,6 +145,11 @@ test_clustering_membership() {
   ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node3 || false
   LXD_DIR="${LXD_TWO_DIR}" lxc image delete testimage
 
+  # Trying to delete a node which has a custom volume on it results in an error.
+  LXD_DIR="${LXD_FOUR_DIR}" lxc storage volume create data v1
+  ! LXD_DIR="${LXD_FOUR_DIR}" lxc cluster remove node3 || false
+  LXD_DIR="${LXD_FOUR_DIR}" lxc storage volume delete data v1
+
   # The image got deleted from the LXD_DIR tree.
   # shellcheck disable=2086
   [ "$(ls ${LXD_FOUR_DIR}/images)" = "" ] || false
