@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"sort"
@@ -10,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -232,7 +234,8 @@ type cmdClusterRemove struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
 
-	flagForce bool
+	flagForce          bool
+	flagNonInteractive bool
 }
 
 func (c *cmdClusterRemove) Command() *cobra.Command {
@@ -245,8 +248,36 @@ func (c *cmdClusterRemove) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force removing a member, even if degraded"))
+	cmd.Flags().BoolVarP(&c.flagNonInteractive, "quiet", "q", false, i18n.G("Don't require user confirmation for using --force"))
 
 	return cmd
+}
+
+func (c *cmdClusterRemove) promptConfirmation(name string) error {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf(i18n.G(`Forcefully removing a server from the cluster should only be done as a last
+resort.
+
+The removed server will not be functional after this action and will require a
+full reset of LXD, losing any remaining container, image or storage volume
+that the server may have held.
+
+When possible, a graceful removal should be preferred, this will require you to
+move any affected container, image or storage volume to another server prior to
+the server being cleanly removed from the cluster.
+
+The --force flag should only be used if the server has died, been reinstalled
+or is otherwise never expected to come back up.
+
+Are you really sure you want to force removing %s? (yes/no): `), name)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSuffix(input, "\n")
+
+	if !shared.StringInSlice(strings.ToLower(input), []string{i18n.G("yes")}) {
+		return fmt.Errorf(i18n.G("User aborted delete operation"))
+	}
+
+	return nil
 }
 
 func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
@@ -263,6 +294,14 @@ func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	resource := resources[0]
+
+	// Prompt for confiromation if --force is used.
+	if !c.flagNonInteractive && c.flagForce {
+		err := c.promptConfirmation(resource.name)
+		if err != nil {
+			return err
+		}
+	}
 
 	// Delete the cluster member
 	err = resource.server.DeleteClusterMember(resource.name, c.flagForce)
