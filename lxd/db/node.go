@@ -328,15 +328,15 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 	// Check if the node has any containers.
 	containers, err := query.SelectStrings(c.tx, "SELECT name FROM containers WHERE node_id=?", id)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get containers for node %d", id)
+		return "", errors.Wrapf(err, "Failed to get containers for node %d", id)
 	}
 	if len(containers) > 0 {
 		message := fmt.Sprintf(
-			"node still has the following containers: %s", strings.Join(containers, ", "))
+			"Node still has the following containers: %s", strings.Join(containers, ", "))
 		return message, nil
 	}
 
-	// Check if the node has any images available only in.
+	// Check if the node has any images available only in it.
 	images := []struct {
 		fingerprint string
 		nodeID      int64
@@ -357,7 +357,7 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 	defer stmt.Close()
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to get image list for node %d", id)
+		return "", errors.Wrapf(err, "Failed to get image list for node %d", id)
 	}
 	index := map[string][]int64{} // Map fingerprints to IDs of nodes
 	for _, image := range images {
@@ -376,7 +376,7 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 
 	if len(fingerprints) > 0 {
 		message := fmt.Sprintf(
-			"node still has the following images: %s", strings.Join(fingerprints, ", "))
+			"Node still has the following images: %s", strings.Join(fingerprints, ", "))
 		return message, nil
 	}
 

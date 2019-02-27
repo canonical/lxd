@@ -232,7 +232,7 @@ INSERT INTO containers (id, node_id, name, architecture, type, project_id) VALUE
 
 	message, err = tx.NodeIsEmpty(id)
 	require.NoError(t, err)
-	assert.Equal(t, "node still has the following containers: foo", message)
+	assert.Equal(t, "Node still has the following containers: foo", message)
 
 	err = tx.NodeClear(id)
 	require.NoError(t, err)
@@ -262,7 +262,7 @@ INSERT INTO images_nodes(image_id, node_id) VALUES(1, ?)`, id)
 
 	message, err := tx.NodeIsEmpty(id)
 	require.NoError(t, err)
-	assert.Equal(t, "node still has the following images: abc", message)
+	assert.Equal(t, "Node still has the following images: abc", message)
 
 	// Insert a new image entry for node 1 (the default node).
 	_, err = tx.Tx().Exec(`
