@@ -200,9 +200,9 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return BadRequest(err)
 		}
+
 		err = doProfileUpdateCluster(d, project, name, old)
 		return SmartError(err)
-
 	}
 
 	var id int64
@@ -252,8 +252,9 @@ func profilePut(d *Daemon, r *http.Request) Response {
 		if err != nil {
 			return SmartError(err)
 		}
+
 		err = notifier(func(client lxd.ContainerServer) error {
-			return client.UpdateProfile(name, profile.ProfilePut, "")
+			return client.UseProject(project).UpdateProfile(name, profile.ProfilePut, "")
 		})
 		if err != nil {
 			return SmartError(err)
