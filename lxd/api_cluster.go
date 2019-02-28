@@ -528,11 +528,22 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			return err
 		}
 
-		// Connect to Candid
+		// Handle external authentication/RBAC
 		candidAPIURL, candidAPIKey, candidExpiry, candidDomains := clusterConfig.CandidServer()
-		err = d.setupExternalAuthentication(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
-		if err != nil {
-			return err
+		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey := clusterConfig.RBACServer()
+
+		if rbacAPIURL != "" {
+			err = d.setupRBACServer(rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
+			if err != nil {
+				return err
+			}
+		}
+
+		if candidAPIURL != "" {
+			err = d.setupExternalAuthentication(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Re-use the client handler and import the images from the leader node which
