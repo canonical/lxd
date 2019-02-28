@@ -23,6 +23,7 @@ type cmdGlobal struct {
 	conf     *config.Config
 	confPath string
 	cmd      *cobra.Command
+	ret      int
 
 	flagForceLocal bool
 	flagHelp       bool
@@ -220,6 +221,10 @@ For help with any of those, simply call them with --help.`))
 	err = app.Execute()
 	if err != nil {
 		os.Exit(1)
+	}
+
+	if globalCmd.ret != 0 {
+		os.Exit(globalCmd.ret)
 	}
 }
 
