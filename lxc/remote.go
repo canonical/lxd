@@ -130,10 +130,6 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		c.flagProtocol = "lxd"
 	}
 
-	if c.flagAuthType == "" {
-		c.flagAuthType = "tls"
-	}
-
 	// Initialize the remotes list if needed
 	if conf.Remotes == nil {
 		conf.Remotes = map[string]config.Remote{}
@@ -211,7 +207,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	// Finally, actually add the remote, almost...  If the remote is a private
 	// HTTPS server then we need to ensure we have a client certificate before
 	// adding the remote server.
-	if rScheme != "unix" && !c.flagPublic && c.flagAuthType == "tls" {
+	if rScheme != "unix" && !c.flagPublic && (c.flagAuthType == "tls" || c.flagAuthType == "") {
 		if !conf.HasClientCertificate() {
 			fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
 			err = conf.GenerateClientCertificate()
@@ -236,6 +232,9 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
+		remote := conf.Remotes[server]
+		remote.AuthType = "tls"
+		conf.Remotes[server] = remote
 		return conf.SaveConfig(c.global.confPath)
 	}
 
@@ -307,6 +306,38 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	srv, _, err := d.(lxd.ContainerServer).GetServer()
 	if err != nil {
 		return err
+	}
+
+	// If not specified, default authentication to Candid
+	if c.flagAuthType == "" {
+		if !srv.Public && shared.StringInSlice("candid", srv.AuthMethods) {
+			c.flagAuthType = "candid"
+
+			// Update the remote configuration
+			remote := conf.Remotes[server]
+			remote.AuthType = c.flagAuthType
+			conf.Remotes[server] = remote
+
+			// Re-setup the client
+			d, err = conf.GetContainerServer(server)
+			if err != nil {
+				return err
+			}
+
+			d.(lxd.ContainerServer).RequireAuthenticated(false)
+
+			srv, _, err = d.(lxd.ContainerServer).GetServer()
+			if err != nil {
+				return err
+			}
+		} else {
+			c.flagAuthType = "tls"
+
+			// Update the remote configuration
+			remote := conf.Remotes[server]
+			remote.AuthType = c.flagAuthType
+			conf.Remotes[server] = remote
+		}
 	}
 
 	if !srv.Public && !shared.StringInSlice(c.flagAuthType, srv.AuthMethods) {
