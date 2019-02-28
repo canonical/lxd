@@ -74,12 +74,12 @@ func expandAlias(conf *config.Config, origArgs []string) ([]string, bool) {
 	return newArgs, true
 }
 
-func execIfAliases() {
+func execIfAliases() error {
 	args := os.Args
 
 	// Avoid loops
 	if os.Getenv("LXC_ALIASES") == "1" {
-		return
+		return nil
 	}
 
 	// Figure out the config directory and config path
@@ -91,7 +91,7 @@ func execIfAliases() {
 	} else {
 		user, err := user.Current()
 		if err != nil {
-			return
+			return nil
 		}
 
 		configDir = path.Join(user.HomeDir, ".config", "lxc")
@@ -105,7 +105,7 @@ func execIfAliases() {
 	if shared.PathExists(confPath) {
 		conf, err = config.LoadConfig(confPath)
 		if err != nil {
-			return
+			return nil
 		}
 	} else {
 		conf = config.NewConfig(filepath.Dir(confPath), true)
@@ -114,20 +114,18 @@ func execIfAliases() {
 	// Expand the aliases
 	newArgs, expanded := expandAlias(conf, args)
 	if !expanded {
-		return
+		return nil
 	}
 
 	// Look for the executable
 	path, err := exec.LookPath(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, i18n.G("Processing aliases failed: %s\n"), err)
-		os.Exit(1)
+		return fmt.Errorf(i18n.G("Processing aliases failed: %s"), err)
 	}
 
 	// Re-exec
 	environ := syscall.Environ()
 	environ = append(environ, "LXC_ALIASES=1")
 	ret := syscall.Exec(path, newArgs, environ)
-	fmt.Fprintf(os.Stderr, i18n.G("Processing aliases failed: %s\n"), ret)
-	os.Exit(1)
+	return fmt.Errorf(i18n.G("Processing aliases failed: %s"), ret)
 }
