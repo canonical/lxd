@@ -63,6 +63,37 @@ func (c *ClusterTx) ProjectNames() ([]string, error) {
 	return names, nil
 }
 
+// ProjectMap returns the names and ids of all available projects.
+func (c *ClusterTx) ProjectMap() (map[int64]string, error) {
+	stmt := "SELECT id, name FROM projects"
+
+	rows, err := c.tx.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := map[int64]string{}
+	for i := 0; rows.Next(); i++ {
+		var id int64
+		var name string
+
+		err := rows.Scan(&id, &name)
+		if err != nil {
+			return nil, err
+		}
+
+		result[id] = name
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func projectHasProfiles(tx *sql.Tx, name string) (bool, error) {
 	stmt := `
 SELECT projects_config.value
