@@ -196,16 +196,5 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if oldttystate != nil {
-		/* A bit of a special case here: we want to exit with the same code as
-		 * the process inside the container, so we explicitly exit here
-		 * instead of returning an error.
-		 *
-		 * Additionally, since os.Exit() exits without running deferred
-		 * functions, we restore the terminal explicitly.
-		 */
-		termios.Restore(cfd, oldttystate)
-	}
-
 	return nil
 }

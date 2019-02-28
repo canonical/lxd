@@ -23,6 +23,7 @@ type cmdGlobal struct {
 	conf     *config.Config
 	confPath string
 	cmd      *cobra.Command
+	ret      int
 
 	flagForceLocal bool
 	flagHelp       bool
@@ -36,7 +37,11 @@ type cmdGlobal struct {
 
 func main() {
 	// Process aliases
-	execIfAliases()
+	err := execIfAliases()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Setup the parser
 	app := &cobra.Command{}
@@ -218,7 +223,7 @@ For help with any of those, simply call them with --help.`))
 	help.Flags().BoolVar(&globalCmd.flagHelpAll, "all", false, i18n.G("Show less common commands"))
 
 	// Deal with --all flag
-	err := app.ParseFlags(os.Args[1:])
+	err = app.ParseFlags(os.Args[1:])
 	if err == nil {
 		if globalCmd.flagHelpAll {
 			// Show all commands
@@ -232,6 +237,10 @@ For help with any of those, simply call them with --help.`))
 	err = app.Execute()
 	if err != nil {
 		os.Exit(1)
+	}
+
+	if globalCmd.ret != 0 {
+		os.Exit(globalCmd.ret)
 	}
 }
 
