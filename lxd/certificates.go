@@ -124,8 +124,7 @@ func certificatesPost(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	trusted, _ := d.checkTrustedClient(r)
-	if trusted != nil && util.PasswordCheck(secret, req.Password) != nil {
+	if d.checkTrustedClient(r) != nil && util.PasswordCheck(secret, req.Password) != nil {
 		logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 		return Forbidden(nil)
 	}
