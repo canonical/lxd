@@ -2051,7 +2051,7 @@ func autoSyncImages(ctx context.Context, d *Daemon) error {
 		return errors.Wrap(err, "Failed to query image fingerprints of the node")
 	}
 
-	for _, fingerprint := range fingerprints {
+	for fingerprint := range fingerprints {
 		ch := make(chan error)
 		go func() {
 			err := imageSyncBetweenNodes(d, fingerprint)

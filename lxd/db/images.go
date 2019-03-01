@@ -891,25 +891,40 @@ func (c *Cluster) ImageUploadedAt(id int, uploadedAt time.Time) error {
 }
 
 // ImagesGetOnCurrentNode returns all images that the current LXD node instance has.
-func (c *Cluster) ImagesGetOnCurrentNode() ([]string, error) {
+func (c *Cluster) ImagesGetOnCurrentNode() (map[string][]string, error) {
 	return c.ImagesGetByNodeID(c.nodeID)
 }
 
 // ImagesGetByNodeID returns all images that the LXD node instance has with the given node id.
-func (c *Cluster) ImagesGetByNodeID(id int64) ([]string, error) {
-	var addresses []string
+func (c *Cluster) ImagesGetByNodeID(id int64) (map[string][]string, error) {
+	images := make(map[string][]string) // key is fingerprint, value is list of projects
 	err := c.Transaction(func(tx *ClusterTx) error {
-		var err error
 		stmt := `
-    SELECT images.fingerprint FROM images
+    SELECT images.fingerprint, projects.name FROM images
       LEFT JOIN images_nodes ON images.id = images_nodes.image_id
-      LEFT JOIN nodes ON images_nodes.node_id = nodes.id
+			LEFT JOIN nodes ON images_nodes.node_id = nodes.id
+			LEFT JOIN projects ON images.project_id = projects.id
     WHERE nodes.id = ?
-    `
-		addresses, err = query.SelectStrings(tx.tx, stmt, id)
-		return err
+		`
+		rows, err := tx.tx.Query(stmt, id)
+		if err != nil {
+			return err
+		}
+
+		var fingerprint string
+		var projectName string
+		for rows.Next() {
+			err := rows.Scan(&fingerprint, &projectName)
+			if err != nil {
+				return err
+			}
+
+			images[fingerprint] = append(images[fingerprint], projectName)
+		}
+
+		return rows.Err()
 	})
-	return addresses, err
+	return images, err
 }
 
 // ImageGetNodesWithImage returns the addresses of online nodes which already have the image.
