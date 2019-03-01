@@ -26,20 +26,20 @@ import (
 var operationCmd = APIEndpoint{
 	Name: "operations/{id}",
 
-	Delete: APIEndpointAction{Handler: operationDelete},
-	Get:    APIEndpointAction{Handler: operationGet},
+	Delete: APIEndpointAction{Handler: operationDelete, AccessHandler: AllowAuthenticated},
+	Get:    APIEndpointAction{Handler: operationGet, AccessHandler: AllowAuthenticated},
 }
 
 var operationsCmd = APIEndpoint{
 	Name: "operations",
 
-	Get: APIEndpointAction{Handler: operationsGet},
+	Get: APIEndpointAction{Handler: operationsGet, AccessHandler: AllowAuthenticated},
 }
 
 var operationWait = APIEndpoint{
 	Name: "operations/{id}/wait",
 
-	Get: APIEndpointAction{Handler: operationWaitGet},
+	Get: APIEndpointAction{Handler: operationWaitGet, AccessHandler: AllowAuthenticated},
 }
 
 var operationWebsocket = APIEndpoint{
@@ -81,6 +81,7 @@ type operation struct {
 	readonly    bool
 	canceler    *cancel.Canceler
 	description string
+	permission  string
 
 	// Those functions are called at various points in the operation lifecycle
 	onRun     func(*operation) error
@@ -419,6 +420,7 @@ func operationCreate(cluster *db.Cluster, project string, opClass operationClass
 	op.project = project
 	op.id = uuid.NewRandom().String()
 	op.description = opType.Description()
+	op.permission = opType.Permission()
 	op.class = opClass
 	op.createdAt = time.Now()
 	op.updatedAt = op.createdAt
@@ -539,6 +541,17 @@ func operationDelete(d *Daemon, r *http.Request) Response {
 	// First check if the query is for a local operation from this node
 	op, err := operationGetInternal(id)
 	if err == nil {
+		if op.permission != "" {
+			project := op.project
+			if project == "" {
+				project = "default"
+			}
+
+			if !d.userHasPermission(r, project, op.permission) {
+				return Forbidden(nil)
+			}
+		}
+
 		_, err = op.Cancel()
 		if err != nil {
 			return BadRequest(err)

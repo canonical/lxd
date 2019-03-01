@@ -28,21 +28,21 @@ import (
 var clusterCmd = APIEndpoint{
 	Name: "cluster",
 
-	Get: APIEndpointAction{Handler: clusterGet},
+	Get: APIEndpointAction{Handler: clusterGet, AccessHandler: AllowAuthenticated},
 	Put: APIEndpointAction{Handler: clusterPut},
 }
 
 var clusterNodesCmd = APIEndpoint{
 	Name: "cluster/members",
 
-	Get: APIEndpointAction{Handler: clusterNodesGet},
+	Get: APIEndpointAction{Handler: clusterNodesGet, AccessHandler: AllowAuthenticated},
 }
 
 var clusterNodeCmd = APIEndpoint{
 	Name: "cluster/members/{name}",
 
 	Delete: APIEndpointAction{Handler: clusterNodeDelete},
-	Get:    APIEndpointAction{Handler: clusterNodeGet},
+	Get:    APIEndpointAction{Handler: clusterNodeGet, AccessHandler: AllowAuthenticated},
 	Post:   APIEndpointAction{Handler: clusterNodePost},
 }
 
