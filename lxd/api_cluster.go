@@ -541,29 +541,35 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 				logger.Errorf("Failed to retrieve the information of leader node: %v", err)
 				return
 			}
-			fingerprints, err := d.cluster.ImagesGetByNodeID(nodeInfo.ID)
+			imageProjectInfo, err := d.cluster.ImagesGetByNodeID(nodeInfo.ID)
 			if err != nil {
 				logger.Errorf("Failed to retrieve the image fingerprints of leader node: %v", err)
 				return
 			}
 
-			imageImport := func(client lxd.ContainerServer, fingerprint string) error {
+			imageImport := func(client lxd.ContainerServer, fingerprint string, projects []string) error {
 				err := imageImportFromNode(filepath.Join(d.os.VarDir, "images"), client, fingerprint)
 				if err != nil {
 					return err
 				}
 
-				project := "default"
-				return d.cluster.ImageAssociateNode(project, fingerprint)
+				for _, project := range projects {
+					err := d.cluster.ImageAssociateNode(project, fingerprint)
+					if err != nil {
+						return err
+					}
+				}
+
+				return nil
 			}
 
-			for f := range fingerprints {
-				go func(fingerprint string) {
-					err := imageImport(client, fingerprint)
+			for f, ps := range imageProjectInfo {
+				go func(fingerprint string, projects []string) {
+					err := imageImport(client, fingerprint, projects)
 					if err != nil {
 						logger.Errorf("Failed to import an image %s from %s: %v", fingerprint, leader, err)
 					}
-				}(f)
+				}(f, ps)
 			}
 		}()
 
