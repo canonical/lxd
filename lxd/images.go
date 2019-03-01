@@ -2046,12 +2046,12 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 func autoSyncImages(ctx context.Context, d *Daemon) error {
 	// Check how many images the current node owns and automatically sync all
 	// available images to other nodes which don't have yet.
-	fingerprints, err := d.cluster.ImagesGetOnCurrentNode()
+	imageProjectInfo, err := d.cluster.ImagesGetOnCurrentNode()
 	if err != nil {
 		return errors.Wrap(err, "Failed to query image fingerprints of the node")
 	}
 
-	for fingerprint := range fingerprints {
+	for fingerprint := range imageProjectInfo {
 		ch := make(chan error)
 		go func() {
 			err := imageSyncBetweenNodes(d, fingerprint)
