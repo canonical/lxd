@@ -2001,6 +2001,25 @@ func imageRefresh(d *Daemon, r *http.Request) Response {
 
 func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		// In order to only have one task operation executed per image when syncing the images
+		// across the cluster, only leader node can launch the task, no others.
+		localAddress, err := node.ClusterAddress(d.db)
+		if err != nil {
+			logger.Errorf("Failed to get current node address: %v", err)
+			return
+		}
+
+		leader, err := d.gateway.LeaderAddress()
+		if err != nil {
+			logger.Errorf("Failed to get leader node address: %v", err)
+			return
+		}
+
+		if localAddress != leader {
+			logger.Debug("Skipping image synchronization task since we're not leader")
+			return
+		}
+
 		opRun := func(op *operation) error {
 			return autoSyncImages(ctx, d)
 		}
@@ -2017,6 +2036,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			logger.Error("Failed to synchronize images", log.Ctx{"err": err})
 			return
 		}
+
 		logger.Infof("Done synchronizing images across the cluster")
 	}
 
@@ -2024,21 +2044,6 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 }
 
 func autoSyncImages(ctx context.Context, d *Daemon) error {
-	// In order to only have one task operation executed per image when syncing the images
-	// across the cluster, only leader node can launch the task, no others.
-	localAddress, err := node.ClusterAddress(d.db)
-	if err != nil {
-		return err
-	}
-	leader, err := d.gateway.LeaderAddress()
-	if err != nil {
-		return err
-	}
-	if localAddress != leader {
-		logger.Debug("Skipping image synchronization since we're not leader")
-		return nil
-	}
-
 	// Check how many images the current node owns and automatically sync all
 	// available images to other nodes which don't have yet.
 	fingerprints, err := d.cluster.ImagesGetOnCurrentNode()
