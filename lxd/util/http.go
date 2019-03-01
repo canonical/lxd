@@ -132,20 +132,20 @@ type ContextAwareRequest interface {
 // CheckTrustState checks whether the given client certificate is trusted
 // (i.e. it has a valid time span and it belongs to the given list of trusted
 // certificates).
-func CheckTrustState(cert x509.Certificate, trustedCerts []x509.Certificate) bool {
+func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certificate) (bool, string) {
 	// Extra validity check (should have been caught by TLS stack)
 	if time.Now().Before(cert.NotBefore) || time.Now().After(cert.NotAfter) {
-		return false
+		return false, ""
 	}
 
 	for k, v := range trustedCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			logger.Debug("Found cert", log.Ctx{"k": k})
-			return true
+			logger.Debug("Found cert", log.Ctx{"name": k})
+			return true, k
 		}
 	}
 
-	return false
+	return false, ""
 }
 
 // IsRecursionRequest checks whether the given HTTP request is marked with the
