@@ -163,6 +163,31 @@ type APIEndpointAction struct {
 	AllowUntrusted bool
 }
 
+// AllowAuthenticated is a AccessHandler which allows all requests
+func AllowAuthenticated(d *Daemon, r *http.Request) Response {
+	return EmptySyncResponse
+}
+
+// AllowProjectPermission is a wrapper to check access against the project, its features and RBAC permission
+func AllowProjectPermission(feature string, permission string) func(d *Daemon, r *http.Request) Response {
+	return func(d *Daemon, r *http.Request) Response {
+		// Shortcut for speed
+		if d.userIsAdmin(r) {
+			return EmptySyncResponse
+		}
+
+		// Get the project
+		project := projectParam(r)
+
+		// Validate whether the user has the needed permission
+		if !d.userHasPermission(r, project, permission) {
+			return Forbidden(nil)
+		}
+
+		return EmptySyncResponse
+	}
+}
+
 // Convenience function around Authenticate
 func (d *Daemon) checkTrustedClient(r *http.Request) error {
 	trusted, _, _, err := d.Authenticate(r)

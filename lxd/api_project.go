@@ -22,7 +22,7 @@ import (
 var projectsCmd = APIEndpoint{
 	Name: "projects",
 
-	Get:  APIEndpointAction{Handler: projectsGet},
+	Get:  APIEndpointAction{Handler: projectsGet, AccessHandler: AllowAuthenticated},
 	Post: APIEndpointAction{Handler: projectsPost},
 }
 
@@ -30,10 +30,10 @@ var projectCmd = APIEndpoint{
 	Name: "projects/{name}",
 
 	Delete: APIEndpointAction{Handler: projectDelete},
-	Get:    APIEndpointAction{Handler: projectGet},
-	Patch:  APIEndpointAction{Handler: projectPatch},
+	Get:    APIEndpointAction{Handler: projectGet, AccessHandler: AllowAuthenticated},
+	Patch:  APIEndpointAction{Handler: projectPatch, AccessHandler: AllowAuthenticated},
 	Post:   APIEndpointAction{Handler: projectPost},
-	Put:    APIEndpointAction{Handler: projectPut},
+	Put:    APIEndpointAction{Handler: projectPut, AccessHandler: AllowAuthenticated},
 }
 
 func projectsGet(d *Daemon, r *http.Request) Response {
@@ -41,14 +41,44 @@ func projectsGet(d *Daemon, r *http.Request) Response {
 
 	var result interface{}
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
 		filter := db.ProjectFilter{}
 		if recursion {
-			result, err = tx.ProjectList(filter)
+			projects, err := tx.ProjectList(filter)
+			if err != nil {
+				return err
+			}
+
+			filtered := []api.Project{}
+			for _, project := range projects {
+				if !d.userHasPermission(r, project.Name, "view") {
+					continue
+				}
+
+				filtered = append(filtered, project)
+			}
+
+			result = filtered
 		} else {
-			result, err = tx.ProjectURIs(filter)
+			uris, err := tx.ProjectURIs(filter)
+			if err != nil {
+				return err
+			}
+
+			filtered := []string{}
+			for _, uri := range uris {
+				name := strings.Split(uri, "/1.0/projects/")[1]
+
+				if !d.userHasPermission(r, name, "view") {
+					continue
+				}
+
+				filtered = append(filtered, uri)
+			}
+
+			result = filtered
 		}
-		return err
+
+		return nil
 	})
 	if err != nil {
 		return SmartError(err)
@@ -100,8 +130,9 @@ func projectsPost(d *Daemon, r *http.Request) Response {
 		return BadRequest(err)
 	}
 
+	var id int64
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.ProjectCreate(project)
+		id, err = tx.ProjectCreate(project)
 		if err != nil {
 			return errors.Wrap(err, "Add project to database")
 		}
@@ -117,6 +148,13 @@ func projectsPost(d *Daemon, r *http.Request) Response {
 	})
 	if err != nil {
 		return SmartError(fmt.Errorf("Error inserting %s into database: %s", project.Name, err))
+	}
+
+	if d.rbac != nil {
+		err = d.rbac.AddProject(id, project.Name)
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	return SyncResponseLocation(true, nil, fmt.Sprintf("/%s/projects/%s", version.APIVersion, project.Name))
@@ -142,6 +180,11 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 func projectGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
+	// Check user permissions
+	if !d.userHasPermission(r, name, "view") {
+		return Forbidden(nil)
+	}
+
 	// Get the database entry
 	var project *api.Project
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -164,6 +207,11 @@ func projectGet(d *Daemon, r *http.Request) Response {
 
 func projectPut(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+
+	// Check user permissions
+	if !d.userHasPermission(r, name, "manage-projects") {
+		return Forbidden(nil)
+	}
 
 	// Get the current data
 	var project *api.Project
@@ -200,6 +248,11 @@ func projectPut(d *Daemon, r *http.Request) Response {
 
 func projectPatch(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
+
+	// Check user permissions
+	if !d.userHasPermission(r, name, "manage-projects") {
+		return Forbidden(nil)
+	}
 
 	// Get the current data
 	var project *api.Project
@@ -331,6 +384,7 @@ func projectPost(d *Daemon, r *http.Request) Response {
 
 	// Perform the rename
 	run := func(op *operation) error {
+		var id int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			project, err := tx.ProjectGet(req.Name)
 			if err != nil && err != db.ErrNoSuchObject {
@@ -350,10 +404,25 @@ func projectPost(d *Daemon, r *http.Request) Response {
 				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
+			id, err = tx.ProjectID(name)
+			if err != nil {
+				return errors.Wrapf(err, "Fetch project id %q", name)
+			}
+
 			return tx.ProjectRename(name, req.Name)
 		})
+		if err != nil {
+			return err
+		}
 
-		return err
+		if d.rbac != nil {
+			err = d.rbac.RenameProject(id, req.Name)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
 	op, err := operationCreate(d.cluster, "", operationClassTask, db.OperationProjectRename, nil, nil, run, nil, nil)
@@ -372,6 +441,7 @@ func projectDelete(d *Daemon, r *http.Request) Response {
 		return Forbidden(fmt.Errorf("The 'default' project cannot be deleted"))
 	}
 
+	var id int64
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		project, err := tx.ProjectGet(name)
 		if err != nil {
@@ -381,11 +451,23 @@ func projectDelete(d *Daemon, r *http.Request) Response {
 			return fmt.Errorf("Only empty projects can be removed")
 		}
 
+		id, err = tx.ProjectID(name)
+		if err != nil {
+			return errors.Wrapf(err, "Fetch project id %q", name)
+		}
+
 		return tx.ProjectDelete(name)
 	})
 
 	if err != nil {
 		return SmartError(err)
+	}
+
+	if d.rbac != nil {
+		err = d.rbac.DeleteProject(id)
+		if err != nil {
+			return SmartError(err)
+		}
 	}
 
 	return EmptySyncResponse

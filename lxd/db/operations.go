@@ -159,9 +159,75 @@ func (t OperationType) Description() string {
 		return "Cleaning up expired snapshots"
 	default:
 		return "Executing operation"
+	}
+}
 
+// Permission returns the needed RBAC permission to cancel the oepration
+func (t OperationType) Permission() string {
+	switch t {
+	case OperationBackupCreate:
+		return "operate-containers"
+	case OperationBackupRename:
+		return "operate-containers"
+	case OperationBackupRestore:
+		return "operate-containers"
+	case OperationBackupRemove:
+		return "operate-containers"
+	case OperationConsoleShow:
+		return "operate-containers"
+	case OperationContainerFreeze:
+		return "operate-containers"
+	case OperationContainerUnfreeze:
+		return "operate-containers"
+	case OperationContainerStart:
+		return "operate-containers"
+	case OperationContainerStop:
+		return "operate-containers"
+	case OperationContainerRestart:
+		return "operate-containers"
+	case OperationCommandExec:
+		return "operate-containers"
+	case OperationSnapshotCreate:
+		return "operate-containers"
+	case OperationSnapshotRename:
+		return "operate-containers"
+	case OperationSnapshotTransfer:
+		return "operate-containers"
+	case OperationSnapshotUpdate:
+		return "operate-containers"
+	case OperationSnapshotDelete:
+		return "operate-containers"
+
+	case OperationContainerCreate:
+		return "manage-containers"
+	case OperationContainerUpdate:
+		return "manage-containers"
+	case OperationContainerRename:
+		return "manage-containers"
+	case OperationContainerMigrate:
+		return "manage-containers"
+	case OperationContainerLiveMigrate:
+		return "manage-containers"
+	case OperationContainerDelete:
+		return "manage-containers"
+	case OperationSnapshotRestore:
+		return "manage-containers"
+
+	case OperationImageDownload:
+		return "manage-images"
+	case OperationImageDelete:
+		return "manage-images"
+	case OperationImageToken:
+		return "manage-images"
+	case OperationImageRefresh:
+		return "manage-images"
+	case OperationImagesUpdate:
+		return "manage-images"
+	case OperationImagesSynchronize:
+		return "manage-images"
 	}
 
+	return ""
 }
 
 // Operation holds information about a single LXD operation running on a node
