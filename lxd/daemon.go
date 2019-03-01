@@ -45,7 +45,7 @@ import (
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	clientCerts  []x509.Certificate
+	clientCerts  map[string]x509.Certificate
 	os           *sys.OS
 	db           *db.Node
 	maas         *maas.Controller
@@ -157,36 +157,38 @@ type Command struct {
 }
 
 // Check whether the request comes from a trusted client.
-func (d *Daemon) checkTrustedClient(r *http.Request) error {
+func (d *Daemon) checkTrustedClient(r *http.Request) (error, string) {
 	// Check the cluster certificate first, so we return an error if the
 	// notification header is set but the client is not presenting the
 	// cluster certificate (iow this request does not appear to come from a
 	// cluster node).
 	cert, _ := x509.ParseCertificate(d.endpoints.NetworkCert().KeyPair().Certificate[0])
-	clusterCerts := []x509.Certificate{*cert}
+	clusterCerts := map[string]x509.Certificate{"0": *cert}
 	if r.TLS != nil {
 		for i := range r.TLS.PeerCertificates {
-			if util.CheckTrustState(*r.TLS.PeerCertificates[i], clusterCerts) {
-				return nil
+			trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[i], clusterCerts)
+			if trusted {
+				return nil, ""
 			}
 		}
 	}
+
 	if isClusterNotification(r) {
-		return fmt.Errorf("cluster notification not using cluster certificate")
+		return fmt.Errorf("cluster notification not using cluster certificate"), ""
 	}
 
 	if r.RemoteAddr == "@" {
 		// Unix socket
-		return nil
+		return nil, ""
 	}
 
 	if r.RemoteAddr == "@devlxd" {
 		// Devlxd unix socket
-		return fmt.Errorf("devlxd query")
+		return fmt.Errorf("devlxd query"), ""
 	}
 
 	if r.TLS == nil {
-		return fmt.Errorf("no TLS")
+		return fmt.Errorf("no TLS"), ""
 	}
 
 	if d.externalAuth != nil && r.Header.Get(httpbakery.BakeryProtocolHeader) != "" {
@@ -198,17 +200,26 @@ func (d *Daemon) checkTrustedClient(r *http.Request) error {
 			Action: r.Method,
 		}}
 
-		_, err := authChecker.Allow(ctx, ops...)
-		return err
+		info, err := authChecker.Allow(ctx, ops...)
+		if err != nil {
+			return err, ""
+		}
+
+		if info != nil && info.Identity != nil {
+			return nil, info.Identity.Id()
+		}
+
+		return nil, ""
 	}
 
 	for i := range r.TLS.PeerCertificates {
-		if util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts) {
-			return nil
+		trusted, username := util.CheckTrustState(*r.TLS.PeerCertificates[i], d.clientCerts)
+		if trusted {
+			return nil, username
 		}
 	}
 
-	return fmt.Errorf("unauthorized")
+	return fmt.Errorf("unauthorized"), ""
 }
 
 func writeMacaroonsRequiredResponse(b *identchecker.Bakery, r *http.Request, w http.ResponseWriter, derr *bakery.DischargeRequiredError, expiry int64) {
@@ -285,11 +296,13 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c Command) {
 		}
 
 		untrustedOk := (r.Method == "GET" && c.untrustedGet) || (r.Method == "POST" && c.untrustedPost)
-		err := d.checkTrustedClient(r)
+		err, username := d.checkTrustedClient(r)
 		if err == nil {
 			logger.Debug(
 				"handling",
 				log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+
+			r = r.WithContext(context.WithValue(r.Context(), "username", username))
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug(
 				fmt.Sprintf("allowing untrusted %s", r.Method),

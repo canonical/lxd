@@ -46,6 +46,9 @@ func tlsCheckCert(r *http.Request, info *shared.CertInfo) bool {
 		// check for good measure.
 		panic(fmt.Sprintf("invalid keypair material: %v", err))
 	}
-	trustedCerts := []x509.Certificate{*cert}
-	return r.TLS != nil && util.CheckTrustState(*r.TLS.PeerCertificates[0], trustedCerts)
+	trustedCerts := map[string]x509.Certificate{"0": *cert}
+
+	trusted, _ := util.CheckTrustState(*r.TLS.PeerCertificates[0], trustedCerts)
+
+	return r.TLS != nil && trusted
 }
