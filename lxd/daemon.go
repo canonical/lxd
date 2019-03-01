@@ -819,6 +819,9 @@ func (d *Daemon) startClusterTasks() {
 	// Cluster update trigger
 	d.clusterTasks.Add(cluster.KeepUpdated(d.State()))
 
+	// Auto-sync images across the cluster (daily)
+	d.clusterTasks.Add(autoSyncImagesTask(d))
+
 	// Start all background tasks
 	d.clusterTasks.Start()
 }
@@ -866,9 +869,6 @@ func (d *Daemon) Ready() error {
 
 		// Remove expired container snapshots (minutely)
 		d.tasks.Add(pruneExpiredContainerSnapshotsTask(d))
-
-		// Auto-sync images across the cluster (daily)
-		d.tasks.Add(autoSyncImagesTask(d))
 	}
 
 	// Start all background tasks

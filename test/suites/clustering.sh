@@ -1179,8 +1179,20 @@ test_clustering_image_replication() {
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
   # Wait for the test image to be synced into the joined node on the background
-  sleep 5
-  [ -f "${LXD_THREE_DIR}/images/${fingerprint}" ] || false
+  retries=10
+  while [ "${retries}" != "0" ]; do
+    if [ ! -f "${LXD_THREE_DIR}/images/${fingerprint}" ]; then
+        sleep 0.5
+        retries=$((retries-1))
+        continue
+    fi
+    break
+  done
+
+  if [ "${retries}" -eq 0 ]; then
+      echo "Images failed to synced into the joined node"
+      return 1
+  fi
 
   # Delete the imported image
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
