@@ -557,7 +557,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 				return d.cluster.ImageAssociateNode(project, fingerprint)
 			}
 
-			for _, f := range fingerprints {
+			for f := range fingerprints {
 				go func(fingerprint string) {
 					err := imageImport(client, fingerprint)
 					if err != nil {
