@@ -99,8 +99,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 	}
 
 	// If untrusted, return now
-	trusted, _ := d.checkTrustedClient(r)
-	if trusted != nil {
+	if d.checkTrustedClient(r) != nil {
 		return SyncResponseETag(true, srv, nil)
 	}
 

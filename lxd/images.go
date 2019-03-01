@@ -860,9 +860,9 @@ func doImagesGet(d *Daemon, recursion bool, public bool) (interface{}, error) {
 }
 
 func imagesGet(d *Daemon, r *http.Request) Response {
-	trusted, _ := d.checkTrustedClient(r)
+	public := d.checkTrustedClient(r) != nil
 
-	result, err := doImagesGet(d, util.IsRecursionRequest(r), trusted != nil)
+	result, err := doImagesGet(d, util.IsRecursionRequest(r), public)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1417,7 +1417,7 @@ func imageValidSecret(fingerprint string, secret string) bool {
 
 func imageGet(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
-	trusted, _ := d.checkTrustedClient(r)
+	public := d.checkTrustedClient(r) != nil
 	secret := r.FormValue("secret")
 
 	info, response := doImageGet(d.cluster, fingerprint, false)
@@ -1425,7 +1425,7 @@ func imageGet(d *Daemon, r *http.Request) Response {
 		return response
 	}
 
-	if !info.Public && trusted != nil && !imageValidSecret(info.Fingerprint, secret) {
+	if !info.Public && public && !imageValidSecret(info.Fingerprint, secret) {
 		return NotFound(fmt.Errorf("Image '%s' not found", info.Fingerprint))
 	}
 
@@ -1575,9 +1575,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 			responseStr = append(responseStr, url)
 
 		} else {
-			trusted, _ := d.checkTrustedClient(r)
-
-			_, alias, err := d.cluster.ImageAliasGet(name, trusted == nil)
+			_, alias, err := d.cluster.ImageAliasGet(name, d.checkTrustedClient(r) == nil)
 			if err != nil {
 				continue
 			}
@@ -1595,8 +1593,7 @@ func aliasesGet(d *Daemon, r *http.Request) Response {
 func aliasGet(d *Daemon, r *http.Request) Response {
 	name := mux.Vars(r)["name"]
 
-	trusted, _ := d.checkTrustedClient(r)
-	_, alias, err := d.cluster.ImageAliasGet(name, trusted == nil)
+	_, alias, err := d.cluster.ImageAliasGet(name, d.checkTrustedClient(r) == nil)
 	if err != nil {
 		return SmartError(err)
 	}
@@ -1737,7 +1734,7 @@ func aliasPost(d *Daemon, r *http.Request) Response {
 func imageExport(d *Daemon, r *http.Request) Response {
 	fingerprint := mux.Vars(r)["fingerprint"]
 
-	trusted, _ := d.checkTrustedClient(r)
+	public := d.checkTrustedClient(r) != nil
 	secret := r.FormValue("secret")
 
 	_, imgInfo, err := d.cluster.ImageGet(fingerprint, false, false)
@@ -1745,7 +1742,7 @@ func imageExport(d *Daemon, r *http.Request) Response {
 		return SmartError(err)
 	}
 
-	if !imgInfo.Public && trusted != nil && !imageValidSecret(imgInfo.Fingerprint, secret) {
+	if !imgInfo.Public && public && !imageValidSecret(imgInfo.Fingerprint, secret) {
 		return NotFound(fmt.Errorf("Image '%s' not found", imgInfo.Fingerprint))
 	}
 
