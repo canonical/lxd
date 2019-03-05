@@ -1,5 +1,9 @@
 # Debugging
 
+For information on debugging container issues, see [Frequently Asked Questions](faq.md)
+
+## Debugging `lxc` and `lxd`
+
 Here are different ways to help troubleshooting `lxc` and `lxd` code.
 
 #### lxc --debug
