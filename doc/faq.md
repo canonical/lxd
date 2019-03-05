@@ -69,7 +69,7 @@ files**.
 In a larger [Production Environment](production-setup.md), it is common to have
 multiple vlans and have LXD clients attached directly to those vlans. Be aware that
 if you are using netplan and system-networkd, you will encounter some bugs that
-could cause catastropic issues
+could cause catastrophic issues
 
 ### Do not use system-networkd with netplan and bridges based on vlans
 
@@ -136,7 +136,7 @@ eth1), and you will see either 'ARP Who has xx.xx.xx.xx tell yy.yy.yy.yy', with 
 sending responses but them not getting acknowledged, or, ICMP packets going in and
 out successfully, but never being received by the other host.
 
-### Do not run privileged containers unless neccesary.
+### Do not run privileged containers unless necessary
 
 A privileged container can do things that effect the entire host - for example, it
 can use things in /sys to reset the network card, which will reset it for **the entire
