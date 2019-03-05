@@ -782,10 +782,10 @@ HTTP code for this should be 202 (Accepted).
 
 ### `/1.0/containers/<name>/console`
 #### GET
-* Description: returns the contents of the container's console  log
-* Authentication: trusted
-* Operation: N/A
-* Return: the contents of the console log
+ * Description: returns the contents of the container's console  log
+ * Authentication: trusted
+ * Operation: N/A
+ * Return: the contents of the console log
 
 #### POST
  * Description: attach to a container's console devices
@@ -814,10 +814,10 @@ Control (window size change):
     }
 
 #### DELETE
-* Description: empty the container's console log
-* Authentication: trusted
-* Operation: Sync
-* Return: empty response or standard error
+ * Description: empty the container's console log
+ * Authentication: trusted
+ * Operation: Sync
+ * Return: empty response or standard error
 
 ### `/1.0/containers/<name>/exec`
 #### POST
@@ -1087,7 +1087,7 @@ Input (none at present):
     {
     }
 
-### PUT
+#### PUT
  * Description: update the snapshot
  * Authentication: trusted
  * Operation: async
@@ -1269,12 +1269,12 @@ Input:
 
 ### `/1.0/containers/<name>/logs`
 #### GET
-* Description: Returns a list of the log files available for this container.
-  Note that this works on containers that have been deleted (or were never
-  created) to enable people to get logs for failed creations.
-* Authentication: trusted
-* Operation: Sync
-* Return: a list of the available log files
+ * Description: Returns a list of the log files available for this container.
+   Note that this works on containers that have been deleted (or were never
+   created) to enable people to get logs for failed creations.
+ * Authentication: trusted
+ * Operation: Sync
+ * Return: a list of the available log files
 
 Return:
 
@@ -1286,24 +1286,24 @@ Return:
 
 ### `/1.0/containers/<name>/logs/<logfile>`
 #### GET
-* Description: returns the contents of a particular log file.
-* Authentication: trusted
-* Operation: N/A
-* Return: the contents of the log file
+ * Description: returns the contents of a particular log file.
+ * Authentication: trusted
+ * Operation: N/A
+ * Return: the contents of the log file
 
 #### DELETE
-* Description: delete a particular log file.
-* Authentication: trusted
-* Operation: Sync
-* Return: empty response or standard error
+ * Description: delete a particular log file.
+ * Authentication: trusted
+ * Operation: Sync
+ * Return: empty response or standard error
 
 ### `/1.0/containers/<name>/metadata`
 #### GET
-* Description: Container metadata
-* Introduced: with API extension `container_edit_metadata`
-* Authentication: trusted
-* Operation: Sync
-* Return: dict representing container metadata
+ * Description: Container metadata
+ * Introduced: with API extension `container_edit_metadata`
+ * Authentication: trusted
+ * Operation: Sync
+ * Return: dict representing container metadata
 
 Return:
 
@@ -1330,11 +1330,11 @@ Return:
     }
 
 #### PUT (ETag supported)
-* Description: Replaces container metadata
-* Introduced: with API extension `container_edit_metadata`
-* Authentication: trusted
-* Operation: sync
-* Return: standard return value or standard error
+ * Description: Replaces container metadata
+ * Introduced: with API extension `container_edit_metadata`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: standard return value or standard error
 
 Input:
 
@@ -1362,11 +1362,11 @@ Input:
 
 ### `/1.0/containers/<name>/metadata/templates`
 #### GET
-* Description: List container templates
-* Introduced: with API extension `container_edit_metadata`
-* Authentication: trusted
-* Operation: Sync
-* Return: a list with container template names
+ * Description: List container templates
+ * Introduced: with API extension `container_edit_metadata`
+ * Authentication: trusted
+ * Operation: Sync
+ * Return: a list with container template names
 
 Return:
 
@@ -1376,48 +1376,48 @@ Return:
     ]
 
 #### GET (`?path=<template>`)
-* Description: Content of a container template
-* Introduced: with API extension `container_edit_metadata`
-* Authentication: trusted
-* Operation: Sync
-* Return: the content of the template
+ * Description: Content of a container template
+ * Introduced: with API extension `container_edit_metadata`
+ * Authentication: trusted
+ * Operation: Sync
+ * Return: the content of the template
 
 #### POST (`?path=<template>`)
-* Description: Add a continer template
-* Introduced: with API extension `container_edit_metadata`
-* Authentication: trusted
-* Operation: Sync
-* Return: standard return value or standard error
+ * Description: Add a continer template
+ * Introduced: with API extension `container_edit_metadata`
+ * Authentication: trusted
+ * Operation: Sync
+ * Return: standard return value or standard error
 
 Input:
 
  * Standard http file upload.
 
 #### PUT (`?path=<template>`)
-* Description: Replace content of a template
-* Introduced: with API extension `container_edit_metadata`
-* Authentication: trusted
-* Operation: Sync
-* Return: standard return value or standard error
+ * Description: Replace content of a template
+ * Introduced: with API extension `container_edit_metadata`
+ * Authentication: trusted
+ * Operation: Sync
+ * Return: standard return value or standard error
 
 Input:
 
  * Standard http file upload.
 
 #### DELETE (`?path=<template>`)
-* Description: Delete a container template
-* Introduced: with API extension `container_edit_metadata`
-* Authentication: trusted
-* Operation: Sync
-* Return: standard return value or standard error
+ * Description: Delete a container template
+ * Introduced: with API extension `container_edit_metadata`
+ * Authentication: trusted
+ * Operation: Sync
+ * Return: standard return value or standard error
 
 ### `/1.0/containers/<name>/backups`
 #### GET
-* Description: List of backups for the container
-* Introduced: with API extension `container_backup`
-* Authentication: trusted
-* Operation: sync
-* Return: a list of backups for the container
+ * Description: List of backups for the container
+ * Introduced: with API extension `container_backup`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: a list of backups for the container
 
 Return value:
 
@@ -1427,11 +1427,11 @@ Return value:
     ]
 
 #### POST
-* Description: Create a new backup
-* Introduced: with API extension `container_backup`
-* Authentication: trusted
-* Operation: async
-* Returns: background operation or standard error
+ * Description: Create a new backup
+ * Introduced: with API extension `container_backup`
+ * Authentication: trusted
+ * Operation: async
+ * Returns: background operation or standard error
 
 Input:
 
@@ -1444,11 +1444,11 @@ Input:
 
 ### `/1.0/containers/<name>/backups/<name>`
 #### GET
-* Description: Backup information
-* Introduced: with API extension `container_backup`
-* Authentication: trusted
-* Operation: sync
-* Returns: dict of the backup
+ * Description: Backup information
+ * Introduced: with API extension `container_backup`
+ * Authentication: trusted
+ * Operation: sync
+ * Returns: dict of the backup
 
 Output:
 
@@ -1482,11 +1482,11 @@ Input:
 
 ### `/1.0/containers/<name>/backups/<name>/export`
 #### GET
-* Description: fetch the backup tarball
-* Introduced: with API extension `container_backup`
-* Authentication: trusted
-* Operation: sync
-* Return: dict containing the backup tarball
+ * Description: fetch the backup tarball
+ * Introduced: with API extension `container_backup`
+ * Authentication: trusted
+ * Operation: sync
+ * Return: dict containing the backup tarball
 
 Output:
 
