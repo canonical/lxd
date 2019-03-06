@@ -514,17 +514,11 @@ func SmartError(err error) Response {
 	switch errors.Cause(err) {
 	case nil:
 		return EmptySyncResponse
-	case os.ErrNotExist:
-		return NotFound(nil)
-	case sql.ErrNoRows:
-		return NotFound(nil)
-	case db.ErrNoSuchObject:
+	case os.ErrNotExist, sql.ErrNoRows, db.ErrNoSuchObject:
 		return NotFound(nil)
 	case os.ErrPermission:
 		return Forbidden(nil)
-	case db.ErrAlreadyDefined:
-		return Conflict(nil)
-	case sqlite3.ErrConstraintUnique:
+	case db.ErrAlreadyDefined, sqlite3.ErrConstraintUnique:
 		return Conflict(nil)
 	case dqlite.ErrNoAvailableLeader:
 		return Unavailable(err)
