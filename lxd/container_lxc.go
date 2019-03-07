@@ -3834,13 +3834,6 @@ func writeBackupFile(c container) error {
 		return os.ErrNotExist
 	}
 
-	/* deal with the container occasionally not being monuted */
-	rootfs := c.RootfsPath()
-	if !shared.PathExists(rootfs) {
-		logger.Warn("Unable to update backup.yaml at this time", log.Ctx{"name": c.Name(), "rootfs": rootfs})
-		return nil
-	}
-
 	ci, _, err := c.Render()
 	if err != nil {
 		return errors.Wrap(err, "Failed to render container metadata")
@@ -3886,6 +3879,12 @@ func writeBackupFile(c container) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	// Ensure the container is currently mounted
+	if !shared.PathExists(c.RootfsPath()) {
+		logger.Debug("Unable to update backup.yaml at this time", log.Ctx{"name": c.Name(), "project": c.Project()})
+		return nil
 	}
 
 	f, err := os.Create(filepath.Join(c.Path(), "backup.yaml"))
