@@ -255,6 +255,10 @@ func (c *cmdInfo) containerInfo(d lxd.ContainerServer, remote config.Remote, nam
 			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreatedAt.UTC().Format(layout))
 		}
 
+		if shared.TimeIsSet(snap.ExpiresAt) {
+			fmt.Printf(" ("+i18n.G("expires at %s")+")", snap.ExpiresAt.UTC().Format(layout))
+		}
+
 		if snap.Stateful {
 			fmt.Printf(" (" + i18n.G("stateful") + ")")
 		} else {
