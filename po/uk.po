@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-03-05 14:06-0500\n"
+"POT-Creation-Date: 2019-03-06 16:45-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -1472,7 +1472,7 @@ msgstr ""
 msgid "Location: %s"
 msgstr ""
 
-#: lxc/info.go:279
+#: lxc/info.go:283
 msgid "Log:"
 msgstr ""
 
@@ -3026,6 +3026,11 @@ msgstr ""
 msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
+#: lxc/info.go:259
+#, c-format
+msgid "expires at %s"
+msgstr ""
+
 #: lxc/export.go:29
 msgid ""
 "export [<remote>:]<container> [target] [--container-only] [--optimized-"
@@ -3615,11 +3620,11 @@ msgstr ""
 msgid "start [<remote>:]<container> [[<remote>:]<container>...]"
 msgstr ""
 
-#: lxc/info.go:259
+#: lxc/info.go:263
 msgid "stateful"
 msgstr ""
 
-#: lxc/info.go:261
+#: lxc/info.go:265
 msgid "stateless"
 msgstr ""
 
