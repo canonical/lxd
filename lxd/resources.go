@@ -22,6 +22,13 @@ var storagePoolResourcesCmd = Command{
 // /1.0/resources
 // Get system resources
 func serverResourcesGet(d *Daemon, r *http.Request) Response {
+	// If a target was specified, forward the request to the relevant node.
+	response := ForwardedResponseIfTargetIsRemote(d, r)
+	if response != nil {
+		return response
+	}
+
+	// Get the local resource usage
 	res := api.Resources{}
 
 	cpu, err := util.CPUResource()
@@ -43,9 +50,14 @@ func serverResourcesGet(d *Daemon, r *http.Request) Response {
 // /1.0/storage-pools/{name}/resources
 // Get resources for a specific storage pool
 func storagePoolResourcesGet(d *Daemon, r *http.Request) Response {
-	poolName := mux.Vars(r)["name"]
+	// If a target was specified, forward the request to the relevant node.
+	response := ForwardedResponseIfTargetIsRemote(d, r)
+	if response != nil {
+		return response
+	}
 
-	// Get the existing storage pool.
+	// Get the existing storage pool
+	poolName := mux.Vars(r)["name"]
 	s, err := storagePoolInit(d.State(), poolName)
 	if err != nil {
 		return InternalError(err)
