@@ -199,6 +199,11 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		return BadRequest(err)
 	}
 
+	// Pre-fill default profile
+	if req.Profiles == nil {
+		req.Profiles = []string{"default"}
+	}
+
 	// Prepare the container creation request
 	args := db.ContainerArgs{
 		Project:      project,
@@ -263,9 +268,9 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		}
 	}
 
-	logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
 	// If there is just a single pool in the database, use that
 	if storagePool == "" {
+		logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
 		pools, err := d.cluster.StoragePools()
 		if err != nil {
 			if err == db.ErrNoSuchObject {
