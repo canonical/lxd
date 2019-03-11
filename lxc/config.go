@@ -21,6 +21,8 @@ import (
 
 type cmdConfig struct {
 	global *cmdGlobal
+
+	flagTarget string
 }
 
 func (c *cmdConfig) Command() *cobra.Command {
@@ -92,6 +94,7 @@ func (c *cmdConfigEdit) Command() *cobra.Command {
 		`lxc config edit <container> < container.yaml
     Update the container configuration from config.yaml.`))
 
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -143,6 +146,11 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 
 	// Edit the config
 	if resource.name != "" {
+		// Sanity checks
+		if c.config.flagTarget != "" {
+			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+		}
+
 		// If stdin isn't a terminal, read text from it
 		if !termios.IsTerminal(int(syscall.Stdin)) {
 			contents, err := ioutil.ReadAll(os.Stdin)
@@ -280,6 +288,15 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Targeting
+	if c.config.flagTarget != "" {
+		if !resource.server.IsClustered() {
+			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+		}
+
+		resource.server = resource.server.UseTarget(c.config.flagTarget)
+	}
+
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(int(syscall.Stdin)) {
 		contents, err := ioutil.ReadAll(os.Stdin)
@@ -357,6 +374,7 @@ func (c *cmdConfigGet) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get values for container or server configuration keys`))
 
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -384,12 +402,26 @@ func (c *cmdConfigGet) Run(cmd *cobra.Command, args []string) error {
 
 	// Get the config key
 	if resource.name != "" {
+		// Sanity checks
+		if c.config.flagTarget != "" {
+			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+		}
+
 		resp, _, err := resource.server.GetContainer(resource.name)
 		if err != nil {
 			return err
 		}
 		fmt.Println(resp.Config[args[len(args)-1]])
 	} else {
+		// Targeting
+		if c.config.flagTarget != "" {
+			if !resource.server.IsClustered() {
+				return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+			}
+
+			resource.server = resource.server.UseTarget(c.config.flagTarget)
+		}
+
 		resp, _, err := resource.server.GetServer()
 		if err != nil {
 			return err
@@ -432,6 +464,7 @@ lxc config set core.https_address [::]:8443
 lxc config set core.trust_password blah
     Will set the server's trust password to blah.`))
 
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -459,6 +492,11 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 
 	// Set the config key
 	if resource.name != "" {
+		// Sanity checks
+		if c.config.flagTarget != "" {
+			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+		}
+
 		key := args[len(args)-2]
 		value := args[len(args)-1]
 
@@ -494,6 +532,15 @@ func (c *cmdConfigSet) Run(cmd *cobra.Command, args []string) error {
 		return op.Wait()
 	}
 
+	// Targeting
+	if c.config.flagTarget != "" {
+		if !resource.server.IsClustered() {
+			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+		}
+
+		resource.server = resource.server.UseTarget(c.config.flagTarget)
+	}
+
 	// Server keys
 	server, etag, err := resource.server.GetServer()
 	if err != nil {
@@ -521,6 +568,7 @@ func (c *cmdConfigShow) Command() *cobra.Command {
 		`Show container or server configurations`))
 
 	cmd.Flags().BoolVar(&c.flagExpanded, "expanded", false, i18n.G("Show the expanded configuration"))
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -550,6 +598,15 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 	var data []byte
 
 	if resource.name == "" {
+		// Targeting
+		if c.config.flagTarget != "" {
+			if !resource.server.IsClustered() {
+				return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+			}
+
+			resource.server = resource.server.UseTarget(c.config.flagTarget)
+		}
+
 		// Server config
 		server, _, err := resource.server.GetServer()
 		if err != nil {
@@ -562,6 +619,11 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
+		// Sanity checks
+		if c.config.flagTarget != "" {
+			return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+		}
+
 		// Container or snapshot config
 		var brief interface{}
 
@@ -624,6 +686,7 @@ func (c *cmdConfigUnset) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Unset container or server configuration keys`))
 
+	cmd.Flags().StringVar(&c.config.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
