@@ -8745,6 +8745,10 @@ func (c *containerLXC) DaemonState() *state.State {
 	return c.state
 }
 
+func (c *containerLXC) Location() string {
+	return c.node
+}
+
 func (c *containerLXC) Project() string {
 	return c.project
 }
