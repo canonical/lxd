@@ -565,6 +565,7 @@ type container interface {
 
 	// Properties
 	Id() int
+	Location() string
 	Name() string
 	Description() string
 	Architecture() int
