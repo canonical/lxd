@@ -57,6 +57,9 @@ type NetworkLease struct {
 	Hwaddr   string `json:"hwaddr" yaml:"hwaddr"`
 	Address  string `json:"address" yaml:"address"`
 	Type     string `json:"type" yaml:"type"`
+
+	// API extension: network_leases_location
+	Location string `json:"location" yaml:"location"`
 }
 
 // NetworkState represents the network state

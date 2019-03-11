@@ -20,6 +20,7 @@ type cmdInfo struct {
 
 	flagShowLog   bool
 	flagResources bool
+	flagTarget    string
 }
 
 func (c *cmdInfo) Command() *cobra.Command {
@@ -38,6 +39,7 @@ lxc info [<remote>:] [--resources]
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagShowLog, "show-log", false, i18n.G("Show the container's last 100 log lines?"))
 	cmd.Flags().BoolVar(&c.flagResources, "resources", false, i18n.G("Show the resources available to the server"))
+	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 
 	return cmd
 }
@@ -78,6 +80,15 @@ func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 }
 
 func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
+	// Targeting
+	if c.flagTarget != "" {
+		if !d.IsClustered() {
+			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+		}
+
+		d = d.UseTarget(c.flagTarget)
+	}
+
 	if c.flagResources {
 		resources, err := d.GetServerResources()
 		if err != nil {
@@ -110,6 +121,11 @@ func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
 }
 
 func (c *cmdInfo) containerInfo(d lxd.ContainerServer, remote config.Remote, name string, showLog bool) error {
+	// Sanity checks
+	if c.flagTarget != "" {
+		return fmt.Errorf(i18n.G("--target cannot be used with containers"))
+	}
+
 	ct, _, err := d.GetContainer(name)
 	if err != nil {
 		return err

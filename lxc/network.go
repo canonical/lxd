@@ -729,6 +729,7 @@ func (c *cmdNetworkInfo) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get runtime information on networks`))
 
+	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -752,6 +753,15 @@ func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
 
 	if resource.name == "" {
 		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Targeting
+	if c.network.flagTarget != "" {
+		if !client.IsClustered() {
+			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+		}
+
+		client = client.UseTarget(c.network.flagTarget)
 	}
 
 	state, err := client.GetNetworkState(resource.name)
@@ -951,19 +961,29 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, lease := range leases {
-		data = append(data, []string{lease.Hostname, lease.Hwaddr, lease.Address, strings.ToUpper(lease.Type)})
+		entry := []string{lease.Hostname, lease.Hwaddr, lease.Address, strings.ToUpper(lease.Type)}
+		if resource.server.IsClustered() {
+			entry = append(entry, lease.Location)
+		}
+
+		data = append(data, entry)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(true)
-	table.SetHeader([]string{
+	sort.Sort(byName(data))
+	header := []string{
 		i18n.G("HOSTNAME"),
 		i18n.G("MAC ADDRESS"),
 		i18n.G("IP ADDRESS"),
-		i18n.G("TYPE")})
-	sort.Sort(byName(data))
+		i18n.G("TYPE"),
+	}
+	if resource.server.IsClustered() {
+		header = append(header, i18n.G("LOCATION"))
+	}
+	table.SetHeader(header)
 	table.AppendBulk(data)
 	table.Render()
 
