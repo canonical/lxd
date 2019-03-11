@@ -389,6 +389,7 @@ func (c *cmdStorageInfo) Command() *cobra.Command {
 		`Show useful information about storage pools`))
 
 	cmd.Flags().BoolVar(&c.flagBytes, "bytes", false, i18n.G("Show the used and free space in bytes"))
+	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -411,6 +412,15 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 
 	if resource.name == "" {
 		return fmt.Errorf(i18n.G("Missing pool name"))
+	}
+
+	// Targeting
+	if c.storage.flagTarget != "" {
+		if !resource.server.IsClustered() {
+			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+		}
+
+		resource.server = resource.server.UseTarget(c.storage.flagTarget)
 	}
 
 	// Get the pool information
