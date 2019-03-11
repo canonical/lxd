@@ -830,6 +830,12 @@ func networkShutdown(s *state.State) error {
 }
 
 func networkStateGet(d *Daemon, r *http.Request) Response {
+	// If a target was specified, forward the request to the relevant node.
+	response := ForwardedResponseIfTargetIsRemote(d, r)
+	if response != nil {
+		return response
+	}
+
 	name := mux.Vars(r)["name"]
 
 	// Get some information
