@@ -729,6 +729,7 @@ func (c *cmdNetworkInfo) Command() *cobra.Command {
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Get runtime information on networks`))
 
+	cmd.Flags().StringVar(&c.network.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -752,6 +753,15 @@ func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
 
 	if resource.name == "" {
 		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	// Targeting
+	if c.network.flagTarget != "" {
+		if !client.IsClustered() {
+			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+		}
+
+		client = client.UseTarget(c.network.flagTarget)
 	}
 
 	state, err := client.GetNetworkState(resource.name)
