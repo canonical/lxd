@@ -961,19 +961,29 @@ func (c *cmdNetworkListLeases) Run(cmd *cobra.Command, args []string) error {
 
 	data := [][]string{}
 	for _, lease := range leases {
-		data = append(data, []string{lease.Hostname, lease.Hwaddr, lease.Address, strings.ToUpper(lease.Type)})
+		entry := []string{lease.Hostname, lease.Hwaddr, lease.Address, strings.ToUpper(lease.Type)}
+		if resource.server.IsClustered() {
+			entry = append(entry, lease.Location)
+		}
+
+		data = append(data, entry)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(true)
-	table.SetHeader([]string{
+	sort.Sort(byName(data))
+	header := []string{
 		i18n.G("HOSTNAME"),
 		i18n.G("MAC ADDRESS"),
 		i18n.G("IP ADDRESS"),
-		i18n.G("TYPE")})
-	sort.Sort(byName(data))
+		i18n.G("TYPE"),
+	}
+	if resource.server.IsClustered() {
+		header = append(header, i18n.G("LOCATION"))
+	}
+	table.SetHeader(header)
 	table.AppendBulk(data)
 	table.Render()
 
