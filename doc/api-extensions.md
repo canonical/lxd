@@ -693,3 +693,8 @@ This adds the following new endpoint (see [RESTful API](rest-api.md) for details
 ## snapshot\_expiry\_creation
 Adds `expires\_at` to container creation, allowing for override of a
 snapshot's expiry at creation time.
+
+## network\_leases\_location
+Introductes a "Location" field in the leases list.
+This is used when querying a cluster to show what node a particular
+lease was found on.
