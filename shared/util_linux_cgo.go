@@ -110,10 +110,6 @@ void create_pty(int *master, int *slave, uid_t uid, gid_t gid) {
 		fprintf(stderr, "Warning: error chowning pty to container root\n");
 		fprintf(stderr, "Continuing...\n");
 	}
-	if (fchown(*master, uid, gid) < 0) {
-		fprintf(stderr, "Warning: error chowning pty to container root\n");
-		fprintf(stderr, "Continuing...\n");
-	}
 }
 
 void create_pipe(int *master, int *slave) {
