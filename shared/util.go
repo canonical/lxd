@@ -1099,12 +1099,19 @@ func DownloadFileHash(httpClient *http.Client, useragent string, progress func(p
 }
 
 func ParseNumberFromFile(file string) (int64, error) {
-	buf, err := ioutil.ReadFile(file)
+	f, err := os.Open(file)
+	if err != nil {
+		return int64(0), err
+	}
+	defer f.Close()
+
+	buf := make([]byte, 4096)
+	n, err := f.Read(buf)
 	if err != nil {
 		return int64(0), err
 	}
 
-	str := strings.TrimSpace(string(buf))
+	str := strings.TrimSpace(string(buf[0:n]))
 	nr, err := strconv.Atoi(str)
 	if err != nil {
 		return int64(0), err
