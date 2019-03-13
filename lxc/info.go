@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 )
@@ -95,12 +96,42 @@ func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
 			return err
 		}
 
-		resourceData, err := yaml.Marshal(&resources)
-		if err != nil {
-			return err
+		renderCPU := func(cpu api.ResourcesCPUSocket, prefix string) {
+			if cpu.Vendor != "" {
+				fmt.Printf(prefix+i18n.G("Vendor: %v")+"\n", cpu.Vendor)
+			}
+
+			if cpu.Name != "" {
+				fmt.Printf(prefix+i18n.G("Name: %v")+"\n", cpu.Name)
+			}
+
+			fmt.Printf(prefix+i18n.G("Cores: %v")+"\n", cpu.Cores)
+			fmt.Printf(prefix+i18n.G("Threads: %v")+"\n", cpu.Threads)
+
+			if cpu.Frequency > 0 {
+				if cpu.FrequencyTurbo > 0 {
+					fmt.Printf(prefix+i18n.G("Frequency: %vMhz (max: %vMhz)")+"\n", cpu.Frequency, cpu.FrequencyTurbo)
+				} else {
+					fmt.Printf(prefix+i18n.G("Frequency: %vMhz")+"\n", cpu.Frequency)
+				}
+			}
 		}
 
-		fmt.Printf("%s", resourceData)
+		if len(resources.CPU.Sockets) == 1 {
+			fmt.Printf(i18n.G("CPU:") + "\n")
+			renderCPU(resources.CPU.Sockets[0], "  ")
+		} else if len(resources.CPU.Sockets) > 1 {
+			fmt.Printf(i18n.G("CPUs:") + "\n")
+			for id, cpu := range resources.CPU.Sockets {
+				fmt.Printf("  "+i18n.G("Socket %d:")+"\n", id)
+				renderCPU(cpu, "    ")
+			}
+		}
+
+		fmt.Printf("\n" + i18n.G("Memory:") + "\n")
+		fmt.Printf("  "+i18n.G("Free: %v")+"\n", shared.GetByteSizeString(int64(resources.Memory.Total-resources.Memory.Used), 2))
+		fmt.Printf("  "+i18n.G("Used: %v")+"\n", shared.GetByteSizeString(int64(resources.Memory.Used), 2))
+		fmt.Printf("  "+i18n.G("Total: %v")+"\n", shared.GetByteSizeString(int64(resources.Memory.Total), 2))
 
 		return nil
 	}
