@@ -698,3 +698,6 @@ snapshot's expiry at creation time.
 Introductes a "Location" field in the leases list.
 This is used when querying a cluster to show what node a particular
 lease was found on.
+
+## resources\_cpu\_socket
+Add Socket field to CPU resources in case we get out of order socket information.
