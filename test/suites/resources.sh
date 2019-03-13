@@ -3,11 +3,10 @@ test_resources() {
   echo "${RES}" | grep -q "^space:"
 
   RES=$(lxc info --resources)
-  echo "${RES}" | grep -q "^cpu:"
-  echo "${RES}" | grep -q "sockets:"
-  echo "${RES}" | grep -q "threads:"
-  echo "${RES}" | grep -q "total:"
-  echo "${RES}" | grep -q "memory:"
-  echo "${RES}" | grep -q "used:"
-  echo "${RES}" | grep -q "total:"
+  echo "${RES}" | grep -q "^CPU"
+  echo "${RES}" | grep -q "Cores:"
+  echo "${RES}" | grep -q "Threads:"
+  echo "${RES}" | grep -q "Free:"
+  echo "${RES}" | grep -q "Used:"
+  echo "${RES}" | grep -q "Total:"
 }
