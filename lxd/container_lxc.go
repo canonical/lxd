@@ -2151,9 +2151,9 @@ func (c *containerLXC) startCommon() (string, error) {
 			sawNvidia := false
 			found := false
 			for _, gpu := range gpus {
-				if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
+				if (m["vendorid"] != "" && gpu.vendorID != m["vendorid"]) ||
 					(m["pci"] != "" && gpu.pci != m["pci"]) ||
-					(m["productid"] != "" && gpu.productid != m["productid"]) ||
+					(m["productid"] != "" && gpu.productID != m["productid"]) ||
 					(m["id"] != "" && gpu.id != m["id"]) {
 					continue
 				}
@@ -4418,9 +4418,9 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				}
 
 				for _, gpu := range gpus {
-					if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
+					if (m["vendorid"] != "" && gpu.vendorID != m["vendorid"]) ||
 						(m["pci"] != "" && gpu.pci != m["pci"]) ||
-						(m["productid"] != "" && gpu.productid != m["productid"]) ||
+						(m["productid"] != "" && gpu.productID != m["productid"]) ||
 						(m["id"] != "" && gpu.id != m["id"]) {
 						continue
 					}
@@ -4556,9 +4556,9 @@ func (c *containerLXC) Update(args db.ContainerArgs, userRequested bool) error {
 				sawNvidia := false
 				found := false
 				for _, gpu := range gpus {
-					if (m["vendorid"] != "" && gpu.vendorid != m["vendorid"]) ||
+					if (m["vendorid"] != "" && gpu.vendorID != m["vendorid"]) ||
 						(m["pci"] != "" && gpu.pci != m["pci"]) ||
-						(m["productid"] != "" && gpu.productid != m["productid"]) ||
+						(m["productid"] != "" && gpu.productID != m["productid"]) ||
 						(m["id"] != "" && gpu.id != m["id"]) {
 						continue
 					}
