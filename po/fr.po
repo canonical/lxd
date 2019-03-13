@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-03-11 15:34-0400\n"
+"POT-Creation-Date: 2019-03-12 22:09-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -311,7 +311,7 @@ msgid "--refresh can only be used with containers"
 msgstr ""
 
 #: lxc/config.go:151 lxc/config.go:407 lxc/config.go:497 lxc/config.go:624
-#: lxc/info.go:126
+#: lxc/info.go:157
 msgid "--target cannot be used with containers"
 msgstr ""
 
@@ -390,7 +390,7 @@ msgstr ""
 msgid "Aliases:"
 msgstr "Alias :"
 
-#: lxc/image.go:843 lxc/info.go:149
+#: lxc/image.go:843 lxc/info.go:180
 #, c-format
 msgid "Architecture: %s"
 msgstr "Architecture : %s"
@@ -476,11 +476,11 @@ msgstr ""
 msgid "Both --all and container name given"
 msgstr ""
 
-#: lxc/info.go:242 lxc/network.go:788
+#: lxc/info.go:273 lxc/network.go:788
 msgid "Bytes received"
 msgstr "Octets reçus"
 
-#: lxc/info.go:243 lxc/network.go:789
+#: lxc/info.go:274 lxc/network.go:789
 msgid "Bytes sent"
 msgstr "Octets émis"
 
@@ -492,13 +492,21 @@ msgstr ""
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
-#: lxc/info.go:206
+#: lxc/info.go:237
 msgid "CPU usage (in seconds)"
 msgstr "CPU utilisé (en secondes)"
 
-#: lxc/info.go:210
+#: lxc/info.go:241
 msgid "CPU usage:"
 msgstr "CPU utilisé :"
+
+#: lxc/info.go:121
+msgid "CPU:"
+msgstr ""
+
+#: lxc/info.go:124
+msgid "CPUs:"
+msgstr ""
 
 #: lxc/operation.go:159
 #, fuzzy
@@ -580,7 +588,7 @@ msgid "Client version: %s\n"
 msgstr "Afficher la version du client"
 
 #: lxc/config.go:97 lxc/config.go:377 lxc/config.go:467 lxc/config.go:571
-#: lxc/config.go:689 lxc/copy.go:52 lxc/info.go:42 lxc/init.go:48
+#: lxc/config.go:689 lxc/copy.go:52 lxc/info.go:43 lxc/init.go:48
 #: lxc/move.go:58 lxc/network.go:259 lxc/network.go:674 lxc/network.go:732
 #: lxc/network.go:1057 lxc/network.go:1126 lxc/network.go:1188
 #: lxc/storage.go:92 lxc/storage.go:336 lxc/storage.go:392 lxc/storage.go:591
@@ -719,6 +727,11 @@ msgstr "Copie de l'image : %s"
 msgid "Copying the storage volume: %s"
 msgstr "Copie de l'image : %s"
 
+#: lxc/info.go:108
+#, fuzzy, c-format
+msgid "Cores: %v"
+msgstr "erreur : %v"
+
 #: lxc/remote.go:271
 msgid "Could not create server cert dir"
 msgstr "Impossible de créer le dossier de stockage des certificats serveurs"
@@ -803,7 +816,7 @@ msgstr "Copie de l'image : %s"
 msgid "Create the container with no profiles applied"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/image.go:849 lxc/info.go:151
+#: lxc/image.go:849 lxc/info.go:182
 #, c-format
 msgid "Created: %s"
 msgstr "Créé : %s"
@@ -903,7 +916,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/image.go:316 lxc/image.go:439 lxc/image.go:579 lxc/image.go:793
 #: lxc/image.go:907 lxc/image.go:1237 lxc/image.go:1314 lxc/image_alias.go:26
 #: lxc/image_alias.go:59 lxc/image_alias.go:106 lxc/image_alias.go:149
-#: lxc/image_alias.go:250 lxc/import.go:27 lxc/info.go:30 lxc/init.go:35
+#: lxc/image_alias.go:250 lxc/import.go:27 lxc/info.go:31 lxc/init.go:35
 #: lxc/launch.go:22 lxc/list.go:48 lxc/main.go:50 lxc/manpage.go:19
 #: lxc/monitor.go:30 lxc/move.go:37 lxc/network.go:34 lxc/network.go:110
 #: lxc/network.go:183 lxc/network.go:256 lxc/network.go:328 lxc/network.go:378
@@ -983,7 +996,7 @@ msgstr "Désactiver l'allocation pseudo-terminal"
 msgid "Disable stdin (reads from /dev/null)"
 msgstr "Désactiver stdin (lecture à partir de /dev/null)"
 
-#: lxc/info.go:199
+#: lxc/info.go:230
 #, fuzzy
 msgid "Disk usage:"
 msgstr "  Disque utilisé :"
@@ -1257,6 +1270,21 @@ msgstr ""
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
+#: lxc/info.go:132
+#, c-format
+msgid "Free: %v"
+msgstr ""
+
+#: lxc/info.go:115
+#, c-format
+msgid "Frequency: %vMhz"
+msgstr ""
+
+#: lxc/info.go:113
+#, c-format
+msgid "Frequency: %vMhz (max: %vMhz)"
+msgstr ""
+
 #: lxc/manpage.go:18 lxc/manpage.go:19
 msgid "Generate manpages for all commands"
 msgstr ""
@@ -1481,7 +1509,7 @@ msgstr "Source invalide %s"
 msgid "Invalid target %s"
 msgstr "Cible invalide %s"
 
-#: lxc/info.go:180 lxc/network.go:780
+#: lxc/info.go:211 lxc/network.go:780
 msgid "Ips:"
 msgstr "IPs :"
 
@@ -1745,12 +1773,12 @@ msgstr ""
 msgid "List, show and delete background operations"
 msgstr ""
 
-#: lxc/info.go:143
+#: lxc/info.go:174
 #, c-format
 msgid "Location: %s"
 msgstr ""
 
-#: lxc/info.go:299
+#: lxc/info.go:330
 msgid "Log:"
 msgstr "Journal : "
 
@@ -1893,17 +1921,22 @@ msgstr "Profil %s supprimé de %s"
 msgid "Member %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
 
-#: lxc/info.go:217
+#: lxc/info.go:248
 msgid "Memory (current)"
 msgstr "Mémoire (courante)"
 
-#: lxc/info.go:221
+#: lxc/info.go:252
 msgid "Memory (peak)"
 msgstr "Mémoire (pointe)"
 
-#: lxc/info.go:233
+#: lxc/info.go:264
 #, fuzzy
 msgid "Memory usage:"
+msgstr "  Mémoire utilisée :"
+
+#: lxc/info.go:131
+#, fuzzy
+msgid "Memory:"
 msgstr "  Mémoire utilisée :"
 
 #: lxc/move.go:230
@@ -2046,9 +2079,14 @@ msgstr "NOM"
 msgid "NO"
 msgstr "NON"
 
-#: lxc/info.go:141 lxc/network.go:773
+#: lxc/info.go:172 lxc/network.go:773
 #, c-format
 msgid "Name: %s"
+msgstr "Nom : %s"
+
+#: lxc/info.go:105
+#, fuzzy, c-format
+msgid "Name: %v"
 msgstr "Nom : %s"
 
 #: lxc/network.go:310
@@ -2075,7 +2113,7 @@ msgstr "Le réseau %s a été créé"
 msgid "Network name"
 msgstr "Nom du réseau"
 
-#: lxc/info.go:250 lxc/network.go:787
+#: lxc/info.go:281 lxc/network.go:787
 #, fuzzy
 msgid "Network usage:"
 msgstr "  Réseau utilisé :"
@@ -2180,11 +2218,11 @@ msgstr "PROTOCOLE"
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
-#: lxc/info.go:244 lxc/network.go:790
+#: lxc/info.go:275 lxc/network.go:790
 msgid "Packets received"
 msgstr "Paquets reçus"
 
-#: lxc/info.go:245 lxc/network.go:791
+#: lxc/info.go:276 lxc/network.go:791
 msgid "Packets sent"
 msgstr "Paquets émis"
 
@@ -2202,7 +2240,7 @@ msgstr "Création du conteneur"
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/info.go:162
+#: lxc/info.go:193
 #, c-format
 msgid "Pid: %d"
 msgstr "Pid : %d"
@@ -2233,7 +2271,7 @@ msgstr ""
 msgid "Print version number"
 msgstr ""
 
-#: lxc/info.go:186
+#: lxc/info.go:217
 #, c-format
 msgid "Processes: %d"
 msgstr "Processus : %d"
@@ -2287,7 +2325,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Profiles %s applied to %s"
 msgstr "Profils %s appliqués à %s"
 
-#: lxc/info.go:160
+#: lxc/info.go:191
 #, c-format
 msgid "Profiles: %s"
 msgstr "Profils : %s"
@@ -2400,7 +2438,7 @@ msgstr "Mot de passe de l'administrateur distant"
 msgid "Remote operation canceled by user"
 msgstr "Certificat serveur rejeté par l'utilisateur"
 
-#: lxc/info.go:146
+#: lxc/info.go:177
 #, c-format
 msgid "Remote: %s"
 msgstr "Serveur distant : %s"
@@ -2487,7 +2525,7 @@ msgstr ""
 msgid "Require user confirmation"
 msgstr "Requérir une confirmation de l'utilisateur"
 
-#: lxc/info.go:183
+#: lxc/info.go:214
 msgid "Resources:"
 msgstr "Ressources :"
 
@@ -2660,7 +2698,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Show container or server configurations"
 msgstr "Afficher la configuration étendue"
 
-#: lxc/info.go:29 lxc/info.go:30
+#: lxc/info.go:30 lxc/info.go:31
 #, fuzzy
 msgid "Show container or server information"
 msgstr "Afficher des informations supplémentaires"
@@ -2725,7 +2763,7 @@ msgstr "Afficher la configuration étendue"
 msgid "Show storage volume configurations"
 msgstr "Afficher la configuration étendue"
 
-#: lxc/info.go:40
+#: lxc/info.go:41
 msgid "Show the container's last 100 log lines?"
 msgstr "Afficher les 100 dernières lignes du journal du conteneur ?"
 
@@ -2738,7 +2776,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "Show the expanded configuration"
 msgstr "Afficher la configuration étendue"
 
-#: lxc/info.go:41
+#: lxc/info.go:42
 msgid "Show the resources available to the server"
 msgstr ""
 
@@ -2768,9 +2806,14 @@ msgstr "Taille : %.2f Mo"
 msgid "Snapshot storage volumes"
 msgstr "Copie de l'image : %s"
 
-#: lxc/info.go:264
+#: lxc/info.go:295
 msgid "Snapshots:"
 msgstr "Instantanés :"
+
+#: lxc/info.go:126
+#, c-format
+msgid "Socket %d:"
+msgstr ""
 
 #: lxc/action.go:259
 #, fuzzy, c-format
@@ -2796,7 +2839,7 @@ msgstr "Démarrage de %s"
 msgid "State: %s"
 msgstr "État : %s"
 
-#: lxc/info.go:154
+#: lxc/info.go:185
 #, c-format
 msgid "Status: %s"
 msgstr "État : %s"
@@ -2863,11 +2906,11 @@ msgstr "Image copiée avec succès !"
 msgid "Store the container state"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/info.go:225
+#: lxc/info.go:256
 msgid "Swap (current)"
 msgstr "Swap (courant)"
 
-#: lxc/info.go:229
+#: lxc/info.go:260
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
 
@@ -2964,6 +3007,11 @@ msgstr "le périphérique indiqué ne correspond pas au réseau"
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr "Il n'existe pas d'\"image\".  Vouliez-vous un alias ?"
 
+#: lxc/info.go:109
+#, c-format
+msgid "Threads: %v"
+msgstr ""
+
 #: lxc/action.go:121
 msgid "Time to wait for the container before killing it"
 msgstr "Temps d'attente du conteneur avant de le tuer"
@@ -2991,8 +3039,13 @@ msgstr ""
 "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
 
 #: lxc/config.go:294 lxc/config.go:419 lxc/config.go:538 lxc/config.go:604
-#: lxc/copy.go:116 lxc/info.go:86 lxc/network.go:761 lxc/storage.go:420
+#: lxc/copy.go:116 lxc/info.go:87 lxc/network.go:761 lxc/storage.go:420
 msgid "To use --target, the destination remote must be a cluster"
+msgstr ""
+
+#: lxc/info.go:134
+#, c-format
+msgid "Total: %v"
 msgstr ""
 
 #: lxc/storage_volume.go:1151
@@ -3022,11 +3075,11 @@ msgstr "Transfert de l'image : %s"
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
 
-#: lxc/info.go:156
+#: lxc/info.go:187
 msgid "Type: ephemeral"
 msgstr "Type : éphémère"
 
-#: lxc/info.go:158
+#: lxc/info.go:189
 msgid "Type: persistent"
 msgstr "Type : persistant"
 
@@ -3108,6 +3161,11 @@ msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
 
+#: lxc/info.go:133
+#, fuzzy, c-format
+msgid "Used: %v"
+msgstr "Publié : %s"
+
 #: lxc/cluster.go:280 lxc/delete.go:47
 #, fuzzy
 msgid "User aborted delete operation"
@@ -3117,6 +3175,11 @@ msgstr "L'utilisateur a annulé l'opération de suppression."
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep running"
 msgstr ""
+
+#: lxc/info.go:101
+#, fuzzy, c-format
+msgid "Vendor: %v"
+msgstr "erreur : %v"
 
 #: lxc/query.go:38
 msgid "Wait for the operation to complete"
@@ -3456,7 +3519,7 @@ msgstr "erreur : %v"
 msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
-#: lxc/info.go:275
+#: lxc/info.go:306
 #, fuzzy, c-format
 msgid "expires at %s"
 msgstr "Expire : %s"
@@ -3554,7 +3617,7 @@ msgstr ""
 msgid "info [<remote>:]<pool>"
 msgstr ""
 
-#: lxc/info.go:28
+#: lxc/info.go:29
 msgid "info [<remote>:][<container>]"
 msgstr ""
 
@@ -3676,7 +3739,7 @@ msgid ""
 "    Create a new container using backup0.tar.gz as the source."
 msgstr ""
 
-#: lxc/info.go:32
+#: lxc/info.go:33
 #, fuzzy
 msgid ""
 "lxc info [<remote>:]<container> [--show-log]\n"
@@ -4186,11 +4249,11 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/info.go:279
+#: lxc/info.go:310
 msgid "stateful"
 msgstr "à suivi d'état"
 
-#: lxc/info.go:281
+#: lxc/info.go:312
 msgid "stateless"
 msgstr "sans suivi d'état"
 
@@ -4216,7 +4279,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "switch [<remote>:] <project>"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/info.go:271
+#: lxc/info.go:302
 #, c-format
 msgid "taken at %s"
 msgstr "pris à %s"
