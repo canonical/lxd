@@ -5,6 +5,9 @@ package api
 type Resources struct {
 	CPU    ResourcesCPU    `json:"cpu,omitempty" yaml:"cpu,omitempty"`
 	Memory ResourcesMemory `json:"memory,omitempty" yaml:"memory,omitempty"`
+
+	// API extension: resources_gpu
+	GPU ResourcesGPU `json:"gpu,omitempty" yaml:"gpu,omitempty"`
 }
 
 // ResourcesCPUSocket represents a cpu socket on the system
@@ -26,6 +29,25 @@ type ResourcesCPUSocket struct {
 type ResourcesCPU struct {
 	Sockets []ResourcesCPUSocket `json:"sockets" yaml:"sockets"`
 	Total   uint64               `json:"total" yaml:"total"`
+}
+
+// ResourcesGPUCard represents a GPU card on the system
+// API extension: resources_gpu
+type ResourcesGPUCard struct {
+	Driver     string `json:"driver" yaml:"driver"`
+	ID         uint64 `json:"id" yaml:"id"`
+	PCIAddress string `json:"pci_address" yaml:"pci_address"`
+	Vendor     string `json:"vendor,omitempty" yaml:"vendor,omitempty"`
+	VendorID   string `json:"vendor_id,omitempty" yaml:"vendor_id,omitempty"`
+	Product    string `json:"product,omitempty" yaml:"product,omitempty"`
+	ProductID  string `json:"product_id,omitempty" yaml:"product_id,omitempty"`
+}
+
+// ResourcesGPU represents the GPU resources available on the system
+// API extension: resources_gpu
+type ResourcesGPU struct {
+	Cards []ResourcesGPUCard `json:"cards" yaml:"cards"`
+	Total uint64             `json:"total" yaml:"total"`
 }
 
 // ResourcesMemory represents the memory resources available on the system
