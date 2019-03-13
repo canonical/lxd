@@ -100,7 +100,7 @@ func parseCpuinfo() ([]thread, error) {
 			line = strings.TrimSpace(line)
 
 			if t != nil {
-				threads[len(threads)-1].name = line
+				threads[len(threads)-1].vendor = line
 			}
 		} else if strings.HasPrefix(line, "model name") {
 			i := strings.Index(line, ":")
@@ -113,7 +113,7 @@ func parseCpuinfo() ([]thread, error) {
 			line = strings.TrimSpace(line)
 
 			if t != nil {
-				threads[len(threads)-1].vendor = line
+				threads[len(threads)-1].name = line
 			}
 		} else if t != nil && t.frequency == 0 && strings.HasPrefix(line, "cpu MHz") {
 			i := strings.Index(line, ":")
@@ -235,17 +235,25 @@ func CPUResource() (*api.ResourcesCPU, error) {
 
 	var cur *api.ResourcesCPUSocket
 	c.Total = uint64(len(threads))
-	c.Sockets = append(c.Sockets, api.ResourcesCPUSocket{})
+
 	for _, v := range threads {
 		if uint64(len(c.Sockets)) <= v.socketID {
 			c.Sockets = append(c.Sockets, api.ResourcesCPUSocket{})
 			cur = &c.Sockets[v.socketID]
+
+			// Count the number of cores on the socket
+			// Note that we can't assume sequential core IDs
+			socketCores := map[uint64]bool{}
+			for _, thread := range threads {
+				if thread.socketID != v.socketID {
+					continue
+				}
+
+				socketCores[thread.coreID] = true
+			}
+			cur.Cores = uint64(len(socketCores))
 		} else {
 			cur = &c.Sockets[v.socketID]
-		}
-
-		if v.coreID+1 > cur.Cores {
-			cur.Cores++
 		}
 
 		cur.Threads++
