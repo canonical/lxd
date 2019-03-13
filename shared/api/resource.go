@@ -16,6 +16,9 @@ type ResourcesCPUSocket struct {
 	Name           string `json:"name,omitempty" yaml:"name,omitempty"`
 	Vendor         string `json:"vendor,omitempty" yaml:"vendor,omitempty"`
 	Threads        uint64 `json:"threads" yaml:"threads"`
+
+	// API extension: resources_cpu_socket
+	Socket uint64 `json:"socket" yaml:"socket"`
 }
 
 // ResourcesCPU represents the cpu resources available on the system
