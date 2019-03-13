@@ -318,6 +318,7 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
 
 ### ZFS
 
+ - When LXD creates a ZFS pool, compression is enabled by default.
  - Uses ZFS filesystems for images, then snapshots and clones to create containers and snapshots.
  - Due to the way copy-on-write works in ZFS, parent filesystems can't
    be removed until all children are gone. As a result, LXD will
