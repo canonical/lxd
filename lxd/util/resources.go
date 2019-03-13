@@ -256,6 +256,7 @@ func CPUResource() (*api.ResourcesCPU, error) {
 			cur = &c.Sockets[v.socketID]
 		}
 
+		cur.Socket = v.socketID
 		cur.Threads++
 		cur.Name = v.name
 		cur.Vendor = v.vendor
