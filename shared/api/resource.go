@@ -3,9 +3,8 @@ package api
 // Resources represents the system resources avaible for LXD
 // API extension: resources
 type Resources struct {
-	CPU         ResourcesCPU         `json:"cpu,omitempty" yaml:"cpu,omitempty"`
-	Memory      ResourcesMemory      `json:"memory,omitempty" yaml:"memory,omitempty"`
-	StoragePool ResourcesStoragePool `json:"pool,omitempty" yaml:"pool,omitempty"`
+	CPU    ResourcesCPU    `json:"cpu,omitempty" yaml:"cpu,omitempty"`
+	Memory ResourcesMemory `json:"memory,omitempty" yaml:"memory,omitempty"`
 }
 
 // ResourcesCPUSocket represents a cpu socket on the system
