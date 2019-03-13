@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-03-12 22:09-0400\n"
+"POT-Creation-Date: 2019-03-13 19:50-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -311,7 +311,7 @@ msgid "--refresh can only be used with containers"
 msgstr ""
 
 #: lxc/config.go:151 lxc/config.go:407 lxc/config.go:497 lxc/config.go:624
-#: lxc/info.go:157
+#: lxc/info.go:181
 msgid "--target cannot be used with containers"
 msgstr ""
 
@@ -390,7 +390,7 @@ msgstr ""
 msgid "Aliases:"
 msgstr "Alias :"
 
-#: lxc/image.go:843 lxc/info.go:180
+#: lxc/image.go:843 lxc/info.go:204
 #, c-format
 msgid "Architecture: %s"
 msgstr "Architecture : %s"
@@ -476,11 +476,11 @@ msgstr ""
 msgid "Both --all and container name given"
 msgstr ""
 
-#: lxc/info.go:273 lxc/network.go:788
+#: lxc/info.go:297 lxc/network.go:788
 msgid "Bytes received"
 msgstr "Octets reçus"
 
-#: lxc/info.go:274 lxc/network.go:789
+#: lxc/info.go:298 lxc/network.go:789
 msgid "Bytes sent"
 msgstr "Octets émis"
 
@@ -492,11 +492,11 @@ msgstr ""
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
-#: lxc/info.go:237
+#: lxc/info.go:261
 msgid "CPU usage (in seconds)"
 msgstr "CPU utilisé (en secondes)"
 
-#: lxc/info.go:241
+#: lxc/info.go:265
 msgid "CPU usage:"
 msgstr "CPU utilisé :"
 
@@ -571,6 +571,11 @@ msgstr ""
 
 #: lxc/remote.go:97
 msgid "Candid domain to use"
+msgstr ""
+
+#: lxc/info.go:155
+#, c-format
+msgid "Card %d:"
 msgstr ""
 
 #: lxc/remote.go:256
@@ -816,7 +821,7 @@ msgstr "Copie de l'image : %s"
 msgid "Create the container with no profiles applied"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/image.go:849 lxc/info.go:182
+#: lxc/image.go:849 lxc/info.go:206
 #, c-format
 msgid "Created: %s"
 msgstr "Créé : %s"
@@ -996,7 +1001,7 @@ msgstr "Désactiver l'allocation pseudo-terminal"
 msgid "Disable stdin (reads from /dev/null)"
 msgstr "Désactiver stdin (lecture à partir de /dev/null)"
 
-#: lxc/info.go:230
+#: lxc/info.go:254
 #, fuzzy
 msgid "Disk usage:"
 msgstr "  Disque utilisé :"
@@ -1009,6 +1014,11 @@ msgstr "Requérir une confirmation de l'utilisateur"
 #: lxc/main.go:65
 msgid "Don't show progress information"
 msgstr ""
+
+#: lxc/info.go:146
+#, fuzzy, c-format
+msgid "Driver: %v"
+msgstr "erreur : %v"
 
 #: lxc/list.go:665
 msgid "EPHEMERAL"
@@ -1285,6 +1295,14 @@ msgstr ""
 msgid "Frequency: %vMhz (max: %vMhz)"
 msgstr ""
 
+#: lxc/info.go:150
+msgid "GPU:"
+msgstr ""
+
+#: lxc/info.go:153
+msgid "GPUs:"
+msgstr ""
+
 #: lxc/manpage.go:18 lxc/manpage.go:19
 msgid "Generate manpages for all commands"
 msgstr ""
@@ -1509,7 +1527,7 @@ msgstr "Source invalide %s"
 msgid "Invalid target %s"
 msgstr "Cible invalide %s"
 
-#: lxc/info.go:211 lxc/network.go:780
+#: lxc/info.go:235 lxc/network.go:780
 msgid "Ips:"
 msgstr "IPs :"
 
@@ -1773,12 +1791,12 @@ msgstr ""
 msgid "List, show and delete background operations"
 msgstr ""
 
-#: lxc/info.go:174
+#: lxc/info.go:198
 #, c-format
 msgid "Location: %s"
 msgstr ""
 
-#: lxc/info.go:330
+#: lxc/info.go:354
 msgid "Log:"
 msgstr "Journal : "
 
@@ -1921,15 +1939,15 @@ msgstr "Profil %s supprimé de %s"
 msgid "Member %s renamed to %s"
 msgstr "Profil %s ajouté à %s"
 
-#: lxc/info.go:248
+#: lxc/info.go:272
 msgid "Memory (current)"
 msgstr "Mémoire (courante)"
 
-#: lxc/info.go:252
+#: lxc/info.go:276
 msgid "Memory (peak)"
 msgstr "Mémoire (pointe)"
 
-#: lxc/info.go:264
+#: lxc/info.go:288
 #, fuzzy
 msgid "Memory usage:"
 msgstr "  Mémoire utilisée :"
@@ -2079,7 +2097,7 @@ msgstr "NOM"
 msgid "NO"
 msgstr "NON"
 
-#: lxc/info.go:172 lxc/network.go:773
+#: lxc/info.go:196 lxc/network.go:773
 #, c-format
 msgid "Name: %s"
 msgstr "Nom : %s"
@@ -2113,7 +2131,7 @@ msgstr "Le réseau %s a été créé"
 msgid "Network name"
 msgstr "Nom du réseau"
 
-#: lxc/info.go:281 lxc/network.go:787
+#: lxc/info.go:305 lxc/network.go:787
 #, fuzzy
 msgid "Network usage:"
 msgstr "  Réseau utilisé :"
@@ -2194,6 +2212,11 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr "Surcharger le mode terminal (auto, interactif ou non-interactif)"
 
+#: lxc/info.go:145
+#, fuzzy, c-format
+msgid "PCI address: %v"
+msgstr "erreur : %v"
+
 #: lxc/list.go:668
 msgid "PERSISTENT"
 msgstr "PERSISTANT"
@@ -2218,11 +2241,11 @@ msgstr "PROTOCOLE"
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
-#: lxc/info.go:275 lxc/network.go:790
+#: lxc/info.go:299 lxc/network.go:790
 msgid "Packets received"
 msgstr "Paquets reçus"
 
-#: lxc/info.go:276 lxc/network.go:791
+#: lxc/info.go:300 lxc/network.go:791
 msgid "Packets sent"
 msgstr "Paquets émis"
 
@@ -2240,7 +2263,7 @@ msgstr "Création du conteneur"
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/info.go:193
+#: lxc/info.go:217
 #, c-format
 msgid "Pid: %d"
 msgstr "Pid : %d"
@@ -2271,7 +2294,7 @@ msgstr ""
 msgid "Print version number"
 msgstr ""
 
-#: lxc/info.go:217
+#: lxc/info.go:241
 #, c-format
 msgid "Processes: %d"
 msgstr "Processus : %d"
@@ -2280,6 +2303,11 @@ msgstr "Processus : %d"
 #, fuzzy, c-format
 msgid "Processing aliases failed: %s"
 msgstr "l'analyse des alias a échoué %s\n"
+
+#: lxc/info.go:142
+#, c-format
+msgid "Product: %v (%v)"
+msgstr ""
 
 #: lxc/profile.go:150
 #, c-format
@@ -2325,7 +2353,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Profiles %s applied to %s"
 msgstr "Profils %s appliqués à %s"
 
-#: lxc/info.go:191
+#: lxc/info.go:215
 #, c-format
 msgid "Profiles: %s"
 msgstr "Profils : %s"
@@ -2438,7 +2466,7 @@ msgstr "Mot de passe de l'administrateur distant"
 msgid "Remote operation canceled by user"
 msgstr "Certificat serveur rejeté par l'utilisateur"
 
-#: lxc/info.go:177
+#: lxc/info.go:201
 #, c-format
 msgid "Remote: %s"
 msgstr "Serveur distant : %s"
@@ -2525,7 +2553,7 @@ msgstr ""
 msgid "Require user confirmation"
 msgstr "Requérir une confirmation de l'utilisateur"
 
-#: lxc/info.go:214
+#: lxc/info.go:238
 msgid "Resources:"
 msgstr "Ressources :"
 
@@ -2806,7 +2834,7 @@ msgstr "Taille : %.2f Mo"
 msgid "Snapshot storage volumes"
 msgstr "Copie de l'image : %s"
 
-#: lxc/info.go:295
+#: lxc/info.go:319
 msgid "Snapshots:"
 msgstr "Instantanés :"
 
@@ -2839,7 +2867,7 @@ msgstr "Démarrage de %s"
 msgid "State: %s"
 msgstr "État : %s"
 
-#: lxc/info.go:185
+#: lxc/info.go:209
 #, c-format
 msgid "Status: %s"
 msgstr "État : %s"
@@ -2906,11 +2934,11 @@ msgstr "Image copiée avec succès !"
 msgid "Store the container state"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/info.go:256
+#: lxc/info.go:280
 msgid "Swap (current)"
 msgstr "Swap (courant)"
 
-#: lxc/info.go:260
+#: lxc/info.go:284
 msgid "Swap (peak)"
 msgstr "Swap (pointe)"
 
@@ -3075,11 +3103,11 @@ msgstr "Transfert de l'image : %s"
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
 
-#: lxc/info.go:187
+#: lxc/info.go:211
 msgid "Type: ephemeral"
 msgstr "Type : éphémère"
 
-#: lxc/info.go:189
+#: lxc/info.go:213
 msgid "Type: persistent"
 msgstr "Type : persistant"
 
@@ -3179,6 +3207,11 @@ msgstr ""
 #: lxc/info.go:101
 #, fuzzy, c-format
 msgid "Vendor: %v"
+msgstr "erreur : %v"
+
+#: lxc/info.go:138
+#, fuzzy, c-format
+msgid "Vendor: %v (%v)"
 msgstr "erreur : %v"
 
 #: lxc/query.go:38
@@ -3519,7 +3552,7 @@ msgstr "erreur : %v"
 msgid "exec [<remote>:]<container> [flags] [--] <command line>"
 msgstr ""
 
-#: lxc/info.go:306
+#: lxc/info.go:330
 #, fuzzy, c-format
 msgid "expires at %s"
 msgstr "Expire : %s"
@@ -4249,11 +4282,11 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/info.go:310
+#: lxc/info.go:334
 msgid "stateful"
 msgstr "à suivi d'état"
 
-#: lxc/info.go:312
+#: lxc/info.go:336
 msgid "stateless"
 msgstr "sans suivi d'état"
 
@@ -4279,7 +4312,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "switch [<remote>:] <project>"
 msgstr "impossible de supprimer le serveur distant par défaut"
 
-#: lxc/info.go:302
+#: lxc/info.go:326
 #, c-format
 msgid "taken at %s"
 msgstr "pris à %s"
