@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/jaypipes/pcidb"
+
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
@@ -86,14 +88,17 @@ type gpuDevice struct {
 	minor int
 
 	// Device information
-	vendorID  string
-	productID string
+	vendorID    string
+	vendorName  string
+	productID   string
+	productName string
 
 	// If related devices have the same PCI address as the GPU we should
 	// mount them all. Meaning if we detect /dev/dri/card0,
 	// /dev/dri/controlD64, and /dev/dri/renderD128 with the same PCI
 	// address, then they should all be made available in the container.
-	pci string
+	pci    string
+	driver string
 
 	// NVIDIA specific handling
 	isNvidia bool
@@ -178,6 +183,12 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 	var nvidiaDevices []nvidiaGpuDevice
 	var cards []cardIds
 
+	// Load PCI database
+	pciDB, err := pcidb.New()
+	if err != nil {
+		pciDB = nil
+	}
+
 	// Get the list of DRM devices
 	ents, err := ioutil.ReadDir(DRM_PATH)
 	if err != nil {
@@ -236,6 +247,18 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 			}
 		}
 
+		// Retrieve driver
+		driver := ""
+		driverPath := filepath.Join(device, "driver")
+		if shared.PathExists(driverPath) {
+			target, err := os.Readlink(driverPath)
+			if err != nil {
+				continue
+			}
+
+			driver = filepath.Base(target)
+		}
+
 		// Store all associated subdevices, e.g. controlD64, renderD128.
 		// The name of the directory == the last part of the
 		// /dev/dri/controlD64 path. So drmEnt.Name() will give us
@@ -249,7 +272,23 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 				pci:       pciAddr,
 				vendorID:  vendorTmp,
 				productID: productTmp,
+				driver:    driver,
 				path:      filepath.Join("/dev/dri", drmEnt.Name()),
+			}
+
+			// Fill vendor and product names
+			if pciDB != nil {
+				vendor, ok := pciDB.Vendors[tmpGpu.vendorID]
+				if ok {
+					tmpGpu.vendorName = vendor.Name
+
+					for _, product := range vendor.Products {
+						if product.ID == tmpGpu.productID {
+							tmpGpu.productName = product.Name
+							break
+						}
+					}
+				}
 			}
 
 			majMinPath := filepath.Join(drm, drmEnt.Name(), "dev")
