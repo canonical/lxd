@@ -1143,10 +1143,10 @@ func (s *storageLvm) ContainerCopy(target container, source container, container
 }
 
 func (s *storageLvm) ContainerMount(c container) (bool, error) {
-	return s.doContainerMount(c.Name())
+	return s.doContainerMount(c.Name(), false)
 }
 
-func (s *storageLvm) doContainerMount(name string) (bool, error) {
+func (s *storageLvm) doContainerMount(name string, snap bool) (bool, error) {
 	logger.Debugf("Mounting LVM storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 
 	containerLvmName := containerNameToLVName(name)
@@ -1177,6 +1177,13 @@ func (s *storageLvm) doContainerMount(name string) (bool, error) {
 	ourMount := false
 	if !shared.IsMountPoint(containerMntPoint) {
 		mountFlags, mountOptions := lxdResolveMountoptions(s.getLvmMountOptions())
+		if snap && lvFsType == "xfs" {
+			idx := strings.Index(mountOptions, "nouuid")
+			if idx < 0 {
+				mountOptions += ",nouuid"
+			}
+		}
+
 		mounterr = tryMount(containerLvmPath, containerMntPoint, lvFsType, mountFlags, mountOptions)
 		ourMount = true
 	}
