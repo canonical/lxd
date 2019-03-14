@@ -701,3 +701,6 @@ lease was found on.
 
 ## resources\_cpu\_socket
 Add Socket field to CPU resources in case we get out of order socket information.
+
+## resources\_gpu
+Add a new GPU struct to the server resources, listing all usable GPUs on the system.
