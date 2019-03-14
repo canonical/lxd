@@ -133,6 +133,30 @@ func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
 		fmt.Printf("  "+i18n.G("Used: %v")+"\n", shared.GetByteSizeString(int64(resources.Memory.Used), 2))
 		fmt.Printf("  "+i18n.G("Total: %v")+"\n", shared.GetByteSizeString(int64(resources.Memory.Total), 2))
 
+		renderGPU := func(gpu api.ResourcesGPUCard, prefix string) {
+			if gpu.Vendor != "" {
+				fmt.Printf(prefix+i18n.G("Vendor: %v (%v)")+"\n", gpu.Vendor, gpu.VendorID)
+			}
+
+			if gpu.Product != "" {
+				fmt.Printf(prefix+i18n.G("Product: %v (%v)")+"\n", gpu.Product, gpu.ProductID)
+			}
+
+			fmt.Printf(prefix+i18n.G("PCI address: %v")+"\n", gpu.PCIAddress)
+			fmt.Printf(prefix+i18n.G("Driver: %v")+"\n", gpu.Driver)
+		}
+
+		if len(resources.GPU.Cards) == 1 {
+			fmt.Printf("\n" + i18n.G("GPU:") + "\n")
+			renderGPU(resources.GPU.Cards[0], "  ")
+		} else if len(resources.GPU.Cards) > 1 {
+			fmt.Printf("\n" + i18n.G("GPUs:") + "\n")
+			for _, gpu := range resources.GPU.Cards {
+				fmt.Printf("  "+i18n.G("Card %d:")+"\n", gpu.ID)
+				renderGPU(gpu, "    ")
+			}
+		}
+
 		return nil
 	}
 

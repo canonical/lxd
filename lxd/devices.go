@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/jaypipes/pcidb"
+
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
@@ -61,7 +63,7 @@ type usbDevice struct {
 }
 
 // /dev/nvidia[0-9]+
-type nvidiaGpuCards struct {
+type nvidiaGpuCard struct {
 	path  string
 	major int
 	minor int
@@ -69,7 +71,7 @@ type nvidiaGpuCards struct {
 }
 
 // {/dev/nvidiactl, /dev/nvidia-uvm, ...}
-type nvidiaGpuDevices struct {
+type nvidiaGpuDevice struct {
 	isCard bool
 	path   string
 	major  int
@@ -79,24 +81,32 @@ type nvidiaGpuDevices struct {
 // /dev/dri/card0. If we detect that vendor == nvidia, then nvidia will contain
 // the corresponding nvidia car, e.g. {/dev/dri/card1 to /dev/nvidia1}.
 type gpuDevice struct {
-	vendorid  string
-	productid string
-	id        string // card id e.g. 0
+	// DRM node information
+	id    string
+	path  string
+	major int
+	minor int
+
+	// Device information
+	vendorID    string
+	vendorName  string
+	productID   string
+	productName string
+
 	// If related devices have the same PCI address as the GPU we should
 	// mount them all. Meaning if we detect /dev/dri/card0,
 	// /dev/dri/controlD64, and /dev/dri/renderD128 with the same PCI
 	// address, then they should all be made available in the container.
-	pci      string
-	isNvidia bool
-	nvidia   nvidiaGpuCards
+	pci    string
+	driver string
 
-	path  string
-	major int
-	minor int
+	// NVIDIA specific handling
+	isNvidia bool
+	nvidia   nvidiaGpuCard
 }
 
 func (g *gpuDevice) isNvidiaGpu() bool {
-	return strings.EqualFold(g.vendorid, "10de")
+	return strings.EqualFold(g.vendorID, "10de")
 }
 
 type cardIds struct {
@@ -167,11 +177,17 @@ func deviceWantsAllGPUs(m map[string]string) bool {
 	return m["vendorid"] == "" && m["productid"] == "" && m["id"] == "" && m["pci"] == ""
 }
 
-func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
+func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 	const DRM_PATH = "/sys/class/drm/"
 	var gpus []gpuDevice
-	var nvidiaDevices []nvidiaGpuDevices
+	var nvidiaDevices []nvidiaGpuDevice
 	var cards []cardIds
+
+	// Load PCI database
+	pciDB, err := pcidb.New()
+	if err != nil {
+		pciDB = nil
+	}
 
 	// Get the list of DRM devices
 	ents, err := ioutil.ReadDir(DRM_PATH)
@@ -231,6 +247,18 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 			}
 		}
 
+		// Retrieve driver
+		driver := ""
+		driverPath := filepath.Join(device, "driver")
+		if shared.PathExists(driverPath) {
+			target, err := os.Readlink(driverPath)
+			if err != nil {
+				continue
+			}
+
+			driver = filepath.Base(target)
+		}
+
 		// Store all associated subdevices, e.g. controlD64, renderD128.
 		// The name of the directory == the last part of the
 		// /dev/dri/controlD64 path. So drmEnt.Name() will give us
@@ -242,9 +270,25 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 			productTmp = strings.TrimPrefix(productTmp, "0x")
 			tmpGpu := gpuDevice{
 				pci:       pciAddr,
-				vendorid:  vendorTmp,
-				productid: productTmp,
+				vendorID:  vendorTmp,
+				productID: productTmp,
+				driver:    driver,
 				path:      filepath.Join("/dev/dri", drmEnt.Name()),
+			}
+
+			// Fill vendor and product names
+			if pciDB != nil {
+				vendor, ok := pciDB.Vendors[tmpGpu.vendorID]
+				if ok {
+					tmpGpu.vendorName = vendor.Name
+
+					for _, product := range vendor.Products {
+						if product.ID == tmpGpu.productID {
+							tmpGpu.productName = product.Name
+							break
+						}
+					}
+				}
 			}
 
 			majMinPath := filepath.Join(drm, drmEnt.Name(), "dev")
@@ -356,7 +400,7 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevices, error) {
 				continue
 			}
 
-			tmpNividiaGpu := nvidiaGpuDevices{
+			tmpNividiaGpu := nvidiaGpuDevice{
 				isCard: !validNvidia.MatchString(nvidiaEnt.Name()),
 				path:   nvidiaPath,
 				major:  shared.Major(stat.Rdev),
