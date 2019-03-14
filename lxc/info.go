@@ -122,8 +122,8 @@ func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
 			renderCPU(resources.CPU.Sockets[0], "  ")
 		} else if len(resources.CPU.Sockets) > 1 {
 			fmt.Printf(i18n.G("CPUs:") + "\n")
-			for id, cpu := range resources.CPU.Sockets {
-				fmt.Printf("  "+i18n.G("Socket %d:")+"\n", id)
+			for _, cpu := range resources.CPU.Sockets {
+				fmt.Printf("  "+i18n.G("Socket %d:")+"\n", cpu.Socket)
 				renderCPU(cpu, "    ")
 			}
 		}
