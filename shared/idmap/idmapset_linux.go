@@ -771,7 +771,10 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 	kernelMap, err := CurrentIdmapSet()
 	if err != nil {
 		// Hardcoded fallback map
-		e := IdmapEntry{Isuid: true, Isgid: true, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
+		e := IdmapEntry{Isuid: true, Isgid: false, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+		e = IdmapEntry{Isuid: false, Isgid: true, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
 		idmapset.Idmap = Extend(idmapset.Idmap, e)
 		return idmapset, nil
 	}
@@ -789,7 +792,10 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 
 	if reflect.DeepEqual(kernelRanges, fullKernelRanges) {
 		// Hardcoded fallback map
-		e := IdmapEntry{Isuid: true, Isgid: true, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
+		e := IdmapEntry{Isuid: true, Isgid: false, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
+		idmapset.Idmap = Extend(idmapset.Idmap, e)
+
+		e = IdmapEntry{Isuid: false, Isgid: true, Nsid: 0, Hostid: 1000000, Maprange: 1000000000}
 		idmapset.Idmap = Extend(idmapset.Idmap, e)
 		return idmapset, nil
 	}
