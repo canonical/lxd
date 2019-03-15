@@ -65,6 +65,10 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 		return nil, nil, nil, err
 	}
 
+	if !shared.PathExists(execPath) {
+		execPath = os.Args[0]
+	}
+
 	rsyncCmd := fmt.Sprintf("sh -c \"%s netcat %s\"", execPath, auds)
 
 	args := []string{
