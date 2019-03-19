@@ -31,16 +31,29 @@ type ResourcesCPU struct {
 	Total   uint64               `json:"total" yaml:"total"`
 }
 
+// ResourcesGPUCardNvidia represents additional information for NVIDIA GPUs
+// API extension: resources_gpu
+type ResourcesGPUCardNvidia struct {
+	CUDAVersion  string `json:"cuda_version" yaml:"cuda_version"`
+	NVRMVersion  string `json:"nvrm_version" yaml:"nvrm_version"`
+	Brand        string `json:"brand" yaml:"brand"`
+	Model        string `json:"model" yaml:"model"`
+	UUID         string `json:"uuid" yaml:"uuid"`
+	Architecture string `json:"architecture" yaml:"architecture"`
+}
+
 // ResourcesGPUCard represents a GPU card on the system
 // API extension: resources_gpu
 type ResourcesGPUCard struct {
-	Driver     string `json:"driver" yaml:"driver"`
-	ID         uint64 `json:"id" yaml:"id"`
-	PCIAddress string `json:"pci_address" yaml:"pci_address"`
-	Vendor     string `json:"vendor,omitempty" yaml:"vendor,omitempty"`
-	VendorID   string `json:"vendor_id,omitempty" yaml:"vendor_id,omitempty"`
-	Product    string `json:"product,omitempty" yaml:"product,omitempty"`
-	ProductID  string `json:"product_id,omitempty" yaml:"product_id,omitempty"`
+	Driver        string                  `json:"driver" yaml:"driver"`
+	DriverVersion string                  `json:"driver_version" yaml:"driver_version"`
+	ID            uint64                  `json:"id" yaml:"id"`
+	Nvidia        *ResourcesGPUCardNvidia `json:"nvidia,omitempty" yaml:"nvidia,omitempty"`
+	PCIAddress    string                  `json:"pci_address" yaml:"pci_address"`
+	Vendor        string                  `json:"vendor,omitempty" yaml:"vendor,omitempty"`
+	VendorID      string                  `json:"vendor_id,omitempty" yaml:"vendor_id,omitempty"`
+	Product       string                  `json:"product,omitempty" yaml:"product,omitempty"`
+	ProductID     string                  `json:"product_id,omitempty" yaml:"product_id,omitempty"`
 }
 
 // ResourcesGPU represents the GPU resources available on the system
