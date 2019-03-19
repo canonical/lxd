@@ -591,5 +591,11 @@ cron expression: `<minute> <hour> <day-of-month> <month> <day-of-week>`. If this
 empty (default), no snapshots will be created. `snapshots.schedule.stopped`
 controls whether or not stopped container are to be automatically snapshotted.
 It defaults to `false`. `snapshots.pattern` takes a pongo2 template string,
-and the pongo2 context contains the `creation_date` variable. In order to avoid
-name colisions, snapshots will be suffixed with `-0`, `-1`, and so on.
+and the pongo2 context contains the `creation_date` variable. Be aware that you
+should format the date (e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`) 
+in your template string to avoid forbidden characters in your snapshot name.
+Another way to avoid name collisions is to use the placeholder `%d`. If a snapshot
+with the same name (excluding the placeholder) already exists, all existing snapshot
+names will be taken into account to find the highest number at the placeholders
+position. This numnber will be incremented by one for the new name. The starting
+number if no snapshot exists will be `0`.
