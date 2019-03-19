@@ -143,7 +143,17 @@ func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
 			}
 
 			fmt.Printf(prefix+i18n.G("PCI address: %v")+"\n", gpu.PCIAddress)
-			fmt.Printf(prefix+i18n.G("Driver: %v")+"\n", gpu.Driver)
+			fmt.Printf(prefix+i18n.G("Driver: %v (%v)")+"\n", gpu.Driver, gpu.DriverVersion)
+
+			if gpu.Nvidia != nil {
+				fmt.Printf(prefix + i18n.G("NVIDIA information:") + "\n")
+				fmt.Printf(prefix+"  "+i18n.G("Architecture: %v")+"\n", gpu.Nvidia.Architecture)
+				fmt.Printf(prefix+"  "+i18n.G("Brand: %v")+"\n", gpu.Nvidia.Brand)
+				fmt.Printf(prefix+"  "+i18n.G("Model: %v")+"\n", gpu.Nvidia.Model)
+				fmt.Printf(prefix+"  "+i18n.G("CUDA Version: %v")+"\n", gpu.Nvidia.CUDAVersion)
+				fmt.Printf(prefix+"  "+i18n.G("NVRM Version: %v")+"\n", gpu.Nvidia.NVRMVersion)
+				fmt.Printf(prefix+"  "+i18n.G("UUID: %v")+"\n", gpu.Nvidia.UUID)
+			}
 		}
 
 		if len(resources.GPU.Cards) == 1 {
