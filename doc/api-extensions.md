@@ -676,7 +676,7 @@ from having their filesystem shifted.
 ## snapshot\_expiry
 This adds support for snapshot expiration. The task is run minutely. The config
 option `snapshots.expiry` takes an expression in the form of `1M 2H 3d 4w 5m
-6y` (1 minute, 2 hours, 3 days, 4 weeks, 5 months, 6 weeks), however not all
+6y` (1 minute, 2 hours, 3 days, 4 weeks, 5 months, 6 years), however not all
 parts have to be used.
 
 Snapshots which are then created will be given an expiry date based on the
