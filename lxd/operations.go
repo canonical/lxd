@@ -308,6 +308,17 @@ func (op *operation) Render() (string, *api.Operation, error) {
 		resources = tmpResources
 	}
 
+	// Local server name
+	var err error
+	var serverName string
+	err = op.cluster.Transaction(func(tx *db.ClusterTx) error {
+		serverName, err = tx.NodeName()
+		return err
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
 	return op.url, &api.Operation{
 		ID:          op.id,
 		Class:       op.class.String(),
@@ -320,6 +331,7 @@ func (op *operation) Render() (string, *api.Operation, error) {
 		Metadata:    op.metadata,
 		MayCancel:   op.mayCancel(),
 		Err:         op.err,
+		Location:    serverName,
 	}, nil
 }
 
