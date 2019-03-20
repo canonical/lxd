@@ -59,11 +59,23 @@ func serverResourcesGet(d *Daemon, r *http.Request) Response {
 		gpu := api.ResourcesGPUCard{}
 		gpu.ID = id
 		gpu.Driver = card.driver
+		gpu.DriverVersion = card.driverVersion
 		gpu.PCIAddress = card.pci
 		gpu.Vendor = card.vendorName
 		gpu.VendorID = card.vendorID
 		gpu.Product = card.productName
 		gpu.ProductID = card.productID
+
+		if card.isNvidia {
+			gpu.Nvidia = &api.ResourcesGPUCardNvidia{
+				CUDAVersion:  card.nvidia.cudaVersion,
+				NVRMVersion:  card.nvidia.nvrmVersion,
+				Brand:        card.nvidia.brand,
+				Model:        card.nvidia.model,
+				UUID:         card.nvidia.uuid,
+				Architecture: card.nvidia.architecture,
+			}
+		}
 
 		gpus.Cards = append(gpus.Cards, gpu)
 		gpus.Total += 1
