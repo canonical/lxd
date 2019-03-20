@@ -568,10 +568,9 @@ func deviceNetlinkListener() (chan []string, chan []string, chan usbDevice, erro
 	UEVENT_BUFFER_SIZE := 2048
 
 	fd, err := syscall.Socket(
-		syscall.AF_NETLINK, syscall.SOCK_RAW,
+		syscall.AF_NETLINK, syscall.SOCK_RAW|syscall.SOCK_CLOEXEC,
 		NETLINK_KOBJECT_UEVENT,
 	)
-
 	if err != nil {
 		return nil, nil, nil, err
 	}
