@@ -17,4 +17,7 @@ type Operation struct {
 	Metadata    map[string]interface{} `json:"metadata" yaml:"metadata"`
 	MayCancel   bool                   `json:"may_cancel" yaml:"may_cancel"`
 	Err         string                 `json:"err" yaml:"err"`
+
+	// API extension: operation_location
+	Location string `json:"location" yaml:"location"`
 }
