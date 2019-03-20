@@ -988,7 +988,10 @@ func (n *network) Start() error {
 	if mtu != "" && n.config["bridge.driver"] != "openvswitch" {
 		_, err = shared.RunCommand("ip", "link", "add", "dev", fmt.Sprintf("%s-mtu", n.name), "mtu", mtu, "type", "dummy")
 		if err == nil {
-			networkAttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
+			_, err = shared.RunCommand("ip", "link", "set", "dev", fmt.Sprintf("%s-mtu", n.name), "up")
+			if err == nil {
+				networkAttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
+			}
 		}
 	}
 
