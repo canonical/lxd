@@ -140,20 +140,29 @@ func (c *cmdOperationList) Run(cmd *cobra.Command, args []string) error {
 			cancelable = i18n.G("YES")
 		}
 
-		data = append(data, []string{op.ID, strings.ToUpper(op.Class), op.Description, strings.ToUpper(op.Status), cancelable, op.CreatedAt.UTC().Format("2006/01/02 15:04 UTC")})
+		entry := []string{op.ID, strings.ToUpper(op.Class), op.Description, strings.ToUpper(op.Status), cancelable, op.CreatedAt.UTC().Format("2006/01/02 15:04 UTC")}
+		if resource.server.IsClustered() {
+			entry = append(entry, op.Location)
+		}
+
+		data = append(data, entry)
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAutoWrapText(false)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(true)
-	table.SetHeader([]string{
+	header := []string{
 		i18n.G("ID"),
 		i18n.G("TYPE"),
 		i18n.G("DESCRIPTION"),
 		i18n.G("STATUS"),
 		i18n.G("CANCELABLE"),
-		i18n.G("CREATED")})
+		i18n.G("CREATED")}
+	if resource.server.IsClustered() {
+		header = append(header, i18n.G("LOCATION"))
+	}
+	table.SetHeader(header)
 	sort.Sort(byName(data))
 	table.AppendBulk(data)
 	table.Render()
