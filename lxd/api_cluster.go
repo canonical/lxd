@@ -494,10 +494,7 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 			}
 		}
 
-		// FIXME: special case handling MAAS connection if the config
-		// in the cluster is different than what we had locally before
-		// joining. Ideally this should be something transparent or
-		// more generic, perhaps triggering some parts of Daemon.Init.
+		// Handle optional service integration on cluster join
 		var clusterConfig *cluster.Config
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
@@ -516,9 +513,22 @@ func clusterPutJoin(d *Daemon, req api.ClusterPut) Response {
 		if err != nil {
 			return err
 		}
+
+		// Connect to MAAS
 		url, key := clusterConfig.MAASController()
 		machine := nodeConfig.MAASMachine()
 		err = d.setupMAASController(url, key, machine)
+		if err != nil {
+			return err
+		}
+
+		// Connect to Candid
+		endpoint := clusterConfig.CandidEndpoint()
+		endpointKey := clusterConfig.CandidEndpointKey()
+		expiry := clusterConfig.CandidExpiry()
+		domains := clusterConfig.CandidDomains()
+
+		err = d.setupExternalAuthentication(endpoint, endpointKey, expiry, domains)
 		if err != nil {
 			return err
 		}
