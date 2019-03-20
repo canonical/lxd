@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2019-03-19 15:46-0700\n"
+"POT-Creation-Date: 2019-03-20 11:28-0700\n"
 "PO-Revision-Date: 2018-09-08 19:22+0000\n"
 "Last-Translator: m4sk1n <me@m4sk.in>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -419,7 +419,7 @@ msgstr ""
 msgid "Bytes sent"
 msgstr ""
 
-#: lxc/operation.go:158
+#: lxc/operation.go:163
 msgid "CANCELABLE"
 msgstr ""
 
@@ -443,7 +443,7 @@ msgstr ""
 msgid "CPUs:"
 msgstr ""
 
-#: lxc/operation.go:159
+#: lxc/operation.go:164
 msgid "CREATED"
 msgstr ""
 
@@ -740,7 +740,7 @@ msgid "DATABASE"
 msgstr ""
 
 #: lxc/image.go:945 lxc/image_alias.go:230 lxc/list.go:462 lxc/network.go:871
-#: lxc/operation.go:156 lxc/storage.go:560 lxc/storage_volume.go:1121
+#: lxc/operation.go:161 lxc/storage.go:560 lxc/storage_volume.go:1121
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -824,7 +824,7 @@ msgstr ""
 #: lxc/network.go:809 lxc/network.go:929 lxc/network.go:1004
 #: lxc/network.go:1054 lxc/network.go:1123 lxc/network.go:1185
 #: lxc/operation.go:25 lxc/operation.go:54 lxc/operation.go:101
-#: lxc/operation.go:177 lxc/profile.go:32 lxc/profile.go:104 lxc/profile.go:167
+#: lxc/operation.go:186 lxc/profile.go:32 lxc/profile.go:104 lxc/profile.go:167
 #: lxc/profile.go:247 lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407
 #: lxc/profile.go:531 lxc/profile.go:580 lxc/profile.go:678 lxc/profile.go:754
 #: lxc/profile.go:804 lxc/profile.go:863 lxc/profile.go:917 lxc/project.go:30
@@ -1220,7 +1220,7 @@ msgstr ""
 msgid "HOSTNAME"
 msgstr ""
 
-#: lxc/operation.go:154
+#: lxc/operation.go:159
 msgid "ID"
 msgstr ""
 
@@ -1397,7 +1397,8 @@ msgstr ""
 msgid "LAST USED AT"
 msgstr ""
 
-#: lxc/list.go:487 lxc/network.go:984 lxc/storage_volume.go:1125
+#: lxc/list.go:487 lxc/network.go:984 lxc/operation.go:166
+#: lxc/storage_volume.go:1125
 msgid "LOCATION"
 msgstr ""
 
@@ -2373,7 +2374,7 @@ msgstr ""
 msgid "STATIC"
 msgstr ""
 
-#: lxc/operation.go:157
+#: lxc/operation.go:162
 msgid "STATUS"
 msgstr ""
 
@@ -2478,7 +2479,7 @@ msgstr ""
 msgid "Show details of a cluster member"
 msgstr ""
 
-#: lxc/operation.go:176 lxc/operation.go:177
+#: lxc/operation.go:185 lxc/operation.go:186
 msgid "Show details on a background operation"
 msgstr ""
 
@@ -2678,7 +2679,7 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/list.go:470 lxc/network.go:869 lxc/network.go:981 lxc/operation.go:155
+#: lxc/list.go:470 lxc/network.go:869 lxc/network.go:981 lxc/operation.go:160
 #: lxc/storage_volume.go:1119
 msgid "TYPE"
 msgstr ""
@@ -3470,7 +3471,7 @@ msgid ""
 "    Rename a snapshot."
 msgstr ""
 
-#: lxc/operation.go:179
+#: lxc/operation.go:188
 msgid ""
 "lxc operation show 344a79e4-d88a-45bf-9c39-c72c26f6ab8a\n"
 "    Show details on that operation UUID"
@@ -3766,7 +3767,7 @@ msgstr ""
 msgid "show [<remote>:]<network>"
 msgstr ""
 
-#: lxc/operation.go:175
+#: lxc/operation.go:184
 msgid "show [<remote>:]<operation>"
 msgstr ""
 
