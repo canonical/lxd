@@ -115,6 +115,8 @@ func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
 					fmt.Printf(prefix+i18n.G("Frequency: %vMhz")+"\n", cpu.Frequency)
 				}
 			}
+
+			fmt.Printf(prefix+i18n.G("NUMA node: %v")+"\n", cpu.NUMANode)
 		}
 
 		if len(resources.CPU.Sockets) == 1 {
@@ -144,6 +146,7 @@ func (c *cmdInfo) remoteInfo(d lxd.ContainerServer) error {
 
 			fmt.Printf(prefix+i18n.G("PCI address: %v")+"\n", gpu.PCIAddress)
 			fmt.Printf(prefix+i18n.G("Driver: %v (%v)")+"\n", gpu.Driver, gpu.DriverVersion)
+			fmt.Printf(prefix+i18n.G("NUMA node: %v")+"\n", gpu.NUMANode)
 
 			if gpu.Nvidia != nil {
 				fmt.Printf(prefix + i18n.G("NVIDIA information:") + "\n")
