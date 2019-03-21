@@ -22,6 +22,9 @@ type ResourcesCPUSocket struct {
 
 	// API extension: resources_cpu_socket
 	Socket uint64 `json:"socket" yaml:"socket"`
+
+	// API extension: resources_numa
+	NUMANode uint64 `json:"numa_node" yaml:"numa_node"`
 }
 
 // ResourcesCPU represents the cpu resources available on the system
@@ -54,6 +57,9 @@ type ResourcesGPUCard struct {
 	VendorID      string                  `json:"vendor_id,omitempty" yaml:"vendor_id,omitempty"`
 	Product       string                  `json:"product,omitempty" yaml:"product,omitempty"`
 	ProductID     string                  `json:"product_id,omitempty" yaml:"product_id,omitempty"`
+
+	// API extension: resources_numa
+	NUMANode uint64 `json:"numa_node" yaml:"numa_node"`
 }
 
 // ResourcesGPU represents the GPU resources available on the system
