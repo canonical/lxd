@@ -119,6 +119,7 @@ type gpuDevice struct {
 	vendorName  string
 	productID   string
 	productName string
+	numaNode    uint64
 
 	// If related devices have the same PCI address as the GPU we should
 	// mount them all. Meaning if we detect /dev/dri/card0,
@@ -317,6 +318,20 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 			}
 		}
 
+		// Retrieve node ID
+		numaPath := fmt.Sprintf(filepath.Join(device, "numa_node"))
+		numaNode := uint64(0)
+		if shared.PathExists(numaPath) {
+			numaID, err := shared.ParseNumberFromFile(numaPath)
+			if err != nil {
+				continue
+			}
+
+			if numaID > 0 {
+				numaNode = uint64(numaID)
+			}
+		}
+
 		// Retrieve driver
 		driver := ""
 		driverVersion := ""
@@ -354,6 +369,7 @@ func deviceLoadGpu(all bool) ([]gpuDevice, []nvidiaGpuDevice, error) {
 				pci:           pciAddr,
 				vendorID:      vendorTmp,
 				productID:     productTmp,
+				numaNode:      numaNode,
 				driver:        driver,
 				driverVersion: driverVersion,
 				path:          filepath.Join("/dev/dri", drmEnt.Name()),
