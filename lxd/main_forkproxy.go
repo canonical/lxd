@@ -660,7 +660,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			ev.events |= C.EPOLLONESHOT
 		}
 
-		*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&ev)) + unsafe.Sizeof(ev.events))) = C.int(f.Fd())
+		*(*C.int)(unsafe.Pointer(&ev.data)) = C.int(f.Fd())
 		ret := C.epoll_ctl(epFd, C.EPOLL_CTL_ADD, C.int(f.Fd()), &ev)
 		if ret < 0 {
 			return fmt.Errorf("Failed to add listener fd to epoll instance")
@@ -677,7 +677,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		for i := C.int(0); i < nfds; i++ {
-			curFd := *(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&events[i])) + unsafe.Sizeof(events[i].events)))
+			curFd := *(*C.int)(unsafe.Pointer(&events[i].data))
 			srcConn, ok := listenerMap[int(curFd)]
 			if !ok {
 				continue
