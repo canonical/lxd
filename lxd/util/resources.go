@@ -20,6 +20,7 @@ type thread struct {
 	socketID       uint64
 	frequency      uint64
 	frequencyTurbo uint64
+	numaNode       uint64
 }
 
 func parseCpuinfo() ([]thread, error) {
@@ -51,6 +52,24 @@ func parseCpuinfo() ([]thread, error) {
 
 			t = &thread{}
 			t.ID = uint64(id)
+
+			files, err := ioutil.ReadDir(fmt.Sprintf("/sys/devices/system/cpu/cpu%d", t.ID))
+			if err != nil {
+				return nil, err
+			}
+
+			for _, file := range files {
+				if strings.HasPrefix(file.Name(), "node") {
+					nodeID := strings.TrimPrefix(file.Name(), "node")
+					nr, err := strconv.ParseUint(nodeID, 10, 64)
+					if err != nil {
+						return nil, err
+					}
+					t.numaNode = nr
+
+					break
+				}
+			}
 
 			path := fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology/core_id", t.ID)
 			coreID, err := shared.ParseNumberFromFile(path)
@@ -164,6 +183,25 @@ func parseSysDevSystemCPU() ([]thread, error) {
 
 		t := thread{}
 		t.ID = uint64(idx)
+
+		files, err := ioutil.ReadDir(fmt.Sprintf("/sys/devices/system/cpu/cpu%d", t.ID))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, file := range files {
+			if strings.HasPrefix(file.Name(), "node") {
+				nodeID := strings.TrimPrefix(file.Name(), "node")
+				nr, err := strconv.ParseUint(nodeID, 10, 64)
+				if err != nil {
+					return nil, err
+				}
+				t.numaNode = nr
+
+				break
+			}
+		}
+
 		path := fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology/core_id", t.ID)
 		coreID, err := shared.ParseNumberFromFile(path)
 		if err != nil {
@@ -257,6 +295,7 @@ func CPUResource() (*api.ResourcesCPU, error) {
 		}
 
 		cur.Socket = v.socketID
+		cur.NUMANode = v.numaNode
 		cur.Threads++
 		cur.Name = v.name
 		cur.Vendor = v.vendor
