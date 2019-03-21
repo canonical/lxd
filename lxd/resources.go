@@ -65,6 +65,7 @@ func serverResourcesGet(d *Daemon, r *http.Request) Response {
 		gpu.VendorID = card.vendorID
 		gpu.Product = card.productName
 		gpu.ProductID = card.productID
+		gpu.NUMANode = card.numaNode
 
 		if card.isNvidia {
 			gpu.Nvidia = &api.ResourcesGPUCardNvidia{
