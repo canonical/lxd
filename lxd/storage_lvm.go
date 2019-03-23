@@ -1697,6 +1697,7 @@ func (s *storageLvm) ContainerBackupCreate(backup backup, source container) erro
 	if err != nil {
 		return err
 	}
+	defer os.RemoveAll(tmpPath)
 
 	// Prepare for rsync
 	rsync := func(oldPath string, newPath string, bwlimit string) error {

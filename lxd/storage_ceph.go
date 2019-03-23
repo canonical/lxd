@@ -1987,6 +1987,7 @@ func (s *storageCeph) ContainerBackupCreate(backup backup, source container) err
 	if err != nil {
 		return err
 	}
+	defer os.RemoveAll(tmpPath)
 
 	// Generate the actual backup
 	if !backup.containerOnly {
