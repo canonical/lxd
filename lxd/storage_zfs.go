@@ -2136,6 +2136,7 @@ func (s *storageZfs) ContainerBackupCreate(backup backup, source container) erro
 	if err != nil {
 		return err
 	}
+	defer os.RemoveAll(tmpPath)
 
 	// Generate the actual backup
 	if backup.optimizedStorage {
