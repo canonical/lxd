@@ -376,6 +376,15 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 
 	// Create the tarball
 	backupPath := shared.VarPath("backups", backup.name)
+	success := false
+	defer func() {
+		if success {
+			return
+		}
+
+		os.RemoveAll(backupPath)
+	}()
+
 	args := []string{"-cf", backupPath, "--xattrs", "-C", path, "--transform", "s,^./,backup/,", "."}
 	_, err = shared.RunCommand("tar", args...)
 	if err != nil {
@@ -404,7 +413,10 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 		if err != nil {
 			return err
 		}
+		compressedName := compressed.Name()
+
 		defer compressed.Close()
+		defer os.Remove(compressedName)
 
 		err = compressFile(compress, infile, compressed)
 		if err != nil {
@@ -416,7 +428,7 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 			return err
 		}
 
-		err = os.Rename(compressed.Name(), backupPath)
+		err = os.Rename(compressedName, backupPath)
 		if err != nil {
 			return err
 		}
@@ -428,6 +440,7 @@ func backupCreateTarball(s *state.State, path string, backup backup) error {
 		return err
 	}
 
+	success = true
 	return nil
 }
 
