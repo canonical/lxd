@@ -707,3 +707,6 @@ Add a new GPU struct to the server resources, listing all usable GPUs on the sys
 
 ## resources\_numa
 Shows the NUMA node for all CPUs and GPUs.
+
+## kernel\_features
+Exposes the state of optional kernel features through the server environment.
