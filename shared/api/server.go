@@ -10,22 +10,25 @@ type ServerEnvironment struct {
 	DriverVersion          string   `json:"driver_version" yaml:"driver_version"`
 	Kernel                 string   `json:"kernel" yaml:"kernel"`
 	KernelArchitecture     string   `json:"kernel_architecture" yaml:"kernel_architecture"`
-	KernelVersion          string   `json:"kernel_version" yaml:"kernel_version"`
-	Server                 string   `json:"server" yaml:"server"`
-	ServerPid              int      `json:"server_pid" yaml:"server_pid"`
-	ServerVersion          string   `json:"server_version" yaml:"server_version"`
-	Storage                string   `json:"storage" yaml:"storage"`
-	StorageVersion         string   `json:"storage_version" yaml:"storage_version"`
+
+	// API extension: kernel_features
+	KernelFeatures map[string]string `json:"kernel_features" yaml:"kernel_features"`
+
+	KernelVersion string `json:"kernel_version" yaml:"kernel_version"`
+
+	// API extension: projects
+	Project string `json:"project" yaml:"project"`
+
+	Server string `json:"server" yaml:"server"`
 
 	// API extension: clustering
 	ServerClustered bool   `json:"server_clustered" yaml:"server_clustered"`
 	ServerName      string `json:"server_name" yaml:"server_name"`
 
-	// API extension: projects
-	Project string `json:"project" yaml:"project"`
-
-	// API extension: kernel_features
-	KernelFeatures map[string]string `json:"kernel_features" yaml:"kernel_features"`
+	ServerPid      int    `json:"server_pid" yaml:"server_pid"`
+	ServerVersion  string `json:"server_version" yaml:"server_version"`
+	Storage        string `json:"storage" yaml:"storage"`
+	StorageVersion string `json:"storage_version" yaml:"storage_version"`
 }
 
 // ServerPut represents the modifiable fields of a LXD server configuration
