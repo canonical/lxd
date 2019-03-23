@@ -23,6 +23,9 @@ type ServerEnvironment struct {
 
 	// API extension: projects
 	Project string `json:"project" yaml:"project"`
+
+	// API extension: kernel_features
+	KernelFeatures map[string]string `json:"kernel_features" yaml:"kernel_features"`
 }
 
 // ServerPut represents the modifiable fields of a LXD server configuration
