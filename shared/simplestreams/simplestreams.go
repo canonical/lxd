@@ -274,30 +274,30 @@ type SimpleStreamsManifestProduct struct {
 	Architecture    string                                         `json:"arch"`
 	OperatingSystem string                                         `json:"os"`
 	Release         string                                         `json:"release"`
-	ReleaseCodename string                                         `json:"release_codename"`
+	ReleaseCodename string                                         `json:"release_codename,omitempty"`
 	ReleaseTitle    string                                         `json:"release_title"`
-	Supported       bool                                           `json:"supported"`
-	SupportedEOL    string                                         `json:"support_eol"`
-	Version         string                                         `json:"version"`
+	Supported       bool                                           `json:"supported,omitempty"`
+	SupportedEOL    string                                         `json:"support_eol,omitempty"`
+	Version         string                                         `json:"version,omitempty"`
 	Versions        map[string]SimpleStreamsManifestProductVersion `json:"versions"`
 }
 
 type SimpleStreamsManifestProductVersion struct {
-	PublicName string                                             `json:"pubname"`
-	Label      string                                             `json:"label"`
+	PublicName string                                             `json:"pubname,omitempty"`
+	Label      string                                             `json:"label,omitempty"`
 	Items      map[string]SimpleStreamsManifestProductVersionItem `json:"items"`
 }
 
 type SimpleStreamsManifestProductVersionItem struct {
 	Path                  string `json:"path"`
 	FileType              string `json:"ftype"`
-	HashMd5               string `json:"md5"`
-	HashSha256            string `json:"sha256"`
-	LXDHashSha256         string `json:"combined_sha256"`
-	LXDHashSha256RootXz   string `json:"combined_rootxz_sha256"`
-	LXDHashSha256SquashFs string `json:"combined_squashfs_sha256"`
+	HashMd5               string `json:"md5,omitempty"`
+	HashSha256            string `json:"sha256,omitempty"`
+	LXDHashSha256         string `json:"combined_sha256,omitempty"`
+	LXDHashSha256RootXz   string `json:"combined_rootxz_sha256,omitempty"`
+	LXDHashSha256SquashFs string `json:"combined_squashfs_sha256,omitempty"`
 	Size                  int64  `json:"size"`
-	DeltaBase             string `json:"delta_base"`
+	DeltaBase             string `json:"delta_base,omitempty"`
 }
 
 type SimpleStreamsIndex struct {
