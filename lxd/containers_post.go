@@ -617,7 +617,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) Re
 
 		// Dump tarball to storage
 		f.Seek(0, 0)
-		err = containerCreateFromBackup(d.State(), *bInfo, f, pool != "")
+		cPool, err := containerCreateFromBackup(d.State(), *bInfo, f, pool != "")
 		if err != nil {
 			return errors.Wrap(err, "Create container from backup")
 		}
@@ -627,6 +627,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) Re
 			Force: true,
 		})
 		if err != nil {
+			cPool.ContainerDelete(&containerLXC{name: bInfo.Name, project: project})
 			return errors.Wrap(err, "Marshal internal import request")
 		}
 
@@ -639,6 +640,7 @@ func createFromBackup(d *Daemon, project string, data io.Reader, pool string) Re
 		resp := internalImport(d, req)
 
 		if resp.String() != "success" {
+			cPool.ContainerDelete(&containerLXC{name: bInfo.Name, project: project})
 			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
 
