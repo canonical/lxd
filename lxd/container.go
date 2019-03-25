@@ -705,7 +705,7 @@ func containerCreateAsEmpty(d *Daemon, args db.ContainerArgs) (container, error)
 }
 
 func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeeker,
-	customPool bool) error {
+	customPool bool) (storage, error) {
 	var pool storage
 	var fixBackupFile = false
 
@@ -713,31 +713,31 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 	pool, storageErr := storagePoolInit(s, info.Pool)
 	if storageErr != nil && errors.Cause(storageErr) != db.ErrNoSuchObject {
 		// Unexpected error
-		return storageErr
+		return nil, storageErr
 	}
 
 	if errors.Cause(storageErr) == db.ErrNoSuchObject {
 		// The pool doesn't exist, and the backup is in binary format so we
 		// cannot alter the backup.yaml.
 		if info.HasBinaryFormat {
-			return storageErr
+			return nil, storageErr
 		}
 
 		// Get the default profile
 		_, profile, err := s.Cluster.ProfileGet(info.Project, "default")
 		if err != nil {
-			return errors.Wrap(err, "Failed to get default profile")
+			return nil, errors.Wrap(err, "Failed to get default profile")
 		}
 
 		_, v, err := shared.GetRootDiskDevice(profile.Devices)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get root disk device")
+			return nil, errors.Wrap(err, "Failed to get root disk device")
 		}
 
 		// Use the default-profile's root pool
 		pool, err = storagePoolInit(s, v["pool"])
 		if err != nil {
-			return errors.Wrap(err, "Failed to initialize storage pool")
+			return nil, errors.Wrap(err, "Failed to initialize storage pool")
 		}
 
 		fixBackupFile = true
@@ -746,25 +746,25 @@ func containerCreateFromBackup(s *state.State, info backupInfo, data io.ReadSeek
 	// Find the compression algorithm
 	tarArgs, _, _, err := shared.DetectCompressionFile(data)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	data.Seek(0, 0)
 
 	// Unpack tarball
 	err = pool.ContainerBackupLoad(info, data, tarArgs)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if fixBackupFile || customPool {
 		// Update the pool
 		err = backupFixStoragePool(s.Cluster, info, !customPool)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return pool, nil
 }
 
 func containerCreateEmptySnapshot(s *state.State, args db.ContainerArgs) (container, error) {
