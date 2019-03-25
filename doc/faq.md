@@ -68,10 +68,10 @@ files**.
 
 In a larger [Production Environment](production-setup.md), it is common to have
 multiple vlans and have LXD clients attached directly to those vlans. Be aware that
-if you are using netplan and system-networkd, you will encounter some bugs that
+if you are using netplan and systemd-networkd, you will encounter some bugs that
 could cause catastrophic issues
 
-### Do not use system-networkd with netplan and bridges based on vlans
+### Do not use systemd-networkd with netplan and bridges based on vlans
 
 At time of writing (2019-03-05), netplan can not assign a random MAC address to
 a bridge attached to a vlan. It always picks the same MAC address, which causes
