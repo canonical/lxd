@@ -338,6 +338,7 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
    Copying the wanted snapshot into a new container and then deleting
    the old container does however work, at the cost of losing any other
    snapshot the container may have had.
+
  - Note that LXD will assume it has full control over the ZFS pool or dataset.
    It is recommended to not maintain any non-LXD owned filesystem entities in
    a LXD zfs pool or dataset since LXD might delete them.
