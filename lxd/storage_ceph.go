@@ -2762,17 +2762,20 @@ func (s *storageCeph) GetState() *state.State {
 
 func (s *storageCeph) StoragePoolVolumeSnapshotCreate(target *api.StorageVolumeSnapshotsPost) error {
 	logger.Debugf("Creating RBD storage volume snapshot \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
-
-	// This is costly but we need to ensure that all cached data has
-	// been committed to disk. If we don't then the rbd snapshot of
-	// the underlying filesystem can be inconsistent or - worst case
-	// - empty.
-	syscall.Sync()
 	sourcePath := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
-	msg, fsFreezeErr := shared.TryRunCommand("fsfreeze", "--freeze", sourcePath)
-	logger.Debugf("Trying to freeze the filesystem: %s: %s", msg, fsFreezeErr)
-	if fsFreezeErr == nil {
-		defer shared.TryRunCommand("fsfreeze", "--unfreeze", sourcePath)
+
+	if shared.IsMountPoint(sourcePath) {
+		// This is costly but we need to ensure that all cached data has
+		// been committed to disk. If we don't then the rbd snapshot of
+		// the underlying filesystem can be inconsistent or - worst case
+		// - empty.
+		syscall.Sync()
+
+		msg, fsFreezeErr := shared.TryRunCommand("fsfreeze", "--freeze", sourcePath)
+		logger.Debugf("Trying to freeze the filesystem: %s: %s", msg, fsFreezeErr)
+		if fsFreezeErr == nil {
+			defer shared.TryRunCommand("fsfreeze", "--unfreeze", sourcePath)
+		}
 	}
 
 	sourceOnlyName, snapshotOnlyName, _ := containerGetParentAndSnapshotName(target.Name)
