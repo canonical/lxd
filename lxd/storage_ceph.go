@@ -2680,8 +2680,14 @@ func (s *storageCeph) StoragePoolVolumeCopy(source *api.StorageVolumeSource) err
 			return err
 		}
 
-		var volumeMntPoint string
+		// Unmap the rbd
+		err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName, true)
+		if err != nil {
+			logger.Errorf("Failed to unmap RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+			return err
+		}
 
+		var volumeMntPoint string
 		if isSnapshot {
 			volumeMntPoint = getStoragePoolVolumeSnapshotMountPoint(s.pool.Name, s.volume.Name)
 		} else {
