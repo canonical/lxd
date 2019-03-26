@@ -222,6 +222,16 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		for _, ct := range ctslist {
+			switch cmd.Name() {
+			case "start":
+				if ct.StatusCode == api.Running {
+					continue
+				}
+			case "stop":
+				if ct.StatusCode == api.Stopped {
+					continue
+				}
+			}
 			names = append(names, ct.Name)
 		}
 	} else {
