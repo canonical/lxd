@@ -1396,11 +1396,6 @@ func (s *storageCeph) ContainerCopy(target container, source container,
 		defer s.ContainerUmount(target, targetContainerMountPoint)
 	}
 
-	err = s.setUnprivUserACL(source, targetContainerMountPoint)
-	if err != nil {
-		return err
-	}
-
 	err = target.TemplateApply("copy")
 	if err != nil {
 		logger.Errorf(`Failed to apply copy template for container "%s": %s`, target.Name(), err)
