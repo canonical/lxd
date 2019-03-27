@@ -1149,6 +1149,11 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup the hooks
+	err = lxcSetConfigItem(cc, "lxc.hook.version", "1")
+	if err != nil {
+		return err
+	}
+
 	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
@@ -2033,36 +2038,6 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 		}
 
-		var mode os.FileMode
-		var uid int64
-		var gid int64
-
-		if c.IsPrivileged() {
-			mode = 0700
-		} else {
-			mode = 0755
-			if idmap != nil {
-				uid, gid = idmap.ShiftIntoNs(0, 0)
-			}
-		}
-
-		err = os.Chmod(c.Path(), mode)
-		if err != nil {
-			return "", err
-		}
-
-		err = os.Chown(c.Path(), int(uid), int(gid))
-		if err != nil {
-			return "", err
-		}
-
-		if ourStart {
-			_, err = c.StorageStop()
-			if err != nil {
-				return "", err
-			}
-		}
-
 		c.updateProgress("")
 	}
 
@@ -2403,6 +2378,31 @@ func (c *containerLXC) startCommon() (string, error) {
 	err = c.c.SaveConfigFile(configPath)
 	if err != nil {
 		os.Remove(configPath)
+		return "", err
+	}
+
+	// Undo liblxc modifying container directory ownership
+	err = os.Chown(c.Path(), 0, 0)
+	if err != nil {
+		if ourStart {
+			c.StorageStop()
+		}
+		return "", err
+	}
+
+	// Set right permission to allow traversal
+	var mode os.FileMode
+	if c.IsPrivileged() {
+		mode = 0700
+	} else {
+		mode = 0711
+	}
+
+	err = os.Chmod(c.Path(), mode)
+	if err != nil {
+		if ourStart {
+			c.StorageStop()
+		}
 		return "", err
 	}
 
