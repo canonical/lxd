@@ -549,7 +549,7 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 	}
 
 	if !privileged {
-		err := s.shiftRootfs(container, nil)
+		err := s.initialShiftRootfs(container, nil)
 		if err != nil {
 			return errors.Wrap(err, "Shift rootfs")
 		}
