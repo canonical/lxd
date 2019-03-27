@@ -508,6 +508,13 @@ func (d *Daemon) init() error {
 		logger.Infof(" - unprivileged file capabilities: no")
 	}
 
+	if util.LoadModule("shiftfs") == nil {
+		d.os.Shiftfs = true
+		logger.Infof(" - shiftfs support: yes")
+	} else {
+		logger.Infof(" - shiftfs support: no")
+	}
+
 	/* Initialize the database */
 	dump, err := initializeDbObject(d)
 	if err != nil {
