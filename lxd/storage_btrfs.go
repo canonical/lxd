@@ -945,7 +945,7 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 	}
 
 	if !container.IsPrivileged() {
-		err := s.shiftRootfs(container, nil)
+		err := s.initialShiftRootfs(container, nil)
 		if err != nil {
 			s.ContainerDelete(container)
 			return errors.Wrap(err, "Failed to shift rootfs")
