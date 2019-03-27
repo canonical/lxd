@@ -251,7 +251,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 					return err
 				}
 
-				err = ShiftIfNecessary(args.Container, args.Idmap)
+				err = resetContainerDiskIdmap(args.Container, args.Idmap)
 				if err != nil {
 					return err
 				}
@@ -286,7 +286,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 					return err
 				}
 
-				err = ShiftIfNecessary(args.Container, args.Idmap)
+				err = resetContainerDiskIdmap(args.Container, args.Idmap)
 				if err != nil {
 					return err
 				}
@@ -314,7 +314,7 @@ func rsyncMigrationSink(conn *websocket.Conn, op *operation, args MigrationSinkA
 		}
 	}
 
-	err = ShiftIfNecessary(args.Container, args.Idmap)
+	err = resetContainerDiskIdmap(args.Container, args.Idmap)
 	if err != nil {
 		return err
 	}

@@ -723,9 +723,7 @@ func deleteSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 	return nil
 }
 
-// ShiftIfNecessary sets the volatile.last_state.idmap key to the idmap last
-// used by the container.
-func ShiftIfNecessary(container container, srcIdmap *idmap.IdmapSet) error {
+func resetContainerDiskIdmap(container container, srcIdmap *idmap.IdmapSet) error {
 	dstIdmap, err := container.IdmapSet()
 	if err != nil {
 		return err
