@@ -429,11 +429,6 @@ func (s *storageLvm) copyContainer(target container, source container) error {
 		return err
 	}
 
-	err = s.setUnprivUserACL(source, targetContainerMntPoint)
-	if err != nil {
-		return err
-	}
-
 	err = target.TemplateApply("copy")
 	if err != nil {
 		return err

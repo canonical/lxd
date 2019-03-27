@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -36,7 +35,6 @@ func (s *storageShared) GetStorageTypeVersion() string {
 }
 
 func (s *storageShared) initialShiftRootfs(c container, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
-	dpath := c.Path()
 	rpath := c.RootfsPath()
 
 	logger.Debugf("Shifting root filesystem \"%s\" for \"%s\"", rpath, c.Name())
@@ -53,46 +51,6 @@ func (s *storageShared) initialShiftRootfs(c container, skipper func(dir string,
 	err = idmapset.ShiftRootfs(rpath, skipper)
 	if err != nil {
 		logger.Debugf("Shift of rootfs %s failed: %s", rpath, err)
-		return err
-	}
-
-	/* Set an acl so the container root can descend the container dir */
-	// TODO: i changed this so it calls s.setUnprivUserAcl, which does
-	// the acl change only if the container is not privileged, think thats right.
-	return s.setUnprivUserACL(c, dpath)
-}
-
-func (s *storageShared) setUnprivUserACL(c container, destPath string) error {
-	idmapset, err := c.IdmapSet()
-	if err != nil {
-		return err
-	}
-
-	// Skip for privileged containers
-	if idmapset == nil {
-		return nil
-	}
-
-	// Make sure the map is valid. Skip if container uid 0 == host uid 0
-	uid, _ := idmapset.ShiftIntoNs(0, 0)
-	switch uid {
-	case -1:
-		return fmt.Errorf("Container doesn't have a uid 0 in its map")
-	case 0:
-		return nil
-	}
-
-	// Attempt to set a POSIX ACL first.
-	acl := fmt.Sprintf("%d:rx", uid)
-	_, err = shared.RunCommand("setfacl", "-m", acl, destPath)
-	if err == nil {
-		return nil
-	}
-
-	// Fallback to chmod if the fs doesn't support it.
-	_, err = shared.RunCommand("chmod", "+x", destPath)
-	if err != nil {
-		logger.Debugf("Failed to set executable bit on the container path: %s", err)
 		return err
 	}
 

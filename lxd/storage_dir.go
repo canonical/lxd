@@ -609,11 +609,6 @@ func (s *storageDir) copyContainer(target container, source container) error {
 		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
 	}
 
-	err = s.setUnprivUserACL(source, targetContainerMntPoint)
-	if err != nil {
-		return err
-	}
-
 	err = target.TemplateApply("copy")
 	if err != nil {
 		return err
@@ -790,11 +785,6 @@ func (s *storageDir) ContainerRestore(container container, sourceContainer conta
 	output, err := rsyncLocalCopy(sourcePath, targetPath, bwlimit)
 	if err != nil {
 		return fmt.Errorf("failed to rsync container: %s: %s", string(output), err)
-	}
-
-	// Now allow unprivileged users to access its data.
-	if err := s.setUnprivUserACL(sourceContainer, targetPath); err != nil {
-		return err
 	}
 
 	logger.Debugf("Restored DIR storage volume for container \"%s\" from %s to %s", s.volume.Name, sourceContainer.Name(), container.Name())
