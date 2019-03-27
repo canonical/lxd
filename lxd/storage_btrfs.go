@@ -1037,12 +1037,6 @@ func (s *storageBtrfs) copyContainer(target container, source container) error {
 		return err
 	}
 
-	err = s.setUnprivUserACL(source, targetContainerSubvolumeName)
-	if err != nil {
-		s.ContainerDelete(target)
-		return err
-	}
-
 	err = target.TemplateApply("copy")
 	if err != nil {
 		return err
@@ -1370,12 +1364,6 @@ func (s *storageBtrfs) ContainerRestore(container container, sourceContainer con
 		} else {
 			failure = err
 		}
-	}
-
-	// Now allow unprivileged users to access its data.
-	err = s.setUnprivUserACL(sourceContainer, targetContainerSubvolumeName)
-	if err != nil {
-		failure = err
 	}
 
 	if failure == nil {
