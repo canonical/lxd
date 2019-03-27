@@ -944,14 +944,6 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 		return errors.Wrap(err, "Failed to create container mountpoint")
 	}
 
-	if !container.IsPrivileged() {
-		err := s.initialShiftRootfs(container, nil)
-		if err != nil {
-			s.ContainerDelete(container)
-			return errors.Wrap(err, "Failed to shift rootfs")
-		}
-	}
-
 	logger.Debugf("Created BTRFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	err = container.TemplateApply("create")
 	if err != nil {

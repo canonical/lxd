@@ -548,13 +548,6 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 		return errors.Wrap(err, "Unpack image")
 	}
 
-	if !privileged {
-		err := s.initialShiftRootfs(container, nil)
-		if err != nil {
-			return errors.Wrap(err, "Shift rootfs")
-		}
-	}
-
 	err = container.TemplateApply("create")
 	if err != nil {
 		return errors.Wrap(err, "Apply template")
