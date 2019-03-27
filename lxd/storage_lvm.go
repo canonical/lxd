@@ -996,13 +996,6 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 		return errors.Wrap(err, "Set mount point permissions")
 	}
 
-	if !container.IsPrivileged() {
-		err := s.initialShiftRootfs(container, nil)
-		if err != nil {
-			return errors.Wrap(err, "Shift rootfs")
-		}
-	}
-
 	err = container.TemplateApply("create")
 	if err != nil {
 		logger.Errorf("Error in create template during ContainerCreateFromImage, continuing to unmount: %s", err)

@@ -837,14 +837,6 @@ func (s *storageBtrfs) ContainerCreateFromImage(container container, fingerprint
 		return err
 	}
 
-	if !container.IsPrivileged() {
-		err := s.initialShiftRootfs(container, nil)
-		if err != nil {
-			s.ContainerDelete(container)
-			return err
-		}
-	}
-
 	logger.Debugf("Created BTRFS storage volume for container \"%s\" on storage pool \"%s\"", s.volume.Name, s.pool.Name)
 	return container.TemplateApply("create")
 }

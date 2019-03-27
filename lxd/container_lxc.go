@@ -430,9 +430,9 @@ func containerLXCCreate(s *state.State, args db.ContainerArgs) (container, error
 	// Invalid idmap cache
 	c.idmapset = nil
 
-	// Set last_state to the map we have on disk
+	// Set last_state if not currently set
 	if c.localConfig["volatile.last_state.idmap"] == "" {
-		err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
+		err = c.ConfigKeySet("volatile.last_state.idmap", "[]")
 		if err != nil {
 			c.Delete()
 			logger.Error("Failed creating container", ctxMap)

@@ -1,12 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 type storageShared struct {
@@ -32,29 +28,6 @@ func (s *storageShared) GetStorageTypeName() string {
 
 func (s *storageShared) GetStorageTypeVersion() string {
 	return s.sTypeVersion
-}
-
-func (s *storageShared) initialShiftRootfs(c container, skipper func(dir string, absPath string, fi os.FileInfo) bool) error {
-	rpath := c.RootfsPath()
-
-	logger.Debugf("Shifting root filesystem \"%s\" for \"%s\"", rpath, c.Name())
-
-	idmapset, err := c.IdmapSet()
-	if err != nil {
-		return err
-	}
-
-	if idmapset == nil {
-		return fmt.Errorf("IdmapSet of container '%s' is nil", c.Name())
-	}
-
-	err = idmapset.ShiftRootfs(rpath, skipper)
-	if err != nil {
-		logger.Debugf("Shift of rootfs %s failed: %s", rpath, err)
-		return err
-	}
-
-	return nil
 }
 
 func (s *storageShared) createImageDbPoolVolume(fingerprint string) error {

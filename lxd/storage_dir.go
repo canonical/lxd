@@ -513,13 +513,6 @@ func (s *storageDir) ContainerCreateFromImage(container container, imageFingerpr
 		return err
 	}
 
-	if !privileged {
-		err := s.initialShiftRootfs(container, nil)
-		if err != nil {
-			return err
-		}
-	}
-
 	err = container.TemplateApply("create")
 	if err != nil {
 		return err
