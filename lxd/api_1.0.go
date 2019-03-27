@@ -205,6 +205,7 @@ func api10Get(d *Daemon, r *http.Request) Response {
 		"netnsid_getifaddrs": fmt.Sprintf("%v", d.os.NetnsGetifaddrs),
 		"uevent_injection":   fmt.Sprintf("%v", d.os.UeventInjection),
 		"unpriv_fscaps":      fmt.Sprintf("%v", d.os.VFS3Fscaps),
+		"shiftfs":            fmt.Sprintf("%v", d.os.Shiftfs),
 	}
 
 	drivers := readStoragePoolDriversCache()
