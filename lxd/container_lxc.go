@@ -1225,7 +1225,7 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup idmap
-	idmapset, err := c.IdmapSet()
+	idmapset, err := c.NextIdmap()
 	if err != nil {
 		return err
 	}
@@ -1976,12 +1976,12 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	/* Deal with idmap changes */
-	idmap, err := c.IdmapSet()
+	idmap, err := c.NextIdmap()
 	if err != nil {
 		return "", errors.Wrap(err, "Set ID map")
 	}
 
-	lastIdmap, err := c.LastIdmapSet()
+	lastIdmap, err := c.DiskIdmap()
 	if err != nil {
 		return "", errors.Wrap(err, "Set last ID map")
 	}
@@ -2038,12 +2038,17 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 		}
 
+		err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
+		if err != nil {
+			return "", errors.Wrapf(err, "Set volatile.last_state.idmap config key on container %q (id %d)", c.name, c.id)
+		}
+
 		c.updateProgress("")
 	}
 
-	err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
+	err = c.ConfigKeySet("volatile.idmap.current", jsonIdmap)
 	if err != nil {
-		return "", errors.Wrapf(err, "Set volatile.last_state.idmap config key on container %q (id %d)", c.name, c.id)
+		return "", errors.Wrapf(err, "Set volatile.idmap.current config key on container %q (id %d)", c.name, c.id)
 	}
 
 	// Generate the Seccomp profile
@@ -5064,7 +5069,7 @@ func (c *containerLXC) Export(w io.Writer, properties map[string]string) error {
 	}
 
 	// Unshift the container
-	idmap, err := c.LastIdmapSet()
+	idmap, err := c.DiskIdmap()
 	if err != nil {
 		logger.Error("Failed exporting container", ctxMap)
 		return err
@@ -5392,7 +5397,7 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		 * namespace.
 		 */
 		if !c.IsPrivileged() {
-			idmapset, err := c.IdmapSet()
+			idmapset, err := c.CurrentIdmap()
 			if err != nil {
 				return err
 			}
@@ -5599,7 +5604,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 
 			// Get the right uid and gid for the container
 			if !c.IsPrivileged() {
-				idmapset, err := c.IdmapSet()
+				idmapset, err := c.DiskIdmap()
 				if err != nil {
 					return errors.Wrap(err, "Failed to set ID map")
 				}
@@ -5842,7 +5847,7 @@ func (c *containerLXC) FilePull(srcpath string, dstpath string) (int64, int64, o
 
 	// Unmap uid and gid if needed
 	if !c.IsRunning() {
-		idmapset, err := c.LastIdmapSet()
+		idmapset, err := c.DiskIdmap()
 		if err != nil {
 			return -1, -1, 0, "", nil, err
 		}
@@ -5862,7 +5867,7 @@ func (c *containerLXC) FilePush(type_ string, srcpath string, dstpath string, ui
 
 	// Map uid and gid if needed
 	if !c.IsRunning() {
-		idmapset, err := c.LastIdmapSet()
+		idmapset, err := c.DiskIdmap()
 		if err != nil {
 			return err
 		}
@@ -6368,7 +6373,7 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 
 	// Unshift the id under /rootfs/ for unpriv containers
 	if !c.IsPrivileged() && strings.HasPrefix(hdr.Name, "/rootfs") {
-		idmapset, err := c.IdmapSet()
+		idmapset, err := c.DiskIdmap()
 		if err != nil {
 			return err
 		}
@@ -6719,7 +6724,7 @@ func (c *containerLXC) createUnixDevice(prefix string, m types.Device, defaultMo
 			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
 		}
 
-		idmapset, err := c.IdmapSet()
+		idmapset, err := c.CurrentIdmap()
 		if err != nil {
 			return nil, err
 		}
@@ -8672,25 +8677,6 @@ func (c *containerLXC) Id() int {
 	return c.id
 }
 
-func (c *containerLXC) IdmapSet() (*idmap.IdmapSet, error) {
-	var err error
-
-	if c.idmapset != nil {
-		return c.idmapset, nil
-	}
-
-	if c.IsPrivileged() {
-		return nil, nil
-	}
-
-	c.idmapset, err = c.NextIdmapSet()
-	if err != nil {
-		return nil, err
-	}
-
-	return c.idmapset, nil
-}
-
 func (c *containerLXC) InitPID() int {
 	// Load the go-lxc struct
 	err := c.initLXC(false)
@@ -8707,32 +8693,6 @@ func (c *containerLXC) LocalConfig() map[string]string {
 
 func (c *containerLXC) LocalDevices() types.Devices {
 	return c.localDevices
-}
-
-func (c *containerLXC) idmapsetFromConfig(k string) (*idmap.IdmapSet, error) {
-	lastJsonIdmap := c.LocalConfig()[k]
-
-	if lastJsonIdmap == "" {
-		return c.IdmapSet()
-	}
-
-	return idmapsetFromString(lastJsonIdmap)
-}
-
-func (c *containerLXC) NextIdmapSet() (*idmap.IdmapSet, error) {
-	if c.localConfig["volatile.idmap.next"] != "" {
-		return c.idmapsetFromConfig("volatile.idmap.next")
-	} else if c.IsPrivileged() {
-		return nil, nil
-	} else if c.state.OS.IdmapSet != nil {
-		return c.state.OS.IdmapSet, nil
-	}
-
-	return nil, fmt.Errorf("Unable to determine the idmap")
-}
-
-func (c *containerLXC) LastIdmapSet() (*idmap.IdmapSet, error) {
-	return c.idmapsetFromConfig("volatile.last_state.idmap")
 }
 
 func (c *containerLXC) CurrentIdmap() (*idmap.IdmapSet, error) {
