@@ -8380,6 +8380,33 @@ func (c *containerLXC) LastIdmapSet() (*idmap.IdmapSet, error) {
 	return c.idmapsetFromConfig("volatile.last_state.idmap")
 }
 
+func (c *containerLXC) CurrentIdmap() (*idmap.IdmapSet, error) {
+	jsonIdmap, ok := c.LocalConfig()["volatile.idmap.current"]
+	if !ok {
+		return c.DiskIdmap()
+	}
+
+	return idmapsetFromString(jsonIdmap)
+}
+
+func (c *containerLXC) DiskIdmap() (*idmap.IdmapSet, error) {
+	jsonIdmap, ok := c.LocalConfig()["volatile.last_state.idmap"]
+	if !ok {
+		return nil, nil
+	}
+
+	return idmapsetFromString(jsonIdmap)
+}
+
+func (c *containerLXC) NextIdmap() (*idmap.IdmapSet, error) {
+	jsonIdmap, ok := c.LocalConfig()["volatile.idmap.next"]
+	if !ok {
+		return c.CurrentIdmap()
+	}
+
+	return idmapsetFromString(jsonIdmap)
+}
+
 func (c *containerLXC) DaemonState() *state.State {
 	// FIXME: This function should go away, since the abstract container
 	//        interface should not be coupled with internal state details.

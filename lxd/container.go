@@ -598,10 +598,12 @@ type container interface {
 	StorageStart() (bool, error)
 	StorageStop() (bool, error)
 	Storage() storage
-	IdmapSet() (*idmap.IdmapSet, error)
-	LastIdmapSet() (*idmap.IdmapSet, error)
 	TemplateApply(trigger string) error
 	DaemonState() *state.State
+
+	CurrentIdmap() (*idmap.IdmapSet, error)
+	DiskIdmap() (*idmap.IdmapSet, error)
+	NextIdmap() (*idmap.IdmapSet, error)
 }
 
 // Loader functions
