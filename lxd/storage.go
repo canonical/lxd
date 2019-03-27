@@ -411,7 +411,7 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 		return st, nil
 	}
 
-	// get last idmapset
+	// Get the on-disk idmap for the volume
 	var lastIdmap *idmap.IdmapSet
 	if poolVolumePut.Config["volatile.idmap.last"] != "" {
 		lastIdmap, err = idmapsetFromString(poolVolumePut.Config["volatile.idmap.last"])
@@ -421,8 +421,13 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 		}
 	}
 
-	// get next idmapset
-	nextIdmap, err := c.IdmapSet()
+	// Get the container's idmap
+	var nextIdmap *idmap.IdmapSet
+	if c.IsRunning() {
+		nextIdmap, err = c.CurrentIdmap()
+	} else {
+		nextIdmap, err = c.NextIdmap()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -460,7 +465,12 @@ func storagePoolVolumeAttachInit(s *state.State, poolName string, volumeName str
 					continue
 				}
 
-				ctNextIdmap, err := ct.IdmapSet()
+				var ctNextIdmap *idmap.IdmapSet
+				if ct.IsRunning() {
+					ctNextIdmap, err = ct.CurrentIdmap()
+				} else {
+					ctNextIdmap, err = ct.NextIdmap()
+				}
 				if err != nil {
 					return nil, fmt.Errorf("Failed to retrieve idmap of container")
 				}
@@ -745,7 +755,7 @@ func deleteSnapshotMountpoint(snapshotMountpoint string, snapshotsSymlinkTarget 
 }
 
 func resetContainerDiskIdmap(container container, srcIdmap *idmap.IdmapSet) error {
-	dstIdmap, err := container.IdmapSet()
+	dstIdmap, err := container.DiskIdmap()
 	if err != nil {
 		return err
 	}

@@ -231,7 +231,7 @@ func hoistReq(f func(*Daemon, container, http.ResponseWriter, *http.Request) *de
 		// Access control
 		rootUid := int64(0)
 
-		idmapset, err := c.LastIdmapSet()
+		idmapset, err := c.CurrentIdmap()
 		if err == nil && idmapset != nil {
 			uid, _ := idmapset.ShiftIntoNs(0, 0)
 			rootUid = int64(uid)
