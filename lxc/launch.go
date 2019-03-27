@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -71,8 +72,17 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = op.Wait()
+	progress := utils.ProgressRenderer{}
+	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
+		progress.Done("")
+		return err
+	}
+
+	// Wait for operation to finish
+	err = utils.CancelableWait(op, &progress)
+	if err != nil {
+		progress.Done("")
 		prettyName := name
 		if remote != "" {
 			prettyName = fmt.Sprintf("%s:%s", remote, name)
@@ -81,5 +91,6 @@ func (c *cmdLaunch) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%s\n"+i18n.G("Try `lxc info --show-log %s` for more info"), err, prettyName)
 	}
 
+	progress.Done("")
 	return nil
 }
