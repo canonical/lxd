@@ -925,7 +925,7 @@ func (s *storageCeph) ContainerCreateFromImage(container container, fingerprint 
 	}
 
 	if !privileged {
-		err := s.shiftRootfs(container, nil)
+		err := s.initialShiftRootfs(container, nil)
 		if err != nil {
 			logger.Errorf(`Failed to shift rootfs for container "%s": %s`, containerName, err)
 			return err

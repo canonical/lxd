@@ -839,7 +839,7 @@ func (s *storageZfs) ContainerCreateFromImage(container container, fingerprint s
 	}
 
 	if !privileged {
-		err = s.shiftRootfs(container, zfsIdmapSetSkipper)
+		err = s.initialShiftRootfs(container, zfsIdmapSetSkipper)
 		if err != nil {
 			return err
 		}
