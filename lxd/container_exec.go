@@ -424,7 +424,7 @@ func containerExecPost(d *Daemon, r *http.Request) Response {
 		ws := &execWs{}
 		ws.fds = map[int]string{}
 
-		idmapset, err := c.IdmapSet()
+		idmapset, err := c.CurrentIdmap()
 		if err != nil {
 			return InternalError(err)
 		}

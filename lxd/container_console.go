@@ -301,7 +301,7 @@ func containerConsolePost(d *Daemon, r *http.Request) Response {
 	ws := &consoleWs{}
 	ws.fds = map[int]string{}
 
-	idmapset, err := c.IdmapSet()
+	idmapset, err := c.CurrentIdmap()
 	if err != nil {
 		return InternalError(err)
 	}

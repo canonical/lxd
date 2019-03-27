@@ -212,7 +212,7 @@ func hoistReq(f func(container, http.ResponseWriter, *http.Request) *devLxdRespo
 		// Access control
 		rootUid := int64(0)
 
-		idmapset, err := c.LastIdmapSet()
+		idmapset, err := c.CurrentIdmap()
 		if err == nil && idmapset != nil {
 			uid, _ := idmapset.ShiftIntoNs(0, 0)
 			rootUid = int64(uid)
