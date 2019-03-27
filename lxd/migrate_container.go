@@ -983,7 +983,7 @@ func (c *migrationSink) Do(migrateOp *operation) error {
 				return
 			}
 
-			err = ShiftIfNecessary(c.src.container, srcIdmap)
+			err = resetContainerDiskIdmap(c.src.container, srcIdmap)
 			if err != nil {
 				fsTransfer <- err
 				return
