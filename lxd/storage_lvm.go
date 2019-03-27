@@ -1060,7 +1060,7 @@ func (s *storageLvm) ContainerCreateFromImage(container container, fingerprint s
 	}
 
 	if !container.IsPrivileged() {
-		err := s.shiftRootfs(container, nil)
+		err := s.initialShiftRootfs(container, nil)
 		if err != nil {
 			return errors.Wrap(err, "Shift rootfs")
 		}
