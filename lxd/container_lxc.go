@@ -1149,6 +1149,11 @@ func (c *containerLXC) initLXC(config bool) error {
 	}
 
 	// Setup the hooks
+	err = lxcSetConfigItem(cc, "lxc.hook.version", "1")
+	if err != nil {
+		return err
+	}
+
 	err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("%s callhook %s %d start", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
