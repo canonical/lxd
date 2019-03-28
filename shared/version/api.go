@@ -106,6 +106,7 @@ var APIExtensions = []string{
 	"candid_config",
 	"candid_config_key",
 	"usb_optional_vendorid",
+	"id_map_current",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

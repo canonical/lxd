@@ -474,3 +474,15 @@ HTTP-only candid server.
 As the name implies, the `vendorid` field on USB devices attached to
 containers has now been made optional, allowing for all USB devices to
 be passed to a container (similar to what's done for GPUs).
+
+## id\_map\_current
+This introduces a new internal `volatile.idmap.current` key which is
+used to track the current mapping for the container.
+
+This effectively gives us:
+ - `volatile.last\_state.idmap` => On-disk idmap
+ - `volatile.idmap.current` => Current kernel map
+ - `volatile.idmap.next` => Next on-disk idmap
+
+This is required to implement environments where the on-disk map isn't
+changed but the kernel map is (e.g. shiftfs).
