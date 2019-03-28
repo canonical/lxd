@@ -6188,17 +6188,19 @@ func (c *containerLXC) tarStoreFile(linkmap map[uint64]string, offset int, tw *t
 	}
 
 	// Unshift the id under /rootfs/ for unpriv containers
-	if !c.IsPrivileged() && strings.HasPrefix(hdr.Name, "/rootfs") {
+	if strings.HasPrefix(hdr.Name, "/rootfs") {
 		idmapset, err := c.DiskIdmap()
 		if err != nil {
 			return err
 		}
 
-		huid, hgid := idmapset.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
-		hdr.Uid = int(huid)
-		hdr.Gid = int(hgid)
-		if hdr.Uid == -1 || hdr.Gid == -1 {
-			return nil
+		if idmapset != nil {
+			huid, hgid := idmapset.ShiftFromNs(int64(hdr.Uid), int64(hdr.Gid))
+			hdr.Uid = int(huid)
+			hdr.Gid = int(hgid)
+			if hdr.Uid == -1 || hdr.Gid == -1 {
+				return nil
+			}
 		}
 	}
 
