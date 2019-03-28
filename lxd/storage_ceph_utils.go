@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 
 	"github.com/pborman/uuid"
@@ -1869,6 +1870,198 @@ func (s *storageCeph) doContainerSnapshotCreate(project, targetName string, sour
 	logger.Debugf(`Created RBD storage volume for snapshot "%s" on storage pool "%s"`, targetName, s.pool.Name)
 
 	revert = false
+
+	return nil
+}
+
+func (s *storageCeph) doCrossPoolVolumeCopy(source *api.StorageVolumeSource) error {
+	// setup storage for the source volume
+	srcStorage, err := storagePoolVolumeInit(s.s, "default", source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	if err != nil {
+		logger.Errorf("Failed to initialize CEPH storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	ourMount, err := srcStorage.StoragePoolMount()
+	if err != nil {
+		logger.Errorf("Failed to mount CEPH storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	if ourMount {
+		defer srcStorage.StoragePoolUmount()
+	}
+
+	snapshots, err := storagePoolVolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	err = s.StoragePoolVolumeCreate()
+	if err != nil {
+		logger.Errorf("Failed to create RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	ourMount, err = s.StoragePoolVolumeMount()
+	if err != nil {
+		return err
+	}
+	if ourMount {
+		defer s.StoragePoolVolumeUmount()
+	}
+
+	dstVolumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	bwlimit := s.pool.Config["rsync.bwlimit"]
+
+	if !source.VolumeOnly {
+		for _, snap := range snapshots {
+			_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
+			srcSnapshotMntPoint := getStoragePoolVolumeSnapshotMountPoint(source.Pool, snap)
+
+			_, err = rsyncLocalCopy(srcSnapshotMntPoint, dstVolumeMntPoint, bwlimit)
+			if err != nil {
+				return err
+			}
+
+			err = s.StoragePoolVolumeSnapshotCreate(&api.StorageVolumeSnapshotsPost{Name: fmt.Sprintf("%s/%s", s.volume.Name, snapOnlyName)})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	var srcVolumeMntPoint string
+
+	if shared.IsSnapshot(source.Name) {
+		srcVolumeMntPoint = getStoragePoolVolumeSnapshotMountPoint(source.Pool, source.Name)
+	} else {
+		srcVolumeMntPoint = getStoragePoolVolumeMountPoint(source.Pool, source.Name)
+	}
+
+	_, err = rsyncLocalCopy(srcVolumeMntPoint, dstVolumeMntPoint, bwlimit)
+	if err != nil {
+		os.RemoveAll(dstVolumeMntPoint)
+		logger.Errorf("Failed to rsync into RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageCeph) copyVolumeWithoutSnapshotsFull(source *api.StorageVolumeSource) error {
+	var oldVolumeName string
+
+	isSnapshot := shared.IsSnapshot(source.Name)
+
+	if isSnapshot {
+		_, srcSnapshotOnlyName, _ := containerGetParentAndSnapshotName(source.Name)
+		oldVolumeName = fmt.Sprintf("%s/snapshot_%s", s.OSDPoolName, srcSnapshotOnlyName)
+	} else {
+		oldVolumeName = fmt.Sprintf("%s/custom_%s", s.OSDPoolName, source.Name)
+	}
+
+	newVolumeName := fmt.Sprintf("%s/custom_%s", s.OSDPoolName, s.volume.Name)
+
+	err := cephRBDVolumeCopy(s.ClusterName, oldVolumeName, newVolumeName, s.UserName)
+	if err != nil {
+		logger.Errorf("Failed to create non-sparse copy of RBD storage volume \"%s\" on storage pool \"%s\": %s", source.Name, source.Pool, err)
+		return err
+	}
+
+	// Map the rbd
+	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName)
+	if err != nil {
+		logger.Errorf("Failed to map RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	// Generate a new UUID
+	RBDFilesystem := s.getRBDFilesystem()
+	msg, err := fsGenerateNewUUID(RBDFilesystem, RBDDevPath)
+	if err != nil {
+		logger.Errorf("Failed to create new UUID for filesystem \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s: %s", RBDFilesystem, s.volume.Name, s.pool.Name, msg, err)
+		return err
+	}
+
+	// Unmap the rbd
+	err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName, true)
+	if err != nil {
+		logger.Errorf("Failed to unmap RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+
+	err = os.MkdirAll(volumeMntPoint, 0711)
+	if err != nil {
+		logger.Errorf("Failed to create mountpoint \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s", volumeMntPoint, s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *storageCeph) copyVolumeWithoutSnapshotsSparse(source *api.StorageVolumeSource) error {
+	sourceOnlyName, snapshotOnlyName, isSnapshot := containerGetParentAndSnapshotName(source.Name)
+
+	if isSnapshot {
+		snapshotOnlyName = fmt.Sprintf("snapshot_%s", snapshotOnlyName)
+	} else {
+		// create sparse copy
+		snapshotOnlyName = uuid.NewRandom().String()
+
+		// create snapshot of original volume
+		err := cephRBDSnapshotCreate(s.ClusterName, s.OSDPoolName, sourceOnlyName, storagePoolVolumeTypeNameCustom, snapshotOnlyName, s.UserName)
+		if err != nil {
+			logger.Errorf("Failed to create snapshot of RBD storage volume \"%s\" on storage pool \"%s\": %s", sourceOnlyName, source.Pool, err)
+			return err
+		}
+	}
+
+	// protect volume so we can create clones of it
+	err := cephRBDSnapshotProtect(s.ClusterName, s.OSDPoolName, sourceOnlyName, storagePoolVolumeTypeNameCustom, snapshotOnlyName, s.UserName)
+	if err != nil {
+		logger.Errorf("Failed to protect snapshot for RBD storage volume \"%s\" on storage pool \"%s\": %s", sourceOnlyName, s.pool.Name, err)
+		return err
+	}
+
+	// create new clone
+	err = cephRBDCloneCreate(s.ClusterName, s.OSDPoolName, sourceOnlyName, storagePoolVolumeTypeNameCustom, snapshotOnlyName, s.OSDPoolName, s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName)
+	if err != nil {
+		logger.Errorf("Failed to clone RBD storage volume \"%s\" on storage pool \"%s\": %s", source.Name, source.Pool, err)
+		return err
+	}
+
+	// Map the rbd
+	RBDDevPath, err := cephRBDVolumeMap(s.ClusterName, s.OSDPoolName, s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName)
+	if err != nil {
+		logger.Errorf("Failed to map RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	// Generate a new UUID
+	RBDFilesystem := s.getRBDFilesystem()
+	msg, err := fsGenerateNewUUID(RBDFilesystem, RBDDevPath)
+	if err != nil {
+		logger.Errorf("Failed to create new UUID for filesystem \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s: %s", RBDFilesystem, s.volume.Name, s.pool.Name, msg, err)
+		return err
+	}
+
+	// Unmap the rbd
+	err = cephRBDVolumeUnmap(s.ClusterName, s.OSDPoolName, s.volume.Name, storagePoolVolumeTypeNameCustom, s.UserName, true)
+	if err != nil {
+		logger.Errorf("Failed to unmap RBD storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
+		return err
+	}
+
+	volumeMntPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+
+	err = os.MkdirAll(volumeMntPoint, 0711)
+	if err != nil {
+		logger.Errorf("Failed to create mountpoint \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s", volumeMntPoint, s.volume.Name, s.pool.Name, err)
+		return err
+	}
 
 	return nil
 }
