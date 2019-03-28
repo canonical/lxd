@@ -160,9 +160,10 @@ test_proxy_device_unix() {
   # Initial test
   lxc config device add proxyTester proxyDev proxy "listen=unix:${HOST_SOCK}" connect=unix:/tmp/"lxdtest-$(basename "${LXD_DIR}").sock" bind=host
   (
-    cd "${LXD_DIR}/containers/proxyTester/rootfs/tmp/" || exit
+    PID="$(lxc query /1.0/containers/proxyTester/state | jq .pid)"
+    cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
-    exec nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
+    exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
   sleep 0.5
@@ -181,9 +182,10 @@ test_proxy_device_unix() {
   # Restart the container
   lxc restart -f proxyTester
   (
-    cd "${LXD_DIR}/containers/proxyTester/rootfs/tmp/" || exit
+    PID="$(lxc query /1.0/containers/proxyTester/state | jq .pid)"
+    cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
-    exec nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
+    exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
   sleep 0.5
@@ -202,9 +204,10 @@ test_proxy_device_unix() {
   # Change the socket
   lxc config device set proxyTester proxyDev connect unix:/tmp/"lxdtest-$(basename "${LXD_DIR}")-2.sock"
   (
-    cd "${LXD_DIR}/containers/proxyTester/rootfs/tmp/" || exit
+    PID="$(lxc query /1.0/containers/proxyTester/state | jq .pid)"
+    cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
-    exec nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}")-2.sock",unlink-early exec:/bin/cat
+    exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}")-2.sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
   sleep 0.5
@@ -237,9 +240,10 @@ test_proxy_device_tcp_unix() {
   # Initial test
   lxc config device add proxyTester proxyDev proxy "listen=tcp:127.0.0.1:${HOST_TCP_PORT}" connect=unix:/tmp/"lxdtest-$(basename "${LXD_DIR}").sock" bind=host
   (
-    cd "${LXD_DIR}/containers/proxyTester/rootfs/tmp/" || exit
+    PID="$(lxc query /1.0/containers/proxyTester/state | jq .pid)"
+    cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
-    exec nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
+    exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
   sleep 0.5
@@ -256,9 +260,10 @@ test_proxy_device_tcp_unix() {
   # Restart the container
   lxc restart -f proxyTester
   (
-    cd "${LXD_DIR}/containers/proxyTester/rootfs/tmp/" || exit
+    PID="$(lxc query /1.0/containers/proxyTester/state | jq .pid)"
+    cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
-    exec nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
+    exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}").sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
   sleep 0.5
@@ -275,9 +280,10 @@ test_proxy_device_tcp_unix() {
   # Change the socket
   lxc config device set proxyTester proxyDev connect unix:/tmp/"lxdtest-$(basename "${LXD_DIR}")-2.sock"
   (
-    cd "${LXD_DIR}/containers/proxyTester/rootfs/tmp/" || exit
+    PID="$(lxc query /1.0/containers/proxyTester/state | jq .pid)"
+    cd "/proc/${PID}/root/tmp/" || exit
     umask 0000
-    exec nsenter -n -U -t "$(lxc query /1.0/containers/proxyTester/state | jq .pid)" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}")-2.sock",unlink-early exec:/bin/cat
+    exec nsenter -n -U -t "${PID}" -- socat unix-listen:"lxdtest-$(basename "${LXD_DIR}")-2.sock",unlink-early exec:/bin/cat
   ) &
   NSENTER_PID=$!
   sleep 0.5
