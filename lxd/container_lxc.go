@@ -1855,7 +1855,7 @@ func (c *containerLXC) expandDevicesFromProfiles(profileDevices []types.Devices)
 // setupUnixDevice() creates the unix device and sets up the necessary low-level
 // liblxc configuration items.
 func (c *containerLXC) setupUnixDevice(prefix string, dev types.Device, major int, minor int, path string, createMustSucceed bool, defaultMode bool) error {
-	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
+	if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		err := lxcSetConfigItem(c.c, "lxc.cgroup.devices.allow", fmt.Sprintf("c %d:%d rwm", major, minor))
 		if err != nil {
 			return err
@@ -2089,7 +2089,7 @@ func (c *containerLXC) startCommon() (string, error) {
 				continue
 			}
 			devPath := paths[0]
-			if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
+			if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 				// Add the new device cgroup rule
 				dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
 				if err != nil {
@@ -2394,7 +2394,7 @@ func (c *containerLXC) startCommon() (string, error) {
 
 	// Set right permission to allow traversal
 	var mode os.FileMode
-	if c.IsPrivileged() {
+	if c.isCurrentlyPrivileged() {
 		mode = 0700
 	} else {
 		mode = 0711
@@ -6591,7 +6591,7 @@ func (c *containerLXC) insertUnixDevice(prefix string, m types.Device, defaultMo
 		}
 	}
 
-	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
+	if !c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		// Add the new device cgroup rule
 		if err := c.CGroupSet("devices.allow", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor)); err != nil {
 			return fmt.Errorf("Failed to add cgroup rule for device")
@@ -6663,7 +6663,7 @@ func (c *containerLXC) removeUnixDevice(prefix string, m types.Device, eject boo
 		}
 	}
 
-	if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
+	if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 		// Remove the device cgroup rule
 		err = c.CGroupSet("devices.deny", fmt.Sprintf("%s %d:%d rwm", dType, dMajor, dMinor))
 		if err != nil {
@@ -6785,7 +6785,7 @@ func (c *containerLXC) addInfinibandDevicesPerPort(deviceName string, ifDev *IBF
 			return err
 		}
 
-		if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
+		if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 			// Add the new device cgroup rule
 			dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
 			if err != nil {
@@ -6833,7 +6833,7 @@ func (c *containerLXC) addInfinibandDevicesPerFun(deviceName string, ifDev *IBF,
 			return err
 		}
 		devPath := paths[0]
-		if c.IsPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
+		if c.isCurrentlyPrivileged() && !c.state.OS.RunningInUserNS && c.state.OS.CGroupDevicesController {
 			// Add the new device cgroup rule
 			dType, dMajor, dMinor, err := deviceGetAttributes(devPath)
 			if err != nil {
@@ -8284,6 +8284,19 @@ func (c *containerLXC) IsFrozen() bool {
 
 func (c *containerLXC) IsNesting() bool {
 	return shared.IsTrue(c.expandedConfig["security.nesting"])
+}
+
+func (c *containerLXC) isCurrentlyPrivileged() bool {
+	if !c.IsRunning() {
+		return c.IsPrivileged()
+	}
+
+	idmap, err := c.CurrentIdmap()
+	if err != nil {
+		return c.IsPrivileged()
+	}
+
+	return idmap == nil
 }
 
 func (c *containerLXC) IsPrivileged() bool {
