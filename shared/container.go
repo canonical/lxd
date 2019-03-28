@@ -302,8 +302,9 @@ var KnownContainerConfigKeys = map[string]func(value string) error{
 	"volatile.base_image":       IsAny,
 	"volatile.last_state.idmap": IsAny,
 	"volatile.last_state.power": IsAny,
-	"volatile.idmap.next":       IsAny,
 	"volatile.idmap.base":       IsAny,
+	"volatile.idmap.current":    IsAny,
+	"volatile.idmap.next":       IsAny,
 	"volatile.apply_quota":      IsAny,
 }
 
