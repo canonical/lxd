@@ -1976,28 +1976,17 @@ func (c *containerLXC) startCommon() (string, error) {
 	}
 
 	/* Deal with idmap changes */
-	idmap, err := c.NextIdmap()
+	nextIdmap, err := c.NextIdmap()
 	if err != nil {
 		return "", errors.Wrap(err, "Set ID map")
 	}
 
-	lastIdmap, err := c.DiskIdmap()
+	diskIdmap, err := c.DiskIdmap()
 	if err != nil {
 		return "", errors.Wrap(err, "Set last ID map")
 	}
 
-	var jsonIdmap string
-	if idmap != nil {
-		idmapBytes, err := json.Marshal(idmap.Idmap)
-		if err != nil {
-			return "", err
-		}
-		jsonIdmap = string(idmapBytes)
-	} else {
-		jsonIdmap = "[]"
-	}
-
-	if !reflect.DeepEqual(idmap, lastIdmap) {
+	if !reflect.DeepEqual(nextIdmap, diskIdmap) {
 		if shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
 			return "", fmt.Errorf("Container is protected against filesystem shifting")
 		}
@@ -2010,11 +1999,11 @@ func (c *containerLXC) startCommon() (string, error) {
 			return "", errors.Wrap(err, "Storage start")
 		}
 
-		if lastIdmap != nil {
+		if diskIdmap != nil {
 			if c.Storage().GetStorageType() == storageTypeZfs {
-				err = lastIdmap.UnshiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
 			} else {
-				err = lastIdmap.UnshiftRootfs(c.RootfsPath(), nil)
+				err = diskIdmap.UnshiftRootfs(c.RootfsPath(), nil)
 			}
 			if err != nil {
 				if ourStart {
@@ -2024,11 +2013,11 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 		}
 
-		if idmap != nil {
+		if nextIdmap != nil {
 			if c.Storage().GetStorageType() == storageTypeZfs {
-				err = idmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
+				err = nextIdmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
 			} else {
-				err = idmap.ShiftRootfs(c.RootfsPath(), nil)
+				err = nextIdmap.ShiftRootfs(c.RootfsPath(), nil)
 			}
 			if err != nil {
 				if ourStart {
@@ -2038,7 +2027,16 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 		}
 
-		err = c.ConfigKeySet("volatile.last_state.idmap", jsonIdmap)
+		jsonDiskIdmap := "[]"
+		if nextIdmap != nil {
+			idmapBytes, err := json.Marshal(nextIdmap.Idmap)
+			if err != nil {
+				return "", err
+			}
+			jsonDiskIdmap = string(idmapBytes)
+		}
+
+		err = c.ConfigKeySet("volatile.last_state.idmap", jsonDiskIdmap)
 		if err != nil {
 			return "", errors.Wrapf(err, "Set volatile.last_state.idmap config key on container %q (id %d)", c.name, c.id)
 		}
@@ -2046,9 +2044,21 @@ func (c *containerLXC) startCommon() (string, error) {
 		c.updateProgress("")
 	}
 
-	err = c.ConfigKeySet("volatile.idmap.current", jsonIdmap)
-	if err != nil {
-		return "", errors.Wrapf(err, "Set volatile.idmap.current config key on container %q (id %d)", c.name, c.id)
+	var idmapBytes []byte
+	if nextIdmap == nil {
+		idmapBytes = []byte("[]")
+	} else {
+		idmapBytes, err = json.Marshal(nextIdmap.Idmap)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if c.localConfig["volatile.idmap.current"] != string(idmapBytes) {
+		err = c.ConfigKeySet("volatile.idmap.current", string(idmapBytes))
+		if err != nil {
+			return "", errors.Wrapf(err, "Set volatile.idmap.current config key on container %q (id %d)", c.name, c.id)
+		}
 	}
 
 	// Generate the Seccomp profile
