@@ -5578,6 +5578,46 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		return errors.Wrapf(err, "Could not parse %s", fname)
 	}
 
+	// Find rootUid and rootGid
+	idmapset, err := c.DiskIdmap()
+	if err != nil {
+		return errors.Wrap(err, "Failed to set ID map")
+	}
+
+	rootUid := int64(0)
+	rootGid := int64(0)
+
+	// Get the right uid and gid for the container
+	if idmapset != nil {
+		rootUid, rootGid = idmapset.ShiftIntoNs(0, 0)
+	}
+
+	// Figure out the container architecture
+	arch, err := osarch.ArchitectureName(c.architecture)
+	if err != nil {
+		arch, err = osarch.ArchitectureName(c.state.OS.Architectures[0])
+		if err != nil {
+			return errors.Wrap(err, "Failed to detect system architecture")
+		}
+	}
+
+	// Generate the container metadata
+	containerMeta := make(map[string]string)
+	containerMeta["name"] = c.name
+	containerMeta["architecture"] = arch
+
+	if c.ephemeral {
+		containerMeta["ephemeral"] = "true"
+	} else {
+		containerMeta["ephemeral"] = "false"
+	}
+
+	if c.IsPrivileged() {
+		containerMeta["privileged"] = "true"
+	} else {
+		containerMeta["privileged"] = "false"
+	}
+
 	// Go through the templates
 	for tplPath, tpl := range metadata.Templates {
 		var w *os.File
@@ -5608,22 +5648,8 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 				return errors.Wrap(err, "Failed to create template file")
 			}
 		} else {
-			// Create a new one
-			uid := int64(0)
-			gid := int64(0)
-
-			// Get the right uid and gid for the container
-			if !c.IsPrivileged() {
-				idmapset, err := c.DiskIdmap()
-				if err != nil {
-					return errors.Wrap(err, "Failed to set ID map")
-				}
-
-				uid, gid = idmapset.ShiftIntoNs(0, 0)
-			}
-
 			// Create the directories leading to the file
-			shared.MkdirAllOwner(path.Dir(fullpath), 0755, int(uid), int(gid))
+			shared.MkdirAllOwner(path.Dir(fullpath), 0755, int(rootUid), int(rootGid))
 
 			// Create the file itself
 			w, err = os.Create(fullpath)
@@ -5632,9 +5658,7 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 			}
 
 			// Fix ownership and mode
-			if !c.IsPrivileged() {
-				w.Chown(int(uid), int(gid))
-			}
+			w.Chown(int(rootUid), int(rootGid))
 			w.Chmod(0644)
 		}
 		defer w.Close()
@@ -5651,32 +5675,6 @@ func (c *containerLXC) templateApplyNow(trigger string) error {
 		tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 		if err != nil {
 			return errors.Wrap(err, "Failed to render template")
-		}
-
-		// Figure out the architecture
-		arch, err := osarch.ArchitectureName(c.architecture)
-		if err != nil {
-			arch, err = osarch.ArchitectureName(c.state.OS.Architectures[0])
-			if err != nil {
-				return errors.Wrap(err, "Failed to detect system architecture")
-			}
-		}
-
-		// Generate the metadata
-		containerMeta := make(map[string]string)
-		containerMeta["name"] = c.name
-		containerMeta["architecture"] = arch
-
-		if c.ephemeral {
-			containerMeta["ephemeral"] = "true"
-		} else {
-			containerMeta["ephemeral"] = "false"
-		}
-
-		if c.IsPrivileged() {
-			containerMeta["privileged"] = "true"
-		} else {
-			containerMeta["privileged"] = "false"
 		}
 
 		configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
