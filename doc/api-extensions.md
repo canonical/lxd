@@ -710,3 +710,15 @@ Shows the NUMA node for all CPUs and GPUs.
 
 ## kernel\_features
 Exposes the state of optional kernel features through the server environment.
+
+## id\_map\_current
+This introduces a new internal `volatile.idmap.current` key which is
+used to track the current mapping for the container.
+
+This effectively gives us:
+ - `volatile.last\_state.idmap` => On-disk idmap
+ - `volatile.idmap.current` => Current kernel map
+ - `volatile.idmap.next` => Next on-disk idmap
+
+This is required to implement environments where the on-disk map isn't
+changed but the kernel map is (e.g. shiftfs).
