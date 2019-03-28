@@ -5406,12 +5406,12 @@ func (c *containerLXC) Migrate(args *CriuMigrationArgs) error {
 		 * opened by the process after it is in its user
 		 * namespace.
 		 */
-		if !c.IsPrivileged() {
-			idmapset, err := c.CurrentIdmap()
-			if err != nil {
-				return err
-			}
+		idmapset, err := c.CurrentIdmap()
+		if err != nil {
+			return err
+		}
 
+		if idmapset != nil {
 			ourStart, err := c.StorageStart()
 			if err != nil {
 				return err
