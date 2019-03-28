@@ -608,74 +608,66 @@ func storagePoolVolumeCreateInternal(state *state.State, poolName string, vol *a
 		return err
 	}
 
-	if vol.Source.Name == "" {
-		err = s.StoragePoolVolumeCreate()
-	} else {
-		err = s.StoragePoolVolumeCopy(&vol.Source)
-	}
-	if err != nil {
-		poolID, _, _ := s.GetContainerPoolInfo()
+	volumeType, err1 := storagePoolVolumeTypeNameToType(vol.Type)
+	poolID, _, _ := s.GetContainerPoolInfo()
+	revert := true
 
-		volumeType, err1 := storagePoolVolumeTypeNameToType(vol.Type)
-		if err1 == nil {
+	defer func() {
+		if revert && err1 == nil {
 			state.Cluster.StoragePoolVolumeDelete("default", vol.Name, volumeType, poolID)
 		}
-
-		return err
-	}
-
-	return nil
-}
-
-func storagePoolVolumeSnapshotCreateInternal(state *state.State, poolName string, vol *api.StorageVolumesPost) error {
-	// Get poolID of source pool
-	poolID, err := state.Cluster.StoragePoolGetID(vol.Source.Pool)
-	if err != nil {
-		return err
-	}
-
-	// Convert the volume type name to our internal integer representation.
-	volumeType, err := storagePoolVolumeTypeNameToType(vol.Type)
-	if err != nil {
-		return err
-	}
-
-	_, snapshot, err := state.Cluster.StoragePoolNodeVolumeGetType(vol.Source.Name, volumeType, poolID)
-	if err != nil {
-		return err
-	}
-
-	writable := snapshot.Writable()
-
-	dbArgs := &db.StorageVolumeArgs{
-		Name:        vol.Name,
-		PoolName:    poolName,
-		TypeName:    vol.Type,
-		Snapshot:    true,
-		Config:      writable.Config,
-		Description: writable.Description,
-	}
-
-	s, err := storagePoolVolumeSnapshotDBCreateInternal(state, dbArgs)
-	if err != nil {
-		return err
-	}
+	}()
 
 	if vol.Source.Name == "" {
 		err = s.StoragePoolVolumeCreate()
 	} else {
+		if !vol.Source.VolumeOnly {
+			sourcePoolID, err := state.Cluster.StoragePoolGetID(vol.Source.Pool)
+			if err != nil {
+				return err
+			}
+
+			snapshots, err := storagePoolVolumeSnapshotsGet(state, vol.Source.Pool, vol.Source.Name, volumeType)
+			if err != nil {
+				return err
+			}
+
+			for _, snap := range snapshots {
+				_, snapOnlyName, _ := containerGetParentAndSnapshotName(snap)
+
+				volumeID, err := state.Cluster.StoragePoolNodeVolumeGetTypeID(snap, volumeType, sourcePoolID)
+				if err != nil {
+					return err
+				}
+
+				volumeDescription, err := state.Cluster.StorageVolumeDescriptionGet(volumeID)
+				if err != nil {
+					return err
+				}
+
+				dbArgs := &db.StorageVolumeArgs{
+					Name:        fmt.Sprintf("%s/%s", vol.Name, snapOnlyName),
+					PoolName:    poolName,
+					TypeName:    vol.Type,
+					Snapshot:    true,
+					Config:      vol.Config,
+					Description: volumeDescription,
+				}
+
+				_, err = storagePoolVolumeSnapshotDBCreateInternal(state, dbArgs)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		err = s.StoragePoolVolumeCopy(&vol.Source)
 	}
 	if err != nil {
-		poolID, _, _ := s.GetContainerPoolInfo()
-
-		volumeType, err1 := storagePoolVolumeTypeNameToType(vol.Type)
-		if err1 == nil {
-			state.Cluster.StoragePoolVolumeDelete("default", vol.Name, volumeType, poolID)
-		}
-
 		return err
 	}
+
+	revert = false
 
 	return nil
 }
