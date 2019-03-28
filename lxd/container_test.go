@@ -264,9 +264,9 @@ func (suite *containerTestSuite) TestContainer_findIdmap_isolated() {
 	suite.Req.Nil(err)
 	defer c2.Delete()
 
-	map1, err := c1.(*containerLXC).NextIdmapSet()
+	map1, err := c1.(*containerLXC).NextIdmap()
 	suite.Req.Nil(err)
-	map2, err := c2.(*containerLXC).NextIdmapSet()
+	map2, err := c2.(*containerLXC).NextIdmap()
 	suite.Req.Nil(err)
 
 	host := suite.d.os.IdmapSet.Idmap[0]
@@ -305,9 +305,9 @@ func (suite *containerTestSuite) TestContainer_findIdmap_mixed() {
 	suite.Req.Nil(err)
 	defer c2.Delete()
 
-	map1, err := c1.(*containerLXC).NextIdmapSet()
+	map1, err := c1.(*containerLXC).NextIdmap()
 	suite.Req.Nil(err)
-	map2, err := c2.(*containerLXC).NextIdmapSet()
+	map2, err := c2.(*containerLXC).NextIdmap()
 	suite.Req.Nil(err)
 
 	host := suite.d.os.IdmapSet.Idmap[0]
@@ -337,7 +337,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_raw() {
 	suite.Req.Nil(err)
 	defer c1.Delete()
 
-	map1, err := c1.(*containerLXC).NextIdmapSet()
+	map1, err := c1.(*containerLXC).NextIdmap()
 	suite.Req.Nil(err)
 
 	host := suite.d.os.IdmapSet.Idmap[0]
@@ -383,7 +383,7 @@ func (suite *containerTestSuite) TestContainer_findIdmap_maxed() {
 
 		defer c.Delete()
 
-		m, err := c.(*containerLXC).NextIdmapSet()
+		m, err := c.(*containerLXC).NextIdmap()
 		suite.Req.Nil(err)
 
 		maps = append(maps, m)

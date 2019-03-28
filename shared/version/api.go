@@ -144,6 +144,7 @@ var APIExtensions = []string{
 	"resources_gpu",
 	"resources_numa",
 	"kernel_features",
+	"id_map_current",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -92,9 +92,9 @@ _have lxc && {
       security.syscalls.blacklist_compat security.syscalls.blacklist_default \
       snapshots.schedule snapshots.schedule.stopped snapshots.pattern \
       volatile.apply_quota volatile.apply_template volatile.base_image \
-      volatile.idmap.base volatile.idmap.next volatile.last_state.idmap \
-      volatile.last_state.power user.meta-data user.network-config \
-      user.network_mode user.user-data user.vendor-data"
+      volatile.idmap.base volatile.idmap.current volatile.idmap.next \
+      volatile.last_state.idmap volatile.last_state.power user.meta-data \
+      user.network-config user.network_mode user.user-data user.vendor-data"
 
     networks_keys="bridge.driver bridge.external_interfaces bridge.mode \
       bridge.mtu bridge.hwaddr dns.domain dns.mode fan.overlay_subnet fan.type \
