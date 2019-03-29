@@ -12,6 +12,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/pborman/uuid"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -69,6 +70,7 @@ type eventListener struct {
 	id           string
 	lock         sync.Mutex
 	done         bool
+	location     string
 
 	// If true, this listener won't get events forwarded from other
 	// nodes. It only used by listeners created internally by LXD nodes
@@ -78,24 +80,38 @@ type eventListener struct {
 
 type eventsServe struct {
 	req *http.Request
+	d   *Daemon
 }
 
 func (r *eventsServe) Render(w http.ResponseWriter) error {
-	return eventsSocket(r.req, w)
+	return eventsSocket(r.d, r.req, w)
 }
 
 func (r *eventsServe) String() string {
 	return "event handler"
 }
 
-func eventsSocket(r *http.Request, w http.ResponseWriter) error {
+func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	project := projectParam(r)
 	typeStr := r.FormValue("type")
 	if typeStr == "" {
 		typeStr = "logging,operation,lifecycle"
 	}
 
+	// Upgrade the connection to websocket
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return err
+	}
+
+	// Get the current local serverName and store it for the events
+	// We do that now to avoid issues with changes to the name and to limit
+	// the number of DB access to just one per connection
+	var serverName string
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		serverName, err = tx.NodeName()
+		return err
+	})
 	if err != nil {
 		return err
 	}
@@ -106,6 +122,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 		connection:   c,
 		id:           uuid.NewRandom().String(),
 		messageTypes: strings.Split(typeStr, ","),
+		location:     serverName,
 	}
 
 	// If this request is an internal one initiated by another node wanting
@@ -125,7 +142,7 @@ func eventsSocket(r *http.Request, w http.ResponseWriter) error {
 }
 
 func eventsGet(d *Daemon, r *http.Request) Response {
-	return &eventsServe{req: r}
+	return &eventsServe{req: r, d: d}
 }
 
 func eventSend(project, eventType string, eventMessage interface{}) error {
@@ -143,11 +160,6 @@ func eventSend(project, eventType string, eventMessage interface{}) error {
 }
 
 func eventBroadcast(project string, event api.Event, isForward bool) error {
-	body, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
-
 	eventsLock.Lock()
 	listeners := eventListeners
 	for _, listener := range listeners {
@@ -163,7 +175,7 @@ func eventBroadcast(project string, event api.Event, isForward bool) error {
 			continue
 		}
 
-		go func(listener *eventListener, body []byte) {
+		go func(listener *eventListener, event api.Event) {
 			// Check that the listener still exists
 			if listener == nil {
 				return
@@ -178,7 +190,24 @@ func eventBroadcast(project string, event api.Event, isForward bool) error {
 				return
 			}
 
-			err := listener.connection.WriteMessage(websocket.TextMessage, body)
+			// Set the Location to the expected serverName
+			if event.Location == "" {
+				eventCopy := api.Event{}
+				err := shared.DeepCopy(&event, &eventCopy)
+				if err != nil {
+					return
+				}
+				eventCopy.Location = listener.location
+
+				event = eventCopy
+			}
+
+			body, err := json.Marshal(event)
+			if err != nil {
+				return
+			}
+
+			err = listener.connection.WriteMessage(websocket.TextMessage, body)
 			if err != nil {
 				// Remove the listener from the list
 				eventsLock.Lock()
@@ -191,7 +220,7 @@ func eventBroadcast(project string, event api.Event, isForward bool) error {
 				listener.done = true
 				logger.Debugf("Disconnected event listener: %s", listener.id)
 			}
-		}(listener, body)
+		}(listener, event)
 	}
 	eventsLock.Unlock()
 
