@@ -128,6 +128,10 @@ func main() {
 	forkueventCmd := cmdForkuevent{global: &globalCmd}
 	app.AddCommand(forkueventCmd.Command())
 
+	// forkzfs sub-command
+	forkzfsCmd := cmdForkZFS{global: &globalCmd}
+	app.AddCommand(forkzfsCmd.Command())
+
 	// import sub-command
 	importCmd := cmdImport{global: &globalCmd}
 	app.AddCommand(importCmd.Command())

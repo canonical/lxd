@@ -130,25 +130,27 @@ test_security_protection() {
   lxc profile unset default security.protection.delete
 
   # Test shifting protection
-  lxc init testimage c1
-  lxc start c1
-  lxc stop c1 --force
+  if [ ! -e /sys/module/shiftfs/ ]; then
+    lxc init testimage c1
+    lxc start c1
+    lxc stop c1 --force
 
-  lxc profile set default security.protection.shift true
-  lxc start c1
-  lxc stop c1 --force
+    lxc profile set default security.protection.shift true
+    lxc start c1
+    lxc stop c1 --force
 
-  ! lxc publish c1 --alias=protected || false
-  lxc snapshot c1
-  lxc publish c1/snap0 --alias=protected
-  lxc image delete protected
+    ! lxc publish c1 --alias=protected || false
+    lxc snapshot c1
+    lxc publish c1/snap0 --alias=protected
+    lxc image delete protected
 
-  lxc config set c1 security.privileged true
-  ! lxc start c1 || false
-  lxc config set c1 security.protection.shift false
-  lxc start c1
-  lxc stop c1 --force
+    lxc config set c1 security.privileged true
+    ! lxc start c1 || false
+    lxc config set c1 security.protection.shift false
+    lxc start c1
+    lxc stop c1 --force
 
-  lxc delete c1
-  lxc profile unset default security.protection.shift
+    lxc delete c1
+    lxc profile unset default security.protection.shift
+  fi
 }
