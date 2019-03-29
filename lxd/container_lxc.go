@@ -2874,8 +2874,14 @@ func (c *containerLXC) OnStop(target string) error {
 	// Make sure we can't call go-lxc functions by mistake
 	c.fromHook = true
 
+	// Kill all proxy devices, must happen before StorageStop
+	err := c.removeProxyDevices()
+	if err != nil {
+		return fmt.Errorf("Unable to remove proxy devices: %v", err)
+	}
+
 	// Stop the storage for this container
-	_, err := c.StorageStop()
+	_, err = c.StorageStop()
 	if err != nil {
 		if op != nil {
 			op.Done(err)
@@ -2936,12 +2942,6 @@ func (c *containerLXC) OnStop(target string) error {
 		err = c.removeNetworkFilters()
 		if err != nil {
 			logger.Error("Unable to remove network filters", log.Ctx{"container": c.Name(), "err": err})
-		}
-
-		// Clean all proxy devices
-		err = c.removeProxyDevices()
-		if err != nil {
-			logger.Error("Unable to remove proxy devices", log.Ctx{"container": c.Name(), "err": err})
 		}
 
 		// Reboot the container
