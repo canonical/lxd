@@ -229,6 +229,23 @@ func eventBroadcast(project string, event api.Event, isForward bool) error {
 
 // Forward to the local events dispatcher an event received from another node .
 func eventForward(id int64, event api.Event) {
+	if event.Type == "logging" {
+		// Parse the message
+		logEntry := api.EventLogging{}
+		err := json.Unmarshal(event.Metadata, &logEntry)
+		if err != nil {
+			return
+		}
+
+		if !debug && logEntry.Level == "dbug" {
+			return
+		}
+
+		if !debug && !verbose && logEntry.Level == "info" {
+			return
+		}
+	}
+
 	err := eventBroadcast("", event, true)
 	if err != nil {
 		logger.Warnf("Failed to forward event from node %d: %v", id, err)
