@@ -1159,6 +1159,31 @@ func (c *containerLXC) initLXC(config bool) error {
 		return err
 	}
 
+	diskIdmap, err := c.DiskIdmap()
+	if err != nil {
+		return err
+	}
+
+	if c.state.OS.Shiftfs && !c.IsPrivileged() && diskIdmap == nil {
+		// Host side mark mount
+		err = lxcSetConfigItem(cc, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", c.RootfsPath(), c.RootfsPath()))
+		if err != nil {
+			return err
+		}
+
+		// Container side shift mount
+		err = lxcSetConfigItem(cc, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", c.RootfsPath(), c.RootfsPath()))
+		if err != nil {
+			return err
+		}
+
+		// Host side umount of mark mount
+		err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", c.RootfsPath()))
+		if err != nil {
+			return err
+		}
+	}
+
 	err = lxcSetConfigItem(cc, "lxc.hook.post-stop", fmt.Sprintf("%s callhook %s %d stop", c.state.OS.ExecPath, shared.VarPath(""), c.id))
 	if err != nil {
 		return err
@@ -1986,7 +2011,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		return "", errors.Wrap(err, "Set last ID map")
 	}
 
-	if !reflect.DeepEqual(nextIdmap, diskIdmap) {
+	if !reflect.DeepEqual(nextIdmap, diskIdmap) && !(diskIdmap == nil && c.state.OS.Shiftfs) {
 		if shared.IsTrue(c.expandedConfig["security.protection.shift"]) {
 			return "", fmt.Errorf("Container is protected against filesystem shifting")
 		}
@@ -2013,7 +2038,7 @@ func (c *containerLXC) startCommon() (string, error) {
 			}
 		}
 
-		if nextIdmap != nil {
+		if nextIdmap != nil && !c.state.OS.Shiftfs {
 			if c.Storage().GetStorageType() == storageTypeZfs {
 				err = nextIdmap.ShiftRootfs(c.RootfsPath(), zfsIdmapSetSkipper)
 			} else {
@@ -2028,7 +2053,7 @@ func (c *containerLXC) startCommon() (string, error) {
 		}
 
 		jsonDiskIdmap := "[]"
-		if nextIdmap != nil {
+		if nextIdmap != nil && !c.state.OS.Shiftfs {
 			idmapBytes, err := json.Marshal(nextIdmap.Idmap)
 			if err != nil {
 				return "", err
@@ -2444,6 +2469,9 @@ func (c *containerLXC) startCommon() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Error updating last used: %v", err)
 	}
+
+	// Unmount any previously mounted shiftfs
+	syscall.Unmount(c.RootfsPath(), syscall.MNT_DETACH)
 
 	return configPath, nil
 }
