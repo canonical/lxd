@@ -120,6 +120,10 @@ func main() {
 	forkstartCmd := cmdForkstart{global: &globalCmd}
 	app.AddCommand(forkstartCmd.Command())
 
+	// forkzfs sub-command
+	forkzfsCmd := cmdForkZFS{global: &globalCmd}
+	app.AddCommand(forkzfsCmd.Command())
+
 	// import sub-command
 	importCmd := cmdImport{global: &globalCmd}
 	app.AddCommand(importCmd.Command())

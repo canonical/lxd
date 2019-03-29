@@ -474,7 +474,7 @@ func (s *storageZfs) StoragePoolVolumeDelete() error {
 				return err
 			}
 
-			err = zfsPoolVolumeRename(poolName, fs, fmt.Sprintf("deleted/custom/%s", uuid.NewRandom().String()))
+			err = zfsPoolVolumeRename(poolName, fs, fmt.Sprintf("deleted/custom/%s", uuid.NewRandom().String()), true)
 			if err != nil {
 				return err
 			}
@@ -682,7 +682,7 @@ func (s *storageZfs) StoragePoolVolumeRename(newName string) error {
 	oldPath := fmt.Sprintf("custom/%s", s.volume.Name)
 	newPath := fmt.Sprintf("custom/%s", newName)
 	poolName := s.getOnDiskPoolName()
-	err = zfsPoolVolumeRename(poolName, oldPath, newPath)
+	err = zfsPoolVolumeRename(poolName, oldPath, newPath, false)
 	if err != nil {
 		return err
 	}
@@ -1269,7 +1269,7 @@ func (s *storageZfs) ContainerRename(container container, newName string) error 
 	// Rename the dataset.
 	oldZfsDataset := fmt.Sprintf("containers/%s", oldName)
 	newZfsDataset := fmt.Sprintf("containers/%s", newName)
-	err = zfsPoolVolumeRename(poolName, oldZfsDataset, newZfsDataset)
+	err = zfsPoolVolumeRename(poolName, oldZfsDataset, newZfsDataset, false)
 	if err != nil {
 		return err
 	}
@@ -1713,7 +1713,7 @@ func (s *storageZfs) ImageCreate(fingerprint string, tracker *ioprogress.Progres
 	}()
 
 	if zfsFilesystemEntityExists(poolName, fmt.Sprintf("deleted/%s", fs)) {
-		if err := zfsPoolVolumeRename(poolName, fmt.Sprintf("deleted/%s", fs), fs); err != nil {
+		if err := zfsPoolVolumeRename(poolName, fmt.Sprintf("deleted/%s", fs), fs, true); err != nil {
 			return err
 		}
 
@@ -1842,7 +1842,7 @@ func (s *storageZfs) ImageDelete(fingerprint string) error {
 				return err
 			}
 
-			if err := zfsPoolVolumeRename(poolName, fs, fmt.Sprintf("deleted/%s", fs)); err != nil {
+			if err := zfsPoolVolumeRename(poolName, fs, fmt.Sprintf("deleted/%s", fs), true); err != nil {
 				return err
 			}
 		}

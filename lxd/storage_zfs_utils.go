@@ -358,17 +358,28 @@ func zfsFilesystemEntityPropertyGet(pool string, path string, key string) (strin
 	return strings.TrimRight(output, "\n"), nil
 }
 
-func zfsPoolVolumeRename(pool string, source string, dest string) error {
+func zfsPoolVolumeRename(pool string, source string, dest string, ignoreMounts bool) error {
 	var err error
 	var output string
 
 	for i := 0; i < 20; i++ {
-		output, err = shared.RunCommand(
-			"zfs",
-			"rename",
-			"-p",
-			fmt.Sprintf("%s/%s", pool, source),
-			fmt.Sprintf("%s/%s", pool, dest))
+		if ignoreMounts {
+			output, err = shared.RunCommand(
+				"/proc/self/exe",
+				"forkzfs",
+				"--",
+				"rename",
+				"-p",
+				fmt.Sprintf("%s/%s", pool, source),
+				fmt.Sprintf("%s/%s", pool, dest))
+		} else {
+			output, err = shared.RunCommand(
+				"zfs",
+				"rename",
+				"-p",
+				fmt.Sprintf("%s/%s", pool, source),
+				fmt.Sprintf("%s/%s", pool, dest))
+		}
 
 		// Success
 		if err == nil {
@@ -737,7 +748,7 @@ func (s *storageZfs) doContainerDelete(name string) error {
 				return err
 			}
 
-			err = zfsPoolVolumeRename(poolName, fs, fmt.Sprintf("deleted/containers/%s", uuid.NewRandom().String()))
+			err = zfsPoolVolumeRename(poolName, fs, fmt.Sprintf("deleted/containers/%s", uuid.NewRandom().String()), true)
 			if err != nil {
 				return err
 			}
