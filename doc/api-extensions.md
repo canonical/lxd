@@ -722,3 +722,6 @@ This effectively gives us:
 
 This is required to implement environments where the on-disk map isn't
 changed but the kernel map is (e.g. shiftfs).
+
+## event\_location
+Expose the location of the generation of API events.
