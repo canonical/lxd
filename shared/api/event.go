@@ -10,6 +10,9 @@ type Event struct {
 	Type      string          `yaml:"type" json:"type"`
 	Timestamp time.Time       `yaml:"timestamp" json:"timestamp"`
 	Metadata  json.RawMessage `yaml:"metadata" json:"metadata"`
+
+	// API extension: event_location
+	Location string `yaml:"location" json:"location"`
 }
 
 // EventLogging represents a logging type event entry (admin only)
