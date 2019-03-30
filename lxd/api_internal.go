@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/shared/osarch"
 
 	log "github.com/lxc/lxd/shared/log15"
+	runtimeDebug "runtime/debug"
 )
 
 var apiInternal = []Command{
@@ -990,6 +991,7 @@ func internalImport(d *Daemon, r *http.Request) Response {
 func internalGC(d *Daemon, r *http.Request) Response {
 	logger.Infof("Started forced garbage collection run")
 	runtime.GC()
+	runtimeDebug.FreeOSMemory()
 	logger.Infof("Completed forced garbage collection run")
 
 	return EmptySyncResponse
