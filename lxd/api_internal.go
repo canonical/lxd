@@ -41,6 +41,7 @@ var apiInternal = []Command{
 	internalClusterPromoteCmd,
 	internalClusterContainerMovedCmd,
 	internalGarbageCollectorCmd,
+	internalRAFTSnapshotCmd,
 }
 
 var internalShutdownCmd = Command{
@@ -77,6 +78,11 @@ var internalContainersCmd = Command{
 var internalGarbageCollectorCmd = Command{
 	name: "gc",
 	get:  internalGC,
+}
+
+var internalRAFTSnapshotCmd = Command{
+	name: "raft-snapshot",
+	get:  internalRAFTSnapshot,
 }
 
 func internalWaitReady(d *Daemon, r *http.Request) Response {
@@ -993,6 +999,19 @@ func internalGC(d *Daemon, r *http.Request) Response {
 	runtime.GC()
 	runtimeDebug.FreeOSMemory()
 	logger.Infof("Completed forced garbage collection run")
+
+	return EmptySyncResponse
+}
+
+func internalRAFTSnapshot(d *Daemon, r *http.Request) Response {
+	logger.Infof("Started forced RAFT snapshot")
+	err := d.gateway.Snapshot()
+	if err != nil {
+		logger.Errorf("Failed forced RAFT snapshot: %v", err)
+		return InternalError(err)
+	}
+
+	logger.Infof("Completed forced RAFT snapshot")
 
 	return EmptySyncResponse
 }
