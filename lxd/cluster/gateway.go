@@ -243,6 +243,11 @@ func (g *Gateway) HandlerFuncs() map[string]http.HandlerFunc {
 	}
 }
 
+// Snapshot can be used to manually trigger a RAFT snapshot
+func (g *Gateway) Snapshot() error {
+	return g.raft.Snapshot()
+}
+
 // WaitUpgradeNotification waits for a notification from another node that all
 // nodes in the cluster should now have been upgraded and have matching schema
 // and API versions.
