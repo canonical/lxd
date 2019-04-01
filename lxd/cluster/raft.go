@@ -297,6 +297,11 @@ func (i *raftInstance) Shutdown() error {
 	return nil
 }
 
+// Snapshot can be used to manually trigger a RAFT snapshot
+func (i *raftInstance) Snapshot() error {
+	return i.raft.Snapshot().Error()
+}
+
 // Create an in-memory raft transport.
 func raftMemoryTransport() raft.Transport {
 	_, transport := raft.NewInmemTransport("0")
