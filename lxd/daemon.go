@@ -715,12 +715,6 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	/* Restore simplestreams cache */
-	err = imageLoadStreamCache(d)
-	if err != nil {
-		return err
-	}
-
 	// Cleanup leftover images
 	pruneLeftoverImages(d)
 
@@ -993,10 +987,6 @@ func (d *Daemon) Stop() error {
 		logger.Debugf(
 			"Not unmounting temporary filesystems (containers are still running)")
 	}
-
-	logger.Infof("Saving simplestreams cache")
-	trackError(imageSaveStreamCache(d.os))
-	logger.Infof("Saved simplestreams cache")
 
 	var err error
 	if n := len(errs); n > 0 {
