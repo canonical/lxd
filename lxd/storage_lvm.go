@@ -2201,91 +2201,47 @@ func (s *storageLvm) StoragePoolVolumeCopy(source *api.StorageVolumeSource) erro
 	logger.Infof("Copying LVM storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 	successMsg := fmt.Sprintf("Copied LVM storage volume \"%s\" on storage pool \"%s\" as \"%s\" to storage pool \"%s\"", source.Name, source.Pool, s.volume.Name, s.pool.Name)
 
-	srcMountPoint := getStoragePoolVolumeMountPoint(source.Pool, source.Name)
-	dstMountPoint := getStoragePoolVolumeMountPoint(s.pool.Name, s.volume.Name)
+	if s.pool.Name != source.Pool {
+		// Cross-pool copy
+		// setup storage for the source volume
+		srcStorage, err := storagePoolVolumeInit(s.s, "default", source.Pool, source.Name, storagePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
 
-	sourceName := source.Name
-	targetName := s.volume.Name
-
-	if shared.IsSnapshot(sourceName) {
-		sourceName = containerNameToLVName(sourceName)
+		ourMount, err := srcStorage.StoragePoolMount()
+		if err != nil {
+			return err
+		}
+		if ourMount {
+			defer srcStorage.StoragePoolUmount()
+		}
 	}
 
-	if shared.IsSnapshot(targetName) {
-		targetName = containerNameToLVName(targetName)
+	err := s.copyVolume(source.Pool, source.Name)
+	if err != nil {
+		return err
 	}
 
-	if s.pool.Name == source.Pool && s.useThinpool {
-		err := os.MkdirAll(dstMountPoint, 0711)
-		if err != nil {
-			logger.Errorf("Failed to create mountpoint \"%s\" for LVM storage volume \"%s\" on storage pool \"%s\": %s", dstMountPoint, s.volume.Name, s.pool.Name, err)
-			return err
-		}
-
-		poolName := s.getOnDiskPoolName()
-		lvFsType := s.getLvmFilesystem()
-		lvSize, err := s.getLvmVolumeSize()
-		if lvSize == "" {
-			logger.Errorf("Failed to get size for LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-			return err
-		}
-
-		_, err = s.createSnapshotLV("default", poolName, sourceName, storagePoolVolumeAPIEndpointCustom, targetName, storagePoolVolumeAPIEndpointCustom, false, s.useThinpool)
-		if err != nil {
-			logger.Errorf("Failed to create snapshot for LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-			return err
-		}
-
-		lvDevPath := getLvmDevPath("default", poolName, storagePoolVolumeAPIEndpointCustom, targetName)
-		msg, err := fsGenerateNewUUID(lvFsType, lvDevPath)
-		if err != nil {
-			logger.Errorf("Failed to create new UUID for filesystem \"%s\" for RBD storage volume \"%s\" on storage pool \"%s\": %s: %s", lvFsType, s.volume.Name, s.pool.Name, msg, err)
-			return err
-		}
-
+	if source.VolumeOnly {
 		logger.Infof(successMsg)
 		return nil
 	}
 
-	if s.pool.Name != source.Pool {
-		// setup storage for the source volume
-		srcStorage, err := storagePoolVolumeInit(s.s, "default", source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	snapshots, err := storagePoolVolumeSnapshotsGet(s.s, source.Pool, source.Name, storagePoolVolumeTypeCustom)
+	if err != nil {
+		return err
+	}
+
+	if len(snapshots) == 0 {
+		return nil
+	}
+
+	for _, snap := range snapshots {
+		err = s.copyVolumeSnapshot(source.Pool, snap)
 		if err != nil {
-			logger.Errorf("Failed to initialize LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
 			return err
 		}
-
-		ourMount, err := srcStorage.StoragePoolVolumeMount()
-		if err != nil {
-			logger.Errorf("Failed to mount LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-			return err
-		}
-
-		if ourMount {
-			defer srcStorage.StoragePoolVolumeUmount()
-		}
-	}
-
-	err := s.StoragePoolVolumeCreate()
-	if err != nil {
-		logger.Errorf("Failed to create LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-		return err
-	}
-
-	ourMount, err := s.StoragePoolVolumeMount()
-	if err != nil {
-		return err
-	}
-	if ourMount {
-		defer s.StoragePoolVolumeUmount()
-	}
-
-	bwlimit := s.pool.Config["rsync.bwlimit"]
-	_, err = rsyncLocalCopy(srcMountPoint, dstMountPoint, bwlimit)
-	if err != nil {
-		os.RemoveAll(dstMountPoint)
-		logger.Errorf("Failed to rsync into LVM storage volume \"%s\" on storage pool \"%s\": %s", s.volume.Name, s.pool.Name, err)
-		return err
 	}
 
 	logger.Infof(successMsg)
