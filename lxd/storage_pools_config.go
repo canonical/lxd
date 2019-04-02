@@ -20,6 +20,7 @@ var changeableStoragePoolProperties = map[string][]string{
 		"btrfs.mount_options"},
 
 	"ceph": {
+		"ceph.rbd.clone_copy",
 		"volume.block.filesystem",
 		"volume.block.mount_options",
 		"volume.size"},
