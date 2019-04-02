@@ -320,9 +320,7 @@ func createFromMigration(d *Daemon, project string, req *api.ContainersPost) Res
 		c, err = containerLoadByProjectAndName(d.State(), project, req.Name)
 		if err != nil {
 			req.Source.Refresh = false
-		}
-
-		if c.IsRunning() {
+		} else if c.IsRunning() {
 			return BadRequest(fmt.Errorf("Cannot refresh a running container"))
 		}
 	}
