@@ -50,11 +50,4 @@ func daemonConfigSetProxy(d *Daemon, config *cluster.Config) {
 		config.ProxyHTTP(),
 		config.ProxyIgnoreHosts(),
 	)
-
-	// Clear the simplestreams cache as it's tied to the old proxy config
-	imageStreamCacheLock.Lock()
-	for k := range imageStreamCache {
-		delete(imageStreamCache, k)
-	}
-	imageStreamCacheLock.Unlock()
 }
