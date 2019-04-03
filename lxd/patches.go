@@ -68,6 +68,7 @@ var patches = []patch{
 	{name: "move_backups", run: patchMoveBackups},
 	{name: "storage_api_rename_container_snapshots_dir", run: patchStorageApiRenameContainerSnapshotsDir},
 	{name: "storage_api_rename_container_snapshots_links", run: patchStorageApiUpdateContainerSnapshots},
+	{name: "fix_lvm_pool_volume_names", run: patchRenameCustomVolumeLVs},
 }
 
 type patch struct {
@@ -121,6 +122,55 @@ func patchesApplyAll(d *Daemon) error {
 }
 
 // Patches begin here
+func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
+	// Ignore the error since it will also fail if there are no pools.
+	pools, _ := d.cluster.StoragePools()
+
+	for _, poolName := range pools {
+		poolID, pool, err := d.cluster.StoragePoolGet(poolName)
+		if err != nil {
+			return err
+		}
+
+		sType, err := storageStringToType(pool.Driver)
+		if err != nil {
+			return err
+		}
+
+		if sType != storageTypeLvm {
+			continue
+		}
+
+		volumes, err := d.cluster.StoragePoolNodeVolumesGetType(storagePoolVolumeTypeCustom, poolID)
+		if err != nil {
+			return err
+		}
+
+		for _, volume := range volumes {
+			oldName := fmt.Sprintf("%s/custom_%s", poolName, volume)
+			newName := fmt.Sprintf("%s/custom_%s", poolName, containerNameToLVName(volume))
+
+			exists, err := storageLVExists(newName)
+			if err != nil {
+				return err
+			}
+
+			if exists || oldName == newName {
+				continue
+			}
+
+			err = lvmLVRename(poolName, oldName, newName)
+			if err != nil {
+				return err
+			}
+
+			logger.Info("Successfully renamed LV", log.Ctx{"old_name": oldName, "new_name": newName})
+		}
+	}
+
+	return nil
+}
+
 func patchLeftoverProfileConfig(name string, d *Daemon) error {
 	return d.cluster.ProfileCleanupLeftover()
 }
