@@ -700,3 +700,18 @@ func storagePoolVolumeSnapshotDBCreateInternal(state *state.State, dbArgs *db.St
 
 	return s, nil
 }
+
+// storagePoolVolumeSnapshotsGet returns a list of snapshots of the form <volume>/<snapshot-name>.
+func storagePoolVolumeSnapshotsGet(s *state.State, pool string, volume string, volType int) ([]string, error) {
+	poolID, err := s.Cluster.StoragePoolGetID(pool)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshots, err := s.Cluster.StoragePoolVolumeSnapshotsGetType(volume, volType, poolID)
+	if err != nil {
+		return nil, err
+	}
+
+	return snapshots, nil
+}
